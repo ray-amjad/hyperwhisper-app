@@ -891,6 +891,7 @@
 "audio.error.permissionDenied" = "麦克风访问被拒绝。请在系统设置中启用。";
 "audio.error.microphonePermission" = "未授予麦克风权限";
 "audio.error.microphoneInUse" = "HyperWhisper 无法访问麦克风，因为其他应用正在使用。请暂停其他应用或切换输入后再试。";
+"audio.error.audioSystemNotResponding" = "macOS 音频没有响应，因此无法启动麦克风。请稍后重试。如果问题持续出现，请重新启动 Mac。";
 "audio.error.createEngine" = "无法创建音频引擎";
 "audio.error.noInput" = "无可用音频输入";
 "audio.error.createFile" = "无法创建音频文件";

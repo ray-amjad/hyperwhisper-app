@@ -1,55 +1,34 @@
 "use client";
 
-import { Suspense, type ReactNode, useEffect, useRef } from "react";
-import posthog from "posthog-js";
-import { PostHogProvider as PostHogReactProvider } from "posthog-js/react";
-import { env } from "@env/client.mjs";
+import { type ReactNode, useEffect } from "react";
+
+import { loadPostHog } from "@/src/lib/posthog-client";
 
 interface PostHogClientProviderProps {
   children: ReactNode;
 }
 
-const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
-
+// No static PostHog import and no posthog-js/react provider: either one puts
+// the whole PostHog core in every route's initial bundle (#918). The core is
+// loaded and initialised after hydration, in its own chunk.
 function PostHogClientProviderInner({ children }: PostHogClientProviderProps) {
-  const apiKey = env.NEXT_PUBLIC_POSTHOG_KEY;
-  const apiHost = env.NEXT_PUBLIC_POSTHOG_HOST ?? DEFAULT_POSTHOG_HOST;
-
-  const hasInitialisedRef = useRef(false);
-
   useEffect(() => {
-    if (!apiKey) {
-      // Skip initialisation when the PostHog key is not configured (e.g. local dev).
-      return;
-    }
+    void loadPostHog();
+  }, []);
 
-    if (hasInitialisedRef.current && posthog.config.api_host === apiHost) {
-      return;
-    }
-
-    posthog.init(apiKey, {
-      api_host: apiHost,
-      person_profiles: "always",
-    });
-
-    hasInitialisedRef.current = true;
-  }, [apiKey, apiHost]);
-
-  if (!apiKey) {
-    return <>{children}</>;
-  }
-
-  return (
-    <PostHogReactProvider client={posthog}>{children}</PostHogReactProvider>
-  );
+  return <>{children}</>;
 }
 
+// No Suspense here. This provider wraps every page, and a boundary at this
+// level streams each page into a hidden chunk that only a script reveals, so
+// with JavaScript off every route painted blank (#1089). The 2 useSearchParams
+// callers with no boundary of their own (download, sign-in) render
+// dynamically, because the layouts read headers() and neither page sets
+// `dynamic = "force-static"`. A static route (blog, latency and
+// choosing-a-model are) or shared chrome that calls useSearchParams must add
+// its own Suspense boundary, or `next build` fails.
 export function PostHogClientProvider({
   children,
 }: PostHogClientProviderProps) {
-  return (
-    <Suspense fallback={null}>
-      <PostHogClientProviderInner>{children}</PostHogClientProviderInner>
-    </Suspense>
-  );
+  return <PostHogClientProviderInner>{children}</PostHogClientProviderInner>;
 }

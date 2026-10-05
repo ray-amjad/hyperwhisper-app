@@ -356,14 +356,12 @@ public partial class MainWindow : Window
     private void CloudCreditsSidebar_Click(object? sender, EventArgs e)
     {
         // Open the combined Cloud account / credits + license activation panel.
-        Sidebar.SettingsNavButton.IsChecked = true;
         _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
         NavigateToPage(MainViewModel.NavigationPage.Settings, "License");
     }
 
     public void NavigateToSettingsSection(string sectionTag)
     {
-        Sidebar.SettingsNavButton.IsChecked = true;
         _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
         NavigateToPage(MainViewModel.NavigationPage.Settings, sectionTag);
     }
@@ -433,7 +431,6 @@ public partial class MainWindow : Window
             if (args.OpenApiKeysManager)
             {
                 _viewModel.ShouldOpenModelLibraryApiKeys = true;
-                Sidebar.ModelLibraryNavButton.IsChecked = true;
                 _viewModel.CurrentPage = MainViewModel.NavigationPage.ModelLibrary;
                 NavigateToPage(MainViewModel.NavigationPage.ModelLibrary);
                 return;
@@ -441,14 +438,12 @@ public partial class MainWindow : Window
 
             if (args.SettingsSection == "Models")
             {
-                Sidebar.ModelLibraryNavButton.IsChecked = true;
                 _viewModel.CurrentPage = MainViewModel.NavigationPage.ModelLibrary;
                 NavigateToPage(MainViewModel.NavigationPage.ModelLibrary);
                 return;
             }
 
             // Show main window and navigate to settings
-            Sidebar.SettingsNavButton.IsChecked = true;
             _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
             NavigateToPage(MainViewModel.NavigationPage.Settings, args.SettingsSection ?? "General");
         };

@@ -44,6 +44,13 @@ public partial class StreamingSettingsPage : Page
         LanguageBox.SelectedValue = _settings.StreamingLanguage;
 
         SelectComboBoxItemByTag(ProviderBox, _settings.StreamingProvider);
+        // A model name is a proper noun and lives in the catalog only. These 2 rows used to
+        // read it from a key copied into 40 translation files (#837).
+        foreach (var item in DeepgramModelBox.Items.OfType<ComboBoxItem>())
+        {
+            if (item.Tag is string id)
+                item.Content = CloudTranscriptionModels.GetById(id, CloudTranscriptionProvider.Deepgram)?.DisplayName ?? id;
+        }
         SelectComboBoxItemByTag(DeepgramModelBox, _settings.StreamingDeepgramModel);
         FastFormattingCheckbox.IsChecked = _settings.StreamingFastFormatting;
 
@@ -70,6 +77,10 @@ public partial class StreamingSettingsPage : Page
     {
         if (_isInitializing) return;
         _settings.StreamingEnabled = StreamingEnabledCheckbox.IsChecked == true;
+        // Re-checked here, not only on Loaded: the Shortcuts page lets another row take
+        // the streaming chord while streaming is off (#704), so the standing error has
+        // to be current when the row reappears.
+        UpdateStreamingShortcutConflict();
         UpdateStreamingOptionsVisibility();
         LoggingService.Info($"StreamingSettingsPage: Streaming enabled set to {_settings.StreamingEnabled}");
     }

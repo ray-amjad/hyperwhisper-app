@@ -890,6 +890,7 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "audio.error.permissionDenied" = "Mikrofonåtkomst nekad. Aktivera i Systeminställningar.";
 "audio.error.microphonePermission" = "Mikrofonåtkomst inte beviljas";
 "audio.error.microphoneInUse" = "HyperWhisper kan inte komma åt mikrofonen eftersom en annan app använder den för närvarande. Pausa den andra appen eller växla inmatningar, sedan försök igen.";
+"audio.error.audioSystemNotResponding" = "Ljudet i macOS svarar inte, så mikrofonen kunde inte starta. Försök igen om en stund. Om det fortsätter, starta om din Mac.";
 "audio.error.createEngine" = "Det gick inte att skapa audiomotor";
 "audio.error.noInput" = "Ingen audioinmatning tillgänglig";
 "audio.error.createFile" = "Det gick inte att skapa ljudfil";

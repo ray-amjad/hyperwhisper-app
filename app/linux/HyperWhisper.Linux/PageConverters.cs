@@ -120,6 +120,10 @@ public sealed class LanguageDisplayNameConverter : IValueConverter
 /// </summary>
 public sealed class ModeProviderLineConverter : IValueConverter
 {
+    private readonly OptionLabelConverter _labels;
+
+    public ModeProviderLineConverter(OptionLabelConverter labels) => _labels = labels;
+
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is not Mode mode) return null;
@@ -133,7 +137,7 @@ public sealed class ModeProviderLineConverter : IValueConverter
         // HyperWhisper Cloud and only appends the model for a BYOK provider. Appending it in both
         // cases gave the card a third segment, which pushed the post-processing name past the
         // card edge and clipped it: "HyperWhisper Cloud · scribe_v2 · anthropic:claude-h...".
-        var provider = ProviderDisplayName(mode.CloudProvider);
+        var provider = ProviderDisplayName(mode.CloudProvider, culture);
         if (IsHyperWhisperCloud(mode.CloudProvider)) return provider;
         var model = mode.CloudTranscriptionModel ?? mode.Model;
         return string.IsNullOrWhiteSpace(model) ? provider : $"{provider} · {model}";
@@ -148,25 +152,22 @@ public sealed class ModeProviderLineConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 
-    private static string ProviderDisplayName(string? id) => id?.ToLowerInvariant() switch
+    /// <summary>
+    /// The provider name for a mode card. A BYOK provider takes the SAME label the Mode
+    /// editor's "Your provider" row draws for it (<c>provider.&lt;id&gt;</c> through
+    /// <see cref="OptionLabelConverter"/>), so one mode reads one name in both places. The card
+    /// used to keep its own switch, and said "xAI" for a Grok mode the editor called "Grok".
+    /// Windows shortens HyperWhisper Cloud to "HyperWhisper" on a mode card; so does this.
+    ///
+    /// The id is folded the way the editor's list writes it: lower case, and the macOS
+    /// spelling <c>xai</c> read as <c>grok</c>. The old switch did the same fold.
+    /// </summary>
+    private string ProviderDisplayName(string? id, CultureInfo culture)
     {
-        // Windows shortens this to "HyperWhisper" on a mode card; the long form is the page copy.
-        null or "" or "hyperwhisper" or "hyperwhispercloud" or "hyperwhisper_cloud" => "HyperWhisper",
-        "openai" => "OpenAI",
-        "groq" => "Groq",
-        "elevenlabs" => "ElevenLabs",
-        "mistral" => "Mistral",
-        "grok" or "xai" => "xAI",
-        "deepgram" => "Deepgram",
-        "assemblyai" => "AssemblyAI",
-        "soniox" => "Soniox",
-        "gemini" => "Gemini",
-        "geminitranscribe" => "Gemini 3.5 Transcribe",
-        "microsoftazurespeech" => "Azure Speech",
-        "googlespeech" => "Google Speech",
-        "meta" => "Meta",
-        _ => id,
-    };
+        if (IsHyperWhisperCloud(id)) return "HyperWhisper";
+        var key = id!.ToLowerInvariant() is "xai" ? "grok" : id.ToLowerInvariant();
+        return _labels.Convert(key, typeof(string), "provider.", culture) as string ?? key;
+    }
 }
 
 /// <summary>

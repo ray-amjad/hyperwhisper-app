@@ -10,9 +10,9 @@ namespace HyperWhisper.Services.LocalApi.Endpoints;
 
 /// <summary>
 /// `GET /recordings/search` and `GET /recordings/{id}` — read-only projection
-/// over the Transcript history table. Filtering for `since` / `until` happens
-/// in-process because <see cref="HistoryService.Search"/> only accepts the
-/// coarse <see cref="DateFilter"/> enum. There is intentionally no DELETE —
+/// over the Transcript history table. `q`, `since`, `until`, the count and
+/// `limit` run in SQL through <see cref="HistoryService.QueryPage"/> (issue
+/// #1123), not over the whole table. There is intentionally no DELETE —
 /// the macOS API exposes none and adding it Windows-only would break parity.
 /// </summary>
 [SupportedOSPlatform("windows")]
@@ -56,23 +56,11 @@ internal static class RecordingsEndpoints
         var until = ParseDateOrEpoch(ctx.Request.Query["until"]);
         var limit = ClampLimit(ctx.Request.Query["limit"], fallback: 50, min: 1, max: 500);
 
-        var rows = HistoryService.Instance.GetAllTranscripts();
-        IEnumerable<Transcript> filtered = rows;
-        if (q.Length > 0)
-        {
-            filtered = filtered.Where(r =>
-                (r.Text?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (r.PostProcessedText?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (r.TranscribedText?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
-        }
-        if (since is { } s) filtered = filtered.Where(r => r.Date >= s);
-        if (until is { } u) filtered = filtered.Where(r => r.Date <= u);
-
-        var matches = filtered.ToList();
-        var recordings = matches.Take(limit).Select(ToDto).ToList();
+        var (page, total) = HistoryService.Instance.QueryPage(q, since, until, limit);
+        var recordings = page.Select(ToDto).ToList();
         return LocalApiResponder.Ok(new RecordingsListResponse
         {
-            Total = matches.Count,
+            Total = total,
             Returned = recordings.Count,
             Recordings = recordings
         });

@@ -9,7 +9,7 @@ import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson } from './utils';
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v5 is canonical; v4 remains accepted only as an old-caller compatibility alias.
@@ -197,6 +197,7 @@ export async function transcribeWithSoniox(
     const deadline = performance.now() + POLL_DEADLINE_MS;
     const jobUrl = `${SONIOX_BASE}/v1/transcriptions/${transcriptionId}`;
     let polls = 0;
+    let malformedPolls = 0;
     let durationSeconds = 0;
     let completed = false;
 
@@ -218,10 +219,13 @@ export async function transcribeWithSoniox(
         continue;
       }
 
-      let job: { status?: string; audio_duration_ms?: number; error_message?: string; error_type?: string };
-      try {
-        job = await jobResp.json();
-      } catch {
+      // Unreadable or malformed poll body: the helper logs parse_error (never
+      // the body, #1069) and the poll retries, as `await resp.json()` did on main.
+      const job = await readPollJson<{ status?: string; audio_duration_ms?: number; error_message?: string; error_type?: string }>(
+        provider, jobResp, polls, context,
+      );
+      if (job === undefined) {
+        malformedPolls += 1;
         continue;
       }
 
@@ -249,7 +253,7 @@ export async function transcribeWithSoniox(
     }
 
     if (!completed) {
-      logProviderEvent(provider, 'poll_deadline', { model, polls, deadlineMs: POLL_DEADLINE_MS }, context);
+      logProviderEvent(provider, 'poll_deadline', { model, polls, malformedPolls, deadlineMs: POLL_DEADLINE_MS }, context);
       throw new ProviderUnavailableError('Soniox', `poll deadline exceeded after ${POLL_DEADLINE_MS}ms`);
     }
 

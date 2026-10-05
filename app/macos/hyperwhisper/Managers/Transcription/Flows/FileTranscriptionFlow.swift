@@ -240,7 +240,7 @@ class FileTranscriptionFlow {
             return
         }
 
-        AppLogger.transcription.info("📂 Opening file picker for mode: \(mode.name ?? "unnamed")")
+        AppLogger.transcription.info("📂 Opening file picker · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public)")
 
         // STEP 1: Show file picker
         let panel = NSOpenPanel()

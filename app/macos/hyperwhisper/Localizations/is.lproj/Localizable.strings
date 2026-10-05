@@ -890,6 +890,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "audio.error.permissionDenied" = "Aðgangur að hljóðnema hafnað. Vinsamlegast virkjaðu í kerfisstillingum.";
 "audio.error.microphonePermission" = "Hljóðnemaleyfi ekki veitt";
 "audio.error.microphoneInUse" = "HyperWhisper getur ekki nálgast hljóðnemannm vegna þess að annað forrit er núna að nota hann. Gerðu hlé á hinu forritinu eða skiptu um inntak, reyndu síðan aftur.";
+"audio.error.audioSystemNotResponding" = "Hljóðkerfi macOS svarar ekki, svo ekki tókst að ræsa hljóðnemann. Reyndu aftur eftir smástund. Ef þetta heldur áfram skaltu endurræsa Mac-tölvuna.";
 "audio.error.createEngine" = "Mistókst að búa til hljóðvél";
 "audio.error.noInput" = "Ekkert hljóðinntak tiltækt";
 "audio.error.createFile" = "Mistókst að búa til hljóðskrá";

@@ -2,7 +2,7 @@
 
 import { retryWithBackoff } from './utils';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from '../providers/llm-contract';
-import { LLMRequestError } from '../providers/llm-errors';
+import { LLMRequestError, LLMTimeoutError } from '../providers/llm-errors';
 import { requestCerebrasChat } from '../providers/cerebras';
 import { requestGroqChat } from '../providers/groq-llm';
 import { requestAnthropicChat } from '../providers/anthropic';
@@ -65,7 +65,8 @@ const LLM_PROVIDER_FALLBACKS: Record<LLMProvider, LLMProvider> = {
 };
 
 // Per-provider retry count. Fast/cheap providers retry more; pricier or slower
-// ones retry less to bound latency and spend before falling back.
+// ones retry less to bound latency and spend before falling back. A timeout
+// from our own per-attempt timer is never retried (see isRetryableLLMError).
 const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
   anthropic: 2,
   cerebras: 0,
@@ -141,6 +142,18 @@ export function resolveLLMModel(provider: LLMProvider, request: Request): string
 }
 
 /**
+ * Whether callWithRetry retries `error` on the same provider. Everything is,
+ * except a timeout from our own timer (LLMTimeoutError, #782 review round 2):
+ * the provider has just been silent for the whole per-attempt bound, so a
+ * retry would only make the caller wait that long again before the fallback
+ * provider gets its turn. An upstream-returned 504, any other non-2xx and a
+ * network error are still retried.
+ */
+export function isRetryableLLMError(error: Error): boolean {
+  return !(error instanceof LLMTimeoutError);
+}
+
+/**
  * Retry LLM call with exponential backoff. `model` is the resolved (allowlisted)
  * model id — the openai/gemini/mistral clients send it as the request model; the
  * other providers ignore it.
@@ -166,6 +179,7 @@ export async function callWithRetry(
       maxRetries: LLM_PROVIDER_RETRIES[provider],
       initialDelayMs: 1000,
       backoffMultiplier: 2,
+      shouldRetry: isRetryableLLMError,
       onRetry: (attempt, error, delayMs) => {
         console.warn(`[llm] ${provider} failed - retrying`, {
           attempt,

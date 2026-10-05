@@ -31,6 +31,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("global shortcut capability probe is content-free and closes sources", ShortcutCapabilityProbe),
     ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
     ("X11 modifier-only shortcuts emit press and release", X11ModifierShortcut),
+    ("X11 shortcut released modifier-first fires again", X11ModifierFirstRelease),
     ("X11 maps multi-modifier-only shortcuts in either order", X11MultiModifierShortcut),
     ("true Xorg selects XGrabKey instead of evdev", XorgSelectsXGrabKey),
     ("X11 XGrabKey host integration", X11GrabIntegration),
@@ -44,6 +45,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("StatusNotifierItem helper exposes only fixed actions", StatusNotifierHelperManifest),
     ("StatusNotifierItem helper disconnect is observable", StatusNotifierDisconnect),
     ("StatusNotifierItem startup cancellation stops helper", StatusNotifierStartupCancellation),
+    ("StatusNotifierItem helper serves dbusmenu on a private bus", StatusNotifierHelperServesDbusmenu),
     ("event dispatch isolates failing subscribers", IsolatesSubscribers),
     ("Pulse recorder writes private canonical WAV", PulseRecorderWritesWave),
     ("Pulse recorder reports unavailable capability", PulseRecorderUnavailable),
@@ -120,6 +122,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Pulse guard stays armed while a second service raises", PulseGuardStaysArmedWhileASecondServiceRaises),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
+    ("streaming parec asks for a 20 ms fragment only when opted in", StreamingParecLatencyArguments),
+    ("streaming pw-record passes --raw only when its help lists it", StreamingPwRecordRawArguments),
+    ("streaming audio groups reads into 100 ms chunks and flushes the tail", StreamingAudioGroupsHundredMillisecondChunks),
+    ("streaming audio level survives a clipped -32768 sample", StreamingAudioLevelSurvivesClipping),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
     ("Secret Service keeps credential out of argv", SecretServiceArgvPrivacy),
     ("single-instance socket signals primary safely", SingleInstanceSocket),
@@ -134,6 +140,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("interaction suppresses repeats and emits content-free mode changes", InteractionActionPrivacy),
     ("streaming startup is cancellable and excludes batch starts", StreamingStartupCancellation),
     ("batch and streaming shortcuts refuse the opposite active kind", InteractionKindMutualExclusion),
+    ("Stop ends a live stream held after its connection was lost", InteractionStopEndsHeldStream),
+    ("shortcuts stop or cancel a held live stream and never start over it", InteractionShortcutsRespectHeldStream),
+    ("duration limit ends a held live stream without a false limit message", InteractionDurationLimitEndsHeldStream),
+    ("a stream held during start keeps its injection session until Stop", InteractionStartKeepsHeldStreamSession),
     ("interaction accepts unassigned and multi-modifier shortcuts", InteractionFlexibleShortcutValidation),
     ("interaction conflicts and registration failures restore prior bindings", InteractionActionRollback),
     ("interaction restores live X11 grabs after registration failure", InteractionX11Rollback),
@@ -153,6 +163,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("microphone keep-warm suspends and resumes child", MicrophoneKeepWarmLifecycle),
     ("microphone keep-warm never opens the server default source", MicrophoneKeepWarmNeedsASelectedDevice),
     ("microphone keep-warm resumed twice keeps one capture child", MicrophoneKeepWarmResumedTwiceOpensOneSource),
+    ("microphone keep-warm reconfigure returns on a blocked UI context", MicrophoneKeepWarmReconfigureOnBlockedContext),
+    ("microphone keep-warm suspend returns on a blocked UI context", MicrophoneKeepWarmSuspendOnBlockedContext),
+    ("microphone keep-warm stuck teardown never touches the replacement source", MicrophoneKeepWarmStuckTeardownSparesReplacement),
+    ("Linux child process terminate and dispose return on a blocked UI context", ChildProcessTeardownOnBlockedContext),
     ("sound effects expose unsupported and safe success", SoundEffectsPaths),
     ("audio environment mute restores exact prior state", AudioEnvironmentMuteRestore),
     ("audio environment unchanged requires no backend", AudioEnvironmentUnchanged),
@@ -437,6 +451,21 @@ static async Task X11ModifierShortcut()
     Assert.True(connection.Grabs.All(value => value.Modifiers is 0 or 2 or 16 or 18));
 }
 
+static async Task X11ModifierFirstRelease()
+{
+    var connection = new FakeX11Connection(new X11HotkeyEvent(65, 5, true),
+        new X11HotkeyEvent(65, 0, false), new X11HotkeyEvent(65, 5, true));
+    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection));
+    var events = new List<string>();
+    service.ShortcutPressed += (_, args) => events.Add("down:" + args.Name);
+    service.ShortcutReleased += (_, args) => events.Add("up:" + args.Name);
+    service.RegisterShortcuts([new NamedShortcut("streaming",
+        new(ShortcutModifiers.Control | ShortcutModifiers.Shift, new("Space")))]);
+    Assert.Success(service.Start());
+    await connection.Drained.Task.WaitAsync(TimeSpan.FromSeconds(2)); await Task.Delay(30);
+    Assert.Equal("down:streaming,up:streaming,down:streaming", string.Join(',', events));
+}
+
 static Task X11MultiModifierShortcut()
 {
     var mapped = X11ShortcutMapper.Map(new NamedShortcut("toggle",
@@ -610,6 +639,73 @@ static async Task StatusNotifierStartupCancellation()
         }
         finally { Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", prior); }
     });
+}
+
+// Runs the real helper against Assets/fake-status-notifier-watcher.py on a private
+// dbus-daemon. The watcher checks the group methods libdbusmenu-glib relies on
+// (#1265) and prints WATCHER|ok; EventGroup on item 5 must reach us as OpenHistory.
+static async Task StatusNotifierHelperServesDbusmenu()
+{
+    var python = CommandClipboardBackend.FindExecutable("python3");
+    var daemon = CommandClipboardBackend.FindExecutable("dbus-daemon");
+    var helper = Path.Combine(AppContext.BaseDirectory, "DesktopCompanions", "status-notifier.py");
+    var watcherScript = Path.Combine(AppContext.BaseDirectory, "Assets", "fake-status-notifier-watcher.py");
+    Assert.True(File.Exists(helper) && File.Exists(watcherScript));
+    if (python is null || daemon is null || !await PythonHasGiAsync(python))
+    {
+        Console.WriteLine("SKIP StatusNotifierItem helper serves dbusmenu: needs python3-gi and dbus-daemon");
+        return;
+    }
+    using var bus = Process.Start(new ProcessStartInfo(daemon, "--session --nofork --print-address")
+    { UseShellExecute = false, RedirectStandardOutput = true })
+        ?? throw new InvalidOperationException("dbus-daemon failed to start");
+    var priorAddress = Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS");
+    var priorLocale = Environment.GetEnvironmentVariable("LC_ALL");
+    Process? watcher = null;
+    try
+    {
+        var address = (await bus.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5)))?.Trim();
+        Assert.True(!string.IsNullOrEmpty(address));
+        Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", address);
+        Environment.SetEnvironmentVariable("LC_ALL", "C");
+        watcher = Process.Start(new ProcessStartInfo(python, watcherScript)
+        { UseShellExecute = false, RedirectStandardOutput = true })
+            ?? throw new InvalidOperationException("fake watcher failed to start");
+        Assert.Equal("WATCHER|ready", await watcher.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5)));
+
+        using var service = new LinuxStatusNotifierItemService(python, helper);
+        var actions = new System.Collections.Concurrent.ConcurrentQueue<StatusNotifierAction>();
+        var history = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.ActionRequested += (_, args) =>
+        {
+            actions.Enqueue(args.Action);
+            if (args.Action == StatusNotifierAction.OpenHistory) history.TrySetResult();
+        };
+        Assert.Success(await service.StartAsync());
+        Assert.Equal("WATCHER|ok", await watcher.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+        await history.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(
+            "Show,Hide,StartRecording,StopRecording,OpenHistory",
+            string.Join(",", actions));
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", priorAddress);
+        Environment.SetEnvironmentVariable("LC_ALL", priorLocale);
+        foreach (var process in new[] { watcher, bus })
+            if (process is { HasExited: false })
+                try { process.Kill(entireProcessTree: true); process.WaitForExit(2000); } catch { }
+        watcher?.Dispose();
+    }
+}
+
+static async Task<bool> PythonHasGiAsync(string python)
+{
+    using var probe = Process.Start(new ProcessStartInfo(python, "-c \"import gi; gi.require_version('Gio', '2.0'); from gi.repository import Gio\"")
+    { UseShellExecute = false, RedirectStandardError = true });
+    if (probe is null) return false;
+    await probe.WaitForExitAsync();
+    return probe.ExitCode == 0;
 }
 
 static async Task X11GrabIntegration()
@@ -1945,6 +2041,84 @@ static async Task StreamingAudioCapture()
     Assert.True(capture.Duration > TimeSpan.Zero);
 }
 
+static Task StreamingParecLatencyArguments()
+{
+    // #1015: with no latency flag PulseAudio gives parec a 2 s fragment, so live audio arrived in 2 s bursts.
+    IReadOnlyList<string> ArgumentsFor(string? parec, string? pwRecord, bool lowLatency)
+    {
+        var launcher = new RecordingChildProcessLauncher();
+        new ChildProcessStreamingAudioSourceFactory(launcher, parec, pwRecord, lowLatency).Open(new AudioRecordingOptions("mic"));
+        return launcher.Requests.Single().Arguments;
+    }
+    Assert.Equal("--raw --format=s16le --rate=16000 --channels=1 --latency-msec=20 --device=mic",
+        string.Join(' ', ArgumentsFor("/usr/bin/parec", null, lowLatency: true)));
+    Assert.True(!ArgumentsFor("/usr/bin/parec", null, lowLatency: false).Any(argument => argument.StartsWith("--latency")));
+    Assert.True(!ArgumentsFor(null, "/usr/bin/pw-record", lowLatency: true).Any(argument => argument.StartsWith("--latency")));
+    return Task.CompletedTask;
+}
+
+static Task StreamingPwRecordRawArguments()
+{
+    // #1278: pw-record 0.3.65 (Debian 12) has no --raw, prints its usage and exits, so live audio was silent.
+    string ArgumentsFor(Func<string, bool>? hasRaw)
+    {
+        var launcher = new RecordingChildProcessLauncher();
+        new ChildProcessStreamingAudioSourceFactory(launcher, null, "/usr/bin/pw-record", true, hasRaw).Open(new AudioRecordingOptions("mic"));
+        return string.Join(' ', launcher.Requests.Single().Arguments);
+    }
+    Assert.Equal("--raw --format s16 --rate 16000 --channels 1 --target=mic -", ArgumentsFor(_ => true));
+    Assert.Equal("--format s16 --rate 16000 --channels 1 --target=mic -", ArgumentsFor(_ => false));
+    var directory = Directory.CreateTempSubdirectory("hw-pwrecord-");
+    try
+    {
+        string Script(string name, string body)
+        {
+            var path = Path.Combine(directory.FullName, name);
+            File.WriteAllText(path, "#!/bin/sh\n" + body + "\n");
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            return path;
+        }
+        Assert.True(!ChildProcessStreamingAudioSourceFactory.PwRecordHasRaw(Script("old", "echo '      --format   Sample format'")));
+        Assert.True(ChildProcessStreamingAudioSourceFactory.PwRecordHasRaw(Script("new", "echo '  -a, --raw   RAW mode'")));
+        Assert.True(ChildProcessStreamingAudioSourceFactory.PwRecordHasRaw(Path.Combine(directory.FullName, "absent")));
+    }
+    finally { directory.Delete(true); }
+    return Task.CompletedTask;
+}
+
+static async Task StreamingAudioGroupsHundredMillisecondChunks()
+{
+    // #1015: the live controller buffers 128 chunks, so a chunk per pipe read shrank the connect-time buffer.
+    var pcm = Enumerable.Range(0, 8000).Select(index => (byte)index).ToArray();
+    using var capture = new PulseStreamingAudioCapture(new FakeStreamingAudioSourceFactory(new FakeStreamingAudioSource(new MemoryStream(pcm))));
+    var chunks = new List<byte[]>();
+    var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    capture.AudioChunkAvailable += (_, value) => chunks.Add(value.ToArray());
+    capture.CaptureStopped += (_, _) => stopped.TrySetResult();
+    Assert.Success(capture.Start(new AudioRecordingOptions("default")));
+    await stopped.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.Equal("3200,3200,1600", string.Join(',', chunks.Select(chunk => chunk.Length)));
+    Assert.SequenceEqual(pcm, chunks.SelectMany(chunk => chunk).ToArray());
+    Assert.Equal(4800, PulseStreamingAudioCapture.ChunkBytes(new WaveFormat(24000, 16, 1)));
+}
+
+static async Task StreamingAudioLevelSurvivesClipping()
+{
+    // Math.Abs(short.MinValue) throws; a clipped microphone used to end live capture.
+    var pcm = Enumerable.Repeat(new byte[] { 0x00, 0x80 }, 3200).SelectMany(sample => sample).ToArray();
+    using var capture = new PulseStreamingAudioCapture(new FakeStreamingAudioSourceFactory(new FakeStreamingAudioSource(new MemoryStream(pcm))));
+    var chunks = 0; var levels = new List<float>(); PlatformError? error = null;
+    var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    capture.AudioChunkAvailable += (_, _) => chunks++;
+    capture.AudioLevelChanged += (_, level) => levels.Add(level);
+    capture.CaptureStopped += (_, value) => { error = value; stopped.TrySetResult(); };
+    Assert.Success(capture.Start(new AudioRecordingOptions("default")));
+    await stopped.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.True(error is null);
+    Assert.Equal(2, chunks);
+    Assert.True(levels.Count == 2 && levels.All(level => level == 1f));
+}
+
 static async Task StreamingAudioBlockedStop()
 {
     var stream = new BlockingAudioStream();
@@ -2005,6 +2179,9 @@ static Task XdgAutostart() => WithTemporaryDirectory(directory =>
     Assert.True(service.IsEnabled().Value);
     Assert.Success(service.Disable());
     Assert.True(!File.Exists(path));
+    Assert.Equal("/usr/bin/hyperwhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => true));
+    Assert.Equal("/usr/lib/hyperwhisper/HyperWhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => false));
+    Assert.Equal("/opt/hw/HyperWhisper", LinuxAutostartService.LaunchPath("/opt/hw/HyperWhisper", _ => true));
 });
 
 static Task PushToTalkPrivacy()
@@ -2196,6 +2373,112 @@ static Task InteractionKindMutualExclusion()
     Assert.Equal("interaction.streaming_while_batch", failures.Last().Code);
     Assert.Equal(0, recording.StopCalls);
     return Task.CompletedTask;
+}
+
+// #1246: the live worker ended (connection lost), so IsActive is false, but the session is still
+// held. Stop must reach the session's stop path, not return early and leave it open.
+static async Task InteractionStopEndsHeldStream()
+{
+    var recording = new FakeInteractionRecordingSession { Streaming = true, Held = true };
+    using var coordinator = new LinuxInteractionCoordinator(
+        new FakeInteractionShortcutService(), new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(),
+        recording, new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    await coordinator.StopRecordingAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.Equal(1, recording.StopCalls);
+    Assert.True(!recording.HasOpenSession);
+    await coordinator.StopRecordingAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.Equal(1, recording.StopCalls);
+    Assert.Equal(0, recording.StartCalls);
+}
+
+static Task InteractionShortcutsRespectHeldStream()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession { Streaming = true, Held = true };
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(), recording,
+        new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    var failures = new List<PlatformError>();
+    coordinator.OperationFailed += (_, error) => failures.Add(error);
+    shortcuts.Emit(LinuxInteractionCoordinator.ToggleActionName, true);
+    Assert.Equal("interaction.batch_while_streaming", failures.Single().Code);
+    shortcuts.Emit(LinuxInteractionCoordinator.StreamingActionName, true);
+    Assert.Equal(1, recording.StopCalls);
+    Assert.Equal(0, recording.StartCalls);
+    Assert.True(!recording.HasOpenSession);
+
+    recording.Streaming = true;
+    recording.Held = true;
+    shortcuts.Emit(LinuxInteractionCoordinator.CancelActionName, true);
+    Assert.Equal(1, recording.CancelCalls);
+    Assert.True(!recording.HasOpenSession);
+    Assert.Equal(0, recording.StartCalls);
+    return Task.CompletedTask;
+}
+
+// #1246: the worker ended after a lost connection, so IsActive is false but the stream is held and
+// Escape is still grabbed. The limit must end it through Stop, and must not claim it hit the limit.
+static async Task InteractionDurationLimitEndsHeldStream()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession();
+    var scheduler = new FakeInteractionDurationScheduler();
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(), recording,
+        new ImmediateUiDispatcher(), scheduler, TimeSpan.FromMilliseconds(25));
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    var errors = new List<PlatformError>();
+    coordinator.OperationFailed += (_, error) => errors.Add(error);
+    await coordinator.StartStreamingAsync();
+    Assert.True(shortcuts.Current.Any(item => item.Name == LinuxInteractionCoordinator.SessionCancelActionName));
+    recording.Active = false;
+    recording.Held = true;
+
+    scheduler.Advance(TimeSpan.FromMilliseconds(25));
+    Assert.Equal(1, recording.StopCalls);
+    Assert.True(!recording.HasOpenSession);
+    Assert.Equal(0, errors.Count);
+    Assert.True(shortcuts.Current.All(item => item.Name != LinuxInteractionCoordinator.SessionCancelActionName));
+    scheduler.Advance(TimeSpan.FromMinutes(1));
+    Assert.Equal(1, recording.StopCalls);
+}
+
+// #1246: the worker ends between a successful start and the start's cleanup. The stream is held, so
+// the injection session and the clipboard belong to its Stop, not to the failed-start cleanup.
+static async Task InteractionStartKeepsHeldStreamSession()
+{
+    var injection = new FakeInteractionTextInjection();
+    var recording = new FakeInteractionRecordingSession { WorkerEndsOnStart = true };
+    using var coordinator = new LinuxInteractionCoordinator(
+        new FakeInteractionShortcutService(), new FakeInteractionPushToTalk(), injection, recording,
+        new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    await coordinator.StartStreamingAsync();
+    Assert.True(!recording.IsActive && recording.HasOpenSession);
+    Assert.Equal(0, injection.EndSessionCalls);
+    Assert.Equal(0, injection.RestoreClipboardImmediatelyCalls);
+
+    await coordinator.StopRecordingAsync();
+    Assert.Equal(1, recording.StopCalls);
+    Assert.Equal(1, injection.EndSessionCalls);
 }
 
 static Task InteractionFlexibleShortcutValidation()
@@ -2594,6 +2877,59 @@ static Task MicrophoneKeepWarmResumedTwiceOpensOneSource()
     return Task.CompletedTask;
 }
 
+// #1186: Configure and SuspendForRecording run on the Avalonia UI thread, and Stop blocked that thread on
+// a teardown whose continuation was posted back to it, so the app froze for good. Each call below runs on a
+// thread that owns a single-threaded context and is blocked by the call, so a posted continuation never runs.
+static Task MicrophoneKeepWarmReconfigureOnBlockedContext()
+{
+    var first = new YieldingStreamingAudioSource(); var second = new YieldingStreamingAudioSource();
+    var service = new LinuxMicrophoneKeepWarmService(new CyclingStreamingSourceFactory(first, second));
+    BlockedContext.Run("Configure(true) twice", TimeSpan.FromSeconds(5), () => { service.Configure(true, "mic"); service.Configure(true, "mic"); });
+    Assert.Equal(1, first.TerminateCalls); Assert.True(first.Disposed); Assert.True(!second.Disposed);
+    service.Dispose(); return Task.CompletedTask;
+}
+
+static Task MicrophoneKeepWarmSuspendOnBlockedContext()
+{
+    var source = new YieldingStreamingAudioSource();
+    var service = new LinuxMicrophoneKeepWarmService(new CyclingStreamingSourceFactory(source));
+    BlockedContext.Run("SuspendForRecording", TimeSpan.FromSeconds(5), () => { service.Configure(true, "mic"); service.SuspendForRecording(); });
+    Assert.Equal(1, source.TerminateCalls); Assert.True(source.Disposed);
+    service.Dispose(); return Task.CompletedTask;
+}
+
+// A source whose terminate never honours its deadline must not hold Configure past the bound, and the
+// late teardown must dispose only the source it detached, never the replacement opened after the timeout.
+static Task MicrophoneKeepWarmStuckTeardownSparesReplacement()
+{
+    var stuck = new YieldingStreamingAudioSource { TerminateGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
+    var replacement = new YieldingStreamingAudioSource(); var factory = new CyclingStreamingSourceFactory(stuck, replacement);
+    var service = new LinuxMicrophoneKeepWarmService(factory);
+    BlockedContext.Run("Configure(true) over a stuck source", TimeSpan.FromSeconds(8), () => { service.Configure(true, "mic"); service.Configure(true, "mic"); });
+    Assert.Equal(2, factory.OpenCalls); Assert.True(!stuck.Disposed);
+    stuck.TerminateGate.SetResult();
+    var deadline = DateTime.UtcNow.AddSeconds(5); while (!stuck.Disposed && DateTime.UtcNow < deadline) Thread.Yield();
+    Assert.True(stuck.Disposed); Assert.True(!replacement.Disposed); Assert.Equal(0, replacement.TerminateCalls);
+    service.Dispose(); Assert.True(replacement.Disposed); return Task.CompletedTask;
+}
+
+// The real child process is what keep-warm and PulseStreamingAudioCapture.Stop block on: its awaits must
+// not resume on the caller's context either.
+static Task ChildProcessTeardownOnBlockedContext()
+{
+    var launcher = new LinuxChildProcessLauncher();
+    IChildProcess Start() { var started = launcher.Start(new ChildProcessStartRequest { ExecutablePath = "/bin/sleep", Arguments = ["30"] }); Assert.True(started.IsSuccess); return started.Value!; }
+    var terminated = Start(); var disposed = Start(); int[] pids = [terminated.Id, disposed.Id];
+    try
+    {
+        BlockedContext.Run("TerminateAsync", TimeSpan.FromSeconds(5), () => terminated.TerminateAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult());
+        Assert.True(terminated.HasExited);
+        BlockedContext.Run("DisposeAsync", TimeSpan.FromSeconds(5), () => disposed.DisposeAsync().AsTask().GetAwaiter().GetResult());
+    }
+    finally { foreach (var pid in pids) try { Process.GetProcessById(pid).Kill(); } catch { } }
+    return Task.CompletedTask;
+}
+
 static Task SoundEffectsPaths() => WithTemporaryDirectory(directory =>
 {
     var unsupported = new LinuxSoundEffectsService(new FakeDesktopCommandRunner(), null, directory);
@@ -2928,6 +3264,13 @@ sealed class FakeStreamingAudioSourceFactory(FakeStreamingAudioSource source) : 
         PlatformResult<IStreamingAudioSource>.Success(source);
 }
 
+sealed class RecordingChildProcessLauncher : IChildProcessLauncher
+{
+    public List<ChildProcessStartRequest> Requests { get; } = [];
+    public PlatformResult<IChildProcess> Start(ChildProcessStartRequest request)
+    { Requests.Add(request); return PlatformResult<IChildProcess>.Failure("test_not_started", "Recorded only."); }
+}
+
 sealed class FakeStreamingAudioSource(Stream output) : IStreamingAudioSource
 {
     public Stream Output { get; } = output;
@@ -3170,6 +3513,10 @@ sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
     public bool IsActive => Active;
     public bool Streaming { get; set; }
     public bool IsStreaming => Streaming;
+    public bool Held { get; set; }
+    public bool HasOpenSession => Active || Held;
+    /// <summary>A streaming start succeeds but the worker is already gone, leaving the stream held.</summary>
+    public bool WorkerEndsOnStart { get; set; }
     public int StartCalls { get; private set; }
     public int StopCalls { get; private set; }
     public int CancelCalls { get; private set; }
@@ -3180,17 +3527,17 @@ sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
     public ValueTask<PlatformResult> StartAsync(
         InteractionRecordingKind kind,
         CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); StartCalls++; StartKinds.Add(kind); Streaming = kind == InteractionRecordingKind.Streaming; Active = StartResult.IsSuccess; return ValueTask.FromResult(StartResult); }
+    { cancellationToken.ThrowIfCancellationRequested(); StartCalls++; StartKinds.Add(kind); Streaming = kind == InteractionRecordingKind.Streaming; Active = StartResult.IsSuccess && !WorkerEndsOnStart; Held = StartResult.IsSuccess && WorkerEndsOnStart && Streaming; return ValueTask.FromResult(StartResult); }
     public ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); StopCalls++; Active = false; return ValueTask.FromResult(new InteractionStopOutcome(PlatformResult.Success())); }
+    { cancellationToken.ThrowIfCancellationRequested(); StopCalls++; Active = false; Held = false; return ValueTask.FromResult(new InteractionStopOutcome(PlatformResult.Success())); }
     public ValueTask CancelAsync(CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); CancelCalls++; Active = false; return ValueTask.CompletedTask; }
+    { cancellationToken.ThrowIfCancellationRequested(); CancelCalls++; Active = false; Held = false; return ValueTask.CompletedTask; }
     public ValueTask<bool> RequestCancelAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         CancelRequestCalls++;
         if (DeferCancelRequest) return ValueTask.FromResult(false);
-        CancelCalls++; Active = false;
+        CancelCalls++; Active = false; Held = false;
         return ValueTask.FromResult(true);
     }
 }
@@ -3257,6 +3604,7 @@ sealed class FakeInteractionDurationScheduler : IInteractionDurationScheduler
 sealed class FakeInteractionTextInjection : ITextInjectionService
 {
     public int EndSessionCalls { get; private set; }
+    public int RestoreClipboardImmediatelyCalls { get; private set; }
     public bool IsCapturedTargetAvailable => true;
     public void CaptureTarget() { }
     public void StartSession() { }
@@ -3264,7 +3612,7 @@ sealed class FakeInteractionTextInjection : ITextInjectionService
     public void CancelPendingClipboardRestore() { }
     public void ScheduleClipboardRestore(TimeSpan delay) { }
     public ValueTask<PlatformResult> RestoreClipboardImmediatelyAsync(CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult(PlatformResult.Success()); }
+    { cancellationToken.ThrowIfCancellationRequested(); RestoreClipboardImmediatelyCalls++; return ValueTask.FromResult(PlatformResult.Success()); }
     public ValueTask<PlatformResult> CopyToClipboardAsync(string text, CancellationToken cancellationToken = default)
     { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult(PlatformResult.Success()); }
     public ValueTask<TextInjectionOutcome> InjectTranscriptAsync(string text, CancellationToken cancellationToken = default)
@@ -3323,9 +3671,9 @@ sealed class FakeMachineIdentitySource(byte[]? raw) : IMachineIdentitySource
     public byte[]? ReadRaw() => raw?.ToArray();
 }
 
-sealed class CyclingStreamingSourceFactory(params FakeStreamingAudioSource[] sources) : IStreamingAudioSourceFactory
+sealed class CyclingStreamingSourceFactory(params IStreamingAudioSource[] sources) : IStreamingAudioSourceFactory
 {
-    private readonly Queue<FakeStreamingAudioSource> _sources = new(sources);
+    private readonly Queue<IStreamingAudioSource> _sources = new(sources);
     public int OpenCalls { get; private set; }
     public List<string> Devices { get; } = [];
     public bool IsAvailable => true;
@@ -3333,6 +3681,42 @@ sealed class CyclingStreamingSourceFactory(params FakeStreamingAudioSource[] sou
     public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options)
     { OpenCalls++; Devices.Add(options.DeviceId); return _sources.TryDequeue(out var source) ? PlatformResult<IStreamingAudioSource>.Success(source)
         : PlatformResult<IStreamingAudioSource>.Failure("fake_empty", "test"); }
+}
+
+// A UI thread blocked inside a call: Post queues to the thread's own queue, which nothing drains until
+// the call returns. Run guards with a timeout so a deadlock fails the test instead of hanging the runner.
+sealed class BlockedContext : SynchronizationContext
+{
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(SendOrPostCallback Callback, object? State)> _queue = new();
+    public override void Post(SendOrPostCallback d, object? state) => _queue.Enqueue((d, state));
+    public override void Send(SendOrPostCallback d, object? state) => throw new InvalidOperationException("Send on a blocked context.");
+    public override SynchronizationContext CreateCopy() => this;
+    public static void Run(string what, TimeSpan bound, Action work)
+    {
+        Exception? error = null; var context = new BlockedContext();
+        var thread = new Thread(() =>
+        {
+            SetSynchronizationContext(context);
+            try { work(); } catch (Exception exception) { error = exception; }
+            while (context._queue.TryDequeue(out var item)) item.Callback(item.State);
+        }) { IsBackground = true };
+        thread.Start();
+        if (!thread.Join(bound)) throw new InvalidOperationException($"{what} did not return within {bound.TotalSeconds:0} s on a blocked UI context ({context._queue.Count} posted continuations never ran).");
+        if (error is not null) throw error;
+    }
+}
+
+// Completes terminate and dispose through Task.Yield, which posts the continuation to the caller's context
+// exactly as Process.WaitForExitAsync did on the Avalonia UI thread.
+sealed class YieldingStreamingAudioSource : IStreamingAudioSource
+{
+    private readonly BlockingAudioStream _output = new();
+    public Stream Output => _output;
+    public TaskCompletionSource? TerminateGate { get; init; }
+    public int TerminateCalls; public volatile bool Disposed;
+    public async ValueTask TerminateAsync(CancellationToken cancellationToken)
+    { Interlocked.Increment(ref TerminateCalls); await Task.Yield(); if (TerminateGate is not null) await TerminateGate.Task; _output.Release(); }
+    public async ValueTask DisposeAsync() { await Task.Yield(); _output.Dispose(); Disposed = true; }
 }
 
 sealed class PumpSynchronizationContext : SynchronizationContext

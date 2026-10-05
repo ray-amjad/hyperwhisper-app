@@ -253,4 +253,179 @@ mod tests {
         assert!(!e.accepted);
         assert!(matches!(e.failure, CompletionFailure::MalformedResponse));
     }
+
+    // ---- the two policy steps the macOS head calls one after the other ----
+    // `AIPostProcessor.swift` calls `normalize_termination` and then
+    // `evaluate_completion` across the boundary, so these drive both exports
+    // and every enum conversion they cross.
+
+    fn state(wire_protocol: WireProtocol, reason: Option<&str>) -> CompletionState {
+        normalize_termination(wire_protocol, reason.map(str::to_string))
+    }
+
+    #[test]
+    fn normalize_termination_maps_openai_finish_reasons() {
+        assert!(matches!(
+            state(WireProtocol::OpenAiChat, Some("stop")),
+            CompletionState::Complete
+        ));
+        assert!(matches!(
+            state(WireProtocol::OpenAiChat, Some("length")),
+            CompletionState::OutputLimit
+        ));
+        assert!(matches!(
+            state(WireProtocol::OpenAiChat, Some("content_filter")),
+            CompletionState::Incomplete
+        ));
+        // llama-server and other compatible servers can pad or capitalise.
+        assert!(matches!(
+            state(WireProtocol::OpenAiChat, Some("  STOP ")),
+            CompletionState::Complete
+        ));
+        assert!(matches!(
+            state(WireProtocol::OpenAiChat, None),
+            CompletionState::Unspecified
+        ));
+        assert!(matches!(
+            state(WireProtocol::OpenAiChat, Some("   ")),
+            CompletionState::Unspecified
+        ));
+    }
+
+    #[test]
+    fn normalize_termination_maps_anthropic_stop_reasons() {
+        assert!(matches!(
+            state(WireProtocol::AnthropicMessages, Some("end_turn")),
+            CompletionState::Complete
+        ));
+        assert!(matches!(
+            state(WireProtocol::AnthropicMessages, Some("stop_sequence")),
+            CompletionState::Complete
+        ));
+        assert!(matches!(
+            state(WireProtocol::AnthropicMessages, Some("max_tokens")),
+            CompletionState::OutputLimit
+        ));
+        assert!(matches!(
+            state(WireProtocol::AnthropicMessages, Some("refusal")),
+            CompletionState::Incomplete
+        ));
+        // An OpenAI reason means nothing on the Anthropic wire.
+        assert!(matches!(
+            state(WireProtocol::AnthropicMessages, Some("length")),
+            CompletionState::Incomplete
+        ));
+    }
+
+    #[test]
+    fn normalize_termination_ignores_the_reason_on_an_unspecified_wire() {
+        for reason in [Some("length"), Some("max_tokens"), Some("stop"), None] {
+            assert!(
+                matches!(
+                    state(WireProtocol::Unspecified, reason),
+                    CompletionState::Unspecified
+                ),
+                "reason {reason:?} must not change an unspecified wire"
+            );
+        }
+    }
+
+    fn evaluate(content: &str, state: CompletionState) -> CompletionEvaluation {
+        evaluate_completion("raw transcript".to_string(), content.to_string(), state)
+    }
+
+    #[test]
+    fn evaluate_completion_rejects_every_failing_state_and_keeps_the_original() {
+        let wrapped = "<<CLEANED>>Tidy text<<END>>";
+        let cases = [
+            (CompletionState::OutputLimit, "OutputLimit"),
+            (CompletionState::Incomplete, "IncompleteResponse"),
+            (CompletionState::Malformed, "MalformedResponse"),
+        ];
+        for (input, expected) in cases {
+            let e = evaluate(wrapped, input);
+            assert!(!e.accepted, "{expected} must reject");
+            assert_eq!(
+                e.text, "raw transcript",
+                "{expected} must hand back the original"
+            );
+            let got = match e.failure {
+                CompletionFailure::OutputLimit => "OutputLimit",
+                CompletionFailure::IncompleteResponse => "IncompleteResponse",
+                CompletionFailure::MalformedResponse => "MalformedResponse",
+                _ => "other",
+            };
+            assert_eq!(got, expected);
+        }
+    }
+
+    #[test]
+    fn evaluate_completion_accepts_complete_and_unspecified_content() {
+        let e = evaluate("<<CLEANED>>Tidy text<<END>>", CompletionState::Complete);
+        assert!(e.accepted);
+        assert_eq!(e.text, "Tidy text");
+        assert!(matches!(e.failure, CompletionFailure::None));
+
+        // A server that sends no finish reason still gets its content through.
+        let e = evaluate("  Tidy text  ", CompletionState::Unspecified);
+        assert!(e.accepted);
+        assert_eq!(e.text, "Tidy text");
+        assert!(matches!(e.failure, CompletionFailure::None));
+    }
+
+    #[test]
+    fn evaluate_completion_rejects_leaked_prompt_and_empty_content() {
+        let e = evaluate(
+            "<<CLEANED>><SCREEN_CONTEXT>secret window title</SCREEN_CONTEXT><<END>>",
+            CompletionState::Complete,
+        );
+        assert!(!e.accepted);
+        assert_eq!(e.text, "raw transcript");
+        assert!(matches!(e.failure, CompletionFailure::PromptLeakage));
+
+        let e = evaluate("<<CLEANED>>   <<END>>", CompletionState::Complete);
+        assert!(!e.accepted);
+        assert_eq!(e.text, "raw transcript");
+        assert!(matches!(e.failure, CompletionFailure::EmptyCleanedText));
+    }
+
+    #[test]
+    fn json_path_reports_incomplete_leakage_and_empty_failures() {
+        let e = eval(
+            WireProtocol::OpenAiChat,
+            r#"{"choices":[{"message":{"content":"<<CLEANED>>Hi<<END>>"},"finish_reason":"content_filter"}]}"#,
+        );
+        assert!(!e.accepted);
+        assert!(matches!(e.failure, CompletionFailure::IncompleteResponse));
+
+        let e = eval(
+            WireProtocol::AnthropicMessages,
+            r#"{"content":[{"type":"text","text":"<APPLICATION_CONTEXT>Mail</APPLICATION_CONTEXT>"}],"stop_reason":"end_turn"}"#,
+        );
+        assert!(!e.accepted);
+        assert_eq!(e.text, "original");
+        assert!(matches!(e.failure, CompletionFailure::PromptLeakage));
+
+        let e = eval(
+            WireProtocol::Unspecified,
+            r#"{"choices":[{"message":{"content":"<<CLEANED>><<END>>"},"finish_reason":"length"}]}"#,
+        );
+        // Unspecified ignores `length`, so the empty content is the failure.
+        assert!(!e.accepted);
+        assert!(matches!(e.failure, CompletionFailure::EmptyCleanedText));
+    }
+
+    #[test]
+    fn normalize_then_evaluate_matches_the_macos_call_sequence() {
+        let s = state(WireProtocol::OpenAiChat, Some("length"));
+        let e = evaluate_completion("raw".to_string(), "<<CLEANED>>half".to_string(), s);
+        assert!(!e.accepted);
+        assert_eq!(e.text, "raw");
+        assert!(matches!(e.failure, CompletionFailure::OutputLimit));
+
+        let s = state(WireProtocol::OpenAiChat, Some("stop"));
+        let e = evaluate_completion("raw".to_string(), "<<CLEANED>>Done.<<END>>".to_string(), s);
+        assert!(e.accepted);
+        assert_eq!(e.text, "Done.");
+    }
 }

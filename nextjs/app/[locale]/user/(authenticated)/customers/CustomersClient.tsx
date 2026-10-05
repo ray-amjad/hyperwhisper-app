@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { AnimatePresence, m } from "framer-motion";
 import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
+import { errorSentence } from "@/lib/trpc/input-error";
 import { formatDate } from "@/lib/format-date";
+import { ICON_SWAP } from "@/lib/icon-swap";
 
 /**
  * Windowed list of page numbers to render in the pager: always page 1,
@@ -36,6 +39,13 @@ function getPageNumbers(
 }
 
 const CREDITS_PER_MINUTE = 6.3;
+
+// #1155: shown in place of a zod input failure's serialized issue array.
+const INVALID_EMAIL = "Enter a valid email address.";
+const INVALID_AMOUNT =
+  "Enter a credit amount above 0 and no more than 1,000,000.";
+const INVALID_INPUT =
+  "That request was not valid. Refresh the page and try again.";
 
 function formatCredits(credits: number) {
   return credits.toLocaleString("en-US", {
@@ -328,7 +338,9 @@ export default function CustomersClient() {
             </button>
           </form>
           {grantMutation.error && (
-            <p className="text-red-300 text-sm">{grantMutation.error.message}</p>
+            <p className="text-red-300 text-sm" role="alert">
+              {errorSentence(grantMutation.error, INVALID_EMAIL)}
+            </p>
           )}
           {grantResult && (
             <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
@@ -341,7 +353,7 @@ export default function CustomersClient() {
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+        <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
           <p className="text-red-300">{error}</p>
         </div>
       )}
@@ -356,7 +368,9 @@ export default function CustomersClient() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/10">
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                {/* Fixed width (#914): the inline email editor fits inside it, so
+                    opening it never widens the column or re-wraps other rows. */}
+                <th className="w-[24rem] px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Email
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -401,62 +415,71 @@ export default function CustomersClient() {
                       {/* Email + inline edit */}
                       <td className="px-6 py-4">
                         {isEditing ? (
-                          <form
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              const value = editEmail.trim();
-                              if (value) {
-                                updateEmailMutation.mutate({
-                                  userId: customer.userId,
-                                  newEmail: value,
-                                });
-                              }
-                            }}
-                            className="flex flex-col gap-2"
-                          >
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="email"
-                                value={editEmail}
-                                onChange={(e) => setEditEmail(e.target.value)}
-                                autoFocus
-                                required
-                                className="px-2 py-1 bg-white/10 border border-emerald-500/60 rounded text-white text-sm focus:outline-none focus:border-emerald-400 min-w-[14rem]"
-                              />
-                              <button
-                                type="submit"
-                                disabled={updateEmailMutation.isPending}
-                                className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs font-medium transition-colors disabled:opacity-50"
-                              >
-                                {updateEmailMutation.isPending ? "Saving..." : "Save"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={cancelEdit}
-                                disabled={updateEmailMutation.isPending}
-                                className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-gray-300 rounded text-xs font-medium transition-colors border border-white/10 disabled:opacity-50"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                            <p className="text-amber-300/80 text-xs">
-                              Updates this customer&apos;s account email and moves
-                              {" "}
-                              {customer.licenseCount === 1
-                                ? "their Account Key"
-                                : `all ${customer.licenseCount} Account Keys`}
-                              {" "}
-                              to the new address.
-                            </p>
-                            {updateEmailMutation.error && (
-                              <p className="text-red-300 text-xs">
-                                {updateEmailMutation.error.message}
+                          // w-0 + min-w-full: the editor adds no intrinsic width to the
+                          // column, it fills the fixed one (#914). t-cell-reveal tweens it in.
+                          // The input is w-0 flex-1: its default size=20 width (~228px) would
+                          // otherwise set the form's min-content and overflow the cell.
+                          <div className="t-cell-reveal w-0 min-w-full">
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                const value = editEmail.trim();
+                                if (value) {
+                                  updateEmailMutation.mutate({
+                                    userId: customer.userId,
+                                    newEmail: value,
+                                  });
+                                }
+                              }}
+                              className="flex flex-col gap-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="email"
+                                  value={editEmail}
+                                  onChange={(e) => setEditEmail(e.target.value)}
+                                  autoFocus
+                                  required
+                                  className="px-2 py-1 bg-white/10 border border-emerald-500/60 rounded text-white text-sm focus:outline-none focus:border-emerald-400 w-0 min-w-0 flex-1"
+                                />
+                                <button
+                                  type="submit"
+                                  disabled={updateEmailMutation.isPending}
+                                  className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs font-medium transition-colors disabled:opacity-50"
+                                >
+                                  {updateEmailMutation.isPending ? "Saving..." : "Save"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEdit}
+                                  disabled={updateEmailMutation.isPending}
+                                  className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-gray-300 rounded text-xs font-medium transition-colors border border-white/10 disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                              <p className="text-amber-300/80 text-xs">
+                                Updates this customer&apos;s account email and moves
+                                {" "}
+                                {customer.licenseCount === 1
+                                  ? "their Account Key"
+                                  : `all ${customer.licenseCount} Account Keys`}
+                                {" "}
+                                to the new address.
                               </p>
-                            )}
-                          </form>
+                              {updateEmailMutation.error && (
+                                <p
+                                  className="text-red-300 text-xs"
+                                  role="alert"
+                                >
+                                  {errorSentence(updateEmailMutation.error, INVALID_EMAIL)}
+                                </p>
+                              )}
+                            </form>
+                          </div>
                         ) : (
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-gray-300">{customer.email}</span>
+                            <span className="text-gray-300 wrap-anywhere">{customer.email}</span>
                             {customer.licenseCount > 1 && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/20 text-blue-300">
                                 {customer.licenseCount} licenses
@@ -507,38 +530,53 @@ export default function CustomersClient() {
                                     ? "Account Key copied"
                                     : "Copy Account Key"
                                 }
-                                className="group inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-mono text-xs text-gray-300 transition-colors hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-200"
+                                className="group relative inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-mono text-xs text-gray-300 transition-colors hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-200"
                               >
                                 <code>{license.key.slice(0, 8)}...</code>
-                                {copiedKey === license.key ? (
-                                  <svg
-                                    className="h-3.5 w-3.5 text-emerald-400"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth={2.5}
-                                    stroke="currentColor"
+                                <AnimatePresence
+                                  initial={false}
+                                  mode="popLayout"
+                                >
+                                  <m.span
+                                    key={
+                                      copiedKey === license.key
+                                        ? "copied"
+                                        : "copy"
+                                    }
+                                    className="inline-flex"
+                                    {...ICON_SWAP}
                                   >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M4.5 12.75l6 6 9-13.5"
-                                    />
-                                  </svg>
-                                ) : (
-                                  <svg
-                                    className="h-3.5 w-3.5 text-gray-500 transition-colors group-hover:text-blue-300"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth={1.8}
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m11.25 5.5h-1.875a1.125 1.125 0 01-1.125-1.125v-1.875M18 14.25v-3.75"
-                                    />
-                                  </svg>
-                                )}
+                                    {copiedKey === license.key ? (
+                                      <svg
+                                        className="h-3.5 w-3.5 text-emerald-400"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth={2.5}
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          d="M4.5 12.75l6 6 9-13.5"
+                                        />
+                                      </svg>
+                                    ) : (
+                                      <svg
+                                        className="h-3.5 w-3.5 text-gray-500 transition-colors group-hover:text-blue-300"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth={1.8}
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m11.25 5.5h-1.875a1.125 1.125 0 01-1.125-1.125v-1.875M18 14.25v-3.75"
+                                        />
+                                      </svg>
+                                    )}
+                                  </m.span>
+                                </AnimatePresence>
                               </button>
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
                                 license.status === "revoked"
@@ -766,8 +804,11 @@ export default function CustomersClient() {
             ) : (
               <>
                 {refundMutation.error && (
-                  <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-                    <p className="text-red-300 text-sm">{refundMutation.error.message}</p>
+                  <div
+                    className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
+                    role="alert"
+                  >
+                    <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
                   </div>
                 )}
                 <div className="flex gap-3 pt-2">
@@ -878,7 +919,9 @@ export default function CustomersClient() {
 
               {/* Error */}
               {addCreditsMutation.error && (
-                <p className="text-red-300 text-sm">{addCreditsMutation.error.message}</p>
+                <p className="text-red-300 text-sm" role="alert">
+                  {errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}
+                </p>
               )}
 
               {/* Actions */}

@@ -206,7 +206,8 @@ public sealed class PulseAudioRecorder : IAudioRecorder
         }
     }
 
-    private static float CalculateLevel(ReadOnlySpan<byte> pcm)
+    // Shared with PulseStreamingAudioCapture. Widen to int: Math.Abs(short.MinValue) throws.
+    internal static float CalculateLevel(ReadOnlySpan<byte> pcm)
     {
         long sum = 0;
         var samples = pcm.Length / 2;

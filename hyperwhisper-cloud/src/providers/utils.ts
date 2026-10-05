@@ -305,6 +305,52 @@ export function logProviderEvent(
   });
 }
 
+/**
+ * Shape facts for a 200 body that failed to parse. A speech vendor's 200 body
+ * IS the transcript, so never log any part of it: only whether it looks like
+ * an HTML page (geo-block/proxy), a cut-off JSON stream, or something else.
+ */
+export function unparsedBodyKind(raw: string): 'html' | 'json_truncated' | 'other' {
+  const first = raw.trimStart()[0];
+  if (first === '<') return 'html';
+  if (first === '{' || first === '[') return 'json_truncated';
+  return 'other';
+}
+
+/**
+ * Read and parse one 200 poll body. On failure, log `parse_error` and return
+ * undefined so the caller can retry. It never logs body content (#1069): a
+ * poll body can hold the user's transcript. A read failure (connection reset,
+ * truncated chunked transfer) logs only the error's name; a parse failure
+ * logs only the body's length and `unparsedBodyKind`.
+ */
+export async function readPollJson<T>(
+  provider: string,
+  resp: Response,
+  polls: number,
+  context: ProviderRequestContext = {},
+): Promise<T | undefined> {
+  // `raw` stays undefined when the body fails to read, so the catch can tell
+  // a read failure from a parse failure.
+  let raw: string | undefined;
+  try {
+    raw = await resp.text();
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    logProviderEvent(provider, 'parse_error', {
+      phase: 'poll',
+      failure: raw === undefined ? 'read' : 'parse',
+      polls,
+      contentType: resp.headers.get('content-type') ?? 'unknown',
+      contentEncoding: resp.headers.get('content-encoding') ?? 'none',
+      ...(raw === undefined
+        ? { errorName: err instanceof Error ? err.name : typeof err }
+        : { bodyLength: raw.length, bodyKind: unparsedBodyKind(raw) }),
+    }, context);
+    return undefined;
+  }
+}
+
 export async function fetchWithTimeout(
   provider: string,
   url: string,

@@ -31,6 +31,7 @@ import Foundation
 /// - `recordingFailed(reason)`: Recording failed to start with specific reason
 /// - `noAudioTrack`: Video file has no audio track to extract
 /// - `noMicrophoneAvailable`: No audio input devices were available when recording started
+/// - `audioSystemNotResponding`: CoreAudio did not start the recorder in time (wedged `coreaudiod`)
 ///
 /// **Localization:**
 /// All error messages use localized strings from Localizable.strings files.
@@ -50,6 +51,9 @@ enum AudioError: LocalizedError {
     case recordingFailed(reason: String)
     case noAudioTrack
     case noMicrophoneAvailable
+    // Appended last on purpose: AudioError bridges to NSError with code == case
+    // index, and `AppLogger.isExpectedMicrophoneUnavailable` matches on those codes.
+    case audioSystemNotResponding
 
     var errorDescription: String? {
         switch self {
@@ -83,6 +87,8 @@ enum AudioError: LocalizedError {
             return "audio.error.noAudioTrack".localized
         case .noMicrophoneAvailable:
             return "audio.error.noInput".localized
+        case .audioSystemNotResponding:
+            return "audio.error.audioSystemNotResponding".localized
         }
     }
 }

@@ -9,6 +9,11 @@ import { isRecord } from "@/src/lib/type-guards";
 
 type Tab = "license-key" | "email";
 
+// Shared by every submit button. The hover gradient is a ::before overlay that
+// fades in by opacity, because a gradient background-image cannot transition.
+const GRADIENT_CTA_CLASS_NAME =
+  "relative isolate w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg transition-[opacity,box-shadow] duration-200 shadow-lg hover:shadow-xl before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-emerald-600 before:to-teal-600 before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed";
+
 /**
  * User Sign-In form (client half of `page.tsx`).
  *
@@ -140,13 +145,17 @@ export default function SignInClient() {
   // thing that changes when a resend fails: the surrounding copy still reads
   // "Check your email and click the link to sign in", so without it a screen
   // reader announces nothing and the page says the opposite of what happened.
-  // One attribute, deliberately — #760 owns sign-in announcements as a whole.
+  // #760: `id="email-error"` is what the `#email` input's `aria-describedby`
+  // points at. The banner renders in two branches, but only one of them is
+  // mounted at a time, so the id is still unique on the page.
   const emailErrorBanner = emailError ? (
     <div
       className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
       role="alert"
     >
-      <p className="text-red-300 text-sm text-center">{emailError}</p>
+      <p className="text-red-300 text-sm text-center" id="email-error">
+        {emailError}
+      </p>
     </div>
   ) : null;
 
@@ -181,12 +190,20 @@ export default function SignInClient() {
           ) : (
           <>
 
-          {/* Tab Switcher */}
-          <div className="flex rounded-lg bg-white/5 border border-white/10 p-1 mb-6">
+          {/* Tab Switcher. A single-choice group of toggle buttons (#1311): the
+              active method is exposed by aria-pressed, not only its colour.
+              Not role="tablist", which would need arrow-key roving focus and
+              aria-controls panels. */}
+          <div
+            aria-label="Sign-in method"
+            className="flex rounded-lg bg-white/5 border border-white/10 p-1 mb-6"
+            role="group"
+          >
             <button
+              aria-pressed={activeTab === "license-key"}
               type="button"
               onClick={() => setActiveTab("license-key")}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 py-2 px-3 rounded-sm text-sm font-medium transition-all duration-200 ${
                 activeTab === "license-key"
                   ? "bg-white/15 text-white shadow-sm"
                   : "text-gray-400 hover:text-gray-300"
@@ -195,9 +212,10 @@ export default function SignInClient() {
               Account Key
             </button>
             <button
+              aria-pressed={activeTab === "email"}
               type="button"
               onClick={() => setActiveTab("email")}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 py-2 px-3 rounded-sm text-sm font-medium transition-all duration-200 ${
                 activeTab === "email"
                   ? "bg-white/15 text-white shadow-sm"
                   : "text-gray-400 hover:text-gray-300"
@@ -210,9 +228,16 @@ export default function SignInClient() {
           {/* License Key Tab */}
           {activeTab === "license-key" && (
             <form onSubmit={handleLicenseKeySignIn} className="space-y-6">
+              {/* #760: announced like `emailErrorBanner`, and described-by
+                  target of the `#license-key` input below. No focus move. */}
               {licenseError && (
-                <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
-                  <p className="text-red-300 text-sm text-center">{licenseError}</p>
+                <div
+                  className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
+                  role="alert"
+                >
+                  <p className="text-red-300 text-sm text-center" id="license-key-error">
+                    {licenseError}
+                  </p>
                 </div>
               )}
 
@@ -221,6 +246,8 @@ export default function SignInClient() {
                   Account Key
                 </label>
                 <input
+                  aria-describedby={licenseError ? "license-key-error" : undefined}
+                  aria-invalid={licenseError ? true : undefined}
                   id="license-key"
                   type="text"
                   required
@@ -246,7 +273,7 @@ export default function SignInClient() {
                 <button
                   type="submit"
                   disabled={licenseSubmitting}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={GRADIENT_CTA_CLASS_NAME}
                 >
                   {licenseSubmitting ? (
                     <span className="flex items-center justify-center gap-2">
@@ -281,6 +308,8 @@ export default function SignInClient() {
                       Email address
                     </label>
                     <input
+                      aria-describedby={emailError ? "email-error" : undefined}
+                      aria-invalid={emailError ? true : undefined}
                       autoComplete="email"
                       id="email"
                       type="email"
@@ -299,7 +328,7 @@ export default function SignInClient() {
                     <button
                       type="submit"
                       disabled={emailSubmitting}
-                      className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={GRADIENT_CTA_CLASS_NAME}
                     >
                       {emailSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
@@ -346,7 +375,7 @@ export default function SignInClient() {
                       type="button"
                       onClick={() => handleSendMagicLink()}
                       disabled={emailSubmitting}
-                      className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={GRADIENT_CTA_CLASS_NAME}
                     >
                       {emailSubmitting ? "Sending..." : "Resend Magic Link"}
                     </button>

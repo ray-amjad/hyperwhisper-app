@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
+import { AnimatePresence, m } from "framer-motion";
 import { Download, Copy, Check, Terminal, CheckCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { ICON_SWAP } from "@/lib/icon-swap";
+import { isMobileDevice } from "@/src/lib/mobile-device";
 import { isRecord } from "@/src/lib/type-guards";
 
 type Platform = "mac" | "windows" | "linux";
@@ -43,24 +46,42 @@ function isLinuxLatest(value: unknown): value is LinuxLatest {
 const LINUX_RELEASES_URL =
   "https://github.com/ray-amjad/hyperwhisper-app/releases?q=linux";
 
+// Shared by every download button. The hover gradient is a ::before overlay that
+// fades in by opacity, because a gradient background-image cannot transition.
+const GRADIENT_CTA_CLASS_NAME =
+  "isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,scale,opacity,box-shadow,outline-color,outline-width,outline-offset] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none";
+
 export default function DownloadPage() {
   const t = useTranslations("downloadPage");
   const searchParams = useSearchParams();
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>("mac");
   const [downloadState, setDownloadState] = useState<
-    Record<
-      Platform,
-      { url: string | null; countdown: number; started: boolean }
-    >
+    Record<Platform, { countdown: number; started: boolean }>
   >({
-    mac: { url: null, countdown: 5, started: false },
-    windows: { url: null, countdown: 5, started: false },
-    linux: { url: null, countdown: 5, started: false },
+    mac: { countdown: 5, started: false },
+    windows: { countdown: 5, started: false },
+    linux: { countdown: 5, started: false },
   });
   const [copied, setCopied] = useState(false);
   const [linuxLatest, setLinuxLatest] = useState<LinuxLatest | null>(null);
+  // null until the mount effect has looked at the device. The countdown waits
+  // for `false`, so a phone never gets a timer, not even for the first render.
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
 
   const currentState = downloadState[selectedPlatform];
+
+  // A phone or tablet cannot run the desktop app, so it gets no auto-download
+  // (#1099). This ignores ?platform= on purpose: a phone opening
+  // /download?platform=mac must not download the DMG either.
+  useEffect(() => {
+    setIsMobile(
+      isMobileDevice(
+        navigator.userAgent ?? "",
+        navigator.platform ?? "",
+        navigator.maxTouchPoints ?? 0,
+      ),
+    );
+  }, []);
 
   // Detect user's OS on mount and set platform accordingly
   // URL query param takes precedence over OS detection
@@ -121,44 +142,6 @@ export default function DownloadPage() {
     };
   }, [selectedPlatform, linuxLatest]);
 
-  // Fetch the macOS download URL on mount (but don't trigger download yet).
-  useEffect(() => {
-    // Windows and Linux use explicit download buttons, no need to pre-fetch.
-    if (selectedPlatform !== "mac") return;
-
-    const fetchDownloadUrl = async () => {
-      try {
-        const response = await fetch(
-          `/api/download?platform=${selectedPlatform}`,
-          {
-            redirect: "follow",
-          },
-        );
-        const url =
-          response.url || `/api/download?platform=${selectedPlatform}`;
-
-        setDownloadState((prev) => ({
-          ...prev,
-          [selectedPlatform]: { ...prev[selectedPlatform], url },
-        }));
-      } catch (error) {
-        console.error("Failed to fetch download URL:", error);
-        setDownloadState((prev) => ({
-          ...prev,
-          [selectedPlatform]: {
-            ...prev[selectedPlatform],
-            url: `/api/download?platform=${selectedPlatform}`,
-          },
-        }));
-      }
-    };
-
-    // Only fetch if we don't have a URL yet
-    if (!currentState.url) {
-      void fetchDownloadUrl();
-    }
-  }, [selectedPlatform, currentState.url]);
-
   // Reset countdown when switching platforms
   useEffect(() => {
     setDownloadState((prev) => ({
@@ -179,6 +162,9 @@ export default function DownloadPage() {
   useEffect(() => {
     // Windows and Linux use explicit download buttons, no auto-download.
     if (selectedPlatform !== "mac") return;
+    // Only a device known to be a desktop counts down; a phone or tablet, and
+    // a render before detection, never does.
+    if (isMobile !== false) return;
 
     const { countdown, started } = currentState;
 
@@ -201,20 +187,22 @@ export default function DownloadPage() {
       // Countdown finished, trigger download
       triggerDownload(selectedPlatform);
     }
-  }, [currentState.countdown, currentState.started, selectedPlatform]);
+  }, [
+    currentState.countdown,
+    currentState.started,
+    selectedPlatform,
+    isMobile,
+  ]);
 
+  // No `started` guard here: the countdown effect already stops once `started`
+  // is set, so it fires this once, and a click on "Download again" must re-run it.
   const triggerDownload = (platform: Platform) => {
-    const state = downloadState[platform];
-
-    if (state.started) return;
     setDownloadState((prev) => ({
       ...prev,
       [platform]: { ...prev[platform], started: true, countdown: 0 },
     }));
 
-    const url = state.url || `/api/download?platform=${platform}`;
-
-    window.location.href = url;
+    window.location.href = `/api/download?platform=${platform}`;
   };
 
   const handleManualDownload = () => {
@@ -238,13 +226,11 @@ export default function DownloadPage() {
         <div className="text-center mb-6">
           {/* App Icon */}
           <div className="w-24 h-24 mx-auto mb-8">
-            <div className="w-full h-full bg-gradient-to-b from-gray-700 to-gray-900 rounded-2xl flex items-center justify-center shadow-2xl">
-              <img
-                alt="HyperWhisper Logo"
-                className="w-24 h-24 rounded-xl"
-                src="/icon/256.png"
-              />
-            </div>
+            <img
+              alt="HyperWhisper Logo"
+              className="w-24 h-24"
+              src="/icon/256.png"
+            />
           </div>
 
           <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
@@ -253,6 +239,7 @@ export default function DownloadPage() {
 
           <div className="inline-flex items-center gap-2 bg-gray-800/70 border border-gray-700 rounded-full px-2 py-1 mb-6">
             <Button
+              aria-pressed={selectedPlatform === "mac"}
               className={`text-sm px-4 py-2 rounded-full ${
                 selectedPlatform === "mac"
                   ? "bg-purple-600 text-white"
@@ -265,6 +252,7 @@ export default function DownloadPage() {
               macOS
             </Button>
             <Button
+              aria-pressed={selectedPlatform === "windows"}
               className={`text-sm px-4 py-2 rounded-full ${
                 selectedPlatform === "windows"
                   ? "bg-purple-600 text-white"
@@ -277,6 +265,7 @@ export default function DownloadPage() {
               Windows
             </Button>
             <Button
+              aria-pressed={selectedPlatform === "linux"}
               className={`text-sm px-4 py-2 rounded-full ${
                 selectedPlatform === "linux"
                   ? "bg-purple-600 text-white"
@@ -291,7 +280,9 @@ export default function DownloadPage() {
           </div>
 
           {/* Countdown or status message */}
-          {selectedPlatform === "windows" ? (
+          {isMobile ? (
+            <p className="text-lg text-gray-400">{t("mobileNote")}</p>
+          ) : selectedPlatform === "windows" ? (
             <p className="text-lg text-gray-400">{t("selectArchitecture")}</p>
           ) : selectedPlatform === "linux" ? (
             <p className="text-lg text-gray-400">
@@ -302,9 +293,14 @@ export default function DownloadPage() {
               <CheckCircle className="w-5 h-5 text-green-500" />
               <span>{t("downloadStarted")}</span>
             </div>
-          ) : (
+          ) : isMobile === false ? (
             <p className="text-lg text-gray-400">
               {t("countdownText", { seconds: currentState.countdown })}
+            </p>
+          ) : (
+            // Device not detected yet: hold the line's height, promise nothing
+            <p aria-hidden="true" className="text-lg text-gray-400">
+              {"\u00A0"}
             </p>
           )}
         </div>
@@ -315,7 +311,7 @@ export default function DownloadPage() {
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
                 as="a"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
+                className={GRADIENT_CTA_CLASS_NAME}
                 href="/api/download?platform=windows&arch=x64"
                 size="lg"
                 startContent={<Download className="w-5 h-5" />}
@@ -324,7 +320,7 @@ export default function DownloadPage() {
               </Button>
               <Button
                 as="a"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
+                className={GRADIENT_CTA_CLASS_NAME}
                 href="/api/download?platform=windows&arch=arm64"
                 size="lg"
                 startContent={<Download className="w-5 h-5" />}
@@ -336,7 +332,7 @@ export default function DownloadPage() {
             <div className="flex flex-col items-center gap-3">
               <Button
                 as="a"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
+                className={GRADIENT_CTA_CLASS_NAME}
                 href={linuxLatest?.deb ?? LINUX_RELEASES_URL}
                 rel="noreferrer"
                 size="lg"
@@ -358,7 +354,7 @@ export default function DownloadPage() {
             </div>
           ) : (
             <Button
-              className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
+              className={GRADIENT_CTA_CLASS_NAME}
               size="lg"
               startContent={<Download className="w-5 h-5" />}
               onClick={handleManualDownload}
@@ -405,18 +401,25 @@ export default function DownloadPage() {
                   variant="flat"
                   onClick={handleCopyCommand}
                 >
+                  <AnimatePresence initial={false} mode="popLayout">
+                    <m.span
+                      key={copied ? "copied" : "copy"}
+                      className="inline-flex mr-1"
+                      {...ICON_SWAP}
+                    >
+                      {copied ? (
+                        <Check className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </m.span>
+                  </AnimatePresence>
                   {copied ? (
-                    <>
-                      <Check className="w-4 h-4 text-green-400 mr-1" />
-                      <span className="text-green-400 text-xs">
-                        {t("copied")}
-                      </span>
-                    </>
+                    <span className="text-green-400 text-xs">
+                      {t("copied")}
+                    </span>
                   ) : (
-                    <>
-                      <Copy className="w-4 h-4 mr-1" />
-                      <span className="text-xs">{t("copy")}</span>
-                    </>
+                    <span className="text-xs">{t("copy")}</span>
                   )}
                 </Button>
               </div>
@@ -441,7 +444,13 @@ export default function DownloadPage() {
                   {!linuxLatest &&
                     " Replace VERSION with the version you downloaded."}
                 </p>
-                <div className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto">
+                <div
+                  aria-label="Debian install command"
+                  className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                  role="region"
+                  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+                  tabIndex={0}
+                >
                   <code className="text-sm font-mono text-gray-200 whitespace-pre">
                     {`sudo apt install ./hyperwhisper_${linuxLatest?.version ?? "VERSION"}_amd64.deb
 sudo usermod -aG hyperwhisper-input "$USER"`}

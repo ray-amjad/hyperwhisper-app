@@ -258,3 +258,5 @@ export const loadCheckoutCreditsRoute = () =>
   import("@/app/api/checkout/credits/route");
 export const loadLicenseCreditsRoute = () =>
   import("@/app/api/license/credits/route");
+export const loadAccountCreditsRoute = () =>
+  import("@/app/api/account/credits/route");

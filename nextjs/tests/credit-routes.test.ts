@@ -23,6 +23,7 @@ import {
   behaviour,
   calls,
   getRequest,
+  loadAccountCreditsRoute,
   loadCheckoutCreditsRoute,
   loadLicenseCreditsRoute,
   logLines,
@@ -141,14 +142,14 @@ describe("POST /api/checkout/credits — amount validation", () => {
     }
   });
 
-  test("answers 500 when the body is not JSON at all", async () => {
+  test("answers 400 when the body is not JSON at all", async () => {
     const { POST } = await loadCheckoutCreditsRoute();
 
     const response = await POST(postRequest(CHECKOUT_PATH, "not json"));
     const body = await readJson(response);
 
-    assert.equal(response.status, 500);
-    assert.equal(body.error, "Failed to create checkout session");
+    assert.equal(response.status, 400);
+    assert.deepEqual(body, { error: "Invalid request body" });
     assert.deepEqual(calls.sessionCreate, []);
   });
 });
@@ -742,14 +743,14 @@ describe("POST /api/license/credits", () => {
     assert.equal(body.error, "Failed to deduct credits. Please retry.");
   });
 
-  test("answers 500 when the body is not JSON at all", async () => {
+  test("answers 400 when the body is not JSON at all", async () => {
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(postRequest(CREDITS_PATH, "not json"));
     const body = await readJson(response);
 
-    assert.equal(response.status, 500);
-    assert.equal(body.error, "Failed to deduct credits");
+    assert.equal(response.status, 400);
+    assert.deepEqual(body, { error: "Invalid request body" });
     assert.deepEqual(calls.deductCreditBalance, []);
   });
 
@@ -820,4 +821,100 @@ describe("/api/license/credits — a DrizzleQueryError stays out of the log and 
     assert.deepEqual(calls.deductCreditBalance, []);
     assertRedacted(text);
   });
+});
+
+describe("/api/account/credits is the same handler as /api/license/credits", () => {
+  test("re-exports both license handlers themselves", async () => {
+    // New app releases call /api/account/credits; installed builds and
+    // HyperWhisper Cloud call /api/license/credits. Identity is the only check
+    // that stays true when the license handler changes.
+    const account = await loadAccountCreditsRoute();
+    const license = await loadLicenseCreditsRoute();
+
+    assert.equal(account.GET, license.GET);
+    assert.equal(account.POST, license.POST);
+  });
+
+  test("the account path refuses a revoked key without deducting", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY, status: "revoked" }));
+    const { POST } = await loadAccountCreditsRoute();
+
+    const response = await POST(
+      postRequest("/api/account/credits", { license_key: GRANTED_KEY, amount: 10 }),
+    );
+    const body = await readJson(response);
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, "License is revoked");
+    assert.deepEqual(calls.deductCreditBalance, []);
+  });
+});
+
+describe("an unparseable credits request is logged without its contents (#1207)", () => {
+  /**
+   * A made-up key, sent unquoted so the JSON does not parse. V8's SyntaxError
+   * message quotes the input around the fault, so part of this key is IN the
+   * parser's message: logging the error, or returning its message, leaks it.
+   */
+  const SECRET = "HW-7Q2Z-K9X4";
+  const MALFORMED = `{"license_key":${SECRET}}`;
+
+  /** Every 4-character piece of the secret, so a partial quote is caught too. */
+  const fragments = Array.from({ length: SECRET.length - 3 }, (_, i) =>
+    SECRET.slice(i, i + 4),
+  );
+
+  function assertNoFragment(text: string): void {
+    for (const piece of fragments) {
+      assert.ok(!text.includes(piece), `leaked "${piece}": ${text}`);
+    }
+  }
+
+  beforeEach(() => {
+    logLines.length = 0;
+  });
+
+  test("the fixture is a real leak risk: the parser's message quotes the key", () => {
+    // Guards against a vacuous test: if V8 stopped quoting the input, the
+    // fragment checks below would pass whatever the route logged.
+    assert.throws(
+      () => JSON.parse(MALFORMED),
+      (err: unknown) =>
+        err instanceof SyntaxError &&
+        fragments.some((piece) => err.message.includes(piece)),
+    );
+  });
+
+  for (const [label, path, load] of [
+    ["Credits deduction", CREDITS_PATH, loadLicenseCreditsRoute],
+    ["Credits deduction", "/api/account/credits", loadAccountCreditsRoute],
+    ["Credit checkout", CHECKOUT_PATH, loadCheckoutCreditsRoute],
+  ] as const) {
+    test(`${path}: 400, one redacted log line, no key in the reply`, async () => {
+      const { POST } = await load();
+
+      const response = await POST(
+        postRequest(path, MALFORMED, {
+          "content-length": String(Buffer.byteLength(MALFORMED, "utf8")),
+        }),
+      );
+      const text = await response.text();
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(JSON.parse(text), { error: "Invalid request body" });
+      assertNoFragment(text);
+      assert.deepEqual(calls.findAccountByKey, []);
+      assert.deepEqual(calls.deductCreditBalance, []);
+      assert.deepEqual(calls.sessionCreate, []);
+
+      assert.equal(logLines.length, 1, logLines.join("\n"));
+      const [line] = logLines;
+
+      assert.ok(line.includes(`${label}: request JSON did not parse`), line);
+      assert.ok(line.includes("SyntaxError"), line);
+      assert.ok(line.includes("application/json"), line);
+      assert.ok(line.includes(`contentLength: '${MALFORMED.length}'`), line);
+      assertNoFragment(line);
+    });
+  }
 });

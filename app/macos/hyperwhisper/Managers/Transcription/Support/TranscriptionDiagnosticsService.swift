@@ -268,9 +268,13 @@ enum TranscriptionDiagnosticsService {
         let responseNoSpeechDetected = attemptDiagnostics == nil
             ? backendNoSpeechDetected
             : attemptDiagnostics?.backendNoSpeechDetected
+        // Arm 3 has no macOS producer yet, so this is false; one value feeds both
+        // the classifier and the payload so the two cannot disagree.
+        let emptyTranscriptWithoutFlag = false
         let outcome = classify(
             audio,
-            backendNoSpeechDetected: responseNoSpeechDetected ?? backendNoSpeechDetected
+            backendNoSpeechDetected: responseNoSpeechDetected ?? backendNoSpeechDetected,
+            emptyTranscriptWithoutFlag: emptyTranscriptWithoutFlag
         )
 
         guard let presentation = presentation(for: outcome) else {
@@ -291,7 +295,8 @@ enum TranscriptionDiagnosticsService {
             diagnosticSource: diagnosticSource,
             presentation: presentation,
             inputDeviceName: inputDeviceName,
-            micBoostFailed: micBoostFailed
+            micBoostFailed: micBoostFailed,
+            emptyTranscriptWithoutFlag: emptyTranscriptWithoutFlag
         )
 
         var logAttributes = payload.extras
@@ -331,7 +336,8 @@ enum TranscriptionDiagnosticsService {
         diagnosticSource: String,
         presentation: DiagnosticPresentation,
         inputDeviceName: String? = nil,
-        micBoostFailed: Bool = false
+        micBoostFailed: Bool = false,
+        emptyTranscriptWithoutFlag: Bool = false
     ) -> DiagnosticPayload {
         let coreMode = coreIdentity(modeIdentity)
         let noSpeechTag = responseNoSpeechDetected.map { $0 ? "true" : "false" } ?? "unknown"
@@ -390,7 +396,9 @@ enum TranscriptionDiagnosticsService {
             "backend_http_status": (attemptDiagnostics?.httpStatusCode).map { $0 as Any } ?? "unknown",
             "backend_response_latency_ms": (attemptDiagnostics?.responseLatencyMs).map { $0 as Any } ?? "unknown",
             "provider_attempt_ms": (attemptDiagnostics?.providerAttemptMs).map { $0 as Any } ?? "unknown",
-            "mic_boost_failed": micBoostFailed
+            "mic_boost_failed": micBoostFailed,
+            // A Bool, so the Sentry redaction keeps it despite `transcript` (#684).
+            "backend_empty_transcript_without_flag": emptyTranscriptWithoutFlag
         ]
         // The SOURCE container's format, not the measurement basis (16 kHz mono).
         if let sampleRate = audio.sampleRate { extras["audio_sample_rate_hz"] = sampleRate }

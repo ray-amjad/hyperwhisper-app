@@ -2,38 +2,20 @@
 // Serverless Redis for IP blocking and license caching
 // Works globally with Fly.io's anycast routing
 //
-// This module is the I/O edge only: it builds the client. The logic the three
+// This module is the I/O edge only: it wires up the client. The logic the three
 // functions below carry out lives in `./redis-core`, where the client arrives
 // as a parameter — see the note at the top of that file for why a test cannot
 // reach it through this module.
 
-import { Redis } from '@upstash/redis';
 import * as core from './redis-core';
+import { createRedisGetter } from './redis-client';
 
 export type { CachedLicense, RedisStore, RedisStoreFactory } from './redis-core';
 
-// Initialize Redis client (lazy initialization for testing without Redis)
-let _redis: Redis | null = null;
-
-// The transcription service's own Upstash database. The Next.js site has a
-// separate one behind UPSTASH_REDIS_SITE_* (`nextjs/lib/clients/redis.ts`).
-// Both go through the same @upstash/redis client against the same REST
-// protocol, so a swapped value fails silently — as a cache answering the
-// other service's keys, not as a connection error. The SITE / CLOUD segment
-// is the only thing separating them; keep it accurate.
-function getRedis(): Redis {
-  if (!_redis) {
-    const url = process.env.UPSTASH_REDIS_CLOUD_URL;
-    const token = process.env.UPSTASH_REDIS_CLOUD_TOKEN;
-
-    if (!url || !token) {
-      throw new Error('UPSTASH_REDIS_CLOUD_URL and UPSTASH_REDIS_CLOUD_TOKEN are required');
-    }
-
-    _redis = new Redis({ url, token });
-  }
-  return _redis;
-}
+// Lazy, memoised getter for the CLOUD database. The env names, the missing-env
+// error and the memo live in `./redis-client`, which nothing mocks, so its
+// tests reach them; see the SITE / CLOUD warning there.
+const getRedis = createRedisGetter();
 
 // Export redis getter for lazy initialization
 export const redis = {

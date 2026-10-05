@@ -35,7 +35,7 @@ SKIP_ENV_VALIDATION=1 npm run build
 
 <important if="you are making i18n, locale, or translation-string changes">
 
-Locale config is `i18n.ts`; translation JSON files live in `messages/` (see `messages/AGENTS.md` for JSON syntax rules).
+The locale list is `src/i18n/locales.ts` and the next-intl request config is `src/i18n/request.ts` (the plugin in `next.config.mjs` resolves it); translation JSON files live in `messages/` (see `messages/AGENTS.md` for JSON syntax rules).
 </important>
 
 <!-- BEGIN:nextjs-agent-rules -->

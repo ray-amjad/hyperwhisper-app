@@ -890,6 +890,7 @@
 "audio.error.permissionDenied" = "تم رفض الوصول إلى الميكروفون. يرجى التفعيل في إعدادات النظام.";
 "audio.error.microphonePermission" = "لم يتم منح إذن الميكروفون";
 "audio.error.microphoneInUse" = "لا يمكن لـ HyperWhisper الوصول إلى الميكروفون لأن تطبيقاً آخر يستخدمه حالياً. أوقف التطبيق الآخر أو بدّل المدخلات، ثم حاول مرة أخرى.";
+"audio.error.audioSystemNotResponding" = "نظام الصوت في macOS لا يستجيب، لذا تعذّر تشغيل الميكروفون. حاول مرة أخرى بعد لحظات. إذا تكرر ذلك، فأعد تشغيل جهاز Mac.";
 "audio.error.createEngine" = "فشل إنشاء محرك الصوت";
 "audio.error.noInput" = "لا يوجد إدخال صوت متاح";
 "audio.error.createFile" = "فشل إنشاء ملف الصوت";

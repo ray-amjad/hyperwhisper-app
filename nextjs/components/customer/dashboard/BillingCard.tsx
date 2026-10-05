@@ -33,7 +33,7 @@ export default function BillingCard() {
         )}
       </div>
       {stripePortalMutation.error && (
-        <p className="text-sm text-red-400 mt-2">
+        <p className="text-sm text-red-400 mt-2" role="alert">
           {stripePortalMutation.error.message}
         </p>
       )}

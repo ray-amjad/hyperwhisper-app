@@ -8,17 +8,18 @@ import {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://hyperwhisper.com";
 
-  // Define all your pages here
+  // Each path must be app/[locale]<path>/page.tsx and render on every locale;
+  // tests/sitemap-routes.test.ts fails nextjs-ci when one does not.
   const pages = [
     "", // home page
-    "/about",
-    "/blog",
     "/download",
-    "/pricing",
-    "/docs",
     "/support",
-    "/legal/privacy",
-    "/legal/terms",
+    "/credits",
+    "/open-source",
+    "/older-versions",
+    "/legal/privacy-policy",
+    "/legal/terms-of-service",
+    "/legal/refund-policy",
   ];
 
   const sitemap: MetadataRoute.Sitemap = [];
@@ -38,13 +39,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   });
 
-  // English only, like blog posts: the page 404s on every other locale, so it
-  // must stay out of the 40-locale loop above and carry no `alternates`.
+  // English only, like blog posts: these pages 404 on every other locale, so
+  // they must stay out of the 40-locale loop above and carry no `alternates`.
+  sitemap.push({
+    url: `${baseUrl}/en/blog`,
+    lastModified: new Date(),
+    changeFrequency: "weekly",
+    priority: 0.8,
+  });
+  sitemap.push({
+    url: `${baseUrl}/en/choosing-a-model`,
+    lastModified: new Date(),
+    changeFrequency: "weekly",
+    priority: 0.8,
+  });
   sitemap.push({
     url: `${baseUrl}/en/latency`,
     lastModified: new Date(),
     changeFrequency: "daily",
     priority: 0.6,
+  });
+
+  // A vercel.json rewrite with no locale form, so it is listed once, unprefixed.
+  sitemap.push({
+    url: `${baseUrl}/docs`,
+    lastModified: new Date(),
+    changeFrequency: "weekly",
+    priority: 0.8,
   });
 
   const blogPosts = await getAllBlogPosts();

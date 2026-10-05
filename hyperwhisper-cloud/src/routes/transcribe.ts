@@ -202,6 +202,10 @@ export async function transcribeRoute(c: Context) {
           mayRefuseEmptyTranscript: refusalIndex === undefined
             && current === provider
             && index < chain.length - 1,
+          // The second opinion after a refusal. A Whisper sibling uses it to
+          // drop its own silence hallucination ("Thank you.") instead of
+          // billing it. See ProviderRequestContext.isEmptyTranscriptRecovery.
+          isEmptyTranscriptRecovery: refusalIndex !== undefined,
         }));
         servedBy = current;
         // Prefer the model the adapter reports it ACTUALLY ran (e.g. AssemblyAI's

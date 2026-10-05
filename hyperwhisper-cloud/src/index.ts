@@ -15,6 +15,7 @@ import {
   wsStreamingGeminiTranscribeRoute,
 } from './routes/ws-streaming-gemini-transcribe';
 import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
+import { endActiveStreamingSessions } from './routes/ws-streaming-shared';
 import { drainPendingDeductions } from './middleware/credits';
 import { drainPendingLatencyReports } from './lib/latency-report';
 
@@ -114,6 +115,14 @@ async function gracefulShutdown(signal: string): Promise<void> {
     shutdownAt: new Date().toISOString(),
   });
 
+  // A live streaming session is billed only when it ends, and Bun runs no
+  // socket close handler on process.exit. End them first, so their charges
+  // are already in flight when the deduction drain below awaits them.
+  const endedSessions = await endActiveStreamingSessions();
+  if (endedSessions > 0) {
+    console.log('machine.shutdown_ended_streaming_sessions', { count: endedSessions });
+  }
+
   // Both drains are fire-and-forget writes made after the response is flushed,
   // so they race the same SIGKILL. Run them together rather than in series —
   // the grace period is one budget, not two.
@@ -133,9 +142,20 @@ async function gracefulShutdown(signal: string): Promise<void> {
 process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
 process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
 
+// Bun.serve's own idle limit, in SECONDS (#1252). Bun's default is 10 s, which
+// cut every request silent for longer than that with an empty reply, before
+// any vendor bound (15/20/45 s) could fire. 255 s is Bun's maximum: some single
+// requests stay silent for over 60 s (google-chirp batch polling up to
+// BATCH_POLL_DEADLINE_MS, callWithRetry chains on /post-process), so Bun must
+// never be a second, tighter cutter. On Fly the proxy's fixed 60 s no-bytes
+// limit (see the 30 s ping in routes/ws-streaming-shared.ts) is still the
+// binding cut for silent requests.
+export const SERVER_IDLE_TIMEOUT_SECONDS = 255;
+
 // Export for Bun
 export default {
   port: Number(process.env.PORT) || 8080,
+  idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,
   fetch: app.fetch,
   websocket,
 };

@@ -9,11 +9,18 @@ type Props = {
 
 // Root layout required by Next.js - responsible for rendering the single <html>/<body> shell.
 // We read the locale from the next-intl middleware header so the lang attribute stays accurate.
+// The site is dark-only, so "dark" is in the server markup: with JavaScript off the next-themes
+// script never runs, and without the class the white text lands on a light page (#1151).
 export default async function RootLayout({ children }: Props) {
   const locale = (await headers()).get("x-next-intl-locale") ?? "en";
 
   return (
-    <html suppressHydrationWarning lang={locale} dir={localeDirection(locale)}>
+    <html
+      suppressHydrationWarning
+      className="dark"
+      dir={localeDirection(locale)}
+      lang={locale}
+    >
       <body>
         {children}
         <Script id="agentstack-init" strategy="lazyOnload">

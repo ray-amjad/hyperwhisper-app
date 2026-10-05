@@ -314,14 +314,22 @@ export default function ModelPicker({ measured, regions }: Props) {
           </div>
 
           <div className="mt-6 border-t border-gray-800 pt-5">
-            <span className="text-xs uppercase tracking-widest text-gray-500">
+            <span
+              className="text-xs uppercase tracking-widest text-gray-500"
+              id="picker-platform-label"
+            >
               Your platform
             </span>
-            <div className="mt-2 flex gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
+            <div
+              aria-labelledby="picker-platform-label"
+              className="mt-2 flex gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1"
+              role="group"
+            >
               {(["macos", "windows"] as const).map((option) => (
                 <button
                   key={option}
-                  className={`flex-1 rounded-md px-3 py-1.5 text-sm transition ${
+                  aria-pressed={platform === option}
+                  className={`flex-1 rounded-sm px-3 py-1.5 text-sm transition ${
                     platform === option
                       ? "bg-purple-600 text-white"
                       : "text-gray-400 hover:text-white"
@@ -336,13 +344,21 @@ export default function ModelPicker({ measured, regions }: Props) {
           </div>
 
           <div className="mt-5">
-            <span className="text-xs uppercase tracking-widest text-gray-500">
+            <span
+              className="text-xs uppercase tracking-widest text-gray-500"
+              id="picker-languages-label"
+            >
               Languages you dictate
             </span>
-            <div className="mt-2 flex flex-wrap gap-1">
+            <div
+              aria-labelledby="picker-languages-label"
+              className="mt-2 flex flex-wrap gap-1"
+              role="group"
+            >
               {LANGUAGE_OPTIONS.map((option) => (
                 <button
                   key={option.id}
+                  aria-pressed={language === option.id}
                   className={`rounded-full border px-3 py-1 text-xs transition ${
                     language === option.id
                       ? "border-purple-500/60 bg-purple-600/20 text-white"
@@ -358,10 +374,17 @@ export default function ModelPicker({ measured, regions }: Props) {
           </div>
 
           <div className="mt-5">
-            <span className="text-xs uppercase tracking-widest text-gray-500">
+            <span
+              className="text-xs uppercase tracking-widest text-gray-500"
+              id="picker-requirements-label"
+            >
               Must have
             </span>
-            <div className="mt-2 flex flex-wrap gap-1">
+            <div
+              aria-labelledby="picker-requirements-label"
+              className="mt-2 flex flex-wrap gap-1"
+              role="group"
+            >
               {REQUIREMENT_OPTIONS.map((option) => (
                 <button
                   key={option.id}
@@ -382,10 +405,14 @@ export default function ModelPicker({ measured, regions }: Props) {
 
           {hasMeasurements ? (
             <div className="mt-5">
-              <span className="text-xs uppercase tracking-widest text-gray-500">
+              <span
+                className="text-xs uppercase tracking-widest text-gray-500"
+                id="picker-region-label"
+              >
                 Closest region
               </span>
               <select
+                aria-labelledby="picker-region-label"
                 className="mt-2 w-full rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-sm text-gray-300 transition hover:text-white"
                 value={region ?? ""}
                 onChange={(event) => {
@@ -461,9 +488,12 @@ export default function ModelPicker({ measured, regions }: Props) {
                   <dd className="mt-1 font-mono text-lg tabular-nums text-white">
                     {formatCost(best.model)}
                   </dd>
-                  <p className="mt-0.5 text-[10px] text-gray-500">
+                  {/* A second <dd>, not a <p> in the first one: a <dl> wrapper may hold
+                      only <dt>/<dd> (#890), and inside the first <dd> the note would
+                      inherit its font-mono text-lg line box. */}
+                  <dd className="mt-0.5 text-[10px] text-gray-500">
                     {formatDollars(best.model) ?? "no per-minute cost"}
-                  </p>
+                  </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
                   <dt className="text-[10px] uppercase tracking-wider text-gray-500">
@@ -506,7 +536,13 @@ export default function ModelPicker({ measured, regions }: Props) {
                 </p>
               </div>
 
-              <div className="mt-4 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80">
+              <div
+                aria-label="Model comparison table"
+                className="mt-4 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                role="region"
+                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+                tabIndex={0}
+              >
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-gray-800">

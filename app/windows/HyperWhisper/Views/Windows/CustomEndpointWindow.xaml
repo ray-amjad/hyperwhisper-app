@@ -46,7 +46,8 @@
                 <StackPanel Margin="0,0,0,16">
                     <TextBlock x:Name="UrlLabel" Text="Base URL" FontSize="14" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
-                    <TextBox x:Name="UrlTextBox"/>
+                    <TextBox x:Name="UrlTextBox"
+                             TextChanged="UrlTextBox_TextChanged"/>
                     <TextBlock x:Name="UrlHintText" Text="Base URL of your local server"
                                FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                 </StackPanel>
@@ -78,10 +79,11 @@
                     </Grid>
 
                     <!-- Model ComboBox (for LMStudio/Ollama) -->
-                    <ComboBox x:Name="ModelCombo" Visibility="Collapsed"/>
+                    <ComboBox x:Name="ModelCombo" Visibility="Collapsed"
+                              SelectionChanged="TestInput_Changed"/>
 
                     <!-- Model TextBox (for Custom or fallback) -->
-                    <TextBox x:Name="ModelTextBox"/>
+                    <TextBox x:Name="ModelTextBox" TextChanged="TestInput_Changed"/>
 
                     <!-- Fetching indicator -->
                     <StackPanel x:Name="FetchingPanel" Orientation="Horizontal" Visibility="Collapsed" Margin="0,4,0,0">
@@ -103,7 +105,7 @@
                 <StackPanel Margin="0,0,0,16">
                     <TextBlock Text="API Key (Optional)" FontSize="14" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
-                    <PasswordBox x:Name="ApiKeyBox"/>
+                    <PasswordBox x:Name="ApiKeyBox" PasswordChanged="TestInput_Changed"/>
                     <TextBlock Text="Stored securely in Windows Credential Manager"
                                FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                 </StackPanel>

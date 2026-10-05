@@ -5,6 +5,7 @@ import type { WSMessageReceive } from 'hono/ws';
 import { computeGeminiTranscribeLiveCost, creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { drainPendingDeductions } from '../middleware/credits';
 import type { AuthContext } from '../middleware/auth';
+import { captureRejectionLogs, captureStreamingLogs } from './ws-streaming-test-logs';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -34,7 +35,7 @@ const {
   parseGeminiLiveFrame,
   wsStreamingGeminiTranscribePreflight,
 } = await import('./ws-streaming-gemini-transcribe');
-const { routePathFor } = await import('./ws-streaming-shared');
+const { endActiveStreamingSessions, resetStreamingShutdownForTests, routePathFor } = await import('./ws-streaming-shared');
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
@@ -216,6 +217,12 @@ describe('preflight', () => {
 
   const UPGRADE_HEADERS = { Upgrade: 'websocket', 'Fly-Client-IP': '203.0.113.7' } as const;
 
+
+  // The preflight's console.log lines, captured per test. Each refused upgrade
+  // must leave exactly one `ws_streaming.request_rejected` line, and no line may
+  // carry the key.
+  const { expectOneRejection } = captureRejectionLogs();
+
   beforeEach(() => {
     cachedLicenseValue = { isValid: true, credits: 100, cachedAt: 'cached' };
     blockedIPs.clear();
@@ -232,6 +239,7 @@ describe('preflight', () => {
     const res = await buildApp().request('/ws/streaming-gemini-transcribe?account_key=key-1234-abcd');
 
     expect(res.status).toBe(426);
+    expect(expectOneRejection('not_websocket', 426).endpoint).toBe('/ws/streaming-gemini-transcribe');
   });
 
   test('rejects a blocked IP before any license work happens', async () => {
@@ -243,6 +251,14 @@ describe('preflight', () => {
     });
 
     expect(res.status).toBe(403);
+    expectOneRejection('ip_blocked', 403);
+  });
+
+  test('rejects an upgrade that carries no key at all', async () => {
+    const res = await buildApp().request('/ws/streaming-gemini-transcribe', { headers: UPGRADE_HEADERS });
+
+    expect(res.status).toBe(401);
+    expectOneRejection('missing_account_key', 401);
   });
 
   test('accepts the legacy license_key alias installed apps still send', async () => {
@@ -266,6 +282,7 @@ describe('preflight', () => {
     });
 
     expect(res.status).toBe(402);
+    expect(expectOneRejection('insufficient_credits', 402).minimumCredits).toBe(minimumGeminiTranscribeStreamingCredits());
   });
 
   test('admits a balance that clears the Gemini floor but not one that only clears Deepgram\'s', async () => {
@@ -877,6 +894,32 @@ describe('gemini live socket lifecycle', () => {
       ]);
       await harness.endSession();
     });
+
+    test('logs upstream_socket_error without the error text, which quotes the keyed upstream URL', async () => {
+      // Bun's ErrorEvent message on a failed handshake quotes the full URL, and
+      // the Gemini URL carries `?key=`, so logging the message leaks the key.
+      const key = 'FAKEKEY123';
+      process.env.GEMINI_API_KEY = key;
+      const harness = openSession();
+      expect(harness.upstream.url).toContain(`key=${key}`);
+      const message = `WebSocket connection to '${harness.upstream.url}' failed: Expected 101 status code`;
+
+      const { entries, serialised } = captureStreamingLogs(() => harness.upstream.emit('error', {
+        type: 'error',
+        message,
+        error: new Error(message),
+      }));
+
+      const line = entries.find((entry) => entry.event === 'ws_streaming.upstream_socket_error');
+      expect(line).toBeDefined();
+      expect(line!.details).toMatchObject({ provider: 'gemini-transcribe', eventType: 'error', errorName: 'Error' });
+      expect(serialised.length).toBeGreaterThan(0);
+      for (const text of serialised) {
+        expect(text).not.toContain(key);
+        expect(text).not.toContain('Expected 101');
+      }
+      await harness.endSession();
+    });
   });
 
   describe('billing', () => {
@@ -1021,6 +1064,76 @@ describe('gemini live socket lifecycle', () => {
 
       expect(licenseCharges).toHaveLength(1);
       expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
+    });
+  });
+
+  describe('machine shutdown (#1235)', () => {
+    // A session opened by an earlier test and never closed is still registered.
+    // Settle those first, so each test counts only the sessions it opens.
+    // The latch is module state and bun runs every test file in one process.
+    afterEach(() => resetStreamingShutdownForTests());
+
+    async function settleLeftoverSessions(): Promise<void> {
+      await endActiveStreamingSessions();
+      // Ending latches the machine as shutting down; reopen it for this test.
+      resetStreamingShutdownForTests();
+      await drainPendingDeductions(2000);
+      licenseCharges.length = 0;
+    }
+
+    test('bills an open session, logs session_end, and closes the client with 1012 without finishing it', async () => {
+      await settleLeftoverSessions();
+      const harness = openSession();
+      for (let second = 0; second < 60; second += 1) {
+        harness.events.onMessage(binaryMessage(audioFrame(1)));
+      }
+      expect(harness.upstream.audioFramesForwarded).toBe(60);
+
+      let ending: Promise<number> = Promise.resolve(-1);
+      const { entries, serialised } = captureStreamingLogs(() => {
+        ending = endActiveStreamingSessions();
+      });
+      expect(await ending).toBe(1);
+      expect(await drainPendingDeductions(2000)).toBe(1);
+
+      expect(licenseCharges).toHaveLength(1);
+      expect(licenseCharges[0]!.metadata.audio_duration_seconds).toBe(60);
+      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeGeminiTranscribeLiveCost(60, 0)));
+      const sessionEnds = entries.filter((entry) => entry.event === 'ws_streaming.session_end');
+      expect(sessionEnds).toHaveLength(1);
+      expect(sessionEnds[0]!.details).toMatchObject({ durationSeconds: 60 });
+      for (const line of serialised) expect(line).not.toContain('key-1234-abcd');
+
+      // 1012 Service Restart is non-terminal in all three clients, so they
+      // reconnect. session_complete would make them finish the dictation.
+      expect(harness.client.closes).toEqual([{ code: 1012, reason: 'Service restart' }]);
+      expect(harness.client.messagesOfType('session_complete')).toEqual([]);
+      expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Server shutting down' }]);
+      // No audio_stream_end: shutdown does not wait for the trailing final.
+      expect(harness.upstream.jsonFrames.map(frameKind)).not.toContain('audioStreamEnd');
+
+      // The socket handlers that follow must not post a second charge.
+      harness.upstream.emit('close', { code: 1000, reason: '' });
+      await harness.events.onClose();
+      await drainPendingDeductions(2000);
+      expect(licenseCharges).toHaveLength(1);
+      expect(harness.client.closes).toHaveLength(1);
+      expect(harness.client.messagesOfType('session_complete')).toEqual([]);
+
+      // ...and the session left the set.
+      expect(await endActiveStreamingSessions()).toBe(0);
+    });
+
+    test('a session the client already closed is not ended again at shutdown', async () => {
+      await settleLeftoverSessions();
+      const harness = openSession();
+      harness.events.onMessage(binaryMessage(audioFrame(5)));
+      await harness.endSession();
+      expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
+
+      expect(await endActiveStreamingSessions()).toBe(0);
+      await drainPendingDeductions(2000);
+      expect(licenseCharges).toHaveLength(1);
     });
   });
 });

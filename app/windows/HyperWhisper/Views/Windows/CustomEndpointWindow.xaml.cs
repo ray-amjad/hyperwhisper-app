@@ -18,6 +18,10 @@ public partial class CustomEndpointWindow : Window
     private bool _isLoading = true;
     private bool _isTesting;
 
+    // Bumped by every model fetch and every tab switch. A fetch that returns
+    // after either has happened is stale and leaves the UI to its successor.
+    private int _fetchGeneration;
+
     /// <summary>
     /// The last Test Connection outcome, together with the exact configuration
     /// it was measured against.
@@ -158,6 +162,12 @@ public partial class CustomEndpointWindow : Window
         ClearTestResult();
         UpdateTabUI();
 
+        // The new tab owns the model area: drop any pending fetch, its spinner
+        // and its warning. The fetch started below shows its own spinner.
+        _fetchGeneration++;
+        FetchingPanel.Visibility = Visibility.Collapsed;
+        ModelFetchErrorText.Visibility = Visibility.Collapsed;
+
         // Fetch models for LMStudio/Ollama
         if (TabLMStudio.IsChecked == true || TabOllama.IsChecked == true)
         {
@@ -211,6 +221,14 @@ public partial class CustomEndpointWindow : Window
     // MODEL FETCHING
     // =========================================================================
 
+    // A fetch warning describes the Base URL that was fetched; once the user
+    // edits that URL, it no longer applies.
+    private void UrlTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        ModelFetchErrorText.Visibility = Visibility.Collapsed;
+        TestInput_Changed(sender, e);
+    }
+
     private void RefreshModels_Click(object sender, RoutedEventArgs e)
     {
         _ = FetchModelsAsync();
@@ -221,6 +239,7 @@ public partial class CustomEndpointWindow : Window
         var baseUrl = UrlTextBox.Text.Trim();
         if (string.IsNullOrEmpty(baseUrl)) return;
 
+        var generation = ++_fetchGeneration;
         FetchingPanel.Visibility = Visibility.Visible;
         ModelFetchErrorText.Visibility = Visibility.Collapsed;
         ModelCombo.Items.Clear();
@@ -241,17 +260,25 @@ public partial class CustomEndpointWindow : Window
             return;
         }
 
+        // A newer fetch or a tab switch happened while this one was pending.
+        if (generation != _fetchGeneration) return;
+
         FetchingPanel.Visibility = Visibility.Collapsed;
 
         if (models.Count == 0)
         {
             var providerName = TabOllama.IsChecked == true ? "Ollama" : "LMStudio";
-            ModelFetchErrorText.Text = $"Could not fetch models. Ensure {providerName} is running.";
-            ModelFetchErrorText.Visibility = Visibility.Visible;
+            // Skip the warning if the user replaced the Base URL while this fetch was pending.
+            if (UrlTextBox.Text.Trim() == baseUrl)
+            {
+                ModelFetchErrorText.Text = $"Could not fetch models. Ensure {providerName} is running.";
+                ModelFetchErrorText.Visibility = Visibility.Visible;
+            }
 
             // Show textbox as fallback
             ModelCombo.Visibility = Visibility.Collapsed;
             ModelTextBox.Visibility = Visibility.Visible;
+            HideStaleTestResult();
             return;
         }
 
@@ -278,6 +305,7 @@ public partial class CustomEndpointWindow : Window
         ModelCombo.Visibility = Visibility.Visible;
         ModelTextBox.Visibility = Visibility.Collapsed;
         ModelFetchErrorText.Visibility = Visibility.Collapsed;
+        HideStaleTestResult();
     }
 
     // =========================================================================
@@ -303,14 +331,18 @@ public partial class CustomEndpointWindow : Window
 
         TestingPanel.Visibility = Visibility.Collapsed;
 
-        if (result.success)
+        // The user edited the form (or switched tab) while the test was pending:
+        // the verdict is still recorded, but it does not describe this form.
+        var showResult = FormMatchesLastTest();
+
+        if (showResult && result.success)
         {
             TestSuccessPanel.Visibility = Visibility.Visible;
             TestResultPanel.Visibility = Visibility.Visible;
             TestResultPanel.Background = FindResource("SuccessBackgroundBrush") as System.Windows.Media.Brush;
             TestResultText.Text = $"Response: {result.message}";
         }
-        else
+        else if (showResult)
         {
             TestFailPanel.Visibility = Visibility.Visible;
             TestResultPanel.Visibility = Visibility.Visible;
@@ -328,6 +360,32 @@ public partial class CustomEndpointWindow : Window
         TestFailPanel.Visibility = Visibility.Collapsed;
         TestingPanel.Visibility = Visibility.Collapsed;
         TestResultPanel.Visibility = Visibility.Collapsed;
+    }
+
+    // A shown result describes the Base URL, model and key it was run against
+    // (#1295). Hide it once the form no longer holds those values. Skipped while
+    // a test is pending (its arrival re-checks) and before any test, which also
+    // covers TextChanged firing during InitializeComponent and OnLoaded.
+    private void TestInput_Changed(object sender, RoutedEventArgs e)
+    {
+        // A model-list refresh empties the combo before it reselects; wait for that.
+        if (sender == ModelCombo && ModelCombo.SelectedItem == null) return;
+        HideStaleTestResult();
+    }
+
+    // Also called by FetchModelsAsync once it has applied a fetched list: it
+    // swaps which model control is visible, and that swap fires no event, so the
+    // per-control events above can read the model from the control being hidden.
+    private void HideStaleTestResult()
+    {
+        if (_isTesting || _lastTest == null) return;
+        if (!FormMatchesLastTest()) ClearTestResult();
+    }
+
+    private bool FormMatchesLastTest()
+    {
+        var (url, model) = GetEndpointUrlAndModel();
+        return TestOutcomeFor(url, model, ApiKeyBox.Password) != null;
     }
 
     // =========================================================================

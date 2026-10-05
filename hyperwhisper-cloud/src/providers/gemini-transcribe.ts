@@ -77,7 +77,7 @@ const MAX_VOCABULARY_TERM_CHARS = 80;
 // cold path took 35 s, twice. `gemini-transcribe` is self-only, so a timeout is a
 // hard 502 with no sibling to absorb it — budget for the cold case. Same reasoning
 // (and the same number) as google-chirp's SYNC_RECOGNIZE_TIMEOUT_MS.
-const INTERACTIONS_TIMEOUT_MS = 45_000;
+export const INTERACTIONS_TIMEOUT_MS = 45_000;
 
 /**
  * Optional `transcription_config` extras. Both are dropped when vocabulary terms

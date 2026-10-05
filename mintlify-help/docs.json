@@ -10,9 +10,12 @@
     }
   ],
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#9810FA",
+    "light": "#C27AFF",
+    "dark": "#6E11B0"
+  },
+  "appearance": {
+    "default": "dark"
   },
   "favicon": "/assets/favicon.png",
   "logo": "/assets/logo.png",
