@@ -205,13 +205,12 @@ export async function revokeWebAccess(
  * The two writes are one transaction on purpose. Ordered as separate
  * statements they were fail-open, and fail-open in the worst possible shape:
  * the status write armed `stripe-webhook.ts`'s `if (license.status ===
- * "revoked") return;` guard, which sits ABOVE this call, so a failed session
- * delete could never be retried — the first half of the write permanently
- * blocked its own second half. The webhook route then answered 200, so Stripe
- * never retried, and the key ended up revoked with live 90-day sessions and no
- * path to clean up. The route now answers 500 and Stripe does retry, but a
- * retry would still hit that guard and skip the session delete. Either both
- * land or neither does.
+ * "revoked") return;` guard (that branch now also sweeps sessions via
+ * `revokeWebAccess`), which sits ABOVE this call, so a failed session delete
+ * could never be retried — the first half of the write permanently blocked
+ * its own second half. The webhook route answered 200 at the time, so Stripe
+ * never retried either, and the key ended up revoked with live 90-day
+ * sessions and no path to clean up. Either both land or neither does.
  */
 export async function revokeAccountKey(
   id: string,
