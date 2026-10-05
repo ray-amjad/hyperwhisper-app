@@ -11,6 +11,7 @@ import { fontSans } from "@/config/fonts";
 // getMessages() in app/[locale]/layout.tsx. Unlike not-found.tsx, this file
 // REPLACES the root layout when it fires, so its <html> and <body> are the
 // document's real ones. The i18n provider is gone here, so the text stays English.
+// next-themes is gone too, so "dark" is set by hand to keep HeroUI's dark tokens (#1151).
 export default function GlobalError({
   error,
   retry,
@@ -32,7 +33,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en">
+    <html className="dark" lang="en">
       <head>
         <title>Something went wrong | HyperWhisper</title>
       </head>
