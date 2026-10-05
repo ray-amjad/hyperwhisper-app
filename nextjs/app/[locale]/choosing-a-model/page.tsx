@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ModelPicker from "@/components/choosing-a-model/ModelPicker";
 import { getMeasuredLatency } from "@/src/content/choosing-a-model";
 import { CLOUD_MODELS, DEVICE_MODELS } from "@/lib/choosing-a-model/catalog";
+import { englishStaticPageMetadata } from "@/lib/site-metadata";
 
 export const dynamic = "force-static";
 export const revalidate = 3600;
@@ -12,13 +13,11 @@ const DESCRIPTION =
   "Tell us what matters — accuracy, speed, cost or privacy — and see which of the speech-to-text models HyperWhisper ships actually fits, cloud and on-device ranked side by side.";
 
 export async function generateMetadata() {
-  return {
+  return englishStaticPageMetadata({
+    path: "/choosing-a-model",
     title: TITLE,
     description: DESCRIPTION,
-    alternates: {
-      canonical: "https://hyperwhisper.com/en/choosing-a-model",
-    },
-  };
+  });
 }
 
 type Props = {
