@@ -54,7 +54,7 @@ export default async function UserLayout({
           {isAdmin && <UserSidebar locale={locale} />}
 
           {/* Main Content */}
-          <div className="flex-1 flex flex-col min-h-screen">
+          <div className="flex-1 flex flex-col min-w-0 min-h-screen">
             <UserHeader user={user} locale={locale} isAdmin={isAdmin} />
             <main
               className={`flex-1 ${
