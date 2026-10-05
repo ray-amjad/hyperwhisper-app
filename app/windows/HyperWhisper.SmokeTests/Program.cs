@@ -17521,6 +17521,18 @@ internal static class Program
     /// harness never raises, and the CAPTIONS - the half #570 is about - do not
     /// depend on the numbers at all.
     /// </summary>
+    private sealed class HomeStatsProbe
+    {
+        public int AverageWpm { get; init; } = 142;
+        public int WordsThisWeek { get; init; } = 12345;
+        public int WordsThisMonth { get; init; } = 54321;
+        // Built the way HomeStatsBarViewModel builds it - Loc.S("home.stats.minutesValue", n) -
+        // because this is the one tile VALUE the app localizes, and a hard-coded English
+        // literal would measure the same six characters under all 40 catalogues.
+        public string SavedThisWeekDisplay { get; init; } =
+            HyperWhisper.Localization.Loc.S("home.stats.minutesValue", 83);
+    }
+
     /// <summary>
     /// MainViewModel's navigation surface, for SidebarNav (issue #1319): CurrentPage,
     /// raised only on a real change as [ObservableProperty] does, and the seven commands.
@@ -17558,18 +17570,6 @@ internal static class Program
             public bool CanExecute(object? parameter) => true;
             public void Execute(object? parameter) => execute();
         }
-    }
-
-    private sealed class HomeStatsProbe
-    {
-        public int AverageWpm { get; init; } = 142;
-        public int WordsThisWeek { get; init; } = 12345;
-        public int WordsThisMonth { get; init; } = 54321;
-        // Built the way HomeStatsBarViewModel builds it - Loc.S("home.stats.minutesValue", n) -
-        // because this is the one tile VALUE the app localizes, and a hard-coded English
-        // literal would measure the same six characters under all 40 catalogues.
-        public string SavedThisWeekDisplay { get; init; } =
-            HyperWhisper.Localization.Loc.S("home.stats.minutesValue", 83);
     }
 
     private sealed class StatusBarProbe
