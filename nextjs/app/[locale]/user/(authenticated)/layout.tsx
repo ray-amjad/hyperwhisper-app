@@ -53,8 +53,15 @@ export default async function UserLayout({
           {/* Sidebar - Only visible for admins */}
           {isAdmin && <UserSidebar locale={locale} />}
 
-          {/* Main Content */}
-          <div className="flex-1 flex flex-col min-h-screen">
+          {/* Main Content. min-w-0 lets a customer's column shrink to the
+              viewport, so a long masked Account Key truncates on a phone
+              (#1328). Admins keep the old sizing: beside the fixed sidebar,
+              min-w-0 crushes the wide admin tables to a few px on a phone. */}
+          <div
+            className={`flex-1 flex flex-col min-h-screen${
+              isAdmin ? "" : " min-w-0"
+            }`}
+          >
             <UserHeader user={user} locale={locale} isAdmin={isAdmin} />
             <main
               className={`flex-1 ${
