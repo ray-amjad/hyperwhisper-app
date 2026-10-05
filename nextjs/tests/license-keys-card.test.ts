@@ -261,3 +261,77 @@ test("a refused copy after a successful one drops the tick", async () => {
   assert.ok(markup.includes(FAILURE), "the failure message was not rendered");
   assert.ok(!markup.includes("M5 13l4 4L19 7"), "the earlier tick sat beside the failure");
 });
+
+/** Depth-first search of the element tree for every node `match` accepts. */
+function findAll(node: unknown, match: (element: Element) => boolean): Element[] {
+  if (Array.isArray(node)) return node.flatMap((child) => findAll(child, match));
+
+  if (!node || typeof node !== "object" || !("props" in node)) return [];
+
+  const element = node as Element;
+  const below = findAll(element.props.children, match);
+
+  return match(element) ? [element, ...below] : below;
+}
+
+const classOf = (element: Element) =>
+  String((element.props as { className?: string }).className ?? "");
+const isCode = (element: Element) => element.type === "code";
+const isStatus = (element: Element) =>
+  (element.props as { role?: string }).role === "status";
+
+// #1325: on a phone the message shared the key's flex row and squeezed the
+// revealed key to "HW-K…". It now sits on its own line, and a shown key wraps.
+test("a refused copy puts its message under the key's row, not inside it", async () => {
+  stubWriteText(async () => {
+    throw new Error("denied");
+  });
+  await clickCopy();
+
+  const show = findByTitle(await renderCard(), "Show Account Key");
+
+  assert.ok(show?.props.onClick, "the card rendered no show button");
+  show.props.onClick();
+
+  const tree = await renderCard();
+  const [status] = findAll(tree, isStatus);
+
+  assert.ok(status, "the status message was not rendered");
+  assert.equal(status.type, "p");
+  assert.equal((status.props as { "aria-live"?: string })["aria-live"], "polite");
+  assert.match(classOf(status), /\bempty:hidden\b/);
+
+  // The flex row that holds the <code> holds no status message.
+  const rows = findAll(
+    tree,
+    (element) => /\bflex\b/.test(classOf(element)) && findAll(element.props.children, isCode).length > 0,
+  );
+
+  assert.ok(rows.length > 0, "found no flex row around the key");
+  for (const row of rows) {
+    assert.deepEqual(findAll(row.props.children, isStatus), [], "the message shares the key's flex row");
+  }
+
+  const markup = renderToStaticMarkup(tree as unknown as React.ReactElement);
+
+  assert.ok(markup.includes(FAILURE), "the failure message was not rendered");
+  assert.ok(markup.includes(SAMPLE), "the revealed key is not in the markup");
+});
+
+test("a shown key wraps and a masked key truncates", async () => {
+  const masked = findAll(await renderCard(), isCode);
+
+  assert.equal(masked.length, 1);
+  assert.match(classOf(masked[0]), /\btruncate\b/);
+  assert.doesNotMatch(classOf(masked[0]), /\bbreak-all\b/);
+
+  findByTitle(await renderCard(), "Show Account Key")?.props.onClick?.();
+
+  const shown = findAll(await renderCard(), isCode);
+
+  assert.equal(shown.length, 1);
+  assert.match(classOf(shown[0]), /\bbreak-all\b/);
+  assert.doesNotMatch(classOf(shown[0]), /\btruncate\b/);
+  // No min-w-* on the key: that pushes the Active badge off a 320px card.
+  assert.doesNotMatch(classOf(shown[0]), /\bmin-w-/);
+});
