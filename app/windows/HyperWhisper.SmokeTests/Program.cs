@@ -14355,6 +14355,88 @@ internal static class Program
                 }
             });
 
+            Run("sidebar: the rail highlights the page CurrentPage names, also when code navigates — issue #1319", () =>
+            {
+                // A Home card, a finished file transcription, onboarding and the tray
+                // all set MainViewModel.CurrentPage from code. The rail used to follow
+                // only its own clicks, so it kept "Home" lit over the Vocabulary page.
+                // MainViewModel itself cannot be built here (it opens the audio stack),
+                // so a stand-in with the same CurrentPage and command names is used.
+                EnsureSmokeApplication();
+                var probe = new SidebarNavProbe();
+                var rail = new SidebarNav { DataContext = probe };
+                rail.Measure(new Size(232, 680));
+                rail.Arrange(new Rect(0, 0, 232, 680));
+                rail.UpdateLayout();
+
+                // Each item is found by the command it runs: not by position, and not
+                // by a label that changes with the culture.
+                var items = DescendantsOf<System.Windows.Controls.RadioButton>(rail)
+                    .Where(item => item.GroupName == "Nav").ToList();
+                var pages = Enum.GetValues<MainViewModel.NavigationPage>();
+                Assert(items.Count == pages.Length,
+                    $"the rail has {items.Count} nav items for {pages.Length} pages, so this case cannot map them");
+                System.Windows.Controls.RadioButton ItemFor(MainViewModel.NavigationPage page)
+                {
+                    var path = $"NavigateTo{page}Command";
+                    var matches = items.Where(item => System.Windows.Data.BindingOperations.GetBinding(
+                        item, System.Windows.Controls.Primitives.ButtonBase.CommandProperty)?.Path?.Path == path).ToList();
+                    Assert(matches.Count == 1, $"{matches.Count} nav items run {path}, expected exactly 1");
+                    return matches[0];
+                }
+                void AssertOnly(MainViewModel.NavigationPage expected, string when)
+                {
+                    var wrong = pages.Where(page => (ItemFor(page).IsChecked == true) != (page == expected))
+                        .Select(page => $"{page}.IsChecked={ItemFor(page).IsChecked}").ToList();
+                    Assert(wrong.Count == 0,
+                        $"{when}: CurrentPage is {expected}, but the rail shows {string.Join(", ", wrong)}");
+                }
+
+                AssertOnly(MainViewModel.NavigationPage.Home, "at start");
+                foreach (var page in new[]
+                {
+                    MainViewModel.NavigationPage.Vocabulary, MainViewModel.NavigationPage.Modes,
+                    MainViewModel.NavigationPage.History, MainViewModel.NavigationPage.Settings,
+                    MainViewModel.NavigationPage.ModelLibrary, MainViewModel.NavigationPage.Streaming,
+                    MainViewModel.NavigationPage.Home,
+                })
+                {
+                    probe.CurrentPage = page;
+                    AssertOnly(page, $"after code set CurrentPage = {page}");
+                }
+
+                // A user click must not cut the item off from CurrentPage. ButtonBase.OnClick
+                // is the real click path: RadioButton.OnToggle checks the item and the
+                // group unchecks the rest (SetCurrentValue, which keeps a binding), then
+                // the command runs. A later page change from code must still move the rail.
+                typeof(System.Windows.Controls.Primitives.ButtonBase)
+                    .GetMethod("OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(ItemFor(MainViewModel.NavigationPage.Modes), null);
+                Assert(probe.CurrentPage == MainViewModel.NavigationPage.Modes,
+                    $"a click on Modes left CurrentPage at {probe.CurrentPage}, so the click did not run its command");
+                AssertOnly(MainViewModel.NavigationPage.Modes, "after a click on Modes");
+                probe.CurrentPage = MainViewModel.NavigationPage.Vocabulary;
+                AssertOnly(MainViewModel.NavigationPage.Vocabulary, "after a click on Modes, then code navigating");
+
+                // The UI Automation path checks an item WITHOUT running its command.
+                var selection = (System.Windows.Automation.Provider.ISelectionItemProvider)
+                    System.Windows.Automation.Peers.UIElementAutomationPeer
+                        .CreatePeerForElement(ItemFor(MainViewModel.NavigationPage.History))
+                        .GetPattern(System.Windows.Automation.Peers.PatternInterface.SelectionItem);
+                selection.Select();
+                Assert(ItemFor(MainViewModel.NavigationPage.History).IsChecked == true,
+                    "UI Automation Select did not check History, so this case proves nothing about it");
+                probe.CurrentPage = MainViewModel.NavigationPage.Settings;
+                AssertOnly(MainViewModel.NavigationPage.Settings, "after UI Automation selected History, then code navigating");
+
+                foreach (var page in pages)
+                {
+                    Assert(System.Windows.Data.BindingOperations.GetBindingExpression(
+                            ItemFor(page), System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty) != null,
+                        $"the {page} item has no IsChecked binding after the clicks, so a local value replaced it");
+                }
+            });
+
             Run("storage: a cleanup that deleted nothing is still recorded, and survives a restart — issue #514", () =>
             {
                 // Two separate reasons the Storage page said "No cleanup has run yet"
@@ -17439,6 +17521,45 @@ internal static class Program
     /// harness never raises, and the CAPTIONS - the half #570 is about - do not
     /// depend on the numbers at all.
     /// </summary>
+    /// <summary>
+    /// MainViewModel's navigation surface, for SidebarNav (issue #1319): CurrentPage,
+    /// raised only on a real change as [ObservableProperty] does, and the seven commands.
+    /// </summary>
+    private sealed class SidebarNavProbe : System.ComponentModel.INotifyPropertyChanged
+    {
+        private MainViewModel.NavigationPage _currentPage = MainViewModel.NavigationPage.Home;
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+
+        public MainViewModel.NavigationPage CurrentPage
+        {
+            get => _currentPage;
+            set
+            {
+                if (_currentPage == value) return;
+                _currentPage = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(CurrentPage)));
+            }
+        }
+
+        public ICommand NavigateToHomeCommand => GoTo(MainViewModel.NavigationPage.Home);
+        public ICommand NavigateToModesCommand => GoTo(MainViewModel.NavigationPage.Modes);
+        public ICommand NavigateToVocabularyCommand => GoTo(MainViewModel.NavigationPage.Vocabulary);
+        public ICommand NavigateToStreamingCommand => GoTo(MainViewModel.NavigationPage.Streaming);
+        public ICommand NavigateToModelLibraryCommand => GoTo(MainViewModel.NavigationPage.ModelLibrary);
+        public ICommand NavigateToHistoryCommand => GoTo(MainViewModel.NavigationPage.History);
+        public ICommand NavigateToSettingsCommand => GoTo(MainViewModel.NavigationPage.Settings);
+
+        private ICommand GoTo(MainViewModel.NavigationPage page) => new NavigateProbeCommand(() => CurrentPage = page);
+
+        private sealed class NavigateProbeCommand(Action execute) : ICommand
+        {
+            public event EventHandler? CanExecuteChanged { add { } remove { } }
+            public bool CanExecute(object? parameter) => true;
+            public void Execute(object? parameter) => execute();
+        }
+    }
+
     private sealed class HomeStatsProbe
     {
         public int AverageWpm { get; init; } = 142;
