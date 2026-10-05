@@ -128,8 +128,16 @@ export async function POST(req: NextRequest) {
         "Stripe webhook: Error processing refund:",
         describeDbError(error),
       );
-      // Don't return error status - log for manual review instead
-      // This prevents infinite retries for non-transient failures
+      // Answer 500 so Stripe retries a transient fault (with backoff, for up
+      // to 3 days). The known permanent cases return inside
+      // handleChargeRefunded and answer 200; any throw lands here.
+      // refundCreditGrant / revokeAccountKey are idempotent, so a retry is
+      // safe. A fault that keeps throwing stops after Stripe's 3-day retry
+      // window and is left in this log.
+      return NextResponse.json(
+        { error: "Failed to process refund" },
+        { status: 500 }
+      );
     }
   }
 
