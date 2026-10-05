@@ -33,7 +33,14 @@ import { Providers } from "./providers";
 
 import { fontSans } from "@/config/fonts";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
-import { OG_IMAGES, SITE_NAME, SITE_URL } from "@/lib/site-metadata";
+import {
+  OG_IMAGES,
+  SITE_NAME,
+  SITE_URL,
+  TWITTER_CARD,
+  TWITTER_CREATOR,
+  TWITTER_IMAGES,
+} from "@/lib/site-metadata";
 import {
   buildAlternateLanguageMap,
   defaultLocale,
@@ -104,11 +111,11 @@ export async function generateMetadata({ params }: Props) {
       images: OG_IMAGES,
     },
     twitter: {
-      card: "summary",
+      card: TWITTER_CARD,
       title: t("title"),
       description: t("description"),
-      creator: "@theramjad",
-      images: ["https://hyperwhisper.com/icon/256.png"],
+      creator: TWITTER_CREATOR,
+      images: TWITTER_IMAGES,
     },
     robots: {
       index: true,

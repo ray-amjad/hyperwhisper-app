@@ -6,7 +6,8 @@
  * back to `https://hyperwhisper.com/en`. Each page now states its own canonical
  * and `openGraph`. Next merges metadata SHALLOWLY per top-level key, so a page
  * `openGraph` replaces the layout's whole object: this file also checks the
- * page still sends the og:image list, site name, type and locale.
+ * page still sends the og:image list, site name, type and locale. The same
+ * holds for `twitter`, whose title the layout pins to the home title.
  *
  * It calls the REAL `generateMetadata` of each page. The three content modules
  * they import read the database (and import "server-only"), so those are
@@ -59,6 +60,13 @@ type PageMetadata = {
     siteName: string;
     images: { url: string; width: number; height: number; alt: string }[];
   };
+  twitter: {
+    card: string;
+    title: string;
+    description: string;
+    creator: string;
+    images: string[];
+  };
 };
 
 type PageModule = {
@@ -109,5 +117,15 @@ for (const { route, title } of ROUTES) {
         (size) => `https://hyperwhisper.com/icon/${size}.png`,
       ),
     );
+
+    // The layout sets twitter.title, so without a page `twitter` object X
+    // previews the link with the home title; same shallow-merge rule applies.
+    assert.equal(metadata.twitter.title, title);
+    assert.equal(metadata.twitter.description, metadata.openGraph.description);
+    assert.equal(metadata.twitter.card, "summary");
+    assert.equal(metadata.twitter.creator, "@theramjad");
+    assert.deepEqual(metadata.twitter.images, [
+      "https://hyperwhisper.com/icon/256.png",
+    ]);
   });
 }

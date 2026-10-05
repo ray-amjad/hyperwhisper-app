@@ -18,6 +18,10 @@ export const OG_IMAGES = [1024, 512, 256, 128].map((size) => ({
   alt: "HyperWhisper Logo",
 }));
 
+export const TWITTER_CARD = "summary" as const;
+export const TWITTER_CREATOR = "@theramjad";
+export const TWITTER_IMAGES = [`${SITE_URL}/icon/256.png`];
+
 type EnglishStaticPageMetadataInput = {
   /** Route path below the locale, starting with "/", e.g. "/blog". */
   path: string;
@@ -37,6 +41,10 @@ export function englishStaticPageMetadata({
   description,
 }: EnglishStaticPageMetadataInput) {
   const url = `${SITE_URL}/en${path}`;
+  // The layout's "%s - HyperWhisper" template does not reach openGraph.title
+  // or twitter.title (Next only templates them from a parent openGraph/twitter
+  // title template), so spell out the same text the <title> shows.
+  const fullTitle = `${title} - ${SITE_NAME}`;
 
   return {
     title,
@@ -48,13 +56,19 @@ export function englishStaticPageMetadata({
       type: "website" as const,
       locale: "en_US",
       url,
-      // The layout's "%s - HyperWhisper" template does not reach
-      // openGraph.title (Next only templates it from a parent openGraph.title
-      // template), so spell out the same text the <title> shows.
-      title: `${title} - ${SITE_NAME}`,
+      title: fullTitle,
       description,
       siteName: SITE_NAME,
       images: OG_IMAGES,
+    },
+    // The layout sets twitter.title, so Next does not fill it from og:title;
+    // the page must send the whole twitter object (shallow merge again).
+    twitter: {
+      card: TWITTER_CARD,
+      title: fullTitle,
+      description,
+      creator: TWITTER_CREATOR,
+      images: TWITTER_IMAGES,
     },
   };
 }
