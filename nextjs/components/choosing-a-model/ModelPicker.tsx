@@ -488,9 +488,12 @@ export default function ModelPicker({ measured, regions }: Props) {
                   <dd className="mt-1 font-mono text-lg tabular-nums text-white">
                     {formatCost(best.model)}
                   </dd>
-                  <p className="mt-0.5 text-[10px] text-gray-500">
+                  {/* A second <dd>, not a <p> in the first one: a <dl> wrapper may hold
+                      only <dt>/<dd> (#890), and inside the first <dd> the note would
+                      inherit its font-mono text-lg line box. */}
+                  <dd className="mt-0.5 text-[10px] text-gray-500">
                     {formatDollars(best.model) ?? "no per-minute cost"}
-                  </p>
+                  </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
                   <dt className="text-[10px] uppercase tracking-wider text-gray-500">
