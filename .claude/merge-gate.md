@@ -25,34 +25,39 @@ A change to this file is a change to what ships without review. Review it like o
 | Consumer | #hw-fix-issues |
 
 State lives in issue comments, with a hidden HTML marker on the first line: `auto-dev:start`,
-`auto-dev:pr`, `auto-dev:merged`, `auto-dev:too-big`, `auto-dev:done`, `auto-dev:failed`. The routine
-prompt owns how the markers are written and read.
+`auto-dev:pr`, `auto-dev:merged`, `auto-dev:done`, `auto-dev:failed`, `auto-dev:questions`,
+`auto-dev:needs-spec`. Two labels hold an issue for Ray until he removes them: `needs-ray-answers`
+and `needs-ray-spec`. The routine prompt owns how the markers and labels are written and read.
 
-## 2. Blast radius: the pick-time test
+## 2. Held for Ray: built and proved, never merged alone
 
-An issue is small only when every line is true:
+Size never stops an issue, and neither does this section. Whether an issue is clear enough to build
+is the routine prompt's pickup gate. This section says only which PRs wait for Ray's approval.
 
-- The fix changes no database migration and no schema.
-- The fix changes no dependency version and no lockfile.
-- The fix changes no CI file and no build file.
-- The fix does not touch auth, sessions, permissions, billing, payments, Stripe or secrets, unless
-  the issue IS a bug in one of those and its `## Evidence` section proves the bug with real output.
-- The issue's `## Where` section names real files, and its `## Evidence` section is not empty.
-- The issue's `## Done when` line is a command or a test you can run.
-- You expect a diff under about 50 changed lines, in about 1 to 3 files.
-- The fix touches ONE platform head only, or the web app only, or the docs only. The heads are separate implementations, so the same bug in two heads is two fixes.
-- The fix touches no `shared-core-rs`, no rust core, and no UniFFI binding.
-- The fix changes no Local API wire contract: no request shape, response shape, error code, or enum a client reads.
-- The fix changes no cloud routing, provider dispatch or model id.
+A PR is held when its diff does any of these:
 
-This test runs once, when the issue is picked. It does not run again after review. A review round
-or a verify round can grow a small fix, and the review rounds are what catch a wrong fix, not the
-diff size. PR #2035 on agentic-coding-school stalled for this reason on 2026-09-29: a verify-found
-regression fix grew a 2-file change to 5 files, and the gate re-applied the size limit.
+- touches auth, sessions, permissions, roles, API keys or secrets.
+- touches billing, payments, Stripe, pricing, plan limits or credits.
+- changes legal copy: a privacy, terms or legal page, or any sentence that states what the product
+  does with a user's data. A policy sentence is a legal decision.
+- changes a database migration or a schema.
+- changes a dependency version or a lockfile.
+- changes a CI file or a build file.
+- touches `shared-core-rs`, the Rust core, or a UniFFI binding.
+- changes the Local API wire contract: a request shape, a response shape, an error code, or an
+  enum a client reads.
+- changes cloud routing, provider dispatch or a model id.
+
+A held PR is built, reviewed and proved like any other (§3, §4). It then stops at §5 condition 1:
+leave it open, write the `auto-dev:pr` marker naming the line above that it touches, and tag Ray for
+his approval. A bug fix in one of these areas is held too, however good its evidence.
+
+Read this from the PR's diff at the merge, not from the issue at pick time. A review round can pull
+a held path into a PR that did not touch one.
 
 ## 3. Tiers
 
-Every issue that passed §2 is in one of two tiers. Decide the tier from the DIFF, after the build,
+Every PR is in one of two tiers, held by §2 or not. Decide the tier from the DIFF, after the build,
 not from the issue title.
 
 **Cosmetic.** Every changed file is in a cosmetic path (below), and the diff changes no logic. Copy,
@@ -71,16 +76,20 @@ Cosmetic paths:
 Never cosmetic, whatever the path: copy on a privacy, terms, legal, pricing or billing page, and any
 sentence that states what the product does with a user's data. A policy sentence is a legal decision.
 On HyperWhisper every privacy-copy PR that was not a pure addition stalled on an open question
-(#721, #1011, #1024, #1025, #1047). Those are logic, and they usually end as a PR for Ray.
+(#721, #1011, #1024, #1025, #1047). Those are logic, and §2 holds them for Ray.
 
-**Logic.** Everything else that passed §2.
+**Logic.** Everything else.
 
 ## 4. Proof each tier needs
 
 | Tier | Review | CI | Proof of the change |
 |---|---|---|---|
-| Cosmetic | two rounds, Claude + Codex | green | a before/after screenshot of every affected page or screen, `main` beside the branch, same viewport, same state |
+| Cosmetic | one round, Claude + Codex | green | a before/after screenshot of every affected page or screen, `main` beside the branch, same viewport, same state |
 | Logic | two rounds, Claude + Codex | green | the `verify` skill's run on the changed flow, outcome `passed` |
+
+Read the tier from the built diff BEFORE the first review round, because the tier sets the number
+of rounds. A cosmetic diff gets one round. If that round's fixes add logic or leave the cosmetic
+paths, the PR is logic now: it gets the second round and the verify run.
 
 Cosmetic proof: capture on the cheapest matching head. Linux: a Namespace box (`namespace` + `hyperwhisper-desktop` skills). Windows: Ray's dev box (`windows-dev-box` skill). macOS: a rented Namespace Mac. Build `main` and the branch, launch each, capture the changed screen, and destroy a rented machine in the same turn. Web: a local boot and Playwright at 1280×800. Docs: no screenshot; run lychee and markdownlint on the diff instead. Publish each pair with `publish-media` and put the links in the
 PR's `## Verified` section, one line per page. Upload the same files to the thread with
@@ -99,8 +108,8 @@ saw and left out is a follow-up issue, filed and named in the reply.
 
 Check them in order. Stop at the first failure. Merge only when all six are true.
 
-1. The issue passed §2 at pick time.
-2. Both review rounds finished. No CONFIRMED finding from Reviewer Claude and no [P1] from Reviewer
+1. The diff touches nothing §2 holds for Ray. Read it from the PR head.
+2. Every review round the tier needs (§4) finished. No CONFIRMED finding from Reviewer Claude and no [P1] from Reviewer
    Codex about lines this diff changed is left unfixed. A PLAUSIBLE finding, a [P2], or a CONFIRMED
    finding declined as out of scope with the reason written in the PR body does not block. Each one
    goes in the Slack reply.
@@ -135,7 +144,12 @@ gh pr view <n> --repo ray-amjad/hyperwhisper-app --json state      # must read M
 A refused merge (branch protection, a conflict) is a failed gate. Do not write the merged marker.
 
 If any condition fails, leave the PR open, write the `auto-dev:pr` marker with the condition that
-failed, and tag Ray. That is a normal outcome.
+failed, and tag Ray. That is a normal outcome. This is the ONLY time a run tags Ray.
+
+**Ray approves a held PR by replying in that thread** ("merge", or any plain yes). No tag is needed:
+a plain reply goes to the agent that posted last there. His reply waives condition 1, and 5 or 6
+when it answers that question. Every other condition is checked again on the current head, §5a
+included. Then merge, write the `auto-dev:merged` marker, and do §8 in that same thread.
 
 When condition 5 or 6 fails, the reply gives Ray a choice he can answer with one letter: `A` and
 `B`, one line each, the reading you recommend first, and the consequence of each in plain words.
@@ -145,25 +159,28 @@ on 2026-09-29 and 2026-09-30 ("make me a HTML file if you need a choice made"), 
 "wait what do you need from me im confused" to an open-ended ask. Not a paragraph in Slack, and not
 a question with no options.
 
-## 6. Queue rule: no cap, drain your own PRs first
+## 6. Queue rule: no cap, retry only what infrastructure held
 
 There is no cap on open PRs. Ray removed it on 2026-09-30: a cap of 3 stopped 19 ACS ticks and 24
-HyperWhisper ticks in two weeks, and most of the PRs behind it were held by infrastructure, not by
-him. Instead, every tick starts by re-trying its own open PRs, oldest first. A PR is this consumer's
-when `app/dream-team-bot` authored it, its head branch carries the prefix in §1, and its linked
-issue carries an `auto-dev:pr` comment naming it.
-
-For each one, read why it was left open (the `auto-dev:pr` comment names the condition):
+HyperWhisper ticks in two weeks. A PR is this consumer's when `app/dream-team-bot` authored it,
+its head branch carries the prefix in §1, and its linked issue carries an `auto-dev:pr` comment
+naming it. Each tick starts with its own open PRs, oldest first, and reads why each was left open
+(the `auto-dev:pr` comment names the condition):
 
 - **Held by infrastructure** (Codex could not run, a workflow did not finish, a merge was refused
-  by a conflict): merge `origin/main` into the branch without rewriting history, push, and run §5
-  again. Review only what is new. A PR whose earlier run completed both review rounds and its proof,
-  with only a clean merge of `main` since, needs no new review: wait for CI and merge it.
-- **Held by a decision** (condition 5 or 6 failed and Ray has not answered): leave it. Do not
-  re-ask. Count it.
+  by a conflict): retry it, at most 3 times in its life. Count the `<!-- auto-dev:retry -->`
+  comments on the PR, and write one before each retry. Apply §5a first. Merge `origin/main` into
+  the branch only when §5a says to re-sync, push, and run §5 again. Review only what is new. A PR
+  whose earlier run completed its review rounds and its proof, with only a clean merge of `main`
+  since, needs no new review: wait for CI and merge it. After the third retry fails, stop: write
+  the `auto-dev:pr` marker with "held by infrastructure after 3 retries" and the cause, and tag Ray.
+- **Held for Ray** (condition 1, 5 or 6): leave it. Do not re-ask. Count it. Ray approves it in
+  its own thread (§5).
 
-Then take a new issue. Every reply ends with one line: how many of this consumer's PRs wait on
-Ray's decision, with their numbers.
+Then take one new issue. Ray asked on 2026-10-05 that a tick not "finish its own PRs" beyond
+this: a PR that waits for him is his. Every reply ends with one line: how many of this consumer's
+PRs wait on Ray, with their numbers, and how many issues carry `needs-ray-answers` and
+`needs-ray-spec`.
 
 ## 7. The production test account
 
