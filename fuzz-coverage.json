@@ -302,6 +302,25 @@
       ],
       "licensed": false,
       "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY). #1186 keep-mic-warm deadlock: if a later round enables Keep microphone warm, the app freezes on the next save - set keepMicrophoneWarm false before walking other routes. Dropped: Home+Settings double sidebar highlight (unclear, cosmetic), rejected licence key cleared (deliberate in CloudAccountViewModel). Not walked: Shortcuts/Storage/Appearance pages (the freeze ate the pass), global hotkey (headless)."
+    },
+    {
+      "at": "2026-10-05T01:41:17Z",
+      "platform": "win",
+      "commit": "67610b7d",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "home-and-tray"
+      ],
+      "status": "1-filed",
+      "issues": [
+        1319,
+        637,
+        638,
+        639
+      ],
+      "licensed": false,
+      "note": "dev box, unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Filed #1319 (rail not synced to CurrentPage); commented #637/#638/#639 (still repro). provider-settings: 0 defects in 14 steps. Core DLL from windows-ci 933b232b. First devbox git fetch failed DNS, second worked. publish-media 401."
     }
   ]
 }
