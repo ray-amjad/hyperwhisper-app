@@ -9,7 +9,12 @@
          icon in its constructor. Issue #570.
 
          The DataContext is INHERITED from MainWindow, so every {Binding Navigate...}
-         below still resolves against MainViewModel exactly as it did before. -->
+         below still resolves against MainViewModel exactly as it did before.
+
+         IsChecked follows MainViewModel.CurrentPage, ONE-WAY, so a page change made
+         from code (a Home card, file transcription, onboarding) moves the highlight
+         too. Never set IsChecked by hand: a local value replaces the binding. A click
+         is safe, because ToggleButton uses SetCurrentValue. Issue #1319. -->
     <Border Background="{DynamicResource SidebarBackgroundBrush}"
             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
         <Grid>
@@ -28,7 +33,8 @@
             </Border>
             <Border Grid.Row="1" Style="{StaticResource SidebarGroupStyle}" Margin="10,0">
                 <StackPanel>
-                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.home}" IsChecked="True" Command="{Binding NavigateToHomeCommand}" GroupName="Nav">
+                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.home}" Command="{Binding NavigateToHomeCommand}" GroupName="Nav"
+                             IsChecked="{Binding CurrentPage, Mode=OneWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Home}">
                     <RadioButton.BorderBrush>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                             <GradientStop Color="#FF9A4D" Offset="0"/>
@@ -40,7 +46,8 @@
                     </RadioButton.Tag>
                 </RadioButton>
                 <Border Height="14"/>
-                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.modes}" Command="{Binding NavigateToModesCommand}" GroupName="Nav">
+                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.modes}" Command="{Binding NavigateToModesCommand}" GroupName="Nav"
+                             IsChecked="{Binding CurrentPage, Mode=OneWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Modes}">
                     <RadioButton.BorderBrush>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                             <GradientStop Color="#49A5FF" Offset="0"/>
@@ -51,7 +58,8 @@
                         <Path Data="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" Fill="{DynamicResource TextOnAccentBrush}" Width="14" Height="14" Stretch="Uniform"/>
                     </RadioButton.Tag>
                 </RadioButton>
-                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.vocabulary}" Command="{Binding NavigateToVocabularyCommand}" GroupName="Nav">
+                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.vocabulary}" Command="{Binding NavigateToVocabularyCommand}" GroupName="Nav"
+                             IsChecked="{Binding CurrentPage, Mode=OneWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vocabulary}">
                     <RadioButton.BorderBrush>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                             <GradientStop Color="#49A5FF" Offset="0"/>
@@ -63,7 +71,8 @@
                     </RadioButton.Tag>
                 </RadioButton>
                 <Border Height="14"/>
-                <RadioButton x:Name="ModelLibraryNavButton" Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc settings.nav.models}" Command="{Binding NavigateToModelLibraryCommand}" GroupName="Nav">
+                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc settings.nav.models}" Command="{Binding NavigateToModelLibraryCommand}" GroupName="Nav"
+                             IsChecked="{Binding CurrentPage, Mode=OneWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=ModelLibrary}">
                     <RadioButton.BorderBrush>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                             <GradientStop Color="#8A7CFF" Offset="0"/>
@@ -74,7 +83,8 @@
                         <Path Data="M4,5A2,2 0 0,1 6,3H18A2,2 0 0,1 20,5V19A2,2 0 0,1 18,21H6A2,2 0 0,1 4,19V5M7,7V11H11V7H7M13,7V11H17V7H13M7,13V17H11V13H7M13,13V17H17V13H13Z" Fill="{DynamicResource TextOnAccentBrush}" Width="14" Height="14" Stretch="Uniform"/>
                     </RadioButton.Tag>
                 </RadioButton>
-                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc settings.nav.streaming}" Command="{Binding NavigateToStreamingCommand}" GroupName="Nav">
+                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc settings.nav.streaming}" Command="{Binding NavigateToStreamingCommand}" GroupName="Nav"
+                             IsChecked="{Binding CurrentPage, Mode=OneWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Streaming}">
                     <RadioButton.BorderBrush>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                             <GradientStop Color="#8A7CFF" Offset="0"/>
@@ -86,7 +96,8 @@
                     </RadioButton.Tag>
                 </RadioButton>
                 <Border Height="14"/>
-                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.history}" Command="{Binding NavigateToHistoryCommand}" GroupName="Nav">
+                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.history}" Command="{Binding NavigateToHistoryCommand}" GroupName="Nav"
+                             IsChecked="{Binding CurrentPage, Mode=OneWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=History}">
                     <RadioButton.BorderBrush>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                             <GradientStop Color="#7C74FF" Offset="0"/>
@@ -98,7 +109,8 @@
                     </RadioButton.Tag>
                 </RadioButton>
                 <Border Height="14"/>
-                <RadioButton x:Name="SettingsNavButton" Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.settings}" Command="{Binding NavigateToSettingsCommand}" GroupName="Nav">
+                <RadioButton Style="{StaticResource SidebarItemStyle}" Content="{loc:Loc sidebar.settings}" Command="{Binding NavigateToSettingsCommand}" GroupName="Nav"
+                             IsChecked="{Binding CurrentPage, Mode=OneWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Settings}">
                     <RadioButton.BorderBrush>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                             <GradientStop Color="#73777F" Offset="0"/>
