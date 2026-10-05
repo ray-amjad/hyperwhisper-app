@@ -76,7 +76,8 @@ public partial class MainWindow : Window
     private readonly SemaphoreSlim _storageMaintenanceGate = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
     private readonly PeriodicTimer _storageTimer = new(TimeSpan.FromHours(1));
-    private Task? _storageMaintenance;
+    private readonly LinuxStorageMaintenanceLoop _storageLoop;
+    private readonly LinuxWindowStartupGate _startup = new();
     private TranscriptStorageCleanupResult? _lastStorageCleanup;
     private bool _allowClose;
     /// <summary>Set once OnClosing has passed the minimize-to-tray branch, so nothing started
@@ -97,6 +98,7 @@ public partial class MainWindow : Window
         _localization = (Avalonia.Application.Current as App)?.Localization
             ?? throw new InvalidOperationException("The application localization service is unavailable.");
         _platformServices = platformServices ?? throw new ArgumentNullException(nameof(platformServices));
+        _storageLoop = new(_storageTimer, RunStorageMaintenanceAsync, ReportStorageMaintenanceLoopFailureAsync);
         var priorSettings = _platformServices.PrivateFiles.ReadAllText(
             Path.Combine(_platformServices.Paths.ConfigDirectory, "settings.json"));
         _isFreshProfile = priorSettings.IsSuccess && priorSettings.Value is null;
@@ -238,8 +240,18 @@ public partial class MainWindow : Window
 
     private async void OnOpened(object? sender, EventArgs e)
     {
+        // Avalonia raises Opened again on every Show() after Hide() (tray, minimize to tray,
+        // LaunchMinimized), so a later Opened only retries what has not yet succeeded (#833).
+        var work = _startup.Next(_trayAvailable);
+        if (work == LinuxWindowOpenedWork.None) return;
+        var succeeded = false;
         try
         {
+            if (work == LinuxWindowOpenedWork.RestartTray)
+            {
+                await StartTrayAsync(launching: false);
+                return;
+            }
             await EnsureInitializedAsync();
             await new CrashAudioRecoveryService(
                 _platformServices.Paths,
@@ -253,22 +265,40 @@ public partial class MainWindow : Window
             ApplyTelemetrySettings();
             ApplyDesktopSettings();
             await RunStorageMaintenanceAsync(_lifetime.Token);
-            _storageMaintenance = RunStorageMaintenanceLoopAsync(_lifetime.Token);
-            var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
-            if (tray.IsFailure)
-                ShowPlatformStatus(PlatformStatusText.Text + LF("linux.platform.tray_unavailable", tray.Error!.Message), true);
-            else
-            {
-                _trayAvailable = true;
-                if (_viewModel.Settings.LaunchMinimized) Hide();
-            }
+            _ = _storageLoop.EnsureStarted(_lifetime.Token);
+            await StartTrayAsync(launching: work == LinuxWindowOpenedWork.Launch);
             await WriteDiagnosticAsync(DiagnosticSeverity.Information, DiagnosticComponent.Application, DiagnosticOutcome.Succeeded);
+            succeeded = true;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch
         {
             await WriteDiagnosticAsync(DiagnosticSeverity.Error, DiagnosticComponent.Application, DiagnosticOutcome.Failed);
             _viewModel.Status.Failure("app.desktop_start_failed", L("linux.error.desktop_start_failed"));
+        }
+        finally { _startup.Finish(succeeded); }
+    }
+
+    /// <summary>Starts the tray helper, or restarts it once its process has exited. Only the launch
+    /// honours LaunchMinimized; a restart that hid the window again was the other half of #833. A
+    /// later start first puts back the status ApplyDesktopSettings left, as main's re-run did, so the
+    /// tray clauses are replaced rather than appended.</summary>
+    private async Task StartTrayAsync(bool launching)
+    {
+        var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
+        if (!launching)
+        {
+            var conflict = _viewModel.Home.HasShortcutConflicts;
+            ShowPlatformStatus(conflict
+                ? LF("linux.platform.warning", _viewModel.Home.ShortcutConflictMessage)
+                : LF("linux.platform.connected", _platformServices.Paths.DataDirectory), conflict);
+        }
+        if (tray.IsFailure)
+            ShowPlatformStatus(PlatformStatusText.Text + LF("linux.platform.tray_unavailable", tray.Error!.Message), true);
+        else
+        {
+            _trayAvailable = true;
+            if (launching && _viewModel.Settings.LaunchMinimized) Hide();
         }
     }
 
@@ -288,7 +318,7 @@ public partial class MainWindow : Window
         CommitPendingSettingsEdits();
         _lifetime.Cancel();
         if (!_recordingSession.HasOpenSession && !_recordingSession.HasAudioToRestore && _localApiHost is null
-            && _storageMaintenance is not { IsCompleted: false }) return;
+            && _storageLoop.Running is not { IsCompleted: false }) return;
         e.Cancel = true;
         try
         {
@@ -306,7 +336,7 @@ public partial class MainWindow : Window
                 await _interaction.ConfirmCancelRecordingAsync();
             }
             await ShutdownLocalApiAsync();
-            if (_storageMaintenance is not null) await _storageMaintenance;
+            if (_storageLoop.Running is not null) await _storageLoop.Running;
         }
         catch { _viewModel.Status.Failure("interaction.close_cancel_failed", L("linux.error.close_cancel_failed")); }
         finally
@@ -903,14 +933,12 @@ public partial class MainWindow : Window
         catch { SetStorageError(L("linux.storage.maintenance_failed")); }
     }
 
-    private async Task RunStorageMaintenanceLoopAsync(CancellationToken cancellationToken)
+    private async Task ReportStorageMaintenanceLoopFailureAsync(Exception exception)
     {
-        try
-        {
-            while (await _storageTimer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
-                await RunStorageMaintenanceAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        Dispatcher.UIThread.Post(() => SetStorageError(L("linux.storage.maintenance_failed")));
+        _platformServices.Telemetry.Capture(exception);
+        await WriteDiagnosticAsync(DiagnosticSeverity.Error, DiagnosticComponent.Storage, DiagnosticOutcome.Failed)
+            .ConfigureAwait(false);
     }
 
     private async Task RunStorageMaintenanceAsync(CancellationToken cancellationToken)
@@ -5472,5 +5500,57 @@ internal static class LinuxTrayMicrophoneSelector
         if (selected < 0) selected = 0;
         var step = direction < 0 ? -1 : 1;
         return devices[(selected + step + devices.Length) % devices.Length];
+    }
+}
+
+/// <summary>The hourly storage-maintenance loop on its one PeriodicTimer. A PeriodicTimer allows one
+/// pending WaitForNextTickAsync, so a second start returns the running loop instead of faulting a new
+/// one (#833). A failed tick is reported and the loop keeps ticking; only cancellation ends it.</summary>
+internal sealed class LinuxStorageMaintenanceLoop(
+    PeriodicTimer timer, Func<CancellationToken, Task> tick, Func<Exception, Task> report)
+{
+    internal Task? Running { get; private set; }
+
+    internal Task EnsureStarted(CancellationToken cancellationToken) => Running ??= RunAsync(cancellationToken);
+
+    private async Task RunAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                try { await tick(cancellationToken).ConfigureAwait(false); }
+                catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+                { await report(exception).ConfigureAwait(false); }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+    }
+}
+
+internal enum LinuxWindowOpenedWork { None, Launch, RetryStartUp, RestartTray }
+
+/// <summary>What a window Opened may start (#833). Avalonia raises Opened on every Show() after Hide(),
+/// so a later Opened only retries what has not yet succeeded, as main's re-run did: the start-up chain
+/// until it succeeds once, then the tray helper while it is down. Nothing starts while one is running.</summary>
+internal sealed class LinuxWindowStartupGate
+{
+    private bool _attempted, _running, _succeeded;
+
+    internal LinuxWindowOpenedWork Next(bool trayAvailable)
+    {
+        if (_running) return LinuxWindowOpenedWork.None;
+        if (_succeeded && trayAvailable) return LinuxWindowOpenedWork.None;
+        _running = true;
+        if (_succeeded) return LinuxWindowOpenedWork.RestartTray;
+        var first = !_attempted;
+        _attempted = true;
+        return first ? LinuxWindowOpenedWork.Launch : LinuxWindowOpenedWork.RetryStartUp;
+    }
+
+    internal void Finish(bool succeeded)
+    {
+        _running = false;
+        _succeeded |= succeeded;
     }
 }
