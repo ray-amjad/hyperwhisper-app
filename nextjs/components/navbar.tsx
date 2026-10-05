@@ -104,7 +104,7 @@ export const Navbar = () => {
             <img
               alt="HyperWhisper Logo"
               className="w-8 h-8 rounded-lg"
-              src="/icon/32.png"
+              src="/icon/128.png"
             />
             <p className="font-bold text-white">HyperWhisper</p>
           </LocaleLink>
@@ -117,30 +117,38 @@ export const Navbar = () => {
         Do NOT use LocaleLink/Link from next-intl for hash navigation.
         next-intl's Link breaks anchor scrolling by using client-side routing.
       */}
-      <NavbarContent className="hidden lg:flex" justify="center">
-        <ul className="flex flex-wrap gap-8">
-          {navItems.map((item) => (
-            <NavbarItem key={item.href}>
-              <a
-                className={clsx(
-                  linkStyles({ color: "foreground" }),
-                  "text-gray-300 hover:text-white transition-colors",
-                  /*
-                    linkStyles() opens with `outline-solid outline-transparent` and restores the
-                    ring only through `data-[focus-visible=true]:`, an attribute the HeroUI <Link>
-                    component sets and a native <a> never gets. Without these 3 utilities the link
-                    has no keyboard focus ring at all. `outline-focus` is HeroUI's own token, so
-                    this is the same ring the Download button and the GitHub link already draw.
-                  */
-                  "rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
-                )}
-                href={item.href}
-              >
-                {item.label}
-              </a>
-            </NavbarItem>
-          ))}
-        </ul>
+      {/*
+        NavbarContent already renders a <ul>, so the links are its <li>s directly. A <ul> nested
+        here made the outer list hold one <ul> and no items, and a screen reader announced the
+        main navigation as an empty list (axe `list`, #866). The wrapper's `flex-wrap gap-8`
+        lives on NavbarContent now; HeroUI merges className with tailwind-merge, so `gap-8`
+        replaces the slot's own `gap-4` and `flex-wrap` its `flex-nowrap`.
+      */}
+      <NavbarContent
+        className="hidden lg:flex flex-wrap gap-8"
+        justify="center"
+      >
+        {navItems.map((item) => (
+          <NavbarItem key={item.href}>
+            <a
+              className={clsx(
+                linkStyles({ color: "foreground" }),
+                "text-gray-300 hover:text-white transition-colors",
+                /*
+                  linkStyles() opens with `outline-solid outline-transparent` and restores the
+                  ring only through `data-[focus-visible=true]:`, an attribute the HeroUI <Link>
+                  component sets and a native <a> never gets. Without these 3 utilities the link
+                  has no keyboard focus ring at all. `outline-focus` is HeroUI's own token, so
+                  this is the same ring the Download button and the GitHub link already draw.
+                */
+                "rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2",
+              )}
+              href={item.href}
+            >
+              {item.label}
+            </a>
+          </NavbarItem>
+        ))}
       </NavbarContent>
 
       <NavbarContent
@@ -173,56 +181,68 @@ export const Navbar = () => {
         </NavbarItem>
       </NavbarContent>
 
+      {/*
+        NavbarContent renders a <ul>, so the toggle sits in a NavbarItem (an <li>); a bare
+        <button> here was a list with no items (axe `list`, #866). The li needs no classes: the
+        toggle measured the same box (x, y, width, height) with the li as without it.
+      */}
       <NavbarContent className="lg:hidden pl-4 grow-0!" justify="end">
-        <NavbarMenuToggle className="text-gray-400" />
+        <NavbarItem>
+          <NavbarMenuToggle className="text-gray-400" />
+        </NavbarItem>
       </NavbarContent>
 
-      <NavbarMenu className="bg-black/95 backdrop-blur-xl">
-        <div className="mx-4 mt-2 flex flex-col gap-2">
-          {/* Use native <a> for anchor links and already-localed hrefs, LocaleLink for page routes */}
-          {navMenuItems.map((item, index) => (
-            <NavbarMenuItem key={`${item}-${index}`}>
-              {item.href.includes("#") || "raw" in item ? (
-                <a
-                  className="text-gray-300 hover:text-white transition-colors text-lg"
-                  href={item.href}
-                  onClick={closeMenu}
-                >
-                  {item.label}
-                </a>
-              ) : (
-                <LocaleLink
-                  className="text-gray-300 hover:text-white transition-colors text-lg"
-                  href={item.href}
-                  onClick={closeMenu}
-                >
-                  {item.label}
-                </LocaleLink>
-              )}
-            </NavbarMenuItem>
-          ))}
-          {/*
-            The `hidden sm:flex` header end-cluster above and this menu stay on
-            screen together from 640px up, so every control in this row would
-            otherwise be drawn twice. Mirror that cluster's own breakpoints: it
-            shows the language switcher from sm (640) and Download from md (768),
-            so hide the switcher from sm and the whole row from md, at which point
-            both of its children are duplicates.
-          */}
-          <NavbarMenuItem className="mt-4 flex gap-2 md:hidden">
-            <span className="contents sm:hidden">
-              <LanguageSwitcher />
-            </span>
-            <Button
-              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
-              startContent={<Download className="w-4 h-4" />}
-              variant="flat"
-              onClick={openModal}
-            >
-              {t("download")}
-            </Button>
+      {/*
+        NavbarMenu renders the overlay as a <ul> that is already `flex flex-col gap-2`, so the
+        menu items are its <li>s directly; a <div> wrapping them made the open menu a list whose
+        only child was a div (axe `list`, #866). The div's `mx-4 mt-2` is folded into the
+        menu's own `px-6 pt-2` as padding (24+16 = px-10, 8+8 = pt-4). It is not added as margin:
+        the menu is a fixed, full-width `w-screen` overlay, and a margin would shift and overflow it.
+      */}
+      <NavbarMenu className="bg-black/95 backdrop-blur-xl px-10 pt-4">
+        {/* Use native <a> for anchor links and already-localed hrefs, LocaleLink for page routes */}
+        {navMenuItems.map((item, index) => (
+          <NavbarMenuItem key={`${item}-${index}`}>
+            {item.href.includes("#") || "raw" in item ? (
+              <a
+                className="text-gray-300 hover:text-white transition-colors text-lg"
+                href={item.href}
+                onClick={closeMenu}
+              >
+                {item.label}
+              </a>
+            ) : (
+              <LocaleLink
+                className="text-gray-300 hover:text-white transition-colors text-lg"
+                href={item.href}
+                onClick={closeMenu}
+              >
+                {item.label}
+              </LocaleLink>
+            )}
           </NavbarMenuItem>
-        </div>
+        ))}
+        {/*
+          The `hidden sm:flex` header end-cluster above and this menu stay on
+          screen together from 640px up, so every control in this row would
+          otherwise be drawn twice. Mirror that cluster's own breakpoints: it
+          shows the language switcher from sm (640) and Download from md (768),
+          so hide the switcher from sm and the whole row from md, at which point
+          both of its children are duplicates.
+        */}
+        <NavbarMenuItem className="mt-4 flex gap-2 md:hidden">
+          <span className="contents sm:hidden">
+            <LanguageSwitcher />
+          </span>
+          <Button
+            className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
+            startContent={<Download className="w-4 h-4" />}
+            variant="flat"
+            onClick={openModal}
+          >
+            {t("download")}
+          </Button>
+        </NavbarMenuItem>
       </NavbarMenu>
     </HeroUINavbar>
   );

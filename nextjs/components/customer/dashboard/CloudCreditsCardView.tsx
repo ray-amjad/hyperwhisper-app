@@ -92,7 +92,7 @@ export interface CloudCreditsCardViewProps {
  * the wrapper interpolates before handing them over. That is why `tiers` is a
  * view model and not the raw `CREDIT_TIERS` constant.
  *
- * The stateful half — the four `useState`s, `usePostHog`, the two
+ * The stateful half — the four `useState`s, `loadPostHog`, the two
  * `useTranslations` calls and the `createBuyCreditsHandler` call — stays in
  * `CloudCreditsCard.tsx`.
  */

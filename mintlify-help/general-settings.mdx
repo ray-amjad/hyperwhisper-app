@@ -15,9 +15,9 @@ General Settings is the first sidebar section in the HyperWhisper Settings windo
     Click the HyperWhisper tray icon, or open the main window. Then click **Settings**. Then click **General** in the sidebar.
   </Tab>
   <Tab title="Linux">
-    Open the main window, then click **Settings**. The **Application settings** section is at the top of the page.
+    Open the main window, then click **Settings**. Then click **General** in the sidebar.
 
-    Linux has one long Settings page instead of a sidebar. Every change needs a click on **Save settings** before it applies.
+    Linux saves each change automatically. There is no Save button.
   </Tab>
 </Tabs>
 
@@ -37,7 +37,7 @@ If you enable this setting, HyperWhisper starts each time you log in to your com
     The label is **Launch at startup**. If the change fails, the app shows an error message. The message tells you to examine your startup permissions.
   </Tab>
   <Tab title="Linux">
-    The label is **Start HyperWhisper when this desktop session starts**, in the **Audio and desktop** section. HyperWhisper writes an autostart entry at `$XDG_CONFIG_HOME/hyperwhisper/autostart/hyperwhisper.desktop`. If the write fails, the status line reports the reason.
+    The label is **Launch at startup**. HyperWhisper writes an autostart entry at `$XDG_CONFIG_HOME/hyperwhisper/autostart/hyperwhisper.desktop`. If the write fails, the status line reports the reason.
   </Tab>
 </Tabs>
 
@@ -53,7 +53,7 @@ If you enable this setting, HyperWhisper starts in the background and the main w
     The app starts hidden in the system tray. Click the tray icon to open the main window.
   </Tab>
   <Tab title="Linux">
-    The label is **Launch with the window hidden when the tray is available**. HyperWhisper starts hidden only when your desktop runs a tray watcher. On a desktop with no watcher, the main window opens as usual, so you never lose access to the app.
+    HyperWhisper starts hidden only when your desktop runs a tray watcher. On a desktop with no watcher, the main window opens as usual, so you never lose access to the app.
   </Tab>
 </Tabs>
 
@@ -73,7 +73,7 @@ If you enable this setting, the HyperWhisper icon shows in the macOS Dock. If yo
 
 If you enable this setting and then close the HyperWhisper window, the window goes to the system tray. The app does not quit, and it continues to run in the background. Click the tray icon to open the window again.
 
-On Linux the label is **Hide minimized or closed windows in the tray**, and the setting is **on** by default. If your desktop has no tray watcher, HyperWhisper ignores the setting and keeps the main window reachable.
+On Linux the setting is **on** by default. If your desktop has no tray watcher, HyperWhisper ignores the setting and keeps the main window reachable.
 
 ### Show recording window
 
@@ -81,7 +81,7 @@ If you enable this setting, a floating overlay shows on screen. The overlay show
 
 If the overlay distracts you, or if you want a more discreet recording, disable this setting.
 
-On Linux the label is **Show the recording status overlay**, and the setting is on by default.
+On Linux the setting is on by default.
 
 ### Typing speed for "minutes saved"
 
@@ -107,7 +107,7 @@ On Linux, the picker is the **Estimated typing speed** control in the **Your imp
     The label is **Send error reports**. It is **on** by default. While it is on, HyperWhisper sends crash reports automatically. The reports never include your transcriptions.
   </Tab>
   <Tab title="Linux">
-    The label is **Send privacy-filtered crash and performance diagnostics**. It is **on** by default. The reports carry no transcript, no audio, no prompt, and no credential content. A build that you compile yourself has no release crash-reporter address, so it sends nothing even when the setting is on.
+    The label is **Send error reports**. It is **on** by default. The reports carry no transcript, no audio, no prompt, and no credential content. A build that you compile yourself has no release crash-reporter address, so it sends nothing even when the setting is on.
   </Tab>
 </Tabs>
 
@@ -139,7 +139,7 @@ For the full list of the stored fields and the retention period, read [Data & Pr
     The label is **Check for updates automatically**. If you enable this setting, HyperWhisper looks for new versions at startup. It shows no message while it looks.
   </Tab>
   <Tab title="Linux">
-    Linux has no automatic check and no such setting. HyperWhisper never refreshes or installs a package by itself. Click **Refresh package status** in **About** to compare your installed package with the metadata that your package manager already has.
+    The **Check for updates automatically** checkbox is on the Linux General page, but the Linux app does not act on it. HyperWhisper never refreshes or installs a package by itself. Click **Refresh package status** in **About** to compare your installed package with the metadata that your package manager already has.
   </Tab>
 </Tabs>
 

@@ -20,6 +20,7 @@
  */
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, test } from "node:test";
+import { inspect } from "node:util";
 
 import {
   behaviour,
@@ -176,12 +177,25 @@ describe("POST /api/internal/latency — body guards", () => {
   });
 
   test("answers 400 to a body that is not JSON", async () => {
+    // V8 quotes the whole input in its SyntaxError message; prove it, so the
+    // no-leak check below can never go vacuous.
+    const body = "not json";
+    assert.throws(() => JSON.parse(body), (err: Error) => err.message.includes(body));
     const { POST } = await loadLatencyIngestRoute();
-    const res = await POST(postRequest(INGEST_PATH, "{not json", authed()));
+    const res = await POST(postRequest(INGEST_PATH, body, authed()));
 
     assert.equal(res.status, 400);
     assert.deepEqual(await readJson(res), { error: "Invalid JSON" });
     assert.equal(calls.rateLimit.length, 0);
+    const warning = logLines.find((line) => line.level === "warn");
+    assert.ok(warning, "a malformed body must be logged");
+    assert.equal((warning.args[1] as { path: string }).path, INGEST_PATH);
+    assert.equal((warning.args[1] as { errorName: string }).errorName, "SyntaxError");
+    // inspect, not JSON.stringify: a logged Error object stringifies to "{}".
+    const logged = logLines
+      .map((line) => line.args.map((arg) => inspect(arg, { depth: null })).join(" "))
+      .join("\n");
+    assert.ok(!logged.includes(body), logged);
   });
 
   test("answers 400 with the validator's reason to a bad envelope", async () => {
@@ -192,6 +206,9 @@ describe("POST /api/internal/latency — body guards", () => {
     assert.deepEqual(await readJson(res), { error: "samples must not be empty" });
     assert.equal(calls.rateLimit.length, 0);
     assert.equal(calls.inserts.length, 0);
+    const warning = logLines.find((line) => line.level === "warn");
+    assert.ok(warning, "a rejected batch must be logged");
+    assert.deepEqual(warning.args[1], { reason: "samples must not be empty" });
   });
 });
 

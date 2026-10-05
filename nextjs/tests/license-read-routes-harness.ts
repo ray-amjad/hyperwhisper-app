@@ -28,6 +28,8 @@ import { mock } from "node:test";
 
 import { NextRequest } from "next/server";
 
+import { formatLogArgs } from "./db-error-fixture";
+
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
 /** Everything the routes asked their collaborators to do, in call order. */
@@ -96,7 +98,8 @@ export function resetHarness(): void {
 
 /**
  * The routes log on their fault branches. Swallow it so the run stays
- * readable, and keep the lines so a failing test can still be diagnosed.
+ * readable, and keep each line as Node would print it (util.inspect for an
+ * object), so a bound param hiding in a logged error is visible to a leak check.
  */
 export const logLines: string[] = [];
 
@@ -104,7 +107,7 @@ const realConsole = { error: console.error };
 
 export function silenceRouteLogging(): void {
   console.error = (...args: unknown[]): void => {
-    logLines.push(args.map((a) => String(a)).join(" "));
+    logLines.push(formatLogArgs(args));
   };
 }
 

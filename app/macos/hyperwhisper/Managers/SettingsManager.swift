@@ -110,7 +110,11 @@ class SettingsManager: ObservableObject {
 
     @AppStorage("pasteResultText") var pasteResultText: Bool = true
     @AppStorage("removeFillerWords") var removeFillerWords: Bool = true
-    @AppStorage("restoreClipboardAfterPaste") var restoreClipboardAfterPaste: Bool = true
+    @AppStorage("restoreClipboardAfterPaste") var restoreClipboardAfterPaste: Bool = true {
+        didSet {
+            if !restoreClipboardAfterPaste { AccessibilityHelper.shared.dropKeptClipboardSnapshot() }
+        }
+    }
     @AppStorage("clipboardRestoreDelaySeconds") var clipboardRestoreDelaySeconds: Double = 10.0
     @AppStorage("hideFromClipboardHistory") var hideFromClipboardHistory: Bool = true
     @AppStorage("autocapitalizeInsert") var autocapitalizeInsert: Bool = true

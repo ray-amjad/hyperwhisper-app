@@ -132,3 +132,156 @@ test("the OpenAI filter drops dated snapshots and excluded families", async () =
     ["gpt-5"]
   );
 });
+
+/** Swap console.error for a recorder; the caller restores it in `finally`. */
+function captureConsoleError() {
+  const original = console.error;
+  const lines: string[] = [];
+  console.error = (...args: unknown[]) => {
+    lines.push(args.map(String).join(" "));
+  };
+  return { lines, restore: () => (console.error = original) };
+}
+
+test("a rejected provider fetch logs the provider and the cause, and keeps the result shape", async () => {
+  const { createModelList } = await load();
+  const { fetchImpl: healthy } = fakeUpstream();
+  const fetchImpl = async (input: RequestInfo | URL): Promise<Response> => {
+    if (String(input).includes("api.openai.com")) {
+      throw new TypeError("fetch failed", {
+        cause: new Error("getaddrinfo ENOTFOUND api.openai.com"),
+      });
+    }
+    return healthy(input);
+  };
+  const list = createModelList({ fetch: fetchImpl, env: ENV, now: () => 0 });
+
+  const captured = captureConsoleError();
+  let result;
+  try {
+    result = await list.fetchAvailableModelsUncached();
+  } finally {
+    captured.restore();
+  }
+
+  assert.deepEqual(result.providers.openai, { ok: false, error: "fetch failed" });
+  const line = captured.lines.find((l) => l.includes("openai"));
+  assert.ok(line, `no console.error line names openai: ${JSON.stringify(captured.lines)}`);
+  assert.ok(line.startsWith("[model-list] "), line);
+  assert.ok(line.includes("getaddrinfo ENOTFOUND api.openai.com"), line);
+});
+
+test("a provider failure log never carries the API key", async () => {
+  const { createModelList } = await load();
+  const { fetchImpl: healthy } = fakeUpstream();
+  const planted = "gemini-test-value-850";
+  // undici quotes the whole URL — Gemini's carries the key — when it cannot parse it.
+  const fetchImpl = async (input: RequestInfo | URL): Promise<Response> => {
+    const url = String(input);
+    if (url.includes("generativelanguage")) {
+      throw new TypeError(`Failed to parse URL from ${url}`, {
+        cause: new Error(`Invalid URL: ${url}`),
+      });
+    }
+    return healthy(input);
+  };
+  const list = createModelList({
+    fetch: fetchImpl,
+    env: { ...ENV, GEMINI_API_KEY: planted },
+    now: () => 0,
+  });
+
+  const captured = captureConsoleError();
+  let result;
+  try {
+    result = await list.fetchAvailableModelsUncached();
+  } finally {
+    captured.restore();
+  }
+
+  const line = captured.lines.find((l) => l.includes("gemini"));
+  assert.ok(line, `no console.error line names gemini: ${JSON.stringify(captured.lines)}`);
+  assert.ok(line.includes("[redacted]"), line);
+  for (const l of captured.lines) assert.ok(!l.includes(planted), l);
+  // The public /models route returns this error to anonymous clients.
+  const gemini = result.providers.gemini;
+  assert.equal(gemini.ok, false);
+  assert.ok(!gemini.error.includes(planted), gemini.error);
+  assert.ok(gemini.error.includes("[redacted]"), gemini.error);
+});
+
+test("a key with reserved characters is redacted in its URL-encoded form too", async () => {
+  const { createModelList } = await load();
+  const { fetchImpl: healthy } = fakeUpstream();
+  const planted = "gemini/test value 850";
+  const encoded = encodeURIComponent(planted);
+  assert.notEqual(encoded, planted);
+  const fetchImpl = async (input: RequestInfo | URL): Promise<Response> => {
+    const url = String(input);
+    if (url.includes("generativelanguage")) {
+      assert.ok(url.includes(encoded), url);
+      throw new TypeError(`Failed to parse URL from ${url}`, {
+        cause: new Error(`Invalid URL: ${url}`),
+      });
+    }
+    return healthy(input);
+  };
+  const list = createModelList({
+    fetch: fetchImpl,
+    env: { ...ENV, GEMINI_API_KEY: planted },
+    now: () => 0,
+  });
+
+  const captured = captureConsoleError();
+  let result;
+  try {
+    result = await list.fetchAvailableModelsUncached();
+  } finally {
+    captured.restore();
+  }
+
+  const line = captured.lines.find((l) => l.includes("gemini"));
+  assert.ok(line, `no console.error line names gemini: ${JSON.stringify(captured.lines)}`);
+  const gemini = result.providers.gemini;
+  assert.equal(gemini.ok, false);
+  for (const text of [...captured.lines, gemini.error]) {
+    assert.ok(!text.includes(planted), text);
+    assert.ok(!text.includes(encoded), text);
+  }
+  assert.ok(gemini.error.includes("[redacted]"), gemini.error);
+});
+
+test("an AggregateError cause logs each inner error message", async () => {
+  const { createModelList } = await load();
+  const { fetchImpl: healthy } = fakeUpstream();
+  // undici's dual-stack connect failure: one error per address family.
+  const fetchImpl = async (input: RequestInfo | URL): Promise<Response> => {
+    if (String(input).includes("api.openai.com")) {
+      throw new TypeError("fetch failed", {
+        cause: new AggregateError(
+          [
+            new Error("connect ECONNREFUSED 10.0.0.1:443"),
+            new Error("connect ENETUNREACH 2001:db8::1:443"),
+          ],
+          ""
+        ),
+      });
+    }
+    return healthy(input);
+  };
+  const list = createModelList({ fetch: fetchImpl, env: ENV, now: () => 0 });
+
+  const captured = captureConsoleError();
+  let result;
+  try {
+    result = await list.fetchAvailableModelsUncached();
+  } finally {
+    captured.restore();
+  }
+
+  assert.deepEqual(result.providers.openai, { ok: false, error: "fetch failed" });
+  const line = captured.lines.find((l) => l.includes("openai"));
+  assert.ok(line, `no console.error line names openai: ${JSON.stringify(captured.lines)}`);
+  assert.ok(line.includes("connect ECONNREFUSED 10.0.0.1:443"), line);
+  assert.ok(line.includes("connect ENETUNREACH 2001:db8::1:443"), line);
+});

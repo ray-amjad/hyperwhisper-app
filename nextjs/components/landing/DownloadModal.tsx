@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import {
   Modal,
   ModalContent,
@@ -16,6 +16,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
 import { api } from "@/lib/trpc/client";
+import { isInputValidationError } from "@/lib/trpc/input-error";
 
 export default function DownloadModal() {
   const { isOpen, closeModal } = useDownloadModal();
@@ -23,6 +24,9 @@ export default function DownloadModal() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // #968: the field points at whichever line below is on screen.
+  const descriptionId = useId();
+  const errorId = useId();
 
   const recordDownload = api.download.recordDownload.useMutation({
     onSuccess: () => {
@@ -30,6 +34,11 @@ export default function DownloadModal() {
       closeModal();
     },
     onError: (err) => {
+      if (isInputValidationError(err)) {
+        setError(t("errorEmail"));
+
+        return;
+      }
       setError(err.message || t("errorGeneric"));
     },
   });
@@ -69,15 +78,13 @@ export default function DownloadModal() {
         <ModalHeader className="flex flex-col gap-1 items-center pt-8 pb-4">
           {/* App icon */}
           <div className="w-24 h-24 mb-6 relative">
-            <div className="w-full h-full bg-gradient-to-b from-gray-700 to-gray-900 rounded-2xl flex items-center justify-center shadow-2xl">
-              <Image
-                alt={t("logoAlt")}
-                className="w-24 h-24 rounded-xl"
-                height={96}
-                src="/icon/256.png"
-                width={96}
-              />
-            </div>
+            <Image
+              alt={t("logoAlt")}
+              className="w-24 h-24"
+              height={96}
+              src="/icon/256.png"
+              width={96}
+            />
           </div>
 
           <h3 className="text-2xl font-bold text-white mb-2">{t("title")}</h3>
@@ -85,6 +92,8 @@ export default function DownloadModal() {
 
         <ModalBody className="py-4 space-y-2 text-center">
           <Input
+            aria-describedby={error ? errorId : descriptionId}
+            aria-label={t("emailPlaceholder")}
             autoComplete="email"
             classNames={{
               base: "w-full",
@@ -104,11 +113,18 @@ export default function DownloadModal() {
             }}
           />
           {error ? (
-            <p aria-live="polite" className="text-sm text-red-500" role="alert">
+            <p
+              aria-live="polite"
+              className="text-sm text-red-500"
+              id={errorId}
+              role="alert"
+            >
               {error}
             </p>
           ) : (
-            <p className="text-sm text-gray-400">{t("description")}</p>
+            <p className="text-sm text-gray-400" id={descriptionId}>
+              {t("description")}
+            </p>
           )}
         </ModalBody>
 

@@ -266,7 +266,8 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="LicenseKeyBox" FontFamily="Consolas"/>
+                            <TextBox x:Name="LicenseKeyBox" FontFamily="Consolas"
+                                     TextChanged="LicenseKeyBox_TextChanged"/>
                             <Button x:Name="ActivateLicenseButton" Grid.Column="1"
                                     Style="{StaticResource PrimaryButtonStyle}"
                                     Content="{loc:Loc license.button.activate}" Margin="8,0,0,0"

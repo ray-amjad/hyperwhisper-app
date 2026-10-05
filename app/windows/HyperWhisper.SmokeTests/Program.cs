@@ -14525,6 +14525,88 @@ internal static class Program
                 }
             });
 
+            Run("sidebar: the rail highlights the page CurrentPage names, also when code navigates — issue #1319", () =>
+            {
+                // A Home card, a finished file transcription, onboarding and the tray
+                // all set MainViewModel.CurrentPage from code. The rail used to follow
+                // only its own clicks, so it kept "Home" lit over the Vocabulary page.
+                // MainViewModel itself cannot be built here (it opens the audio stack),
+                // so a stand-in with the same CurrentPage and command names is used.
+                EnsureSmokeApplication();
+                var probe = new SidebarNavProbe();
+                var rail = new SidebarNav { DataContext = probe };
+                rail.Measure(new Size(232, 680));
+                rail.Arrange(new Rect(0, 0, 232, 680));
+                rail.UpdateLayout();
+
+                // Each item is found by the command it runs: not by position, and not
+                // by a label that changes with the culture.
+                var items = DescendantsOf<System.Windows.Controls.RadioButton>(rail)
+                    .Where(item => item.GroupName == "Nav").ToList();
+                var pages = Enum.GetValues<MainViewModel.NavigationPage>();
+                Assert(items.Count == pages.Length,
+                    $"the rail has {items.Count} nav items for {pages.Length} pages, so this case cannot map them");
+                System.Windows.Controls.RadioButton ItemFor(MainViewModel.NavigationPage page)
+                {
+                    var path = $"NavigateTo{page}Command";
+                    var matches = items.Where(item => System.Windows.Data.BindingOperations.GetBinding(
+                        item, System.Windows.Controls.Primitives.ButtonBase.CommandProperty)?.Path?.Path == path).ToList();
+                    Assert(matches.Count == 1, $"{matches.Count} nav items run {path}, expected exactly 1");
+                    return matches[0];
+                }
+                void AssertOnly(MainViewModel.NavigationPage expected, string when)
+                {
+                    var wrong = pages.Where(page => (ItemFor(page).IsChecked == true) != (page == expected))
+                        .Select(page => $"{page}.IsChecked={ItemFor(page).IsChecked}").ToList();
+                    Assert(wrong.Count == 0,
+                        $"{when}: CurrentPage is {expected}, but the rail shows {string.Join(", ", wrong)}");
+                }
+
+                AssertOnly(MainViewModel.NavigationPage.Home, "at start");
+                foreach (var page in new[]
+                {
+                    MainViewModel.NavigationPage.Vocabulary, MainViewModel.NavigationPage.Modes,
+                    MainViewModel.NavigationPage.History, MainViewModel.NavigationPage.Settings,
+                    MainViewModel.NavigationPage.ModelLibrary, MainViewModel.NavigationPage.Streaming,
+                    MainViewModel.NavigationPage.Home,
+                })
+                {
+                    probe.CurrentPage = page;
+                    AssertOnly(page, $"after code set CurrentPage = {page}");
+                }
+
+                // A user click must not cut the item off from CurrentPage. ButtonBase.OnClick
+                // is the real click path: RadioButton.OnToggle checks the item and the
+                // group unchecks the rest (SetCurrentValue, which keeps a binding), then
+                // the command runs. A later page change from code must still move the rail.
+                typeof(System.Windows.Controls.Primitives.ButtonBase)
+                    .GetMethod("OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(ItemFor(MainViewModel.NavigationPage.Modes), null);
+                Assert(probe.CurrentPage == MainViewModel.NavigationPage.Modes,
+                    $"a click on Modes left CurrentPage at {probe.CurrentPage}, so the click did not run its command");
+                AssertOnly(MainViewModel.NavigationPage.Modes, "after a click on Modes");
+                probe.CurrentPage = MainViewModel.NavigationPage.Vocabulary;
+                AssertOnly(MainViewModel.NavigationPage.Vocabulary, "after a click on Modes, then code navigating");
+
+                // The UI Automation path checks an item WITHOUT running its command.
+                var selection = (System.Windows.Automation.Provider.ISelectionItemProvider)
+                    System.Windows.Automation.Peers.UIElementAutomationPeer
+                        .CreatePeerForElement(ItemFor(MainViewModel.NavigationPage.History))
+                        .GetPattern(System.Windows.Automation.Peers.PatternInterface.SelectionItem);
+                selection.Select();
+                Assert(ItemFor(MainViewModel.NavigationPage.History).IsChecked == true,
+                    "UI Automation Select did not check History, so this case proves nothing about it");
+                probe.CurrentPage = MainViewModel.NavigationPage.Settings;
+                AssertOnly(MainViewModel.NavigationPage.Settings, "after UI Automation selected History, then code navigating");
+
+                foreach (var page in pages)
+                {
+                    Assert(System.Windows.Data.BindingOperations.GetBindingExpression(
+                            ItemFor(page), System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty) != null,
+                        $"the {page} item has no IsChecked binding after the clicks, so a local value replaced it");
+                }
+            });
+
             Run("storage: a cleanup that deleted nothing is still recorded, and survives a restart — issue #514", () =>
             {
                 // Two separate reasons the Storage page said "No cleanup has run yet"
@@ -14621,6 +14703,62 @@ internal static class Program
 
                     settings.AutoDeleteDaysOld = daysBefore;
                     settings.AutoDeleteEnabled = enabledBefore;
+                }
+            });
+
+            Run("Local API /recordings: q, since, until, total and limit run in SQL with the old match rule — issue #1123", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var history = HistoryService.Instance;
+                // A 1990 window keeps every query to this case's own rows.
+                static DateTime Day(int d) => new(1990, 1, d, 0, 0, 0, DateTimeKind.Utc);
+                var since = Day(1);
+                var until = Day(31);
+                var ids = new List<Guid>();
+                Guid Seed(int day, string text, string? post = null, string? raw = null)
+                {
+                    var t = history.CreateProcessingTranscript(1.0, "percy1123", audioFilePath: null);
+                    ids.Add(t.Id);
+                    (t.Date, t.Status, t.Text, t.PostProcessedText, t.TranscribedText) =
+                        (Day(day), TranscriptStatus.Completed, text, post, raw);
+                    history.UpdateTranscript(t);
+                    return t.Id;
+                }
+                HashSet<Guid> Ids(string q, DateTime? from = null, DateTime? to = null) =>
+                    history.QueryPage(q, from ?? since, to ?? until, 500).Page.Select(t => t.Id).ToHashSet();
+
+                try
+                {
+                    var a = Seed(2, "abc q1123x");
+                    var b = Seed(3, "", post: "zz ABC q1123x");
+                    var c = Seed(4, "", raw: "q1123x abc");
+                    var pct = Seed(5, "100% q1123x_done");
+                    var decoy = Seed(6, "1000 q1123xZdone");
+                    var umlaut = Seed(7, "Straße ÄBC q1123x");
+
+                    Assert(Ids("ABC").SetEquals(new[] { a, b, c }),
+                        "q=ABC no longer matches abc case-insensitively in Text, PostProcessedText and TranscribedText");
+
+                    var (page, total) = history.QueryPage("q1123x", since, until, 2);
+                    Assert(page.Count == 2 && total == 6,
+                        $"limit=2 gave {page.Count} rows and total={total}; total must count every match past the limit");
+                    Assert(page[0].Id == umlaut && page[1].Id == decoy, "the page is not newest first");
+
+                    Assert(Ids("q1123x", Day(3), Day(4)).SetEquals(new[] { b, c }), "since/until no longer filter");
+
+                    Assert(Ids("0% q1123x_").SetEquals(new[] { pct }), "a % or _ in q is a wildcard, not a literal");
+                    Assert(Ids("%").SetEquals(new[] { pct }) && Ids("_").SetEquals(new[] { pct }),
+                        "q=% or q=_ matched rows that hold neither character");
+
+                    Assert(Ids("\0").Count == 0 && Ids("q1123x\0").Count == 0,
+                        "a q holding NUL matched rows (SQLite cuts a LIKE pattern at NUL, #1198)");
+
+                    Assert(Ids("äbc").SetEquals(new[] { umlaut }),
+                        "q=äbc no longer folds non-ASCII case as OrdinalIgnoreCase did");
+                }
+                finally
+                {
+                    history.DeleteTranscripts(ids);
                 }
             });
 
@@ -15344,12 +15482,15 @@ internal static class Program
                 var savedCancel = settings.CancelShortcut;
                 var savedChangeMode = settings.ChangeModeShortcut;
                 var savedStreaming = settings.StreamingShortcut;
+                var savedStreamingEnabled = settings.StreamingEnabled;
                 try
                 {
                     settings.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
                     settings.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
                     settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
                     settings.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+                    // The Streaming chord claims its key only while streaming is on (#704).
+                    settings.StreamingEnabled = true;
 
                     var recorder = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
                     var captured = new List<string>();
@@ -15444,6 +15585,22 @@ internal static class Program
                             "settings.shortcuts.error.singleModifier"),
                         "and it still says why - in the catalogue's words, not a literal of its own");
                     Assert(bare.Field.Text == "Esc", "and it leaves the field showing what is configured");
+
+                    // #704. With streaming OFF its chord is not registered and its row is
+                    // hidden on Settings > Shortcuts, so it must not refuse another role.
+                    settings.StreamingEnabled = false;
+                    captured.Clear();
+                    var offRecorder = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    offRecorder.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    offRecorder.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    offRecorder.HandleKeyDown(Key.LeftShift, control: true, alt: false, shift: true, win: false);
+                    offRecorder.HandleKeyDown(Key.Space, control: true, alt: false, shift: true, win: false);
+                    offRecorder.HandleKeyUp(Key.Space);
+                    offRecorder.HandleKeyUp(Key.LeftShift);
+                    offRecorder.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 1 && captured[0] == "Ctrl+Shift+Space" && offRecorder.ErrorMessage is null,
+                        "while streaming is off its chord is free for another role - got ["
+                        + string.Join(", ", captured) + "], error '" + (offRecorder.ErrorMessage ?? "null") + "'");
                 }
                 finally
                 {
@@ -15451,6 +15608,7 @@ internal static class Program
                     settings.CancelShortcut = savedCancel;
                     settings.ChangeModeShortcut = savedChangeMode;
                     settings.StreamingShortcut = savedStreaming;
+                    settings.StreamingEnabled = savedStreamingEnabled;
                 }
             });
 
@@ -17543,6 +17701,45 @@ internal static class Program
         // literal would measure the same six characters under all 40 catalogues.
         public string SavedThisWeekDisplay { get; init; } =
             HyperWhisper.Localization.Loc.S("home.stats.minutesValue", 83);
+    }
+
+    /// <summary>
+    /// MainViewModel's navigation surface, for SidebarNav (issue #1319): CurrentPage,
+    /// raised only on a real change as [ObservableProperty] does, and the seven commands.
+    /// </summary>
+    private sealed class SidebarNavProbe : System.ComponentModel.INotifyPropertyChanged
+    {
+        private MainViewModel.NavigationPage _currentPage = MainViewModel.NavigationPage.Home;
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+
+        public MainViewModel.NavigationPage CurrentPage
+        {
+            get => _currentPage;
+            set
+            {
+                if (_currentPage == value) return;
+                _currentPage = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(CurrentPage)));
+            }
+        }
+
+        public ICommand NavigateToHomeCommand => GoTo(MainViewModel.NavigationPage.Home);
+        public ICommand NavigateToModesCommand => GoTo(MainViewModel.NavigationPage.Modes);
+        public ICommand NavigateToVocabularyCommand => GoTo(MainViewModel.NavigationPage.Vocabulary);
+        public ICommand NavigateToStreamingCommand => GoTo(MainViewModel.NavigationPage.Streaming);
+        public ICommand NavigateToModelLibraryCommand => GoTo(MainViewModel.NavigationPage.ModelLibrary);
+        public ICommand NavigateToHistoryCommand => GoTo(MainViewModel.NavigationPage.History);
+        public ICommand NavigateToSettingsCommand => GoTo(MainViewModel.NavigationPage.Settings);
+
+        private ICommand GoTo(MainViewModel.NavigationPage page) => new NavigateProbeCommand(() => CurrentPage = page);
+
+        private sealed class NavigateProbeCommand(Action execute) : ICommand
+        {
+            public event EventHandler? CanExecuteChanged { add { } remove { } }
+            public bool CanExecute(object? parameter) => true;
+            public void Execute(object? parameter) => execute();
+        }
     }
 
     private sealed class StatusBarProbe

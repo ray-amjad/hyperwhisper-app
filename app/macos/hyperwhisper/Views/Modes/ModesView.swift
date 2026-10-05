@@ -35,6 +35,7 @@ struct ModesView: View {
     @EnvironmentObject var parakeetModelManager: ParakeetModelManager
     @EnvironmentObject var qwen3AsrModelManager: Qwen3AsrModelManager
     @EnvironmentObject var nemotronModelManager: NemotronModelManager
+    @EnvironmentObject var licenseManager: LicenseManager
 
     // Fetch modes from Core Data
     @FetchRequest(
@@ -96,7 +97,14 @@ struct ModesView: View {
         }
         .navigationTitle("Modes")
         .sheet(isPresented: $showingCreateMode) {
-            ModeEditorView(configuration: .create, availableModelIds: downloadedLocalModelIds) { (newModeData: ModeData) in
+            ModeEditorView(
+                configuration: .create,
+                availableModelIds: downloadedLocalModelIds,
+                licenseActive: ModeEditorDefaults.treatsLicenseAsActive(
+                    status: licenseManager.licenseStatus,
+                    storedKey: licenseManager.storedLicenseKeyReadForSeeding()
+                )
+            ) { (newModeData: ModeData) in
                 // Create new Mode entity in Core Data
                 let persistenceController = PersistenceController.shared
                 let newMode = persistenceController.createOrUpdateMode(
@@ -293,7 +301,7 @@ struct ModesView: View {
             if let firstMode = remainingModes.first {
                 // Select the first remaining mode (index 0 by sort order)
                 appState.selectMode(firstMode, persist: true)
-                AppLogger.ui.info("Deleted selected mode, switched to first remaining mode: \(firstMode.name ?? "Unknown")")
+                AppLogger.ui.info("Deleted selected mode, switched to first remaining mode · modeId=\(firstMode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: firstMode), privacy: .public)")
             } else {
                 // No modes left - clear the selection to prevent errors
                 appState.clearModeSelection()
@@ -315,5 +323,6 @@ struct ModesView: View {
         .environmentObject(ParakeetModelManager())
         .environmentObject(Qwen3AsrModelManager())
         .environmentObject(NemotronModelManager())
+        .environmentObject(LicenseManager())
         .frame(width: 900, height: 700)
 }

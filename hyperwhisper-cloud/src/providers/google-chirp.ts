@@ -27,7 +27,7 @@ import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, splitVocabularyTerms } from './utils';
+import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, splitVocabularyTerms, unparsedBodyKind } from './utils';
 
 // Re-exported for the transcribe route's pre-buffer header gate. Kept here
 // historically; the canonical constant now lives in `lib/constants.ts`.
@@ -831,9 +831,12 @@ async function parseJsonBody<T>(
     logProviderEvent(provider, 'parse_error', {
       phase,
       contentType: ct,
+      contentEncoding: response.headers.get('content-encoding') ?? 'none',
       bodyLength: raw.length,
-      bodyPreview: raw.slice(0, 400),
+      bodyKind: unparsedBodyKind(raw),
     }, context);
-    throw new Error(`Google Speech returned non-JSON 200 body during ${phase} (content-type=${ct}, len=${raw.length}): ${raw.slice(0, 200)}`);
+    // No part of the body goes in the message: transcribe.ts logs it and
+    // returns it to the client, and a 200 body is the user's transcript.
+    throw new Error(`Google Speech returned non-JSON 200 body during ${phase} (content-type=${ct}, len=${raw.length})`);
   }
 }

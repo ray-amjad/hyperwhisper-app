@@ -23,10 +23,10 @@ You can select any audio input device on your system from the menu bar (macOS), 
     At each launch, HyperWhisper selects the first device that Windows reports. Your selection from the last session does not carry over. If that device is removed while the app runs, HyperWhisper selects the first available device. For more information, see [When a device disconnects](#when-a-device-disconnects).
   </Tab>
   <Tab title="Linux">
-    1. Open the main window. Find the **Audio input** picker on the **Record and transcribe** page.
+    1. Open the main window, then click **Home** in the sidebar. Find the **Audio input** picker in the **Record and transcribe** section.
     2. Select the device that you want to use.
 
-    The list comes from the active PipeWire or PulseAudio service, which HyperWhisper reads with `pactl`. If `pactl` is not on your `PATH`, the picker stays empty and HyperWhisper reports `pulse_devices_unavailable`.
+    The list comes from the active PipeWire or PulseAudio service, which HyperWhisper reads with `pactl`. The **Audio input** row shows only when the list has at least one device. If `pactl` is not on your `PATH`, the row does not show and HyperWhisper reports `pulse_devices_unavailable`.
 
     At each launch, HyperWhisper selects the default source of your audio service. If you do not have a default source, it selects the first device in the list.
   </Tab>
@@ -93,9 +93,9 @@ All three desktop platforms have a **Keep Microphone Warm** option. This option 
     Enable it in **Settings → Sound → Keep Microphone Warm**. It is off by default.
   </Tab>
   <Tab title="Linux">
-    Enable **Keep the selected microphone warm between recordings** in **Settings → Audio and desktop**. It is off by default. Click **Save settings** to apply it.
+    Enable **Keep microphone warm** in **Settings → Sound**. It is off by default. Linux saves the change automatically.
 
-    Linux holds the stream open on the device that is selected when you save. If you change the device afterward, save the settings again.
+    Linux holds the stream open on the device that is selected when the settings are saved. A change of device does not save the settings. If you change the device afterward, turn **Keep microphone warm** off and then on again.
   </Tab>
 </Tabs>
 

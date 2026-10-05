@@ -27,6 +27,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private Mode? _mode;
     private Transcript? _liveTranscript;
     private IAudioEnvironmentSession? _audioEnvironment;
+    private int _audioPrepared;
     private bool _streaming;
     private bool _showingCancelConfirmation;
     private TextInjectionOutcome? _lastInjectionOutcome;
@@ -76,6 +77,29 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
             or TranscriptionWorkflowState.Retrying;
     public bool IsStreaming => _streaming;
+    /// <summary>A live stream that lost its connection is no longer active but is still held
+    /// until Stop or Cancel clears it, so Stop must reach it (#1246).</summary>
+    public bool HasOpenSession => IsActive || IsLiveCaptureActive;
+    /// <summary>A recording or stream is live, or its StopAsync is still finishing it: the live-stream
+    /// finalization (post-processing, injection, history save) runs after IsActive has gone false.
+    /// The stop flag is only set once StopAsync passed its IsActive check, and its finally always clears
+    /// it, so a failed start, a cancel or an error never leaves this true (#1190).</summary>
+    public bool IsRecordingOrFinishing => IsActive || Volatile.Read(ref _finishing);
+    private bool _finishing;
+    /// <summary>A live stream started and no stop or cancel has begun; Home's record row follows it (#1187).
+    /// Narrower than IsStreaming, which stays true through finalization and after a failed start.</summary>
+    public bool IsLiveCaptureActive => Volatile.Read(ref _liveCaptureActive);
+    public event EventHandler? LiveCaptureChanged;
+    private bool _liveCaptureActive;
+
+    private void SetLiveCapture(bool value)
+    {
+        if (Volatile.Read(ref _liveCaptureActive) == value) return;
+        Volatile.Write(ref _liveCaptureActive, value);
+        LiveCaptureChanged?.Invoke(this, EventArgs.Empty);
+    }
+    /// <summary>PrepareAudio ran and no restore has taken it yet; true even before IsActive (#1038).</summary>
+    public bool HasAudioToRestore => Volatile.Read(ref _audioPrepared) != 0;
 
     public async ValueTask<PlatformResult> StartAsync(
         InteractionRecordingKind kind,
@@ -173,6 +197,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Succeeded);
         if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStarted);
         _viewModel.Status.Success(_streaming ? "Live transcription recording…" : "Recording…");
+        if (_streaming) SetLiveCapture(true);
         return PlatformResult.Success();
     }
 
@@ -228,11 +253,14 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     public async ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     {
-        if (!IsActive) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
+        var open = HasOpenSession;
+        SetLiveCapture(false);
+        if (!open) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
         await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
         _overlay.Transcribing();
         try
         {
+            Volatile.Write(ref _finishing, true);
             if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStopped);
             InteractionStopOutcome outcome;
             if (_streaming) outcome = await StopStreamingAsync(cancellationToken);
@@ -274,8 +302,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         }
         finally
         {
-            await RestoreAudioAsync();
-            ClearSession();
+            try
+            {
+                await RestoreAudioAsync();
+                ClearSession();
+            }
+            finally { Volatile.Write(ref _finishing, false); }
         }
     }
 
@@ -328,6 +360,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     public async ValueTask CancelAsync(CancellationToken cancellationToken = default)
     {
+        SetLiveCapture(false);
         await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Cancelled);
         _overlay.Cancelled();
         try
@@ -503,6 +536,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private void PrepareAudio(string deviceId)
     {
         _services.MicrophoneKeepWarm.SuspendForRecording();
+        Volatile.Write(ref _audioPrepared, 1);
         if (_viewModel.Settings.AutoIncreaseMicVolume) _ = _services.MicrophoneVolume.BoostIfNeeded(deviceId);
         var policy = _viewModel.Settings.AudioEnvironmentPolicy switch
         {
@@ -514,10 +548,23 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _audioEnvironment = environment.IsSuccess ? environment.Value : null;
     }
 
+    /// <summary>The quit puts the sink and the mic volume back before anything else (#1038). It never
+    /// resumes keep-warm: a recording may still be capturing, and Dispose stops keep-warm anyway. The
+    /// session is taken once and the mic has no prior volume left, so a later restore is a no-op.</summary>
+    public async ValueTask RestoreAudioEnvironmentForShutdownAsync()
+    {
+        Volatile.Write(ref _audioPrepared, 0);
+        var environment = Interlocked.Exchange(ref _audioEnvironment, null);
+        _ = _services.MicrophoneVolume.Restore();
+        if (environment is null) return;
+        try { await environment.RestoreAsync(CancellationToken.None); } catch { }
+        try { await environment.DisposeAsync(); } catch { }
+    }
+
     private async ValueTask RestoreAudioAsync()
     {
-        var environment = _audioEnvironment;
-        _audioEnvironment = null;
+        Volatile.Write(ref _audioPrepared, 0);
+        var environment = Interlocked.Exchange(ref _audioEnvironment, null);
         await LinuxRecordingAudioRestorer.RestoreAsync(
             _services.MicrophoneVolume, environment, _services.MicrophoneKeepWarm,
             _viewModel.Recording?.SelectedAudioDevice?.Id);
@@ -539,6 +586,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         try { liveDelivery?.Cancel(); } catch (ObjectDisposedException) { }
         liveDelivery?.Dispose();
         _streaming = false;
+        SetLiveCapture(false);
         _liveTranscript = null;
         _context = null;
         _mode = null;

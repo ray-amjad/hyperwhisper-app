@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
@@ -62,6 +63,9 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
     private CancellationTokenRegistration _externalCancellation;
     private Task<LiveStreamingSessionOutcome>? _completion;
     private PlatformError? _captureFailure;
+    private bool _audioCompleted;
+    private volatile bool _attemptReadAudio;
+    private bool _bufferFilledUnread;
     private bool _starting;
     private bool _workerCompleted;
     private bool _disposed;
@@ -115,6 +119,8 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
             _externalCancellation = default;
             previousCancellation = _sessionCancellation;
             _captureFailure = null;
+            _audioCompleted = false;
+            _bufferFilledUnread = false;
             _workerCompleted = false;
             channel = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(ChannelCapacity)
             {
@@ -172,7 +178,7 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         RaiseConnectionState(LiveStreamingConnectionState.Connecting);
         var worker = CompleteSessionAsync(
             request.Config,
-            channel.Reader.ReadAllAsync(sessionCancellation.Token),
+            TrackReads(channel.Reader.ReadAllAsync(sessionCancellation.Token)),
             sessionCancellation.Token);
         _ = RelayCompletionAsync(worker, completionSource);
         lock (_gate)
@@ -266,18 +272,32 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         LiveTranscriptionResult transcription;
+        LiveTranscriptionFailure? transportFailure = null;
         try
         {
             var reconnects = 0;
             while (true)
             {
+                _attemptReadAudio = false;
                 transcription = await _transcriber.TranscribeAsync(config, audio, cancellationToken).ConfigureAwait(false);
+                _attemptReadAudio = false;
+                if (transcription.Failure is { Code: not LiveTranscriptionFailureCode.Cancelled } attemptFailure)
+                    transportFailure = attemptFailure;
                 if (transcription.IsSuccess || !CanReconnect(transcription.Failure) || reconnects >= 2
                     || !_capture.IsCapturing || cancellationToken.IsCancellationRequested)
                     break;
                 reconnects++;
                 RaiseConnectionState(LiveStreamingConnectionState.Reconnecting);
-                await Task.Delay(TimeSpan.FromMilliseconds(250 * reconnects), cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(250 * reconnects), cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (BufferFilledUnread())
+                {
+                    // #1253: our own buffer-full cancel, not the user's: end with the
+                    // last transport failure below. A user cancel still propagates.
+                    break;
+                }
                 RaiseConnectionState(LiveStreamingConnectionState.Connecting);
             }
             RaiseConnectionState(transcription.IsSuccess
@@ -300,8 +320,24 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         }
 
         PlatformError? failure;
-        lock (_gate) failure = _captureFailure;
+        bool filledUnread;
+        lock (_gate) (failure, filledUnread) = (_captureFailure, _bufferFilledUnread);
+        // #1253: the buffer filled while no transport attempt was reading it (connect
+        // hanging, back-off, or the worker already failed). That is a connection
+        // fault, not slow consumption: report the last real transport failure, or the
+        // service's own connect timeout when the connect never got that far.
+        if (filledUnread && failure is null && !transcription.IsSuccess)
+            transcription = transcription with
+            {
+                Failure = transportFailure ?? new LiveTranscriptionFailure(
+                    LiveTranscriptionFailureCode.Timeout, "The streaming connection timed out.", config.Provider),
+            };
         return new LiveStreamingSessionOutcome(transcription, failure, _capture.Duration);
+    }
+
+    private bool BufferFilledUnread()
+    {
+        lock (_gate) return _bufferFilledUnread;
     }
 
     /// <summary>
@@ -342,10 +378,26 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         {
             lock (_gate)
             {
-                _captureFailure ??= new PlatformError(
+                // A completed channel refuses a late chunk by design (Stop, a capture
+                // failure, the worker ending); only a full one is a buffer failure.
+                if (_audioCompleted) return;
+                if (!_attemptReadAudio) _bufferFilledUnread = true;
+                else _captureFailure ??= new PlatformError(
                     "streaming_audio_buffer_full", "Live audio could not be consumed quickly enough.");
             }
             CancelTransport();
+        }
+    }
+
+    /// <summary>Marks the current transport attempt as one that is draining the buffer.</summary>
+    private async IAsyncEnumerable<ReadOnlyMemory<byte>> TrackReads(
+        IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var chunk in audio.WithCancellation(cancellationToken).ConfigureAwait(false))
+        {
+            _attemptReadAudio = true;
+            yield return chunk;
         }
     }
 
@@ -370,7 +422,11 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
     private void CompleteAudio()
     {
         Channel<ReadOnlyMemory<byte>>? audio;
-        lock (_gate) audio = _audio;
+        lock (_gate)
+        {
+            audio = _audio;
+            _audioCompleted = true;
+        }
         audio?.Writer.TryComplete();
     }
 

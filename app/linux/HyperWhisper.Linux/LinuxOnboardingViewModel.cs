@@ -136,14 +136,18 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     /// </summary>
     /// <remarks>
     /// Warning: exactly TWO inputs decide this line — the gate, and the last message the app stored.
-    /// Keep it at two.
+    /// Keep it at two. "The gate" is the whole of <see cref="IsTestReady"/>: while it is shut the line
+    /// names which of its conjuncts is false (<see cref="TestBlocker"/>), and every one of those
+    /// conjuncts — <see cref="SelectedMode"/>, <see cref="SelectedDevice"/>, the stored availability
+    /// flag, and <see cref="Capabilities"/>, which never changes — moves only through
+    /// <see cref="NotifyReadiness"/>. The gate's own state is one input, not four.
     ///
     /// Notification rides on <c>Set</c>, which is silent when the stored string is unchanged. That
     /// is only sound because an unchanged store cannot change what is rendered: the stored message
     /// is rendered verbatim while the gate is open, and is not rendered at all while it is shut.
-    /// Every move of the gate goes through <see cref="NotifyReadiness"/>, which raises this property
-    /// beside <see cref="IsTestReady"/>. A THIRD input — an "a test was attempted" flag, say — would
-    /// change the rendered line while the stored string stood still, and the line would go stale
+    /// Every move of the gate — including a move from one false conjunct to another — goes through
+    /// <see cref="NotifyReadiness"/>, which raises this property beside <see cref="IsTestReady"/>.
+    /// A THIRD input — an "a test was attempted" flag, say — would change the rendered line while the stored string stood still, and the line would go stale
     /// with no PropertyChanged at all; add one and the notification must stop riding on <c>Set</c>.
     ///
     /// The stored message therefore outlives a gate that shuts and reopens. That is deliberate: the
@@ -167,9 +171,20 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     /// </remarks>
     public string TestStatus
     {
-        get => IsTestReady ? _testStatus : _text("linux.onboarding.test.not_ready");
+        get => IsTestReady ? _testStatus : TestBlocker;
         private set => Set(ref _testStatus, value);
     }
+    /// <summary>
+    /// The line a shut gate renders: the FIRST conjunct of <see cref="IsTestReady"/> that is false,
+    /// read in the gate's own order. One string used to cover all four, so a fresh install with a
+    /// mode and a microphone chosen was told to choose a mode and a microphone, while the real
+    /// blocker — the missing cloud credential — went unnamed (issue #924).
+    /// </summary>
+    private string TestBlocker =>
+        !Capabilities.AudioCapture ? _text("linux.onboarding.test.blocked.capture")
+        : SelectedMode is null ? _text("linux.onboarding.test.blocked.mode")
+        : SelectedDevice is null ? _text("linux.onboarding.test.blocked.device")
+        : UnavailableMessage;
     public Mode? SelectedMode
     {
         get => _selectedMode;

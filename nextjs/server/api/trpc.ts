@@ -17,6 +17,7 @@ import superjson from "superjson";
 import type { User as BetterAuthUser } from "better-auth/types";
 
 import { auth } from "@/src/lib/auth";
+import { DB_ERROR_MESSAGE, isDbError } from "@/lib/shared/db-error";
 
 /**
  * Context passed to every tRPC procedure.
@@ -63,8 +64,16 @@ export async function createTRPCContext(opts: {
  */
 const t = initTRPC.context<TRPCContext>().create({
   transformer: superjson,
-  errorFormatter({ shape }) {
-    return shape;
+  // A DB error's message and stack carry its bound params (#1049), so a 5xx
+  // caused by one ships DB_ERROR_MESSAGE and no stack key at all, whatever
+  // isDev says. A 4xx keeps its own message: that copy is written for the user.
+  errorFormatter({ shape, error }) {
+    if (shape.data.httpStatus < 500 || !isDbError(error.cause)) return shape;
+
+    const data = { ...shape.data };
+    delete data.stack;
+
+    return { ...shape, message: DB_ERROR_MESSAGE, data };
   },
 });
 

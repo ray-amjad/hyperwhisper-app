@@ -63,6 +63,11 @@
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+  /* Keeps focused controls and #anchor targets clear of the sticky header.
+     LayoutWrapper sets --site-header-offset from the measured header height;
+     the rem fallback (120px at 100%: banner 48px + navbar 65px + 7px gap)
+     covers the first paint and still scales with the text size. */
+  scroll-padding-top: var(--site-header-offset, 7.5rem);
 }
 
 /* Default dark theme */
@@ -88,4 +93,77 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(128, 128, 128, 0.7);
+}
+
+/* Honour the OS "Reduce motion" setting (#701): no smooth scroll, no looping
+   decorative keyframes, and every other CSS animation/transition ends at once. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-blob,
+  .animate-scroll,
+  .animate-scroll-x {
+    animation: none;
+  }
+}
+
+/* The !important half lives in @layer base, not unlayered (#1173). For
+   !important declarations the cascade order flips: an earlier layer beats a
+   later one, and any layer beats unlayered CSS. Tailwind declares
+   "theme, base, components, utilities", so HeroUI's !duration-* utilities
+   (@layer utilities, !important) beat an unlayered guard but lose to this one.
+   The two normal rules above stay unlayered, where a normal rule wins. */
+@layer base {
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Inline editor that replaces a table cell's content (#914). A <td> with
+   height auto never tweens its height, so the wrapper animates its one grid
+   row 0fr -> 1fr instead: the row grows through real intermediate heights.
+   The child clips (overflow: clip, not hidden, so autoFocus cannot scroll it).
+   450 ms ease-in-out, not a strong ease-out: a 100-row re-render can delay the
+   first painted frame ~200 ms, and the row must still be mid-reveal then. */
+@keyframes cell-reveal {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+
+.t-cell-reveal {
+  --resize-dur: 450ms;
+  --resize-ease: cubic-bezier(0.42, 0, 0.58, 1);
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: cell-reveal var(--resize-dur) var(--resize-ease) both;
+}
+
+/* padding + equal negative margin: the clip box reaches 4px past the content,
+   so a focus ring on an edge button is not cut off; layout is unchanged. */
+.t-cell-reveal > * {
+  min-height: 0;
+  overflow: clip;
+  padding: 4px;
+  margin: -4px;
+}
+
+/* Reduce motion: the editor appears at full size in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-cell-reveal {
+    animation: none;
+  }
 }

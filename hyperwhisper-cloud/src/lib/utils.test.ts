@@ -279,6 +279,70 @@ describe('retryWithBackoff', () => {
     expect(delays).toEqual([2, 6, 18]);
   });
 
+  test('shouldRetry returning false throws that error at once, with no retry and no onRetry', async () => {
+    let calls = 0;
+    let retried = false;
+
+    await expect(
+      retryWithBackoff(
+        async () => {
+          calls += 1;
+          throw new Error('do not retry me');
+        },
+        {
+          maxRetries: 3,
+          initialDelayMs: 1,
+          shouldRetry: (error) => error.message !== 'do not retry me',
+          onRetry: () => { retried = true; },
+        }
+      )
+    ).rejects.toThrow('do not retry me');
+
+    expect(calls).toBe(1);
+    expect(retried).toBe(false);
+  });
+
+  test('shouldRetry is asked per error: a retryable failure is retried until a refused one', async () => {
+    let calls = 0;
+    const asked: string[] = [];
+
+    await expect(
+      retryWithBackoff(
+        async () => {
+          calls += 1;
+          throw new Error(calls < 3 ? `transient ${calls}` : 'fatal');
+        },
+        {
+          maxRetries: 5,
+          initialDelayMs: 1,
+          shouldRetry: (error) => {
+            asked.push(error.message);
+            return error.message !== 'fatal';
+          },
+        }
+      )
+    ).rejects.toThrow('fatal');
+
+    expect(calls).toBe(3);
+    expect(asked).toEqual(['transient 1', 'transient 2', 'fatal']);
+  });
+
+  test('shouldRetry returning true keeps the full retry count', async () => {
+    let calls = 0;
+
+    await expect(
+      retryWithBackoff(
+        async () => {
+          calls += 1;
+          throw new Error(`fail ${calls}`);
+        },
+        { maxRetries: 2, initialDelayMs: 1, shouldRetry: () => true }
+      )
+    ).rejects.toThrow('fail 3');
+
+    expect(calls).toBe(3);
+  });
+
   test('defaults the first delay to 1000ms', async () => {
     // Pinned because `callWithRetry` relies on the default and the total retry
     // budget has to stay inside the client's own request timeout. This test

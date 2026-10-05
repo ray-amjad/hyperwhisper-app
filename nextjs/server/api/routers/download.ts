@@ -201,7 +201,7 @@ export const downloadRouter = createTRPCRouter({
           downloadUrl: directDownloadUrl || emailDownloadUrl,
         };
       } catch (error) {
-        console.error("Error processing download request:", error);
+        console.error("Error processing download request:", describeDbError(error));
 
         if (error instanceof TRPCError) {
           throw error;

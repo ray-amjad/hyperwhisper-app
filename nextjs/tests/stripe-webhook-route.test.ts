@@ -16,9 +16,9 @@
  *    credit handler needs the EVENT id and type — that pair is its idempotency
  *    key, so a wrong argument double-grants on Stripe's retry.
  * 4. The status it answers with. Stripe retries a 5xx and never retries a 2xx.
- *    A handler fault that answers 200 silently drops a paid purchase; the
- *    refund path deliberately answers 200 so a permanent fault cannot start a
- *    retry storm.
+ *    A handler fault that answers 200 silently drops a paid purchase or a
+ *    refund clawback, so every handler throw answers 500 (#1317). A permanent
+ *    refund case returns inside the handler and still answers 200.
  *
  * So the tests below assert what Stripe actually reads — the status and the
  * body — and the exact arguments the route handed each handler. They do not
@@ -389,23 +389,25 @@ describe("POST /api/webhooks/stripe — refunds", () => {
     assert.equal(calls.licensePurchase.length, 0);
   });
 
-  test("still answers 200 when the refund handler throws", async () => {
-    // Deliberate, and the opposite of the purchase paths: a refund fault is
-    // usually permanent, and a 5xx would make Stripe retry it forever. The
-    // route logs instead and leaves the case for manual review.
+  test("answers 500 so Stripe retries a refund fault", async () => {
+    // Same rule as the purchase paths (#1317): a throw here is transient (a
+    // Stripe API blip, a dropped DB connection), and Stripe never retries a
+    // 2xx, so a 200 would leave the refunded credits unclawed for good.
     behaviour.verifiedEvent = refundEvent({ chargeId: "ch_refund_8" });
-    behaviour.refundError = new Error("license row already gone");
+    behaviour.refundError = new Error("Connection terminated unexpectedly");
 
     const response = await signedPost(behaviour.verifiedEvent);
 
-    assert.equal(response.status, 200);
-    assert.deepEqual(await readJson(response), { received: true });
+    assert.equal(response.status, 500);
+    assert.deepEqual(await readJson(response), {
+      error: "Failed to process refund",
+    });
     assert.equal(calls.chargeRefunded.length, 1);
     assert.ok(
       logLines.some((line) =>
         line.includes("Error processing refund"),
       ),
-      "a swallowed refund fault must still be logged",
+      "a refund fault must be logged",
     );
   });
 });
@@ -414,7 +416,7 @@ describe("POST /api/webhooks/stripe — a drizzle error in a handler (#1039)", (
   const cases = [
     { name: "license", event: () => checkoutEvent({ purchaseType: "license" }), set: (e: unknown) => { behaviour.licenseError = e; }, status: 500 },
     { name: "credit", event: () => checkoutEvent({ purchaseType: "credits" }), set: (e: unknown) => { behaviour.creditError = e; }, status: 500 },
-    { name: "refund", event: () => refundEvent(), set: (e: unknown) => { behaviour.refundError = e; }, status: 200 },
+    { name: "refund", event: () => refundEvent(), set: (e: unknown) => { behaviour.refundError = e; }, status: 500 },
   ];
 
   for (const c of cases) {

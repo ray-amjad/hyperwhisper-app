@@ -69,6 +69,13 @@ public class AccessibilityHelper {
     /// Used to determine if we should save the clipboard as "original"
     var isInRecordingSession = false
 
+    /// `NSPasteboard.general.changeCount` right after an exit that pasted nothing
+    /// left the transcript on the clipboard with no restore armed (#1061). While
+    /// the count is unchanged, the next `startRecordingSession()` keeps
+    /// `originalClipboardData` (the user's older clipboard) instead of
+    /// snapshotting the transcript. Consumed by that call; nil otherwise.
+    var keptClipboardSnapshotChangeCount: Int?
+
     // MARK: - Async Paste Management
     /// The currently active paste task (if any)
     /// This allows us to cancel in-flight paste operations when starting a new one
@@ -81,6 +88,16 @@ public class AccessibilityHelper {
     /// permission guard on a CI Mac that never grants Accessibility. A Release
     /// build has no such property and no way around the permission check.
     var pastePermissionOverrideForTesting: Bool?
+
+    /// TEST SEAM, Debug builds only. Always nil in the app. When set,
+    /// `canPasteIntoFocusedElement()` returns its result instead of reading the
+    /// focused element, so a test can drive the no-focused-field, cancelled and
+    /// send-failed exits of `executePasteAsync` (#1034). It also answers the focus
+    /// guard inside `sendPasteCommand()`, so a test that sets it to true and
+    /// reaches that guard with `TextDeliveryGate` open would post a real Cmd+V on
+    /// a Mac that grants Accessibility; that is why such a test skips when
+    /// `AXIsProcessTrusted()`. Release has no such property.
+    var canPasteOverrideForTesting: (@MainActor () -> Bool)?
     #endif
 
     // MARK: - Permission Polling Management

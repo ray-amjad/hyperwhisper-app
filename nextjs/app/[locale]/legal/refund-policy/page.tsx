@@ -7,14 +7,14 @@ export const metadata: Metadata = {
 
 export default function RefundPolicyPage() {
   return (
-    <div className="prose prose-lg max-w-none dark:prose-invert">
-      <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
+    <div className="prose prose-lg max-w-none prose-invert">
+      <p className="text-sm text-gray-400 italic mb-8">
         Last Updated: August 20, 2025
       </p>
 
       <h1>Refund Policy</h1>
 
-      <p className="text-lg text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-8">
+      <p className="text-lg text-gray-300 bg-blue-900/20 border border-blue-800 rounded-lg p-4 mb-8">
         <strong>14-Day Money Back Guarantee:</strong> We stand behind
         HyperWhisper with a full 14-day money back guarantee. If you're not
         completely satisfied with your purchase, we'll provide a full refund, no
@@ -62,7 +62,7 @@ export default function RefundPolicyPage() {
         <li>
           <strong>Contact our support team</strong> via email at{" "}
           <a
-            className="text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-blue-400 hover:underline"
             href="mailto:hi@support.hyperwhisper.com"
           >
             hi@support.hyperwhisper.com
@@ -225,15 +225,15 @@ export default function RefundPolicyPage() {
         us:
       </p>
 
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+      <div className="bg-gray-900/50 rounded-lg p-6 border border-gray-800">
         <p className="mb-2">
-          <strong>Provider:</strong> Ray Amjad LTD (<a className="text-blue-600 dark:text-blue-400 hover:underline" href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>,
+          <strong>Provider:</strong> Ray Amjad LTD (<a className="text-blue-400 hover:underline" href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>,
           United Kingdom)
         </p>
         <p className="mb-2">
           <strong>Email:</strong>{" "}
           <a
-            className="text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-blue-400 hover:underline"
             href="mailto:hi@support.hyperwhisper.com"
           >
             hi@support.hyperwhisper.com
@@ -242,7 +242,7 @@ export default function RefundPolicyPage() {
         <p className="mb-2">
           <strong>Subject Line:</strong> "Refund Request - [Your Order Number]"
         </p>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-gray-400">
           We typically respond to refund requests within 1 business day.
         </p>
       </div>
@@ -260,8 +260,8 @@ export default function RefundPolicyPage() {
         your purchase.
       </p>
 
-      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6 mt-8">
-        <h3 className="text-green-800 dark:text-green-200 mt-0 mb-3">
+      <div className="bg-green-900/20 border border-green-800 rounded-lg p-6 mt-8">
+        <h3 className="text-green-200 mt-0 mb-3">
           <a
             className="hover:underline"
             href="/"
@@ -269,10 +269,10 @@ export default function RefundPolicyPage() {
             Ready to try HyperWhisper risk-free?
           </a>
         </h3>
-        <p className="text-green-700 dark:text-green-300 mb-0">
+        <p className="text-green-300 mb-0">
           With our 14-day money back guarantee, you can{" "}
           <a
-            className="text-green-800 dark:text-green-200 underline hover:no-underline"
+            className="text-green-200 underline hover:no-underline"
             href="/"
           >
             purchase HyperWhisper

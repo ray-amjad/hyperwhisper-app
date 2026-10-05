@@ -5,6 +5,7 @@ import type { WSMessageReceive } from 'hono/ws';
 import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { drainPendingDeductions } from '../middleware/credits';
 import type { AuthContext } from '../middleware/auth';
+import { captureRejectionLogs, captureStreamingLogs } from './ws-streaming-test-logs';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -30,6 +31,7 @@ const {
   minimumStreamingCredits,
   wsStreamingPreflight,
 } = await import('./ws-streaming-deepgram');
+const { endActiveStreamingSessions, resetStreamingShutdownForTests } = await import('./ws-streaming-shared');
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
@@ -85,6 +87,12 @@ describe('wsStreamingPreflight', () => {
 
   const UPGRADE_HEADERS = { Upgrade: 'websocket', 'Fly-Client-IP': '203.0.113.7' } as const;
 
+
+  // The preflight's console.log lines, captured per test. Each refused upgrade
+  // must leave exactly one `ws_streaming.request_rejected` line, and no line may
+  // carry the key.
+  const { lines: loggedLines, expectOneRejection } = captureRejectionLogs();
+
   beforeEach(() => {
     cachedLicenseValue = { isValid: true, credits: 100, cachedAt: 'cached' };
     blockedIPs.clear();
@@ -104,6 +112,7 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(426);
     expect(await res.text()).toBe('Expected WebSocket upgrade');
+    expect(expectOneRejection('not_websocket', 426).endpoint).toBe('/ws/streaming-deepgram');
   });
 
   test('rejects a blocked IP before any license work happens', async () => {
@@ -118,6 +127,8 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(403);
     expect(await res.text()).toBe('Access denied');
+    const entry = expectOneRejection('ip_blocked', 403);
+    expect(JSON.stringify(entry)).not.toContain('203.0.113.7');
   });
 
   test('rejects an upgrade that carries no key at all', async () => {
@@ -125,6 +136,7 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(401);
     expect(await res.text()).toBe('Missing account_key');
+    expectOneRejection('missing_account_key', 401);
   });
 
   test('accepts the legacy license_key alias that installed apps still send', async () => {
@@ -173,6 +185,10 @@ describe('wsStreamingPreflight', () => {
     expect(body.error).toBe('Insufficient credits');
     expect(body.credits_remaining).toBe(2.7);
     expect(body.minutes_required).toBe(1);
+    const entry = expectOneRejection('insufficient_credits', 402);
+    // The rounded balance the credit check compared, which the 402 body reports too.
+    expect(entry.credits).toBe(2.7);
+    expect(entry.minimumCredits).toBe(minimumStreamingCredits());
   });
 
   test('admits a balance exactly at the floor', async () => {
@@ -184,6 +200,7 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(200);
     expect((await res.json() as { credits: number }).credits).toBe(2.8);
+    expect(loggedLines().some((line) => line.includes('ws_streaming.request_rejected'))).toBe(false);
   });
 });
 
@@ -371,6 +388,23 @@ describe('streaming socket lifecycle', () => {
     expect(client.closes).toEqual([{ code: 1011, reason: 'Configuration error' }]);
   });
 
+  test('logs config_missing_api_key with a requestId when the Deepgram key is not configured', () => {
+    delete process.env.DEEPGRAM_API_KEY;
+    const auth: AuthContext = { identifier: 'k', licenseKey: 'k', credits: 100 };
+    const events = createStreamingEvents(fakeContext(auth, 'https://x/ws?account_key=k'));
+    const client = new FakeClientSocket();
+
+    const { entries } = captureStreamingLogs(() => events.onOpen(new Event('open'), client));
+
+    const line = entries.find((entry) => entry.event === 'ws_streaming.config_missing_api_key');
+    expect(line).toBeDefined();
+    expect(line!.details).toMatchObject({ provider: 'deepgram', endpoint: '/ws/streaming-deepgram' });
+    expect(typeof line!.details.requestId).toBe('string');
+    expect(line!.details.requestId).not.toBe('');
+    // The client still sees exactly what it saw before (#953 is log-only).
+    expect(client.closes).toEqual([{ code: 1011, reason: 'Configuration error' }]);
+  });
+
   test('dials Nova-3 with the retention opt-out and the linear16 shape the client sends', () => {
     const { upstream } = openSession();
     const dialled = new URL(upstream.url);
@@ -514,6 +548,66 @@ describe('streaming socket lifecycle', () => {
       expect(harness.client.messagesOfType('error')).toEqual([
         { type: 'error', message: 'Transcription service error' },
       ]);
+      await harness.endSession();
+    });
+
+    test('logs upstream_socket_error when the upstream socket fires an error event', async () => {
+      const harness = openSession();
+
+      const { entries } = captureStreamingLogs(() => harness.upstream.emit('error', {}));
+
+      const line = entries.find((entry) => entry.event === 'ws_streaming.upstream_socket_error');
+      expect(line).toBeDefined();
+      expect(line!.details).toMatchObject({ provider: 'deepgram', eventType: null, errorName: null });
+      expect(line!.details).not.toHaveProperty('message');
+      expect(typeof line!.details.requestId).toBe('string');
+      expect(harness.client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Transcription service error' },
+      ]);
+      await harness.endSession();
+    });
+
+    test('logs upstream_parse_failed for a non-JSON frame, and no line carries the frame text', async () => {
+      const harness = openSession();
+      // A frame that fails to parse can still hold the user's words. It opens
+      // with a bare word because Bun's SyntaxError message quotes that token
+      // ("Unexpected identifier \"tangerine\""), so logging error.message fails.
+      const frame = 'tangerine otter is my secret phrase';
+
+      const { entries, serialised } = captureStreamingLogs(() => harness.upstream.deliver(frame));
+
+      const line = entries.find((entry) => entry.event === 'ws_streaming.upstream_parse_failed');
+      expect(line).toBeDefined();
+      expect(line!.details).toMatchObject({ provider: 'deepgram', errorName: 'SyntaxError', frameLength: frame.length });
+      expect(typeof line!.details.requestId).toBe('string');
+      expect(entries.some((entry) => entry.event === 'ws_streaming.upstream_event_failed')).toBe(false);
+      expect(serialised.length).toBeGreaterThan(0);
+      for (const text of serialised) {
+        expect(text).not.toContain('tangerine');
+      }
+      await harness.endSession();
+    });
+
+    test('logs upstream_event_failed, not a parse failure, when our client send throws on a valid Results frame', async () => {
+      const harness = openSession();
+      const send = harness.client.send.bind(harness.client);
+      harness.client.send = () => { throw new Error('socket write failed'); };
+
+      const { entries, serialised } = captureStreamingLogs(() => harness.upstream.deliver({
+        type: 'Results',
+        is_final: true,
+        channel: { alternatives: [{ transcript: 'hello there' }] },
+      }));
+
+      const line = entries.find((entry) => entry.event === 'ws_streaming.upstream_event_failed');
+      expect(line).toBeDefined();
+      expect(line!.details).toMatchObject({ provider: 'deepgram', errorName: 'Error' });
+      expect(line!.details).not.toHaveProperty('message');
+      // An error's free text is never logged: it is not guaranteed transcript-free.
+      for (const text of serialised) expect(text).not.toContain('socket write failed');
+      expect(typeof line!.details.requestId).toBe('string');
+      expect(entries.some((entry) => entry.event === 'ws_streaming.upstream_parse_failed')).toBe(false);
+      harness.client.send = send;
       await harness.endSession();
     });
   });
@@ -752,6 +846,133 @@ describe('streaming socket lifecycle', () => {
       expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
       expect(licenseCharges).toHaveLength(1);
       expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Client disconnected' }]);
+    });
+  });
+
+  describe('machine shutdown (#1235)', () => {
+    // A session opened by an earlier test and never closed is still registered.
+    // Settle those first, so each test counts only the sessions it opens.
+    async function settleLeftoverSessions(): Promise<void> {
+      await endActiveStreamingSessions();
+      // Ending latches the machine as shutting down; reopen it for this test.
+      resetStreamingShutdownForTests();
+      await drainPendingDeductions(2000);
+      licenseCharges.length = 0;
+    }
+
+    // The latch is module state and bun runs every test file in one process.
+    afterEach(() => resetStreamingShutdownForTests());
+
+    test('bills an open session, logs session_end, and closes the client with 1012 without finishing it', async () => {
+      await settleLeftoverSessions();
+      const harness = openSession();
+      for (let second = 0; second < 60; second += 1) {
+        harness.events.onMessage(binaryMessage(audioFrame(1)));
+      }
+      expect(harness.upstream.audioFramesForwarded).toBe(60);
+
+      let ending: Promise<number> = Promise.resolve(-1);
+      const { entries, serialised } = captureStreamingLogs(() => {
+        ending = endActiveStreamingSessions();
+      });
+      expect(await ending).toBe(1);
+      expect(await drainPendingDeductions(2000)).toBe(1);
+
+      expect(licenseCharges).toHaveLength(1);
+      expect(licenseCharges[0]!.metadata.audio_duration_seconds).toBe(60);
+      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeDeepgramTranscriptionCost(60)));
+      const sessionEnds = entries.filter((entry) => entry.event === 'ws_streaming.session_end');
+      expect(sessionEnds).toHaveLength(1);
+      expect(sessionEnds[0]!.details).toMatchObject({ durationSeconds: 60 });
+      for (const line of serialised) expect(line).not.toContain('key-1234-abcd');
+
+      // 1012 Service Restart is non-terminal in all three clients, so they
+      // reconnect. session_complete would make them finish the dictation.
+      expect(harness.client.closes).toEqual([{ code: 1012, reason: 'Service restart' }]);
+      expect(harness.client.messagesOfType('session_complete')).toEqual([]);
+      expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Server shutting down' }]);
+
+      // The socket handlers that follow must not post a second charge.
+      harness.upstream.emit('close', { code: 1000, reason: '' });
+      await harness.events.onClose();
+      await drainPendingDeductions(2000);
+      expect(licenseCharges).toHaveLength(1);
+      expect(harness.client.closes).toHaveLength(1);
+      expect(harness.client.messagesOfType('session_complete')).toEqual([]);
+
+      // ...and the session left the set.
+      expect(await endActiveStreamingSessions()).toBe(0);
+    });
+
+    test('a session that opens after shutdown began gets 1012, no upstream, and no charge', async () => {
+      await settleLeftoverSessions();
+      upstreamSockets.length = 0;
+      expect(await endActiveStreamingSessions()).toBe(0);
+
+      // A preflight that was awaiting auth when the snapshot was taken.
+      const auth: AuthContext = { identifier: 'late', licenseKey: 'late', credits: 1000 };
+      const events = createStreamingEvents(
+        fakeContext(auth, 'https://transcribe.example/ws/streaming-deepgram?account_key=late'),
+      );
+      const client = new FakeClientSocket();
+      const { entries } = captureStreamingLogs(() => {
+        events.onOpen(new Event('open'), client);
+      });
+
+      expect(client.closes).toEqual([{ code: 1012, reason: 'Service restart' }]);
+      expect(upstreamSockets).toHaveLength(0);
+      expect(entries.map((entry) => entry.event)).not.toContain('ws_streaming.session_start');
+
+      // Audio sent before the close lands, and the close itself, meter nothing.
+      for (let second = 0; second < 30; second += 1) {
+        events.onMessage(binaryMessage(audioFrame(1)));
+      }
+      await events.onClose();
+      await drainPendingDeductions(2000);
+      expect(licenseCharges).toEqual([]);
+      expect(client.messagesOfType('session_complete')).toEqual([]);
+      expect(await endActiveStreamingSessions()).toBe(0);
+    });
+
+    test('a session whose shutdown throws does not stop the others being ended', async () => {
+      await settleLeftoverSessions();
+      const broken = openSession();
+      broken.client.close = () => { throw new Error('socket already torn down'); };
+      broken.events.onMessage(binaryMessage(audioFrame(10)));
+      const healthy = openSession();
+      healthy.events.onMessage(binaryMessage(audioFrame(20)));
+
+      let ending: Promise<number> = Promise.resolve(-1);
+      const errors: unknown[][] = [];
+      const realError = console.error;
+      console.error = (...args: unknown[]) => { errors.push(args); };
+      try {
+        captureStreamingLogs(() => {
+          ending = endActiveStreamingSessions();
+        });
+        expect(await ending).toBe(1);
+      } finally {
+        console.error = realError;
+      }
+      await drainPendingDeductions(2000);
+
+      expect(healthy.client.closes).toEqual([{ code: 1012, reason: 'Service restart' }]);
+      // Both were billed: the throw came after the broken session's endSession.
+      expect(licenseCharges.map((charge) => charge.metadata.audio_duration_seconds).sort()).toEqual([10, 20]);
+      expect(errors).toEqual([['ws_streaming.shutdown_session_failed', { errorName: 'Error' }]]);
+      expect(await endActiveStreamingSessions()).toBe(0);
+    });
+
+    test('a session the client already closed is not ended again at shutdown', async () => {
+      await settleLeftoverSessions();
+      const harness = openSession();
+      harness.events.onMessage(binaryMessage(audioFrame(5)));
+      await harness.endSession();
+      expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
+
+      expect(await endActiveStreamingSessions()).toBe(0);
+      await drainPendingDeductions(2000);
+      expect(licenseCharges).toHaveLength(1);
     });
   });
 });

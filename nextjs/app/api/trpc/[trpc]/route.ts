@@ -20,6 +20,7 @@ import { type NextRequest } from "next/server";
 
 import { appRouter } from "@/server/api/root";
 import { createTRPCContext } from "@/server/api/trpc";
+import { DB_ERROR_MESSAGE, describeDbError, isDbError } from "@/lib/shared/db-error";
 
 /**
  * Wraps createTRPCContext to handle incoming HTTP requests.
@@ -59,18 +60,20 @@ const handler = (req: NextRequest) =>
       const isDev = process.env.NODE_ENV === "development";
       const httpStatus = getHTTPStatusCodeFromError(error);
       const isServerError = httpStatus >= 500;
+      // A DB error's message and stack carry its bound params (#1049).
+      const dbError = isDbError(error.cause);
 
       if (isServerError || isDev) {
-        const message = `tRPC failed on ${type} ${path ?? "<no-path>"}: ${error.code} - ${error.message}`;
+        const message = `tRPC failed on ${type} ${path ?? "<no-path>"}: ${error.code} - ${dbError ? DB_ERROR_MESSAGE : error.message}`;
         if (isServerError) {
-          console.error(message);
+          console.error(message, ...(dbError ? [describeDbError(error.cause)] : []));
         } else {
           // Expected 4xx in development — keep visible but not as an error.
           console.debug(message);
         }
       }
 
-      if (isDev && error.stack) {
+      if (isDev && error.stack && !dbError) {
         console.error(error.stack);
       }
     },

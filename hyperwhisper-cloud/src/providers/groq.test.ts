@@ -332,3 +332,56 @@ describe('transcribeWithGroq — empty-transcript failover (issue #381)', () => 
     expect(result.source).toBe('no_speech');
   });
 });
+
+describe('transcribeWithGroq — Whisper silence on the empty-transcript recovery', () => {
+  const recovery = { isEmptyTranscriptRecovery: true };
+
+  test('"Thank you." on a recovery attempt returns no_speech at zero cost', async () => {
+    captureRequest({ text: ' Thank you.', language: 'en', duration: 2.3 });
+
+    const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, recovery);
+    expect(result).toMatchObject({ text: '', source: 'no_speech', costUsd: 0, durationSeconds: 0 });
+  });
+
+  test('the no_speech event names the verdict and the length, never the discarded text', async () => {
+    captureRequest({ text: ' Thank you.', language: 'en', duration: 2.3 });
+
+    const reported = await captureNoSpeechEvent(
+      () => transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, recovery),
+    );
+    expect(reported.whisperSilencePhrase).toBe(true);
+    expect(reported.discardedChars).toBe(11);
+    expect(reported.refused).toBe(false);
+    expect(JSON.stringify(reported)).not.toContain('Thank');
+  });
+
+  test('never refuses on a recovery attempt, even if a grant were also passed', async () => {
+    captureRequest({ text: ' Thank you.', language: 'en', duration: 2.3 });
+    const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, {
+      ...recovery,
+      mayRefuseEmptyTranscript: true,
+    });
+    expect(result.source).toBe('no_speech');
+  });
+
+  test('real speech on a recovery attempt is returned and billed', async () => {
+    captureRequest({
+      text: ' Send the report by Friday.',
+      language: 'en',
+      duration: 2.3,
+    });
+
+    const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, recovery);
+    expect(result.text).toBe(' Send the report by Friday.');
+    expect(result.source).toBe('groq');
+    expect(result.costUsd).toBeGreaterThan(0);
+  });
+
+  test('without the recovery flag, "Thank you." is a transcript like any other', async () => {
+    captureRequest({ text: ' Thank you.', language: 'en', duration: 1.2 });
+
+    const result = await transcribeWithGroq(audio(), 'audio/wav');
+    expect(result.text).toBe(' Thank you.');
+    expect(result.source).toBe('groq');
+  });
+});

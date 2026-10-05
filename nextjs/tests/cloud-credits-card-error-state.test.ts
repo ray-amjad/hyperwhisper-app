@@ -115,13 +115,13 @@ moduleMock.module("next-intl", {
   },
 });
 
-moduleMock.module("posthog-js/react", {
-  namedExports: { usePostHog: () => ({ captureException: () => {} }) },
+moduleMock.module("../src/lib/posthog-client", {
+  namedExports: { loadPostHog: async () => ({ captureException: () => {} }) },
 });
 
 // DELIBERATELY NOT MOCKED: the View. It is the whole point of this file, and it
 // is safe to mount — `CloudCreditsCard.tsx` imports only `react`, `next-intl`,
-// `posthog-js/react`, the credits validation helpers and the seam, so there is
+// the PostHog loader, the credits validation helpers and the seam, so there is
 // no HeroUI and no locale-aware `Link` needing a stub of its own.
 
 // A VARIABLE specifier, and deferred: a static import would bind before the

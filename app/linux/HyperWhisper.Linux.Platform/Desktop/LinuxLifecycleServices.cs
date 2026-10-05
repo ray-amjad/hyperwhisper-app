@@ -76,7 +76,14 @@ public sealed class LinuxAutostartService : IAutostartService
     private readonly string _path;
     private readonly string _executable;
     private readonly IPrivateFileService _files;
-    public LinuxAutostartService() : this(new LinuxAppPaths(), Environment.ProcessPath ?? string.Empty, new LinuxPrivateFileService()) { }
+    public LinuxAutostartService() : this(new LinuxAppPaths(), LaunchPath(Environment.ProcessPath ?? string.Empty, File.Exists), new LinuxPrivateFileService()) { }
+
+    // The .deb's /usr/bin/hyperwhisper sets MALLOC_ARENA_MAX before the runtime starts (#1088),
+    // and ProcessPath is always the real binary, so a login start would skip it.
+    internal static string LaunchPath(string processPath, Func<string, bool> exists) =>
+        processPath == "/usr/lib/hyperwhisper/HyperWhisper" && exists("/usr/bin/hyperwhisper")
+            ? "/usr/bin/hyperwhisper"
+            : processPath;
     internal LinuxAutostartService(IAppPaths paths, string executable, IPrivateFileService files)
     { _path = Path.Combine(paths.ConfigDirectory, "autostart", "hyperwhisper.desktop"); _executable = executable; _files = files; }
     public PlatformResult<bool> IsEnabled()

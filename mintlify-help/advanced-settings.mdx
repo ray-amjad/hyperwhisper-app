@@ -132,4 +132,9 @@ Most of these settings do not appear in a dedicated Settings panel. Thus, the ba
 
 ## Windows
 
-The settings on this page (`maxRecordingDuration`, `audioSampleRate`, `keepAudioFiles`, `historyRetentionDays`, `filesyncEnabled`) are macOS-only. Windows does not implement them. The Windows UI does not show them. A Windows backup export does not write them. A Windows backup import does not apply them. If you import a macOS backup file on Windows, Windows ignores these fields without a message.
+The settings on this page (`maxRecordingDuration`, `audioSampleRate`, `keepAudioFiles`, `historyRetentionDays`, `filesyncEnabled`) are macOS-only. The Windows UI does not show them. Windows does not apply `audioSampleRate`, `historyRetentionDays` or `filesyncEnabled` from a backup file.
+
+Two fields are different. A Windows backup export writes `maxRecordingDuration` and `keepAudioFiles`, and a Windows backup import reads them:
+
+- `maxRecordingDuration` applies on Windows. It can only make the 20-minute limit shorter. A value of 0 or less, or a value above 1,200 seconds, gives the 20-minute limit.
+- `keepAudioFiles` is kept so that it goes back into the next export. Windows does not act on it.

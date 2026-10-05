@@ -75,6 +75,19 @@ export interface ProviderRequestContext {
    */
   mayRefuseEmptyTranscript?: boolean;
   /**
+   * Set by the route, and only by the route, on the one attempt that runs AFTER
+   * an empty-transcript refusal: the provider the caller chose has already
+   * answered "no speech" for this audio, and this attempt is the second opinion.
+   *
+   * A Whisper adapter reads it to discard its own silence hallucination. Whisper
+   * answers silence with a stock phrase ("Thank you.") rather than nothing, so
+   * without this the recovery turned a correct, free `no_speech` into a billed
+   * "Thank you." pasted into the user's app. Two independent signals agreeing on
+   * silence is what makes it safe to drop the text here and nowhere else.
+   * (issue ray-amjad/hyperwhisper-app#381 follow-up)
+   */
+  isEmptyTranscriptRecovery?: boolean;
+  /**
    * Optional transcription domain add-on. Currently only 'medical', which
    * AssemblyAI layers on a base model via `domain: "medical-v1"` (a metered
    * add-on, not a separate model). Providers that don't support it ignore it.

@@ -314,6 +314,55 @@ describe('deductCredits / drainPendingDeductions', () => {
     await expectNoPendingDeductions();
   });
 
+  const onFailureCases: Array<{ label: string; respond: () => Response; expected: unknown }> = [
+    {
+      label: 'an HTTP 503',
+      respond: () => Response.json({ error: 'synthetic outage' }, { status: 503 }),
+      expected: [{ kind: 'http', status: 503 }],
+    },
+    {
+      label: 'a network rejection',
+      respond: () => { throw new Error('synthetic connection reset'); },
+      expected: [{ kind: 'network', error: 'synthetic connection reset' }],
+    },
+    { label: 'an accepted write', respond: () => Response.json({ credits_remaining: 3 }), expected: [] },
+    {
+      // The license API accepted the charge; only the balance read failed.
+      label: 'an accepted write with a malformed body',
+      respond: () => new Response('{malformed-json', { status: 200 }),
+      expected: [],
+    },
+  ];
+
+  for (const { label, respond, expected } of onFailureCases) {
+    test(`deductCredits onFailure reports ${label} without changing the resolved credits`, async () => {
+      const requests = captureFetch(respond);
+      captureWarnings();
+      const failures: unknown[] = [];
+
+      const creditsUsed = await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4', {
+        onFailure: (failure) => failures.push(failure),
+      });
+
+      expect(creditsUsed).toBe(creditsForCost(0.05));
+      expectBillingPost(requests, creditsForCost(0.05), { provider: 'p' });
+      expect(failures).toEqual(expected as unknown[]);
+      await expectNoPendingDeductions();
+    });
+  }
+
+  test('deductCredits ignores an onFailure callback that throws', async () => {
+    captureFetch(() => Response.json({ error: 'synthetic outage' }, { status: 503 }));
+    captureWarnings();
+
+    const creditsUsed = await deductCredits(auth(20), 0.05, {}, '1.2.3.4', {
+      onFailure: () => { throw new Error('reporter broke'); },
+    });
+
+    expect(creditsUsed).toBe(creditsForCost(0.05));
+    await expectNoPendingDeductions();
+  });
+
   const unusableBalances: Array<{ label: string; body: Record<string, unknown> }> = [
     { label: 'missing', body: {} },
     { label: 'non-numeric', body: { credits_remaining: '12.3' } },

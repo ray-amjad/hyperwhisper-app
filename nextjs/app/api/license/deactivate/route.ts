@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
+
 /**
  * License Deactivation API (STUB)
  *
@@ -18,7 +20,11 @@ export async function POST(req: NextRequest) {
   let body: unknown;
   try {
     body = await req.json();
-  } catch {
+  } catch (err) {
+    console.error(
+      "License deactivate: request JSON did not parse",
+      unparseableRequestFields(req, err),
+    );
     return NextResponse.json(
       { success: false, error: "Invalid request body" },
       { status: 400 }

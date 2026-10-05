@@ -62,17 +62,18 @@ private final class BlockingSoundPlayer: SoundEffectPlayer, @unchecked Sendable 
         }
         entered.signal()
         if blocks {
-            _ = releaseSemaphore.wait(timeout: .now() + 5)
+            // Only the test's `release()` should end the block. A short cap let a
+            // loaded CI runner time out the start sound before the test released
+            // it, so the stop sound played early (#1216).
+            _ = releaseSemaphore.wait(timeout: .now() + 60)
         }
         state.withLock { $0.finishedPlay = true }
         return true
     }
 
     /// True once `play()` has been entered, or false after `timeout` seconds.
-    func waitUntilBlocked(timeout: Double = 5) async -> Bool {
-        await Task.detached {
-            self.entered.wait(timeout: .now() + timeout) == .success
-        }.value
+    func waitUntilBlocked(timeout: Double = 30) async -> Bool {
+        await waitOffThePool(for: entered, seconds: timeout)
     }
 
     func release() {
@@ -104,7 +105,7 @@ struct SoundEffectsManagerTests {
 
         manager.playStartSound(volume: 0.5)
 
-        // An inline play would have run to its 5 s release timeout by now.
+        // An inline play would have blocked here to its 60 s cap, and finished.
         #expect(start.finishedPlay == false)
         #expect(await start.waitUntilBlocked())
         #expect(start.loadRanOnMainThread == false)

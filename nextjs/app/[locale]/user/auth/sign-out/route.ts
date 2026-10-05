@@ -9,7 +9,7 @@ import { auth } from "@/src/lib/auth";
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ locale: string }> }
-) {
+): Promise<NextResponse> {
   const { locale } = await params;
 
   // Revoke session via Better Auth and capture set-cookie header
@@ -22,15 +22,16 @@ export async function POST(
     new URL(`/${locale}/user/sign-in`, request.url)
   );
 
-  // Forward the session-clearing cookie from Better Auth's response
-  const setCookie = signOutResponse.headers.get("set-cookie");
-  if (setCookie) {
-    redirect.headers.set("set-cookie", setCookie);
-  } else {
+  // Do not copy Better Auth's Set-Cookie headers: nextCookies() already put them
+  // in Next's cookie store, which Next merges into this response. A hand copy
+  // wins that merge and loses `Max-Age=0`, so the browser keeps the cookie.
+  if (signOutResponse.headers.getSetCookie().length === 0) {
     // Fallback: manually clear the session cookie
     redirect.headers.set(
       "set-cookie",
       "better-auth.session_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax"
     );
   }
+
+  return redirect;
 }

@@ -1743,12 +1743,6 @@
   <data name="settings.storage.storeAsM4A.title" xml:space="preserve">
     <value>録音を M4A に圧縮</value>
   </data>
-  <data name="settings.streaming.deepgram.model.general" xml:space="preserve">
-    <value>Nova 3 General</value>
-  </data>
-  <data name="settings.streaming.deepgram.model.medical" xml:space="preserve">
-    <value>Nova 3 Medical</value>
-  </data>
   <data name="settings.streaming.deepgram.model.title" xml:space="preserve">
     <value>モデル</value>
   </data>

@@ -33,9 +33,10 @@ public record CloudTranscriptionModel
     /// and 4 rows appended <c>(Preview)</c> beside the <c>previewStatus</c>
     /// field that already said so (#837).
     ///
-    /// The <c>?? Id</c> fallback is never reached in a shipped build:
-    /// <c>HyperWhisper.Application.Tests</c> fails when a registry row has no
-    /// catalog entry, so a raw id cannot reach a user.
+    /// The <c>?? Id</c> fallback has 1 job: a native core that fails to load.
+    /// <c>SharedModelsCatalog.DisplayName</c> answers null then, instead of
+    /// throwing, and the row draws its id. A row with no catalog entry cannot
+    /// reach it: <c>HyperWhisper.Application.Tests</c> fails on one.
     /// </summary>
     public string DisplayName =>
         DisplayNameOverride

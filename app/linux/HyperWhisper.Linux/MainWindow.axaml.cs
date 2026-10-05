@@ -63,6 +63,10 @@ public partial class MainWindow : Window
     private LinuxOnboardingViewModel? _onboarding;
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
+    /// <summary>Home's record row shows Stop + Cancel: batch CanStop, or live capture the workflow never sees (#1187).</summary>
+    public static readonly StyledProperty<bool> IsHomeRecordingActiveProperty =
+        AvaloniaProperty.Register<MainWindow, bool>(nameof(IsHomeRecordingActive));
+    public bool IsHomeRecordingActive { get => GetValue(IsHomeRecordingActiveProperty); private set => SetValue(IsHomeRecordingActiveProperty, value); }
     private readonly LinuxInteractionCoordinator _interaction;
     private readonly LinuxTrayActionHandler _trayActions;
     private readonly LazyLinuxRecordingOverlayFeedback _overlay;
@@ -157,14 +161,16 @@ public partial class MainWindow : Window
             _cloudAccount,
             _platformServices.DeviceIdentity,
             Environment.MachineName,
-            OpenAccountUri,
+            OpenCloudAccountUri,
             _platformServices.TextInjection,
             ModelReadinessComposition.Create(
                 _modelManager,
                 _platformServices.CredentialStore,
             new LinuxMetadataOnlyHealthProbe()),
             CreateAboutViewModel(diagnosticDirectory),
-            L);
+            L,
+            // Read at each navigation; the session is built below, after the shell it writes to.
+            () => _recordingSession?.IsRecordingOrFinishing == true);
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
@@ -182,7 +188,7 @@ public partial class MainWindow : Window
             _platformServices.GlobalShortcuts, _platformServices.PushToTalk,
             _platformServices.TextInjection, _recordingSession, new AvaloniaUiDispatcher());
         _trayActions = new LinuxTrayActionHandler(
-            () => _recordingSession.IsActive,
+            () => _recordingSession.HasOpenSession,
             () => _viewModel.Recording?.IsImporting == true,
             _interaction.StartRecordingAsync,
             _interaction.StopRecordingAsync,
@@ -198,7 +204,7 @@ public partial class MainWindow : Window
             () => OpenTrayUri(TrayFeedbackUri),
             ShowFromTray,
             HideFromTray,
-            QuitFromTray,
+            Quit,
             L);
         InitializeComponent();
         ComboWheelGuard.Attach(this);
@@ -219,6 +225,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.StorageSettingsChanged += OnStorageSettingsChanged;
         _viewModel.Status.PropertyChanged += OnShellStatusChanged;
         _interaction.OperationFailed += OnInteractionFailed;
+        _recordingSession.LiveCaptureChanged += OnLiveCaptureChanged;
         _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ActionRequested += OnTrayActionRequested;
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
@@ -280,12 +287,24 @@ public partial class MainWindow : Window
         _closing = true;
         CommitPendingSettingsEdits();
         _lifetime.Cancel();
-        if (!_recordingSession.IsActive && _localApiHost is null
+        if (!_recordingSession.HasOpenSession && !_recordingSession.HasAudioToRestore && _localApiHost is null
             && _storageMaintenance is not { IsCompleted: false }) return;
         e.Cancel = true;
         try
         {
-            if (_recordingSession.IsActive) await _interaction.CancelRecordingAsync();
+            // Restore the sink and the mic first, and whether or not IsActive: a streaming start that is
+            // still resolving credentials has already muted and boosted them. A transcription in flight
+            // holds the coordinator lock and only restores when it ends (#1038).
+            await _recordingSession.RestoreAudioEnvironmentForShutdownAsync();
+            // HasOpenSession, not IsActive: a live stream held after its connection was lost (#1246)
+            // still has a Processing history row, an injection session and a clipboard to restore.
+            if (_recordingSession.HasOpenSession)
+            {
+                // Confirm, not Cancel: a batch recording past 15 s would only SHOW the cancel prompt.
+                // Unbounded, so the cancel still restores the clipboard and ends the session; the audio
+                // is already back, and the signal watchdog bounds a signal-driven quit.
+                await _interaction.ConfirmCancelRecordingAsync();
+            }
             await ShutdownLocalApiAsync();
             if (_storageMaintenance is not null) await _storageMaintenance;
         }
@@ -311,6 +330,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged -= OnStorageSettingsChanged;
         _interaction.OperationFailed -= OnInteractionFailed;
+        _recordingSession.LiveCaptureChanged -= OnLiveCaptureChanged;
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
@@ -638,8 +658,8 @@ public partial class MainWindow : Window
     }
 
     private void OnOpenLogs(object? sender, RoutedEventArgs e) => OpenFixedLocation(_platformServices.Paths.LogsDirectory);
-    private void OnOpenSupport(object? sender, RoutedEventArgs e) => OpenSafeUri(new Uri("https://hyperwhisper.com/support"));
-    private void OnOpenSpeedComparison(object? sender, RoutedEventArgs e) => OpenSafeUri(new Uri("https://www.hyperwhisper.com/en/latency"));
+    private void OnOpenSupport(object? sender, RoutedEventArgs e) => OpenSafeUri(TraySupportUri);
+    private void OnOpenSpeedComparison(object? sender, RoutedEventArgs e) => OpenSafeUri(SpeedComparisonUri);
 
     /// <summary>
     /// Windows closes its General page with settings.version.detail. The section view model only
@@ -770,7 +790,10 @@ public partial class MainWindow : Window
         _settings.Set("onboarding.skipped", skipped);
         var saved = _settings.Save();
         if (saved.IsSuccess) return true;
-        _viewModel.Status.Failure(saved.Error!.Code, L("linux.onboarding.save_failed"));
+        var (code, message) = (saved.Error!.Code, L("linux.onboarding.save_failed"));
+        _viewModel.Status.Failure(code, message);
+        // UiStatus drops an equal write, so a repeated failure must raise its own toast (#1266).
+        QueueErrorToast(() => (code, message));
         return false;
     }
 
@@ -787,7 +810,8 @@ public partial class MainWindow : Window
         if (_onboarding is null || !_onboarding.IsTestReady) return;
         try
         {
-            if (_recordingSession.IsActive)
+            // HasOpenSession: a held live stream (#1246) is stopped too, not left showing "recording".
+            if (_recordingSession.HasOpenSession)
             {
                 _onboarding.SetTestStatus(L("linux.onboarding.test.transcribing"));
                 await _interaction.StopRecordingAsync(_lifetime.Token);
@@ -805,6 +829,10 @@ public partial class MainWindow : Window
     private void OnOnboardingTranscriptionSaved(object? sender, EventArgs e) =>
         _onboarding?.SetTestStatus(L("linux.onboarding.test.succeeded"), succeeded: true);
 
+    /// <summary>
+    /// Settings -> About -> Open logs. About.Status is bound nowhere, so a failure is a toast,
+    /// raised per click as in OpenSafeUri (#1262).
+    /// </summary>
     private void OpenFixedLocation(string path)
     {
         try
@@ -814,13 +842,39 @@ public partial class MainWindow : Window
             start.ArgumentList.Add(path);
             _ = Process.Start(start);
         }
-        catch { _viewModel.About?.Status.Failure("about.open_logs_failed", L("linux.error.open_logs_failed")); }
+        catch
+        {
+            var message = L("linux.error.open_logs_failed");
+            QueueErrorToast(() => ("about.open_logs_failed", message));
+        }
     }
 
+    private static readonly Uri SpeedComparisonUri = new("https://www.hyperwhisper.com/en/latency");
+    private static readonly Uri LocalApiDocsUri = new("https://hyperwhisper.com/docs/api-reference/local-api/overview");
+    private static readonly Uri LocalApiMcpGuideUri = new("https://hyperwhisper.com/docs/api-reference/local-api/mcp-setup");
+
+    /// <summary>
+    /// The About and Local API page links. They have their own allow-list: routing them through
+    /// OpenAccountUri, which accepts only the 2 Cloud account links, rejected every click (#1259).
+    /// About.Status is bound nowhere, so a failure is a toast, raised per click as in OpenCloudAccountUri.
+    /// </summary>
     private void OpenSafeUri(Uri uri)
     {
-        var result = OpenAccountUri(uri);
-        if (result.IsFailure) _viewModel.About?.Status.Failure(result.Error!.Code, result.Error.Message);
+        var allowed = uri == TraySupportUri || uri == SpeedComparisonUri
+            || uri == LocalApiDocsUri || uri == LocalApiMcpGuideUri;
+        if (allowed && TryOpenInBrowser(uri)) return;
+        var message = $"{L("linux.error.tray_link_failed")} {uri.AbsoluteUri}";
+        QueueErrorToast(() => ("link.open_failed", message));
+    }
+
+    private static bool TryOpenInBrowser(Uri uri)
+    {
+        try
+        {
+            _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+            return true;
+        }
+        catch { return false; }
     }
 
     private async void OnLocalApiSettingsChanged(object? sender, EventArgs e)
@@ -1103,7 +1157,11 @@ public partial class MainWindow : Window
     private void DismissCancelFromOverlay() => _interaction.DismissCancelConfirmation();
 
     private void OnInteractionFailed(object? sender, PlatformError error)
-        => _viewModel.Status.Failure(error.Code, error.Message);
+    {
+        _viewModel.Status.Failure(error.Code, error.Message);
+        // A repeat is an equal write that UiStatus drops, so toast per failure (#1266).
+        QueueErrorToast(() => (error.Code, error.Message));
+    }
 
     // =====================================================================================
     // THE ERROR TOAST
@@ -1275,8 +1333,11 @@ public partial class MainWindow : Window
         if (_trayAvailable) Hide();
     }
 
-    private void QuitFromTray()
+    /// <summary>The tray's Quit, and a SIGTERM/SIGINT/SIGQUIT (#1038). A second request while OnClosing
+    /// is already unwinding must not start a second close.</summary>
+    internal void Quit()
     {
+        if (_closing) return;
         _trayAvailable = false;
         Close();
     }
@@ -1311,8 +1372,11 @@ public partial class MainWindow : Window
     private void OpenTrayUri(Uri uri)
     {
         if (uri != TrayHelpUri && uri != TraySupportUri && uri != TrayFeedbackUri) return;
-        try { _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
-        catch { _viewModel.Status.Failure("tray.link_failed", L("linux.error.tray_link_failed")); }
+        if (TryOpenInBrowser(uri)) return;
+        var message = L("linux.error.tray_link_failed");
+        _viewModel.Status.Failure("tray.link_failed", message);
+        // The second failed click is an equal write that UiStatus drops, so toast per click (#1266).
+        QueueErrorToast(() => ("tray.link_failed", message));
     }
     private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
     {
@@ -2089,10 +2153,10 @@ public partial class MainWindow : Window
     }
 
     private void OnOpenLocalApiDocs(object? sender, RoutedEventArgs e)
-        => OpenSafeUri(new Uri("https://hyperwhisper.com/docs/api-reference/local-api/overview"));
+        => OpenSafeUri(LocalApiDocsUri);
 
     private void OnOpenLocalApiMcpGuide(object? sender, RoutedEventArgs e)
-        => OpenSafeUri(new Uri("https://hyperwhisper.com/docs/api-reference/local-api/mcp-setup"));
+        => OpenSafeUri(LocalApiMcpGuideUri);
 
     /// <summary>Opens the folder holding the discovery file, as the Windows Show button does.</summary>
     private void OnShowLocalApiPortFile(object? sender, RoutedEventArgs e)
@@ -2473,6 +2537,7 @@ public partial class MainWindow : Window
             QueueErrorToast(() => (recording.ErrorCode, recording.Message));
         if (e.PropertyName is nameof(recording.IsImporting) or nameof(recording.ImportProgress))
             UpdateFileTranscriptionProgressWindow();
+        if (e.PropertyName is nameof(recording.CanStop)) Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
     }
 
     private LinuxFileTranscriptionProgressWindow? _fileProgress;
@@ -2726,6 +2791,12 @@ public partial class MainWindow : Window
         if (_viewModel.Recording is { HasError: false, State: "Recording" })
             _viewModel.Home.ToggleGettingStartedStep("recording");
     }
+
+    private void OnLiveCaptureChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
+
+    private void UpdateHomeRecordingActive() =>
+        IsHomeRecordingActive = _recordingSession.IsLiveCaptureActive || _viewModel.Recording?.CanStop == true;
+
     private async void OnStopRecording(object? sender, RoutedEventArgs e) => await _interaction.StopRecordingAsync();
     private async void OnCancelRecording(object? sender, RoutedEventArgs e) => await _interaction.CancelRecordingAsync();
 
@@ -3292,8 +3363,13 @@ public partial class MainWindow : Window
             // both apps have. They bind past Home's own context to the shell.
             // The audio-input combo is deliberately NOT checked: it hides itself when the machine
             // reports no capture device, which is the normal state on a headless test box.
-            if (!HasVisibleControl("HomeStopRecordingButton")
-                || !HasVisibleControl("HomeCancelRecordingButton")
+            // Issue #1187: while not recording the row offers Start, enabled, and no Stop or Cancel.
+            // Stop and Cancel must still be in the tree, hidden, so the Recording state can show them.
+            if (IsHomeRecordingActive || _viewModel.Recording is not { CanStop: false, CanCancel: false }
+                || !HasVisibleControl("HomeRecordStartButton")
+                || !this.GetLogicalDescendants().OfType<Control>().Any(c => c.Name == "HomeRecordStartButton" && c.IsEnabled)
+                || !HasControl("HomeStopRecordingButton") || HasVisibleControl("HomeStopRecordingButton")
+                || !HasControl("HomeCancelRecordingButton") || HasVisibleControl("HomeCancelRecordingButton")
                 || !HasVisibleControl("HomeAudioFileInput")
                 || !HasVisibleControl("HomeTranscribeFileButton")) return 9;
 
@@ -5105,20 +5181,27 @@ public partial class MainWindow : Window
     private static bool HasVisibleControl(string name, Visual root)
         => root.GetLogicalDescendants().OfType<Control>().Any(control => control.Name == name && control.IsVisible);
 
+    /// <summary>
+    /// Get Credits and Manage account report a failure only through Account.Status, which nothing
+    /// on the Cloud page binds, so the button looked dead (#1188). The toast is raised here, per
+    /// click, rather than from Account.Status.PropertyChanged: UiStatus.Set drops a write equal to
+    /// the current value, so a second identical failure would raise no notification and no toast.
+    /// </summary>
+    private PlatformResult OpenCloudAccountUri(Uri uri)
+    {
+        var result = OpenAccountUri(uri);
+        if (result.IsFailure) QueueErrorToast(() => (result.Error!.Code, result.Error.Message));
+        return result;
+    }
+
     private PlatformResult OpenAccountUri(Uri uri)
     {
         if (uri != CloudAccountLinks.Purchase && uri != CloudAccountLinks.ManageAccount)
             return PlatformResult.Failure("account.link_rejected", L("linux.error.account_link_rejected"));
 
-        try
-        {
-            _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
-            return PlatformResult.Success();
-        }
-        catch
-        {
-            return PlatformResult.Failure("account.link_failed", L("linux.error.account_link_failed"));
-        }
+        if (TryOpenInBrowser(uri)) return PlatformResult.Success();
+        // The URL follows the localized sentence so the user can still reach the page (#1188).
+        return PlatformResult.Failure("account.link_failed", $"{L("linux.error.account_link_failed")} {uri.AbsoluteUri}");
     }
 
     private FilePickerFileType CreateUniversalBackupFileType() => new(L("linux.picker.universal_backup"))

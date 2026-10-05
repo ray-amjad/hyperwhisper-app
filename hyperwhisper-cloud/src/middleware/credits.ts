@@ -45,12 +45,34 @@ export async function validateCredits(
   return { ok: true };
 }
 
+/**
+ * Why a license-API usage write did not land. `recordLicenseUsage` never
+ * throws, so this is the only way a caller learns that a charge was dropped.
+ * It carries no license key and no request metadata.
+ */
+export type DeductionFailure =
+  | { kind: 'http'; status: number }
+  | { kind: 'network'; error: string };
+
+export interface DeductCreditsOptions {
+  /**
+   * Called once, after the usage write, when the license API refused it or the
+   * request failed. It does not change what `deductCredits` resolves to, and a
+   * callback that throws is ignored.
+   */
+  onFailure?: (failure: DeductionFailure) => void;
+}
+
 async function recordLicenseUsage(
   licenseKey: string,
   creditsUsed: number,
   metadata: Record<string, unknown>
-): Promise<void> {
+): Promise<DeductionFailure | undefined> {
   const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  // Set once the license API accepts the write. A later throw (a 2xx with a
+  // malformed body, a failed cache write) means the charge landed, so it is
+  // warned about below but not reported as a failure.
+  let accepted = false;
 
   try {
     const response = await fetch(`${apiBase}/api/license/credits`, {
@@ -73,8 +95,9 @@ async function recordLicenseUsage(
         error: (isRecord(errorData) ? errorData.error : undefined) || 'Unknown error',
         creditsUsed,
       });
-      return;
+      return { kind: 'http', status: response.status };
     }
+    accepted = true;
 
     const data: unknown = await response.json();
     const creditsRemaining = isRecord(data) ? data.credits_remaining : undefined;
@@ -86,10 +109,13 @@ async function recordLicenseUsage(
       });
     }
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.warn('POST /api/license/credits network error', {
-      error: error instanceof Error ? error.message : String(error),
+      error: message,
     });
+    return accepted ? undefined : { kind: 'network', error: message };
   }
+  return undefined;
 }
 
 // In-flight deduction tracking for graceful shutdown.
@@ -115,9 +141,10 @@ export function deductCredits(
   auth: AuthContext,
   costUsd: number,
   metadata: Record<string, unknown>,
-  clientIP: string
+  clientIP: string,
+  options: DeductCreditsOptions = {}
 ): Promise<number> {
-  const deduction = performDeduction(auth, costUsd, metadata, clientIP);
+  const deduction = performDeduction(auth, costUsd, metadata, clientIP, options);
   inFlightDeductions.add(deduction);
   deduction
     .catch(() => {}) // errors are logged inside performDeduction / by callers
@@ -129,7 +156,8 @@ async function performDeduction(
   auth: AuthContext,
   costUsd: number,
   metadata: Record<string, unknown>,
-  _clientIP: string
+  _clientIP: string,
+  options: DeductCreditsOptions
 ): Promise<number> {
   const creditsUsed = creditsForCost(costUsd);
 
@@ -137,6 +165,13 @@ async function performDeduction(
     return 0;
   }
 
-  await recordLicenseUsage(auth.identifier, creditsUsed, metadata);
+  const failure = await recordLicenseUsage(auth.identifier, creditsUsed, metadata);
+  if (failure && options.onFailure) {
+    try {
+      options.onFailure(failure);
+    } catch {
+      // A reporting callback must not turn a dropped charge into a rejection.
+    }
+  }
   return creditsUsed;
 }

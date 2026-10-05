@@ -4,6 +4,7 @@ import {
   getCreditBalancesForUsers,
 } from "@/src/lib/db-layer";
 import { parseInternalEmailRequest } from "../email-request";
+import { describeDbError } from "@/lib/shared/db-error";
 
 export async function POST(request: NextRequest) {
   const parsed = await parseInternalEmailRequest(request);
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ licenses });
   } catch (error) {
-    console.error("Error in licenses-for-email:", error);
+    console.error("Error in licenses-for-email:", describeDbError(error));
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

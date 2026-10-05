@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -16,6 +16,7 @@ import {
   computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
 import { isRecord } from "@/src/lib/type-guards";
+import { showEmailError } from "@/src/lib/credits-email";
 
 const PRESETS = [5, 10] as const;
 
@@ -33,6 +34,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function CreditsPurchase({ locale }: { locale: string }) {
   const t = useTranslations("buyCredits");
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const [amount, setAmount] = useState<number>(PRESETS[0]);
   const [customAmount, setCustomAmount] = useState("");
   const [isCustom, setIsCustom] = useState(false);
@@ -46,6 +48,17 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
   const amountValid = validateCreditPurchaseAmount(effectiveAmount) === null;
 
   const emailValid = EMAIL_RE.test(email.trim());
+  const emailInvalid = showEmailError(email, emailTouched, emailValid);
+
+  // #968: stable ids that tie the visible label, the help line and the error
+  // to the email field. Never point at HeroUI's generated React Aria id.
+  const emailInputId = useId();
+  const emailHelpId = useId();
+  const emailErrorId = useId();
+  // #1147: the custom-amount field is named by the visible "Choose an amount"
+  // heading and the Custom tile title, not by its placeholder.
+  const amountLabelId = useId();
+  const customTitleId = useId();
 
   const { credits, feeUsd, totalUsd } = useMemo(() => {
     if (!amountValid) return { credits: 0, feeUsd: 0, totalUsd: 0 };
@@ -135,14 +148,30 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
         <Card className="bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
           <CardBody className="p-6 md:p-8">
             {/* Email */}
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label
+              className="block text-sm font-medium text-gray-300 mb-2"
+              htmlFor={emailInputId}
+            >
               {t("emailLabel")}
             </label>
+            {/* HeroUI names a label-less Input by its placeholder, and an
+                aria-label beats <label for>, so the visible label text is
+                passed as the aria-label too. A caller's aria-describedby
+                REPLACES HeroUI's own (its error id is dropped), so the error
+                gets an id of ours and is listed here while it shows. */}
             <Input
+              aria-describedby={
+                emailInvalid ? `${emailHelpId} ${emailErrorId}` : emailHelpId
+              }
+              aria-label={t("emailLabel")}
               autoComplete="email"
+              id={emailInputId}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => setEmailTouched(true)}
+              isInvalid={emailInvalid}
+              errorMessage={<span id={emailErrorId}>{t("errorEmail")}</span>}
               placeholder={t("emailPlaceholder")}
               variant="bordered"
               size="lg"
@@ -152,19 +181,32 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                 input: "text-white",
               }}
             />
-            <p className="text-xs text-gray-500 mt-2">{t("emailHelp")}</p>
+            <p className="text-xs text-gray-500 mt-2" id={emailHelpId}>
+              {t("emailHelp")}
+            </p>
 
             {/* Amount */}
             <div className="mt-7">
-              <span className="block text-sm font-medium text-gray-300 mb-3">
+              <span
+                className="block text-sm font-medium text-gray-300 mb-3"
+                id={amountLabelId}
+              >
                 {t("amountLabel")}
               </span>
-              <div className="grid grid-cols-3 gap-3">
+              {/* A single-choice group of toggle buttons (#969): the chosen card is
+                  exposed by aria-pressed, not only its border colour. Not
+                  role="radio", which would need arrow-key roving focus. */}
+              <div
+                aria-labelledby={amountLabelId}
+                className="grid grid-cols-3 gap-3"
+                role="group"
+              >
                 {PRESETS.map((value) => {
                   const selected = !isCustom && amount === value;
                   return (
                     <button
                       key={value}
+                      aria-pressed={selected}
                       type="button"
                       onClick={() => selectPreset(value)}
                       className={`rounded-2xl py-4 text-center transition cursor-pointer border ${
@@ -185,6 +227,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                   );
                 })}
                 <button
+                  aria-pressed={isCustom}
                   type="button"
                   onClick={() => setIsCustom(true)}
                   className={`rounded-2xl py-4 text-center transition cursor-pointer border ${
@@ -193,7 +236,10 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                       : "bg-gray-900/50 border-gray-800 hover:border-gray-700"
                   }`}
                 >
-                  <div className="text-2xl font-bold text-white">
+                  <div
+                    className="text-2xl font-bold text-white"
+                    id={customTitleId}
+                  >
                     {t("custom")}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
@@ -204,7 +250,11 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
 
               {isCustom && (
                 <div className="mt-3">
+                  {/* HeroUI still sets aria-label to the placeholder, but a
+                      caller's aria-labelledby reaches the <input> as given and
+                      wins over aria-label in the accessible name. */}
                   <Input
+                    aria-labelledby={`${amountLabelId} ${customTitleId}`}
                     type="number"
                     value={customAmount}
                     onChange={(e) => {

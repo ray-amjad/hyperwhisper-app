@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import { Hono } from 'hono';
 
 const originalFetch = globalThis.fetch;
@@ -544,5 +544,181 @@ describe('usageRoute licensing API base URL', () => {
 
     expect(response.status).toBe(200);
     expect(api.urls[0]).toBe('https://licensing.example.test/api/license/validate');
+  });
+});
+
+// #899: /usage wrote no log line at all. These pin every event the route now
+// writes, and that a line can never carry the licence key, an email or the IP.
+describe('usageRoute telemetry', () => {
+  const CANARY = 'hwcanary7f3a9c';
+  const EMAIL = 'ray@example.com';
+  const IP = '203.0.113.7';
+  let logSpy: ReturnType<typeof spyOn<Console, 'log'>>;
+
+  beforeEach(() => {
+    logSpy = spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  // Only the route's own usage.* events. validateAuth writes no line, but the
+  // spy sees every console.log in the process, so the filter keeps these
+  // counts about this route and nothing else.
+  function usageLines(): Array<{ raw: string; parsed: Record<string, unknown> }> {
+    return logSpy.mock.calls
+      .map((call) => String(call[0]))
+      .filter((raw) => raw.startsWith('{') && raw.includes('"event":"usage.'))
+      .map((raw) => ({ raw, parsed: JSON.parse(raw) as Record<string, unknown> }));
+  }
+
+  function expectClean(raw: string): void {
+    expect(raw).not.toContain(CANARY);
+    expect(raw).not.toContain(encodeURIComponent(CANARY));
+    expect(raw).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
+    expect(raw).not.toContain(IP);
+  }
+
+  async function request(query: string) {
+    return buildApp().request(`/usage?${query}`, { headers: { 'Fly-Client-IP': IP } });
+  }
+
+  test('an HTTP 500 from the balance endpoint writes one credits_lookup_failed line with no key or email', async () => {
+    cachedLicense = { isValid: true, credits: 12, cachedAt: 'cached' };
+    withLicenseApi({
+      // The upstream body quotes the key and an address: none of it may reach the log.
+      credits: () => Response.json({ error: `licence ${CANARY} for ${EMAIL} failed` }, { status: 500 }),
+      validate: () => Response.json({ valid: true, credits: 7 }),
+    });
+
+    const response = await request(`account_key=${CANARY}&force_refresh=true`);
+
+    expect(response.status).toBe(200);
+    const failed = usageLines().filter((line) => line.parsed.event === 'usage.credits_lookup_failed');
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.parsed).toMatchObject({ error: 'http_error', status: 500, forceRefresh: true });
+    expect(typeof failed[0]?.parsed.requestId).toBe('string');
+    for (const line of usageLines()) expectClean(line.raw);
+  });
+
+  test('a malformed 200 balance body is logged as invalid_response with its status', async () => {
+    cachedLicense = { isValid: true, credits: 12, cachedAt: 'cached' };
+    withLicenseApi({
+      credits: () => new Response(`not json ${CANARY}`, { status: 200 }),
+      validate: () => Response.json({ valid: true, credits: 7 }),
+    });
+
+    await request(`account_key=${CANARY}&force_refresh=true`);
+
+    const failed = usageLines().filter((line) => line.parsed.event === 'usage.credits_lookup_failed');
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.parsed).toMatchObject({ error: 'invalid_response', status: 200 });
+    for (const line of usageLines()) expectClean(line.raw);
+  });
+
+  test('a thrown fetch error logs its class name only, never the message that quotes the URL', async () => {
+    cachedLicense = { isValid: true, credits: 12, cachedAt: 'cached' };
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/license/credits')) {
+        throw new TypeError(`fetch failed: ${url} (${EMAIL})`);
+      }
+      return Response.json({ valid: true, credits: 7 });
+    }) as unknown as typeof fetch;
+
+    await request(`account_key=${CANARY}&force_refresh=true`);
+
+    const failed = usageLines().filter((line) => line.parsed.event === 'usage.credits_lookup_failed');
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.parsed).toMatchObject({ error: 'network_error', errorName: 'TypeError' });
+    for (const line of usageLines()) expectClean(line.raw);
+  });
+
+  test('a successful read writes usage.request_ok with credits_remaining only', async () => {
+    cachedLicense = { isValid: true, credits: 12.34, cachedAt: 'cached' };
+    forbidFetch();
+
+    const response = await request(`account_key=${CANARY}`);
+
+    expect(response.status).toBe(200);
+    const lines = usageLines();
+    expect(lines.map((line) => line.parsed.event)).toEqual(['usage.request_ok']);
+    const { event, requestId, elapsedMs, ...rest } = lines[0]!.parsed;
+    expect(rest).toEqual({ credits_remaining: 12.3 });
+    expectClean(lines[0]!.raw);
+  });
+
+  test.each([
+    ['ip_blocked', 403, () => { ipBlocked = true; }, `account_key=${CANARY}`],
+    ['invalid_license', 401, () => { cachedLicense = { isValid: false, credits: 0, cachedAt: 'x' }; }, `account_key=${CANARY}`],
+    ['missing_license', 401, () => {}, ''],
+  ] as const)('a %s rejection writes one usage.request_rejected line', async (reason, status, setup, query) => {
+    setup();
+    forbidFetch();
+
+    const response = await request(query);
+
+    expect(response.status).toBe(status);
+    const lines = usageLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.parsed).toMatchObject({ event: 'usage.request_rejected', reason });
+    expectClean(lines[0]!.raw);
+  });
+
+  // A licensing-API outage also fails closed with a 401. The rejection line has
+  // to say so, or an outage is indistinguishable from a bad key in the logs.
+  test.each([
+    ['an upstream 503', () => Response.json({ error: `down for ${CANARY} ${EMAIL}` }, { status: 503 }),
+      { authSource: 'api', authOutcome: 'api_transient_status', authCacheHit: false, authUpstreamStatus: 503 }],
+    ['an upstream timeout', () => { throw new DOMException(`timed out ${CANARY}`, 'TimeoutError'); },
+      { authSource: 'api', authOutcome: 'api_timeout', authCacheHit: false, authApiErrorType: 'dom_exception' }],
+  ] as const)('an invalid_license line after %s carries the auth diagnostics and no key, email or IP', async (_label, validate, expected) => {
+    cachedLicense = null;
+    withLicenseApi({ validate });
+
+    const response = await request(`account_key=${CANARY}`);
+
+    expect(response.status).toBe(401);
+    const lines = usageLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.parsed).toMatchObject({ event: 'usage.request_rejected', reason: 'invalid_license', ...expected });
+    expect(typeof lines[0]?.parsed.authElapsedMs).toBe('number');
+    expectClean(lines[0]!.raw);
+  });
+
+  test('the fallback revalidation after a failed balance read carries its diagnostics on the rejection', async () => {
+    cachedLicense = { isValid: true, credits: 12, cachedAt: 'cached' };
+    withLicenseApi({
+      credits: () => Response.json({ error: 'balance unavailable' }, { status: 500 }),
+      validate: () => Response.json({ error: `down for ${CANARY}` }, { status: 502 }),
+    });
+
+    const response = await request(`account_key=${CANARY}&force_refresh=true`);
+
+    expect(response.status).toBe(401);
+    const rejected = usageLines().filter((line) => line.parsed.event === 'usage.request_rejected');
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]?.parsed).toMatchObject({
+      reason: 'invalid_license',
+      authSource: 'api',
+      authOutcome: 'api_transient_status',
+      authUpstreamStatus: 502,
+    });
+    for (const line of usageLines()) expectClean(line.raw);
+  });
+
+  test('a genuinely bad key is told apart from an outage by its auth outcome', async () => {
+    cachedLicense = { isValid: false, credits: 0, cachedAt: 'x' };
+    forbidFetch();
+
+    await request(`account_key=${CANARY}`);
+
+    expect(usageLines()[0]?.parsed).toMatchObject({
+      reason: 'invalid_license',
+      authSource: 'cache',
+      authOutcome: 'cached_invalid',
+      authCacheHit: true,
+    });
   });
 });

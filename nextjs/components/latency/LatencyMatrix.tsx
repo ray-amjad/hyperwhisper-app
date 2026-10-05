@@ -279,12 +279,22 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-6">
         <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-widest text-gray-500">Metric</span>
-          <div className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
+          <span
+            className="text-xs uppercase tracking-widest text-gray-500"
+            id="latency-metric-label"
+          >
+            Metric
+          </span>
+          <div
+            aria-labelledby="latency-metric-label"
+            className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1"
+            role="group"
+          >
             {METRICS.map((entry) => (
               <button
                 key={entry.key}
-                className={`rounded-md px-3 py-1.5 text-sm transition ${
+                aria-pressed={metric === entry.key}
+                className={`rounded-sm px-3 py-1.5 text-sm transition ${
                   metric === entry.key
                     ? "bg-purple-600 text-white"
                     : "text-gray-400 hover:text-white"
@@ -299,14 +309,22 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-widest text-gray-500">
+          <span
+            className="text-xs uppercase tracking-widest text-gray-500"
+            id="latency-bucket-label"
+          >
             Clip length
           </span>
-          <div className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
+          <div
+            aria-labelledby="latency-bucket-label"
+            className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1"
+            role="group"
+          >
             {DURATION_BUCKETS.map((entry) => (
               <button
                 key={entry}
-                className={`rounded-md px-3 py-1.5 text-sm transition ${
+                aria-pressed={bucket === entry}
+                className={`rounded-sm px-3 py-1.5 text-sm transition ${
                   bucket === entry
                     ? "bg-purple-600 text-white"
                     : "text-gray-400 hover:text-white"
@@ -405,6 +423,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 {regions.map((region) => (
                   <button
                     key={region}
+                    aria-pressed={activeHomeRegion === region}
                     className={`rounded-full border px-3 py-1 text-xs transition ${
                       activeHomeRegion === region
                         ? "border-purple-500 bg-purple-600/30 text-white"
@@ -426,7 +445,13 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           </div>
 
           {/* Matrix */}
-          <div className="mt-6 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80">
+          <div
+            aria-label="Latency matrix"
+            className="mt-6 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            role="region"
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+            tabIndex={0}
+          >
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>

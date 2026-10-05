@@ -452,6 +452,13 @@ public partial class CloudAccountSettingsPage : Page
         }
     }
 
+    // An activation error describes the key that was submitted; once the user
+    // edits that key, it no longer applies.
+    private void LicenseKeyBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        LicenseErrorText.Visibility = Visibility.Collapsed;
+    }
+
     private void ShowLicenseError(string message)
     {
         LicenseErrorText.Text = message;

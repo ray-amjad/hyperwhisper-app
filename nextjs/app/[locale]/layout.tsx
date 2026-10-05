@@ -33,10 +33,18 @@ import { Providers } from "./providers";
 
 import { fontSans } from "@/config/fonts";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
-import { locales } from "@/i18n";
+import {
+  OG_IMAGES,
+  SITE_NAME,
+  SITE_URL,
+  TWITTER_CARD,
+  TWITTER_CREATOR,
+  TWITTER_IMAGES,
+} from "@/lib/site-metadata";
 import {
   buildAlternateLanguageMap,
   defaultLocale,
+  locales,
   stripLocalePrefix,
   toOpenGraphLocale,
 } from "@/src/i18n/locales";
@@ -61,7 +69,7 @@ export async function generateMetadata({ params }: Props) {
   // Remove locale prefix from pathname if present
   const pathWithoutLocale = stripLocalePrefix(pathname);
 
-  const baseUrl = "https://hyperwhisper.com";
+  const baseUrl = SITE_URL;
   const alternateLanguages = buildAlternateLanguageMap(baseUrl, pathWithoutLocale);
 
   return {
@@ -99,40 +107,15 @@ export async function generateMetadata({ params }: Props) {
       url: `${baseUrl}/${locale}${pathWithoutLocale}`,
       title: t("title"),
       description: t("description"),
-      siteName: "HyperWhisper",
-      images: [
-        {
-          url: "https://hyperwhisper.com/icon/1024.png",
-          width: 1024,
-          height: 1024,
-          alt: "HyperWhisper Logo",
-        },
-        {
-          url: "https://hyperwhisper.com/icon/512.png",
-          width: 512,
-          height: 512,
-          alt: "HyperWhisper Logo",
-        },
-        {
-          url: "https://hyperwhisper.com/icon/256.png",
-          width: 256,
-          height: 256,
-          alt: "HyperWhisper Logo",
-        },
-        {
-          url: "https://hyperwhisper.com/icon/128.png",
-          width: 128,
-          height: 128,
-          alt: "HyperWhisper Logo",
-        },
-      ],
+      siteName: SITE_NAME,
+      images: OG_IMAGES,
     },
     twitter: {
-      card: "summary",
+      card: TWITTER_CARD,
       title: t("title"),
       description: t("description"),
-      creator: "@theramjad",
-      images: ["https://hyperwhisper.com/icon/256.png"],
+      creator: TWITTER_CREATOR,
+      images: TWITTER_IMAGES,
     },
     robots: {
       index: true,

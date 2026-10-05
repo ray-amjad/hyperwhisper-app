@@ -7,7 +7,14 @@ import test from "node:test";
 
 import { DrizzleQueryError } from "drizzle-orm";
 
-import { dbErrorCode, dbErrorConstraint, describeDbError, isDbError } from "../lib/shared/db-error";
+import {
+  DB_ERROR_MESSAGE,
+  dbErrorCode,
+  dbErrorConstraint,
+  describeDbError,
+  isDbError,
+  safeErrorMessage,
+} from "../lib/shared/db-error";
 import {
   LEAKY_EMAIL,
   LEAKY_KEY,
@@ -116,4 +123,12 @@ test("isDbError: a drizzle query error or a bare pg server error, and nothing el
   assert.equal(isDbError(Object.assign(new Error("x"), { code: "23505" })), false);
   assert.equal(isDbError("text"), false);
   assert.equal(isDbError(null), false);
+});
+
+test("safeErrorMessage: a DB error becomes DB_ERROR_MESSAGE, any other Error keeps its text, a non-Error takes the fallback", () => {
+  assert.equal(safeErrorMessage(leakyDbError(), "fallback"), DB_ERROR_MESSAGE);
+  assert.equal(safeErrorMessage(leakyDbError("22P02").cause, "fallback"), DB_ERROR_MESSAGE);
+  assert.equal(safeErrorMessage(new Error("No checkout URL returned from Stripe"), "fallback"), "No checkout URL returned from Stripe");
+  assert.equal(safeErrorMessage("text", "fallback"), "fallback");
+  assert.equal(safeErrorMessage(null, "fallback"), "fallback");
 });

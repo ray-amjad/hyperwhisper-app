@@ -14,6 +14,28 @@ const USER_SIGN_IN_REGEX = new RegExp(`^\\/(${localePattern})\\/user\\/sign-in`)
 const USER_AUTH_SIGN_OUT_REGEX = new RegExp(
   `^\\/(${localePattern})\\/user\\/auth\\/sign-out`,
 );
+// #1135: pages whose page.tsx calls notFound() for every locale but "en".
+// Every locale links to them with a raw /en/... href, so a visit there says
+// nothing about the visitor's language and must not rewrite NEXT_LOCALE.
+const ENGLISH_ONLY_REGEX = /^\/en\/(latency|choosing-a-model|blog)(\/|$)/;
+// Same routing, but next-intl never writes NEXT_LOCALE. The regex only matches
+// /en/-prefixed paths, and next-intl resolves the locale from the prefix before
+// it looks at the cookie, so routing, rewrites and redirects are unchanged.
+const englishOnlyIntlMiddleware = createMiddleware({
+  ...routing,
+  localeCookie: false,
+});
+
+function runIntlMiddleware(request: NextRequest, pathname: string) {
+  const middleware = ENGLISH_ONLY_REGEX.test(pathname)
+    ? englishOnlyIntlMiddleware
+    : intlMiddleware;
+  const response = middleware(request);
+
+  response.headers.set("x-pathname", pathname);
+
+  return response;
+}
 
 const getPathLocale = (pathname: string) => {
   const match = pathname.match(LOCALE_REGEX);
@@ -78,9 +100,7 @@ export default async function proxy(request: NextRequest) {
     }
 
     // User has session cookie - run intl middleware
-    const response = intlMiddleware(request);
-    response.headers.set("x-pathname", pathname);
-    return response;
+    return runIntlMiddleware(request, pathname);
   }
 
   // The sign-in page is deliberately NOT gated here. Bouncing an already-
@@ -102,18 +122,18 @@ export default async function proxy(request: NextRequest) {
   // here.
 
   // For all other routes, just run intl middleware
-  const response = intlMiddleware(request);
-  response.headers.set("x-pathname", pathname);
-
-  return response;
+  return runIntlMiddleware(request, pathname);
 }
 
 export const config = {
   // Match all pathnames except for:
-  // - API routes (/api/*)
-  // - Raw model inventory endpoint (/models)
-  // - Next.js internal files (/_next/*)
+  // - API routes (/api and /api/*)
+  // - Raw model inventory endpoint (/models and /models/*)
+  // - Next.js internals (/_next and /_next/*)
+  // - Vercel internals (/_vercel and /_vercel/*)
+  // - Documentation (/docs and /docs/* only)
   // - Static files with extensions (*.*)
-  // - Documentation (/docs/*)
-  matcher: ["/((?!api|models(?:/|$)|_next|_vercel|docs|.*\\..*).*)"],
+  // Each prefix is anchored with (?:/|$), so /docsx or /apix still goes
+  // through the locale proxy and 404s (#1125).
+  matcher: ["/((?!(?:api|models|_next|_vercel|docs)(?:/|$)|.*\\..*).*)"],
 };

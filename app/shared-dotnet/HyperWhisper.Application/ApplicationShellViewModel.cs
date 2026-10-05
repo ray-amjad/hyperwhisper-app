@@ -22,6 +22,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     private bool _initialized;
     private bool _disposed;
     private readonly Func<string, string>? _localize;
+    private readonly Func<bool>? _isRecordingActive;
 
     public ApplicationShellViewModel(
         ApplicationDb database,
@@ -42,10 +43,12 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         ITextInjectionService? historyTextInjection = null,
         ModelReadinessService? modelReadiness = null,
         AboutViewModel? about = null,
-        Func<string, string>? localize = null)
+        Func<string, string>? localize = null,
+        Func<bool>? isRecordingActive = null)
     {
         _database = database;
         _localize = localize;
+        _isRecordingActive = isRecordingActive;
         var historyRepository = new HistoryRepository(database, paths);
         var vocabularyRepository = new VocabularyRepository(database);
         var modeRepository = new ModeRepository(database);
@@ -245,6 +248,9 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         // The status bar reads "Ready - Press Ctrl+Alt to record" on Windows, on every page.
         // Naming the page here made it "Storage ready - ...", which no other app does and which
         // changed on every click. The page name is already in the header above it.
+        // A recording, a live stream or its transcription owns the status line while it runs, so a
+        // sidebar click must not say "Ready" under a live overlay (#1190).
+        if (_isRecordingActive?.Invoke() == true) return;
         Status.Success(Text("linux.status.ready", "Ready"));
     }
 

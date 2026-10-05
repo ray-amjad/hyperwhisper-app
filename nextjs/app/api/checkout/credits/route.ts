@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/clients/stripe";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
+import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
+import { describeDbError, safeErrorMessage } from "@/lib/shared/db-error";
 import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
@@ -35,8 +37,23 @@ import {
  */
 
 export async function POST(req: NextRequest) {
+  let body: unknown;
+
   try {
-    const body: unknown = await req.json();
+    body = await req.json();
+  } catch (err) {
+    console.error(
+      "Credit checkout: request JSON did not parse",
+      unparseableRequestFields(req, err),
+    );
+
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
+  }
+
+  try {
     const { licenseKey, amount, email } = isRecord(body) ? body : {};
 
     // Validate amount: whole dollars within [MIN, MAX].
@@ -216,12 +233,13 @@ export async function POST(req: NextRequest) {
       throw new Error("No checkout URL returned from Stripe");
     }
   } catch (error) {
-    console.error("Credit checkout error:", error);
+    console.error("Credit checkout error:", describeDbError(error));
 
     return NextResponse.json(
       {
         error: "Failed to create checkout session",
-        details: error instanceof Error ? error.message : "Unknown error",
+        // A DB error's message is its SQL plus the bound key and email (#1049).
+        details: safeErrorMessage(error, "Unknown error"),
       },
       { status: 500 }
     );

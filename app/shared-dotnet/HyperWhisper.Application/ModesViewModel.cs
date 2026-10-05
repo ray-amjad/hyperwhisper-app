@@ -552,7 +552,11 @@ public sealed class ModesViewModel : ViewModelBase
         get
         {
             if (!IsHwCloudSource) return null;
-            if (CloudTierModels.Contains(_transcriptionModel, StringComparer.Ordinal)) return _transcriptionModel;
+            // The stored model shows only when the CURRENT tier owns it. The list holds the
+            // whole company, so a mode saved with tier `geminiTranscribe` and model
+            // `gemini-2.5-flash` would draw Gemini 2.5 Flash while the router ran the tier
+            // default. Show what will run instead.
+            if (TierOffers(_cloudAccuracyTier, _transcriptionModel)) return _transcriptionModel;
             return DefaultModelForTier(_cloudAccuracyTier);
         }
         set
@@ -568,8 +572,19 @@ public sealed class ModesViewModel : ViewModelBase
                 Notify(nameof(CloudTierModel));
                 return;
             }
+            if (!TierOffers(_cloudAccuracyTier, _transcriptionModel)
+                && string.Equals(value, DefaultModelForTier(_cloudAccuracyTier), StringComparison.Ordinal))
+            {
+                // The getter's display fallback, echoed back. The dialog re-applies the
+                // selection after a list change, and the two-way binding writes that value
+                // here. The stored model is one this tier does not run — blank, the on-device
+                // placeholder "base", or another tier's id — so the tier default runs either
+                // way. Storing it would save a model the user never picked.
+                return;
+            }
             var owner = (GroupForTier(_cloudAccuracyTier)?.Models ?? [])
                 .FirstOrDefault(m => string.Equals(m.ModelId, value, StringComparison.Ordinal));
+            var tierMoved = false;
             if (owner is not null && !string.Equals(owner.TierId, _cloudAccuracyTier, StringComparison.Ordinal))
             {
                 // Assign the field, not the property: the property's setter notifies
@@ -578,8 +593,14 @@ public sealed class ModesViewModel : ViewModelBase
                 _cloudAccuracyTier = owner.TierId;
                 NormalizeDictationDomain();
                 Notify(nameof(CloudAccuracyTier));
+                tierMoved = true;
             }
+            var modelChanged = !string.Equals(_transcriptionModel, value, StringComparison.Ordinal);
             TranscriptionModel = value;
+            // The model setter notifies the reveals only when the id CHANGES. A mode that
+            // already stored this id under another tier moves tier here with the same id,
+            // and the credits, vocabulary and dictation rows must still follow the tier.
+            if (tierMoved && !modelChanged) NotifyEditorReveals();
         }
     }
     public bool IsDictation => _transcriptionModel == "dictation"
@@ -660,7 +681,30 @@ public sealed class ModesViewModel : ViewModelBase
     /// shared core, so it cannot change while the app runs.
     /// </summary>
     private static readonly IReadOnlyList<SharedCoreBridge.CloudSttVendorGroup> VendorGroups =
-        SharedCoreBridge.CloudSttVendorGroups();
+        LoadVendorGroups();
+
+    /// <summary>
+    /// Reads the company rows, and answers an empty list when the native core cannot.
+    ///
+    /// This runs from a static initializer. An exception here becomes a cached
+    /// <c>TypeInitializationException</c>, and every later touch of this type throws it, so
+    /// the whole Modes page dies, not only the cloud pickers. Windows guards the same call
+    /// the same way (CloudSttCatalog.Load). With no rows the page still loads and the Provider
+    /// picker is empty. Actions that need the core still fail, one at a time, and report it.
+    /// </summary>
+    private static IReadOnlyList<SharedCoreBridge.CloudSttVendorGroup> LoadVendorGroups()
+    {
+        try
+        {
+            return SharedCoreBridge.CloudSttVendorGroups();
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError(
+                $"Cloud STT vendor groups failed to load from the shared core: {exception}");
+            return [];
+        }
+    }
 
     /// <summary>
     /// One model-id list per company, built once. Backs <see cref="CloudTierModels"/>; see
@@ -682,6 +726,13 @@ public sealed class ModesViewModel : ViewModelBase
     /// entry per company.
     /// </summary>
     public IReadOnlyList<string> CloudAccuracyTiers { get; } = [.. VendorGroups.SelectMany(g => g.TierIds)];
+
+    /// <summary>True when <paramref name="tierId"/> itself offers <paramref name="modelId"/>.</summary>
+    private static bool TierOffers(string? tierId, string? modelId) =>
+        !string.IsNullOrEmpty(modelId)
+        && (GroupForTier(tierId)?.Models ?? []).Any(m =>
+            string.Equals(m.TierId, tierId, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(m.ModelId, modelId, StringComparison.Ordinal));
 
     /// <summary>The company that owns <paramref name="tierId"/>, or null.</summary>
     private static SharedCoreBridge.CloudSttVendorGroup? GroupForTier(string? tierId) =>
@@ -728,6 +779,8 @@ public sealed class ModesViewModel : ViewModelBase
     private static string? DefaultModelForTier(string tierId)
     {
         var models = GroupForTier(tierId)?.Models ?? [];
+        // No rows means no native core. Do not ask it for a default.
+        if (models.Count == 0) return null;
         var preferred = SharedCoreBridge.CloudSttDefaultModel(tierId);
         return models.FirstOrDefault(
                    m => string.Equals(m.ModelId, preferred, StringComparison.Ordinal))?.ModelId

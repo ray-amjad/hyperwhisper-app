@@ -134,3 +134,20 @@ test("an unrecognised locale header is served left-to-right, not undefined", asy
   assert.match(tag, /dir="ltr"/, `expected dir="ltr" in ${tag}`);
   assert.doesNotMatch(tag, /dir="undefined"/, `dir leaked undefined in ${tag}`);
 });
+
+test("every locale is served with the dark class on <html> (#1151)", async () => {
+  // The site is dark-only, and with JavaScript off nothing on the client adds
+  // `dark` after load. The class has to be in the served bytes, so the
+  // assertion is on the rendered tag, for an RTL locale, an LTR locale and the
+  // absent-header fallback alike.
+  for (const locale of ["ar", "en", null]) {
+    const tag = htmlTag(await renderRootLayout(locale));
+    const classAttr = tag.match(/\sclass="([^"]*)"/);
+
+    assert.ok(classAttr, `expected a class attribute in ${tag}`);
+    assert.ok(
+      classAttr[1].split(/\s+/).includes("dark"),
+      `expected the dark class in ${tag}`,
+    );
+  }
+});

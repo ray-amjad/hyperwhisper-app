@@ -52,7 +52,9 @@ pub fn style_violation(name: &str) -> Option<&'static str> {
     if name.ends_with(".0") {
         return Some("drop the padding: `Grok Voice Transcribe 1`, not `… 1.0`");
     }
-    if name.contains(" V") && name.split(" V").nth(1).is_some_and(starts_with_digit) {
+    // Check every " V", not only the first: "Grok Voice Transcribe V2" splits to
+    // ["Grok", "oice Transcribe", "2"], and the first piece starts with a letter.
+    if name.split(" V").skip(1).any(starts_with_digit) {
         return Some("a version is lower-case `v`: `Whisper Large v3`");
     }
     None
@@ -67,6 +69,15 @@ mod tests {
     use super::*;
     use crate::cloud_stt::CloudSttCatalog;
     use crate::models::{Kind, ModelsCatalog};
+
+    #[test]
+    fn a_capital_version_is_caught_after_any_word_that_starts_with_v() {
+        assert!(style_violation("Whisper Large V3").is_some());
+        assert!(style_violation("Grok Voice Transcribe V2").is_some());
+        assert!(style_violation("Grok Voice Transcribe 2").is_none());
+        assert!(style_violation("Whisper Large v3").is_none());
+        assert!(style_violation("Voxtral Mini").is_none());
+    }
 
     fn models() -> ModelsCatalog {
         ModelsCatalog::embedded().expect("models-catalog.json must parse")

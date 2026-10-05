@@ -21,7 +21,7 @@
 // shared module leaks into every other test file in the same run. The real cost
 // calculator, the real usage type guard and the real error classes all run.
 
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import {
   computeCerebrasChatCost,
   computeGeminiChatCost,
@@ -42,6 +42,8 @@ import { requestOpenAIChat } from './openai-llm';
 import { requestGeminiChat } from './gemini-llm';
 import { requestMistralChat } from './mistral-llm';
 import { requestXaiGrokChat } from './xai-llm';
+import { requestOpenAICompatibleChat, type OpenAICompatChatConfig } from './openai-compat-chat';
+import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
 
 // ---------------------------------------------------------------------------
 // Global fetch capture
@@ -535,5 +537,154 @@ describe('missing API key', () => {
     // An empty key would otherwise be sent as `Bearer ` and come back 401.
     expect((error as Error).message).toBe('CEREBRAS_API_KEY not configured');
     expect(calls).toHaveLength(0);
+  });
+});
+
+// ===========================================================================
+// Bounded wait (#782)
+// ===========================================================================
+// A real socket on 127.0.0.1 and the real fetch: an upstream that accepts the
+// connection and never answers used to leave the promise pending forever, so
+// the retry-and-fallback ladder in post-process.ts never ran.
+describe('bounded wait on a silent upstream', () => {
+  const TIMEOUT_MS = 200;
+  let upstream: TestUpstream | undefined;
+
+  afterEach(() => {
+    upstream?.stop();
+    upstream = undefined;
+  });
+
+  function configFor(baseUrl: string): OpenAICompatChatConfig {
+    return {
+      baseUrl,
+      apiKey: 'test-key',
+      providerTag: 'groq',
+      errorLogLabel: 'test chat',
+      errorChatLabel: 'test chat',
+      buildBody: () => ({ model: 'm' }),
+      computeCost: () => 0,
+      timeoutMs: TIMEOUT_MS,
+    };
+  }
+
+  async function timedError(fn: () => Promise<unknown>): Promise<{ error: unknown; elapsedMs: number }> {
+    const startedAt = performance.now();
+    const error = await captureError(fn);
+    return { error, elapsedMs: performance.now() - startedAt };
+  }
+
+  test('rejects with a 504 within the timeout when the upstream never answers', async () => {
+    globalThis.fetch = originalFetch;
+    upstream = silentUpstream();
+
+    const { error, elapsedMs } = await timedError(() =>
+      requestOpenAICompatibleChat(configFor(upstream!.url), PAYLOAD, 'req-silent', 'm'));
+
+    expect(error).toBeInstanceOf(LLMRequestError);
+    expect(errorStatus(error)).toBe(504);
+    expect(errorProvider(error)).toBe('groq');
+    expect((error as Error).message).toContain(`timeout after ${TIMEOUT_MS}ms`);
+    expect(shouldFallback(error)).toBe(true);
+    expect(elapsedMs).toBeGreaterThanOrEqual(TIMEOUT_MS - 20);
+    expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
+  });
+
+  test('rejects with a 504 when the headers arrive but the body stalls', async () => {
+    globalThis.fetch = originalFetch;
+    upstream = stalledBodyUpstream();
+
+    const { error, elapsedMs } = await timedError(() =>
+      requestOpenAICompatibleChat(configFor(upstream!.url), PAYLOAD, 'req-stalled-body', 'm'));
+
+    expect(errorStatus(error)).toBe(504);
+    expect(shouldFallback(error)).toBe(true);
+    expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
+  });
+
+  // Only our timer is mapped. A real network error stays the untagged error
+  // it was before #782 (retried, not failed over), as the #210 test pins.
+  test('passes a refused connection through untagged, not as a timeout', async () => {
+    globalThis.fetch = originalFetch;
+
+    const error = await captureError(() =>
+      requestOpenAICompatibleChat(configFor(refusedUrl()), PAYLOAD, 'req-refused', 'm'));
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(LLMRequestError);
+    expect(errorStatus(error)).toBeUndefined();
+    expect(shouldFallback(error)).toBe(false);
+  });
+
+  test('every provider built on the shared client sends an abort signal', async () => {
+    await requestCerebrasChat(PAYLOAD, 'req-1');
+    await requestGroqChat(PAYLOAD, 'req-1');
+    await requestXaiGrokChat(PAYLOAD, 'req-1');
+    await requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna');
+    await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
+    await requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest');
+
+    expect(calls).toHaveLength(6);
+    for (const call of calls) {
+      expect(call.init.signal).toBeInstanceOf(AbortSignal);
+    }
+  });
+});
+
+// The non-streaming bound scales with the transcript (review rounds 1 and 2):
+// the shared client arms its timer with computeLLMRequestTimeoutMs(transcript
+// chars) unless the config injects timeoutMs. Spy on setTimeout to read it.
+describe('timeout scales with the transcript', () => {
+  async function armedDelays(fn: () => Promise<unknown>): Promise<number[]> {
+    const spy = spyOn(globalThis, 'setTimeout');
+    try {
+      await fn();
+      return spy.mock.calls.map((call) => call[1] as number);
+    } finally {
+      spy.mockRestore();
+    }
+  }
+
+  const LONG_PAYLOAD: CorrectionRequestPayload = buildCorrectionRequest('sys', 'x'.repeat(4_997));
+
+  test('a short transcript arms the 20 s floor', async () => {
+    const delays = await armedDelays(() => requestGroqChat(PAYLOAD, 'req-short'));
+    expect(delays).toContain(20_000);
+  });
+
+  test('a 4,997-character transcript arms 50 s on every provider built on the shared client', async () => {
+    const delays = await armedDelays(async () => {
+      await requestCerebrasChat(LONG_PAYLOAD, 'req-long');
+      await requestGroqChat(LONG_PAYLOAD, 'req-long');
+      await requestXaiGrokChat(LONG_PAYLOAD, 'req-long');
+      await requestOpenAIChat(LONG_PAYLOAD, 'req-long', 'gpt-5.6-luna');
+      await requestGeminiChat(LONG_PAYLOAD, 'req-long', 'gemini-2.5-flash');
+      await requestMistralChat(LONG_PAYLOAD, 'req-long', 'mistral-small-latest');
+    });
+    expect(delays.filter((ms) => ms === 50_000)).toHaveLength(6);
+    expect(delays).not.toContain(20_000);
+  });
+
+  test('a long system prompt does not lengthen the bound for a short transcript', async () => {
+    const delays = await armedDelays(() =>
+      requestGroqChat(buildCorrectionRequest('s'.repeat(30_000), 'user transcript'), 'req-long-system'));
+    expect(delays).toContain(20_000);
+    expect(delays.filter((ms) => ms > 20_000)).toEqual([]);
+  });
+
+  test('an injected timeoutMs still wins over the computed one', async () => {
+    const config: OpenAICompatChatConfig = {
+      baseUrl: 'https://llm.test',
+      apiKey: 'test-key',
+      providerTag: 'groq',
+      errorLogLabel: 'test chat',
+      errorChatLabel: 'test chat',
+      buildBody: () => ({ model: 'm' }),
+      computeCost: () => 0,
+      timeoutMs: 1_234,
+    };
+    const delays = await armedDelays(() => requestOpenAICompatibleChat(config, LONG_PAYLOAD, 'req-override', 'm'));
+    expect(delays).toContain(1_234);
+    expect(delays).not.toContain(50_000);
   });
 });

@@ -121,6 +121,8 @@ public sealed class LinuxChildProcessLauncher : IChildProcessLauncher
     }
 }
 
+// #1186: callers block on TerminateAsync/DisposeAsync from the Avalonia UI thread (keep-warm Stop,
+// PulseStreamingAudioCapture.Stop), so no await here may resume on the captured UI context.
 internal sealed class LinuxChildProcess(Process process) : IChildProcess
 {
     private Process? _process = process;
@@ -132,14 +134,14 @@ internal sealed class LinuxChildProcess(Process process) : IChildProcess
     public Stream? StandardOutput => Process.StartInfo.RedirectStandardOutput ? Process.StandardOutput.BaseStream : null;
     public Stream? StandardError => Process.StartInfo.RedirectStandardError ? Process.StandardError.BaseStream : null;
     public async ValueTask<int> WaitForExitAsync(CancellationToken cancellationToken = default)
-    { var value = Process; await value.WaitForExitAsync(cancellationToken); return value.ExitCode; }
+    { var value = Process; await value.WaitForExitAsync(cancellationToken).ConfigureAwait(false); return value.ExitCode; }
     public async ValueTask TerminateAsync(CancellationToken cancellationToken = default)
-    { var value = Process; if (!value.HasExited) value.Kill(entireProcessTree: true); await value.WaitForExitAsync(cancellationToken); }
+    { var value = Process; if (!value.HasExited) value.Kill(entireProcessTree: true); await value.WaitForExitAsync(cancellationToken).ConfigureAwait(false); }
     public async ValueTask DisposeAsync()
     {
         var value = Interlocked.Exchange(ref _process, null);
         if (value is null) return;
-        try { if (!value.HasExited) { value.Kill(entireProcessTree: true); await value.WaitForExitAsync(); } } catch { }
+        try { if (!value.HasExited) { value.Kill(entireProcessTree: true); await value.WaitForExitAsync().ConfigureAwait(false); } } catch { }
         value.Dispose();
     }
 }

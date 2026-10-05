@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { useLocale } from "next-intl";
 
-import { LazyMotion, domAnimation } from "framer-motion";
+import { LazyMotion, MotionConfig, domAnimation } from "framer-motion";
 
 import { TRPCProvider } from "@/lib/trpc/TRPCProvider";
 import { DownloadModalProvider } from "@/contexts/DownloadModalContext";
@@ -68,10 +68,17 @@ export function Providers({ children, themeProps }: ProvidersProps) {
         <PostHogClientProvider>
           <NextThemesProvider {...themeProps}>
             <LazyMotion features={domAnimation}>
-              <DownloadModalProvider>
-                {children}
-                <DownloadModal />
-              </DownloadModalProvider>
+              {/* framer-motion defaults to reducedMotion "never", so without this
+                  every entrance animation plays at full strength for a visitor
+                  who has turned on the OS "Reduce motion" setting (#701).
+                  "user" follows prefers-reduced-motion: transform and layout
+                  motion is skipped, opacity fades are kept. */}
+              <MotionConfig reducedMotion="user">
+                <DownloadModalProvider>
+                  {children}
+                  <DownloadModal />
+                </DownloadModalProvider>
+              </MotionConfig>
             </LazyMotion>
           </NextThemesProvider>
         </PostHogClientProvider>

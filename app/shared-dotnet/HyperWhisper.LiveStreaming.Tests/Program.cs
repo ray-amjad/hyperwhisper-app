@@ -17,6 +17,12 @@ var tests = new (string Name, Func<Task> Run)[]
     ("external cancellation cancels rather than commits", ExternalCancellation),
     ("capture failures remain visible beside provider outcome", CaptureFailure),
     ("bounded audio backpressure fails closed", AudioBackpressure),
+    ("a network failure is not reported as a full audio buffer", NetworkFailureBeatsFullBuffer),
+    ("a chunk after the audio completed is not a full buffer", LateChunkAfterStop),
+    ("a buffer that fills during a hanging connect reports the timeout", HangingConnectFillsBuffer),
+    ("a full buffer after a working reconnect is still a full buffer", BufferFullAfterReconnect),
+    ("a buffer that fills during the reconnect back-off reports the network failure", BackOffFillKeepsNetworkFailure),
+    ("a user cancel during the reconnect back-off still cancels", BackOffUserCancel),
     ("synchronous capture callbacks do not deadlock start", SynchronousCaptureCallbacks),
     ("controller safely restarts after completed session", RestartAfterCompletion),
     ("immediate transcriber completion cannot run under state lock", ImmediateCompletion),
@@ -312,13 +318,125 @@ static async Task CaptureFailure()
 static async Task AudioBackpressure()
 {
     using var capture = new FakeCapture();
-    var transcriber = new BlockingTranscriber();
+    var transcriber = new BlockingTranscriber { ReadsFirstChunk = true };
     await using var controller = new LiveStreamingSessionController(capture, transcriber);
     True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    capture.Emit([1, 0]);
+    await transcriber.FirstChunkRead.Task.WaitAsync(TimeSpan.FromSeconds(2));
     for (var i = 0; i < 140; i++) capture.Emit([1, 0]);
     var result = await controller.Completion!.WaitAsync(TimeSpan.FromSeconds(2));
     Equal("streaming_audio_buffer_full", result.CaptureFailure!.Code);
     Equal(LiveTranscriptionFailureCode.Cancelled, result.Transcription.Failure!.Code);
+}
+
+// #1253: the transport ends with a Network failure while capture keeps running, so
+// nothing drains the channel and it fills before the worker stops capture.
+static async Task NetworkFailureBeatsFullBuffer()
+{
+    using var capture = new FakeCapture();
+    await using var controller = new LiveStreamingSessionController(capture, new NetworkFailureTranscriber());
+    controller.ConnectionStateChanged += (_, state) =>
+    {
+        if (state == LiveStreamingConnectionState.Error)
+            for (var i = 0; i < 140; i++) capture.Emit([1, 0]);
+    };
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    await controller.Completion!.WaitAsync(TimeSpan.FromSeconds(2));
+    var result = await controller.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    Equal<string?>(null, result.CaptureFailure?.Code);
+    Equal(LiveTranscriptionFailureCode.Network, result.Transcription.Failure!.Code);
+    Equal("connection lost", result.Transcription.Failure.Message);
+}
+
+// #1253 black-hole repro: connect hangs, so no attempt reads audio and capture fills
+// the buffer before the 15 s connect timeout can fire.
+static async Task HangingConnectFillsBuffer()
+{
+    using var capture = new FakeCapture();
+    await using var controller = new LiveStreamingSessionController(capture, new BlockingTranscriber());
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    for (var i = 0; i < 140; i++) capture.Emit([1, 0]);
+    var result = await controller.Completion!.WaitAsync(TimeSpan.FromSeconds(2));
+    Equal<string?>(null, result.CaptureFailure?.Code);
+    Equal(LiveTranscriptionFailureCode.Timeout, result.Transcription.Failure!.Code);
+    Equal("The streaming connection timed out.", result.Transcription.Failure.Message);
+}
+
+// Attempt 1 fails with Network; attempt 2 reads audio, then falls behind. The old
+// network failure must not relabel that genuine full buffer.
+static async Task BufferFullAfterReconnect()
+{
+    using var capture = new FakeCapture();
+    var transcriber = new NetworkThenBlockingTranscriber();
+    await using var controller = new LiveStreamingSessionController(capture, transcriber);
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    await transcriber.SecondAttempt.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    capture.Emit([1, 0]);
+    await transcriber.Blocking.FirstChunkRead.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    for (var i = 0; i < 140; i++) capture.Emit([1, 0]);
+    var result = await controller.Completion!.WaitAsync(TimeSpan.FromSeconds(2));
+    Equal("streaming_audio_buffer_full", result.CaptureFailure!.Code);
+    Equal(LiveTranscriptionFailureCode.Cancelled, result.Transcription.Failure!.Code);
+}
+
+// #1253: attempt 1 fails with a reconnectable Network failure and the buffer fills
+// during the back-off delay. The controller's own cancel must not escape as a
+// cancelled completion; the outcome reports the Network failure.
+static async Task BackOffFillKeepsNetworkFailure()
+{
+    using var capture = new FakeCapture();
+    var transcriber = new ReconnectOnceTranscriber();
+    await using var controller = new LiveStreamingSessionController(capture, transcriber);
+    var reconnecting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    controller.ConnectionStateChanged += (_, state) =>
+    {
+        if (state == LiveStreamingConnectionState.Reconnecting) reconnecting.TrySetResult();
+    };
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    for (var i = 0; i < 140; i++) capture.Emit([1, 0]);
+    var result = await controller.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    Equal(1, transcriber.Calls);
+    Equal<string?>(null, result.CaptureFailure?.Code);
+    Equal(LiveTranscriptionFailureCode.Network, result.Transcription.Failure!.Code);
+    Equal("temporary", result.Transcription.Failure.Message);
+}
+
+// A user cancel during the back-off keeps its behaviour: the completion is cancelled.
+static async Task BackOffUserCancel()
+{
+    using var capture = new FakeCapture();
+    var transcriber = new ReconnectOnceTranscriber();
+    await using var controller = new LiveStreamingSessionController(capture, transcriber);
+    var reconnecting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    controller.ConnectionStateChanged += (_, state) =>
+    {
+        if (state == LiveStreamingConnectionState.Reconnecting) reconnecting.TrySetResult();
+    };
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    var cancelled = false;
+    try { await controller.CancelAsync().WaitAsync(TimeSpan.FromSeconds(2)); }
+    catch (OperationCanceledException) { cancelled = true; }
+    True(cancelled);
+    True(controller.Completion!.IsCanceled);
+    Equal(1, transcriber.Calls);
+}
+
+static async Task LateChunkAfterStop()
+{
+    using var capture = new FakeCapture();
+    var transcriber = new GatedTranscriber();
+    await using var controller = new LiveStreamingSessionController(capture, transcriber);
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    capture.Emit([1, 0]);
+    var stop = controller.StopAsync();
+    await transcriber.Drained.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    capture.Emit([2, 0]);
+    transcriber.Release.TrySetResult();
+    var result = await stop.WaitAsync(TimeSpan.FromSeconds(2));
+    Equal<string?>(null, result.CaptureFailure?.Code);
+    True(result.IsSuccess);
 }
 
 static async Task SynchronousCaptureCallbacks()
@@ -518,8 +636,13 @@ sealed class CollectingTranscriber : ILiveCloudTranscriber
     }
 }
 
+// Waits on its token like a hanging connect; with ReadsFirstChunk it is a transport
+// that read audio and then fell behind.
 sealed class BlockingTranscriber : ILiveCloudTranscriber
 {
+    public bool ReadsFirstChunk { get; init; }
+    public TaskCompletionSource FirstChunkRead { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public async Task<LiveTranscriptionResult> TranscribeAsync(
         LiveTranscriptionConfig config,
         IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
@@ -527,6 +650,13 @@ sealed class BlockingTranscriber : ILiveCloudTranscriber
     {
         try
         {
+            if (ReadsFirstChunk)
+            {
+                await using var reader = audio.GetAsyncEnumerator(cancellationToken);
+                await reader.MoveNextAsync();
+                FirstChunkRead.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             throw new InvalidOperationException("Unreachable");
         }
@@ -535,6 +665,53 @@ sealed class BlockingTranscriber : ILiveCloudTranscriber
             return new(null, new LiveTranscriptionFailure(
                 LiveTranscriptionFailureCode.Cancelled, "cancelled", config.Provider), 0, 0);
         }
+    }
+}
+
+sealed class NetworkFailureTranscriber : ILiveCloudTranscriber
+{
+    public Task<LiveTranscriptionResult> TranscribeAsync(
+        LiveTranscriptionConfig config,
+        IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new LiveTranscriptionResult(null, new LiveTranscriptionFailure(
+            LiveTranscriptionFailureCode.Network, "connection lost", config.Provider, IsTerminal: true), 0, 0));
+}
+
+sealed class NetworkThenBlockingTranscriber : ILiveCloudTranscriber
+{
+    private int _calls;
+    public BlockingTranscriber Blocking { get; } = new() { ReadsFirstChunk = true };
+    public TaskCompletionSource SecondAttempt { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public Task<LiveTranscriptionResult> TranscribeAsync(
+        LiveTranscriptionConfig config,
+        IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
+        CancellationToken cancellationToken = default)
+    {
+        if (++_calls == 1)
+            return Task.FromResult(new LiveTranscriptionResult(null, new LiveTranscriptionFailure(
+                LiveTranscriptionFailureCode.Network, "connection lost", config.Provider), 0, 0));
+        SecondAttempt.TrySetResult();
+        return Blocking.TranscribeAsync(config, audio, cancellationToken);
+    }
+}
+
+sealed class GatedTranscriber : ILiveCloudTranscriber
+{
+    public TaskCompletionSource Drained { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public async Task<LiveTranscriptionResult> TranscribeAsync(
+        LiveTranscriptionConfig config,
+        IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
+        CancellationToken cancellationToken = default)
+    {
+        var chunks = 0;
+        await foreach (var _ in audio) chunks++;
+        Drained.TrySetResult();
+        await Release.Task;
+        return new("gated final", null, chunks, 1);
     }
 }
 

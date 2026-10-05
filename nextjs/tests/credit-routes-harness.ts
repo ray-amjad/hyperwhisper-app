@@ -25,6 +25,8 @@ import { mock } from "node:test";
 
 import { NextRequest } from "next/server";
 
+import { formatLogArgs } from "./db-error-fixture";
+
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
 export interface UpdateAccountKeyCall {
@@ -135,7 +137,7 @@ export function silenceRouteLogging(): void {
   const capture =
     (level: string) =>
     (...args: unknown[]): void => {
-      logLines.push(`${level} ${args.map((a) => String(a)).join(" ")}`);
+      logLines.push(`${level} ${formatLogArgs(args)}`);
     };
   console.error = capture("error");
   console.log = capture("log");
@@ -256,3 +258,5 @@ export const loadCheckoutCreditsRoute = () =>
   import("@/app/api/checkout/credits/route");
 export const loadLicenseCreditsRoute = () =>
   import("@/app/api/license/credits/route");
+export const loadAccountCreditsRoute = () =>
+  import("@/app/api/account/credits/route");

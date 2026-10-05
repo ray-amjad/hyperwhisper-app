@@ -240,7 +240,13 @@ export async function POST(req: NextRequest) {
   let rawBody: string;
   try {
     rawBody = await req.text();
-  } catch {
+  } catch (err) {
+    // Log only the content type, never a header that carries the token or a
+    // signature: this line is the one trace a rejected delivery leaves.
+    console.error("[add-blog-post] could not read request body", {
+      contentType: req.headers.get("content-type"),
+      err,
+    });
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
@@ -266,7 +272,15 @@ export async function POST(req: NextRequest) {
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawBody);
-  } catch {
+  } catch (err) {
+    // The byte count, the content type and the error's name, never the body.
+    // The SyntaxError's message quotes the start of the input (a short body
+    // in full), so neither the message nor the error object is logged here.
+    console.error("[add-blog-post] request body is not valid JSON", {
+      contentType: req.headers.get("content-type"),
+      bodyBytes: Buffer.byteLength(rawBody, "utf8"),
+      errorName: err instanceof Error ? err.name : typeof err,
+    });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 

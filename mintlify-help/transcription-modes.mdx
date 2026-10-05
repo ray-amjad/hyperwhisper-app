@@ -13,7 +13,7 @@ Press the **Change Mode** shortcut from any app to go through your modes. After 
 
 <Tabs>
   <Tab title="macOS">
-    Default shortcut: `⌃⇧K` (Control+Shift+K). To change it, go to **Settings → Shortcuts**.
+    Default shortcut: `⌃⇧K` (Control+Shift+K). To change it, go to **Settings → Keyboard Shortcuts**.
   </Tab>
   <Tab title="Windows">
     Default shortcut: `Ctrl+Shift+.`. To change it, go to **Settings → Shortcuts**.
@@ -173,7 +173,7 @@ Streaming transcription shows the words while you speak. It does not wait until 
 
 <Tabs>
   <Tab title="macOS">
-    Default shortcut: `⌥⇧Space` (Option+Shift+Space). To change it, go to **Settings → Shortcuts**.
+    Default shortcut: `⌥⇧Space` (Option+Shift+Space). To change it, go to **Settings → Keyboard Shortcuts**.
 
     To turn streaming on or off, and to set its language, go to **Settings → Streaming**.
   </Tab>
@@ -232,6 +232,8 @@ You set this value for each mode, and HyperWhisper sends it to the cloud backend
   </Step>
   <Step title="Set your transcription source, engine, and language">
     Select On Device, HyperWhisper Cloud, or Your Provider. For HyperWhisper Cloud, also select an STT engine. Set the language, or keep Auto.
+
+    On macOS, a new mode starts on HyperWhisper Cloud. If you have no active HyperWhisper Cloud account key and a local model is in the On Device list, a new mode starts on On Device instead, with post-processing set to Off. The mode then uses the first model in the On Device list, and it skips Apple Speech when you downloaded a different model. On macOS 26, Apple Speech is in the list when the system supports it. In that case, a new mode without an account key always starts on On Device.
   </Step>
   <Step title="Configure post-processing">
     Select Off, Cloud, or Local. For Cloud, you can also select a post-processing engine and model. To give more instructions, add a system prompt.

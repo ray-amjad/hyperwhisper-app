@@ -11,6 +11,7 @@ import {
   providerHttpError,
   readErrorBodyPreview,
   readRequiredJsonString,
+  readPollJson,
   splitVocabularyTerms,
   upstreamDurationOrNull,
 } from './utils';
@@ -484,5 +485,53 @@ describe('upstreamDurationOrNull (issue #381)', () => {
     expect(parsed.duration > 0).toBe(true);
     expect(upstreamDurationOrNull(parsed.duration)).toBeNull();
     expect(upstreamDurationOrNull(-Infinity)).toBeNull();
+  });
+});
+
+describe('readPollJson (poll body read/parse with a content-free parse_error)', () => {
+  async function run(resp: Response) {
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    try {
+      const job = await readPollJson<{ status?: string }>('test', resp, 3, { requestId: 'r1' });
+      return { job, logged };
+    } finally {
+      console.log = originalLog;
+    }
+  }
+
+  test('a valid body parses and logs nothing', async () => {
+    const { job, logged } = await run(new Response('{"status":"completed"}'));
+    expect(job).toEqual({ status: 'completed' });
+    expect(logged).toEqual([]);
+  });
+
+  test('a malformed body returns undefined and logs its shape, never its text', async () => {
+    const body = '<html>SECRET transcript</html>';
+    const { job, logged } = await run(new Response(body, { headers: { 'content-type': 'text/html' } }));
+    expect(job).toBeUndefined();
+    expect(logged).toEqual([['provider.parse_error', {
+      provider: 'test', requestId: 'r1', attempt: undefined,
+      phase: 'poll', failure: 'parse', polls: 3, contentType: 'text/html', contentEncoding: 'none',
+      bodyLength: body.length, bodyKind: 'html',
+    }]]);
+    expect(JSON.stringify(logged)).not.toContain('SECRET');
+  });
+
+  test('a body that fails to read returns undefined and logs only the error name', async () => {
+    const resp = new Response(new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode('{"text":"SECRET'));
+        c.error(new Error('reset SECRET'));
+      },
+    }));
+    const { job, logged } = await run(resp);
+    expect(job).toBeUndefined();
+    expect(logged).toEqual([['provider.parse_error', {
+      provider: 'test', requestId: 'r1', attempt: undefined,
+      phase: 'poll', failure: 'read', polls: 3, contentType: 'unknown', contentEncoding: 'none', errorName: 'Error',
+    }]]);
+    expect(JSON.stringify(logged)).not.toContain('SECRET');
   });
 });

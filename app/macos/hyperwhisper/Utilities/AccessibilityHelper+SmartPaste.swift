@@ -55,7 +55,9 @@ extension AccessibilityHelper {
     /// - Non-blocking: Uses Task.sleep instead of Thread.sleep
     /// - Cancellable: Checks for cancellation between operations
     /// - Single-flight: Cancels any existing paste before starting
-    /// - Always schedules clipboard restoration
+    /// - Schedules clipboard restoration (if enabled) only after a paste into a
+    ///   target that is not a remote-desktop client, or when a secure field or the
+    ///   onboarding gate withholds the text; every other exit schedules none
     ///
     /// **RESPONSIBILITIES:**
     /// - Check accessibility permissions
@@ -216,6 +218,8 @@ extension AccessibilityHelper {
                 // No restoration: nothing was pasted, so the timer would only wipe
                 // the transcript the user now needs for a manual Cmd+V (#783).
                 copyToClipboard(text)
+                keepClipboardSnapshotForNextRecording(transcriptChangeCount: NSPasteboard.general.changeCount,
+                                                      settings: settings)
                 // Both branches return `.noFocusedField` to the caller, which
                 // cannot tell them apart. Report them separately: a lost target
                 // means the app quit or its PID was reused mid-recording, an
@@ -231,6 +235,8 @@ extension AccessibilityHelper {
 
             // Skip ConcealedType for remote desktop apps — their clipboard forwarding may ignore concealed items
             copyToClipboard(text, skipConcealedType: isRemoteDesktop)
+            // Read now, so a later write (the user's own copy) breaks the match (#1061).
+            let transcriptChangeCount = NSPasteboard.general.changeCount
 
             // Check for secure field
             if MainActorHangTrace.shared.withActive(
@@ -280,15 +286,20 @@ extension AccessibilityHelper {
                 step: .inspectFocusedElement,
                 { self.canPasteIntoFocusedElement() }
             ) {
-                logger.info("ℹ️ No paste target focused. Text on clipboard, scheduling restoration if enabled.")
-                scheduleClipboardRestoration(settings: settings)
+                logger.info("ℹ️ No paste target focused. Text left on clipboard.")
+                // No restoration: nothing was pasted, the dialog stays open, and the
+                // transcript is left on the clipboard for a manual Cmd+V, so a restore
+                // would only overwrite it (#1034).
+                keepClipboardSnapshotForNextRecording(transcriptChangeCount: transcriptChangeCount,
+                                                      settings: settings)
                 self.reportPasteOutcome(.noFocusedField, attempt: attempt)
                 return .noFocusedField
             }
 
             // Check cancellation before paste
             if Task.isCancelled {
-                scheduleClipboardRestoration(settings: settings)
+                // No restoration: nothing was pasted, and the newer paste that
+                // cancelled this one owns the clipboard from here (#1034).
                 self.reportPasteOutcome(.cancelled, attempt: attempt)
                 return .failed(CancellationError())
             }
@@ -305,8 +316,6 @@ extension AccessibilityHelper {
                 { self.sendPasteCommand() }
             )
             if !pasteSucceeded {
-                // Always schedule restoration even on failure
-                scheduleClipboardRestoration(settings: settings)
                 // `sendPasteCommand` returns false for five different reasons and
                 // reports none of them back. Re-test the three cheap ones so a
                 // healthy app is not filed as a defect: the user can revoke the
@@ -327,6 +336,16 @@ extension AccessibilityHelper {
                     failureOutcome = .noFocusedField
                 } else {
                     failureOutcome = .commandFailed
+                }
+                // Restore only for the onboarding gate, which withholds the text on
+                // purpose like a secure field. Every other failure pasted nothing: the
+                // dialog stays open and the transcript is left on the clipboard for a
+                // manual Cmd+V, so a restore would only overwrite it (#1034).
+                if failureOutcome.withholdsTextOnPurpose {
+                    scheduleClipboardRestoration(settings: settings)
+                } else {
+                    keepClipboardSnapshotForNextRecording(transcriptChangeCount: transcriptChangeCount,
+                                                          settings: settings)
                 }
                 self.reportPasteOutcome(failureOutcome, attempt: attempt)
                 return .failed(NSError(domain: "AccessibilityHelper",

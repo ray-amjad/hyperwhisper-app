@@ -27,9 +27,11 @@ import {
   loadGrantedEmailsRoute,
   loadLicensesForEmailRoute,
   resetHarness,
+  logLines,
   restoreRouteLogging,
   silenceRouteLogging,
 } from "./license-read-routes-harness";
+import { LEAKY_EMAIL, leakyDbError, leakyLines, SESSION_INDEX } from "./db-error-fixture";
 
 const realSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
 
@@ -421,4 +423,48 @@ test("profile answers 500 when the read fails", async () => {
 
   assert.equal(response.status, 500);
   assert.deepEqual(await readJson(response), { error: "Internal server error" });
+});
+
+// ---------------------------------------------------------------------------
+// #1049: a DrizzleQueryError (SQL + bound email and licence key) stays out of
+// the log line and the body on every route above that logs a fault.
+// ---------------------------------------------------------------------------
+
+/** Nothing leaks, and the redacted diagnosis (the constraint) is still logged. */
+async function assertRedacted500(response: Response): Promise<void> {
+  const text = await response.text();
+  assert.equal(response.status, 500);
+  assert.deepEqual(JSON.parse(text), { error: "Internal server error" });
+  assert.deepEqual(leakyLines([text]), [], text);
+  assert.deepEqual(leakyLines(logLines), [], logLines.join("\n"));
+  assert.ok(logLines.some((line) => line.includes(SESSION_INDEX)), logLines.join("\n"));
+}
+
+test("grant-license logs a failed mint redacted (#1049)", async () => {
+  logLines.length = 0;
+  behaviour.mintError = leakyDbError();
+  const { POST } = await loadGrantLicenseRoute();
+
+  await assertRedacted500(
+    await POST(internalPost("/api/internal/grant-license", { email: LEAKY_EMAIL })),
+  );
+});
+
+test("licenses-for-email logs a failed read redacted (#1049)", async () => {
+  logLines.length = 0;
+  behaviour.lookupError = leakyDbError();
+  const { POST } = await loadLicensesForEmailRoute();
+
+  await assertRedacted500(
+    await POST(internalPost("/api/internal/licenses-for-email", { email: LEAKY_EMAIL })),
+  );
+});
+
+test("profile logs a failed read redacted (#1049)", async () => {
+  logLines.length = 0;
+  behaviour.session = { user: { id: "user_1", email: LEAKY_EMAIL } };
+  behaviour.lookupError = leakyDbError();
+  const { GET } = await loadCustomerProfileRoute();
+
+  await assertRedacted500(await GET(customerGet()));
 });
