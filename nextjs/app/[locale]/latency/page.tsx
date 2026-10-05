@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import LatencyMatrix from "@/components/latency/LatencyMatrix";
 import { getAllLatencyMatrices } from "@/src/content/latency";
 import { DEFAULT_BUCKET, WINDOW_DAYS } from "@/lib/latency/types";
+import { englishStaticPageMetadata } from "@/lib/site-metadata";
 
 export const dynamic = "force-static";
 export const revalidate = 3600;
@@ -12,13 +13,11 @@ const DESCRIPTION =
   `How fast each speech-to-text provider actually answers HyperWhisper Cloud, by region and by model, over the last ${WINDOW_DAYS} days.`;
 
 export async function generateMetadata() {
-  return {
+  return englishStaticPageMetadata({
+    path: "/latency",
     title: TITLE,
     description: DESCRIPTION,
-    alternates: {
-      canonical: "https://hyperwhisper.com/en/latency",
-    },
-  };
+  });
 }
 
 type Props = {

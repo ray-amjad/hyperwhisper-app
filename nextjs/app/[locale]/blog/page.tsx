@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "@/src/i18n/navigation";
 import { getBlogPosts } from "@/src/content/blog";
 import { formatLongUTCDate } from "@/lib/format-date";
+import { englishStaticPageMetadata } from "@/lib/site-metadata";
 
 export const dynamic = "force-static";
 export const revalidate = 60;
@@ -13,10 +14,11 @@ type Props = {
 };
 
 export async function generateMetadata() {
-  return {
+  return englishStaticPageMetadata({
+    path: "/blog",
     title: "Blog",
     description: "Guides, comparisons, and updates about HyperWhisper.",
-  };
+  });
 }
 
 export default async function BlogPage({ params }: Props) {
