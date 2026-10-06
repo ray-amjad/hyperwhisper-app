@@ -53,6 +53,19 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
     }
 
     /// <summary>
+    /// The first row of <see cref="ListAsync"/> and the row count, without reading the rest of the
+    /// table. History uses it after a save to add the one new row instead of reloading them all (#997).
+    /// </summary>
+    public async Task<(Transcript? Newest, int Total)> GetNewestAsync(CancellationToken cancellationToken = default)
+    {
+        await using var context = _database.CreateContext();
+        var newest = await context.Transcripts.AsNoTracking()
+            .OrderByDescending(item => item.Date)
+            .FirstOrDefaultAsync(cancellationToken);
+        return (newest, await context.Transcripts.CountAsync(cancellationToken));
+    }
+
+    /// <summary>
     /// One Local API <c>/recordings</c> page, filtered, counted and limited in
     /// SQL rather than over the whole table (issue #1087). The match rule is
     /// the one the endpoint always had: <c>Contains(term, OrdinalIgnoreCase)</c>

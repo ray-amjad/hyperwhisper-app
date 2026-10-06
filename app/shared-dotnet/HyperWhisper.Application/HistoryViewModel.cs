@@ -40,6 +40,9 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     private bool _disposed;
     private bool _lastQueryWasFiltered;
     private string _hotkeyInstruction = string.Empty;
+    // True while a load adds its rows. Each Items.Add would otherwise rebuild every group (and
+    // call ToLocalTime on every row), so a load of n rows cost O(n²) (#997).
+    private bool _suspendGroupRebuild;
     public HistoryViewModel(
         HistoryRepository repository,
         IAudioPlaybackService? playback = null,
@@ -70,7 +73,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             _playback.DurationReady += OnPlaybackDurationReady;
             _playback.PlaybackFailed += OnPlaybackFailed;
         }
-        Items.CollectionChanged += (_, _) => RebuildGroups();
+        Items.CollectionChanged += (_, _) => { if (!_suspendGroupRebuild) RebuildGroups(); };
     }
     public ObservableCollection<Transcript> Items { get; } = new();
     /// <summary>
@@ -215,7 +218,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         {
             _lastQueryWasFiltered = false;
             Items.Clear();
-            foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item);
+            ReplaceItems(await _repository.ListAsync(cancellationToken));
             UpdateSelection(Items.Take(1));
             Status.Success(Items.Count == 0 ? "No transcripts yet" : $"{Items.Count} transcript(s)");
         }
@@ -237,12 +240,50 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             Items.Clear();
             var fromUtc = StartDate is { } from ? LocalDateStartUtc(from) : (DateTime?)null;
             var toUtcExclusive = EndDate is { } to ? LocalDateStartUtc(to, dayOffset: 1) : (DateTime?)null;
-            foreach (var item in await _repository.SearchAsync(
-                SearchText, fromUtc, toUtcExclusive, cancellationToken)) Items.Add(item);
+            ReplaceItems(await _repository.SearchAsync(
+                SearchText, fromUtc, toUtcExclusive, cancellationToken));
             UpdateSelection(Items.Take(1));
             Status.Success($"{Items.Count} matching transcript(s)");
         }
         catch (Exception) { Status.Failure("history.search_failed", "Could not search transcript history."); }
+    }
+
+    /// <summary>
+    /// Shows a transcription the workflow has just saved. When the list holds every transcript and
+    /// that row is the only one missing from it, the row is added at the top; otherwise this is
+    /// <see cref="RefreshAsync"/>. Either way the list, its groups, the selection and the status
+    /// end as a full reload leaves them (#997).
+    /// </summary>
+    /// <remarks>
+    /// A filtered list falls back to <see cref="RefreshAsync"/>, which is what a save always did.
+    /// </remarks>
+    public async Task RefreshAfterSaveAsync(CancellationToken cancellationToken = default)
+    {
+        if (_lastQueryWasFiltered) { await RefreshAsync(cancellationToken); return; }
+        Transcript? newest;
+        int total;
+        try { (newest, total) = await _repository.GetNewestAsync(cancellationToken); }
+        catch (Exception) { await RefreshAsync(cancellationToken); return; }
+        // Re-checked after the await: a search or another load may have run meanwhile.
+        if (_lastQueryWasFiltered || newest is null || total != Items.Count + 1
+            || (Items.Count > 0 && newest.Date < Items[0].Date)
+            || Items.Any(item => item.Id == newest.Id))
+        {
+            await RefreshAsync(cancellationToken);
+            return;
+        }
+        Status.Busy("Loading history…");
+        _suspendGroupRebuild = true;
+        try { Items.Insert(0, newest); }
+        finally
+        {
+            _suspendGroupRebuild = false;
+            // A full rebuild, not a header insert: the Linux list drops its own selection on this
+            // reset exactly as it did on the reload, and Today/Yesterday are recomputed.
+            RebuildGroups();
+        }
+        UpdateSelection(Items.Take(1));
+        Status.Success($"{Items.Count} transcript(s)");
     }
 
     public async Task ClearFiltersAsync(CancellationToken cancellationToken = default)
@@ -265,12 +306,31 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Adds a whole query result to <see cref="Items"/> with one group rebuild at the end, not one
+    /// per row. The caller has already cleared <see cref="Items"/>.
+    /// </summary>
+    private void ReplaceItems(IEnumerable<Transcript> rows)
+    {
+        _suspendGroupRebuild = true;
+        try { foreach (var item in rows) Items.Add(item); }
+        finally
+        {
+            _suspendGroupRebuild = false;
+            RebuildGroups();
+        }
+    }
+
+    /// <summary>How many times <see cref="GroupedItems"/> was rebuilt; the tests pin one per load.</summary>
+    internal int GroupRebuildCount { get; private set; }
+
+    /// <summary>
     /// Rebuilds <see cref="GroupedItems"/> from <see cref="Items"/>, inserting one
     /// <see cref="HistoryDateGroup"/> ahead of every new local day. The repository already
     /// returns newest first, so a single pass is enough.
     /// </summary>
     private void RebuildGroups()
     {
+        GroupRebuildCount++;
         GroupedItems.Clear();
         var today = DateTime.Now.Date;
         var yesterday = today.AddDays(-1);
