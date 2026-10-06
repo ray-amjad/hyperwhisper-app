@@ -822,6 +822,9 @@
   <data name="transcripts.delete.multiple.message" xml:space="preserve">
     <value>{0}件の録音とその音声ファイルを完全に削除します。この操作は元に戻せません。</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>何も削除されませんでした。履歴は変更されていません。もう一度試してください。</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

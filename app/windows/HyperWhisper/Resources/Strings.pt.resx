@@ -740,6 +740,9 @@
 
 Esta ação não pode ser desfeita.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Nada foi excluído. Seu histórico não foi alterado. Tente novamente.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

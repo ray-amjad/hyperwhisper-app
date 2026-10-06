@@ -740,6 +740,9 @@
 
 Ova radnja se ne može poništiti.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Ništa nije izbrisano. Povijest je nepromijenjena. Pokušajte ponovno.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

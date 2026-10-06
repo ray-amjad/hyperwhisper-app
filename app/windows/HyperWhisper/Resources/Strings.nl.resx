@@ -740,6 +740,9 @@
 
 Dit kan niet ongedaan worden gemaakt.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Er is niets verwijderd. Je geschiedenis is ongewijzigd. Probeer het opnieuw.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

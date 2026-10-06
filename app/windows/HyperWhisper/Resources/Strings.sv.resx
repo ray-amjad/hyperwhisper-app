@@ -740,6 +740,9 @@
 
 Denna åtgärd kan inte ångras.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Inget raderades. Din historik är oförändrad. Försök igen.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

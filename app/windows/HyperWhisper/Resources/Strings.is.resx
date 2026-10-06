@@ -740,6 +740,9 @@
 
 Þessa aðgerð er ekki hægt að afturkalla.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Engu var eytt. Ferillinn er óbreyttur. Reyndu aftur.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

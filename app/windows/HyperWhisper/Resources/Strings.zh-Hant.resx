@@ -740,6 +740,9 @@
 
 此操作無法復原。</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>未刪除任何內容。你的歷史記錄沒有變化。請重試。</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

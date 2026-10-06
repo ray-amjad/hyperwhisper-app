@@ -740,6 +740,9 @@
 
 Цю дію не можна скасувати.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Нічого не видалено. Історія не змінилася. Спробуйте ще раз.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

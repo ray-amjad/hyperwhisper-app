@@ -740,6 +740,9 @@
 
 Te akcije se ne da razveljaviti.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Nič ni bilo izbrisano. Zgodovina je nespremenjena. Poskusi znova.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

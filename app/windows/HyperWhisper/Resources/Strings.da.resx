@@ -740,6 +740,9 @@
 
 Denne handling kan ikke fortrydes.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Intet blev slettet. Din historik er uændret. Prøv igen.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

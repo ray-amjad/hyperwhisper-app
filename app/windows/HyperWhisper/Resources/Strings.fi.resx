@@ -740,6 +740,9 @@
 
 Tätä toimintoa ei voi perua.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Mitään ei poistettu. Historia on ennallaan. Yritä uudelleen.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

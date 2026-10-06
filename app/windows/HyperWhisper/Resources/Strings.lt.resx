@@ -740,6 +740,9 @@
 
 Šis veiksmas negali būti atšauktas.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Niekas nebuvo ištrinta. Istorija nepakito. Bandykite dar kartą.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

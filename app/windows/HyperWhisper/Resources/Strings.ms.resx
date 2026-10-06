@@ -740,6 +740,9 @@
 
 Tindakan ini tidak boleh dibuat asal.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Tiada apa-apa yang dipadamkan. Sejarah anda tidak berubah. Cuba lagi.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

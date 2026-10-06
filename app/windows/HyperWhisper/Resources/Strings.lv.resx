@@ -740,6 +740,9 @@
 
 Šo darbību nevar atsaukt.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Nekas netika izdzēsts. Vēsture nav mainīta. Mēģiniet vēlreiz.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

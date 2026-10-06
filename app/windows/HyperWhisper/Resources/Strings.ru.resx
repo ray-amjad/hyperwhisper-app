@@ -740,6 +740,9 @@
 
 Это действие невозможно отменить.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Ничего не удалено. История не изменилась. Попробуйте снова.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

@@ -740,6 +740,9 @@
 
 Hành động này không thể được hoàn tác.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Không có mục nào bị xóa. Lịch sử của bạn không thay đổi. Hãy thử lại.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">
