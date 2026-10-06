@@ -229,6 +229,8 @@ public partial class StorageSettingsPage : Page
                 DeleteNowButton.Content = Loc.S("settings.storage.autoDelete.deleteNow");
                 UpdateLastCleanupInfo();
 
+                // For a delete SQLite refused, AutoDeleteService's inner exception carries the
+                // localized transcripts.delete.failed copy, not EF's raw text (#974).
                 WpfMessageBox.Show(
                     Loc.S("settings.storage.autoDelete.deleteFailed.message", ex.InnerException?.Message ?? ex.Message),
                     Loc.S("settings.storage.autoDelete.deleteFailed.title"),

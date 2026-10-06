@@ -740,6 +740,9 @@
 
 Túto akciu sa nedá vrátiť.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Nič sa neodstránilo. História zostala bez zmeny. Skúste to znova.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

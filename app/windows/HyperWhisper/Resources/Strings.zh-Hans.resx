@@ -822,6 +822,9 @@
   <data name="transcripts.delete.multiple.message" xml:space="preserve">
     <value>这将永久删除 {0} 条录音及其音频文件。此操作无法撤销。</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>未删除任何内容。你的历史记录没有变化。请重试。</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

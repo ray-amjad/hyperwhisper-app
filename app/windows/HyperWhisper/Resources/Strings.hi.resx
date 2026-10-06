@@ -740,6 +740,9 @@
 
 यह कार्य को पूर्ववत नहीं किया जा सकता।</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>कुछ भी नहीं हटाया गया। आपका इतिहास पहले जैसा है। फिर से कोशिश करें।</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

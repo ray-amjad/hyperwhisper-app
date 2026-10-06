@@ -740,6 +740,9 @@
 
 Questa azione non può essere annullata.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Non è stato eliminato nulla. La cronologia è invariata. Riprova.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

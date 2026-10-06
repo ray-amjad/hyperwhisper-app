@@ -740,6 +740,9 @@
 
 Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Δεν διαγράφηκε τίποτα. Το ιστορικό σου δεν άλλαξε. Δοκίμασε ξανά.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

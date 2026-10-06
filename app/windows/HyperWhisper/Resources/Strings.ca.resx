@@ -740,6 +740,9 @@
 
 Aquesta acció no es pot desfer.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>No s'ha suprimit res. L'historial no ha canviat. Torna-ho a provar.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

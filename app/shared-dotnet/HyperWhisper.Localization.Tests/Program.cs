@@ -128,7 +128,9 @@ static void AllCatalogsLoad()
     // the catalog now.
     // 851 -> 852: `errors.microphoneSentNoAudio` is new (#750, PR #1355). Windows tells
     // the user the microphone sent no audio instead of "No speech detected".
-    Equal(852, PortableLocalizer.BaseKeyCount, "base key count");
+    // 852 -> 853: `transcripts.delete.failed` is new (#974). Windows History and
+    // Delete Now tell the user a delete SQLite refused removed nothing.
+    Equal(853, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

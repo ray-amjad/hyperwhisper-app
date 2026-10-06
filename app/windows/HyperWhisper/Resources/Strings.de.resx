@@ -740,6 +740,9 @@
 
 Diese Aktion kann nicht rückgängig gemacht werden.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Es wurde nichts gelöscht. Dein Verlauf ist unverändert. Versuch es erneut.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">
