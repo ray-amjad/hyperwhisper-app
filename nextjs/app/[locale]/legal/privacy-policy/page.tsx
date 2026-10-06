@@ -683,7 +683,7 @@ export default function PrivacyPolicyPage() {
         When the video player loads, Bunny.net receives your IP address,
         your browser user agent, and the address of the page (referrer). The
         player may record plays and watch time. We do
-        not send Bunny.net your email address, your account, your licence
+        not send Bunny.net your email address, your account, your license
         (Account Key), your audio, or your transcripts through the player.
       </p>
       <p>
