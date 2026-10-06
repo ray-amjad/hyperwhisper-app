@@ -252,13 +252,20 @@ public partial class MainWindow : Window
                 await StartTrayAsync(launching: false);
                 return;
             }
+            var initializesHere = _initialization is null;
             await EnsureInitializedAsync();
-            await new CrashAudioRecoveryService(
+            var recovery = await new CrashAudioRecoveryService(
                 _platformServices.Paths,
                 new HistoryRepository(_database, _platformServices.Paths),
                 () => _platformServices.AudioRecorder.IsRecording ? "active" : null)
                 .RecoverAsync(_lifetime.Token);
-            await _viewModel.History.RefreshAsync(_lifetime.Token);
+            // A successful InitializeAsync has just loaded History, so a second load at startup only
+            // repeats it (#997). Load again when recovery added rows, when startup failed anywhere
+            // (the shell status then holds the failure), or on a later Opened that did not run
+            // InitializeAsync (#833).
+            if (!initializesHere || recovery.Recovered > 0 || _viewModel.Status.HasError
+                || _viewModel.History.Status.HasError)
+                await _viewModel.History.RefreshAsync(_lifetime.Token);
             await InitializeOnboardingAsync();
             await WriteDiagnosticAsync(DiagnosticSeverity.Information, DiagnosticComponent.Application, DiagnosticOutcome.Started);
             await ApplyLocalApiSettingsAsync(_lifetime.Token);

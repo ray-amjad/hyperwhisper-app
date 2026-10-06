@@ -40,6 +40,9 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     private bool _disposed;
     private bool _lastQueryWasFiltered;
     private string _hotkeyInstruction = string.Empty;
+    // True while a load adds its rows. Each Items.Add would otherwise rebuild every group (and
+    // call ToLocalTime on every row), so a load of n rows cost O(n²) (#997).
+    private bool _suspendGroupRebuild;
     public HistoryViewModel(
         HistoryRepository repository,
         IAudioPlaybackService? playback = null,
@@ -70,7 +73,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             _playback.DurationReady += OnPlaybackDurationReady;
             _playback.PlaybackFailed += OnPlaybackFailed;
         }
-        Items.CollectionChanged += (_, _) => RebuildGroups();
+        Items.CollectionChanged += (_, _) => { if (!_suspendGroupRebuild) RebuildGroups(); };
     }
     public ObservableCollection<Transcript> Items { get; } = new();
     /// <summary>
@@ -214,13 +217,20 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         try
         {
             _lastQueryWasFiltered = false;
-            Items.Clear();
-            foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item);
+            ReplaceItems(await _repository.ListAsync(cancellationToken));
             UpdateSelection(Items.Take(1));
             Status.Success(Items.Count == 0 ? "No transcripts yet" : $"{Items.Count} transcript(s)");
         }
-        catch (OperationCanceledException) { Status.Failure("history.cancelled", "History load cancelled"); }
-        catch (Exception) { Status.Failure("history.load_failed", "Could not load transcript history."); }
+        catch (OperationCanceledException)
+        {
+            ClearAfterFailedLoad();
+            Status.Failure("history.cancelled", "History load cancelled");
+        }
+        catch (Exception)
+        {
+            ClearAfterFailedLoad();
+            Status.Failure("history.load_failed", "Could not load transcript history.");
+        }
     }
 
     public async Task SearchAsync(CancellationToken cancellationToken = default)
@@ -234,15 +244,18 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         {
             _lastQueryWasFiltered = !string.IsNullOrWhiteSpace(SearchText)
                 || StartDate is not null || EndDate is not null;
-            Items.Clear();
             var fromUtc = StartDate is { } from ? LocalDateStartUtc(from) : (DateTime?)null;
             var toUtcExclusive = EndDate is { } to ? LocalDateStartUtc(to, dayOffset: 1) : (DateTime?)null;
-            foreach (var item in await _repository.SearchAsync(
-                SearchText, fromUtc, toUtcExclusive, cancellationToken)) Items.Add(item);
+            ReplaceItems(await _repository.SearchAsync(
+                SearchText, fromUtc, toUtcExclusive, cancellationToken));
             UpdateSelection(Items.Take(1));
             Status.Success($"{Items.Count} matching transcript(s)");
         }
-        catch (Exception) { Status.Failure("history.search_failed", "Could not search transcript history."); }
+        catch (Exception)
+        {
+            ClearAfterFailedLoad();
+            Status.Failure("history.search_failed", "Could not search transcript history.");
+        }
     }
 
     public async Task ClearFiltersAsync(CancellationToken cancellationToken = default)
@@ -265,12 +278,43 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Replaces <see cref="Items"/> with a whole query result and rebuilds the groups exactly once,
+    /// not once per row (#997). The caller awaits the query first, so the clear and the adds run
+    /// together on one thread: the old rows stay on screen while the query runs, and two loads
+    /// that overlap cannot interleave their rows.
+    /// </summary>
+    internal void ReplaceItems(IEnumerable<Transcript> rows)
+    {
+        _suspendGroupRebuild = true;
+        try
+        {
+            Items.Clear();
+            foreach (var item in rows) Items.Add(item);
+        }
+        finally
+        {
+            _suspendGroupRebuild = false;
+            RebuildGroups();
+        }
+    }
+
+    /// <summary>
+    /// A failed or cancelled load leaves the list empty, as it did when the clear ran before the
+    /// query. Clear raises a reset, which rebuilds the groups, so no stale group is left behind.
+    /// </summary>
+    private void ClearAfterFailedLoad() => Items.Clear();
+
+    /// <summary>How many times <see cref="GroupedItems"/> was rebuilt; the tests pin one per load.</summary>
+    internal int GroupRebuildCount { get; private set; }
+
+    /// <summary>
     /// Rebuilds <see cref="GroupedItems"/> from <see cref="Items"/>, inserting one
     /// <see cref="HistoryDateGroup"/> ahead of every new local day. The repository already
     /// returns newest first, so a single pass is enough.
     /// </summary>
     private void RebuildGroups()
     {
+        GroupRebuildCount++;
         GroupedItems.Clear();
         var today = DateTime.Now.Date;
         var yesterday = today.AddDays(-1);
