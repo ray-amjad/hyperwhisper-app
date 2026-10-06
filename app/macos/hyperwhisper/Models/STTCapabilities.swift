@@ -392,17 +392,6 @@ enum STTCapabilities {
                 ]
             ),
             STTProviderSpec(
-                id: "hyperwhisper",
-                authKeyName: "",
-                models: [
-                    STTModelSpec(
-                        id: "nova-3",
-                        languages: STTLanguageTemplates.nova3General,
-                        notes: "HyperWhisper Cloud streaming (Deepgram Nova-3 backend)."
-                    )
-                ]
-            ),
-            STTProviderSpec(
                 id: "grok",
                 authKeyName: "Grok",
                 lastVerifiedAt: "2026-04-22",

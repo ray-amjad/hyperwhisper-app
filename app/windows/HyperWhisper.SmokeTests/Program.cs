@@ -4744,6 +4744,67 @@ internal static class Program
                     "the fallback tier must itself be offered, or the picker is blank by default");
             });
 
+            Run("StreamingSettingsPage language picker offers the selected provider's catalog set (#832)", () =>
+            {
+                // macOS keyed every cloud streaming provider on Deepgram Nova-3's list and
+                // this page bound all 126 rows whatever the provider. Both now resolve the
+                // provider to its shared-catalog entry and ask the catalog. The macOS half
+                // of this check is hyperwhisperTests/StreamingLanguagePickerTests.swift.
+                static string[] Codes(StreamingTranscriptionProvider provider, string? tier = null)
+                    => StreamingSettingsPage.AllowedLanguages(
+                            StreamingSettingsPage.LanguageCatalogEntryId(provider, tier))
+                        .Select(lang => lang.Code)
+                        .ToArray();
+
+                var elevenLabs = Codes(StreamingTranscriptionProvider.ElevenLabs);
+                Assert(elevenLabs.Contains("am"), "ElevenLabs streaming must offer Amharic (am)");
+                Assert(elevenLabs.Contains("sw"), "ElevenLabs streaming must offer Swahili (sw)");
+
+                var deepgram = Codes(StreamingTranscriptionProvider.Deepgram);
+                Assert(!deepgram.Contains("am"), "Deepgram streaming must not offer Amharic (am)");
+                Assert(!deepgram.Contains("sw"), "Deepgram streaming must not offer Swahili (sw)");
+                Assert(deepgram.Length < HyperWhisper.Models.LanguageInfo.AllLanguages.Length,
+                    "Deepgram streaming must not bind the unfiltered list");
+
+                // The provider -> entry mapping, one row per cloud provider.
+                Assert(StreamingSettingsPage.LanguageCatalogEntryId(StreamingTranscriptionProvider.Deepgram, null) == "deepgramNova3", "deepgram entry");
+                Assert(StreamingSettingsPage.LanguageCatalogEntryId(StreamingTranscriptionProvider.ElevenLabs, null) == "elevenLabsScribeV2", "elevenLabs entry");
+                Assert(StreamingSettingsPage.LanguageCatalogEntryId(StreamingTranscriptionProvider.OpenAI, null) == "openaiWhisper", "openAI entry");
+                Assert(StreamingSettingsPage.LanguageCatalogEntryId(StreamingTranscriptionProvider.GeminiTranscribe, null) == "geminiTranscribe", "gemini entry");
+                Assert(StreamingSettingsPage.LanguageCatalogEntryId(StreamingTranscriptionProvider.Xai, null) == "grokStt", "xai entry");
+
+                // HyperWhisper Cloud follows the selected live tier, clamped like the route.
+                foreach (var entry in HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared.StreamingCloudTierEntries())
+                {
+                    Assert(StreamingSettingsPage.LanguageCatalogEntryId(StreamingTranscriptionProvider.HyperWhisperCloud, entry.Id) == entry.Id,
+                        $"live tier {entry.Id} must reach the picker unchanged");
+                }
+                Assert(StreamingSettingsPage.LanguageCatalogEntryId(StreamingTranscriptionProvider.HyperWhisperCloud, "notATier") == "deepgramNova3",
+                    "an unknown live tier must clamp to the default tier");
+
+                // An unverified set keeps the full list.
+                Assert(Codes(StreamingTranscriptionProvider.GeminiTranscribe).Length == HyperWhisper.Models.LanguageInfo.AllLanguages.Length,
+                    "Gemini's unverified set must keep the full list");
+
+                // Region rows survive by primary subtag; Automatic stays first.
+                Assert(elevenLabs[0] == "auto", $"Automatic must be the first row, got {elevenLabs[0]}");
+                foreach (var regional in new[] { "en-GB", "en-US", "pt-BR" })
+                {
+                    if (HyperWhisper.Models.LanguageInfo.AllLanguages.Any(lang => lang.Code == regional))
+                        Assert(elevenLabs.Contains(regional), $"{regional} must survive a tier that declares its base code");
+                }
+
+                // A saved language outside the new set resets to Automatic, as macOS's
+                // enforceAllowedLanguage() does; one inside it is kept.
+                var deepgramRows = StreamingSettingsPage.AllowedLanguages("deepgramNova3");
+                Assert(StreamingSettingsPage.ResolveAllowedLanguage("sw", deepgramRows) == "auto",
+                    "a saved Swahili must reset when the provider is Deepgram");
+                Assert(StreamingSettingsPage.ResolveAllowedLanguage("en", deepgramRows) == "en",
+                    "a saved English must be kept on Deepgram");
+                Assert(StreamingSettingsPage.ResolveAllowedLanguage("sw", StreamingSettingsPage.AllowedLanguages("elevenLabsScribeV2")) == "sw",
+                    "a saved Swahili must be kept on ElevenLabs");
+            });
+
             Run("IStreamingProviderStrategy.IsTerminalCloseCode default covers the standard fatal WebSocket protocol codes", () =>
             {
                 // The terminal-code allowlist moved from a StreamingTranscriptionClient-private,
