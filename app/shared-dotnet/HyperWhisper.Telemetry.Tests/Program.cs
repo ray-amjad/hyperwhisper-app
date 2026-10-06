@@ -41,6 +41,7 @@ var tests = new (string Name, Action Run)[]
     ("each report kind carries the mechanism and handled flag the SDK integration set", ReportKindsCarryTheSdkMechanism),
     ("a fatal AppDomain exception reaches the transport before the process dies, as a crash", FatalAppDomainExceptionIsFlushedAsACrash),
     ("a sanitized report carries no capture-site thread stack", SanitizedReportCarriesNoCaptureSiteStack),
+    ("each frame splits into its type and its method, constructors and generated types included", FramesSplitIntoTypeAndMethod),
 };
 
 foreach (var test in tests)
@@ -861,6 +862,38 @@ static void ConcurrentInitializationCreatesOneSession()
     Task.WaitAll(calls);
     Assert.True(calls.All(call => call.Result));
     Assert.Equal(1, backend.InitializeCalls);
+}
+
+static void FramesSplitIntoTypeAndMethod()
+{
+    // A constructor's name starts with a dot, so a split at the last dot before
+    // "(" alone would give Module "Ns.Widget." and Function "ctor(String name)".
+    var cases = new (string Line, string Module, string Function)[]
+    {
+        ("   at Ns.Widget..ctor(String name)", "Ns.Widget", ".ctor(String name)"),
+        ("   at Ns.Widget..cctor()", "Ns.Widget", ".cctor()"),
+        ("   at Ns.Type`1.Method[T](T value, System.String text)", "Ns.Type`1", "Method[T](T value, System.String text)"),
+        ("   at Ns.Type.<Run>d__3.MoveNext()", "Ns.Type.<Run>d__3", "MoveNext()"),
+        ("   at Ns.Program.<>c.<Main>b__0_0()", "Ns.Program.<>c", "<Main>b__0_0()"),
+        ("   at Ns.Outer+Inner.M()", "Ns.Outer+Inner", "M()"),
+        ("   at Ns.Type.Method(Int32 x)", "Ns.Type", "Method(Int32 x)"),
+    };
+    var stack = string.Join('\n', cases.Select(c => c.Line));
+    var report = new TelemetryPrivacy.TelemetryReportedException(
+        new TelemetryPrivacy.SanitizedPart("System.InvalidOperationException", stack),
+        [],
+        stack);
+
+    var frames = report.ToSentryExceptions().Single().Stacktrace?.Frames
+        ?? throw new InvalidOperationException("no frames");
+    Assert.Equal(cases.Length, frames.Count);
+    for (var i = 0; i < cases.Length; i++)
+    {
+        // Sentry wants the oldest frame first: the last line is frame 0.
+        var frame = frames[cases.Length - 1 - i];
+        Assert.Equal(cases[i].Module, frame.Module);
+        Assert.Equal(cases[i].Function, frame.Function);
+    }
 }
 
 sealed class FakeBackend : ITelemetryBackend

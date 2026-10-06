@@ -330,6 +330,8 @@ internal static class TelemetryPrivacy
 
         /// <summary>
         /// "   at Ns.Type.Method(args)" → Module "Ns.Type", Function "Method(args)".
+        /// A constructor's name starts with its own dot: "Ns.Type..ctor(args)" →
+        /// Module "Ns.Type", Function ".ctor(args)" (".cctor()" the same way).
         /// Any other line (.NET's "--- End of stack trace ---" markers) is dropped.
         /// Sentry wants the oldest frame first; .NET writes the newest first.
         /// </summary>
@@ -343,6 +345,7 @@ internal static class TelemetryPrivacy
                 var call = line[3..];
                 var paren = call.IndexOf('(');
                 var dot = call.LastIndexOf('.', paren < 0 ? call.Length - 1 : paren);
+                if (dot > 0 && call[dot - 1] == '.') dot--;
                 frames.Add(dot <= 0
                     ? new SentryStackFrame { Function = call }
                     : new SentryStackFrame { Module = call[..dot], Function = call[(dot + 1)..] });
