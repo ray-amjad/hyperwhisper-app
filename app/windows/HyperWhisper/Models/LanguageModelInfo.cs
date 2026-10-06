@@ -78,7 +78,6 @@ public class LanguageModelInfo
         // Ultra-fast inference via specialized hardware
         new("openai/gpt-oss-120b", "GPT OSS 120B", PostProcessingProvider.Groq, "Fast, high quality"),
         new("openai/gpt-oss-20b", "GPT OSS 20B", PostProcessingProvider.Groq, "Fast, lightweight"),
-        new("qwen/qwen3.6-27b", "Qwen 3.6 27B", PostProcessingProvider.Groq, "Capable Qwen, strong quality-to-speed ratio"),
         new("qwen/qwen3.8-27b", "Qwen 3.8 27B", PostProcessingProvider.Groq, "Latest Qwen, strong quality-to-speed ratio"),
 
         // xAI Grok Models
@@ -156,6 +155,9 @@ public class LanguageModelInfo
         "llama-3.1-8b-instant" => "openai/gpt-oss-120b",
         "meta-llama/llama-4-scout-17b-16e-instruct" => "openai/gpt-oss-120b",
         "qwen/qwen3-32b" => "openai/gpt-oss-120b",
+        // Withdrawn from GroqCloud without a deprecation notice; gone from
+        // console.groq.com/docs/models.md since 2026-09-18 (#788) → qwen/qwen3.8-27b.
+        "qwen/qwen3.6-27b" => "qwen/qwen3.8-27b",
         // Cerebras: migrate models absent from the current public catalog.
         "llama-3.3-70b" => "gpt-oss-120b",
         // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03; it

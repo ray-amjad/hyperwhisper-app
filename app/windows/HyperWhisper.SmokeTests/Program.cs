@@ -1007,6 +1007,8 @@ internal static class Program
                     // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
                     ("gemma-4-31b", "qwen-3.8-27b"),
                     ("qwen-3-235b-a22b-instruct-2507", "gpt-oss-120b"),
+                    // #788: Groq withdrew qwen/qwen3.6-27b from GroqCloud without a notice.
+                    ("qwen/qwen3.6-27b", "qwen/qwen3.8-27b"),
                 };
 
                 foreach (var (oldId, replacement) in cases)
