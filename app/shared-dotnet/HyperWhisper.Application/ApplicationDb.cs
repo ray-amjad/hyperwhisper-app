@@ -19,6 +19,9 @@ public sealed class ApplicationDb(Func<HyperWhisperDbContext> createContext)
     public async Task MigrateAsync(CancellationToken cancellationToken = default)
     {
         await using var context = CreateContext();
+        // A kill inside a previous MigrateAsync leaves EF's lock row, and this
+        // call would then wait on it forever (#996).
+        await StaleMigrationLock.ClearAsync(context.Database, cancellationToken);
         await context.Database.MigrateAsync(cancellationToken);
     }
 

@@ -62,6 +62,7 @@ try
     }
 
     await RunDefaultModeInvariantTestsAsync(Path.Combine(root, "default-mode-invariant"));
+    await RunStaleMigrationLockTestsAsync(Path.Combine(root, "stale-migration-lock"));
 
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
@@ -1573,6 +1574,73 @@ static async Task RunCloudVendorPickerTestsAsync(string root)
         Assert(editor.CloudVendor.Length > 0, $"tier {tier} belongs to no company");
         Assert(editor.CloudTierModels.Count > 0, $"tier {tier} draws an empty Model row");
         Assert(!string.IsNullOrEmpty(editor.CloudTierModel), $"tier {tier} shows no model");
+    }
+}
+
+static async Task RunStaleMigrationLockTestsAsync(string root)
+{
+    // #996: EF Core 9 inserts a row into __EFMigrationsLock while MigrateAsync
+    // runs and deletes it only on a clean finish. A kill in between leaves the
+    // row, and every later MigrateAsync polls for it forever. The app is single
+    // instance, so a row seen before this process migrates is always stale.
+    var timeout = TimeSpan.FromSeconds(20);
+
+    // A fully migrated store with a leftover row: nothing is pending, but EF 9
+    // still takes the lock before it finds that out.
+    var migrated = new ApplicationDb(new TestPaths(Path.Combine(root, "migrated")));
+    await migrated.InitializeAsync();
+    await SeedMigrationLockRowAsync(migrated);
+    await FinishesWithinAsync(migrated.InitializeAsync, timeout,
+        "a leftover __EFMigrationsLock row hung InitializeAsync on a fully migrated store");
+    Assert(await CountMigrationLockRowsAsync(migrated) == 0,
+        "a clean InitializeAsync left a row in __EFMigrationsLock");
+
+    // The repro itself: killed during a migration, so migrations are still
+    // pending AND the row is there. Skipping MigrateAsync when nothing is
+    // pending could not cover this case.
+    var halfMigrated = new ApplicationDb(new TestPaths(Path.Combine(root, "half-migrated")));
+    await using (var context = halfMigrated.CreateContext())
+        await context.Database.GetService<IMigrator>().MigrateAsync("20260823180000_AddWordTimestamps");
+    await SeedMigrationLockRowAsync(halfMigrated);
+    await using (var context = halfMigrated.CreateContext())
+        Assert((await context.Database.GetPendingMigrationsAsync()).Any(),
+            "the half-migrated store has no pending migration, so this case proves nothing");
+    await FinishesWithinAsync(halfMigrated.InitializeAsync, timeout,
+        "a leftover __EFMigrationsLock row hung InitializeAsync on a half-migrated store");
+    await using (var context = halfMigrated.CreateContext())
+        Assert(!(await context.Database.GetPendingMigrationsAsync()).Any(),
+            "the half-migrated store still has pending migrations after recovery");
+    Assert(await CountMigrationLockRowsAsync(halfMigrated) == 0,
+        "recovery left a row in __EFMigrationsLock");
+}
+
+static async Task SeedMigrationLockRowAsync(ApplicationDb database)
+{
+    // The exact row EF 9's SqliteHistoryRepository.AcquireDatabaseLockAsync
+    // writes. A plain INSERT, not CREATE TABLE IF NOT EXISTS: EF itself created
+    // the table during the migration above, which is what a killed run leaves.
+    await using var context = database.CreateContext();
+    await context.Database.ExecuteSqlRawAsync(
+        "INSERT INTO \"__EFMigrationsLock\" (\"Id\", \"Timestamp\") VALUES (1, '2026-09-25 00:00:00+00:00')");
+    Assert(await CountMigrationLockRowsAsync(database) == 1, "the stale migration lock row was not seeded");
+}
+
+static async Task<int> CountMigrationLockRowsAsync(ApplicationDb database)
+{
+    await using var context = database.CreateContext();
+    return await context.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"__EFMigrationsLock\"").SingleAsync();
+}
+
+static async Task FinishesWithinAsync(Func<CancellationToken, Task> action, TimeSpan timeout, string message)
+{
+    using var cancellation = new CancellationTokenSource(timeout);
+    var task = action(cancellation.Token);
+    if (await Task.WhenAny(task, Task.Delay(timeout + TimeSpan.FromSeconds(5))) != task)
+        throw new InvalidOperationException($"{message} (still running after {timeout.TotalSeconds:0} s)");
+    try { await task; }
+    catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+    {
+        throw new InvalidOperationException($"{message} (cancelled after {timeout.TotalSeconds:0} s)");
     }
 }
 
