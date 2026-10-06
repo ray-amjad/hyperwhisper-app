@@ -9557,6 +9557,86 @@ internal static class Program
                     "an unconfigured provider was logged as a read failure");
             });
 
+            Run("issue #742: a failed write after the old key was deleted invalidates transcription health", () =>
+            {
+                // Placeholders, not real credentials. The backend deletes the stored
+                // value and then refuses the add, as PasswordVault can.
+                const string oldValue = "placeholder-old-742-aaaaaaaaaaaa";
+                const string newValue = "placeholder-new-742-bbbbbbbbbbbb";
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+                var backend = new DeleteThenFailAddCredentialBackend();
+                var service = new ApiKeyService(backend, health);
+
+                foreach (var (provider, write) in new (CloudTranscriptionProvider, Func<HyperWhisper.Platform.Abstractions.PlatformResult>)[]
+                {
+                    (CloudTranscriptionProvider.Deepgram, () => service.SetApiKey(TranscriptionApiKeyType.Deepgram, newValue)),
+                    (CloudTranscriptionProvider.OpenAI, () => service.SetApiKey(PostProcessingProvider.OpenAI, newValue)),
+                })
+                {
+                    backend.Seed(provider == CloudTranscriptionProvider.Deepgram
+                        ? TranscriptionApiKeyType.Deepgram.GetSettingName()
+                        : PostProcessingProvider.OpenAI.GetApiKeySettingName(), oldValue);
+                    health.SetCachedTranscriptionStatusForTests(provider, ProviderHealth.Healthy);
+                    var inFlight = health.CaptureTranscriptionCredentialGeneration(provider);
+
+                    var result = write();
+                    Assert(result.IsFailure && result.Error?.Code == "credential.write_failed",
+                        $"{provider}: the failed write was not reported: {result.Error?.Code ?? "success"}");
+                    Assert(backend.StoredCount == 0, $"{provider}: the fake backend did not delete before the add");
+
+                    // (a) The generation moved, so a probe of the deleted key is dropped.
+                    Assert(health.CaptureTranscriptionCredentialGeneration(provider) > inFlight,
+                        $"{provider}: a failed write left the credential generation unchanged");
+                    health.RecordTranscriptionOutcome(provider, inFlight, ProviderDown());
+                    Assert(health.GetHealthStatus(provider) == ProviderHealth.Unknown,
+                        $"{provider}: an in-flight outcome for the deleted key still landed: {health.GetHealthStatus(provider)}");
+
+                    // (b) The vault now holds no key, and health says so: no Healthy
+                    // verdict survives for a key that is gone.
+                    Assert(health.GetStatus(provider) == ProviderHealth.Unknown,
+                        $"{provider}: health kept {health.GetStatus(provider)} for a key the vault no longer holds");
+                }
+            });
+
+            Run("issue #742: a failed endpoint key write retires the endpoint's test verdict", () =>
+            {
+                const string oldValue = "placeholder-old-endpoint-742";
+                const string newValue = "placeholder-new-endpoint-742";
+                const string Url = "https://percy.example.com/v1/chat/completions";
+                var settings = SettingsService.Instance;
+                var saved = settings.CustomEndpoints;
+                settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+                try
+                {
+                    var backend = new DeleteThenFailAddCredentialBackend { FailAdds = false };
+                    using var client = new HttpClient(new CapturingHandler());
+                    using var manager = new CustomEndpointManager(client, new ApiKeyService(backend));
+
+                    var endpoint = manager.AddEndpoint("tested", Url, "m-1", out var addError, oldValue, lastTestSuccess: true);
+                    Assert(endpoint is not null, $"AddEndpoint refused a valid endpoint: {addError}");
+                    Assert(manager.GetEndpoint(endpoint!.Id)?.LastTestSuccess == true, "the passing test was not recorded");
+
+                    backend.FailAdds = true;
+                    Assert(!manager.UpdateEndpoint(endpoint.Id, out var editError, name: "renamed", apiKey: newValue),
+                        "UpdateEndpoint accepted an edit whose key write failed");
+                    Assert(editError == HyperWhisper.Localization.Loc.S("onboarding.setup.provider.saveFailed"),
+                        $"the refused edit gave the wrong message: {editError}");
+
+                    var after = manager.GetEndpoint(endpoint.Id);
+                    Assert(after is not null, "the endpoint vanished after a refused edit");
+                    Assert(manager.GetApiKey(endpoint.Id) == null, "the fake backend did not delete before the add");
+                    Assert(after!.LastTestSuccess is null && after.LastTestedAt is null,
+                        $"the endpoint kept its verdict ({after.LastTestSuccess}) for a key that may be gone");
+                    Assert(after.Name == "tested" && after.EndpointURL == Url && after.ModelName == "m-1",
+                        "a refused edit still changed the endpoint's name, URL or model");
+                }
+                finally
+                {
+                    settings.CustomEndpoints = saved;
+                }
+            });
+
             Run("issue #379 (c4): production API-key write mappings advance only the affected provider", () =>
             {
                 var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -17437,6 +17517,40 @@ internal static class Program
         }
 
         public void Delete(string resource, string account) { }
+    }
+
+    /// <summary>
+    /// Deletes the stored value, then (once <see cref="FailAdds"/> is set) refuses
+    /// the add: the PasswordVault write order that can lose the previous key.
+    /// </summary>
+    private sealed class DeleteThenFailAddCredentialBackend : IWindowsCredentialBackend
+    {
+        private const int AccessDenied = unchecked((int)0x80070005);
+        private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
+
+        public bool FailAdds { get; set; } = true;
+        public int StoredCount => _values.Count;
+
+        public void Seed(string account, string value) => _values[account] = value;
+
+        public bool TryRead(string resource, string account, out string? value)
+        {
+            var found = _values.TryGetValue(account, out var stored);
+            value = stored;
+            return found;
+        }
+
+        public void Write(string resource, string account, string value)
+        {
+            Delete(resource, account);
+            if (FailAdds)
+            {
+                throw new System.Runtime.InteropServices.COMException("Credential Manager refused the add.", AccessDenied);
+            }
+            _values[account] = value;
+        }
+
+        public void Delete(string resource, string account) => _values.Remove(account);
     }
 
     private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend

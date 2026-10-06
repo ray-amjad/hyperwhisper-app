@@ -52,6 +52,12 @@ public class ApiKeyService
     // so a vault failure can be told apart from "no key configured" (#742).
     private readonly IWindowsCredentialBackend _credentials;
 
+    // Null in the app, which uses the shared health service. The smoke suite
+    // passes its own instance so it can read the credential generation.
+    private readonly CloudProviderHealthService? _healthOverride;
+
+    private CloudProviderHealthService Health => _healthOverride ?? CloudProviderHealthService.Instance;
+
     public event EventHandler? ApiKeysChanged;
 
     // =========================================================================
@@ -66,9 +72,10 @@ public class ApiKeyService
     /// Test seam: the smoke suite injects a backend whose write throws, to prove a
     /// Credential Manager failure reaches the caller instead of being swallowed.
     /// </summary>
-    internal ApiKeyService(IWindowsCredentialBackend credentials)
+    internal ApiKeyService(IWindowsCredentialBackend credentials, CloudProviderHealthService? health = null)
     {
         _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
+        _healthOverride = health;
         LoggingService.Info("ApiKeyService: Initialized with Windows Credential Manager");
     }
 
@@ -107,12 +114,11 @@ public class ApiKeyService
             var settingName = provider.GetApiKeySettingName();
             if (string.IsNullOrEmpty(settingName)) return NoKeySlot();
             var result = SaveToVault(settingName, apiKey);
-            if (result.IsSuccess)
-            {
-                RegisterTranscriptionApiKeyChange(CloudProviderHealthService.Instance, provider, apiKey);
-            }
-            // Raised on failure too: the backend deletes before it adds, so a failed
-            // add can already have removed the previous key. Listeners re-read.
+            // Registered on failure too, with what the vault holds now: the backend
+            // deletes before it adds, so a failed add can already have removed the
+            // previous key. The generation bump drops any in-flight verdict for it.
+            RegisterTranscriptionApiKeyChange(Health, provider, StoredValueAfterWrite(settingName, apiKey, result));
+            // Raised on failure too, for the same reason. Listeners re-read.
             ApiKeysChanged?.Invoke(this, EventArgs.Empty);
             return result;
         }
@@ -211,10 +217,9 @@ public class ApiKeyService
             var settingName = type.GetSettingName();
             if (string.IsNullOrEmpty(settingName)) return NoKeySlot();
             var result = SaveToVault(settingName, apiKey);
-            if (result.IsSuccess)
-            {
-                RegisterTranscriptionApiKeyChange(CloudProviderHealthService.Instance, type, apiKey);
-            }
+            // See the PostProcessingProvider overload: a failed write still
+            // invalidates health, against the value the vault really holds.
+            RegisterTranscriptionApiKeyChange(Health, type, StoredValueAfterWrite(settingName, apiKey, result));
             ApiKeysChanged?.Invoke(this, EventArgs.Empty);
             return result;
         }
@@ -371,6 +376,19 @@ public class ApiKeyService
     {
         var result = RetrieveFromVault(settingName);
         return result.IsSuccess ? result.Value : null;
+    }
+
+    /// <summary>
+    /// The value Credential Manager holds after a write. On success that is the
+    /// value just written. On failure it is unknown: the backend deletes before it
+    /// adds, so the previous key may be gone. Read it back, and treat a read fault
+    /// as no key, so health never keeps a verdict for a key that is not there.
+    /// </summary>
+    private string? StoredValueAfterWrite(
+        string settingName, string? apiKey, PlatformContracts.PlatformResult writeResult)
+    {
+        if (writeResult.IsSuccess) return string.IsNullOrEmpty(apiKey) ? null : apiKey;
+        return ReadOrNull(settingName);
     }
 
     /// <summary>
