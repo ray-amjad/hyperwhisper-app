@@ -399,6 +399,8 @@ public class HistoryService
 
     /// <summary>
     /// Deletes a single transcript and its associated audio file.
+    /// Returns false when no transcript has that id. Throws the
+    /// <see cref="DbUpdateException"/> when SQLite refuses the delete.
     /// </summary>
     public bool DeleteTranscript(Guid id)
     {
@@ -423,8 +425,12 @@ public class HistoryService
             }
             catch (DbUpdateException ex)
             {
+                // Rethrow, as CreateTranscript and UpdateTranscript do. Returning
+                // false here read as "deleted" to every caller, so a delete SQLite
+                // refused ("database is locked") was reported as a success (#974).
+                // "Not found" above stays a plain false; it is not an error.
                 LoggingService.Error($"HistoryService: Failed to delete transcript {id}", ex);
-                return false;
+                throw;
             }
         }
 
@@ -438,6 +444,9 @@ public class HistoryService
     /// <summary>
     /// Deletes multiple transcripts and their associated audio files.
     /// More efficient than calling DeleteTranscript multiple times.
+    /// Returns 0 when none of the ids exist. Throws the
+    /// <see cref="DbUpdateException"/> when SQLite refuses the delete; it is one
+    /// SaveChanges, so then nothing was deleted.
     /// </summary>
     public int DeleteTranscripts(IEnumerable<Guid> ids)
     {
@@ -465,8 +474,11 @@ public class HistoryService
             }
             catch (DbUpdateException ex)
             {
-                LoggingService.Error("HistoryService: Failed to delete transcripts", ex);
-                return 0;
+                // Rethrow (#974): a 0 here stamped a refused Delete Now sweep as a
+                // completed cleanup and left History rows half-deleted. Log the
+                // count and the exception only, never transcript text.
+                LoggingService.Error($"HistoryService: Failed to delete {idSet.Count} transcripts", ex);
+                throw;
             }
         }
 
