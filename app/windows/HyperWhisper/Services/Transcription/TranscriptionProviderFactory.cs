@@ -5,6 +5,10 @@
 // DESIGN:
 // - Lazy<T> ensures providers only created when first needed
 // - Single point of configuration (API key lookup)
+// - A cached (BYOK) instance holds per-PROFILE state only: its HttpClient and
+//   the API key. The per-CALL model id and Gemini custom prompt travel in the
+//   TranscriptionRequest the caller passes to TranscribeAsync (issue #753), so
+//   two overlapping transcriptions on the shared instance cannot swap models.
 // - Proper disposal of all HttpClient resources
 // - EXCEPT the HW-Cloud-routed providers (Azure MAI, Google Chirp), which are
 //   built fresh per request. They own no HttpClient, and their per-request
@@ -13,6 +17,7 @@
 // NOTE: Does NOT own TranscriptionService (local) - that requires
 // model loading and has different lifecycle management.
 
+using System.Net.Http;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 
@@ -44,6 +49,8 @@ public class TranscriptionProviderFactory : IDisposable
     // NO Lazy<> for the HW-Cloud-routed services (Azure MAI, Google Chirp).
     // They are built per request instead — see GetConfiguredCloudProvider.
 
+    private readonly Func<CloudTranscriptionProvider, string?> _apiKeyLookup;
+
     private bool _disposed;
 
     // =========================================================================
@@ -51,20 +58,34 @@ public class TranscriptionProviderFactory : IDisposable
     // =========================================================================
 
     public TranscriptionProviderFactory()
+        : this(GetApiKeyForProvider, httpHandler: null)
     {
+    }
+
+    /// <summary>
+    /// Test seam: supply the API keys and a handler that fakes every BYOK
+    /// vendor, so a test can drive the real factory and the real services
+    /// without the Credential Manager or the network.
+    /// </summary>
+    internal TranscriptionProviderFactory(
+        Func<CloudTranscriptionProvider, string?> apiKeyLookup,
+        HttpMessageHandler? httpHandler)
+    {
+        _apiKeyLookup = apiKeyLookup ?? throw new ArgumentNullException(nameof(apiKeyLookup));
+
         // Lazy initialization - providers created only when first accessed
-        _openAI = new Lazy<OpenAIWhisperService>(() => new OpenAIWhisperService());
-        _groq = new Lazy<GroqWhisperService>(() => new GroqWhisperService());
-        _deepgram = new Lazy<DeepgramService>(() => new DeepgramService());
-        _assemblyAI = new Lazy<AssemblyAIService>(() => new AssemblyAIService());
-        _elevenLabs = new Lazy<ElevenLabsService>(() => new ElevenLabsService());
-        _mistral = new Lazy<MistralService>(() => new MistralService());
-        _soniox = new Lazy<SonioxService>(() => new SonioxService());
-        _gemini = new Lazy<GeminiTranscriptionService>(() => new GeminiTranscriptionService());
-        _geminiTranscribe = new Lazy<GeminiTranscribeService>(() => new GeminiTranscribeService());
-        _meta = new Lazy<MetaMuseService>(() => new MetaMuseService());
+        _openAI = new Lazy<OpenAIWhisperService>(() => new OpenAIWhisperService(httpHandler));
+        _groq = new Lazy<GroqWhisperService>(() => new GroqWhisperService(httpHandler));
+        _deepgram = new Lazy<DeepgramService>(() => new DeepgramService(httpHandler));
+        _assemblyAI = new Lazy<AssemblyAIService>(() => new AssemblyAIService(httpHandler));
+        _elevenLabs = new Lazy<ElevenLabsService>(() => new ElevenLabsService(httpHandler));
+        _mistral = new Lazy<MistralService>(() => new MistralService(httpHandler));
+        _soniox = new Lazy<SonioxService>(() => new SonioxService(httpHandler));
+        _gemini = new Lazy<GeminiTranscriptionService>(() => new GeminiTranscriptionService(httpHandler));
+        _geminiTranscribe = new Lazy<GeminiTranscribeService>(() => new GeminiTranscribeService(httpHandler));
+        _meta = new Lazy<MetaMuseService>(() => new MetaMuseService(httpHandler));
         _hyperWhisperCloud = new Lazy<HyperWhisperCloudService>(() => new HyperWhisperCloudService());
-        _grok = new Lazy<GrokSttService>(() => new GrokSttService());
+        _grok = new Lazy<GrokSttService>(() => new GrokSttService(httpHandler));
 
         LoggingService.Debug("TranscriptionProviderFactory: Initialized (providers will be created on first use)");
     }
@@ -77,8 +98,15 @@ public class TranscriptionProviderFactory : IDisposable
     /// Gets a configured cloud provider ready for transcription.
     /// Provider is lazily created on first access and cached for reuse.
     /// </summary>
+    /// <remarks>
+    /// For an API-key (BYOK) provider the returned instance is SHARED and
+    /// carries no model: pass the model in the
+    /// <see cref="TranscriptionRequest"/> of each call, resolved with
+    /// <see cref="ResolveModelId"/>. Only the HW-Cloud-routed arms use
+    /// <paramref name="modelId"/> here, because they are built per request.
+    /// </remarks>
     /// <param name="providerType">The cloud provider to get.</param>
-    /// <param name="modelId">Model ID to configure (uses provider default if null).</param>
+    /// <param name="modelId">Model ID for the routed arms (uses provider default if null).</param>
     /// <returns>Configured ITranscriptionProvider ready to use.</returns>
     /// <exception cref="TranscriptionException">If API key is missing for providers that require it.</exception>
     public ITranscriptionProvider GetConfiguredCloudProvider(
@@ -86,7 +114,7 @@ public class TranscriptionProviderFactory : IDisposable
         string? modelId = null)
     {
         // Get API key (validates for providers that require it)
-        string? apiKey = GetApiKeyForProvider(providerType);
+        string? apiKey = _apiKeyLookup(providerType);
 
         if (providerType.RequiresApiKey() && string.IsNullOrEmpty(apiKey))
         {
@@ -96,36 +124,24 @@ public class TranscriptionProviderFactory : IDisposable
                 providerType.GetDisplayName());
         }
 
-        // Get default model if not specified.
-        //
-        // GetDefault reads shared-app-classification/cloud-stt-catalog.json
-        // through the shared core (issue #580). A second, hand-written fallback
-        // table used to sit behind it here, holding its own copy of the same
-        // default column — that is precisely the split #580 closes, so it is
-        // gone. GetDefault returns null only for a provider that has no models
-        // in the picker at all (CloudTranscriptionProvider.None, or one added to
-        // the enum but not to the catalog), and for that case the empty model id
-        // is the honest answer: guessing some other vendor's model id would send
-        // a request that is wrong rather than one that is merely unconfigured.
-        var effectiveModelId = modelId
-            ?? CloudTranscriptionModels.GetDefault(providerType)?.Id
-            ?? string.Empty;
+        var effectiveModelId = ResolveModelId(providerType, modelId);
 
-        // Configure and return the provider
+        // Configure and return the provider. The BYOK arms take the API key
+        // only: the model is per call and travels in the TranscriptionRequest.
         return providerType switch
         {
-            CloudTranscriptionProvider.OpenAI => ConfigureAndReturn(_openAI.Value, apiKey!, effectiveModelId),
-            CloudTranscriptionProvider.Groq => ConfigureAndReturn(_groq.Value, apiKey!, effectiveModelId),
-            CloudTranscriptionProvider.Deepgram => ConfigureAndReturn(_deepgram.Value, apiKey!, effectiveModelId),
-            CloudTranscriptionProvider.AssemblyAI => ConfigureAndReturn(_assemblyAI.Value, apiKey!, effectiveModelId),
-            CloudTranscriptionProvider.ElevenLabs => ConfigureAndReturn(_elevenLabs.Value, apiKey!, effectiveModelId),
-            CloudTranscriptionProvider.Mistral => ConfigureAndReturn(_mistral.Value, apiKey!, effectiveModelId),
-            CloudTranscriptionProvider.Soniox => ConfigureAndReturn(_soniox.Value, apiKey!, effectiveModelId),
-            CloudTranscriptionProvider.Gemini => ConfigureAndReturn(_gemini.Value, apiKey!, effectiveModelId),
-            CloudTranscriptionProvider.GeminiTranscribe => ConfigureAndReturn(_geminiTranscribe.Value, apiKey!, effectiveModelId),
-            CloudTranscriptionProvider.Meta => ConfigureAndReturn(_meta.Value, apiKey!, effectiveModelId),
+            CloudTranscriptionProvider.OpenAI => ConfigureAndReturn(_openAI.Value, apiKey!),
+            CloudTranscriptionProvider.Groq => ConfigureAndReturn(_groq.Value, apiKey!),
+            CloudTranscriptionProvider.Deepgram => ConfigureAndReturn(_deepgram.Value, apiKey!),
+            CloudTranscriptionProvider.AssemblyAI => ConfigureAndReturn(_assemblyAI.Value, apiKey!),
+            CloudTranscriptionProvider.ElevenLabs => ConfigureAndReturn(_elevenLabs.Value, apiKey!),
+            CloudTranscriptionProvider.Mistral => ConfigureAndReturn(_mistral.Value, apiKey!),
+            CloudTranscriptionProvider.Soniox => ConfigureAndReturn(_soniox.Value, apiKey!),
+            CloudTranscriptionProvider.Gemini => ConfigureAndReturn(_gemini.Value, apiKey!),
+            CloudTranscriptionProvider.GeminiTranscribe => ConfigureAndReturn(_geminiTranscribe.Value, apiKey!),
+            CloudTranscriptionProvider.Meta => ConfigureAndReturn(_meta.Value, apiKey!),
             CloudTranscriptionProvider.HyperWhisperCloud => ConfigureHyperWhisperCloud(_hyperWhisperCloud.Value),
-            CloudTranscriptionProvider.Grok => ConfigureAndReturn(_grok.Value, apiKey!, effectiveModelId),
+            CloudTranscriptionProvider.Grok => ConfigureAndReturn(_grok.Value, apiKey!),
             // HW-Cloud-routed providers — no API key, but the selected model
             // still has to reach the request: it travels as X-STT-Model, which
             // the routed client only sends when the service resolves one. Azure
@@ -142,12 +158,34 @@ public class TranscriptionProviderFactory : IDisposable
             // shared) and no other state, so a fresh instance costs an allocation
             // and makes the model immutable per-call — the same property macOS
             // gets from AzureMAIProvider.routedModelId and shared .NET from
-            // RoutedModelFor. The BYOK arms above have the same shared-mutable
-            // shape; that is pre-existing and out of scope here.
+            // RoutedModelFor. The BYOK arms above are cached and so carry no
+            // model at all: theirs travels in each call's TranscriptionRequest
+            // (issue #753).
             CloudTranscriptionProvider.MicrosoftAzureSpeech => new AzureMAITranscriptionService(effectiveModelId),
             CloudTranscriptionProvider.GoogleSpeech => new GoogleChirpTranscriptionService(effectiveModelId),
             _ => throw new ArgumentException($"Unknown cloud provider: {providerType}")
         };
+    }
+
+    /// <summary>
+    /// The model id one call should run: the mode's own, or the provider's
+    /// catalog default when the mode names none. The orchestrator puts the
+    /// result into the call's <see cref="TranscriptionRequest"/>.
+    /// </summary>
+    public static string ResolveModelId(CloudTranscriptionProvider providerType, string? modelId)
+    {
+        // GetDefault reads shared-app-classification/cloud-stt-catalog.json
+        // through the shared core (issue #580). A second, hand-written fallback
+        // table used to sit behind it here, holding its own copy of the same
+        // default column — that is precisely the split #580 closes, so it is
+        // gone. GetDefault returns null only for a provider that has no models
+        // in the picker at all (CloudTranscriptionProvider.None, or one added to
+        // the enum but not to the catalog), and for that case the empty model id
+        // is the honest answer: guessing some other vendor's model id would send
+        // a request that is wrong rather than one that is merely unconfigured.
+        return modelId
+            ?? CloudTranscriptionModels.GetDefault(providerType)?.Id
+            ?? string.Empty;
     }
 
     /// <summary>
@@ -235,10 +273,13 @@ public class TranscriptionProviderFactory : IDisposable
     // =========================================================================
 
     // One overload covers every API-key provider: they all derive from
-    // ApiKeyTranscriptionServiceBase, which declares Configure.
-    private static ITranscriptionProvider ConfigureAndReturn(ApiKeyTranscriptionServiceBase service, string apiKey, string modelId)
+    // ApiKeyTranscriptionServiceBase, which declares Configure. It writes the
+    // API key only — per-profile state. It must never write per-call state
+    // (the model, a prompt): this instance is shared by every overlapping
+    // transcription (issue #753).
+    private static ITranscriptionProvider ConfigureAndReturn(ApiKeyTranscriptionServiceBase service, string apiKey)
     {
-        service.Configure(apiKey, modelId);
+        service.Configure(apiKey);
         return service;
     }
 

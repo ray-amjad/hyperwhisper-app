@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Http;
 using System.IO;
 using HyperWhisper.FileTranscription;
 using HyperWhisper.Models;
@@ -15,34 +16,37 @@ public sealed class MetaMuseService : ApiKeyTranscriptionServiceBase
 {
     private const string DefaultModelId = "muse-voice-transcribe-1.0";
 
-    public MetaMuseService() : base(TimeSpan.FromSeconds(300), DefaultModelId) { }
+    public MetaMuseService(HttpMessageHandler? httpHandler = null) : base(TimeSpan.FromSeconds(300), DefaultModelId, httpHandler: httpHandler) { }
 
-    public override string Name =>
-        $"Meta {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Meta)?.DisplayName ?? ModelId}";
+    /// <summary>
+    /// Display name. It names no model: the model is per call (issue #753).
+    /// </summary>
+    public override string Name => "Meta";
 
-    public override void Configure(string apiKey, string modelId = DefaultModelId)
+    /// <summary>
+    /// Configures the service with an API key. The model is not configured
+    /// here: it travels in each call's request (issue #753).
+    /// </summary>
+    public override void Configure(string apiKey)
     {
         ApiKey = apiKey?.Trim();
-        ModelId = string.IsNullOrWhiteSpace(modelId) ? DefaultModelId : modelId;
-        LoggingService.Info($"MetaMuseService: Configured with model {ModelId}");
     }
 
-    public override async Task<string> TranscribeAsync(
-        string audioPath,
-        string? language = null,
-        IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    protected override string ResolveModelId(string modelId)
+        => string.IsNullOrWhiteSpace(modelId) ? DefaultModelId : modelId;
+
+    protected override async Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken)
     {
+        var audioPath = request.AudioPath;
         var totalSw = Stopwatch.StartNew();
         var maxBytes = CloudTranscriptionProvider.Meta.GetMaxFileSizeBytes();
         TranscriptionPreflight.Validate("Meta Muse", ApiKey, audioPath, maxBytes, "32 MB");
         await ValidateFinalWaveAsync(audioPath, cancellationToken);
 
-        var coreParams = BuildDirectVendorParams(
-            audioPath,
-            "audio/wav",
-            language,
-            vocabulary);
+        var coreParams = BuildDirectVendorParams(request, "audio/wav");
 
         return await RustSingleShot.TranscribeAsync(
             Http,

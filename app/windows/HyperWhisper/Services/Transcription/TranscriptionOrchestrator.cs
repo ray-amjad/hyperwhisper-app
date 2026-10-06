@@ -367,18 +367,23 @@ public class TranscriptionOrchestrator : IDisposable
         var healthService = CloudProviderHealthService.Instance;
         var credentialGeneration = healthService.CaptureTranscriptionCredentialGeneration(providerType);
 
-        // Get configured provider (validates API key, configures model)
+        // Get configured provider (validates API key). A BYOK provider is a
+        // cached instance shared with every overlapping transcription, so it
+        // holds no model: this call's model and Gemini custom prompt go in the
+        // request below, not onto the instance (issue #753).
         var provider = _providerFactory.GetConfiguredCloudProvider(providerType, mode.CloudTranscriptionModel);
-
-        // Set Gemini custom prompt if applicable
-        if (providerType == CloudTranscriptionProvider.Gemini && provider is GeminiTranscriptionService geminiService)
-        {
-            geminiService.SetCustomPrompt(mode.GeminiCustomPrompt);
-        }
 
         // Perform transcription
         // Note: per-provider vocabulary field handling lives in each service
         var effectiveVocabulary = providerType.SupportsVocabulary() ? vocabulary : null;
+
+        var request = new TranscriptionRequest(
+            AudioPath: audioPath,
+            Language: language,
+            Vocabulary: effectiveVocabulary,
+            ModelId: TranscriptionProviderFactory.ResolveModelId(providerType, mode.CloudTranscriptionModel),
+            // Only Gemini reads a custom prompt, as before.
+            CustomPrompt: providerType == CloudTranscriptionProvider.Gemini ? mode.GeminiCustomPrompt : null);
 
         // Measured around the provider call, and around every provider, because only
         // HyperWhisper Cloud implements ITranscriptionDiagnosticsSource. A no-speech
@@ -410,11 +415,11 @@ public class TranscriptionOrchestrator : IDisposable
                 // risking a concurrent request overwriting a shared instance
                 // field — see AssemblyAIService's internal TranscribeAsync
                 // overload doc comment for why.
-                result = await assemblyAIService.TranscribeAsync(audioPath, language, effectiveVocabulary, knownDurationSeconds, cancellationToken);
+                result = await assemblyAIService.TranscribeAsync(request, knownDurationSeconds, cancellationToken);
             }
             else
             {
-                result = await provider.TranscribeAsync(audioPath, language, effectiveVocabulary, cancellationToken);
+                result = await provider.TranscribeAsync(request, cancellationToken);
             }
         }
         catch (Exception ex)

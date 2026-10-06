@@ -53,26 +53,20 @@ public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
             (".aiff", "audio/aiff"));
 
     // =========================================================================
-    // STATE
-    // =========================================================================
-
-    private string? _customPrompt;
-
-    // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
 
     /// <summary>
-    /// Display name including the configured model.
+    /// Display name. It names no model: the model is per call (issue #753).
     /// </summary>
-    public override string Name => $"Gemini {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Gemini)?.DisplayName ?? ModelId}";
+    public override string Name => "Gemini";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
-    public GeminiTranscriptionService()
-        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "gemini-2.5-flash")
+    public GeminiTranscriptionService(HttpMessageHandler? httpHandler = null)
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "gemini-2.5-flash", httpHandler: httpHandler)
     {
     }
 
@@ -81,26 +75,17 @@ public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Configures the service with API key and model.
-    /// Must be called before transcription.
+    /// Configures the service with an API key. The model is not configured
+    /// here: it travels in each call's request (issue #753).
     /// </summary>
-    /// <param name="apiKey">Google Gemini API key.</param>
-    /// <param name="modelId">Model ID (e.g., gemini-2.5-flash).</param>
-    public override void Configure(string apiKey, string modelId = "gemini-2.5-flash")
+    public override void Configure(string apiKey)
     {
         ApiKey = apiKey?.Trim();
-        ModelId = CloudTranscriptionModels.ResolveGeminiModelAlias(modelId);
-        LoggingService.Info($"GeminiTranscriptionService: Configured with model {ModelId}");
     }
 
-    /// <summary>
-    /// Sets the optional custom transcription prompt.
-    /// Called by the orchestrator before transcription.
-    /// </summary>
-    public void SetCustomPrompt(string? customPrompt)
-    {
-        _customPrompt = string.IsNullOrWhiteSpace(customPrompt) ? null : customPrompt.Trim();
-    }
+    /// <inheritdoc />
+    protected override string ResolveModelId(string modelId)
+        => CloudTranscriptionModels.ResolveGeminiModelAlias(modelId);
 
     // =========================================================================
     // TRANSCRIPTION
@@ -111,18 +96,21 @@ public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
     /// generateContent -> delete). All request building / response parsing / prompt
     /// assembly is owned by the Rust shared core.
     /// </summary>
-    public override async Task<string> TranscribeAsync(
-        string audioPath,
-        string? language = null,
-        IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default)
+    protected override async Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken)
     {
+        var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
+        // The custom prompt is per call, like the model. It used to be a field
+        // the orchestrator set on this shared instance (SetCustomPrompt) and the
+        // next call read (issue #753).
+        var customPrompt = string.IsNullOrWhiteSpace(request.CustomPrompt) ? null : request.CustomPrompt.Trim();
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== GEMINI CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {ModelId}");
+        LoggingService.Info($"  Model: {request.ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
-        LoggingService.Info($"  Custom prompt: {(_customPrompt != null ? "yes" : "no")}");
+        LoggingService.Info($"  Custom prompt: {(customPrompt != null ? "yes" : "no")}");
 
         // Validate configuration and audio file (shared gate). Gemini does not
         // cap the file size client-side.
@@ -133,8 +121,7 @@ public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
         // generateContent request. The custom prompt rides in `prompt`.
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav", MimeTypes);
-        var coreParams = BuildDirectVendorParams(
-            audioPath, contentType, language, vocabulary, prompt: _customPrompt);
+        var coreParams = BuildDirectVendorParams(request, contentType, prompt: customPrompt);
 
         GeminiFile? uploadedFile = null;
         try
@@ -144,16 +131,16 @@ public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
             var startResp = await PerformAsync(
                 () =>
                 {
-                    var request = HyperwhisperCoreMethods.GeminiBuildUploadStartRequest(coreParams);
+                    var startRequest = HyperwhisperCoreMethods.GeminiBuildUploadStartRequest(coreParams);
                     // The core's upload-start builder intentionally omits
                     // X-Goog-Upload-Header-Content-Length (only the platform can stat
                     // the file across FFI). Append it from the size we already stat'd,
                     // re-applied each retry attempt — mirrors macOS
                     // GeminiTranscriptionProvider.
-                    request.@headers.Add(new Header(
+                    startRequest.@headers.Add(new Header(
                         "X-Goog-Upload-Header-Content-Length",
                         fileInfo.Length.ToString()));
-                    return request;
+                    return startRequest;
                 },
                 resp => MapError(resp, "start upload"),
                 cancellationToken);

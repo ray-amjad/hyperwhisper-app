@@ -27,6 +27,7 @@
 // NOTE: Shares API key with Groq post-processing (PostProcessingProvider.Groq)
 
 using System.Diagnostics;
+using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
 using uniffi.hyperwhisper_core;
@@ -51,16 +52,16 @@ public class GroqWhisperService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Display name including the configured model.
+    /// Display name. It names no model: the model is per call (issue #753).
     /// </summary>
-    public override string Name => $"Groq {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Groq)?.DisplayName ?? ModelId}";
+    public override string Name => "Groq";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
-    public GroqWhisperService()
-        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "whisper-large-v3-turbo")
+    public GroqWhisperService(HttpMessageHandler? httpHandler = null)
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "whisper-large-v3-turbo", httpHandler: httpHandler)
     {
     }
 
@@ -69,17 +70,17 @@ public class GroqWhisperService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Configures the service with API key and model.
-    /// Must be called before transcription.
+    /// Configures the service with an API key. The model is not configured
+    /// here: it travels in each call's request (issue #753).
     /// </summary>
-    /// <param name="apiKey">Groq API key (starts with "gsk_").</param>
-    /// <param name="modelId">Model ID (whisper-large-v3-turbo, whisper-large-v3).</param>
-    public override void Configure(string apiKey, string modelId = "whisper-large-v3-turbo")
+    public override void Configure(string apiKey)
     {
         ApiKey = apiKey;
-        ModelId = modelId;
-        LoggingService.Info($"GroqWhisperService: Configured with model {modelId}");
     }
+
+    /// <inheritdoc />
+    protected override string ResolveModelId(string modelId)
+        => modelId;
 
     // =========================================================================
     // TRANSCRIPTION
@@ -88,15 +89,14 @@ public class GroqWhisperService : ApiKeyTranscriptionServiceBase
     /// <summary>
     /// Transcribes audio using Groq's Whisper API.
     /// </summary>
-    public override async Task<string> TranscribeAsync(
-        string audioPath,
-        string? language = null,
-        IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default)
+    protected override async Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken)
     {
+        var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== GROQ CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {ModelId}");
+        LoggingService.Info($"  Model: {request.ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
@@ -109,7 +109,7 @@ public class GroqWhisperService : ApiKeyTranscriptionServiceBase
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
-        var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
+        var coreParams = BuildDirectVendorParams(request, contentType);
 
         return await RustSingleShot.TranscribeAsync(
             Http,

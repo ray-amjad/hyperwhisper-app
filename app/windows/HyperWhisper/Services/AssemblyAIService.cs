@@ -89,9 +89,9 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Display name including the configured model.
+    /// Display name. It names no model: the model is per call (issue #753).
     /// </summary>
-    public override string Name => $"AssemblyAI {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.AssemblyAI)?.DisplayName ?? ModelId}";
+    public override string Name => "AssemblyAI";
 
     // =========================================================================
     // CONSTRUCTOR
@@ -104,8 +104,8 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
     // sync path's own (longer) timeout budget and won, mislabeling a
     // successful-but-slow sync call as "timed out" and needlessly falling back
     // to async — Timeout.InfiniteTimeSpan removes that race entirely.
-    public AssemblyAIService()
-        : base(Timeout.InfiniteTimeSpan, "universal-2")
+    public AssemblyAIService(HttpMessageHandler? httpHandler = null)
+        : base(Timeout.InfiniteTimeSpan, "universal-2", httpHandler: httpHandler)
     {
     }
 
@@ -114,17 +114,17 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Configures the service with API key and model.
-    /// Must be called before transcription.
+    /// Configures the service with an API key. The model is not configured
+    /// here: it travels in each call's request (issue #753).
     /// </summary>
-    /// <param name="apiKey">AssemblyAI API key.</param>
-    /// <param name="modelId">Model ID (universal-2, universal-3-5-pro). Legacy IDs are canonicalized automatically.</param>
-    public override void Configure(string apiKey, string modelId = "universal-2")
+    public override void Configure(string apiKey)
     {
         ApiKey = apiKey;
-        ModelId = CloudTranscriptionModels.ResolveAssemblyAIModelAlias(modelId);
-        LoggingService.Info($"AssemblyAIService: Configured with model {ModelId}");
     }
+
+    /// <inheritdoc />
+    protected override string ResolveModelId(string modelId)
+        => CloudTranscriptionModels.ResolveAssemblyAIModelAlias(modelId);
 
     // =========================================================================
     // TRANSCRIPTION
@@ -134,12 +134,10 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
     /// Transcribes audio using AssemblyAI's async API (ITranscriptionProvider
     /// entry point — no pre-computed duration available to the caller).
     /// </summary>
-    public override Task<string> TranscribeAsync(
-        string audioPath,
-        string? language = null,
-        IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default)
-        => TranscribeAsync(audioPath, language, vocabulary, knownDurationSeconds: null, cancellationToken);
+    protected override Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken)
+        => TranscribeResolvedAsync(request, knownDurationSeconds: null, cancellationToken);
 
     /// <summary>
     /// Transcribes audio using AssemblyAI's async API.
@@ -163,18 +161,31 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
     /// set and its own read inside this method), corrupting thread A's
     /// sync-vs-async eligibility decision with the wrong clip's duration.
     /// Scoping the value to this call's parameter list removes that race
-    /// entirely.
+    /// entirely. The model id rides in <paramref name="request"/> for the same
+    /// reason (issue #753).
     /// </param>
-    internal async Task<string> TranscribeAsync(
-        string audioPath,
-        string? language,
-        IReadOnlyList<string>? vocabulary,
+    internal Task<string> TranscribeAsync(
+        TranscriptionRequest request,
         double? knownDurationSeconds,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+        return TranscribeResolvedAsync(WithResolvedModel(request), knownDurationSeconds, cancellationToken);
+    }
+
+    /// <summary>
+    /// The transcription itself. <paramref name="request"/>'s model id is
+    /// already resolved.
+    /// </summary>
+    private async Task<string> TranscribeResolvedAsync(
+        TranscriptionRequest request,
+        double? knownDurationSeconds,
+        CancellationToken cancellationToken)
+    {
+        var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== ASSEMBLYAI CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {ModelId}");
+        LoggingService.Info($"  Model: {request.ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
@@ -198,9 +209,9 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
         // future staging/test override is added to this call site, it must NOT
         // reuse this same coreParams value for both builders; build separate
         // params for sync vs async instead.
-        var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
+        var coreParams = BuildDirectVendorParams(request, contentType);
 
-        if (ModelId is "dictation" or "dictation-medical")
+        if (request.ModelId is "dictation" or "dictation-medical")
         {
             try
             {
@@ -240,7 +251,7 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
             ? Result<double>.Success(knownDurationSeconds.Value)
             : FileTranscriptionService.GetAudioDuration(audioPath);
         var syncMaxDurationSeconds = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
-        var isMedicalModel = CloudTranscriptionModels.GetAssemblyAIRequestParams(ModelId).Medical;
+        var isMedicalModel = CloudTranscriptionModels.GetAssemblyAIRequestParams(request.ModelId).Medical;
         if (IsSyncEligible(durationResult, syncMaxDurationSeconds, isMedicalModel))
         {
             LoggingService.Info($"  Duration {durationResult.Value:F1}s < {syncMaxDurationSeconds:F0}s sync cap — trying sync fast path");

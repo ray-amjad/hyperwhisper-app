@@ -37,30 +37,38 @@ public class SonioxService : ApiKeyTranscriptionServiceBase
         { ".mp4", "audio/mp4" }
     };
 
-    public override string Name => $"Soniox {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Soniox)?.DisplayName ?? ModelId}";
+    /// <summary>
+    /// Display name. It names no model: the model is per call (issue #753).
+    /// </summary>
+    public override string Name => "Soniox";
 
-    public SonioxService()
-        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "stt-async-v5")
+    public SonioxService(HttpMessageHandler? httpHandler = null)
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "stt-async-v5", httpHandler: httpHandler)
     {
     }
 
-    public override void Configure(string apiKey, string modelId = "stt-async-v5")
+    /// <summary>
+    /// Configures the service with an API key. The model is not configured
+    /// here: it travels in each call's request (issue #753).
+    /// </summary>
+    public override void Configure(string apiKey)
     {
         ApiKey = apiKey?.Trim();
-        ModelId = CloudTranscriptionModels.ResolveSonioxModelAlias(
-            string.IsNullOrWhiteSpace(modelId) ? "stt-async-v5" : modelId);
-        LoggingService.Info($"SonioxService: Configured with model {ModelId}");
     }
 
-    public override async Task<string> TranscribeAsync(
-        string audioPath,
-        string? language = null,
-        IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    protected override string ResolveModelId(string modelId)
+        => CloudTranscriptionModels.ResolveSonioxModelAlias(
+            string.IsNullOrWhiteSpace(modelId) ? "stt-async-v5" : modelId);
+
+    protected override async Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken)
     {
+        var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== SONIOX CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {ModelId}");
+        LoggingService.Info($"  Model: {request.ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
@@ -75,7 +83,7 @@ public class SonioxService : ApiKeyTranscriptionServiceBase
         // baked by the per-step core builders.
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "application/octet-stream", MimeTypes);
-        var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
+        var coreParams = BuildDirectVendorParams(request, contentType);
 
         string? transcriptionId = null;
         string? fileId = null;
