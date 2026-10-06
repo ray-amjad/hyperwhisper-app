@@ -312,7 +312,7 @@ public partial class MainViewModel
 
             if (transcript != null)
             {
-                transcriptDeleted = HistoryService.Instance.DeleteTranscript(transcript.Id);
+                transcriptDeleted = TryDeleteCancelledTranscript(transcript.Id);
             }
             else if (!string.IsNullOrEmpty(permanentPath))
             {

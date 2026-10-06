@@ -1926,7 +1926,7 @@ public partial class MainViewModel : ViewModelBase
             StatusText = CancelledStatusText(cancelledFileTranscription: false);
             if (transcript != null)
             {
-                transcriptDeleted = HistoryService.Instance.DeleteTranscript(transcript.Id);
+                transcriptDeleted = TryDeleteCancelledTranscript(transcript.Id);
             }
             else if (!string.IsNullOrEmpty(permanentAudioPath))
             {
@@ -2453,6 +2453,26 @@ public partial class MainViewModel : ViewModelBase
         catch (Exception ex)
         {
             LoggingService.Warn($"TranscriptionFlow: failed to delete discarded recording: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Removes the History row of a cancelled run. Both cancel paths call this from
+    /// inside a <c>catch</c> block, where a throw would escape the whole flow. Since
+    /// #974 HistoryService.DeleteTranscript throws when SQLite refuses the delete;
+    /// that keeps the old outcome here: the row stays (false), and the flow's
+    /// <c>finally</c> safety net marks it terminal instead of leaving it Processing.
+    /// </summary>
+    private static bool TryDeleteCancelledTranscript(Guid transcriptId)
+    {
+        try
+        {
+            return HistoryService.Instance.DeleteTranscript(transcriptId);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error($"TranscriptionFlow: could not delete cancelled transcript {transcriptId}", ex);
+            return false;
         }
     }
 
