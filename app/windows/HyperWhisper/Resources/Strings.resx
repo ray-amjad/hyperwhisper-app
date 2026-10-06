@@ -958,6 +958,9 @@ Do you want to restart now?</value>
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>The selected microphone sent no audio. Check your input device and try again.</value>
+  </data>
 
   <!-- Alerts -->
 

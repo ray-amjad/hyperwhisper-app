@@ -717,6 +717,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>Mikrofon yang dipilih tidak menghantar sebarang audio. Semak peranti input anda dan cuba lagi.</value>
+  </data>
 
   <!-- Alerts -->
 

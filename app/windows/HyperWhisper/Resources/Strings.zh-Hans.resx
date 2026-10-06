@@ -801,6 +801,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>录音中未检测到语音。</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>所选麦克风没有传来任何音频。请检查输入设备后重试。</value>
+  </data>
 
   <!-- Alerts -->
 

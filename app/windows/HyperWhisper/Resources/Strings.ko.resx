@@ -717,6 +717,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>선택한 마이크에서 오디오가 전송되지 않았습니다. 입력 장치를 확인한 후 다시 시도하세요.</value>
+  </data>
 
   <!-- Alerts -->
 

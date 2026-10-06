@@ -1723,6 +1723,28 @@ public partial class MainViewModel : ViewModelBase
 
             var tempAudioPath = stopResult.Value!;
 
+            // EMPTY CAPTURE GUARD (#750): the device sent no frames, so the file is a
+            // bare WAV header. Uploading it spends a request and comes back as "No
+            // speech detected", which blames the user for the device's fault.
+            if (AudioRecorderService.IsEmptyCapture(_recorderService.CapturedAudioBytes))
+            {
+                try
+                {
+                    // No audio path: there is no audio to keep, and a saved header
+                    // would offer a History Retry that uploads it after all.
+                    transcript = HistoryService.Instance.CreateProcessingTranscript(
+                        RecordingDuration.TotalSeconds,
+                        recordingMode.Name,
+                        audioFilePath: null);
+                    FailEmptyCapture(transcript, tempAudioPath, recordingMode);
+                }
+                finally
+                {
+                    DeleteDiscardedRecording(tempAudioPath);
+                }
+                return;
+            }
+
             // HISTORY INTEGRATION - STEP 1: Save audio to permanent location
             // Move audio from temp to %LOCALAPPDATA%\HyperWhisper\Audio\ for history and retry
             permanentAudioPath = HistoryService.Instance.SaveAudioFile(tempAudioPath);
@@ -2378,6 +2400,60 @@ public partial class MainViewModel : ViewModelBase
             t.FailedReason = Loc.S("errors.noSpeechDetected");
             t.Text = Loc.S("errors.noSpeechDetected");
         });
+    }
+
+    /// <summary>
+    /// Ends a recording the input device sent no audio to (#750) without a
+    /// provider call: History row Failed, the empty_recording diagnostic under a
+    /// local source, and a message that names the device rather than the user.
+    /// </summary>
+    private void FailEmptyCapture(Transcript transcript, string audioPath, Mode recordingMode)
+    {
+        var message = EmptyCaptureMessage;
+        LoggingService.Warn($"TranscriptionFlow: the input device delivered no audio ({RecordingDuration.TotalSeconds:F2}s); not transcribing");
+
+        TryPersistTerminalFailure(transcript, t =>
+        {
+            t.Status = TranscriptStatus.Failed;
+            t.FailedReason = message;
+            t.Text = message;
+        });
+
+        TranscriptionDiagnosticsService.CaptureNoSpeechDiagnostic(
+            transcriptId: transcript.Id,
+            audioPath: audioPath,
+            fallbackDurationSeconds: RecordingDuration.TotalSeconds,
+            mode: recordingMode,
+            diagnosticStage: "live_recording",
+            diagnosticSource: TranscriptionDiagnosticsService.LocalEmptyCaptureSource,
+            inputDeviceName: SelectedAudioDevice?.Name,
+            captureDeviceCount: AudioDevices.Count,
+            deviceSelection: TranscriptionDiagnosticsService.DescribeAudioDeviceSelection(
+                SelectedAudioDevice,
+                AudioDevices,
+                _audioDeviceSelectionReason));
+
+        HideOverlayRequested?.Invoke(this, EventArgs.Empty);
+        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(message, showSettingsButton: false));
+        StatusText = Loc.S("status.failed", message);
+    }
+
+    /// <summary>
+    /// What the user is told when a recording captured no audio (#750). Never
+    /// <c>errors.noSpeechDetected</c>: that says they were silent.
+    /// </summary>
+    internal static string EmptyCaptureMessage => Loc.S("errors.microphoneSentNoAudio");
+
+    private static void DeleteDiscardedRecording(string path)
+    {
+        try
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"TranscriptionFlow: failed to delete discarded recording: {ex.Message}");
+        }
     }
 
     /// <summary>

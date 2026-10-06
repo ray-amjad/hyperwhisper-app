@@ -717,6 +717,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>Изабрани микрофон није послао никакав звук. Провери улазни уређај и покушај поново.</value>
+  </data>
 
   <!-- Alerts -->
 

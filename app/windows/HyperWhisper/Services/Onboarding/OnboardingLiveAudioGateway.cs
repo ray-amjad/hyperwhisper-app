@@ -592,6 +592,16 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
             return;
         }
 
+        // Same guard as MainViewModel (#750): a header-only WAV is never sent to a
+        // provider, and the user is told the device sent nothing.
+        if (AudioRecorderService.IsEmptyCapture(_recorder.CapturedAudioBytes))
+        {
+            LoggingService.Warn("LiveOnboardingAudioGateway: the input device delivered no audio; not transcribing");
+            TryDelete(stopped.Value!);
+            PublishTranscript(Error(Loc.S("errors.microphoneSentNoAudio")));
+            return;
+        }
+
         await TranscribeAndPublishAsync(stopped.Value!, deleteWhenDone: true, cancellationToken);
     }
 

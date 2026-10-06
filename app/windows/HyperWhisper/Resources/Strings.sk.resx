@@ -717,6 +717,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>Vybraný mikrofón neposlal žiadny zvuk. Skontrolujte vstupné zariadenie a skúste to znova.</value>
+  </data>
 
   <!-- Alerts -->
 

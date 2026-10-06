@@ -19,6 +19,15 @@ public class AudioRecorderService : IDisposable
     private string? _tempFilePath;
     private readonly System.Diagnostics.Stopwatch _stopwatch = new();
 
+    // PCM bytes handed to _writer for the current recording. Guarded by
+    // _writerLock, so a buffer counts only if it reached the file.
+    private long _capturedBytes;
+
+    /// <summary>
+    /// Bytes per frame of the recording format below (16-bit mono).
+    /// </summary>
+    internal const int RecordingBlockAlign = 2;
+
     // Mic volume boost fields
     private const float MicVolumeBoostThreshold = 0.5f;
     private const float MicVolumeBoostTarget = 0.9f;
@@ -46,6 +55,23 @@ public class AudioRecorderService : IDisposable
     public event Action<float>? AudioLevelChanged;
 
     /// <summary>
+    /// PCM bytes the capture device delivered to the last recording's file,
+    /// final once <see cref="StopRecording"/> has returned. Zero means the
+    /// WAV is a bare header (issue #750).
+    /// </summary>
+    public long CapturedAudioBytes
+    {
+        get { lock (_writerLock) return _capturedBytes; }
+    }
+
+    /// <summary>
+    /// True when a recording holds no whole audio frame, so there is nothing to
+    /// transcribe. A recording with one frame or more is never empty, however
+    /// short: the check is "the device sent nothing", not "the clip is short".
+    /// </summary>
+    public static bool IsEmptyCapture(long capturedBytes) => capturedBytes < RecordingBlockAlign;
+
+    /// <summary>
     /// Starts recording audio from the specified device.
     /// </summary>
     /// <param name="deviceNumber">The device number to record from (from AudioDeviceService).</param>
@@ -69,7 +95,11 @@ public class AudioRecorderService : IDisposable
                 BufferMilliseconds = 100
             };
 
-            _writer = new WaveFileWriter(_tempFilePath, _waveIn.WaveFormat);
+            lock (_writerLock)
+            {
+                _writer = new WaveFileWriter(_tempFilePath, _waveIn.WaveFormat);
+                _capturedBytes = 0;
+            }
 
             _waveIn.DataAvailable += OnDataAvailable;
             _waveIn.RecordingStopped += OnRecordingStopped;
@@ -178,7 +208,11 @@ public class AudioRecorderService : IDisposable
         // racing StopRecording()/CleanupRecording() disposing the writer
         lock (_writerLock)
         {
-            _writer?.Write(e.Buffer, 0, e.BytesRecorded);
+            if (_writer != null && e.BytesRecorded > 0)
+            {
+                _writer.Write(e.Buffer, 0, e.BytesRecorded);
+                _capturedBytes += e.BytesRecorded;
+            }
         }
 
         // Compute RMS over the buffer (log-scaled perceptual level)
