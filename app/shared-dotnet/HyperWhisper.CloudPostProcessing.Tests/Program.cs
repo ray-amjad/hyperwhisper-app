@@ -56,7 +56,8 @@ static Task TestModelRegistry()
         [CloudPostProcessingProvider.Anthropic] = 4,
         // 3 → 4: Groq qwen/qwen3.8-27b added 2026-09-11. Cerebras stays 2 — the
         // dead gemma-4-31b was REPLACED by qwen-3.8-27b, not joined by it.
-        [CloudPostProcessingProvider.Groq] = 4,
+        // 4 → 3: Groq withdrew qwen/qwen3.6-27b (#788); Migrate sends it to qwen/qwen3.8-27b.
+        [CloudPostProcessingProvider.Groq] = 3,
         [CloudPostProcessingProvider.Grok] = 3,
         [CloudPostProcessingProvider.Gemini] = 11,
         [CloudPostProcessingProvider.Cerebras] = 2,
@@ -77,6 +78,11 @@ static Task TestModelRegistry()
     foreach (var retired in new[] { "gemma-3-12b-it", "gemma-3-27b-it" })
         Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, retired) == "gemini-3.8-flash",
             $"{retired} did not resolve to gemini-3.8-flash");
+    // #788: the withdrawn Groq Qwen resolves to its successor, not to the provider's first row.
+    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Groq, "qwen/qwen3.6-27b") == "qwen/qwen3.8-27b",
+        "qwen/qwen3.6-27b did not resolve to qwen/qwen3.8-27b");
+    Assert(PostProcessingModelCatalog.ForProvider(CloudPostProcessingProvider.Groq).All(model => model.Id != "qwen/qwen3.6-27b"),
+        "qwen/qwen3.6-27b is still listed");
     Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "gemini-2.5-flash") == "gemini-2.5-flash",
         "gemini-2.5-flash must stay a selectable row, not a redirect");
     return Task.CompletedTask;

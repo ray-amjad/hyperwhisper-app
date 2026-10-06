@@ -136,7 +136,6 @@ public static class ModelRatings
             ["gemini-3.1-flash-lite"] = new(4, 3),
             ["openai/gpt-oss-120b"] = new(4, 4),
             ["openai/gpt-oss-20b"] = new(4, 4),
-            ["qwen/qwen3.6-27b"] = new(4, 3),
             ["qwen/qwen3.8-27b"] = new(4, 3),
             ["grok-4.3"] = new(2, 5),
             ["grok-4.5"] = new(2, 5),
