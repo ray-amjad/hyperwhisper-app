@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithElevenLabs } from './elevenlabs';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
 
 const originalFetch = globalThis.fetch;
 
@@ -309,16 +309,82 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
   });
 });
 
-describe('transcribeWithElevenLabs — can never refuse an empty transcript (issue #381)', () => {
-  test('an empty transcript at attempt 1 still resolves as no_speech', async () => {
-    // ElevenLabs terminates all three covered fallback chains. If it could ever
-    // throw on an empty transcript, a genuinely silent recording would walk a
-    // chain to exhaustion instead of returning "No speech detected".
-    mockFetchOnce(() => jsonResponse({ text: '   ', language_code: 'en' }));
+describe('transcribeWithElevenLabs — empty-transcript failover (issue #720)', () => {
+  const emptyBody = () => jsonResponse({ text: '   ', language_code: 'en' });
+  // What the route measures with estimateAudioSeconds and puts on the context;
+  // 4.9 s is the length of the first production event in the issue.
+  const REQUEST_AUDIO_SECONDS = 4.9;
 
-    const result = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US', undefined, { attempt: 1 });
+  test('refuses an empty 200 when the ROUTE grants the failover, and carries the no_speech it would have returned', async () => {
+    mockFetchOnce(emptyBody);
+
+    let thrown: unknown;
+    try {
+      await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US', undefined, {
+        mayRefuseEmptyTranscript: true,
+        requestAudioSeconds: REQUEST_AUDIO_SECONDS,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(EmptyTranscriptError);
+    const refusal = thrown as EmptyTranscriptError;
+    expect(refusal).toBeInstanceOf(ProviderUnavailableError);
+    expect(refusal.kind).toBe('bad_response');
+    // The upstream reported nothing, and the error says so; the gate read the
+    // request's own measured length instead.
+    expect(refusal.upstreamDurationSeconds).toBeNull();
+    expect(refusal.requestAudioSeconds).toBe(REQUEST_AUDIO_SECONDS);
+    expect(refusal.message).toContain('4.9');
+    expect(refusal.message).toContain('request estimate');
+    expect(refusal.noSpeechResult).toMatchObject({
+      text: '',
+      language: 'en',
+      source: 'no_speech',
+      costUsd: 0,
+      durationSeconds: 0,
+    });
+  });
+
+  test('a refusal logs no_speech with upstreamDurationSeconds still null, the request length, and refused: true', async () => {
+    mockFetchOnce(emptyBody);
+    const details = await captureNoSpeechEvent(async () => {
+      await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US', undefined, {
+        mayRefuseEmptyTranscript: true,
+        requestAudioSeconds: REQUEST_AUDIO_SECONDS,
+      }).catch(() => undefined);
+    });
+    // The operator field keeps its meaning: the upstream's own number or null.
+    expect(details.upstreamDurationSeconds).toBeNull();
+    expect(details.requestAudioSeconds).toBe(REQUEST_AUDIO_SECONDS);
+    expect(details.durationSource).toBe('request');
+    expect(details.refused).toBe(true);
+  });
+
+  test('does NOT refuse without the grant, even on attempt 1 — the benign no_speech is unchanged', async () => {
+    // ElevenLabs is the last sibling on the deepgram/groq/grok chains. The route
+    // never grants a sibling the refusal, so a silent clip there still ends as
+    // "No speech detected" instead of walking off the end of the chain.
+    mockFetchOnce(emptyBody);
+
+    const result = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US', undefined, {
+      attempt: 1,
+      requestAudioSeconds: REQUEST_AUDIO_SECONDS,
+    });
+    expect(result).toEqual({
+      text: '',
+      language: 'en',
+      durationSeconds: 0,
+      costUsd: 0,
+      source: 'no_speech',
+    });
+  });
+
+  test('does NOT refuse when the grant is there but no request length is known', async () => {
+    mockFetchOnce(emptyBody);
+    const result = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US', undefined, { mayRefuseEmptyTranscript: true });
     expect(result.source).toBe('no_speech');
     expect(result.costUsd).toBe(0);
-    expect(result.durationSeconds).toBe(0);
   });
 });

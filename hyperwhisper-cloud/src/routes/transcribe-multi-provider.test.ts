@@ -2012,3 +2012,137 @@ describe('AssemblyAI Dictation routing and billing', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('empty-transcript failover for a chosen elevenlabs (issue #720)', () => {
+  const saved = {
+    ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY,
+    DEEPGRAM_API_KEY: process.env.DEEPGRAM_API_KEY,
+    GROQ_API_KEY: process.env.GROQ_API_KEY,
+  };
+
+  beforeEach(() => {
+    process.env.ELEVENLABS_API_KEY = 'test-11l-key';
+    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+
+  // ElevenLabs' empty 200 carries no duration at all: it derives one from the
+  // last word, and there are no words. The production shape from the issue.
+  const elevenLabsEmpty = () => Response.json({ text: '', language_code: 'en', words: [] });
+
+  function stub(answers: { deepgram: () => Response; groq?: () => Response; elevenlabs?: () => Response }) {
+    const sttCalls: string[] = [];
+    const charges: Array<{ amount: number }> = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('api.elevenlabs.io')) {
+        sttCalls.push('elevenlabs');
+        return (answers.elevenlabs ?? elevenLabsEmpty)();
+      }
+      if (url.includes('api.deepgram.com')) {
+        sttCalls.push('deepgram');
+        return answers.deepgram();
+      }
+      if (url.includes('api.groq.com')) {
+        sttCalls.push('groq');
+        if (!answers.groq) throw new Error('groq was not expected to be called');
+        return answers.groq();
+      }
+      if (url.includes('/api/license/credits')) {
+        charges.push(JSON.parse(String(init?.body)) as { amount: number });
+        return Response.json({ credits_remaining: 999 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+    return { sttCalls, charges };
+  }
+
+  test('an empty 200 from the chosen elevenlabs is served by the sibling, named in X-STT-Provider', async () => {
+    const { sttCalls, charges } = stub({
+      deepgram: () => Response.json({
+        results: { channels: [{ alternatives: [{ transcript: 'hello from deepgram' }], detected_language: 'en' }] },
+        metadata: { duration: 4.9, request_id: 'dg-recovered' },
+      }),
+    });
+
+    const { response, events } = await captureRouteEvents(
+      () => buildApp().fetch(request({ 'X-STT-Provider': 'elevenlabs' })),
+    );
+    const raw = await response.text();
+    const body = JSON.parse(raw) as { text: string; no_speech_detected?: boolean };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('hello from deepgram');
+    expect(body.no_speech_detected).toBeUndefined();
+    expect(raw).not.toContain('no_speech_detected');
+    expect(response.headers.get('X-STT-Provider')).toContain('deepgram');
+    // One extra upstream call, stopping at the first sibling that answers.
+    expect(sttCalls).toEqual(['elevenlabs', 'deepgram']);
+    expect(charges).toHaveLength(1);
+
+    // The refusal rested on the request's own length; the upstream's own field
+    // still says it reported nothing.
+    const fail = events.find((e) => e.event === 'transcribe.provider_attempt_fail' && e.provider === 'elevenlabs');
+    expect(fail?.upstreamDurationSeconds).toBeNull();
+    expect(typeof fail?.requestAudioSeconds).toBe('number');
+    expect(fail?.requestAudioSeconds as number).toBeGreaterThan(0);
+    const done = events.find((e) => e.event === 'transcribe.request_done');
+    expect(done?.attemptFailures).toEqual([
+      expect.objectContaining({ provider: 'elevenlabs', kind: 'bad_response', emptyTranscript: true }),
+    ]);
+  });
+
+  test('when the sibling also finds nothing, the wire answer is unchanged: 200, 0 credits, no_speech_detected', async () => {
+    const { sttCalls, charges } = stub({
+      deepgram: () => Response.json({
+        results: { channels: [{ alternatives: [{ transcript: '' }], detected_language: 'en' }] },
+        metadata: { duration: 4.9, request_id: 'dg-empty' },
+      }),
+    });
+
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'elevenlabs' }));
+    const body = await response.json() as { text: string; no_speech_detected?: boolean; cost: { credits: number } };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('');
+    expect(body.no_speech_detected).toBe(true);
+    expect(body.cost.credits).toBe(0);
+    expect(charges).toHaveLength(0);
+    // The budget is one extra call: groq is never reached.
+    expect(sttCalls).toEqual(['elevenlabs', 'deepgram']);
+    // The floor is elevenlabs' own no_speech, so the response still names it.
+    expect(response.headers.get('X-STT-Provider')).toContain('elevenlabs');
+  });
+
+  test('benign path unchanged: elevenlabs as a SIBLING (grant withheld) still returns its empty 200 as no_speech', async () => {
+    // deepgram chosen → groq → elevenlabs. Both primaries are rate-limited, so
+    // elevenlabs runs as the last sibling with no grant, and its empty 200 is
+    // the answer — not a walk off the end of the chain into a 502.
+    const { sttCalls, charges } = stub({
+      deepgram: () => new Response('rate limited', { status: 429 }),
+      groq: () => new Response('rate limited', { status: 429 }),
+    });
+
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' }));
+    const body = await response.json() as { text: string; no_speech_detected?: boolean; cost: { credits: number } };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('');
+    expect(body.no_speech_detected).toBe(true);
+    expect(body.cost.credits).toBe(0);
+    expect(charges).toHaveLength(0);
+    // elevenlabs answered, and nothing was called after it.
+    expect(sttCalls).toEqual(['deepgram', 'groq', 'elevenlabs']);
+  });
+});
