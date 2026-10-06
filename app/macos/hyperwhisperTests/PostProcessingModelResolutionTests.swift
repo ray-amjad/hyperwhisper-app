@@ -39,6 +39,8 @@ struct PostProcessingModelResolutionTests {
             // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
             ("gemma-4-31b", .cerebras, "qwen-3.8-27b"),
             ("qwen-3-235b-a22b-instruct-2507", .cerebras, "gpt-oss-120b"),
+            // Groq withdrew qwen/qwen3.6-27b from GroqCloud without a notice (#788).
+            ("qwen/qwen3.6-27b", .groq, "qwen/qwen3.8-27b"),
         ]
 
         for entry in retiredIds {
@@ -58,7 +60,7 @@ struct PostProcessingModelResolutionTests {
             "gpt-4.1-nano", "gemini-3-pro-preview",
             "gemini-3.1-flash-lite-preview", "llama3.1-8b",
             "qwen-3-235b-a22b-instruct-2507",
-            "gemma-4-31b",
+            "gemma-4-31b", "qwen/qwen3.6-27b",
         ])
         #expect(PostProcessingModels.availableModels.allSatisfy { !retired.contains($0.id) })
         #expect(PostProcessingModels.defaultModel(for: .openai)?.id == "gpt-5.6-luna")

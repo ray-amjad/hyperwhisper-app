@@ -224,13 +224,6 @@ struct PostProcessingModels {
             provider: .groq
         ),
         PostProcessingModel(
-            id: "qwen/qwen3.6-27b",
-            displayName: "Qwen 3.6 27B",
-            isAvailable: true,
-            description: "Capable Qwen, strong quality-to-speed ratio",
-            provider: .groq
-        ),
-        PostProcessingModel(
             id: "qwen/qwen3.8-27b",
             displayName: "Qwen 3.8 27B",
             isAvailable: true,
@@ -398,6 +391,10 @@ struct PostProcessingModels {
             "moonshotai/kimi-k2-instruct": "openai/gpt-oss-120b",
             // Shut down by Groq 2026-03-09 → openai/gpt-oss-120b (matches Windows)
             "meta-llama/llama-4-maverick-17b-128e-instruct": "openai/gpt-oss-120b",
+            // Withdrawn from GroqCloud without a deprecation notice; gone from
+            // console.groq.com/docs/models.md since 2026-09-18 (#788). Same family
+            // and tier as qwen/qwen3.8-27b, which must stay a picker row.
+            "qwen/qwen3.6-27b": "qwen/qwen3.8-27b",
         ],
         .grok: [
             // Retired 2026-05-15 — all grok-4-* fast variants redirect to grok-4.3.

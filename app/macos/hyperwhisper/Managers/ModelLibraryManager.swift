@@ -579,7 +579,6 @@ final class ModelLibraryManager: ObservableObject {
         "gemini-3.1-flash-lite":                         (4, 3),
         "openai/gpt-oss-120b":                           (4, 4),
         "openai/gpt-oss-20b":                            (4, 4),
-        "qwen/qwen3.6-27b":                              (4, 3),
         "qwen/qwen3.8-27b":                              (4, 3),
         "grok-4.3":                                      (2, 5),
         "grok-4.5":                                      (2, 5),
