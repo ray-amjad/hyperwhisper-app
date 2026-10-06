@@ -161,11 +161,14 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// never on the main thread.
     typealias MeterReader = @Sendable (AVAudioRecorder) -> Float
 
-    /// The meter read. Test seam: a test swaps in a fake to see which thread it
-    /// runs on and how many reads are in flight. Production never changes it.
-    var meterReader: MeterReader = { recorder in
+    /// The production meter read: `readNormalizedLevel` over -60...0 dB.
+    nonisolated static let defaultMeterReader: MeterReader = { recorder in
         SimpleRecorder.readNormalizedLevel(recorder, minDb: SimpleRecorder.minDb, maxDb: SimpleRecorder.maxDb)
     }
+
+    /// The meter read. Test seam: a test swaps in a fake to see which thread it
+    /// runs on and how many reads are in flight. Production never changes it.
+    var meterReader: MeterReader = SimpleRecorder.defaultMeterReader
 
     /// Dedicated **serial** queue for the meter read (`updateMeters` + `averagePower`)
     /// (Sentry HYPERWHISPER-KB). Not `recorderStartQueue`: a meter read stuck on
@@ -586,7 +589,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// `DispatchQueue.async` is what moves the blocking call off the main thread.
     /// Same pattern as `discardSupersededRecorder(_:)`. The block captures the
     /// recorder strongly until the read returns.
-    nonisolated private static func readLevel(
+    nonisolated static func readLevel(
         from recorder: AVAudioRecorder,
         on queue: DispatchQueue,
         using reader: @escaping MeterReader

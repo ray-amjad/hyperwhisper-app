@@ -208,6 +208,17 @@ class AudioRecordingManager: NSObject, ObservableObject {
 
     /// Polling task that samples `inputLevelPreviewRecorder` at ~30 FPS.
     private var inputLevelPreviewTask: Task<Void, Never>?
+
+    /// Serial queue for the preview's blocking meter read, so a stuck AudioQueue
+    /// lock never freezes the main thread (same fix as `SimpleRecorder`, #1104).
+    private let inputLevelPreviewMeterQueue = DispatchQueue(
+        label: "com.hyperwhisper.input-level-preview.meter",
+        qos: .userInitiated
+    )
+
+    /// True while a preview meter read is pending; a tick that finds it set is
+    /// skipped. Not cleared by a stop: a stuck read is still stuck.
+    private var inputLevelPreviewReadInFlight = false
     
     /// Observer for UserDefaults changes
     private var defaultsObserver: NSObjectProtocol?
@@ -1015,7 +1026,7 @@ class AudioRecordingManager: NSObject, ObservableObject {
     ///
     /// Backed by an `AVAudioRecorder` writing to `/dev/null` with metering
     /// enabled, sampled at ~30 FPS and normalized (-60…0 dB → 0…1) exactly like
-    /// `SimpleRecorder.updateMeter()`. The recorder captures whatever the system
+    /// `SimpleRecorder.readNormalizedLevel`. The recorder captures whatever the system
     /// default input is at start time; `selectDevice(_:)` switches that default,
     /// so call `startInputLevelPreview()` again after changing the device to
     /// re-point it.
@@ -1080,23 +1091,27 @@ class AudioRecordingManager: NSObject, ObservableObject {
         idleInputLevel = 0
     }
 
-    /// Sample the preview recorder's average power and publish a normalized level.
-    /// Mirrors `SimpleRecorder.updateMeter()` (-60 dB silence floor, 0 dB ceiling).
+    /// Sample the preview recorder's level on `inputLevelPreviewMeterQueue` and
+    /// publish it here. Uses `SimpleRecorder.readNormalizedLevel` (-60 dB silence
+    /// floor, 0 dB ceiling). At most one read in flight; the read holds the
+    /// recorder, and a result for a recorder that was stopped or replaced
+    /// meanwhile is dropped.
     private func sampleInputLevelPreview() {
-        guard let recorder = inputLevelPreviewRecorder else { return }
-        recorder.updateMeters()
-        let power = recorder.averagePower(forChannel: 0)
-        let minDb: Float = -60
-        let maxDb: Float = 0
-        let normalized: Float
-        if power <= minDb {
-            normalized = 0
-        } else if power >= maxDb {
-            normalized = 1
-        } else {
-            normalized = (power - minDb) / (maxDb - minDb)
+        guard !inputLevelPreviewReadInFlight,
+              let recorder = inputLevelPreviewRecorder else { return }
+        inputLevelPreviewReadInFlight = true
+        let queue = inputLevelPreviewMeterQueue
+        Task { [weak self] in
+            let level = await SimpleRecorder.readLevel(
+                from: recorder,
+                on: queue,
+                using: SimpleRecorder.defaultMeterReader
+            )
+            guard let self else { return }
+            self.inputLevelPreviewReadInFlight = false
+            guard self.inputLevelPreviewRecorder === recorder else { return }
+            self.idleInputLevel = level
         }
-        idleInputLevel = normalized
     }
 
     // MARK: - Public API: Crash Recovery
