@@ -2786,6 +2786,104 @@ internal static class Program
                     $"the backend-confirmed low-signal sample must report nothing at all, got {TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)}");
             });
 
+            Run("AudioRecorderService: a recording the device sent no frames stops as an empty capture, one buffer does not (#750)", () =>
+            {
+                var dir = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", "empty-capture-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(dir);
+                try
+                {
+                    // The HYPERWHISPER-Y6 shape: the device delivered no buffer at all,
+                    // so the WAV is its 46-byte header and nothing else.
+                    using (var empty = PrimeRecorderForTest(Path.Combine(dir, "empty.wav"), bytes: 0))
+                    {
+                        var stop = empty.StopRecording();
+                        Assert(stop.IsSuccess, $"stopping a primed recorder failed: {stop.Error}");
+                        Assert(new FileInfo(stop.Value!).Length == 46,
+                            $"expected a 46-byte header-only WAV, got {new FileInfo(stop.Value!).Length} bytes");
+                        Assert(empty.CapturedAudioBytes == 0,
+                            $"no buffer arrived, yet CapturedAudioBytes is {empty.CapturedAudioBytes}");
+                        Assert(AudioRecorderService.IsEmptyCapture(empty.CapturedAudioBytes),
+                            "a header-only recording is not treated as empty, so it would be uploaded");
+
+                        // The local guard has no provider diagnostics in hand. The file must
+                        // still classify as empty_recording, so the early return reports the
+                        // same diagnostic the provider round trip used to.
+                        var analysis = TranscriptionDiagnosticsService.AnalyzeAudioFile(stop.Value!, 3.0);
+                        Assert(analysis.AnalysisSucceeded && analysis.DecodedSampleCount == 0,
+                            $"expected a readable zero-frame file, got succeeded={analysis.AnalysisSucceeded} decoded={analysis.DecodedSampleCount}");
+                        var outcome = TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(analysis, providerDiagnostics: null);
+                        Assert(outcome == PortableNoSpeechOutcome.EmptyRecording,
+                            $"a zero-frame file with no provider diagnostics classified as {outcome}, not EmptyRecording");
+                    }
+
+                    // One 100 ms buffer: short, but real audio, so it must be sent.
+                    using (var real = PrimeRecorderForTest(Path.Combine(dir, "real.wav"), bytes: 3200))
+                    {
+                        var stop = real.StopRecording();
+                        Assert(stop.IsSuccess, $"stopping a primed recorder failed: {stop.Error}");
+                        Assert(real.CapturedAudioBytes == 3200,
+                            $"expected 3200 captured bytes, got {real.CapturedAudioBytes}");
+                        Assert(!AudioRecorderService.IsEmptyCapture(real.CapturedAudioBytes),
+                            "a recording with one real buffer was treated as empty");
+                    }
+
+                    // The discriminator is "no whole frame", never a duration or size floor.
+                    Assert(AudioRecorderService.IsEmptyCapture(1), "half a 16-bit frame is still no audio");
+                    Assert(!AudioRecorderService.IsEmptyCapture(AudioRecorderService.RecordingBlockAlign),
+                        "a single frame was treated as empty");
+                }
+                finally
+                {
+                    try { Directory.Delete(dir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            Run("MainViewModel.EmptyCaptureMessage names the device, not the user's silence (#750)", () =>
+            {
+                var message = MainViewModel.EmptyCaptureMessage;
+                Assert(message != "errors.microphoneSentNoAudio",
+                    "errors.microphoneSentNoAudio resolves to its own key - it is not in Strings.resx");
+                Assert(message != HyperWhisper.Localization.Loc.S("errors.noSpeechDetected"),
+                    "an empty capture must not tell the user that no speech was detected");
+                Assert(TranscriptionDiagnosticsService.LocalEmptyCaptureSource != "provider_no_speech",
+                    "the local empty-capture diagnostic must stay separable from the provider one in Sentry");
+            });
+
+            RunAsync("LiveOnboardingAudioGateway: a Try It recording with no frames never reaches transcription (#750)", async () =>
+            {
+                var dir = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", "empty-capture-onboarding-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(dir);
+                var wav = Path.Combine(dir, "empty.wav");
+                try
+                {
+                    // ModeService.Instance reads the Modes table on first use.
+                    await DatabaseInitializer.InitializeAsync();
+
+                    var recorder = PrimeRecorderForTest(wav, bytes: 0);
+                    using var gateway = new LiveOnboardingAudioGateway(
+                        new AudioDeviceService(),
+                        recorder,
+                        SettingsService.Instance,
+                        ModeService.Instance,
+                        MicrophoneKeepWarmService.Instance,
+                        VocabularyService.Instance,
+                        new WhisperModelService(),
+                        new ParakeetModelService());
+
+                    await gateway.StopAndTranscribeAsync(CancellationToken.None);
+
+                    var expected = $"Error: {MainViewModel.EmptyCaptureMessage}";
+                    Assert(gateway.Transcript == expected,
+                        $"expected '{expected}', got '{gateway.Transcript}' - the empty file went on to transcription");
+                    Assert(!File.Exists(wav), "the header-only recording was left on disk");
+                    recorder.Dispose();
+                }
+                finally
+                {
+                    try { Directory.Delete(dir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
             Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech skips exactly at the low-signal threshold boundary (inclusive <=)", () =>
             {
                 // The gate's comparisons are inclusive (<=), so a reading sitting exactly on
@@ -12304,6 +12402,7 @@ internal static class Program
                     "errors.noMicrophone",
                     "errors.noModeSelected",
                     "errors.recordingStartFailed",
+                    "errors.microphoneSentNoAudio",
                     "audio.error.stopRecordingFailed",
                     "recording.state.transcribing",
                     "errors.unhandled.title",
@@ -16191,6 +16290,36 @@ internal static class Program
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
     private static extern bool CloseClipboard();
+
+    /// <summary>
+    /// A real <see cref="AudioRecorderService"/> put into the recording state over
+    /// <paramref name="path"/> without a capture device, fed <paramref name="bytes"/>
+    /// of PCM through its own OnDataAvailable. Reflection, so the production class
+    /// carries no test-only entry point.
+    /// </summary>
+    private static AudioRecorderService PrimeRecorderForTest(string path, int bytes)
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var type = typeof(AudioRecorderService);
+        var writerField = type.GetField("_writer", flags)
+            ?? throw new InvalidOperationException("AudioRecorderService._writer not found");
+        var pathField = type.GetField("_tempFilePath", flags)
+            ?? throw new InvalidOperationException("AudioRecorderService._tempFilePath not found");
+        var onData = type.GetMethod("OnDataAvailable", flags)
+            ?? throw new InvalidOperationException("AudioRecorderService.OnDataAvailable not found");
+
+        var recorder = new AudioRecorderService();
+        pathField.SetValue(recorder, path);
+        writerField.SetValue(recorder, new NAudio.Wave.WaveFileWriter(path, new NAudio.Wave.WaveFormat(16000, 16, 1)));
+        type.GetProperty(nameof(AudioRecorderService.IsRecording))!.SetValue(recorder, true);
+
+        if (bytes > 0)
+        {
+            onData.Invoke(recorder, new object?[] { null, new NAudio.Wave.WaveInEventArgs(new byte[bytes], bytes) });
+        }
+
+        return recorder;
+    }
 
     private static void Run(string name, Action check)
     {
