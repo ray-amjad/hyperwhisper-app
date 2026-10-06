@@ -28,7 +28,8 @@ var tests = new (string Name, Action Run)[]
     ("the configured beforeSend keeps the account name out of the envelope", ConfiguredBeforeSendKeepsAccountNameOutOfEnvelope),
     ("an unobserved AggregateException keeps its inner type and frames, not their text", AggregateKeepsInnerTypeAndFrames),
     ("the inner-exception walk flattens, follows InnerException, and stops at 4", InnerExceptionWalkIsFlattenedAndCapped),
-    ("configured options leave unobserved task exceptions to the app handler", ConfiguredOptionsDisableSdkUnobservedTaskCapture),
+    ("a sanitized unobserved AggregateException reaches the envelope with its inner type and frames, and no text", SanitizedAggregateReachesEnvelopeWithInnerFrames),
+    ("configured options leave unobserved task exceptions to the app handler",ConfiguredOptionsDisableSdkUnobservedTaskCapture),
     ("configured options leave AppDomain unhandled exceptions to the app handler", ConfiguredOptionsDisableSdkAppDomainCapture),
 };
 
@@ -451,6 +452,55 @@ static void AggregateKeepsInnerTypeAndFrames()
     Assert.False(sanitized.ToString().Contains("secret-marker", StringComparison.Ordinal));
     Assert.True(sanitized.InnerException is null);
     Assert.Equal(0, sanitized.Data.Count);
+}
+
+static void SanitizedAggregateReachesEnvelopeWithInnerFrames()
+{
+    // The production backend's Capture, the production options, the real SDK.
+    Exception thrown;
+    try
+    {
+        ThrowSecretMarker();
+        throw new InvalidOperationException("unreachable");
+    }
+    catch (InvalidOperationException exception)
+    {
+        thrown = exception;
+    }
+
+    var transport = new CapturingSentryTransport();
+    using (SentrySdk.Init(options =>
+    {
+        SentryTelemetryBackend.ConfigureOptions(options, TestConfiguration());
+        options.Transport = transport;
+        options.ProfilesSampleRate = 0;
+        options.AutoSessionTracking = false;
+    }))
+    {
+        new SentryTelemetryBackend().Capture(
+            TelemetryPrivacy.SanitizeException(new AggregateException(thrown)),
+            "Unobserved task exception");
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+    }
+
+    var errorEvent = transport.FindPayload(payload => payload["exception"] is not null)
+        ?? throw new InvalidOperationException("no error event: " + transport.Dump());
+    var values = errorEvent["exception"]?["values"]?.AsArray() ?? [];
+    Assert.Equal("System.AggregateException", values[^1]?["type"]?.GetValue<string>());
+    var inner = values.SingleOrDefault(value => value?["type"]?.GetValue<string>() == "System.InvalidOperationException");
+    Assert.True(inner is not null);
+    var frames = inner!["stacktrace"]?["frames"]?.AsArray() ?? [];
+    Assert.True(frames.Any(frame =>
+        frame?["function"]?.GetValue<string>().Contains(nameof(ThrowSecretMarker), StringComparison.Ordinal) == true));
+    Assert.True(frames.All(frame => frame?["abs_path"] is null && frame?["filename"] is null));
+    Assert.Equal("chained", inner["mechanism"]?["type"]?.GetValue<string>());
+
+    // Every byte the SDK handed the transport: no message, Data or HResult text.
+    var dump = transport.Dump();
+    Assert.False(dump.Contains("secret-marker", StringComparison.Ordinal));
+    Assert.False(dump.Contains("/home/bob", StringComparison.Ordinal));
+    Assert.False(dump.Contains("0x80131620", StringComparison.OrdinalIgnoreCase));
+    Assert.False(dump.Contains(thrown.HResult.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal));
 }
 
 [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
