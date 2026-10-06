@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+
 import {
   CREDIT_FEE_RATE,
   CREDITS_PER_DOLLAR,
@@ -47,9 +48,9 @@ export default function RefundPolicyPage() {
       <p>
         HyperWhisper sells HyperWhisper Cloud credits. This policy covers those
         credit purchases. Credits are a one-time purchase, not a subscription,
-        and are priced at {formatCredits(CREDITS_PER_DOLLAR)} credits per
-        US$1. You can buy any whole-dollar amount from ${MIN_CREDIT_DOLLARS} to
-        ${MAX_CREDIT_DOLLARS}.
+        and are priced at {formatCredits(CREDITS_PER_DOLLAR)} credits per US$1.
+        You can buy any whole-dollar amount from ${MIN_CREDIT_DOLLARS} to $
+        {MAX_CREDIT_DOLLARS}.
       </p>
 
       <h2>II. What Can Be Refunded</h2>
@@ -80,8 +81,8 @@ export default function RefundPolicyPage() {
       <p>
         <strong>Example:</strong> You buy ${MIN_CREDIT_DOLLARS} of credits (
         {formatCredits(example.creditAmount)} credits) and pay{" "}
-        {formatDollars(example.creditCents + example.feeCents)}, which
-        includes the {formatDollars(example.feeCents)} processing fee. You use{" "}
+        {formatDollars(example.creditCents + example.feeCents)}, which includes
+        the {formatDollars(example.feeCents)} processing fee. You use{" "}
         {formatCredits(exampleUsedCredits)} credits (
         {formatDollars(exampleUsedCents)}) and then ask for a refund. We refund{" "}
         {formatDollars(exampleRefundCents)}, the value of the credits you did
@@ -133,8 +134,7 @@ export default function RefundPolicyPage() {
           purchase (for verification)
         </li>
         <li>
-          <strong>We&apos;ll process your request</strong> within 1 business
-          day
+          <strong>We&apos;ll process your request</strong> within 1 business day
         </li>
       </ol>
 
@@ -179,9 +179,8 @@ export default function RefundPolicyPage() {
       <h3>Compatibility Concerns</h3>
       <p>
         Before purchasing, please review our system requirements. However, if
-        HyperWhisper Cloud doesn&apos;t work on your system due to
-        compatibility issues, your unused credits are covered by our 14-day
-        guarantee.
+        HyperWhisper Cloud doesn&apos;t work on your system due to compatibility
+        issues, your unused credits are covered by our 14-day guarantee.
       </p>
 
       <h3>Feature Requests</h3>
@@ -238,8 +237,16 @@ export default function RefundPolicyPage() {
 
       <div className="bg-gray-900/50 rounded-lg p-6 border border-gray-800">
         <p className="mb-2">
-          <strong>Provider:</strong> Ray Amjad LTD (<a className="text-blue-400 hover:underline" href="https://find-and-update.company-information.service.gov.uk/company/14506459" target="_blank" rel="noopener noreferrer">Company Number 14506459</a>,
-          United Kingdom)
+          <strong>Provider:</strong> Ray Amjad LTD (
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://find-and-update.company-information.service.gov.uk/company/14506459"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Company Number 14506459
+          </a>
+          , United Kingdom)
         </p>
         <p className="mb-2">
           <strong>Email:</strong>{" "}
@@ -264,8 +271,7 @@ export default function RefundPolicyPage() {
       <p>
         We may update this refund policy from time to time. Any changes will be
         posted on this page with an updated &quot;Last Updated&quot; date.
-        Significant changes will be communicated via email to recent
-        purchasers.
+        Significant changes will be communicated via email to recent purchasers.
       </p>
 
       <p>
@@ -275,10 +281,7 @@ export default function RefundPolicyPage() {
 
       <div className="bg-green-900/20 border border-green-800 rounded-lg p-6 mt-8">
         <h3 className="text-green-200 mt-0 mb-3">
-          <a
-            className="hover:underline"
-            href="/"
-          >
+          <a className="hover:underline" href="/">
             Ready to try HyperWhisper?
           </a>
         </h3>
