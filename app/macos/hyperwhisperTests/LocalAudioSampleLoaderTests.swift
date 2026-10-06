@@ -114,8 +114,32 @@ struct LocalAudioSampleLoaderTests {
 
         let samples = try LocalAudioSampleLoader.loadMono16kSamples(from: url, providerName: "Nemotron", logger: logger)
 
-        #expect(samples.count == 16000)
+        #expect(samples.count == 16000, "got \(samples.count) samples")
         #expect(samples.contains { abs($0) > 0.1 }, "the decoded tone is silent")
+    }
+
+    @Test func aWAVThatEndsExactlyOnAChunkBoundaryLoadsWithoutAReadAtTheEnd() throws {
+        // 8192 frames is exactly 2 input chunks of 4096, so the 2nd real read
+        // leaves the file position at its end. AVAudioFile throws on a read
+        // from there, so the loader must end the stream without a 3rd read.
+        let url = try makeWAV(sampleRate: 16000, frames: 8192)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        var calls = 0
+        let countingReader: LocalAudioSampleLoader.ChunkReader = { file, buffer in
+            calls += 1
+            try file.read(into: buffer)
+        }
+
+        let samples = try LocalAudioSampleLoader.loadMono16kSamples(
+            from: url,
+            providerName: "Nemotron",
+            logger: logger,
+            readChunk: countingReader
+        )
+
+        #expect(samples.count == 8192, "got \(samples.count) samples")
+        #expect(calls == 2, "the reader was called \(calls) times for 2 chunks")
     }
 
     @Test func aValidWAVIsResampledInFull() throws {

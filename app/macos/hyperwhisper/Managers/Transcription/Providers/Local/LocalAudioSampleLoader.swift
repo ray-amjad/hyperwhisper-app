@@ -14,8 +14,17 @@ import os
 // `convert` returns without setting its `error` out-parameter. If a read fault
 // is only reported as `.endOfStream`, the caller gets the frames converted so
 // far and a silently truncated transcript. The input block therefore captures
-// the read error, and the loader throws it after `convert` returns. A read that
-// succeeds with zero frames is the real end of the file and stays silent.
+// the read error, and the loader throws it after `convert` returns.
+//
+// END OF FILE IS DECIDED BEFORE THE READ:
+// `AVAudioFile.read(into:)` throws when the file is already at its end
+// (`framePosition >= length`) instead of returning zero frames. The old code
+// hid that by mapping every throw to `.endOfStream`. So the input block checks
+// the position first and ends the stream without reading, like the
+// `while framesRead < totalFrames` loops in `Utilities/AudioConverter.swift`,
+// and the default reader never asks for more than the frames left. A read that
+// succeeds with zero frames is still a silent end. Only a read that starts
+// before the end and throws is a #771 failure.
 //
 // This is deliberately NOT `Utilities/AudioConverter.swift`: its chunked,
 // downmixing path can produce different samples. Keep this recipe as it is.
@@ -33,12 +42,18 @@ enum LocalAudioSampleLoader {
     ///   - providerName: the `provider:` value for every `TranscriptionError` thrown.
     ///   - logger: the calling provider's logger. A read fault logs one line with
     ///     the error domain/code and the frame count only — never the path or audio.
-    ///   - readChunk: the read step. Defaults to `AVAudioFile.read(into:)`.
+    ///   - readChunk: the read step. Defaults to `AVAudioFile.read(into:frameCount:)`,
+    ///     capped to the frames left in the file. It is only called while the
+    ///     file position is before the end.
     static func loadMono16kSamples(
         from url: URL,
         providerName: String,
         logger: Logger,
-        readChunk: @escaping ChunkReader = { file, buffer in try file.read(into: buffer) }
+        readChunk: @escaping ChunkReader = { file, buffer in
+            let remaining = file.length - file.framePosition
+            let frameCount = AVAudioFrameCount(min(AVAudioFramePosition(buffer.frameCapacity), max(remaining, 0)))
+            try file.read(into: buffer, frameCount: frameCount)
+        }
     ) throws -> [Float] {
         let file = try AVAudioFile(forReading: url)
         let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: targetSampleRate, channels: 1, interleaved: false)!
@@ -61,10 +76,15 @@ enum LocalAudioSampleLoader {
         var readError: Error?
         var framesRead = 0
         converter.convert(to: outputBuffer, error: &error) { _, outStatus in
+            if file.framePosition >= file.length {
+                // Real end of file. Reading here would throw, so do not read.
+                outStatus.pointee = .endOfStream
+                return nil
+            }
             do {
                 try readChunk(file, inputBuffer)
                 if inputBuffer.frameLength == 0 {
-                    // Real end of file: silent by design.
+                    // A read that succeeds with no frames is also the end: silent by design.
                     outStatus.pointee = .endOfStream
                     return nil
                 }
