@@ -3,6 +3,12 @@ using HyperWhisper.Telemetry;
 using Sentry;
 using Sentry.Protocol;
 
+if (args is [AppDomainChild.Flag, var envelopeFile])
+{
+    AppDomainChild.Run(envelopeFile);
+    return;
+}
+
 var tests = new (string Name, Action Run)[]
 {
     ("blank DSN is a strict no-op", BlankDsnIsNoOp),
@@ -20,6 +26,10 @@ var tests = new (string Name, Action Run)[]
     ("beforeSend sanitizer rewrites every field that can carry the account name", SanitizerRewritesEveryField),
     ("beforeSend sanitizer keeps the grouping directive, adds no key, drops an event it cannot sanitize", SanitizerKeepsShapeAndDropsOnFault),
     ("the configured beforeSend keeps the account name out of the envelope", ConfiguredBeforeSendKeepsAccountNameOutOfEnvelope),
+    ("an unobserved AggregateException keeps its inner type and frames, not their text", AggregateKeepsInnerTypeAndFrames),
+    ("the inner-exception walk flattens, follows InnerException, and stops at 4", InnerExceptionWalkIsFlattenedAndCapped),
+    ("configured options leave unobserved task exceptions to the app handler", ConfiguredOptionsDisableSdkUnobservedTaskCapture),
+    ("configured options leave AppDomain unhandled exceptions to the app handler", ConfiguredOptionsDisableSdkAppDomainCapture),
 };
 
 foreach (var test in tests)
@@ -412,6 +422,177 @@ static void ThrowSensitiveException()
     throw exception;
 }
 
+static void AggregateKeepsInnerTypeAndFrames()
+{
+    // The shape TaskScheduler.UnobservedTaskException hands the app (#1051): an
+    // AggregateException that was never thrown, around one that was.
+    Exception thrown;
+    try
+    {
+        ThrowSecretMarker();
+        throw new InvalidOperationException("unreachable");
+    }
+    catch (InvalidOperationException exception)
+    {
+        thrown = exception;
+    }
+    var aggregate = new AggregateException(thrown);
+    Assert.True(aggregate.StackTrace is null);
+
+    var sanitized = TelemetryPrivacy.SanitizeException(aggregate);
+
+    Assert.True(sanitized.Message.Contains("System.AggregateException", StringComparison.Ordinal));
+    Assert.True(sanitized.Message.Contains("System.InvalidOperationException", StringComparison.Ordinal));
+    Assert.True(sanitized.StackTrace is not null);
+    Assert.True(sanitized.StackTrace!.Contains(nameof(ThrowSecretMarker), StringComparison.Ordinal));
+    Assert.False(sanitized.StackTrace.Contains(" in ", StringComparison.Ordinal));
+    Assert.False(sanitized.Message.Contains("secret-marker", StringComparison.Ordinal));
+    Assert.False(sanitized.StackTrace.Contains("secret-marker", StringComparison.Ordinal));
+    Assert.False(sanitized.ToString().Contains("secret-marker", StringComparison.Ordinal));
+    Assert.True(sanitized.InnerException is null);
+    Assert.Equal(0, sanitized.Data.Count);
+}
+
+[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+static void ThrowSecretMarker()
+{
+    var exception = new InvalidOperationException("secret-marker at /home/bob/x.wav");
+    exception.Data["transcript"] = "secret-marker";
+    exception.HResult = unchecked((int)0x80131620);
+    throw exception;
+}
+
+static void InnerExceptionWalkIsFlattenedAndCapped()
+{
+    // Nested aggregates are containers: flattened, never named. Flatten() lists the
+    // direct inner exceptions before a nested aggregate's, and the walk keeps that order.
+    var nested = new AggregateException(
+        new AggregateException(new TimeoutException("secret-marker")),
+        new IOException("secret-marker", new UnauthorizedAccessException("secret-marker")));
+    var flattened = TelemetryPrivacy.SanitizeException(nested).Message;
+    Assert.True(flattened.Contains(
+        "(inner: System.IO.IOException, System.TimeoutException, System.UnauthorizedAccessException)",
+        StringComparison.Ordinal));
+    Assert.False(flattened.Contains("secret-marker", StringComparison.Ordinal));
+
+    // A plain InnerException chain of 6 names the first 4 only.
+    Exception chain = new FormatException("secret-marker");
+    chain = new KeyNotFoundException("secret-marker", chain);
+    chain = new NotSupportedException("secret-marker", chain);
+    chain = new ArgumentException("secret-marker", chain);
+    chain = new IOException("secret-marker", chain);
+    chain = new TimeoutException("secret-marker", chain);
+    var outer = new InvalidOperationException("secret-marker", chain);
+    var capped = TelemetryPrivacy.SanitizeException(outer).Message;
+    Assert.True(capped.Contains(
+        "(inner: System.TimeoutException, System.IO.IOException, System.ArgumentException, System.NotSupportedException)",
+        StringComparison.Ordinal));
+    Assert.False(capped.Contains("KeyNotFoundException", StringComparison.Ordinal));
+    Assert.False(capped.Contains("secret-marker", StringComparison.Ordinal));
+
+    // No inner exception: the message is the pre-#1051 text, so existing Sentry
+    // groups for plain exceptions do not split.
+    Assert.Equal(
+        "A System.InvalidOperationException was reported with message, inner-exception, and data content removed.",
+        TelemetryPrivacy.SanitizeException(new InvalidOperationException("secret-marker")).Message);
+}
+
+// Sentry 4.12.1 has no public getter for its default integrations (Integrations and
+// HasIntegration are internal), so both tests observe the behaviour instead: the
+// production options, the real SDK, an in-memory transport, and the real event.
+static void ConfiguredOptionsDisableSdkUnobservedTaskCapture()
+{
+    var transport = new CapturingSentryTransport();
+    using var raised = new ManualResetEventSlim(false);
+    EventHandler<UnobservedTaskExceptionEventArgs> probe = (_, args) =>
+    {
+        if (args.Exception.InnerException?.Message == "unobserved-marker") raised.Set();
+    };
+    TaskScheduler.UnobservedTaskException += probe;
+    try
+    {
+        using (SentrySdk.Init(options =>
+        {
+            SentryTelemetryBackend.ConfigureOptions(options, TestConfiguration());
+            options.Transport = transport;
+            options.ProfilesSampleRate = 0;
+            options.AutoSessionTracking = false;
+        }))
+        {
+            SentrySdk.CaptureMessage("sdk-alive");
+            for (var attempt = 0; attempt < 50 && !raised.IsSet; attempt++)
+            {
+                AbandonFaultedTask();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                raised.Wait(TimeSpan.FromMilliseconds(100));
+            }
+            SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+        }
+    }
+    finally
+    {
+        TaskScheduler.UnobservedTaskException -= probe;
+    }
+
+    // Not vacuous: the event fired, and the transport did carry an event.
+    Assert.True(raised.IsSet);
+    Assert.True(transport.FindPayload(payload => payload["logentry"] is not null) is not null);
+    Assert.True(transport.FindPayload(payload => payload["exception"] is not null) is null);
+    Assert.False(transport.Dump().Contains("unobserved-marker", StringComparison.Ordinal));
+}
+
+[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+static void AbandonFaultedTask()
+{
+    var task = Task.Run(new Action(() => throw new InvalidOperationException("unobserved-marker")));
+    // Waits for the fault without observing it.
+    ((IAsyncResult)task).AsyncWaitHandle.WaitOne();
+}
+
+static void ConfiguredOptionsDisableSdkAppDomainCapture()
+{
+    // An unhandled exception ends the process, so it runs in a child copy of this
+    // program; the child's transport appends each envelope to a file.
+    var envelopeFile = Path.Combine(Path.GetTempPath(), $"hw-telemetry-{Guid.NewGuid():N}.envelopes");
+    try
+    {
+        var self = Environment.ProcessPath ?? throw new InvalidOperationException("no process path");
+        var start = new System.Diagnostics.ProcessStartInfo(self)
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+        };
+        if (Path.GetFileNameWithoutExtension(self) == "dotnet") start.ArgumentList.Add(typeof(Program).Assembly.Location);
+        start.ArgumentList.Add(AppDomainChild.Flag);
+        start.ArgumentList.Add(envelopeFile);
+        start.Environment["DOTNET_DbgEnableMiniDump"] = "0";
+
+        using var child = System.Diagnostics.Process.Start(start) ?? throw new InvalidOperationException("no child");
+        var stderr = child.StandardError.ReadToEndAsync();
+        var stdout = child.StandardOutput.ReadToEndAsync();
+        if (!child.WaitForExit(TimeSpan.FromSeconds(60)))
+        {
+            child.Kill(entireProcessTree: true);
+            throw new InvalidOperationException("child did not exit");
+        }
+
+        // Not vacuous: the child really died of the unhandled exception, and its
+        // transport really carried an event before that.
+        Assert.True(child.ExitCode != 0);
+        Assert.True(stderr.Result.Contains(AppDomainChild.Marker, StringComparison.Ordinal));
+        Assert.True(stdout.Result.Contains("child-flushed", StringComparison.Ordinal));
+        var transport = CapturingSentryTransport.Load(envelopeFile);
+        Assert.True(transport.FindPayload(payload => payload["logentry"] is not null) is not null);
+        Assert.True(transport.FindPayload(payload => payload["exception"] is not null) is null);
+        Assert.False(transport.Dump().Contains(AppDomainChild.Marker, StringComparison.Ordinal));
+    }
+    finally
+    {
+        File.Delete(envelopeFile);
+    }
+}
+
 static void InitializedTelemetryCapturesAndFlushes()
 {
     var backend = new FakeBackend();
@@ -515,20 +696,65 @@ static class Fixtures
         "Could not open '$XDG_DATA_HOME/HyperWhisper/models/ggml-base.bin' for $USER: Permission denied (errno 13, 0x80131620)";
 }
 
-sealed class CapturingSentryTransport : Sentry.Extensibility.ITransport
+static class AppDomainChild
 {
+    public const string Flag = "--appdomain-child";
+    public const string Marker = "appdomain-marker";
+
+    public static void Run(string envelopeFile)
+    {
+        // Production options, a file-backed transport, and no app handler: any
+        // exception event in the file came from the SDK's own integration.
+        SentrySdk.Init(options =>
+        {
+            SentryTelemetryBackend.ConfigureOptions(options, TelemetryConfiguration.Create(
+                "https://public@example.invalid/1", "test", typeof(Program).Assembly));
+            options.Transport = new CapturingSentryTransport(envelopeFile);
+            options.ProfilesSampleRate = 0;
+            options.AutoSessionTracking = false;
+        });
+        SentrySdk.CaptureMessage("child-alive");
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+        Console.WriteLine("child-flushed");
+        Console.Out.Flush();
+
+        var thread = new Thread(() => throw new InvalidOperationException(Marker));
+        thread.Start();
+        thread.Join();
+    }
+}
+
+sealed class CapturingSentryTransport(string? mirrorFile = null) : Sentry.Extensibility.ITransport
+{
+    private const string Separator = "\n---envelope---\n";
     private readonly List<string> _envelopes = [];
+
+    public static CapturingSentryTransport Load(string file)
+    {
+        var transport = new CapturingSentryTransport();
+        if (File.Exists(file))
+        {
+            transport._envelopes.AddRange(File.ReadAllText(file)
+                .Split(Separator, StringSplitOptions.RemoveEmptyEntries));
+        }
+        return transport;
+    }
 
     public async Task SendEnvelopeAsync(Sentry.Protocol.Envelopes.Envelope envelope, CancellationToken cancellationToken = default)
     {
         using var stream = new MemoryStream();
         await envelope.SerializeAsync(stream, null, cancellationToken);
-        lock (_envelopes) _envelopes.Add(System.Text.Encoding.UTF8.GetString(stream.ToArray()));
+        var text = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        lock (_envelopes)
+        {
+            _envelopes.Add(text);
+            if (mirrorFile is not null) File.AppendAllText(mirrorFile, text + Separator);
+        }
     }
 
     public string Dump()
     {
-        lock (_envelopes) return string.Join("\n---envelope---\n", _envelopes);
+        lock (_envelopes) return string.Join(Separator, _envelopes);
     }
 
     public IEnumerable<string> AllStringValues()
