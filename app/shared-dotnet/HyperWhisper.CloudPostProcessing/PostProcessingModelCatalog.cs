@@ -70,7 +70,7 @@ public static class PostProcessingModelCatalog
         "meta-llama/llama-4-maverick-17b-128e-instruct" or "moonshotai/kimi-k2-instruct" or
             "mixtral-8x7b-32768" or "llama-3.3-70b-versatile" or "llama-3.1-8b-instant" or
             "meta-llama/llama-4-scout-17b-16e-instruct" or "qwen/qwen3-32b" => "openai/gpt-oss-120b",
-        // Groq withdrew qwen/qwen3.6-27b without a notice (gone from its models page
+        // Groq withdrew Qwen 3.6 27B without a notice (gone from its models page
         // since 2026-09-18, #788). Matches Windows and macOS.
         "qwen/qwen3.6-27b" => "qwen/qwen3.8-27b",
         "llama-3.3-70b" or "qwen-3-235b-a22b-instruct-2507" or "zai-glm-4.7" => "gpt-oss-120b",
