@@ -35,6 +35,7 @@
 // NOTE: Uses TranscriptionApiKeyType.ElevenLabs (separate from post-processing)
 
 using System.Diagnostics;
+using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
 using uniffi.hyperwhisper_core;
@@ -59,16 +60,16 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Display name including the configured model.
+    /// Display name. It names no model: the model is per call (issue #753).
     /// </summary>
-    public override string Name => $"ElevenLabs {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.ElevenLabs)?.DisplayName ?? ModelId}";
+    public override string Name => "ElevenLabs";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
-    public ElevenLabsService()
-        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "scribe_v2")
+    public ElevenLabsService(HttpMessageHandler? httpHandler = null)
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "scribe_v2", httpHandler: httpHandler)
     {
     }
 
@@ -77,17 +78,17 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Configures the service with API key and model.
-    /// Must be called before transcription.
+    /// Configures the service with an API key. The model is not configured
+    /// here: it travels in each call's request (issue #753).
     /// </summary>
-    /// <param name="apiKey">ElevenLabs API key.</param>
-    /// <param name="modelId">Model ID (scribe_v2 for keyterm support, scribe_v1 for legacy). Legacy IDs are canonicalized automatically.</param>
-    public override void Configure(string apiKey, string modelId = "scribe_v2")
+    public override void Configure(string apiKey)
     {
         ApiKey = apiKey;
-        ModelId = CloudTranscriptionModels.ResolveElevenLabsModelAlias(modelId);
-        LoggingService.Info($"ElevenLabsService: Configured with model {ModelId}");
     }
+
+    /// <inheritdoc />
+    protected override string ResolveModelId(string modelId)
+        => CloudTranscriptionModels.ResolveElevenLabsModelAlias(modelId);
 
     // =========================================================================
     // TRANSCRIPTION
@@ -98,17 +99,16 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
     /// Scribe V2: vocabulary is sent as keyterms (up to 100 terms, each &lt; 50 chars).
     /// Scribe V1: vocabulary is ignored (not supported).
     /// </summary>
-    public override async Task<string> TranscribeAsync(
-        string audioPath,
-        string? language = null,
-        IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default)
+    protected override async Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken)
     {
+        var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
         var totalSw = Stopwatch.StartNew();
-        var isScribeV2 = ModelId == "scribe_v2";
+        var isScribeV2 = request.ModelId == "scribe_v2";
 
         LoggingService.Info("========== ELEVENLABS CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {ModelId}");
+        LoggingService.Info($"  Model: {request.ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
 
@@ -136,7 +136,7 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
-        var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
+        var coreParams = BuildDirectVendorParams(request, contentType);
 
         return await RustSingleShot.TranscribeAsync(
             Http,

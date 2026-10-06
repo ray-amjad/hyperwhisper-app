@@ -9,8 +9,16 @@
 // here once.
 //
 // This base deliberately owns plumbing only. Everything provider-specific stays
-// in the provider: the display Name, the Configure overload (each has its own
-// default model and its own alias resolution) and TranscribeAsync.
+// in the provider: the display Name, Configure (some trim the key), the model
+// alias resolution (ResolveModelId) and the transcription itself.
+//
+// PER-CALL MODEL (issue #753). TranscriptionProviderFactory hands out ONE
+// cached instance per provider to every caller of the process-wide
+// orchestrator, and nothing locks. So the only state an instance may hold is
+// per-profile state: the HttpClient and the API key. The model id travels in
+// the TranscriptionRequest of each call. It used to be an instance property
+// that Configure wrote, so a GUI dictation and a Local API request that
+// overlapped could each send the other's model.
 //
 // NOT for the HyperWhisper-Cloud-routed services (HyperWhisperCloudService,
 // AzureMAITranscriptionService, GoogleChirpTranscriptionService). Those take no
@@ -34,14 +42,24 @@ public abstract class ApiKeyTranscriptionServiceBase : ITranscriptionProvider, I
     /// HttpClient-level timeout. Pass <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>
     /// for providers that enforce their budget per attempt instead.
     /// </param>
-    /// <param name="defaultModelId">Model id used until <see cref="Configure"/> runs.</param>
-    protected ApiKeyTranscriptionServiceBase(TimeSpan timeout, string defaultModelId = "")
+    /// <param name="fallbackModelId">
+    /// Model id for a call made through the 4-argument <c>TranscribeAsync</c>
+    /// overload, which carries no model of its own.
+    /// </param>
+    /// <param name="httpHandler">
+    /// Test seam: a handler that fakes the vendor. Null in production. The
+    /// handler is not disposed with the service; the caller owns it.
+    /// </param>
+    protected ApiKeyTranscriptionServiceBase(
+        TimeSpan timeout,
+        string fallbackModelId = "",
+        HttpMessageHandler? httpHandler = null)
     {
-        Http = new HttpClient
-        {
-            Timeout = timeout
-        };
-        ModelId = defaultModelId;
+        Http = httpHandler is null
+            ? new HttpClient()
+            : new HttpClient(httpHandler, disposeHandler: false);
+        Http.Timeout = timeout;
+        FallbackModelId = fallbackModelId;
     }
 
     /// <summary>
@@ -51,13 +69,15 @@ public abstract class ApiKeyTranscriptionServiceBase : ITranscriptionProvider, I
 
     /// <summary>
     /// API key set by <see cref="Configure"/>. Null or empty until then.
+    /// Per-profile, not per-call, so it may live on the shared instance.
     /// </summary>
     protected string? ApiKey { get; set; }
 
     /// <summary>
-    /// Model id set by <see cref="Configure"/>.
+    /// The provider's own default model. Read-only: it is used only by the
+    /// 4-argument overload, never written per call.
     /// </summary>
-    protected string ModelId { get; set; }
+    protected string FallbackModelId { get; }
 
     /// <summary>
     /// Whether the service is ready (API key is configured).
@@ -65,28 +85,66 @@ public abstract class ApiKeyTranscriptionServiceBase : ITranscriptionProvider, I
     public bool IsAvailable => !string.IsNullOrEmpty(ApiKey);
 
     /// <summary>
-    /// Display name of the provider, usually including the configured model.
+    /// Display name of the provider. It names no model: the model is per call.
     /// </summary>
     public abstract string Name { get; }
 
     /// <summary>
-    /// Configures the service with an API key and a model.
-    /// Must be called before transcription.
+    /// Configures the service with an API key. Must be called before
+    /// transcription. The model is NOT configured here; it travels in each
+    /// <see cref="TranscriptionRequest"/>.
     /// </summary>
-    public abstract void Configure(string apiKey, string modelId);
+    public abstract void Configure(string apiKey);
 
-    /// <inheritdoc />
-    public abstract Task<string> TranscribeAsync(
+    /// <summary>
+    /// Maps the requested model id to the id this provider sends: its alias
+    /// table, and its fallback for a blank id. Pure: it reads no instance state.
+    /// </summary>
+    protected abstract string ResolveModelId(string modelId);
+
+    /// <summary>
+    /// The old entry point, kept for callers that carry no model. It runs the
+    /// provider's <see cref="FallbackModelId"/> with no custom prompt.
+    /// </summary>
+    public Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default)
+        => TranscribeAsync(
+            new TranscriptionRequest(audioPath, language, vocabulary, FallbackModelId, CustomPrompt: null),
+            cancellationToken);
+
+    /// <inheritdoc />
+    public Task<string> TranscribeAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return TranscribeCoreAsync(WithResolvedModel(request), cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs one call. <paramref name="request"/>'s model id is already
+    /// resolved by <see cref="ResolveModelId"/>.
+    /// </summary>
+    protected abstract Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns a copy of <paramref name="request"/> whose model id has been
+    /// through <see cref="ResolveModelId"/>. For a provider-specific entry
+    /// point that does not go through the public request overload.
+    /// </summary>
+    private protected TranscriptionRequest WithResolvedModel(TranscriptionRequest request)
+        => request with { ModelId = ResolveModelId(request.ModelId ?? string.Empty) };
 
     /// <summary>
     /// Builds the core <see cref="TranscribeParams"/> for a direct-vendor
-    /// request from this service's configured <see cref="ApiKey"/> and
-    /// <see cref="ModelId"/>. Every provider below this base built the same
-    /// value by hand; that copy lives here once.
+    /// request from this service's configured <see cref="ApiKey"/> and the
+    /// call's own <see cref="TranscriptionRequest.ModelId"/>. Every provider
+    /// below this base built the same value by hand; that copy lives here once.
     ///
     /// Pass the RAW vocabulary list — the core trims, drops empties and builds
     /// the per-provider field itself. A null list becomes an empty one.
@@ -104,17 +162,15 @@ public abstract class ApiKeyTranscriptionServiceBase : ITranscriptionProvider, I
     /// on it for the non-null <see cref="ApiKey"/>.
     /// </remarks>
     private protected TranscribeParams BuildDirectVendorParams(
-        string audioPath,
+        TranscriptionRequest request,
         string audioMime,
-        string? language,
-        IReadOnlyList<string>? vocabulary,
         string? prompt = null)
     {
         return RustCoreMapping.TranscribeParams(
-            audioPath: audioPath,
+            audioPath: request.AudioPath,
             audioMime: audioMime,
-            language: language,
-            vocabulary: vocabulary ?? Array.Empty<string>(),
+            language: request.Language,
+            vocabulary: request.Vocabulary ?? Array.Empty<string>(),
             // Direct-vendor request: the core cannot attach X-Latency-Opt-Out to
             // one by construction. Pass the user's real choice anyway so this site
             // stays correct if it is ever routed.
@@ -127,7 +183,7 @@ public abstract class ApiKeyTranscriptionServiceBase : ITranscriptionProvider, I
             // the core resolves a blank id to that provider's catalog default.
             // Grok relied on the other reading until 2026-09-19, when xAI gave
             // `/v1/stt` a `model` parameter.
-            model: ModelId,
+            model: request.ModelId,
             prompt: prompt);
     }
 

@@ -66,7 +66,8 @@ public abstract class RoutedTranscriptionServiceBase : ITranscriptionProvider, I
     ///
     /// GET-ONLY, AND DELIBERATELY SO. An earlier shape made this a settable
     /// property on the factory's cached <c>Lazy&lt;T&gt;</c> instance, the way
-    /// <c>ApiKeyTranscriptionServiceBase.Configure</c> does. That instance is
+    /// <c>ApiKeyTranscriptionServiceBase.Configure</c> once did (issue #753
+    /// moved that model into the per-call request). That instance is
     /// process-wide (<c>TranscriptionRuntime.Orchestrator</c> is a static
     /// singleton holding one factory) and nothing locks, so two overlapping
     /// transcriptions — a hotkey dictation and a Local API <c>POST /transcribe</c>,

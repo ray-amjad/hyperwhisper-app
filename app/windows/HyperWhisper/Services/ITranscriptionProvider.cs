@@ -14,6 +14,29 @@
 namespace HyperWhisper.Services;
 
 /// <summary>
+/// Everything that belongs to ONE transcription call. The model id and the
+/// custom prompt live here, not on the provider, because the providers are
+/// cached singletons shared by every caller of the process-wide orchestrator
+/// (a GUI dictation and a Local API request can overlap). State written onto
+/// a shared instance between "resolve the provider" and "send" leaks from one
+/// call into another (issue #753).
+/// </summary>
+/// <param name="AudioPath">Absolute path to the audio file.</param>
+/// <param name="Language">ISO 639-1 language code, or null for auto-detect.</param>
+/// <param name="Vocabulary">Custom vocabulary terms, or null.</param>
+/// <param name="ModelId">
+/// The model this call must run. An empty id means "the provider's catalog
+/// default"; each API-key provider applies its own alias resolution to it.
+/// </param>
+/// <param name="CustomPrompt">Extra prompt text. Only Gemini reads it.</param>
+public sealed record TranscriptionRequest(
+    string AudioPath,
+    string? Language,
+    IReadOnlyList<string>? Vocabulary,
+    string ModelId,
+    string? CustomPrompt);
+
+/// <summary>
 /// Common interface for transcription providers.
 /// Implemented by both local (WhisperNet) and cloud (OpenAI) providers.
 /// </summary>
@@ -34,6 +57,19 @@ public interface ITranscriptionProvider
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Transcribes one request, using the model id and custom prompt it carries.
+    /// The API-key (BYOK) providers implement this and honour
+    /// <see cref="TranscriptionRequest.ModelId"/>. The default, used by the
+    /// local engines and the HW-Cloud-routed services, forwards to the
+    /// 4-argument overload: those providers take their model from elsewhere
+    /// (a loaded model, or a per-request instance) and have no custom prompt.
+    /// </summary>
+    Task<string> TranscribeAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken = default)
+        => TranscribeAsync(request.AudioPath, request.Language, request.Vocabulary, cancellationToken);
 
     /// <summary>
     /// Whether the provider is ready to transcribe.

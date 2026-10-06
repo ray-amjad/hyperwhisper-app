@@ -29,6 +29,7 @@
 // NOTE: Uses TranscriptionApiKeyType.Deepgram (separate from post-processing)
 
 using System.Diagnostics;
+using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
 using uniffi.hyperwhisper_core;
@@ -52,16 +53,16 @@ public class DeepgramService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Display name including the configured model.
+    /// Display name. It names no model: the model is per call (issue #753).
     /// </summary>
-    public override string Name => $"Deepgram {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Deepgram)?.DisplayName ?? ModelId}";
+    public override string Name => "Deepgram";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
-    public DeepgramService()
-        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "nova-3-general")
+    public DeepgramService(HttpMessageHandler? httpHandler = null)
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "nova-3-general", httpHandler: httpHandler)
     {
     }
 
@@ -70,17 +71,17 @@ public class DeepgramService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Configures the service with API key and model.
-    /// Must be called before transcription.
+    /// Configures the service with an API key. The model is not configured
+    /// here: it travels in each call's request (issue #753).
     /// </summary>
-    /// <param name="apiKey">Deepgram API key.</param>
-    /// <param name="modelId">Model ID (nova-3-general, nova-2-medical, enhanced-general, base-general, whisper-*).</param>
-    public override void Configure(string apiKey, string modelId = "nova-3-general")
+    public override void Configure(string apiKey)
     {
         ApiKey = apiKey;
-        ModelId = CloudTranscriptionModels.ResolveDeepgramModelAlias(modelId);
-        LoggingService.Info($"DeepgramService: Configured with model {ModelId}");
     }
+
+    /// <inheritdoc />
+    protected override string ResolveModelId(string modelId)
+        => CloudTranscriptionModels.ResolveDeepgramModelAlias(modelId);
 
     // =========================================================================
     // TRANSCRIPTION
@@ -89,15 +90,14 @@ public class DeepgramService : ApiKeyTranscriptionServiceBase
     /// <summary>
     /// Transcribes audio using Deepgram's API.
     /// </summary>
-    public override async Task<string> TranscribeAsync(
-        string audioPath,
-        string? language = null,
-        IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default)
+    protected override async Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken)
     {
+        var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== DEEPGRAM CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {ModelId}");
+        LoggingService.Info($"  Model: {request.ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
@@ -114,7 +114,7 @@ public class DeepgramService : ApiKeyTranscriptionServiceBase
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
-        var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
+        var coreParams = BuildDirectVendorParams(request, contentType);
 
         return await RustSingleShot.TranscribeAsync(
             Http,

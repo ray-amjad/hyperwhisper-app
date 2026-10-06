@@ -7589,6 +7589,65 @@ internal static class Program
                 }
             });
 
+            RunAsync("two overlapping BYOK calls on the shared provider each send their own model (#753)", async () =>
+            {
+                // The BYOK arms of TranscriptionProviderFactory hand back ONE
+                // cached instance per provider to every caller of the
+                // process-wide orchestrator. The model used to be a property
+                // that Configure wrote on that instance, so a GUI dictation and a
+                // Local API POST /transcribe that overlapped each sent whichever
+                // model was configured LAST. The model now rides in each call's
+                // TranscriptionRequest.
+                //
+                // Shape of the race, replayed: resolve the provider for request A,
+                // resolve it again for request B (both BEFORE either sends), then
+                // start both calls. The fake Deepgram holds every request until
+                // both have arrived, so the two calls are in flight together, and
+                // it answers each with the model ITS OWN request carried — so
+                // each caller's text says which model was sent on its behalf.
+                const string modelA = "nova-2-medical";
+                const string modelB = "nova-3-general";
+                using var handler = new HeldModelEchoHandler(expectedRequests: 2);
+                var factory = new HyperWhisper.Services.Transcription.TranscriptionProviderFactory(
+                    apiKeyLookup: p => p == CloudTranscriptionProvider.Deepgram ? "placeholder" : null,
+                    httpHandler: handler);
+                var audioPath = Path.Combine(Path.GetTempPath(), $"hw-753-{Guid.NewGuid():N}.wav");
+                await File.WriteAllBytesAsync(audioPath, new byte[] { 0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0 });
+                try
+                {
+                    var providerA = factory.GetConfiguredCloudProvider(CloudTranscriptionProvider.Deepgram, modelA);
+                    var providerB = factory.GetConfiguredCloudProvider(CloudTranscriptionProvider.Deepgram, modelB);
+
+                    // The fix must not build BYOK providers per request (they own
+                    // HttpClients): both resolutions are the same shared instance.
+                    Assert(ReferenceEquals(providerA, providerB),
+                        "the Deepgram arm stopped handing back its cached instance");
+
+                    var callA = providerA.TranscribeAsync(new TranscriptionRequest(
+                        audioPath, Language: null, Vocabulary: null,
+                        ModelId: TranscriptionProviderFactory.ResolveModelId(CloudTranscriptionProvider.Deepgram, modelA),
+                        CustomPrompt: null));
+                    var callB = providerB.TranscribeAsync(new TranscriptionRequest(
+                        audioPath, Language: null, Vocabulary: null,
+                        ModelId: TranscriptionProviderFactory.ResolveModelId(CloudTranscriptionProvider.Deepgram, modelB),
+                        CustomPrompt: null));
+
+                    var texts = await Task.WhenAll(callA, callB).WaitAsync(TimeSpan.FromSeconds(30));
+
+                    Assert(handler.SentModels.Count == 2,
+                        $"expected 2 requests at the fake vendor, saw {handler.SentModels.Count}");
+                    Assert(texts[0] == modelA,
+                        $"request A asked for {modelA} but its HTTP request carried {texts[0]} - the model is shared mutable state again");
+                    Assert(texts[1] == modelB,
+                        $"request B asked for {modelB} but its HTTP request carried {texts[1]}");
+                }
+                finally
+                {
+                    factory.Dispose();
+                    try { File.Delete(audioPath); } catch (IOException) { }
+                }
+            });
+
             Run("the Azure MAI language picker narrows per model, not per tier", () =>
             {
                 // The Mode editor's Azure branch (ModeEditorWindow.xaml.cs) is WPF
@@ -16841,6 +16900,50 @@ internal static class Program
 
     private static HttpResponseMessage Respond(HttpStatusCode status, string body)
         => new(status) { Content = new StringContent(body) };
+
+    /// <summary>
+    /// Fake Deepgram for the #753 race case. Holds every request until
+    /// <c>expectedRequests</c> have arrived, so the calls are in flight
+    /// together, then answers each with a Deepgram-shaped body whose transcript
+    /// is the <c>model</c> query parameter of THAT request.
+    /// </summary>
+    private sealed class HeldModelEchoHandler : HttpMessageHandler
+    {
+        private readonly int _expectedRequests;
+        private readonly TaskCompletionSource _allArrived =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _arrived;
+
+        public System.Collections.Concurrent.ConcurrentQueue<string> SentModels { get; } = new();
+
+        public HeldModelEchoHandler(int expectedRequests) => _expectedRequests = expectedRequests;
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var query = System.Web.HttpUtility.ParseQueryString(request.RequestUri?.Query ?? string.Empty);
+            var model = query["model"] ?? "<no model>";
+            SentModels.Enqueue(model);
+            if (Interlocked.Increment(ref _arrived) >= _expectedRequests)
+                _allArrived.TrySetResult();
+
+            await _allArrived.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+
+            var body = new JsonObject
+            {
+                ["results"] = new JsonObject
+                {
+                    ["channels"] = new JsonArray(new JsonObject
+                    {
+                        ["alternatives"] = new JsonArray(new JsonObject { ["transcript"] = model })
+                    })
+                }
+            };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json")
+            };
+        }
+    }
 
     /// <summary>
     /// Scripted HttpMessageHandler: counts sends and delegates each attempt to

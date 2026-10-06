@@ -21,6 +21,7 @@
 // rule against diarization/timestamps; nothing to do here.
 
 using System.Diagnostics;
+using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
 using uniffi.hyperwhisper_core;
@@ -44,15 +45,17 @@ public class GeminiTranscribeService : ApiKeyTranscriptionServiceBase
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
 
-    public override string Name =>
-        $"Gemini {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.GeminiTranscribe)?.DisplayName ?? ModelId}";
+    /// <summary>
+    /// Display name. It names no model: the model is per call (issue #753).
+    /// </summary>
+    public override string Name => "Gemini";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
-    public GeminiTranscribeService()
-        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), DefaultModelId)
+    public GeminiTranscribeService(HttpMessageHandler? httpHandler = null)
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), DefaultModelId, httpHandler: httpHandler)
     {
     }
 
@@ -61,32 +64,34 @@ public class GeminiTranscribeService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Configures the service with an API key and a model.
+    /// Configures the service with an API key. The model is not configured
+    /// here: it travels in each call's request (issue #753).
     /// </summary>
-    /// <param name="apiKey">Google AI Studio API key ("AIza…").</param>
-    /// <param name="modelId">Model ID (only gemini-3.5-transcribe today).</param>
-    public override void Configure(string apiKey, string modelId = DefaultModelId)
+    public override void Configure(string apiKey)
     {
         ApiKey = apiKey?.Trim();
-        // No alias table for this provider yet — an empty id falls back to the
-        // single pre-recorded model rather than reaching the core's own default.
-        ModelId = string.IsNullOrWhiteSpace(modelId) ? DefaultModelId : modelId;
-        LoggingService.Info($"GeminiTranscribeService: Configured with model {ModelId}");
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// No alias table for this provider yet — an empty id falls back to the
+    /// single pre-recorded model rather than reaching the core's own default.
+    /// </remarks>
+    protected override string ResolveModelId(string modelId)
+        => string.IsNullOrWhiteSpace(modelId) ? DefaultModelId : modelId;
 
     // =========================================================================
     // TRANSCRIPTION
     // =========================================================================
 
-    public override async Task<string> TranscribeAsync(
-        string audioPath,
-        string? language = null,
-        IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default)
+    protected override async Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken)
     {
+        var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== GEMINI 3.5 TRANSCRIBE CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {ModelId}");
+        LoggingService.Info($"  Model: {request.ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
@@ -114,7 +119,7 @@ public class GeminiTranscribeService : ApiKeyTranscriptionServiceBase
             // stays correct if it is ever routed.
             shareAnonymousSpeedData: SettingsService.Instance.ShareAnonymousSpeedData,
             apiKey: ApiKey,
-            model: ModelId);
+            model: request.ModelId);
 
         return await RustSingleShot.TranscribeAsync(
             Http,

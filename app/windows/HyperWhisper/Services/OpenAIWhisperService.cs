@@ -24,6 +24,7 @@
 // - 400/422: Invalid request
 
 using System.Diagnostics;
+using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
 using uniffi.hyperwhisper_core;
@@ -48,16 +49,16 @@ public class OpenAIWhisperService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Display name including the configured model.
+    /// Display name. It names no model: the model is per call (issue #753).
     /// </summary>
-    public override string Name => $"OpenAI {CloudTranscriptionModels.GetById(ModelId)?.DisplayName ?? ModelId}";
+    public override string Name => "OpenAI";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
-    public OpenAIWhisperService()
-        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "whisper-1")
+    public OpenAIWhisperService(HttpMessageHandler? httpHandler = null)
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "whisper-1", httpHandler: httpHandler)
     {
     }
 
@@ -66,17 +67,17 @@ public class OpenAIWhisperService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Configures the service with API key and model.
-    /// Must be called before transcription.
+    /// Configures the service with an API key. The model is not configured
+    /// here: it travels in each call's request (issue #753).
     /// </summary>
-    /// <param name="apiKey">OpenAI API key (starts with "sk-").</param>
-    /// <param name="modelId">Model ID (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe).</param>
-    public override void Configure(string apiKey, string modelId = "whisper-1")
+    public override void Configure(string apiKey)
     {
         ApiKey = apiKey;
-        ModelId = modelId;
-        LoggingService.Info($"OpenAIWhisperService: Configured with model {modelId}");
     }
+
+    /// <inheritdoc />
+    protected override string ResolveModelId(string modelId)
+        => modelId;
 
     // =========================================================================
     // TRANSCRIPTION
@@ -85,15 +86,14 @@ public class OpenAIWhisperService : ApiKeyTranscriptionServiceBase
     /// <summary>
     /// Transcribes audio using OpenAI's Whisper API.
     /// </summary>
-    public override async Task<string> TranscribeAsync(
-        string audioPath,
-        string? language = null,
-        IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default)
+    protected override async Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken)
     {
+        var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== OPENAI CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {ModelId}");
+        LoggingService.Info($"  Model: {request.ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
@@ -106,7 +106,7 @@ public class OpenAIWhisperService : ApiKeyTranscriptionServiceBase
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
-        var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
+        var coreParams = BuildDirectVendorParams(request, contentType);
 
         return await RustSingleShot.TranscribeAsync(
             Http,

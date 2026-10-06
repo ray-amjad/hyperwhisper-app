@@ -22,6 +22,7 @@
 // - Supported containers (auto-detected): wav, mp3, ogg, opus, flac, aac, mp4, m4a, mkv
 
 using System.Diagnostics;
+using System.Net.Http;
 using HyperWhisper.Services.Transcription;
 using uniffi.hyperwhisper_core;
 
@@ -76,8 +77,8 @@ public class GrokSttService : ApiKeyTranscriptionServiceBase
     // uploads that legitimately need longer than 5 minutes to send.
     // No default model id is passed: a blank one reaches the shared core, which
     // resolves it to the `grokStt` catalog default.
-    public GrokSttService()
-        : base(Timeout.InfiniteTimeSpan)
+    public GrokSttService(HttpMessageHandler? httpHandler = null)
+        : base(Timeout.InfiniteTimeSpan, httpHandler: httpHandler)
     {
     }
 
@@ -86,31 +87,33 @@ public class GrokSttService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Configures the service with an API key and a model id.
+    /// Configures the service with an API key. The model is not configured
+    /// here: it travels in each call's request (issue #753).
     /// </summary>
+    public override void Configure(string apiKey)
+    {
+        ApiKey = apiKey?.Trim();
+    }
+
+    /// <inheritdoc />
     /// <remarks>
     /// `modelId` was ignored until 2026-09-19, when xAI gave <c>/v1/stt</c> a
     /// <c>model</c> parameter. A blank id is still the common case — it is what
     /// every mode saved before that date carries — and the shared core resolves
     /// it to the catalog default rather than sending nothing.
     /// </remarks>
-    public override void Configure(string apiKey, string modelId = "")
-    {
-        ApiKey = apiKey?.Trim();
-        ModelId = modelId?.Trim() ?? string.Empty;
-        LoggingService.Info($"GrokSttService: Configured (model: {(ModelId.Length == 0 ? "catalog default" : ModelId)})");
-    }
+    protected override string ResolveModelId(string modelId)
+        => modelId?.Trim() ?? string.Empty;
 
     // =========================================================================
     // TRANSCRIPTION
     // =========================================================================
 
-    public override async Task<string> TranscribeAsync(
-        string audioPath,
-        string? language = null,
-        IReadOnlyList<string>? vocabulary = null,
-        CancellationToken cancellationToken = default)
+    protected override async Task<string> TranscribeCoreAsync(
+        TranscriptionRequest request,
+        CancellationToken cancellationToken)
     {
+        var (audioPath, language, vocabulary) = (request.AudioPath, request.Language, request.Vocabulary);
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== GROK CLOUD TRANSCRIPTION ==========");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
@@ -132,7 +135,7 @@ public class GrokSttService : ApiKeyTranscriptionServiceBase
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "application/octet-stream", MimeTypes);
 
-        var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
+        var coreParams = BuildDirectVendorParams(request, contentType);
 
         var requestTimeout = GetRequestTimeout(fileInfo.Length);
         LoggingService.Info($"  Request timeout: {requestTimeout.TotalMinutes:F1} minutes (per attempt)");
