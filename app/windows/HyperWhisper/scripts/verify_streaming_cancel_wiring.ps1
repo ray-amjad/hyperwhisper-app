@@ -17,7 +17,11 @@ function Assert-Match {
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $RepoRoot = Resolve-Path (Join-Path $ProjectRoot "..\..\..")
 
-$MainViewModelSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "ViewModels\MainViewModel.cs")
+# MainViewModel is a partial class: #623 moved the streaming start/stop flow into
+# MainViewModel.Streaming.cs, and a pattern below that names StopStreamingRecordingAsync
+# or IsStreamingActive found nothing in MainViewModel.cs alone. Read both, main file first.
+$MainViewModelSource = (Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "ViewModels\MainViewModel.cs")) +
+    "`n" + (Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "ViewModels\MainViewModel.Streaming.cs"))
 $MacStreamingSource = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\AudioRecording\RecordingFlow\RecordingTranscriptionFlow+Streaming.swift")
 $MacToggleSource = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\AudioRecording\RecordingFlow\RecordingTranscriptionFlow+Toggle.swift")
 
@@ -43,7 +47,7 @@ Assert-Match `
 
 Assert-Match `
     -Content $MainViewModelSource `
-    -Pattern "private async Task CancelStreamingRecordingAsync\(\).*?_streamingAudioCapture\?\.Stop\(\).*?RestoreAudioEnvironment\(\).*?ResumeMicrophoneKeepWarm\(\).*?IsRecording = false.*?await CleanupStreamingSessionAsync\(\).*?HideOverlayRequested\?\.Invoke\(this, EventArgs\.Empty\).*?status\.recordingCancelled.*?_pasteService\?\.EndRecordingSession\(\)" `
+    -Pattern "private async Task CancelStreamingRecordingAsync\(\).*?_streamingAudioCapture\?\.Stop\(\).*?RestoreAudioEnvironment\(\).*?ResumeMicrophoneKeepWarm\(\).*?IsRecording = false.*?await CleanupStreamingSessionAsync\(\).*?HideOverlayRequested\?\.Invoke\(this, EventArgs\.Empty\).*?StatusText = CancelledStatusText\(cancelledFileTranscription: false\);.*?_pasteService\?\.EndRecordingSession\(\)" `
     -Label "streaming cancel stops capture, restores state, hides overlay, and ends paste session"
 
 Assert-Match `
