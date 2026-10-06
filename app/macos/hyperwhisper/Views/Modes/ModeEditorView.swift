@@ -523,7 +523,7 @@ struct ModeEditorView: View {
     /// Provider id used to look up the supported-language set in `STTCapabilities`
     /// for the language picker. For a BYOK cloud provider this is the literal
     /// `cloudProvider` (e.g. "deepgram", "assemblyai"). For HyperWhisper Cloud the
-    /// outer `cloudProvider` is "hyperwhisper" — which only registers nova-3 — so we
+    /// outer `cloudProvider` is "hyperwhisper" — which STTCapabilities does not register — so we
     /// resolve the SELECTED accuracy tier's routed upstream provider id instead (the
     /// same value sent in the X-STT-Provider header). Tiers whose upstream provider
     /// isn't in `STTCapabilities` (azure-mai / gemini-transcribe / gemini) yield an empty
@@ -1244,8 +1244,8 @@ struct ModeEditorView: View {
     /// Language picker + vocabulary / Deepgram notices shared by both cloud
     /// Source branches. For HyperWhisper Cloud the language context is derived
     /// from the SELECTED tier's routed upstream provider id (X-STT-Provider) and
-    /// model id rather than the literal "hyperwhisper" wrapper, which only
-    /// registers nova-3 in STTCapabilities.
+    /// model id rather than the literal "hyperwhisper" wrapper, which
+    /// STTCapabilities does not register.
     @ViewBuilder
     private var cloudTranscriptionLanguageAndNotices: some View {
         LanguageSelectionView(
