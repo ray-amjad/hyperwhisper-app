@@ -162,6 +162,10 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty] private bool _shouldOpenModelLibraryApiKeys;
 
     private bool _hotkeyBlocked;
+
+    // The success/copied overlay hides on its own timer, after the flow has
+    // already torn the session down and unblocked the hotkey (#983).
+    private readonly DeferredOverlayHide _deferredOverlayHide = new();
     private string _audioDeviceSelectionReason = AudioDeviceSelectionReason.NotSelected;
 
     partial void OnSelectedAudioDeviceChanged(AudioDeviceService.AudioDevice? value)
@@ -1491,6 +1495,9 @@ public partial class MainViewModel : ViewModelBase
         IsRecording = true;
         SoundEffectsService.Instance.PlayStartSound();
         _audioEnvironmentState = AudioEnvironmentService.Instance.PrepareForRecording(audioRestoreClaim!);
+        // Before the show: the last dictation's late success/copied hide must not
+        // hide this recording's overlay (#983).
+        _deferredOverlayHide.Supersede();
         ShowOverlayRequested?.Invoke(this, EventArgs.Empty);
         RecordingDuration = TimeSpan.Zero;
         _recordingDurationLimitReached = false;
@@ -1898,16 +1905,18 @@ public partial class MainViewModel : ViewModelBase
             });
             LoggingService.LogPerformanceMarker("TranscriptionFlow", "Paste done, history save attempted");
 
+            // The success/copied state holds for its 400/500 ms on a deferred hide,
+            // NOT on an await here: an await kept the hotkey blocked until the
+            // animation ended and dropped a quick second dictation (#983). The
+            // finally below now runs at once, and a new recording supersedes the hide.
             switch (pasteResult)
             {
                 case SmartPasteResult.Pasted:
                     ShowSuccessRequested?.Invoke(this, EventArgs.Empty);
-                    await Task.Delay(400);
                     break;
                 case SmartPasteResult.SecureFieldSkipped:
                 case SmartPasteResult.CopiedToClipboard:
                     ShowCopiedRequested?.Invoke(this, EventArgs.Empty);
-                    await Task.Delay(500);
                     break;
                 // A failed Ctrl+V was normalised to CopiedToClipboard above (#905).
                 // Of what stays Failed, a refused clipboard write reached nothing
@@ -1917,7 +1926,11 @@ public partial class MainViewModel : ViewModelBase
                         ReportUndeliveredTranscript();
                     break;
             }
-            HideOverlayRequested?.Invoke(this, EventArgs.Empty);
+
+            if (DeferredOverlayHide.HoldFor(pasteResult) is { } overlayHold)
+                ScheduleOverlayHide(overlayHold);
+            else
+                HideOverlayRequested?.Invoke(this, EventArgs.Empty);
         }
         catch (OperationCanceledException) when (transcriptionCts.IsCancellationRequested)
         {
@@ -2046,6 +2059,18 @@ public partial class MainViewModel : ViewModelBase
 
             // NOTE: Audio file is no longer deleted - kept for history and retry
         }
+    }
+
+    /// <summary>
+    /// Hides the overlay once the success/copied state has held for
+    /// <paramref name="hold"/>, unless a newer recording has shown its own
+    /// overlay by then (#983). Shared by the batch and streaming flows.
+    /// </summary>
+    private void ScheduleOverlayHide(TimeSpan hold)
+    {
+        // Discarded on purpose: the hide must not hold the flow, and the task
+        // never faults (DeferredOverlayHide logs a failed hide itself).
+        _ = _deferredOverlayHide.Schedule(hold, () => HideOverlayRequested?.Invoke(this, EventArgs.Empty));
     }
 
     /// <summary>
