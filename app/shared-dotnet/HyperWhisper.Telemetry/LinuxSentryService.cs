@@ -125,10 +125,80 @@ public sealed class LinuxSentryService : IDisposable
 
 internal static class TelemetryPrivacy
 {
-    internal static Exception SanitizeException(Exception exception) =>
-        new TelemetryReportedException(
-            exception.GetType().FullName ?? "System.Exception",
-            SanitizeStackTrace(exception.StackTrace));
+    private const int MaxInnerExceptions = 4;
+    private const int MaxStackTraceLength = 16_384;
+
+    /// <summary>
+    /// Keeps the type names and method frames of an exception and of up to
+    /// <see cref="MaxInnerExceptions"/> inner exceptions, and nothing else: no
+    /// Message, no Data, no HResult text, at any depth.
+    /// </summary>
+    /// <remarks>
+    /// An <see cref="AggregateException"/> from <c>TaskScheduler.UnobservedTaskException</c>
+    /// is never thrown, so it has no stack of its own; the cause and its frames are
+    /// only on the inner exceptions (#1051).
+    /// </remarks>
+    internal static Exception SanitizeException(Exception exception)
+    {
+        var outerType = TypeName(exception);
+        var outerStack = SanitizeStackTrace(exception.StackTrace);
+
+        IReadOnlyList<Exception> inner;
+        try
+        {
+            inner = CollectInnerExceptions(exception);
+        }
+        catch
+        {
+            // A hostile InnerException getter costs the inner detail, not the report.
+            inner = [];
+        }
+
+        var innerTypes = inner.Select(TypeName).ToList();
+        var stack = new List<string>();
+        if (outerStack is not null) stack.Add(outerStack);
+        foreach (var innerException in inner)
+        {
+            var innerStack = SanitizeStackTrace(innerException.StackTrace);
+            if (innerStack is null) continue;
+            stack.Add($"--- inner {TypeName(innerException)} ---");
+            stack.Add(innerStack);
+        }
+
+        var stackTrace = stack.Count == 0 ? null : string.Join('\n', stack);
+        if (stackTrace is { Length: > MaxStackTraceLength }) stackTrace = stackTrace[..MaxStackTraceLength];
+        return new TelemetryReportedException(outerType, innerTypes, stackTrace);
+    }
+
+    private static string TypeName(Exception exception) =>
+        exception.GetType().FullName ?? "System.Exception";
+
+    /// <summary>
+    /// Breadth-first: an <see cref="AggregateException"/> is flattened and stands
+    /// for its inner exceptions (it is a container, so it is not named); any other
+    /// exception is named and its <see cref="Exception.InnerException"/> followed.
+    /// </summary>
+    private static List<Exception> CollectInnerExceptions(Exception root)
+    {
+        var found = new List<Exception>();
+        var seen = new HashSet<Exception>(ReferenceEqualityComparer.Instance) { root };
+        var pending = new Queue<Exception>(Children(root));
+        while (pending.Count > 0 && found.Count < MaxInnerExceptions)
+        {
+            var next = pending.Dequeue();
+            if (!seen.Add(next)) continue;
+            if (next is not AggregateException) found.Add(next);
+            foreach (var child in Children(next)) pending.Enqueue(child);
+        }
+        return found;
+
+        static IEnumerable<Exception> Children(Exception exception) => exception switch
+        {
+            AggregateException aggregate => aggregate.Flatten().InnerExceptions,
+            { InnerException: { } single } => [single],
+            _ => [],
+        };
+    }
 
     internal static string? SanitizeStackTrace(string? stackTrace)
     {
@@ -152,8 +222,13 @@ internal static class TelemetryPrivacy
         _ => null,
     };
 
-    private sealed class TelemetryReportedException(string originalType, string? sanitizedStack)
-        : Exception($"A {originalType} was reported with message, inner-exception, and data content removed.")
+    private sealed class TelemetryReportedException(
+        string originalType,
+        IReadOnlyList<string> innerTypes,
+        string? sanitizedStack)
+        : Exception(innerTypes.Count == 0
+            ? $"A {originalType} was reported with message, inner-exception, and data content removed."
+            : $"A {originalType} (inner: {string.Join(", ", innerTypes)}) was reported with message, inner-exception, and data content removed.")
     {
         public override string? StackTrace => sanitizedStack;
     }
