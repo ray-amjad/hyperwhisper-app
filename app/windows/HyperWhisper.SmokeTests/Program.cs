@@ -14925,6 +14925,119 @@ internal static class Program
                 }
             });
 
+            Run("history: a delete that SQLite refuses is reported, not swallowed — issue #974", () =>
+            {
+                // HistoryService.DeleteTranscripts caught the DbUpdateException and
+                // returned 0, so Delete Now told the user "Deleted 0 recording(s)",
+                // stamped the sweep as a completed cleanup, and the transcript stayed.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                // Lock only the suite's own scratch profile (the AppPaths override
+                // Main sets), never the user's database. Read the path the app's
+                // own context opens, not a re-derived one.
+                string dbPath;
+                using (var probe = new HyperWhisperDbContext())
+                {
+                    dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                        probe.Database.GetConnectionString()).DataSource);
+                }
+                Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+                    $"the database {dbPath} is not under the suite's temp profile; refusing to lock it");
+
+                var settings = SettingsService.Instance;
+                var history = HistoryService.Instance;
+                var autoDelete = AutoDeleteService.Instance;
+
+                var enabledBefore = settings.AutoDeleteEnabled;
+                var daysBefore = settings.AutoDeleteDaysOld;
+                var stampBefore = settings.AutoDeleteLastCleanupUtc;
+                var countBefore = settings.AutoDeleteLastCleanupDeleted;
+
+                // 365 is the page's maximum, so only this case's backdated row is due.
+                settings.AutoDeleteEnabled = true;
+                settings.AutoDeleteDaysOld = 365;
+
+                var old = history.CreateProcessingTranscript(1.0, "percy974", audioFilePath: null);
+                old.Date = DateTime.UtcNow.AddDays(-400);
+                old.Status = TranscriptStatus.Completed;
+                old.Text = "issue 974 probe";
+                history.UpdateTranscript(old);
+
+                // A second connection holds the write lock. BEGIN IMMEDIATE, not
+                // EXCLUSIVE: the app database is in rollback-journal mode, where
+                // EXCLUSIVE also blocks readers, so GetTranscriptsOlderThan (which
+                // swallows every error into an empty list) would find nothing to
+                // delete and the delete under test would never run. IMMEDIATE lets
+                // the read through and refuses the DELETE with SQLite Error 5,
+                // 'database is locked', after the provider's 30 s busy wait.
+                var locker = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+                var lockHeld = false;
+                try
+                {
+                    locker.Open();
+                    using (var begin = locker.CreateCommand())
+                    {
+                        begin.CommandText = "BEGIN IMMEDIATE;";
+                        begin.ExecuteNonQuery();
+                    }
+                    lockHeld = true;
+
+                    Exception? thrown = null;
+                    int deleted = -1;
+                    try
+                    {
+                        deleted = autoDelete.PerformManualCleanup();
+                    }
+                    catch (Exception ex)
+                    {
+                        thrown = ex;
+                    }
+
+                    using (var rollback = locker.CreateCommand())
+                    {
+                        rollback.CommandText = "ROLLBACK;";
+                        rollback.ExecuteNonQuery();
+                    }
+                    lockHeld = false;
+
+                    Assert(thrown is InvalidOperationException,
+                        thrown == null
+                            ? $"Delete Now returned {deleted} while SQLite refused the delete, so the user "
+                              + "is told the sweep worked and the deleteFailed dialog never shows"
+                            : $"expected InvalidOperationException, got {thrown.GetType().Name}: {thrown.Message}");
+                    Assert(thrown!.InnerException is DbUpdateException,
+                        $"the failure is not the refused delete: inner is {thrown.InnerException?.GetType().Name ?? "null"}");
+                    Assert(history.GetTranscript(old.Id) is not null,
+                        "the transcript is gone, so the lock did not refuse the delete and this case proves nothing");
+                    Assert(settings.AutoDeleteLastCleanupUtc == stampBefore,
+                        $"AutoDeleteLastCleanupUtc moved from {stampBefore:O} to {settings.AutoDeleteLastCleanupUtc:O}, "
+                        + "so a refused sweep was recorded as a completed cleanup");
+                }
+                finally
+                {
+                    if (lockHeld)
+                    {
+                        try
+                        {
+                            using var rollback = locker.CreateCommand();
+                            rollback.CommandText = "ROLLBACK;";
+                            rollback.ExecuteNonQuery();
+                        }
+                        catch
+                        {
+                            // Disposing the connection rolls the transaction back too.
+                        }
+                    }
+                    locker.Dispose();
+
+                    history.DeleteTranscripts(new[] { old.Id });
+                    if (stampBefore.HasValue)
+                        settings.RecordAutoDeleteCleanup(stampBefore.Value, countBefore);
+                    settings.AutoDeleteDaysOld = daysBefore;
+                    settings.AutoDeleteEnabled = enabledBefore;
+                }
+            });
+
             Run("Local API /recordings: q, since, until, total and limit run in SQL with the old match rule — issue #1123", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
