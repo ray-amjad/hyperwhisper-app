@@ -57,6 +57,64 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+// Fields a wrong type makes unusable, so the article is skipped. A null counts
+// as absent, as it always has (`article.slug?.trim() || title`, `??`).
+const STRICT_STRING_FIELDS = [
+  "id",
+  "title",
+  "content_markdown",
+  "content_html",
+  "slug",
+  "published_at",
+  "created_at",
+] as const;
+
+// Fields the route already falls back from when absent (`?? null`,
+// `?? title`, `?? article.description`), so a wrong type is ignored the same way.
+const LENIENT_STRING_FIELDS = [
+  "meta_description",
+  "description",
+  "image_url",
+  "image_alt",
+] as const;
+
+type ArticleRead =
+  | { article: OutrankArticle; reason?: undefined }
+  | { article?: undefined; reason: string };
+
+/**
+ * Read one untrusted array element into an OutrankArticle whose every field
+ * has the declared type. An element that cannot be read returns a permanent
+ * skip reason instead. The reason names the field, never its value, so no
+ * article content reaches the reply.
+ */
+function readArticle(value: unknown): ArticleRead {
+  if (!isRecord(value) || Array.isArray(value)) {
+    return { reason: "article is not an object" };
+  }
+
+  const article: OutrankArticle = {};
+
+  for (const field of STRICT_STRING_FIELDS) {
+    const fieldValue = value[field];
+
+    if (fieldValue === undefined || fieldValue === null) continue;
+    if (typeof fieldValue !== "string") {
+      return { reason: `invalid ${field}: expected a string` };
+    }
+    article[field] = fieldValue;
+  }
+  for (const field of LENIENT_STRING_FIELDS) {
+    const fieldValue = value[field];
+
+    if (typeof fieldValue === "string") article[field] = fieldValue;
+  }
+  // normalizeTags already drops a non-array and every non-string entry.
+  article.tags = normalizeTags(value.tags);
+
+  return { article };
+}
+
 /**
  * Verify a per-request HMAC-SHA256 signature over the raw body. Returns false
  * when no signing secret is configured (so the caller can fall back to the
@@ -305,15 +363,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Only the array itself is proven above. Every per-article field below is
-  // read through optional chaining and validated before use, so the element
-  // type is a shape hint and not a trusted claim.
-  const articles = rawArticles as OutrankArticle[];
-
-  if (articles.length > MAX_ARTICLES) {
+  // Only the array itself is proven above. Each element is read through
+  // readArticle inside the loop, so a malformed article becomes a permanent
+  // skip for that index and later articles in the delivery still run.
+  if (rawArticles.length > MAX_ARTICLES) {
     return NextResponse.json(
       {
-        error: `Too many articles: ${articles.length} (max ${MAX_ARTICLES})`,
+        error: `Too many articles: ${rawArticles.length} (max ${MAX_ARTICLES})`,
       },
       { status: 413 },
     );
@@ -327,13 +383,20 @@ export async function POST(req: NextRequest) {
   // permanently invalid must not be retried forever.
   let hadTransientFailure = false;
 
-  for (let i = 0; i < articles.length; i++) {
-    const article = articles[i];
-    const markdown = article?.content_markdown?.trim() ?? "";
-    const html = article?.content_html?.trim() || markdownToHtml(markdown);
-    const description = article?.meta_description ?? article?.description;
+  for (let i = 0; i < rawArticles.length; i++) {
+    const read = readArticle(rawArticles[i]);
 
-    if (!article?.id || !article.title?.trim() || (!markdown && !html)) {
+    if (read.reason !== undefined) {
+      skipped.push({ index: i, reason: read.reason });
+      continue;
+    }
+
+    const { article } = read;
+    const markdown = article.content_markdown?.trim() ?? "";
+    const html = article.content_html?.trim() || markdownToHtml(markdown);
+    const description = article.meta_description ?? article.description;
+
+    if (!article.id || !article.title?.trim() || (!markdown && !html)) {
       skipped.push({
         index: i,
         reason: "missing id/title/content",
@@ -361,7 +424,7 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const tags = normalizeTags(article.tags);
+    const tags = article.tags ?? [];
 
     try {
       // Avoid a (locale, slug) unique violation when a different article has
