@@ -1004,8 +1004,19 @@ public static class UniversalBackupMapper
     /// Writes universal API keys to ApiKeyService (PasswordVault).
     /// Only writes non-null keys; does not clear existing keys that aren't in the backup.
     /// </summary>
-    public static void ApplyApiKeys(UniversalApiKeys apiKeys, ApiKeyService apiKeyService)
-        => ApplyApiKeys(apiKeys, apiKeyService.SetApiKey, apiKeyService.SetApiKey);
+    /// <returns>
+    /// True when every key in the backup was stored; false when Credential Manager
+    /// refused at least one (ApiKeyService has logged which setting) (#742).
+    /// </returns>
+    public static bool ApplyApiKeys(UniversalApiKeys apiKeys, ApiKeyService apiKeyService)
+    {
+        var failed = 0;
+        ApplyApiKeys(
+            apiKeys,
+            (provider, value) => { if (apiKeyService.SetApiKey(provider, value).IsFailure) failed++; },
+            (type, value) => { if (apiKeyService.SetApiKey(type, value).IsFailure) failed++; });
+        return failed == 0;
+    }
 
     /// <summary>
     /// The import mapping itself, over two key writers rather than

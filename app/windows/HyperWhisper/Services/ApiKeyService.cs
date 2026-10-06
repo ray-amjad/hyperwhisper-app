@@ -9,9 +9,10 @@
 // - Keys are encrypted at rest by Windows
 // - Each key stored as a separate credential under "HyperWhisper" resource
 
-using Windows.Security.Credentials;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
+using HyperWhisper.Services.Platform;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Services;
 
@@ -45,7 +46,11 @@ public class ApiKeyService
     // =========================================================================
 
     private static string VaultResource => AppPaths.CredentialResource;
-    private readonly PasswordVault _vault = new();
+
+    // The same backend WindowsCredentialStore uses: it narrows the expected miss
+    // to ElementNotFound and lets every other Credential Manager fault through,
+    // so a vault failure can be told apart from "no key configured" (#742).
+    private readonly IWindowsCredentialBackend _credentials;
 
     public event EventHandler? ApiKeysChanged;
 
@@ -53,9 +58,17 @@ public class ApiKeyService
     // CONSTRUCTOR
     // =========================================================================
 
-    private ApiKeyService()
+    private ApiKeyService() : this(new PasswordVaultCredentialBackend())
     {
-        // PasswordVault doesn't need initialization - credentials are loaded on-demand
+    }
+
+    /// <summary>
+    /// Test seam: the smoke suite injects a backend whose write throws, to prove a
+    /// Credential Manager failure reaches the caller instead of being swallowed.
+    /// </summary>
+    internal ApiKeyService(IWindowsCredentialBackend credentials)
+    {
+        _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
         LoggingService.Info("ApiKeyService: Initialized with Windows Credential Manager");
     }
 
@@ -74,7 +87,7 @@ public class ApiKeyService
         {
             var settingName = provider.GetApiKeySettingName();
             if (string.IsNullOrEmpty(settingName)) return null;
-            return RetrieveFromVault(settingName);
+            return ReadOrNull(settingName);
         }
     }
 
@@ -83,15 +96,25 @@ public class ApiKeyService
     /// </summary>
     /// <param name="provider">The post-processing provider.</param>
     /// <param name="apiKey">The API key to store, or null/empty to remove.</param>
-    public void SetApiKey(PostProcessingProvider provider, string? apiKey)
+    /// <returns>
+    /// Success when Credential Manager holds the new value (or no longer holds a
+    /// cleared one). A failure means the key was NOT stored; the caller must say so.
+    /// </returns>
+    public PlatformContracts.PlatformResult SetApiKey(PostProcessingProvider provider, string? apiKey)
     {
         lock (_lock)
         {
             var settingName = provider.GetApiKeySettingName();
-            if (string.IsNullOrEmpty(settingName)) return;
-            SaveToVault(settingName, apiKey);
-            RegisterTranscriptionApiKeyChange(CloudProviderHealthService.Instance, provider, apiKey);
+            if (string.IsNullOrEmpty(settingName)) return NoKeySlot();
+            var result = SaveToVault(settingName, apiKey);
+            if (result.IsSuccess)
+            {
+                RegisterTranscriptionApiKeyChange(CloudProviderHealthService.Instance, provider, apiKey);
+            }
+            // Raised on failure too: the backend deletes before it adds, so a failed
+            // add can already have removed the previous key. Listeners re-read.
             ApiKeysChanged?.Invoke(this, EventArgs.Empty);
+            return result;
         }
     }
 
@@ -171,7 +194,7 @@ public class ApiKeyService
         {
             var settingName = type.GetSettingName();
             if (string.IsNullOrEmpty(settingName)) return null;
-            return RetrieveFromVault(settingName);
+            return ReadOrNull(settingName);
         }
     }
 
@@ -180,15 +203,20 @@ public class ApiKeyService
     /// </summary>
     /// <param name="type">The transcription API key type.</param>
     /// <param name="apiKey">The API key to store, or null/empty to remove.</param>
-    public void SetApiKey(TranscriptionApiKeyType type, string? apiKey)
+    /// <returns>Success, or a failure meaning the key was NOT stored.</returns>
+    public PlatformContracts.PlatformResult SetApiKey(TranscriptionApiKeyType type, string? apiKey)
     {
         lock (_lock)
         {
             var settingName = type.GetSettingName();
-            if (string.IsNullOrEmpty(settingName)) return;
-            SaveToVault(settingName, apiKey);
-            RegisterTranscriptionApiKeyChange(CloudProviderHealthService.Instance, type, apiKey);
+            if (string.IsNullOrEmpty(settingName)) return NoKeySlot();
+            var result = SaveToVault(settingName, apiKey);
+            if (result.IsSuccess)
+            {
+                RegisterTranscriptionApiKeyChange(CloudProviderHealthService.Instance, type, apiKey);
+            }
             ApiKeysChanged?.Invoke(this, EventArgs.Empty);
+            return result;
         }
     }
 
@@ -245,19 +273,20 @@ public class ApiKeyService
     {
         lock (_lock)
         {
-            return RetrieveFromVault($"CustomEndpoint_{endpointId}");
+            return ReadOrNull($"CustomEndpoint_{endpointId}");
         }
     }
 
     /// <summary>
     /// Sets or removes the API key for a custom endpoint.
     /// </summary>
-    public void SetCustomEndpointApiKey(Guid endpointId, string? apiKey)
+    public PlatformContracts.PlatformResult SetCustomEndpointApiKey(Guid endpointId, string? apiKey)
     {
         lock (_lock)
         {
-            SaveToVault($"CustomEndpoint_{endpointId}", apiKey);
+            var result = SaveToVault($"CustomEndpoint_{endpointId}", apiKey);
             ApiKeysChanged?.Invoke(this, EventArgs.Empty);
+            return result;
         }
     }
 
@@ -333,22 +362,37 @@ public class ApiKeyService
     // =========================================================================
 
     /// <summary>
+    /// Reads a provider's key, or null when none is stored. A Credential Manager
+    /// fault is logged as an error here, so it is no longer indistinguishable from
+    /// an unconfigured provider in the log (#742); callers that only ask "is there
+    /// a usable key" still get null, because there is none they can use.
+    /// </summary>
+    private string? ReadOrNull(string settingName)
+    {
+        var result = RetrieveFromVault(settingName);
+        return result.IsSuccess ? result.Value : null;
+    }
+
+    /// <summary>
     /// Retrieves an API key from Windows Credential Manager.
     /// </summary>
     /// <param name="settingName">The credential username (provider identifier).</param>
-    /// <returns>The API key, or null if not found.</returns>
-    private string? RetrieveFromVault(string settingName)
+    /// <returns>
+    /// Success(null) when no credential exists (ElementNotFound, the normal state
+    /// of an unconfigured provider); Failure for every other Credential Manager fault.
+    /// </returns>
+    private PlatformContracts.PlatformResult<string?> RetrieveFromVault(string settingName)
     {
         try
         {
-            var credential = _vault.Retrieve(VaultResource, settingName);
-            credential.RetrievePassword();
-            return credential.Password;
+            return PlatformContracts.PlatformResult<string?>.Success(
+                _credentials.TryRead(VaultResource, settingName, out var value) ? value : null);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Credential not found - this is normal for unconfigured providers
-            return null;
+            LoggingService.Error($"ApiKeyService: Failed to read credential for {settingName}", ex);
+            return PlatformContracts.PlatformResult<string?>.Failure(
+                "credential.read_failed", $"Windows Credential Manager could not read the credential for {settingName}.");
         }
     }
 
@@ -357,36 +401,40 @@ public class ApiKeyService
     /// </summary>
     /// <param name="settingName">The credential username (provider identifier).</param>
     /// <param name="apiKey">The API key to store, or null/empty to remove.</param>
-    private void SaveToVault(string settingName, string? apiKey)
+    /// <returns>Success, or a failure meaning Credential Manager did not take the change.</returns>
+    private PlatformContracts.PlatformResult SaveToVault(string settingName, string? apiKey)
     {
+        var clearing = string.IsNullOrEmpty(apiKey);
         try
         {
-            // Remove existing credential first (if any)
-            try
+            if (clearing)
             {
-                var existing = _vault.Retrieve(VaultResource, settingName);
-                _vault.Remove(existing);
-                LoggingService.Debug($"ApiKeyService: Removed existing credential for {settingName}");
-            }
-            catch
-            {
-                // Credential didn't exist - that's fine
-            }
-
-            // Add new credential if value is not empty
-            if (!string.IsNullOrEmpty(apiKey))
-            {
-                _vault.Add(new PasswordCredential(VaultResource, settingName, apiKey));
-                LoggingService.Info($"ApiKeyService: Saved API key for {settingName}");
+                // A missing credential is not an error (ElementNotFound is swallowed
+                // by the backend); any other fault is.
+                _credentials.Delete(VaultResource, settingName);
+                LoggingService.Info($"ApiKeyService: Cleared API key for {settingName}");
             }
             else
             {
-                LoggingService.Info($"ApiKeyService: Cleared API key for {settingName}");
+                // Write removes any existing credential, then adds the new one.
+                _credentials.Write(VaultResource, settingName, apiKey!);
+                LoggingService.Info($"ApiKeyService: Saved API key for {settingName}");
             }
+
+            return PlatformContracts.PlatformResult.Success();
         }
         catch (Exception ex)
         {
-            LoggingService.Error($"ApiKeyService: Failed to save credential for {settingName}: {ex.Message}");
+            LoggingService.Error($"ApiKeyService: Failed to save credential for {settingName}", ex);
+            return clearing
+                ? PlatformContracts.PlatformResult.Failure(
+                    "credential.delete_failed", $"Windows Credential Manager could not delete the credential for {settingName}.")
+                : PlatformContracts.PlatformResult.Failure(
+                    "credential.write_failed", $"Windows Credential Manager could not write the credential for {settingName}.");
         }
     }
+
+    private static PlatformContracts.PlatformResult NoKeySlot()
+        => PlatformContracts.PlatformResult.Failure(
+            "credential.no_slot", "This provider has no API key slot.");
 }
