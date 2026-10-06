@@ -327,6 +327,198 @@ internal static class Program
                 AssertNoInlining(typeof(PromptBuilder), "ReadHwAppType");
             });
 
+            // #933. Application Control blocked MANDATORY binaries too:
+            // HyperWhisper.SharedCore.dll (HYPERWHISPER-Z1, a FileLoadException) and
+            // the native hyperwhisper_core.dll (HYPERWHISPER-108, a
+            // DllNotFoundException whose own HResult is not the block). Both arrive
+            // inside the XamlParseException WPF raises while it builds MainWindow,
+            // with an OS sentence in the user's language, so each language opened its
+            // own Sentry issue. These pin the recogniser, the file-name-only
+            // description, the fixed report and the notice text.
+            Run("ApplicationControlDiagnostics recognises a block on a mandatory binary", () =>
+            {
+                const int blockedHResult = unchecked((int)0x800711C7);
+                const string installedPath =
+                    @"C:\Users\testaccount\AppData\Local\Programs\HyperWhisper\HyperWhisper.SharedCore.dll";
+                var managed = new FileLoadException(
+                    @"Could not load file or assembly 'C:\Users\testaccount\AppData\Local\Programs\HyperWhisper\HyperWhisper.SharedCore.dll'. " +
+                    "Политика управления приложениями заблокировала этот файл. (0x800711C7)",
+                    installedPath)
+                {
+                    HResult = blockedHResult,
+                };
+
+                // 1-3: the managed shape, bare and wrapped, and its negative.
+                Assert(ApplicationControlDiagnostics.IsApplicationControlBlock(managed),
+                    "a FileLoadException with 0x800711C7 is not a block");
+                var wrapped = new System.Windows.Markup.XamlParseException(
+                    "The invocation of the constructor on type 'HyperWhisper.ViewModels.MainViewModel' threw an exception.",
+                    managed);
+                Assert(ApplicationControlDiagnostics.IsApplicationControlBlock(wrapped),
+                    "a block wrapped in a XamlParseException is not recognised");
+                Assert(!ApplicationControlDiagnostics.IsApplicationControlBlock(
+                        new FileLoadException("private message", installedPath)
+                        {
+                            HResult = unchecked((int)0x80131621),
+                        }),
+                    "a FileLoadException with another HRESULT is treated as a block");
+                Assert(!ApplicationControlDiagnostics.IsApplicationControlBlock(
+                        new FileLoadException("private message", installedPath)),
+                    "a FileLoadException with its default HRESULT is treated as a block");
+                Assert(!ApplicationControlDiagnostics.IsApplicationControlBlock(
+                        new InvalidOperationException("ordinary", new InvalidOperationException())),
+                    "an ordinary fault is treated as a block");
+                Assert(!ApplicationControlDiagnostics.IsApplicationControlBlock(null),
+                    "a null exception is treated as a block");
+
+                // 4: the file name only, never the directory.
+                foreach (var source in new Exception[] { managed, wrapped })
+                {
+                    var described = ApplicationControlDiagnostics.DescribeBlockedAssembly(source);
+                    Assert(described == "HyperWhisper.SharedCore.dll",
+                        $"the blocked assembly was described as '{described}'");
+                    Assert(!described.Contains("testaccount", StringComparison.OrdinalIgnoreCase)
+                        && !described.Contains(@"C:\Users\", StringComparison.OrdinalIgnoreCase),
+                        "the description carries the install path");
+                }
+
+                Assert(ApplicationControlDiagnostics.DescribeBlockedAssembly(new FileLoadException(
+                        "m", "HyperWhisper.SharedCore, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null")
+                    { HResult = blockedHResult }) == "HyperWhisper.SharedCore.dll",
+                    "an assembly display name is not reduced to its file name");
+                Assert(ApplicationControlDiagnostics.DescribeBlockedAssembly(new FileLoadException(
+                        "m", @"C:\Users\Doe, testaccount\Programs\HyperWhisper.SharedCore.dll")
+                    { HResult = blockedHResult }) == "HyperWhisper.SharedCore.dll",
+                    "a comma in the directory leaked into the description");
+                Assert(ApplicationControlDiagnostics.DescribeBlockedAssembly(new FileLoadException(
+                        "m", @"C:\Users\testaccount\Programs\")
+                    { HResult = blockedHResult }) == ApplicationControlDiagnostics.UnknownBlockedFile,
+                    "a path with no file name was not reported as unknown");
+
+                // 5: the native shape, HYPERWHISPER-108. The HResult of the
+                // DllNotFoundException is NOT the block; only its message carries it.
+                var native = new System.Windows.Markup.XamlParseException(
+                    "The invocation of the constructor on type 'HyperWhisper.ViewModels.MainViewModel' threw an exception.",
+                    new TypeInitializationException(
+                        "uniffi.hyperwhisper_core._UniFFILib",
+                        new DllNotFoundException(
+                            "Unable to load DLL 'hyperwhisper_core' or one of its dependencies: " +
+                            "An Application Control policy has blocked this file. (0x800711C7)")));
+                Assert(native.InnerException!.InnerException!.HResult != blockedHResult,
+                    "the native fixture no longer models a DllNotFoundException's own HRESULT");
+                Assert(ApplicationControlDiagnostics.IsApplicationControlBlock(native),
+                    "the native XamlParse -> TypeInitialization -> DllNotFound chain is not a block");
+                Assert(ApplicationControlDiagnostics.DescribeBlockedAssembly(native) == "hyperwhisper_core.dll",
+                    $"the native block was described as '{ApplicationControlDiagnostics.DescribeBlockedAssembly(native)}'");
+                Assert(ApplicationControlDiagnostics.DescribeBlockedAssembly(new DllNotFoundException(
+                        @"Unable to load DLL 'C:\Users\testaccount\AppData\Local\Programs\HyperWhisper\hyperwhisper_core.dll' " +
+                        "or one of its dependencies: blocked. (0x800711C7)")) == "hyperwhisper_core.dll",
+                    "a native library path leaked into the description");
+
+                // A native load failure that is NOT a block stays an ordinary crash.
+                Assert(!ApplicationControlDiagnostics.IsApplicationControlBlock(
+                        new System.Windows.Markup.XamlParseException("x",
+                            new TypeInitializationException("T", new DllNotFoundException(
+                                "Unable to load DLL 'hyperwhisper_core' or one of its dependencies: " +
+                                "The specified module could not be found. (0x8007007E)")))),
+                    "a missing native DLL is treated as an Application Control block");
+                Assert(!ApplicationControlDiagnostics.IsApplicationControlBlock(
+                        new InvalidOperationException("ordinary (0x800711C7)")),
+                    "the hex code in an ordinary fault's message is treated as a block");
+
+                // The unobserved-task shape: an AggregateException.
+                Assert(ApplicationControlDiagnostics.IsApplicationControlBlock(
+                        new AggregateException(new InvalidOperationException(), wrapped)),
+                    "a block inside an AggregateException is not recognised");
+
+                // The one report: a fixed fingerprint, the file name, the HRESULT and
+                // the stage. No message text in any language, and no path.
+                var russian = ApplicationControlDiagnostics.BuildBlockReport(wrapped, "ui_startup");
+                var english = ApplicationControlDiagnostics.BuildBlockReport(
+                    new System.Windows.Markup.XamlParseException("other words",
+                        new FileLoadException("An Application Control policy has blocked this file. (0x800711C7)", installedPath)
+                        { HResult = blockedHResult }),
+                    "ui_startup");
+                Assert(russian.Fingerprint.SequenceEqual(new[] { "application-control", "blocked", "HyperWhisper.SharedCore.dll" }),
+                    $"the fingerprint is [{string.Join(", ", russian.Fingerprint)}]");
+                Assert(english.Fingerprint.SequenceEqual(russian.Fingerprint) && english.Message == russian.Message,
+                    "two OS languages produce two different reports");
+                Assert((string)russian.Extras["blocked_hresult"] == "0x800711C7"
+                    && (string)russian.Extras["capture_stage"] == "ui_startup"
+                    && russian.Tags["blocked_file_name"] == "HyperWhisper.SharedCore.dll",
+                    "the report is missing the file name, HRESULT or stage");
+                var nativeReport = ApplicationControlDiagnostics.BuildBlockReport(native, "ui_startup");
+                Assert(nativeReport.Fingerprint.SequenceEqual(new[] { "application-control", "blocked", "hyperwhisper_core.dll" })
+                    && (string)nativeReport.Extras["blocked_match"] == "message_code",
+                    "the native report is not fingerprinted by its file name");
+                var reportValues = russian.Tags.Values
+                    .Concat(russian.Extras.Values.Select(v => Convert.ToString(v, CultureInfo.InvariantCulture) ?? string.Empty))
+                    .Concat(russian.Fingerprint)
+                    .Append(russian.Message)
+                    .Append(russian.DedupeKey)
+                    .ToList();
+                Assert(!reportValues.Any(v => v.Contains("testaccount", StringComparison.OrdinalIgnoreCase)
+                        || v.Contains(@"C:\Users\", StringComparison.OrdinalIgnoreCase)
+                        || v.Contains("Политика", StringComparison.Ordinal)
+                        || v.Contains("policy has blocked", StringComparison.OrdinalIgnoreCase)),
+                    "the report carries a path or the OS's localized sentence");
+                Assert(!russian.Extras.Keys.Any(SentryService.IsRedactedExtraKey), "a report extra is redacted");
+
+                // TryReportBlock reports a block once per call, ignores everything
+                // else, and survives a reporter that throws.
+                var sent = new List<ApplicationControlDiagnostics.BlockReport>();
+                Assert(ApplicationControlDiagnostics.TryReportBlock(wrapped, "ui_startup", sent.Add) && sent.Count == 1,
+                    "a block was not reported");
+                Assert(!ApplicationControlDiagnostics.TryReportBlock(
+                        new InvalidOperationException(), "ui_startup", sent.Add) && sent.Count == 1,
+                    "an ordinary fault was reported as a block");
+                Assert(ApplicationControlDiagnostics.TryReportBlock(
+                        native, "ui_startup", _ => throw new InvalidOperationException("reporter down")),
+                    "a failing reporter turned a block into an unhandled fault");
+
+                // The notice: the catalog text when it resolves, English when the
+                // catalog throws (a blocked satellite) or misses the key.
+                var (title, message) = ApplicationControlDiagnostics.BuildBlockedNotice(
+                    "HyperWhisper.SharedCore.dll", key => HyperWhisper.Localization.Loc.S(key));
+                Assert(message.Contains("HyperWhisper.SharedCore.dll", StringComparison.Ordinal)
+                    && message.Contains("Application Control", StringComparison.Ordinal)
+                    && !message.Contains("{0}", StringComparison.Ordinal),
+                    $"the notice does not name the file and Application Control: '{message}'");
+                Assert(title != ApplicationControlDiagnostics.BlockedNoticeTitleKey, "the notice title is a raw key");
+                Assert(HyperWhisper.Localization.Loc.S(ApplicationControlDiagnostics.BlockedNoticeKey)
+                        != ApplicationControlDiagnostics.BlockedNoticeKey,
+                    "errors.applicationControl.blocked is missing from Strings.resx");
+                var (fallbackTitle, fallbackMessage) = ApplicationControlDiagnostics.BuildBlockedNotice(
+                    "hyperwhisper_core.dll", _ => throw new FileLoadException("satellite blocked"));
+                Assert(fallbackTitle == ApplicationControlDiagnostics.BlockedNoticeTitleFallback
+                    && fallbackMessage.Contains("hyperwhisper_core.dll", StringComparison.Ordinal)
+                    && fallbackMessage.Contains("Application Control", StringComparison.Ordinal),
+                    "a throwing catalog did not fall back to the English notice");
+                var (_, missMessage) = ApplicationControlDiagnostics.BuildBlockedNotice("x.dll", key => key);
+                Assert(missMessage.StartsWith("Windows Application Control blocked x.dll", StringComparison.Ordinal),
+                    "a missing key showed the raw key instead of the English notice");
+                var (_, brokenMessage) = ApplicationControlDiagnostics.BuildBlockedNotice("x.dll", _ => "broken {1}");
+                Assert(brokenMessage.Contains("x.dll", StringComparison.Ordinal),
+                    "a malformed translation threw or dropped the file name");
+
+                // Every shipped catalog carries the key and the {0} placeholder.
+                var catalogs = Directory.GetDirectories(AppContext.BaseDirectory)
+                    .Select(Path.GetFileName)
+                    .Where(name => File.Exists(Path.Combine(AppContext.BaseDirectory, name!, "HyperWhisper.resources.dll")))
+                    .ToList();
+                Assert(catalogs.Count >= 39, $"expected 39 satellite catalogs, found {catalogs.Count}");
+                var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(
+                    ApplicationControlDiagnostics.BlockedNoticeKey, CultureInfo.InvariantCulture);
+                foreach (var name in catalogs)
+                {
+                    var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(
+                        ApplicationControlDiagnostics.BlockedNoticeKey, new CultureInfo(name!));
+                    Assert(text != null && text.Contains("{0}", StringComparison.Ordinal),
+                        $"Strings.{name}.resx has no {{0}} in {ApplicationControlDiagnostics.BlockedNoticeKey}");
+                    Assert(text != neutral, $"Strings.{name}.resx carries the English notice");
+                }
+            });
+
             // #960. A field typed from HyperWhisper.AppClassification puts that
             // assembly into its class's LAYOUT, and the CLR loads the layout for
             // every method that stores, passes or tests an instance — even a null
