@@ -260,8 +260,8 @@ export default function RefundPolicyPage() {
           </a>
         </p>
         <p className="mb-2">
-          <strong>Subject Line:</strong> &quot;Refund Request - [Your Order
-          Number]&quot;
+          <strong>Subject Line:</strong> &quot;Refund Request&quot;, plus your
+          order number if you have it
         </p>
         <p className="text-sm text-gray-400">
           We review refund requests and reply by email.
