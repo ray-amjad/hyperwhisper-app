@@ -312,7 +312,11 @@ public partial class MainViewModel
 
             if (transcript != null)
             {
-                transcriptDeleted = TryDeleteCancelledTranscript(transcript.Id);
+                // A delete SQLite refused (#974) keeps the row, as main did: the failed
+                // Result leaves transcriptDeleted false, so the finally safety net marks the
+                // row terminal. HistoryService already logged it.
+                var deleteResult = HistoryService.Instance.DeleteTranscript(transcript.Id);
+                transcriptDeleted = deleteResult.IsSuccess && deleteResult.Value;
             }
             else if (!string.IsNullOrEmpty(permanentPath))
             {
