@@ -174,10 +174,38 @@ static void SanitizerRewritesEveryField()
     sentryEvent.SetTag("input_device", "Bob's AirPods");
     sentryEvent.SetTag("component", "transcription");
 
+    var leakyException = sentryEvent.SentryExceptions!.Single();
+    leakyException.Mechanism = new Mechanism { Type = "AppDomain.UnhandledException", Description = "raised for bob" };
+    leakyException.Mechanism.Data["file"] = "/home/bob/secret.wav";
+    leakyException.Mechanism.Data["/home/bob/key"] = "x";
+    leakyException.Mechanism.Data["attempt"] = 3;
+    leakyException.Mechanism.Data["info"] = new Uri("file:///home/bob/a.wav");
+    leakyException.Stacktrace = new SentryStackTrace();
+    leakyException.Stacktrace.Frames.Add(LeakyFrame());
+    sentryEvent.SentryThreads = [new SentryThread { Name = "main", Stacktrace = new SentryStackTrace { Frames = [LeakyFrame()] } }];
+
     var sanitized = SanitizeAsBob(sentryEvent);
 
     Assert.True(ReferenceEquals(sanitized, sentryEvent));
     var exception = sentryEvent.SentryExceptions!.Single();
+    Assert.Equal("AppDomain.UnhandledException", exception.Mechanism!.Type);
+    Assert.Equal("raised for $USER", exception.Mechanism.Description);
+    Assert.Equal<object?>("$HOME/secret.wav", exception.Mechanism.Data["file"]);
+    Assert.Equal<object?>("x", exception.Mechanism.Data["$HOME/key"]);
+    Assert.Equal<object?>(3, exception.Mechanism.Data["attempt"]);
+    Assert.Equal<object?>("file://$HOME/a.wav", exception.Mechanism.Data["info"]);
+    foreach (var frame in new[] { exception.Stacktrace!.Frames.Single(), sentryEvent.SentryThreads!.Single().Stacktrace!.Frames.Single() })
+    {
+        Assert.Equal("$HOME/src/HyperWhisper/Recorder.cs", frame.AbsolutePath);
+        Assert.Equal("$HOME/src/HyperWhisper/Recorder.cs", frame.FileName);
+        Assert.Equal("$XDG_DATA_HOME/HyperWhisper/app/HyperWhisper.Linux.dll", frame.Package);
+        Assert.Equal("Open(\"$HOME/x.wav\");", frame.ContextLine);
+        Assert.Equal("// $USER", frame.PreContext.Single());
+        Assert.Equal("$HOME/y", frame.Vars["path"]);
+        Assert.Equal("HyperWhisper.Linux.Recorder.Start", frame.Function);
+        Assert.Equal("HyperWhisper.Linux", frame.Module);
+        Assert.Equal(42, frame.LineNumber);
+    }
     Assert.Equal(Fixtures.RedactedLoadFailure, exception.Value);
     Assert.Equal("System.IO.IOException", exception.Type);
     Assert.Equal(Fixtures.RedactedLoadFailure, sentryEvent.Message!.Message);
@@ -199,6 +227,23 @@ static void SanitizerRewritesEveryField()
     SanitizeAsBob(formatted);
     Assert.Equal(Fixtures.RedactedLoadFailure, formatted.Message!.Formatted);
     Assert.Equal<string?>(null, formatted.Message!.Message);
+}
+
+static SentryStackFrame LeakyFrame()
+{
+    var frame = new SentryStackFrame
+    {
+        AbsolutePath = "/home/bob/src/HyperWhisper/Recorder.cs",
+        FileName = "/home/bob/src/HyperWhisper/Recorder.cs",
+        Package = "/home/bob/.local/share/HyperWhisper/app/HyperWhisper.Linux.dll",
+        ContextLine = "Open(\"/home/bob/x.wav\");",
+        Function = "HyperWhisper.Linux.Recorder.Start",
+        Module = "HyperWhisper.Linux",
+        LineNumber = 42,
+    };
+    frame.PreContext.Add("// bob");
+    frame.Vars["path"] = "/home/bob/y";
+    return frame;
 }
 
 static void SanitizerKeepsShapeAndDropsOnFault()
@@ -234,6 +279,7 @@ static void ConfiguredBeforeSendKeepsAccountNameOutOfEnvelope()
     Assert.True(expected != raw);
 
     var plantedCodeFile = $"{home}/.local/share/HyperWhisper/app/HyperWhisper.Linux.dll";
+    var plantedDataPath = $"{home}/Music/secret.wav";
     var transport = new CapturingSentryTransport();
     using (SentrySdk.Init(options =>
     {
@@ -245,7 +291,22 @@ static void ConfiguredBeforeSendKeepsAccountNameOutOfEnvelope()
         options.AutoSessionTracking = false;
     }))
     {
-        var sentryEvent = new SentryEvent(new IOException(raw))
+        // Thrown, not just built, so the event carries real stack frames: their
+        // abs_path is this test's source file, which sits under $HOME on a dev box
+        // and on CI. Data is copied by the SDK into exception.values[].mechanism.data.
+        Exception thrown;
+        try
+        {
+            var leaky = new IOException(raw);
+            leaky.Data["file"] = plantedDataPath;
+            throw leaky;
+        }
+        catch (IOException caught)
+        {
+            thrown = caught;
+        }
+
+        var sentryEvent = new SentryEvent(thrown)
         {
             DebugImages = [new DebugImage { Type = "pe_dotnet", CodeFile = plantedCodeFile }],
         };
@@ -280,7 +341,36 @@ static void ConfiguredBeforeSendKeepsAccountNameOutOfEnvelope()
     var messageEvent = transport.FindPayload(payload => payload["logentry"] is not null)
         ?? throw new InvalidOperationException("no message event: " + transport.Dump());
     Assert.Equal(expected, messageEvent["logentry"]?["message"]?.GetValue<string>());
+
+    // The field list above pins the shape; THIS pins the leak. Every envelope the SDK
+    // handed the transport, every line, every string anywhere in it: the home path
+    // occurs nowhere (raw text, keys included), and no string still holds the
+    // account name as a whole word once the redactor's own tokens are set aside
+    // (an account named "user" matches the "USER" inside "$USER").
+    var dump = transport.Dump();
+    Assert.False(dump.Contains(home, StringComparison.OrdinalIgnoreCase));
+    var strings = 0;
+    foreach (var value in transport.AllStringValues())
+    {
+        strings++;
+        var withoutTokens = System.Text.RegularExpressions.Regex.Replace(value, @"\$(HOME|USER|XDG_[A-Z]+_HOME)", "#");
+        Assert.Equal(LinuxSentryEventSanitizer.RedactUserIdentifiers(withoutTokens), withoutTokens);
+    }
+    Assert.True(strings > 20);
+
+    // Not vacuous: the planted Data path and the frames were there to leak.
+    Assert.Equal(
+        LinuxSentryEventSanitizer.RedactUserIdentifiers(plantedDataPath),
+        exception?["mechanism"]?["data"]?["file"]?.GetValue<string>());
+    if (ThisSourceFile().StartsWith(home + "/", StringComparison.Ordinal))
+    {
+        var frames = exception?["stacktrace"]?["frames"]?.AsArray() ?? [];
+        Assert.True(frames.Any(frame =>
+            frame?["abs_path"]?.GetValue<string>() == LinuxSentryEventSanitizer.RedactUserIdentifiers(ThisSourceFile())));
+    }
 }
+
+static string ThisSourceFile([System.Runtime.CompilerServices.CallerFilePath] string path = "") => path;
 
 static void ExceptionContentIsSanitized()
 {
@@ -430,6 +520,39 @@ sealed class CapturingSentryTransport : Sentry.Extensibility.ITransport
     public string Dump()
     {
         lock (_envelopes) return string.Join("\n---envelope---\n", _envelopes);
+    }
+
+    public IEnumerable<string> AllStringValues()
+    {
+        var values = new List<string>();
+        lock (_envelopes)
+        {
+            foreach (var line in _envelopes.SelectMany(envelope => envelope.Split('\n')))
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                JsonNode? node;
+                try { node = JsonNode.Parse(line); }
+                catch (System.Text.Json.JsonException) { continue; }
+                Collect(node);
+            }
+        }
+        return values;
+
+        void Collect(JsonNode? node)
+        {
+            switch (node)
+            {
+                case JsonObject obj:
+                    foreach (var property in obj) Collect(property.Value);
+                    break;
+                case JsonArray array:
+                    foreach (var item in array) Collect(item);
+                    break;
+                case JsonValue leaf when leaf.TryGetValue<string>(out var text):
+                    values.Add(text);
+                    break;
+            }
+        }
     }
 
     public JsonObject? FindPayload(Func<JsonObject, bool> predicate)

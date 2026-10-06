@@ -1,5 +1,6 @@
 using System.Text;
 using Sentry;
+using Sentry.Protocol;
 
 namespace HyperWhisper.Telemetry;
 
@@ -20,7 +21,9 @@ namespace HyperWhisper.Telemetry;
 /// </para>
 /// <para>
 /// Fields: <c>Extra</c> (key deny-list, then every string value), <c>Tags</c>,
-/// <c>SentryExceptions[].Value</c> (the issue TITLE), <c>Message.Formatted</c> /
+/// <c>SentryExceptions[]</c> (the value, i.e. the issue TITLE, the mechanism's
+/// description/help link/source/<c>data</c>, and every stack-frame path and context
+/// line), the stack frames of <c>SentryThreads[]</c>, <c>Message.Formatted</c> /
 /// <c>.Message</c>, <c>ServerName</c> (a Linux hostname is often <c>bob-laptop</c>),
 /// <c>DebugImages[].CodeFile</c> / <c>.DebugFile</c> (a per-user install under
 /// <c>~/.local</c> puts the account name in every module path), and
@@ -117,10 +120,13 @@ internal static class LinuxSentryEventSanitizer
         // "exception":{"values":[]} to an event that had none.
         foreach (var sentryException in sentryEvent.SentryExceptions ?? [])
         {
-            if (sentryException.Value is not null)
-            {
-                sentryException.Value = Redact(sentryException.Value, rules);
-            }
+            SanitizeException(sentryException, rules);
+        }
+
+        // The SDK also attaches thread stack traces; their frames carry the same paths.
+        foreach (var thread in sentryEvent.SentryThreads ?? [])
+        {
+            SanitizeStackTrace(thread?.Stacktrace, rules);
         }
 
         var message = sentryEvent.Message;
@@ -180,6 +186,134 @@ internal static class LinuxSentryEventSanitizer
         }
 
         return sentryEvent;
+    }
+
+    /// <summary>
+    /// Every free-text field of one exception entry: the value (the issue title), the
+    /// mechanism's description, help link, source and <c>data</c> (sentry-dotnet 4.12.1
+    /// copies <c>Exception.Data</c> into it, so <c>Data["file"]="/home/bob/x.wav"</c>
+    /// lands there), and every frame of its stack trace. <c>Type</c>, <c>Module</c>
+    /// and the mechanism <c>Type</c> are identifiers Sentry groups on, so they stay.
+    /// </summary>
+    private static void SanitizeException(SentryException sentryException, IReadOnlyList<RedactionRule> rules)
+    {
+        if (sentryException.Value is not null)
+        {
+            sentryException.Value = Redact(sentryException.Value, rules);
+        }
+
+        var mechanism = sentryException.Mechanism;
+        if (mechanism is not null)
+        {
+            if (mechanism.Description is not null)
+            {
+                mechanism.Description = Redact(mechanism.Description, rules);
+            }
+
+            if (mechanism.HelpLink is not null)
+            {
+                mechanism.HelpLink = Redact(mechanism.HelpLink, rules);
+            }
+
+            if (mechanism.Source is not null)
+            {
+                mechanism.Source = Redact(mechanism.Source, rules);
+            }
+
+            // Getter allocates lazily; read it only when it already holds something.
+            if (mechanism.Data.Count > 0)
+            {
+                RedactValues(mechanism.Data, rules);
+            }
+        }
+
+        SanitizeStackTrace(sentryException.Stacktrace, rules);
+    }
+
+    /// <summary>
+    /// Every path-bearing string of every frame. <c>abs_path</c>/<c>filename</c> come
+    /// from the PDB, i.e. the BUILDER's checkout, which is the user's own home when
+    /// they build from source. Function and module names stay: they are the diagnosis.
+    /// </summary>
+    private static void SanitizeStackTrace(SentryStackTrace? stackTrace, IReadOnlyList<RedactionRule> rules)
+    {
+        if (stackTrace is null)
+        {
+            return;
+        }
+
+        foreach (var frame in stackTrace.Frames)
+        {
+            if (frame is null)
+            {
+                continue;
+            }
+
+            if (frame.FileName is not null)
+            {
+                frame.FileName = Redact(frame.FileName, rules);
+            }
+
+            if (frame.AbsolutePath is not null)
+            {
+                frame.AbsolutePath = Redact(frame.AbsolutePath, rules);
+            }
+
+            if (frame.Package is not null)
+            {
+                frame.Package = Redact(frame.Package, rules);
+            }
+
+            if (frame.ContextLine is not null)
+            {
+                frame.ContextLine = Redact(frame.ContextLine, rules);
+            }
+
+            RedactLines(frame.PreContext, rules);
+            RedactLines(frame.PostContext, rules);
+
+            if (frame.Vars.Count > 0)
+            {
+                foreach (var variable in frame.Vars.ToList())
+                {
+                    frame.Vars[variable.Key] = Redact(variable.Value, rules);
+                }
+            }
+        }
+    }
+
+    private static void RedactLines(IList<string> lines, IReadOnlyList<RedactionRule> rules)
+    {
+        for (var i = 0; i < lines.Count; i++)
+        {
+            if (lines[i] is not null)
+            {
+                lines[i] = Redact(lines[i], rules);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Strings are redacted; numbers, booleans, enums and dates are kept (they are
+    /// <see cref="IConvertible"/> and cannot hold a path). Any other object is
+    /// replaced by its redacted <c>ToString()</c>, because the serializer would
+    /// otherwise write its members (a <c>FileInfo</c>'s full path) unseen. Keys are
+    /// redacted too: <c>Exception.Data</c> keys are free text.
+    /// </summary>
+    private static void RedactValues(IDictionary<string, object> data, IReadOnlyList<RedactionRule> rules)
+    {
+        var entries = data.ToList();
+        data.Clear();
+        foreach (var entry in entries)
+        {
+            data[Redact(entry.Key, rules)] = entry.Value switch
+            {
+                null => null!,
+                string text => Redact(text, rules),
+                IConvertible convertible => convertible,
+                var other => Redact(Convert.ToString(other, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty, rules),
+            };
+        }
     }
 
     /// <summary>
