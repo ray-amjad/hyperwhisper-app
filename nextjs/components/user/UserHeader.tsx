@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import UserHeaderView from "@/components/user/UserHeaderView";
+import { watchForAbandonedRedirect } from "@/src/lib/abandoned-redirect";
 import { authClient } from "@/src/lib/auth-client";
 import { createSignOutHandler } from "@/src/lib/sign-out";
 
@@ -41,6 +42,12 @@ export default function UserHeader({ user, locale, isAdmin }: UserHeaderProps) {
     setBusy: setSigningOut,
     setError: setSignOutError,
     redirectTo: `/${locale}/user/sign-in`,
+    // #948: the busy flag stays set once the redirect is scheduled; this
+    // brings the button back on a bfcache restore (Back after an abandoned
+    // sign-out navigation). No timer — see `src/lib/abandoned-redirect.ts`.
+    onRedirectScheduled: (release) => {
+      watchForAbandonedRedirect(window, release);
+    },
   });
 
   return (

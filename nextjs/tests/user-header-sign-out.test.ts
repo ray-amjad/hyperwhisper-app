@@ -214,3 +214,18 @@ test("the view is handed the idle state and the user on a first paint", async ()
   assert.equal(view.isAdmin, false);
   assert.equal(view.user.email, "someone@example.com");
 });
+
+test("#948: the header arms the abandoned-redirect watch on the real page", async () => {
+  await renderUserHeader("en");
+
+  const request = factoryCalls[0];
+
+  // The same proof `cloud-credits-card-wiring.test.ts` gives the card. The
+  // `typeof` first, so a header that passed nothing cannot make the throw
+  // below pass for the wrong reason. Then the call: the watch is a `pageshow`
+  // listener on `window`, which does not exist under Node, so only a header
+  // that really reaches for the page throws here. A no-op wiring — the button
+  // left dead after Back from the bfcache — passes the `typeof` and fails this.
+  assert.equal(typeof request?.onRedirectScheduled, "function");
+  assert.throws(() => request?.onRedirectScheduled(() => {}), ReferenceError);
+});

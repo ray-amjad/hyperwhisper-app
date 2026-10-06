@@ -7,6 +7,11 @@ import {
   signOutAndRedirect,
   type SignOutResult,
 } from "../src/lib/sign-out";
+import {
+  watchForAbandonedRedirect,
+  type RedirectPageShowEvent,
+  type RedirectWatchHost,
+} from "../src/lib/abandoned-redirect";
 
 /**
  * The seam `UserHeader` now calls. Records every collaborator call so a test
@@ -119,6 +124,7 @@ function handlerHarness(signOut: () => Promise<SignOutResult>) {
   const busy: boolean[] = [];
   const errors: (string | null)[] = [];
   const navigated: string[] = [];
+  const page = fakePage();
 
   const handler = createSignOutHandler({
     signOut,
@@ -126,6 +132,11 @@ function handlerHarness(signOut: () => Promise<SignOutResult>) {
     setBusy: (value) => busy.push(value),
     setError: (message) => errors.push(message),
     redirectTo: "/fr/user/sign-in",
+    // The REAL watcher, on a fake page — the same wiring `UserHeader` makes
+    // with `window` (#948).
+    onRedirectScheduled: (release) => {
+      watchForAbandonedRedirect(page.host, release);
+    },
   });
 
   async function run() {
@@ -138,7 +149,35 @@ function handlerHarness(signOut: () => Promise<SignOutResult>) {
     }
   }
 
-  return { busy, errors, navigated, run };
+  return { busy, errors, navigated, page, run };
+}
+
+/**
+ * A stand-in for the page, the shape `tests/abandoned-redirect.test.ts` uses:
+ * it records the `pageshow` listeners so a test can fire one and assert on
+ * what was torn down.
+ */
+function fakePage() {
+  const listeners: Array<(event: RedirectPageShowEvent) => void> = [];
+  const host: RedirectWatchHost = {
+    addEventListener: (_type, listener) => {
+      listeners.push(listener);
+    },
+    removeEventListener: (_type, listener) => {
+      const at = listeners.indexOf(listener);
+
+      if (at >= 0) listeners.splice(at, 1);
+    },
+  };
+
+  return {
+    host,
+    listeners,
+    /** Fires `pageshow` at every listener still registered. */
+    pageshow(persisted: boolean) {
+      for (const listener of listeners.slice()) listener({ persisted });
+    },
+  };
 }
 
 test("a successful sign-out leaves the button disarmed while the page unloads", async () => {
@@ -204,4 +243,74 @@ test("the handler clears a previous failure before it retries", async () => {
   assert.deepEqual(errors, [null, SIGN_OUT_ERROR_MESSAGE, null]);
   assert.deepEqual(busy, [true, false, true]);
   assert.deepEqual(navigated, ["/fr/user/sign-in"]);
+});
+
+/**
+ * #948. The success exit leaves busy set (above) — but a scheduled navigation
+ * can be abandoned. Before this, a user who signed out and came Back out of the
+ * bfcache found a Sign Out button that stayed disabled until a reload.
+ */
+
+test("#948: Back out of the bfcache after a sign-out re-arms the button", async () => {
+  const { busy, navigated, page, run } = handlerHarness(() =>
+    Promise.resolve({ data: { success: true }, error: null }),
+  );
+
+  await run();
+
+  assert.deepEqual(navigated, ["/fr/user/sign-in"]);
+  // Still disarmed while the navigation may commit…
+  assert.deepEqual(busy, [true]);
+  assert.equal(page.listeners.length, 1);
+
+  // …and released by the bfcache restore, the one signal a browser gives.
+  page.pageshow(true);
+
+  assert.deepEqual(busy, [true, false]);
+  // The watch tore itself down: no listener left behind per sign-out.
+  assert.equal(page.listeners.length, 0);
+});
+
+test("#948: an ordinary page load after a sign-out re-arms nothing", async () => {
+  const { busy, page, run } = handlerHarness(() =>
+    Promise.resolve({ data: { success: true }, error: null }),
+  );
+
+  await run();
+  page.pageshow(false);
+
+  assert.deepEqual(busy, [true]);
+  assert.equal(page.listeners.length, 1);
+});
+
+test("#948: a refused sign-out arms no abandoned-redirect watch", async () => {
+  const { busy, page, run } = handlerHarness(() =>
+    Promise.resolve({ data: null, error: { status: 500 } }),
+  );
+
+  await run();
+
+  // Released at once by the handler itself, so nothing else may own it.
+  assert.deepEqual(busy, [true, false]);
+  assert.equal(page.listeners.length, 0);
+});
+
+test("#948: a second sign-out after coming Back arms exactly one fresh watch", async () => {
+  const { busy, navigated, page, run } = handlerHarness(() =>
+    Promise.resolve({ data: { success: true }, error: null }),
+  );
+
+  await run();
+  page.pageshow(true);
+  await run();
+
+  assert.deepEqual(navigated, ["/fr/user/sign-in", "/fr/user/sign-in"]);
+  assert.deepEqual(busy, [true, false, true]);
+  // One listener, the second click's: the first watch removed itself.
+  assert.equal(page.listeners.length, 1);
+
+  page.pageshow(true);
+
+  assert.deepEqual(busy, [true, false, true, false]);
+  assert.equal(page.listeners.length, 0);
 });

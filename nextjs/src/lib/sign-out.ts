@@ -78,6 +78,16 @@ export interface SignOutHandlerRequest {
   setBusy: (busy: boolean) => void;
   setError: (message: string | null) => void;
   redirectTo: string;
+  /**
+   * Takes over the busy-flag release for the ONE exit this factory does not
+   * release itself: a navigation that has been SCHEDULED and may still never
+   * happen (#948). `UserHeader` wires it to `watchForAbandonedRedirect`
+   * (`src/lib/abandoned-redirect.ts`), the same watcher the dashboard credit
+   * card uses, so a user who comes Back out of the bfcache gets a live Sign Out
+   * button again. Injected, not called directly, so this file reaches for no
+   * page global and a test can drive it with a fake page.
+   */
+  onRedirectScheduled: (release: () => void) => void;
 }
 
 /**
@@ -98,6 +108,13 @@ export interface SignOutHandlerRequest {
  * already gone. So busy is cleared on the failure paths ONLY — where the user
  * really is still on this page — and deliberately left set once a navigation
  * has been scheduled.
+ *
+ * Left set, but not dropped (#948): a scheduled navigation can be abandoned,
+ * and a user who comes Back out of the bfcache would otherwise find the button
+ * dead until a reload. So the release is handed to `onRedirectScheduled`, which
+ * runs it on a bfcache restore only. There is no timer, on purpose — see
+ * `src/lib/abandoned-redirect.ts` for why a clock cannot tell a slow
+ * navigation from an abandoned one.
  */
 export function createSignOutHandler({
   signOut,
@@ -105,6 +122,7 @@ export function createSignOutHandler({
   setBusy,
   setError,
   redirectTo,
+  onRedirectScheduled,
 }: SignOutHandlerRequest): () => Promise<void> {
   return async function handleSignOut(): Promise<void> {
     setError(null);
@@ -117,7 +135,12 @@ export function createSignOutHandler({
       redirectTo,
     });
 
-    // Only when we are staying on this page. See the asymmetry note above.
-    if (!navigated) setBusy(false);
+    // Released now only when we are staying on this page; otherwise handed to
+    // the abandoned-redirect watch. See the asymmetry note above.
+    if (navigated) {
+      onRedirectScheduled(() => setBusy(false));
+    } else {
+      setBusy(false);
+    }
   };
 }
