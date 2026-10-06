@@ -2472,16 +2472,6 @@
     },
     {
       "provider": "groq",
-      "id": "qwen/qwen3.6-27b",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "groq",
       "id": "qwen/qwen3.8-27b",
       "kind": "text",
       "supportsCustomVocabulary": false,

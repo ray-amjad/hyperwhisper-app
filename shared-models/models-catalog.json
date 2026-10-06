@@ -452,21 +452,12 @@
     },
     {
       "provider": "groq",
-      "id": "qwen/qwen3.6-27b",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "platforms": ["macos", "windows"],
-      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts."
-    },
-    {
-      "provider": "groq",
       "id": "qwen/qwen3.8-27b",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
-      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Preview tier in GroqCloud, like qwen/qwen3.6-27b."
+      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Preview tier in GroqCloud. Replaced qwen/qwen3.6-27b, which Groq withdrew without a deprecation notice (gone from console.groq.com/docs/models.md by 2026-09-18, #788); both heads migrate saved selections here."
     },
     {
       "provider": "cerebras",
