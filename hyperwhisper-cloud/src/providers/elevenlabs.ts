@@ -7,6 +7,7 @@ import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   audioExtensionFromContentType,
+  emptyTranscriptOutcome,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -192,20 +193,32 @@ export async function transcribeWithElevenLabs(
   const transcript = data.text || '';
 
   if (!transcript || transcript.trim().length === 0) {
-    logProviderEvent(provider, 'no_speech', {
-      elapsedMs: Math.round(performance.now() - startTime),
-      language: data.language_code,
-      // `duration` comes from the last word's end time, so an empty transcript
-      // always leaves it 0 — this provider structurally reports nothing here.
-      upstreamDurationSeconds: duration > 0 ? duration : null,
-    }, context);
-    return {
-      text: '',
-      language: data.language_code,
-      durationSeconds: 0,
-      costUsd: 0,
-      source: 'no_speech',
-    };
+    // A parsed JSON 200 with no text: ElevenLabs processed the audio and found
+    // nothing. Worth one sibling call when the ROUTE grants it, exactly like the
+    // other covered adapters — elevenlabs/scribe_v2 is the default accuracy tier,
+    // and production showed 69%/74% non-silent clips answered as no_speech here.
+    //
+    // `duration` comes from the last word's end time, so an empty transcript
+    // always leaves it 0 — this provider structurally reports nothing here. That
+    // is why this adapter, and only this one, opts into the request's own
+    // measured length for the gate. The log still carries the upstream's own
+    // value (null) as `upstreamDurationSeconds`.
+    // (issue ray-amjad/hyperwhisper-app#720)
+    return emptyTranscriptOutcome(provider, {
+      label: 'ElevenLabs',
+      startedAt: startTime,
+      context,
+      upstreamDuration: duration,
+      requestDurationFallback: true,
+      logDetails: { language: data.language_code },
+      noSpeechResult: {
+        text: '',
+        language: data.language_code,
+        durationSeconds: 0,
+        costUsd: 0,
+        source: 'no_speech',
+      },
+    });
   }
 
   logProviderEvent(provider, 'success', {

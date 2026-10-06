@@ -88,6 +88,18 @@ export interface ProviderRequestContext {
    */
   isEmptyTranscriptRecovery?: boolean;
   /**
+   * The request's own audio length in seconds, measured by the route from the
+   * uploaded byte count and Content-Type (`estimateAudioSeconds`). Set by the
+   * route on every attempt.
+   *
+   * It exists for one reader: `emptyTranscriptOutcome`, for an adapter whose
+   * upstream reports no duration on an empty transcript (ElevenLabs derives its
+   * duration from the last word, so an empty 200 always says 0). Only an adapter
+   * that opts in with `requestDurationFallback` uses it; it never relaxes the
+   * refusal gate for the others. (issue ray-amjad/hyperwhisper-app#720)
+   */
+  requestAudioSeconds?: number;
+  /**
    * Optional transcription domain add-on. Currently only 'medical', which
    * AssemblyAI layers on a base model via `domain: "medical-v1"` (a metered
    * add-on, not a separate model). Providers that don't support it ignore it.
@@ -157,24 +169,39 @@ export class ProviderUnavailableError extends Error {
 export class EmptyTranscriptError extends ProviderUnavailableError {
   /** The `no_speech` result the adapter would have returned — the request's floor. */
   readonly noSpeechResult: TranscriptionResult;
-  /** The upstream's own reported audio length, for the log and the operator. */
-  readonly upstreamDurationSeconds: number;
+  /**
+   * The upstream's own reported audio length, for the log and the operator.
+   * `null` only when the refusal rests on the request's measured length instead
+   * (an adapter that opted into `requestDurationFallback`, issue #720).
+   */
+  readonly upstreamDurationSeconds: number | null;
+  /**
+   * The route's own estimate of the request's audio length, set ONLY when the
+   * refusal rests on it because the upstream reported none. (issue #720)
+   */
+  readonly requestAudioSeconds: number | null;
 
   constructor(
     provider: string,
     opts: {
-      upstreamDurationSeconds: number;
+      upstreamDurationSeconds: number | null;
+      requestAudioSeconds?: number | null;
       elapsedMs: number;
       noSpeechResult: TranscriptionResult;
     },
   ) {
-    super(provider, `empty transcript for ${opts.upstreamDurationSeconds}s of audio`, {
+    const requestAudioSeconds = opts.upstreamDurationSeconds === null ? opts.requestAudioSeconds ?? null : null;
+    const what = opts.upstreamDurationSeconds !== null
+      ? `${opts.upstreamDurationSeconds}s of audio`
+      : `~${requestAudioSeconds === null ? '?' : Math.round(requestAudioSeconds * 10) / 10}s of audio (request estimate)`;
+    super(provider, `empty transcript for ${what}`, {
       kind: 'bad_response',
       elapsedMs: opts.elapsedMs,
     });
     this.name = 'EmptyTranscriptError';
     this.noSpeechResult = opts.noSpeechResult;
     this.upstreamDurationSeconds = opts.upstreamDurationSeconds;
+    this.requestAudioSeconds = requestAudioSeconds;
   }
 }
 

@@ -19,7 +19,7 @@ import {
 // to land in the right clip-length bucket on the public /latency page.
 // runProviderAttempt is how the same page learns whether an attempt ever reached
 // the provider at all.
-import { runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
+import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
 // The providers layer's own answer to "can this Fly region reach this provider",
 // so the route never needs a provider's blocked-region list, its replay region,
 // or its id in a filter. See providers/geo-availability.ts.
@@ -137,6 +137,7 @@ export async function transcribeRoute(c: Context) {
      */
     emptyTranscript?: true;
   }> = [];
+  const requestAudioSeconds = estimateAudioSeconds(audioBuffer.byteLength, contentType);
   const latency = createTranscriptionLatencyRecorder(
     audioBuffer,
     contentType,
@@ -206,6 +207,11 @@ export async function transcribeRoute(c: Context) {
           // drop its own silence hallucination ("Thank you.") instead of
           // billing it. See ProviderRequestContext.isEmptyTranscriptRecovery.
           isEmptyTranscriptRecovery: refusalIndex !== undefined,
+          // The request's own measured length, for an adapter whose upstream
+          // reports no duration on an empty transcript (elevenlabs). Read only
+          // by emptyTranscriptOutcome, and only for an adapter that opts in.
+          // See ProviderRequestContext.requestAudioSeconds. (issue #720)
+          requestAudioSeconds,
         }));
         servedBy = current;
         // Prefer the model the adapter reports it ACTUALLY ran (e.g. AssemblyAI's
@@ -292,6 +298,9 @@ export async function transcribeRoute(c: Context) {
             // vendor. The adapter's `provider.no_speech` event carries it too.
             upstreamRequestId: error.noSpeechResult.requestId,
             upstreamDurationSeconds: error.upstreamDurationSeconds,
+            // Set only when the refusal rested on the request's own length
+            // because the upstream reported none (elevenlabs, issue #720).
+            ...(error.requestAudioSeconds !== null ? { requestAudioSeconds: error.requestAudioSeconds } : {}),
             nextProvider: next,
           });
           attemptFailures.push({
