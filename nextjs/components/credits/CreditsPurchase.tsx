@@ -15,6 +15,7 @@ import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
+import { watchForAbandonedRedirect } from "@/src/lib/abandoned-redirect";
 import { isRecord } from "@/src/lib/type-guards";
 import { showEmailError } from "@/src/lib/credits-email";
 
@@ -113,6 +114,31 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
         typeof data.checkoutUrl === "string"
       ) {
         window.location.href = data.checkoutUrl;
+        // `loading` stays set: the redirect is only SCHEDULED, and re-arming
+        // the button under it invites a second checkout session. But a
+        // scheduled load can be abandoned, so the release is handed to the
+        // abandoned-redirect watch, which runs it on a bfcache restore (Back
+        // from Stripe) and nothing else (#948). No timer — see
+        // `src/lib/abandoned-redirect.ts`. The watch removes its own listener
+        // when it fires, and `loading` blocks a second click until then, so
+        // there is at most one live watch per page.
+        //
+        // Its own `try`, so a refused handover never reaches the `catch`
+        // below, which would re-arm the button and paint an error over a
+        // redirect that is already under way. It releases nothing instead —
+        // the same trade as the `redirect_handover` exit in
+        // `src/lib/buy-credits.ts` (option A, 2026-09-24).
+        try {
+          watchForAbandonedRedirect(window, () => setLoading(false));
+        } catch (thrown) {
+          // eslint-disable-next-line no-console
+          console.error(
+            "[credits] The checkout redirect is scheduled but the " +
+              "abandoned-redirect watch could not be armed; a reload is the " +
+              "recovery.",
+            thrown,
+          );
+        }
         return;
       }
 
