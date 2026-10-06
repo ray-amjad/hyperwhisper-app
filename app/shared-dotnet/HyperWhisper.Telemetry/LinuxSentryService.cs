@@ -294,6 +294,13 @@ internal sealed class SentryTelemetryBackend : ITelemetryBackend
         options.AttachStacktrace = configuration.AttachStacktrace;
         options.MaxBreadcrumbs = configuration.MaxBreadcrumbs;
         options.SetBeforeSend((sentryEvent, _) => LinuxSentryEventSanitizer.SanitizeEvent(sentryEvent));
+
+        // The app's own handlers (App.axaml.cs) report these two through
+        // LinuxSentryService.Capture, which runs TelemetryPrivacy first. Left on, the
+        // SDK's integrations send the SAME fault a second time, raw, past
+        // TelemetryPrivacy (#1051: HYPERWHISPER-YX beside its sanitized copy YW).
+        options.DisableUnobservedTaskExceptionCapture();
+        options.DisableAppDomainUnhandledExceptionCapture();
     }
 
     public void Capture(Exception exception, string? context)
