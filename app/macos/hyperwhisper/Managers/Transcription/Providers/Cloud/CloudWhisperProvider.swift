@@ -16,10 +16,19 @@
 
 import Foundation
 
-/// Cloud Whisper provider supporting multiple cloud services (OpenAI, Groq)
+/// Cloud Whisper provider for ONE OpenAI-compatible vendor (OpenAI or Groq).
+///
+/// ONE INSTANCE PER VENDOR (issue #1338). The vendor is fixed at init and
+/// `configure` sets only the key, like every other BYOK provider here. The
+/// router used to keep one instance for both vendors and write the vendor onto
+/// it before each request. The router is `@MainActor`, but it awaits the health
+/// check between that write and `transcribe`, so an overlapping OpenAI request
+/// could re-point a suspended Groq request at OpenAI, on the OpenAI key.
 class CloudWhisperProvider: TranscriptionProvider {
     private var apiKey: String?
-    private var provider: CloudProvider = .openai
+    /// The vendor this instance talks to. Immutable: a second vendor needs a
+    /// second instance, never a re-pointed one.
+    let provider: CloudProvider
 
     /// Transport for one attempt. Injectable so a test can see the exact
     /// request (URL + Authorization) without a network, the same seam
@@ -29,27 +38,31 @@ class CloudWhisperProvider: TranscriptionProvider {
     var isAvailable: Bool { apiKey != nil && !apiKey!.isEmpty }
     var name: String { provider.displayName }
 
+    /// - Parameters:
+    ///   - provider: `.openai` or `.groq`. `transcribe` rejects any other
+    ///     vendor. The default only serves `CloudProviderHealthManager`, which
+    ///     calls the stateless `healthCheck(apiKey:provider:)` and never
+    ///     transcribes.
+    ///   - execute: transport for one attempt (see `execute`).
     init(
+        provider: CloudProvider = .openai,
         execute: @escaping RustRetry.Executor = { request, session in
             try await RustHTTPExecutor.execute(request, session: session)
         }
     ) {
+        self.provider = provider
         self.execute = execute
     }
 
-    /// Configure the cloud provider with API key and provider type
-    /// - Parameters:
-    ///   - apiKey: The API key for the provider
-    ///   - provider: The cloud provider to use
-    func configure(apiKey: String, provider: CloudProvider = .openai) {
+    /// Configure this vendor's API key. The vendor itself is fixed at init.
+    func configure(apiKey: String) {
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed != apiKey {
-            AppLogger.network.debug("Cloud provider API key trimmed · provider=\(provider.displayName, privacy: .public) · originalLength=\(apiKey.count, privacy: .public) · trimmedLength=\(trimmed.count, privacy: .public)")
+            AppLogger.network.debug("Cloud provider API key trimmed · provider=\(self.provider.displayName, privacy: .public) · originalLength=\(apiKey.count, privacy: .public) · trimmedLength=\(trimmed.count, privacy: .public)")
         }
         let suffix = String(trimmed.suffix(4))
-        AppLogger.network.debug("Cloud provider API key configured · provider=\(provider.displayName, privacy: .public) · nonEmpty=\(!trimmed.isEmpty, privacy: .public) · suffix=\(suffix, privacy: .private)")
+        AppLogger.network.debug("Cloud provider API key configured · provider=\(self.provider.displayName, privacy: .public) · nonEmpty=\(!trimmed.isEmpty, privacy: .public) · suffix=\(suffix, privacy: .private)")
         self.apiKey = trimmed
-        self.provider = provider
     }
 
     /// Shared session for OpenAI / Groq transcription. Mobile/cellular-tuned;
