@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 4, 2026
+        Last Updated: October 6, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -667,6 +667,24 @@ export default function PrivacyPolicyPage() {
         for analytics to understand how our website is used and to improve the
         experience. PostHog may set its own cookies. We do not use this data for
         advertising purposes.
+      </p>
+      <p>
+        The demo video on our home page is hosted by{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://bunny.net/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Bunny.net
+        </a>{" "}
+        (Bunny Stream) and plays in an embedded player from
+        iframe.mediadelivery.net.
+        When the video player loads, Bunny.net receives your IP address,
+        your browser user agent, and the address of the page (referrer). The
+        player may record plays and watch time. We do
+        not send Bunny.net your email address, your account, your licence
+        (Account Key), your audio, or your transcripts through the player.
       </p>
       <p>
         The desktop apps use{" "}
