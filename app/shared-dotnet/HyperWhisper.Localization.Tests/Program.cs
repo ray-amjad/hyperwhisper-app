@@ -126,7 +126,9 @@ static void AllCatalogsLoad()
     // held "Nova 3 General" and "Nova 3 Medical", 2 model names in 40 files that the name
     // gate missed because it read only the quoted form (#837). Both Streaming pages read
     // the catalog now.
-    Equal(851, PortableLocalizer.BaseKeyCount, "base key count");
+    // 851 -> 852: `errors.microphoneSentNoAudio` is new (#750, PR #1355). Windows tells
+    // the user the microphone sent no audio instead of "No speech detected".
+    Equal(852, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");
