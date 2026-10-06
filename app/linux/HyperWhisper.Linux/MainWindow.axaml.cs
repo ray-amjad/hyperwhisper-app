@@ -948,18 +948,23 @@ public partial class MainWindow : Window
             .ConfigureAwait(false);
     }
 
-    private async Task RunStorageMaintenanceAsync(CancellationToken cancellationToken)
+    private async Task<TranscriptStorageCleanupResult> RunStorageMaintenanceAsync(CancellationToken cancellationToken)
     {
         await _storageMaintenanceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var settings = _viewModel.Settings;
-            _lastStorageCleanup = await _storageCoordinator.CleanupAsync(
+            var cleanup = await _storageCoordinator.CleanupAsync(
                 new StorageRetentionPolicy(settings.KeepAudioFiles, settings.AutoDeleteEnabled, settings.AutoDeleteDaysOld),
                 DateTimeOffset.UtcNow,
                 cancellationToken).ConfigureAwait(false);
+            // PersistenceFailure is a delete SQLite refused: nothing was removed. Keep the last
+            // real sweep on the status line rather than a 0-row "cleanup" stamped now (#974).
+            if (cleanup.Status != StorageLifecycleStatus.PersistenceFailure)
+                _lastStorageCleanup = cleanup;
             var inventory = await _storageCoordinator.InventoryAsync(cancellationToken).ConfigureAwait(false);
             await Dispatcher.UIThread.InvokeAsync(() => UpdateStorageStatus(inventory, _lastStorageCleanup));
+            return cleanup;
         }
         finally
         {
@@ -1002,7 +1007,17 @@ public partial class MainWindow : Window
         }
         try
         {
-            await RunStorageMaintenanceAsync(_lifetime.Token);
+            var cleanup = await RunStorageMaintenanceAsync(_lifetime.Token);
+            // CleanupAsync reports a refused delete as a status, not an exception, so without
+            // this check Delete Now said "Deleted 0" while every row stayed (#974).
+            if (cleanup.Status == StorageLifecycleStatus.PersistenceFailure)
+            {
+                SetStorageError(L("linux.storage.cleanup_failed"));
+                await ConfirmWindow.ShowNoticeAsync(this,
+                    L("settings.storage.autoDelete.deleteFailed.title"),
+                    LF("settings.storage.autoDelete.deleteFailed.message", L("linux.storage.cleanup_failed")));
+                return;
+            }
             await ConfirmWindow.ShowNoticeAsync(this,
                 L("settings.storage.autoDelete.deleteComplete.title"),
                 LF("settings.storage.autoDelete.deleteComplete.message",
