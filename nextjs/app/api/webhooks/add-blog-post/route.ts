@@ -37,6 +37,12 @@ const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB
 // cannot tie up the function for an unbounded number of serial DB round-trips.
 const MAX_ARTICLES = 100;
 
+/**
+ * One article after readArticle. Each field holds what the route used before
+ * this type existed, so an article the old cast stored is stored the same way:
+ * the text fields are strings, the dates keep their raw JSON value (main's
+ * `new Date(value)` parsed an epoch number too), and tags is always a list.
+ */
 type OutrankArticle = {
   id?: string;
   title?: string;
@@ -44,58 +50,89 @@ type OutrankArticle = {
   content_html?: string;
   meta_description?: string;
   description?: string;
-  created_at?: string;
-  published_at?: string;
+  created_at?: unknown;
+  published_at?: unknown;
   image_url?: string;
   image_alt?: string;
   slug?: string;
-  tags?: string[];
-  url?: string;
+  tags: string[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-// Fields a wrong type makes unusable, so the article is skipped. A null counts
-// as absent, as it always has (`article.slug?.trim() || title`, `??`).
-const STRICT_STRING_FIELDS = [
-  "id",
+// The route calls a string method on these, so before this check any other
+// type threw a TypeError that rejected the whole delivery (#708). A wrong type
+// is now a permanent skip for that article. A null counts as absent, as it
+// always has (`article.slug?.trim() || title`).
+const STRING_METHOD_FIELDS = [
   "title",
   "content_markdown",
   "content_html",
   "slug",
-  "published_at",
-  "created_at",
 ] as const;
 
-// Fields the route already falls back from when absent (`?? null`,
-// `?? title`, `?? article.description`), so a wrong type is ignored the same way.
-const LENIENT_STRING_FIELDS = [
-  "meta_description",
-  "description",
-  "image_url",
-  "image_alt",
-] as const;
+// The route trims these inside the upsert try, so a wrong type used to throw
+// there and fail the article as a retryable upsert error. A wrong type is now
+// ignored, the same as an absent field (`meta_description ?? description`,
+// then `|| null`).
+const DESCRIPTION_FIELDS = ["meta_description", "description"] as const;
+
+// The route handed these to node-postgres untouched, so a number, a boolean or
+// an object was stored as the text the driver writes for it. toColumnText
+// writes that same text, so those rows do not change.
+const PASS_THROUGH_FIELDS = ["image_url", "image_alt"] as const;
+
+/** Quote one element of a Postgres array literal, as node-postgres does. */
+function quoteArrayElement(text: string): string {
+  return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * The text node-postgres writes when a JSON value is bound to a text column
+ * (`prepareValue` in pg/lib/utils.js): a string as is, an array as a Postgres
+ * array literal, an object as JSON, anything else through toString. null and
+ * undefined stay absent.
+ */
+function toColumnText(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    const elements = value.map((item: unknown) => {
+      if (item === undefined || item === null) return "NULL";
+
+      if (Array.isArray(item)) return toColumnText(item) as string;
+
+      return quoteArrayElement(toColumnText(item) as string);
+    });
+
+    return `{${elements.join(",")}}`;
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+
+  return String(value);
+}
 
 type ArticleRead =
   | { article: OutrankArticle; reason?: undefined }
   | { article?: undefined; reason: string };
 
 /**
- * Read one untrusted array element into an OutrankArticle whose every field
- * has the declared type. An element that cannot be read returns a permanent
- * skip reason instead. The reason names the field, never its value, so no
- * article content reaches the reply.
+ * Read one untrusted array element into an OutrankArticle. An element that is
+ * not an object, or a field the route would have called a string method on,
+ * returns a permanent skip reason instead. The reason names the field, never
+ * its value, so no article content reaches the reply.
  */
 function readArticle(value: unknown): ArticleRead {
   if (!isRecord(value) || Array.isArray(value)) {
     return { reason: "article is not an object" };
   }
 
-  const article: OutrankArticle = {};
+  // normalizeTags already drops a non-array and every non-string entry.
+  const article: OutrankArticle = { tags: normalizeTags(value.tags) };
 
-  for (const field of STRICT_STRING_FIELDS) {
+  for (const field of STRING_METHOD_FIELDS) {
     const fieldValue = value[field];
 
     if (fieldValue === undefined || fieldValue === null) continue;
@@ -104,13 +141,21 @@ function readArticle(value: unknown): ArticleRead {
     }
     article[field] = fieldValue;
   }
-  for (const field of LENIENT_STRING_FIELDS) {
+  for (const field of DESCRIPTION_FIELDS) {
     const fieldValue = value[field];
 
     if (typeof fieldValue === "string") article[field] = fieldValue;
   }
-  // normalizeTags already drops a non-array and every non-string entry.
-  article.tags = normalizeTags(value.tags);
+  for (const field of PASS_THROUGH_FIELDS) {
+    article[field] = toColumnText(value[field]);
+  }
+  // The route checks `!article.id`, so a falsy id (0, false, "") stays
+  // absent and is skipped as missing, as before. Any other id was stored as
+  // the driver's text for it.
+  article.id = value.id ? toColumnText(value.id) : undefined;
+  // Dates keep their raw value: parsePublishedAt reads them as it always has.
+  article.published_at = value.published_at;
+  article.created_at = value.created_at;
 
   return { article };
 }
@@ -252,10 +297,15 @@ function parsePublishedAt(article: OutrankArticle): {
   const candidate = article.published_at ?? article.created_at;
   if (!candidate) return {};
 
-  const parsed = new Date(candidate);
+  // The same conversion `new Date(candidate)` made on the raw JSON value: a
+  // number (or true) is an epoch in ms, anything else is read as its text.
+  const parsed =
+    typeof candidate === "number" || typeof candidate === "boolean"
+      ? new Date(Number(candidate))
+      : new Date(String(candidate));
   if (Number.isNaN(parsed.getTime())) {
     const field = article.published_at ? "published_at" : "created_at";
-    return { error: `invalid ${field}: ${candidate}` };
+    return { error: `invalid ${field}: ${String(candidate)}` };
   }
 
   return { publishedAt: parsed };
@@ -424,7 +474,7 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const tags = article.tags ?? [];
+    const { tags } = article;
 
     try {
       // Avoid a (locale, slug) unique violation when a different article has
