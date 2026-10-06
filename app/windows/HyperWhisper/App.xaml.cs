@@ -140,6 +140,16 @@ public partial class App : WpfApplication
         LoggingService.LogSystemInfo();
         LoggingService.LogHangHypotheses();
 
+        // SENTRY INITIALIZATION
+        // Initialize Sentry for error tracking if user has opted in (default: true).
+        // It runs BEFORE the database: the database_init catch below reports an
+        // Application Control block (#933), and a report made before Initialize()
+        // is dropped. The opt-in lives in settings.json, which SettingsService reads
+        // with no database, so nothing here waits on the migrator's assembly.
+        StartErrorReporting(
+            static () => SettingsService.Instance.EnableErrorLogging,
+            SentryService.Initialize);
+
         // DATABASE INITIALIZATION
         // Initialize database with auto-migration before any services that use it
         try
@@ -180,19 +190,6 @@ public partial class App : WpfApplication
         {
             LoggingService.Warn($"Failed to recover orphaned Processing transcripts: {ex.Message}");
             // Continue — recovery failure shouldn't block app startup
-        }
-
-        // SENTRY INITIALIZATION
-        // Initialize Sentry for error tracking if user has opted in (default: true)
-        // Must be done early to catch any startup errors, but after logging is available
-        if (SettingsService.Instance.EnableErrorLogging)
-        {
-            SentryService.Initialize();
-            LoggingService.Info("Sentry error logging enabled");
-        }
-        else
-        {
-            LoggingService.Info("Sentry error logging disabled by user preference");
         }
 
         // Observe blocked loads before any application-context classifier code runs.
@@ -313,6 +310,23 @@ public partial class App : WpfApplication
             LoggingService.Warn($"Failed to initialize Local API server: {ex.Message}");
             // Continue — Local API failures must not block app startup.
         }
+    }
+
+    /// <summary>
+    /// Starts Sentry when, and only when, the user has opted into error reporting.
+    /// Returns whether <paramref name="initialize"/> was called.
+    /// </summary>
+    internal static bool StartErrorReporting(Func<bool> isOptedIn, Action initialize)
+    {
+        if (!isOptedIn())
+        {
+            LoggingService.Info("Sentry error logging disabled by user preference");
+            return false;
+        }
+
+        initialize();
+        LoggingService.Info("Sentry error logging enabled");
+        return true;
     }
 
     private static int _applicationControlNoticeShown;

@@ -476,6 +476,14 @@ internal static class Program
                         native, "ui_startup", _ => throw new InvalidOperationException("reporter down")),
                     "a failing reporter turned a block into an unhandled fault");
 
+                // OnStartup starts Sentry before the database so a database_init block
+                // can reach it, and still only for a user who opted in.
+                var initCalls = 0;
+                Assert(!HyperWhisper.App.StartErrorReporting(() => false, () => initCalls++) && initCalls == 0,
+                    "Sentry started for a user who opted out of error reporting");
+                Assert(HyperWhisper.App.StartErrorReporting(() => true, () => initCalls++) && initCalls == 1,
+                    "Sentry did not start for a user who opted into error reporting");
+
                 // The notice: the catalog text when it resolves, English when the
                 // catalog throws (a blocked satellite) or misses the key.
                 var (title, message) = ApplicationControlDiagnostics.BuildBlockedNotice(
