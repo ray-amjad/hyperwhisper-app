@@ -1,60 +1,116 @@
 import { Metadata } from "next";
+import {
+  CREDIT_FEE_RATE,
+  CREDITS_PER_DOLLAR,
+  MAX_CREDIT_DOLLARS,
+  MIN_CREDIT_DOLLARS,
+  computeCreditPurchase,
+} from "@/app/api/checkout/credits/validation";
 
 export const metadata: Metadata = {
   title: "Refund Policy | HyperWhisper",
-  description: "HyperWhisper 14-day money back guarantee and refund policy",
+  description:
+    "HyperWhisper refund policy for HyperWhisper Cloud credits, including the 14-day money back guarantee",
 };
+
+// Every number on this page comes from the checkout's own constants, so the
+// policy cannot drift from what checkout charges.
+const FEE_PERCENT = Math.round(CREDIT_FEE_RATE * 100);
+const formatCredits = (credits: number) => credits.toLocaleString("en-US");
+const formatDollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+
+// Worked example: the smallest purchase, with a tenth of its credits used.
+const example = computeCreditPurchase(MIN_CREDIT_DOLLARS);
+const exampleUsedCredits = example.creditAmount / 10;
+const exampleUsedCents = example.creditCents / 10;
+const exampleRefundCents = example.creditCents - exampleUsedCents;
 
 export default function RefundPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: August 20, 2025
+        Last Updated: October 6, 2026
       </p>
 
       <h1>Refund Policy</h1>
 
       <p className="text-lg text-gray-300 bg-blue-900/20 border border-blue-800 rounded-lg p-4 mb-8">
-        <strong>14-Day Money Back Guarantee:</strong> We stand behind
-        HyperWhisper with a full 14-day money back guarantee. If you're not
-        completely satisfied with your purchase, we'll provide a full refund, no
-        questions asked.
+        <strong>14-Day Money Back Guarantee:</strong> If you&apos;re not
+        satisfied with a HyperWhisper Cloud credit purchase, we&apos;ll refund
+        the credits you have not used, no questions asked. Only unused,
+        unexpired purchased credits may be refunded. Consumed credits, expired
+        credits and the processing fee are not refunded.
       </p>
 
-      <h2>I. Our Commitment to You</h2>
+      <h2>I. What This Policy Covers</h2>
 
       <p>
-        At HyperWhisper, we're confident that our AI-powered speech-to-text
-        application will transform how you work with content. However, we
-        understand that software purchases are important decisions, and we want
-        you to feel completely confident in your choice.
+        HyperWhisper sells HyperWhisper Cloud credits. This policy covers those
+        credit purchases. Credits are a one-time purchase, not a subscription,
+        and are priced at {formatCredits(CREDITS_PER_DOLLAR)} credits per
+        US$1. You can buy any whole-dollar amount from ${MIN_CREDIT_DOLLARS} to
+        ${MAX_CREDIT_DOLLARS}.
       </p>
+
+      <h2>II. What Can Be Refunded</h2>
+
+      <ul>
+        <li>
+          <strong>Unused, unexpired purchased credits:</strong> Only unused,
+          unexpired purchased credits may be refunded. A credit refund reverses
+          the credit value only.
+        </li>
+        <li>
+          <strong>Consumed credits:</strong> Credits you have already used are
+          non-refundable.
+        </li>
+        <li>
+          <strong>Expired credits:</strong> We reserve the right to expire
+          unused credits 365 days after purchase. Expired credits are removed
+          from your spendable balance and are not refundable or recoverable.
+        </li>
+        <li>
+          <strong>Processing fee:</strong> A non-refundable processing fee of{" "}
+          {FEE_PERCENT}% is added to each credit purchase as a separate line
+          item. The fee is not converted into credits and is never refunded,
+          including where the underlying credits are refunded.
+        </li>
+      </ul>
 
       <p>
-        That's why we offer a comprehensive 14-day money back guarantee on all
-        HyperWhisper purchases.
+        <strong>Example:</strong> You buy ${MIN_CREDIT_DOLLARS} of credits (
+        {formatCredits(example.creditAmount)} credits) and pay{" "}
+        {formatDollars(example.creditCents + example.feeCents)}, which
+        includes the {formatDollars(example.feeCents)} processing fee. You use{" "}
+        {formatCredits(exampleUsedCredits)} credits (
+        {formatDollars(exampleUsedCents)}) and then ask for a refund. We refund{" "}
+        {formatDollars(exampleRefundCents)}, the value of the credits you did
+        not use. The {formatDollars(example.feeCents)} fee is not refunded.
       </p>
 
-      <h2>II. Refund Eligibility</h2>
+      <h2>III. Refund Eligibility</h2>
 
-      <p>You are eligible for a full refund if:</p>
+      <p>
+        You are eligible for a refund of your unused, unexpired purchased
+        credits if:
+      </p>
 
       <ul>
         <li>
           You request the refund within <strong>14 days</strong> of your
           original purchase date
         </li>
-        <li>You purchased HyperWhisper directly from our official website</li>
+        <li>You purchased the credits directly from our official website</li>
         <li>You provide your original order confirmation or transaction ID</li>
       </ul>
 
       <p>
-        <strong>No questions asked</strong>. We don't require you to provide a
-        reason for your refund request, though feedback is always welcome to
-        help us improve.
+        <strong>No questions asked</strong>. We don&apos;t require you to
+        provide a reason for your refund request, though feedback is always
+        welcome to help us improve.
       </p>
 
-      <h2>III. How to Request a Refund</h2>
+      <h2>IV. How to Request a Refund</h2>
 
       <p>Requesting a refund is simple and straightforward:</p>
 
@@ -77,11 +133,12 @@ export default function RefundPolicyPage() {
           purchase (for verification)
         </li>
         <li>
-          <strong>We'll process your request</strong> within 1 business day
+          <strong>We&apos;ll process your request</strong> within 1 business
+          day
         </li>
       </ol>
 
-      <h2>IV. Refund Processing</h2>
+      <h2>V. Refund Processing</h2>
 
       <h3>Processing Time</h3>
       <ul>
@@ -93,13 +150,6 @@ export default function RefundPolicyPage() {
           <strong>Credit card refunds:</strong> 3-5 business days to appear on
           your statement
         </li>
-        <li>
-          <strong>PayPal refunds:</strong> Immediate to your PayPal account
-        </li>
-        <li>
-          <strong>Bank transfers:</strong> 5-7 business days depending on your
-          bank
-        </li>
       </ul>
 
       <h3>Refund Method</h3>
@@ -109,102 +159,63 @@ export default function RefundPolicyPage() {
         or accounts for security reasons.
       </p>
 
-      <h2>V. What Happens After a Refund</h2>
+      <h2>VI. What Happens After a Refund</h2>
 
-      <p>Once your refund is processed:</p>
+      <p>
+        Once your refund is processed, the refunded credits are removed from
+        your HyperWhisper Cloud balance.
+      </p>
 
-      <ul>
-        <li>Your HyperWhisper license will be automatically deactivated</li>
-        <li>You'll receive a confirmation email with refund details</li>
-        <li>
-          You may continue using the software until the deactivation takes
-          effect (usually within 24 hours)
-        </li>
-      </ul>
-
-      <h2>VI. Special Circumstances</h2>
+      <h2>VII. Special Circumstances</h2>
 
       <h3>Technical Issues</h3>
       <p>
-        If you're experiencing technical difficulties with HyperWhisper, we
+        If you&apos;re experiencing technical difficulties with HyperWhisper, we
         encourage you to contact our support team first. Many issues can be
-        resolved quickly, and we're here to help you get the most out of your
-        purchase.
+        resolved quickly, and we&apos;re here to help you get the most out of
+        your credits.
       </p>
 
       <h3>Compatibility Concerns</h3>
       <p>
         Before purchasing, please review our system requirements. However, if
-        HyperWhisper doesn't work on your system due to compatibility issues,
-        you're fully covered by our 14-day guarantee.
+        HyperWhisper Cloud doesn&apos;t work on your system due to
+        compatibility issues, your unused credits are covered by our 14-day
+        guarantee.
       </p>
 
       <h3>Feature Requests</h3>
       <p>
-        While we can't guarantee specific feature implementations, we actively
-        consider user feedback for future updates. Your input helps shape
-        HyperWhisper's development.
+        While we can&apos;t guarantee specific feature implementations, we
+        actively consider user feedback for future updates. Your input helps
+        shape HyperWhisper&apos;s development.
       </p>
 
-      <h2>VII. Exceptions</h2>
+      <h2>VIII. Promotional Purchases</h2>
 
       <p>
-        Our 14-day money back guarantee applies to all standard purchases. The
-        following situations may have different policies:
+        If you used a promotion code, promotional pricing may not be reapplied
+        to future purchases.
       </p>
 
-      <ul>
-        <li>
-          <strong>Promotional or discounted purchases:</strong> Full refund
-          available, but promotional pricing may not be reapplied to future
-          purchases
-        </li>
-        <li>
-          <strong>Corporate or volume licenses:</strong> May have custom refund
-          terms as specified in your agreement
-        </li>
-      </ul>
-
-      <h3>Cloud Credits Refunds</h3>
-      <p>
-        Our 14-day money back guarantee applies to your HyperWhisper{" "}
-        <strong>license</strong>
-        only. It does not apply to any HyperWhisper Cloud usage credits you have
-        consumed.
-      </p>
-      <ul>
-        <li>
-          <strong>$5 complimentary credits:</strong> When you purchase a
-          HyperWhisper license, you are automatically granted{" "}
-          <strong>$5</strong>
-          of HyperWhisper Cloud credits.
-        </li>
-        <li>
-          <strong>Credits are non-refundable:</strong> Any cloud credits you
-          have <em>consumed</em> (including the complimentary $5) are not
-          refundable. Eg, if you purchased $5 of HyperWhisper Cloud credits and
-          consumed $0.50 of credits, you will be refunded $4.50.
-        </li>
-      </ul>
-
-      <h2>VIII. Beyond the 14-Day Period</h2>
+      <h2>IX. Beyond the 14-Day Period</h2>
 
       <p>
         While our standard guarantee is 14 days, we understand that exceptional
         circumstances may arise. If you have concerns about your purchase beyond
-        the 14-day period, please don't hesitate to contact our support team.
-        We'll work with you to find a fair solution.
+        the 14-day period, please don&apos;t hesitate to contact our support
+        team. We&apos;ll work with you to find a fair solution.
       </p>
 
-      <h2>IX. Multiple Purchases</h2>
+      <h2>X. Multiple Purchases</h2>
 
       <p>
-        If you've made multiple purchases of HyperWhisper (for different devices
-        or users), each purchase is eligible for its own 14-day refund period
-        from the respective purchase date.
+        If you&apos;ve made more than one credit purchase, each purchase is
+        eligible for its own 14-day refund period from the respective purchase
+        date.
       </p>
 
-      <h2>X. Fraudulent Activity</h2>
+      <h2>XI. Fraudulent Activity</h2>
 
       <p>
         We reserve the right to refuse refunds in cases of suspected fraudulent
@@ -213,12 +224,12 @@ export default function RefundPolicyPage() {
 
       <ul>
         <li>Repeated purchases and refund requests</li>
-        <li>Attempts to obtain multiple refunds for the same license</li>
+        <li>Attempts to obtain multiple refunds for the same purchase</li>
         <li>Use of stolen payment methods</li>
         <li>Violation of our Terms of Service</li>
       </ul>
 
-      <h2>XI. Contact Information</h2>
+      <h2>XII. Contact Information</h2>
 
       <p>
         For all refund requests and questions about this policy, please contact
@@ -240,19 +251,21 @@ export default function RefundPolicyPage() {
           </a>
         </p>
         <p className="mb-2">
-          <strong>Subject Line:</strong> "Refund Request - [Your Order Number]"
+          <strong>Subject Line:</strong> &quot;Refund Request - [Your Order
+          Number]&quot;
         </p>
         <p className="text-sm text-gray-400">
           We typically respond to refund requests within 1 business day.
         </p>
       </div>
 
-      <h2>XII. Policy Updates</h2>
+      <h2>XIII. Policy Updates</h2>
 
       <p>
         We may update this refund policy from time to time. Any changes will be
-        posted on this page with an updated "Last Updated" date. Significant
-        changes will be communicated via email to recent purchasers.
+        posted on this page with an updated &quot;Last Updated&quot; date.
+        Significant changes will be communicated via email to recent
+        purchasers.
       </p>
 
       <p>
@@ -266,19 +279,18 @@ export default function RefundPolicyPage() {
             className="hover:underline"
             href="/"
           >
-            Ready to try HyperWhisper risk-free?
+            Ready to try HyperWhisper?
           </a>
         </h3>
         <p className="text-green-300 mb-0">
-          With our 14-day money back guarantee, you can{" "}
+          With our 14-day money back guarantee on unused credits, you can{" "}
           <a
             className="text-green-200 underline hover:no-underline"
-            href="/"
+            href="/credits"
           >
-            purchase HyperWhisper
+            buy HyperWhisper Cloud credits
           </a>{" "}
-          with complete confidence. Experience the power of AI-driven
-          speech-to-text transcription with zero risk.
+          with confidence.
         </p>
       </div>
     </div>
