@@ -142,9 +142,9 @@ internal static class TelemetryPrivacy
     internal static Exception SanitizeException(Exception exception)
     {
         var outerType = TypeName(exception);
-        var outerStack = SanitizeStackTrace(exception.StackTrace);
+        var outerStack = SanitizedStackOf(exception);
 
-        IReadOnlyList<Exception> inner;
+        IReadOnlyList<(Exception Exception, int ParentId)> inner;
         try
         {
             inner = CollectInnerExceptions(exception);
@@ -156,7 +156,7 @@ internal static class TelemetryPrivacy
         }
 
         var innerParts = inner
-            .Select(innerException => new SanitizedPart(TypeName(innerException), SanitizeStackTrace(innerException.StackTrace)))
+            .Select(found => new SanitizedPart(TypeName(found.Exception), SanitizedStackOf(found.Exception), found.ParentId))
             .ToList();
         var stack = new List<string>();
         if (outerStack is not null) stack.Add(outerStack);
@@ -171,28 +171,52 @@ internal static class TelemetryPrivacy
         return new TelemetryReportedException(new SanitizedPart(outerType, outerStack), innerParts, stackTrace);
     }
 
-    /// <summary>One kept exception: its type FullName and its sanitized stack, nothing else.</summary>
-    internal sealed record SanitizedPart(string Type, string? Stack);
+    /// <summary>
+    /// One kept exception: its type FullName, its sanitized stack, and the Sentry
+    /// exception_id of the kept exception that holds it (0 is the reported one).
+    /// </summary>
+    internal sealed record SanitizedPart(string Type, string? Stack, int ParentId = 0);
 
     private static string TypeName(Exception exception) =>
         exception.GetType().FullName ?? "System.Exception";
+
+    /// <summary>A throwing StackTrace getter costs that exception's frames, not the report.</summary>
+    private static string? SanitizedStackOf(Exception exception)
+    {
+        try
+        {
+            return SanitizeStackTrace(exception.StackTrace);
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// Breadth-first: an <see cref="AggregateException"/> is flattened and stands
     /// for its inner exceptions (it is a container, so it is not named); any other
     /// exception is named and its <see cref="Exception.InnerException"/> followed.
+    /// Each found exception carries the id of the nearest NAMED exception that holds
+    /// it: the root is 0, the n-th found is n, and an unnamed nested aggregate passes
+    /// its own parent on to its contents.
     /// </summary>
-    private static List<Exception> CollectInnerExceptions(Exception root)
+    private static List<(Exception Exception, int ParentId)> CollectInnerExceptions(Exception root)
     {
-        var found = new List<Exception>();
+        var found = new List<(Exception, int)>();
         var seen = new HashSet<Exception>(ReferenceEqualityComparer.Instance) { root };
-        var pending = new Queue<Exception>(Children(root));
+        var pending = new Queue<(Exception Exception, int ParentId)>(Children(root).Select(child => (child, 0)));
         while (pending.Count > 0 && found.Count < MaxInnerExceptions)
         {
-            var next = pending.Dequeue();
+            var (next, parentId) = pending.Dequeue();
             if (!seen.Add(next)) continue;
-            if (next is not AggregateException) found.Add(next);
-            foreach (var child in Children(next)) pending.Enqueue(child);
+            var id = parentId;
+            if (next is not AggregateException)
+            {
+                found.Add((next, parentId));
+                id = found.Count;
+            }
+            foreach (var child in Children(next)) pending.Enqueue((child, id));
         }
         return found;
 
@@ -215,7 +239,7 @@ internal static class TelemetryPrivacy
                 return (pathStart >= 0 ? line[..pathStart] : line).TrimEnd('\r');
             });
         var sanitized = string.Join('\n', lines);
-        return sanitized.Length <= 16_384 ? sanitized : sanitized[..16_384];
+        return sanitized.Length <= MaxStackTraceLength ? sanitized : sanitized[..MaxStackTraceLength];
     }
 
     internal static string? SanitizeContext(string? context) => context switch
@@ -251,7 +275,7 @@ internal static class TelemetryPrivacy
                 values.Add(ToSentryException(
                     inner[i],
                     $"A {inner[i].Type} was reported with message and data content removed.",
-                    new Mechanism { Type = "chained", Handled = true, ExceptionId = i + 1, ParentId = 0 }));
+                    new Mechanism { Type = "chained", Handled = true, ExceptionId = i + 1, ParentId = inner[i].ParentId }));
             }
             values.Add(ToSentryException(
                 outer,

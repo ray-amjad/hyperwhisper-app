@@ -31,6 +31,8 @@ var tests = new (string Name, Action Run)[]
     ("a sanitized unobserved AggregateException reaches the envelope with its inner type and frames, and no text", SanitizedAggregateReachesEnvelopeWithInnerFrames),
     ("configured options leave unobserved task exceptions to the app handler",ConfiguredOptionsDisableSdkUnobservedTaskCapture),
     ("configured options leave AppDomain unhandled exceptions to the app handler", ConfiguredOptionsDisableSdkAppDomainCapture),
+    ("a throwing inner StackTrace getter costs only that inner's frames", ThrowingInnerStackTraceCostsOnlyItsFrames),
+    ("each inner exception value links to its true parent", InnerExceptionValuesLinkToTheirParent),
 };
 
 foreach (var test in tests)
@@ -643,6 +645,71 @@ static void ConfiguredOptionsDisableSdkAppDomainCapture()
     }
 }
 
+static void ThrowingInnerStackTraceCostsOnlyItsFrames()
+{
+    var outer = new InvalidOperationException("secret-marker", new HostileStackTraceException());
+    var sanitized = TelemetryPrivacy.SanitizeException(outer);
+    Assert.True(sanitized.Message.Contains("(inner: HostileStackTraceException)", StringComparison.Ordinal));
+    var values = ((TelemetryPrivacy.TelemetryReportedException)sanitized).ToSentryExceptions();
+    Assert.Equal(2, values.Count);
+    Assert.True(values[0].Stacktrace is null);
+    Assert.Equal("System.InvalidOperationException", values[1].Type);
+}
+
+static void InnerExceptionValuesLinkToTheirParent()
+{
+    // outer -> middle -> cause: the cause hangs off the middle, not the outer.
+    var chain = new InvalidOperationException("secret-marker",
+        new IOException("secret-marker", new TimeoutException("secret-marker")));
+    var links = Links(chain);
+    Assert.Equal((1, 0), links["System.IO.IOException"]);
+    Assert.Equal((2, 1), links["System.TimeoutException"]);
+
+    // An aggregate's flattened inners hang off the aggregate; an InnerException off its wrapper.
+    var aggregate = new AggregateException(
+        new IOException("secret-marker", new UnauthorizedAccessException("secret-marker")),
+        new TimeoutException("secret-marker"));
+    links = Links(aggregate);
+    Assert.Equal((1, 0), links["System.IO.IOException"]);
+    Assert.Equal((2, 0), links["System.TimeoutException"]);
+    Assert.Equal((3, 1), links["System.UnauthorizedAccessException"]);
+
+    // A nested aggregate is not named, so its contents hang off the exception that holds it.
+    var wrapped = new InvalidOperationException("secret-marker", new IOException("secret-marker",
+        new AggregateException(new TimeoutException("secret-marker"), new FormatException("secret-marker"))));
+    links = Links(wrapped);
+    Assert.Equal((1, 0), links["System.IO.IOException"]);
+    Assert.Equal((2, 1), links["System.TimeoutException"]);
+    Assert.Equal((3, 1), links["System.FormatException"]);
+
+    // And the real SDK keeps the links in the envelope.
+    var transport = new CapturingSentryTransport();
+    using (InitTestSdk(transport))
+    {
+        new SentryTelemetryBackend().Capture(TelemetryPrivacy.SanitizeException(chain), null);
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+    }
+    var values = transport.FindPayload(payload => payload["exception"] is not null)?["exception"]?["values"]?.AsArray()
+        ?? throw new InvalidOperationException("no error event: " + transport.Dump());
+    var cause = values.Single(value => value?["type"]?.GetValue<string>() == "System.TimeoutException");
+    Assert.Equal(2, cause!["mechanism"]?["exception_id"]?.GetValue<int>());
+    Assert.Equal(1, cause["mechanism"]?["parent_id"]?.GetValue<int>());
+
+    static Dictionary<string, (int Id, int Parent)> Links(Exception exception) =>
+        ((TelemetryPrivacy.TelemetryReportedException)TelemetryPrivacy.SanitizeException(exception))
+            .ToSentryExceptions()
+            .Where(value => value.Mechanism?.Type == "chained")
+            .ToDictionary(value => value.Type!, value => (value.Mechanism!.ExceptionId!.Value, value.Mechanism.ParentId!.Value));
+}
+
+static IDisposable InitTestSdk(CapturingSentryTransport transport, bool autoSessionTracking = false) => SentrySdk.Init(options =>
+{
+    SentryTelemetryBackend.ConfigureOptions(options, TestConfiguration());
+    options.Transport = transport;
+    options.ProfilesSampleRate = 0;
+    options.AutoSessionTracking = autoSessionTracking;
+});
+
 static void InitializedTelemetryCapturesAndFlushes()
 {
     var backend = new FakeBackend();
@@ -718,6 +785,11 @@ sealed class FakeBackend : ITelemetryBackend
     }
 
     public void Flush(TimeSpan timeout) => FlushCalls++;
+}
+
+sealed class HostileStackTraceException : Exception
+{
+    public override string? StackTrace => throw new InvalidOperationException("secret-marker");
 }
 
 sealed class CallbackDisposable(Action callback) : IDisposable
