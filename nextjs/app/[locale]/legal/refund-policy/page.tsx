@@ -82,7 +82,8 @@ export default function RefundPolicyPage() {
         <strong>Example:</strong> You buy ${MIN_CREDIT_DOLLARS} of credits (
         {formatCredits(example.creditAmount)} credits) and pay{" "}
         {formatDollars(example.creditCents + example.feeCents)}, which includes
-        the {formatDollars(example.feeCents)} processing fee. You use{" "}
+        the {formatDollars(example.feeCents)} processing fee, plus any sales tax
+        or VAT that applies where you live. You use{" "}
         {formatCredits(exampleUsedCredits)} credits (
         {formatDollars(exampleUsedCents)}) and then ask for a refund. We refund{" "}
         {formatDollars(exampleRefundCents)}, the value of the credits you did
@@ -102,7 +103,6 @@ export default function RefundPolicyPage() {
           original purchase date
         </li>
         <li>You purchased the credits directly from our official website</li>
-        <li>You provide your original order confirmation or transaction ID</li>
       </ul>
 
       <p>
@@ -126,15 +126,15 @@ export default function RefundPolicyPage() {
           </a>
         </li>
         <li>
-          <strong>Include your order information</strong> - provide your order
-          confirmation number or transaction ID
+          <strong>Include your order information</strong> - if you have it,
+          include your order confirmation or transaction ID
         </li>
         <li>
           <strong>Send from the email address</strong> used for your original
           purchase (for verification)
         </li>
         <li>
-          <strong>We&apos;ll process your request</strong> within 1 business day
+          <strong>We review your request</strong> and reply by email
         </li>
       </ol>
 
@@ -143,12 +143,12 @@ export default function RefundPolicyPage() {
       <h3>Processing Time</h3>
       <ul>
         <li>
-          <strong>Refund approval:</strong> Within 1 business day of your
-          request
+          <strong>Refund approval:</strong> We review your request and reply by
+          email
         </li>
         <li>
-          <strong>Credit card refunds:</strong> 3-5 business days to appear on
-          your statement
+          <strong>Credit card refunds:</strong> Usually 5-10 business days to
+          appear on your statement, depending on your bank
         </li>
       </ul>
 
@@ -193,8 +193,10 @@ export default function RefundPolicyPage() {
       <h2>VIII. Promotional Purchases</h2>
 
       <p>
-        If you used a promotion code, promotional pricing may not be reapplied
-        to future purchases.
+        If you used a promotion code, the refund is the share of the amount you
+        actually paid for credits that matches your unused credits, so a refund
+        is never more than you paid. Promotional pricing may not be reapplied to
+        future purchases.
       </p>
 
       <h2>IX. Beyond the 14-Day Period</h2>
@@ -262,7 +264,7 @@ export default function RefundPolicyPage() {
           Number]&quot;
         </p>
         <p className="text-sm text-gray-400">
-          We typically respond to refund requests within 1 business day.
+          We review refund requests and reply by email.
         </p>
       </div>
 
