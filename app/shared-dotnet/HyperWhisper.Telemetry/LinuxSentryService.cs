@@ -238,43 +238,27 @@ internal interface ITelemetryBackend
 
 internal sealed class SentryTelemetryBackend : ITelemetryBackend
 {
+    /// <summary>
+    /// Whether the privacy filter replaces this extra's value with <c>"[redacted]"</c>.
+    /// </summary>
+    /// <remarks>
+    /// A substring match on the KEY, which errs towards redaction. "path" is the
+    /// backstop the Windows head already has (#934): recordings, models and
+    /// user-picked media all live under <c>$HOME</c>, so a full path carries the
+    /// Linux account name.
+    /// </remarks>
     internal static bool IsSensitiveExtra(string key)
     {
         var normalized = key.ToLowerInvariant();
         return normalized.Contains("transcript", StringComparison.Ordinal)
             || normalized.Contains("text", StringComparison.Ordinal)
-            || normalized.Contains("prompt", StringComparison.Ordinal);
+            || normalized.Contains("prompt", StringComparison.Ordinal)
+            || normalized.Contains("path", StringComparison.Ordinal);
     }
 
     public IDisposable? Initialize(TelemetryConfiguration configuration)
     {
-        var session = SentrySdk.Init(options =>
-        {
-            options.Dsn = configuration.Dsn;
-            options.Environment = configuration.Environment;
-            options.Release = configuration.Release;
-            options.TracesSampleRate = configuration.TracesSampleRate;
-            options.ProfilesSampleRate = configuration.ProfilesSampleRate;
-            options.AutoSessionTracking = configuration.AutoSessionTracking;
-            options.SendDefaultPii = configuration.SendDefaultPii;
-            options.AttachStacktrace = configuration.AttachStacktrace;
-            options.MaxBreadcrumbs = configuration.MaxBreadcrumbs;
-            options.SetBeforeSend((sentryEvent, _) =>
-            {
-                if (sentryEvent.Extra is not null)
-                {
-                    foreach (var extra in sentryEvent.Extra.ToArray())
-                    {
-                        if (IsSensitiveExtra(extra.Key))
-                        {
-                            sentryEvent.SetExtra(extra.Key, "[redacted]");
-                        }
-                    }
-                }
-
-                return sentryEvent;
-            });
-        });
+        var session = SentrySdk.Init(options => ConfigureOptions(options, configuration));
 
         SentrySdk.ConfigureScope(scope =>
         {
@@ -284,6 +268,32 @@ internal sealed class SentryTelemetryBackend : ITelemetryBackend
             }
         });
         return session;
+    }
+
+    /// <summary>
+    /// Every Sentry option the Linux head sets, in one place, so a test can build the
+    /// same options production does and drive the real SDK pipeline with them.
+    /// </summary>
+    internal static void ConfigureOptions(SentryOptions options, TelemetryConfiguration configuration)
+    {
+        options.Dsn = configuration.Dsn;
+        options.Environment = configuration.Environment;
+        options.Release = configuration.Release;
+        options.TracesSampleRate = configuration.TracesSampleRate;
+        options.ProfilesSampleRate = configuration.ProfilesSampleRate;
+        options.AutoSessionTracking = configuration.AutoSessionTracking;
+        options.SendDefaultPii = configuration.SendDefaultPii;
+
+        // ...but NOT the Linux account name. SendDefaultPii on its own makes the
+        // SDK's Enricher stamp Environment.UserName into event.user.username, in an
+        // event processor that runs BEFORE beforeSend (sentry-dotnet 4.12.1,
+        // SentryClient), so the filter below never sees that field (#942, the Linux
+        // half of #932). The IP still goes, so Sentry's per-issue user count holds.
+        options.IsEnvironmentUser = false;
+
+        options.AttachStacktrace = configuration.AttachStacktrace;
+        options.MaxBreadcrumbs = configuration.MaxBreadcrumbs;
+        options.SetBeforeSend((sentryEvent, _) => LinuxSentryEventSanitizer.SanitizeEvent(sentryEvent));
     }
 
     public void Capture(Exception exception, string? context)
