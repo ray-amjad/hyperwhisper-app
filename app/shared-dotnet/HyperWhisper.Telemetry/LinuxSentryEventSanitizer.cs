@@ -141,6 +141,22 @@ internal static class LinuxSentryEventSanitizer
             {
                 message.Message = Redact(message.Message, rules);
             }
+
+            // Params ship beside Message: "Failed to open {0}" + ["/home/bob/x.wav"].
+            // Numbers and bools stay typed; any other object ships as its redacted text.
+            if (message.Params is not null)
+            {
+                message.Params = message.Params
+                    .Select(param => param switch
+                    {
+                        null => null,
+                        string text => Redact(text, rules),
+                        bool or char or byte or sbyte or short or ushort or int or uint or long or ulong
+                            or float or double or decimal => param,
+                        _ => (object?)Redact(param.ToString() ?? string.Empty, rules),
+                    })
+                    .ToList()!;
+            }
         }
 
         if (sentryEvent.ServerName is not null)

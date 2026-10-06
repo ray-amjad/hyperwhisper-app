@@ -227,6 +227,15 @@ static void SanitizerRewritesEveryField()
     SanitizeAsBob(formatted);
     Assert.Equal(Fixtures.RedactedLoadFailure, formatted.Message!.Formatted);
     Assert.Equal<string?>(null, formatted.Message!.Message);
+
+    var withParams = new SentryEvent
+    {
+        Message = new SentryMessage { Message = "Failed to open {0} ({1} bytes)", Params = ["/home/bob/recording.wav", 48128] },
+    };
+    SanitizeAsBob(withParams);
+    var sanitizedParams = withParams.Message!.Params!.ToList();
+    Assert.Equal<object?>("$HOME/recording.wav", sanitizedParams[0]);
+    Assert.Equal<object?>(48128, sanitizedParams[1]);
 }
 
 static SentryStackFrame LeakyFrame()
