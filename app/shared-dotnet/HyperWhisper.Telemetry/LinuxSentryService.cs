@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Sentry;
+using Sentry.Protocol;
 
 namespace HyperWhisper.Telemetry;
 
@@ -154,21 +155,24 @@ internal static class TelemetryPrivacy
             inner = [];
         }
 
-        var innerTypes = inner.Select(TypeName).ToList();
+        var innerParts = inner
+            .Select(innerException => new SanitizedPart(TypeName(innerException), SanitizeStackTrace(innerException.StackTrace)))
+            .ToList();
         var stack = new List<string>();
         if (outerStack is not null) stack.Add(outerStack);
-        foreach (var innerException in inner)
+        foreach (var part in innerParts.Where(part => part.Stack is not null))
         {
-            var innerStack = SanitizeStackTrace(innerException.StackTrace);
-            if (innerStack is null) continue;
-            stack.Add($"--- inner {TypeName(innerException)} ---");
-            stack.Add(innerStack);
+            stack.Add($"--- inner {part.Type} ---");
+            stack.Add(part.Stack!);
         }
 
         var stackTrace = stack.Count == 0 ? null : string.Join('\n', stack);
         if (stackTrace is { Length: > MaxStackTraceLength }) stackTrace = stackTrace[..MaxStackTraceLength];
-        return new TelemetryReportedException(outerType, innerTypes, stackTrace);
+        return new TelemetryReportedException(new SanitizedPart(outerType, outerStack), innerParts, stackTrace);
     }
+
+    /// <summary>One kept exception: its type FullName and its sanitized stack, nothing else.</summary>
+    internal sealed record SanitizedPart(string Type, string? Stack);
 
     private static string TypeName(Exception exception) =>
         exception.GetType().FullName ?? "System.Exception";
@@ -222,15 +226,70 @@ internal static class TelemetryPrivacy
         _ => null,
     };
 
-    private sealed class TelemetryReportedException(
-        string originalType,
-        IReadOnlyList<string> innerTypes,
+    internal sealed class TelemetryReportedException(
+        SanitizedPart outer,
+        IReadOnlyList<SanitizedPart> inner,
         string? sanitizedStack)
-        : Exception(innerTypes.Count == 0
-            ? $"A {originalType} was reported with message, inner-exception, and data content removed."
-            : $"A {originalType} (inner: {string.Join(", ", innerTypes)}) was reported with message, inner-exception, and data content removed.")
+        : Exception(inner.Count == 0
+            ? $"A {outer.Type} was reported with message, inner-exception, and data content removed."
+            : $"A {outer.Type} (inner: {string.Join(", ", inner.Select(part => part.Type))}) was reported with message, inner-exception, and data content removed.")
     {
         public override string? StackTrace => sanitizedStack;
+
+        /// <summary>
+        /// The Sentry exception values for this report, built from the sanitized
+        /// parts only. The SDK builds frames from the runtime's own stack of a
+        /// THROWN exception, so this never-thrown copy would otherwise reach Sentry
+        /// with no frames at all (#1051). Innermost first, outermost last, as the
+        /// SDK orders a chain.
+        /// </summary>
+        internal List<SentryException> ToSentryExceptions()
+        {
+            var values = new List<SentryException>();
+            for (var i = inner.Count - 1; i >= 0; i--)
+            {
+                values.Add(ToSentryException(
+                    inner[i],
+                    $"A {inner[i].Type} was reported with message and data content removed.",
+                    new Mechanism { Type = "chained", Handled = true, ExceptionId = i + 1, ParentId = 0 }));
+            }
+            values.Add(ToSentryException(
+                outer,
+                Message,
+                new Mechanism { Type = "generic", Handled = true, ExceptionId = 0, IsExceptionGroup = inner.Count > 0 && outer.Type == typeof(AggregateException).FullName }));
+            return values;
+        }
+
+        private static SentryException ToSentryException(SanitizedPart part, string value, Mechanism mechanism) => new()
+        {
+            Type = part.Type,
+            Value = value,
+            Mechanism = mechanism,
+            Stacktrace = ParseFrames(part.Stack) is { Count: > 0 } frames ? new SentryStackTrace { Frames = frames } : null,
+        };
+
+        /// <summary>
+        /// "   at Ns.Type.Method(args)" → Module "Ns.Type", Function "Method(args)".
+        /// Any other line (.NET's "--- End of stack trace ---" markers) is dropped.
+        /// Sentry wants the oldest frame first; .NET writes the newest first.
+        /// </summary>
+        private static List<SentryStackFrame> ParseFrames(string? stack)
+        {
+            var frames = new List<SentryStackFrame>();
+            foreach (var raw in (stack ?? string.Empty).Split('\n'))
+            {
+                var line = raw.Trim();
+                if (!line.StartsWith("at ", StringComparison.Ordinal)) continue;
+                var call = line[3..];
+                var paren = call.IndexOf('(');
+                var dot = call.LastIndexOf('.', paren < 0 ? call.Length - 1 : paren);
+                frames.Add(dot <= 0
+                    ? new SentryStackFrame { Function = call }
+                    : new SentryStackFrame { Module = call[..dot], Function = call[(dot + 1)..] });
+            }
+            frames.Reverse();
+            return frames;
+        }
     }
 }
 
@@ -380,7 +439,11 @@ internal sealed class SentryTelemetryBackend : ITelemetryBackend
 
     public void Capture(Exception exception, string? context)
     {
-        var sentryEvent = new SentryEvent(exception);
+        // A sanitized report goes as explicit exception values with frames, and with
+        // no Exception object for the SDK to re-read (#1051).
+        var sentryEvent = exception is TelemetryPrivacy.TelemetryReportedException reported
+            ? new SentryEvent { Level = SentryLevel.Error, SentryExceptions = reported.ToSentryExceptions() }
+            : new SentryEvent(exception);
         SentrySdk.CaptureEvent(sentryEvent, scope =>
         {
             if (!string.IsNullOrWhiteSpace(context))
