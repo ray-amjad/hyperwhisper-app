@@ -43,6 +43,13 @@ public static class TranscriptionDiagnosticsService
     /// </summary>
     private const double MinimumDbfs = -120.0;
 
+    /// <summary>
+    /// <c>diagnostic_source</c> for an empty recording caught on the device before
+    /// any upload (#750). Distinct from <c>provider_no_speech</c> so the two causes
+    /// stay separable in Sentry.
+    /// </summary>
+    public const string LocalEmptyCaptureSource = "local_empty_capture";
+
     public static void CaptureNoSpeechDiagnostic(
         Guid transcriptId,
         string audioPath,
