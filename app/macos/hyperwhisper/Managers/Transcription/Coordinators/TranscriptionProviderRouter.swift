@@ -55,7 +55,7 @@ class TranscriptionProviderRouter {
     private var hyperwhisperCloudProvider: HyperWhisperCloudProvider?
 
     /// Cloud Whisper provider (OpenAI/Groq)
-    private let cloudProvider = CloudWhisperProvider()
+    private let cloudProvider: CloudWhisperProvider
 
     /// Additional cloud providers
     private let deepgramProvider = DeepgramProvider()
@@ -99,8 +99,16 @@ class TranscriptionProviderRouter {
 
     // MARK: - Initialization
 
-    init() {
+    /// - Parameter cloudWhisperExecute: transport for the OpenAI/Groq Whisper
+    ///   requests. Tests inject one to see where each request went; every
+    ///   production call site takes the default.
+    init(
+        cloudWhisperExecute: @escaping RustRetry.Executor = { request, session in
+            try await RustHTTPExecutor.execute(request, session: session)
+        }
+    ) {
         // Providers will be configured as needed
+        cloudProvider = CloudWhisperProvider(execute: cloudWhisperExecute)
     }
 
     // MARK: - Dependency Injection

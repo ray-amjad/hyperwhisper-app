@@ -21,8 +21,21 @@ class CloudWhisperProvider: TranscriptionProvider {
     private var apiKey: String?
     private var provider: CloudProvider = .openai
 
+    /// Transport for one attempt. Injectable so a test can see the exact
+    /// request (URL + Authorization) without a network, the same seam
+    /// `MetaMuseProvider` uses. Production keeps `RustHTTPExecutor`.
+    private let execute: RustRetry.Executor
+
     var isAvailable: Bool { apiKey != nil && !apiKey!.isEmpty }
     var name: String { provider.displayName }
+
+    init(
+        execute: @escaping RustRetry.Executor = { request, session in
+            try await RustHTTPExecutor.execute(request, session: session)
+        }
+    ) {
+        self.execute = execute
+    }
 
     /// Configure the cloud provider with API key and provider type
     /// - Parameters:
@@ -134,7 +147,8 @@ class CloudWhisperProvider: TranscriptionProvider {
             buildRequest: { request },
             parseError: RustCoreMapping.parseErrorClosure(providerName: activeProvider.displayName) {
                 _ = try Self.parseResponse(for: activeProvider, resp: $0)
-            }
+            },
+            execute: execute
         )
         if Task.isCancelled { throw CancellationError() }
 
