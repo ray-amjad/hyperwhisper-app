@@ -717,6 +717,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>Aucune parole détectée dans l'enregistrement.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>Le micro sélectionné n'a envoyé aucun son. Vérifiez votre périphérique d'entrée et réessayez.</value>
+  </data>
 
   <!-- Alerts -->
 

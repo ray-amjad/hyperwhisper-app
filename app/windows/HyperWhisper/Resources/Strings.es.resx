@@ -801,6 +801,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No se detectó voz en la grabación.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>El micrófono seleccionado no envió audio. Comprueba tu dispositivo de entrada e inténtalo de nuevo.</value>
+  </data>
 
   <!-- Alerts -->
 

@@ -717,6 +717,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>Atlasītais mikrofons nenosūtīja nekādu skaņu. Pārbaudiet ievades ierīci un mēģiniet vēlreiz.</value>
+  </data>
 
   <!-- Alerts -->
 

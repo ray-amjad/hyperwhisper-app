@@ -801,6 +801,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>録音内に音声が検出されませんでした。</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>選択したマイクから音声が届きませんでした。入力デバイスを確認して、もう一度試してください。</value>
+  </data>
 
   <!-- Alerts -->
 

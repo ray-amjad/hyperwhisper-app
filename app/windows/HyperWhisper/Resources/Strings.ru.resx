@@ -717,6 +717,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>В записи не обнаружена речь.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>Выбранный микрофон не передал звук. Проверьте устройство ввода и попробуйте снова.</value>
+  </data>
 
   <!-- Alerts -->
 

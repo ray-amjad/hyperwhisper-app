@@ -717,6 +717,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>No speech detected in the recording.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>A kiválasztott mikrofon nem küldött hangot. Ellenőrizd a bemeneti eszközt, és próbáld újra.</value>
+  </data>
 
   <!-- Alerts -->
 

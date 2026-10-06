@@ -717,6 +717,9 @@
   <data name="errors.noSpeechDetected" xml:space="preserve">
     <value>Geen spraak gevonden in de opname.</value>
   </data>
+  <data name="errors.microphoneSentNoAudio" xml:space="preserve">
+    <value>De geselecteerde microfoon heeft geen geluid doorgegeven. Controleer je invoerapparaat en probeer het opnieuw.</value>
+  </data>
 
   <!-- Alerts -->
 
