@@ -32,6 +32,7 @@ try
     await RunTranscriptionWorkflowTestsAsync(root);
     await RunHistoryRetryTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
+    await RunHistoryBulkLoadTestsAsync(root);
     RunCanonicalPcmWaveTests(Path.Combine(root, "pcm-wave"));
     await RunCrashAudioRecoveryTestsAsync(Path.Combine(root, "crash-recovery"));
     await RunVoiceActivityTrimTestsAsync(Path.Combine(root, "vad"));
@@ -2128,6 +2129,154 @@ static string WriteWave(string path, int samples, bool incompleteHeader = false,
         stream.Write(bytes);
     }
     return path;
+}
+
+// #997: a History load used to rebuild every day group once per added row, so n rows cost
+// O(n²). These pin one rebuild per load, the same groups and order as before, and the save path.
+static async Task RunHistoryBulkLoadTestsAsync(string root)
+{
+    var paths = new TestPaths(Path.Combine(root, "history-bulk-load"));
+    var database = new ApplicationDb(paths);
+    await database.MigrateAsync();
+    var repository = new HistoryRepository(database, paths);
+
+    // A mixed dataset: today, yesterday, rows either side of a local midnight, and older days in
+    // two months, added out of order so the repository's sort is what orders them.
+    var now = DateTime.UtcNow;
+    var localMidnight = DateTime.Now.Date.AddDays(-3);
+    var dates = new List<DateTime>
+    {
+        localMidnight.AddMinutes(-1).ToUniversalTime(), localMidnight.AddMinutes(1).ToUniversalTime(),
+        now.AddMinutes(-5), now.AddDays(-1), now.AddDays(-40), now.AddDays(-75),
+    };
+    for (var index = 0; index < 240; index++) dates.Add(now.AddHours(-7 * index - 0.5));
+    var term = "needle";
+    for (var index = 0; index < dates.Count; index++)
+        await repository.AddAsync(new Transcript
+        {
+            Text = index % 3 == 0 ? $"row {index} {term}" : $"row {index}",
+            Status = TranscriptStatus.Completed,
+            Date = DateTime.SpecifyKind(dates[(index * 7) % dates.Count], DateTimeKind.Utc),
+        });
+
+    using var viewModel = new HistoryViewModel(repository);
+    var before = viewModel.GroupRebuildCount;
+    await viewModel.RefreshAsync();
+    var expected = await repository.ListAsync();
+    Assert(viewModel.Items.Count == dates.Count, $"history load showed {viewModel.Items.Count} of {dates.Count} rows");
+    // Items.Clear() still rebuilds (to an empty list) before the query, as it always did, so a load
+    // is at most 2 rebuilds whatever its size. The per-row version was dates.Count + 1.
+    var rebuilds = viewModel.GroupRebuildCount - before;
+    Assert(rebuilds <= 2, $"a {dates.Count}-row history load rebuilt the day groups {rebuilds} times, not once");
+    AssertHistoryGroups(viewModel, expected, "history load");
+    var headers = viewModel.GroupedItems.OfType<HistoryDateGroup>().ToList();
+    Assert(headers.Count > 20 && headers[0].LocalizationKey == "history.section.today"
+        && headers.Any(header => header.LocalizationKey == "history.section.yesterday"),
+        $"the history dataset spans {headers.Count} days, too few for the grouping check to prove anything");
+    Assert(viewModel.Selected?.Id == expected[0].Id && viewModel.SelectedItems.Count == 1,
+        "history load did not select the newest transcript");
+    Assert(viewModel.Status.Message == $"{dates.Count} transcript(s)", $"history load status was '{viewModel.Status.Message}'");
+
+    viewModel.SearchText = term;
+    before = viewModel.GroupRebuildCount;
+    await viewModel.SearchAsync();
+    var matches = await repository.SearchAsync(term, null, null);
+    rebuilds = viewModel.GroupRebuildCount - before;
+    Assert(matches.Count > 10 && rebuilds <= 2,
+        $"a {matches.Count}-row history search rebuilt the day groups {rebuilds} times, not once");
+    AssertHistoryGroups(viewModel, matches, "history search");
+    Assert(viewModel.Selected?.Id == matches[0].Id, "history search did not select the newest match");
+
+    // Save while filtered: the full reload a save always ran, which drops the filter. Same rows,
+    // same groups and same selection as RefreshAsync gives.
+    var filteredSave = new Transcript { Text = "saved while filtered", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow };
+    await repository.AddAsync(filteredSave);
+    await viewModel.RefreshAfterSaveAsync();
+    expected = await repository.ListAsync();
+    AssertHistoryGroups(viewModel, expected, "save during a search");
+    Assert(viewModel.Selected?.Id == filteredSave.Id && !viewModel.IsFilteredEmpty,
+        "save during a search did not reload the way RefreshAsync does");
+
+    // Save into the full list: the one new row goes on top; the other rows are not re-read.
+    var kept = viewModel.Items.ToArray();
+    viewModel.UpdateSelection([kept[5]]);
+    var saved = new Transcript { Text = "just saved", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow.AddSeconds(1) };
+    await repository.AddAsync(saved);
+    before = viewModel.GroupRebuildCount;
+    await viewModel.RefreshAfterSaveAsync();
+    expected = await repository.ListAsync();
+    Assert(viewModel.GroupRebuildCount - before == 1, $"a save rebuilt the day groups {viewModel.GroupRebuildCount - before} times");
+    Assert(viewModel.Items.Skip(1).Zip(kept).All(pair => ReferenceEquals(pair.First, pair.Second)),
+        "a save into the unfiltered list reloaded every row instead of adding the saved one");
+    AssertHistoryGroups(viewModel, expected, "save");
+    Assert(viewModel.Selected?.Id == saved.Id && viewModel.SelectedItems.Count == 1,
+        "a save did not select the saved transcript, as the reload did");
+    Assert(viewModel.Status.Message == $"{expected.Count} transcript(s)" && !viewModel.Status.HasError,
+        $"a save left the status '{viewModel.Status.Message}'");
+    using (var reloaded = new HistoryViewModel(repository))
+    {
+        await reloaded.RefreshAsync();
+        Assert(reloaded.GroupedItems.Count == viewModel.GroupedItems.Count
+            && reloaded.GroupedItems.Zip(viewModel.GroupedItems).All(pair => pair.First is Transcript a
+                ? pair.Second is Transcript b && a.Id == b.Id
+                : Equals(pair.First, pair.Second)),
+            "the list after a save differs from a full reload of the same table");
+    }
+
+    // A row the list never saw (a failed recording raises no save event) makes the count disagree,
+    // so the save falls back to the full reload and shows both rows.
+    var unseen = new Transcript { Text = "failed, no save event", Status = TranscriptStatus.Failed, Date = DateTime.UtcNow.AddSeconds(2) };
+    var second = new Transcript { Text = "second save", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow.AddSeconds(3) };
+    await repository.AddAsync(unseen);
+    await repository.AddAsync(second);
+    await viewModel.RefreshAfterSaveAsync();
+    expected = await repository.ListAsync();
+    AssertHistoryGroups(viewModel, expected, "save after an unseen row");
+    Assert(viewModel.Selected?.Id == second.Id, "save after an unseen row did not select the newest");
+
+    // The saved row is already listed (loaded while it was Processing): reload, so its new state shows.
+    var processing = new Transcript { Text = "in progress", Status = TranscriptStatus.Processing, Date = DateTime.UtcNow.AddSeconds(4) };
+    await repository.AddAsync(processing);
+    await viewModel.RefreshAsync();
+    processing.Status = TranscriptStatus.Completed;
+    processing.Text = "finished";
+    await repository.UpdateAsync(processing);
+    await viewModel.RefreshAfterSaveAsync();
+    Assert(viewModel.Items[0].Id == processing.Id && viewModel.Items[0].Status == TranscriptStatus.Completed
+        && viewModel.Items[0].Text == "finished", "a save of an already listed row kept its stale state");
+
+    // A single edit still rebuilds: deleting a row takes it and an emptied day header away.
+    var lonely = new Transcript { Text = "lonely day", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow.AddDays(-400) };
+    await repository.AddAsync(lonely);
+    await viewModel.RefreshAsync();
+    viewModel.UpdateSelection([viewModel.Items.Single(item => item.Id == lonely.Id)]);
+    await viewModel.DeleteSelectedAsync();
+    AssertHistoryGroups(viewModel, await repository.ListAsync(), "history delete");
+}
+
+/// <summary>The grouping the per-row rebuild produced, written out independently of the view model.</summary>
+static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transcript> rows, string what)
+{
+    Assert(viewModel.Items.Select(item => item.Id).SequenceEqual(rows.Select(item => item.Id)),
+        $"{what}: rows are not in repository order");
+    var today = DateTime.Now.Date;
+    var expected = new List<object>();
+    DateTime? currentDay = null;
+    foreach (var row in rows)
+    {
+        var day = row.Date.ToLocalTime().Date;
+        if (currentDay != day)
+        {
+            currentDay = day;
+            expected.Add(day == today ? new HistoryDateGroup("history.section.today", "Today")
+                : day == today.AddDays(-1) ? new HistoryDateGroup("history.section.yesterday", "Yesterday")
+                : new HistoryDateGroup(null, day.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture)));
+        }
+        expected.Add(row.Id);
+    }
+    var actual = viewModel.GroupedItems.Select(item => item is Transcript transcript ? (object)transcript.Id : item).ToList();
+    Assert(actual.Count == expected.Count && actual.Zip(expected).All(pair => Equals(pair.First, pair.Second)),
+        $"{what}: day groups differ ({actual.Count} entries, expected {expected.Count})");
 }
 
 static void Assert(bool condition, string message)
