@@ -286,7 +286,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         {
             if (_disposed) return;
             var cancellationToken = _lifetime.Token;
-            await Task.WhenAll(History.RefreshAfterSaveAsync(cancellationToken), Home.RefreshAsync(cancellationToken));
+            await Task.WhenAll(History.RefreshAsync(cancellationToken), Home.RefreshAsync(cancellationToken));
             if (History.Status.HasError || Home.Status.HasError)
                 Status.Failure("app.history_refresh_failed", "The transcription was saved, but the library view could not be refreshed.");
         }
