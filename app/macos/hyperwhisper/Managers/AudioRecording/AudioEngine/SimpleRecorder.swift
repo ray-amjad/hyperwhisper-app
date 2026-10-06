@@ -150,10 +150,37 @@ class SimpleRecorder: NSObject, ObservableObject {
     // MARK: - Audio Level Normalization
 
     /// Minimum dB value for normalization (silence threshold)
-    private let minDb: Float = -60.0
+    nonisolated static let minDb: Float = -60.0
 
     /// Maximum dB value for normalization (full scale)
-    private let maxDb: Float = 0.0
+    nonisolated static let maxDb: Float = 0.0
+
+    // MARK: - Meter Read (off the main actor)
+
+    /// Reads one normalized (0-1) level from a recorder. Runs on `meterQueue`,
+    /// never on the main thread.
+    typealias MeterReader = @Sendable (AVAudioRecorder) -> Float
+
+    /// The meter read. Test seam: a test swaps in a fake to see which thread it
+    /// runs on and how many reads are in flight. Production never changes it.
+    var meterReader: MeterReader = { recorder in
+        SimpleRecorder.readNormalizedLevel(recorder, minDb: SimpleRecorder.minDb, maxDb: SimpleRecorder.maxDb)
+    }
+
+    /// Dedicated **serial** queue for the meter read (`updateMeters` + `averagePower`)
+    /// (Sentry HYPERWHISPER-KB). Not `recorderStartQueue`: a meter read stuck on
+    /// the AudioQueue lock must never hold up the next recording start.
+    private let meterQueue = DispatchQueue(
+        label: "com.hyperwhisper.simplerecorder.meter",
+        qos: .userInitiated
+    )
+
+    /// True while a read is queued or running on `meterQueue`. A tick that finds
+    /// it set is skipped, so a stuck AudioQueue lock costs one frozen meter bar,
+    /// not a pile of blocked reads. Deliberately not cleared by a stop: a stuck
+    /// read is still stuck, and the next recording must not stack a second one
+    /// behind it. Only touched on the main actor.
+    private(set) var meterReadInFlight = false
 
     deinit {
         meterUpdateTask?.cancel()
@@ -196,10 +223,11 @@ class SimpleRecorder: NSObject, ObservableObject {
     ///
     /// **What did NOT move off the main actor:** the `recorder` /
     /// `recorderRetention` / `recorderReleaseTask` state, the `@Published`
-    /// `isRecording` and `audioLevel` writes, `startMeterUpdates()`,
-    /// `updateMeter()` / `updateMeters()` / `averagePower(forChannel:)`, and
-    /// `stopRecording()`. The instance crosses threads exactly once; resuming the
-    /// continuation establishes the happens-before edge for that handoff, which
+    /// `isRecording` and `audioLevel` writes, the `startMeterUpdates()` loop, and
+    /// `stopRecording()`. The meter read itself (`updateMeters` +
+    /// `averagePower`) DID move, to `meterQueue` — see
+    /// `requestMeterRead(from:)` (Sentry HYPERWHISPER-KB). Resuming the
+    /// continuation establishes the happens-before edge for each handoff, which
     /// is why no `@unchecked Sendable` conformance is needed anywhere.
     ///
     /// **Throws:** `AudioError.recordingFailed` if the recorder cannot be created
@@ -516,40 +544,96 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// Provides smooth visualization without excessive CPU usage
     private func startMeterUpdates() {
         meterUpdateTask = Task {
-            while !Task.isCancelled && recorder != nil {
-                updateMeter()
+            while !Task.isCancelled, let recorder {
+                requestMeterRead(from: recorder)
                 try? await Task.sleep(nanoseconds: 33_000_000) // ~30 FPS
             }
         }
     }
 
-    /// Update audio level from recorder's built-in metering
+    /// One meter tick: read the level on `meterQueue`, then publish it here.
+    ///
+    /// **Why off the main actor (Sentry HYPERWHISPER-KB, "App hanging for at
+    /// least 10000 ms"):** `updateMeters` takes an AudioQueue lock through XPC.
+    /// While CoreAudio holds it (a route change, a busy HAL) the caller waits, and
+    /// on the main actor that froze the whole app mid-recording.
+    ///
+    /// - At most one read is in flight; a tick that finds one pending is skipped.
+    /// - The read holds `recorder` strongly, so `retireActiveRecorder()` cannot
+    ///   free it mid-read.
+    /// - The result is dropped if `stopRecording()` or a new start bumped
+    ///   `startGeneration` meanwhile, or if `recorder` is no longer the installed
+    ///   one. The level can lag by a frame.
+    ///
+    /// Internal, not private, so a test can drive a tick without a live recording.
+    func requestMeterRead(from recorder: AVAudioRecorder) {
+        guard !meterReadInFlight else { return }
+        meterReadInFlight = true
+
+        let generation = startGeneration
+        let recorderID = ObjectIdentifier(recorder)
+        let reader = meterReader
+        let queue = meterQueue
+        Task { [weak self] in
+            let level = await SimpleRecorder.readLevel(from: recorder, on: queue, using: reader)
+            self?.finishMeterRead(level: level, recorderID: recorderID, generation: generation)
+        }
+    }
+
+    /// Run `reader` on `queue` and hand its result back through a continuation.
+    ///
+    /// `nonisolated` so the hop needs no main-actor round-trip; the
+    /// `DispatchQueue.async` is what moves the blocking call off the main thread.
+    /// Same pattern as `discardSupersededRecorder(_:)`. The block captures the
+    /// recorder strongly until the read returns.
+    nonisolated private static func readLevel(
+        from recorder: AVAudioRecorder,
+        on queue: DispatchQueue,
+        using reader: @escaping MeterReader
+    ) async -> Float {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                continuation.resume(returning: reader(recorder))
+            }
+        }
+    }
+
+    /// Back on the main actor: clear the in-flight flag, and publish the level only
+    /// if the recorder that was read is still the live one of the same start.
+    private func finishMeterRead(level: Float, recorderID: ObjectIdentifier, generation: Int) {
+        meterReadInFlight = false
+        guard generation == startGeneration,
+              let recorder,
+              ObjectIdentifier(recorder) == recorderID else { return }
+        audioLevel = level
+    }
+
+    /// Read a recorder's built-in meter and normalize it. Blocking: call it only
+    /// on a meter queue, never on the main thread.
     ///
     /// **What This Does:**
-    /// 1. Calls updateMeters() to refresh internal meter state
+    /// 1. Calls `updateMeters` to refresh internal meter state
     /// 2. Gets average power in dB (-160 to 0)
     /// 3. Normalizes to 0.0-1.0 range for UI binding
     ///
     /// **Normalization:**
-    /// - Values below -60 dB map to 0.0 (silence)
-    /// - Values at 0 dB map to 1.0 (full scale)
+    /// - Values below `minDb` map to 0.0 (silence)
+    /// - Values at `maxDb` map to 1.0 (full scale)
     /// - Linear interpolation between
-    private func updateMeter() {
-        guard let recorder = recorder else { return }
-
+    nonisolated static func readNormalizedLevel(
+        _ recorder: AVAudioRecorder,
+        minDb: Float,
+        maxDb: Float
+    ) -> Float {
         recorder.updateMeters()
         let power = recorder.averagePower(forChannel: 0)
 
-        // Normalize dB to 0.0-1.0 range
-        let normalized: Float
         if power <= minDb {
-            normalized = 0.0
+            return 0.0
         } else if power >= maxDb {
-            normalized = 1.0
+            return 1.0
         } else {
-            normalized = (power - minDb) / (maxDb - minDb)
+            return (power - minDb) / (maxDb - minDb)
         }
-
-        audioLevel = normalized
     }
 }
