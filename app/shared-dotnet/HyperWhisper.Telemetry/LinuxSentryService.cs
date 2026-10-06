@@ -69,7 +69,12 @@ public sealed class LinuxSentryService : IDisposable
         }
     }
 
-    public void Capture(Exception exception, string? context = null)
+    /// <param name="isTerminating">
+    /// The runtime is about to end the process (<see cref="UnhandledExceptionEventArgs.IsTerminating"/>):
+    /// the report is sent before this returns, bounded by 2 s, since the background
+    /// worker that would send it dies with the process.
+    /// </param>
+    public void Capture(Exception exception, string? context = null, bool isTerminating = false)
     {
         ArgumentNullException.ThrowIfNull(exception);
         lock (_gate)
@@ -86,6 +91,20 @@ public sealed class LinuxSentryService : IDisposable
             catch
             {
                 // Reporting an application failure must not cause another one.
+            }
+
+            if (!isTerminating)
+            {
+                return;
+            }
+
+            try
+            {
+                _backend.Flush(TimeSpan.FromSeconds(2));
+            }
+            catch
+            {
+                // The process is ending either way.
             }
         }
     }
@@ -250,6 +269,23 @@ internal static class TelemetryPrivacy
         _ => null,
     };
 
+    /// <summary>
+    /// The Sentry mechanism for a report, read from its (sanitized) context. The
+    /// AppDomain and unobserved-task reports replace the SDK integrations that
+    /// #1051 turned off, so they carry the same mechanism type and handled=false
+    /// those integrations set: Sentry then counts the crash in release health
+    /// and ends the session as Crashed. The app's UI handler does not set
+    /// Handled, so Avalonia rethrows and the process ends: unhandled too.
+    /// Any other report is one the app caught: generic, handled.
+    /// </summary>
+    internal static (string Type, bool Handled) MechanismFor(string? context) => context switch
+    {
+        "Unhandled application exception" => ("AppDomain.UnhandledException", false),
+        "Unobserved task exception" => ("UnobservedTaskException", false),
+        "Unhandled UI exception" => ("Avalonia.Threading.Dispatcher.UnhandledException", false),
+        _ => ("generic", true),
+    };
+
     internal sealed class TelemetryReportedException(
         SanitizedPart outer,
         IReadOnlyList<SanitizedPart> inner,
@@ -267,7 +303,7 @@ internal static class TelemetryPrivacy
         /// with no frames at all (#1051). Innermost first, outermost last, as the
         /// SDK orders a chain.
         /// </summary>
-        internal List<SentryException> ToSentryExceptions()
+        internal List<SentryException> ToSentryExceptions(string mechanismType = "generic", bool handled = true)
         {
             var values = new List<SentryException>();
             for (var i = inner.Count - 1; i >= 0; i--)
@@ -280,7 +316,7 @@ internal static class TelemetryPrivacy
             values.Add(ToSentryException(
                 outer,
                 Message,
-                new Mechanism { Type = "generic", Handled = true, ExceptionId = 0, IsExceptionGroup = inner.Count > 0 && outer.Type == typeof(AggregateException).FullName }));
+                new Mechanism { Type = mechanismType, Handled = handled, ExceptionId = 0, IsExceptionGroup = inner.Count > 0 && outer.Type == typeof(AggregateException).FullName }));
             return values;
         }
 
@@ -465,14 +501,34 @@ internal sealed class SentryTelemetryBackend : ITelemetryBackend
     {
         // A sanitized report goes as explicit exception values with frames, and with
         // no Exception object for the SDK to re-read (#1051).
+        var (mechanismType, handled) = TelemetryPrivacy.MechanismFor(context);
         var sentryEvent = exception is TelemetryPrivacy.TelemetryReportedException reported
-            ? new SentryEvent { Level = SentryLevel.Error, SentryExceptions = reported.ToSentryExceptions() }
+            ? new SentryEvent
+            {
+                Level = SentryLevel.Error,
+                SentryExceptions = reported.ToSentryExceptions(mechanismType, handled),
+            }
             : new SentryEvent(exception);
         SentrySdk.CaptureEvent(sentryEvent, scope =>
         {
             if (!string.IsNullOrWhiteSpace(context))
             {
                 scope.SetExtra("error_message", context);
+            }
+
+            if (sentryEvent.Exception is null)
+            {
+                // With no Exception object, AttachStacktrace makes the SDK add a
+                // `threads` entry, and when no value has frames (an exception that was
+                // never thrown) that entry is the CURRENT stack: this capture call and
+                // its callers, with build-machine abs_path values. The sanitized frames
+                // are already on the exception values. This processor is on this
+                // event's own scope and runs after the SDK's.
+                scope.AddEventProcessor(processed =>
+                {
+                    processed.SentryThreads = null;
+                    return processed;
+                });
             }
         });
     }

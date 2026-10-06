@@ -8,6 +8,11 @@ if (args is [AppDomainChild.Flag, var envelopeFile])
     AppDomainChild.Run(envelopeFile);
     return;
 }
+if (args is [AppDomainChild.AppHandlerFlag, var appEnvelopeFile])
+{
+    AppDomainChild.RunWithAppHandler(appEnvelopeFile);
+    return;
+}
 
 var tests = new (string Name, Action Run)[]
 {
@@ -33,6 +38,9 @@ var tests = new (string Name, Action Run)[]
     ("configured options leave AppDomain unhandled exceptions to the app handler", ConfiguredOptionsDisableSdkAppDomainCapture),
     ("a throwing inner StackTrace getter costs only that inner's frames", ThrowingInnerStackTraceCostsOnlyItsFrames),
     ("each inner exception value links to its true parent", InnerExceptionValuesLinkToTheirParent),
+    ("each report kind carries the mechanism and handled flag the SDK integration set", ReportKindsCarryTheSdkMechanism),
+    ("a fatal AppDomain exception reaches the transport before the process dies, as a crash", FatalAppDomainExceptionIsFlushedAsACrash),
+    ("a sanitized report carries no capture-site thread stack", SanitizedReportCarriesNoCaptureSiteStack),
 };
 
 foreach (var test in tests)
@@ -609,31 +617,13 @@ static void ConfiguredOptionsDisableSdkAppDomainCapture()
     var envelopeFile = Path.Combine(Path.GetTempPath(), $"hw-telemetry-{Guid.NewGuid():N}.envelopes");
     try
     {
-        var self = Environment.ProcessPath ?? throw new InvalidOperationException("no process path");
-        var start = new System.Diagnostics.ProcessStartInfo(self)
-        {
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-        };
-        if (Path.GetFileNameWithoutExtension(self) == "dotnet") start.ArgumentList.Add(typeof(Program).Assembly.Location);
-        start.ArgumentList.Add(AppDomainChild.Flag);
-        start.ArgumentList.Add(envelopeFile);
-        start.Environment["DOTNET_DbgEnableMiniDump"] = "0";
-
-        using var child = System.Diagnostics.Process.Start(start) ?? throw new InvalidOperationException("no child");
-        var stderr = child.StandardError.ReadToEndAsync();
-        var stdout = child.StandardOutput.ReadToEndAsync();
-        if (!child.WaitForExit(TimeSpan.FromSeconds(60)))
-        {
-            child.Kill(entireProcessTree: true);
-            throw new InvalidOperationException("child did not exit");
-        }
+        var (exitCode, stdout, stderr) = AppDomainChild.Spawn(AppDomainChild.Flag, envelopeFile);
 
         // Not vacuous: the child really died of the unhandled exception, and its
         // transport really carried an event before that.
-        Assert.True(child.ExitCode != 0);
-        Assert.True(stderr.Result.Contains(AppDomainChild.Marker, StringComparison.Ordinal));
-        Assert.True(stdout.Result.Contains("child-flushed", StringComparison.Ordinal));
+        Assert.True(exitCode != 0);
+        Assert.True(stderr.Contains(AppDomainChild.Marker, StringComparison.Ordinal));
+        Assert.True(stdout.Contains("child-flushed", StringComparison.Ordinal));
         var transport = CapturingSentryTransport.Load(envelopeFile);
         Assert.True(transport.FindPayload(payload => payload["logentry"] is not null) is not null);
         Assert.True(transport.FindPayload(payload => payload["exception"] is not null) is null);
@@ -701,6 +691,119 @@ static void InnerExceptionValuesLinkToTheirParent()
             .Where(value => value.Mechanism?.Type == "chained")
             .ToDictionary(value => value.Type!, value => (value.Mechanism!.ExceptionId!.Value, value.Mechanism.ParentId!.Value));
 }
+
+static void ReportKindsCarryTheSdkMechanism()
+{
+    var transport = new CapturingSentryTransport();
+    using (InitTestSdk(transport, autoSessionTracking: true))
+    {
+        var backend = new SentryTelemetryBackend();
+        foreach (var context in new[] { "Unobserved task exception", "Unhandled UI exception", "Unhandled application exception" })
+        {
+            backend.Capture(TelemetryPrivacy.SanitizeException(new AggregateException(new TimeoutException(context))), context);
+        }
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+    }
+    Assert.Equal(("UnobservedTaskException", false), OuterMechanism(transport, "Unobserved task exception"));
+    Assert.Equal(("Avalonia.Threading.Dispatcher.UnhandledException", false), OuterMechanism(transport, "Unhandled UI exception"));
+    Assert.Equal(("AppDomain.UnhandledException", false), OuterMechanism(transport, "Unhandled application exception"));
+    // Unhandled, so the SDK ends the release-health session as Crashed.
+    Assert.True(transport.FindPayload(payload => payload["status"]?.GetValue<string>() == "crashed") is not null);
+
+    // A report the app caught itself stays generic and handled, and crashes no session.
+    var caught = new CapturingSentryTransport();
+    using (InitTestSdk(caught, autoSessionTracking: true))
+    {
+        new SentryTelemetryBackend().Capture(TelemetryPrivacy.SanitizeException(new TimeoutException("secret-marker")), null);
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+    }
+    var mechanism = caught.FindPayload(payload => payload["exception"] is not null)?["exception"]?["values"]?[0]?["mechanism"];
+    Assert.Equal("generic", mechanism?["type"]?.GetValue<string>());
+    Assert.Equal(true, mechanism?["handled"]?.GetValue<bool>());
+    Assert.True(caught.FindPayload(payload => payload["status"]?.GetValue<string>() == "crashed") is null);
+    Assert.True(caught.FindPayload(payload => payload["sid"] is not null) is not null);
+
+    static (string?, bool?) OuterMechanism(CapturingSentryTransport transport, string context)
+    {
+        var payload = transport.FindPayload(payload => payload["extra"]?["error_message"]?.GetValue<string>() == context)
+            ?? throw new InvalidOperationException("no event for " + context);
+        var mechanism = payload["exception"]?["values"]?.AsArray()[^1]?["mechanism"];
+        return (mechanism?["type"]?.GetValue<string>(), mechanism?["handled"]?.GetValue<bool>());
+    }
+}
+
+static void FatalAppDomainExceptionIsFlushedAsACrash()
+{
+    // The production LinuxSentryService and backend, an app-style AppDomain handler,
+    // and a thread that dies: the report must be on the transport before the process ends.
+    var envelopeFile = Path.Combine(Path.GetTempPath(), $"hw-telemetry-{Guid.NewGuid():N}.envelopes");
+    try
+    {
+        var (exitCode, stdout, stderr) = AppDomainChild.Spawn(AppDomainChild.AppHandlerFlag, envelopeFile);
+        Assert.True(exitCode != 0);
+        Assert.True(stderr.Contains(AppDomainChild.Marker, StringComparison.Ordinal));
+        Assert.True(stdout.Contains("handler-returned", StringComparison.Ordinal));
+        var transport = CapturingSentryTransport.Load(envelopeFile);
+        var errorEvent = transport.FindPayload(payload => payload["exception"] is not null)
+            ?? throw new InvalidOperationException("no error event: " + transport.Dump());
+        var mechanism = errorEvent["exception"]?["values"]?.AsArray()[^1]?["mechanism"];
+        Assert.Equal("AppDomain.UnhandledException", mechanism?["type"]?.GetValue<string>());
+        Assert.Equal(false, mechanism?["handled"]?.GetValue<bool>());
+        Assert.True(transport.FindPayload(payload => payload["status"]?.GetValue<string>() == "crashed") is not null);
+        Assert.False(transport.Dump().Contains(AppDomainChild.Marker, StringComparison.Ordinal));
+    }
+    finally
+    {
+        File.Delete(envelopeFile);
+    }
+}
+
+static void SanitizedReportCarriesNoCaptureSiteStack()
+{
+    // AttachStacktrace is on in production. A report with no Exception object makes
+    // the SDK attach a thread stack, which for a never-thrown exception is the
+    // capture call site's own stack, abs_path and all.
+    Exception thrown;
+    try
+    {
+        ThrowSecretMarker();
+        throw new InvalidOperationException("unreachable");
+    }
+    catch (InvalidOperationException exception)
+    {
+        thrown = exception;
+    }
+
+    var transport = new CapturingSentryTransport();
+    using (InitTestSdk(transport))
+    {
+        using var service = new LinuxSentryService(new PreInitializedSentryBackend());
+        Assert.True(service.Initialize("https://public@example.invalid/1", "test"));
+        CaptureFromNestedSite(service, new InvalidOperationException("never thrown"));
+        CaptureFromNestedSite(service, new AggregateException(thrown));
+        SentrySdk.FlushAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+    }
+
+    var events = 0;
+    foreach (var envelope in transport.Dump().Split("\n---envelope---\n"))
+    {
+        if (!envelope.Contains("\"exception\"", StringComparison.Ordinal)) continue;
+        events++;
+        Assert.False(envelope.Contains("\"threads\"", StringComparison.Ordinal));
+        Assert.False(envelope.Contains("abs_path", StringComparison.Ordinal));
+        foreach (var plumbing in new[] { nameof(CaptureFromNestedSite), nameof(LinuxSentryService), nameof(SentryTelemetryBackend), "OnDomainUnhandledException" })
+        {
+            Assert.False(envelope.Contains(plumbing, StringComparison.Ordinal));
+        }
+    }
+    Assert.Equal(2, events);
+    // Not vacuous: the thrown inner's own sanitized frames are still there.
+    Assert.True(transport.Dump().Contains(nameof(ThrowSecretMarker), StringComparison.Ordinal));
+}
+
+[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+static void CaptureFromNestedSite(LinuxSentryService service, Exception exception) =>
+    service.Capture(exception, "Unhandled application exception");
 
 static IDisposable InitTestSdk(CapturingSentryTransport transport, bool autoSessionTracking = false) => SentrySdk.Init(options =>
 {
@@ -787,6 +890,15 @@ sealed class FakeBackend : ITelemetryBackend
     public void Flush(TimeSpan timeout) => FlushCalls++;
 }
 
+/// <summary>The production backend over an SDK the test already initialized.</summary>
+sealed class PreInitializedSentryBackend : ITelemetryBackend
+{
+    private readonly SentryTelemetryBackend _real = new();
+    public IDisposable? Initialize(TelemetryConfiguration configuration) => new CallbackDisposable(() => { });
+    public void Capture(Exception exception, string? context) => _real.Capture(exception, context);
+    public void Flush(TimeSpan timeout) => _real.Flush(timeout);
+}
+
 sealed class HostileStackTraceException : Exception
 {
     public override string? StackTrace => throw new InvalidOperationException("secret-marker");
@@ -821,7 +933,68 @@ static class Fixtures
 static class AppDomainChild
 {
     public const string Flag = "--appdomain-child";
+    public const string AppHandlerFlag = "--appdomain-app-handler-child";
     public const string Marker = "appdomain-marker";
+
+    public static (int ExitCode, string Stdout, string Stderr) Spawn(string flag, string envelopeFile)
+    {
+        var self = Environment.ProcessPath ?? throw new InvalidOperationException("no process path");
+        var start = new System.Diagnostics.ProcessStartInfo(self)
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+        };
+        if (Path.GetFileNameWithoutExtension(self) == "dotnet") start.ArgumentList.Add(typeof(Program).Assembly.Location);
+        start.ArgumentList.Add(flag);
+        start.ArgumentList.Add(envelopeFile);
+        start.Environment["DOTNET_DbgEnableMiniDump"] = "0";
+
+        using var child = System.Diagnostics.Process.Start(start) ?? throw new InvalidOperationException("no child");
+        var stderr = child.StandardError.ReadToEndAsync();
+        var stdout = child.StandardOutput.ReadToEndAsync();
+        if (!child.WaitForExit(TimeSpan.FromSeconds(60)))
+        {
+            child.Kill(entireProcessTree: true);
+            throw new InvalidOperationException("child did not exit");
+        }
+        return (child.ExitCode, stdout.Result, stderr.Result);
+    }
+
+    /// <summary>
+    /// What App.axaml.cs does: the production service and backend, and an AppDomain
+    /// handler that reports through it. Only the transport differs (a file).
+    /// </summary>
+    public static void RunWithAppHandler(string envelopeFile)
+    {
+        var service = new LinuxSentryService(new FileTransportBackend(envelopeFile));
+        if (!service.Initialize("https://public@example.invalid/1", "test")) throw new InvalidOperationException("no init");
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception exception)
+                service.Capture(exception, "Unhandled application exception", args.IsTerminating);
+            Console.WriteLine("handler-returned");
+            Console.Out.Flush();
+        };
+
+        var thread = new Thread(() => throw new InvalidOperationException(Marker));
+        thread.Start();
+        thread.Join();
+    }
+
+    private sealed class FileTransportBackend(string envelopeFile) : ITelemetryBackend
+    {
+        private readonly SentryTelemetryBackend _real = new();
+
+        public IDisposable? Initialize(TelemetryConfiguration configuration) => SentrySdk.Init(options =>
+        {
+            SentryTelemetryBackend.ConfigureOptions(options, configuration);
+            options.Transport = new CapturingSentryTransport(envelopeFile);
+            options.ProfilesSampleRate = 0;
+        });
+
+        public void Capture(Exception exception, string? context) => _real.Capture(exception, context);
+        public void Flush(TimeSpan timeout) => _real.Flush(timeout);
+    }
 
     public static void Run(string envelopeFile)
     {
