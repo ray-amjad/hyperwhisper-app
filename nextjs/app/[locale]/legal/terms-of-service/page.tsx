@@ -9,7 +9,7 @@ export default function TermsOfServicePage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: August 9, 2026
+        Last Updated: October 6, 2026
       </p>
       <h1>Terms of Service</h1>
 
@@ -71,10 +71,6 @@ export default function TermsOfServicePage() {
             Refund Policy
           </a>
           .
-        </li>
-        <li>
-          <strong>License after refund</strong>: Refunded licenses may be
-          deactivated.
         </li>
       </ul>
 
