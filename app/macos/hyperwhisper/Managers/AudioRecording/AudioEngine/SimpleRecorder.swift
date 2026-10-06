@@ -577,7 +577,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     ///
     /// Internal, not private, so a test can drive a tick without a live recording.
     func requestMeterRead(from recorder: AVAudioRecorder) {
-        guard !meterReadInFlight else { return }
+        // MUTATION C: no in-flight guard
         meterReadInFlight = true
 
         let generation = startGeneration
@@ -602,7 +602,7 @@ class SimpleRecorder: NSObject, ObservableObject {
         using reader: @escaping MeterReader
     ) async -> Float {
         await withCheckedContinuation { continuation in
-            queue.async {
+            DispatchQueue.main.async { // MUTATION A: read on the main thread
                 continuation.resume(returning: reader(recorder))
             }
         }
@@ -612,8 +612,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// if the recorder that was read is still the live one of the same start.
     private func finishMeterRead(level: Float, recorderID: ObjectIdentifier, generation: Int) {
         meterReadInFlight = false
-        guard generation == startGeneration,
-              let recorder,
+        guard let recorder, // MUTATION B: no generation check
               ObjectIdentifier(recorder) == recorderID else { return }
         audioLevel = level
     }
