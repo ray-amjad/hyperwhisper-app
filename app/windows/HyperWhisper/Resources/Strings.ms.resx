@@ -1118,6 +1118,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Kawalan Aplikasi Windows telah menyekat {0}, fail yang diperlukan oleh HyperWhisper. Minta pentadbir IT anda membenarkan HyperWhisper, atau semak Kawalan Apl Pintar dalam Keselamatan Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>

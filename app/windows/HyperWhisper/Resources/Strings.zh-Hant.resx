@@ -1118,6 +1118,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows 應用程式控制封鎖了 HyperWhisper 需要的檔案 {0}。請要求您的 IT 系統管理員允許 HyperWhisper，或在 Windows 安全性中檢查智慧型應用程式控制。</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>

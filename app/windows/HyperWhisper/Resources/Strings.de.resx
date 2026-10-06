@@ -1118,6 +1118,9 @@ Es muss mindestens ein Modus vorhanden sein.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Fehler: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Die Windows-Anwendungssteuerung hat {0} blockiert, eine Datei, die HyperWhisper braucht. Bitte deine IT-Administration, HyperWhisper zuzulassen, oder prüf die intelligente App-Steuerung in der Windows-Sicherheit.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Der Autostart konnte nicht aktiviert werden. Bitte prüfen Sie, ob Sie berechtigt sind, die Autostart-Einstellungen zu ändern.</value>

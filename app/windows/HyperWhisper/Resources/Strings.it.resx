@@ -1118,6 +1118,9 @@ Deve esserci almeno una modalità.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Errore: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Il Controllo delle applicazioni di Windows ha bloccato {0}, un file necessario a HyperWhisper. Chiedi all'amministratore IT di consentire HyperWhisper oppure controlla Controllo intelligente delle app in Sicurezza di Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Impossibile attivare l'avvio automatico. Verifica di avere i permessi per modificare le impostazioni di avvio.</value>

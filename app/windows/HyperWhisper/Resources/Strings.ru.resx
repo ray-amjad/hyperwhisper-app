@@ -1118,6 +1118,9 @@
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Ошибка: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Управление приложениями Windows заблокировало {0} — файл, необходимый HyperWhisper. Попросите ИТ-администратора разрешить HyperWhisper или проверьте интеллектуальное управление приложениями в разделе «Безопасность Windows».</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Не удалось включить запуск при старте системы. Проверьте, есть ли у вас права на изменение параметров автозагрузки.</value>

@@ -1118,6 +1118,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>El Control d'aplicacions de Windows ha bloquejat {0}, un fitxer que HyperWhisper necessita. Demana a l'administrador de TI que permeti HyperWhisper, o revisa el Control intel·ligent d'aplicacions a Seguretat de Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
