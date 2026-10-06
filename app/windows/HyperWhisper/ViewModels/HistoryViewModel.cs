@@ -698,17 +698,26 @@ public partial class HistoryViewModel : ViewModelBase
         if (result != MessageBoxResult.Yes) return;
 
         // Mark as deleting
-        foreach (var vm in SelectedTranscripts)
+        var deleting = SelectedTranscripts.ToList();
+        foreach (var vm in deleting)
         {
             vm.IsDeleting = true;
         }
 
-        var ids = SelectedTranscripts.Select(t => t.Id).ToList();
+        var ids = deleting.Select(t => t.Id).ToList();
 
-        await Task.Run(() =>
+        try
         {
-            _historyService.DeleteTranscripts(ids);
-        });
+            await Task.Run(() =>
+            {
+                _historyService.DeleteTranscripts(ids);
+            });
+        }
+        catch (Exception ex)
+        {
+            ReportDeleteFailed(deleting, ex);
+            return;
+        }
 
         ClearSelection();
     }
@@ -728,15 +737,47 @@ public partial class HistoryViewModel : ViewModelBase
 
         transcript.IsDeleting = true;
 
-        await Task.Run(() =>
+        try
         {
-            _historyService.DeleteTranscript(transcript.Id);
-        });
+            await Task.Run(() =>
+            {
+                _historyService.DeleteTranscript(transcript.Id);
+            });
+        }
+        catch (Exception ex)
+        {
+            ReportDeleteFailed(new[] { transcript }, ex);
+            return;
+        }
 
         if (SelectedTranscript?.Id == transcript.Id)
         {
             ClearSelection();
         }
+    }
+
+    /// <summary>
+    /// A delete SQLite refused (#974). It was one SaveChanges, so nothing was
+    /// deleted: put the rows back to full opacity, keep the selection (the rows
+    /// still exist) and tell the user, instead of leaving them at 50% forever.
+    /// Logs the ids and the exception only, never transcript text.
+    /// </summary>
+    private static void ReportDeleteFailed(IReadOnlyCollection<TranscriptViewModel> rows, Exception ex)
+    {
+        LoggingService.Error(rows.Count == 1
+            ? $"HistoryViewModel: delete failed for transcript {rows.First().Id}"
+            : $"HistoryViewModel: delete failed for {rows.Count} transcripts", ex);
+
+        foreach (var vm in rows)
+        {
+            vm.IsDeleting = false;
+        }
+
+        WpfMessageBox.Show(
+            Loc.S("transcripts.delete.failed"),
+            Loc.S("common.error"),
+            MessageBoxButton.OK,
+            MessageBoxImage.Error);
     }
 
     // =========================================================================
