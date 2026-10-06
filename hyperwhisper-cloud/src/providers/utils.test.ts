@@ -3,6 +3,7 @@ import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   computeUploadTimeoutMs,
+  emptyTranscriptOutcome,
   estimateAudioSeconds,
   estimateSecondsFromBytes,
   explicitLanguageSubtag,
@@ -15,7 +16,8 @@ import {
   splitVocabularyTerms,
   upstreamDurationOrNull,
 } from './utils';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
+import type { TranscriptionResult } from './types';
 
 describe('computeUploadTimeoutMs (size-scaled audio-upload budget)', () => {
   test('small payloads get the 30s floor', () => {
@@ -485,6 +487,59 @@ describe('upstreamDurationOrNull (issue #381)', () => {
     expect(parsed.duration > 0).toBe(true);
     expect(upstreamDurationOrNull(parsed.duration)).toBeNull();
     expect(upstreamDurationOrNull(-Infinity)).toBeNull();
+  });
+});
+
+describe('emptyTranscriptOutcome — request-length fallback is opt-in (issue #720)', () => {
+  const noSpeechResult: TranscriptionResult = { text: '', durationSeconds: 0, costUsd: 0, source: 'no_speech' };
+  const silenced = <T>(run: () => T): T => {
+    const originalLog = console.log;
+    console.log = (() => {}) as typeof console.log;
+    try { return run(); } finally { console.log = originalLog; }
+  };
+
+  test('an adapter that does NOT opt in never refuses on the request length alone — the gate is not relaxed', () => {
+    const result = silenced(() => emptyTranscriptOutcome('deepgram', {
+      label: 'Deepgram',
+      startedAt: performance.now(),
+      context: { mayRefuseEmptyTranscript: true, requestAudioSeconds: 4.9 },
+      upstreamDuration: undefined,
+      noSpeechResult,
+    }));
+    expect(result).toBe(noSpeechResult);
+  });
+
+  test('an opted-in adapter still prefers the upstream duration when there is one', () => {
+    let thrown: unknown;
+    try {
+      silenced(() => emptyTranscriptOutcome('elevenlabs', {
+        label: 'ElevenLabs',
+        startedAt: performance.now(),
+        context: { mayRefuseEmptyTranscript: true, requestAudioSeconds: 4.9 },
+        upstreamDuration: 3.2,
+        requestDurationFallback: true,
+        noSpeechResult,
+      }));
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(EmptyTranscriptError);
+    expect((thrown as EmptyTranscriptError).upstreamDurationSeconds).toBe(3.2);
+    expect((thrown as EmptyTranscriptError).requestAudioSeconds).toBeNull();
+  });
+
+  test('an opted-in adapter rejects a request length it cannot trust (0, Infinity)', () => {
+    for (const requestAudioSeconds of [0, Infinity]) {
+      const result = silenced(() => emptyTranscriptOutcome('elevenlabs', {
+        label: 'ElevenLabs',
+        startedAt: performance.now(),
+        context: { mayRefuseEmptyTranscript: true, requestAudioSeconds },
+        upstreamDuration: 0,
+        requestDurationFallback: true,
+        noSpeechResult,
+      }));
+      expect(result).toBe(noSpeechResult);
+    }
   });
 });
 

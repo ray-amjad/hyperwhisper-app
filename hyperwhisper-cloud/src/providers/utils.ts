@@ -532,8 +532,9 @@ export function upstreamDurationOrNull(value: unknown): number | null {
 }
 
 /**
- * The empty-transcript outcome, for the three adapters the failover covers
- * (grok, deepgram, groq): log the `no_speech`, then either refuse it — when the
+ * The empty-transcript outcome, for the adapters the failover covers (grok,
+ * deepgram, groq, and elevenlabs since #720): log the `no_speech`, then either
+ * refuse it — when the
  * ROUTE granted this attempt the refusal — or return it.
  *
  * ```ts
@@ -580,10 +581,27 @@ export function emptyTranscriptOutcome(
     logDetails?: Record<string, unknown>;
     /** The `no_speech` result the adapter would have returned. */
     noSpeechResult: TranscriptionResult;
+    /**
+     * Opt-in, per adapter: when the upstream reports no usable duration, gate the
+     * refusal on the request's own measured length
+     * (`context.requestAudioSeconds`) instead. Only for an upstream that
+     * STRUCTURALLY reports no duration on an empty transcript yet has parsed and
+     * processed the audio (ElevenLabs: duration is the last word's end time).
+     * Never set it for an adapter whose missing duration can mean "did not
+     * process the audio" — that gate is what stops a second paid upload.
+     * (issue ray-amjad/hyperwhisper-app#720)
+     */
+    requestDurationFallback?: boolean;
   },
 ): TranscriptionResult {
+  // `upstreamDurationSeconds` keeps its meaning on the log line: the upstream's
+  // own number or null, never the request's estimate.
   const upstreamDurationSeconds = upstreamDurationOrNull(opts.upstreamDuration);
-  const refusing = upstreamDurationSeconds !== null && opts.context.mayRefuseEmptyTranscript === true;
+  const requestAudioSeconds = opts.requestDurationFallback === true && upstreamDurationSeconds === null
+    ? upstreamDurationOrNull(opts.context.requestAudioSeconds)
+    : null;
+  const gateDurationSeconds = upstreamDurationSeconds ?? requestAudioSeconds;
+  const refusing = gateDurationSeconds !== null && opts.context.mayRefuseEmptyTranscript === true;
 
   // Logged on BOTH paths, refusal included. This event is the only per-provider
   // count of "the upstream returned nothing", and suppressing it on the refusal
@@ -594,12 +612,18 @@ export function emptyTranscriptOutcome(
     ...opts.logDetails,
     upstreamDurationSeconds,
     upstreamRequestId: opts.upstreamRequestId,
+    // Only on an opted-in adapter, and only when the upstream said nothing:
+    // which number the gate actually read, so a refusal reads honestly.
+    ...(opts.requestDurationFallback === true
+      ? { requestAudioSeconds, durationSource: upstreamDurationSeconds !== null ? 'upstream' : requestAudioSeconds !== null ? 'request' : 'none' }
+      : {}),
     refused: refusing,
   }, opts.context);
 
   if (refusing) {
     throw new EmptyTranscriptError(opts.label, {
       upstreamDurationSeconds,
+      requestAudioSeconds,
       elapsedMs: Math.round(performance.now() - opts.startedAt),
       // The route keeps this as the request's floor, so a sibling that never
       // answers cannot turn a benign no_speech into an error.
