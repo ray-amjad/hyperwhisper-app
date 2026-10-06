@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 
 import createNextIntlPlugin from 'next-intl/plugin';
 
+import { securityHeaderRoutes } from './config/security-headers.mjs';
+
 /**
  * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation.
  * This is especially useful for Docker builds.
@@ -23,6 +25,10 @@ const nextConfig = {
         // pnpm-lock.yaml; pin the workspace root to this directory so
         // Turbopack doesn't have to guess (and warn) about it.
         root: fileURLToPath(new URL('.', import.meta.url)),
+    },
+    // #842: anti-framing and the 4 simple security headers on every route.
+    async headers() {
+        return securityHeaderRoutes;
     },
 };
 
