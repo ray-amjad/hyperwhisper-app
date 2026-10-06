@@ -9483,6 +9483,80 @@ internal static class Program
                     "an unrelated Deepgram key edit discarded a valid Google outcome");
             });
 
+            Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
+            {
+                // Not a real credential: a placeholder whose only job is to prove it
+                // never reaches the log, in clear or in part.
+                const string placeholder = "placeholder-value-742-never-logged";
+                var backend = new ThrowingAddCredentialBackend();
+                var service = new ApiKeyService(backend);
+                var offsets = SnapshotLogOffsets();
+
+                // (a) Every write overload reports the failure instead of returning void.
+                var shared = service.SetApiKey(PostProcessingProvider.OpenAI, placeholder);
+                Assert(shared.IsFailure && shared.Error?.Code == "credential.write_failed",
+                    $"SetApiKey(PostProcessingProvider) did not report the failed write: {shared.Error?.Code ?? "success"}");
+                var transcription = service.SetApiKey(TranscriptionApiKeyType.Deepgram, placeholder);
+                Assert(transcription.IsFailure && transcription.Error?.Code == "credential.write_failed",
+                    $"SetApiKey(TranscriptionApiKeyType) did not report the failed write: {transcription.Error?.Code ?? "success"}");
+                var endpoint = service.SetCustomEndpointApiKey(Guid.NewGuid(), placeholder);
+                Assert(endpoint.IsFailure && endpoint.Error?.Code == "credential.write_failed",
+                    $"SetCustomEndpointApiKey did not report the failed write: {endpoint.Error?.Code ?? "success"}");
+                Assert(backend.AddAttempts == 3, $"expected 3 attempted adds, saw {backend.AddAttempts}");
+
+                // (b) The settings page's save step, driven through the same failing
+                // backend, writes no "ApiKeys: Saved" line and says it could not save.
+                var pageReportedSuccess = ApiKeysSettingsPage.WriteKeyAndLog(
+                    () => service.SetApiKey(PostProcessingProvider.Anthropic, placeholder), "Anthropic", clearing: false);
+                Assert(!pageReportedSuccess, "the settings page treated a failed write as saved");
+
+                var failedLog = ReadLogSince(offsets);
+                var failedContext = $"log dir '{LoggingService.LogDirectory}', captured: <<<{failedLog}>>>";
+                Assert(failedLog.Contains("ApiKeys: Could not save Anthropic API key (credential.write_failed)", StringComparison.Ordinal),
+                    $"the failed save was not logged as a failure; {failedContext}");
+                Assert(!failedLog.Contains("ApiKeys: Saved", StringComparison.Ordinal),
+                    $"a failed write still logged ApiKeys: Saved; {failedContext}");
+                Assert(!failedLog.Contains("ApiKeyService: Saved API key", StringComparison.Ordinal),
+                    $"a failed write still logged the service-level Saved line; {failedContext}");
+                Assert(!failedLog.Contains(placeholder, StringComparison.Ordinal)
+                       && !failedLog.Contains(ApiKeyService.MaskKeyForDisplay(placeholder), StringComparison.Ordinal),
+                    "the key value or its masked form reached the log");
+
+                // Control: the same step over a backend that works DOES log the line,
+                // so the absence above is not an artefact of the capture. Anthropic
+                // has no transcription twin, so no health probe is scheduled.
+                var workingOffsets = SnapshotLogOffsets();
+                var working = new ApiKeyService(new InMemoryCredentialBackend());
+                Assert(ApiKeysSettingsPage.WriteKeyAndLog(
+                        () => working.SetApiKey(PostProcessingProvider.Anthropic, placeholder), "Anthropic", clearing: false),
+                    "a working backend was reported as a failed write");
+                var workingLog = ReadLogSince(workingOffsets);
+                Assert(workingLog.Contains("ApiKeys: Saved Anthropic API key", StringComparison.Ordinal),
+                    $"the control save did not log ApiKeys: Saved; captured: <<<{workingLog}>>>");
+                Assert(working.GetApiKey(PostProcessingProvider.Anthropic) == placeholder,
+                    "the control save did not store the value");
+            });
+
+            Run("issue #742: a Credential Manager read fault is logged as an error, not passed off as no key", () =>
+            {
+                var backend = new InMemoryCredentialBackend { ThrowOnRead = true };
+                var service = new ApiKeyService(backend);
+                var offsets = SnapshotLogOffsets();
+
+                Assert(service.GetApiKey(TranscriptionApiKeyType.Deepgram) == null,
+                    "a failed read produced a key");
+                var log = ReadLogSince(offsets);
+                Assert(log.Contains("ApiKeyService: Failed to read credential for", StringComparison.Ordinal),
+                    $"a failed read left no error in the log; captured: <<<{log}>>>");
+
+                // A plain miss stays quiet: that is the normal unconfigured state.
+                var missOffsets = SnapshotLogOffsets();
+                var empty = new ApiKeyService(new InMemoryCredentialBackend());
+                Assert(empty.GetApiKey(TranscriptionApiKeyType.Deepgram) == null, "an empty vault produced a key");
+                Assert(!ReadLogSince(missOffsets).Contains("Failed to read credential", StringComparison.Ordinal),
+                    "an unconfigured provider was logged as a read failure");
+            });
+
             Run("issue #379 (c4): production API-key write mappings advance only the affected provider", () =>
             {
                 var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -17336,6 +17410,33 @@ internal static class Program
             _position += size;
             return size;
         }
+    }
+
+    /// <summary>
+    /// A Credential Manager whose add always fails, the way PasswordVault.Add does
+    /// on a roaming quota, a locked vault or a Group Policy restriction (#742).
+    /// Write mirrors PasswordVaultCredentialBackend.Write: delete, then add.
+    /// </summary>
+    private sealed class ThrowingAddCredentialBackend : IWindowsCredentialBackend
+    {
+        private const int AccessDenied = unchecked((int)0x80070005);
+
+        public int AddAttempts { get; private set; }
+
+        public bool TryRead(string resource, string account, out string? value)
+        {
+            value = null;
+            return false;
+        }
+
+        public void Write(string resource, string account, string value)
+        {
+            Delete(resource, account);
+            AddAttempts++;
+            throw new System.Runtime.InteropServices.COMException("Credential Manager refused the add.", AccessDenied);
+        }
+
+        public void Delete(string resource, string account) { }
     }
 
     private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
