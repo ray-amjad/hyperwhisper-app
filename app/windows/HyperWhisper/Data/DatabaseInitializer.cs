@@ -23,6 +23,13 @@ public static class DatabaseInitializer
 
             using var context = new HyperWhisperDbContext();
 
+            // A kill inside a previous MigrateAsync leaves EF's lock row, and
+            // MigrateAsync would then wait on it forever (#996). App.OnStartup
+            // holds SingleInstanceGuard by now, so any row here is stale.
+            var staleLocks = await PortableApplication.Persistence.StaleMigrationLock.ClearAsync(context.Database);
+            if (staleLocks > 0)
+                LoggingService.Warn($"DatabaseInitializer: Cleared {staleLocks} stale EF migration lock row(s)");
+
             // Apply any pending migrations automatically
             LoggingService.Debug("DatabaseInitializer: Applying migrations...");
             await context.Database.MigrateAsync();
