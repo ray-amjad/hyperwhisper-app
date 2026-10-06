@@ -133,15 +133,40 @@ struct SimpleRecorderMeterReadTests {
         #expect(reader.ranOnMainThread == false)
     }
 
+    /// Positive control: with the read's recorder still installed and no stop,
+    /// the level IS published. Without this, the drop test below could pass
+    /// because nothing is ever published.
+    @Test func readThatReturnsWhileStillInstalledPublishesItsLevel() async throws {
+        let reader = BlockingMeterReader(level: 0.8)
+        defer { reader.release() }
+        let recorder = Self.makeRecorder(reader: reader)
+        let avRecorder = try Self.makeAVRecorder()
+        recorder.installRecorderForTesting(avRecorder)
+
+        recorder.requestMeterRead(from: avRecorder)
+        #expect(await reader.waitUntilEntered())
+        reader.release()
+
+        #expect(await Self.waitUntilReadSettles(recorder))
+        #expect(recorder.audioLevel == 0.8)
+    }
+
     @Test func readThatReturnsAfterStopDoesNotPublishALevel() async throws {
         let reader = BlockingMeterReader(level: 0.8)
         defer { reader.release() }
         let recorder = Self.makeRecorder(reader: reader)
+        let avRecorder = try Self.makeAVRecorder()
+        recorder.installRecorderForTesting(avRecorder)
 
-        recorder.requestMeterRead(from: try Self.makeAVRecorder())
+        recorder.requestMeterRead(from: avRecorder)
         #expect(await reader.waitUntilEntered())
 
         recorder.stopRecording()
+        // `stopRecording()` empties the slot, which alone would drop the level.
+        // Put the same recorder back so the identity guard passes: the
+        // `startGeneration` bump from the stop is then the only thing that can
+        // drop this stale read.
+        recorder.installRecorderForTesting(avRecorder)
         reader.release()
 
         #expect(await Self.waitUntilReadSettles(recorder))

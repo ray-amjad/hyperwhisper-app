@@ -185,6 +185,13 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// behind it. Only touched on the main actor.
     private(set) var meterReadInFlight = false
 
+    /// Test seam: put `recorder` in the installed slot without starting it, the
+    /// meter loop, or `isRecording`, so a test can reach the publish guards in
+    /// `finishMeterRead`. Production never calls it.
+    func installRecorderForTesting(_ recorder: AVAudioRecorder) {
+        self.recorder = recorder
+    }
+
     deinit {
         meterUpdateTask?.cancel()
         recorderReleaseTask?.cancel()
