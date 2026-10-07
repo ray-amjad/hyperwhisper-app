@@ -384,7 +384,7 @@ final class ClipboardSnapshotReader: @unchecked Sendable {
     /// deadline, or when an earlier read is still stuck.
     func snapshot(
         caller: String,
-        provider: @escaping Provider = ClipboardSnapshotReader.readGeneralPasteboard
+        provider: @escaping Provider = ClipboardSnapshotReader.generalPasteboardProvider
     ) async -> Snapshot? {
         let deadlineMs = deadlineNanoseconds / 1_000_000
 
@@ -451,6 +451,11 @@ final class ClipboardSnapshotReader: @unchecked Sendable {
             logger.warning("📋 Clipboard snapshot passed its deadline (\(caller, privacy: .public)): items=\(itemCount, privacy: .public) types=\(typeCount, privacy: .public) elapsedMs=\(elapsedMs, privacy: .public) deadlineMs=\(deadlineMs, privacy: .public); the clipboard will not be restored")
             return nil
         }
+    }
+
+    /// The production provider, as a `@Sendable` value.
+    static let generalPasteboardProvider: Provider = { progress in
+        readGeneralPasteboard(progress)
     }
 
     /// The production read: every type of every item on the general pasteboard.
