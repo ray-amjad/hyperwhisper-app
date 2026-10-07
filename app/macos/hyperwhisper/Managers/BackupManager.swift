@@ -24,6 +24,17 @@ import Foundation
 import SwiftUI
 import AppKit
 
+// MARK: - API Key Writer
+
+/// The one secure-storage write a backup restore makes per BYOK key. A
+/// protocol so a test can inject a writer that fails; production writes go to
+/// `KeychainManager.shared`.
+protocol BackupAPIKeyWriting {
+    func saveAPIKey(_ key: String, for type: KeychainManager.APIKeyType) throws
+}
+
+extension KeychainManager: BackupAPIKeyWriting {}
+
 // MARK: - Backup Manager
 
 /// Manages export and import of app settings
@@ -49,6 +60,19 @@ class BackupManager: ObservableObject {
     /// there, not a singleton). All backup license reads and writes route
     /// through its one shared secure store.
     weak var licenseManager: LicenseManager?
+
+    /// Where a restore writes BYOK API keys. Only a test replaces this.
+    var apiKeyWriter: any BackupAPIKeyWriting = KeychainManager.shared
+
+    /// What a BYOK key restore actually did, read off the Keychain writes
+    /// rather than off the backup file.
+    struct APIKeyRestoreOutcome {
+        /// Writes that succeeded.
+        var saved = 0
+        /// Providers whose key is in the file but is NOT in the Keychain,
+        /// in restore order, each listed once.
+        var failed: [KeychainManager.APIKeyType] = []
+    }
 
     // MARK: - Init
 
@@ -621,11 +645,14 @@ class BackupManager: ObservableObject {
             vocabSkipped = vocabResult.skipped
         }
 
-        // Import API keys if present and requested
+        // Import API keys if present and requested. Success is read off the
+        // Keychain writes, not off the file; a failed key does not stop the import.
         var apiKeysImported = false
+        var apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
         if options.importAPIKeys, let apiKeys = backupData.apiKeys {
-            importAPIKeys(apiKeys)
-            apiKeysImported = apiKeys.hasAnyKey
+            let outcome = importAPIKeys(apiKeys)
+            apiKeysImported = outcome.saved > 0
+            apiKeysFailedProviders = outcome.failed
         }
 
         // Import license key if present and requested. Trim first (an untrimmed
@@ -648,7 +675,8 @@ class BackupManager: ObservableObject {
                         vocabularyImported: vocabImported,
                         apiKeysImported: apiKeysImported
                     ),
-                    repairImportedModes: options.importModes
+                    repairImportedModes: options.importModes,
+                    apiKeysFailedProviders: apiKeysFailedProviders
                 )
             }
             licenseKeyImported = true
@@ -670,6 +698,7 @@ class BackupManager: ObservableObject {
             licenseKeyImported: licenseKeyImported
         )
         result.pendingLocalDownloadModelIds = pendingLocalDownloads
+        result.apiKeysFailedProviders = apiKeysFailedProviders
         return result
     }
 
@@ -905,10 +934,13 @@ class BackupManager: ObservableObject {
         }
 
         // 5. API keys + license (reuse the existing flat-lowercase logic + license write).
+        //    Success is read off the Keychain writes, not off the file.
         var apiKeysImported = false
+        var apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
         if options.importAPIKeys, let apiKeys = dto.apiKeys, !apiKeys.isEmpty {
-            importUniversalAPIKeys(apiKeys)
-            apiKeysImported = true
+            let outcome = importUniversalAPIKeys(apiKeys)
+            apiKeysImported = outcome.saved > 0
+            apiKeysFailedProviders = outcome.failed
         }
 
         // Trim + revalidate — see the v1 license-key import above.
@@ -929,7 +961,8 @@ class BackupManager: ObservableObject {
                         vocabularyImported: vocabImported,
                         apiKeysImported: apiKeysImported
                     ),
-                    repairImportedModes: options.importModes
+                    repairImportedModes: options.importModes,
+                    apiKeysFailedProviders: apiKeysFailedProviders
                 )
             }
             licenseKeyImported = true
@@ -949,6 +982,7 @@ class BackupManager: ObservableObject {
             licenseKeyImported: licenseKeyImported
         )
         result.pendingLocalDownloadModelIds = pendingLocalDownloads
+        result.apiKeysFailedProviders = apiKeysFailedProviders
         return result
     }
 
@@ -959,12 +993,15 @@ class BackupManager: ObservableObject {
         vocabularySkipped: Int,
         apiKeysImported: Bool,
         earlierSectionsApplied: Bool,
-        repairImportedModes: Bool
+        repairImportedModes: Bool,
+        apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
     ) -> ImportResult {
         let failureMessage = "Failed to securely import the license key"
         guard earlierSectionsApplied else {
             lastError = failureMessage
-            return .failure(failureMessage)
+            var failure = ImportResult.failure(failureMessage)
+            failure.apiKeysFailedProviders = apiKeysFailedProviders
+            return failure
         }
 
         let message = "The other selected backup sections were applied, but the license key could not be securely imported."
@@ -978,6 +1015,7 @@ class BackupManager: ObservableObject {
             apiKeysImported: apiKeysImported
         )
         result.pendingLocalDownloadModelIds = repairImportedModes ? repairRestoredLocalModes() : []
+        result.apiKeysFailedProviders = apiKeysFailedProviders
         return result
     }
 
@@ -1091,11 +1129,34 @@ class BackupManager: ObservableObject {
 
     /// Imports flat lowercase-provider API keys (the universal/Windows shape) into the Keychain.
     /// Reuses the same per-provider save calls as the v1 `importAPIKeys`; unknown keys are ignored.
-    private func importUniversalAPIKeys(_ keys: [String: String]) {
-        let keychainManager = KeychainManager.shared
-        for (provider, key) in BackupManager.universalAPIKeyAssignments(from: keys) {
-            try? keychainManager.saveAPIKey(key, for: provider)
+    private func importUniversalAPIKeys(_ keys: [String: String]) -> APIKeyRestoreOutcome {
+        restoreAPIKeys(BackupManager.universalAPIKeyAssignments(from: keys))
+    }
+
+    /// Writes each assignment through `apiKeyWriter` and reports what landed.
+    /// A failed write is logged and counted, and the loop carries on: a
+    /// partial key restore is better than none, so nothing is unwound.
+    private func restoreAPIKeys(
+        _ assignments: [(provider: KeychainManager.APIKeyType, key: String)]
+    ) -> APIKeyRestoreOutcome {
+        var outcome = APIKeyRestoreOutcome()
+        for (provider, key) in assignments {
+            do {
+                try apiKeyWriter.saveAPIKey(key, for: provider)
+                outcome.saved += 1
+                // The last write to a slot decides what it holds (the Gemini
+                // Transcribe alias is written before its canonical member).
+                outcome.failed.removeAll { $0 == provider }
+            } catch {
+                if !outcome.failed.contains(provider) {
+                    outcome.failed.append(provider)
+                }
+                // PRIVACY: the provider name and the error only. NEVER the key.
+                let providerName = provider.displayName
+                AppLogger.settings.error("Backup import: could not save the \(providerName, privacy: .public) API key to the Keychain: \(error.localizedDescription, privacy: .public)")
+            }
         }
+        return outcome
     }
 
     // MARK: - Universal (v2) API-key mapping
@@ -1439,43 +1500,36 @@ class BackupManager: ObservableObject {
 
     /// Imports API keys from backup to Keychain
     /// - Parameter apiKeys: BackupAPIKeys to import
-    private func importAPIKeys(_ apiKeys: BackupAPIKeys) {
-        let keychainManager = KeychainManager.shared
+    /// - Returns: what the Keychain writes did
+    private func importAPIKeys(_ apiKeys: BackupAPIKeys) -> APIKeyRestoreOutcome {
+        restoreAPIKeys(Self.legacyAPIKeyAssignments(from: apiKeys))
+    }
 
-        if let key = apiKeys.openai, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .openAI)
+    /// The keychain writes a v1 `apiKeys` section implies, in order. Empty and
+    /// nil keys are skipped. Pure, so the mapping is testable without the Keychain.
+    nonisolated static func legacyAPIKeyAssignments(
+        from apiKeys: BackupAPIKeys
+    ) -> [(provider: KeychainManager.APIKeyType, key: String)] {
+        let candidates: [(provider: KeychainManager.APIKeyType, key: String?)] = [
+            (.openAI, apiKeys.openai),
+            (.groq, apiKeys.groq),
+            // Fireworks removed: read-and-ignore apiKeys.fireworks so old backups still decode.
+            (.anthropic, apiKeys.anthropic),
+            (.gemini, apiKeys.gemini),
+            (.deepgram, apiKeys.deepgram),
+            (.assemblyAI, apiKeys.assemblyai),
+            (.elevenLabs, apiKeys.elevenlabs),
+            (.mistral, apiKeys.mistral),
+            (.grok, apiKeys.grok),
+            (.geminiTranscribe, apiKeys.geminitranscribe),
+            (.meta, apiKeys.meta),
+        ]
+        var assignments: [(provider: KeychainManager.APIKeyType, key: String)] = []
+        for candidate in candidates {
+            guard let key = candidate.key, !key.isEmpty else { continue }
+            assignments.append((candidate.provider, key))
         }
-        if let key = apiKeys.groq, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .groq)
-        }
-        // Fireworks removed: read-and-ignore apiKeys.fireworks so old backups still decode.
-        if let key = apiKeys.anthropic, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .anthropic)
-        }
-        if let key = apiKeys.gemini, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .gemini)
-        }
-        if let key = apiKeys.deepgram, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .deepgram)
-        }
-        if let key = apiKeys.assemblyai, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .assemblyAI)
-        }
-        if let key = apiKeys.elevenlabs, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .elevenLabs)
-        }
-        if let key = apiKeys.mistral, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .mistral)
-        }
-        if let key = apiKeys.grok, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .grok)
-        }
-        if let key = apiKeys.geminitranscribe, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .geminiTranscribe)
-        }
-        if let key = apiKeys.meta, !key.isEmpty {
-            try? keychainManager.saveAPIKey(key, for: .meta)
-        }
+        return assignments
     }
 
     /// Converts empty strings to nil
