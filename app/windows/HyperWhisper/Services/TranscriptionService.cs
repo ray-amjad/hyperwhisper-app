@@ -828,17 +828,107 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             provider = new WdlResamplingSampleProvider(provider, 16000);
         }
 
+        var samples = ReadAllSamples(provider, reader.TotalTime);
+
+        // Whisper invents a closing "Okay." or "Thank you." when a recording ends in
+        // silence (the user pausing before the hotkey). Cut that silence off.
+        var keep = TrailingSilenceTrimPoint(samples.AsSpan(), 16000);
+        if (keep < samples.Length)
+        {
+            LoggingService.Debug($"  Trimmed {(samples.Length - keep) / 16000.0:F2}s of trailing silence");
+        }
+
         // Write to MemoryStream with proper WAV headers (RIFF format)
         // This is critical - Whisper.net expects a complete WAV file, not raw samples
         // Pre-allocate MemoryStream to avoid LOH-triggering buffer doublings
         // 16kHz * 2 bytes/sample * 1 channel * duration + 44 byte WAV header
-        long estimatedBytes = (long)(reader.TotalTime.TotalSeconds * 32000) + 44;
-        var output = new MemoryStream((int)Math.Min(estimatedBytes, int.MaxValue));
-        WaveFileWriter.WriteWavFileToStream(output, provider.ToWaveProvider16());
+        var output = new MemoryStream(keep * 2 + 44);
+        using (var writer = new WaveFileWriter(new NAudio.Utils.IgnoreDisposeStream(output), new WaveFormat(16000, 16, 1)))
+        {
+            writer.WriteSamples(samples, 0, keep);
+        }
         output.Position = 0;
 
         LoggingService.Debug($"  Prepared WAV stream: {output.Length:N0} bytes");
         return output;
+    }
+
+    /// <summary>
+    /// Reads every sample from a 16kHz mono provider, clamped to [-1, 1] so the
+    /// 16-bit conversion cannot wrap around on resampler overshoot.
+    /// </summary>
+    private static float[] ReadAllSamples(ISampleProvider provider, TimeSpan totalTime)
+    {
+        var samples = new float[(int)(totalTime.TotalSeconds * 16000) + 16000];
+        int count = 0;
+        var buffer = new float[16000];
+        int read;
+        while ((read = provider.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            if (count + read > samples.Length)
+            {
+                Array.Resize(ref samples, samples.Length * 2);
+            }
+            for (int i = 0; i < read; i++)
+            {
+                samples[count + i] = Math.Clamp(buffer[i], -1f, 1f);
+            }
+            count += read;
+        }
+        Array.Resize(ref samples, count);
+        return samples;
+    }
+
+    /// <summary>
+    /// Returns how many samples to keep so the audio ends 0.3s after the last
+    /// window loud enough to be speech. Loudness is measured in 50ms windows; a
+    /// window counts as speech when it is 6x the recording's noise floor (its
+    /// 10th-percentile window), capped at a fifth of its speech level (90th
+    /// percentile) so a quiet last word on a noisy line still counts. Returns the
+    /// full length when nothing stands out, and never less than 1.1s because
+    /// whisper.cpp skips input shorter than one second.
+    /// </summary>
+    internal static int TrailingSilenceTrimPoint(ReadOnlySpan<float> samples, int sampleRate)
+    {
+        int window = sampleRate / 20;
+        int windowCount = samples.Length / window;
+        if (windowCount == 0)
+        {
+            return samples.Length;
+        }
+
+        var rms = new double[windowCount];
+        for (int w = 0; w < windowCount; w++)
+        {
+            double sum = 0;
+            foreach (var s in samples.Slice(w * window, window))
+            {
+                sum += s * s;
+            }
+            rms[w] = Math.Sqrt(sum / window);
+        }
+
+        var sorted = (double[])rms.Clone();
+        Array.Sort(sorted);
+        double floor = sorted[windowCount / 10];
+        double speech = sorted[windowCount * 9 / 10];
+        // 0.0012 ≈ 40 on the 16-bit scale: a dead-quiet input's floor times six
+        // would otherwise flag mic hiss as speech.
+        double threshold = Math.Min(Math.Max(floor * 6, 0.0012), speech / 5);
+
+        int last = windowCount - 1;
+        while (last >= 0 && rms[last] <= threshold)
+        {
+            last--;
+        }
+        if (last < 0)
+        {
+            return samples.Length;
+        }
+
+        int keep = (last + 1) * window + (int)(0.3 * sampleRate);
+        int minimum = (int)(1.1 * sampleRate);
+        return Math.Min(samples.Length, Math.Max(keep, minimum));
     }
 
     // =========================================================================
