@@ -16,12 +16,21 @@ struct Qwen3AsrChunkerTests {
 
     private static let rate = 16_000
 
-    /// A 440 Hz tone: every frame is loud, so there is no silence anywhere.
+    /// One period of a 400 Hz tone at 16 kHz.
+    private static let period: [Float] = (0..<40).map { Float(sin(2 * Double.pi * Double($0) / 40)) }
+
+    /// A 400 Hz tone: every frame is loud, so there is no silence anywhere.
+    /// Built by repeating one period, not with a `sin` per sample: this is a
+    /// Debug build, and CI runs it beside tests that time the main actor.
     private static func tone(seconds: Double, amplitude: Float = 0.3) -> [Float] {
         let count = Int(seconds * Double(rate))
-        return (0..<count).map { index in
-            amplitude * Float(sin(2 * Double.pi * 440 * Double(index) / Double(rate)))
+        let scaled = period.map { $0 * amplitude }
+        var samples: [Float] = []
+        samples.reserveCapacity(count)
+        while samples.count < count {
+            samples.append(contentsOf: scaled.prefix(count - samples.count))
         }
+        return samples
     }
 
     /// `tone`, with the samples from `from` to `to` seconds replaced by `level`.
@@ -73,8 +82,8 @@ struct Qwen3AsrChunkerTests {
     }
 
     @Test func aLongRunWithNoSilenceStillGetsCut() {
-        // 5 minutes with no pause at all: the recording main gave no text for.
-        let samples = Self.tone(seconds: 300)
+        // 2 minutes with no pause at all. Main gave no text past ~38 s.
+        let samples = Self.tone(seconds: 120)
         let chunks = Qwen3AsrChunker.plan(samples: samples)
         let config = Qwen3AsrChunker.Config.default
         let maxLength = Int(config.maxChunkSeconds * Double(Self.rate))
@@ -94,10 +103,10 @@ struct Qwen3AsrChunkerTests {
     }
 
     @Test func everyChunkStaysUnderTheLimitAndNoSampleIsSkipped() {
-        // A 4 minute clip with a short pause every 7 s, like real speech.
-        var samples = Self.tone(seconds: 240)
+        // A 100 s clip with a short pause every 7 s, like real speech.
+        var samples = Self.tone(seconds: 100)
         var pause = 7.0
-        while pause < 240 {
+        while pause < 100 {
             for index in Int(pause * Double(Self.rate))..<Int((pause + 0.3) * Double(Self.rate)) {
                 samples[index] = 0
             }
