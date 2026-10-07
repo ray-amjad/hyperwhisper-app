@@ -15710,12 +15710,15 @@ internal static class Program
                 // precondition assert already proves the failure came from the hold.
                 var previous = TextDeliveryGate.IsSuppressed;
                 using var paste = new SmartPasteService();
+                // No modifier is "down", so the #1495 release wait returns at once
+                // whatever the operator's keyboard is doing.
+                paste.IsKeyDown = static _ => false;
                 try
                 {
                     TextDeliveryGate.SetSuppressed(false);
 
                     // No service: nothing to read, so Failed and silent, as before.
-                    var noService = MainViewModel.DeliverAutoPaste(null, "no service");
+                    var noService = MainViewModel.DeliverAutoPasteAsync(null, "no service").GetAwaiter().GetResult();
                     Assert(noService.Result == SmartPasteResult.Failed && !noService.LostTranscript,
                         $"a null paste service must be (Failed, False), got {noService}");
 
@@ -15752,7 +15755,7 @@ internal static class Program
                             "precondition: the helper thread never tried to open the clipboard");
                         Assert(held, "precondition: the helper thread could not open the clipboard");
 
-                        var refused = MainViewModel.DeliverAutoPaste(paste, "a held clipboard");
+                        var refused = MainViewModel.DeliverAutoPasteAsync(paste, "a held clipboard").GetAwaiter().GetResult();
                         Assert(paste.LastSmartPasteOutcome == PasteOutcome.ClipboardSetFailed,
                             $"expected ClipboardSetFailed, got {paste.LastSmartPasteOutcome?.ToString() ?? "null"}");
                         Assert(refused.Result == SmartPasteResult.Failed && refused.LostTranscript,
@@ -15763,7 +15766,7 @@ internal static class Program
                         // The gate exit records nothing, and must not inherit the
                         // ClipboardSetFailed the call above recorded.
                         TextDeliveryGate.SetSuppressed(true);
-                        var suppressed = MainViewModel.DeliverAutoPaste(paste, "a suppressed transcript");
+                        var suppressed = MainViewModel.DeliverAutoPasteAsync(paste, "a suppressed transcript").GetAwaiter().GetResult();
                         Assert(paste.LastSmartPasteOutcome == null,
                             "a suppressed paste must leave the outcome null, not the last call's");
                         Assert(suppressed.Result == SmartPasteResult.Failed && !suppressed.LostTranscript,
@@ -15772,7 +15775,7 @@ internal static class Program
                             "and the gate silences the report itself");
                         TextDeliveryGate.SetSuppressed(false);
 
-                        var empty = MainViewModel.DeliverAutoPaste(paste, string.Empty);
+                        var empty = MainViewModel.DeliverAutoPasteAsync(paste, string.Empty).GetAwaiter().GetResult();
                         Assert(paste.LastSmartPasteOutcome == PasteOutcome.EmptyText,
                             "empty text records EmptyText");
                         Assert(empty.Result == SmartPasteResult.Failed && !empty.LostTranscript,

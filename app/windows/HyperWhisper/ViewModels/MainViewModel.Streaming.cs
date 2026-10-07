@@ -207,6 +207,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         _isStoppingStreaming = true;
+        _streamingStopDefersHeldSegments = true;
         LoggingService.LogPerformanceMarker("StreamingTranscriptionFlow", "StopStreamingRecordingAsync invoked");
         SentryService.AddBreadcrumb(
             "streaming_stop_requested",
@@ -272,9 +273,23 @@ public partial class MainViewModel : ViewModelBase
 
             // No local usage recording — local transcription is unlimited (open source).
 
+            // #1495: the streaming chord that stopped this session can still be
+            // down. Wait for its Shift/Alt/Win keys to come up (awaited, bounded)
+            // before any paste below, or the Ctrl+V reaches the target as
+            // Ctrl+Alt+V. Segments that arrive during the wait while a key is
+            // still down are queued as pending (see the segment handler), and
+            // the pending branch below pastes them.
+            if (SettingsService.Instance.AutoPasteEnabled && _pasteService != null)
+            {
+                await _pasteService.WaitForPasteModifiersReleasedAsync();
+            }
+
             var textToProcess = finalText;
 
             var pasteResult = _streamingLastPasteResult;
+            // From here a late segment pastes directly again, as before #1495:
+            // the pending text is read on the next line and nothing re-reads it.
+            _streamingStopDefersHeldSegments = false;
             var pendingFallbackText = TranscriptionTextProcessing.FinalizeStreamingText(_streamingPendingFinalFallbackText);
             if (!SettingsService.Instance.AutoPasteEnabled)
             {
@@ -397,6 +412,7 @@ public partial class MainViewModel : ViewModelBase
                 _shortcutService.ResetKeyboardState();
                 _pasteService?.EndRecordingSession();
                 _isStoppingStreaming = false;
+                _streamingStopDefersHeldSegments = false;
             }
         }
     }
@@ -425,6 +441,20 @@ public partial class MainViewModel : ViewModelBase
         if (!CheckStreamingTargetAvailability())
             return;
 
+        // #1495: a segment flushed while the user still holds the stop chord
+        // would be pasted as Ctrl+Alt+V (or Ctrl+Shift+V). This handler cannot
+        // wait - an await here would let the stop path read the session state
+        // before this segment is delivered - so it hands the segment to the stop
+        // path, which waits for the keys and pastes its pending text.
+        if (_streamingStopDefersHeldSegments && _pasteService?.AnyPasteModifierHeld == true)
+        {
+            LoggingService.Info("MainViewModel: Streaming final segment arrived while the stop chord is held; queued for the stop path's paste");
+            AppendStreamingPendingFallback(segment);
+            return;
+        }
+
+        // Mid-session, nothing waits: SmartPaste itself releases any Shift, Alt
+        // or Win key still down right before its Ctrl+V.
         _streamingLastPasteResult = PasteStreamingFinalSegment(segment);
         if (_streamingLastPasteResult == SmartPasteResult.Pasted)
         {
