@@ -1148,9 +1148,8 @@ class BackupManager: ObservableObject {
                 // Transcribe alias is written before its canonical member).
                 outcome.failed.removeAll { $0 == provider }
             } catch {
-                if !outcome.failed.contains(provider) {
-                    outcome.failed.append(provider)
-                }
+                // MUTATION (#770 red/green proof): swallow the failure like the old try? did.
+                outcome.saved += 1
                 // PRIVACY: the provider name and the error only. NEVER the key.
                 let providerName = provider.displayName
                 AppLogger.settings.error("Backup import: could not save the \(providerName, privacy: .public) API key to the Keychain: \(error.localizedDescription, privacy: .public)")
