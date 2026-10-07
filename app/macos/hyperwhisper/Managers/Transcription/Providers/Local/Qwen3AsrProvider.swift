@@ -389,8 +389,23 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         let effectiveLanguage = mode?.language ?? language
         let langHint: String? = (effectiveLanguage == nil || effectiveLanguage == "auto") ? nil : effectiveLanguage
 
+        // One call per chunk: the 512-token decoder cache holds ~30 s, so one
+        // call with a longer clip loses its end or throws (see Qwen3AsrChunker).
+        let chunks = Qwen3AsrChunker.plan(samples: audioSamples)
+        let overlapCount = chunks.filter(\.overlapsPrevious).count
+        logger.info("Qwen3 ASR transcribing samples=\(audioSamples.count, privacy: .public) chunks=\(chunks.count, privacy: .public) overlappingCuts=\(overlapCount, privacy: .public)")
+
         do {
-            var text = try await manager.transcribe(audioSamples: audioSamples, language: langHint)
+            var pieces: [Qwen3AsrChunker.Piece] = []
+            for chunk in chunks {
+                try Task.checkCancellation()
+                let chunkText = try await manager.transcribe(
+                    audioSamples: Array(audioSamples[chunk.start..<chunk.end]),
+                    language: langHint
+                )
+                pieces.append(Qwen3AsrChunker.Piece(text: chunkText, overlapsPrevious: chunk.overlapsPrevious))
+            }
+            var text = Qwen3AsrChunker.join(pieces)
             if !vocabulary.isEmpty {
                 text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
             }
