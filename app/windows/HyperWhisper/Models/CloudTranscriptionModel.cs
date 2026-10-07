@@ -351,13 +351,23 @@ public static class CloudTranscriptionModels
 
     /// <summary>
     /// Google Gemini transcription models.
-    /// - gemini-2.5-flash: Fast, cost-effective (default)
+    /// - gemini-3.8-flash: Current Flash model (default since #1019 — Google limits
+    ///   the 2.5 models to accounts that used them before 2026-09-18)
+    /// - gemini-2.5-flash: Fast, cost-effective
     /// - gemini-2.5-flash-lite: Cheapest option
     /// - gemini-2.5-pro: Highest quality
     /// - gemini-3.x: Current and preview models
+    /// The default itself is read from cloud-stt-catalog.json (see GetDefault).
     /// </summary>
     public static readonly CloudTranscriptionModel[] Gemini = new[]
     {
+        new CloudTranscriptionModel
+        {
+            Id = "gemini-3.8-flash",
+            Description = "Current Flash model - the default for new keys",
+            Provider = CloudTranscriptionProvider.Gemini,
+            IsPopular = true
+        },
         new CloudTranscriptionModel
         {
             Id = "gemini-2.5-flash",
