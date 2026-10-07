@@ -397,6 +397,14 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
   let bytesReceived = 0;
   let transcriptChars = 0;
   let upstreamWs: WebSocket | null = null;
+  /**
+   * `true` once the vendor accepted the upstream WebSocket handshake (its `open`
+   * event fired) or any audio was forwarded to it. Only such a session pays the
+   * 0.1-credit minimum (#1191): a
+   * missing API key or a refused handshake never reached the vendor, cannot
+   * have forwarded audio, and bills 0.
+   */
+  let upstreamReached = false;
   let sessionEnded = false;
   let clientSocket: WSContext | null = null;
   let pingInterval: ReturnType<typeof setInterval> | null = null;
@@ -458,7 +466,10 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
     const meteredCostUsd = vendor.costForSeconds(totalDurationSeconds, transcriptChars);
     const reservedCostUsd = usdForCredits(auth.credits);
     const costUsd = Math.min(meteredCostUsd, reservedCostUsd);
-    const creditsUsed = creditsForCost(costUsd);
+    // The minimum is for a session that reached the vendor, even one that then
+    // sent no audio (#1191, Ray 2026-10-07). One that never did bills nothing,
+    // so no deduction is posted and the client is told `credits_used: 0`.
+    const creditsUsed = upstreamReached ? creditsForCost(costUsd) : 0;
 
     if (clientSocket && options.notifyClient !== false) {
       sendToClient(clientSocket, {
@@ -476,6 +487,9 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       // Only present when the clamp actually bit, so its absence is the normal
       // case and "how often do we eat the difference?" is one Axiom query.
       ...(meteredCostUsd > costUsd ? { meteredCostUsd, clampedToReservedCredits: auth.credits } : {}),
+      // Present only on the unbilled case, the same way, so "how many sessions
+      // never reached the vendor?" is one query.
+      ...(upstreamReached ? {} : { upstreamReached: false }),
     });
 
     if (creditsUsed > 0) {
@@ -520,6 +534,9 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
   function forwardAudio(data: ArrayBuffer): void {
     if (!upstreamWs) return;
     upstreamWs.send(vendor.encodeAudio(data) as string & ArrayBuffer);
+    // Audio only goes out on an OPEN socket, so this is already true via the
+    // `open` listener; set it here too so metered audio can never bill 0.
+    upstreamReached = true;
     totalDurationSeconds += durationSecondsForLinear16AudioBytes(data.byteLength);
   }
 
@@ -698,6 +715,9 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
         : new WebSocket(upstreamUrl, protocols);
 
       upstreamWs.addEventListener('open', () => {
+        // The vendor accepted the handshake, so this session is billable from
+        // here on, client still connected or not.
+        upstreamReached = true;
         // If the client already disconnected while we were still handshaking,
         // tear down the upstream socket instead of leaving it orphaned.
         if (ws.readyState !== 1) {
