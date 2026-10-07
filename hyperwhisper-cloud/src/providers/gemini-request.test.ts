@@ -196,6 +196,8 @@ describe('transcribeWithGemini — request shape', () => {
       ['gemini-2.5-pro', { thinkingBudget: 128 }],
       ['gemini-3-flash-preview', { thinkingLevel: 'minimal' }],
       ['gemini-3.1-pro-preview', { thinkingLevel: 'low' }],
+      // 3.8 Flash has no 'minimal' and cannot turn thinking off (#1019).
+      ['gemini-3.8-flash', { thinkingLevel: 'low' }],
       // An unrecognised model falls back to the 2.5-flash config.
       ['some-future-model', { thinkingBudget: 0 }],
     ];

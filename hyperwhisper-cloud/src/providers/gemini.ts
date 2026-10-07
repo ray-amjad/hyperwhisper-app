@@ -46,6 +46,10 @@ export function geminiMimeType(contentType: string): string {
 /** Per-model thinking config — keep thinking as low as each model allows. */
 function thinkingConfig(model: string): Record<string, unknown> {
   if (model === 'gemini-3.1-pro-preview') return { thinkingLevel: 'low' };
+  // 3.8 Flash accepts low/medium/high only: no 'minimal', and thinking cannot be
+  // turned off (https://ai.google.dev/gemini-api/docs/thinking, read 2026-10-07).
+  // Sending the gemini-3 'minimal' below would be refused, so pin its floor.
+  if (model === 'gemini-3.8-flash') return { thinkingLevel: 'low' };
   if (model.startsWith('gemini-3')) return { thinkingLevel: 'minimal' };
   if (model === 'gemini-2.5-pro') return { thinkingBudget: 128 }; // 0 invalid on Pro
   return { thinkingBudget: 0 }; // 2.5-flash / 2.5-flash-lite

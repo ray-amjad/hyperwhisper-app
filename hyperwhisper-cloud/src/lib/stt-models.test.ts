@@ -378,3 +378,28 @@ describe('formatProviderName', () => {
     expect(formatProviderName('deepgram', '')).toBe('deepgram');
   });
 });
+
+describe('gemini tier ↔ cloud-stt-catalog.json (#1019)', () => {
+  // Every client resolves a blank HyperWhisper Cloud gemini-tier model to the
+  // catalog's isDefault row and sends it as X-STT-Model, and the Model picker
+  // offers every catalog row. A row the backend does not list 400s that mode.
+  const catalog = require('../../../shared-app-classification/cloud-stt-catalog.json') as {
+    providers: Array<{ id: string; models: Array<{ id: string; isDefault: boolean }> }>;
+  };
+  const gemini = catalog.providers.find((p) => p.id === 'gemini')!;
+
+  test('every catalog gemini model resolves on the backend', () => {
+    for (const m of gemini.models) {
+      const r = resolveModel('gemini', m.id);
+      expect(r.ok).toBe(true);
+    }
+  });
+
+  test('the catalog default is gemini-3.8-flash and the backend serves it', () => {
+    const def = gemini.models.find((m) => m.isDefault)!;
+    expect(def.id).toBe('gemini-3.8-flash');
+    const r = resolveModel('gemini', def.id);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.model.id).toBe('gemini-3.8-flash');
+  });
+});
