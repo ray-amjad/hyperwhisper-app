@@ -51,6 +51,31 @@ struct QuickCaptureContext {
     let modeName: String?
 }
 
+// MARK: - Pending-File Retry Identity
+
+/// Identity of one pending-file retry (issue #1276).
+///
+/// A retry runs inside `TranscriptionPipeline.transcribeWithDetails`, whose
+/// inner unstructured `Task` does not inherit the retry's cancellation. So a
+/// newer flow does not stop it at once: a new dictation leaves it running, and
+/// the next pipeline request (the dictation's stop, a file transcription)
+/// cancels it. Either way the retry ends AFTER the newer flow owns
+/// `recordingState` and the recording dialog, and it must not write them.
+///
+/// `sessionGeneration` is `AppState.transcriptionSessionGeneration` as the
+/// retry began. Every flow that takes over the shared state bumps it.
+struct PendingRetryIdentity: Equatable {
+    let sessionGeneration: UInt64
+
+    /// True when a newer flow has started since this retry began. A superseded
+    /// retry writes no shared state when it ends, on success or on failure.
+    /// A retry that is cancelled with no newer flow, or that fails on its own,
+    /// is NOT superseded and keeps its normal handling.
+    func isSuperseded(currentSessionGeneration: UInt64) -> Bool {
+        currentSessionGeneration != sessionGeneration
+    }
+}
+
 /// Coordinates recording with transcription flow
 ///
 /// **Purpose:**

@@ -740,6 +740,9 @@
 
 Ова акција не може бити поништена.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Ништа није обрисано. Историја је непромењена. Покушај поново.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

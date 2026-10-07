@@ -198,7 +198,18 @@ public sealed class AutoDeleteService : IDisposable
 
             // Delete transcripts (HistoryService handles audio file deletion)
             var ids = transcriptsToDelete.Select(t => t.Id).ToList();
-            int deletedCount = History.DeleteTranscripts(ids);
+            var deleteResult = History.DeleteTranscripts(ids);
+            if (deleteResult.IsFailure)
+            {
+                // SQLite refused the delete, so nothing was removed (#974). Hand it to the
+                // catch below: it logs, captures to Sentry, skips RecordAutoDeleteCleanup,
+                // and for Delete Now rethrows. The message is the localized
+                // transcripts.delete.failed copy, which is what the Storage page's
+                // deleteFailed dialog shows (it reads the inner exception's message),
+                // never EF's untranslated "An error occurred while saving...".
+                throw new InvalidOperationException(deleteResult.Error, deleteResult.Exception);
+            }
+            int deletedCount = deleteResult.Value;
 
             // Update statistics
             _lastCleanupFilesDeleted = filesDeleted;

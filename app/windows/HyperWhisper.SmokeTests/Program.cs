@@ -14925,6 +14925,156 @@ internal static class Program
                 }
             });
 
+            Run("history: a delete that SQLite refuses is reported, not swallowed — issue #974", () =>
+            {
+                // HistoryService.DeleteTranscripts caught the DbUpdateException and
+                // returned 0, so Delete Now told the user "Deleted 0 recording(s)",
+                // stamped the sweep as a completed cleanup, and the transcript stayed.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                // Lock only the suite's own scratch profile (the AppPaths override
+                // Main sets), never the user's database. Read the path the app's
+                // own context opens, not a re-derived one.
+                string dbPath;
+                using (var probe = new HyperWhisperDbContext())
+                {
+                    dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                        probe.Database.GetConnectionString()).DataSource);
+                }
+                Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+                    $"the database {dbPath} is not under the suite's temp profile; refusing to lock it");
+
+                var settings = SettingsService.Instance;
+                var history = HistoryService.Instance;
+                var autoDelete = AutoDeleteService.Instance;
+
+                var enabledBefore = settings.AutoDeleteEnabled;
+                var daysBefore = settings.AutoDeleteDaysOld;
+                var stampBefore = settings.AutoDeleteLastCleanupUtc;
+                var countBefore = settings.AutoDeleteLastCleanupDeleted;
+
+                // 365 is the page's maximum, so only this case's backdated row is due.
+                settings.AutoDeleteEnabled = true;
+                settings.AutoDeleteDaysOld = 365;
+
+                var old = history.CreateProcessingTranscript(1.0, "percy974", audioFilePath: null);
+                old.Date = DateTime.UtcNow.AddDays(-400);
+                old.Status = TranscriptStatus.Completed;
+                old.Text = "issue 974 probe";
+                history.UpdateTranscript(old);
+
+                // A second connection holds the write lock. BEGIN IMMEDIATE, not
+                // EXCLUSIVE: the app database is in rollback-journal mode, where
+                // EXCLUSIVE also blocks readers, so GetTranscriptsOlderThan (which
+                // swallows every error into an empty list) would find nothing to
+                // delete and the delete under test would never run. IMMEDIATE lets
+                // the read through and refuses the DELETE with SQLite Error 5,
+                // 'database is locked', after the provider's 30 s busy wait.
+                var locker = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+                var lockHeld = false;
+                try
+                {
+                    locker.Open();
+                    using (var begin = locker.CreateCommand())
+                    {
+                        begin.CommandText = "BEGIN IMMEDIATE;";
+                        begin.ExecuteNonQuery();
+                    }
+                    lockHeld = true;
+
+                    Exception? thrown = null;
+                    int deleted = -1;
+                    try
+                    {
+                        deleted = autoDelete.PerformManualCleanup();
+                    }
+                    catch (Exception ex)
+                    {
+                        thrown = ex;
+                    }
+
+                    using (var rollback = locker.CreateCommand())
+                    {
+                        rollback.CommandText = "ROLLBACK;";
+                        rollback.ExecuteNonQuery();
+                    }
+                    lockHeld = false;
+
+                    Assert(thrown is InvalidOperationException,
+                        thrown == null
+                            ? $"Delete Now returned {deleted} while SQLite refused the delete, so the user "
+                              + "is told the sweep worked and the deleteFailed dialog never shows"
+                            : $"expected InvalidOperationException, got {thrown.GetType().Name}: {thrown.Message}");
+                    // HistoryService returns the refusal as a failed Result; AutoDeleteService
+                    // turns it into an exception whose message is the localized copy and
+                    // whose cause is the DbUpdateException, then wraps it for Delete Now.
+                    Assert(thrown!.InnerException?.InnerException is DbUpdateException,
+                        $"the failure is not the refused delete: cause is {thrown.InnerException?.InnerException?.GetType().Name ?? "null"}");
+                    // StorageSettingsPage's deleteFailed dialog shows the inner message.
+                    // It must be the user copy, not EF's "An error occurred while saving".
+                    var shown = thrown.InnerException?.Message ?? thrown.Message;
+                    Assert(shown == HyperWhisper.Localization.Loc.S("transcripts.delete.failed"),
+                        $"the Delete Now dialog would show \"{shown}\", not the localized transcripts.delete.failed copy");
+                    Assert(history.GetTranscript(old.Id) is not null,
+                        "the transcript is gone, so the lock did not refuse the delete and this case proves nothing");
+                    Assert(settings.AutoDeleteLastCleanupUtc == stampBefore,
+                        $"AutoDeleteLastCleanupUtc moved from {stampBefore:O} to {settings.AutoDeleteLastCleanupUtc:O}, "
+                        + "so a refused sweep was recorded as a completed cleanup");
+                }
+                finally
+                {
+                    if (lockHeld)
+                    {
+                        try
+                        {
+                            using var rollback = locker.CreateCommand();
+                            rollback.CommandText = "ROLLBACK;";
+                            rollback.ExecuteNonQuery();
+                        }
+                        catch
+                        {
+                            // Disposing the connection rolls the transaction back too.
+                        }
+                    }
+                    locker.Dispose();
+
+                    history.DeleteTranscripts(new[] { old.Id });
+                    if (stampBefore.HasValue)
+                        settings.RecordAutoDeleteCleanup(stampBefore.Value, countBefore);
+                    settings.AutoDeleteDaysOld = daysBefore;
+                    settings.AutoDeleteEnabled = enabledBefore;
+                }
+            });
+
+            Run("history: a delete that committed is a success even if a TranscriptDeleted subscriber throws — issue #974", () =>
+            {
+                // The cancel paths read a failed delete as "row kept" and the flow's
+                // finally then marks the row terminal. A subscriber that throws after
+                // SaveChanges committed must not turn the delete into a failure.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var history = HistoryService.Instance;
+                var row = history.CreateProcessingTranscript(1.0, "percy974event", audioFilePath: null);
+                EventHandler<Guid> throwing = (_, _) => throw new InvalidOperationException("subscriber failed");
+                history.TranscriptDeleted += throwing;
+                try
+                {
+                    var result = history.DeleteTranscript(row.Id);
+                    Assert(result.IsSuccess && result.Value,
+                        $"a committed delete was reported as {(result.IsSuccess ? "not found" : "failed: " + result.Error)}");
+                    Assert(history.GetTranscript(row.Id) is null, "the row is still there");
+
+                    var missing = history.DeleteTranscript(row.Id);
+                    Assert(missing.IsSuccess && !missing.Value, "deleting an id that is gone must be Success(false), not an error");
+                    var none = history.DeleteTranscripts(new[] { row.Id });
+                    Assert(none.IsSuccess && none.Value == 0, "a bulk delete of ids that are gone must be Success(0), not an error");
+                }
+                finally
+                {
+                    history.TranscriptDeleted -= throwing;
+                    history.DeleteTranscript(row.Id);
+                }
+            });
+
             Run("Local API /recordings: q, since, until, total and limit run in SQL with the old match rule — issue #1123", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();

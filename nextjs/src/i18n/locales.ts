@@ -1,45 +1,7 @@
-export const locales = [
-  "en",
-  "ja",
-  "es",
-  "zh",
-  "de",
-  "fr",
-  "ko",
-  "zh-Hant",
-  "it",
-  "nl",
-  "pt",
-  "ar",
-  "sv",
-  "da",
-  "nb",
-  "fi",
-  "he",
-  "pl",
-  "cs",
-  "tr",
-  "el",
-  "ro",
-  "hu",
-  "sk",
-  "bg",
-  "hr",
-  "sl",
-  "sr",
-  "lt",
-  "lv",
-  "et",
-  "is",
-  "ca",
-  "ru",
-  "uk",
-  "th",
-  "ms",
-  "id",
-  "vi",
-  "hi",
-] as const;
+// #1377: the codes live in locale-codes.mjs so next.config.mjs can read them.
+import { localeCodes } from "./locale-codes.mjs";
+
+export const locales = localeCodes;
 
 export type Locale = (typeof locales)[number];
 

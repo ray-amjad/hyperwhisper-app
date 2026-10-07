@@ -46,6 +46,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private string? _liveStreamingLanguage;
     private PortableCursorContext _cursorContext = PortableCursorContext.Unknown;
 
+    // The in-progress status lines this session writes. Each one is true only while a recording or
+    // a stream runs, so ReleaseRecordingStatus puts "Ready" back when one is left after the end (#958).
+    private const string RecordingStatus = "Recording…";
+    private const string LiveRecordingStatus = "Live transcription recording…";
+    private const string LiveReceivingStatus = "Live transcription receiving speech…";
+
     public LinuxInteractionRecordingSession(
         ApplicationShellViewModel viewModel,
         TranscriptionWorkflow workflow,
@@ -196,7 +202,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         }
         await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Succeeded);
         if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStarted);
-        _viewModel.Status.Success(_streaming ? "Live transcription recording…" : "Recording…");
+        _viewModel.Status.Success(_streaming ? LiveRecordingStatus : RecordingStatus);
         if (_streaming) SetLiveCapture(true);
         return PlatformResult.Success();
     }
@@ -307,7 +313,11 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
                 await RestoreAudioAsync();
                 ClearSession();
             }
-            finally { Volatile.Write(ref _finishing, false); }
+            finally
+            {
+                Volatile.Write(ref _finishing, false);
+                ReleaseRecordingStatus();
+            }
         }
     }
 
@@ -379,7 +389,20 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         {
             await RestoreAudioAsync();
             ClearSession();
+            ReleaseRecordingStatus();
         }
+    }
+
+    /// <summary>Every exit of a stop or a cancel ends here (#958). The batch success path wrote no status
+    /// of its own, so "Recording…" stayed in the status bar until a page change. Only an in-progress
+    /// line is replaced: a live result or "Recording cancelled" stays, and a failure is written by the
+    /// coordinator AFTER this returns or throws, so it still wins.</summary>
+    private void ReleaseRecordingStatus()
+    {
+        var status = _viewModel.Status;
+        if (status.HasError) return;
+        if (status.Message is RecordingStatus or LiveRecordingStatus or LiveReceivingStatus)
+            _viewModel.ShowReadyStatus();
     }
 
     public ValueTask<bool> RequestCancelAsync(CancellationToken cancellationToken = default)
@@ -431,7 +454,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _overlay.StreamingConnectionChanged(LinuxStreamingOverlayConnectionState.Connected);
         if (!update.IsFinal)
         {
-            _viewModel.Status.Success("Live transcription receiving speech…");
+            _viewModel.Status.Success(LiveReceivingStatus);
             return;
         }
         // An empty or whitespace-only final carries no words — several streaming

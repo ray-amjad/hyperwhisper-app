@@ -740,6 +740,9 @@
 
 Tindakan ini tidak dapat dibatalkan.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Tidak ada yang dihapus. Riwayat Anda tidak berubah. Coba lagi.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

@@ -740,6 +740,9 @@
 
 Denne handlingen kan ikke angres.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Ingenting ble slettet. Historikken din er uendret. Prøv igjen.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

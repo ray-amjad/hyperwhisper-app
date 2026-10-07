@@ -822,6 +822,9 @@
   <data name="transcripts.delete.multiple.message" xml:space="preserve">
     <value>Esto eliminará permanentemente {0} grabaciones y sus archivos de audio. Esta acción no se puede deshacer.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>No se eliminó nada. Tu historial no ha cambiado. Inténtalo de nuevo.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

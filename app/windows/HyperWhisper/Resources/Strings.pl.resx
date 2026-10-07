@@ -740,6 +740,9 @@
 
 Tej czynności nie można cofnąć.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Nic nie zostało usunięte. Historia pozostała bez zmian. Spróbuj ponownie.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

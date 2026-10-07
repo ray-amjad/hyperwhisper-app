@@ -740,6 +740,9 @@
 
 Această acțiune nu poate fi anulată.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Nu s-a șters nimic. Istoricul a rămas neschimbat. Încearcă din nou.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

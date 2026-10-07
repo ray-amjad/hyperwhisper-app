@@ -740,6 +740,9 @@
 
 Seda toimingut ei saa tagasi võtta.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Midagi ei kustutatud. Ajalugu on muutmata. Proovi uuesti.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

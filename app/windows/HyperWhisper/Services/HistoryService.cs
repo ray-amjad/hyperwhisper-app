@@ -399,8 +399,12 @@ public class HistoryService
 
     /// <summary>
     /// Deletes a single transcript and its associated audio file.
+    /// Success(true): deleted. Success(false): no transcript has that id (not an
+    /// error). Failure: SQLite refused the delete, so the row is still there; the
+    /// Error is the localized <c>transcripts.delete.failed</c> copy and Exception
+    /// holds the cause (#974).
     /// </summary>
-    public bool DeleteTranscript(Guid id)
+    public Result<bool> DeleteTranscript(Guid id)
     {
         Transcript? transcript = null;
 
@@ -414,32 +418,39 @@ public class HistoryService
                 if (transcript == null)
                 {
                     LoggingService.Warn($"HistoryService: Transcript {id} not found for deletion");
-                    return false;
+                    return Result<bool>.Success(false);
                 }
 
                 context.Transcripts.Remove(transcript);
                 context.SaveChanges();
                 LoggingService.Info($"HistoryService: Deleted transcript {id}");
             }
-            catch (DbUpdateException ex)
+            catch (Exception ex) when (IsRefusedDelete(ex))
             {
+                // A plain false here read as "deleted" to every caller, so a delete
+                // SQLite refused ("database is locked") was reported as a success
+                // (#974). Log the id and the exception only, never transcript text.
                 LoggingService.Error($"HistoryService: Failed to delete transcript {id}", ex);
-                return false;
+                return Result<bool>.Failure(Loc.S("transcripts.delete.failed"), ex);
             }
         }
 
-        // Delete audio files outside of lock
+        // The row is gone from here on, so nothing below may turn this into a
+        // failure: a caller that saw one would treat a deleted row as still there.
+        // Delete audio files outside of lock (DeleteAudioFile logs its own errors).
         DeleteTranscriptAudioFiles(transcript);
         // Fire event outside lock to prevent deadlock
-        TranscriptDeleted?.Invoke(this, id);
-        return true;
+        RaiseTranscriptDeleted(id);
+        return Result<bool>.Success(true);
     }
 
     /// <summary>
     /// Deletes multiple transcripts and their associated audio files.
     /// More efficient than calling DeleteTranscript multiple times.
+    /// Success(n): n rows deleted (0 when none of the ids exist). Failure: SQLite
+    /// refused the delete. It is one SaveChanges, so then nothing was deleted (#974).
     /// </summary>
-    public int DeleteTranscripts(IEnumerable<Guid> ids)
+    public Result<int> DeleteTranscripts(IEnumerable<Guid> ids)
     {
         var idSet = ids.ToHashSet();
         List<Transcript> deletedTranscripts;
@@ -456,28 +467,64 @@ public class HistoryService
 
                 if (deletedTranscripts.Count == 0)
                 {
-                    return 0;
+                    return Result<int>.Success(0);
                 }
 
                 context.Transcripts.RemoveRange(deletedTranscripts);
                 context.SaveChanges();
                 LoggingService.Info($"HistoryService: Deleted {deletedTranscripts.Count} transcripts");
             }
-            catch (DbUpdateException ex)
+            catch (Exception ex) when (IsRefusedDelete(ex))
             {
-                LoggingService.Error("HistoryService: Failed to delete transcripts", ex);
-                return 0;
+                // A 0 here stamped a refused Delete Now sweep as a completed cleanup
+                // and left History rows half-deleted (#974). Log the count and the
+                // exception only: a sweep can hold thousands of ids, and never text.
+                LoggingService.Error($"HistoryService: Failed to delete {idSet.Count} transcripts", ex);
+                return Result<int>.Failure(Loc.S("transcripts.delete.failed"), ex);
             }
         }
 
-        // Delete audio files outside of lock
+        // Committed: as in DeleteTranscript, nothing below may report a failure.
         foreach (var transcript in deletedTranscripts)
         {
             DeleteTranscriptAudioFiles(transcript);
-            TranscriptDeleted?.Invoke(this, transcript.Id);
+            RaiseTranscriptDeleted(transcript.Id);
         }
 
-        return deletedTranscripts.Count;
+        return Result<int>.Success(deletedTranscripts.Count);
+    }
+
+    /// <summary>
+    /// The database said no: SaveChanges failed (<see cref="DbUpdateException"/>), or
+    /// the lookup before it hit a locked or broken database
+    /// (<see cref="Microsoft.Data.Sqlite.SqliteException"/>). Both are expected
+    /// runtime failures, so they become a failed Result rather than a throw.
+    /// </summary>
+    private static bool IsRefusedDelete(Exception ex) =>
+        ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException;
+
+    /// <summary>
+    /// Raises <see cref="TranscriptDeleted"/> to each subscriber on its own. It runs
+    /// after the delete committed, so a subscriber that throws is logged and must
+    /// not reach the caller: it would read a deleted row as a failed delete (the
+    /// cancel paths would then re-mark the deleted row terminal).
+    /// </summary>
+    private void RaiseTranscriptDeleted(Guid id)
+    {
+        var handlers = TranscriptDeleted;
+        if (handlers == null) return;
+
+        foreach (EventHandler<Guid> handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                handler(this, id);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error($"HistoryService: TranscriptDeleted subscriber failed for transcript {id}", ex);
+            }
+        }
     }
 
     // =========================================================================

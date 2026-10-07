@@ -740,6 +740,9 @@
 
 Cette action est irréversible.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Rien n'a été supprimé. Votre historique est inchangé. Réessayez.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

@@ -979,6 +979,9 @@ Do you want to restart now?</value>
   <data name="transcripts.delete.multiple.message" xml:space="preserve">
     <value>This will permanently delete {0} recordings and their audio files. This action cannot be undone.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>Nothing was deleted. Your history is unchanged. Please try again.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

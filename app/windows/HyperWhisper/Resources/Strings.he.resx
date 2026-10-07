@@ -740,6 +740,9 @@
 
 לא ניתן לבטל פעולה זו.</value>
   </data>
+  <data name="transcripts.delete.failed" xml:space="preserve">
+    <value>שום דבר לא נמחק. ההיסטוריה שלכם לא השתנתה. נסו שוב.</value>
+  </data>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">

@@ -99,6 +99,23 @@ class FileTranscriptionFlow {
     /// references the trimmed path, so these files must survive.
     private var currentDerivedArtifactPaths: [String] = []
 
+    /// The History row this import created, while it is still "processing".
+    ///
+    /// Set as soon as the row exists and cleared the moment it reaches a final
+    /// status. Every error path and `cancelTranscription()` resolve it through
+    /// `markProcessingTranscriptFailed(after:)`, the same way dictation does, so a
+    /// failed import shows "failed" with the Retry button instead of sitting at
+    /// "Processing transcription..." until the next launch repairs it.
+    var processingTranscriptID: NSManagedObjectID?
+
+    /// The failed-status write started by `cancelTranscription()`, which is
+    /// synchronous. Kept so a caller (and the tests) can await it.
+    private(set) var pendingFailureWrite: Task<Void, Never>?
+
+    /// Store for the History row. `PersistenceController.shared` in the app; tests
+    /// pass an in-memory controller.
+    private let persistence: PersistenceController
+
     /// Callback to open the main window, provided by the caller (SwiftUI view)
     ///
     /// **Purpose:**
@@ -145,18 +162,21 @@ class FileTranscriptionFlow {
     ///   - appState: Shared app state for navigation and UI updates
     ///   - licenseManager: Manager for license/usage tracking
     ///   - onOpenMainWindow: Callback to open main window (required for proper window creation)
+    ///   - persistence: Store for the History row (tests pass an in-memory one)
     init(
         transcriptionPipeline: TranscriptionPipeline?,
         settingsManager: SettingsManager?,
         appState: AppState?,
         licenseManager: LicenseManager?,
-        onOpenMainWindow: (() -> Void)? = nil
+        onOpenMainWindow: (() -> Void)? = nil,
+        persistence: PersistenceController = .shared
     ) {
         self.transcriptionPipeline = transcriptionPipeline
         self.settingsManager = settingsManager
         self.appState = appState
         self.licenseManager = licenseManager
         self.onOpenMainWindow = onOpenMainWindow
+        self.persistence = persistence
     }
 
     // MARK: - Public API
@@ -182,10 +202,22 @@ class FileTranscriptionFlow {
         currentTranscriptionTask?.cancel()
         currentTranscriptionTask = nil
 
+        // Resolve the History row now. The pipeline may not throw promptly on a
+        // task cancel, and nothing else would move the row off "processing".
+        // The ID is taken here, synchronously, so the task's own catch cannot
+        // relabel a cancel with whatever error the cancelled request threw.
+        if let transcriptID = processingTranscriptID {
+            processingTranscriptID = nil
+            pendingFailureWrite = Task {
+                await self.writeFailedStatus(transcriptID, after: CancellationError())
+            }
+        }
+
         // Dismiss the progress popup
         FileTranscriptionPopupManager.shared.dismiss()
 
-        // Clean up the copied file and the files derived from it
+        // Clean up the copied file and the files derived from it. Once the row
+        // exists these are no longer tracked, so the row keeps its audio for Retry.
         cleanupImportArtifacts(reason: "cancellation")
 
         // Reset progress state
@@ -435,11 +467,14 @@ class FileTranscriptionFlow {
 
             // STEP 5: Create "processing" transcript entry
             // This makes the entry appear immediately in HistoryView with "Processing..." text
-            let processingTranscript = PersistenceController.shared.createProcessingTranscript(
+            let processingTranscript = persistence.createProcessingTranscript(
                 duration: duration,
                 mode: mode.name,
                 audioFilePath: copiedURL.path
             )
+            // From here every exit must move the row off "processing": the catch
+            // blocks below and cancelTranscription() resolve it through this ID.
+            processingTranscriptID = processingTranscript.objectID
             // The history row now owns the copied file for playback/retry, and the
             // trimmed artifact it is about to reference below. Neither is an orphan
             // any more, so stop tracking both for deletion.
@@ -449,7 +484,7 @@ class FileTranscriptionFlow {
             // STEP 5a: Save trimmed audio path if VAD was used
             // This allows users to toggle between original and trimmed audio in history view.
             if vadResult.wasProcessed, let result = trimResult {
-                if await PersistenceController.shared.setTrimmedAudioPath(processingTranscript, trimmedPath: result.outputURL.path) {
+                if await persistence.setTrimmedAudioPath(processingTranscript, trimmedPath: result.outputURL.path) {
                     AppLogger.transcription.debug("📝 [FileImport] Saved trimmed audio path to transcript")
                 }
             }
@@ -465,13 +500,13 @@ class FileTranscriptionFlow {
 
             guard let transcriptionPipeline = transcriptionPipeline else {
                 AppLogger.transcription.error("❌ TranscriptionPipeline not available")
-                updateTranscriptWithError(processingTranscript, error: "Transcription manager unavailable")
-                FileTranscriptionPopupManager.shared.dismiss()
-                progressState.reset()
-                return
+                throw FileImportFailure.pipelineUnavailable
             }
 
-            // Update app state to show transcribing status
+            // Update app state to show transcribing status. This flow now owns
+            // `recordingState`, so an in-flight pending-file retry must not write
+            // its outcome over it (#1276).
+            appState?.beginTranscriptionSession()
             appState?.recordingState = .transcribing
 
             // Use finalAudioURL which may be VAD-trimmed if VAD was enabled
@@ -483,21 +518,26 @@ class FileTranscriptionFlow {
                 audioDurationSeconds: uploadDuration
             )
 
-            // Check for cancellation after transcription
-            guard !progressState.isCancelled else { throw CancellationError() }
+            // Check for cancellation after transcription. `cancelTranscription()`
+            // resets `progressState`, which clears `isCancelled`, so the task's own
+            // cancelled flag is the check that still holds here.
+            guard !progressState.isCancelled, !Task.isCancelled else { throw CancellationError() }
 
             // STEP 7: Finishing stage (85-100%)
             progressState.updateStage(.finishing)
             progressState.animateProgress(to: 0.95, duration: 0.3)
 
             // Update transcript with results
-            PersistenceController.shared.updateTranscriptWithTranscription(
+            persistence.updateTranscriptWithTranscription(
                 processingTranscript,
                 transcribedText: result.rawText,
                 postProcessedText: result.wasPostProcessed ? result.text : nil,
                 transcriptionProvider: result.provider,
                 postProcessingProvider: result.postProcessingProvider
             )
+            // The row is final now. A cancel during the short delay below must
+            // not turn a finished transcript into a failed one.
+            processingTranscriptID = nil
 
             // No local usage recording — local transcription is unlimited (open source).
 
@@ -522,9 +562,12 @@ class FileTranscriptionFlow {
             appState?.recordingState = .idle
 
         } catch is CancellationError {
-            // User cancelled - cleanup was already done by cancelTranscription()
+            // User cancelled - cleanup was already done by cancelTranscription(),
+            // which also resolved the row. This resolves it only when the task was
+            // cancelled some other way.
             AppLogger.transcription.info("📂 File transcription cancelled")
             currentTranscriptionTask = nil
+            await markProcessingTranscriptFailed(after: CancellationError())
         } catch let error as FileTranscriptionError {
             // Handle known errors with appropriate UI
             FileTranscriptionPopupManager.shared.dismiss()
@@ -532,6 +575,7 @@ class FileTranscriptionFlow {
             cleanupImportArtifacts(reason: "import error")
             currentTranscriptionTask = nil
             appState?.recordingState = .idle
+            await markProcessingTranscriptFailed(after: error)
             handleError(error)
         } catch {
             // Handle unexpected errors
@@ -539,6 +583,9 @@ class FileTranscriptionFlow {
             progressState.reset()
             cleanupImportArtifacts(reason: "unexpected error")
             currentTranscriptionTask = nil
+            // Before the alert: it is modal, and History should already show
+            // the failed row with Retry behind it.
+            await markProcessingTranscriptFailed(after: error)
             AppLogger.transcription.error("❌ File transcription failed: \(error.localizedDescription)")
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
@@ -737,19 +784,40 @@ class FileTranscriptionFlow {
         return seconds
     }
 
-    /// Updates a transcript with an error message
+    /// Marks this import's History row failed, if it is still "processing".
     ///
-    /// - Parameters:
-    ///   - transcript: The transcript to update
-    ///   - error: Error message
-    private func updateTranscriptWithError(_ transcript: Transcript, error: String) {
-        PersistenceController.shared.updateTranscriptWithTranscription(
-            transcript,
-            transcribedText: "Error: \(error)",
-            postProcessedText: nil,
-            transcriptionProvider: nil,
-            postProcessingProvider: nil
+    /// Called from every catch in `processSelectedFile`. A failure before the row
+    /// exists finds no ID and writes nothing. The ID is cleared before the write,
+    /// so a second caller (a cancel racing an error) cannot write twice.
+    ///
+    /// - Parameter error: Why the import stopped. `CancellationError` is a cancel.
+    func markProcessingTranscriptFailed(after error: Error) async {
+        guard let transcriptID = processingTranscriptID else { return }
+        processingTranscriptID = nil
+        await writeFailedStatus(transcriptID, after: error)
+    }
+
+    /// Writes the failed status with the same reason and text dictation uses
+    /// (`RecordingTranscriptionFlow`), so HistoryView shows the row as failed and
+    /// offers Retry (canRetry = failed + audio file on disk).
+    private func writeFailedStatus(_ transcriptID: NSManagedObjectID, after error: Error) async {
+        let outcome = Self.failureOutcome(for: error)
+        await persistence.markTranscriptFailedInBackground(
+            transcriptID: transcriptID,
+            failedReason: outcome.failedReason,
+            errorText: outcome.errorText
         )
+        let kind = error is CancellationError ? "cancelled" : "error"
+        AppLogger.transcription.info("📝 [FileImport] Marked processing transcript failed (\(kind, privacy: .public))")
+    }
+
+    /// The `failedReason` and row text for an import that stopped with `error`.
+    static func failureOutcome(for error: Error) -> (failedReason: String, errorText: String) {
+        if error is CancellationError {
+            return ("cancelled", "Transcription cancelled")
+        }
+        let description = error.localizedDescription
+        return (description, "Transcription failed: \(description)")
     }
 
     /// Handles file transcription errors with appropriate UI
@@ -931,6 +999,20 @@ class FileTranscriptionFlow {
 }
 
 // MARK: - Error Types
+
+/// An import that stopped after its History row exists, for a reason that is not
+/// a `FileTranscriptionError` (those are all raised before the row exists).
+enum FileImportFailure: Error, LocalizedError {
+    /// The flow lost its `TranscriptionPipeline` (it is held weakly).
+    case pipelineUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .pipelineUnavailable:
+            return "Transcription manager unavailable"
+        }
+    }
+}
 
 /// Errors that can occur during file transcription
 ///

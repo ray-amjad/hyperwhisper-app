@@ -369,8 +369,16 @@ class TranscriptionModelManager: ObservableObject {
             } catch {
                 AppLogger.models.error("Failed to prepare Qwen3 ASR provider: \(error.localizedDescription, privacy: .public)")
                 modelReadyState = .none
-                onStateChange?(.error(message: "Failed to prepare \(displayName)."))
-                if AppLogger.isErrorLoggingEnabled {
+                // Both compute units failed: show the error that says what to
+                // do next, not only "Failed to prepare".
+                let message = Qwen3AsrRuntimeLoad.isReportedAtSource(error)
+                    ? error.localizedDescription
+                    : "Failed to prepare \(displayName)."
+                onStateChange?(.error(message: message))
+                // A failed runtime load is already in Sentry with its real
+                // CoreML domain and code (Qwen3AsrRuntimeLoad.send).
+                if AppLogger.isErrorLoggingEnabled,
+                   !Qwen3AsrRuntimeLoad.isReportedAtSource(error) {
                     SentryService.capture(error: error, message: "Qwen3 ASR prepare failed", extras: ["modelId": modelId], tags: ["component": "models"])
                 }
             }
