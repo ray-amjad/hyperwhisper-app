@@ -452,6 +452,130 @@ struct PasteOutcomeReportingTests {
         }
     }
 
+    // MARK: - #879: the guards around the record-start read
+
+    /// #879 generation guard: a record-start read that returns after a newer
+    /// `startRecordingSession()` began must not write the session state. The
+    /// newer read returns first here, so without the guard the older, stale
+    /// read lands last and overwrites it. Nothing writes the pasteboard during
+    /// the run, so the changeCount guard passes and cannot hide this one.
+    @Test func staleRecordingStartReadIsDroppedAfterANewerStart() async throws {
+        let helper = AccessibilityHelper.shared
+
+        try await withHeldRecordingStartReads { reads in
+            let older = Task { await helper.startRecordingSession() }
+            try await reads.waitUntilStarted(1)
+            let newer = Task { await helper.startRecordingSession() }
+            try await reads.waitUntilStarted(2)
+
+            reads.release(1, with: clipboardSnapshot("newer read #879"))
+            await newer.value
+            try #require(savedSnapshotText() == "newer read #879")
+
+            reads.release(0, with: clipboardSnapshot("stale read #879"))
+            await older.value
+            #expect(savedSnapshotText() == "newer read #879",
+                    "the stale read overwrote the newer session's snapshot")
+            #expect(helper.isInRecordingSession)
+        }
+    }
+
+    /// #879 changeCount guard: a pasteboard write while the read is in flight
+    /// (a paste, or the user's own copy) means the read no longer shows the
+    /// clipboard from before the recording, so nothing is saved. One start only,
+    /// so the generation guard passes and cannot hide this one.
+    @Test func recordingStartReadIsDroppedWhenTheClipboardChangedDuringIt() async throws {
+        let helper = AccessibilityHelper.shared
+
+        try await withHeldRecordingStartReads { reads in
+            let start = Task { await helper.startRecordingSession() }
+            try await reads.waitUntilStarted(1)
+
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString("copied while the read was held #879", forType: .string)
+            reads.release(0, with: clipboardSnapshot("read from before the copy #879"))
+            await start.value
+
+            #expect(helper.originalClipboardData == nil,
+                    "a read that overlapped a clipboard write was saved")
+            #expect(helper.isInRecordingSession)
+        }
+    }
+
+    /// #879 reset before the await: the session opens and the last session's
+    /// snapshot goes BEFORE the read awaits. While the read is held, a paste must
+    /// find no older snapshot to restore, and an `endRecordingSession()` in that
+    /// window must not be undone when the read returns.
+    @Test func recordingStartDropsOlderSnapshotAndOpensSessionBeforeTheRead() async throws {
+        let helper = AccessibilityHelper.shared
+
+        try await withHeldRecordingStartReads { reads in
+            // An older session's snapshot, with no restore pending and no kept
+            // mark, so the call takes the read path, not a keep path.
+            helper.originalClipboardData = clipboardSnapshot("older session's clipboard #879")
+
+            let start = Task { await helper.startRecordingSession() }
+            try await reads.waitUntilStarted(1)
+
+            #expect(helper.originalClipboardData == nil,
+                    "the older snapshot was still there while the read was in flight")
+            #expect(helper.isInRecordingSession,
+                    "the session was not open while the read was in flight")
+
+            helper.endRecordingSession()
+            reads.release(0, with: clipboardSnapshot("fresh read #879"))
+            await start.value
+
+            #expect(helper.isInRecordingSession == false,
+                    "the returning read reopened a session that had ended")
+        }
+    }
+
+    /// One saved-clipboard snapshot holding `text`.
+    private func clipboardSnapshot(_ text: String) -> [AccessibilityHelper.ClipboardItemData] {
+        [AccessibilityHelper.ClipboardItemData(types: [.string], data: [.string: Data(text.utf8)])]
+    }
+
+    /// Saves the tester's clipboard and the record-start state, starts from no
+    /// snapshot, no session, no kept mark and no pending restore, routes every
+    /// record-start read through `HeldSnapshotReads`, runs `body`, and puts
+    /// everything back. Reads still held when `body` throws are released with
+    /// nil, so no task is left suspended.
+    private func withHeldRecordingStartReads(_ body: (HeldSnapshotReads) async throws -> Void) async throws {
+        let helper = AccessibilityHelper.shared
+        let pasteboard = NSPasteboard.general
+
+        let savedClipboard: [NSPasteboardItem] = (pasteboard.pasteboardItems ?? []).map { item in
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
+            }
+            return copy
+        }
+        let savedOriginal = helper.originalClipboardData
+        let savedInSession = helper.isInRecordingSession
+        let savedKeptChangeCount = helper.keptClipboardSnapshotChangeCount
+        let reads = HeldSnapshotReads()
+        defer {
+            reads.releaseAll()
+            helper.recordingStartSnapshotOverrideForTesting = nil
+            helper.cancelPendingClipboardRestoration()
+            helper.originalClipboardData = savedOriginal
+            helper.isInRecordingSession = savedInSession
+            helper.keptClipboardSnapshotChangeCount = savedKeptChangeCount
+            pasteboard.clearContents()
+            if !savedClipboard.isEmpty { pasteboard.writeObjects(savedClipboard) }
+        }
+
+        helper.cancelPendingClipboardRestoration()
+        helper.originalClipboardData = nil
+        helper.isInRecordingSession = false
+        helper.keptClipboardSnapshotChangeCount = nil
+        helper.recordingStartSnapshotOverrideForTesting = { await reads.read() }
+
+        try await body(reads)
+    }
+
     /// The plain text of the first item in the saved record-start snapshot.
     private func savedSnapshotText() -> String? {
         guard let data = AccessibilityHelper.shared.originalClipboardData?.first?.data[.string] else { return nil }
@@ -567,5 +691,44 @@ fileprivate extension Trait where Self == ConditionTrait {
 @MainActor
 private final class CanPasteProbe {
     var calls = 0
+}
+
+/// Stands in for the record-start clipboard read (#879). Each read suspends
+/// until the test releases it by its start index, so a test can act while a
+/// read is in flight and choose the order the reads return in.
+@MainActor
+private final class HeldSnapshotReads {
+    typealias Snapshot = [AccessibilityHelper.ClipboardItemData]?
+
+    private(set) var started = 0
+    private var held: [Int: CheckedContinuation<Snapshot, Never>] = [:]
+
+    func read() async -> Snapshot {
+        let index = started
+        started += 1
+        return await withCheckedContinuation { continuation in
+            held[index] = continuation
+        }
+    }
+
+    /// Lets the main actor run until `count` reads have begun. Bounded, so a
+    /// start that never reaches its read fails the test instead of hanging it.
+    func waitUntilStarted(_ count: Int) async throws {
+        var spins = 0
+        while started < count && spins < 10_000 {
+            spins += 1
+            await Task.yield()
+        }
+        try #require(started >= count, "only \(started) of \(count) record-start reads began")
+    }
+
+    func release(_ index: Int, with snapshot: Snapshot) {
+        held.removeValue(forKey: index)?.resume(returning: snapshot)
+    }
+
+    func releaseAll() {
+        for continuation in held.values { continuation.resume(returning: nil) }
+        held.removeAll()
+    }
 }
 #endif

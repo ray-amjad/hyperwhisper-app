@@ -82,7 +82,7 @@ extension AccessibilityHelper {
 
         // ENHANCED: Extract DATA from all clipboard items, off the main actor.
         // We cannot store the NSPasteboardItem objects directly because they cannot be reused
-        let snapshot = await ClipboardSnapshotReader.shared.snapshot(caller: "recording start")
+        let snapshot = await readRecordingStartSnapshot()
 
         // A newer startRecordingSession() owns the state now: drop this result.
         guard generation == Self.clipboardSnapshotGeneration else {
@@ -113,6 +113,17 @@ extension AccessibilityHelper {
     /// Bumped by every `startRecordingSession()`, so a read that returns after a
     /// newer call began never writes the session state (#879).
     private static var clipboardSnapshotGeneration = 0
+
+    /// The record-start read: the shared 1 s reader on `NSPasteboard.general`.
+    /// A Debug test can stand in for it (`recordingStartSnapshotOverrideForTesting`).
+    private func readRecordingStartSnapshot() async -> [ClipboardItemData]? {
+        #if DEBUG
+        if let override = recordingStartSnapshotOverrideForTesting {
+            return await override()
+        }
+        #endif
+        return await ClipboardSnapshotReader.shared.snapshot(caller: "recording start")
+    }
 
     /// End the recording session
     /// This should be called when the recording dialog is closed or the app becomes inactive
