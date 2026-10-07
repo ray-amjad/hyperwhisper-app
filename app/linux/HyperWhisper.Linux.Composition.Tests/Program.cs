@@ -10,6 +10,7 @@ using HyperWhisper.Linux.Overlay;
 using System.Globalization;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.PortableApplication.ViewModels;
 using HyperWhisper.LocalInference;
 using HyperWhisper.LocalApi;
 using HyperWhisper.SpeechOutput;
@@ -73,6 +74,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a second launch hands off and exits 0, a second smoke run fails", SecondLaunchHandsOff),
     ("a failed instance acquire exits 1 from the main loop", AcquireFailureExitsOne),
     ("a shutdown signal runs the quit once, then the watchdog or the runtime default", ShutdownSignalsRouteToQuit),
+    ("streaming language picker offers the selected provider's catalog set", StreamingLanguagePickerFollowsProvider),
 };
 
 foreach (var test in tests)
@@ -1697,6 +1699,92 @@ static Task WindowStartupGateRetriesOnlyWhatFailed()
     return Task.CompletedTask;
 }
 
+static Task StreamingLanguagePickerFollowsProvider()
+{
+    // #1346, the Linux sibling of #832 (PR #1345): the picker bound every language whatever the
+    // provider. Windows' half of this check is the SmokeTests "#832" case.
+    var root = Path.Combine(Path.GetTempPath(), $"hw-streaming-languages-{Guid.NewGuid():N}");
+    var settings = new SettingsViewModel(new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")));
+    var streaming = new StreamingSettingsViewModel(settings);
+    string[] Codes() => streaming.Languages.Select(option => option.Code).ToArray();
+    var everyLanguage = SharedCoreBridge.AllLanguages().Count(language => language.Code != "auto") + 1;
+
+    var languagesNotified = 0;
+    streaming.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(StreamingSettingsViewModel.Languages)) languagesNotified++; };
+
+    settings.StreamingProvider = "elevenlabs";
+    var elevenLabs = Codes();
+    Assert(elevenLabs.Contains("am"), "ElevenLabs streaming must offer Amharic (am)");
+    Assert(elevenLabs.Contains("sw"), "ElevenLabs streaming must offer Swahili (sw)");
+    Assert(elevenLabs[0] == "auto", $"Automatic must be the first row, got {elevenLabs[0]}");
+    Assert(languagesNotified == 1, $"a provider change must re-notify Languages once, got {languagesNotified}");
+
+    settings.StreamingProvider = "deepgram";
+    var deepgram = Codes();
+    Assert(!deepgram.Contains("am"), "Deepgram streaming must not offer Amharic (am)");
+    Assert(!deepgram.Contains("sw"), "Deepgram streaming must not offer Swahili (sw)");
+    Assert(deepgram.Contains("en") && deepgram[0] == "auto", "Deepgram streaming must still offer Automatic and English");
+    Assert(deepgram.Length < everyLanguage, "Deepgram streaming must not bind the unfiltered list");
+
+    // The provider -> entry mapping, one row per cloud provider, on the Linux storage spellings.
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("deepgram", null) == "deepgramNova3", "deepgram entry");
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("elevenlabs", null) == "elevenLabsScribeV2", "elevenLabs entry");
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("openai", null) == "openaiWhisper", "openAI entry");
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("geminiTranscribe", null) == "geminiTranscribe", "gemini entry");
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("grok", null) == "grokStt", "xAI entry");
+    Assert(StreamingSettingsViewModel.LanguageCatalogEntryId("parakeetLocal", null) is null, "a local provider has no catalog entry");
+
+    // An unverified set (Gemini) and a local provider keep the full list.
+    settings.StreamingProvider = "geminiTranscribe";
+    Assert(Codes().Length == everyLanguage, "Gemini's unverified set must keep the full list");
+    settings.StreamingProvider = "parakeetLocal";
+    Assert(Codes().Length == everyLanguage, "a local provider must keep the full list");
+
+    // HyperWhisper Cloud follows the selected live tier, clamped like the route.
+    settings.StreamingProvider = "hyperwhisper";
+    foreach (var tier in settings.StreamingCloudTiers)
+    {
+        settings.StreamingCloudTier = tier;
+        Assert(StreamingSettingsViewModel.LanguageCatalogEntryId(settings.StreamingProvider, settings.StreamingCloudTier) == tier,
+            $"live tier {tier} must reach the picker unchanged");
+    }
+    if (settings.StreamingCloudTiers.Contains("elevenLabsScribeV2"))
+    {
+        settings.StreamingCloudTier = "elevenLabsScribeV2";
+        Assert(Codes().Contains("sw"), "the ElevenLabs live tier must offer Swahili");
+    }
+    settings.StreamingCloudTier = "notATier";
+    Assert(!Codes().Contains("sw"), "an unknown live tier clamps to Deepgram, which does not offer Swahili");
+
+    // Region rows survive by primary subtag.
+    settings.StreamingProvider = "elevenlabs";
+    foreach (var regional in new[] { "en-GB", "en-US", "pt-BR" })
+    {
+        if (SharedCoreBridge.AllLanguages().Any(language => language.Code == regional))
+            Assert(Codes().Contains(regional), $"{regional} must survive an entry that declares its base code");
+    }
+
+    // A saved language outside the new set resets to Automatic; one inside it is kept.
+    settings.StreamingLanguage = "sw";
+    Assert(settings.StreamingLanguage == "sw" && streaming.SelectedLanguage?.Code == "sw", "a Swahili pick must be kept on ElevenLabs");
+    settings.StreamingProvider = "deepgram";
+    Assert(settings.StreamingLanguage == "auto", $"a saved Swahili must reset when the provider becomes Deepgram, got {settings.StreamingLanguage}");
+    Assert(streaming.SelectedLanguage?.Code == "auto", "the picker must show Automatic after the reset");
+    settings.StreamingLanguage = "en";
+    settings.StreamingProvider = "elevenlabs";
+    Assert(settings.StreamingLanguage == "en", "a saved English must be kept across a provider change");
+
+    // Load() writes the language AFTER the provider, so a stale saved pair is caught on load too.
+    var loaded = new SettingsViewModel(new PortableSettingsService(
+        new FixedSettingsFile("""{"streaming.provider":"deepgram","streaming.language":"sw"}"""),
+        Path.Combine(root, "settings.json")));
+    var loadedStreaming = new StreamingSettingsViewModel(loaded);
+    loaded.Load();
+    Assert(loaded.StreamingLanguage == "auto", $"a saved Swahili on Deepgram must reset on load, got {loaded.StreamingLanguage}");
+    Assert(!loadedStreaming.Languages.Any(option => option.Code == "sw"), "the loaded Deepgram picker must not offer Swahili");
+    return Task.CompletedTask;
+}
+
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
@@ -1801,6 +1889,16 @@ sealed class FixedGpu(GpuInfo? gpu) : IGpuInfoProvider
 {
     public PlatformResult<GpuInfo?> GetBestGpu() => PlatformResult<GpuInfo?>.Success(gpu);
     public void ClearCache() { }
+}
+
+sealed class FixedSettingsFile(string json) : IPrivateFileService
+{
+    public PlatformResult WriteAllBytesAtomically(string path, ReadOnlySpan<byte> contents) => PlatformResult.Success();
+    public PlatformResult WriteAllTextAtomically(string path, string contents) => PlatformResult.Success();
+    public PlatformResult<byte[]?> ReadAllBytes(string path) => PlatformResult<byte[]?>.Success(null);
+    public PlatformResult<string?> ReadAllText(string path) => PlatformResult<string?>.Success(json);
+    public PlatformResult Delete(string path) => PlatformResult.Success();
+    public PlatformResult<bool> IsRestrictedToCurrentUser(string path) => PlatformResult<bool>.Success(true);
 }
 
 sealed class MissingPrivateFiles : IPrivateFileService
