@@ -335,7 +335,9 @@ final class ClipboardSnapshotProgress: @unchecked Sendable {
 ///   recording or paste, and the queue never holds more than the stuck read plus
 ///   reads that will skip their work when they reach the front.
 ///
-/// `@unchecked Sendable`: the only mutable state is `abandonedCount`, behind a lock.
+/// The deadline protocol itself is `DeadlineGate`, shared with `RecorderStartGate`.
+///
+/// `@unchecked Sendable`: no mutable state of its own; `DeadlineGate` owns it.
 final class ClipboardSnapshotReader: @unchecked Sendable {
 
     typealias Snapshot = [AccessibilityHelper.ClipboardItemData]
@@ -352,32 +354,25 @@ final class ClipboardSnapshotReader: @unchecked Sendable {
         deadline: productionDeadline
     )
 
-    private enum AttemptState: Sendable {
-        case pending
-        case finished
-        case timedOut
-    }
-
-    private enum Outcome {
-        case read(Snapshot?)
-        case timedOut
-    }
-
-    private let queue: DispatchQueue
+    private let gate: DeadlineGate
     private let deadlineNanoseconds: Int
     private let logger = AppLogger.ui
 
-    /// Calls that timed out and whose block has not run to its end yet.
-    private let abandonedCount = OSAllocatedUnfairLock(initialState: 0)
-
     init(queue: DispatchQueue, deadline: Duration) {
-        self.queue = queue
-        self.deadlineNanoseconds = Self.nanoseconds(deadline)
+        let deadlineNanoseconds = Self.nanoseconds(deadline)
+        self.deadlineNanoseconds = deadlineNanoseconds
+        // `.skip`: a read whose caller already gave up while it waited on the
+        // queue never touches the pasteboard, so reads do not pile up there.
+        self.gate = DeadlineGate(
+            queue: queue,
+            timeout: .nanoseconds(deadlineNanoseconds),
+            queuedPastDeadline: .skip
+        )
     }
 
     /// True while a read whose caller already gave up is still on the queue.
     var hasAbandonedRead: Bool {
-        abandonedCount.withLock { $0 > 0 }
+        gate.hasAbandonedWork
     }
 
     /// The pasteboard's data, or nil when it is empty, when the read passed the
@@ -396,53 +391,11 @@ final class ClipboardSnapshotReader: @unchecked Sendable {
         let progress = ClipboardSnapshotProgress()
         let started = ContinuousClock.now
 
-        let outcome: Outcome = await withCheckedContinuation { (continuation: CheckedContinuation<Outcome, Never>) in
-            // The attempt state and `abandonedCount` change in one critical
-            // section, as in `RecorderStartGate`, so the queue never sees
-            // `.timedOut` before the count went up.
-            let state = OSAllocatedUnfairLock(initialState: AttemptState.pending)
-
-            queue.async {
-                // Gave up before this read even started: do not touch the pasteboard.
-                if state.withLock({ $0 == .timedOut }) {
-                    self.abandonedCount.withLock { $0 -= 1 }
-                    return
-                }
-
-                let value = provider(progress)
-
-                let arrivedLate = state.withLock { current -> Bool in
-                    if current == .timedOut { return true }
-                    current = .finished
-                    return false
-                }
-
-                guard arrivedLate else {
-                    continuation.resume(returning: .read(value))
-                    return
-                }
-
-                // The caller already got nil. Drop the late data here.
-                self.abandonedCount.withLock { $0 -= 1 }
-            }
-
-            DispatchQueue.global(qos: .userInitiated).asyncAfter(
-                deadline: .now() + .nanoseconds(deadlineNanoseconds)
-            ) {
-                let timedOut = state.withLock { current -> Bool in
-                    guard current == .pending else { return false }
-                    current = .timedOut
-                    self.abandonedCount.withLock { $0 += 1 }
-                    return true
-                }
-                if timedOut {
-                    continuation.resume(returning: .timedOut)
-                }
-            }
-        }
+        // A late read's data is dropped on the queue: the caller already got nil.
+        let outcome = await gate.run({ provider(progress) }, discardLate: { _ in })
 
         switch outcome {
-        case .read(let value):
+        case .finished(let value):
             return value
         case .timedOut:
             let elapsedMs = Self.nanoseconds(started.duration(to: .now)) / 1_000_000
