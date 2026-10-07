@@ -119,8 +119,13 @@ public sealed class StreamingSettingsViewModel : ViewModelBase
     private void RefreshLanguages()
     {
         _languages = AllowedLanguages(_allLanguages, CurrentLanguageCatalogEntryId());
-        Notify(nameof(Languages));
+        // Reset BEFORE announcing the new list. The picker still holds the old list, so it moves
+        // to "Automatic" there, and that row is in every list, so the swap keeps it. Swapping first
+        // left the picker blank: Avalonia clears a selection the new list lacks, writes null back
+        // (ignored), re-reads this getter's "Automatic" fallback mid-swap without showing it, and
+        // then skips every later "Automatic" notification as unchanged.
         EnforceAllowedLanguage();
+        Notify(nameof(Languages));
         Notify(nameof(SelectedLanguage));
     }
 

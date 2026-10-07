@@ -75,6 +75,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a failed instance acquire exits 1 from the main loop", AcquireFailureExitsOne),
     ("a shutdown signal runs the quit once, then the watchdog or the runtime default", ShutdownSignalsRouteToQuit),
     ("streaming language picker offers the selected provider's catalog set", StreamingLanguagePickerFollowsProvider),
+    ("a real Avalonia ComboBox shows Automatic after a provider or tier change resets the language", StreamingLanguageComboShowsResetToAutomatic),
 };
 
 foreach (var test in tests)
@@ -1801,6 +1802,60 @@ static Task StreamingLanguagePickerFollowsProvider()
     _ = new StreamingSettingsViewModel(staleCloud);
     staleCloud.Load();
     Assert(staleCloud.StreamingLanguage == "auto", $"a saved Swahili on the Deepgram live tier must reset on load, got {staleCloud.StreamingLanguage}");
+    return Task.CompletedTask;
+}
+
+static Task StreamingLanguageComboShowsResetToAutomatic()
+{
+    // #1346 verify round: ElevenLabs + Swahili, then Deepgram, left the real picker BLANK. A
+    // plain view model check passed, because the fault is in the binding round trip: Avalonia
+    // clears a selection the new ItemsSource lacks, writes null back, re-reads the getter's
+    // "Automatic" fallback mid-swap without showing it, and then skips every later "Automatic"
+    // notification as unchanged. So this drives a real Avalonia ComboBox, bound the way
+    // MainWindow.axaml binds StreamingLanguageInput. No platform is needed for selection.
+    var root = Path.Combine(Path.GetTempPath(), $"hw-streaming-combo-{Guid.NewGuid():N}");
+    var settings = new SettingsViewModel(new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")));
+    var streaming = new StreamingSettingsViewModel(settings);
+    var combo = new Avalonia.Controls.ComboBox { DataContext = streaming };
+    combo.Bind(Avalonia.Controls.ItemsControl.ItemsSourceProperty,
+        new Avalonia.Data.Binding(nameof(StreamingSettingsViewModel.Languages)));
+    combo.Bind(Avalonia.Controls.Primitives.SelectingItemsControl.SelectedItemProperty,
+        new Avalonia.Data.Binding(nameof(StreamingSettingsViewModel.SelectedLanguage)) { Mode = Avalonia.Data.BindingMode.TwoWay });
+    string Shown() => (combo.SelectedItem as StreamingLanguageOption)?.Code ?? "<blank>";
+    void Settle() => Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+    settings.StreamingProvider = "elevenlabs";
+    Settle();
+    combo.SelectedItem = streaming.Languages.First(option => option.Code == "sw");
+    Settle();
+    Assert(settings.StreamingLanguage == "sw" && Shown() == "sw", $"the user's Swahili pick must reach the settings, shown {Shown()}");
+
+    settings.StreamingProvider = "deepgram";
+    Settle();
+    Assert(settings.StreamingLanguage == "auto", $"Swahili must reset on Deepgram, got {settings.StreamingLanguage}");
+    Assert(Shown() == "auto", $"the picker must show Automatic after the provider reset, shown {Shown()}");
+
+    settings.StreamingProvider = "elevenlabs";
+    Settle();
+    Assert(Shown() == "auto", $"the picker must still show Automatic back on ElevenLabs, shown {Shown()}");
+
+    // The same reset through a HyperWhisper Cloud live-tier change.
+    settings.StreamingProvider = "hyperwhisper";
+    settings.StreamingCloudTier = "geminiTranscribe";
+    Settle();
+    combo.SelectedItem = streaming.Languages.First(option => option.Code == "sw");
+    Settle();
+    Assert(settings.StreamingLanguage == "sw" && Shown() == "sw", $"Swahili must be pickable on the Gemini live tier, shown {Shown()}");
+    settings.StreamingCloudTier = "deepgramNova3";
+    Settle();
+    Assert(settings.StreamingLanguage == "auto", $"Swahili must reset on the Deepgram live tier, got {settings.StreamingLanguage}");
+    Assert(Shown() == "auto", $"the picker must show Automatic after the tier reset, shown {Shown()}");
+
+    // A language both sets offer is kept and stays shown.
+    combo.SelectedItem = streaming.Languages.First(option => option.Code == "en");
+    settings.StreamingProvider = "elevenlabs";
+    Settle();
+    Assert(settings.StreamingLanguage == "en" && Shown() == "en", $"English must stay shown across a provider change, shown {Shown()}");
     return Task.CompletedTask;
 }
 
