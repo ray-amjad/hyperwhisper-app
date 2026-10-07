@@ -58,10 +58,10 @@ The general-purpose multilingual models from OpenAI. The **VRAM** values give th
 | --- | --- | --- | --- | --- | --- |
 | Tiny | 78 MB | 78 MB | ~1 GB | Multilingual | Lowest-end machines, quick drafts |
 | Tiny (English) | 78 MB | 78 MB | ~1 GB | English only | Same as Tiny, with better English accuracy |
-| Base | 142 MB | 148 MB | ~1 GB | Multilingual | Light hardware, basic dictation |
-| Base (English) | 142 MB | 148 MB | ~1 GB | English only | Same as Base, with better English accuracy |
-| **Small** | **466 MB** | **488 MB** | **~2 GB** | **Multilingual** | **Best balance for most users** |
-| Small (English) | 466 MB | 488 MB | ~2 GB | English only | Same as Small, with better English accuracy |
+| Base | 148 MB | 148 MB | ~1 GB | Multilingual | Light hardware, basic dictation |
+| Base (English) | 148 MB | 148 MB | ~1 GB | English only | Same as Base, with better English accuracy |
+| **Small** | **488 MB** | **488 MB** | **~2 GB** | **Multilingual** | **Best balance for most users** |
+| Small (English) | 488 MB | 488 MB | ~2 GB | English only | Same as Small, with better English accuracy |
 | Medium | 1.5 GB | 1.5 GB | ~5 GB | Multilingual | Higher accuracy, mid-range GPUs |
 | Medium (English) | 1.5 GB | 1.5 GB | ~5 GB | English only | Same as Medium, with better English accuracy |
 | Large v3 Turbo | 1.6 GB | 1.5 GB | ~6 GB | Multilingual | Accuracy near Large, much faster |
@@ -73,7 +73,7 @@ The general-purpose multilingual models from OpenAI. The **VRAM** values give th
 </Tip>
 
 <Note>
-  macOS, Windows and Linux download the same Whisper files. A size can differ by a few percent between the columns because the platforms round it differently. **Model Library** shows the download size for your platform.
+  macOS, Windows and Linux download the same Whisper files. Large v3 Turbo shows 1.6 GB on macOS and 1.5 GB on Windows because the two apps round the same 1.62 GB file differently. **Model Library** shows the download size for your platform.
 </Note>
 
 ### NVIDIA Parakeet models
@@ -108,8 +108,8 @@ Nemotron 3.5 ASR from NVIDIA is the newest on-device option. macOS gets a broade
 | --- | --- | --- | --- | --- |
 | Nemotron 3.5 (Latin) | macOS | ~610 MB | English, Spanish, French, Italian, Portuguese, German | Smaller, faster Latin-script transcription |
 | Nemotron 3.5 (Multilingual) | macOS | ~665 MB | ~30 languages including Chinese, Japanese, Korean, Arabic | Broadest offline language coverage |
-| Nemotron 3.5 Streaming (Multilingual) | Windows | Smaller than the macOS variant | English, Japanese | On-device streaming with the sherpa-onnx daemon |
-| Nemotron 3.5 Streaming (Multilingual) | Linux | Smaller than the macOS variant | Approximately 32 languages, including Chinese, Japanese, Korean, Arabic, and Hindi | On-device streaming with the sherpa-onnx daemon |
+| Nemotron 3.5 Streaming (Multilingual) | Windows | ~660 MB | English, Japanese | On-device streaming with the sherpa-onnx daemon |
+| Nemotron 3.5 Streaming (Multilingual) | Linux | Shown in the Model Library | Approximately 32 languages, including Chinese, Japanese, Korean, Arabic, and Hindi | On-device streaming with the sherpa-onnx daemon |
 
 <Tip>
   For non-European languages **offline** on macOS, **Nemotron 3.5 (Multilingual)** is the correct choice. The **Latin** variant is smaller and faster, and it is enough if you speak only English, Spanish, French, Italian, Portuguese, or German. The Windows and Linux Nemotron variant is a different streaming model. It is not a substitute for the macOS multilingual model.

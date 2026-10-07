@@ -19,17 +19,28 @@ import Testing
 @MainActor
 struct ModelSizeLabelTests {
 
-    /// A label may round, but it must stay within 10% of the real download.
-    private static let tolerance = 0.10
+    /// A label may round, but it must stay within 5% of the real download.
+    private static let tolerance = 0.05
+
+    /// The label in bytes, decimal units ("1.9 GB" = 1.9e9), as the sizes are measured.
+    private static func labelBytes(_ label: String) -> Double? {
+        let parts = label.replacingOccurrences(of: "~", with: "").split(separator: " ")
+        guard parts.count == 2, let value = Double(parts[0]) else { return nil }
+        switch parts[1] {
+        case "GB": return value * 1_000_000_000
+        case "MB": return value * 1_000_000
+        default: return nil
+        }
+    }
 
     private static func expectLabel(_ label: String, matches bytes: Int64, _ name: String) {
-        // The Local API reads the same label, so parse it the way the Local API does.
-        guard let mb = ModelsEndpoint.parseSizeMB(label) else {
-            Issue.record("\(name): the Local API cannot parse the label \"\(label)\"")
+        // The Local API reports `size_mb` from the same label, so it must parse it too.
+        #expect(ModelsEndpoint.parseSizeMB(label) != nil, "\(name): the Local API cannot parse \"\(label)\"")
+        guard let parsed = Self.labelBytes(label) else {
+            Issue.record("\(name): cannot read the label \"\(label)\"")
             return
         }
-        let labelBytes = mb * 1_000_000
-        let error = abs(labelBytes - Double(bytes)) / Double(bytes)
+        let error = abs(parsed - Double(bytes)) / Double(bytes)
         #expect(
             error <= tolerance,
             "\(name): label \"\(label)\" is \(Int(error * 100))% from the measured \(bytes) bytes"

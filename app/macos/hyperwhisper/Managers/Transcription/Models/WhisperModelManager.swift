@@ -140,14 +140,14 @@ class WhisperModelManager: NSObject, ObservableObject {
         let modelSizes: [String: (String, Int64)] = [
             "tiny": ("78 MB", 77_691_713),
             "tiny.en": ("78 MB", 77_704_715),
-            "base": ("142 MB", 142_000_000),
-            "base.en": ("142 MB", 142_000_000),
-            "small": ("466 MB", 466_000_000),
-            "small.en": ("466 MB", 466_000_000),
-            "medium": ("1.5 GB", 1_500_000_000),
-            "medium.en": ("1.5 GB", 1_500_000_000),
+            "base": ("148 MB", 147_951_465),
+            "base.en": ("148 MB", 147_964_211),
+            "small": ("488 MB", 487_601_967),
+            "small.en": ("488 MB", 487_614_201),
+            "medium": ("1.5 GB", 1_533_763_059),
+            "medium.en": ("1.5 GB", 1_533_774_781),
             "large-v2": ("3.1 GB", 3_094_623_691),
-            "large-v3": ("3.1 GB", 3_100_000_000),
+            "large-v3": ("3.1 GB", 3_095_033_483),
             "large-v3_turbo": ("1.6 GB", 1_624_555_275)
         ]
         
