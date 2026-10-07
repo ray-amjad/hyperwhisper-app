@@ -65,6 +65,19 @@ enum AutoDeleteTimeUnit: String, CaseIterable, Codable {
     }
 }
 
+// MARK: - UserDefaults Keys
+
+/// The `UserDefaults.standard` keys behind the auto-delete settings.
+///
+/// Shared by the `@AppStorage` properties below and by the plain `nonisolated`
+/// readers the cleanup timer uses, so the two can never read different keys.
+/// Deliberately not main-actor isolated.
+enum AutoDeleteDefaultsKey {
+    static let enabled = "autoDeleteEnabled"
+    static let timeUnit = "autoDeleteTimeUnit"
+    static let value = "autoDeleteValue"
+}
+
 // MARK: - Auto-Delete Settings Manager
 
 /// Manages automatic deletion settings for recordings and transcripts
@@ -104,7 +117,7 @@ class AutoDeleteSettingsManager: ObservableObject {
 
     /// Private storage for auto-delete enabled state
     /// Exposed via computed property to ensure SwiftUI observer updates
-    @AppStorage("autoDeleteEnabled") private var autoDeleteEnabledStorage: Bool = false
+    @AppStorage(AutoDeleteDefaultsKey.enabled) private var autoDeleteEnabledStorage: Bool = false
 
     /// Whether automatic deletion of old recordings is enabled
     /// Default: false (recordings are kept indefinitely)
@@ -124,11 +137,11 @@ class AutoDeleteSettingsManager: ObservableObject {
     /// The time unit for auto-delete duration
     /// Stored as raw string value for stability across app versions
     /// Default: days
-    @AppStorage("autoDeleteTimeUnit") private var autoDeleteTimeUnitRaw: String = AutoDeleteTimeUnit.days.rawValue
+    @AppStorage(AutoDeleteDefaultsKey.timeUnit) private var autoDeleteTimeUnitRaw: String = AutoDeleteTimeUnit.days.rawValue
 
     /// Private storage for auto-delete value
     /// Exposed via computed property to ensure SwiftUI observer updates
-    @AppStorage("autoDeleteValue") private var autoDeleteValueStorage: Int = 30
+    @AppStorage(AutoDeleteDefaultsKey.value) private var autoDeleteValueStorage: Int = 30
 
     /// The number of time units before a recording is deleted
     /// Must be a positive integer (minimum 1)
@@ -175,6 +188,43 @@ class AutoDeleteSettingsManager: ObservableObject {
 
         let secondsAgo = autoDeleteTimeUnit.toSeconds(autoDeleteValue)
         return Date().addingTimeInterval(-secondsAgo)
+    }
+
+    // MARK: - Off-Main-Actor Reads (HYPERWHISPER-Y0, #880)
+
+    // The cleanup timer must not read these settings through @AppStorage on the
+    // main actor: that getter enters SwiftUI's UserDefaultLocation and then a
+    // synchronous cfprefsd round trip, and a slow cfprefsd froze the app there
+    // once a minute. These readers go straight to UserDefaults, hold no
+    // main-actor state, and are called from a background queue. They read the
+    // live value on every call (nothing is cached), so a toggle in Settings is
+    // seen by the very next tick. The @AppStorage properties above stay for the
+    // views, which need their objectWillChange.
+
+    /// Reads the auto-delete flag exactly as `@AppStorage(AutoDeleteDefaultsKey.enabled)`
+    /// with a default of `false` does: a stored Bool, else the default.
+    nonisolated static func isAutoDeleteEnabled(in defaults: UserDefaults) -> Bool {
+        (defaults.object(forKey: AutoDeleteDefaultsKey.enabled) as? Bool) ?? false
+    }
+
+    /// Reads the time unit exactly as `autoDeleteTimeUnit`'s getter does: the
+    /// stored raw String (default `days`), and `.days` for an unknown raw value.
+    nonisolated static func autoDeleteTimeUnit(in defaults: UserDefaults) -> AutoDeleteTimeUnit {
+        let raw = (defaults.object(forKey: AutoDeleteDefaultsKey.timeUnit) as? String)
+            ?? AutoDeleteTimeUnit.days.rawValue
+        return AutoDeleteTimeUnit(rawValue: raw) ?? .days
+    }
+
+    /// The live auto-delete flag from `UserDefaults.standard`, the store the
+    /// `@AppStorage` property uses. Safe to call off the main actor.
+    nonisolated func autoDeleteEnabledFromDefaults() -> Bool {
+        Self.isAutoDeleteEnabled(in: .standard)
+    }
+
+    /// The live time unit from `UserDefaults.standard`. Safe to call off the
+    /// main actor.
+    nonisolated func autoDeleteTimeUnitFromDefaults() -> AutoDeleteTimeUnit {
+        Self.autoDeleteTimeUnit(in: .standard)
     }
 
     // MARK: - Initialization

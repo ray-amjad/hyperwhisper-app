@@ -59,6 +59,30 @@ import Foundation
 import Combine
 import os
 
+// MARK: - Off-Main-Actor Settings Reads
+
+/// Serial queue for the timer's settings reads (HYPERWHISPER-Y0, #880).
+///
+/// A plain UserDefaults read can still wait on cfprefsd. On this queue that wait
+/// parks one GCD thread, never the main thread and never a Swift
+/// concurrency pool thread (`Task.detached` would park a pool thread on every
+/// tick for as long as cfprefsd stays slow). Serial, so a stuck cfprefsd queues
+/// later ticks behind one read instead of fanning out.
+private let autoDeleteSettingsReadQueue = DispatchQueue(
+    label: "com.hyperwhisper.autoDelete.settingsRead",
+    qos: .utility
+)
+
+/// Runs `read` on `autoDeleteSettingsReadQueue` and returns its result, so the
+/// calling actor is suspended, not blocked, while the read waits.
+private func readSettingOffMainActor<T: Sendable>(_ read: @escaping @Sendable () -> T) async -> T {
+    await withCheckedContinuation { continuation in
+        autoDeleteSettingsReadQueue.async {
+            continuation.resume(returning: read())
+        }
+    }
+}
+
 // MARK: - Auto-Delete Cleanup Service
 
 /// Service responsible for automatically deleting old recordings based on user settings
@@ -181,7 +205,7 @@ class AutoDeleteCleanupService: ObservableObject {
         // Only reschedule if time unit changed and timer is active
         if let lastUnit = lastTimeUnit, lastUnit != currentUnit, cleanupTimer != nil {
             logger.info("Time unit changed from \(lastUnit.rawValue, privacy: .public) to \(currentUnit.rawValue, privacy: .public), rescheduling timer")
-            scheduleCleanupTimer()
+            scheduleCleanupTimer(for: currentUnit)
         }
 
         lastTimeUnit = currentUnit
@@ -196,8 +220,10 @@ class AutoDeleteCleanupService: ObservableObject {
     /// Starts periodic cleanup with the configured interval
     /// Cleanup runs immediately on start, then at intervals based on the time unit setting
     func startPeriodicCleanup() {
-        // Track current time unit for change detection
-        lastTimeUnit = settingsManager.autoDeleteTimeUnit
+        // Track current time unit for change detection. Read once here and
+        // handed to the scheduler, so starting does one settings read, not three.
+        let timeUnit = settingsManager.autoDeleteTimeUnit
+        lastTimeUnit = timeUnit
 
         // Run cleanup immediately on start
         Task {
@@ -205,9 +231,10 @@ class AutoDeleteCleanupService: ObservableObject {
         }
 
         // Schedule cleanup based on time unit setting
-        scheduleCleanupTimer()
+        scheduleCleanupTimer(for: timeUnit)
 
-        logger.info("Periodic cleanup started (interval: \(self.cleanupIntervalDescription, privacy: .public))")
+        let intervalDescription = AutoDeleteCleanupService.cleanupIntervalDescription(for: timeUnit)
+        logger.info("Periodic cleanup started (interval: \(intervalDescription, privacy: .public))")
     }
 
     /// Schedules the cleanup timer based on the current time unit setting
@@ -216,26 +243,32 @@ class AutoDeleteCleanupService: ObservableObject {
     /// - Minutes: check every 1 minute (60s) - for quick deletion needs
     /// - Hours: check every 5 minutes (300s) - reasonable responsiveness
     /// - Days: check every 1 hour (3600s) - no need for frequent checks
-    private func scheduleCleanupTimer() {
+    ///
+    /// - Parameter timeUnit: The unit the caller has just read. Taking it as a
+    ///   parameter keeps this method free of settings reads of its own.
+    private func scheduleCleanupTimer(for timeUnit: AutoDeleteTimeUnit) {
         cleanupTimer?.invalidate()
 
-        let interval = cleanupInterval
+        let interval = AutoDeleteCleanupService.cleanupInterval(for: timeUnit)
         nextCleanupDate = Date().addingTimeInterval(interval)
 
         cleanupTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.performCleanup()
-                // Update next cleanup date after each run
-                if let self = self {
-                    self.nextCleanupDate = Date().addingTimeInterval(self.cleanupInterval)
+                // Update next cleanup date after each run. The time unit is
+                // read off the main actor: this runs on every tick (#880).
+                guard let settingsManager = self?.settingsManager else { return }
+                let timeUnit = await readSettingOffMainActor {
+                    settingsManager.autoDeleteTimeUnitFromDefaults()
                 }
+                self?.nextCleanupDate = Date().addingTimeInterval(AutoDeleteCleanupService.cleanupInterval(for: timeUnit))
             }
         }
     }
 
-    /// Returns the appropriate cleanup interval in seconds based on the time unit setting
-    private var cleanupInterval: TimeInterval {
-        switch settingsManager.autoDeleteTimeUnit {
+    /// Returns the appropriate cleanup interval in seconds for a time unit
+    private static func cleanupInterval(for timeUnit: AutoDeleteTimeUnit) -> TimeInterval {
+        switch timeUnit {
         case .minutes:
             return 60       // Check every 1 minute
         case .hours:
@@ -246,8 +279,8 @@ class AutoDeleteCleanupService: ObservableObject {
     }
 
     /// Human-readable description of the cleanup interval for logging
-    private var cleanupIntervalDescription: String {
-        switch settingsManager.autoDeleteTimeUnit {
+    private static func cleanupIntervalDescription(for timeUnit: AutoDeleteTimeUnit) -> String {
+        switch timeUnit {
         case .minutes:
             return "every 1 minute"
         case .hours:
@@ -269,8 +302,18 @@ class AutoDeleteCleanupService: ObservableObject {
     ///   also returns `nil` and leaves files and success state untouched.
     @discardableResult
     func performCleanup() async -> CleanupStats? {
-        // Early exit if disabled or already running
-        guard settingsManager.autoDeleteEnabled else {
+        // Early exit if disabled or already running.
+        //
+        // The flag is read off the main actor, straight from UserDefaults, on
+        // every call (HYPERWHISPER-Y0, #880). Reading it through the
+        // @AppStorage-backed `settingsManager.autoDeleteEnabled` here put a
+        // synchronous cfprefsd round trip on the main thread once a minute,
+        // even with auto-delete off, and a slow cfprefsd froze the app.
+        let settingsManager = self.settingsManager
+        let isEnabled = await readSettingOffMainActor {
+            settingsManager.autoDeleteEnabledFromDefaults()
+        }
+        guard isEnabled else {
             logger.debug("Auto-delete is disabled, skipping cleanup")
             return nil
         }
