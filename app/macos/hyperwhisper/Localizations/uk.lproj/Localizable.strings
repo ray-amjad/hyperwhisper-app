@@ -1039,7 +1039,14 @@
 "settings.backup.import.subtitle" = "Відновити параметри з файла резервної копії";
 "settings.backup.import.button" = "Імпортувати...";
 "settings.backup.import.panel.title" = "Імпортувати параметри";
-"settings.backup.import.success" = "Імпорт завершено: %d режимів, %d елементів словника імпортовано";
+"settings.backup.import.result" = "Імпорт завершено: %@";
+"settings.backup.import.result.settings" = "налаштування відновлено";
+"settings.backup.import.result.modes" = "імпортовано режимів: %d";
+"settings.backup.import.result.vocabulary" = "імпортовано елементів словника: %d";
+"settings.backup.import.result.apiKeys" = "ключі API відновлено";
+"settings.backup.import.result.licenseKey" = "ліцензійний ключ відновлено";
+"settings.backup.import.result.nothing" = "змін не внесено";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Не вдалось прочитати файл резервної копії";
 "settings.backup.import.error.decode" = "Недійсний формат файла резервної копії";
 "settings.backup.import.error.decode.keyNotFound" = "Відсутнє обовʼязкове поле: %@";

@@ -1039,7 +1039,14 @@
 "settings.backup.import.subtitle" = "Восстановить параметры из файла резервной копии";
 "settings.backup.import.button" = "Импортировать...";
 "settings.backup.import.panel.title" = "Импортировать параметры";
-"settings.backup.import.success" = "Импорт завершен: импортировано %d режимов, %d элементов словаря";
+"settings.backup.import.result" = "Импорт завершен: %@";
+"settings.backup.import.result.settings" = "настройки восстановлены";
+"settings.backup.import.result.modes" = "импортировано режимов: %d";
+"settings.backup.import.result.vocabulary" = "импортировано элементов словаря: %d";
+"settings.backup.import.result.apiKeys" = "ключи API восстановлены";
+"settings.backup.import.result.licenseKey" = "лицензионный ключ восстановлен";
+"settings.backup.import.result.nothing" = "изменения не внесены";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Ошибка чтения файла резервной копии";
 "settings.backup.import.error.decode" = "Неверный формат файла резервной копии";
 "settings.backup.import.error.decode.keyNotFound" = "Отсутствует обязательное поле: %@";

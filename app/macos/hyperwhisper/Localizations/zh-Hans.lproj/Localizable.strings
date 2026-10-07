@@ -1040,7 +1040,14 @@
 "settings.backup.import.subtitle" = "从备份文件恢复设置";
 "settings.backup.import.button" = "导入...";
 "settings.backup.import.panel.title" = "导入设置";
-"settings.backup.import.success" = "导入完成：已导入 %d 个模式、%d 个词汇";
+"settings.backup.import.result" = "导入完成：%@";
+"settings.backup.import.result.settings" = "已恢复设置";
+"settings.backup.import.result.modes" = "已导入 %d 个模式";
+"settings.backup.import.result.vocabulary" = "已导入 %d 个词汇";
+"settings.backup.import.result.apiKeys" = "已恢复 API 密钥";
+"settings.backup.import.result.licenseKey" = "已恢复许可证密钥";
+"settings.backup.import.result.nothing" = "未做任何更改";
+"settings.backup.import.result.separator" = "，";
 "settings.backup.import.error.read" = "无法读取备份文件";
 "settings.backup.import.error.decode" = "备份文件格式无效";
 "settings.backup.import.error.decode.keyNotFound" = "缺少必填字段：%@";

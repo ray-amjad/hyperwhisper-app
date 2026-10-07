@@ -1039,7 +1039,14 @@
 "settings.backup.import.subtitle" = "Възстановяване на настройки от файл за резервно копие";
 "settings.backup.import.button" = "Импортиране...";
 "settings.backup.import.panel.title" = "Импортиране на настройки";
-"settings.backup.import.success" = "Импортирането завърши: %d режима, %d елемента от речника импортирани";
+"settings.backup.import.result" = "Импортирането завърши: %@";
+"settings.backup.import.result.settings" = "настройките са възстановени";
+"settings.backup.import.result.modes" = "%d режима импортирани";
+"settings.backup.import.result.vocabulary" = "%d елемента от речника импортирани";
+"settings.backup.import.result.apiKeys" = "API ключовете са възстановени";
+"settings.backup.import.result.licenseKey" = "лицензният ключ е възстановен";
+"settings.backup.import.result.nothing" = "не са направени промени";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Неуспешно четене на файл за резервно копие";
 "settings.backup.import.error.decode" = "Невалиден формат на файл за резервно копие";
 "settings.backup.import.error.decode.keyNotFound" = "Липсва задължително поле: %@";

@@ -1039,7 +1039,14 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "settings.backup.import.subtitle" = "Obnovi nastavitve iz varnostne kopije datoteke";
 "settings.backup.import.button" = "Uvezi...";
 "settings.backup.import.panel.title" = "Uvezi nastavitve";
-"settings.backup.import.success" = "Uvoz zaključen: %d načinov, %d elementov besednjaka uvoženo";
+"settings.backup.import.result" = "Uvoz zaključen: %@";
+"settings.backup.import.result.settings" = "nastavitve obnovljene";
+"settings.backup.import.result.modes" = "uvoženih načinov: %d";
+"settings.backup.import.result.vocabulary" = "uvoženih elementov besednjaka: %d";
+"settings.backup.import.result.apiKeys" = "ključi API obnovljeni";
+"settings.backup.import.result.licenseKey" = "licenčni ključ obnovljen";
+"settings.backup.import.result.nothing" = "ni bilo sprememb";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Napaka pri branju varnostne kopije datoteke";
 "settings.backup.import.error.decode" = "Neveljavan oblika varnostne kopije datoteke";
 "settings.backup.import.error.decode.keyNotFound" = "Manjka obvezno polje: %@";

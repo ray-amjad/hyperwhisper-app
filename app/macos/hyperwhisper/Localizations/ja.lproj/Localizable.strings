@@ -1040,7 +1040,14 @@
 "settings.backup.import.subtitle" = "バックアップファイルから設定を復元";
 "settings.backup.import.button" = "インポート...";
 "settings.backup.import.panel.title" = "設定をインポート";
-"settings.backup.import.success" = "インポート完了: %d モード、%d 語彙項目をインポートしました";
+"settings.backup.import.result" = "インポート完了: %@";
+"settings.backup.import.result.settings" = "設定を復元しました";
+"settings.backup.import.result.modes" = "%d モードをインポートしました";
+"settings.backup.import.result.vocabulary" = "%d 語彙項目をインポートしました";
+"settings.backup.import.result.apiKeys" = "APIキーを復元しました";
+"settings.backup.import.result.licenseKey" = "ライセンスキーを復元しました";
+"settings.backup.import.result.nothing" = "変更はありませんでした";
+"settings.backup.import.result.separator" = "、";
 "settings.backup.import.error.read" = "バックアップファイルの読み込みに失敗しました";
 "settings.backup.import.error.decode" = "無効なバックアップファイル形式です";
 "settings.backup.import.error.decode.keyNotFound" = "必須フィールドがありません: %@";

@@ -937,7 +937,7 @@ extension ImportResult {
 
         let list = parts.isEmpty
             ? NSLocalizedString("settings.backup.import.result.nothing", value: "no changes were made", comment: "Import success list when no section changed anything")
-            : parts.joined(separator: ", ")
+            : parts.joined(separator: NSLocalizedString("settings.backup.import.result.separator", value: ", ", comment: "Separator between items of the import success list"))
         return String(
             format: NSLocalizedString("settings.backup.import.result", value: "Import complete: %@", comment: "Import success message; %@ is a comma-separated list of what was imported"),
             list
