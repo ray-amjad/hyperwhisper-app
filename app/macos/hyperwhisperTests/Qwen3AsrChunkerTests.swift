@@ -174,6 +174,17 @@ struct Qwen3AsrChunkerTests {
         #expect(text == "one two three")
     }
 
+    @Test func anOverlapAfterAnEmptyChunkKeepsTheRepeatedWord() {
+        // The middle chunk heard no speech. The last chunk overlaps it, not
+        // the first one, so its "stop" was said again and must stay.
+        let text = Qwen3AsrChunker.join([
+            .init(text: "stop", overlapsPrevious: false),
+            .init(text: "", overlapsPrevious: true),
+            .init(text: "stop now", overlapsPrevious: true),
+        ])
+        #expect(text == "stop stop now")
+    }
+
     @Test func chineseJoinsWithNoSpaceAndDropsTheOverlap() {
         let text = Qwen3AsrChunker.join([
             .init(text: "今天天气很好", overlapsPrevious: false),

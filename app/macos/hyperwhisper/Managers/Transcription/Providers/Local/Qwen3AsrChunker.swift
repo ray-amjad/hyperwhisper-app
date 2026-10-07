@@ -151,14 +151,20 @@ enum Qwen3AsrChunker {
     /// and starts the chunk is kept once.
     static func join(_ pieces: [Piece]) -> String {
         var result = ""
+        // The overlap is with the chunk just before. When that chunk gave no
+        // text, the end of `result` is older audio, so a match there is a word
+        // said twice, not a word heard twice.
+        var previousGaveText = false
         for piece in pieces {
             var text = piece.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let overlapsResultTail = piece.overlapsPrevious && previousGaveText
+            previousGaveText = !text.isEmpty
             guard !text.isEmpty else { continue }
             guard !result.isEmpty else {
                 result = text
                 continue
             }
-            if piece.overlapsPrevious {
+            if overlapsResultTail {
                 text = removingOverlap(from: text, after: result)
                 guard !text.isEmpty else { continue }
             }
