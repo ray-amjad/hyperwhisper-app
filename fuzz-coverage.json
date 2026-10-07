@@ -321,6 +321,22 @@
       ],
       "licensed": false,
       "note": "dev box, unlicensed (no HYPERWHISPER_ACCOUNT_KEY). Filed #1319 (rail not synced to CurrentPage); commented #637/#638/#639 (still repro). provider-settings: 0 defects in 14 steps. Core DLL from windows-ci 933b232b. First devbox git fetch failed DNS, second worked. publish-media 401."
+    },
+    {
+      "at": "2026-10-07T01:05:15Z",
+      "platform": "win",
+      "commit": "400918e3",
+      "routes": [
+        "history-and-backup",
+        "updates",
+        "modes"
+      ],
+      "status": "build-failed",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "Dev box unreachable 2026-10-07: percy devbox run fails 'SOCKSv5 error: General SOCKS server failure' / 'Connection closed by UNKNOWN port 65535' on 6 tries over ~5 min; KVM shows no_signal (PC off or asleep) even after 2 kvm 'key shift' wake presses. Nothing built or walked; re-pick these 3 routes next round."
     }
   ]
 }
