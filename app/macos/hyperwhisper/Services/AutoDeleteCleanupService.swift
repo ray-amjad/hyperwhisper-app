@@ -12,8 +12,8 @@
 //  - Delete associated audio files (original and trimmed)
 //
 //  CLEANUP FLOW:
-//  1. Check if auto-delete is enabled in settings
-//  2. Calculate the cutoff date based on configured time unit and value
+//  1. Read the settings once, off the main actor, and check if auto-delete is enabled
+//  2. Calculate the cutoff date from that same read (time unit and value)
 //  3. In ONE uninterrupted serial-writer transaction: fetch transcripts older than the
 //     cutoff date, collect every audio file path to remove (original + trimmed),
 //     delete those transcripts from Core Data, and save
@@ -131,6 +131,11 @@ class AutoDeleteCleanupService: ObservableObject {
 
     /// Whether a cleanup operation is currently in progress
     @Published private(set) var isCleanupInProgress: Bool = false
+
+    /// Whether a pass is waiting on its off-main-actor settings read (#880).
+    /// While it is, a new pass returns at once instead of queueing another read,
+    /// so a stuck cfprefsd holds one waiting pass, not one per timer tick.
+    private var isSettingsReadInFlight = false
 
     /// Statistics from the last cleanup operation
     @Published private(set) var lastCleanupStats: CleanupStats?
@@ -255,13 +260,12 @@ class AutoDeleteCleanupService: ObservableObject {
         cleanupTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.performCleanup()
-                // Update next cleanup date after each run. The time unit is
-                // read off the main actor: this runs on every tick (#880).
-                guard let settingsManager = self?.settingsManager else { return }
-                let timeUnit = await readSettingOffMainActor {
-                    settingsManager.autoDeleteTimeUnitFromDefaults()
-                }
-                self?.nextCleanupDate = Date().addingTimeInterval(AutoDeleteCleanupService.cleanupInterval(for: timeUnit))
+                // Update next cleanup date after each run from the timer's own
+                // schedule, with no settings read: this runs on every tick
+                // (#880). A unit change replaces this timer, and the new one's
+                // fire date is the right answer then too.
+                guard let self else { return }
+                self.nextCleanupDate = self.cleanupTimer?.fireDate ?? Date().addingTimeInterval(interval)
             }
         }
     }
@@ -296,7 +300,8 @@ class AutoDeleteCleanupService: ObservableObject {
     /// the Core Data work has to finish before the off-actor file deletion.
     ///
     /// - Returns: The cleanup statistics, or `nil` when no cleanup happened —
-    ///   auto-delete is disabled, a pass is already running, no cutoff date could
+    ///   another pass is still waiting on its settings read, auto-delete is
+    ///   disabled, a pass is already running, no cutoff date could
     ///   be calculated, or the Core Data save did not commit (in which case the
     ///   pending deletes are rolled back and no file is touched). A fetch failure
     ///   also returns `nil` and leaves files and success state untouched.
@@ -304,16 +309,27 @@ class AutoDeleteCleanupService: ObservableObject {
     func performCleanup() async -> CleanupStats? {
         // Early exit if disabled or already running.
         //
-        // The flag is read off the main actor, straight from UserDefaults, on
-        // every call (HYPERWHISPER-Y0, #880). Reading it through the
-        // @AppStorage-backed `settingsManager.autoDeleteEnabled` here put a
-        // synchronous cfprefsd round trip on the main thread once a minute,
-        // even with auto-delete off, and a slow cfprefsd froze the app.
-        let settingsManager = self.settingsManager
-        let isEnabled = await readSettingOffMainActor {
-            settingsManager.autoDeleteEnabledFromDefaults()
+        // Every setting this pass needs (enabled, unit, value) is read ONCE, off
+        // the main actor, straight from UserDefaults, on every call
+        // (HYPERWHISPER-Y0, #880). The gate and the cutoff both come from that
+        // one snapshot. Reading them through the @AppStorage-backed properties
+        // here put synchronous cfprefsd round trips on the main thread once a
+        // minute, with auto-delete off or on, and a slow cfprefsd froze the app.
+        //
+        // If an earlier pass is still waiting on its read (a stuck cfprefsd),
+        // this pass skips instead of queueing a second read behind it.
+        guard !isSettingsReadInFlight else {
+            logger.debug("Auto-delete settings read still in flight, skipping cleanup")
+            return nil
         }
-        guard isEnabled else {
+        isSettingsReadInFlight = true
+        let settingsManager = self.settingsManager
+        let settings = await readSettingOffMainActor {
+            settingsManager.settingsSnapshotFromDefaults()
+        }
+        isSettingsReadInFlight = false
+
+        guard settings.enabled else {
             logger.debug("Auto-delete is disabled, skipping cleanup")
             return nil
         }
@@ -323,8 +339,8 @@ class AutoDeleteCleanupService: ObservableObject {
             return nil
         }
 
-        // Get the cutoff date
-        guard let cutoffDate = settingsManager.deletionCutoffDate else {
+        // Get the cutoff date from the same snapshot (no main-actor read)
+        guard let cutoffDate = settings.deletionCutoffDate() else {
             logger.warning("Could not calculate cutoff date, skipping cleanup")
             return nil
         }

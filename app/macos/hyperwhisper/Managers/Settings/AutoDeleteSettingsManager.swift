@@ -78,6 +78,33 @@ enum AutoDeleteDefaultsKey {
     static let value = "autoDeleteValue"
 }
 
+// MARK: - Settings Snapshot
+
+/// One read of every auto-delete setting, taken off the main actor for one
+/// cleanup pass (HYPERWHISPER-Y0, #880). A plain value, so it can cross from the
+/// background read queue to the main actor. It is never kept across passes.
+struct AutoDeleteSettingsSnapshot: Sendable, Equatable {
+    /// Whether auto-delete is on.
+    let enabled: Bool
+    /// The unit of `value`.
+    let timeUnit: AutoDeleteTimeUnit
+    /// How many units before a recording is deleted.
+    let value: Int
+
+    /// The cutoff for deletion: recordings older than this go.
+    ///
+    /// The same decisions the old main-actor `deletionCutoffDate` made: `nil`
+    /// when auto-delete is off or the value is below 1, else `now` minus
+    /// `value` units.
+    func deletionCutoffDate(now: Date = Date()) -> Date? {
+        guard enabled else { return nil }
+        guard value > 0 else { return nil }
+
+        let secondsAgo = timeUnit.toSeconds(value)
+        return now.addingTimeInterval(-secondsAgo)
+    }
+}
+
 // MARK: - Auto-Delete Settings Manager
 
 /// Manages automatic deletion settings for recordings and transcripts
@@ -178,18 +205,6 @@ class AutoDeleteSettingsManager: ObservableObject {
         }
     }
 
-    /// Calculates the cutoff date for deletion based on current settings
-    /// Recordings older than this date should be deleted
-    ///
-    /// - Returns: The cutoff Date, or nil if auto-delete is disabled
-    var deletionCutoffDate: Date? {
-        guard autoDeleteEnabled else { return nil }
-        guard autoDeleteValue > 0 else { return nil }
-
-        let secondsAgo = autoDeleteTimeUnit.toSeconds(autoDeleteValue)
-        return Date().addingTimeInterval(-secondsAgo)
-    }
-
     // MARK: - Off-Main-Actor Reads (HYPERWHISPER-Y0, #880)
 
     // The cleanup timer must not read these settings through @AppStorage on the
@@ -200,6 +215,11 @@ class AutoDeleteSettingsManager: ObservableObject {
     // live value on every call (nothing is cached), so a toggle in Settings is
     // seen by the very next tick. The @AppStorage properties above stay for the
     // views, which need their objectWillChange.
+    //
+    // There is deliberately no main-actor `deletionCutoffDate` any more: the
+    // timer was its only caller, and its three @AppStorage reads kept the
+    // enabled path freezing. The cutoff now comes from
+    // `AutoDeleteSettingsSnapshot.deletionCutoffDate(now:)`.
 
     /// Reads the auto-delete flag exactly as `@AppStorage(AutoDeleteDefaultsKey.enabled)`
     /// with a default of `false` does: a stored Bool, else the default.
@@ -215,16 +235,28 @@ class AutoDeleteSettingsManager: ObservableObject {
         return AutoDeleteTimeUnit(rawValue: raw) ?? .days
     }
 
-    /// The live auto-delete flag from `UserDefaults.standard`, the store the
-    /// `@AppStorage` property uses. Safe to call off the main actor.
-    nonisolated func autoDeleteEnabledFromDefaults() -> Bool {
-        Self.isAutoDeleteEnabled(in: .standard)
+    /// Reads the duration value exactly as `@AppStorage(AutoDeleteDefaultsKey.value)`
+    /// with a default of `30` does: a stored Int, else the default. No clamp
+    /// here, as in the getter; the snapshot's cutoff rejects a value below 1.
+    nonisolated static func autoDeleteValue(in defaults: UserDefaults) -> Int {
+        (defaults.object(forKey: AutoDeleteDefaultsKey.value) as? Int) ?? 30
     }
 
-    /// The live time unit from `UserDefaults.standard`. Safe to call off the
-    /// main actor.
-    nonisolated func autoDeleteTimeUnitFromDefaults() -> AutoDeleteTimeUnit {
-        Self.autoDeleteTimeUnit(in: .standard)
+    /// Every setting the cleanup timer needs, read together from `defaults`.
+    nonisolated static func settingsSnapshot(in defaults: UserDefaults) -> AutoDeleteSettingsSnapshot {
+        AutoDeleteSettingsSnapshot(
+            enabled: isAutoDeleteEnabled(in: defaults),
+            timeUnit: autoDeleteTimeUnit(in: defaults),
+            value: autoDeleteValue(in: defaults)
+        )
+    }
+
+    /// The live settings from `UserDefaults.standard`, the store the
+    /// `@AppStorage` properties use. Safe to call off the main actor, and the
+    /// only settings read the cleanup timer makes. A test double overrides it,
+    /// because tests must never read or write the host app's real defaults.
+    nonisolated func settingsSnapshotFromDefaults() -> AutoDeleteSettingsSnapshot {
+        Self.settingsSnapshot(in: .standard)
     }
 
     // MARK: - Initialization
