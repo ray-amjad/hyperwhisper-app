@@ -125,17 +125,17 @@ enum ModeEditorDefaults {
     /// language to `en` (issue #1434). The missing id is reported instead, so
     /// the picker can list it as not installed and the sheet can say so.
     ///
-    /// An empty or whitespace-only stored model is NOT a local model: the
-    /// transcription router runs it as Cloud (`TranscriptionProviderRouter.
-    /// selectProvider`), so the sheet opens it on Cloud and Save writes
-    /// `"cloud"`. It is never reported missing, so it never gets a blank
-    /// "(not installed)" row or a local substitute.
+    /// The Cloud test is the transcription router's own
+    /// (`TranscriptionProviderRouter.selectProvider`): nil becomes `""`, the
+    /// value is trimmed, an empty result runs as Cloud, and `"cloud"` matches
+    /// in any case. So a nil, empty, whitespace-only or padded/any-case
+    /// `"cloud"` model opens on Cloud and Save writes `"cloud"`. None is ever
+    /// reported missing, so none gets a bogus "(not installed)" row, a local
+    /// substitute, or a `"base"` it never ran as.
     static func editModelSelection(storedModel: String?, availableModelIds: [String]) -> EditModelSelection {
-        let stored = storedModel ?? "base"
-        if stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return EditModelSelection(provider: .cloud, model: stored, missingLocalModelId: nil)
-        }
-        if stored.lowercased() == "cloud" {
+        let stored = storedModel ?? ""
+        let routed = stored.trimmingCharacters(in: .whitespacesAndNewlines)
+        if routed.isEmpty || routed.lowercased() == "cloud" {
             return EditModelSelection(provider: .cloud, model: stored, missingLocalModelId: nil)
         }
         let missing: String? = availableModelIds.contains(stored) ? nil : stored

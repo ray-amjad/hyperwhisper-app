@@ -134,6 +134,45 @@ struct ModeEditorMissingModelTests {
         ) == "base.en")
     }
 
+    @Test func nilStoredModelOpensOnCloudAndSavesCloud() {
+        // The router runs a nil model as Cloud (`mode?.model ?? ""`), so the
+        // sheet must not show it as a missing local "base" or save "base".
+        let installed = ["small.en", "base.en"]
+        for available in [installed, []] {
+            let selection = ModeEditorDefaults.editModelSelection(storedModel: nil, availableModelIds: available)
+            #expect(selection.provider == .cloud)
+            #expect(selection.missingLocalModelId == nil)
+            #expect(ModeEditorDefaults.localPickerModelIds(
+                availableModelIds: available,
+                missingLocalModelId: selection.missingLocalModelId
+            ) == ModeEditorDefaults.sortedLocalModelIds(available))
+
+            let result = saveUnchanged(storedModel: nil, language: LanguageData.automaticCode, availableModelIds: available)
+            #expect(result.model == "cloud")
+            #expect(result.language == LanguageData.automaticCode)
+            #expect(result.missing == nil)
+        }
+    }
+
+    @Test(arguments: [" cloud ", "Cloud", "\tCLOUD\n"])
+    func paddedOrCasedCloudModelOpensOnCloud(storedModel: String) {
+        // The router trims and lowercases before its "cloud" test, so these
+        // run as Cloud: no "(not installed)" row, and Save writes "cloud".
+        let installed = ["small.en", "base.en"]
+        let selection = ModeEditorDefaults.editModelSelection(storedModel: storedModel, availableModelIds: installed)
+        #expect(selection.provider == .cloud)
+        #expect(selection.missingLocalModelId == nil)
+        #expect(ModeEditorDefaults.localPickerModelIds(
+            availableModelIds: installed,
+            missingLocalModelId: selection.missingLocalModelId
+        ) == ModeEditorDefaults.sortedLocalModelIds(installed))
+
+        let result = saveUnchanged(storedModel: storedModel, language: "de", availableModelIds: installed)
+        #expect(result.model == "cloud")
+        #expect(result.language == "de")
+        #expect(result.missing == nil)
+    }
+
     @Test func aDeliberatePickSavesAsNormal() {
         // The user picks the installed English-only model: it saves, and the
         // language follows it to `en` as before.
