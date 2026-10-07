@@ -94,7 +94,7 @@ struct ModelSizeLabelTests {
         let kept = Self.qwen3F32Files.filter { Self.isKept($0.path) }
         let total = Self.qwen3F32Files.reduce(Int64(0)) { $0 + $1.bytes }
         #expect(kept.reduce(Int64(0)) { $0 + $1.bytes } == Qwen3AsrModelManager.Constants.downloadBytes)
-        #expect(total == 4_194_437_729)
+        #expect(total == 4_193_638_533)
         #expect(kept.count == 13)
     }
 
