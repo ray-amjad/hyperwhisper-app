@@ -1049,6 +1049,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "settings.backup.import.error.decode.corruptedField" = "Alan için bozuk değer: %@";
 "settings.backup.import.error.version" = "Yedekleme dosyası daha yeni bir sürümdendir";
 "settings.backup.import.error.unknown" = "İçe aktarma başarısız";
+"settings.backup.import.apiKeysFailed" = "Bu API anahtarları Anahtar Zinciri'ne kaydedilemedi ve geri yüklenmedi: %@. Bunları Ayarlar'da yeniden girin.";
 "settings.backup.import.confirm.title" = "Ayarları İçe Aktar?";
 "settings.backup.import.confirm.message" = "Bu, mevcut modları ve kelime hazinesini yedekleme dosyasından olanlarla değiştirecektir. Ayarlar da güncellenecektir.";
 "settings.backup.import.confirm.button" = "İçe Aktar";

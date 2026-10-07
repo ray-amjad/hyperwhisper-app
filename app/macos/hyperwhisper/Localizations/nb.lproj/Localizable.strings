@@ -1049,6 +1049,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "settings.backup.import.error.decode.corruptedField" = "Skadet verdi for felt: %@";
 "settings.backup.import.error.version" = "Sikkerhetskopifil er fra en nyere versjon";
 "settings.backup.import.error.unknown" = "Import mislyktes";
+"settings.backup.import.apiKeysFailed" = "Disse API-nøklene kunne ikke lagres i nøkkelringen og ble ikke gjenopprettet: %@. Skriv dem inn på nytt i Innstillinger.";
 "settings.backup.import.confirm.title" = "Importer innstillinger?";
 "settings.backup.import.confirm.message" = "Dette vil erstatte eksisterende moduser og ordforråd med de fra sikkerhetskopifilen. Innstillinger vil også bli oppdatert.";
 "settings.backup.import.confirm.button" = "Importer";

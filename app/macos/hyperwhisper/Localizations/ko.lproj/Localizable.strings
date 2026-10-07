@@ -1049,6 +1049,7 @@
 "settings.backup.import.error.decode.corruptedField" = "필드 값이 손상되었습니다: %@";
 "settings.backup.import.error.version" = "백업 파일이 최신 버전입니다";
 "settings.backup.import.error.unknown" = "가져오기 실패";
+"settings.backup.import.apiKeysFailed" = "다음 API 키를 키체인에 저장할 수 없어 복원되지 않았습니다: %@. 설정에서 다시 입력하세요.";
 "settings.backup.import.confirm.title" = "설정을 가져오시겠습니까?";
 "settings.backup.import.confirm.message" = "백업 파일의 모드 및 어휘로 기존 모드 및 어휘를 교체합니다. 설정도 업데이트됩니다.";
 "settings.backup.import.confirm.button" = "가져오기";

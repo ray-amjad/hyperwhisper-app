@@ -1049,6 +1049,7 @@
 "settings.backup.import.error.decode.corruptedField" = "Повредена стойност за поле: %@";
 "settings.backup.import.error.version" = "Файлът за резервно копие е от по-нова версия";
 "settings.backup.import.error.unknown" = "Импортирането е неуспешно";
+"settings.backup.import.apiKeysFailed" = "Тези API ключове не можаха да бъдат запазени в Keychain и не бяха възстановени: %@. Въведете ги отново в Настройки.";
 "settings.backup.import.confirm.title" = "Импортиране на настройки?";
 "settings.backup.import.confirm.message" = "Това ще замени вашите съществуващи режими и речник с тези от файла за резервно копие. Настройките също ще бъдат актуализирани.";
 "settings.backup.import.confirm.button" = "Импортиране";

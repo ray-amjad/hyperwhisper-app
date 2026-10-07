@@ -1049,6 +1049,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "settings.backup.import.error.decode.corruptedField" = "Nilai rosak untuk medan: %@";
 "settings.backup.import.error.version" = "Fail sandaran adalah dari versi yang lebih baharu";
 "settings.backup.import.error.unknown" = "Import gagal";
+"settings.backup.import.apiKeysFailed" = "Kunci API ini tidak dapat disimpan ke Rantai Kunci dan tidak dipulihkan: %@. Masukkannya semula dalam Tetapan.";
 "settings.backup.import.confirm.title" = "Import Tetapan?";
 "settings.backup.import.confirm.message" = "Ini akan menggantikan mod dan perbendaharaan kata sedia ada anda dengan yang dari fail sandaran. Tetapan juga akan dikemas kini.";
 "settings.backup.import.confirm.button" = "Import";

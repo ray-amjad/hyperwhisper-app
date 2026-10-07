@@ -1049,6 +1049,7 @@
 "settings.backup.import.error.decode.corruptedField" = "Κατεστραμμένη τιμή για το πεδίο: %@";
 "settings.backup.import.error.version" = "Το αρχείο αντίγραφης ασφαλείας είναι από νεότερη έκδοση";
 "settings.backup.import.error.unknown" = "Αποτυχία εισαγωγής";
+"settings.backup.import.apiKeysFailed" = "Αυτά τα κλειδιά API δεν ήταν δυνατό να αποθηκευτούν στην Κλειδοθήκη και δεν επαναφέρθηκαν: %@. Εισαγάγετέ τα ξανά στις Ρυθμίσεις.";
 "settings.backup.import.confirm.title" = "Εισαγωγή Ρυθμίσεων;";
 "settings.backup.import.confirm.message" = "Αυτό θα αντικαταστήσει τις υπάρχουσες λειτουργίες και το λεξιλόγιό σας με αυτές από το αρχείο αντίγραφης ασφαλείας. Οι ρυθμίσεις θα ενημερωθούν επίσης.";
 "settings.backup.import.confirm.button" = "Εισαγωγή";

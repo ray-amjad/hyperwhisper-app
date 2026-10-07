@@ -819,6 +819,27 @@ struct ImportResult {
     /// restore flow offers a batched "Download all" prompt. Empty on Intel/Rosetta.
     var pendingLocalDownloadModelIds: Set<String> = []
 
+    /// BYOK providers whose key was in the backup but could not be written to
+    /// the Keychain. The import does not stop for these (a partial key restore
+    /// beats none), so this is the only place the user learns which providers
+    /// still need their key re-entered. Empty when every key restored.
+    var apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
+
+    /// One user-facing sentence naming the providers in
+    /// `apiKeysFailedProviders`, or nil when every key restored.
+    var apiKeysFailureMessage: String? {
+        guard !apiKeysFailedProviders.isEmpty else { return nil }
+        let names = ListFormatter.localizedString(byJoining: apiKeysFailedProviders.map(\.displayName))
+        return String(
+            format: NSLocalizedString(
+                "settings.backup.import.apiKeysFailed",
+                value: "These API keys could not be saved to the Keychain and were not restored: %@. Enter them again in Settings.",
+                comment: "Backup import: some BYOK API keys failed to restore; %@ is a list of provider names"
+            ),
+            names
+        )
+    }
+
     /// Creates a successful import result
     static func success(
         modesImported: Int,

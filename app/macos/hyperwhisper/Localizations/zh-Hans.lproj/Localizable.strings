@@ -1050,6 +1050,7 @@
 "settings.backup.import.error.decode.corruptedField" = "字段值已损坏：%@";
 "settings.backup.import.error.version" = "备份文件来自更高版本";
 "settings.backup.import.error.unknown" = "导入失败";
+"settings.backup.import.apiKeysFailed" = "以下 API 密钥无法保存到钥匙串，因此未能恢复：%@。请在设置中重新输入。";
 "settings.backup.import.confirm.title" = "导入设置？";
 "settings.backup.import.confirm.message" = "这将用备份文件中的内容替换你当前的模式和词汇，并更新设置。";
 "settings.backup.import.confirm.button" = "导入";

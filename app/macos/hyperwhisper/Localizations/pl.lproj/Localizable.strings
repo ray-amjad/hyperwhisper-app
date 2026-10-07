@@ -1049,6 +1049,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "settings.backup.import.error.decode.corruptedField" = "Uszkodzona wartość pola: %@";
 "settings.backup.import.error.version" = "Plik kopii zapasowej pochodzi z nowszej wersji";
 "settings.backup.import.error.unknown" = "Import nie powiódł się";
+"settings.backup.import.apiKeysFailed" = "Tych kluczy API nie udało się zapisać w pęku kluczy i nie zostały przywrócone: %@. Wprowadź je ponownie w Ustawieniach.";
 "settings.backup.import.confirm.title" = "Importować ustawienia?";
 "settings.backup.import.confirm.message" = "To zastąpi Twoje istniejące tryby i słownictwo tymi z pliku kopii zapasowej. Ustawienia również zostaną zaktualizowane.";
 "settings.backup.import.confirm.button" = "Importuj";

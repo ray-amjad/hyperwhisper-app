@@ -1049,6 +1049,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "settings.backup.import.error.decode.corruptedField" = "Valor malmès del camp: %@";
 "settings.backup.import.error.version" = "El fitxer de còpia de seguretat és d'una versió més nova";
 "settings.backup.import.error.unknown" = "La importació ha fallat";
+"settings.backup.import.apiKeysFailed" = "Aquestes claus d'API no s'han pogut desar al clauer i no s'han restaurat: %@. Torna-les a introduir a Configuració.";
 "settings.backup.import.confirm.title" = "Importar configuració?";
 "settings.backup.import.confirm.message" = "Això substituirà els vostres modes i vocabulari existents pels del fitxer de còpia de seguretat. La configuració també s'actualitzarà.";
 "settings.backup.import.confirm.button" = "Importar";

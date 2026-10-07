@@ -1049,6 +1049,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.import.error.decode.corruptedField" = "Sugadinta lauko reikšmė: %@";
 "settings.backup.import.error.version" = "Atsarginio kopijos failas iš naujesnės versijos";
 "settings.backup.import.error.unknown" = "Importas nepavyko";
+"settings.backup.import.apiKeysFailed" = "Šių API raktų nepavyko įrašyti į raktinę, todėl jie nebuvo atkurti: %@. Įveskite juos dar kartą nustatymuose.";
 "settings.backup.import.confirm.title" = "Importuoti nustatymai?";
 "settings.backup.import.confirm.message" = "Tai pakeis jūsų esamus režimus ir žodyną iš atsarginio kopijos failo. Nustatymai taip pat bus atnaujinti.";
 "settings.backup.import.confirm.button" = "Importuoti";

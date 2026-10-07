@@ -1049,6 +1049,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.backup.import.error.decode.corruptedField" = "Skemmt gildi fyrir reit: %@";
 "settings.backup.import.error.version" = "Öryggisafritsskrá er frá nýrri útgáfu";
 "settings.backup.import.error.unknown" = "Innflutningur mistókst";
+"settings.backup.import.apiKeysFailed" = "Ekki tókst að vista þessa API-lykla í lyklakippuna og þeir voru ekki endurheimtir: %@. Sláðu þá inn aftur í Stillingum.";
 "settings.backup.import.confirm.title" = "Flytja inn stillingar?";
 "settings.backup.import.confirm.message" = "Þetta mun skipta út núverandi hömum og orðaforða með þeim úr öryggisafritsskránni. Stillingar verða einnig uppfærðar.";
 "settings.backup.import.confirm.button" = "Flytja inn";

@@ -1049,6 +1049,7 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "settings.backup.import.error.decode.corruptedField" = "Beskadiget værdi for felt: %@";
 "settings.backup.import.error.version" = "Sikkerhedskopifilen er fra en nyere version";
 "settings.backup.import.error.unknown" = "Import mislykkedes";
+"settings.backup.import.apiKeysFailed" = "Disse API-nøgler kunne ikke gemmes i nøgleringen og blev ikke gendannet: %@. Indtast dem igen under Indstillinger.";
 "settings.backup.import.confirm.title" = "Importer indstillinger?";
 "settings.backup.import.confirm.message" = "Dette vil erstatte dine eksisterende tilstande og ordforråd med dem fra sikkerhedskopifilen. Indstillinger vil også blive opdateret.";
 "settings.backup.import.confirm.button" = "Importer";

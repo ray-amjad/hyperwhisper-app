@@ -1049,6 +1049,7 @@
 "settings.backup.import.error.decode.corruptedField" = "ค่าฟิลด์เสียหาย: %@";
 "settings.backup.import.error.version" = "ไฟล์สำรองมาจากเวอร์ชันที่ใหม่กว่า";
 "settings.backup.import.error.unknown" = "นำเข้าล้มเหลว";
+"settings.backup.import.apiKeysFailed" = "ไม่สามารถบันทึกคีย์ API เหล่านี้ลงในพวงกุญแจได้และไม่ได้กู้คืน: %@ โปรดป้อนอีกครั้งในการตั้งค่า";
 "settings.backup.import.confirm.title" = "นำเข้าการตั้งค่า?";
 "settings.backup.import.confirm.message" = "สิ่งนี้จะแทนที่โหมดและศัพท์เฉพาะที่มีอยู่ของคุณด้วยส่วนจากไฟล์สำรอง การตั้งค่าจะได้รับการอัปเดตด้วย";
 "settings.backup.import.confirm.button" = "นำเข้า";

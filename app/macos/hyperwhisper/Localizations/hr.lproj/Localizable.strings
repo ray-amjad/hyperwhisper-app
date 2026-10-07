@@ -1049,6 +1049,7 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "settings.backup.import.error.decode.corruptedField" = "Oštećena vrijednost polja: %@";
 "settings.backup.import.error.version" = "Datoteka sigurnosne kopije je iz novije verzije";
 "settings.backup.import.error.unknown" = "Uvoz nije uspio";
+"settings.backup.import.apiKeysFailed" = "Ovi API ključevi nisu se mogli spremiti u Privjesak ključeva i nisu vraćeni: %@. Ponovno ih unesite u Postavkama.";
 "settings.backup.import.confirm.title" = "Uvesti postavke?";
 "settings.backup.import.confirm.message" = "Ovo će zamijeniti vaše postojeće načine i rječnik s onima iz datoteke sigurnosne kopije. Postavke će također biti ažurirane.";
 "settings.backup.import.confirm.button" = "Uvezi";

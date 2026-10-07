@@ -1049,6 +1049,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.backup.import.error.decode.corruptedField" = "Nilai rusak untuk bidang: %@";
 "settings.backup.import.error.version" = "File cadangan dari versi yang lebih baru";
 "settings.backup.import.error.unknown" = "Impor gagal";
+"settings.backup.import.apiKeysFailed" = "Kunci API ini tidak dapat disimpan ke Rantai Kunci dan tidak dipulihkan: %@. Masukkan lagi di Pengaturan.";
 "settings.backup.import.confirm.title" = "Impor Pengaturan?";
 "settings.backup.import.confirm.message" = "Ini akan mengganti mode dan kosakata Anda yang ada dengan yang dari file cadangan. Pengaturan juga akan diperbarui.";
 "settings.backup.import.confirm.button" = "Impor";

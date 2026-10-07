@@ -1049,6 +1049,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "settings.backup.import.error.decode.corruptedField" = "Bojāta lauka vērtība: %@";
 "settings.backup.import.error.version" = "Rezerves fails ir no jaunākas versijas";
 "settings.backup.import.error.unknown" = "Imports neizdevās";
+"settings.backup.import.apiKeysFailed" = "Šīs API atslēgas neizdevās saglabāt atslēgu saišķī, un tās netika atjaunotas: %@. Ievadiet tās vēlreiz iestatījumos.";
 "settings.backup.import.confirm.title" = "Importēt iestatījumus?";
 "settings.backup.import.confirm.message" = "Tas aizstās jūsu esošos režīmus un vārdu krājumu ar tiem no rezerves faila. Iestatījumi tiks arī atjaunināti.";
 "settings.backup.import.confirm.button" = "Importēt";

@@ -1049,6 +1049,7 @@
 "settings.backup.import.error.decode.corruptedField" = "ערך פגום לשדה: %@";
 "settings.backup.import.error.version" = "קובץ גיבוי הוא מגרסה חדשה יותר";
 "settings.backup.import.error.unknown" = "הייבוא נכשל";
+"settings.backup.import.apiKeysFailed" = "לא ניתן היה לשמור את מפתחות ה-API האלה במחזיק המפתחות והם לא שוחזרו: %@. הזן אותם שוב בהגדרות.";
 "settings.backup.import.confirm.title" = "לייבא הגדרות?";
 "settings.backup.import.confirm.message" = "זה יחליף את המצבים ואוצר המילים הקיימים שלך באלה מקובץ הגיבוי. ההגדרות גם יעודכנו.";
 "settings.backup.import.confirm.button" = "ייבא";

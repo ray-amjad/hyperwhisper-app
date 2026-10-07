@@ -1050,6 +1050,7 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "settings.backup.import.error.decode.corruptedField" = "Valor dañado del campo: %@";
 "settings.backup.import.error.version" = "El archivo de copia es de una versión más reciente";
 "settings.backup.import.error.unknown" = "Falló la importación";
+"settings.backup.import.apiKeysFailed" = "No se pudieron guardar estas claves de API en el llavero y no se restauraron: %@. Vuelve a introducirlas en Ajustes.";
 "settings.backup.import.confirm.title" = "¿Importar ajustes?";
 "settings.backup.import.confirm.message" = "Esto reemplazará tus modos y vocabulario actuales por los del archivo de copia. Los ajustes también se actualizarán.";
 "settings.backup.import.confirm.button" = "Importar";

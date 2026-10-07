@@ -1049,6 +1049,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "settings.backup.import.error.decode.corruptedField" = "Vioittunut kentän arvo: %@";
 "settings.backup.import.error.version" = "Varmuuskopiotiedosto on uudemmasta versiosta";
 "settings.backup.import.error.unknown" = "Tuonti epäonnistui";
+"settings.backup.import.apiKeysFailed" = "Näitä API-avaimia ei voitu tallentaa avainnippuun, eikä niitä palautettu: %@. Syötä ne uudelleen asetuksissa.";
 "settings.backup.import.confirm.title" = "Tuo asetukset?";
 "settings.backup.import.confirm.message" = "Tämä korvaa olemassa olevat tilasi ja sanastosi varmuuskopiotiedoston tiedoilla. Asetukset myös päivitetään.";
 "settings.backup.import.confirm.button" = "Tuo";

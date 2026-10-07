@@ -1094,6 +1094,7 @@
 "settings.backup.import.error.decode.corruptedField" = "Corrupted value for field: %@";
 "settings.backup.import.error.version" = "Backup file is from a newer version";
 "settings.backup.import.error.unknown" = "Import failed";
+"settings.backup.import.apiKeysFailed" = "These API keys could not be saved to the Keychain and were not restored: %@. Enter them again in Settings.";
 "settings.backup.import.confirm.title" = "Import Settings?";
 "settings.backup.import.confirm.message" = "This will replace your existing modes and vocabulary with the ones from the backup file. Settings will also be updated.";
 "settings.backup.import.confirm.button" = "Import";

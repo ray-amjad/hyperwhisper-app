@@ -1049,6 +1049,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "settings.backup.import.error.decode.corruptedField" = "Beschadigde waarde voor veld: %@";
 "settings.backup.import.error.version" = "Back-upbestand is van een nieuwere versie";
 "settings.backup.import.error.unknown" = "Importeren mislukt";
+"settings.backup.import.apiKeysFailed" = "Deze API-sleutels konden niet in de sleutelhanger worden bewaard en zijn niet hersteld: %@. Voer ze opnieuw in bij Instellingen.";
 "settings.backup.import.confirm.title" = "Instellingen importeren?";
 "settings.backup.import.confirm.message" = "Dit vervangt je bestaande modi en woordenlijst met de items uit het back-upbestand. Instellingen worden ook bijgewerkt.";
 "settings.backup.import.confirm.button" = "Importeren";

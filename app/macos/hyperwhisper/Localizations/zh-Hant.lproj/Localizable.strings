@@ -1049,6 +1049,7 @@
 "settings.backup.import.error.decode.corruptedField" = "欄位值已損毀：%@";
 "settings.backup.import.error.version" = "備份檔案來自較新版本";
 "settings.backup.import.error.unknown" = "匯入失敗";
+"settings.backup.import.apiKeysFailed" = "以下 API 金鑰無法儲存到鑰匙圈，因此未能還原：%@。請在設定中重新輸入。";
 "settings.backup.import.confirm.title" = "匯入設定？";
 "settings.backup.import.confirm.message" = "這將用備份檔案中的模式和詞彙替換您現有的模式和詞彙。設定也會更新。";
 "settings.backup.import.confirm.button" = "匯入";

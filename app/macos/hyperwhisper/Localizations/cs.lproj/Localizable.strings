@@ -1049,6 +1049,7 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "settings.backup.import.error.decode.corruptedField" = "Poškozená hodnota pole: %@";
 "settings.backup.import.error.version" = "Soubor zalohy je z novejsi verze";
 "settings.backup.import.error.unknown" = "Import selhal";
+"settings.backup.import.apiKeysFailed" = "Tyto klíče API se nepodařilo uložit do Klíčenky a nebyly obnoveny: %@. Zadejte je znovu v Nastavení.";
 "settings.backup.import.confirm.title" = "Importovat nastaveni?";
 "settings.backup.import.confirm.message" = "Timto nahradite sve stavajici rezimy a slovnik temi ze souboru zalohy. Nastaveni budou take aktualizovana.";
 "settings.backup.import.confirm.button" = "Importovat";

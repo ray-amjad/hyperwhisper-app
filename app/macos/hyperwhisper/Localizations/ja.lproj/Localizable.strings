@@ -1050,6 +1050,7 @@
 "settings.backup.import.error.decode.corruptedField" = "フィールドの値が破損しています: %@";
 "settings.backup.import.error.version" = "新しいバージョンで作成されたバックアップファイルです";
 "settings.backup.import.error.unknown" = "インポートに失敗しました";
+"settings.backup.import.apiKeysFailed" = "次の API キーはキーチェーンに保存できず、復元されませんでした: %@。設定でもう一度入力してください。";
 "settings.backup.import.confirm.title" = "設定をインポートしますか？";
 "settings.backup.import.confirm.message" = "既存のモードと語彙がバックアップファイルの内容に置き換えられます。設定も更新されます。";
 "settings.backup.import.confirm.button" = "インポート";

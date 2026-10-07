@@ -1049,6 +1049,7 @@
 "settings.backup.import.error.decode.corruptedField" = "Пошкоджене значення поля: %@";
 "settings.backup.import.error.version" = "Файл резервної копії з новішої версії";
 "settings.backup.import.error.unknown" = "Імпорт не вдалось";
+"settings.backup.import.apiKeysFailed" = "Ці API-ключі не вдалося зберегти у в'язку ключів, тому їх не відновлено: %@. Введіть їх знову в налаштуваннях.";
 "settings.backup.import.confirm.title" = "Імпортувати параметри?";
 "settings.backup.import.confirm.message" = "Це замінить ваші існуючі режими та словник на ті, що з файла резервної копії. Параметри також будуть оновлені.";
 "settings.backup.import.confirm.button" = "Імпортувати";

@@ -1049,6 +1049,7 @@
 "settings.backup.import.error.decode.corruptedField" = "قيمة تالفة للحقل: %@";
 "settings.backup.import.error.version" = "ملف النسخة الاحتياطية من إصدار أحدث";
 "settings.backup.import.error.unknown" = "فشل الاستيراد";
+"settings.backup.import.apiKeysFailed" = "تعذّر حفظ مفاتيح API هذه في سلسلة المفاتيح ولم تتم استعادتها: %@. أدخلها مرة أخرى في الإعدادات.";
 "settings.backup.import.confirm.title" = "استيراد الإعدادات؟";
 "settings.backup.import.confirm.message" = "سيؤدي هذا إلى استبدال الأوضاع والمفردات الحالية بتلك الموجودة في ملف النسخة الاحتياطية. سيتم تحديث الإعدادات أيضاً.";
 "settings.backup.import.confirm.button" = "استيراد";

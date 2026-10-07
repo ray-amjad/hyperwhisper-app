@@ -1049,6 +1049,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "settings.backup.import.error.decode.corruptedField" = "Rikutud välja väärtus: %@";
 "settings.backup.import.error.version" = "Varukoopia fail on uuemast versioonist";
 "settings.backup.import.error.unknown" = "Import ebaõnnestus";
+"settings.backup.import.apiKeysFailed" = "Neid API-võtmeid ei saanud võtmehoidjasse salvestada ja neid ei taastatud: %@. Sisesta need uuesti seadetes.";
 "settings.backup.import.confirm.title" = "Impordi seaded?";
 "settings.backup.import.confirm.message" = "See asendab teie olemasolevad režiimid ja sõnavara varukoopia failis olevate omadega. Seaded uuendatakse samuti.";
 "settings.backup.import.confirm.button" = "Impordi";

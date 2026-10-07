@@ -1049,6 +1049,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "settings.backup.import.error.decode.corruptedField" = "Beschädigter Wert für Feld: %@";
 "settings.backup.import.error.version" = "Sicherungsdatei stammt aus einer neueren Version";
 "settings.backup.import.error.unknown" = "Import fehlgeschlagen";
+"settings.backup.import.apiKeysFailed" = "Diese API-Schlüssel konnten nicht im Schlüsselbund gespeichert werden und wurden nicht wiederhergestellt: %@. Gib sie in den Einstellungen erneut ein.";
 "settings.backup.import.confirm.title" = "Einstellungen importieren?";
 "settings.backup.import.confirm.message" = "Dadurch werden Ihre vorhandenen Modi und Ihr Vokabular durch diejenigen aus der Sicherungsdatei ersetzt. Die Einstellungen werden ebenfalls aktualisiert.";
 "settings.backup.import.confirm.button" = "Importieren";
