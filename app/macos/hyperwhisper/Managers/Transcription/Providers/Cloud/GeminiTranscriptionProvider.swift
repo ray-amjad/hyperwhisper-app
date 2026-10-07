@@ -287,7 +287,7 @@ class GeminiTranscriptionProvider: TranscriptionProvider {
     }
 
     private static func makeSessionConfiguration() -> URLSessionConfiguration {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = 120
         config.timeoutIntervalForResource = 900
         config.waitsForConnectivity = false

@@ -34,7 +34,7 @@ class SonioxProvider: TranscriptionProvider {
     private var apiKey: String = ""
 
     private lazy var session: URLSession = {
-        let configuration = URLSessionConfiguration.default
+        let configuration = URLSessionConfiguration.credentialBearing
         configuration.timeoutIntervalForRequest = 60
         configuration.timeoutIntervalForResource = 180
         configuration.waitsForConnectivity = false
