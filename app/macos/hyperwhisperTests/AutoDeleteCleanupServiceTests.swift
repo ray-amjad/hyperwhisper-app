@@ -5,42 +5,120 @@
 
 import CoreData
 import Foundation
+import SwiftUI
 import Testing
 @testable import HyperWhisper
 
 // MARK: - Test double
 
-/// An `AutoDeleteSettingsManager` whose answers are fixed by the test rather
-/// than by `UserDefaults.standard`.
+/// An `AutoDeleteSettingsManager` whose settings are fixed by the test rather
+/// than read from `UserDefaults.standard`.
 ///
 /// This is not convenience — it is a safety requirement. The real manager is
 /// `@AppStorage`-backed, so flipping `autoDeleteEnabled` for real would write
 /// the defaults of the running host application (unit tests here run inside
 /// `HyperWhisper.app` via `TEST_HOST`), and that app has a live
 /// `AutoDeleteCleanupService` bound to `PersistenceController.shared` — i.e. to a
-/// developer's actual recordings. Overriding the only two properties
-/// `performCleanup()` reads from settings keeps every test confined to its own
-/// in-memory store and its own temporary directory.
+/// developer's actual recordings.
 ///
-/// `@testable import` is what makes overriding an `internal` class member legal
-/// from the test module.
+/// `performCleanup()` reads its settings once per pass, off the main actor,
+/// through `settingsSnapshotFromDefaults()` (#880). This double overrides ONLY
+/// that read. The gate and the cutoff are then computed by the production code
+/// from the snapshot, so the tests exercise the real snapshot-to-cutoff path.
+/// The default (1 minute) puts the cutoff 60 s in the past.
 @MainActor
 private final class FixedAutoDeleteSettings: AutoDeleteSettingsManager {
-    private var enabledValue: Bool
-    private let cutoff: Date?
+    private nonisolated let snapshot: AutoDeleteSettingsSnapshot
 
-    init(enabled: Bool, cutoff: Date?) {
-        self.enabledValue = enabled
-        self.cutoff = cutoff
+    init(enabled: Bool, timeUnit: AutoDeleteTimeUnit = .minutes, value: Int = 1) {
+        self.snapshot = AutoDeleteSettingsSnapshot(enabled: enabled, timeUnit: timeUnit, value: value)
         super.init()
     }
 
-    override var autoDeleteEnabled: Bool {
-        get { enabledValue }
-        set { enabledValue = newValue }
+    nonisolated override func settingsSnapshotFromDefaults() -> AutoDeleteSettingsSnapshot {
+        snapshot
+    }
+}
+
+/// An `AutoDeleteSettingsManager` whose off-main-actor settings read decodes a
+/// private `UserDefaults` suite with the production decoder, instead of
+/// `UserDefaults.standard` (see `FixedAutoDeleteSettings` for why a test must
+/// never touch the host app's real defaults).
+///
+/// With a `SettingsReadGate`, the read parks until the test releases it — a
+/// stand-in for a slow cfprefsd round trip (HYPERWHISPER-Y0, #880).
+@MainActor
+private final class SuiteBackedAutoDeleteSettings: AutoDeleteSettingsManager {
+    private nonisolated let suiteName: String
+    nonisolated let readGate: SettingsReadGate?
+
+    init(suiteName: String, readGate: SettingsReadGate? = nil) {
+        self.suiteName = suiteName
+        self.readGate = readGate
+        super.init()
     }
 
-    override var deletionCutoffDate: Date? { cutoff }
+    nonisolated override func settingsSnapshotFromDefaults() -> AutoDeleteSettingsSnapshot {
+        readGate?.block()
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            return AutoDeleteSettingsSnapshot(enabled: false, timeUnit: .days, value: 30)
+        }
+        return AutoDeleteSettingsManager.settingsSnapshot(in: defaults)
+    }
+}
+
+/// Parks a settings read until the test releases it, and records whether the
+/// release came from the test (rather than the timeout). A read that ran on
+/// the main actor would hold the test's own main-actor code out until the
+/// timeout, so `releasedByTest` is the regression signal.
+private final class SettingsReadGate: @unchecked Sendable {
+    private let entered = DispatchSemaphore(value: 0)
+    private let releaseSemaphore = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private var releasedInTime = false
+    private var entries = 0
+
+    func block() {
+        lock.lock()
+        entries += 1
+        lock.unlock()
+        entered.signal()
+        let result = releaseSemaphore.wait(timeout: .now() + 2)
+        lock.lock()
+        releasedInTime = result == .success
+        lock.unlock()
+    }
+
+    func waitUntilBlocked() async -> Bool {
+        await waitOffThePool(for: entered, seconds: 5)
+    }
+
+    func release() {
+        releaseSemaphore.signal()
+    }
+
+    var releasedByTest: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return releasedInTime
+    }
+
+    /// How many settings reads have entered the gate.
+    var entryCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return entries
+    }
+}
+
+/// A counter only the main actor touches.
+@MainActor
+private final class MainActorCounter {
+    private(set) var value = 0
+
+    func increment() {
+        value += 1
+    }
 }
 
 /// Models a serial-writer transaction that fails before it can return a
@@ -118,14 +196,33 @@ private final class AutoDeleteWriterGate: @unchecked Sendable {
 @MainActor
 struct AutoDeleteCleanupServiceTests {
 
+    /// Yields first, then polls every millisecond, for up to 5 seconds. The
+    /// gate read in `performCleanup()` hops to a background queue (#880), and
+    /// on a loaded runner that hop can outlast a fixed number of yields.
     private static func waitUntil(
         _ condition: @escaping @MainActor () -> Bool
     ) async {
-        for _ in 0..<1_000 {
+        let deadline = Date().addingTimeInterval(5)
+        var yields = 0
+        while Date() < deadline {
             if condition() { return }
-            await Task.yield()
+            if yields < 1_000 {
+                yields += 1
+                await Task.yield()
+            } else {
+                try? await Task.sleep(nanoseconds: 1_000_000)
+            }
         }
+        if condition() { return }
         Issue.record("Timed out while waiting for auto-delete state")
+    }
+
+    /// A private `UserDefaults` suite, so no test writes the host app's real
+    /// defaults. Call `removePersistentDomain(forName:)` when done.
+    private func makeDefaultsSuite() throws -> (name: String, defaults: UserDefaults) {
+        let name = "AutoDeleteCleanupServiceTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        return (name, defaults)
     }
 
     private func makeTemporaryDirectory() throws -> URL {
@@ -253,7 +350,7 @@ struct AutoDeleteCleanupServiceTests {
         )
         try context.save()
 
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let settings = FixedAutoDeleteSettings(enabled: true)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
         let cleanup = Task { await service.performCleanup() }
         let cleanupSaveBlocked = await persistence.gate.waitUntilBlocked()
@@ -370,13 +467,14 @@ struct AutoDeleteCleanupServiceTests {
             paths.append(path)
             insertTranscript(
                 into: context,
-                date: Date().addingTimeInterval(TimeInterval(-index - 1)),
+                // Older than the 1-minute cutoff the double's snapshot gives.
+                date: Date().addingTimeInterval(TimeInterval(-3600 - index)),
                 audioFilePath: path
             )
         }
         try context.save()
 
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let settings = FixedAutoDeleteSettings(enabled: true)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
 
         let completedStats = await service.performCleanup()
@@ -403,7 +501,7 @@ struct AutoDeleteCleanupServiceTests {
         let writerBlocked = await gate.waitUntilBlocked()
         #expect(writerBlocked)
 
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let settings = FixedAutoDeleteSettings(enabled: true)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
         let cleanup = Task { await service.performCleanup() }
         await Self.waitUntil { service.isCleanupInProgress }
@@ -431,7 +529,7 @@ struct AutoDeleteCleanupServiceTests {
     /// notice.
     @Test func emptyBacklogPassClearsTheInProgressFlag() async throws {
         let persistence = PersistenceController(inMemory: true)
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let settings = FixedAutoDeleteSettings(enabled: true)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
 
         let completedStats = await service.performCleanup()
@@ -449,7 +547,7 @@ struct AutoDeleteCleanupServiceTests {
     /// before the flag is set, so the `defer` never registers.
     @Test func disabledPassReturnsNilAndLeavesTheFlagClear() async throws {
         let persistence = PersistenceController(inMemory: true)
-        let settings = FixedAutoDeleteSettings(enabled: false, cutoff: Date())
+        let settings = FixedAutoDeleteSettings(enabled: false)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
 
         let stats = await service.performCleanup()
@@ -484,7 +582,7 @@ struct AutoDeleteCleanupServiceTests {
         )
         try context.save()
 
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let settings = FixedAutoDeleteSettings(enabled: true)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
 
         let completedStats = await service.performCleanup()
@@ -515,7 +613,7 @@ struct AutoDeleteCleanupServiceTests {
         insertTranscript(into: context, date: Date(), audioFilePath: recentPath)
         try context.save()
 
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date().addingTimeInterval(-60))
+        let settings = FixedAutoDeleteSettings(enabled: true)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
 
         let completedStats = await service.performCleanup()
@@ -554,7 +652,7 @@ struct AutoDeleteCleanupServiceTests {
         )
         try context.save()
 
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let settings = FixedAutoDeleteSettings(enabled: true)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
 
         let completedStats = await service.performCleanup()
@@ -583,13 +681,17 @@ struct AutoDeleteCleanupServiceTests {
         )
         try context.save()
 
-        let cutoff = Date()
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: cutoff)
+        let settings = FixedAutoDeleteSettings(enabled: true, timeUnit: .minutes, value: 1)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
 
+        let before = Date()
         let stats = await service.performCleanup()
+        let after = Date()
 
-        #expect(persistence.attemptedCutoffDate == cutoff)
+        // The cutoff the pass tried is the snapshot's: 1 minute before "now".
+        let attempted = try #require(persistence.attemptedCutoffDate)
+        #expect(attempted >= before.addingTimeInterval(-60))
+        #expect(attempted <= after.addingTimeInterval(-60))
         #expect(stats == nil)
         #expect(service.lastCleanupStats == nil)
         #expect(service.lastCleanupDate == nil)
@@ -627,7 +729,7 @@ struct AutoDeleteCleanupServiceTests {
         let rewritePending = await gate.waitUntilBlocked()
         #expect(rewritePending)
 
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let settings = FixedAutoDeleteSettings(enabled: true)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
         let cleanup = Task { await service.performCleanup() }
         await Self.waitUntil { service.isCleanupInProgress }
@@ -668,7 +770,7 @@ struct AutoDeleteCleanupServiceTests {
         pendingTranscript.date = Date().addingTimeInterval(3600)
         pendingTranscript.duration = 1
 
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let settings = FixedAutoDeleteSettings(enabled: true)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
 
         let completedStats = await service.performCleanup()
@@ -713,7 +815,7 @@ struct AutoDeleteCleanupServiceTests {
         pendingTranscript.date = Date().addingTimeInterval(3600)
         pendingTranscript.duration = 1
 
-        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let settings = FixedAutoDeleteSettings(enabled: true)
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
 
         let stats = await service.performCleanup()
@@ -734,5 +836,296 @@ struct AutoDeleteCleanupServiceTests {
         #expect(context.hasChanges)
         // And the pass still released the flag, so the next tick can retry.
         #expect(!service.isCleanupInProgress)
+    }
+
+    // MARK: - Off-main-actor settings gate (HYPERWHISPER-Y0, #880)
+
+    /// With auto-delete disabled in UserDefaults, the gate read must not hold
+    /// the main actor: a main-actor counter keeps incrementing while the read
+    /// is parked (a stand-in for a slow cfprefsd), and the pass still returns
+    /// `nil` without touching the in-progress flag.
+    @Test func disabledGateReadLeavesMainActorResponsive() async throws {
+        let suite = try makeDefaultsSuite()
+        defer { suite.defaults.removePersistentDomain(forName: suite.name) }
+        suite.defaults.set(false, forKey: AutoDeleteDefaultsKey.enabled)
+
+        let readGate = SettingsReadGate()
+        let settings = SuiteBackedAutoDeleteSettings(suiteName: suite.name, readGate: readGate)
+        let service = AutoDeleteCleanupService(
+            settingsManager: settings,
+            persistenceController: PersistenceController(inMemory: true)
+        )
+
+        let cleanup = Task { await service.performCleanup() }
+        let readParked = await readGate.waitUntilBlocked()
+        #expect(readParked)
+
+        // The gate read is parked now. The main actor must keep running.
+        let counter = MainActorCounter()
+        let ticker = Task { @MainActor in
+            while !Task.isCancelled {
+                counter.increment()
+                await Task.yield()
+            }
+        }
+        await Self.waitUntil { counter.value >= 100 }
+        ticker.cancel()
+        let ticksWhileParked = counter.value
+
+        readGate.release()
+        let stats = await cleanup.value
+
+        #expect(ticksWhileParked >= 100)
+        // Released by the test, not by the timeout: the main actor ran the
+        // lines above while the read was still parked.
+        #expect(readGate.releasedByTest)
+        #expect(stats == nil)
+        #expect(!service.isCleanupInProgress)
+        #expect(service.lastCleanupDate == nil)
+    }
+
+    /// The gate reads the live value on every pass, never a copy cached at
+    /// launch: turning auto-delete on, then off again, while the app runs is
+    /// seen by the very next pass.
+    @Test func gateSeesALiveToggleOnEveryPass() async throws {
+        let suite = try makeDefaultsSuite()
+        defer { suite.defaults.removePersistentDomain(forName: suite.name) }
+        suite.defaults.set(false, forKey: AutoDeleteDefaultsKey.enabled)
+
+        let settings = SuiteBackedAutoDeleteSettings(suiteName: suite.name)
+        let service = AutoDeleteCleanupService(
+            settingsManager: settings,
+            persistenceController: PersistenceController(inMemory: true)
+        )
+
+        let whileDisabled = await service.performCleanup()
+        #expect(whileDisabled == nil)
+
+        suite.defaults.set(true, forKey: AutoDeleteDefaultsKey.enabled)
+        let whileEnabled = await service.performCleanup()
+        let stats = try #require(whileEnabled)
+        #expect(stats.transcriptsDeleted == 0)
+        #expect(service.lastCleanupDate != nil)
+
+        suite.defaults.set(false, forKey: AutoDeleteDefaultsKey.enabled)
+        let afterDisabling = await service.performCleanup()
+        #expect(afterDisabling == nil)
+    }
+
+    /// The plain readers must decode exactly what the `@AppStorage` properties
+    /// decode, including the defaults when a key is absent and an unknown time
+    /// unit falling back to days.
+    @Test func defaultsReadersMatchAppStorage() throws {
+        let suite = try makeDefaultsSuite()
+        defer { suite.defaults.removePersistentDomain(forName: suite.name) }
+        let defaults = suite.defaults
+
+        func appStorageEnabled() -> Bool {
+            AppStorage(wrappedValue: false, AutoDeleteDefaultsKey.enabled, store: defaults).wrappedValue
+        }
+        func appStorageTimeUnit() -> AutoDeleteTimeUnit {
+            let raw = AppStorage(
+                wrappedValue: AutoDeleteTimeUnit.days.rawValue,
+                AutoDeleteDefaultsKey.timeUnit,
+                store: defaults
+            ).wrappedValue
+            return AutoDeleteTimeUnit(rawValue: raw) ?? .days
+        }
+
+        // Absent keys: the declared defaults.
+        #expect(AutoDeleteSettingsManager.isAutoDeleteEnabled(in: defaults) == false)
+        #expect(AutoDeleteSettingsManager.isAutoDeleteEnabled(in: defaults) == appStorageEnabled())
+        #expect(AutoDeleteSettingsManager.autoDeleteTimeUnit(in: defaults) == .days)
+        #expect(AutoDeleteSettingsManager.autoDeleteTimeUnit(in: defaults) == appStorageTimeUnit())
+
+        for enabled in [true, false] {
+            defaults.set(enabled, forKey: AutoDeleteDefaultsKey.enabled)
+            #expect(AutoDeleteSettingsManager.isAutoDeleteEnabled(in: defaults) == enabled)
+            #expect(AutoDeleteSettingsManager.isAutoDeleteEnabled(in: defaults) == appStorageEnabled())
+        }
+
+        for unit in AutoDeleteTimeUnit.allCases {
+            defaults.set(unit.rawValue, forKey: AutoDeleteDefaultsKey.timeUnit)
+            #expect(AutoDeleteSettingsManager.autoDeleteTimeUnit(in: defaults) == unit)
+            #expect(AutoDeleteSettingsManager.autoDeleteTimeUnit(in: defaults) == appStorageTimeUnit())
+        }
+
+        defaults.set("fortnights", forKey: AutoDeleteDefaultsKey.timeUnit)
+        #expect(AutoDeleteSettingsManager.autoDeleteTimeUnit(in: defaults) == .days)
+        #expect(AutoDeleteSettingsManager.autoDeleteTimeUnit(in: defaults) == appStorageTimeUnit())
+
+        func appStorageValue() -> Int {
+            AppStorage(wrappedValue: 30, AutoDeleteDefaultsKey.value, store: defaults).wrappedValue
+        }
+
+        // Absent value key: the declared default.
+        #expect(AutoDeleteSettingsManager.autoDeleteValue(in: defaults) == 30)
+        #expect(AutoDeleteSettingsManager.autoDeleteValue(in: defaults) == appStorageValue())
+
+        for value in [1, 7, 30, 365, 0, -5] {
+            defaults.set(value, forKey: AutoDeleteDefaultsKey.value)
+            #expect(AutoDeleteSettingsManager.autoDeleteValue(in: defaults) == value)
+            #expect(AutoDeleteSettingsManager.autoDeleteValue(in: defaults) == appStorageValue())
+        }
+    }
+
+    /// The cutoff the timer now computes from its off-main snapshot must equal
+    /// the one the old main-actor `deletionCutoffDate` computed from the
+    /// `@AppStorage` values, for every unit, and both must say "no cutoff"
+    /// when auto-delete is off or the value is below 1.
+    ///
+    /// The old path is reproduced here from SwiftUI's own `AppStorage` reads on
+    /// the same private suite (never `.standard`), with its exact formula.
+    @Test func snapshotCutoffMatchesTheOldMainActorCutoff() throws {
+        let suite = try makeDefaultsSuite()
+        defer { suite.defaults.removePersistentDomain(forName: suite.name) }
+        let defaults = suite.defaults
+        let now = Date()
+
+        /// The removed `AutoDeleteSettingsManager.deletionCutoffDate`, fed by
+        /// `@AppStorage` reads with the manager's keys and defaults.
+        func oldMainActorCutoff() -> Date? {
+            let enabled = AppStorage(wrappedValue: false, AutoDeleteDefaultsKey.enabled, store: defaults).wrappedValue
+            let raw = AppStorage(
+                wrappedValue: AutoDeleteTimeUnit.days.rawValue,
+                AutoDeleteDefaultsKey.timeUnit,
+                store: defaults
+            ).wrappedValue
+            let unit = AutoDeleteTimeUnit(rawValue: raw) ?? .days
+            let value = AppStorage(wrappedValue: 30, AutoDeleteDefaultsKey.value, store: defaults).wrappedValue
+            guard enabled else { return nil }
+            guard value > 0 else { return nil }
+            return now.addingTimeInterval(-unit.toSeconds(value))
+        }
+        func snapshotCutoff() -> Date? {
+            AutoDeleteSettingsManager.settingsSnapshot(in: defaults).deletionCutoffDate(now: now)
+        }
+
+        // All keys absent: off, so no cutoff on either path.
+        #expect(snapshotCutoff() == nil)
+        #expect(oldMainActorCutoff() == nil)
+
+        // On, with the unit and value keys absent: 30 days on both paths.
+        defaults.set(true, forKey: AutoDeleteDefaultsKey.enabled)
+        #expect(snapshotCutoff() == now.addingTimeInterval(-30 * 24 * 60 * 60))
+        #expect(snapshotCutoff() == oldMainActorCutoff())
+
+        for unit in AutoDeleteTimeUnit.allCases {
+            for value in [1, 7, 45] {
+                defaults.set(unit.rawValue, forKey: AutoDeleteDefaultsKey.timeUnit)
+                defaults.set(value, forKey: AutoDeleteDefaultsKey.value)
+                let expected = now.addingTimeInterval(-unit.toSeconds(value))
+                #expect(snapshotCutoff() == expected)
+                #expect(snapshotCutoff() == oldMainActorCutoff())
+            }
+        }
+
+        // A value below 1 gives no cutoff on both paths.
+        defaults.set(0, forKey: AutoDeleteDefaultsKey.value)
+        #expect(snapshotCutoff() == nil)
+        #expect(oldMainActorCutoff() == nil)
+
+        // Off again: no cutoff, whatever the unit and value say.
+        defaults.set(5, forKey: AutoDeleteDefaultsKey.value)
+        defaults.set(false, forKey: AutoDeleteDefaultsKey.enabled)
+        #expect(snapshotCutoff() == nil)
+        #expect(oldMainActorCutoff() == nil)
+    }
+
+    /// With auto-delete ENABLED, the pass's one settings read must not hold the
+    /// main actor either: a main-actor counter keeps incrementing while the
+    /// read is parked, and the in-progress flag stays clear until it returns.
+    /// Then the pass deletes by the cutoff from that same read (1 minute, from
+    /// the private suite), which proves no other settings source was used: the
+    /// row 1 hour old goes, the row 10 seconds old stays.
+    @Test func enabledSnapshotReadLeavesMainActorResponsive() async throws {
+        let suite = try makeDefaultsSuite()
+        defer { suite.defaults.removePersistentDomain(forName: suite.name) }
+        suite.defaults.set(true, forKey: AutoDeleteDefaultsKey.enabled)
+        suite.defaults.set(AutoDeleteTimeUnit.minutes.rawValue, forKey: AutoDeleteDefaultsKey.timeUnit)
+        suite.defaults.set(1, forKey: AutoDeleteDefaultsKey.value)
+
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let expiredPath = try makeFile(in: directory, byteCount: 64)
+        let recentPath = try makeFile(in: directory, byteCount: 64)
+        insertTranscript(into: context, date: Date().addingTimeInterval(-3600), audioFilePath: expiredPath)
+        insertTranscript(into: context, date: Date().addingTimeInterval(-10), audioFilePath: recentPath)
+        try context.save()
+
+        let readGate = SettingsReadGate()
+        let settings = SuiteBackedAutoDeleteSettings(suiteName: suite.name, readGate: readGate)
+        let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
+
+        let cleanup = Task { await service.performCleanup() }
+        let readParked = await readGate.waitUntilBlocked()
+        #expect(readParked)
+
+        // The settings read is parked now. The main actor must keep running.
+        let counter = MainActorCounter()
+        let ticker = Task { @MainActor in
+            while !Task.isCancelled {
+                counter.increment()
+                await Task.yield()
+            }
+        }
+        await Self.waitUntil { counter.value >= 100 }
+        ticker.cancel()
+        let ticksWhileParked = counter.value
+        let inProgressWhileParked = service.isCleanupInProgress
+
+        readGate.release()
+        let completedStats = await cleanup.value
+        let stats = try #require(completedStats)
+
+        #expect(ticksWhileParked >= 100)
+        #expect(readGate.releasedByTest)
+        #expect(!inProgressWhileParked)
+        #expect(readGate.entryCount == 1)
+        #expect(stats.transcriptsDeleted == 1)
+        #expect(stats.audioFilesDeleted == 1)
+        #expect(!FileManager.default.fileExists(atPath: expiredPath))
+        #expect(FileManager.default.fileExists(atPath: recentPath))
+        #expect(try transcriptCount(in: context) == 1)
+        #expect(!service.isCleanupInProgress)
+    }
+
+    /// While one pass waits on a stuck settings read, a second pass (the next
+    /// timer tick) returns `nil` at once and queues no second read behind it.
+    @Test func passSkipsWhileAnEarlierSettingsReadIsInFlight() async throws {
+        let suite = try makeDefaultsSuite()
+        defer { suite.defaults.removePersistentDomain(forName: suite.name) }
+        suite.defaults.set(true, forKey: AutoDeleteDefaultsKey.enabled)
+
+        let readGate = SettingsReadGate()
+        let settings = SuiteBackedAutoDeleteSettings(suiteName: suite.name, readGate: readGate)
+        let service = AutoDeleteCleanupService(
+            settingsManager: settings,
+            persistenceController: PersistenceController(inMemory: true)
+        )
+
+        let first = Task { await service.performCleanup() }
+        let readParked = await readGate.waitUntilBlocked()
+        #expect(readParked)
+
+        // Returns without waiting: a queued read would sit behind the parked
+        // one until the gate's 2 s timeout, and `releasedByTest` would fail.
+        let second = await service.performCleanup()
+        #expect(second == nil)
+
+        readGate.release()
+        let firstStats = await first.value
+        #expect(firstStats != nil)
+        #expect(readGate.releasedByTest)
+        #expect(readGate.entryCount == 1)
+
+        // The flag is clear again, so the next pass reads normally. Release
+        // ahead of time so that read does not park.
+        readGate.release()
+        let third = await service.performCleanup()
+        #expect(third != nil)
+        #expect(readGate.entryCount == 2)
     }
 }
