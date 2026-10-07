@@ -57,7 +57,7 @@ internal sealed class ModifierChordGate
         if (!shortcut.IsModifierOnly)
             throw new ArgumentException($"'{shortcut}' is not a modifier-only shortcut.", nameof(shortcut));
 
-        _shortcut = shortcut;
+        _shortcut = shortcut.Clone();
     }
 
     public ModifierChordState State { get; private set; } = ModifierChordState.Idle;

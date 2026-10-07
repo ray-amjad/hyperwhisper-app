@@ -593,6 +593,154 @@ internal static class Program
                     "PushToTalkMonitor does not implement the portable contract");
             });
 
+            // Issue #1497: the default toggle Ctrl+Alt fired the moment Ctrl and Alt
+            // were both down, so Ctrl+Alt+Left started a hidden recording. A
+            // modifier-only chord now triggers on a clean release. The sequences
+            // below replay what the WH_KEYBOARD_LL hook hands ModifierChordGate.
+            Run("Modifier-only Ctrl+Alt alone triggers once, on release (#1497)", () =>
+            {
+                var ctrlAlt = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                Assert(ctrlAlt.IsModifierOnly, "precondition: Ctrl+Alt is modifier-only");
+
+                var gate = new ModifierChordGate(ctrlAlt);
+                var pressed = new HashSet<int>();
+                int triggers = 0;
+                triggers += ChordKey(gate, pressed, VkLControl, down: true);
+                triggers += ChordKey(gate, pressed, VkLMenu, down: true);
+                Assert(triggers == 0, "the chord must not trigger on press");
+                Assert(gate.IsArmed, "a clean Ctrl+Alt must arm the chord");
+                triggers += ChordKey(gate, pressed, VkLMenu, down: true); // auto-repeat
+                triggers += ChordKey(gate, pressed, VkLMenu, down: false);
+                Assert(triggers == 1, $"releasing a clean Ctrl+Alt must trigger once, got {triggers}");
+                triggers += ChordKey(gate, pressed, VkLControl, down: false);
+                Assert(triggers == 1, $"the second key-up must not trigger again, got {triggers}");
+
+                // Either release order, and again on the next press.
+                Assert(ReplayChord(ctrlAlt, (VkLMenu, true), (VkLControl, true), (VkLControl, false), (VkLMenu, false)) == 1,
+                    "Alt first, Ctrl released first must trigger once");
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLControl, true), (VkLMenu, true), (VkLMenu, false), (VkLControl, false),
+                        (VkLControl, true), (VkLMenu, true), (VkLMenu, false), (VkLControl, false)) == 2,
+                    "two clean Ctrl+Alt taps must trigger twice");
+                Assert(ReplayChord(KeyboardShortcut.FromPersistedString("Ctrl+Win"),
+                        (VkLControl, true), (VkLWin, true), (VkLWin, false), (VkLControl, false)) == 1,
+                    "a clean Ctrl+Win must trigger once");
+            });
+
+            Run("Ctrl+Alt+Left does not trigger the Ctrl+Alt shortcut (#1497)", () =>
+            {
+                var ctrlAlt = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                // The issue's own sequence: modifiers released before Left.
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLControl, true), (VkLMenu, true), (VkLeft, true),
+                        (VkLMenu, false), (VkLControl, false), (VkLeft, false)) == 0,
+                    "Ctrl+Alt+Left must not trigger Ctrl+Alt");
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLMenu, true), (VkLControl, true), (VkLeft, true),
+                        (VkLControl, false), (VkLeft, false), (VkLMenu, false)) == 0,
+                    "Alt+Ctrl+Left in any release order must not trigger Ctrl+Alt");
+            });
+
+            Run("Ctrl+Alt+Left with Left released first does not trigger Ctrl+Alt (#1497)", () =>
+            {
+                var ctrlAlt = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                var gate = new ModifierChordGate(ctrlAlt);
+                var pressed = new HashSet<int>();
+                int triggers = 0;
+                triggers += ChordKey(gate, pressed, VkLControl, down: true);
+                triggers += ChordKey(gate, pressed, VkLMenu, down: true);
+                triggers += ChordKey(gate, pressed, VkLeft, down: true);
+                Assert(gate.State == ModifierChordState.Spoiled, $"Left must spoil the chord, got {gate.State}");
+                triggers += ChordKey(gate, pressed, VkLeft, down: false);
+                Assert(gate.State == ModifierChordState.Spoiled, "releasing Left must not clean the chord again");
+                triggers += ChordKey(gate, pressed, VkLMenu, down: false);
+                triggers += ChordKey(gate, pressed, VkLControl, down: false);
+                Assert(triggers == 0, $"Ctrl+Alt+Left (Left up first) must not trigger, got {triggers}");
+
+                // The gate recovers: the next clean Ctrl+Alt still toggles.
+                triggers += ChordKey(gate, pressed, VkLControl, down: true);
+                triggers += ChordKey(gate, pressed, VkLMenu, down: true);
+                triggers += ChordKey(gate, pressed, VkLMenu, down: false);
+                triggers += ChordKey(gate, pressed, VkLControl, down: false);
+                Assert(triggers == 1, $"a clean Ctrl+Alt after the spoiled one must trigger once, got {triggers}");
+            });
+
+            Run("Other keys around a modifier-only chord never trigger it (#1497)", () =>
+            {
+                var ctrlAlt = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLeft, true), (VkLControl, true), (VkLMenu, true),
+                        (VkLMenu, false), (VkLControl, false), (VkLeft, false)) == 0,
+                    "a key already held when the chord goes down makes it a different shortcut");
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLControl, true), (VkLMenu, true), (VkLShift, true),
+                        (VkLShift, false), (VkLMenu, false), (VkLControl, false)) == 0,
+                    "Ctrl+Alt+Shift is a different chord from Ctrl+Alt");
+                // AltGr: Windows injects a synthetic LCtrl with RMenu. Typing é is not Ctrl+Alt.
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLControl, true), (VkRMenu, true), (VkE, true), (VkE, false),
+                        (VkRMenu, false), (VkLControl, false)) == 0,
+                    "AltGr+E must not trigger Ctrl+Alt");
+                Assert(ReplayChord(ctrlAlt, (VkLControl, true), (VkRMenu, true), (VkRMenu, false), (VkLControl, false)) == 0,
+                    "a bare AltGr tap must not trigger Ctrl+Alt");
+            });
+
+            Run("A stale modifier-only chord does not trigger after a lost key-up (#1497)", () =>
+            {
+                // Ctrl+Alt is armed, then the secure desktop swallows both key-ups.
+                // KeyboardShortcutService drops the keys GetAsyncKeyState says are up
+                // before it asks the gate, so the gate sees the pruned set.
+                var ctrlAlt = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                var gate = new ModifierChordGate(ctrlAlt);
+                gate.KeyDown(new HashSet<int> { VkLControl });
+                gate.KeyDown(new HashSet<int> { VkLControl, VkLMenu });
+                Assert(gate.IsArmed, "precondition: armed");
+
+                // Back from the secure desktop the user taps Ctrl alone. Stale Alt is pruned.
+                gate.KeyDown(new HashSet<int> { VkLControl });
+                Assert(gate.State == ModifierChordState.Idle, $"a pruned chord must drop to Idle, got {gate.State}");
+                Assert(!gate.KeyUp(new HashSet<int>(), VkLControl), "a lone Ctrl after a lost Alt key-up must not trigger");
+
+                // Armed, and the first event back is a key-up: the rest of the chord was pruned.
+                var gate2 = new ModifierChordGate(ctrlAlt);
+                gate2.KeyDown(new HashSet<int> { VkLControl, VkLMenu });
+                Assert(gate2.IsArmed, "precondition: armed");
+                Assert(!gate2.KeyUp(new HashSet<int>(), VkLControl),
+                    "a release whose chord partner is no longer down must not trigger");
+
+                gate2.KeyDown(new HashSet<int> { VkLControl, VkLMenu });
+                gate2.Reset();
+                Assert(!gate2.KeyUp(new HashSet<int> { VkLControl }, VkLMenu), "Reset must disarm the chord");
+            });
+
+            Run("A key-based shortcut keeps the press path (#1497)", () =>
+            {
+                var keyBased = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+                Assert(!keyBased.IsModifierOnly && keyBased.Key == Key.Space, "precondition: Ctrl+Shift+Space has a key");
+
+                bool threw = false;
+                try { _ = new ModifierChordGate(keyBased); }
+                catch (ArgumentException) { threw = true; }
+                Assert(threw, "a key-based shortcut must never be gated on release");
+
+                using var service = new KeyboardShortcutService();
+                var gatesField = typeof(KeyboardShortcutService).GetField(
+                    "_chordGates", BindingFlags.NonPublic | BindingFlags.Instance)
+                    ?? throw new InvalidOperationException("KeyboardShortcutService._chordGates is gone");
+                var gates = (Dictionary<string, ModifierChordGate>)gatesField.GetValue(service)!;
+
+                Assert(service.RegisterShortcut("toggle", KeyboardShortcut.FromPersistedString("Ctrl+Alt")).IsSuccess,
+                    "a modifier-only toggle registers through the hook");
+                Assert(gates.ContainsKey("toggle"), "a modifier-only shortcut must get a chord gate");
+                Assert(!service.IsModifierOnlyChordHeld("toggle"), "nothing is held yet");
+
+                service.RegisterShortcut("streaming", keyBased); // no window here: RegisterHotKey path, fails
+                Assert(!gates.ContainsKey("streaming"), "a key-based shortcut must not get a chord gate");
+
+                service.RegisterShortcut("toggle", keyBased);
+                Assert(!gates.ContainsKey("toggle"), "rebinding to a key-based shortcut must drop the gate");
+            });
+
             Run("Windows application-context seam preserves portable fields", () =>
             {
                 var windows = new Services.ApplicationContext
@@ -16729,6 +16877,44 @@ internal static class Program
     {
         if (!condition)
             throw new InvalidOperationException(message);
+    }
+
+    private const int VkLeft = 0x25;
+    private const int VkE = 0x45;
+    private const int VkLWin = 0x5B;
+    private const int VkLShift = 0xA0;
+    private const int VkLControl = 0xA2;
+    private const int VkLMenu = 0xA4;
+    private const int VkRMenu = 0xA5;
+
+    /// <summary>
+    /// One key event, the way KeyboardShortcutService's hook feeds a
+    /// ModifierChordGate. Returns 1 when the event triggered the chord.
+    /// </summary>
+    private static int ChordKey(ModifierChordGate gate, HashSet<int> pressed, int vk, bool down)
+    {
+        if (down)
+        {
+            pressed.Add(vk);
+            gate.KeyDown(pressed);
+            return 0;
+        }
+
+        pressed.Remove(vk);
+        return gate.KeyUp(pressed, vk) ? 1 : 0;
+    }
+
+    /// <summary>Replays key events through a fresh gate and counts the triggers.</summary>
+    private static int ReplayChord(KeyboardShortcut shortcut, params (int Vk, bool Down)[] events)
+    {
+        var gate = new ModifierChordGate(shortcut);
+        var pressed = new HashSet<int>();
+        int triggers = 0;
+        foreach (var (vk, down) in events)
+        {
+            triggers += ChordKey(gate, pressed, vk, down);
+        }
+        return triggers;
     }
 
     /// <summary>
