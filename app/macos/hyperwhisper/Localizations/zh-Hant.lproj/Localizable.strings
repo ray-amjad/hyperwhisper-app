@@ -1039,7 +1039,12 @@
 "settings.backup.import.subtitle" = "從備份檔案恢復設定";
 "settings.backup.import.button" = "匯入...";
 "settings.backup.import.panel.title" = "匯入設定";
-"settings.backup.import.success" = "匯入完成：%d 個模式，%d 個詞彙項目已匯入";
+"settings.backup.import.result" = "匯入完成：%@";
+"settings.backup.import.result.settings" = "已還原設定";
+"settings.backup.import.result.modes" = "已匯入 %d 個模式";
+"settings.backup.import.result.vocabulary" = "已匯入 %d 個詞彙項目";
+"settings.backup.import.complete" = "匯入完成";
+"settings.backup.import.result.separator" = "，";
 "settings.backup.import.error.read" = "無法讀取備份檔案";
 "settings.backup.import.error.decode" = "無效的備份檔案格式";
 "settings.backup.import.error.decode.keyNotFound" = "缺少必填欄位：%@";

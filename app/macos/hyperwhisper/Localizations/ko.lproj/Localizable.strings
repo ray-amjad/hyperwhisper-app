@@ -1039,7 +1039,12 @@
 "settings.backup.import.subtitle" = "백업 파일에서 설정 복원";
 "settings.backup.import.button" = "가져오기...";
 "settings.backup.import.panel.title" = "설정 가져오기";
-"settings.backup.import.success" = "가져오기 완료: %d개 모드, %d개 어휘 항목 가져옴";
+"settings.backup.import.result" = "가져오기 완료: %@";
+"settings.backup.import.result.settings" = "설정 복원됨";
+"settings.backup.import.result.modes" = "%d개 모드 가져옴";
+"settings.backup.import.result.vocabulary" = "%d개 어휘 항목 가져옴";
+"settings.backup.import.complete" = "가져오기 완료";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "백업 파일 읽기 실패";
 "settings.backup.import.error.decode" = "잘못된 백업 파일 형식";
 "settings.backup.import.error.decode.keyNotFound" = "필수 필드가 없습니다: %@";

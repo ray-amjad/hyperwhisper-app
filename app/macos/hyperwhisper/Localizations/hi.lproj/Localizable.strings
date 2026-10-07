@@ -1039,7 +1039,12 @@
 "settings.backup.import.subtitle" = "बैकअप फ़ाइल से सेटिंग्स पुनः स्थापित करें";
 "settings.backup.import.button" = "आयात...";
 "settings.backup.import.panel.title" = "सेटिंग्स आयात करें";
-"settings.backup.import.success" = "आयात पूर्ण: %d मोड, %d शब्दावली आइटम आयात किए गए";
+"settings.backup.import.result" = "आयात पूर्ण: %@";
+"settings.backup.import.result.settings" = "सेटिंग्स पुनर्स्थापित की गईं";
+"settings.backup.import.result.modes" = "%d मोड आयात किए गए";
+"settings.backup.import.result.vocabulary" = "%d शब्दावली आइटम आयात किए गए";
+"settings.backup.import.complete" = "आयात पूर्ण";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "बैकअप फ़ाइल पढ़ने में विफल";
 "settings.backup.import.error.decode" = "अमान्य बैकअप फ़ाइल प्रारूप";
 "settings.backup.import.error.decode.keyNotFound" = "आवश्यक फ़ील्ड अनुपस्थित: %@";

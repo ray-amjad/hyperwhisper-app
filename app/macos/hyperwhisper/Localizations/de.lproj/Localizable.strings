@@ -1039,7 +1039,12 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "settings.backup.import.subtitle" = "Einstellungen aus einem Backup wiederherstellen Datei";
 "settings.backup.import.button" = "Importieren...";
 "settings.backup.import.panel.title" = "Einstellungen importieren";
-"settings.backup.import.success" = "Import abgeschlossen: %d Modi, %d Vokabelelemente importiert";
+"settings.backup.import.result" = "Import abgeschlossen: %@";
+"settings.backup.import.result.settings" = "Einstellungen wiederhergestellt";
+"settings.backup.import.result.modes" = "%d Modi importiert";
+"settings.backup.import.result.vocabulary" = "%d Vokabelelemente importiert";
+"settings.backup.import.complete" = "Import abgeschlossen";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Fehler beim Lesen Sicherungsdatei";
 "settings.backup.import.error.decode" = "Ungültiges Sicherungsdateiformat";
 "settings.backup.import.error.decode.keyNotFound" = "Erforderliches Feld fehlt: %@";

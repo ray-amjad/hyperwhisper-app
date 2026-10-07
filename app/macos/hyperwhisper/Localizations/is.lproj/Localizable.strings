@@ -1039,7 +1039,12 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.backup.import.subtitle" = "Endurheimta stillingar úr öryggisafritsskrá";
 "settings.backup.import.button" = "Flytja inn...";
 "settings.backup.import.panel.title" = "Flytja inn stillingar";
-"settings.backup.import.success" = "Innflutningur lokið: %d hamar, %d orðaforðaatriði flutt inn";
+"settings.backup.import.result" = "Innflutningur lokið: %@";
+"settings.backup.import.result.settings" = "stillingar endurheimtar";
+"settings.backup.import.result.modes" = "%d hamir fluttir inn";
+"settings.backup.import.result.vocabulary" = "%d orðaforðaatriði flutt inn";
+"settings.backup.import.complete" = "Innflutningur lokið";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Mistókst að lesa öryggisafritsskrá";
 "settings.backup.import.error.decode" = "Ógilt öryggisafritsskráform";
 "settings.backup.import.error.decode.keyNotFound" = "Áskilinn reitur vantar: %@";

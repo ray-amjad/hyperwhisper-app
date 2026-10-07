@@ -1084,7 +1084,12 @@
 "settings.backup.import.subtitle" = "Restore settings from a backup file";
 "settings.backup.import.button" = "Import...";
 "settings.backup.import.panel.title" = "Import Settings";
-"settings.backup.import.success" = "Import complete: %d modes, %d vocabulary items imported";
+"settings.backup.import.result" = "Import complete: %@";
+"settings.backup.import.result.settings" = "settings restored";
+"settings.backup.import.result.modes" = "%d modes imported";
+"settings.backup.import.result.vocabulary" = "%d vocabulary items imported";
+"settings.backup.import.complete" = "Import complete";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Failed to read backup file";
 "settings.backup.import.error.decode" = "Invalid backup file format";
 "settings.backup.import.error.decode.keyNotFound" = "Missing required field: %@";
