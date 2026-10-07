@@ -64,12 +64,12 @@ final class NemotronModelManager: ObservableObject {
     enum Constants {
         static let latinModelId = "nemotron-asr-3.5-latin"
         static let latinDisplayName = "Nemotron 3.5 (Latin)"
-        static let latinSize = "~350 MB"
+        static let latinSize = "~610 MB"
         static let latinNotes = "NVIDIA's Nemotron 3.5 ASR Streaming, Latin-script tuned (English, Spanish, French, Italian, Portuguese, German). Smaller and faster than the multilingual variant."
 
         static let multilingualModelId = "nemotron-asr-3.5-multilingual"
         static let multilingualDisplayName = "Nemotron 3.5 (Multilingual)"
-        static let multilingualSize = "~1.3 GB"
+        static let multilingualSize = "~665 MB"
         static let multilingualNotes = "NVIDIA's Nemotron 3.5 ASR Streaming, full vocabulary covering ~40 languages including Chinese, Japanese, Korean, and Arabic. Higher coverage, slightly slower than the Latin variant."
 
         // Auto-retry tuning. FluidAudio's `downloadSubdirectory` reports only per-file

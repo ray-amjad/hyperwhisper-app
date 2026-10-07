@@ -867,6 +867,64 @@ describe('gemini live socket lifecycle', () => {
       expect(harness.client.closes).toEqual([{ code: 1011, reason: 'Upstream error' }]);
     });
 
+    // #1191: the 0.1-credit minimum applies ONLY to a session that reached the
+    // vendor (Ray, 2026-10-07). "Reached" = the upstream handshake was accepted.
+    test('a refused handshake bills 0 credits and tells the client credits_used 0 (#1191)', async () => {
+      const account = 'key-1234-abcd';
+      const auth: AuthContext = { identifier: account, licenseKey: account, credits: 100 };
+      const events = createGeminiTranscribeStreamingEvents(
+        fakeContext(auth, `https://transcribe.example/ws/streaming-gemini-transcribe?account_key=${auth.licenseKey}`),
+      );
+      const client = new FakeClientSocket();
+      events.onOpen(new Event('open'), client);
+      const upstream = upstreamSockets[upstreamSockets.length - 1]!;
+
+      // Google answers the upgrade with a 400: Bun fires error, then close, and never open.
+      const { entries } = captureStreamingLogs(() => {
+        upstream.emit('error', {});
+        upstream.emit('close', { code: 1006, reason: '' });
+      });
+      await events.onClose();
+      expect(await drainPendingDeductions(2000)).toBe(0);
+
+      expect(client.messagesOfType('session_complete')).toEqual([
+        { type: 'session_complete', duration_seconds: 0, credits_used: 0 },
+      ]);
+      expect(licenseCharges).toEqual([]);
+      const sessionEnds = entries.filter((entry) => entry.event === 'ws_streaming.session_end');
+      expect(sessionEnds).toHaveLength(1);
+      expect(sessionEnds[0]!.details).toMatchObject({ creditsUsed: 0, upstreamReached: false });
+    });
+
+    test('no Gemini key: the session deducts 0 credits (#1191)', async () => {
+      delete process.env.GEMINI_API_KEY;
+      const account = 'key-1234-abcd';
+      const auth: AuthContext = { identifier: account, licenseKey: account, credits: 100 };
+      const events = createGeminiTranscribeStreamingEvents(
+        fakeContext(auth, `https://transcribe.example/ws/streaming-gemini-transcribe?account_key=${auth.licenseKey}`),
+      );
+      const client = new FakeClientSocket();
+
+      events.onOpen(new Event('open'), client);
+      await events.onClose();
+
+      expect(await drainPendingDeductions(2000)).toBe(0);
+      expect(licenseCharges).toEqual([]);
+    });
+
+    test('a session that DID reach Google still pays the 0.1 minimum with 0 audio (#1191)', async () => {
+      // Handshake accepted, setup never completed: the vendor was reached.
+      const harness = openSession({ skipSetup: true });
+
+      expect(await harness.endSession()).toBe(1);
+
+      expect(harness.client.messagesOfType('session_complete')).toEqual([
+        { type: 'session_complete', duration_seconds: 0, credits_used: 0.1 },
+      ]);
+      expect(licenseCharges).toHaveLength(1);
+      expect(licenseCharges[0]!.amount).toBe(0.1);
+    });
+
     test('a clean close is not an error', async () => {
       const harness = openSession();
       harness.events.onMessage(binaryMessage(audioFrame(5)));

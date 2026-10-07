@@ -129,6 +129,13 @@ class BackupManager: ObservableObject {
             return false
         }
 
+        // The export writes the cached launch-at-login value, so re-read the login
+        // item first — off the main thread (#853). The user may have changed it in
+        // System Settings since the last read.
+        if options.includeSettings {
+            await SettingsManager.shared.refreshLaunchAtLogin()
+        }
+
         // Build the JSON payload and the default filename for the chosen format.
         guard let encoded = encodeBackup(options: options) else {
             // lastError already set by encodeBackup
@@ -599,7 +606,7 @@ class BackupManager: ObservableObject {
         // Apply settings (only when selected AND present in the file)
         var settingsApplied = false
         if options.importSettings, let settings = backupData.settings {
-            applySettings(settings)
+            await applySettings(settings)
             settingsApplied = true
         }
 
@@ -830,6 +837,9 @@ class BackupManager: ObservableObject {
                 // Build the CURRENT macOS settings JSON as a baseline (the same BackupSettings the v1
                 // path would produce from the live settings), so any macOS-only field the backup
                 // lacks decodes successfully with the user's current value.
+                // Launch-at-login is a cached value, so re-read it (off the main thread,
+                // #853) — otherwise a backup without the field would apply a stale one.
+                await SettingsManager.shared.refreshLaunchAtLogin()
                 let baselineValue = try currentSettingsBaseline()
 
                 // DEEP-MERGE imported OVER baseline: imported values win where present; baseline fills
@@ -841,7 +851,7 @@ class BackupManager: ObservableObject {
                 }
                 // Decode the MERGED 7-category macOS settings into BackupSettings and apply UNCHANGED.
                 let backupSettings = try JSONDecoder().decode(BackupSettings.self, from: mergedData)
-                applySettings(backupSettings)
+                await applySettings(backupSettings)
                 settingsApplied = true
             } catch {
                 // Never abort the import for a settings problem — log and continue.
@@ -1273,11 +1283,12 @@ class BackupManager: ObservableObject {
 
     /// Applies settings from backup to the app
     /// - Parameter settings: BackupSettings to apply
-    private func applySettings(_ settings: BackupSettings) {
+    private func applySettings(_ settings: BackupSettings) async {
         let settingsManager = SettingsManager.shared
 
         // General settings
-        settingsManager.launchAtLogin = settings.general.launchAtLogin
+        // Registering the login item blocks on XPC, so it runs off the main thread (#853).
+        await settingsManager.setLaunchAtLogin(settings.general.launchAtLogin)
         settingsManager.showInDock = settings.general.showInDock
         settingsManager.launchMinimized = settings.general.launchMinimized
         settingsManager.showRecordingWindow = settings.general.showRecordingWindow
