@@ -171,7 +171,7 @@ describe('transcribeWithGemini — request shape', () => {
     await transcribeWithGemini(audio(6), 'audio/mpeg');
 
     expect(captured.url).toBe(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent'
     );
     expect(inlineDataOf(captured).mime_type).toBe('audio/mp3');
     expect(inlineDataOf(captured).data).toBe(Buffer.from(new Uint8Array(6).fill(0x41)).toString('base64'));
@@ -361,7 +361,9 @@ describe('transcribeWithGemini — result and billing', () => {
       thoughtsTokenCount: 50,
     }))) as unknown as typeof fetch;
 
-    const result = await transcribeWithGemini(audio(), 'audio/wav');
+    // Pinned to 2.5 Flash, not the default: 3.8 Flash has ONE input rate, so it
+    // cannot tell text billing from audio billing.
+    const result = await transcribeWithGemini(audio(), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash' });
 
     // gemini-2.5-flash: audio $1.00/M, text $0.30/M, output $2.50/M.
     // 1920 audio + 80 text + (100 + 50) output.
@@ -378,7 +380,7 @@ describe('transcribeWithGemini — result and billing', () => {
         candidatesTokenCount: 100,
         thoughtsTokenCount,
       }))) as unknown as typeof fetch;
-      const result = await transcribeWithGemini(audio(), 'audio/wav');
+      const result = await transcribeWithGemini(audio(), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash' });
       return result.costUsd;
     };
 
@@ -462,9 +464,10 @@ describe('transcribeWithGemini — result and billing', () => {
     globalThis.fetch = mock(async () => Response.json(generateContentResponse('hello'))) as unknown as typeof fetch;
 
     // 480_000 bytes ≈ 1 minute at the 64 kbps estimate → 1920 audio tokens.
-    const result = await transcribeWithGemini(audio(480_000), 'audio/wav');
+    const result = await transcribeWithGemini(audio(480_000), 'audio/wav', undefined, undefined, { model: 'gemini-2.5-flash' });
     expect(result.durationSeconds).toBeCloseTo(60, 6);
-    // No usage total → no text tokens are invented, so it is audio-only billing.
+    // No usage total → no text tokens are invented, so it is audio-only billing
+    // (2.5 Flash audio $1.00/M).
     expect(result.costUsd).toBeCloseTo(1920 * 1e-6, 9);
   });
 

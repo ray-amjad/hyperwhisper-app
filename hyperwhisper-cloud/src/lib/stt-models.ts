@@ -253,7 +253,11 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   },
   gemini: {
     id: 'gemini',
-    defaultModel: 'gemini-2.5-flash',
+    // #1019: follows cloud-stt-catalog.json's gemini isDefault row, so a client
+    // that sends no X-STT-Model gets the same model as one that sends the
+    // catalog default. Google limits gemini-2.5-flash to past users now.
+    // stt-models.test.ts reads the catalog and pins the two together.
+    defaultModel: 'gemini-3.8-flash',
     fallbackChain: ['gemini'],
     async: false,
     // No dedicated vocabulary API — prompt-only biasing, so supportsVocabulary

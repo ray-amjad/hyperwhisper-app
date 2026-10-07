@@ -8,12 +8,15 @@
 import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
 import { describeLanguage } from '../lib/language-codes';
+import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// Read from the registry, never restated, so the adapter cannot disagree with
+// `stt-models.ts` about the default (same pattern as azure-mai.ts).
+const DEFAULT_MODEL = getProviderDef('gemini').defaultModel;
 const AUDIO_TOKENS_PER_SECOND = 32;
 // Vocabulary terms named in the prompt, matching the sibling adapters' cap.
 const MAX_PROMPT_TERMS = 100;

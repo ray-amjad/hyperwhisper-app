@@ -402,4 +402,14 @@ describe('gemini tier ↔ cloud-stt-catalog.json (#1019)', () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.model.id).toBe('gemini-3.8-flash');
   });
+
+  test('a request with no X-STT-Model resolves to the catalog default', () => {
+    // The registry default is what a client that sends no model gets; it must be
+    // the same row the catalog marks isDefault, so the two cannot drift.
+    const def = gemini.models.find((m) => m.isDefault)!;
+    expect(getProviderDef('gemini').defaultModel).toBe(def.id);
+    const r = resolveModel('gemini', undefined);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.model.id).toBe(def.id);
+  });
 });
