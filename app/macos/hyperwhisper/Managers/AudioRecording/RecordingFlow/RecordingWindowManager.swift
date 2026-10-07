@@ -29,8 +29,10 @@ final class RecordingWindowManager {
     private var storedBecomesKeyOnlyIfNeeded: Bool?
     private var preInteractionVisibleWindowNumbers: Set<Int> = []
     // CGEvent tap state for cancel overlay interception
-    private var cancelOverlayEventTap: CFMachPort?
-    private var cancelOverlayRunLoopSource: CFRunLoopSource?
+    // The tap runs on its own thread and CFRunLoop, never the main one (issue
+    // #904). Also the identity of the current tap: a key hop from a tap that
+    // has since been stopped finds a different (or nil) value here.
+    fileprivate var cancelOverlayTapThread: EventTapThread?
     private var cancelOverlayOnReturn: (() -> Void)?
     private var cancelOverlayOnEscape: (() -> Void)?
     // Fallback NSEvent monitor used when the CGEventTap cannot be created
@@ -400,7 +402,7 @@ final class RecordingWindowManager {
     ) -> Bool {
         // CRITICAL: Always clean up an existing tap/fallback before creating a new one.
         // This prevents stale taps (or a leaked local monitor) from persisting.
-        if cancelOverlayEventTap != nil || cancelOverlayLocalMonitor != nil {
+        if cancelOverlayTapThread != nil || cancelOverlayLocalMonitor != nil {
             endOverlayKeyInterception()
         }
 
@@ -412,74 +414,24 @@ final class RecordingWindowManager {
         cancelOverlayOnEscape = onEscape
         isOverlayVisible = true  // Mark overlay as visible
 
-        let tapCallback: CGEventTapCallBack = { _, type, event, refcon in
-            guard let refcon = refcon else { return Unmanaged.passUnretained(event) }
-            let manager = Unmanaged<RecordingWindowManager>.fromOpaque(refcon).takeUnretainedValue()
-
-            // CRITICAL: Handle tap being disabled by the system.
-            // A CGEventTap is automatically disabled in two scenarios:
-            // 1. .tapDisabledByTimeout - callback took too long to return
-            // 2. .tapDisabledByUserInput - Secure Event Input engaged (e.g. a sudo/
-            //    Touch ID prompt from a background process during a long recording)
-            // Without re-enabling here the overlay's Esc/Return would stay dead until
-            // the overlay is dismissed and re-shown. Mirrors BareModifierKeyMonitor.
-            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                if let tap = manager.cancelOverlayEventTap {
-                    CGEvent.tapEnable(tap: tap, enable: true)
-                    let reason = type == .tapDisabledByTimeout ? "timeout" : "user input"
-                    AppLogger.ui.debug("RecordingWindowManager: cancel-overlay CGEventTap re-enabled after \(reason)")
-                    SentryService.addBreadcrumb(
-                        message: "Cancel-overlay CGEventTap re-enabled",
-                        category: "recording.cancelOverlay",
-                        data: ["reason": reason]
-                    )
-                }
-                return Unmanaged.passUnretained(event)
-            }
-
-            guard type == .keyDown || type == .keyUp else {
-                return Unmanaged.passUnretained(event)
-            }
-
-            // CRITICAL: Only process keys if overlay is actually visible
-            // This prevents intercepting keys after the overlay has been dismissed
-            guard manager.isOverlayVisible else {
-                return Unmanaged.passUnretained(event)
-            }
-            
-            let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-            switch keyCode {
-            case 36, 76: // Return, Numpad Enter
-                if type == .keyDown {
-                    return nil // consume until keyUp triggers the action
-                }
-                if let handler = manager.cancelOverlayOnReturn {
-                    manager.cancelOverlayShouldRestoreGlobalShortcut = false
-                    DispatchQueue.main.async { handler() }
-                    return nil // consume
-                }
-            case 53: // Escape
-                if type == .keyDown {
-                    return nil // consume until keyUp triggers the action
-                }
-                if let handler = manager.cancelOverlayOnEscape {
-                    manager.cancelOverlayShouldRestoreGlobalShortcut = true
-                    DispatchQueue.main.async { handler() }
-                    return nil // consume
-                }
-            default:
-                break
-            }
-            return Unmanaged.passUnretained(event)
-        }
+        // The callback is `cancelOverlayEventTapCallback` (file scope, below).
+        // It runs on the tap's own thread, so it reads none of this manager's
+        // state. Everything it needs to decide whether to SWALLOW a key lives
+        // on its EventTapThread: the handlers (immutable, captured here) and
+        // the stop flag, which `endOverlayKeyInterception` sets under a lock
+        // the moment the overlay goes away.
+        let tapThread = EventTapThread(
+            name: "com.hyperwhisper.cancel-overlay-event-tap",
+            context: CancelOverlayTapHandlers(onReturn: onReturn, onEscape: onEscape)
+        )
 
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(mask),
-            callback: tapCallback,
-            userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+            callback: cancelOverlayEventTapCallback,
+            userInfo: Unmanaged.passUnretained(tapThread).toOpaque()
         ) else {
             // CGEvent.tapCreate returns nil when the app is not Accessibility-trusted
             // (e.g. a first-run user skipped the permission step). Rather than leaving
@@ -496,11 +448,10 @@ final class RecordingWindowManager {
             return true
         }
 
-        cancelOverlayEventTap = tap
-        let src = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        cancelOverlayRunLoopSource = src
-        CFRunLoopAddSource(CFRunLoopGetMain(), src, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
+        // Attach the tap to its own thread's run loop and enable it there.
+        // Returns at once; never waits on the WindowServer.
+        cancelOverlayTapThread = tapThread
+        tapThread.start(tap: tap)
         return true
     }
 
@@ -554,14 +505,13 @@ final class RecordingWindowManager {
         // CRITICAL: Mark overlay as not visible immediately to prevent processing any more keys
         isOverlayVisible = false
 
-        if let src = cancelOverlayRunLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .commonModes)
-            cancelOverlayRunLoopSource = nil
-        }
-        if let tap = cancelOverlayEventTap {
-            CGEvent.tapEnable(tap: tap, enable: false)
-            CFMachPortInvalidate(tap)
-            cancelOverlayEventTap = nil
+        // Stop the tap. `stop()` flips the flag the tap callback reads
+        // before it swallows a key, so from here on Return/Escape pass through
+        // even if the tap thread is still busy. The tap thread then removes the
+        // source from ITS run loop, disables and invalidates the tap, and exits.
+        if let tapThread = cancelOverlayTapThread {
+            cancelOverlayTapThread = nil
+            tapThread.stop()
         }
         // Tear down the no-Accessibility fallback (local monitor + temporary focus)
         if let monitor = cancelOverlayLocalMonitor {
@@ -582,4 +532,111 @@ final class RecordingWindowManager {
         cancelOverlayOnReturn = nil
         cancelOverlayOnEscape = nil
     }
+
+    /// The main-thread half of a Return/Escape the cancel-overlay tap
+    /// swallowed: records which way the global cancel shortcut should be
+    /// restored, as the tap callback used to do inline, before the handler
+    /// runs. Skipped for a tap that has since been stopped or replaced.
+    @MainActor
+    fileprivate func noteCancelOverlayKeyAction(from tapThread: EventTapThread, restoreGlobalShortcut: Bool) {
+        guard cancelOverlayTapThread === tapThread else { return }
+        cancelOverlayShouldRestoreGlobalShortcut = restoreGlobalShortcut
+    }
+}
+
+// MARK: - Cancel-overlay CGEventTap callback (tap thread)
+
+/// The Return and Escape handlers of one cancel-overlay tap. Immutable, so the
+/// tap thread reads them without a lock.
+final class CancelOverlayTapHandlers {
+    let onReturn: () -> Void
+    let onEscape: () -> Void
+
+    init(onReturn: @escaping () -> Void, onEscape: @escaping () -> Void) {
+        self.onReturn = onReturn
+        self.onEscape = onEscape
+    }
+}
+
+/// The cancel-overlay CGEventTap callback.
+///
+/// It runs on the tap's own thread (`EventTapThread`), NOT the main thread
+/// (issue #904), so it reads no `RecordingWindowManager` state. Its `refcon`
+/// is the `EventTapThread`. The one decision it makes synchronously — whether
+/// to SWALLOW a Return/Escape — rests on two things that are safe here: the
+/// tap's stop flag (lock-protected; `endOverlayKeyInterception` sets it the
+/// moment the overlay goes away, which is what `isOverlayVisible` meant for
+/// this path) and the handlers, which are immutable. The handler itself still
+/// runs on the main thread.
+func cancelOverlayEventTapCallback(
+    _ proxy: CGEventTapProxy,
+    _ type: CGEventType,
+    _ event: CGEvent,
+    _ refcon: UnsafeMutableRawPointer?
+) -> Unmanaged<CGEvent>? {
+    guard let refcon else { return Unmanaged.passUnretained(event) }
+    let tapThread = Unmanaged<EventTapThread>.fromOpaque(refcon).takeUnretainedValue()
+
+    // CRITICAL: Handle tap being disabled by the system.
+    // A CGEventTap is automatically disabled in two scenarios:
+    // 1. .tapDisabledByTimeout - callback took too long to return
+    // 2. .tapDisabledByUserInput - Secure Event Input engaged (e.g. a sudo/
+    //    Touch ID prompt from a background process during a long recording)
+    // Without re-enabling here the overlay's Esc/Return would stay dead until
+    // the overlay is dismissed and re-shown. Mirrors BareModifierKeyMonitor.
+    // The re-enable is a WindowServer round trip; on this thread it can only
+    // block the tap thread.
+    if EventTapThread.DisableReason(type) != nil {
+        if let reEnable = tapThread.reEnableAfterSystemDisable(type) {
+            // Metadata only: the reason slug and how long the re-enable took.
+            let phrase = reEnable.reason.phrase
+            let slug = reEnable.reason.rawValue
+            let elapsedMs = reEnable.elapsedMs
+            AppLogger.ui.debug("RecordingWindowManager: cancel-overlay CGEventTap re-enabled after \(phrase, privacy: .public) (reason=\(slug, privacy: .public), elapsed_ms=\(elapsedMs, privacy: .public))")
+            SentryService.addBreadcrumb(
+                message: "Cancel-overlay CGEventTap re-enabled",
+                category: "recording.cancelOverlay",
+                data: ["reason": slug, "elapsedMs": elapsedMs]
+            )
+        }
+        return Unmanaged.passUnretained(event)
+    }
+
+    guard type == .keyDown || type == .keyUp else {
+        return Unmanaged.passUnretained(event)
+    }
+
+    // CRITICAL: Only process keys if overlay is actually visible
+    // This prevents intercepting keys after the overlay has been dismissed
+    guard !tapThread.isStopRequested,
+          let handlers = tapThread.context as? CancelOverlayTapHandlers else {
+        return Unmanaged.passUnretained(event)
+    }
+
+    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+    switch keyCode {
+    case 36, 76: // Return, Numpad Enter
+        if type == .keyDown {
+            return nil // consume until keyUp triggers the action
+        }
+        let handler = handlers.onReturn
+        DispatchQueue.main.async {
+            RecordingWindowManager.shared.noteCancelOverlayKeyAction(from: tapThread, restoreGlobalShortcut: false)
+            handler()
+        }
+        return nil // consume
+    case 53: // Escape
+        if type == .keyDown {
+            return nil // consume until keyUp triggers the action
+        }
+        let handler = handlers.onEscape
+        DispatchQueue.main.async {
+            RecordingWindowManager.shared.noteCancelOverlayKeyAction(from: tapThread, restoreGlobalShortcut: true)
+            handler()
+        }
+        return nil // consume
+    default:
+        break
+    }
+    return Unmanaged.passUnretained(event)
 }
