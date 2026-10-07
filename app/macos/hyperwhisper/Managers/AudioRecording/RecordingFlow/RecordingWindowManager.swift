@@ -536,8 +536,9 @@ final class RecordingWindowManager {
     /// The main-thread half of a Return/Escape the cancel-overlay tap
     /// swallowed: records which way the global cancel shortcut should be
     /// restored, as the tap callback used to do inline, before the handler
-    /// runs. Skipped for a tap that has since been stopped or replaced.
-    @MainActor
+    /// runs. Skipped for a tap that has since been stopped or replaced. Runs on
+    /// the main thread only, from the callback's `DispatchQueue.main.async`,
+    /// so it never races `begin`/`endOverlayKeyInterception`.
     fileprivate func noteCancelOverlayKeyAction(from tapThread: EventTapThread, restoreGlobalShortcut: Bool) {
         guard cancelOverlayTapThread === tapThread else { return }
         cancelOverlayShouldRestoreGlobalShortcut = restoreGlobalShortcut
