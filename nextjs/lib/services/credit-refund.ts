@@ -68,6 +68,7 @@ export function refundedCreditsTotal(input: CreditRefundInput): number {
 
   const listTotal = listCreditCents + Math.max(0, listFeeCents);
   const paidExTax = amountTotal - Math.max(0, amountTax);
+
   if (!(paidExTax > 0)) return 0;
 
   // refunded ex tax >= paid credit cents
@@ -81,5 +82,6 @@ export function refundedCreditsTotal(input: CreditRefundInput): number {
     (amountRefunded * listTotal * grantCredits) /
       (amountTotal * listCreditCents),
   );
+
   return Math.min(grantCredits, Math.max(0, credits));
 }
