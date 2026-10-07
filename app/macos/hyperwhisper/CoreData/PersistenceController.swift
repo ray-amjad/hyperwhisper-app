@@ -2815,6 +2815,19 @@ class PersistenceController: ObservableObject {
             }
             let hasConflict = !conflicts.isEmpty
 
+            // #1481: a backup without enableScreenOCR / useStreamingTranscription
+            // (one written before they were exported) keeps the value of the
+            // local mode this row replaces or updates: the same id first, then
+            // the same-name row `.replace` deletes below. Read it BEFORE that
+            // delete. With no such row (a new mode, or `.keepBoth`'s copy) the
+            // value is `false`, which is what every restore wrote before.
+            let localCounterpart: Mode? = (hasConflict && resolution == .keepBoth)
+                ? nil
+                : (fetchAllModes().first { $0.id == backupMode.id } ?? conflicts.first)
+            let restoredScreenOCR = backupMode.enableScreenOCR ?? localCounterpart?.enableScreenOCR ?? false
+            let restoredStreaming = backupMode.useStreamingTranscription
+                ?? localCounterpart?.useStreamingTranscription ?? false
+
             if hasConflict {
                 switch resolution {
                 case .skip:
@@ -2890,9 +2903,11 @@ class PersistenceController: ObservableObject {
                 // backup restores the same way on both platforms.
                 englishSpelling: backupMode.englishSpelling ?? "",
                 userSystemPrompt: backupMode.userSystemPrompt,
+                useStreamingTranscription: restoredStreaming,
                 cloudAccuracyTier: normalized.accuracyTier
                     ?? CloudAccuracyTier.fromStorageValue(backupMode.cloudAccuracyTier).rawValue,
                 removeTrailingPeriod: backupMode.removeTrailingPeriod ?? false,
+                enableScreenOCR: restoredScreenOCR,
                 geminiCustomPrompt: backupMode.geminiCustomPrompt,
                 cloudPostProcessingModel: backupMode.cloudPostProcessingModel,
                 cloudTranscriptionDomain: backupMode.cloudTranscriptionDomain,
