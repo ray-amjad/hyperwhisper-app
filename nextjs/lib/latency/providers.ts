@@ -114,6 +114,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
       { id: "whisper-1", displayName: "Whisper" },
       { id: "gpt-transcribe", displayName: "GPT Transcribe", isDefault: true },
       { id: "gpt-live-transcribe", displayName: "GPT Live Transcribe" },
+      { id: "gpt-4o-mini-transcribe-2025-12-15", displayName: "GPT-4o Mini Transcribe (2025-12-15)" },
     ],
   },
   {

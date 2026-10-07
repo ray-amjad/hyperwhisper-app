@@ -438,7 +438,7 @@
     {
       "id": "openaiWhisper",
       "displayName": "OpenAI Whisper",
-      "displayModel": "whisper-1",
+      "displayModel": "gpt-transcribe",
       "vendor": "openai",
       "vendorDisplayName": "OpenAI",
       "vendorLabel": "OpenAI",
@@ -520,6 +520,15 @@
           "id": "gpt-live-transcribe",
           "displayName": "GPT Live Transcribe",
           "creditsPerMinute": 17.0,
+          "isDefault": false,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": null
+        },
+        {
+          "id": "gpt-4o-mini-transcribe-2025-12-15",
+          "displayName": "GPT-4o Mini Transcribe (2025-12-15)",
+          "creditsPerMinute": 3.0,
           "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
@@ -989,7 +998,8 @@
         "openaiWhisper/gpt-4o-mini-transcribe",
         "openaiWhisper/whisper-1",
         "openaiWhisper/gpt-transcribe",
-        "openaiWhisper/gpt-live-transcribe"
+        "openaiWhisper/gpt-live-transcribe",
+        "openaiWhisper/gpt-4o-mini-transcribe-2025-12-15"
       ]
     },
     {
@@ -2739,7 +2749,7 @@
       "id": "gpt-4o-mini-transcribe-2025-12-15",
       "kind": "voice",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null

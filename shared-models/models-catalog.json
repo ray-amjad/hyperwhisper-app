@@ -61,7 +61,7 @@
       "kind": "voice",
       "displayName": "GPT-4o Mini Transcribe (2025-12-15)",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
       "supportsAllLanguages": true
     },
