@@ -28,10 +28,14 @@
 //     once a stop was requested.
 //  5. The two real callbacks, called OFF the main thread: the overlay swallows
 //     Return/Escape only while its tap is live and runs the handler on main;
-//     the push-to-talk callback passes every event through.
+//     the push-to-talk callback passes every event through. A key the tap
+//     thread swallowed does not run its handler if the overlay ended before
+//     the queued main-thread block ran.
 //  6. Neither production file attaches anything to the main run loop or calls
 //     CGEvent.tapEnable itself (the issue's Done-when check 1, plus the
 //     wiring).
+//  7. Tap -> main hops reach the main thread in the order the tap thread sent
+//     them (a press and its release never swap).
 //
 //  What no test here can prove: that a real Secure Input prompt no longer
 //  freezes the app. That needs a real Mac — see the issue's Done-when 3.
@@ -316,6 +320,64 @@ struct EventTapThreadTests {
         #expect(!(await waitOffThePool(for: returnKey.fired, seconds: 0.05)))
     }
 
+    final class Box<T>: @unchecked Sendable {
+        var value: T?
+    }
+
+    /// Runs `body` on a fresh background thread and BLOCKS the caller until
+    /// it returns. From a `@MainActor` test this keeps the main queue from
+    /// running anything the callback queued, so the test decides what happens
+    /// on main before that block runs.
+    static func offMainBlocking<T>(_ body: @escaping () -> T) -> T {
+        let done = DispatchSemaphore(value: 0)
+        let box = Box<T>()
+        Thread.detachNewThread {
+            box.value = body()
+            done.signal()
+        }
+        done.wait()
+        return box.value!
+    }
+
+    /// The user presses Return (or Escape) while main is busy: the tap thread
+    /// swallows the key and queues its handler. Before that block runs, main
+    /// ends the overlay (clicks "No"; `endOverlayKeyInterception` stops the
+    /// tap, and a replacement goes through the same stop). The handler must
+    /// not run — e.g. Return must not cancel a recording the user kept.
+    @MainActor
+    @Test(arguments: [CGKeyCode(53), CGKeyCode(36), CGKeyCode(76)])
+    func aSwallowedKeyDoesNotRunItsHandlerOnceTheOverlayEnded(_ keyCode: CGKeyCode) async throws {
+        let escape = Flag()
+        let returnKey = Flag()
+        let host = EventTapThread(
+            name: "test.overlay.stale",
+            context: CancelOverlayTapHandlers(onReturn: { returnKey.fire() }, onEscape: { escape.fire() })
+        )
+        let info = Unmanaged.passUnretained(host).toOpaque()
+        let keyUp = try Self.key(keyCode, down: false)
+        let handlerFired = keyCode == 53 ? escape.fired : returnKey.fired
+
+        // Control (anti-vacuity): main held while the key is swallowed, tap
+        // still live when the block runs -> the handler runs, on main.
+        let swallowedLive = Self.offMainBlocking {
+            cancelOverlayEventTapCallback(Self.proxy, .keyUp, keyUp, info) == nil
+        }
+        #expect(swallowedLive)
+        #expect(await waitOffThePool(for: handlerFired, seconds: 2))
+        #expect((keyCode == 53 ? escape : returnKey).firedOnMain)
+
+        // The same key, but the overlay ends between the swallow and the
+        // main-thread block.
+        let swallowed = Self.offMainBlocking {
+            cancelOverlayEventTapCallback(Self.proxy, .keyUp, keyUp, info) == nil
+        }
+        #expect(swallowed)
+        host.stop()
+        #expect(!(await waitOffThePool(for: handlerFired, seconds: 0.5)))
+        #expect(!(await waitOffThePool(for: escape.fired, seconds: 0.05)))
+        #expect(!(await waitOffThePool(for: returnKey.fired, seconds: 0.05)))
+    }
+
     @Test func thePushToTalkCallbackPassesEventsThroughAndReEnablesOnTheCallingThread() async throws {
         let recorder = EnableRecorder()
         let port = Self.makePort()
@@ -363,5 +425,48 @@ struct EventTapThreadTests {
         #expect(!code.contains("CFRunLoopGetMain()"))
         #expect(!code.contains("CFRunLoopAddSource("))
         #expect(!code.contains("CGEvent.tapEnable("))
+        // Every tap -> main hop is the ordered one (test 7), not a Task.
+        #expect(code.contains("EventTapThread.deliverOnMainInOrder"))
+    }
+
+    // MARK: - 7. Tap -> main hops keep their order
+
+    final class OrderLog: @unchecked Sendable {
+        let done = DispatchSemaphore(value: 0)
+        private let lock = NSLock()
+        private let expected: Int
+        private var recorded: [Int] = []
+        private var offMainCount = 0
+
+        init(expected: Int) { self.expected = expected }
+
+        func append(_ value: Int) {
+            lock.lock()
+            recorded.append(value)
+            if !Thread.isMainThread { offMainCount += 1 }
+            let finished = recorded.count == expected
+            lock.unlock()
+            if finished { done.signal() }
+        }
+
+        var values: [Int] { lock.lock(); defer { lock.unlock() }; return recorded }
+        var allOnMain: Bool { lock.lock(); defer { lock.unlock() }; return offMainCount == 0 }
+    }
+
+    /// A burst of hops from one background thread (the tap thread's shape:
+    /// press, release, press, ...) reaches main in exactly the order sent.
+    /// A reversed press/release would leave push-to-talk recording.
+    @MainActor
+    @Test func everyTapHopReachesMainInTheOrderItWasSent() async throws {
+        let count = 5_000
+        let log = OrderLog(expected: count)
+        await Self.offMain {
+            for i in 0..<count {
+                EventTapThread.deliverOnMainInOrder { log.append(i) }
+            }
+        }
+        #expect(await waitOffThePool(for: log.done, seconds: 10))
+        #expect(log.values == Array(0..<count))
+        #expect(log.allOnMain)
     }
 }
