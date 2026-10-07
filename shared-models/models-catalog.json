@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-09-25",
+  "lastUpdated": "2026-10-07",
   "models": [
     {
       "provider": "appleSpeech",
@@ -317,6 +317,17 @@
       "supportedLanguages": ["af", "ar", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fr", "gl", "gu", "he", "hi", "hr", "hu", "id", "it", "ja", "kk", "kn", "ko", "lt", "lv", "mk", "ml", "mr", "ms", "nl", "no", "pa", "pl", "pt", "ro", "ru", "sk", "sl", "sq", "sr", "sv", "sw", "ta", "te", "th", "tl", "tr", "uk", "ur", "vi", "zh"]
     },
 
+    {
+      "provider": "gemini",
+      "id": "gemini-3.8-flash",
+      "kind": "voice",
+      "displayName": "Gemini 3.8 Flash",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true,
+      "notes": "Default Gemini transcription model since #1019 (Google limits the 2.5 models to past users since 2026-09-18 and points new projects at 3.8 Flash). Distinct from the `kind: text` gemini-3.8-flash entry; disambiguated by `kind`."
+    },
     {
       "provider": "gemini",
       "id": "gemini-2.5-flash",

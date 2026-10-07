@@ -70,6 +70,7 @@ public static class ModelRatings
             // Soniox
             ["stt-async-v5"] = new(2, 5),
             // Gemini
+            ["gemini-3.8-flash"] = new(2, 4),
             ["gemini-2.5-flash"] = new(2, 4),
             ["gemini-2.5-flash-lite"] = new(3, 3),
             ["gemini-2.5-pro"] = new(1, 5),

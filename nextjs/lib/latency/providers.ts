@@ -145,7 +145,8 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendor: "google",
     vendorDisplayName: "Google",
     models: [
-      { id: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash", isDefault: true },
+      { id: "gemini-3.8-flash", displayName: "Gemini 3.8 Flash", isDefault: true },
+      { id: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash" },
       { id: "gemini-2.5-flash-lite", displayName: "Gemini 2.5 Flash Lite" },
       { id: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro" },
       { id: "gemini-3-flash-preview", displayName: "Gemini 3 Flash" },

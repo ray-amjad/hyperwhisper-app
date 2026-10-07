@@ -284,6 +284,7 @@ final class ModelLibraryManager: ObservableObject {
         // Soniox
         "stt-async-v5":                      (2, 5),
         // Gemini
+        "gemini-3.8-flash":                  (2, 4),
         "gemini-2.5-flash":                  (2, 4),
         "gemini-2.5-flash-lite":             (3, 3),
         "gemini-2.5-pro":                    (1, 5),

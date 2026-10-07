@@ -253,12 +253,24 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   },
   gemini: {
     id: 'gemini',
-    defaultModel: 'gemini-2.5-flash',
+    // #1019: follows cloud-stt-catalog.json's gemini isDefault row, so a client
+    // that sends no X-STT-Model gets the same model as one that sends the
+    // catalog default. Google limits gemini-2.5-flash to past users now.
+    // stt-models.test.ts reads the catalog and pins the two together.
+    defaultModel: 'gemini-3.8-flash',
     fallbackChain: ['gemini'],
     async: false,
     // No dedicated vocabulary API — prompt-only biasing, so supportsVocabulary
     // is false (clients shouldn't promise keyterm accuracy).
     models: [
+      // #1019: the clients' Gemini default (cloud-stt-catalog.json isDefault). A
+      // HyperWhisper Cloud mode on the gemini tier with no model chosen sends it as
+      // X-STT-Model, so it MUST be listed here or resolveModel 400s that mode.
+      // Rate: $0.75/1M input (audio included) + $3.75/1M output, introductory until
+      // 2026-12-31, then $1.50/$7.50. ~1,920 audio tok/min + ~200 out tok/min is
+      // ~$0.0022/min now and ~$0.0044/min in 2027; reserved at 0.0030, the same
+      // figure as the catalog's 3.0 credits/min.
+      { id: 'gemini-3.8-flash', supportsVocabulary: false, estimatedUsdPerMinute: 0.0030 },
       { id: 'gemini-2.5-flash', supportsVocabulary: false, estimatedUsdPerMinute: 0.0024 },
       { id: 'gemini-2.5-flash-lite', supportsVocabulary: false, estimatedUsdPerMinute: 0.0008 },
       { id: 'gemini-2.5-pro', supportsVocabulary: false, estimatedUsdPerMinute: 0.0075 },

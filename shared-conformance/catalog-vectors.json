@@ -743,7 +743,7 @@
     {
       "id": "gemini",
       "displayName": "Google Gemini",
-      "displayModel": "gemini-2.5-flash",
+      "displayModel": "gemini-3.8-flash",
       "vendor": "google",
       "vendorDisplayName": "Google",
       "vendorLabel": "Google",
@@ -780,13 +780,22 @@
       "previewStatus": false,
       "migrateFrom": [],
       "legacyCloudProviderAliases": [],
-      "defaultModelId": "gemini-2.5-flash",
+      "defaultModelId": "gemini-3.8-flash",
       "models": [
+        {
+          "id": "gemini-3.8-flash",
+          "displayName": "Gemini 3.8 Flash",
+          "creditsPerMinute": 3.0,
+          "isDefault": true,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": null
+        },
         {
           "id": "gemini-2.5-flash",
           "displayName": "Gemini 2.5 Flash",
           "creditsPerMinute": 2.4,
-          "isDefault": true,
+          "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
@@ -929,6 +938,7 @@
       "models": [
         "geminiTranscribe/gemini-3.5-transcribe",
         "geminiTranscribe/gemini-3.5-transcribe-live",
+        "gemini/gemini-3.8-flash",
         "gemini/gemini-2.5-flash",
         "gemini/gemini-2.5-flash-lite",
         "gemini/gemini-2.5-pro",
@@ -2230,6 +2240,16 @@
       "kind": "voice",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-3.8-flash",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
