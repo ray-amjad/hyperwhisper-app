@@ -45,7 +45,8 @@ static async Task CloudByteLimits()
         new ProviderLimit(CloudTranscriptionProvider.ElevenLabs, "scribe_v2", 3L * ByteSizes.GiB, false),
         new ProviderLimit(CloudTranscriptionProvider.Mistral, "voxtral-mini-latest", 100L * ByteSizes.MiB, false),
         new ProviderLimit(CloudTranscriptionProvider.Soniox, "stt-async-v5", 1L * ByteSizes.GiB, false),
-        new ProviderLimit(CloudTranscriptionProvider.Gemini, "gemini-2.5-flash", 2L * ByteSizes.GiB, false),
+        // gemini-3.8-flash, not 2.5 Flash: Google limits 2.5 to past users (#1019).
+        new ProviderLimit(CloudTranscriptionProvider.Gemini, "gemini-3.8-flash", 2L * ByteSizes.GiB, false),
         new ProviderLimit(CloudTranscriptionProvider.Grok, "", 500L * ByteSizes.MiB, false),
         // The default model only — the loop below sends an EMPTY model id and
         // asserts it resolves to `item.Model`, so a second row here would claim
