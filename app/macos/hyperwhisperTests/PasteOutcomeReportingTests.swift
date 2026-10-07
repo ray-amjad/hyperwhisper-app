@@ -398,7 +398,7 @@ struct PasteOutcomeReportingTests {
             try #require(noFocusedField, "expected .noFocusedField, got \(result)")
             try #require(NSPasteboard.general.string(forType: .string) == transcript)
 
-            helper.startRecordingSession()
+            await helper.startRecordingSession()
 
             #expect(savedSnapshotText() == "clipboard before recording")
             #expect(helper.keptClipboardSnapshotChangeCount == nil, "the mark is single use")
@@ -422,7 +422,7 @@ struct PasteOutcomeReportingTests {
 
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(userCopy, forType: .string)
-            helper.startRecordingSession()
+            await helper.startRecordingSession()
 
             #expect(savedSnapshotText() == userCopy)
             #expect(helper.keptClipboardSnapshotChangeCount == nil)
@@ -446,7 +446,7 @@ struct PasteOutcomeReportingTests {
 
             helper.dropKeptClipboardSnapshot()
             #expect(helper.keptClipboardSnapshotChangeCount == nil)
-            helper.startRecordingSession()
+            await helper.startRecordingSession()
 
             #expect(savedSnapshotText() == transcript)
         }

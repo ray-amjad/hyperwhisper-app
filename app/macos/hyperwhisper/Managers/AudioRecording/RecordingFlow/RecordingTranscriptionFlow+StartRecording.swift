@@ -517,8 +517,9 @@ extension RecordingTranscriptionFlow {
                 return
             }
 
-            // Clipboard snapshot for restoration after auto-paste
-            AccessibilityHelper.shared.startRecordingSession()
+            // Clipboard snapshot for restoration after auto-paste. The pasteboard
+            // read runs off the main actor with a 1 s deadline (#879).
+            await AccessibilityHelper.shared.startRecordingSession()
 
             // Capture screen OCR text if enabled on this mode
             var screenOCRText: String? = nil

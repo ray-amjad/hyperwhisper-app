@@ -36,11 +36,6 @@ private actor TextInputCoordinator {
     }
 }
 
-private struct PasteboardItemSnapshot {
-    let types: [NSPasteboard.PasteboardType]
-    let data: [NSPasteboard.PasteboardType: Data]
-}
-
 /// Service for inputting text into applications via typing or pasting.
 ///
 /// TEXT INPUT STRATEGIES:
@@ -82,24 +77,7 @@ final class TextInputService {
 
     private init() {}
 
-    private func capturePasteboardSnapshot(from pasteboard: NSPasteboard) -> [PasteboardItemSnapshot]? {
-        guard let items = pasteboard.pasteboardItems, !items.isEmpty else {
-            return nil
-        }
-
-        return items.compactMap { item in
-            var dataByType: [NSPasteboard.PasteboardType: Data] = [:]
-            for type in item.types {
-                if let data = item.data(forType: type) {
-                    dataByType[type] = data
-                }
-            }
-            guard !dataByType.isEmpty else { return nil }
-            return PasteboardItemSnapshot(types: item.types, data: dataByType)
-        }
-    }
-
-    private func restorePasteboardSnapshot(_ snapshot: [PasteboardItemSnapshot], to pasteboard: NSPasteboard) {
+    private func restorePasteboardSnapshot(_ snapshot: [AccessibilityHelper.ClipboardItemData], to pasteboard: NSPasteboard) {
         pasteboard.clearContents()
         let items = snapshot.map { snapshotItem -> NSPasteboardItem in
             let item = NSPasteboardItem()
@@ -327,9 +305,11 @@ final class TextInputService {
             isTerminalTarget = false
         }
 
-        // Save current clipboard
+        // Save current clipboard, off this thread and with a deadline (#879). Past
+        // the deadline the snapshot is nil and the clipboard is not restored; the
+        // reader logs it.
         let pasteboard = NSPasteboard.general
-        let savedSnapshot = capturePasteboardSnapshot(from: pasteboard)
+        let savedSnapshot = await ClipboardSnapshotReader.shared.snapshot(caller: "streaming paste")
 
         // Set new content, optionally with concealed type to hide from clipboard history apps
         pasteboard.clearContents()
