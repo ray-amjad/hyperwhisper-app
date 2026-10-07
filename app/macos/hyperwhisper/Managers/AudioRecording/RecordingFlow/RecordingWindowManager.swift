@@ -30,9 +30,9 @@ final class RecordingWindowManager {
     private var preInteractionVisibleWindowNumbers: Set<Int> = []
     // CGEvent tap state for cancel overlay interception
     // The tap runs on its own thread and CFRunLoop, never the main one (issue
-    // #904). Also the identity of the current tap: a key hop from a tap that
-    // has since been stopped finds a different (or nil) value here.
-    fileprivate var cancelOverlayTapThread: EventTapThread?
+    // #904). Only `endOverlayKeyInterception` clears it, and it stops the tap
+    // as it does, so "stopped" and "no longer the current tap" are the same.
+    private var cancelOverlayTapThread: EventTapThread?
     private var cancelOverlayOnReturn: (() -> Void)?
     private var cancelOverlayOnEscape: (() -> Void)?
     // Fallback NSEvent monitor used when the CGEventTap cannot be created
@@ -532,17 +532,6 @@ final class RecordingWindowManager {
         cancelOverlayOnReturn = nil
         cancelOverlayOnEscape = nil
     }
-
-    /// The main-thread half of a Return/Escape the cancel-overlay tap
-    /// swallowed: records which way the global cancel shortcut should be
-    /// restored, as the tap callback used to do inline, before the handler
-    /// runs. Skipped for a tap that has since been stopped or replaced. Runs on
-    /// the main thread only, from the callback's `DispatchQueue.main.async`,
-    /// so it never races `begin`/`endOverlayKeyInterception`.
-    fileprivate func noteCancelOverlayKeyAction(from tapThread: EventTapThread, restoreGlobalShortcut: Bool) {
-        guard cancelOverlayTapThread === tapThread else { return }
-        cancelOverlayShouldRestoreGlobalShortcut = restoreGlobalShortcut
-    }
 }
 
 // MARK: - Cancel-overlay CGEventTap callback (tap thread)
@@ -568,7 +557,12 @@ final class CancelOverlayTapHandlers {
 /// tap's stop flag (lock-protected; `endOverlayKeyInterception` sets it the
 /// moment the overlay goes away, which is what `isOverlayVisible` meant for
 /// this path) and the handlers, which are immutable. The handler itself still
-/// runs on the main thread.
+/// runs on the main thread, through `runCancelOverlayKeyHandler`.
+///
+/// It no longer writes `cancelOverlayShouldRestoreGlobalShortcut`: that flag
+/// is read only when `cancelOverlayDisabledGlobalShortcut` is set, and only
+/// the no-Accessibility fallback sets it (the tap path never disables the
+/// global shortcut), so on this path the write had no reader.
 func cancelOverlayEventTapCallback(
     _ proxy: CGEventTapProxy,
     _ type: CGEventType,
@@ -620,24 +614,35 @@ func cancelOverlayEventTapCallback(
         if type == .keyDown {
             return nil // consume until keyUp triggers the action
         }
-        let handler = handlers.onReturn
-        DispatchQueue.main.async {
-            RecordingWindowManager.shared.noteCancelOverlayKeyAction(from: tapThread, restoreGlobalShortcut: false)
-            handler()
-        }
+        runCancelOverlayKeyHandler(handlers.onReturn, from: tapThread)
         return nil // consume
     case 53: // Escape
         if type == .keyDown {
             return nil // consume until keyUp triggers the action
         }
-        let handler = handlers.onEscape
-        DispatchQueue.main.async {
-            RecordingWindowManager.shared.noteCancelOverlayKeyAction(from: tapThread, restoreGlobalShortcut: true)
-            handler()
-        }
+        runCancelOverlayKeyHandler(handlers.onEscape, from: tapThread)
         return nil // consume
     default:
         break
     }
     return Unmanaged.passUnretained(event)
+}
+
+/// Queue the handler of a Return/Escape the tap thread just swallowed, and run
+/// it on main ONLY if its tap is still live when the block runs.
+///
+/// The swallow decision is made on the tap thread; the main thread may still
+/// end the overlay before this block runs (the user clicked "No", or the
+/// overlay ended and began again). When the callback ran on main, it read
+/// `isOverlayVisible` in step with those main-thread events; this check
+/// restores that rule at the moment the handler would run. Every end of the overlay goes through `endOverlayKeyInterception`,
+/// which stops the tap on main, so the stop flag read here on main answers
+/// "stopped or replaced" exactly. Such a key is then dropped: it was swallowed
+/// for an overlay that no longer exists. The hop is ordered (FIFO), so a
+/// second queued key whose handler's overlay the first one ended is dropped too.
+func runCancelOverlayKeyHandler(_ handler: @escaping () -> Void, from tapThread: EventTapThread) {
+    EventTapThread.deliverOnMainInOrder {
+        guard !tapThread.isStopRequested else { return }
+        handler()
+    }
 }
