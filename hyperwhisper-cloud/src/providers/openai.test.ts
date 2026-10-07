@@ -305,6 +305,34 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
     expect(result.costUsd).toBeGreaterThan(0);
   });
 
+  test('gpt-transcribe bills on the seconds OpenAI reports, not the byte estimate (#797)', async () => {
+    // A 60 s 16 kHz mono WAV is 1.92 MB, which the 64 kbps byte estimate reads
+    // as 240 s. whisper-1 and gpt-4o-transcribe now alias to gpt-transcribe, so
+    // billing it on the estimate would have tripled their bill.
+    const wav60s = 44 + 60 * 32_000;
+    captureRequest({ text: 'hello', usage: { type: 'duration', seconds: 60 } });
+    const result = await transcribeWithOpenAI(
+      audio(wav60s), 'audio/wav', undefined, undefined, { model: 'gpt-transcribe' },
+    );
+    expect(result.durationSeconds).toBe(60);
+    expect(result.costUsd).toBeCloseTo(0.0045, 6);
+
+    captureRequest({ text: 'hello', duration: 60 });
+    const whisper = await transcribeWithOpenAI(
+      audio(wav60s), 'audio/wav', undefined, undefined, { model: 'whisper-1' },
+    );
+    expect(result.costUsd).toBeLessThan(whisper.costUsd);
+  });
+
+  test('gpt-transcribe fails closed to the byte estimate when OpenAI reports no seconds', async () => {
+    captureRequest({ text: 'hello', usage: { type: 'duration', seconds: 0 } });
+    const result = await transcribeWithOpenAI(
+      audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'gpt-transcribe' },
+    );
+    expect(result.durationSeconds).toBeCloseTo(120, 6);
+    expect(result.costUsd).toBeGreaterThan(0);
+  });
+
   test('gpt-4o ignores any echoed duration and estimates seconds from the payload size', async () => {
     captureRequest({ text: 'hello', duration: 999, usage: { input_tokens: 100, output_tokens: 20 } });
 
