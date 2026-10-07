@@ -16039,11 +16039,12 @@ internal static class Program
                 static string Clip() => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
                 var operatorClipboard = Clip();
                 var previousGate = TextDeliveryGate.IsSuppressed;
+                // An earlier case can leave the scratch profile with restore off.
+                var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
                 try
                 {
                     TextDeliveryGate.SetSuppressed(false);
-                    Assert(SettingsService.Instance.RestoreClipboardAfterPaste,
-                        "precondition: restore after paste is on in the scratch profile");
+                    SettingsService.Instance.RestoreClipboardAfterPaste = true;
 
                     // One dictation as the batch flow runs it: start, paste,
                     // schedule the restore (an hour out, so only the next start
@@ -16114,6 +16115,7 @@ internal static class Program
                 finally
                 {
                     TextDeliveryGate.SetSuppressed(previousGate);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = previousRestore;
                     try
                     {
                         if (operatorClipboard.Length > 0)
