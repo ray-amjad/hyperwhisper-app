@@ -264,8 +264,13 @@ needs text cleanup rather than a reasoning response. The Cloud route charges
 for the input and output tokens. Its introductory rates are $0.75 per 1 million
 input tokens and $3.75 per 1 million output tokens through December 31, 2026.
 
-Gemini 3.8 Flash is a post-processing model. It is different from **Gemini 3.5
-Transcribe**, which changes audio into text.
+Gemini 3.8 Flash is also the default transcription model of the **Google
+Gemini** engine, on macOS and Windows and through HyperWhisper Cloud. Google
+limits the Gemini 2.5 models to accounts that used them before September 18,
+2026, so a new API key can fail on Gemini 2.5 Flash. A mode that you saved with
+a Gemini 2.5 model keeps that model. Gemini 3.8 Flash is different from
+**Gemini 3.5 Transcribe**, which is a separate speech engine with its own key
+slot.
 
 ### Retired post-processing models
 
