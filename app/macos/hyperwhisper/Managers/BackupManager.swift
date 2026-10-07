@@ -670,6 +670,7 @@ class BackupManager: ObservableObject {
             licenseKeyImported: licenseKeyImported
         )
         result.pendingLocalDownloadModelIds = pendingLocalDownloads
+        result.settingsApplied = options.importSettings && backupData.settings != nil
         return result
     }
 
@@ -949,6 +950,7 @@ class BackupManager: ObservableObject {
             licenseKeyImported: licenseKeyImported
         )
         result.pendingLocalDownloadModelIds = pendingLocalDownloads
+        result.settingsApplied = settingsApplied
         return result
     }
 

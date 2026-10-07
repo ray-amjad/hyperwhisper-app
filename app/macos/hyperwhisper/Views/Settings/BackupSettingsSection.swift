@@ -294,11 +294,9 @@ struct BackupSettingsSection: View {
         if result.success {
             resultIsSuccess = true
             pendingLocalDownloadIds = result.pendingLocalDownloadModelIds
-            resultMessage = String(
-                format: NSLocalizedString("settings.backup.import.success", value: "Import complete: %d modes, %d vocabulary items imported", comment: ""),
-                result.modesImported,
-                result.vocabularyImported
-            )
+            // Describe what was actually applied, so a settings-only import does not
+            // read as "0 modes, 0 vocabulary items" (#1406).
+            resultMessage = result.successMessage(options: options)
         } else if result.partialSuccess {
             resultIsSuccess = false
             pendingLocalDownloadIds = result.pendingLocalDownloadModelIds

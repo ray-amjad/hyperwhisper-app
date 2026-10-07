@@ -819,6 +819,11 @@ struct ImportResult {
     /// restore flow offers a batched "Download all" prompt. Empty on Intel/Rosetta.
     var pendingLocalDownloadModelIds: Set<String> = []
 
+    /// Whether the settings section was actually applied. Selecting Settings is not enough:
+    /// the universal-v2 path logs and continues when its settings step fails, so the success
+    /// message reads this flag rather than `ImportOptions.importSettings` (#1406).
+    var settingsApplied: Bool = false
+
     /// Creates a successful import result
     static func success(
         modesImported: Int,
@@ -876,6 +881,66 @@ struct ImportResult {
             apiKeysImported: apiKeysImported,
             licenseKeyImported: false,
             errorMessage: message
+        )
+    }
+}
+
+// MARK: - Import Success Message
+
+extension ImportResult {
+    /// One line of the import success message: a section that the import changed.
+    enum SummaryItem: Equatable {
+        case settings
+        case modes(Int)
+        case vocabulary(Int)
+        case apiKeys
+        case licenseKey
+    }
+
+    /// What the success message reports, in display order (#1406).
+    ///
+    /// Settings, API keys and the licence key are listed only when they were applied. Modes and
+    /// vocabulary are listed whenever the user chose them, with their count, so a chosen section
+    /// whose items were all skipped still reads "0 … imported"; an unchosen section never appears.
+    func summaryItems(options: ImportOptions) -> [SummaryItem] {
+        var items: [SummaryItem] = []
+        if settingsApplied { items.append(.settings) }
+        if options.importModes { items.append(.modes(modesImported)) }
+        if options.importVocabulary { items.append(.vocabulary(vocabularyImported)) }
+        if apiKeysImported { items.append(.apiKeys) }
+        if licenseKeyImported { items.append(.licenseKey) }
+        return items
+    }
+
+    /// The localized success message for a completed import, built from `summaryItems(options:)`.
+    func successMessage(options: ImportOptions) -> String {
+        let parts: [String] = summaryItems(options: options).map { item in
+            switch item {
+            case .settings:
+                return NSLocalizedString("settings.backup.import.result.settings", value: "settings restored", comment: "Import success list item: the settings section was applied")
+            case .modes(let count):
+                return String(
+                    format: NSLocalizedString("settings.backup.import.result.modes", value: "%d modes imported", comment: "Import success list item: number of modes imported"),
+                    count
+                )
+            case .vocabulary(let count):
+                return String(
+                    format: NSLocalizedString("settings.backup.import.result.vocabulary", value: "%d vocabulary items imported", comment: "Import success list item: number of vocabulary items imported"),
+                    count
+                )
+            case .apiKeys:
+                return NSLocalizedString("settings.backup.import.result.apiKeys", value: "API keys restored", comment: "Import success list item: API keys were applied")
+            case .licenseKey:
+                return NSLocalizedString("settings.backup.import.result.licenseKey", value: "license key restored", comment: "Import success list item: the license key was applied")
+            }
+        }
+
+        let list = parts.isEmpty
+            ? NSLocalizedString("settings.backup.import.result.nothing", value: "no changes were made", comment: "Import success list when no section changed anything")
+            : parts.joined(separator: ", ")
+        return String(
+            format: NSLocalizedString("settings.backup.import.result", value: "Import complete: %@", comment: "Import success message; %@ is a comma-separated list of what was imported"),
+            list
         )
     }
 }
