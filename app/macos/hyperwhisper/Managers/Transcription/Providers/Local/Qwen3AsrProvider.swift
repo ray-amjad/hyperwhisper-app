@@ -123,7 +123,7 @@ final class Qwen3AsrProvider: TranscriptionProvider {
 
         let audioSamples: [Float]
         do {
-            audioSamples = try Self.loadAudioSamples(from: audioURL)
+            audioSamples = try LocalAudioSampleLoader.loadMono16kSamples(from: audioURL, providerName: "Qwen3 ASR", logger: logger)
         } catch {
             let nsError = error as NSError
             logger.error("Qwen3 ASR audio conversion failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
@@ -186,51 +186,5 @@ final class Qwen3AsrProvider: TranscriptionProvider {
                 reason: "Transcription failed: \(errorDescription)"
             )
         }
-    }
-
-    /// Load audio file and convert to 16kHz mono Float32 samples for Qwen3 ASR.
-    private static func loadAudioSamples(from url: URL) throws -> [Float] {
-        let file = try AVAudioFile(forReading: url)
-        let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
-
-        guard let converter = AVAudioConverter(from: file.processingFormat, to: targetFormat) else {
-            throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Cannot create audio converter")
-        }
-
-        let ratio = 16000.0 / file.processingFormat.sampleRate
-        let estimatedFrames = AVAudioFrameCount(Double(file.length) * ratio) + 1024
-        guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: estimatedFrames) else {
-            throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Cannot allocate audio buffer")
-        }
-
-        guard let inputBuffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 4096) else {
-            throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Cannot allocate input buffer for processing format \(file.processingFormat)")
-        }
-
-        var error: NSError?
-        converter.convert(to: outputBuffer, error: &error) { _, outStatus in
-            do {
-                try file.read(into: inputBuffer)
-                if inputBuffer.frameLength == 0 {
-                    outStatus.pointee = .endOfStream
-                    return nil
-                }
-                outStatus.pointee = .haveData
-                return inputBuffer
-            } catch {
-                outStatus.pointee = .endOfStream
-                return nil
-            }
-        }
-
-        if let error {
-            throw error
-        }
-
-        guard let channelData = outputBuffer.floatChannelData?[0] else {
-            throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "No audio data after conversion")
-        }
-
-        return Array(UnsafeBufferPointer(start: channelData, count: Int(outputBuffer.frameLength)))
     }
 }
