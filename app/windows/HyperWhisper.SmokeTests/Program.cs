@@ -16037,7 +16037,9 @@ internal static class Program
             Run("clipboard restore (#1496): a chain of quick dictations restores the user's own clipboard", () =>
             {
                 static string Clip() => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
-                var operatorClipboard = Clip();
+                // The operator's whole clipboard (every format: an image, a file
+                // list, an empty clipboard), put back in the finally below.
+                var operatorClipboard = SnapshotWholeClipboard();
                 var previousGate = TextDeliveryGate.IsSuppressed;
                 // An earlier case can leave the scratch profile with restore off.
                 var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
@@ -16111,20 +16113,94 @@ internal static class Program
                         Assert(Clip() == "copied after the restore",
                             $"after a restore the next dictation must snapshot afresh, got '{Clip()}'");
                     }
+
+                    // A transcript left on the clipboard ON PURPOSE: the caller
+                    // schedules no restore, as for SecureFieldSkipped (the user
+                    // pastes it by hand). It is now the clipboard, so the next
+                    // dictation's restore must bring THAT back, not the older
+                    // snapshot (main kept it). Also inside a chain, where the
+                    // dictation before it had armed the keep-the-snapshot rule.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        Dictate(paste, "A pasted one first. ");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Secret left for a manual paste. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the kept transcript must reach the clipboard");
+                        paste.EndRecordingSession();
+                        Assert(!paste.HasPendingClipboardRestore, "no restore is pending after a transcript kept on purpose");
+                        Dictate(paste, "The next dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Secret left for a manual paste. ",
+                            $"a transcript left on the clipboard on purpose must come back after the next dictation, got '{Clip()}'");
+                    }
+
+                    // The same with nothing before it: one kept transcript, then a
+                    // dictation.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Kept on purpose. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the kept transcript must reach the clipboard");
+                        paste.EndRecordingSession();
+                        Dictate(paste, "After the kept one. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Kept on purpose. ",
+                            $"the kept transcript must survive the next dictation, got '{Clip()}'");
+                    }
+
+                    // Restore OFF: no restore is ever scheduled, so the snapshot
+                    // must not live on. Turning restore on later must not bring
+                    // back that stale snapshot, neither by itself nor through the
+                    // next dictation.
+                    using (var paste = new SmartPasteService())
+                    {
+                        SettingsService.Instance.RestoreClipboardAfterPaste = false;
+                        Clipboard.SetText("stale user text 1496");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Dictated with restore off. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the transcript must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(TimeSpan.FromHours(1));
+                        paste.EndRecordingSession();
+
+                        SettingsService.Instance.RestoreClipboardAfterPaste = true;
+                        Assert(!paste.HasPendingClipboardRestore, "restore off schedules nothing");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Dictated with restore off. ",
+                            $"turning restore on must not restore a snapshot taken while it was off, got '{Clip()}'");
+
+                        Dictate(paste, "Hours later, restore on. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Dictated with restore off. ",
+                            $"the first dictation after restore is turned on must snapshot afresh, got '{Clip()}'");
+                    }
+
+                    // A transcript written after the restore was scheduled (a late
+                    // streaming segment) is covered by that restore: the chain
+                    // still ends with the user's text.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Streamed segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the segment must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(TimeSpan.FromHours(1));
+                        Assert(paste.SmartPaste("Late segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the late segment must reach the clipboard");
+                        paste.EndRecordingSession();
+                        Assert(paste.HasPendingClipboardRestore, "the scheduled restore must survive a late segment");
+                        Dictate(paste, "The next dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "user clipboard 1496",
+                            $"a late segment must not end the chain, got '{Clip()}'");
+                    }
                 }
                 finally
                 {
                     TextDeliveryGate.SetSuppressed(previousGate);
                     SettingsService.Instance.RestoreClipboardAfterPaste = previousRestore;
-                    try
-                    {
-                        if (operatorClipboard.Length > 0)
-                            Clipboard.SetText(operatorClipboard);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.Error.WriteLine($"       could not put the operator's clipboard text back: {ex.Message}");
-                    }
+                    PutBackWholeClipboard(operatorClipboard);
                 }
             });
 
@@ -16828,6 +16904,98 @@ internal static class Program
     {
         if (!condition)
             throw new InvalidOperationException(message);
+    }
+
+    /// <summary>
+    /// A copy of every format on the clipboard, so a case that writes the real
+    /// clipboard can hand the operator's content back (#1496). The live
+    /// IDataObject dies with the next write, so the data is copied out now.
+    /// </summary>
+    private sealed record ClipboardCopy(List<KeyValuePair<string, object>> Formats, int FormatsSeen);
+
+    private static ClipboardCopy SnapshotWholeClipboard()
+    {
+        var formats = new List<KeyValuePair<string, object>>();
+        var seen = 0;
+        try
+        {
+            var live = Clipboard.GetDataObject();
+            foreach (var format in live?.GetFormats(false) ?? Array.Empty<string>())
+            {
+                seen++;
+                try
+                {
+                    object? copy = live!.GetData(format, false) switch
+                    {
+                        string text => text,
+                        string[] files => (string[])files.Clone(),
+                        MemoryStream stream => stream.ToArray(),
+                        System.Windows.Media.Imaging.BitmapSource bitmap => Frozen(bitmap),
+                        _ => null,
+                    };
+                    if (copy != null)
+                        formats.Add(new(format, copy));
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"       could not copy clipboard format {format}: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"       could not read the operator's clipboard: {ex.Message}");
+        }
+
+        return new ClipboardCopy(formats, seen);
+
+        static System.Windows.Media.Imaging.BitmapSource Frozen(System.Windows.Media.Imaging.BitmapSource bitmap)
+        {
+            var copy = new System.Windows.Media.Imaging.WriteableBitmap(bitmap);
+            copy.Freeze();
+            return copy;
+        }
+    }
+
+    private static void PutBackWholeClipboard(ClipboardCopy saved)
+    {
+        try
+        {
+            if (saved.FormatsSeen == 0)
+            {
+                // It was empty: leave it empty, not holding test text.
+                Clipboard.Clear();
+                return;
+            }
+
+            if (saved.Formats.Count == 0)
+            {
+                // Content none of these formats could copy: clear the test text
+                // rather than leave it, and say so.
+                Clipboard.Clear();
+                Console.Error.WriteLine("       the operator's clipboard held no format this test can copy; it was cleared");
+                return;
+            }
+
+            var data = new DataObject();
+            foreach (var (format, value) in saved.Formats)
+            {
+                try
+                {
+                    data.SetData(format, value is byte[] bytes ? new MemoryStream(bytes) : value, false);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"       could not put back clipboard format {format}: {ex.Message}");
+                }
+            }
+
+            Clipboard.SetDataObject(data, true);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"       could not put the operator's clipboard back: {ex.Message}");
+        }
     }
 
     /// <summary>
