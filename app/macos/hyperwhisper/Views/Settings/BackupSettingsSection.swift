@@ -310,6 +310,14 @@ struct BackupSettingsSection: View {
             resultMessage = result.errorMessage ?? NSLocalizedString("settings.backup.import.error.unknown", value: "Import failed", comment: "")
         }
 
+        // Name every BYOK provider whose key did not reach the Keychain. The
+        // rest of the import still applied, but the alert must not read as a
+        // clean success while those providers are unconfigured.
+        if let apiKeysFailure = result.apiKeysFailureMessage {
+            resultIsSuccess = false
+            resultMessage += "\n\n" + apiKeysFailure
+        }
+
         showResultAlert = true
     }
 }
