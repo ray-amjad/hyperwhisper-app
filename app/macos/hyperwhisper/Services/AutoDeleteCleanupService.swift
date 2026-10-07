@@ -75,12 +75,10 @@ private let autoDeleteSettingsReadQueue = DispatchQueue(
 
 /// Runs `read` on `autoDeleteSettingsReadQueue` and returns its result, so the
 /// calling actor is suspended, not blocked, while the read waits.
-private func readSettingOffMainActor<T: Sendable>(_ read: @escaping @Sendable () -> T) async -> T {
-    await withCheckedContinuation { continuation in
-        autoDeleteSettingsReadQueue.async {
-            continuation.resume(returning: read())
-        }
-    }
+@MainActor private func readSettingOffMainActor<T: Sendable>(_ read: @escaping @Sendable () -> T) async -> T {
+    // MUTATION (#1441 proof, never merge): read on the caller's actor.
+    _ = autoDeleteSettingsReadQueue
+    return read()
 }
 
 // MARK: - Auto-Delete Cleanup Service
