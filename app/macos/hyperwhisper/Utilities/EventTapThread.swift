@@ -147,6 +147,24 @@ final class EventTapThread: @unchecked Sendable {
         return stopRequested
     }
 
+    // MARK: - Hop to main (tap thread)
+
+    /// Run `work` on the main actor, in the order the tap thread called this.
+    ///
+    /// Every tap -> main hop goes through here. A separate
+    /// `Task { @MainActor in }` per event does NOT promise FIFO order between
+    /// tasks, so a modifier press and its release could reach the main actor
+    /// reversed and leave push-to-talk recording. The main dispatch queue is
+    /// serial and FIFO, and its blocks run on the main thread, which is what
+    /// `MainActor.assumeIsolated` (macOS 14+, the deployment target) asserts.
+    static func deliverOnMainInOrder(_ work: @escaping @MainActor () -> Void) {
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                work()
+            }
+        }
+    }
+
     // MARK: - Re-enable (tap thread)
 
     /// Re-enable the tap after macOS disabled it, and time the call. Called

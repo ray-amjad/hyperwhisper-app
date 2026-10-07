@@ -884,7 +884,8 @@ func bareModifierEventTapCallback(
         // ever arrive for that already-completed release, so without reconciling
         // we'd stay stuck in pttActive (recording + mic open) forever.
         // Query the live modifier flags and synthesise the missed release.
-        Task { @MainActor in
+        // Ordered hop (FIFO with the key events below), not a `Task`.
+        EventTapThread.deliverOnMainInOrder {
             BareModifierKeyMonitor.shared.receive(.reEnabledAfterSystemDisable, from: tapThread)
         }
         return Unmanaged.passUnretained(event)
@@ -901,8 +902,9 @@ func bareModifierEventTapCallback(
     }
 
     // Dispatch to main actor for thread-safe state access
-    // We don't block the callback - just schedule the work
-    Task { @MainActor in
+    // We don't block the callback - just schedule the work. The hop keeps
+    // the tap's event order: a press and its release must never swap.
+    EventTapThread.deliverOnMainInOrder {
         BareModifierKeyMonitor.shared.receive(tapEvent, from: tapThread)
     }
 
