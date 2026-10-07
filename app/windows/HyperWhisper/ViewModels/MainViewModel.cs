@@ -1308,6 +1308,14 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// The toggle shortcut is held, so push-to-talk must not act. A modifier-only
+    /// toggle (Ctrl+Alt) raises Pressed only on its release (#1497), so while it
+    /// is still down the flag is not set yet; the service answers for that window.
+    /// </summary>
+    private bool IsToggleShortcutHeld =>
+        _toggleShortcutHeld || _shortcutService.IsModifierOnlyChordHeld("toggle");
+
     private async void OnPushToTalkPressed(object? sender, EventArgs e)
     {
         // async void event handler: any exception escaping the awaits below would be
@@ -1322,7 +1330,7 @@ public partial class MainViewModel : ViewModelBase
                 return;
             }
 
-            if (_hotkeyBlocked || _toggleShortcutHeld) return;
+            if (_hotkeyBlocked || IsToggleShortcutHeld) return;
             if (!IsRecording)
             {
                 await StartRecordingAsync();
@@ -1351,7 +1359,7 @@ public partial class MainViewModel : ViewModelBase
         // logged instead of crashing the process via the SynchronizationContext.
         try
         {
-            if (_hotkeyBlocked || _toggleShortcutHeld) return;
+            if (_hotkeyBlocked || IsToggleShortcutHeld) return;
             if (_isStreamingStarting) return;
             if (IsRecording) await StopRecordingAndTranscribeAsync();
         }
@@ -1368,7 +1376,7 @@ public partial class MainViewModel : ViewModelBase
         // instead of crashing the process via the SynchronizationContext.
         try
         {
-            if (_hotkeyBlocked || _toggleShortcutHeld) return;
+            if (_hotkeyBlocked || IsToggleShortcutHeld) return;
             if (_isStreamingStarting) return;
             if (IsRecording) await CancelRecordingAsync();
         }
