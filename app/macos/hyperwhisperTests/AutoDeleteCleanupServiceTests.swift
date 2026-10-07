@@ -71,7 +71,16 @@ private final class SuiteBackedAutoDeleteSettings: AutoDeleteSettingsManager {
 /// release came from the test (rather than the timeout). A read that ran on
 /// the main actor would hold the test's own main-actor code out until the
 /// timeout, so `releasedByTest` is the regression signal.
+///
+/// The timeout only bounds how long that regression takes to report; it is
+/// not a deadline for a healthy test. Before releasing, a gated test needs the
+/// main actor about 100 times (the ticker loop plus `waitUntil`), shared with
+/// every other main-actor test on a loaded 3-core CI runner. A 2 s timeout
+/// fired first there and failed `releasedByTest` at random (#1433), so the
+/// timeout sits well above the 5 s `waitUntil` deadline.
 private final class SettingsReadGate: @unchecked Sendable {
+    static let selfReleaseSeconds: Double = 30
+
     private let entered = DispatchSemaphore(value: 0)
     private let releaseSemaphore = DispatchSemaphore(value: 0)
     private let lock = NSLock()
@@ -83,7 +92,7 @@ private final class SettingsReadGate: @unchecked Sendable {
         entries += 1
         lock.unlock()
         entered.signal()
-        let result = releaseSemaphore.wait(timeout: .now() + 2)
+        let result = releaseSemaphore.wait(timeout: .now() + Self.selfReleaseSeconds)
         lock.lock()
         releasedInTime = result == .success
         lock.unlock()
@@ -193,6 +202,13 @@ private final class AutoDeleteWriterGate: @unchecked Sendable {
 /// Writer gates below also pin the ordering itself: pending Core Data work yields
 /// the main actor, and cleanup queued behind a path rewrite snapshots the path
 /// that the writer commits before cleanup starts.
+///
+/// Serialized (#1433): every `performCleanup()` here reads its settings through
+/// ONE process-wide serial queue (`autoDeleteSettingsReadQueue` in
+/// `AutoDeleteCleanupService.swift`). A `SettingsReadGate` test parks that queue
+/// on purpose, so any test running beside it would wait behind the parked
+/// read, and its own gated read could not reach `waitUntilBlocked()` in time.
+@Suite(.serialized)
 @MainActor
 struct AutoDeleteCleanupServiceTests {
 
@@ -1111,7 +1127,8 @@ struct AutoDeleteCleanupServiceTests {
         #expect(readParked)
 
         // Returns without waiting: a queued read would sit behind the parked
-        // one until the gate's 2 s timeout, and `releasedByTest` would fail.
+        // one until the gate's own timeout (`SettingsReadGate.selfReleaseSeconds`),
+        // and `releasedByTest` would fail.
         let second = await service.performCleanup()
         #expect(second == nil)
 
