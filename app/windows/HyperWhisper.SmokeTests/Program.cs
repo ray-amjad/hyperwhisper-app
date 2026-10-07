@@ -15989,6 +15989,46 @@ internal static class Program
                 }
             });
 
+            Run("paste guard (#1495): a streaming segment after a deferred one queues behind it", () =>
+            {
+                // Review round 1: segment A arrived during the stop while Alt was
+                // held and went to the pending text; segment B arrived after the
+                // keys came up and was pasted at once. The stop path then pasted
+                // A, so the target read "B A". Replay that sequence through the
+                // handler's own decision and append helpers.
+                var typed = new List<string>();
+                var pending = string.Empty;
+                void Deliver(string segment, bool inStopWindow, bool held)
+                {
+                    if (MainViewModel.ShouldDeferStreamingSegmentToStopPath(inStopWindow, held, pending))
+                        pending = MainViewModel.AppendStreamingPendingText(pending, segment);
+                    else
+                        typed.Add(segment);
+                }
+
+                Deliver("Alpha one.", inStopWindow: true, held: true);
+                Deliver("Bravo two.", inStopWindow: true, held: false);
+                Assert(typed.Count == 0, $"B must not be typed before the queued A, typed: {string.Join(" | ", typed)}");
+                // The stop path pastes its pending text after its wait.
+                typed.Add(pending);
+                var all = string.Join(" ", typed);
+                var a = all.IndexOf("Alpha one.", StringComparison.Ordinal);
+                var b = all.IndexOf("Bravo two.", StringComparison.Ordinal);
+                Assert(a >= 0 && b > a, $"the target must read A then B, got \"{all}\"");
+                Assert(all.Contains("one. Bravo", StringComparison.Ordinal),
+                    $"the queued segments must be joined by one space, got \"{all}\"");
+
+                // Keys up and nothing queued: the stop window pastes at once.
+                Assert(!MainViewModel.ShouldDeferStreamingSegmentToStopPath(true, false, string.Empty),
+                    "with nothing held and nothing queued a segment pastes directly");
+                // Outside the stop window nothing defers (SmartPaste releases at Ctrl+V).
+                Assert(!MainViewModel.ShouldDeferStreamingSegmentToStopPath(false, true, "queued"),
+                    "mid-session a segment never defers to the stop path");
+                // An empty segment leaves the queue as it was.
+                Assert(MainViewModel.AppendStreamingPendingText("kept", "   ") == "kept",
+                    "a blank segment must not change the pending text");
+            });
+
             Run("shortcuts: the recorder's red border never appears without its reason", () =>
             {
                 // C8. ShowError gated only the TEXT on ShowsInlineError and painted

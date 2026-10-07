@@ -276,9 +276,10 @@ public partial class MainViewModel : ViewModelBase
             // #1495: the streaming chord that stopped this session can still be
             // down. Wait for its Shift/Alt/Win keys to come up (awaited, bounded)
             // before any paste below, or the Ctrl+V reaches the target as
-            // Ctrl+Alt+V. Segments that arrive during the wait while a key is
-            // still down are queued as pending (see the segment handler), and
-            // the pending branch below pastes them.
+            // Ctrl+Alt+V. Segments that arrive during the stop while a key is
+            // still down, and every segment after one of them, are queued as
+            // pending in order (see the segment handler), and the pending branch
+            // below pastes them.
             if (SettingsService.Instance.AutoPasteEnabled && _pasteService != null)
             {
                 await _pasteService.WaitForPasteModifiersReleasedAsync();
@@ -445,10 +446,15 @@ public partial class MainViewModel : ViewModelBase
         // would be pasted as Ctrl+Alt+V (or Ctrl+Shift+V). This handler cannot
         // wait - an await here would let the stop path read the session state
         // before this segment is delivered - so it hands the segment to the stop
-        // path, which waits for the keys and pastes its pending text.
-        if (_streamingStopDefersHeldSegments && _pasteService?.AnyPasteModifierHeld == true)
+        // path, which waits for the keys and pastes its pending text. Once text
+        // is pending, later segments in the stop window queue behind it even if
+        // the keys are up, or they would be typed before it.
+        if (ShouldDeferStreamingSegmentToStopPath(
+                _streamingStopDefersHeldSegments,
+                _pasteService?.AnyPasteModifierHeld == true,
+                _streamingPendingFinalFallbackText))
         {
-            LoggingService.Info("MainViewModel: Streaming final segment arrived while the stop chord is held; queued for the stop path's paste");
+            LoggingService.Info("MainViewModel: Streaming final segment arrived during the stop while a key is held or text is already queued; queued for the stop path's paste");
             AppendStreamingPendingFallback(segment);
             return;
         }
@@ -466,15 +472,41 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// #1495: whether a final segment that arrives now goes to the stop path's
+    /// pending text instead of being pasted at once. Only inside the stop window
+    /// (from the start of the stop until the stop path reads the pending text).
+    /// There it is deferred when a Shift/Alt/Win key is held, and also whenever
+    /// text is already pending: the stop path pastes the pending text last, so a
+    /// direct paste now would land before the earlier, queued segment.
+    /// </summary>
+    internal static bool ShouldDeferStreamingSegmentToStopPath(
+        bool inStopWindow, bool pasteModifierHeld, string? pendingText)
+    {
+        if (!inStopWindow)
+            return false;
+
+        return pasteModifierHeld || !string.IsNullOrWhiteSpace(pendingText);
+    }
+
     private void AppendStreamingPendingFallback(string segment)
+    {
+        _streamingPendingFinalFallbackText = AppendStreamingPendingText(_streamingPendingFinalFallbackText, segment);
+    }
+
+    /// <summary>
+    /// Appends a final segment to the pending text, after what is already there,
+    /// with one space between them.
+    /// </summary>
+    internal static string AppendStreamingPendingText(string? pending, string segment)
     {
         var cleaned = TranscriptionTextProcessing.FinalizeStreamingText(segment);
         if (string.IsNullOrWhiteSpace(cleaned))
-            return;
+            return pending ?? string.Empty;
 
-        _streamingPendingFinalFallbackText = string.IsNullOrWhiteSpace(_streamingPendingFinalFallbackText)
+        return string.IsNullOrWhiteSpace(pending)
             ? cleaned
-            : TranscriptionTextProcessing.FinalizeStreamingText($"{_streamingPendingFinalFallbackText} {cleaned}");
+            : TranscriptionTextProcessing.FinalizeStreamingText($"{pending} {cleaned}");
     }
 
     private bool CheckStreamingTargetAvailability()
