@@ -1114,11 +1114,31 @@ enum TranscribeEndpoint {
             return
         }
 
+        // A LOCAL ENGINE MUST NEVER LEAVE A CLOUD MODEL ON THE MODE (issue
+        // #1466). `TranscriptionProviderRouter.selectProvider` sends a Mode to
+        // its CLOUD branch when `model` trims to "" or reads "cloud" (the
+        // empty-means-cloud rule exists for legacy/imported modes, #1440), and
+        // then picks `CloudProvider.parse(cloudProvider) ?? .hyperwhisper`. The
+        // mixed mode_id+engine path resolves through `selectProvider(for:
+        // transient)` alone and never reaches `resolveProvider`, which is the
+        // only place that refuses a blank Whisper model — the same gap the
+        // nemotron arm below documents. So `{mode_id: X, engine:
+        // "whisperLocal", model: ""}` wrote "" here (`??` catches nil only),
+        // and on-device audio went to HyperWhisper Cloud: uploaded and billed
+        // for any user with an account key. `model: "cloud"` did the same for
+        // whisper, and for parakeet, whose `modelIdForSelection` passes an
+        // unknown id through unchanged. `engine=` naming a local engine is a
+        // request to stay on the Mac, so a model that would route to Cloud is
+        // treated as absent: each arm then applies its own no-model default,
+        // exactly as if the caller had omitted `model`. Nemotron, qwen3Asr and
+        // appleSpeech already write only their own ids, so they need nothing.
+        let localModel: String? = Self.modelRoutesToCloud(model) ? nil : model
+
         switch resolvedEngine {
         case .whisperLocal:
-            mode.model = model ?? "base"
+            mode.model = localModel ?? "base"
         case .parakeet:
-            mode.model = ParakeetModelManager.Constants.modelIdForSelection(model)
+            mode.model = ParakeetModelManager.Constants.modelIdForSelection(localModel)
         // The four `nemotron*` spellings are now `EngineId::Nemotron` in the
         // shared table; `NemotronModelManager.Constants.engineAliases` stays as
         // the pin that the two lists still agree
@@ -1188,6 +1208,17 @@ enum TranscribeEndpoint {
         case .appleSpeech:
             mode.model = "apple-speech-analyzer"
         }
+    }
+
+    /// Whether a Mode whose `model` is `model` would take the CLOUD branch of
+    /// `TranscriptionProviderRouter.selectProvider`. Mirrors that function's
+    /// own test (trim, empty counts as cloud, case-insensitive "cloud") so the
+    /// two cannot disagree about what "routes to Cloud" means. nil is not a
+    /// cloud model here: it means "no override", which each local arm defaults.
+    static func modelRoutesToCloud(_ model: String?) -> Bool {
+        guard let model else { return false }
+        let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty || trimmed.lowercased() == "cloud"
     }
 
     /// Whether the Nemotron variant named by `modelId` can transcribe
