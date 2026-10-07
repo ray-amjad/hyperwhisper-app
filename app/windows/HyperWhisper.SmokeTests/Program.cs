@@ -16029,6 +16029,103 @@ internal static class Program
                     "a blank segment must not change the pending text");
             });
 
+            // #1496: a dictation started inside the previous one's restore window
+            // captured the previous TRANSCRIPT as "the user's clipboard", and its
+            // restore then wrote that transcript back. These drive the real
+            // service on the real clipboard: no window is captured, so SmartPaste
+            // writes the transcript and returns CopiedToClipboard without typing.
+            Run("clipboard restore (#1496): a chain of quick dictations restores the user's own clipboard", () =>
+            {
+                static string Clip() => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                var operatorClipboard = Clip();
+                var previousGate = TextDeliveryGate.IsSuppressed;
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+                    Assert(SettingsService.Instance.RestoreClipboardAfterPaste,
+                        "precondition: restore after paste is on in the scratch profile");
+
+                    // One dictation as the batch flow runs it: start, paste,
+                    // schedule the restore (an hour out, so only the next start
+                    // or Dispose ends it), end. A Ctrl+V target reads the
+                    // clipboard, in both text formats, which must not count as
+                    // a write.
+                    void Dictate(SmartPasteService paste, string transcript)
+                    {
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(transcript) == SmartPasteResult.CopiedToClipboard,
+                            $"precondition: '{transcript}' must reach the clipboard");
+                        Assert(Clip() == transcript && (Clipboard.GetData(DataFormats.Text) as string) == transcript,
+                            $"precondition: the clipboard must hold '{transcript}', got '{Clip()}'");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(TimeSpan.FromHours(1));
+                        Assert(paste.HasPendingClipboardRestore, $"a restore must be pending after '{transcript}'");
+                        paste.EndRecordingSession();
+                    }
+
+                    // The issue: A, then B inside A's window, then C inside B's.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        Dictate(paste, "A third sentence. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "user clipboard 1496",
+                            $"after three quick dictations the user's own text must come back, got '{Clip()}'");
+                    }
+
+                    // The user copied something new between A's paste and B's
+                    // start: that copy is now the user's clipboard.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        Dictate(paste, "First dictation. ");
+                        Clipboard.SetText("copied between dictations");
+                        Dictate(paste, "Second dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "copied between dictations",
+                            $"a copy made between dictations must be what comes back, got '{Clip()}'");
+                    }
+
+                    // A dictation that pasted nothing and armed no restore (no
+                    // speech, cancel, empty text) sits between two that pasted.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        Dictate(paste, "Before the empty one. ");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(string.Empty) == SmartPasteResult.Failed, "empty text pastes nothing");
+                        paste.EndRecordingSession();
+                        Assert(!paste.HasPendingClipboardRestore, "the empty dictation cancelled the pending restore");
+                        Dictate(paste, "After the empty one. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "user clipboard 1496",
+                            $"a no-paste dictation in the chain must not lose the user's text, got '{Clip()}'");
+
+                        // The restore wrote the user's text back, so the next
+                        // dictation snapshots afresh (a copy made after it counts).
+                        Clipboard.SetText("copied after the restore");
+                        Dictate(paste, "A later dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "copied after the restore",
+                            $"after a restore the next dictation must snapshot afresh, got '{Clip()}'");
+                    }
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previousGate);
+                    try
+                    {
+                        if (operatorClipboard.Length > 0)
+                            Clipboard.SetText(operatorClipboard);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"       could not put the operator's clipboard text back: {ex.Message}");
+                    }
+                }
+            });
+
             Run("shortcuts: the recorder's red border never appears without its reason", () =>
             {
                 // C8. ShowError gated only the TEXT on ShowsInlineError and painted
