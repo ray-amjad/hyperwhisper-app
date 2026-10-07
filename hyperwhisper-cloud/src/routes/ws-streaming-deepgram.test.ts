@@ -849,6 +849,71 @@ describe('streaming socket lifecycle', () => {
     });
   });
 
+  // #1191: the 0.1-credit minimum applies ONLY to a session that reached the
+  // vendor (Ray, 2026-10-07). "Reached" = the upstream handshake was accepted.
+  describe('a session that never reached the vendor bills nothing (#1191)', () => {
+    test('no DEEPGRAM_API_KEY: the session deducts 0 credits and logs creditsUsed 0', async () => {
+      delete process.env.DEEPGRAM_API_KEY;
+      const auth: AuthContext = { identifier: 'key-1234-abcd', licenseKey: 'key-1234-abcd', credits: 100 };
+      const events = createStreamingEvents(
+        fakeContext(auth, 'https://transcribe.example/ws/streaming-deepgram?account_key=key-1234-abcd'),
+      );
+      const client = new FakeClientSocket();
+
+      let closing: Promise<void> = Promise.resolve();
+      const { entries } = captureStreamingLogs(() => {
+        events.onOpen(new Event('open'), client);
+        // The 1011 close is followed by hono's onClose, which settles the session.
+        closing = events.onClose();
+      });
+      await closing;
+
+      expect(await drainPendingDeductions(2000)).toBe(0);
+      expect(licenseCharges).toEqual([]);
+      expect(upstreamSockets).toHaveLength(0);
+      const sessionEnds = entries.filter((entry) => entry.event === 'ws_streaming.session_end');
+      expect(sessionEnds).toHaveLength(1);
+      expect(sessionEnds[0]!.details).toMatchObject({
+        durationSeconds: 0,
+        costUsd: 0,
+        creditsUsed: 0,
+        upstreamReached: false,
+      });
+    });
+
+    test('Deepgram refuses the handshake: the client is told credits_used 0 and nothing is deducted', async () => {
+      const auth: AuthContext = { identifier: 'key-1234-abcd', licenseKey: 'key-1234-abcd', credits: 100 };
+      const events = createStreamingEvents(
+        fakeContext(auth, 'https://transcribe.example/ws/streaming-deepgram?account_key=key-1234-abcd'),
+      );
+      const client = new FakeClientSocket();
+      events.onOpen(new Event('open'), client);
+      const upstream = upstreamSockets[upstreamSockets.length - 1]!;
+
+      // The upgrade is answered with a non-101 status: error, then close, no open.
+      upstream.emit('error', {});
+      upstream.emit('close', { code: 1006, reason: '' });
+      await drainPendingDeductions(2000);
+
+      expect(client.messagesOfType('session_complete')).toEqual([
+        { type: 'session_complete', duration_seconds: 0, credits_used: 0 },
+      ]);
+      expect(licenseCharges).toEqual([]);
+    });
+
+    test('a session that DID reach Deepgram still pays the 0.1 minimum with 0 audio', async () => {
+      const harness = openSession();
+
+      expect(await harness.endSession()).toBe(1);
+
+      expect(harness.client.messagesOfType('session_complete')).toEqual([
+        { type: 'session_complete', duration_seconds: 0, credits_used: 0.1 },
+      ]);
+      expect(licenseCharges).toHaveLength(1);
+      expect(licenseCharges[0]!.amount).toBe(0.1);
+    });
+  });
+
   describe('machine shutdown (#1235)', () => {
     // A session opened by an earlier test and never closed is still registered.
     // Settle those first, so each test counts only the sessions it opens.
