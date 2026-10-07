@@ -471,7 +471,10 @@ class FileTranscriptionFlow {
                 return
             }
 
-            // Update app state to show transcribing status
+            // Update app state to show transcribing status. This flow now owns
+            // `recordingState`, so an in-flight pending-file retry must not write
+            // its outcome over it (#1276).
+            appState?.beginTranscriptionSession()
             appState?.recordingState = .transcribing
 
             // Use finalAudioURL which may be VAD-trimmed if VAD was enabled

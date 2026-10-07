@@ -16,12 +16,31 @@ extension RecordingTranscriptionFlow {
     /// Retry transcription using a previously recorded audio file that failed before transcription started
     func retryPendingFile() {
         toggleTask?.cancel()
+        // A retry is a session of its own: an older retry still in flight is
+        // superseded by this one and writes nothing when it ends (#1276).
+        guard let appState = appState else { return }
+        let identity = PendingRetryIdentity(sessionGeneration: appState.beginTranscriptionSession())
         toggleTask = Task {
-            await retryTranscriptionFromPendingPath()
+            await retryTranscriptionFromPendingPath(identity: identity)
         }
     }
 
-    private func retryTranscriptionFromPendingPath() async {
+    /// Whether a newer flow (a dictation, a file transcription, another retry)
+    /// has started since this retry began. See `PendingRetryIdentity`.
+    private func isPendingRetrySuperseded(_ identity: PendingRetryIdentity) -> Bool {
+        guard let appState = appState else { return true }
+        let superseded = identity.isSuperseded(
+            currentSessionGeneration: appState.transcriptionSessionGeneration
+        )
+        if superseded {
+            AppLogger.audio.info("Pending-file retry superseded by a newer flow; leaving shared state to it")
+        }
+        return superseded
+    }
+
+    private func retryTranscriptionFromPendingPath(identity: PendingRetryIdentity) async {
+        guard !isPendingRetrySuperseded(identity) else { return }
+
         guard
             let appState = appState,
             let path = appState.pendingRetryAudioPath
@@ -47,6 +66,9 @@ extension RecordingTranscriptionFlow {
             fallbackName: actualMode
         )
 
+        // The mode lookup suspends; a new dictation may have started meanwhile.
+        guard !isPendingRetrySuperseded(identity) else { return }
+
         await MainActor.run {
             appState.recordingState = .transcribing
             appState.showRecordingDialog = true
@@ -64,6 +86,9 @@ extension RecordingTranscriptionFlow {
                 applicationContext: capturedApplicationContext
             )
 
+            // A newer flow owns the dialog, the state and the session mode now.
+            guard !isPendingRetrySuperseded(identity) else { return }
+
             await MainActor.run {
                 appState.lastTranscription = transcriptionResult.text
                 appState.recordingState = .idle
@@ -71,6 +96,10 @@ extension RecordingTranscriptionFlow {
             }
             clearActiveSessionMode()
         } catch {
+            // Superseded: the newer flow's own request cancelled this one (or it
+            // failed while the newer flow ran). Its error is not the user's.
+            guard !isPendingRetrySuperseded(identity) else { return }
+
             await MainActor.run {
                 appState.recordingState = .idle
                 appState.lastTranscription = "Error: \(error.localizedDescription)"
