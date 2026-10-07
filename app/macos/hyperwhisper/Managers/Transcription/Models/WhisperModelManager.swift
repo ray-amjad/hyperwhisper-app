@@ -135,19 +135,20 @@ class WhisperModelManager: NSObject, ObservableObject {
     static let allModels: [WhisperCppModel] = {
         var models: [WhisperCppModel] = []
         
-        // Define model sizes (matching what whisper.cpp provides)
+        // Define model sizes (matching what whisper.cpp provides).
+        // `ModelSizeLabelTests` pins each label to the ggml file's size on Hugging Face.
         let modelSizes: [String: (String, Int64)] = [
-            "tiny": ("39 MB", 39_000_000),
-            "tiny.en": ("39 MB", 39_000_000),
+            "tiny": ("78 MB", 77_691_713),
+            "tiny.en": ("78 MB", 77_704_715),
             "base": ("142 MB", 142_000_000),
             "base.en": ("142 MB", 142_000_000),
             "small": ("466 MB", 466_000_000),
             "small.en": ("466 MB", 466_000_000),
             "medium": ("1.5 GB", 1_500_000_000),
             "medium.en": ("1.5 GB", 1_500_000_000),
-            "large-v2": ("2.9 GB", 2_900_000_000),
+            "large-v2": ("3.1 GB", 3_094_623_691),
             "large-v3": ("3.1 GB", 3_100_000_000),
-            "large-v3_turbo": ("809 MB", 809_000_000)
+            "large-v3_turbo": ("1.6 GB", 1_624_555_275)
         ]
         
         // Create models from the enum

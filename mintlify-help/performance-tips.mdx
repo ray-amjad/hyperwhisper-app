@@ -40,11 +40,11 @@ Local models run only on your machine. Your audio never leaves your device. Afte
 
 Local models use Metal GPU and Neural Engine acceleration. The **Small Whisper** model (466 MB on macOS, ~2 GB VRAM) runs in realtime, also on an M1 Air. It is the recommended starting point for most users.
 
-For English-only work, **Parakeet V2** (474 MB) is usually faster than Whisper models of the same size. **Nemotron 3.5 Multilingual** (~1.3 GB) is the only local model that supports languages outside Europe, such as Chinese, Japanese, Korean, and Arabic.
+For English-only work, **Parakeet V2** (474 MB) is usually faster than Whisper models of the same size. **Nemotron 3.5 Multilingual** (~665 MB) is the only local model that supports languages outside Europe, such as Chinese, Japanese, Korean, and Arabic.
 
 ### Intel Macs
 
-Local models work on Intel Macs, but they use the CPU only. There is no GPU or Neural Engine acceleration. Start with **Whisper Tiny** (~39 MB) or **Whisper Base** (148 MB). If these models are too slow or not accurate enough, change to HyperWhisper Cloud. The server then does all the computation.
+Local models work on Intel Macs, but they use the CPU only. There is no GPU or Neural Engine acceleration. Start with **Whisper Tiny** (78 MB) or **Whisper Base** (148 MB). If these models are too slow or not accurate enough, change to HyperWhisper Cloud. The server then does all the computation.
 
 ### Windows x64
 
@@ -58,12 +58,12 @@ Local transcription on Windows uses Vulkan (Whisper) and DirectML (Parakeet) for
 
 | Model | Size | Recommended VRAM | Character |
 | --- | --- | --- | --- |
-| Tiny | ~39 MB (macOS) / ~78 MB (Windows) | ~1 GB | Lowest-end machines, quick drafts |
+| Tiny | ~78 MB | ~1 GB | Lowest-end machines, quick drafts |
 | Base | 142 MB (macOS) / 148 MB (Windows) | ~1 GB | Light hardware, basic dictation |
 | **Small** | **466 MB (macOS) / 488 MB (Windows)** | **~2 GB** | **Best balance for most users** |
 | Medium | 1.5 GB | ~5 GB | Higher accuracy, mid-range GPUs |
-| Large v3 Turbo | 809 MB (macOS) / 1.5 GB (Windows) | ~6 GB | Near-Large accuracy, much faster |
-| Large v2 | 2.9 GB (macOS) / 3.1 GB (Windows) | ~10 GB | High accuracy |
+| Large v3 Turbo | 1.6 GB (macOS) / 1.5 GB (Windows) | ~6 GB | Near-Large accuracy, much faster |
+| Large v2 | 3.1 GB | ~10 GB | High accuracy |
 | Large v3 | 3.1 GB | ~10 GB | Highest Whisper accuracy |
 
 Small models are faster, but they are less accurate. Large models are slower, but they are better with difficult audio. If your GPU does not have sufficient VRAM, the model changes to the CPU automatically.
@@ -184,11 +184,11 @@ If local Gemma is too large for your machine, use a cloud post-processing provid
 | --- | --- |
 | App (macOS) | ~200 MB |
 | App (Windows) | ~300 MB |
-| Whisper Tiny | ~39 MB (macOS) / ~78 MB (Windows) |
+| Whisper Tiny | ~78 MB |
 | Whisper Small | ~466 MB (macOS) / ~488 MB (Windows) |
 | Whisper Large v3 | ~3.1 GB |
 | Parakeet V2 | ~474 MB (macOS) / ~661 MB (Windows) |
-| Nemotron 3.5 Multilingual (macOS) | ~1.3 GB |
+| Nemotron 3.5 Multilingual (macOS) | ~665 MB |
 | Nemotron 3.5 Streaming (Windows, English + Japanese only) | ~660 MB |
 | Gemma 4 E2B (post-processing) | ~3.1 GB |
 | Gemma 4 31B Dense (post-processing) | ~18.3 GB |
