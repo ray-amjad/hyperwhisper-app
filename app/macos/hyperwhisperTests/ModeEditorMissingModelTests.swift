@@ -106,6 +106,34 @@ struct ModeEditorMissingModelTests {
         #expect(ModeEditorDefaults.savedModel(provider: .cloud, model: "cloud", availableModelIds: []) == "cloud")
     }
 
+    @Test(arguments: ["", "   ", " \n"])
+    func emptyStoredModelOpensOnCloudAndSavesCloud(storedModel: String) {
+        // An empty model runs as Cloud (TranscriptionProviderRouter), so it is
+        // not a missing local model: no blank "(not installed)" row, and an
+        // unchanged Save writes "cloud", not "base" or an installed model.
+        let installed = ["small.en", "base.en"]
+        let selection = ModeEditorDefaults.editModelSelection(storedModel: storedModel, availableModelIds: installed)
+        #expect(selection.provider == .cloud)
+        #expect(selection.missingLocalModelId == nil)
+        #expect(ModeEditorDefaults.localPickerModelIds(
+            availableModelIds: installed,
+            missingLocalModelId: selection.missingLocalModelId
+        ) == ModeEditorDefaults.sortedLocalModelIds(installed))
+
+        let result = saveUnchanged(storedModel: storedModel, language: LanguageData.automaticCode, availableModelIds: installed)
+        #expect(result.model == "cloud")
+        #expect(result.language == LanguageData.automaticCode)
+        #expect(result.missing == nil)
+        #expect(saveUnchanged(storedModel: storedModel, language: "de", availableModelIds: []).model == "cloud")
+
+        // Switched to On-device by hand, it gets an installed model.
+        #expect(ModeEditorDefaults.onDeviceModel(
+            current: selection.model,
+            availableModelIds: installed,
+            missingLocalModelId: selection.missingLocalModelId
+        ) == "base.en")
+    }
+
     @Test func aDeliberatePickSavesAsNormal() {
         // The user picks the installed English-only model: it saves, and the
         // language follows it to `en` as before.

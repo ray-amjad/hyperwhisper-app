@@ -124,8 +124,17 @@ enum ModeEditorDefaults {
     /// wrote that substitute, and an English-only substitute also rewrote the
     /// language to `en` (issue #1434). The missing id is reported instead, so
     /// the picker can list it as not installed and the sheet can say so.
+    ///
+    /// An empty or whitespace-only stored model is NOT a local model: the
+    /// transcription router runs it as Cloud (`TranscriptionProviderRouter.
+    /// selectProvider`), so the sheet opens it on Cloud and Save writes
+    /// `"cloud"`. It is never reported missing, so it never gets a blank
+    /// "(not installed)" row or a local substitute.
     static func editModelSelection(storedModel: String?, availableModelIds: [String]) -> EditModelSelection {
         let stored = storedModel ?? "base"
+        if stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return EditModelSelection(provider: .cloud, model: stored, missingLocalModelId: nil)
+        }
         if stored.lowercased() == "cloud" {
             return EditModelSelection(provider: .cloud, model: stored, missingLocalModelId: nil)
         }
