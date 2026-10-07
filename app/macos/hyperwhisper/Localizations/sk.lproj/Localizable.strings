@@ -793,6 +793,8 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Žiadne lokálne modely nainštalované";
 "modes.notice.noLocalModels.subtitle" = "Najprv nainštalujte model v Nastaveniach";
+"modes.model.notInstalledFormat" = "%@ (nie je nainštalovaný)";
+"modes.notice.modelNotInstalled" = "Model tohto režimu nie je nainštalovaný. Uloženie ho zachová. Stiahnite ho v Knižnici modelov alebo vyberte iný model.";
 "modes.model.pricing" = "Ceny: $%.6f / minútu (účtované za sekundu)";
 "modes.button.create" = "Vytvoriť režim";
 "modes.button.delete" = "Vymazať režim";

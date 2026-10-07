@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "클라우드";
 "modes.notice.noLocalModels.title" = "로컬 모델이 설치되지 않음";
 "modes.notice.noLocalModels.subtitle" = "먼저 설정에서 모델 설치";
+"modes.model.notInstalledFormat" = "%@ (설치되지 않음)";
+"modes.notice.modelNotInstalled" = "이 모드의 모델이 설치되어 있지 않습니다. 저장해도 그대로 유지됩니다. 모델 라이브러리에서 다운로드하거나 다른 모델을 선택하세요.";
 "modes.model.pricing" = "가격: $%.6f / 분 (초당 청구)";
 "modes.button.create" = "모드 만들기";
 "modes.button.delete" = "모드 삭제";

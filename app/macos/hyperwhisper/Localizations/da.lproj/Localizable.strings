@@ -793,6 +793,8 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.provider.cloud" = "Sky";
 "modes.notice.noLocalModels.title" = "Ingen lokale modeller installeret";
 "modes.notice.noLocalModels.subtitle" = "Installer en model i Indstillinger først";
+"modes.model.notInstalledFormat" = "%@ (ikke installeret)";
+"modes.notice.modelNotInstalled" = "Denne tilstands model er ikke installeret. Når du gemmer, beholdes den. Hent den i Modelbiblioteket, eller vælg en anden model.";
 "modes.model.pricing" = "Pris: $%.6f / minut (faktureret per sekund)";
 "modes.button.create" = "Opret tilstand";
 "modes.button.delete" = "Slet tilstand";

@@ -793,6 +793,8 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "modes.provider.cloud" = "Awan";
 "modes.notice.noLocalModels.title" = "Tiada model tempatan dipasang";
 "modes.notice.noLocalModels.subtitle" = "Pasang model dalam Tetapan dahulu";
+"modes.model.notInstalledFormat" = "%@ (tidak dipasang)";
+"modes.notice.modelNotInstalled" = "Model mod ini tidak dipasang. Menyimpan akan mengekalkannya. Muat turun dalam Pustaka Model, atau pilih model lain.";
 "modes.model.pricing" = "Harga: $%.6f / minit (dibilkan setiap saat)";
 "modes.button.create" = "Cipta Mod";
 "modes.button.delete" = "Padam Mod";

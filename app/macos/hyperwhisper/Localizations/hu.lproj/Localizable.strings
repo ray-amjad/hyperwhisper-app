@@ -793,6 +793,8 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.provider.cloud" = "Felhő";
 "modes.notice.noLocalModels.title" = "Nincs helyi modell telepítve";
 "modes.notice.noLocalModels.subtitle" = "Telepíts egy modellt először a Beállításokban";
+"modes.model.notInstalledFormat" = "%@ (nincs telepítve)";
+"modes.notice.modelNotInstalled" = "Ennek a módnak a modellje nincs telepítve. A mentés megtartja. Töltse le a Modellkönyvtárból, vagy válasszon másik modellt.";
 "modes.model.pricing" = "Árazás: $%.6f / perc (másodpercenként számlázva)";
 "modes.button.create" = "Mód létrehozása";
 "modes.button.delete" = "Mód törlése";

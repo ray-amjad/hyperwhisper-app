@@ -793,6 +793,8 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.provider.cloud" = "Debesys";
 "modes.notice.noLocalModels.title" = "Nėra instaliuotų vietinių modelių";
 "modes.notice.noLocalModels.subtitle" = "Pirmiausia instaliuokite modelį nustatymuose";
+"modes.model.notInstalledFormat" = "%@ (neįdiegtas)";
+"modes.notice.modelNotInstalled" = "Šio režimo modelis neįdiegtas. Išsaugojus jis paliekamas. Atsisiųskite jį Modelių bibliotekoje arba pasirinkite kitą modelį.";
 "modes.model.pricing" = "Kainos: $%.6f / minutę (apmokestinta per sekundę)";
 "modes.button.create" = "Sukurti režimą";
 "modes.button.delete" = "Ištrinti režimą";

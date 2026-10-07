@@ -793,6 +793,8 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "modes.provider.cloud" = "Mākoņa";
 "modes.notice.noLocalModels.title" = "Nav instalēti lokālie modeļi";
 "modes.notice.noLocalModels.subtitle" = "Vispirms instalējiet modeli sadaļā Iestatījumi";
+"modes.model.notInstalledFormat" = "%@ (nav instalēts)";
+"modes.notice.modelNotInstalled" = "Šī režīma modelis nav instalēts. Saglabājot tas tiek paturēts. Lejupielādējiet to Modeļu bibliotēkā vai izvēlieties citu modeli.";
 "modes.model.pricing" = "Cena: $%.6f / minūte (norēķināts sekundē)";
 "modes.button.create" = "Izveidot režīmu";
 "modes.button.delete" = "Dzēst režīmu";

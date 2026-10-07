@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "क्लाउड";
 "modes.notice.noLocalModels.title" = "कोई स्थानीय मॉडल स्थापित नहीं है";
 "modes.notice.noLocalModels.subtitle" = "पहले सेटिंग्स में एक मॉडल स्थापित करें";
+"modes.model.notInstalledFormat" = "%@ (इंस्टॉल नहीं है)";
+"modes.notice.modelNotInstalled" = "इस मोड का मॉडल इंस्टॉल नहीं है। सहेजने पर यह वैसा ही रहता है। इसे मॉडल लाइब्रेरी से डाउनलोड करें, या कोई दूसरा मॉडल चुनें।";
 "modes.model.pricing" = "मूल्य निर्धारण: $%.6f / मिनट (प्रति सेकंड बिल किया गया)";
 "modes.button.create" = "मोड बनाएं";
 "modes.button.delete" = "मोड हटाएं";

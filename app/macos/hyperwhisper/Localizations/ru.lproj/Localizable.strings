@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "Облако";
 "modes.notice.noLocalModels.title" = "Локальные модели не установлены";
 "modes.notice.noLocalModels.subtitle" = "Сначала установите модель в параметры";
+"modes.model.notInstalledFormat" = "%@ (не установлена)";
+"modes.notice.modelNotInstalled" = "Модель этого режима не установлена. При сохранении она останется. Скачайте её в Библиотеке моделей или выберите другую модель.";
 "modes.model.pricing" = "Цена: %.6f$ / минута (счет в секунду)";
 "modes.button.create" = "Создать режим";
 "modes.button.delete" = "Удалить режим";

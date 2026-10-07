@@ -793,6 +793,8 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.provider.cloud" = "Bulut";
 "modes.notice.noLocalModels.title" = "Yerel modeller yüklenmedi";
 "modes.notice.noLocalModels.subtitle" = "Önce Ayarlar'da bir model yükleyin";
+"modes.model.notInstalledFormat" = "%@ (yüklü değil)";
+"modes.notice.modelNotInstalled" = "Bu modun modeli yüklü değil. Kaydetmek onu korur. Model Kütüphanesi'nden indirin veya başka bir model seçin.";
 "modes.model.pricing" = "Fiyatlandırma: $%.6f / dakika (saniye başına faturalandırılır)";
 "modes.button.create" = "Mod Oluştur";
 "modes.button.delete" = "Modu Sil";

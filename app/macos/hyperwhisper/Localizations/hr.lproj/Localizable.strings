@@ -793,6 +793,8 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "modes.provider.cloud" = "Oblak";
 "modes.notice.noLocalModels.title" = "Nema instaliranih lokalnih modela";
 "modes.notice.noLocalModels.subtitle" = "Instalirajte model u Postavkama prvo";
+"modes.model.notInstalledFormat" = "%@ (nije instaliran)";
+"modes.notice.modelNotInstalled" = "Model ovog načina nije instaliran. Spremanje ga zadržava. Preuzmite ga u Knjižnici modela ili odaberite drugi model.";
 "modes.model.pricing" = "Cijena: $%.6f / minuta (naplata po sekundi)";
 "modes.button.create" = "Stvori način";
 "modes.button.delete" = "Izbriši način";

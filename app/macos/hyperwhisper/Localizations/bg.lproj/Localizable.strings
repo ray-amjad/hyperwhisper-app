@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "Облак";
 "modes.notice.noLocalModels.title" = "Няма инсталирани локални модели";
 "modes.notice.noLocalModels.subtitle" = "Първо инсталирайте модел в Настройки";
+"modes.model.notInstalledFormat" = "%@ (не е инсталиран)";
+"modes.notice.modelNotInstalled" = "Моделът на този режим не е инсталиран. Запазването го запазва. Изтеглете го от Библиотеката с модели или изберете друг модел.";
 "modes.model.pricing" = "Цена: $%.6f / минута (таксуване по секунда)";
 "modes.button.create" = "Създаване на режим";
 "modes.button.delete" = "Изтриване на режим";

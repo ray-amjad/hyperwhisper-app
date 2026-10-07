@@ -793,6 +793,8 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.provider.cloud" = "Đám mây";
 "modes.notice.noLocalModels.title" = "Không có mô hình cục bộ nào được cài đặt";
 "modes.notice.noLocalModels.subtitle" = "Cài đặt một mô hình trong Cài đặt trước tiên";
+"modes.model.notInstalledFormat" = "%@ (chưa cài đặt)";
+"modes.notice.modelNotInstalled" = "Mô hình của chế độ này chưa được cài đặt. Lưu sẽ giữ nguyên mô hình. Hãy tải xuống trong Thư viện mô hình, hoặc chọn mô hình khác.";
 "modes.model.pricing" = "Giá: $%.6f / phút (tính phí theo giây)";
 "modes.button.create" = "Tạo Chế độ";
 "modes.button.delete" = "Xóa Chế độ";
