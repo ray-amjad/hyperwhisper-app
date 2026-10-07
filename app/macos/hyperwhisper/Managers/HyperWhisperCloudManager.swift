@@ -57,11 +57,7 @@ class HyperWhisperCloudManager: ObservableObject {
     init(licenseManager: LicenseManager) {
         self.licenseManager = licenseManager
 
-        // Configure URLSession with short timeout for credit checks
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 10.0
-        config.timeoutIntervalForResource = 15.0
-        self.session = URLSession(configuration: config)
+        self.session = URLSession(configuration: Self.makeSessionConfiguration())
 
         // OBSERVER SETUP: Listen for license status changes
         // When the user activates or deactivates a license, we need to invalidate our credit cache
@@ -75,6 +71,16 @@ class HyperWhisperCloudManager: ObservableObject {
         // 5. Next credit fetch will query the server with the new identifier (device_id)
         // 6. UI shows correct trial credits instead of stale licensed credits
         setupLicenseObserver()
+    }
+
+    /// Short timeouts for credit checks, and no URL cache (#1491): the credits
+    /// GET carries the account key as its `?identifier=` query, and a GET is
+    /// exactly what a `.default` session's on-disk cache keeps.
+    nonisolated static func makeSessionConfiguration() -> URLSessionConfiguration {
+        let config = URLSessionConfiguration.credentialBearing
+        config.timeoutIntervalForRequest = 10.0
+        config.timeoutIntervalForResource = 15.0
+        return config
     }
 
     /// Sets up observer for license status changes
