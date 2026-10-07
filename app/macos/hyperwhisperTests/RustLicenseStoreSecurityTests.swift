@@ -55,6 +55,70 @@ private final class FakeLicenseCredentialStore: LicenseCredentialStore {
     }
 }
 
+/// Records, for every write of the licence record, whether it ran on the main
+/// thread. A real `SecItemUpdate` there blocks the whole app (#1408).
+private final class ThreadRecordingCredentialStore: LicenseCredentialStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [LicenseCredentialDescriptor: Data] = [:]
+    private var licenseStateWriteOnMainThread: [Bool] = []
+
+    /// One entry per licence-record write: `true` when it ran on the main thread.
+    var licenseStateWritesOnMainThread: [Bool] {
+        lock.withLock { licenseStateWriteOnMainThread }
+    }
+
+    func read(item: LicenseCredentialDescriptor) throws -> Data? {
+        lock.withLock { storage[item] }
+    }
+
+    func write(_ data: Data, item: LicenseCredentialDescriptor) throws {
+        let isMainThread = Thread.isMainThread
+        lock.withLock {
+            if item == LicenseKeychainStore.licenseStateItem {
+                licenseStateWriteOnMainThread.append(isMainThread)
+            }
+            storage[item] = data
+        }
+    }
+
+    func delete(item: LicenseCredentialDescriptor) throws {
+        _ = lock.withLock { storage.removeValue(forKey: item) }
+    }
+}
+
+/// Answers every request with HTTP 200 and an Active verdict, so a test can
+/// drive `LicenseNetworkService`'s real stateful validation and commit path
+/// without reaching the licence server.
+private final class ActiveVerdictURLProtocol: URLProtocol {
+    static func makeSession() -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [ActiveVerdictURLProtocol.self]
+        return URLSession(configuration: config)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url,
+              let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"]
+              ) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(#"{"status":"active"}"#.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 struct RustLicenseStoreSecurityTests {
     @Test func recordEncodingReadUpdateAndDeletion() throws {
         let credentials = FakeLicenseCredentialStore()
@@ -386,6 +450,32 @@ struct RustLicenseStoreSecurityTests {
         let service = LicenseNetworkService(store: store)
         #expect(!service.clearStoredLicense())
         #expect(try keychain.readRecord()?.key == "prior-key")
+    }
+
+    /// #1408 (HYPERWHISPER-10B): the stateful validation commit used to hop to
+    /// the main actor, so its blocking Keychain write froze the app while
+    /// securityd was slow. Called from the main actor, as LicenseManager calls
+    /// it, the commit must still write the licence record off the main thread.
+    @MainActor
+    @Test func statefulValidationCommitWritesKeychainOffMainThread() async throws {
+        let defaults = makeDefaults()
+        let credentials = ThreadRecordingCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        let service = LicenseNetworkService(
+            store: store,
+            session: ActiveVerdictURLProtocol.makeSession()
+        )
+        #expect(credentials.licenseStateWritesOnMainThread.isEmpty)
+
+        let result = await service.activateLicense("off-main-key")
+
+        #expect(result.isValid)
+        #expect(!result.storagePersistenceFailed)
+        #expect(try keychain.readRecord()?.key == "off-main-key")
+        // Exactly one commit, and it did not run on the main thread.
+        #expect(credentials.licenseStateWritesOnMainThread == [false])
     }
 
     @Test func noOpLicenseTransactionSkipsKeychainWrite() throws {

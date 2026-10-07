@@ -94,14 +94,19 @@ class LicenseNetworkService: LicenseNetworkServing {
     private let store: RustLicenseStore
 
     /// URLSession for API calls with timeout configuration
-    private let session: URLSession = {
+    private let session: URLSession
+
+    private static func makeDefaultSession() -> URLSession {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = NetworkConfig.licenseValidationTimeout
         return URLSession(configuration: config)
-    }()
+    }
 
-    init(store: RustLicenseStore) {
+    /// - Parameter session: test seam only; production passes nothing and gets
+    ///   the configured default session.
+    init(store: RustLicenseStore, session: URLSession? = nil) {
         self.store = store
+        self.session = session ?? Self.makeDefaultSession()
     }
 
     // MARK: - License Activation
