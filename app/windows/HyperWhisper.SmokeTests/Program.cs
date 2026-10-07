@@ -15710,12 +15710,15 @@ internal static class Program
                 // precondition assert already proves the failure came from the hold.
                 var previous = TextDeliveryGate.IsSuppressed;
                 using var paste = new SmartPasteService();
+                // No modifier is "down", so the #1495 release wait returns at once
+                // whatever the operator's keyboard is doing.
+                paste.IsKeyDown = static _ => false;
                 try
                 {
                     TextDeliveryGate.SetSuppressed(false);
 
                     // No service: nothing to read, so Failed and silent, as before.
-                    var noService = MainViewModel.DeliverAutoPaste(null, "no service");
+                    var noService = MainViewModel.DeliverAutoPasteAsync(null, "no service").GetAwaiter().GetResult();
                     Assert(noService.Result == SmartPasteResult.Failed && !noService.LostTranscript,
                         $"a null paste service must be (Failed, False), got {noService}");
 
@@ -15752,7 +15755,7 @@ internal static class Program
                             "precondition: the helper thread never tried to open the clipboard");
                         Assert(held, "precondition: the helper thread could not open the clipboard");
 
-                        var refused = MainViewModel.DeliverAutoPaste(paste, "a held clipboard");
+                        var refused = MainViewModel.DeliverAutoPasteAsync(paste, "a held clipboard").GetAwaiter().GetResult();
                         Assert(paste.LastSmartPasteOutcome == PasteOutcome.ClipboardSetFailed,
                             $"expected ClipboardSetFailed, got {paste.LastSmartPasteOutcome?.ToString() ?? "null"}");
                         Assert(refused.Result == SmartPasteResult.Failed && refused.LostTranscript,
@@ -15763,7 +15766,7 @@ internal static class Program
                         // The gate exit records nothing, and must not inherit the
                         // ClipboardSetFailed the call above recorded.
                         TextDeliveryGate.SetSuppressed(true);
-                        var suppressed = MainViewModel.DeliverAutoPaste(paste, "a suppressed transcript");
+                        var suppressed = MainViewModel.DeliverAutoPasteAsync(paste, "a suppressed transcript").GetAwaiter().GetResult();
                         Assert(paste.LastSmartPasteOutcome == null,
                             "a suppressed paste must leave the outcome null, not the last call's");
                         Assert(suppressed.Result == SmartPasteResult.Failed && !suppressed.LostTranscript,
@@ -15772,7 +15775,7 @@ internal static class Program
                             "and the gate silences the report itself");
                         TextDeliveryGate.SetSuppressed(false);
 
-                        var empty = MainViewModel.DeliverAutoPaste(paste, string.Empty);
+                        var empty = MainViewModel.DeliverAutoPasteAsync(paste, string.Empty).GetAwaiter().GetResult();
                         Assert(paste.LastSmartPasteOutcome == PasteOutcome.EmptyText,
                             "empty text records EmptyText");
                         Assert(empty.Result == SmartPasteResult.Failed && !empty.LostTranscript,
@@ -15791,6 +15794,239 @@ internal static class Program
                 {
                     TextDeliveryGate.SetSuppressed(previous);
                 }
+            });
+
+            // #1495: a paste fired while the user still held the stop chord sent
+            // Ctrl+Alt+V. These pin the guard: which keys count, the async bounded
+            // wait, and the release plan used when a key is still down at Ctrl+V.
+            Run("paste guard (#1495): only Shift, Alt and Win change what Ctrl+V means", () =>
+            {
+                const int VK_LCONTROL = 0xA2, VK_RCONTROL = 0xA3, VK_SPACE = 0x20;
+
+                var none = PasteModifierGuard.HeldConflictingModifiers(_ => false);
+                Assert(none.Count == 0, "nothing held must report nothing");
+
+                // Ctrl + a non-modifier key: Ctrl+V with Ctrl already down is
+                // still Ctrl+V, so a Ctrl+Space chord must not delay the paste.
+                var ctrlOnly = PasteModifierGuard.HeldConflictingModifiers(
+                    vk => vk is VK_LCONTROL or VK_RCONTROL or VK_SPACE);
+                Assert(ctrlOnly.Count == 0, $"Ctrl and Space are harmless to Ctrl+V, got {PasteModifierGuard.Describe(ctrlOnly)}");
+
+                // The issue's default chord, Ctrl+Alt: Alt is what breaks the paste.
+                var ctrlAlt = PasteModifierGuard.HeldConflictingModifiers(
+                    vk => vk is VK_LCONTROL or PasteModifierGuard.VK_LMENU);
+                Assert(ctrlAlt.SequenceEqual(new[] { PasteModifierGuard.VK_LMENU }),
+                    $"Ctrl+Alt held must report Left Alt only, got {PasteModifierGuard.Describe(ctrlAlt)}");
+
+                // Every user-configurable modifier, both sides.
+                var all = PasteModifierGuard.HeldConflictingModifiers(_ => true);
+                Assert(all.SequenceEqual(new[]
+                    {
+                        PasteModifierGuard.VK_LMENU, PasteModifierGuard.VK_RMENU,
+                        PasteModifierGuard.VK_LSHIFT, PasteModifierGuard.VK_RSHIFT,
+                        PasteModifierGuard.VK_LWIN, PasteModifierGuard.VK_RWIN
+                    }),
+                    $"every Shift, Alt and Win key must count, got {PasteModifierGuard.Describe(all)}");
+                Assert(PasteModifierGuard.Describe(all) == "LAlt+RAlt+LShift+RShift+LWin+RWin",
+                    $"the log names the keys, got {PasteModifierGuard.Describe(all)}");
+                Assert(PasteModifierGuard.Describe(none) == "none", "an empty list logs as none");
+            });
+
+            Run("paste guard (#1495): a still-held Alt or Win is released behind a menu-mask tap", () =>
+            {
+                var mask = PasteModifierGuard.MenuMaskVk;
+
+                Assert(PasteModifierGuard.PlanRelease(Array.Empty<int>()).Count == 0,
+                    "nothing held must inject nothing");
+
+                // Shift alone: a lone Shift key-up has no side effect, so no mask.
+                var shift = PasteModifierGuard.PlanRelease(new[] { PasteModifierGuard.VK_RSHIFT });
+                Assert(shift.SequenceEqual(new[] { new PasteKeyEvent(PasteModifierGuard.VK_RSHIFT, KeyUp: true) }),
+                    $"Shift alone is one key-up, got {string.Join(", ", shift)}");
+
+                // Alt: a lone Alt key-up opens the target's menu bar, so the mask
+                // key is tapped BEFORE the key-up, and nothing is pressed again after.
+                var alt = PasteModifierGuard.PlanRelease(new[] { PasteModifierGuard.VK_LMENU, PasteModifierGuard.VK_LSHIFT });
+                Assert(alt.SequenceEqual(new[]
+                    {
+                        new PasteKeyEvent(mask, KeyUp: false),
+                        new PasteKeyEvent(mask, KeyUp: true),
+                        new PasteKeyEvent(PasteModifierGuard.VK_LMENU, KeyUp: true),
+                        new PasteKeyEvent(PasteModifierGuard.VK_LSHIFT, KeyUp: true)
+                    }),
+                    $"Alt+Shift must be mask down, mask up, then the key-ups, got {string.Join(", ", alt)}");
+
+                // Win: a lone Win key-up opens Start; same treatment.
+                var win = PasteModifierGuard.PlanRelease(new[] { PasteModifierGuard.VK_RWIN });
+                Assert(win.Count == 3 && win[0] == new PasteKeyEvent(mask, false) && win[1] == new PasteKeyEvent(mask, true)
+                        && win[2] == new PasteKeyEvent(PasteModifierGuard.VK_RWIN, true),
+                    $"Win must be released behind the mask, got {string.Join(", ", win)}");
+
+                Assert(alt.All(e => e.Vk == mask || e.KeyUp),
+                    "the plan must never press one of the user's keys (that would replay the chord into both hooks)");
+            });
+
+            // RunAsync blocks on GetResult, and an earlier WPF case can leave a
+            // DispatcherSynchronizationContext on this thread that nothing pumps.
+            // The "yields" case below really suspends, so detach for it, as the
+            // limits and onboarding blocks do.
+            var pasteGuardPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+            RunAsync("paste guard (#1495): the release wait is bounded, async, and free when nothing is held", async () =>
+            {
+                // A virtual clock: each awaited poll advances it, so the test is
+                // instant and deterministic.
+                var nowMs = 0;
+                var polls = 0;
+                Task Advance(TimeSpan interval, CancellationToken _)
+                {
+                    // An unbounded wait must fail this case, not hang the suite.
+                    if (++polls > 10_000)
+                        throw new InvalidOperationException("the release wait never gave up on a stuck key");
+                    nowMs += (int)interval.TotalMilliseconds;
+                    return Task.CompletedTask;
+                }
+
+                var timeout = PasteModifierGuard.DefaultReleaseTimeout;
+                var poll = PasteModifierGuard.DefaultPollInterval;
+
+                // Nothing held: no poll at all, so the common paste pays nothing.
+                var free = await PasteModifierGuard.WaitForReleaseAsync(_ => false, timeout, poll, Advance);
+                Assert(!free.WasHeld && free.Released && free.WaitedMs == 0 && polls == 0,
+                    $"nothing held must return at once, got {free} after {polls} polls");
+
+                // The issue: Ctrl+Alt held 250 ms after the stop press, while the
+                // transcription finished at ~110 ms. The wait must outlast the hold.
+                nowMs = 0; polls = 0;
+                var chordReleasedAtMs = 250;
+                var held = await PasteModifierGuard.WaitForReleaseAsync(
+                    vk => nowMs < chordReleasedAtMs && vk is 0xA2 or PasteModifierGuard.VK_LMENU,
+                    timeout, poll, Advance);
+                Assert(held.WasHeld && held.Released, $"a 250 ms hold must end released, got {held}");
+                Assert(held.WaitedMs >= chordReleasedAtMs && held.WaitedMs < chordReleasedAtMs + (int)poll.TotalMilliseconds,
+                    $"the paste must wait until the chord is up and not much longer, waited {held.WaitedMs} ms");
+                Assert(held.InitiallyHeld.SequenceEqual(new[] { PasteModifierGuard.VK_LMENU }),
+                    $"the log must name Alt, got {PasteModifierGuard.Describe(held.InitiallyHeld)}");
+
+                // A stuck key: the wait gives up at the bound and reports what is
+                // still down, instead of hanging.
+                nowMs = 0; polls = 0;
+                var stuck = await PasteModifierGuard.WaitForReleaseAsync(
+                    vk => vk == PasteModifierGuard.VK_RSHIFT, timeout, poll, Advance);
+                var maxPolls = (int)Math.Ceiling(timeout.TotalMilliseconds / poll.TotalMilliseconds);
+                Assert(!stuck.Released && stuck.StillHeld.SequenceEqual(new[] { PasteModifierGuard.VK_RSHIFT }),
+                    $"a stuck key must end not released, got {stuck}");
+                Assert(polls == maxPolls && stuck.WaitedMs >= (int)timeout.TotalMilliseconds,
+                    $"a stuck key must stop at the {timeout.TotalMilliseconds} ms bound, polled {polls} times ({stuck.WaitedMs} ms)");
+
+                // It must YIELD, not block: the UI thread that runs it also runs
+                // both keyboard hooks, which have to see the key-up it waits for.
+                var gate = new TaskCompletionSource();
+                var yielding = PasteModifierGuard.WaitForReleaseAsync(
+                    _ => !gate.Task.IsCompleted, timeout, poll, (_, _) => gate.Task);
+                Assert(!yielding.IsCompleted, "the wait must hand the thread back while a key is held");
+                gate.SetResult();
+                var yielded = await yielding;
+                Assert(yielded.Released, $"the wait must finish once the key is up, got {yielded}");
+
+                // A cancelled caller stops polling.
+                using var cts = new CancellationTokenSource();
+                cts.Cancel();
+                polls = 0;
+                var cancelled = await PasteModifierGuard.WaitForReleaseAsync(
+                    _ => true, timeout, poll, Advance, cts.Token);
+                Assert(polls == 0 && !cancelled.Released, $"a cancelled wait must not poll, polled {polls}");
+            });
+            SynchronizationContext.SetSynchronizationContext(pasteGuardPreviousContext);
+
+            Run("paste guard (#1495): SmartPasteService waits through its seams and releases a held key at Ctrl+V", () =>
+            {
+                using var paste = new SmartPasteService();
+                var sent = new List<PasteKeyEvent>();
+                paste.SendModifierKeyEvent = sent.Add;
+
+                // Nothing down: nothing injected.
+                paste.IsKeyDown = static _ => false;
+                Assert(!paste.AnyPasteModifierHeld, "nothing held");
+                Assert(paste.ReleaseHeldModifiersBeforePaste().Count == 0 && sent.Count == 0,
+                    "with nothing held SmartPaste must inject nothing before Ctrl+V");
+
+                // Left Alt still down at Ctrl+V (the wait gave up, or the streaming
+                // segment path that cannot wait): mask tap, then Alt up.
+                paste.IsKeyDown = static vk => vk == PasteModifierGuard.VK_LMENU;
+                Assert(paste.AnyPasteModifierHeld, "Alt held must be seen");
+                var plan = paste.ReleaseHeldModifiersBeforePaste();
+                Assert(sent.SequenceEqual(plan) && sent.Count == 3 && sent[2] == new PasteKeyEvent(PasteModifierGuard.VK_LMENU, KeyUp: true),
+                    $"the service must send the planned events in order, sent {string.Join(", ", sent)}");
+
+                // The service's own wait goes through the injectable delay and
+                // stops at its timeout.
+                var polls = 0;
+                paste.ModifierPollDelay = (_, _) => { polls++; return Task.CompletedTask; };
+                paste.ModifierReleaseTimeout = TimeSpan.FromMilliseconds(150);
+                paste.WaitForPasteModifiersReleasedAsync().GetAwaiter().GetResult();
+                Assert(polls == 10, $"a 150 ms bound at 15 ms polls is 10 polls, got {polls}");
+
+                // Exits that type nothing never wait: empty text, and the
+                // onboarding gate.
+                polls = 0;
+                var reads = 0;
+                paste.IsKeyDown = vk => { reads++; return true; };
+                var empty = paste.SmartPasteAsync(string.Empty).GetAwaiter().GetResult();
+                Assert(empty == SmartPasteResult.Failed && reads == 0 && polls == 0,
+                    $"empty text must not wait, read the keyboard {reads} times");
+                var previous = TextDeliveryGate.IsSuppressed;
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(true);
+                    var suppressed = paste.SmartPasteAsync("a suppressed transcript").GetAwaiter().GetResult();
+                    Assert(suppressed == SmartPasteResult.Failed && reads == 0 && polls == 0,
+                        $"a gate refusal must not wait, read the keyboard {reads} times");
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previous);
+                }
+            });
+
+            Run("paste guard (#1495): a streaming segment after a deferred one queues behind it", () =>
+            {
+                // Review round 1: segment A arrived during the stop while Alt was
+                // held and went to the pending text; segment B arrived after the
+                // keys came up and was pasted at once. The stop path then pasted
+                // A, so the target read "B A". Replay that sequence through the
+                // handler's own decision and append helpers.
+                var typed = new List<string>();
+                var pending = string.Empty;
+                void Deliver(string segment, bool inStopWindow, bool held)
+                {
+                    if (MainViewModel.ShouldDeferStreamingSegmentToStopPath(inStopWindow, held, pending))
+                        pending = MainViewModel.AppendStreamingPendingText(pending, segment);
+                    else
+                        typed.Add(segment);
+                }
+
+                Deliver("Alpha one.", inStopWindow: true, held: true);
+                Deliver("Bravo two.", inStopWindow: true, held: false);
+                Assert(typed.Count == 0, $"B must not be typed before the queued A, typed: {string.Join(" | ", typed)}");
+                // The stop path pastes its pending text after its wait.
+                typed.Add(pending);
+                var all = string.Join(" ", typed);
+                var a = all.IndexOf("Alpha one.", StringComparison.Ordinal);
+                var b = all.IndexOf("Bravo two.", StringComparison.Ordinal);
+                Assert(a >= 0 && b > a, $"the target must read A then B, got \"{all}\"");
+                Assert(all.Contains("one. Bravo", StringComparison.Ordinal),
+                    $"the queued segments must be joined by one space, got \"{all}\"");
+
+                // Keys up and nothing queued: the stop window pastes at once.
+                Assert(!MainViewModel.ShouldDeferStreamingSegmentToStopPath(true, false, string.Empty),
+                    "with nothing held and nothing queued a segment pastes directly");
+                // Outside the stop window nothing defers (SmartPaste releases at Ctrl+V).
+                Assert(!MainViewModel.ShouldDeferStreamingSegmentToStopPath(false, true, "queued"),
+                    "mid-session a segment never defers to the stop path");
+                // An empty segment leaves the queue as it was.
+                Assert(MainViewModel.AppendStreamingPendingText("kept", "   ") == "kept",
+                    "a blank segment must not change the pending text");
             });
 
             Run("shortcuts: the recorder's red border never appears without its reason", () =>

@@ -28,7 +28,8 @@ namespace HyperWhisper.Services;
 /// 2. Captures clipboard content for later restoration
 /// 3. After transcription, copies text to clipboard
 /// 4. Reactivates the captured window
-/// 5. Simulates Ctrl+V to paste
+/// 5. Simulates Ctrl+V to paste, once the user's held Shift/Alt/Win keys are up
+///    (awaited and bounded in SmartPasteAsync, released if still down; #1495)
 /// 6. Schedules restoration of original clipboard content
 ///
 /// CLIPBOARD PRESERVATION (matches macOS behavior):
@@ -88,6 +89,9 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct GUITHREADINFO
@@ -176,6 +180,23 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     private readonly object _clipboardLock = new();
     private bool _disposed;
 
+    /// <summary>
+    /// Reads whether a virtual key is down, for the held-modifier guard (#1495).
+    /// GetAsyncKeyState in production; the smoke suite swaps in a fake so it can
+    /// drive the guard without a keyboard.
+    /// </summary>
+    internal Func<int, bool> IsKeyDown { get; set; } = static vk => (GetAsyncKeyState(vk) & 0x8000) != 0;
+
+    /// <summary>The awaited pause between key-state polls. A seam for the same reason.</summary>
+    internal Func<TimeSpan, CancellationToken, Task> ModifierPollDelay { get; set; } =
+        static (interval, token) => Task.Delay(interval, token);
+
+    /// <summary>Whether a Shift, Alt or Win key is down now, i.e. a Ctrl+V sent now would not be plain (#1495).</summary>
+    internal bool AnyPasteModifierHeld => PasteModifierGuard.HeldConflictingModifiers(IsKeyDown).Count > 0;
+
+    /// <summary>The longest <see cref="WaitForPasteModifiersReleasedAsync"/> waits.</summary>
+    internal TimeSpan ModifierReleaseTimeout { get; set; } = PasteModifierGuard.DefaultReleaseTimeout;
+
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
@@ -183,6 +204,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     public SmartPasteService()
     {
         _inputSimulator = new InputSimulator();
+        SendModifierKeyEvent = SendModifierKeyEventWithInputSimulator;
     }
 
     void PlatformContracts.ITextInjectionService.CaptureTarget()
@@ -278,7 +300,15 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             return ValueTask.FromResult(PlatformContracts.TextInjectionOutcome.Failed);
         }
 
-        return ValueTask.FromResult(WindowsTextInjectionMapper.ToPlatform(SmartPaste(text)));
+        return InjectTranscriptAfterModifierReleaseAsync(text, cancellationToken);
+    }
+
+    private async ValueTask<PlatformContracts.TextInjectionOutcome> InjectTranscriptAfterModifierReleaseAsync(
+        string text,
+        CancellationToken cancellationToken)
+    {
+        var result = await SmartPasteAsync(text, cancellationToken);
+        return WindowsTextInjectionMapper.ToPlatform(result);
     }
 
     // =========================================================================
@@ -776,9 +806,83 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     }
 
     /// <summary>
+    /// <see cref="SmartPaste"/>, after first waiting (asynchronously, bounded) for
+    /// the user to let go of any Shift, Alt or Win key they are still holding
+    /// (#1495). Every paste that can follow a shortcut press goes through here: the
+    /// batch stop (toggle chord, push-to-talk release, tray, duration limit) and
+    /// the shared-core text delivery.
+    ///
+    /// Must be awaited from the UI thread, as SmartPaste is today: the clipboard
+    /// write needs the STA thread, and the awaits here resume on it.
+    /// </summary>
+    public async Task<SmartPasteResult> SmartPasteAsync(string text, CancellationToken cancellationToken = default)
+    {
+        // Nothing will be typed on these exits, so there is nothing to wait for.
+        if (!string.IsNullOrEmpty(text) && !TextDeliveryGate.IsSuppressed)
+        {
+            try
+            {
+                await WaitForPasteModifiersReleasedAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                LoggingService.Info("SmartPasteService: Paste cancelled while waiting for held modifiers to be released");
+                return SmartPasteResult.Failed;
+            }
+        }
+
+        return SmartPaste(text);
+    }
+
+    /// <summary>
+    /// Waits, without blocking the thread, until no Shift, Alt or Win key is down,
+    /// for at most <see cref="ModifierReleaseTimeout"/>. Returns at once when none
+    /// is down. Logs how long it waited, and when it gave up. Giving up is not a
+    /// failure: SmartPaste releases whatever is still down right before its Ctrl+V.
+    ///
+    /// Never replace the awaited delay with Thread.Sleep. The paste runs on the UI
+    /// thread, which is also where both WH_KEYBOARD_LL hooks run: a sleeping UI
+    /// thread cannot process the very key-up this waits for, and it freezes the
+    /// whole desktop keyboard until Windows times the hook out.
+    /// </summary>
+    public async Task WaitForPasteModifiersReleasedAsync(CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var wait = await PasteModifierGuard.WaitForReleaseAsync(
+            IsKeyDown,
+            ModifierReleaseTimeout,
+            PasteModifierGuard.DefaultPollInterval,
+            ModifierPollDelay,
+            cancellationToken);
+        stopwatch.Stop();
+
+        if (!wait.WasHeld)
+            return;
+
+        var heldKeys = PasteModifierGuard.Describe(wait.InitiallyHeld);
+        if (wait.Released)
+        {
+            LoggingService.Info(
+                $"SmartPasteService: Waited {stopwatch.ElapsedMilliseconds}ms for held {heldKeys} to be released before Ctrl+V");
+        }
+        else
+        {
+            LoggingService.Warn(
+                $"SmartPasteService: Gave up waiting for held modifiers after {stopwatch.ElapsedMilliseconds}ms " +
+                $"(held at start: {heldKeys}; still held: {PasteModifierGuard.Describe(wait.StillHeld)}); " +
+                "they will be released before Ctrl+V");
+        }
+    }
+
+    /// <summary>
     /// Pastes text by copying to clipboard, reactivating the previous window,
     /// and simulating Ctrl+V. Uses focus-aware detection for password field safety
     /// and app-specific paste delays.
+    ///
+    /// A caller that can await should call <see cref="SmartPasteAsync"/> instead,
+    /// which first waits for the user's held modifiers to come up. This method does
+    /// not wait; it releases any Shift, Alt or Win key that is still down right
+    /// before the Ctrl+V, so the target always receives a plain Ctrl+V (#1495).
     /// </summary>
     /// <returns>SmartPasteResult indicating what happened</returns>
     public SmartPasteResult SmartPaste(string text)
@@ -880,6 +984,11 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         // Step 6: Simulate Ctrl+V to paste
         try
         {
+            // A Shift, Alt or Win key still down here would turn the Ctrl+V into
+            // Ctrl+Alt+V or Ctrl+Shift+V, which pastes nothing in most targets
+            // while this method reports Pasted (#1495). Release it first.
+            ReleaseHeldModifiersBeforePaste();
+
             _inputSimulator.Keyboard.ModifiedKeyStroke(
                 VirtualKeyCode.CONTROL,
                 VirtualKeyCode.VK_V);
@@ -894,6 +1003,53 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             ReportSmartPasteOutcome(PasteOutcome.KeystrokeFailed, attempt, ex);
             return SmartPasteResult.Failed;
         }
+    }
+
+    /// <summary>
+    /// Sends one synthetic key event of a release plan. InputSimulator in
+    /// production (it sets the extended-key flag for Right Alt and the Win keys);
+    /// the smoke suite records the events instead of typing them.
+    /// </summary>
+    internal Action<PasteKeyEvent> SendModifierKeyEvent { get; set; }
+
+    private void SendModifierKeyEventWithInputSimulator(PasteKeyEvent keyEvent)
+    {
+        var key = (VirtualKeyCode)keyEvent.Vk;
+        if (keyEvent.KeyUp)
+            _inputSimulator.Keyboard.KeyUp(key);
+        else
+            _inputSimulator.Keyboard.KeyDown(key);
+    }
+
+    /// <summary>
+    /// Releases any Shift, Alt or Win key that is still down, so the Ctrl+V that
+    /// follows reaches the target as a plain Ctrl+V (#1495). Normally nothing is
+    /// down, because <see cref="SmartPasteAsync"/> waited for it; this covers the
+    /// wait giving up, a key pressed after the wait, and the streaming segment
+    /// path, which cannot wait without reordering segments.
+    ///
+    /// When Alt or Win is held, an unassigned key is tapped first so the
+    /// synthetic key-up is a chord release: a lone Alt key-up would open the
+    /// target's menu bar, and a lone Win key-up would open Start. The keys are not
+    /// pressed again afterwards, so their logical state stays up while the user
+    /// may still hold them; the user's own key-up later is a no-op for the target.
+    /// </summary>
+    /// <returns>The events sent; empty when nothing was held.</returns>
+    internal IReadOnlyList<PasteKeyEvent> ReleaseHeldModifiersBeforePaste()
+    {
+        var held = PasteModifierGuard.HeldConflictingModifiers(IsKeyDown);
+        var plan = PasteModifierGuard.PlanRelease(held);
+        if (plan.Count == 0)
+            return plan;
+
+        LoggingService.Warn(
+            $"SmartPasteService: {PasteModifierGuard.Describe(held)} still held at Ctrl+V; " +
+            $"releasing {(plan.Count > held.Count ? "with a menu-mask key " : string.Empty)}before the paste");
+
+        foreach (var keyEvent in plan)
+            SendModifierKeyEvent(keyEvent);
+
+        return plan;
     }
 
     // =========================================================================

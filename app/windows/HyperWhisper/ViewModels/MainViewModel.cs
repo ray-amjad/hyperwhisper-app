@@ -63,6 +63,14 @@ public partial class MainViewModel : ViewModelBase
     private bool _isStreamingSession;
     private bool _isStreamingStarting;
     private bool _isStoppingStreaming;
+    /// <summary>
+    /// True from the start of a streaming stop until the stop path reads the
+    /// pending fallback text (#1495). In that window a final segment that arrives
+    /// while the stop chord's Shift/Alt/Win keys are still down is queued as
+    /// pending instead of pasted, so the stop path pastes it after its awaited
+    /// wait for the keys to come up.
+    /// </summary>
+    private bool _streamingStopDefersHeldSegments;
     private bool _isStoppingRecording;
     private bool _streamingStartCancelledByUser;
     private bool _streamingPastedFinalSegment;
@@ -562,10 +570,14 @@ public partial class MainViewModel : ViewModelBase
     /// transcript reached no sink. Static so the smoke suite drives the same
     /// wiring with a real SmartPasteService. A null service is (Failed, false),
     /// as it was before: there is no outcome to read.
+    ///
+    /// Async since #1495: SmartPasteAsync first waits (bounded, never blocking
+    /// the UI thread) for the stop chord's Shift/Alt/Win keys to come up, so a
+    /// fast on-device transcription no longer pastes Ctrl+Alt+V.
     /// </summary>
-    internal static (SmartPasteResult Result, bool LostTranscript) DeliverAutoPaste(SmartPasteService? paste, string text)
+    internal static async Task<(SmartPasteResult Result, bool LostTranscript)> DeliverAutoPasteAsync(SmartPasteService? paste, string text)
     {
-        var result = paste?.SmartPaste(text) ?? SmartPasteResult.Failed;
+        var result = paste == null ? SmartPasteResult.Failed : await paste.SmartPasteAsync(text);
         var outcome = paste?.LastSmartPasteOutcome;
         return (NormalizeAutoPasteResult(result, outcome), AutoPasteLostTranscript(outcome));
     }
@@ -1838,7 +1850,7 @@ public partial class MainViewModel : ViewModelBase
             var autoPasteLostTranscript = false;
             if (SettingsService.Instance.AutoPasteEnabled)
             {
-                (pasteResult, autoPasteLostTranscript) = DeliverAutoPaste(_pasteService, spacedText);
+                (pasteResult, autoPasteLostTranscript) = await DeliverAutoPasteAsync(_pasteService, spacedText);
             }
             else
             {
