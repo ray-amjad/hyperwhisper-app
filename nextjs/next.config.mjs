@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import createNextIntlPlugin from 'next-intl/plugin';
 
+import { blogLinkRedirects } from './config/redirects.mjs';
 import { securityHeaderRoutes } from './config/security-headers.mjs';
 
 /**
@@ -29,6 +30,10 @@ const nextConfig = {
     // #842: anti-framing and the 4 simple security headers on every route.
     async headers() {
         return securityHeaderRoutes;
+    },
+    // #1377: 3 URL families that blog posts link to and that 404 otherwise.
+    async redirects() {
+        return blogLinkRedirects;
     },
 };
 
