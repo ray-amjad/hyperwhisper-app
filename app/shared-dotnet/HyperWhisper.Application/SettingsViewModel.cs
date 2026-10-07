@@ -364,9 +364,11 @@ public sealed class SettingsViewModel : ViewModelBase
         StoreWordTimestamps = _settings.Get("textOutput.storeWordTimestamps", true);
         StreamingEnabled = _settings.Get("streaming.enabled", false);
         StreamingProvider = _settings.Get("streaming.provider", "deepgram") ?? "deepgram";
+        StreamingCloudTier = _settings.Get("streaming.cloudTier", "deepgramNova3") ?? "deepgramNova3";
+        // The language goes last: StreamingSettingsViewModel resets a language the provider (or
+        // live tier) does not offer, so it must be checked against the saved pair, not a default.
         StreamingLanguage = _settings.Get("streaming.language", "auto") ?? "auto";
         StreamingModel = _settings.Get("streaming.deepgramModel", "nova-3-general") ?? "nova-3-general";
-        StreamingCloudTier = _settings.Get("streaming.cloudTier", "deepgramNova3") ?? "deepgramNova3";
         StreamingFastFormatting = _settings.Get("streaming.fastFormatting", false);
         AutostartEnabled = _settings.Get("autostartEnabled", false);
         LaunchMinimized = _settings.Get("general.launchMinimized", false);

@@ -128,8 +128,8 @@ public sealed class StreamingSettingsViewModel : ViewModelBase
     /// A saved language the selected provider does not offer resets to "Automatic", as macOS's
     /// enforceAllowedLanguage() and Windows's RefreshLanguageOptions() do. Otherwise the picker
     /// would draw Automatic while the stale code kept being sent to the stream. It also runs
-    /// when the language itself is written, because Load() writes the language after the
-    /// provider and so would never otherwise see the check.
+    /// when the language itself is written: Load() writes the language after the provider and
+    /// the live tier, so a stale saved pair is caught on load and a valid one is kept.
     /// </summary>
     private void EnforceAllowedLanguage()
     {

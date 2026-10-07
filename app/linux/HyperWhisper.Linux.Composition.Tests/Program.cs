@@ -1748,11 +1748,11 @@ static Task StreamingLanguagePickerFollowsProvider()
         Assert(StreamingSettingsViewModel.LanguageCatalogEntryId(settings.StreamingProvider, settings.StreamingCloudTier) == tier,
             $"live tier {tier} must reach the picker unchanged");
     }
-    if (settings.StreamingCloudTiers.Contains("elevenLabsScribeV2"))
-    {
-        settings.StreamingCloudTier = "elevenLabsScribeV2";
-        Assert(Codes().Contains("sw"), "the ElevenLabs live tier must offer Swahili");
-    }
+    // Only deepgramNova3 and geminiTranscribe are live tiers in the catalog (elevenLabsScribeV2
+    // has no streaming model and clamps to Deepgram). Gemini's unverified set keeps Swahili.
+    Assert(settings.StreamingCloudTiers.Contains("geminiTranscribe"), "geminiTranscribe must be a live tier");
+    settings.StreamingCloudTier = "geminiTranscribe";
+    Assert(Codes().Contains("sw"), "the Gemini live tier must offer Swahili");
     settings.StreamingCloudTier = "notATier";
     Assert(!Codes().Contains("sw"), "an unknown live tier clamps to Deepgram, which does not offer Swahili");
 
@@ -1774,7 +1774,7 @@ static Task StreamingLanguagePickerFollowsProvider()
     settings.StreamingProvider = "elevenlabs";
     Assert(settings.StreamingLanguage == "en", "a saved English must be kept across a provider change");
 
-    // Load() writes the language AFTER the provider, so a stale saved pair is caught on load too.
+    // A stale saved pair is caught on load too.
     var loaded = new SettingsViewModel(new PortableSettingsService(
         new FixedSettingsFile("""{"streaming.provider":"deepgram","streaming.language":"sw"}"""),
         Path.Combine(root, "settings.json")));
@@ -1782,6 +1782,25 @@ static Task StreamingLanguagePickerFollowsProvider()
     loaded.Load();
     Assert(loaded.StreamingLanguage == "auto", $"a saved Swahili on Deepgram must reset on load, got {loaded.StreamingLanguage}");
     Assert(!loadedStreaming.Languages.Any(option => option.Code == "sw"), "the loaded Deepgram picker must not offer Swahili");
+
+    // A valid saved pair survives Load whatever order Load writes the three keys in: Swahili on
+    // the HyperWhisper Cloud Gemini live tier must not be checked against the default Deepgram tier.
+    var cloudLoaded = new SettingsViewModel(new PortableSettingsService(
+        new FixedSettingsFile("""{"streaming.provider":"hyperwhisper","streaming.cloudTier":"geminiTranscribe","streaming.language":"sw"}"""),
+        Path.Combine(root, "settings.json")));
+    var cloudStreaming = new StreamingSettingsViewModel(cloudLoaded);
+    cloudLoaded.Load();
+    Assert(cloudLoaded.StreamingCloudTier == "geminiTranscribe", $"the saved Gemini live tier must load, got {cloudLoaded.StreamingCloudTier}");
+    Assert(cloudLoaded.StreamingLanguage == "sw", $"a saved Swahili on the Gemini live tier must survive load, got {cloudLoaded.StreamingLanguage}");
+    Assert(cloudStreaming.SelectedLanguage?.Code == "sw", "the loaded picker must show Swahili");
+
+    // A stale saved Cloud pair (Swahili on the Deepgram live tier) still resets on load.
+    var staleCloud = new SettingsViewModel(new PortableSettingsService(
+        new FixedSettingsFile("""{"streaming.provider":"hyperwhisper","streaming.cloudTier":"deepgramNova3","streaming.language":"sw"}"""),
+        Path.Combine(root, "settings.json")));
+    _ = new StreamingSettingsViewModel(staleCloud);
+    staleCloud.Load();
+    Assert(staleCloud.StreamingLanguage == "auto", $"a saved Swahili on the Deepgram live tier must reset on load, got {staleCloud.StreamingLanguage}");
     return Task.CompletedTask;
 }
 
