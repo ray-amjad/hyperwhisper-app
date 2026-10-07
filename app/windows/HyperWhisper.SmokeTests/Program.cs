@@ -713,6 +713,39 @@ internal static class Program
                 Assert(!gate2.KeyUp(new HashSet<int> { VkLControl }, VkLMenu), "Reset must disarm the chord");
             });
 
+            Run("Stale-key pruning drops lost key-ups but keeps a suppressed Win (#1497)", () =>
+            {
+                // GetAsyncKeyState stand-in: only LCtrl is physically down.
+                Func<int, bool> onlyCtrlDown = vk => vk == VkLControl;
+                var none = new HashSet<int>();
+
+                var stale = ModifierChordGate.KeysNoLongerDown(
+                    new HashSet<int> { VkLControl, VkLMenu, VkLeft }, exceptVk: -1, none, onlyCtrlDown);
+                Assert(stale.Count == 2 && stale.Contains(VkLMenu) && stale.Contains(VkLeft),
+                    $"keys whose key-up was lost must be dropped, got [{string.Join(",", stale)}]");
+
+                stale = ModifierChordGate.KeysNoLongerDown(
+                    new HashSet<int> { VkLControl, VkLMenu }, exceptVk: VkLMenu, none, onlyCtrlDown);
+                Assert(stale.Count == 0, "the key the hook is delivering must never be dropped");
+
+                // Ctrl+Win: the hook swallowed the Win key-down, so Windows reads Win as up.
+                // Releasing Ctrl first must still trigger the chord.
+                var ctrlWin = KeyboardShortcut.FromPersistedString("Ctrl+Win");
+                var gate = new ModifierChordGate(ctrlWin);
+                var pressed = new HashSet<int> { VkLControl };
+                gate.KeyDown(pressed);
+                pressed.Add(VkLWin);
+                gate.KeyDown(pressed);
+                Assert(gate.IsArmed, "precondition: Ctrl+Win armed");
+
+                var suppressed = new HashSet<int> { VkLWin };
+                pressed.Remove(VkLControl);
+                foreach (var vk in ModifierChordGate.KeysNoLongerDown(pressed, -1, suppressed, _ => false))
+                    pressed.Remove(vk);
+                Assert(pressed.Contains(VkLWin), "a suppressed Win key-down must not be pruned as stale");
+                Assert(gate.KeyUp(pressed, VkLControl), "Ctrl+Win released Ctrl first must trigger");
+            });
+
             Run("A key-based shortcut keeps the press path (#1497)", () =>
             {
                 var keyBased = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");

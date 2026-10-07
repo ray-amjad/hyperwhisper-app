@@ -111,6 +111,14 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     /// </summary>
     private readonly Dictionary<string, ModifierChordGate> _chordGates = new();
 
+    /// <summary>
+    /// Keys whose key-down this hook swallowed (the Win key of a matched Ctrl+Win)
+    /// and that have not come up yet. Windows never saw them go down, so
+    /// GetAsyncKeyState reads them as up; DropKeysNoLongerDown must not take
+    /// that for a lost key-up.
+    /// </summary>
+    private readonly HashSet<int> _suppressedKeyDowns = new();
+
     private readonly LowLevelKeyboardProc _hookCallback;
     private IntPtr _hookId = IntPtr.Zero;
 
@@ -390,6 +398,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         _chordGates.Clear();
         _activeShortcuts.Clear();
         _pressedKeys.Clear();
+        _suppressedKeyDowns.Clear();
         _lastRegistrationResults.Clear();
     }
 
@@ -400,6 +409,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     public void ResetKeyboardState()
     {
         _pressedKeys.Clear();
+        _suppressedKeyDowns.Clear();
         _activeShortcuts.Clear();
         foreach (var gate in _chordGates.Values) gate.Reset();
     }
@@ -494,6 +504,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
                     EvaluateShortcuts(justPressedVk: vkCode);
                     if (ShouldSuppressMatchedWinShortcutKeyDown(vkCode))
                     {
+                        _suppressedKeyDowns.Add(vkCode);
                         LoggingService.Debug("KeyboardShortcutService: Suppressed matched Win-key shortcut key-down");
                         return new IntPtr(1);
                     }
@@ -501,6 +512,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
                 else if (isKeyUp)
                 {
                     _pressedKeys.Remove(vkCode);
+                    _suppressedKeyDowns.Remove(vkCode);
                     DropKeysNoLongerDown(exceptVk: -1);
                     EvaluateShortcuts(justReleasedVk: vkCode);
                 }
@@ -527,10 +539,10 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     {
         if (_pressedKeys.Count == 0) return;
 
-        foreach (var vk in _pressedKeys.ToList())
+        foreach (var vk in ModifierChordGate.KeysNoLongerDown(
+                     _pressedKeys, exceptVk, _suppressedKeyDowns, IsKeyPhysicallyDown))
         {
-            if (vk == exceptVk) continue;
-            if (!IsKeyPhysicallyDown(vk)) _pressedKeys.Remove(vk);
+            _pressedKeys.Remove(vk);
         }
     }
 

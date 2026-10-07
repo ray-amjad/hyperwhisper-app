@@ -110,6 +110,30 @@ internal sealed class ModifierChordGate
 
     public void Reset() => State = ModifierChordState.Idle;
 
+    /// <summary>
+    /// The tracked keys to forget because <paramref name="isPhysicallyDown"/>
+    /// (GetAsyncKeyState in the app) says they are up: their key-up was lost.
+    /// Two kinds are never dropped. <paramref name="exceptVk"/> is the key the
+    /// hook is delivering, whose async state is not updated until the hook chain
+    /// completes. A key in <paramref name="suppressedKeys"/> had its key-down
+    /// swallowed by the hook (the Win key of a matched Ctrl+Win), so Windows never
+    /// recorded it as down although the user is holding it.
+    /// </summary>
+    internal static List<int> KeysNoLongerDown(
+        IReadOnlySet<int> pressedKeys,
+        int exceptVk,
+        IReadOnlySet<int> suppressedKeys,
+        Func<int, bool> isPhysicallyDown)
+    {
+        var stale = new List<int>();
+        foreach (var vk in pressedKeys)
+        {
+            if (vk == exceptVk || suppressedKeys.Contains(vk)) continue;
+            if (!isPhysicallyDown(vk)) stale.Add(vk);
+        }
+        return stale;
+    }
+
     /// <summary>Every modifier the shortcut names is down. Other keys may be down too.</summary>
     internal static bool IsSatisfied(KeyboardShortcut shortcut, IReadOnlySet<int> pressedKeys)
     {
