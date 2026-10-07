@@ -794,6 +794,8 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 "modes.provider.cloud" = "Nube";
 "modes.notice.noLocalModels.title" = "No hay modelos locales instalados";
 "modes.notice.noLocalModels.subtitle" = "Instala un modelo en Ajustes primero";
+"modes.model.notInstalledFormat" = "%@ (no instalado)";
+"modes.notice.modelNotInstalled" = "El modelo de este modo no está instalado. Al guardar se conserva. Descárgalo en la Biblioteca de modelos o elige otro modelo.";
 "modes.model.pricing" = "Precio: $%.6f / minuto (facturado por segundo)";
 "modes.button.create" = "Crear modo";
 "modes.button.delete" = "Eliminar modo";

@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Κανένα τοπικό μοντέλο δεν έχει εγκατασταθεί";
 "modes.notice.noLocalModels.subtitle" = "Εγκαταστήστε ένα μοντέλο στις Ρυθμίσεις πρώτα";
+"modes.model.notInstalledFormat" = "%@ (δεν είναι εγκατεστημένο)";
+"modes.notice.modelNotInstalled" = "Το μοντέλο αυτής της λειτουργίας δεν είναι εγκατεστημένο. Η αποθήκευση το διατηρεί. Κατεβάστε το από τη Βιβλιοθήκη μοντέλων ή επιλέξτε άλλο μοντέλο.";
 "modes.model.pricing" = "Τιμολόγηση: $%.6f / λεπτό (χρεώνονται ανά δευτερόλεπτο)";
 "modes.button.create" = "Δημιουργία Λειτουργίας";
 "modes.button.delete" = "Διαγραφή Λειτουργίας";

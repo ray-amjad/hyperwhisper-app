@@ -793,6 +793,8 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Tidak ada model lokal terinstal";
 "modes.notice.noLocalModels.subtitle" = "Instal model di Pengaturan terlebih dahulu";
+"modes.model.notInstalledFormat" = "%@ (tidak terpasang)";
+"modes.notice.modelNotInstalled" = "Model mode ini tidak terpasang. Menyimpan akan mempertahankannya. Unduh di Perpustakaan Model, atau pilih model lain.";
 "modes.model.pricing" = "Harga: $%.6f / menit (ditagih per detik)";
 "modes.button.create" = "Buat Mode";
 "modes.button.delete" = "Hapus Mode";

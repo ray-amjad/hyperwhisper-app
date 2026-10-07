@@ -793,6 +793,8 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "modes.provider.cloud" = "Núvol";
 "modes.notice.noLocalModels.title" = "No hi ha models locals instal·lats";
 "modes.notice.noLocalModels.subtitle" = "Instal·leu primer un model a la Configuració";
+"modes.model.notInstalledFormat" = "%@ (no instal·lat)";
+"modes.notice.modelNotInstalled" = "El model d'aquest mode no està instal·lat. Desar el manté. Baixeu-lo a la Biblioteca de models o trieu-ne un altre.";
 "modes.model.pricing" = "Preu: $%.6f / minut (facturat per segon)";
 "modes.button.create" = "Crear mode";
 "modes.button.delete" = "Eliminar mode";

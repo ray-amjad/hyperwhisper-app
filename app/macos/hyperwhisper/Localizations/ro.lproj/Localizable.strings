@@ -793,6 +793,8 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Niciun model local instalat";
 "modes.notice.noLocalModels.subtitle" = "Instalați mai întâi un model în Setări";
+"modes.model.notInstalledFormat" = "%@ (neinstalat)";
+"modes.notice.modelNotInstalled" = "Modelul acestui mod nu este instalat. Salvarea îl păstrează. Descărcați-l din Biblioteca de modele sau alegeți alt model.";
 "modes.model.pricing" = "Preț: $%.6f / minut (facturat per secundă)";
 "modes.button.create" = "Creați modul";
 "modes.button.delete" = "Ștergeți modul";

@@ -848,6 +848,8 @@
 "modes.badge.recommended" = "Recommended";
 "modes.notice.noLocalModels.title" = "No local models installed";
 "modes.notice.noLocalModels.subtitle" = "Install a model in Settings first";
+"modes.model.notInstalledFormat" = "%@ (not installed)";
+"modes.notice.modelNotInstalled" = "This mode's model is not installed. Saving keeps it. Download it in Model Library, or pick another model.";
 "modes.model.pricing" = "Pricing: $%.6f / minute (billed per second)";
 "modes.button.create" = "Create Mode";
 "modes.button.delete" = "Delete Mode";

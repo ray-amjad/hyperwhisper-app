@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "คลาวด์";
 "modes.notice.noLocalModels.title" = "ไม่มีโมเดลท้องถิ่นติดตั้ง";
 "modes.notice.noLocalModels.subtitle" = "ติดตั้งโมเดลในการตั้งค่าก่อน";
+"modes.model.notInstalledFormat" = "%@ (ยังไม่ได้ติดตั้ง)";
+"modes.notice.modelNotInstalled" = "ยังไม่ได้ติดตั้งโมเดลของโหมดนี้ การบันทึกจะคงโมเดลนี้ไว้ ดาวน์โหลดได้ในคลังโมเดล หรือเลือกโมเดลอื่น";
 "modes.model.pricing" = "ราคา: $%.6f / นาที (เรียกเก็บต่อวินาที)";
 "modes.button.create" = "สร้างโหมด";
 "modes.button.delete" = "ลบโหมด";

@@ -793,6 +793,8 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "modes.provider.cloud" = "Pilv";
 "modes.notice.noLocalModels.title" = "Kohalikud mudelid pole installitud";
 "modes.notice.noLocalModels.subtitle" = "Installige mudel seadetes esmalt";
+"modes.model.notInstalledFormat" = "%@ (pole installitud)";
+"modes.notice.modelNotInstalled" = "Selle režiimi mudel pole installitud. Salvestamine jätab selle alles. Laadi see alla Mudelikogust või vali muu mudel.";
 "modes.model.pricing" = "Hinnakiri: $%.6f / minut (arved sekundis)";
 "modes.button.create" = "Loo režiim";
 "modes.button.delete" = "Kustuta režiim";

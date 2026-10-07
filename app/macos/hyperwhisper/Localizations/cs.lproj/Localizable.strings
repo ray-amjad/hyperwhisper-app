@@ -793,6 +793,8 @@ Upravte tyto režimy a vyberte jiný model před jeho odebráním.";
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Zadne lokalni modely nenainstaloovany";
 "modes.notice.noLocalModels.subtitle" = "Nejdrive nainstalujte model v Nastaveni";
+"modes.model.notInstalledFormat" = "%@ (není nainstalován)";
+"modes.notice.modelNotInstalled" = "Model tohoto režimu není nainstalován. Uložení ho zachová. Stáhněte ho v Knihovně modelů nebo vyberte jiný model.";
 "modes.model.pricing" = "Cena: $%.6f / minuta (uctovano po sekundach)";
 "modes.button.create" = "Vytvorit rezim";
 "modes.button.delete" = "Smazat rezim";

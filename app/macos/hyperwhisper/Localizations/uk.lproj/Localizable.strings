@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "Хмара";
 "modes.notice.noLocalModels.title" = "Нема встановлених локальних моделей";
 "modes.notice.noLocalModels.subtitle" = "Спочатку встановіть модель у параметрах";
+"modes.model.notInstalledFormat" = "%@ (не встановлено)";
+"modes.notice.modelNotInstalled" = "Модель цього режиму не встановлено. Збереження її залишає. Завантажте її в Бібліотеці моделей або виберіть іншу модель.";
 "modes.model.pricing" = "Ціна: $%.6f / хвилина (виставляється в секунду)";
 "modes.button.create" = "Створити режим";
 "modes.button.delete" = "Видалити режим";

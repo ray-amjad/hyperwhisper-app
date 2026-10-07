@@ -793,6 +793,8 @@ Modifica queste modalità per selezionare un modello diverso prima di rimuoverlo
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Nessun modello locale installato";
 "modes.notice.noLocalModels.subtitle" = "Installa prima un modello nelle Impostazioni";
+"modes.model.notInstalledFormat" = "%@ (non installato)";
+"modes.notice.modelNotInstalled" = "Il modello di questa modalità non è installato. Il salvataggio lo mantiene. Scaricalo dalla Libreria modelli o scegli un altro modello.";
 "modes.model.pricing" = "Prezzo: $%.6f / minuto (fatturato al secondo)";
 "modes.button.create" = "Crea Modalità";
 "modes.button.delete" = "Elimina Modalità";

@@ -793,6 +793,8 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.provider.cloud" = "Sky";
 "modes.notice.noLocalModels.title" = "Ingen lokale modeller installert";
 "modes.notice.noLocalModels.subtitle" = "Installer en modell i Innstillinger først";
+"modes.model.notInstalledFormat" = "%@ (ikke installert)";
+"modes.notice.modelNotInstalled" = "Modellen for denne modusen er ikke installert. Lagring beholder den. Last den ned i Modellbiblioteket, eller velg en annen modell.";
 "modes.model.pricing" = "Prising: $%.6f / minutt (faktureres per sekund)";
 "modes.button.create" = "Opprett modus";
 "modes.button.delete" = "Slett modus";

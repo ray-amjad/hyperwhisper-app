@@ -793,6 +793,8 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Aucun modèle local installé";
 "modes.notice.noLocalModels.subtitle" = "Installez d'abord un modèle dans Réglages";
+"modes.model.notInstalledFormat" = "%@ (non installé)";
+"modes.notice.modelNotInstalled" = "Le modèle de ce mode n'est pas installé. L'enregistrement le conserve. Téléchargez-le dans la Bibliothèque de modèles ou choisissez un autre modèle.";
 "modes.model.pricing" = "Tarif : $%.6f / minute (facturation à la seconde)";
 "modes.button.create" = "Créer le mode";
 "modes.button.delete" = "Supprimer le mode";

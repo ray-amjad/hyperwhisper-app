@@ -793,6 +793,8 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.provider.cloud" = "Skýið";
 "modes.notice.noLocalModels.title" = "Engin staðbundin líkön uppsett";
 "modes.notice.noLocalModels.subtitle" = "Settu upp líkan í stillingum fyrst";
+"modes.model.notInstalledFormat" = "%@ (ekki uppsett)";
+"modes.notice.modelNotInstalled" = "Líkan þessarar stillingar er ekki uppsett. Vistun heldur því. Sæktu það í Líkanaasafni eða veldu annað líkan.";
 "modes.model.pricing" = "Verðlagning: $%.6f / mínútu (reikningað á sekúndu)";
 "modes.button.create" = "Búa til ham";
 "modes.button.delete" = "Eyða hami";

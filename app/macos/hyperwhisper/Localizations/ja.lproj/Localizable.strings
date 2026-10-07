@@ -794,6 +794,8 @@
 "modes.provider.cloud" = "クラウド";
 "modes.notice.noLocalModels.title" = "ローカルモデルがインストールされていません";
 "modes.notice.noLocalModels.subtitle" = "まず設定でモデルをインストールしてください";
+"modes.model.notInstalledFormat" = "%@（未インストール）";
+"modes.notice.modelNotInstalled" = "このモードのモデルはインストールされていません。保存してもそのまま残ります。モデルライブラリからダウンロードするか、別のモデルを選んでください。";
 "modes.model.pricing" = "料金: 1 分あたり $%.6f（秒単位で課金）";
 "modes.button.create" = "モードを作成";
 "modes.button.delete" = "モードを削除";

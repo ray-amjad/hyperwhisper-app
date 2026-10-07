@@ -793,6 +793,8 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.provider.cloud" = "Moln";
 "modes.notice.noLocalModels.title" = "Inga lokala modeller installerade";
 "modes.notice.noLocalModels.subtitle" = "Installera en modell i inställningar först";
+"modes.model.notInstalledFormat" = "%@ (inte installerad)";
+"modes.notice.modelNotInstalled" = "Lägets modell är inte installerad. Den behålls när du sparar. Ladda ner den i Modellbiblioteket eller välj en annan modell.";
 "modes.model.pricing" = "Prissättning: $%.6f / minut (faktureras per sekund)";
 "modes.button.create" = "Skapa läge";
 "modes.button.delete" = "Radera läge";

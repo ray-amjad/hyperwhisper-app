@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "ענן";
 "modes.notice.noLocalModels.title" = "אין מודלים מקומיים מותקנים";
 "modes.notice.noLocalModels.subtitle" = "התקן מודל בהגדרות תחילה";
+"modes.model.notInstalledFormat" = "%@ (לא מותקן)";
+"modes.notice.modelNotInstalled" = "המודל של מצב זה אינו מותקן. השמירה משאירה אותו. הורידו אותו מספריית המודלים, או בחרו מודל אחר.";
 "modes.model.pricing" = "תמחור: $%.6f / דקה (מחויב לפי שנייה)";
 "modes.button.create" = "צור מצב";
 "modes.button.delete" = "מחק מצב";

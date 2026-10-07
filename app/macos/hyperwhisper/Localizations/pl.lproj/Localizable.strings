@@ -793,6 +793,8 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "modes.provider.cloud" = "Chmura";
 "modes.notice.noLocalModels.title" = "Brak zainstalowanych modeli lokalnych";
 "modes.notice.noLocalModels.subtitle" = "Najpierw zainstaluj model w Ustawieniach";
+"modes.model.notInstalledFormat" = "%@ (niezainstalowany)";
+"modes.notice.modelNotInstalled" = "Model tego trybu nie jest zainstalowany. Zapisanie go zachowa. Pobierz go w Bibliotece modeli lub wybierz inny model.";
 "modes.model.pricing" = "Cena: $%.6f / minutę (rozliczane za sekundę)";
 "modes.button.create" = "Utwórz tryb";
 "modes.button.delete" = "Usuń tryb";

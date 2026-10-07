@@ -793,6 +793,8 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "modes.provider.cloud" = "Oblak";
 "modes.notice.noLocalModels.title" = "Ni nameščenih lokalnih modelov";
 "modes.notice.noLocalModels.subtitle" = "Prvo instaliraj model v Nastavitvah";
+"modes.model.notInstalledFormat" = "%@ (ni nameščen)";
+"modes.notice.modelNotInstalled" = "Model tega načina ni nameščen. Shranjevanje ga ohrani. Prenesite ga v Knjižnici modelov ali izberite drug model.";
 "modes.model.pricing" = "Cena: $%.6f / minuto (obračunano po sekundi)";
 "modes.button.create" = "Ustvari način";
 "modes.button.delete" = "Izbriši način";

@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "السحابة";
 "modes.notice.noLocalModels.title" = "لم يتم تثبيت نماذج محلية";
 "modes.notice.noLocalModels.subtitle" = "ثبت نموذجاً في الإعدادات أولاً";
+"modes.model.notInstalledFormat" = "%@ (غير مثبت)";
+"modes.notice.modelNotInstalled" = "نموذج هذا الوضع غير مثبت. الحفظ يبقيه كما هو. نزّله من مكتبة النماذج، أو اختر نموذجاً آخر.";
 "modes.model.pricing" = "التسعير: $%.6f / دقيقة (فواتير في الثانية)";
 "modes.button.create" = "إنشاء وضع";
 "modes.button.delete" = "حذف الوضع";

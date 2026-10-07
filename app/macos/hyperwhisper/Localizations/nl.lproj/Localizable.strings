@@ -793,6 +793,8 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Geen lokale modellen geïnstalleerd";
 "modes.notice.noLocalModels.subtitle" = "Installeer eerst een model in Instellingen";
+"modes.model.notInstalledFormat" = "%@ (niet geïnstalleerd)";
+"modes.notice.modelNotInstalled" = "Het model van deze modus is niet geïnstalleerd. Opslaan behoudt het. Download het in de Modellenbibliotheek of kies een ander model.";
 "modes.model.pricing" = "Prijzen: $%.6f / minuut (gefactureerd per seconde)";
 "modes.button.create" = "Modus maken";
 "modes.button.delete" = "Modus verwijderen";

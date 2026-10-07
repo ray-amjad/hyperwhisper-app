@@ -793,6 +793,8 @@ Edite esses modos para selecionar um modelo diferente antes de removê-lo.";
 "modes.provider.cloud" = "Nuvem";
 "modes.notice.noLocalModels.title" = "Nenhum modelo local instalado";
 "modes.notice.noLocalModels.subtitle" = "Instale um modelo em Configurações primeiro";
+"modes.model.notInstalledFormat" = "%@ (não instalado)";
+"modes.notice.modelNotInstalled" = "O modelo deste modo não está instalado. Guardar mantém-no. Transfira-o na Biblioteca de modelos ou escolha outro modelo.";
 "modes.model.pricing" = "Preço: $%.6f / minuto (cobrado por segundo)";
 "modes.button.create" = "Criar Modo";
 "modes.button.delete" = "Excluir Modo";
