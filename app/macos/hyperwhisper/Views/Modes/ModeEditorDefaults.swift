@@ -2,8 +2,9 @@
 //  ModeEditorDefaults.swift
 //  HyperWhisper
 //
-//  Pure seeds for the CREATE branch of ModeEditorView (issue #873), and the
-//  order the On-device picker lists installed models in.
+//  Pure seeds for the CREATE branch of ModeEditorView (issue #873), the
+//  order the On-device picker lists installed models in, and the EDIT
+//  branch's handling of a stored model that is not installed (issue #1434).
 //
 
 import Foundation
@@ -103,6 +104,63 @@ enum ModeEditorDefaults {
     /// model and what the editor itself sets when such a model is picked.
     static func initialLanguage(provider: ProviderType, model: String) -> String {
         isEnglishOnlyModel(provider: provider, model: model) ? "en" : LanguageData.automaticCode
+    }
+
+    // MARK: - Edit: the mode's stored model (issue #1434)
+
+    /// What the EDIT sheet opens on for a mode's stored transcription model.
+    struct EditModelSelection: Equatable {
+        let provider: ProviderType
+        let model: String
+        /// The stored local model when it is not on the installed list (not
+        /// downloaded, or deleted in Model Library); nil otherwise.
+        let missingLocalModelId: String?
+    }
+
+    /// The EDIT sheet opens on the model the mode STORES, installed or not.
+    ///
+    /// It used to open on the first installed model when the stored one was
+    /// missing (and on Cloud when nothing was installed), so Save with no change
+    /// wrote that substitute, and an English-only substitute also rewrote the
+    /// language to `en` (issue #1434). The missing id is reported instead, so
+    /// the picker can list it as not installed and the sheet can say so.
+    static func editModelSelection(storedModel: String?, availableModelIds: [String]) -> EditModelSelection {
+        let stored = storedModel ?? "base"
+        if stored.lowercased() == "cloud" {
+            return EditModelSelection(provider: .cloud, model: stored, missingLocalModelId: nil)
+        }
+        let missing: String? = availableModelIds.contains(stored) ? nil : stored
+        return EditModelSelection(provider: .local, model: stored, missingLocalModelId: missing)
+    }
+
+    /// Rows of the On-device Model picker: the missing stored model first (so
+    /// the selection always matches a row), then the installed models in
+    /// picker order.
+    static func localPickerModelIds(availableModelIds: [String], missingLocalModelId: String?) -> [String] {
+        let sorted = sortedLocalModelIds(availableModelIds)
+        guard let missing = missingLocalModelId, !sorted.contains(missing) else { return sorted }
+        return [missing] + sorted
+    }
+
+    /// Local model kept when the sheet (re)enters On-device: the current one
+    /// if it is installed or is the mode's own missing model, else the first
+    /// installed model. Never the missing model for a mode that did not store it.
+    static func onDeviceModel(current: String, availableModelIds: [String], missingLocalModelId: String?) -> String {
+        if availableModelIds.contains(current) || current == missingLocalModelId {
+            return current
+        }
+        return sortedLocalModelIds(availableModelIds).first ?? current
+    }
+
+    /// The `model` value Save persists.
+    static func savedModel(provider: ProviderType, model: String, availableModelIds: [String]) -> String {
+        if provider == .cloud { return "cloud" }
+        return model.isEmpty ? (sortedLocalModelIds(availableModelIds).first ?? "base") : model
+    }
+
+    /// The `language` value Save persists for the model it persists.
+    static func savedLanguage(provider: ProviderType, savedModel: String, language: String) -> String {
+        isEnglishOnlyModel(provider: provider, model: savedModel) ? "en" : language
     }
 
     // MARK: - Post-processing
