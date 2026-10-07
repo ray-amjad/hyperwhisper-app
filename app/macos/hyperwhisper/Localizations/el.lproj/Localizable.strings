@@ -1039,7 +1039,12 @@
 "settings.backup.import.subtitle" = "Επαναφορά ρυθμίσεων από ένα αρχείο αντίγραφης ασφαλείας";
 "settings.backup.import.button" = "Εισαγωγή...";
 "settings.backup.import.panel.title" = "Εισαγωγή Ρυθμίσεων";
-"settings.backup.import.success" = "Ολοκλήρωση εισαγωγής: %d λειτουργίες, %d στοιχεία λεξιλογίου εισήχθησαν";
+"settings.backup.import.result" = "Ολοκλήρωση εισαγωγής: %@";
+"settings.backup.import.result.settings" = "οι ρυθμίσεις επαναφέρθηκαν";
+"settings.backup.import.result.modes" = "%d λειτουργίες εισήχθησαν";
+"settings.backup.import.result.vocabulary" = "%d στοιχεία λεξιλογίου εισήχθησαν";
+"settings.backup.import.complete" = "Ολοκλήρωση εισαγωγής";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Αποτυχία ανάγνωσης αρχείου αντίγραφης ασφαλείας";
 "settings.backup.import.error.decode" = "Μη έγκυρη μορφή αρχείου αντίγραφης ασφαλείας";
 "settings.backup.import.error.decode.keyNotFound" = "Λείπει υποχρεωτικό πεδίο: %@";

@@ -1039,7 +1039,12 @@
 "settings.backup.import.subtitle" = "คืนค่าการตั้งค่าจากไฟล์สำรอง";
 "settings.backup.import.button" = "นำเข้า...";
 "settings.backup.import.panel.title" = "นำเข้าการตั้งค่า";
-"settings.backup.import.success" = "นำเข้าเสร็จสิ้น: นำเข้า %d โหมด %d รายการศัพท์เฉพาะ";
+"settings.backup.import.result" = "นำเข้าเสร็จสิ้น: %@";
+"settings.backup.import.result.settings" = "กู้คืนการตั้งค่าแล้ว";
+"settings.backup.import.result.modes" = "นำเข้า %d โหมด";
+"settings.backup.import.result.vocabulary" = "นำเข้า %d รายการศัพท์เฉพาะ";
+"settings.backup.import.complete" = "นำเข้าเสร็จสิ้น";
+"settings.backup.import.result.separator" = " ";
 "settings.backup.import.error.read" = "ไม่สามารถอ่านไฟล์สำรอง";
 "settings.backup.import.error.decode" = "รูปแบบไฟล์สำรองไม่ถูกต้อง";
 "settings.backup.import.error.decode.keyNotFound" = "ไม่มีฟิลด์ที่จำเป็น: %@";

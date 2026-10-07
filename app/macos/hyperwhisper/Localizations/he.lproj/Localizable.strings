@@ -1039,7 +1039,12 @@
 "settings.backup.import.subtitle" = "שחזר הגדרות מקובץ גיבוי";
 "settings.backup.import.button" = "ייבא...";
 "settings.backup.import.panel.title" = "ייבא הגדרות";
-"settings.backup.import.success" = "ייבוא הושלם: %d מצבים, %d פריטי אוצר מילים יובאו";
+"settings.backup.import.result" = "ייבוא הושלם: %@";
+"settings.backup.import.result.settings" = "ההגדרות שוחזרו";
+"settings.backup.import.result.modes" = "%d מצבים יובאו";
+"settings.backup.import.result.vocabulary" = "%d פריטי אוצר מילים יובאו";
+"settings.backup.import.complete" = "ייבוא הושלם";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "כשל בקריאת קובץ גיבוי";
 "settings.backup.import.error.decode" = "פורמט קובץ גיבוי לא תקין";
 "settings.backup.import.error.decode.keyNotFound" = "שדה חובה חסר: %@";
