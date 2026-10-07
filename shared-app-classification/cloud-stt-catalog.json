@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 12,
-  "updated": "2026-09-19",
+  "updated": "2026-10-07",
   "providers": [
     {
       "id": "groqWhisper",
@@ -436,13 +436,14 @@
     {
       "id": "gemini",
       "displayName": "Google Gemini",
-      "displayModel": "gemini-2.5-flash",
+      "displayModel": "gemini-3.8-flash",
       "vendor": "google",
       "vendorDisplayName": "Google",
       "sttProvider": "gemini",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "creditsPerMinute": 2.4, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gemini-3.8-flash", "displayName": "Gemini 3.8 Flash", "creditsPerMinute": 3.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "creditsPerMinute": 2.4, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash Lite", "creditsPerMinute": 0.8, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gemini-2.5-pro", "displayName": "Gemini 2.5 Pro", "creditsPerMinute": 7.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gemini-3-flash-preview", "displayName": "Gemini 3 Flash", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true },
@@ -467,7 +468,8 @@
       "previewStatus": false,
       "sources": [
         "https://ai.google.dev/gemini-api/docs/audio",
-        "https://cloud.google.com/blog/products/ai-machine-learning/lower-costs-more-languages-for-gemini-on-vertex"
+        "https://cloud.google.com/blog/products/ai-machine-learning/lower-costs-more-languages-for-gemini-on-vertex",
+        "https://ai.google.dev/gemini-api/docs/changelog"
       ]
     },
 
