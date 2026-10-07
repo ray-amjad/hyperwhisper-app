@@ -597,8 +597,10 @@ class BackupManager: ObservableObject {
         var vocabSkipped = 0
 
         // Apply settings (only when selected AND present in the file)
+        var settingsApplied = false
         if options.importSettings, let settings = backupData.settings {
             applySettings(settings)
+            settingsApplied = true
         }
 
         // Import modes (only when selected AND present)
@@ -643,7 +645,7 @@ class BackupManager: ObservableObject {
                     vocabularySkipped: vocabSkipped,
                     apiKeysImported: apiKeysImported,
                     earlierSectionsApplied: Self.earlierBackupSectionsWereApplied(
-                        settingsApplied: options.importSettings && backupData.settings != nil,
+                        settingsApplied: settingsApplied,
                         modesImported: modesImported,
                         vocabularyImported: vocabImported,
                         apiKeysImported: apiKeysImported
@@ -670,7 +672,7 @@ class BackupManager: ObservableObject {
             licenseKeyImported: licenseKeyImported
         )
         result.pendingLocalDownloadModelIds = pendingLocalDownloads
-        result.settingsApplied = options.importSettings && backupData.settings != nil
+        result.settingsApplied = settingsApplied
         return result
     }
 

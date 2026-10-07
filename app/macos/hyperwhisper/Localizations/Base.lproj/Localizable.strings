@@ -1088,9 +1088,7 @@
 "settings.backup.import.result.settings" = "settings restored";
 "settings.backup.import.result.modes" = "%d modes imported";
 "settings.backup.import.result.vocabulary" = "%d vocabulary items imported";
-"settings.backup.import.result.apiKeys" = "API keys restored";
-"settings.backup.import.result.licenseKey" = "license key restored";
-"settings.backup.import.result.nothing" = "no changes were made";
+"settings.backup.import.complete" = "Import complete";
 "settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Failed to read backup file";
 "settings.backup.import.error.decode" = "Invalid backup file format";

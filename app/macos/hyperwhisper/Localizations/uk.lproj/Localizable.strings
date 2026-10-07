@@ -1043,9 +1043,7 @@
 "settings.backup.import.result.settings" = "налаштування відновлено";
 "settings.backup.import.result.modes" = "імпортовано режимів: %d";
 "settings.backup.import.result.vocabulary" = "імпортовано елементів словника: %d";
-"settings.backup.import.result.apiKeys" = "ключі API відновлено";
-"settings.backup.import.result.licenseKey" = "ліцензійний ключ відновлено";
-"settings.backup.import.result.nothing" = "змін не внесено";
+"settings.backup.import.complete" = "Імпорт завершено";
 "settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Не вдалось прочитати файл резервної копії";
 "settings.backup.import.error.decode" = "Недійсний формат файла резервної копії";

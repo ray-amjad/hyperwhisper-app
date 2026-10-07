@@ -1043,9 +1043,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.backup.import.result.settings" = "stillingar endurheimtar";
 "settings.backup.import.result.modes" = "%d hamir fluttir inn";
 "settings.backup.import.result.vocabulary" = "%d orðaforðaatriði flutt inn";
-"settings.backup.import.result.apiKeys" = "API-lyklar endurheimtir";
-"settings.backup.import.result.licenseKey" = "leyfislykill endurheimtur";
-"settings.backup.import.result.nothing" = "engar breytingar gerðar";
+"settings.backup.import.complete" = "Innflutningur lokið";
 "settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Mistókst að lesa öryggisafritsskrá";
 "settings.backup.import.error.decode" = "Ógilt öryggisafritsskráform";

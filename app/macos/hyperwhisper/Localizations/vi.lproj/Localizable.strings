@@ -1043,9 +1043,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "settings.backup.import.result.settings" = "đã khôi phục cài đặt";
 "settings.backup.import.result.modes" = "đã nhập %d chế độ";
 "settings.backup.import.result.vocabulary" = "đã nhập %d mục từ vựng";
-"settings.backup.import.result.apiKeys" = "đã khôi phục khóa API";
-"settings.backup.import.result.licenseKey" = "đã khôi phục khóa bản quyền";
-"settings.backup.import.result.nothing" = "không có thay đổi nào";
+"settings.backup.import.complete" = "Nhập hoàn tất";
 "settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Không thể đọc tệp sao lưu";
 "settings.backup.import.error.decode" = "Định dạng tệp sao lưu không hợp lệ";

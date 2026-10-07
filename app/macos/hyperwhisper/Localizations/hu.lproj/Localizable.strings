@@ -1043,9 +1043,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.import.result.settings" = "beállítások visszaállítva";
 "settings.backup.import.result.modes" = "%d mód importálva";
 "settings.backup.import.result.vocabulary" = "%d szókincs elem importálva";
-"settings.backup.import.result.apiKeys" = "API-kulcsok visszaállítva";
-"settings.backup.import.result.licenseKey" = "licenckulcs visszaállítva";
-"settings.backup.import.result.nothing" = "nem történt változás";
+"settings.backup.import.complete" = "Importálás kész";
 "settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Nem sikerült a biztonsági mentés fájl olvasása";
 "settings.backup.import.error.decode" = "Érvénytelen biztonsági mentés fájl formátum";

@@ -893,26 +893,26 @@ extension ImportResult {
         case settings
         case modes(Int)
         case vocabulary(Int)
-        case apiKeys
-        case licenseKey
     }
 
     /// What the success message reports, in display order (#1406).
     ///
-    /// Settings, API keys and the licence key are listed only when they were applied. Modes and
-    /// vocabulary are listed whenever the user chose them, with their count, so a chosen section
-    /// whose items were all skipped still reads "0 … imported"; an unchosen section never appears.
+    /// The message covers settings, modes and vocabulary only. Settings are listed only when
+    /// they were applied. Modes and vocabulary are listed whenever the user chose them, with
+    /// their count, so a chosen section whose items were all skipped still reads "0 … imported";
+    /// an unchosen section never appears. API keys and the license key are not reported here:
+    /// `apiKeysImported` can be true when no key was written, so the message makes no claim
+    /// about them.
     func summaryItems(options: ImportOptions) -> [SummaryItem] {
         var items: [SummaryItem] = []
         if settingsApplied { items.append(.settings) }
         if options.importModes { items.append(.modes(modesImported)) }
         if options.importVocabulary { items.append(.vocabulary(vocabularyImported)) }
-        if apiKeysImported { items.append(.apiKeys) }
-        if licenseKeyImported { items.append(.licenseKey) }
         return items
     }
 
     /// The localized success message for a completed import, built from `summaryItems(options:)`.
+    /// With nothing to list it is a plain "Import complete", which claims no change either way.
     func successMessage(options: ImportOptions) -> String {
         let parts: [String] = summaryItems(options: options).map { item in
             switch item {
@@ -928,16 +928,13 @@ extension ImportResult {
                     format: NSLocalizedString("settings.backup.import.result.vocabulary", value: "%d vocabulary items imported", comment: "Import success list item: number of vocabulary items imported"),
                     count
                 )
-            case .apiKeys:
-                return NSLocalizedString("settings.backup.import.result.apiKeys", value: "API keys restored", comment: "Import success list item: API keys were applied")
-            case .licenseKey:
-                return NSLocalizedString("settings.backup.import.result.licenseKey", value: "license key restored", comment: "Import success list item: the license key was applied")
             }
         }
 
-        let list = parts.isEmpty
-            ? NSLocalizedString("settings.backup.import.result.nothing", value: "no changes were made", comment: "Import success list when no section changed anything")
-            : parts.joined(separator: NSLocalizedString("settings.backup.import.result.separator", value: ", ", comment: "Separator between items of the import success list"))
+        if parts.isEmpty {
+            return NSLocalizedString("settings.backup.import.complete", value: "Import complete", comment: "Import success message when no settings, modes or vocabulary were imported")
+        }
+        let list = parts.joined(separator: NSLocalizedString("settings.backup.import.result.separator", value: ", ", comment: "Separator between items of the import success list"))
         return String(
             format: NSLocalizedString("settings.backup.import.result", value: "Import complete: %@", comment: "Import success message; %@ is a comma-separated list of what was imported"),
             list

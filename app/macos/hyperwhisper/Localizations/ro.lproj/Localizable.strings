@@ -1043,9 +1043,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "settings.backup.import.result.settings" = "setări restaurate";
 "settings.backup.import.result.modes" = "%d moduri importate";
 "settings.backup.import.result.vocabulary" = "%d elemente de vocabular importate";
-"settings.backup.import.result.apiKeys" = "chei API restaurate";
-"settings.backup.import.result.licenseKey" = "cheie de licență restaurată";
-"settings.backup.import.result.nothing" = "nu s-au făcut modificări";
+"settings.backup.import.complete" = "Import complet";
 "settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Nu s-a putut citi fișier copie de siguranță";
 "settings.backup.import.error.decode" = "Format de fișier copie de siguranță nevalid";

@@ -4,8 +4,9 @@
 //
 //  Issue #1406: a settings-only backup import said "Import complete: 0 modes, 0 vocabulary
 //  items imported", which reads as if nothing was imported. The success message now lists
-//  only what the import applied: settings when they were applied, modes and vocabulary when
-//  they were chosen, API keys and the license key when they were imported.
+//  only settings when they were applied and modes and vocabulary when they were chosen. It
+//  makes no claim about API keys or the license key, and with nothing to list it is a plain
+//  "Import complete".
 //
 
 import Foundation
@@ -81,14 +82,16 @@ struct BackupImportSuccessMessageTests {
         #expect(items == [.modes(1)])
     }
 
-    @Test func apiKeysAndLicenseAreReportedOnlyWhenImported() {
-        let imported = result(settingsApplied: true, apiKeys: true, license: true)
+    /// The import flags for keys can be true when no key was written (an empty or unknown
+    /// entry), so the summary never lists keys, imported or not.
+    @Test func keysAndLicenseAreNeverListed() {
+        let items = result(settingsApplied: true, apiKeys: true, license: true)
             .summaryItems(options: options(settings: true, modes: false, vocabulary: false, apiKeys: true, license: true))
-        #expect(imported == [.settings, .apiKeys, .licenseKey])
+        #expect(items == [.settings])
 
-        let notImported = result(settingsApplied: true, apiKeys: false, license: false)
-            .summaryItems(options: options(settings: true, modes: false, vocabulary: false, apiKeys: true, license: false))
-        #expect(notImported == [.settings])
+        let keysOnly = result(settingsApplied: false, apiKeys: true, license: true)
+            .summaryItems(options: options(settings: false, modes: false, vocabulary: false, apiKeys: true, license: true))
+        #expect(keysOnly.isEmpty)
     }
 
     @Test func nothingAppliedGivesAnEmptySummary() {
@@ -120,12 +123,30 @@ struct BackupImportSuccessMessageTests {
         #expect(!message.contains("%"))
     }
 
-    @Test func theEmptyCaseStillSaysSomething() {
+    private var plainImportComplete: String {
+        NSLocalizedString("settings.backup.import.complete", value: "Import complete", comment: "")
+    }
+
+    @Test func theEmptyCaseIsAPlainImportComplete() {
         let message = result(settingsApplied: false)
             .successMessage(options: options(settings: true, modes: false, vocabulary: false))
 
         #expect(!message.isEmpty)
+        #expect(message == plainImportComplete)
         #expect(!message.contains("0"))
         #expect(!message.contains("%"))
+    }
+
+    /// A keys-only import: no count, and no "restored" claim about keys that may not have
+    /// been written, just the plain "Import complete".
+    @Test func keysOnlyImportSaysPlainImportComplete() {
+        let message = result(settingsApplied: false, apiKeys: true, license: true)
+            .successMessage(options: options(settings: false, modes: false, vocabulary: false, apiKeys: true, license: true))
+
+        #expect(message == plainImportComplete)
+        #expect(!message.contains("0"))
+        #expect(!message.contains("%"))
+        #expect(!message.contains("restored"))
+        #expect(!message.contains("API"))
     }
 }

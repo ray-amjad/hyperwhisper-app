@@ -1043,9 +1043,7 @@
 "settings.backup.import.result.settings" = "설정 복원됨";
 "settings.backup.import.result.modes" = "%d개 모드 가져옴";
 "settings.backup.import.result.vocabulary" = "%d개 어휘 항목 가져옴";
-"settings.backup.import.result.apiKeys" = "API 키 복원됨";
-"settings.backup.import.result.licenseKey" = "라이선스 키 복원됨";
-"settings.backup.import.result.nothing" = "변경 사항 없음";
+"settings.backup.import.complete" = "가져오기 완료";
 "settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "백업 파일 읽기 실패";
 "settings.backup.import.error.decode" = "잘못된 백업 파일 형식";

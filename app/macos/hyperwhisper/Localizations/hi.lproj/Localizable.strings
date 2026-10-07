@@ -1043,9 +1043,7 @@
 "settings.backup.import.result.settings" = "सेटिंग्स पुनर्स्थापित की गईं";
 "settings.backup.import.result.modes" = "%d मोड आयात किए गए";
 "settings.backup.import.result.vocabulary" = "%d शब्दावली आइटम आयात किए गए";
-"settings.backup.import.result.apiKeys" = "API कुंजियाँ पुनर्स्थापित की गईं";
-"settings.backup.import.result.licenseKey" = "लाइसेंस कुंजी पुनर्स्थापित की गई";
-"settings.backup.import.result.nothing" = "कोई बदलाव नहीं किया गया";
+"settings.backup.import.complete" = "आयात पूर्ण";
 "settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "बैकअप फ़ाइल पढ़ने में विफल";
 "settings.backup.import.error.decode" = "अमान्य बैकअप फ़ाइल प्रारूप";
