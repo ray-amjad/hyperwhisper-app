@@ -44,6 +44,7 @@ export interface GrantLotArgs {
 export interface RefundArgs {
   sourceType: string;
   sourceId: string;
+  refundedCreditsTotal?: number;
 }
 
 /** Everything the webhook module did, in call order. */
@@ -79,9 +80,10 @@ export const behaviour = {
   grantLotError: null as unknown,
   grantForEventResult: "processed" as "processed" | "duplicate",
   creditBalance: 12_345,
-  refundResult: { status: "processed", refundedAmount: 500 } as {
+  refundResult: { status: "processed", refundedAmount: 500, removedAmount: 500 } as {
     status: "processed" | "duplicate";
     refundedAmount: number;
+    removedAmount: number;
   },
   stripeSessions: [] as unknown[],
   emailSuccess: true,
@@ -129,7 +131,7 @@ export function resetHarness(): void {
   behaviour.grantLotError = null;
   behaviour.grantForEventResult = "processed";
   behaviour.creditBalance = 12_345;
-  behaviour.refundResult = { status: "processed", refundedAmount: 500 };
+  behaviour.refundResult = { status: "processed", refundedAmount: 500, removedAmount: 500 };
   behaviour.stripeSessions = [];
   behaviour.emailSuccess = true;
 }
