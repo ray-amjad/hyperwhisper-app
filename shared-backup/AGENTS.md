@@ -126,6 +126,12 @@ category-keyed extension above) and round-trip losslessly through the universal 
 | `pushToTalkDoublePressEnabled` | `SettingsManager.pushToTalkDoublePressEnabled` | — |
 | `quickCaptureEnabled` | `SettingsManager.quickCaptureEnabled` | — |
 | `quickCaptureModeId` | `SettingsManager.quickCaptureModeId` (UUID string, `""` = current mode) | — |
+| `keyboardShortcuts` | The KeyboardShortcuts combo of every `KeyboardShortcuts.Name` (`Extensions/KeyboardShortcuts+Names.swift`), keyed by its raw value: `{"carbonKeyCode": Int, "carbonModifiers": Int}` (the Carbon values the package itself persists), or `null` for an action with no shortcut. Written by `BackupKeyboardShortcuts` (#1481) | — |
+
+`keyboardShortcuts` restore rules (macOS, v1 and v2 alike): an absent map leaves every shortcut
+as it is — a backup written before #1481 has none; a name absent from the map leaves that shortcut
+alone; `null` clears it, exactly as clearing the recorder does; a name this build does not register
+is ignored. The core needs no change for it: it carries the macOS `shortcuts` category whole.
 
 Windows-only settings (go into `platformExtensions.windows.settings`; not yet
 shared at the top level). `autoIncreaseMicVolume` is also round-tripped by macOS
@@ -240,6 +246,23 @@ Windows-only mode fields (go into `platformExtensions.windows`):
 | `isSystemProvided` | `Mode.IsSystemProvided` | `false` |
 | `createdDate` | `Mode.CreatedDate` | Current UTC time |
 | `modifiedDate` | `Mode.ModifiedDate` | Current UTC time |
+
+`enableScreenOCR` is per-mode on all three heads, but the shared `Mode` object has no property for
+it, so each head writes it in its OWN slice: Windows `platformExtensions.windows`, Linux
+`platformExtensions.linux`, macOS `platformExtensions.macos` (below). macOS reads its own slice
+first and then falls back to the `windows`, then the `linux`, slice, so a Windows or Linux backup
+restores screen OCR on macOS. Windows and Linux do not yet read the `macos` slice.
+
+macOS-only mode fields (go into `platformExtensions.macos`; added by #1481 — before it a macOS
+restore turned both OFF on every mode):
+
+| Field | macOS (Core Data) | Absent on Import |
+|---|---|---|
+| `enableScreenOCR` | `Mode.enableScreenOCR` | the `windows` / `linux` slice's `enableScreenOCR`, else the value of the local mode the row replaces or updates (same id, else the same-name row `.replace` deletes), else `false` |
+| `useStreamingTranscription` | `Mode.useStreamingTranscription` | the value of the local mode the row replaces or updates, else `false` |
+
+The legacy v1 macOS backup carries both as plain optional fields on each mode object, with the same
+absent-value rule (`PersistenceController.importModes`).
 </important>
 
 <important if="you are changing per-mode platformExtensions, foreign-slice retention, or unknown-key round-trip behavior">
