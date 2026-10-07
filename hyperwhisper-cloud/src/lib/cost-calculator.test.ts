@@ -122,6 +122,18 @@ describe('new STT provider cost functions', () => {
     expect(gptLiveTranscribe).toBeCloseTo(0.017, 6);
   });
 
+  test('OpenAI gpt-4o-mini-transcribe-2025-12-15 bills at the mini token rates', () => {
+    // The snapshot is what a gpt-4o-mini-transcribe request is aliased to, so it
+    // must bill like the row it replaces, not at the dearer gpt-4o-transcribe
+    // rates a plain id comparison would have fallen through to.
+    const usage = { durationSeconds: 60, inputTokens: 1_000_000, outputTokens: 1_000_000 };
+    const snapshot = computeOpenAITranscriptionCost('gpt-4o-mini-transcribe-2025-12-15', usage);
+    expect(snapshot).toBeCloseTo(1.25 + 5.00, 6);
+    expect(snapshot).toBe(computeOpenAITranscriptionCost('gpt-4o-mini-transcribe', usage));
+    expect(computeOpenAITranscriptionCost('gpt-4o-mini-transcribe-2025-12-15', { durationSeconds: 60 }))
+      .toBeCloseTo(0.003, 6);
+  });
+
   test('OpenAI gpt-4o fails closed to a per-minute floor when usage is missing', () => {
     // No token counts → must NOT bill $0; falls back to duration estimate.
     const floored = computeOpenAITranscriptionCost('gpt-4o-transcribe', { durationSeconds: 60 });
@@ -190,6 +202,7 @@ describe('new STT provider cost functions', () => {
     // OpenAI gpt-4o-transcribe: $2.50/1M input. mini: $1.25/1M.
     expect(estimatePromptInputReservationUsd('openai', 'gpt-4o-transcribe', prompt)).toBeCloseTo(100 * (2.50 / 1e6), 9);
     expect(estimatePromptInputReservationUsd('openai', 'gpt-4o-mini-transcribe', prompt)).toBeCloseTo(100 * (1.25 / 1e6), 9);
+    expect(estimatePromptInputReservationUsd('openai', 'gpt-4o-mini-transcribe-2025-12-15', prompt)).toBeCloseTo(100 * (1.25 / 1e6), 9);
     // whisper-1, gpt-transcribe, gpt-live-transcribe are duration-billed → no prompt-token charge.
     expect(estimatePromptInputReservationUsd('openai', 'whisper-1', prompt)).toBe(0);
     expect(estimatePromptInputReservationUsd('openai', 'gpt-transcribe', prompt)).toBe(0);

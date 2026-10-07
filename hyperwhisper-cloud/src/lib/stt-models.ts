@@ -243,12 +243,30 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // this model, so it is registered here (routable per this file's validation
     // contract) but not yet actually wired end-to-end; see
     // `shared-models/models-catalog.json`'s note on this entry.
+    //
+    // OpenAI deprecated whisper-1, gpt-4o-transcribe and gpt-4o-mini-transcribe
+    // on 2026-08-26 (shutdown 2027-02-26). This map mirrors the shared Rust
+    // core's `OPENAI_ALIASES` (shared-core-rs/crates/hw-catalog/src/
+    // model_alias.rs) so a cloud request for a retiring id is served by its
+    // named replacement instead of reaching OpenAI. Every target must be a row
+    // in `models` below (pinned by a test). The three retiring rows stay so
+    // nothing fails closed if this map is ever edited; with the map in place no
+    // request resolves to them.
+    aliases: {
+      'whisper-1': 'gpt-transcribe',
+      'gpt-4o-transcribe': 'gpt-transcribe',
+      'gpt-4o-mini-transcribe': 'gpt-4o-mini-transcribe-2025-12-15',
+    },
     models: [
       { id: 'gpt-4o-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.009 },
       { id: 'gpt-4o-mini-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.0045 },
       { id: 'whisper-1', supportsVocabulary: true, estimatedUsdPerMinute: 0.006 },
       { id: 'gpt-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.0045 },
       { id: 'gpt-live-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.017 },
+      // The dated snapshot OpenAI names as the mini tier's replacement. It is
+      // token-billed at the gpt-4o-mini-transcribe rates, so it carries that
+      // row's reservation rate: the alias cannot make a mode dearer.
+      { id: 'gpt-4o-mini-transcribe-2025-12-15', supportsVocabulary: true, estimatedUsdPerMinute: 0.0045 },
     ],
   },
   gemini: {

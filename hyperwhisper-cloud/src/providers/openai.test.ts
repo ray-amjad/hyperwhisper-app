@@ -196,7 +196,7 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
   });
 
   test('keeps the prompt path for whisper-1 and the gpt-4o models', async () => {
-    for (const model of ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe']) {
+    for (const model of ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe', 'gpt-4o-mini-transcribe-2025-12-15']) {
       const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
       await transcribeWithOpenAI(audio(), 'audio/wav', undefined, 'HyperWhisper', { model });
       expect(captured.form?.get('prompt')).toBe('HyperWhisper');
