@@ -510,6 +510,21 @@ class AppState: ObservableObject {
     /// Pending audio file path to retry transcription if the initial attempt fails before processing
     @Published var pendingRetryAudioPath: String?
 
+    /// Bumped by every flow that takes over `recordingState` and the recording
+    /// dialog: a dictation start or stop, a pending-file retry, a file
+    /// transcription. A pending-file retry that finds it moved on since it began
+    /// writes no shared state when it ends (#1276). Not `@Published`: no view
+    /// reads it.
+    private(set) var transcriptionSessionGeneration: UInt64 = 0
+
+    /// Marks the start of a flow that takes over `recordingState` and the
+    /// recording dialog, and returns that flow's generation.
+    @discardableResult
+    func beginTranscriptionSession() -> UInt64 {
+        transcriptionSessionGeneration &+= 1
+        return transcriptionSessionGeneration
+    }
+
     /// Whether to show the API key setup alert
     @Published var showAPIKeyAlert: Bool = false
     
