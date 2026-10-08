@@ -727,7 +727,7 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "modes.postProcessing.apiKeyMissing" = "Klucz API %@ nie został skonfigurowany. Dodaj go w Ustawieniach, aby włączyć przetwarzanie końcowe.";
 "modes.postProcessing.configure" = "Skonfiguruj w Ustawieniach";
 "modes.postProcessing.modelRecommendation" = "Zalecamy korzystanie z GPT-4.1 Nano w celu uzyskania najlepszej równowagi między prędkością a jakością.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokalne przetwarzanie końcowe wymaga pobranego modelu lokalnego.";
 "modes.postProcessing.download" = "Pobierz w Ustawieniach";

@@ -49,6 +49,13 @@ struct PostProcessingModels {
             provider: .openai
         ),
         PostProcessingModel(
+            id: "gpt-6-luna",
+            displayName: "GPT-6 Luna",
+            isAvailable: true,
+            description: "Newest generation, fast",
+            provider: .openai
+        ),
+        PostProcessingModel(
             id: "gpt-4.1-mini",
             displayName: "GPT-4.1 Mini",
             isAvailable: true,
@@ -100,18 +107,20 @@ struct PostProcessingModels {
             provider: .openai
         ),
         // MARK: - Anthropic Models
+        // claude-haiku-4-5 / claude-sonnet-4-5 rows removed (2026-10):
+        // deprecatedModelMappings redirects both to their 5.5 successors.
         PostProcessingModel(
-            id: "claude-haiku-4-5",
-            displayName: "Claude 4.5 Haiku",
+            id: "claude-haiku-5-5",
+            displayName: "Claude Haiku 5.5",
             isAvailable: true,
-            description: "models.postProcessing.claude4.5.haiku.description".localized,
+            description: "Fast, cost-efficient Haiku model",
             provider: .anthropic
         ),
         PostProcessingModel(
-            id: "claude-sonnet-4-5",
-            displayName: "Claude 4.5 Sonnet",
+            id: "claude-sonnet-5-5",
+            displayName: "Claude Sonnet 5.5",
             isAvailable: true,
-            description: "High quality, latest Sonnet model",
+            description: "Latest Sonnet model, highest quality",
             provider: .anthropic
         ),
         PostProcessingModel(
@@ -130,13 +139,6 @@ struct PostProcessingModels {
         ),
 
         // MARK: - Google Gemini Models
-        PostProcessingModel(
-            id: "gemini-3-flash-preview",
-            displayName: "Gemini 3 Flash",
-            isAvailable: true,
-            description: "models.postProcessing.gemini3.flash.description".localized,
-            provider: .gemini
-        ),
         PostProcessingModel(
             id: "gemini-3.5-flash",
             displayName: "Gemini 3.5 Flash",
@@ -221,13 +223,6 @@ struct PostProcessingModels {
             displayName: "GPT OSS 20B",
             isAvailable: true,
             description: "models.postProcessing.groq.gptoss.20b.description".localized,
-            provider: .groq
-        ),
-        PostProcessingModel(
-            id: "qwen/qwen3.6-27b",
-            displayName: "Qwen 3.6 27B",
-            isAvailable: true,
-            description: "Capable Qwen, strong quality-to-speed ratio",
             provider: .groq
         ),
         PostProcessingModel(
@@ -346,12 +341,17 @@ struct PostProcessingModels {
             "gpt-5": "gpt-5.6-luna",
         ],
         .anthropic: [
-            // Deprecated 2026-02-16: claude-haiku-4.5 → claude-haiku-4-5
-            "claude-haiku-4.5": "claude-haiku-4-5",
-            "claude-3-5-haiku-latest": "claude-haiku-4-5",
-            "claude-sonnet-4-5-20250929": "claude-sonnet-4-5",
-            // Alias for claude-sonnet-4-20250514, retired 2026-06-15 → claude-sonnet-4-5
-            "claude-sonnet-4-0": "claude-sonnet-4-5",
+            // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10 for their 5.5
+            // successors. Every older alias points straight at the final row:
+            // resolvedModelId does not chain, and only applies a mapping whose
+            // target is a live picker row.
+            "claude-haiku-4-5": "claude-haiku-5-5",
+            "claude-haiku-4.5": "claude-haiku-5-5",
+            "claude-3-5-haiku-latest": "claude-haiku-5-5",
+            "claude-sonnet-4-5": "claude-sonnet-5-5",
+            "claude-sonnet-4-5-20250929": "claude-sonnet-5-5",
+            // Alias for claude-sonnet-4-20250514, retired 2026-06-15
+            "claude-sonnet-4-0": "claude-sonnet-5-5",
         ],
         .cerebras: [
             // Deprecated 2026-02-16: llama-3.3-70b → gpt-oss-120b
@@ -381,6 +381,8 @@ struct PostProcessingModels {
             "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
             "gemini-2.0-flash": "gemini-3.6-flash",
             "gemini-2.0-flash-lite": "gemini-3.1-flash-lite",
+            // The preview left the picker 2026-10 for the GA 3.6 Flash.
+            "gemini-3-flash-preview": "gemini-3.6-flash",
             // Gemma hosted models left the Gemini API 2026-03-08. 3.8 Flash, not
             // 2.5 Flash: Google gates 2.5 to past users since 2026-09-18 (#1019).
             // Matches Windows MigrateModelId, so a mode restored from Windows keeps
@@ -398,6 +400,8 @@ struct PostProcessingModels {
             "moonshotai/kimi-k2-instruct": "openai/gpt-oss-120b",
             // Shut down by Groq 2026-03-09 → openai/gpt-oss-120b (matches Windows)
             "meta-llama/llama-4-maverick-17b-128e-instruct": "openai/gpt-oss-120b",
+            // Left the picker 2026-10 for its successor (matches Windows)
+            "qwen/qwen3.6-27b": "qwen/qwen3.8-27b",
         ],
         .grok: [
             // Retired 2026-05-15 — all grok-4-* fast variants redirect to grok-4.3.

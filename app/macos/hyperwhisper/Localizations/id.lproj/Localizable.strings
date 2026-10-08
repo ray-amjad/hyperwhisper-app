@@ -727,7 +727,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.postProcessing.apiKeyMissing" = "Kunci API %@ tidak dikonfigurasi. Tambahkan di Pengaturan untuk mengaktifkan pascapemrosesan.";
 "modes.postProcessing.configure" = "Konfigurasi di Pengaturan";
 "modes.postProcessing.modelRecommendation" = "Kami merekomendasikan menggunakan GPT-4.1 Nano untuk keseimbangan terbaik antara kecepatan dan kualitas.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Pasca-pemrosesan lokal memerlukan model lokal yang diunduh.";
 "modes.postProcessing.download" = "Unduh di Pengaturan";

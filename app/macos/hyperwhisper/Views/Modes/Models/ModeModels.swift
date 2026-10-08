@@ -781,7 +781,7 @@ struct CloudPostProcessingModel: Identifiable, Hashable {
     static var cerebrasGptOss120B: CloudPostProcessingModel { .init(engineId: "cerebras", modelId: "gpt-oss-120b") }
     static var groqGptOss120B: CloudPostProcessingModel { .init(engineId: "groq", modelId: "openai/gpt-oss-120b") }
     static var grokFast: CloudPostProcessingModel { .init(engineId: "grok", modelId: "grok-4.3") }
-    static var claudeHaiku: CloudPostProcessingModel { .init(engineId: "anthropic", modelId: "claude-haiku-4-5") }
+    static var claudeHaiku: CloudPostProcessingModel { .init(engineId: "anthropic", modelId: "claude-haiku-5-5") }
 
     /// Fallback used when the stored value is empty/unknown. Preserves the
     /// historical default (Grok) so modes with an unset value don't silently
@@ -821,7 +821,7 @@ struct CloudPostProcessingModel: Identifiable, Hashable {
             return .cerebrasGptOss120B
         case "groq", "groq-gpt-oss-120b", "groqgptoss120b", "openai/gpt-oss-120b":
             return .groqGptOss120B
-        case "anthropic", "claude-haiku-4-5", "claude-haiku-4.5", "claudehaiku":
+        case "anthropic", "claude-haiku-5-5", "claude-haiku-4-5", "claude-haiku-4.5", "claudehaiku":
             return .claudeHaiku
         case "grok", "grok-4.3", "grokfast",
              "grok-4-1-fast-non-reasoning", "grok-4.1-fast-non-reasoning",

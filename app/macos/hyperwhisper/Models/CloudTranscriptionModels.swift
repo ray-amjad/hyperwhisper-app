@@ -621,9 +621,9 @@ struct CloudTranscriptionModels {
             pricePerSecond: nil
         ),
         CloudTranscriptionModel(
-            id: "gemini-3-flash-preview",
+            id: "gemini-3.6-flash",
             isAvailable: true,
-            description: "Next-gen Gemini Flash with improved accuracy and speed.",
+            description: "Current general-purpose Gemini Flash model.",
             provider: .gemini,
             pricePerSecond: nil
         ),
@@ -759,6 +759,8 @@ struct CloudTranscriptionModels {
 
     private static let legacyGeminiAliases: [String: String] = [
         "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
+        // Left the picker 2026-10 for the GA model. PARITY: hw-catalog GEMINI_ALIASES.
+        "gemini-3-flash-preview": "gemini-3.6-flash",
     ]
 
     static func resolveGeminiModelAlias(_ id: String) -> String {

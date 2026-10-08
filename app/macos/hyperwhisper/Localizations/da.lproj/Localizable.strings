@@ -727,7 +727,7 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.postProcessing.apiKeyMissing" = "%@ API-nøgle ikke konfigureret. Tilføj den i Indstillinger for at aktivere efterbehandling.";
 "modes.postProcessing.configure" = "Konfigurer i Indstillinger";
 "modes.postProcessing.modelRecommendation" = "Vi anbefaler at bruge GPT-4.1 Nano for den bedste balance mellem hastighed og kvalitet.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokal efterbehandling kræver en downloadet lokal model.";
 "modes.postProcessing.download" = "Download i Indstillinger";

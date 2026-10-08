@@ -727,7 +727,7 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.postProcessing.apiKeyMissing" = "%@ API raktas nesukonfigūruotas. Pridėkite jį nustatymuose, jei norite suaktyvinti post apdorojimą.";
 "modes.postProcessing.configure" = "Sukonfigūruoti nustatymuose";
 "modes.postProcessing.modelRecommendation" = "Rekomenduojame naudoti GPT-4.1 Nano geriausioms greičio ir kokybės balanso.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Vietinis post apdorojimas reikalauja atsisiųsto vietinio modelio.";
 "modes.postProcessing.download" = "Atsisiųsti nustatymuose";
