@@ -1349,6 +1349,64 @@ internal static class Program
                     "600MB → capped at 30min");
             });
 
+            // #1562: the daemon answers once per file, so a fixed 60 s ceiling failed
+            // every Parakeet Transcribe File longer than ~2.5 min on a 0.4x-real-time PC.
+            Run("Parakeet response timeout keeps the floor and grows with the audio", () =>
+            {
+                Assert(ParakeetTranscriptionService.ResponseFloorSeconds(isQwen3: false, isOnline: false) == 60, "Parakeet floor 60s");
+                Assert(ParakeetTranscriptionService.ResponseFloorSeconds(isQwen3: false, isOnline: true) == 120, "Nemotron-online floor 120s");
+                Assert(ParakeetTranscriptionService.ResponseFloorSeconds(isQwen3: true, isOnline: false) == 180, "Qwen3 floor 180s");
+                Assert(ParakeetTranscriptionService.ResponseFloorSeconds(isQwen3: true, isOnline: true) == 180, "Qwen3 wins over online");
+
+                // Unknown or unusable duration → the floor alone.
+                foreach (var bad in new double?[] { null, 0, -5, double.NaN, double.PositiveInfinity })
+                    Assert(ParakeetTranscriptionService.ComputeResponseTimeout(60, bad) == TimeSpan.FromSeconds(60),
+                        $"{bad?.ToString() ?? "null"} → 60s floor");
+
+                // The issue's 300 s file: 60 + 300*2 = 660 s, well past the 120 s it needed at 0.4x.
+                var parakeet300 = ParakeetTranscriptionService.ComputeResponseTimeout(60, 300);
+                Assert(parakeet300 == TimeSpan.FromSeconds(660), $"Parakeet 300s → 660s, got {parakeet300}");
+                Assert(parakeet300 > TimeSpan.FromSeconds(300 * 0.4), "300s at 0.4x fits");
+
+                // A short dictation barely moves off the floor.
+                Assert(ParakeetTranscriptionService.ComputeResponseTimeout(60, 5) == TimeSpan.FromSeconds(70), "5s clip → 70s");
+
+                // Engine ratios hold: 2 / 4 / 6 s per audio second.
+                Assert(ParakeetTranscriptionService.ComputeResponseTimeout(120, 300) == TimeSpan.FromSeconds(1320), "online 300s → 1320s");
+                Assert(ParakeetTranscriptionService.ComputeResponseTimeout(180, 300) == TimeSpan.FromSeconds(1980), "Qwen3 300s → 1980s");
+
+                // A 3-hour recording completes even at real time on the CPU provider.
+                var threeHours = ParakeetTranscriptionService.ComputeResponseTimeout(60, 3 * 3600);
+                Assert(threeHours == TimeSpan.FromSeconds(60 + 2 * 3 * 3600), $"3h → 6h + 60s, got {threeHours}");
+
+                // Fractional seconds round up, never down.
+                Assert(ParakeetTranscriptionService.ComputeResponseTimeout(60, 0.25) == TimeSpan.FromSeconds(61), "0.25s → 61s");
+
+                // A nonsense header duration is still bounded.
+                Assert(ParakeetTranscriptionService.ComputeResponseTimeout(180, 1e9) == ParakeetTranscriptionService.MaxResponseTimeout,
+                    "huge duration → capped");
+                Assert(ParakeetTranscriptionService.MaxResponseTimeout == TimeSpan.FromHours(24), "cap is 24h");
+            });
+
+            Run("Parakeet teardown and drain waits follow the active request budget", () =>
+            {
+                // Idle (no budget left): today's floor + 5 s.
+                Assert(ParakeetTranscriptionService.ComputeTeardownWait(60, TimeSpan.Zero) == TimeSpan.FromSeconds(65), "idle Parakeet → 65s");
+                Assert(ParakeetTranscriptionService.ComputeTeardownWait(180, TimeSpan.Zero) == TimeSpan.FromSeconds(185), "idle Qwen3 → 185s");
+                // Less than the floor left: still the floor (deadline may not be recorded yet).
+                Assert(ParakeetTranscriptionService.ComputeTeardownWait(60, TimeSpan.FromSeconds(10)) == TimeSpan.FromSeconds(65), "10s left → 65s");
+                // A long file still running: wait out its budget, not the floor.
+                Assert(ParakeetTranscriptionService.ComputeTeardownWait(60, TimeSpan.FromSeconds(600)) == TimeSpan.FromSeconds(605), "600s left → 605s");
+                Assert(ParakeetTranscriptionService.ComputeTeardownWait(60, TimeSpan.FromDays(3))
+                    == ParakeetTranscriptionService.MaxResponseTimeout + TimeSpan.FromSeconds(5), "capped");
+
+                // A cancelled request's drain never holds the lock past the floor.
+                Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.FromHours(5)) == TimeSpan.FromSeconds(60), "5h left → 60s drain");
+                Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.FromSeconds(12)) == TimeSpan.FromSeconds(12), "12s left → 12s drain");
+                Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.Zero) == TimeSpan.Zero, "expired → 0");
+                Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.FromSeconds(-3)) == TimeSpan.Zero, "negative → 0");
+            });
+
             Run("XaiFormattingLanguages shared between Grok batch and streaming", () =>
             {
                 Assert(XaiFormattingLanguages.TryGetSupportedCode("en", out var en) && en == "en", "en supported");
