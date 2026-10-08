@@ -89,6 +89,7 @@ static Task TestModelRegistry()
         ("claude-haiku-4-5-latest", "claude-haiku-5-5"), ("claude-3-5-haiku-latest", "claude-haiku-5-5"),
         ("claude-sonnet-4-5", "claude-sonnet-5-5"), ("claude-sonnet-4-5-latest", "claude-sonnet-5-5"),
         ("claude-sonnet-4-0", "claude-sonnet-5-5"),
+        ("claude-haiku-4-5-20251001", "claude-haiku-5-5"), ("claude-sonnet-4-5-20250929", "claude-sonnet-5-5"),
     })
     {
         Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Anthropic, retired) == successor,

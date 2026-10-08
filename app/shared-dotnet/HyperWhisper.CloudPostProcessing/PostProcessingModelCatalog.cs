@@ -67,9 +67,9 @@ public static class PostProcessingModelCatalog
         // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10; every old id maps straight to
         // its 5.5 successor (matches Windows and macOS).
         "claude-3-haiku-20240307" or "claude-3-5-haiku-latest" or "claude-haiku-4.5" or
-            "claude-haiku-4-5-latest" or "claude-haiku-4-5" => "claude-haiku-5-5",
+            "claude-haiku-4-5-latest" or "claude-haiku-4-5" or "claude-haiku-4-5-20251001" => "claude-haiku-5-5",
         "claude-sonnet-4-20250514" or "claude-sonnet-4-0" or "claude-sonnet-4-5-latest" or
-            "claude-sonnet-4-5" => "claude-sonnet-5-5",
+            "claude-sonnet-4-5" or "claude-sonnet-4-5-20250929" => "claude-sonnet-5-5",
         "claude-sonnet-4-6-latest" => "claude-sonnet-4-6",
         "meta-llama/llama-4-maverick-17b-128e-instruct" or "moonshotai/kimi-k2-instruct" or
             "mixtral-8x7b-32768" or "llama-3.3-70b-versatile" or "llama-3.1-8b-instant" or

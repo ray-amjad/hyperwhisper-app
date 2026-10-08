@@ -348,6 +348,7 @@ struct PostProcessingModels {
             "claude-haiku-4-5": "claude-haiku-5-5",
             "claude-haiku-4.5": "claude-haiku-5-5",
             "claude-3-5-haiku-latest": "claude-haiku-5-5",
+            "claude-haiku-4-5-20251001": "claude-haiku-5-5",
             "claude-sonnet-4-5": "claude-sonnet-5-5",
             "claude-sonnet-4-5-20250929": "claude-sonnet-5-5",
             // Alias for claude-sonnet-4-20250514, retired 2026-06-15

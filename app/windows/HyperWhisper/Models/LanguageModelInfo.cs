@@ -141,10 +141,12 @@ public class LanguageModelInfo
         "claude-haiku-4.5" => "claude-haiku-5-5",
         "claude-haiku-4-5" => "claude-haiku-5-5",
         "claude-haiku-4-5-latest" => "claude-haiku-5-5",
+        "claude-haiku-4-5-20251001" => "claude-haiku-5-5",
         "claude-sonnet-4-20250514" => "claude-sonnet-5-5",
         "claude-sonnet-4-0" => "claude-sonnet-5-5",
         "claude-sonnet-4-5" => "claude-sonnet-5-5",
         "claude-sonnet-4-5-latest" => "claude-sonnet-5-5",
+        "claude-sonnet-4-5-20250929" => "claude-sonnet-5-5",
         "claude-sonnet-4-6-latest" => "claude-sonnet-4-6",
         // Groq: qwen3.6 left the picker 2026-10 for its successor (matches macOS).
         "qwen/qwen3.6-27b" => "qwen/qwen3.8-27b",
