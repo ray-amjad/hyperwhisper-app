@@ -8,7 +8,8 @@
 //  `$TMPDIR/hyperwhisper-local-api-…/audio.<ext>` and deletes it only when the
 //  request finishes in-process. A `kill -9` mid-request left the folder, with
 //  the user's speech in it, for good. These tests drive the launch sweep on an
-//  injected directory with an injected pid-liveness check.
+//  injected directory with injected process facts: pid liveness, process
+//  start time, and whether another copy of the app is running.
 //
 
 import Darwin
@@ -30,6 +31,10 @@ struct LocalAPIStagingSweepTests {
     private static let livePID: pid_t = 4_002
 
     private static func alive(_ pid: pid_t) -> Bool { pid == me || pid == livePID }
+
+    /// By default no start time can be read, which is the pre-start-time
+    /// behaviour: a live pid keeps its folder until the 24 h backstop.
+    private static func noStartTime(_ pid: pid_t) -> Date? { nil }
 
     // MARK: - Fixtures
 
@@ -55,12 +60,19 @@ struct LocalAPIStagingSweepTests {
     }
 
     @discardableResult
-    private static func sweep(_ dir: URL, now: Date = Date()) -> [URL] {
+    private static func sweep(
+        _ dir: URL,
+        now: Date = Date(),
+        processStartTime: (pid_t) -> Date? = noStartTime,
+        anotherCopyIsRunning: () -> Bool = { true }
+    ) -> [URL] {
         LocalAPIStagingSweep.sweep(
             in: dir,
             now: now,
             currentPID: me,
-            isProcessAlive: alive
+            isProcessAlive: alive,
+            processStartTime: processStartTime,
+            anotherCopyIsRunning: anotherCopyIsRunning
         )
     }
 
@@ -147,7 +159,9 @@ struct LocalAPIStagingSweepTests {
         let removed = LocalAPIStagingSweep.sweep(
             in: dir,
             currentPID: Self.me,
-            isProcessAlive: { _ in false }
+            isProcessAlive: { _ in false },
+            processStartTime: { _ in .distantFuture },
+            anotherCopyIsRunning: { false }
         )
 
         #expect(removed.isEmpty)
@@ -170,7 +184,73 @@ struct LocalAPIStagingSweepTests {
         #expect(!Self.exists(old))
     }
 
-    @Test func aPreFixFolderIsRemovedOnlyOnceItIsOld() throws {
+    /// Finding 1: the pid is alive, but the process holding it started after
+    /// the folder was written, so it cannot be the owner. The owner is dead
+    /// and its pid was reused: the folder goes at once, not after 24 h.
+    @Test func aFolderWhosePidWasReusedIsRemoved() throws {
+        let dir = try Self.makeSandbox()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date()
+        let written = now.addingTimeInterval(-2 * 60 * 60)
+        let orphan = try Self.makeFolder(
+            LocalAPIStagingSweep.directoryName(pid: Self.livePID),
+            in: dir,
+            modified: written
+        )
+
+        let removed = Self.sweep(dir, now: now, processStartTime: { pid in
+            pid == Self.livePID ? written.addingTimeInterval(60 * 60) : nil
+        })
+
+        #expect(!Self.exists(orphan))
+        #expect(removed.map(\.lastPathComponent) == [orphan.lastPathComponent])
+    }
+
+    /// The pid is alive and its process started before the folder was
+    /// written: that process is the owner, maybe mid-request. Kept.
+    @Test func aFolderWhoseLiveOwnerStartedBeforeItIsKept() throws {
+        let dir = try Self.makeSandbox()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date()
+        let written = now.addingTimeInterval(-2 * 60 * 60)
+        let live = try Self.makeFolder(
+            LocalAPIStagingSweep.directoryName(pid: Self.livePID),
+            in: dir,
+            modified: written
+        )
+
+        let removed = Self.sweep(dir, now: now, processStartTime: { pid in
+            pid == Self.livePID ? written.addingTimeInterval(-30 * 60) : nil
+        })
+
+        #expect(removed.isEmpty)
+        #expect(Self.exists(live.appendingPathComponent("audio.wav")))
+    }
+
+    /// A start time a few seconds after the folder's date is inside the
+    /// clock-step slack, so the folder is kept: erring toward keeping.
+    @Test func aStartTimeWithinTheToleranceStillCountsAsTheOwner() throws {
+        let dir = try Self.makeSandbox()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date()
+        let written = now.addingTimeInterval(-60 * 60)
+        let live = try Self.makeFolder(
+            LocalAPIStagingSweep.directoryName(pid: Self.livePID),
+            in: dir,
+            modified: written
+        )
+
+        let removed = Self.sweep(dir, now: now, processStartTime: { _ in
+            written.addingTimeInterval(LocalAPIStagingSweep.startTimeTolerance / 2)
+        })
+
+        #expect(removed.isEmpty)
+        #expect(Self.exists(live))
+    }
+
+    /// Finding 2: with no other copy of the app running, a pre-fix folder's
+    /// owner (an older build) is dead, so it goes at once however young.
+    @Test func aPreFixFolderIsRemovedAtOnceWhenNoOtherCopyRuns() throws {
         let dir = try Self.makeSandbox()
         defer { try? FileManager.default.removeItem(at: dir) }
         let now = Date()
@@ -179,16 +259,49 @@ struct LocalAPIStagingSweepTests {
             in: dir,
             modified: now.addingTimeInterval(-60)
         )
-        let old = try Self.makeFolder(
+
+        Self.sweep(dir, now: now, anotherCopyIsRunning: { false })
+
+        #expect(!Self.exists(fresh))
+    }
+
+    /// Finding 2: another copy may be an older build mid-request (#1483), so
+    /// a pre-fix folder stays until it is older than any request can be.
+    @Test func aPreFixFolderIsKeptUntil24HoursWhileAnotherCopyRuns() throws {
+        let dir = try Self.makeSandbox()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date()
+        let hoursOld = try Self.makeFolder(
             "hyperwhisper-local-api-\(UUID().uuidString)",
             in: dir,
-            modified: now.addingTimeInterval(-LocalAPIStagingSweep.legacyMaxAge - 60)
+            modified: now.addingTimeInterval(-3 * 60 * 60)
+        )
+        let dayOld = try Self.makeFolder(
+            "hyperwhisper-local-api-\(UUID().uuidString)",
+            in: dir,
+            modified: now.addingTimeInterval(-LocalAPIStagingSweep.liveOwnerMaxAge - 60)
         )
 
-        Self.sweep(dir, now: now)
+        Self.sweep(dir, now: now, anotherCopyIsRunning: { true })
 
-        #expect(Self.exists(fresh))
-        #expect(!Self.exists(old))
+        #expect(Self.exists(hoursOld.appendingPathComponent("audio.wav")))
+        #expect(!Self.exists(dayOld))
+    }
+
+    /// The other-copy check is asked only when a pre-fix folder is there,
+    /// and at most once per sweep.
+    @Test func theOtherCopyCheckIsAskedOnlyForPreFixFolders() throws {
+        let dir = try Self.makeSandbox()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var asked = 0
+        try Self.makeFolder(LocalAPIStagingSweep.directoryName(pid: Self.deadPID), in: dir)
+        Self.sweep(dir, anotherCopyIsRunning: { asked += 1; return true })
+        #expect(asked == 0)
+
+        try Self.makeFolder("hyperwhisper-local-api-\(UUID().uuidString)", in: dir)
+        try Self.makeFolder("hyperwhisper-local-api-\(UUID().uuidString)", in: dir)
+        Self.sweep(dir, anotherCopyIsRunning: { asked += 1; return true })
+        #expect(asked == 1)
     }
 
     @Test func entriesThatAreNotStagingFoldersAreUntouched() throws {
@@ -256,6 +369,14 @@ struct LocalAPIStagingSweepTests {
         #expect(!LocalAPIStagingSweep.isProcessAlive(Int32.max))
     }
 
+    @Test func theRealStartTimeOfThisProcessIsInThePastAndABogusPidHasNone() throws {
+        let started = try #require(LocalAPIStagingSweep.processStartTime(getpid()))
+        #expect(started <= Date())
+        #expect(started > Date(timeIntervalSinceNow: -7 * 24 * 60 * 60))
+        #expect(LocalAPIStagingSweep.processStartTime(0) == nil)
+        #expect(LocalAPIStagingSweep.processStartTime(Int32.max) == nil)
+    }
+
     // MARK: - Wiring
 
     @Test func theEndpointNamesItsFolderThroughTheSweep() throws {
@@ -269,10 +390,15 @@ struct LocalAPIStagingSweepTests {
         #expect(!code.contains("\"hyperwhisper-local-api-\\("))
     }
 
-    @Test func launchSweepsBeforeTheServerCanStart() throws {
-        let code = try ProductionSource.code(of: Self.appPath)
-        let sweep = try #require(code.range(of: "LocalAPIStagingSweep.sweep()"))
-        let start = try #require(code.range(of: "LocalAPIServer.shared.start()"))
-        #expect(sweep.lowerBound < start.lowerBound)
+    /// The launch path runs the sweep. It is a detached task with no ordering
+    /// against the server start; `thisProcessesOwnFolderIsKept` is what
+    /// guarantees it never deletes a request this launch is serving.
+    @Test func launchRunsTheSweep() throws {
+        let bootstrap = try ProductionSource.slice(
+            of: Self.appPath,
+            from: "private func bootstrapAppServices() {",
+            to: "LocalAPIServer.shared.configure("
+        )
+        #expect(bootstrap.contains("LocalAPIStagingSweep.sweep()"))
     }
 }
