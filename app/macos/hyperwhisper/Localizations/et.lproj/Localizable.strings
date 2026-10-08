@@ -977,6 +977,10 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "settings.backup.localDownload.dismiss" = "Sulge";
 "modelLibrary.local.requiresAppleSilicon" = "Vajalik on Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Taaskäivita natiivselt";
+"modelLibrary.remove.confirm.title" = "Kas eemaldada %@?";
+"modelLibrary.remove.confirm.message" = "Peate selle uuesti alla laadima (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Peate selle uuesti alla laadima.";
+"modelLibrary.remove.confirm.button" = "Eemalda";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ebapiisavad krediidid. Lisage rohkem krediite seadetes.";

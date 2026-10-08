@@ -977,6 +977,10 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "settings.backup.localDownload.dismiss" = "Ignoră";
 "modelLibrary.local.requiresAppleSilicon" = "Necesită Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Repornește nativ";
+"modelLibrary.remove.confirm.title" = "Eliminați %@?";
+"modelLibrary.remove.confirm.message" = "Va trebui să îl descărcați din nou (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Va trebui să îl descărcați din nou.";
+"modelLibrary.remove.confirm.button" = "Elimină";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Credite insuficiente. Adăugați mai multe credite în Setări.";

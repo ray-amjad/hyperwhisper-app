@@ -977,6 +977,10 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "settings.backup.localDownload.dismiss" = "Sulje";
 "modelLibrary.local.requiresAppleSilicon" = "Vaatii Apple Silicon -suorittimen";
 "modelLibrary.local.needsNativeRelaunch" = "Käynnistä uudelleen natiivina";
+"modelLibrary.remove.confirm.title" = "Poistetaanko %@?";
+"modelLibrary.remove.confirm.message" = "Sinun on ladattava se uudelleen (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Sinun on ladattava se uudelleen.";
+"modelLibrary.remove.confirm.button" = "Poista";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Krediitit eivät riitä. Lisää krediittejä asetuksissa.";

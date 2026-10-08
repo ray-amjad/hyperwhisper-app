@@ -977,6 +977,10 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.localDownload.dismiss" = "Atmesti";
 "modelLibrary.local.requiresAppleSilicon" = "Reikia Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Paleisti iš naujo natyviai";
+"modelLibrary.remove.confirm.title" = "Pašalinti %@?";
+"modelLibrary.remove.confirm.message" = "Turėsite jį atsisiųsti iš naujo (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Turėsite jį atsisiųsti iš naujo.";
+"modelLibrary.remove.confirm.button" = "Pašalinti";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nepakanka kreditų. Pridėkite daugiau kreditų nustatymuose.";

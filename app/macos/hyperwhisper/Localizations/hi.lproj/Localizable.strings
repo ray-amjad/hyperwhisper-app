@@ -977,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "खारिज करें";
 "modelLibrary.local.requiresAppleSilicon" = "Apple Silicon आवश्यक है";
 "modelLibrary.local.needsNativeRelaunch" = "नेटिव रूप से फिर से लॉन्च करें";
+"modelLibrary.remove.confirm.title" = "%@ हटाएँ?";
+"modelLibrary.remove.confirm.message" = "आपको इसे फिर से डाउनलोड करना होगा (%@)।";
+"modelLibrary.remove.confirm.messageNoSize" = "आपको इसे फिर से डाउनलोड करना होगा।";
+"modelLibrary.remove.confirm.button" = "हटाएँ";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "अपर्याप्त क्रेडिट। सेटिंग्स में अधिक क्रेडिट जोड़ें।";

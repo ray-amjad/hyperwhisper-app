@@ -977,6 +977,10 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "settings.backup.localDownload.dismiss" = "Negeer";
 "modelLibrary.local.requiresAppleSilicon" = "Vereist Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Native opnieuw starten";
+"modelLibrary.remove.confirm.title" = "%@ verwijderen?";
+"modelLibrary.remove.confirm.message" = "Je moet het opnieuw downloaden (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Je moet het opnieuw downloaden.";
+"modelLibrary.remove.confirm.button" = "Verwijder";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Onvoldoende tegoed. Voeg meer tegoed toe in Instellingen.";

@@ -977,6 +977,10 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "settings.backup.localDownload.dismiss" = "Odbaci";
 "modelLibrary.local.requiresAppleSilicon" = "Zahtijeva Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Ponovno pokreni izvorno";
+"modelLibrary.remove.confirm.title" = "Ukloniti %@?";
+"modelLibrary.remove.confirm.message" = "Morat ćete ga ponovno preuzeti (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Morat ćete ga ponovno preuzeti.";
+"modelLibrary.remove.confirm.button" = "Ukloni";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nedovoljno kredita. Dodajte više kredita u Postavkama.";

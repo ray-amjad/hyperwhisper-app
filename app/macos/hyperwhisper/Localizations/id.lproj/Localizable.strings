@@ -977,6 +977,10 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.backup.localDownload.dismiss" = "Abaikan";
 "modelLibrary.local.requiresAppleSilicon" = "Memerlukan Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Jalankan ulang secara native";
+"modelLibrary.remove.confirm.title" = "Hapus %@?";
+"modelLibrary.remove.confirm.message" = "Anda perlu mengunduhnya lagi (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Anda perlu mengunduhnya lagi.";
+"modelLibrary.remove.confirm.button" = "Hapus";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Kredit tidak mencukupi. Tambahkan lebih banyak kredit di Pengaturan.";

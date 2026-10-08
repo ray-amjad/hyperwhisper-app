@@ -977,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "Отхвърляне";
 "modelLibrary.local.requiresAppleSilicon" = "Изисква Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Рестартиране в нативен режим";
+"modelLibrary.remove.confirm.title" = "Да се премахне ли %@?";
+"modelLibrary.remove.confirm.message" = "Ще трябва да го изтеглите отново (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Ще трябва да го изтеглите отново.";
+"modelLibrary.remove.confirm.button" = "Премахни";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недостатъчно кредити. Добавете повече кредити в Настройки.";

@@ -977,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "התעלם";
 "modelLibrary.local.requiresAppleSilicon" = "דורש Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "הפעלה מחדש כאפליקציה מקורית";
+"modelLibrary.remove.confirm.title" = "להסיר את %@?";
+"modelLibrary.remove.confirm.message" = "יהיה עליך להוריד אותו שוב (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "יהיה עליך להוריד אותו שוב.";
+"modelLibrary.remove.confirm.button" = "הסר";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "אין מספיק נקודות זכות. הוסף עוד נקודות זכות בהגדרות.";

@@ -977,6 +977,10 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.localDownload.dismiss" = "Elvetés";
 "modelLibrary.local.requiresAppleSilicon" = "Apple Silicon szükséges";
 "modelLibrary.local.needsNativeRelaunch" = "Újraindítás natív módban";
+"modelLibrary.remove.confirm.title" = "Eltávolítja: %@?";
+"modelLibrary.remove.confirm.message" = "Újra le kell majd töltenie (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Újra le kell majd töltenie.";
+"modelLibrary.remove.confirm.button" = "Eltávolítás";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nincs elég kredit. Adj hozzá több kreditet a Beállításokban.";

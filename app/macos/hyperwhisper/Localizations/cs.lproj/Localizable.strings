@@ -977,6 +977,10 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "settings.backup.localDownload.dismiss" = "Zavřít";
 "modelLibrary.local.requiresAppleSilicon" = "Vyžaduje Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Spustit znovu nativně";
+"modelLibrary.remove.confirm.title" = "Odstranit %@?";
+"modelLibrary.remove.confirm.message" = "Budete ho muset stáhnout znovu (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Budete ho muset stáhnout znovu.";
+"modelLibrary.remove.confirm.button" = "Odstranit";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nedostatek kreditů. Přidejte více kreditů v Nastavení.";

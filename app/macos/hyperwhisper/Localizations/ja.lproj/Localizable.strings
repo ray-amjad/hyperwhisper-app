@@ -978,6 +978,10 @@
 "settings.backup.localDownload.dismiss" = "閉じる";
 "modelLibrary.local.requiresAppleSilicon" = "Apple Silicon が必要です";
 "modelLibrary.local.needsNativeRelaunch" = "ネイティブで再起動";
+"modelLibrary.remove.confirm.title" = "%@を削除しますか？";
+"modelLibrary.remove.confirm.message" = "再度ダウンロードする必要があります（%@）。";
+"modelLibrary.remove.confirm.messageNoSize" = "再度ダウンロードする必要があります。";
+"modelLibrary.remove.confirm.button" = "削除";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "クレジットが不足しています。設定でクレジットを追加してください。";

@@ -977,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "Закрити";
 "modelLibrary.local.requiresAppleSilicon" = "Потрібен Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Перезапустити нативно";
+"modelLibrary.remove.confirm.title" = "Видалити %@?";
+"modelLibrary.remove.confirm.message" = "Вам доведеться завантажити її знову (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Вам доведеться завантажити її знову.";
+"modelLibrary.remove.confirm.button" = "Видалити";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недостатньо кредитів. Додайте більше кредитів у Налаштуваннях.";

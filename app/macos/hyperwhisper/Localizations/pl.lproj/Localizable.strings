@@ -977,6 +977,10 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "settings.backup.localDownload.dismiss" = "Zamknij";
 "modelLibrary.local.requiresAppleSilicon" = "Wymaga Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Uruchom ponownie natywnie";
+"modelLibrary.remove.confirm.title" = "Usunąć %@?";
+"modelLibrary.remove.confirm.message" = "Trzeba będzie pobrać go ponownie (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Trzeba będzie pobrać go ponownie.";
+"modelLibrary.remove.confirm.button" = "Usuń";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Niewystarczające kredyty. Dodaj więcej kredytów w Ustawieniach.";

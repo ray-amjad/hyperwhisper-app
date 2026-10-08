@@ -977,6 +977,10 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "settings.backup.localDownload.dismiss" = "Kapat";
 "modelLibrary.local.requiresAppleSilicon" = "Apple Silicon gerektirir";
 "modelLibrary.local.needsNativeRelaunch" = "Yerel mimaride yeniden başlat";
+"modelLibrary.remove.confirm.title" = "%@ kaldırılsın mı?";
+"modelLibrary.remove.confirm.message" = "Yeniden indirmeniz gerekecek (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Yeniden indirmeniz gerekecek.";
+"modelLibrary.remove.confirm.button" = "Kaldır";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Yetersiz krediler. Ayarlar'dan daha fazla kredi ekleyin.";
