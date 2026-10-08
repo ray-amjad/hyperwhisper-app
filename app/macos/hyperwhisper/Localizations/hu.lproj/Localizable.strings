@@ -727,7 +727,7 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.postProcessing.apiKeyMissing" = "%@ API kulcs nincs konfigurálva. Add hozzá a Beállításokban az utófeldolgozás engedélyezéséhez.";
 "modes.postProcessing.configure" = "Konfigurálás a Beállításokban";
 "modes.postProcessing.modelRecommendation" = "A GPT-4.1 Nano használatát ajánljuk a legjobb sebesség és minőség egyensúlyához.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "A helyi utófeldolgozáshoz letöltött helyi modell szükséges.";
 "modes.postProcessing.download" = "Letöltés a Beállításokban";
@@ -793,6 +793,8 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.provider.cloud" = "Felhő";
 "modes.notice.noLocalModels.title" = "Nincs helyi modell telepítve";
 "modes.notice.noLocalModels.subtitle" = "Telepíts egy modellt először a Beállításokban";
+"modes.model.notInstalledFormat" = "%@ (nincs telepítve)";
+"modes.notice.modelNotInstalled" = "Ennek a módnak a modellje nincs telepítve. A mentés megtartja. Töltse le a Modellkönyvtárból, vagy válasszon másik modellt.";
 "modes.model.pricing" = "Árazás: $%.6f / perc (másodpercenként számlázva)";
 "modes.button.create" = "Mód létrehozása";
 "modes.button.delete" = "Mód törlése";
@@ -975,6 +977,10 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.localDownload.dismiss" = "Elvetés";
 "modelLibrary.local.requiresAppleSilicon" = "Apple Silicon szükséges";
 "modelLibrary.local.needsNativeRelaunch" = "Újraindítás natív módban";
+"modelLibrary.remove.confirm.title" = "Eltávolítja: %@?";
+"modelLibrary.remove.confirm.message" = "Újra le kell majd töltenie (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Újra le kell majd töltenie.";
+"modelLibrary.remove.confirm.button" = "Eltávolítás";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nincs elég kredit. Adj hozzá több kreditet a Beállításokban.";
@@ -1039,7 +1045,12 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.import.subtitle" = "Beállítások visszaállítása biztonsági mentés fájlból";
 "settings.backup.import.button" = "Importálás...";
 "settings.backup.import.panel.title" = "Beállítások importálása";
-"settings.backup.import.success" = "Importálás kész: %d mód, %d szókincs elem importálva";
+"settings.backup.import.result" = "Importálás kész: %@";
+"settings.backup.import.result.settings" = "beállítások visszaállítva";
+"settings.backup.import.result.modes" = "%d mód importálva";
+"settings.backup.import.result.vocabulary" = "%d szókincs elem importálva";
+"settings.backup.import.complete" = "Importálás kész";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Nem sikerült a biztonsági mentés fájl olvasása";
 "settings.backup.import.error.decode" = "Érvénytelen biztonsági mentés fájl formátum";
 "settings.backup.import.error.decode.keyNotFound" = "Hiányzó kötelező mező: %@";

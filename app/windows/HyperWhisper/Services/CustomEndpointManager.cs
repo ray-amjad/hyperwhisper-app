@@ -12,6 +12,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.SharedCore;
 
@@ -49,6 +50,12 @@ public class CustomEndpointManager : IDisposable
     private readonly HttpClient _httpClient;
     private bool _disposed;
 
+    // Null in the app, which uses the shared key store. The smoke suite passes
+    // one over a fake Credential Manager backend.
+    private readonly ApiKeyService? _apiKeysOverride;
+
+    private ApiKeyService ApiKeys => _apiKeysOverride ?? ApiKeyService.Instance;
+
     /// <summary>
     /// Raised when endpoints are added, updated, or deleted.
     /// </summary>
@@ -77,9 +84,10 @@ public class CustomEndpointManager : IDisposable
     /// script the upstream response. It changes nothing for the app: the
     /// private constructor above still supplies the same 30-second client.
     /// </remarks>
-    internal CustomEndpointManager(HttpClient httpClient)
+    internal CustomEndpointManager(HttpClient httpClient, ApiKeyService? apiKeys = null)
     {
         _httpClient = httpClient;
+        _apiKeysOverride = apiKeys;
     }
 
     // =========================================================================
@@ -130,10 +138,14 @@ public class CustomEndpointManager : IDisposable
             return null;
         }
 
-        // Save API key if provided
-        if (!string.IsNullOrEmpty(apiKey))
+        // Save API key if provided. A failed Credential Manager write refuses the
+        // add (the caller shows validationError), rather than saving an endpoint
+        // whose key silently is not there (#742).
+        if (!string.IsNullOrEmpty(apiKey)
+            && ApiKeys.SetCustomEndpointApiKey(endpoint.Id, apiKey).IsFailure)
         {
-            ApiKeyService.Instance.SetCustomEndpointApiKey(endpoint.Id, apiKey);
+            validationError = Loc.S("onboarding.setup.provider.saveFailed");
+            return null;
         }
 
         // Add to list and save
@@ -212,6 +224,25 @@ public class CustomEndpointManager : IDisposable
             newModel != endpoint.ModelName ||
             (apiKey != null && !string.Equals(apiKey, GetApiKey(id) ?? "", StringComparison.Ordinal));
 
+        // Update API key if provided. Written BEFORE the live endpoint is mutated,
+        // so a failed Credential Manager write refuses the whole edit (#742).
+        if (apiKey != null
+            && ApiKeys.SetCustomEndpointApiKey(id, string.IsNullOrEmpty(apiKey) ? null : apiKey).IsFailure)
+        {
+            // The name, URL and model stay as they were, but the key may not: the
+            // backend deletes before it adds, so the working key can already be
+            // gone. The recorded verdict no longer describes a known key, so it
+            // is retired, as any key change retires it.
+            endpoint.LastTestedAt = null;
+            endpoint.LastTestSuccess = null;
+            endpoints[index] = endpoint;
+            SettingsService.Instance.CustomEndpoints = endpoints;
+            EndpointsChanged?.Invoke(this, EventArgs.Empty);
+
+            validationError = Loc.S("onboarding.setup.provider.saveFailed");
+            return false;
+        }
+
         endpoint.Name = newName;
         endpoint.EndpointURL = newURL;
         endpoint.ModelName = newModel;
@@ -228,15 +259,6 @@ public class CustomEndpointManager : IDisposable
         {
             endpoint.LastTestedAt = DateTime.UtcNow;
             endpoint.LastTestSuccess = lastTestSuccess;
-        }
-
-        // Update API key if provided
-        if (apiKey != null)
-        {
-            if (string.IsNullOrEmpty(apiKey))
-                ApiKeyService.Instance.SetCustomEndpointApiKey(id, null);
-            else
-                ApiKeyService.Instance.SetCustomEndpointApiKey(id, apiKey);
         }
 
         endpoints[index] = endpoint;
@@ -263,8 +285,13 @@ public class CustomEndpointManager : IDisposable
         var name = endpoint.Name;
         endpoints.RemoveAll(e => e.Id == id);
 
-        // Delete API key
-        ApiKeyService.Instance.SetCustomEndpointApiKey(id, null);
+        // Delete API key. A failed delete does not block removing the endpoint:
+        // ApiKeyService has already logged it, and the orphaned credential is
+        // keyed by an id nothing references any more.
+        if (ApiKeys.SetCustomEndpointApiKey(id, null).IsFailure)
+        {
+            LoggingService.Warn($"CustomEndpointManager: Credential for deleted endpoint '{name}' could not be removed");
+        }
 
         SettingsService.Instance.CustomEndpoints = endpoints;
 
@@ -297,10 +324,14 @@ public class CustomEndpointManager : IDisposable
             LastTestSuccess = original.LastTestSuccess
         };
 
+        // A duplicate without its key would look identical and fail at first use,
+        // so a failed Credential Manager write refuses the duplicate (#742).
         var apiKey = GetApiKey(original.Id);
-        if (!string.IsNullOrEmpty(apiKey))
+        if (!string.IsNullOrEmpty(apiKey)
+            && ApiKeys.SetCustomEndpointApiKey(duplicate.Id, apiKey).IsFailure)
         {
-            ApiKeyService.Instance.SetCustomEndpointApiKey(duplicate.Id, apiKey);
+            LoggingService.Warn($"CustomEndpointManager: Duplicate of '{original.Name}' refused: its API key could not be stored");
+            return null;
         }
 
         endpoints.Add(duplicate);
@@ -332,7 +363,7 @@ public class CustomEndpointManager : IDisposable
     /// </summary>
     public string? GetApiKey(Guid endpointId)
     {
-        return ApiKeyService.Instance.GetCustomEndpointApiKey(endpointId);
+        return ApiKeys.GetCustomEndpointApiKey(endpointId);
     }
 
     /// <summary>

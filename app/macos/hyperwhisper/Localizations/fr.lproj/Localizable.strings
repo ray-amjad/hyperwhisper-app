@@ -727,7 +727,7 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "modes.postProcessing.apiKeyMissing" = "Clé API %@ non configurée. Ajoutez-la dans Réglages pour activer le post-traitement.";
 "modes.postProcessing.configure" = "Configurer dans Réglages";
 "modes.postProcessing.modelRecommendation" = "Nous recommandons GPT-4.1 Nano pour le meilleur équilibre entre vitesse et qualité.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Le post-traitement local nécessite un modèle local téléchargé.";
 "modes.postProcessing.download" = "Télécharger dans Réglages";
@@ -793,6 +793,8 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Aucun modèle local installé";
 "modes.notice.noLocalModels.subtitle" = "Installez d'abord un modèle dans Réglages";
+"modes.model.notInstalledFormat" = "%@ (non installé)";
+"modes.notice.modelNotInstalled" = "Le modèle de ce mode n'est pas installé. L'enregistrement le conserve. Téléchargez-le dans la Bibliothèque de modèles ou choisissez un autre modèle.";
 "modes.model.pricing" = "Tarif : $%.6f / minute (facturation à la seconde)";
 "modes.button.create" = "Créer le mode";
 "modes.button.delete" = "Supprimer le mode";
@@ -975,6 +977,10 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "settings.backup.localDownload.dismiss" = "Ignorer";
 "modelLibrary.local.requiresAppleSilicon" = "Nécessite Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Relancer en mode natif";
+"modelLibrary.remove.confirm.title" = "Supprimer %@ ?";
+"modelLibrary.remove.confirm.message" = "Vous devrez le télécharger à nouveau (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Vous devrez le télécharger à nouveau.";
+"modelLibrary.remove.confirm.button" = "Supprimer";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Crédits insuffisants. Ajoutez des crédits dans Réglages.";
@@ -1039,7 +1045,12 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "settings.backup.import.subtitle" = "Restaurer les réglages depuis un fichier de sauvegarde";
 "settings.backup.import.button" = "Importer...";
 "settings.backup.import.panel.title" = "Importer les réglages";
-"settings.backup.import.success" = "Import terminé : %d modes, %d éléments de vocabulaire importés";
+"settings.backup.import.result" = "Import terminé : %@";
+"settings.backup.import.result.settings" = "paramètres restaurés";
+"settings.backup.import.result.modes" = "%d modes importés";
+"settings.backup.import.result.vocabulary" = "%d éléments de vocabulaire importés";
+"settings.backup.import.complete" = "Import terminé";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Échec de lecture du fichier de sauvegarde";
 "settings.backup.import.error.decode" = "Format de fichier de sauvegarde invalide";
 "settings.backup.import.error.decode.keyNotFound" = "Champ obligatoire manquant : %@";

@@ -36,6 +36,10 @@ struct ModelLibraryView: View {
     @State private var showAPIKeysManager = false
     @State private var showingModelInUseAlert = false
     @State private var modelInUseMessage = ""
+    /// The installed model whose trash icon was clicked and that no mode uses.
+    /// The Remove confirmation is presented from this optional (never from a
+    /// separate Bool), and only its Remove button deletes the file (#1527).
+    @State private var pendingRemoval: LibraryModel?
     @State private var showCustomEndpointSheet = false
     @State private var editingEndpoint: CustomPostProcessingEndpoint?
 
@@ -163,6 +167,27 @@ struct ModelLibraryView: View {
             Button(LocalizedStringKey("common.ok"), role: .cancel) {}
         } message: {
             Text(modelInUseMessage)
+        }
+        .confirmationDialog(
+            pendingRemoval?.removalConfirmationTitle() ?? "",
+            isPresented: Binding(
+                get: { pendingRemoval != nil },
+                set: { if !$0 { pendingRemoval = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingRemoval
+        ) { model in
+            Button(role: .destructive) {
+                pendingRemoval = nil
+                confirmRemoval(of: model)
+            } label: {
+                Text(localized: "modelLibrary.remove.confirm.button")
+            }
+            Button(role: .cancel) { pendingRemoval = nil } label: {
+                Text(localized: "common.cancel")
+            }
+        } message: { model in
+            Text(model.removalConfirmationMessage())
         }
     }
 
@@ -718,37 +743,81 @@ struct ModelLibraryView: View {
         }
     }
 
+    /// The trash icon on an installed local model. A model a mode uses gets the
+    /// "Cannot Delete Model" alert and nothing else. Any other model is only
+    /// staged here: the file is deleted by the confirmation's Remove button,
+    /// through `confirmRemoval(of:)`, never by the click itself (#1527).
     private func triggerDelete(for model: LibraryModel) {
+        guard let blocker = removalBlocker(for: model) else { return }
+        guard !showCannotDeleteAlertIfNeeded(blocker.modes, messageKey: blocker.messageKey) else { return }
+        pendingRemoval = model
+    }
+
+    /// The Remove button. Runs the in-use check again, because a mode can
+    /// start using the model (Local API, another window) while the dialog is
+    /// open, then deletes.
+    private func confirmRemoval(of model: LibraryModel) {
+        guard let blocker = removalBlocker(for: model) else { return }
+        guard !showCannotDeleteAlertIfNeeded(blocker.modes, messageKey: blocker.messageKey) else { return }
+        performDelete(for: model)
+    }
+
+    /// The modes that use `model`, and the "in use" message for it. Nil for a
+    /// row the trash icon never offers removal on (cloud, Apple Speech, a
+    /// non-local post-processing model).
+    private func removalBlocker(for model: LibraryModel) -> (modes: [Mode], messageKey: String)? {
+        let canonical = model.canonicalModelId
+        switch model.providerKey {
+        case .localWhisper, .parakeet:
+            return (modes: modesUsingVoiceModel(canonical), messageKey: "settings.models.localASR.inUse")
+        case .qwen3ASR:
+            return (modes: modesUsingVoiceModel(Qwen3AsrModelManager.Constants.modelId), messageKey: "settings.models.localASR.inUse")
+        case .nemotron:
+            guard #available(macOS 14.0, *) else { return nil }
+            return (modes: modesUsingVoiceModel(canonical), messageKey: "settings.models.localASR.inUse")
+        case .postProcessing(.localLLM):
+            return (modes: modesUsingLocalLLM(canonical), messageKey: "settings.models.local.inUse")
+        case .postProcessing, .cloud, .appleSpeech:
+            return nil
+        }
+    }
+
+    /// Deletes the model file. Only `confirmRemoval(of:)` calls this.
+    private func performDelete(for model: LibraryModel) {
         let canonical = model.canonicalModelId
         switch model.providerKey {
         case .localWhisper:
-            checkAndRemoveModel(canonical)
+            Task {
+                if let item = whisperManager.downloadedModels.first(where: { $0.name == canonical }) {
+                    await whisperManager.deleteModel(item)
+                }
+            }
         case .parakeet:
-            checkAndRemoveParakeetModel(canonical)
+            parakeetManager.deleteModel(canonical)
         case .qwen3ASR:
-            checkAndRemoveQwen3AsrModel()
+            qwen3AsrManager.deleteModel()
         case .nemotron:
-            checkAndRemoveNemotronModel(canonical)
+            if #available(macOS 14.0, *) {
+                nemotronManager.deleteModel(canonical)
+            }
         case .postProcessing(.localLLM):
-            checkAndRemoveLocalModel(canonical)
-        default:
+            localLLMManager.deleteModel(canonical)
+        case .postProcessing, .cloud, .appleSpeech:
             break
         }
     }
 
-    @MainActor
-    private func checkAndRemoveNemotronModel(_ modelId: String) {
-        guard #available(macOS 14.0, *) else { return }
-        let modesUsingModel = PersistenceController.shared.fetchAllModes().filter { mode in
+    /// Modes whose voice model is `modelId` (Whisper, Parakeet, Qwen3 ASR,
+    /// Nemotron all store it in `mode.model`).
+    private func modesUsingVoiceModel(_ modelId: String) -> [Mode] {
+        PersistenceController.shared.fetchAllModes().filter { mode in
             (mode.model ?? "").caseInsensitiveCompare(modelId) == .orderedSame
         }
-
-        guard !showCannotDeleteAlertIfNeeded(modesUsingModel, messageKey: "settings.models.localASR.inUse") else { return }
-        nemotronManager.deleteModel(modelId)
     }
 
-    private func checkAndRemoveLocalModel(_ modelId: String) {
-        let modesUsingModel = PersistenceController.shared.fetchAllModes().filter { mode in
+    /// Modes that post-process with the local LLM `modelId`.
+    private func modesUsingLocalLLM(_ modelId: String) -> [Mode] {
+        PersistenceController.shared.fetchAllModes().filter { mode in
             let processingMode = PostProcessingMode(rawValue: mode.postProcessingMode) ?? .off
             let provider = mode.postProcessingProvider ?? ""
             let isActiveLocalMode = processingMode == .local
@@ -756,41 +825,6 @@ struct ModelLibraryView: View {
             let matchesModel = (mode.languageModel ?? "").caseInsensitiveCompare(modelId) == .orderedSame
             return isActiveLocalMode && matchesProvider && matchesModel
         }
-
-        guard !showCannotDeleteAlertIfNeeded(modesUsingModel, messageKey: "settings.models.local.inUse") else { return }
-        localLLMManager.deleteModel(modelId)
-    }
-
-    private func checkAndRemoveModel(_ modelId: String) {
-        let modesUsingModel = PersistenceController.shared.fetchAllModes().filter { mode in
-            (mode.model ?? "").caseInsensitiveCompare(modelId) == .orderedSame
-        }
-
-        guard !showCannotDeleteAlertIfNeeded(modesUsingModel, messageKey: "settings.models.localASR.inUse") else { return }
-
-        Task {
-            if let model = whisperManager.downloadedModels.first(where: { $0.name == modelId }) {
-                await whisperManager.deleteModel(model)
-            }
-        }
-    }
-
-    private func checkAndRemoveQwen3AsrModel() {
-        let modesUsingModel = PersistenceController.shared.fetchAllModes().filter { mode in
-            (mode.model ?? "").caseInsensitiveCompare(Qwen3AsrModelManager.Constants.modelId) == .orderedSame
-        }
-
-        guard !showCannotDeleteAlertIfNeeded(modesUsingModel, messageKey: "settings.models.localASR.inUse") else { return }
-        qwen3AsrManager.deleteModel()
-    }
-
-    private func checkAndRemoveParakeetModel(_ modelId: String) {
-        let modesUsingModel = PersistenceController.shared.fetchAllModes().filter { mode in
-            (mode.model ?? "").caseInsensitiveCompare(modelId) == .orderedSame
-        }
-
-        guard !showCannotDeleteAlertIfNeeded(modesUsingModel, messageKey: "settings.models.localASR.inUse") else { return }
-        parakeetManager.deleteModel(modelId)
     }
 
     @discardableResult

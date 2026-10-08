@@ -143,8 +143,8 @@ internal static class ModesEndpoints
                 EnableScreenOCR = dto.EnableScreenOcr ?? false,
                 GeminiCustomPrompt = dto.GeminiCustomPrompt,
                 // Fallback post-processing model mirrors the GUI/default-mode
-                // recommendation (ModeDefaults.cs: Anthropic Claude Haiku 4.5).
-                CloudPostProcessingModel = dto.CloudPostProcessingModel ?? "anthropic:claude-haiku-4-5",
+                // recommendation (ModeDefaults.cs: Anthropic Claude Haiku 5.5).
+                CloudPostProcessingModel = dto.CloudPostProcessingModel ?? "anthropic:claude-haiku-5-5",
                 LocalEngine = dto.LocalEngine ?? "whisper",
                 LocalParakeetModel = dto.LocalParakeetModel,
                 LocalPostProcessingModel = dto.LocalPostProcessingModel,

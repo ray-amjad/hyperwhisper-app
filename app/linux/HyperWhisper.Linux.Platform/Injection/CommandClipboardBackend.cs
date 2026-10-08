@@ -139,8 +139,14 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
     private IReadOnlyList<string> ListArguments() => _wayland
         ? ["--list-types"]
         : ["-selection", "clipboard", "-target", "TARGETS", "-out"];
+    /// <summary>
+    /// wl-paste appends a newline to a text type unless told not to, so a capture without
+    /// --no-newline holds bytes the clipboard never had: a restore writes them back with an
+    /// extra newline, and a transcript never matches its own capture (#1514). wl-paste already
+    /// sets it for non-text types, so passing it for every format is safe.
+    /// </summary>
     private IReadOnlyList<string> ReadArguments(string format) => _wayland
-        ? ["--type", format]
+        ? ["--no-newline", "--type", format]
         : ["-selection", "clipboard", "-target", format, "-out"];
     /// <summary>
     /// A null <paramref name="format"/> leaves the helper on its default target set, which is the

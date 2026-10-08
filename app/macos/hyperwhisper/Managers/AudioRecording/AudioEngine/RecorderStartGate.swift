@@ -29,30 +29,23 @@ import os
 ///   new start can fail at once instead of queueing behind a call already known
 ///   to be stuck.
 ///
-/// `@unchecked Sendable`: the only mutable state is `abandonedCount`, behind a lock.
+/// `@unchecked Sendable`: no mutable state of its own; `DeadlineGate` owns the
+/// lock-guarded attempt state and abandoned count. The deadline protocol lives
+/// there, shared with `ClipboardSnapshotReader` (#879), so the two cannot drift.
+/// The recorder keeps `.runAnyway`: a start whose caller timed out while it was
+/// still queued runs as before, and its recorder goes to `discardLate`.
 final class RecorderStartGate: @unchecked Sendable {
 
-    private enum AttemptState: Sendable {
-        case pending
-        case finished
-        case timedOut
-    }
-
-    private let queue: DispatchQueue
-    private let timeout: DispatchTimeInterval
-
-    /// Timed-out calls that are still blocked on `queue`.
-    private let abandonedCount = OSAllocatedUnfairLock(initialState: 0)
+    private let gate: DeadlineGate
 
     init(queue: DispatchQueue, timeout: DispatchTimeInterval) {
-        self.queue = queue
-        self.timeout = timeout
+        self.gate = DeadlineGate(queue: queue, timeout: timeout, queuedPastDeadline: .runAnyway)
     }
 
     /// True while a call that already timed out is still blocked on the queue.
     /// Anything submitted now would wait behind it.
     var hasAbandonedWork: Bool {
-        abandonedCount.withLock { $0 > 0 }
+        gate.hasAbandonedWork
     }
 
     /// Run `work` on the queue and return its result, or throw
@@ -65,42 +58,16 @@ final class RecorderStartGate: @unchecked Sendable {
         _ work: @escaping () throws -> T,
         discardLate: @escaping (T) -> Void
     ) async throws -> T {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
-            // The attempt state and `abandonedCount` change in one critical section,
-            // so the queue can never see `.timedOut` before the count went up. That
-            // is why this is a lock and not the usual `ManagedAtomic<Bool>` guard.
-            let state = OSAllocatedUnfairLock(initialState: AttemptState.pending)
-
-            queue.async {
-                let result = Result { try work() }
-                let arrivedLate = state.withLock { current -> Bool in
-                    if current == .timedOut { return true }
-                    current = .finished
-                    return false
-                }
-
-                guard arrivedLate else {
-                    continuation.resume(with: result)
-                    return
-                }
-
-                if case .success(let value) = result {
-                    discardLate(value)
-                }
-                self.abandonedCount.withLock { $0 -= 1 }
+        let outcome = await gate.run({ Result { try work() } }, discardLate: { result in
+            if case .success(let value) = result {
+                discardLate(value)
             }
-
-            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + timeout) {
-                let timedOut = state.withLock { current -> Bool in
-                    guard current == .pending else { return false }
-                    current = .timedOut
-                    self.abandonedCount.withLock { $0 += 1 }
-                    return true
-                }
-                if timedOut {
-                    continuation.resume(throwing: AudioError.audioSystemNotResponding)
-                }
-            }
+        })
+        switch outcome {
+        case .finished(let result):
+            return try result.get()
+        case .timedOut:
+            throw AudioError.audioSystemNotResponding
         }
     }
 }

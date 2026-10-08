@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "%@ の API キーが設定されていません。後処理を有効にするには設定で追加してください。";
 "modes.postProcessing.configure" = "設定を開く";
 "modes.postProcessing.modelRecommendation" = "速度と品質のバランスには GPT-4.1 Nano の使用をおすすめします。";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "ローカルポスト処理にはダウンロード済みのローカルモデルが必要です。";
 "modes.postProcessing.download" = "設定でダウンロード";
@@ -794,6 +794,8 @@
 "modes.provider.cloud" = "クラウド";
 "modes.notice.noLocalModels.title" = "ローカルモデルがインストールされていません";
 "modes.notice.noLocalModels.subtitle" = "まず設定でモデルをインストールしてください";
+"modes.model.notInstalledFormat" = "%@（未インストール）";
+"modes.notice.modelNotInstalled" = "このモードのモデルはインストールされていません。保存してもそのまま残ります。モデルライブラリからダウンロードするか、別のモデルを選んでください。";
 "modes.model.pricing" = "料金: 1 分あたり $%.6f（秒単位で課金）";
 "modes.button.create" = "モードを作成";
 "modes.button.delete" = "モードを削除";
@@ -976,6 +978,10 @@
 "settings.backup.localDownload.dismiss" = "閉じる";
 "modelLibrary.local.requiresAppleSilicon" = "Apple Silicon が必要です";
 "modelLibrary.local.needsNativeRelaunch" = "ネイティブで再起動";
+"modelLibrary.remove.confirm.title" = "%@を削除しますか？";
+"modelLibrary.remove.confirm.message" = "再度ダウンロードする必要があります（%@）。";
+"modelLibrary.remove.confirm.messageNoSize" = "再度ダウンロードする必要があります。";
+"modelLibrary.remove.confirm.button" = "削除";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "クレジットが不足しています。設定でクレジットを追加してください。";
@@ -1040,7 +1046,12 @@
 "settings.backup.import.subtitle" = "バックアップファイルから設定を復元";
 "settings.backup.import.button" = "インポート...";
 "settings.backup.import.panel.title" = "設定をインポート";
-"settings.backup.import.success" = "インポート完了: %d モード、%d 語彙項目をインポートしました";
+"settings.backup.import.result" = "インポート完了: %@";
+"settings.backup.import.result.settings" = "設定を復元しました";
+"settings.backup.import.result.modes" = "%d モードをインポートしました";
+"settings.backup.import.result.vocabulary" = "%d 語彙項目をインポートしました";
+"settings.backup.import.complete" = "インポート完了";
+"settings.backup.import.result.separator" = "、";
 "settings.backup.import.error.read" = "バックアップファイルの読み込みに失敗しました";
 "settings.backup.import.error.decode" = "無効なバックアップファイル形式です";
 "settings.backup.import.error.decode.keyNotFound" = "必須フィールドがありません: %@";

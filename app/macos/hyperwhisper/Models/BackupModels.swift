@@ -135,7 +135,7 @@ struct UniversalBackupDTO: Codable {
 /// Decode is lenient: unknown universal keys (`localPostProcessingModel`, per-mode
 /// `platformExtensions.windows`, etc.) are simply not listed here, so a Windows mode decodes
 /// without throwing. All non-identity fields are optional for the same reason. On EXPORT macOS
-/// emits `platformExtensions: {}` per mode to match the macOS example fixture.
+/// emits its own per-mode slice (`platformExtensions.macos`, #1481) plus any preserved foreign slices.
 struct UniversalModeDTO: Codable {
     let id: String
     let name: String
@@ -160,12 +160,13 @@ struct UniversalModeDTO: Codable {
     let geminiCustomPrompt: String?
     let cloudAccuracyTier: String?
     let cloudPostProcessingModel: String?
-    /// Per-mode platform extensions. macOS emits `{}` on export; on import the value is
-    /// ignored (BackupMode has no per-mode extensions — the known, accepted limitation).
+    /// Per-mode platform extensions. macOS writes `macos.enableScreenOCR` and
+    /// `macos.useStreamingTranscription` here (#1481); on import those are read back, the
+    /// foreign slices are preserved verbatim, and a foreign `enableScreenOCR` is the fallback.
     let platformExtensions: JSONValue?
 
-    /// Builds a universal mode DTO from a v1 `BackupMode` (export projection). Emits an
-    /// explicit empty `platformExtensions` object to match the macOS example fixture.
+    /// Builds a universal mode DTO from a v1 `BackupMode` (export projection). Always emits a
+    /// `platformExtensions` object, empty only when the mode has nothing to put in it.
     init(from m: BackupMode) {
         self.id = m.id.uuidString
         self.name = m.name
@@ -192,17 +193,45 @@ struct UniversalModeDTO: Codable {
         self.cloudPostProcessingModel = m.cloudPostProcessingModel
         // Re-emit any foreign (non-macOS) platformExtensions slices captured on a
         // prior v2 import (H4) so a Windows mode's per-mode data survives a macOS
-        // round-trip. macOS has no per-mode slice of its own to add, so when
-        // nothing was preserved this stays an explicit empty object (matching the
-        // example fixture).
+        // round-trip.
+        var extensions: [String: JSONValue] = [:]
         if let raw = m.foreignPlatformExtensions,
            let data = raw.data(using: .utf8),
            let decoded = try? JSONDecoder().decode(JSONValue.self, from: data),
-           case .object(let obj) = decoded, !obj.isEmpty {
-            self.platformExtensions = .object(obj)
-        } else {
-            self.platformExtensions = .object([:])
+           case .object(let obj) = decoded {
+            extensions = obj
         }
+        // macOS's own per-mode slice (#1481): the mode fields the shared `Mode`
+        // schema object has no property for. Our own slice always wins over a
+        // stale preserved copy.
+        var macos: [String: JSONValue] = [:]
+        if let enableScreenOCR = m.enableScreenOCR {
+            macos[Self.enableScreenOCRKey] = .bool(enableScreenOCR)
+        }
+        if let useStreamingTranscription = m.useStreamingTranscription {
+            macos[Self.useStreamingTranscriptionKey] = .bool(useStreamingTranscription)
+        }
+        if !macos.isEmpty {
+            extensions["macos"] = .object(macos)
+        }
+        self.platformExtensions = .object(extensions)
+    }
+
+    /// Per-mode `platformExtensions.<platform>` member names (#1481). Windows and
+    /// Linux already write `enableScreenOCR` under the same name in their slices.
+    static let enableScreenOCRKey = "enableScreenOCR"
+    static let useStreamingTranscriptionKey = "useStreamingTranscription"
+
+    /// The value of a per-mode Bool in `platformExtensions`, looked up in
+    /// `platforms` order; `nil` when no listed slice carries it as a Bool.
+    func platformExtensionBool(_ key: String, platforms: [String]) -> Bool? {
+        guard let slices = platformExtensions?.objectValue else { return nil }
+        for platform in platforms {
+            if case .bool(let value)? = slices[platform]?.objectValue?[key] {
+                return value
+            }
+        }
+        return nil
     }
 }
 
@@ -448,6 +477,48 @@ struct BackupShortcutSettings: Codable {
     let pushToTalkDoublePressEnabled: Bool
     let quickCaptureEnabled: Bool?
     let quickCaptureModeId: String?
+    /// The key combo of every `KeyboardShortcuts.Name`, keyed by its raw value
+    /// (#1481). Optional: a backup written before this field existed decodes to
+    /// `nil`, and the restore then leaves every shortcut as it is. See
+    /// `BackupKeyboardShortcuts` for the per-entry rules.
+    var keyboardShortcuts: [String: BackupShortcutBinding]? = nil
+}
+
+/// One action's key combo in a backup (#1481): `.combo` holds the two Carbon values the
+/// KeyboardShortcuts package itself persists, or JSON `null` when the action
+/// has no shortcut (the user cleared it, or Quick Capture was never set).
+enum BackupShortcutBinding: Codable, Equatable {
+    case unassigned
+    case combo(carbonKeyCode: Int, carbonModifiers: Int)
+
+    private enum CodingKeys: String, CodingKey {
+        case carbonKeyCode, carbonModifiers
+    }
+
+    init(from decoder: Decoder) throws {
+        let single = try decoder.singleValueContainer()
+        if single.decodeNil() {
+            self = .unassigned
+            return
+        }
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self = .combo(
+            carbonKeyCode: try container.decode(Int.self, forKey: .carbonKeyCode),
+            carbonModifiers: try container.decodeIfPresent(Int.self, forKey: .carbonModifiers) ?? 0
+        )
+    }
+
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .unassigned:
+            var single = encoder.singleValueContainer()
+            try single.encodeNil()
+        case .combo(let carbonKeyCode, let carbonModifiers):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(carbonKeyCode, forKey: .carbonKeyCode)
+            try container.encode(carbonModifiers, forKey: .carbonModifiers)
+        }
+    }
 }
 
 /// AI model and transcription settings
@@ -497,6 +568,11 @@ struct BackupMode: Codable {
     let geminiCustomPrompt: String?
     let cloudPostProcessingModel: String?
     let cloudTranscriptionDomain: String?  // X-STT-Domain ("medical") — optional for back-compat decode
+    /// Per-mode screen OCR and live streaming (#1481). Optional: a backup written
+    /// before these fields existed decodes to `nil`, and `importModes` then keeps
+    /// the value of the local mode the row replaces (`false` when there is none).
+    let enableScreenOCR: Bool?
+    let useStreamingTranscription: Bool?
 
     /// Raw JSON of the mode's NON-macOS `platformExtensions` slices (e.g. the
     /// `windows` blob), captured on universal-v2 import and re-emitted on v2 export
@@ -515,6 +591,7 @@ struct BackupMode: Codable {
         case englishSpelling, userSystemPrompt, isDefault, sortOrder
         case cloudAccuracyTier, removeTrailingPeriod, geminiCustomPrompt
         case cloudPostProcessingModel, cloudTranscriptionDomain
+        case enableScreenOCR, useStreamingTranscription
     }
 
     /// Creates a BackupMode from a Core Data Mode entity
@@ -542,6 +619,8 @@ struct BackupMode: Codable {
         self.geminiCustomPrompt = mode.geminiCustomPrompt
         self.cloudPostProcessingModel = mode.cloudPostProcessingModel
         self.cloudTranscriptionDomain = mode.cloudTranscriptionDomain
+        self.enableScreenOCR = mode.enableScreenOCR
+        self.useStreamingTranscription = mode.useStreamingTranscription
         self.foreignPlatformExtensions = mode.foreignPlatformExtensions
     }
 
@@ -572,6 +651,8 @@ struct BackupMode: Codable {
         geminiCustomPrompt: String?,
         cloudPostProcessingModel: String?,
         cloudTranscriptionDomain: String?,
+        enableScreenOCR: Bool? = nil,
+        useStreamingTranscription: Bool? = nil,
         foreignPlatformExtensions: String? = nil
     ) {
         self.id = id
@@ -597,6 +678,8 @@ struct BackupMode: Codable {
         self.geminiCustomPrompt = geminiCustomPrompt
         self.cloudPostProcessingModel = cloudPostProcessingModel
         self.cloudTranscriptionDomain = cloudTranscriptionDomain
+        self.enableScreenOCR = enableScreenOCR
+        self.useStreamingTranscription = useStreamingTranscription
         self.foreignPlatformExtensions = foreignPlatformExtensions
     }
 }
@@ -840,6 +923,11 @@ struct ImportResult {
         )
     }
 
+    /// Whether the settings section was actually applied. Selecting Settings is not enough:
+    /// the universal-v2 path logs and continues when its settings step fails, so the success
+    /// message reads this flag rather than `ImportOptions.importSettings` (#1406).
+    var settingsApplied: Bool = false
+
     /// Creates a successful import result
     static func success(
         modesImported: Int,
@@ -897,6 +985,63 @@ struct ImportResult {
             apiKeysImported: apiKeysImported,
             licenseKeyImported: false,
             errorMessage: message
+        )
+    }
+}
+
+// MARK: - Import Success Message
+
+extension ImportResult {
+    /// One line of the import success message: a section that the import changed.
+    enum SummaryItem: Equatable {
+        case settings
+        case modes(Int)
+        case vocabulary(Int)
+    }
+
+    /// What the success message reports, in display order (#1406).
+    ///
+    /// The message covers settings, modes and vocabulary only. Settings are listed only when
+    /// they were applied. Modes and vocabulary are listed whenever the user chose them, with
+    /// their count, so a chosen section whose items were all skipped still reads "0 … imported";
+    /// an unchosen section never appears. API keys and the license key are not reported here:
+    /// `apiKeysImported` can be true when no key was written, so the message makes no claim
+    /// about them.
+    func summaryItems(options: ImportOptions) -> [SummaryItem] {
+        var items: [SummaryItem] = []
+        if settingsApplied { items.append(.settings) }
+        if options.importModes { items.append(.modes(modesImported)) }
+        if options.importVocabulary { items.append(.vocabulary(vocabularyImported)) }
+        return items
+    }
+
+    /// The localized success message for a completed import, built from `summaryItems(options:)`.
+    /// With nothing to list it is a plain "Import complete", which claims no change either way.
+    func successMessage(options: ImportOptions) -> String {
+        let parts: [String] = summaryItems(options: options).map { item in
+            switch item {
+            case .settings:
+                return NSLocalizedString("settings.backup.import.result.settings", value: "settings restored", comment: "Import success list item: the settings section was applied")
+            case .modes(let count):
+                return String(
+                    format: NSLocalizedString("settings.backup.import.result.modes", value: "%d modes imported", comment: "Import success list item: number of modes imported"),
+                    count
+                )
+            case .vocabulary(let count):
+                return String(
+                    format: NSLocalizedString("settings.backup.import.result.vocabulary", value: "%d vocabulary items imported", comment: "Import success list item: number of vocabulary items imported"),
+                    count
+                )
+            }
+        }
+
+        if parts.isEmpty {
+            return NSLocalizedString("settings.backup.import.complete", value: "Import complete", comment: "Import success message when no settings, modes or vocabulary were imported")
+        }
+        let list = parts.joined(separator: NSLocalizedString("settings.backup.import.result.separator", value: ", ", comment: "Separator between items of the import success list"))
+        return String(
+            format: NSLocalizedString("settings.backup.import.result", value: "Import complete: %@", comment: "Import success message; %@ is a comma-separated list of what was imported"),
+            list
         )
     }
 }

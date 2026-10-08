@@ -214,6 +214,11 @@ extension TranscriptionPipeline {
                Self.isParakeetFailureReportedAtSource(reason) {
                 return false
             }
+            // Qwen3 ASR does the same: its runtime sends each compute-unit
+            // attempt's CoreML domain and code before the provider throws this.
+            if Qwen3AsrRuntimeLoad.isReportedAtSource(transcriptionError) {
+                return false
+            }
             return !Self.isTransientProviderAvailabilityReason(reason)
         case .invalidResponse, .modelProtected, .audioFileNotFound,
              .apiKeyMissing, .maxRetriesExceeded, .unauthorized, .invalidRequest,

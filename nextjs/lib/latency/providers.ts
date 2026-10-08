@@ -114,6 +114,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
       { id: "whisper-1", displayName: "Whisper" },
       { id: "gpt-transcribe", displayName: "GPT Transcribe", isDefault: true },
       { id: "gpt-live-transcribe", displayName: "GPT Live Transcribe" },
+      { id: "gpt-4o-mini-transcribe-2025-12-15", displayName: "GPT-4o Mini Transcribe (2025-12-15)" },
     ],
   },
   {
@@ -145,10 +146,10 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendor: "google",
     vendorDisplayName: "Google",
     models: [
-      { id: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash", isDefault: true },
+      { id: "gemini-3.8-flash", displayName: "Gemini 3.8 Flash", isDefault: true },
+      { id: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash" },
       { id: "gemini-2.5-flash-lite", displayName: "Gemini 2.5 Flash Lite" },
       { id: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro" },
-      { id: "gemini-3-flash-preview", displayName: "Gemini 3 Flash" },
       { id: "gemini-3.1-pro-preview", displayName: "Gemini 3.1 Pro" },
     ],
   },

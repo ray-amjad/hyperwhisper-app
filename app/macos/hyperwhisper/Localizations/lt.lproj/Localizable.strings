@@ -727,7 +727,7 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.postProcessing.apiKeyMissing" = "%@ API raktas nesukonfigūruotas. Pridėkite jį nustatymuose, jei norite suaktyvinti post apdorojimą.";
 "modes.postProcessing.configure" = "Sukonfigūruoti nustatymuose";
 "modes.postProcessing.modelRecommendation" = "Rekomenduojame naudoti GPT-4.1 Nano geriausioms greičio ir kokybės balanso.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Vietinis post apdorojimas reikalauja atsisiųsto vietinio modelio.";
 "modes.postProcessing.download" = "Atsisiųsti nustatymuose";
@@ -793,6 +793,8 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.provider.cloud" = "Debesys";
 "modes.notice.noLocalModels.title" = "Nėra instaliuotų vietinių modelių";
 "modes.notice.noLocalModels.subtitle" = "Pirmiausia instaliuokite modelį nustatymuose";
+"modes.model.notInstalledFormat" = "%@ (neįdiegtas)";
+"modes.notice.modelNotInstalled" = "Šio režimo modelis neįdiegtas. Išsaugojus jis paliekamas. Atsisiųskite jį Modelių bibliotekoje arba pasirinkite kitą modelį.";
 "modes.model.pricing" = "Kainos: $%.6f / minutę (apmokestinta per sekundę)";
 "modes.button.create" = "Sukurti režimą";
 "modes.button.delete" = "Ištrinti režimą";
@@ -975,6 +977,10 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.localDownload.dismiss" = "Atmesti";
 "modelLibrary.local.requiresAppleSilicon" = "Reikia Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Paleisti iš naujo natyviai";
+"modelLibrary.remove.confirm.title" = "Pašalinti %@?";
+"modelLibrary.remove.confirm.message" = "Turėsite jį atsisiųsti iš naujo (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Turėsite jį atsisiųsti iš naujo.";
+"modelLibrary.remove.confirm.button" = "Pašalinti";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nepakanka kreditų. Pridėkite daugiau kreditų nustatymuose.";
@@ -1039,7 +1045,12 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.import.subtitle" = "Atkurti nustatymus iš atsarginio kopijos failo";
 "settings.backup.import.button" = "Importuoti...";
 "settings.backup.import.panel.title" = "Importuoti nustatymai";
-"settings.backup.import.success" = "Importas atliktas: %d režimi, %d žodyno dalykos importuoti";
+"settings.backup.import.result" = "Importas atliktas: %@";
+"settings.backup.import.result.settings" = "nustatymai atkurti";
+"settings.backup.import.result.modes" = "importuota režimų: %d";
+"settings.backup.import.result.vocabulary" = "importuota žodyno elementų: %d";
+"settings.backup.import.complete" = "Importas atliktas";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Nepavyko skaityti atsarginio kopijos failo";
 "settings.backup.import.error.decode" = "Neteisinas atsarginio kopijos failo formatas";
 "settings.backup.import.error.decode.keyNotFound" = "Trūksta privalomo lauko: %@";

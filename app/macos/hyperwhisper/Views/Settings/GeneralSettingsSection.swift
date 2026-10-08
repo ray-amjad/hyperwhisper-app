@@ -14,6 +14,9 @@ struct GeneralSettingsSection: View {
     @EnvironmentObject var settingsManager: SettingsManager
     @State private var launchAtLoginEnabled = false
     @State private var ignoreNextLaunchAtLoginChange = false
+    /// Bumped on every user toggle, so a read or write that finishes after a
+    /// newer toggle does not overwrite the newer state.
+    @State private var launchAtLoginRequest = 0
 
     var body: some View {
         SettingsSection(title: "settings.section.general") {
@@ -27,16 +30,32 @@ struct GeneralSettingsSection: View {
         }
     }
 
+    // MARK: - Launch at login
+
+    /// Shows the login item's real state on the toggle, unless the user has
+    /// toggled again since `request` began. Sets the ignore flag only when the
+    /// value actually changes — onChange does not fire otherwise, and a flag
+    /// left set would swallow the user's next click.
+    private func applyLaunchAtLoginState(_ actual: Bool, ifStillRequest request: Int) {
+        guard request == launchAtLoginRequest, actual != launchAtLoginEnabled else { return }
+        ignoreNextLaunchAtLoginChange = true
+        launchAtLoginEnabled = actual
+    }
+
     // MARK: - Cards
 
     private var applicationBehaviourCard: some View {
         SettingsCard(horizontalPadding: 8) {
             VStack(spacing: 0) {
                 // LAUNCH AT LOGIN
-                // Routes through LaunchAtLoginManager (native SMAppService wrapper)
+                // Routes through LaunchAtLoginManager (native login-item wrapper)
                 // instead of the LaunchAtLogin package's computed Binding(get:set:),
                 // which infinite-recurses through SerialExecutor.isMainExecutor.getter
                 // on macOS 26.2 (Sentry HYPERWHISPER-3V).
+                //
+                // Every read and write is awaited off the main thread: each is a
+                // blocking XPC call that froze this page on appear (#853, Sentry
+                // HYPERWHISPER-SY). The toggle fills in a moment after the page draws.
                 SettingsToggleRow(
                     title: "settings.general.launchAtLogin.title",
                     subtitle: nil,
@@ -44,23 +63,28 @@ struct GeneralSettingsSection: View {
                     isOn: $launchAtLoginEnabled,
                     standalone: false
                 )
-                .onAppear {
-                    launchAtLoginEnabled = LaunchAtLoginManager.isEnabled
+                .task {
+                    // Re-read on every appear: the user can change the login
+                    // item in System Settings while the app runs.
+                    let request = launchAtLoginRequest
+                    let actual = await settingsManager.refreshLaunchAtLogin()
+                    applyLaunchAtLoginState(actual, ifStillRequest: request)
                 }
                 .onChange(of: launchAtLoginEnabled) { _, newValue in
                     if ignoreNextLaunchAtLoginChange {
                         ignoreNextLaunchAtLoginChange = false
                         return
                     }
-                    LaunchAtLoginManager.setEnabled(newValue)
-                    // Resync from SMAppService — the system may reject the
-                    // change (user denied approval, app unsigned, etc.) and
-                    // setEnabled only logs the error. Without this, the
-                    // toggle keeps the unapplied value (#286 review P2).
-                    let actual = LaunchAtLoginManager.isEnabled
-                    if actual != newValue {
-                        ignoreNextLaunchAtLoginChange = true
-                        launchAtLoginEnabled = actual
+                    launchAtLoginRequest += 1
+                    let request = launchAtLoginRequest
+                    Task {
+                        // Resync from the returned state — the system may
+                        // reject the change (user denied approval, app
+                        // unsigned, etc.) and setLaunchAtLogin only logs the
+                        // error. Without this, the toggle keeps the unapplied
+                        // value (#286 review P2).
+                        let actual = await settingsManager.setLaunchAtLogin(newValue)
+                        applyLaunchAtLoginState(actual, ifStillRequest: request)
                     }
                 }
 

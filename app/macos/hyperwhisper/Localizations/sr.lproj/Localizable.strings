@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "%@ API кључ није конфигурисан. Додај га у Поставке да омогућиш постпроцесирање.";
 "modes.postProcessing.configure" = "Конфигуриши у Поставкама";
 "modes.postProcessing.modelRecommendation" = "Препоручујемо коришћење GPT-4.1 Nano за најбољи баланс брзине и квалитета.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Локална пост-обрада захтева преузет локални модел.";
 "modes.postProcessing.download" = "Преузми у Поставкама";
@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "Облак";
 "modes.notice.noLocalModels.title" = "Нема инсталирanih локалних модела";
 "modes.notice.noLocalModels.subtitle" = "Прво инсталирај модел у Поставкама";
+"modes.model.notInstalledFormat" = "%@ (није инсталиран)";
+"modes.notice.modelNotInstalled" = "Модел овог режима није инсталиран. Чување га задржава. Преузмите га у Библиотеци модела или изаберите други модел.";
 "modes.model.pricing" = "Цена: $%.6f / минута (наплаћена по секунди)";
 "modes.button.create" = "Направи Режим";
 "modes.button.delete" = "Обриши Режим";
@@ -975,6 +977,10 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "settings.backup.localDownload.dismiss" = "Odbaci";
 "modelLibrary.local.requiresAppleSilicon" = "Zahteva Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Ponovo pokreni izvorno";
+"modelLibrary.remove.confirm.title" = "Уклонити %@?";
+"modelLibrary.remove.confirm.message" = "Мораћете поново да га преузмете (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Мораћете поново да га преузмете.";
+"modelLibrary.remove.confirm.button" = "Уклони";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недовољно кредита. Додај више кредита у Поставкама.";
@@ -1039,7 +1045,12 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "settings.backup.import.subtitle" = "Врати поставке из датотеке резервне копије";
 "settings.backup.import.button" = "Импортуј...";
 "settings.backup.import.panel.title" = "Импортуј Поставке";
-"settings.backup.import.success" = "Импорт комплетан: %d режима, %d речника предмета импортована";
+"settings.backup.import.result" = "Импорт комплетан: %@";
+"settings.backup.import.result.settings" = "подешавања враћена";
+"settings.backup.import.result.modes" = "увезено режима: %d";
+"settings.backup.import.result.vocabulary" = "увезено ставки речника: %d";
+"settings.backup.import.complete" = "Импорт комплетан";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Неуспешно читање датотеке резервне копије";
 "settings.backup.import.error.decode" = "Неважећи формат датотеке резервне копије";
 "settings.backup.import.error.decode.keyNotFound" = "Недостаје обавезно поље: %@";

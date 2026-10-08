@@ -28,7 +28,8 @@ namespace HyperWhisper.Services;
 /// 2. Captures clipboard content for later restoration
 /// 3. After transcription, copies text to clipboard
 /// 4. Reactivates the captured window
-/// 5. Simulates Ctrl+V to paste
+/// 5. Simulates Ctrl+V to paste, once the user's held Shift/Alt/Win keys are up
+///    (awaited and bounded in SmartPasteAsync, released if still down; #1495)
 /// 6. Schedules restoration of original clipboard content
 ///
 /// CLIPBOARD PRESERVATION (matches macOS behavior):
@@ -88,6 +89,16 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
+
+    /// <summary>
+    /// The clipboard's change counter: every write to the clipboard by any process
+    /// bumps it, and reading it does not. 0 when it cannot be read.
+    /// </summary>
+    [DllImport("user32.dll")]
+    private static extern uint GetClipboardSequenceNumber();
 
     [StructLayout(LayoutKind.Sequential)]
     private struct GUITHREADINFO
@@ -173,8 +184,40 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     private Dictionary<string, object>? _savedClipboardData;
     private CancellationTokenSource? _restorationCts;
     private bool _isInRecordingSession;
+
+    // The clipboard sequence number read right after this service last wrote a
+    // transcript to the clipboard, or 0 when none is current (#1496). It is set
+    // only once a restore of the snapshot is scheduled for that transcript, so
+    // it means "this transcript is on the clipboard and the user's content is
+    // due back". While the clipboard still shows this number, a new session must
+    // keep the older snapshot instead of capturing the transcript.
+    private uint _ownTranscriptClipboardSequence;
+
+    // The sequence number of a transcript written in this session for which no
+    // restore has been scheduled yet, or 0. ScheduleClipboardRestore moves it to
+    // _ownTranscriptClipboardSequence; EndRecordingSession, finding it still set,
+    // treats the transcript as left on the clipboard on purpose (secure field,
+    // restore off) and drops the mark and the snapshot.
+    private uint _unscheduledTranscriptClipboardSequence;
     private readonly object _clipboardLock = new();
     private bool _disposed;
+
+    /// <summary>
+    /// Reads whether a virtual key is down, for the held-modifier guard (#1495).
+    /// GetAsyncKeyState in production; the smoke suite swaps in a fake so it can
+    /// drive the guard without a keyboard.
+    /// </summary>
+    internal Func<int, bool> IsKeyDown { get; set; } = static vk => (GetAsyncKeyState(vk) & 0x8000) != 0;
+
+    /// <summary>The awaited pause between key-state polls. A seam for the same reason.</summary>
+    internal Func<TimeSpan, CancellationToken, Task> ModifierPollDelay { get; set; } =
+        static (interval, token) => Task.Delay(interval, token);
+
+    /// <summary>Whether a Shift, Alt or Win key is down now, i.e. a Ctrl+V sent now would not be plain (#1495).</summary>
+    internal bool AnyPasteModifierHeld => PasteModifierGuard.HeldConflictingModifiers(IsKeyDown).Count > 0;
+
+    /// <summary>The longest <see cref="WaitForPasteModifiersReleasedAsync"/> waits.</summary>
+    internal TimeSpan ModifierReleaseTimeout { get; set; } = PasteModifierGuard.DefaultReleaseTimeout;
 
     // =========================================================================
     // CONSTRUCTOR
@@ -183,6 +226,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     public SmartPasteService()
     {
         _inputSimulator = new InputSimulator();
+        SendModifierKeyEvent = SendModifierKeyEventWithInputSimulator;
     }
 
     void PlatformContracts.ITextInjectionService.CaptureTarget()
@@ -278,7 +322,15 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             return ValueTask.FromResult(PlatformContracts.TextInjectionOutcome.Failed);
         }
 
-        return ValueTask.FromResult(WindowsTextInjectionMapper.ToPlatform(SmartPaste(text)));
+        return InjectTranscriptAfterModifierReleaseAsync(text, cancellationToken);
+    }
+
+    private async ValueTask<PlatformContracts.TextInjectionOutcome> InjectTranscriptAfterModifierReleaseAsync(
+        string text,
+        CancellationToken cancellationToken)
+    {
+        var result = await SmartPasteAsync(text, cancellationToken);
+        return WindowsTextInjectionMapper.ToPlatform(result);
     }
 
     // =========================================================================
@@ -338,6 +390,19 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     /// 2. Extract data from ALL clipboard formats (not just text)
     /// 3. Store raw data for later restoration
     ///
+    /// CHAINED DICTATIONS (#1496):
+    /// When the last transcript this service wrote had a restore scheduled, and
+    /// nothing has written to the clipboard since, the clipboard holds that
+    /// transcript, not the user's content. Capturing it would make this session's
+    /// restore write the old transcript back, and lose the user's clipboard for
+    /// good. So the earlier snapshot is kept instead. This covers a dictation
+    /// started inside the previous one's restore window, and one after a
+    /// dictation in that chain that wrote nothing (no speech, cancel). If the
+    /// user (or anything else) copied in between, the sequence number has moved
+    /// and a fresh snapshot is taken. A transcript left on the clipboard with no
+    /// restore (secure field, restore off) is not marked, so the next session
+    /// snapshots it as the clipboard, as before.
+    ///
     /// WHY EXTRACT DATA INSTEAD OF STORING IDATAOBJECT?
     /// Windows IDataObject instances are tied to the clipboard they came from.
     /// After Clipboard.SetDataObject() is called, the old IDataObject becomes invalid.
@@ -352,7 +417,21 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
         lock (_clipboardLock)
         {
+            _unscheduledTranscriptClipboardSequence = 0;
+
+            if (ClipboardHoldsOwnTranscript())
+            {
+                // Keep _savedClipboardData as it is, null included: an empty
+                // clipboard before the first dictation stays "nothing to restore",
+                // exactly as after a single dictation.
+                LoggingService.Info(
+                    "SmartPasteService: Clipboard still holds the previous transcript; keeping the earlier clipboard snapshot");
+                _isInRecordingSession = true;
+                return;
+            }
+
             _savedClipboardData = null;
+            _ownTranscriptClipboardSequence = 0;
 
             try
             {
@@ -436,12 +515,67 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     }
 
     /// <summary>
+    /// Whether the clipboard still holds the transcript this service last wrote,
+    /// i.e. nothing has written to it since (#1496). Callers hold _clipboardLock.
+    /// </summary>
+    private bool ClipboardHoldsOwnTranscript()
+    {
+        if (_ownTranscriptClipboardSequence == 0)
+            return false;
+
+        var current = GetClipboardSequenceNumber();
+        return current != 0 && current == _ownTranscriptClipboardSequence;
+    }
+
+    /// <summary>
+    /// Records that the clipboard now holds a transcript this service wrote.
+    /// Call right after the write returns. The mark is armed only when a restore
+    /// is scheduled for it (ScheduleClipboardRestore or EndRecordingSession).
+    /// </summary>
+    private void MarkClipboardHoldsOwnTranscript()
+    {
+        lock (_clipboardLock)
+        {
+            _ownTranscriptClipboardSequence = 0;
+            _unscheduledTranscriptClipboardSequence = GetClipboardSequenceNumber();
+        }
+    }
+
+    /// <summary>
     /// Ends the recording session.
     /// Call this after transcription and paste are complete.
     /// </summary>
     public void EndRecordingSession()
     {
-        _isInRecordingSession = false;
+        lock (_clipboardLock)
+        {
+            if (_unscheduledTranscriptClipboardSequence != 0)
+            {
+                if (_restorationCts != null && _savedClipboardData is { Count: > 0 })
+                {
+                    // A transcript written after this session's restore was
+                    // scheduled (a late streaming segment): that restore still
+                    // brings the user's content back, so it covers this one too.
+                    _ownTranscriptClipboardSequence = _unscheduledTranscriptClipboardSequence;
+                }
+                else
+                {
+                    // The transcript stays on the clipboard on purpose (secure
+                    // field, restore off): it is now the clipboard's content. The
+                    // next session snapshots it afresh, as before #1496, and no
+                    // stale snapshot lingers to be restored later.
+                    _ownTranscriptClipboardSequence = 0;
+                    _savedClipboardData = null;
+                    LoggingService.Debug(
+                        "SmartPasteService: Transcript left on the clipboard with no restore; dropped the clipboard snapshot");
+                }
+
+                _unscheduledTranscriptClipboardSequence = 0;
+            }
+
+            _isInRecordingSession = false;
+        }
+
         LoggingService.Debug("SmartPasteService: Ended recording session");
     }
 
@@ -515,6 +649,18 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         // Create new cancellation token for this restoration
         _restorationCts = new CancellationTokenSource();
         var token = _restorationCts.Token;
+
+        // #1496: the transcript this session wrote is now one whose restore is
+        // due, so a session started before that restore runs keeps the snapshot.
+        // With no write this session (nothing pasted), the earlier mark stands.
+        lock (_clipboardLock)
+        {
+            if (_unscheduledTranscriptClipboardSequence != 0)
+            {
+                _ownTranscriptClipboardSequence = _unscheduledTranscriptClipboardSequence;
+                _unscheduledTranscriptClipboardSequence = 0;
+            }
+        }
 
         // Schedule the restoration without blocking the caller
         _ = RestoreClipboardAfterDelayAsync(delay, token);
@@ -662,6 +808,8 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
                 if (restoredFormats.Count > 0)
                 {
                     Clipboard.SetDataObject(dataObject, true);
+                    // The clipboard holds the user's content again, not a transcript.
+                    _ownTranscriptClipboardSequence = 0;
                     LoggingService.Info($"SmartPasteService: Restored clipboard with {restoredFormats.Count} format(s): {string.Join(", ", restoredFormats)}");
                     return true;
                 }
@@ -705,6 +853,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         try
         {
             SetClipboardText(text);
+            MarkClipboardHoldsOwnTranscript();
             LoggingService.Info("SmartPasteService: Text copied to clipboard (auto-paste disabled)");
             SmartPasteDiagnostics.Report(PasteOutcome.ClipboardOnly, attempt);
             return true;
@@ -776,9 +925,83 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     }
 
     /// <summary>
+    /// <see cref="SmartPaste"/>, after first waiting (asynchronously, bounded) for
+    /// the user to let go of any Shift, Alt or Win key they are still holding
+    /// (#1495). Every paste that can follow a shortcut press goes through here: the
+    /// batch stop (toggle chord, push-to-talk release, tray, duration limit) and
+    /// the shared-core text delivery.
+    ///
+    /// Must be awaited from the UI thread, as SmartPaste is today: the clipboard
+    /// write needs the STA thread, and the awaits here resume on it.
+    /// </summary>
+    public async Task<SmartPasteResult> SmartPasteAsync(string text, CancellationToken cancellationToken = default)
+    {
+        // Nothing will be typed on these exits, so there is nothing to wait for.
+        if (!string.IsNullOrEmpty(text) && !TextDeliveryGate.IsSuppressed)
+        {
+            try
+            {
+                await WaitForPasteModifiersReleasedAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                LoggingService.Info("SmartPasteService: Paste cancelled while waiting for held modifiers to be released");
+                return SmartPasteResult.Failed;
+            }
+        }
+
+        return SmartPaste(text);
+    }
+
+    /// <summary>
+    /// Waits, without blocking the thread, until no Shift, Alt or Win key is down,
+    /// for at most <see cref="ModifierReleaseTimeout"/>. Returns at once when none
+    /// is down. Logs how long it waited, and when it gave up. Giving up is not a
+    /// failure: SmartPaste releases whatever is still down right before its Ctrl+V.
+    ///
+    /// Never replace the awaited delay with Thread.Sleep. The paste runs on the UI
+    /// thread, which is also where both WH_KEYBOARD_LL hooks run: a sleeping UI
+    /// thread cannot process the very key-up this waits for, and it freezes the
+    /// whole desktop keyboard until Windows times the hook out.
+    /// </summary>
+    public async Task WaitForPasteModifiersReleasedAsync(CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var wait = await PasteModifierGuard.WaitForReleaseAsync(
+            IsKeyDown,
+            ModifierReleaseTimeout,
+            PasteModifierGuard.DefaultPollInterval,
+            ModifierPollDelay,
+            cancellationToken);
+        stopwatch.Stop();
+
+        if (!wait.WasHeld)
+            return;
+
+        var heldKeys = PasteModifierGuard.Describe(wait.InitiallyHeld);
+        if (wait.Released)
+        {
+            LoggingService.Info(
+                $"SmartPasteService: Waited {stopwatch.ElapsedMilliseconds}ms for held {heldKeys} to be released before Ctrl+V");
+        }
+        else
+        {
+            LoggingService.Warn(
+                $"SmartPasteService: Gave up waiting for held modifiers after {stopwatch.ElapsedMilliseconds}ms " +
+                $"(held at start: {heldKeys}; still held: {PasteModifierGuard.Describe(wait.StillHeld)}); " +
+                "they will be released before Ctrl+V");
+        }
+    }
+
+    /// <summary>
     /// Pastes text by copying to clipboard, reactivating the previous window,
     /// and simulating Ctrl+V. Uses focus-aware detection for password field safety
     /// and app-specific paste delays.
+    ///
+    /// A caller that can await should call <see cref="SmartPasteAsync"/> instead,
+    /// which first waits for the user's held modifiers to come up. This method does
+    /// not wait; it releases any Shift, Alt or Win key that is still down right
+    /// before the Ctrl+V, so the target always receives a plain Ctrl+V (#1495).
     /// </summary>
     /// <returns>SmartPasteResult indicating what happened</returns>
     public SmartPasteResult SmartPaste(string text)
@@ -817,6 +1040,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         try
         {
             SetClipboardText(text);
+            MarkClipboardHoldsOwnTranscript();
             LoggingService.Debug("SmartPasteService: Text copied to clipboard");
         }
         catch (Exception ex)
@@ -880,6 +1104,11 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         // Step 6: Simulate Ctrl+V to paste
         try
         {
+            // A Shift, Alt or Win key still down here would turn the Ctrl+V into
+            // Ctrl+Alt+V or Ctrl+Shift+V, which pastes nothing in most targets
+            // while this method reports Pasted (#1495). Release it first.
+            ReleaseHeldModifiersBeforePaste();
+
             _inputSimulator.Keyboard.ModifiedKeyStroke(
                 VirtualKeyCode.CONTROL,
                 VirtualKeyCode.VK_V);
@@ -894,6 +1123,53 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             ReportSmartPasteOutcome(PasteOutcome.KeystrokeFailed, attempt, ex);
             return SmartPasteResult.Failed;
         }
+    }
+
+    /// <summary>
+    /// Sends one synthetic key event of a release plan. InputSimulator in
+    /// production (it sets the extended-key flag for Right Alt and the Win keys);
+    /// the smoke suite records the events instead of typing them.
+    /// </summary>
+    internal Action<PasteKeyEvent> SendModifierKeyEvent { get; set; }
+
+    private void SendModifierKeyEventWithInputSimulator(PasteKeyEvent keyEvent)
+    {
+        var key = (VirtualKeyCode)keyEvent.Vk;
+        if (keyEvent.KeyUp)
+            _inputSimulator.Keyboard.KeyUp(key);
+        else
+            _inputSimulator.Keyboard.KeyDown(key);
+    }
+
+    /// <summary>
+    /// Releases any Shift, Alt or Win key that is still down, so the Ctrl+V that
+    /// follows reaches the target as a plain Ctrl+V (#1495). Normally nothing is
+    /// down, because <see cref="SmartPasteAsync"/> waited for it; this covers the
+    /// wait giving up, a key pressed after the wait, and the streaming segment
+    /// path, which cannot wait without reordering segments.
+    ///
+    /// When Alt or Win is held, an unassigned key is tapped first so the
+    /// synthetic key-up is a chord release: a lone Alt key-up would open the
+    /// target's menu bar, and a lone Win key-up would open Start. The keys are not
+    /// pressed again afterwards, so their logical state stays up while the user
+    /// may still hold them; the user's own key-up later is a no-op for the target.
+    /// </summary>
+    /// <returns>The events sent; empty when nothing was held.</returns>
+    internal IReadOnlyList<PasteKeyEvent> ReleaseHeldModifiersBeforePaste()
+    {
+        var held = PasteModifierGuard.HeldConflictingModifiers(IsKeyDown);
+        var plan = PasteModifierGuard.PlanRelease(held);
+        if (plan.Count == 0)
+            return plan;
+
+        LoggingService.Warn(
+            $"SmartPasteService: {PasteModifierGuard.Describe(held)} still held at Ctrl+V; " +
+            $"releasing {(plan.Count > held.Count ? "with a menu-mask key " : string.Empty)}before the paste");
+
+        foreach (var keyEvent in plan)
+            SendModifierKeyEvent(keyEvent);
+
+        return plan;
     }
 
     // =========================================================================
@@ -1152,6 +1428,8 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
             // Clear saved clipboard data
             _savedClipboardData = null;
+            _ownTranscriptClipboardSequence = 0;
+            _unscheduledTranscriptClipboardSequence = 0;
 
             LoggingService.Debug("SmartPasteService: Disposed");
         }

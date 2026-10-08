@@ -305,8 +305,9 @@ public class BackupService
             {
                 try
                 {
-                    UniversalBackupMapper.ApplyApiKeys(backup.ApiKeys, ApiKeyService.Instance);
-                    apiKeysImported = true;
+                    apiKeysImported = UniversalBackupMapper.ApplyApiKeys(backup.ApiKeys, ApiKeyService.Instance);
+                    if (!apiKeysImported)
+                        LoggingService.Warn("BackupService: One or more API keys could not be written to Credential Manager");
                 }
                 catch (Exception ex)
                 {
@@ -423,8 +424,9 @@ public class BackupService
             {
                 try
                 {
-                    UniversalBackupMapper.ApplyApiKeys(backup.ApiKeys, ApiKeyService.Instance);
-                    summary.ApiKeysImported = true;
+                    summary.ApiKeysImported = UniversalBackupMapper.ApplyApiKeys(backup.ApiKeys, ApiKeyService.Instance);
+                    if (!summary.ApiKeysImported)
+                        LoggingService.Warn("BackupService: One or more API keys could not be written to Credential Manager (selective)");
                 }
                 catch (Exception ex)
                 {

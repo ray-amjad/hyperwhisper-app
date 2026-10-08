@@ -82,7 +82,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let env = Bundle.main.object(forInfoDictionaryKey: "SentryEnvironment") as? String ?? "production"
             SentryService.setTag("environment", env)
         }
-        
+
+        // CREDENTIAL CACHE PURGE (#1491): builds before this one let the
+        // account key and BYOK API keys reach the on-disk URL cache. Clear it
+        // once, off the main thread, since removing the rows touches disk.
+        DispatchQueue.global(qos: .utility).async {
+            CredentialNetworkCache.purgeLegacyCachedCredentialsIfNeeded()
+        }
+
         // FIX: Monitor window closing to ensure app returns to accessory mode (hidden from Dock)
         // when "Show in Dock" is disabled and the last window is closed.
         NotificationCenter.default.addObserver(

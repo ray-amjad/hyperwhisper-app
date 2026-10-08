@@ -562,7 +562,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         // STEP 2: Create URL session if needed
         if urlSession == nil {
-            let sessionConfig = URLSessionConfiguration.default
+            let sessionConfig = URLSessionConfiguration.credentialBearing
             sessionConfig.timeoutIntervalForRequest = 30
             sessionConfig.timeoutIntervalForResource = 300
             urlSession = URLSession(configuration: sessionConfig, delegate: self, delegateQueue: nil)

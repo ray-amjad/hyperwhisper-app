@@ -438,7 +438,7 @@
     {
       "id": "openaiWhisper",
       "displayName": "OpenAI Whisper",
-      "displayModel": "whisper-1",
+      "displayModel": "gpt-transcribe",
       "vendor": "openai",
       "vendorDisplayName": "OpenAI",
       "vendorLabel": "OpenAI",
@@ -520,6 +520,15 @@
           "id": "gpt-live-transcribe",
           "displayName": "GPT Live Transcribe",
           "creditsPerMinute": 17.0,
+          "isDefault": false,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": null
+        },
+        {
+          "id": "gpt-4o-mini-transcribe-2025-12-15",
+          "displayName": "GPT-4o Mini Transcribe (2025-12-15)",
+          "creditsPerMinute": 3.0,
           "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
@@ -743,7 +752,7 @@
     {
       "id": "gemini",
       "displayName": "Google Gemini",
-      "displayModel": "gemini-2.5-flash",
+      "displayModel": "gemini-3.8-flash",
       "vendor": "google",
       "vendorDisplayName": "Google",
       "vendorLabel": "Google",
@@ -780,13 +789,22 @@
       "previewStatus": false,
       "migrateFrom": [],
       "legacyCloudProviderAliases": [],
-      "defaultModelId": "gemini-2.5-flash",
+      "defaultModelId": "gemini-3.8-flash",
       "models": [
+        {
+          "id": "gemini-3.8-flash",
+          "displayName": "Gemini 3.8 Flash",
+          "creditsPerMinute": 3.0,
+          "isDefault": true,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": null
+        },
         {
           "id": "gemini-2.5-flash",
           "displayName": "Gemini 2.5 Flash",
           "creditsPerMinute": 2.4,
-          "isDefault": true,
+          "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
@@ -806,15 +824,6 @@
           "creditsPerMinute": 7.5,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true,
-          "streaming": null
-        },
-        {
-          "id": "gemini-3-flash-preview",
-          "displayName": "Gemini 3 Flash",
-          "creditsPerMinute": 3.0,
-          "isDefault": false,
-          "previewStatus": true,
           "supportsCustomVocabulary": true,
           "streaming": null
         },
@@ -929,10 +938,10 @@
       "models": [
         "geminiTranscribe/gemini-3.5-transcribe",
         "geminiTranscribe/gemini-3.5-transcribe-live",
+        "gemini/gemini-3.8-flash",
         "gemini/gemini-2.5-flash",
         "gemini/gemini-2.5-flash-lite",
         "gemini/gemini-2.5-pro",
-        "gemini/gemini-3-flash-preview",
         "gemini/gemini-3.1-pro-preview"
       ]
     },
@@ -989,7 +998,8 @@
         "openaiWhisper/gpt-4o-mini-transcribe",
         "openaiWhisper/whisper-1",
         "openaiWhisper/gpt-transcribe",
-        "openaiWhisper/gpt-live-transcribe"
+        "openaiWhisper/gpt-live-transcribe",
+        "openaiWhisper/gpt-4o-mini-transcribe-2025-12-15"
       ]
     },
     {
@@ -1674,7 +1684,7 @@
   "modelsEntries": [
     {
       "provider": "anthropic",
-      "id": "claude-haiku-4-5",
+      "id": "claude-haiku-5-5",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
@@ -1685,6 +1695,16 @@
     {
       "provider": "anthropic",
       "id": "claude-sonnet-5",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "anthropic",
+      "id": "claude-sonnet-5-5",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
@@ -2196,16 +2216,6 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-3-flash-preview",
-      "kind": "voice",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-3.1-flash-lite",
       "kind": "voice",
       "supportsCustomVocabulary": true,
@@ -2230,6 +2240,16 @@
       "kind": "voice",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-3.8-flash",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
@@ -2466,16 +2486,6 @@
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "groq",
-      "id": "qwen/qwen3.6-27b",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
@@ -2739,7 +2749,7 @@
       "id": "gpt-4o-mini-transcribe-2025-12-15",
       "kind": "voice",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
@@ -2790,6 +2800,16 @@
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "openai",
+      "id": "gpt-6-luna",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null

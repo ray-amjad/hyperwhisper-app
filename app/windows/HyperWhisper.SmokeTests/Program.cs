@@ -593,6 +593,187 @@ internal static class Program
                     "PushToTalkMonitor does not implement the portable contract");
             });
 
+            // Issue #1497: the default toggle Ctrl+Alt fired the moment Ctrl and Alt
+            // were both down, so Ctrl+Alt+Left started a hidden recording. A
+            // modifier-only chord now triggers on a clean release. The sequences
+            // below replay what the WH_KEYBOARD_LL hook hands ModifierChordGate.
+            Run("Modifier-only Ctrl+Alt alone triggers once, on release (#1497)", () =>
+            {
+                var ctrlAlt = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                Assert(ctrlAlt.IsModifierOnly, "precondition: Ctrl+Alt is modifier-only");
+
+                var gate = new ModifierChordGate(ctrlAlt);
+                var pressed = new HashSet<int>();
+                int triggers = 0;
+                triggers += ChordKey(gate, pressed, VkLControl, down: true);
+                triggers += ChordKey(gate, pressed, VkLMenu, down: true);
+                Assert(triggers == 0, "the chord must not trigger on press");
+                Assert(gate.IsArmed, "a clean Ctrl+Alt must arm the chord");
+                triggers += ChordKey(gate, pressed, VkLMenu, down: true); // auto-repeat
+                triggers += ChordKey(gate, pressed, VkLMenu, down: false);
+                Assert(triggers == 1, $"releasing a clean Ctrl+Alt must trigger once, got {triggers}");
+                triggers += ChordKey(gate, pressed, VkLControl, down: false);
+                Assert(triggers == 1, $"the second key-up must not trigger again, got {triggers}");
+
+                // Either release order, and again on the next press.
+                Assert(ReplayChord(ctrlAlt, (VkLMenu, true), (VkLControl, true), (VkLControl, false), (VkLMenu, false)) == 1,
+                    "Alt first, Ctrl released first must trigger once");
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLControl, true), (VkLMenu, true), (VkLMenu, false), (VkLControl, false),
+                        (VkLControl, true), (VkLMenu, true), (VkLMenu, false), (VkLControl, false)) == 2,
+                    "two clean Ctrl+Alt taps must trigger twice");
+                Assert(ReplayChord(KeyboardShortcut.FromPersistedString("Ctrl+Win"),
+                        (VkLControl, true), (VkLWin, true), (VkLWin, false), (VkLControl, false)) == 1,
+                    "a clean Ctrl+Win must trigger once");
+            });
+
+            Run("Ctrl+Alt+Left does not trigger the Ctrl+Alt shortcut (#1497)", () =>
+            {
+                var ctrlAlt = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                // The issue's own sequence: modifiers released before Left.
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLControl, true), (VkLMenu, true), (VkLeft, true),
+                        (VkLMenu, false), (VkLControl, false), (VkLeft, false)) == 0,
+                    "Ctrl+Alt+Left must not trigger Ctrl+Alt");
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLMenu, true), (VkLControl, true), (VkLeft, true),
+                        (VkLControl, false), (VkLeft, false), (VkLMenu, false)) == 0,
+                    "Alt+Ctrl+Left in any release order must not trigger Ctrl+Alt");
+            });
+
+            Run("Ctrl+Alt+Left with Left released first does not trigger Ctrl+Alt (#1497)", () =>
+            {
+                var ctrlAlt = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                var gate = new ModifierChordGate(ctrlAlt);
+                var pressed = new HashSet<int>();
+                int triggers = 0;
+                triggers += ChordKey(gate, pressed, VkLControl, down: true);
+                triggers += ChordKey(gate, pressed, VkLMenu, down: true);
+                triggers += ChordKey(gate, pressed, VkLeft, down: true);
+                Assert(gate.State == ModifierChordState.Spoiled, $"Left must spoil the chord, got {gate.State}");
+                triggers += ChordKey(gate, pressed, VkLeft, down: false);
+                Assert(gate.State == ModifierChordState.Spoiled, "releasing Left must not clean the chord again");
+                triggers += ChordKey(gate, pressed, VkLMenu, down: false);
+                triggers += ChordKey(gate, pressed, VkLControl, down: false);
+                Assert(triggers == 0, $"Ctrl+Alt+Left (Left up first) must not trigger, got {triggers}");
+
+                // The gate recovers: the next clean Ctrl+Alt still toggles.
+                triggers += ChordKey(gate, pressed, VkLControl, down: true);
+                triggers += ChordKey(gate, pressed, VkLMenu, down: true);
+                triggers += ChordKey(gate, pressed, VkLMenu, down: false);
+                triggers += ChordKey(gate, pressed, VkLControl, down: false);
+                Assert(triggers == 1, $"a clean Ctrl+Alt after the spoiled one must trigger once, got {triggers}");
+            });
+
+            Run("Other keys around a modifier-only chord never trigger it (#1497)", () =>
+            {
+                var ctrlAlt = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLeft, true), (VkLControl, true), (VkLMenu, true),
+                        (VkLMenu, false), (VkLControl, false), (VkLeft, false)) == 0,
+                    "a key already held when the chord goes down makes it a different shortcut");
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLControl, true), (VkLMenu, true), (VkLShift, true),
+                        (VkLShift, false), (VkLMenu, false), (VkLControl, false)) == 0,
+                    "Ctrl+Alt+Shift is a different chord from Ctrl+Alt");
+                // AltGr: Windows injects a synthetic LCtrl with RMenu. Typing é is not Ctrl+Alt.
+                Assert(ReplayChord(ctrlAlt,
+                        (VkLControl, true), (VkRMenu, true), (VkE, true), (VkE, false),
+                        (VkRMenu, false), (VkLControl, false)) == 0,
+                    "AltGr+E must not trigger Ctrl+Alt");
+                Assert(ReplayChord(ctrlAlt, (VkLControl, true), (VkRMenu, true), (VkRMenu, false), (VkLControl, false)) == 0,
+                    "a bare AltGr tap must not trigger Ctrl+Alt");
+            });
+
+            Run("A stale modifier-only chord does not trigger after a lost key-up (#1497)", () =>
+            {
+                // Ctrl+Alt is armed, then the secure desktop swallows both key-ups.
+                // KeyboardShortcutService drops the keys GetAsyncKeyState says are up
+                // before it asks the gate, so the gate sees the pruned set.
+                var ctrlAlt = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                var gate = new ModifierChordGate(ctrlAlt);
+                gate.KeyDown(new HashSet<int> { VkLControl });
+                gate.KeyDown(new HashSet<int> { VkLControl, VkLMenu });
+                Assert(gate.IsArmed, "precondition: armed");
+
+                // Back from the secure desktop the user taps Ctrl alone. Stale Alt is pruned.
+                gate.KeyDown(new HashSet<int> { VkLControl });
+                Assert(gate.State == ModifierChordState.Idle, $"a pruned chord must drop to Idle, got {gate.State}");
+                Assert(!gate.KeyUp(new HashSet<int>(), VkLControl), "a lone Ctrl after a lost Alt key-up must not trigger");
+
+                // Armed, and the first event back is a key-up: the rest of the chord was pruned.
+                var gate2 = new ModifierChordGate(ctrlAlt);
+                gate2.KeyDown(new HashSet<int> { VkLControl, VkLMenu });
+                Assert(gate2.IsArmed, "precondition: armed");
+                Assert(!gate2.KeyUp(new HashSet<int>(), VkLControl),
+                    "a release whose chord partner is no longer down must not trigger");
+
+                gate2.KeyDown(new HashSet<int> { VkLControl, VkLMenu });
+                gate2.Reset();
+                Assert(!gate2.KeyUp(new HashSet<int> { VkLControl }, VkLMenu), "Reset must disarm the chord");
+            });
+
+            Run("Stale-key pruning drops lost key-ups but keeps a suppressed Win (#1497)", () =>
+            {
+                // GetAsyncKeyState stand-in: only LCtrl is physically down.
+                Func<int, bool> onlyCtrlDown = vk => vk == VkLControl;
+                var none = new HashSet<int>();
+
+                var stale = ModifierChordGate.KeysNoLongerDown(
+                    new HashSet<int> { VkLControl, VkLMenu, VkLeft }, exceptVk: -1, none, onlyCtrlDown);
+                Assert(stale.Count == 2 && stale.Contains(VkLMenu) && stale.Contains(VkLeft),
+                    $"keys whose key-up was lost must be dropped, got [{string.Join(",", stale)}]");
+
+                stale = ModifierChordGate.KeysNoLongerDown(
+                    new HashSet<int> { VkLControl, VkLMenu }, exceptVk: VkLMenu, none, onlyCtrlDown);
+                Assert(stale.Count == 0, "the key the hook is delivering must never be dropped");
+
+                // Ctrl+Win: the hook swallowed the Win key-down, so Windows reads Win as up.
+                // Releasing Ctrl first must still trigger the chord.
+                var ctrlWin = KeyboardShortcut.FromPersistedString("Ctrl+Win");
+                var gate = new ModifierChordGate(ctrlWin);
+                var pressed = new HashSet<int> { VkLControl };
+                gate.KeyDown(pressed);
+                pressed.Add(VkLWin);
+                gate.KeyDown(pressed);
+                Assert(gate.IsArmed, "precondition: Ctrl+Win armed");
+
+                var suppressed = new HashSet<int> { VkLWin };
+                pressed.Remove(VkLControl);
+                foreach (var vk in ModifierChordGate.KeysNoLongerDown(pressed, -1, suppressed, _ => false))
+                    pressed.Remove(vk);
+                Assert(pressed.Contains(VkLWin), "a suppressed Win key-down must not be pruned as stale");
+                Assert(gate.KeyUp(pressed, VkLControl), "Ctrl+Win released Ctrl first must trigger");
+            });
+
+            Run("A key-based shortcut keeps the press path (#1497)", () =>
+            {
+                var keyBased = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+                Assert(!keyBased.IsModifierOnly && keyBased.Key == Key.Space, "precondition: Ctrl+Shift+Space has a key");
+
+                bool threw = false;
+                try { _ = new ModifierChordGate(keyBased); }
+                catch (ArgumentException) { threw = true; }
+                Assert(threw, "a key-based shortcut must never be gated on release");
+
+                using var service = new KeyboardShortcutService();
+                var gatesField = typeof(KeyboardShortcutService).GetField(
+                    "_chordGates", BindingFlags.NonPublic | BindingFlags.Instance)
+                    ?? throw new InvalidOperationException("KeyboardShortcutService._chordGates is gone");
+                var gates = (Dictionary<string, ModifierChordGate>)gatesField.GetValue(service)!;
+
+                Assert(service.RegisterShortcut("toggle", KeyboardShortcut.FromPersistedString("Ctrl+Alt")).IsSuccess,
+                    "a modifier-only toggle registers through the hook");
+                Assert(gates.ContainsKey("toggle"), "a modifier-only shortcut must get a chord gate");
+                Assert(!service.IsModifierOnlyChordHeld("toggle"), "nothing is held yet");
+
+                service.RegisterShortcut("streaming", keyBased); // no window here: RegisterHotKey path, fails
+                Assert(!gates.ContainsKey("streaming"), "a key-based shortcut must not get a chord gate");
+
+                service.RegisterShortcut("toggle", keyBased);
+                Assert(!gates.ContainsKey("toggle"), "rebinding to a key-based shortcut must drop the gate");
+            });
+
             Run("Windows application-context seam preserves portable fields", () =>
             {
                 var windows = new Services.ApplicationContext
@@ -1007,6 +1188,16 @@ internal static class Program
                     // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
                     ("gemma-4-31b", "qwen-3.8-27b"),
                     ("qwen-3-235b-a22b-instruct-2507", "gpt-oss-120b"),
+                    // 2026-10: Claude 4.5, qwen3.6 and Gemini 3 Flash Preview left the picker.
+                    ("claude-haiku-4-5", "claude-haiku-5-5"),
+                    ("claude-haiku-4.5", "claude-haiku-5-5"),
+                    ("claude-3-5-haiku-latest", "claude-haiku-5-5"),
+                    ("claude-sonnet-4-5", "claude-sonnet-5-5"),
+                    ("claude-sonnet-4-0", "claude-sonnet-5-5"),
+                    ("claude-haiku-4-5-20251001", "claude-haiku-5-5"),
+                    ("claude-sonnet-4-5-20250929", "claude-sonnet-5-5"),
+                    ("qwen/qwen3.6-27b", "qwen/qwen3.8-27b"),
+                    ("gemini-3-flash-preview", "gemini-3.8-flash"),
                 };
 
                 foreach (var (oldId, replacement) in cases)
@@ -1163,12 +1354,12 @@ internal static class Program
                 // catalog value: `FromString` answers `CloudPostProcessingModel
                 // .Fallback` for an id it cannot resolve, so a weaker "non-empty and
                 // not the Mode's model" check passes even when the entry is gone.
-                var cloudModel = CloudPostProcessingModelExtensions.FromString("anthropic:claude-haiku-4-5");
+                var cloudModel = CloudPostProcessingModelExtensions.FromString("anthropic:claude-haiku-5-5");
                 var cloudLabel = cloudModel.ToLlmModelHeader() ?? cloudModel.ModelId;
                 var fallbackModel = CloudPostProcessingModel.Fallback;
                 var fallbackLabel = fallbackModel.ToLlmModelHeader() ?? fallbackModel.ModelId;
-                Assert(cloudLabel == "claude-haiku-4-5",
-                    "the anthropic cloud post-processing engine no longer yields the claude-haiku-4-5 X-LLM-Model label");
+                Assert(cloudLabel == "claude-haiku-5-5",
+                    "the anthropic cloud post-processing engine no longer yields the claude-haiku-5-5 X-LLM-Model label");
                 Assert(cloudLabel != fallbackLabel,
                     "the cloud label check is no longer distinguishable from the catalog fallback");
                 Assert(Labels("hyperwhispercloud", "gpt-4.1-nano", "hyperwhispercloud", cloudLabel).Model == cloudLabel,
@@ -4471,7 +4662,7 @@ internal static class Program
                 var interleaved = new[] { 1f, 3f, 5f, 7f, 9f, 11f, 13f, 15f, 17f, 19f };
                 // The first read is ONE sample of a two-sample frame.
                 var source = new ChoppySampleProvider(interleaved, 2, [1, 2, 3, 4]);
-                var fold = new TranscriptionDiagnosticsService.MonoFoldSampleProvider(source);
+                var fold = new MonoFoldSampleProvider(source);
 
                 var buffer = new float[16];
                 var produced = new List<float>();
@@ -4491,6 +4682,237 @@ internal static class Program
                     var expected = 2f + (4f * i);
                     Assert(Math.Abs(produced[i] - expected) < 1e-6,
                         $"frame {i} should be {expected}, got {produced[i]} - the frames are channel-rotated");
+                }
+            });
+
+            Run("FileTranscriptionService converts a 48 kHz 6-channel WAVE_FORMAT_EXTENSIBLE PCM WAV to 16 kHz mono (#1450)", () =>
+            {
+                // ffmpeg writes every WAV with more than two channels as WAVE_FORMAT_EXTENSIBLE.
+                // AudioFileReader sent that tag to ACM, which failed at once with "NoDriver
+                // calling acmFormatSuggest", and past that ToMono() threw on six channels.
+                var wavPath = TempWav("Extensible.6ch.Pcm16");
+                string? converted = null;
+                try
+                {
+                    WriteExtensibleWav(wavPath, 48000, 6, 16, ExtensiblePcmSubFormat, 96000, SpeechLikeChannelSample);
+
+                    var duration = FileTranscriptionService.GetAudioDuration(wavPath);
+                    Assert(duration.IsSuccess, $"GetAudioDuration failed on the source file: {duration.Error}");
+                    Assert(Math.Abs(duration.Value - 2.0) < 0.001,
+                        $"the source holds 96000 frames at 48 kHz (2.0 s), GetAudioDuration said {duration.Value}");
+
+                    var result = FileTranscriptionService.ConvertToWhisperFormatAsync(wavPath).GetAwaiter().GetResult();
+                    Assert(result.IsSuccess, $"conversion failed: {result.Error}");
+                    converted = result.Value!;
+                    Assert(!string.Equals(converted, wavPath, StringComparison.OrdinalIgnoreCase),
+                        "a 48 kHz 6-channel file must be converted, not passed through");
+
+                    // The six channels carry the same sine at 1/6 .. 6/6 of 0.5, so the average
+                    // is 0.5 * 3.5 / 6 = 0.29. Channel 0 alone would be 0.083 and a sum 1.75.
+                    AssertWhisperWav(converted, 2.0, 0.5 * 3.5 / 6);
+
+                    var convertedDuration = FileTranscriptionService.GetAudioDuration(converted);
+                    Assert(convertedDuration.IsSuccess && Math.Abs(convertedDuration.Value - 2.0) < 0.05,
+                        $"the converted file should last ~2.0 s, GetAudioDuration said {convertedDuration.Value}");
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                    if (converted != null && converted != wavPath)
+                    {
+                        TryDelete(converted);
+                    }
+                }
+            });
+
+            Run("FileTranscriptionService folds a 6-channel plain-PCM WAV to mono (#1450)", () =>
+            {
+                // The plain tag decoded fine; NAudio's ToMono() then threw NotImplementedException
+                // because it handles exactly two channels.
+                var wavPath = TempWav("Plain.6ch.Pcm16");
+                string? converted = null;
+                try
+                {
+                    var format = new NAudio.Wave.WaveFormat(48000, 16, 6);
+                    using (var writer = new NAudio.Wave.WaveFileWriter(wavPath, format))
+                    {
+                        var frame = new float[6];
+                        for (var i = 0; i < 48000; i++)
+                        {
+                            for (var c = 0; c < 6; c++)
+                            {
+                                frame[c] = (float)SpeechLikeChannelSample(i, c, 6, 48000);
+                            }
+
+                            writer.WriteSamples(frame, 0, 6);
+                        }
+                    }
+
+                    var result = FileTranscriptionService.ConvertToWhisperFormatAsync(wavPath).GetAwaiter().GetResult();
+                    Assert(result.IsSuccess, $"conversion failed: {result.Error}");
+                    converted = result.Value!;
+                    AssertWhisperWav(converted, 1.0, 0.5 * 3.5 / 6);
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                    if (converted != null && converted != wavPath)
+                    {
+                        TryDelete(converted);
+                    }
+                }
+            });
+
+            Run("FileTranscriptionService converts a stereo WAVE_FORMAT_EXTENSIBLE float WAV (#1450)", () =>
+            {
+                // Some recorders write stereo as Extensible too, with an IEEE float SubFormat.
+                var wavPath = TempWav("Extensible.2ch.Float32");
+                string? converted = null;
+                try
+                {
+                    WriteExtensibleWav(wavPath, 44100, 2, 32, ExtensibleIeeeFloatSubFormat, 44100, SpeechLikeChannelSample);
+
+                    var duration = FileTranscriptionService.GetAudioDuration(wavPath);
+                    Assert(duration.IsSuccess && Math.Abs(duration.Value - 1.0) < 0.001,
+                        $"expected a 1.0 s duration, got {(duration.IsSuccess ? duration.Value : duration.Error)}");
+
+                    var result = FileTranscriptionService.ConvertToWhisperFormatAsync(wavPath).GetAwaiter().GetResult();
+                    Assert(result.IsSuccess, $"conversion failed: {result.Error}");
+                    converted = result.Value!;
+                    // 0.5 * (1/2 + 2/2) / 2 = 0.375.
+                    AssertWhisperWav(converted, 1.0, 0.375);
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                    if (converted != null && converted != wavPath)
+                    {
+                        TryDelete(converted);
+                    }
+                }
+            });
+
+            Run("TranscriptionService decodes a 6-channel WAVE_FORMAT_EXTENSIBLE WAV for Whisper (#1450)", () =>
+            {
+                // The Local API hands TranscriptionService the caller's own file, so its
+                // PrepareAudioStream and duration probe see Extensible WAVs directly.
+                var wavPath = TempWav("Extensible.6ch.Whisper");
+                try
+                {
+                    WriteExtensibleWav(wavPath, 48000, 6, 16, ExtensiblePcmSubFormat, 48000, SpeechLikeChannelSample);
+
+                    const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
+                    var prepare = typeof(TranscriptionService).GetMethod("PrepareAudioStream", flags)
+                        ?? throw new InvalidOperationException("TranscriptionService.PrepareAudioStream not found");
+                    var probe = typeof(TranscriptionService).GetMethod("GetAudioDurationSeconds", flags)
+                        ?? throw new InvalidOperationException("TranscriptionService.GetAudioDurationSeconds not found");
+
+                    var seconds = (double)probe.Invoke(null, new object[] { wavPath })!;
+                    // The old fallback guessed from the file size as 16 kHz mono: ~18 s here.
+                    Assert(Math.Abs(seconds - 1.0) < 0.001, $"expected a 1.0 s duration probe, got {seconds}");
+
+                    using var stream = (Stream)prepare.Invoke(null, new object[] { wavPath })!;
+                    using var reader = new NAudio.Wave.WaveFileReader(stream);
+                    Assert(reader.WaveFormat.SampleRate == 16000 && reader.WaveFormat.Channels == 1 &&
+                           reader.WaveFormat.BitsPerSample == 16,
+                        $"expected 16 kHz mono 16-bit, got {reader.WaveFormat}");
+                    Assert(Math.Abs(reader.TotalTime.TotalSeconds - 1.0) < 0.05,
+                        $"expected ~1.0 s of audio, got {reader.TotalTime.TotalSeconds}");
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                }
+            });
+
+            Run("TranscriptionDiagnosticsService.AnalyzeAudioFile reads a WAVE_FORMAT_EXTENSIBLE WAV (#1450)", () =>
+            {
+                var wavPath = TempWav("Extensible.6ch.Diagnostics");
+                try
+                {
+                    WriteExtensibleWav(wavPath, 48000, 6, 16, ExtensiblePcmSubFormat, 48000, SpeechLikeChannelSample);
+
+                    var diagnostics = TranscriptionDiagnosticsService.AnalyzeAudioFile(wavPath, null);
+                    Assert(diagnostics.AnalysisSucceeded,
+                        $"a readable Extensible WAV must analyze, got error '{diagnostics.AnalysisError}'");
+                    Assert(diagnostics.Channels == 6 && diagnostics.SampleRate == 48000,
+                        $"expected the source 48 kHz 6ch, got {diagnostics.SampleRate} Hz {diagnostics.Channels}ch");
+                    Assert(diagnostics.DecodedSampleCount == 48000,
+                        $"expected 48000 folded mono frames, got {diagnostics.DecodedSampleCount}");
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                }
+            });
+
+            Run("AudioFileDecoder relabels only Extensible PCM and float WAVs; compressed WAVs keep ACM (#1450)", () =>
+            {
+                var pcmPath = TempWav("Extensible.Relabel.Pcm24");
+                var muLawExtensiblePath = TempWav("Extensible.Relabel.MuLaw");
+                var muLawPath = TempWav("Plain.MuLaw");
+                string? converted = null;
+                try
+                {
+                    WriteExtensibleWav(pcmPath, 48000, 6, 24, ExtensiblePcmSubFormat, 4800, SpeechLikeChannelSample);
+                    using (var reader = new NAudio.Wave.WaveFileReader(pcmPath))
+                    {
+                        Assert(reader.WaveFormat.Encoding == NAudio.Wave.WaveFormatEncoding.Extensible,
+                            "the fixture must really be WAVE_FORMAT_EXTENSIBLE");
+                        var plain = AudioFileDecoder.TryGetPlainFormat(reader.WaveFormat);
+                        Assert(plain != null && plain.Encoding == NAudio.Wave.WaveFormatEncoding.Pcm &&
+                               plain.BitsPerSample == 24 && plain.Channels == 6 && plain.BlockAlign == 18,
+                            $"a 24-bit PCM Extensible format should relabel to plain 24-bit PCM, got {plain}");
+                    }
+
+                    using (var decoded = AudioFileDecoder.Open(pcmPath))
+                    {
+                        Assert(decoded.WaveFormat.Channels == 6 && decoded.WaveFormat.SampleRate == 48000,
+                            $"samples keep the source rate and channel count, got {decoded.WaveFormat}");
+                        Assert(Math.Abs(decoded.TotalTime.TotalSeconds - 0.1) < 0.0005,
+                            $"expected 0.1 s, got {decoded.TotalTime.TotalSeconds}");
+                        // History playback: more than two channels plays as mono.
+                        var playback = AudioPlaybackService.CreatePlaybackProvider(decoded);
+                        Assert(playback.WaveFormat.Channels == 1, $"expected mono playback, got {playback.WaveFormat}");
+                    }
+
+                    // An Extensible header whose SubFormat is a codec (mu-law here) is not plain
+                    // samples, so it must not be relabelled.
+                    var muLawSubFormat = new Guid("00000007-0000-0010-8000-00aa00389b71");
+                    WriteExtensibleWav(muLawExtensiblePath, 8000, 1, 8, muLawSubFormat, 800, (_, _, _, _) => 0);
+                    using (var reader = new NAudio.Wave.WaveFileReader(muLawExtensiblePath))
+                    {
+                        Assert(AudioFileDecoder.TryGetPlainFormat(reader.WaveFormat) == null,
+                            "an Extensible mu-law format must keep the ACM path");
+                    }
+
+                    // A plain compressed WAV still decodes through ACM exactly as before.
+                    using (var writer = new NAudio.Wave.WaveFileWriter(muLawPath, NAudio.Wave.WaveFormat.CreateMuLawFormat(8000, 1)))
+                    {
+                        var bytes = new byte[8000];
+                        for (var i = 0; i < bytes.Length; i++)
+                        {
+                            bytes[i] = NAudio.Codecs.MuLawEncoder.LinearToMuLawSample(
+                                (short)(8000 * Math.Sin(2 * Math.PI * 440 * i / 8000.0)));
+                        }
+
+                        writer.Write(bytes, 0, bytes.Length);
+                    }
+
+                    var result = FileTranscriptionService.ConvertToWhisperFormatAsync(muLawPath).GetAwaiter().GetResult();
+                    Assert(result.IsSuccess, $"a mu-law WAV should still convert through ACM: {result.Error}");
+                    converted = result.Value!;
+                    AssertWhisperWav(converted, 1.0, 8000 / 32768.0);
+                }
+                finally
+                {
+                    TryDelete(pcmPath);
+                    TryDelete(muLawExtensiblePath);
+                    TryDelete(muLawPath);
+                    if (converted != null)
+                    {
+                        TryDelete(converted);
+                    }
                 }
             });
 
@@ -9481,6 +9903,160 @@ internal static class Program
 
                 Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
                     "an unrelated Deepgram key edit discarded a valid Google outcome");
+            });
+
+            Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
+            {
+                // Not a real credential: a placeholder whose only job is to prove it
+                // never reaches the log, in clear or in part.
+                const string placeholder = "placeholder-value-742-never-logged";
+                var backend = new ThrowingAddCredentialBackend();
+                var service = new ApiKeyService(backend);
+                var offsets = SnapshotLogOffsets();
+
+                // (a) Every write overload reports the failure instead of returning void.
+                var shared = service.SetApiKey(PostProcessingProvider.OpenAI, placeholder);
+                Assert(shared.IsFailure && shared.Error?.Code == "credential.write_failed",
+                    $"SetApiKey(PostProcessingProvider) did not report the failed write: {shared.Error?.Code ?? "success"}");
+                var transcription = service.SetApiKey(TranscriptionApiKeyType.Deepgram, placeholder);
+                Assert(transcription.IsFailure && transcription.Error?.Code == "credential.write_failed",
+                    $"SetApiKey(TranscriptionApiKeyType) did not report the failed write: {transcription.Error?.Code ?? "success"}");
+                var endpoint = service.SetCustomEndpointApiKey(Guid.NewGuid(), placeholder);
+                Assert(endpoint.IsFailure && endpoint.Error?.Code == "credential.write_failed",
+                    $"SetCustomEndpointApiKey did not report the failed write: {endpoint.Error?.Code ?? "success"}");
+                Assert(backend.AddAttempts == 3, $"expected 3 attempted adds, saw {backend.AddAttempts}");
+
+                // (b) The settings page's save step, driven through the same failing
+                // backend, writes no "ApiKeys: Saved" line and says it could not save.
+                var pageReportedSuccess = ApiKeysSettingsPage.WriteKeyAndLog(
+                    () => service.SetApiKey(PostProcessingProvider.Anthropic, placeholder), "Anthropic", clearing: false);
+                Assert(!pageReportedSuccess, "the settings page treated a failed write as saved");
+
+                var failedLog = ReadLogSince(offsets);
+                var failedContext = $"log dir '{LoggingService.LogDirectory}', captured: <<<{failedLog}>>>";
+                Assert(failedLog.Contains("ApiKeys: Could not save Anthropic API key (credential.write_failed)", StringComparison.Ordinal),
+                    $"the failed save was not logged as a failure; {failedContext}");
+                Assert(!failedLog.Contains("ApiKeys: Saved", StringComparison.Ordinal),
+                    $"a failed write still logged ApiKeys: Saved; {failedContext}");
+                Assert(!failedLog.Contains("ApiKeyService: Saved API key", StringComparison.Ordinal),
+                    $"a failed write still logged the service-level Saved line; {failedContext}");
+                Assert(!failedLog.Contains(placeholder, StringComparison.Ordinal)
+                       && !failedLog.Contains(ApiKeyService.MaskKeyForDisplay(placeholder), StringComparison.Ordinal),
+                    "the key value or its masked form reached the log");
+
+                // Control: the same step over a backend that works DOES log the line,
+                // so the absence above is not an artefact of the capture. Anthropic
+                // has no transcription twin, so no health probe is scheduled.
+                var workingOffsets = SnapshotLogOffsets();
+                var working = new ApiKeyService(new InMemoryCredentialBackend());
+                Assert(ApiKeysSettingsPage.WriteKeyAndLog(
+                        () => working.SetApiKey(PostProcessingProvider.Anthropic, placeholder), "Anthropic", clearing: false),
+                    "a working backend was reported as a failed write");
+                var workingLog = ReadLogSince(workingOffsets);
+                Assert(workingLog.Contains("ApiKeys: Saved Anthropic API key", StringComparison.Ordinal),
+                    $"the control save did not log ApiKeys: Saved; captured: <<<{workingLog}>>>");
+                Assert(working.GetApiKey(PostProcessingProvider.Anthropic) == placeholder,
+                    "the control save did not store the value");
+            });
+
+            Run("issue #742: a Credential Manager read fault is logged as an error, not passed off as no key", () =>
+            {
+                var backend = new InMemoryCredentialBackend { ThrowOnRead = true };
+                var service = new ApiKeyService(backend);
+                var offsets = SnapshotLogOffsets();
+
+                Assert(service.GetApiKey(TranscriptionApiKeyType.Deepgram) == null,
+                    "a failed read produced a key");
+                var log = ReadLogSince(offsets);
+                Assert(log.Contains("ApiKeyService: Failed to read credential for", StringComparison.Ordinal),
+                    $"a failed read left no error in the log; captured: <<<{log}>>>");
+
+                // A plain miss stays quiet: that is the normal unconfigured state.
+                var missOffsets = SnapshotLogOffsets();
+                var empty = new ApiKeyService(new InMemoryCredentialBackend());
+                Assert(empty.GetApiKey(TranscriptionApiKeyType.Deepgram) == null, "an empty vault produced a key");
+                Assert(!ReadLogSince(missOffsets).Contains("Failed to read credential", StringComparison.Ordinal),
+                    "an unconfigured provider was logged as a read failure");
+            });
+
+            Run("issue #742: a failed write after the old key was deleted invalidates transcription health", () =>
+            {
+                // Placeholders, not real credentials. The backend deletes the stored
+                // value and then refuses the add, as PasswordVault can.
+                const string oldValue = "placeholder-old-742-aaaaaaaaaaaa";
+                const string newValue = "placeholder-new-742-bbbbbbbbbbbb";
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+                var backend = new DeleteThenFailAddCredentialBackend();
+                var service = new ApiKeyService(backend, health);
+
+                foreach (var (provider, write) in new (CloudTranscriptionProvider, Func<HyperWhisper.Platform.Abstractions.PlatformResult>)[]
+                {
+                    (CloudTranscriptionProvider.Deepgram, () => service.SetApiKey(TranscriptionApiKeyType.Deepgram, newValue)),
+                    (CloudTranscriptionProvider.OpenAI, () => service.SetApiKey(PostProcessingProvider.OpenAI, newValue)),
+                })
+                {
+                    backend.Seed(provider == CloudTranscriptionProvider.Deepgram
+                        ? TranscriptionApiKeyType.Deepgram.GetSettingName()
+                        : PostProcessingProvider.OpenAI.GetApiKeySettingName(), oldValue);
+                    health.SetCachedTranscriptionStatusForTests(provider, ProviderHealth.Healthy);
+                    var inFlight = health.CaptureTranscriptionCredentialGeneration(provider);
+
+                    var result = write();
+                    Assert(result.IsFailure && result.Error?.Code == "credential.write_failed",
+                        $"{provider}: the failed write was not reported: {result.Error?.Code ?? "success"}");
+                    Assert(backend.StoredCount == 0, $"{provider}: the fake backend did not delete before the add");
+
+                    // (a) The generation moved, so a probe of the deleted key is dropped.
+                    Assert(health.CaptureTranscriptionCredentialGeneration(provider) > inFlight,
+                        $"{provider}: a failed write left the credential generation unchanged");
+                    health.RecordTranscriptionOutcome(provider, inFlight, ProviderDown());
+                    Assert(health.GetHealthStatus(provider) == ProviderHealth.Unknown,
+                        $"{provider}: an in-flight outcome for the deleted key still landed: {health.GetHealthStatus(provider)}");
+
+                    // (b) The vault now holds no key, and health says so: no Healthy
+                    // verdict survives for a key that is gone.
+                    Assert(health.GetStatus(provider) == ProviderHealth.Unknown,
+                        $"{provider}: health kept {health.GetStatus(provider)} for a key the vault no longer holds");
+                }
+            });
+
+            Run("issue #742: a failed endpoint key write retires the endpoint's test verdict", () =>
+            {
+                const string oldValue = "placeholder-old-endpoint-742";
+                const string newValue = "placeholder-new-endpoint-742";
+                const string Url = "https://percy.example.com/v1/chat/completions";
+                var settings = SettingsService.Instance;
+                var saved = settings.CustomEndpoints;
+                settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+                try
+                {
+                    var backend = new DeleteThenFailAddCredentialBackend { FailAdds = false };
+                    using var client = new HttpClient(new CapturingHandler());
+                    using var manager = new CustomEndpointManager(client, new ApiKeyService(backend));
+
+                    var endpoint = manager.AddEndpoint("tested", Url, "m-1", out var addError, oldValue, lastTestSuccess: true);
+                    Assert(endpoint is not null, $"AddEndpoint refused a valid endpoint: {addError}");
+                    Assert(manager.GetEndpoint(endpoint!.Id)?.LastTestSuccess == true, "the passing test was not recorded");
+
+                    backend.FailAdds = true;
+                    Assert(!manager.UpdateEndpoint(endpoint.Id, out var editError, name: "renamed", apiKey: newValue),
+                        "UpdateEndpoint accepted an edit whose key write failed");
+                    Assert(editError == HyperWhisper.Localization.Loc.S("onboarding.setup.provider.saveFailed"),
+                        $"the refused edit gave the wrong message: {editError}");
+
+                    var after = manager.GetEndpoint(endpoint.Id);
+                    Assert(after is not null, "the endpoint vanished after a refused edit");
+                    Assert(manager.GetApiKey(endpoint.Id) == null, "the fake backend did not delete before the add");
+                    Assert(after!.LastTestSuccess is null && after.LastTestedAt is null,
+                        $"the endpoint kept its verdict ({after.LastTestSuccess}) for a key that may be gone");
+                    Assert(after.Name == "tested" && after.EndpointURL == Url && after.ModelName == "m-1",
+                        "a refused edit still changed the endpoint's name, URL or model");
+                }
+                finally
+                {
+                    settings.CustomEndpoints = saved;
+                }
             });
 
             Run("issue #379 (c4): production API-key write mappings advance only the affected provider", () =>
@@ -15710,12 +16286,15 @@ internal static class Program
                 // precondition assert already proves the failure came from the hold.
                 var previous = TextDeliveryGate.IsSuppressed;
                 using var paste = new SmartPasteService();
+                // No modifier is "down", so the #1495 release wait returns at once
+                // whatever the operator's keyboard is doing.
+                paste.IsKeyDown = static _ => false;
                 try
                 {
                     TextDeliveryGate.SetSuppressed(false);
 
                     // No service: nothing to read, so Failed and silent, as before.
-                    var noService = MainViewModel.DeliverAutoPaste(null, "no service");
+                    var noService = MainViewModel.DeliverAutoPasteAsync(null, "no service").GetAwaiter().GetResult();
                     Assert(noService.Result == SmartPasteResult.Failed && !noService.LostTranscript,
                         $"a null paste service must be (Failed, False), got {noService}");
 
@@ -15752,7 +16331,7 @@ internal static class Program
                             "precondition: the helper thread never tried to open the clipboard");
                         Assert(held, "precondition: the helper thread could not open the clipboard");
 
-                        var refused = MainViewModel.DeliverAutoPaste(paste, "a held clipboard");
+                        var refused = MainViewModel.DeliverAutoPasteAsync(paste, "a held clipboard").GetAwaiter().GetResult();
                         Assert(paste.LastSmartPasteOutcome == PasteOutcome.ClipboardSetFailed,
                             $"expected ClipboardSetFailed, got {paste.LastSmartPasteOutcome?.ToString() ?? "null"}");
                         Assert(refused.Result == SmartPasteResult.Failed && refused.LostTranscript,
@@ -15763,7 +16342,7 @@ internal static class Program
                         // The gate exit records nothing, and must not inherit the
                         // ClipboardSetFailed the call above recorded.
                         TextDeliveryGate.SetSuppressed(true);
-                        var suppressed = MainViewModel.DeliverAutoPaste(paste, "a suppressed transcript");
+                        var suppressed = MainViewModel.DeliverAutoPasteAsync(paste, "a suppressed transcript").GetAwaiter().GetResult();
                         Assert(paste.LastSmartPasteOutcome == null,
                             "a suppressed paste must leave the outcome null, not the last call's");
                         Assert(suppressed.Result == SmartPasteResult.Failed && !suppressed.LostTranscript,
@@ -15772,7 +16351,7 @@ internal static class Program
                             "and the gate silences the report itself");
                         TextDeliveryGate.SetSuppressed(false);
 
-                        var empty = MainViewModel.DeliverAutoPaste(paste, string.Empty);
+                        var empty = MainViewModel.DeliverAutoPasteAsync(paste, string.Empty).GetAwaiter().GetResult();
                         Assert(paste.LastSmartPasteOutcome == PasteOutcome.EmptyText,
                             "empty text records EmptyText");
                         Assert(empty.Result == SmartPasteResult.Failed && !empty.LostTranscript,
@@ -15790,6 +16369,414 @@ internal static class Program
                 finally
                 {
                     TextDeliveryGate.SetSuppressed(previous);
+                }
+            });
+
+            // #1495: a paste fired while the user still held the stop chord sent
+            // Ctrl+Alt+V. These pin the guard: which keys count, the async bounded
+            // wait, and the release plan used when a key is still down at Ctrl+V.
+            Run("paste guard (#1495): only Shift, Alt and Win change what Ctrl+V means", () =>
+            {
+                const int VK_LCONTROL = 0xA2, VK_RCONTROL = 0xA3, VK_SPACE = 0x20;
+
+                var none = PasteModifierGuard.HeldConflictingModifiers(_ => false);
+                Assert(none.Count == 0, "nothing held must report nothing");
+
+                // Ctrl + a non-modifier key: Ctrl+V with Ctrl already down is
+                // still Ctrl+V, so a Ctrl+Space chord must not delay the paste.
+                var ctrlOnly = PasteModifierGuard.HeldConflictingModifiers(
+                    vk => vk is VK_LCONTROL or VK_RCONTROL or VK_SPACE);
+                Assert(ctrlOnly.Count == 0, $"Ctrl and Space are harmless to Ctrl+V, got {PasteModifierGuard.Describe(ctrlOnly)}");
+
+                // The issue's default chord, Ctrl+Alt: Alt is what breaks the paste.
+                var ctrlAlt = PasteModifierGuard.HeldConflictingModifiers(
+                    vk => vk is VK_LCONTROL or PasteModifierGuard.VK_LMENU);
+                Assert(ctrlAlt.SequenceEqual(new[] { PasteModifierGuard.VK_LMENU }),
+                    $"Ctrl+Alt held must report Left Alt only, got {PasteModifierGuard.Describe(ctrlAlt)}");
+
+                // Every user-configurable modifier, both sides.
+                var all = PasteModifierGuard.HeldConflictingModifiers(_ => true);
+                Assert(all.SequenceEqual(new[]
+                    {
+                        PasteModifierGuard.VK_LMENU, PasteModifierGuard.VK_RMENU,
+                        PasteModifierGuard.VK_LSHIFT, PasteModifierGuard.VK_RSHIFT,
+                        PasteModifierGuard.VK_LWIN, PasteModifierGuard.VK_RWIN
+                    }),
+                    $"every Shift, Alt and Win key must count, got {PasteModifierGuard.Describe(all)}");
+                Assert(PasteModifierGuard.Describe(all) == "LAlt+RAlt+LShift+RShift+LWin+RWin",
+                    $"the log names the keys, got {PasteModifierGuard.Describe(all)}");
+                Assert(PasteModifierGuard.Describe(none) == "none", "an empty list logs as none");
+            });
+
+            Run("paste guard (#1495): a still-held Alt or Win is released behind a menu-mask tap", () =>
+            {
+                var mask = PasteModifierGuard.MenuMaskVk;
+
+                Assert(PasteModifierGuard.PlanRelease(Array.Empty<int>()).Count == 0,
+                    "nothing held must inject nothing");
+
+                // Shift alone: a lone Shift key-up has no side effect, so no mask.
+                var shift = PasteModifierGuard.PlanRelease(new[] { PasteModifierGuard.VK_RSHIFT });
+                Assert(shift.SequenceEqual(new[] { new PasteKeyEvent(PasteModifierGuard.VK_RSHIFT, KeyUp: true) }),
+                    $"Shift alone is one key-up, got {string.Join(", ", shift)}");
+
+                // Alt: a lone Alt key-up opens the target's menu bar, so the mask
+                // key is tapped BEFORE the key-up, and nothing is pressed again after.
+                var alt = PasteModifierGuard.PlanRelease(new[] { PasteModifierGuard.VK_LMENU, PasteModifierGuard.VK_LSHIFT });
+                Assert(alt.SequenceEqual(new[]
+                    {
+                        new PasteKeyEvent(mask, KeyUp: false),
+                        new PasteKeyEvent(mask, KeyUp: true),
+                        new PasteKeyEvent(PasteModifierGuard.VK_LMENU, KeyUp: true),
+                        new PasteKeyEvent(PasteModifierGuard.VK_LSHIFT, KeyUp: true)
+                    }),
+                    $"Alt+Shift must be mask down, mask up, then the key-ups, got {string.Join(", ", alt)}");
+
+                // Win: a lone Win key-up opens Start; same treatment.
+                var win = PasteModifierGuard.PlanRelease(new[] { PasteModifierGuard.VK_RWIN });
+                Assert(win.Count == 3 && win[0] == new PasteKeyEvent(mask, false) && win[1] == new PasteKeyEvent(mask, true)
+                        && win[2] == new PasteKeyEvent(PasteModifierGuard.VK_RWIN, true),
+                    $"Win must be released behind the mask, got {string.Join(", ", win)}");
+
+                Assert(alt.All(e => e.Vk == mask || e.KeyUp),
+                    "the plan must never press one of the user's keys (that would replay the chord into both hooks)");
+            });
+
+            // RunAsync blocks on GetResult, and an earlier WPF case can leave a
+            // DispatcherSynchronizationContext on this thread that nothing pumps.
+            // The "yields" case below really suspends, so detach for it, as the
+            // limits and onboarding blocks do.
+            var pasteGuardPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+            RunAsync("paste guard (#1495): the release wait is bounded, async, and free when nothing is held", async () =>
+            {
+                // A virtual clock: each awaited poll advances it, so the test is
+                // instant and deterministic.
+                var nowMs = 0;
+                var polls = 0;
+                Task Advance(TimeSpan interval, CancellationToken _)
+                {
+                    // An unbounded wait must fail this case, not hang the suite.
+                    if (++polls > 10_000)
+                        throw new InvalidOperationException("the release wait never gave up on a stuck key");
+                    nowMs += (int)interval.TotalMilliseconds;
+                    return Task.CompletedTask;
+                }
+
+                var timeout = PasteModifierGuard.DefaultReleaseTimeout;
+                var poll = PasteModifierGuard.DefaultPollInterval;
+
+                // Nothing held: no poll at all, so the common paste pays nothing.
+                var free = await PasteModifierGuard.WaitForReleaseAsync(_ => false, timeout, poll, Advance);
+                Assert(!free.WasHeld && free.Released && free.WaitedMs == 0 && polls == 0,
+                    $"nothing held must return at once, got {free} after {polls} polls");
+
+                // The issue: Ctrl+Alt held 250 ms after the stop press, while the
+                // transcription finished at ~110 ms. The wait must outlast the hold.
+                nowMs = 0; polls = 0;
+                var chordReleasedAtMs = 250;
+                var held = await PasteModifierGuard.WaitForReleaseAsync(
+                    vk => nowMs < chordReleasedAtMs && vk is 0xA2 or PasteModifierGuard.VK_LMENU,
+                    timeout, poll, Advance);
+                Assert(held.WasHeld && held.Released, $"a 250 ms hold must end released, got {held}");
+                Assert(held.WaitedMs >= chordReleasedAtMs && held.WaitedMs < chordReleasedAtMs + (int)poll.TotalMilliseconds,
+                    $"the paste must wait until the chord is up and not much longer, waited {held.WaitedMs} ms");
+                Assert(held.InitiallyHeld.SequenceEqual(new[] { PasteModifierGuard.VK_LMENU }),
+                    $"the log must name Alt, got {PasteModifierGuard.Describe(held.InitiallyHeld)}");
+
+                // A stuck key: the wait gives up at the bound and reports what is
+                // still down, instead of hanging.
+                nowMs = 0; polls = 0;
+                var stuck = await PasteModifierGuard.WaitForReleaseAsync(
+                    vk => vk == PasteModifierGuard.VK_RSHIFT, timeout, poll, Advance);
+                var maxPolls = (int)Math.Ceiling(timeout.TotalMilliseconds / poll.TotalMilliseconds);
+                Assert(!stuck.Released && stuck.StillHeld.SequenceEqual(new[] { PasteModifierGuard.VK_RSHIFT }),
+                    $"a stuck key must end not released, got {stuck}");
+                Assert(polls == maxPolls && stuck.WaitedMs >= (int)timeout.TotalMilliseconds,
+                    $"a stuck key must stop at the {timeout.TotalMilliseconds} ms bound, polled {polls} times ({stuck.WaitedMs} ms)");
+
+                // It must YIELD, not block: the UI thread that runs it also runs
+                // both keyboard hooks, which have to see the key-up it waits for.
+                var gate = new TaskCompletionSource();
+                var yielding = PasteModifierGuard.WaitForReleaseAsync(
+                    _ => !gate.Task.IsCompleted, timeout, poll, (_, _) => gate.Task);
+                Assert(!yielding.IsCompleted, "the wait must hand the thread back while a key is held");
+                gate.SetResult();
+                var yielded = await yielding;
+                Assert(yielded.Released, $"the wait must finish once the key is up, got {yielded}");
+
+                // A cancelled caller stops polling.
+                using var cts = new CancellationTokenSource();
+                cts.Cancel();
+                polls = 0;
+                var cancelled = await PasteModifierGuard.WaitForReleaseAsync(
+                    _ => true, timeout, poll, Advance, cts.Token);
+                Assert(polls == 0 && !cancelled.Released, $"a cancelled wait must not poll, polled {polls}");
+            });
+            SynchronizationContext.SetSynchronizationContext(pasteGuardPreviousContext);
+
+            Run("paste guard (#1495): SmartPasteService waits through its seams and releases a held key at Ctrl+V", () =>
+            {
+                using var paste = new SmartPasteService();
+                var sent = new List<PasteKeyEvent>();
+                paste.SendModifierKeyEvent = sent.Add;
+
+                // Nothing down: nothing injected.
+                paste.IsKeyDown = static _ => false;
+                Assert(!paste.AnyPasteModifierHeld, "nothing held");
+                Assert(paste.ReleaseHeldModifiersBeforePaste().Count == 0 && sent.Count == 0,
+                    "with nothing held SmartPaste must inject nothing before Ctrl+V");
+
+                // Left Alt still down at Ctrl+V (the wait gave up, or the streaming
+                // segment path that cannot wait): mask tap, then Alt up.
+                paste.IsKeyDown = static vk => vk == PasteModifierGuard.VK_LMENU;
+                Assert(paste.AnyPasteModifierHeld, "Alt held must be seen");
+                var plan = paste.ReleaseHeldModifiersBeforePaste();
+                Assert(sent.SequenceEqual(plan) && sent.Count == 3 && sent[2] == new PasteKeyEvent(PasteModifierGuard.VK_LMENU, KeyUp: true),
+                    $"the service must send the planned events in order, sent {string.Join(", ", sent)}");
+
+                // The service's own wait goes through the injectable delay and
+                // stops at its timeout.
+                var polls = 0;
+                paste.ModifierPollDelay = (_, _) => { polls++; return Task.CompletedTask; };
+                paste.ModifierReleaseTimeout = TimeSpan.FromMilliseconds(150);
+                paste.WaitForPasteModifiersReleasedAsync().GetAwaiter().GetResult();
+                Assert(polls == 10, $"a 150 ms bound at 15 ms polls is 10 polls, got {polls}");
+
+                // Exits that type nothing never wait: empty text, and the
+                // onboarding gate.
+                polls = 0;
+                var reads = 0;
+                paste.IsKeyDown = vk => { reads++; return true; };
+                var empty = paste.SmartPasteAsync(string.Empty).GetAwaiter().GetResult();
+                Assert(empty == SmartPasteResult.Failed && reads == 0 && polls == 0,
+                    $"empty text must not wait, read the keyboard {reads} times");
+                var previous = TextDeliveryGate.IsSuppressed;
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(true);
+                    var suppressed = paste.SmartPasteAsync("a suppressed transcript").GetAwaiter().GetResult();
+                    Assert(suppressed == SmartPasteResult.Failed && reads == 0 && polls == 0,
+                        $"a gate refusal must not wait, read the keyboard {reads} times");
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previous);
+                }
+            });
+
+            Run("paste guard (#1495): a streaming segment after a deferred one queues behind it", () =>
+            {
+                // Review round 1: segment A arrived during the stop while Alt was
+                // held and went to the pending text; segment B arrived after the
+                // keys came up and was pasted at once. The stop path then pasted
+                // A, so the target read "B A". Replay that sequence through the
+                // handler's own decision and append helpers.
+                var typed = new List<string>();
+                var pending = string.Empty;
+                void Deliver(string segment, bool inStopWindow, bool held)
+                {
+                    if (MainViewModel.ShouldDeferStreamingSegmentToStopPath(inStopWindow, held, pending))
+                        pending = MainViewModel.AppendStreamingPendingText(pending, segment);
+                    else
+                        typed.Add(segment);
+                }
+
+                Deliver("Alpha one.", inStopWindow: true, held: true);
+                Deliver("Bravo two.", inStopWindow: true, held: false);
+                Assert(typed.Count == 0, $"B must not be typed before the queued A, typed: {string.Join(" | ", typed)}");
+                // The stop path pastes its pending text after its wait.
+                typed.Add(pending);
+                var all = string.Join(" ", typed);
+                var a = all.IndexOf("Alpha one.", StringComparison.Ordinal);
+                var b = all.IndexOf("Bravo two.", StringComparison.Ordinal);
+                Assert(a >= 0 && b > a, $"the target must read A then B, got \"{all}\"");
+                Assert(all.Contains("one. Bravo", StringComparison.Ordinal),
+                    $"the queued segments must be joined by one space, got \"{all}\"");
+
+                // Keys up and nothing queued: the stop window pastes at once.
+                Assert(!MainViewModel.ShouldDeferStreamingSegmentToStopPath(true, false, string.Empty),
+                    "with nothing held and nothing queued a segment pastes directly");
+                // Outside the stop window nothing defers (SmartPaste releases at Ctrl+V).
+                Assert(!MainViewModel.ShouldDeferStreamingSegmentToStopPath(false, true, "queued"),
+                    "mid-session a segment never defers to the stop path");
+                // An empty segment leaves the queue as it was.
+                Assert(MainViewModel.AppendStreamingPendingText("kept", "   ") == "kept",
+                    "a blank segment must not change the pending text");
+            });
+
+            // #1496: a dictation started inside the previous one's restore window
+            // captured the previous TRANSCRIPT as "the user's clipboard", and its
+            // restore then wrote that transcript back. These drive the real
+            // service on the real clipboard: no window is captured, so SmartPaste
+            // writes the transcript and returns CopiedToClipboard without typing.
+            Run("clipboard restore (#1496): a chain of quick dictations restores the user's own clipboard", () =>
+            {
+                static string Clip() => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                // The operator's whole clipboard (every format: an image, a file
+                // list, an empty clipboard), put back in the finally below.
+                var operatorClipboard = SnapshotWholeClipboard();
+                var previousGate = TextDeliveryGate.IsSuppressed;
+                // An earlier case can leave the scratch profile with restore off.
+                var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = true;
+
+                    // One dictation as the batch flow runs it: start, paste,
+                    // schedule the restore (an hour out, so only the next start
+                    // or Dispose ends it), end. A Ctrl+V target reads the
+                    // clipboard, in both text formats, which must not count as
+                    // a write.
+                    void Dictate(SmartPasteService paste, string transcript)
+                    {
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(transcript) == SmartPasteResult.CopiedToClipboard,
+                            $"precondition: '{transcript}' must reach the clipboard");
+                        Assert(Clip() == transcript && (Clipboard.GetData(DataFormats.Text) as string) == transcript,
+                            $"precondition: the clipboard must hold '{transcript}', got '{Clip()}'");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(TimeSpan.FromHours(1));
+                        Assert(paste.HasPendingClipboardRestore, $"a restore must be pending after '{transcript}'");
+                        paste.EndRecordingSession();
+                    }
+
+                    // The issue: A, then B inside A's window, then C inside B's.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        Dictate(paste, "A third sentence. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "user clipboard 1496",
+                            $"after three quick dictations the user's own text must come back, got '{Clip()}'");
+                    }
+
+                    // The user copied something new between A's paste and B's
+                    // start: that copy is now the user's clipboard.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        Dictate(paste, "First dictation. ");
+                        Clipboard.SetText("copied between dictations");
+                        Dictate(paste, "Second dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "copied between dictations",
+                            $"a copy made between dictations must be what comes back, got '{Clip()}'");
+                    }
+
+                    // A dictation that pasted nothing and armed no restore (no
+                    // speech, cancel, empty text) sits between two that pasted.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        Dictate(paste, "Before the empty one. ");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(string.Empty) == SmartPasteResult.Failed, "empty text pastes nothing");
+                        paste.EndRecordingSession();
+                        Assert(!paste.HasPendingClipboardRestore, "the empty dictation cancelled the pending restore");
+                        Dictate(paste, "After the empty one. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "user clipboard 1496",
+                            $"a no-paste dictation in the chain must not lose the user's text, got '{Clip()}'");
+
+                        // The restore wrote the user's text back, so the next
+                        // dictation snapshots afresh (a copy made after it counts).
+                        Clipboard.SetText("copied after the restore");
+                        Dictate(paste, "A later dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "copied after the restore",
+                            $"after a restore the next dictation must snapshot afresh, got '{Clip()}'");
+                    }
+
+                    // A transcript left on the clipboard ON PURPOSE: the caller
+                    // schedules no restore, as for SecureFieldSkipped (the user
+                    // pastes it by hand). It is now the clipboard, so the next
+                    // dictation's restore must bring THAT back, not the older
+                    // snapshot (main kept it). Also inside a chain, where the
+                    // dictation before it had armed the keep-the-snapshot rule.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        Dictate(paste, "A pasted one first. ");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Secret left for a manual paste. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the kept transcript must reach the clipboard");
+                        paste.EndRecordingSession();
+                        Assert(!paste.HasPendingClipboardRestore, "no restore is pending after a transcript kept on purpose");
+                        Dictate(paste, "The next dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Secret left for a manual paste. ",
+                            $"a transcript left on the clipboard on purpose must come back after the next dictation, got '{Clip()}'");
+                    }
+
+                    // The same with nothing before it: one kept transcript, then a
+                    // dictation.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Kept on purpose. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the kept transcript must reach the clipboard");
+                        paste.EndRecordingSession();
+                        Dictate(paste, "After the kept one. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Kept on purpose. ",
+                            $"the kept transcript must survive the next dictation, got '{Clip()}'");
+                    }
+
+                    // Restore OFF: no restore is ever scheduled, so the snapshot
+                    // must not live on. Turning restore on later must not bring
+                    // back that stale snapshot, neither by itself nor through the
+                    // next dictation.
+                    using (var paste = new SmartPasteService())
+                    {
+                        SettingsService.Instance.RestoreClipboardAfterPaste = false;
+                        Clipboard.SetText("stale user text 1496");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Dictated with restore off. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the transcript must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(TimeSpan.FromHours(1));
+                        paste.EndRecordingSession();
+
+                        SettingsService.Instance.RestoreClipboardAfterPaste = true;
+                        Assert(!paste.HasPendingClipboardRestore, "restore off schedules nothing");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Dictated with restore off. ",
+                            $"turning restore on must not restore a snapshot taken while it was off, got '{Clip()}'");
+
+                        Dictate(paste, "Hours later, restore on. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "Dictated with restore off. ",
+                            $"the first dictation after restore is turned on must snapshot afresh, got '{Clip()}'");
+                    }
+
+                    // A transcript written after the restore was scheduled (a late
+                    // streaming segment) is covered by that restore: the chain
+                    // still ends with the user's text.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("user clipboard 1496");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste("Streamed segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the segment must reach the clipboard");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(TimeSpan.FromHours(1));
+                        Assert(paste.SmartPaste("Late segment. ") == SmartPasteResult.CopiedToClipboard,
+                            "precondition: the late segment must reach the clipboard");
+                        paste.EndRecordingSession();
+                        Assert(paste.HasPendingClipboardRestore, "the scheduled restore must survive a late segment");
+                        Dictate(paste, "The next dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "user clipboard 1496",
+                            $"a late segment must not end the chain, got '{Clip()}'");
+                    }
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previousGate);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = previousRestore;
+                    PutBackWholeClipboard(operatorClipboard);
                 }
             });
 
@@ -16471,6 +17458,141 @@ internal static class Program
         return recorder;
     }
 
+    private static readonly Guid ExtensiblePcmSubFormat = new("00000001-0000-0010-8000-00aa00389b71");
+    private static readonly Guid ExtensibleIeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
+
+    private static string TempWav(string label) =>
+        Path.Combine(Path.GetTempPath(), $"HyperWhisper.SmokeTests.{label}.{Guid.NewGuid():N}.wav");
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch
+        {
+            // Best-effort cleanup; a leftover temp file must not fail CI.
+        }
+    }
+
+    /// <summary>
+    /// A 440 Hz sine on every channel, channel c at (c + 1) / channels of 0.5, so the mean
+    /// across channels differs from any one channel and from their sum.
+    /// </summary>
+    private static double SpeechLikeChannelSample(int frame, int channel, int channels, int sampleRate) =>
+        0.5 * (channel + 1) / channels * Math.Sin(2 * Math.PI * 440 * frame / sampleRate);
+
+    /// <summary>
+    /// Writes a WAV with a 40-byte WAVE_FORMAT_EXTENSIBLE fmt chunk, the layout ffmpeg
+    /// writes for any WAV with more than two channels. Written by hand so the fixture does
+    /// not depend on how NAudio serializes its own WaveFormatExtensible.
+    /// </summary>
+    private static void WriteExtensibleWav(
+        string path,
+        int sampleRate,
+        int channels,
+        int bitsPerSample,
+        Guid subFormat,
+        int frames,
+        Func<int, int, int, int, double> sample)
+    {
+        var bytesPerSample = bitsPerSample / 8;
+        var blockAlign = channels * bytesPerSample;
+        var dataBytes = frames * blockAlign;
+        var isFloat = subFormat == ExtensibleIeeeFloatSubFormat;
+
+        using var stream = File.Create(path);
+        using var w = new BinaryWriter(stream);
+        w.Write("RIFF"u8.ToArray());
+        w.Write(4 + (8 + 40) + (8 + dataBytes));
+        w.Write("WAVE"u8.ToArray());
+        w.Write("fmt "u8.ToArray());
+        w.Write(40);
+        w.Write((ushort)0xFFFE);
+        w.Write((ushort)channels);
+        w.Write(sampleRate);
+        w.Write(sampleRate * blockAlign);
+        w.Write((ushort)blockAlign);
+        w.Write((ushort)bitsPerSample);
+        w.Write((ushort)22);
+        w.Write((ushort)bitsPerSample);
+        w.Write(channels == 6 ? 0x3F : (1 << channels) - 1);
+        w.Write(subFormat.ToByteArray());
+        w.Write("data"u8.ToArray());
+        w.Write(dataBytes);
+
+        for (var i = 0; i < frames; i++)
+        {
+            for (var c = 0; c < channels; c++)
+            {
+                var value = Math.Clamp(sample(i, c, channels, sampleRate), -1.0, 1.0);
+                if (isFloat)
+                {
+                    w.Write((float)value);
+                }
+                else if (bitsPerSample == 16)
+                {
+                    w.Write((short)Math.Round(value * short.MaxValue));
+                }
+                else if (bitsPerSample == 24)
+                {
+                    var v = (int)Math.Round(value * 8388607);
+                    w.Write((byte)v);
+                    w.Write((byte)(v >> 8));
+                    w.Write((byte)(v >> 16));
+                }
+                else if (bitsPerSample == 8)
+                {
+                    w.Write((byte)(128 + Math.Round(value * 127)));
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(bitsPerSample));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Asserts <paramref name="path"/> is the 16 kHz mono 16-bit PCM WAV local engines need,
+    /// of about <paramref name="expectedSeconds"/>, with a sine peak near
+    /// <paramref name="expectedPeak"/>.
+    /// </summary>
+    private static void AssertWhisperWav(string path, double expectedSeconds, double expectedPeak)
+    {
+        using var reader = new NAudio.Wave.WaveFileReader(path);
+        var format = reader.WaveFormat;
+        Assert(format.Encoding == NAudio.Wave.WaveFormatEncoding.Pcm && format.SampleRate == 16000 &&
+               format.Channels == 1 && format.BitsPerSample == 16,
+            $"expected 16 kHz mono 16-bit PCM, got {format.Encoding} {format.SampleRate} Hz {format.Channels}ch {format.BitsPerSample}-bit");
+        Assert(Math.Abs(reader.TotalTime.TotalSeconds - expectedSeconds) < 0.05,
+            $"expected ~{expectedSeconds} s, got {reader.TotalTime.TotalSeconds}");
+
+        var samples = NAudio.Wave.WaveExtensionMethods.ToSampleProvider(reader);
+        var buffer = new float[4096];
+        double peak = 0;
+        double sumSquares = 0;
+        long count = 0;
+        int read;
+        while ((read = samples.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            for (var i = 0; i < read; i++)
+            {
+                peak = Math.Max(peak, Math.Abs(buffer[i]));
+                sumSquares += buffer[i] * (double)buffer[i];
+                count++;
+            }
+        }
+
+        var rms = count == 0 ? 0 : Math.Sqrt(sumSquares / count);
+        Assert(Math.Abs(peak - expectedPeak) < expectedPeak * 0.1,
+            $"expected a peak near {expectedPeak:F3}, got {peak:F3}");
+        // A full-length sine has RMS = peak / sqrt(2); silence or a short burst would not.
+        Assert(rms > expectedPeak * 0.6,
+            $"expected a non-silent signal throughout (RMS > {expectedPeak * 0.6:F3}), got {rms:F3}");
+    }
+
     private static void Run(string name, Action check)
     {
         try
@@ -16493,6 +17615,136 @@ internal static class Program
     {
         if (!condition)
             throw new InvalidOperationException(message);
+    }
+
+    private const int VkLeft = 0x25;
+    private const int VkE = 0x45;
+    private const int VkLWin = 0x5B;
+    private const int VkLShift = 0xA0;
+    private const int VkLControl = 0xA2;
+    private const int VkLMenu = 0xA4;
+    private const int VkRMenu = 0xA5;
+
+    /// <summary>
+    /// One key event, the way KeyboardShortcutService's hook feeds a
+    /// ModifierChordGate. Returns 1 when the event triggered the chord.
+    /// </summary>
+    private static int ChordKey(ModifierChordGate gate, HashSet<int> pressed, int vk, bool down)
+    {
+        if (down)
+        {
+            pressed.Add(vk);
+            gate.KeyDown(pressed);
+            return 0;
+        }
+
+        pressed.Remove(vk);
+        return gate.KeyUp(pressed, vk) ? 1 : 0;
+    }
+
+    /// <summary>Replays key events through a fresh gate and counts the triggers.</summary>
+    private static int ReplayChord(KeyboardShortcut shortcut, params (int Vk, bool Down)[] events)
+    {
+        var gate = new ModifierChordGate(shortcut);
+        var pressed = new HashSet<int>();
+        int triggers = 0;
+        foreach (var (vk, down) in events)
+        {
+            triggers += ChordKey(gate, pressed, vk, down);
+        }
+        return triggers;
+    }
+
+    /// <summary>
+    /// A copy of every format on the clipboard, so a case that writes the real
+    /// clipboard can hand the operator's content back (#1496). The live
+    /// IDataObject dies with the next write, so the data is copied out now.
+    /// </summary>
+    private sealed record ClipboardCopy(List<KeyValuePair<string, object>> Formats, int FormatsSeen);
+
+    private static ClipboardCopy SnapshotWholeClipboard()
+    {
+        var formats = new List<KeyValuePair<string, object>>();
+        var seen = 0;
+        try
+        {
+            var live = Clipboard.GetDataObject();
+            foreach (var format in live?.GetFormats(false) ?? Array.Empty<string>())
+            {
+                seen++;
+                try
+                {
+                    object? copy = live!.GetData(format, false) switch
+                    {
+                        string text => text,
+                        string[] files => (string[])files.Clone(),
+                        MemoryStream stream => stream.ToArray(),
+                        System.Windows.Media.Imaging.BitmapSource bitmap => Frozen(bitmap),
+                        _ => null,
+                    };
+                    if (copy != null)
+                        formats.Add(new(format, copy));
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"       could not copy clipboard format {format}: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"       could not read the operator's clipboard: {ex.Message}");
+        }
+
+        return new ClipboardCopy(formats, seen);
+
+        static System.Windows.Media.Imaging.BitmapSource Frozen(System.Windows.Media.Imaging.BitmapSource bitmap)
+        {
+            var copy = new System.Windows.Media.Imaging.WriteableBitmap(bitmap);
+            copy.Freeze();
+            return copy;
+        }
+    }
+
+    private static void PutBackWholeClipboard(ClipboardCopy saved)
+    {
+        try
+        {
+            if (saved.FormatsSeen == 0)
+            {
+                // It was empty: leave it empty, not holding test text.
+                Clipboard.Clear();
+                return;
+            }
+
+            if (saved.Formats.Count == 0)
+            {
+                // Content none of these formats could copy: clear the test text
+                // rather than leave it, and say so.
+                Clipboard.Clear();
+                Console.Error.WriteLine("       the operator's clipboard held no format this test can copy; it was cleared");
+                return;
+            }
+
+            var data = new DataObject();
+            foreach (var (format, value) in saved.Formats)
+            {
+                try
+                {
+                    data.SetData(format, value is byte[] bytes ? new MemoryStream(bytes) : value, false);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"       could not put back clipboard format {format}: {ex.Message}");
+                }
+            }
+
+            Clipboard.SetDataObject(data, true);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"       could not put the operator's clipboard back: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -17486,6 +18738,67 @@ internal static class Program
             _position += size;
             return size;
         }
+    }
+
+    /// <summary>
+    /// A Credential Manager whose add always fails, the way PasswordVault.Add does
+    /// on a roaming quota, a locked vault or a Group Policy restriction (#742).
+    /// Write mirrors PasswordVaultCredentialBackend.Write: delete, then add.
+    /// </summary>
+    private sealed class ThrowingAddCredentialBackend : IWindowsCredentialBackend
+    {
+        private const int AccessDenied = unchecked((int)0x80070005);
+
+        public int AddAttempts { get; private set; }
+
+        public bool TryRead(string resource, string account, out string? value)
+        {
+            value = null;
+            return false;
+        }
+
+        public void Write(string resource, string account, string value)
+        {
+            Delete(resource, account);
+            AddAttempts++;
+            throw new System.Runtime.InteropServices.COMException("Credential Manager refused the add.", AccessDenied);
+        }
+
+        public void Delete(string resource, string account) { }
+    }
+
+    /// <summary>
+    /// Deletes the stored value, then (once <see cref="FailAdds"/> is set) refuses
+    /// the add: the PasswordVault write order that can lose the previous key.
+    /// </summary>
+    private sealed class DeleteThenFailAddCredentialBackend : IWindowsCredentialBackend
+    {
+        private const int AccessDenied = unchecked((int)0x80070005);
+        private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
+
+        public bool FailAdds { get; set; } = true;
+        public int StoredCount => _values.Count;
+
+        public void Seed(string account, string value) => _values[account] = value;
+
+        public bool TryRead(string resource, string account, out string? value)
+        {
+            var found = _values.TryGetValue(account, out var stored);
+            value = stored;
+            return found;
+        }
+
+        public void Write(string resource, string account, string value)
+        {
+            Delete(resource, account);
+            if (FailAdds)
+            {
+                throw new System.Runtime.InteropServices.COMException("Credential Manager refused the add.", AccessDenied);
+            }
+            _values[account] = value;
+        }
+
+        public void Delete(string resource, string account) => _values.Remove(account);
     }
 
     private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend

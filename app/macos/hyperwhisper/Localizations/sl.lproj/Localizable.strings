@@ -727,7 +727,7 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "modes.postProcessing.apiKeyMissing" = "%@ API ključ ni konfiguriran. Dodaj ga v Nastavitve za omogočanje obdelave po prepisu.";
 "modes.postProcessing.configure" = "Nastavi v Nastavitvah";
 "modes.postProcessing.modelRecommendation" = "Priporočljivo je uporabiti GPT-4.1 Nano za najboljši ravnotežje med hitrostjo in kvaliteto.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokalna naknadna obdelava zahteva preneseni lokalni model.";
 "modes.postProcessing.download" = "Prenesi v Nastavitvah";
@@ -793,6 +793,8 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "modes.provider.cloud" = "Oblak";
 "modes.notice.noLocalModels.title" = "Ni nameščenih lokalnih modelov";
 "modes.notice.noLocalModels.subtitle" = "Prvo instaliraj model v Nastavitvah";
+"modes.model.notInstalledFormat" = "%@ (ni nameščen)";
+"modes.notice.modelNotInstalled" = "Model tega načina ni nameščen. Shranjevanje ga ohrani. Prenesite ga v Knjižnici modelov ali izberite drug model.";
 "modes.model.pricing" = "Cena: $%.6f / minuto (obračunano po sekundi)";
 "modes.button.create" = "Ustvari način";
 "modes.button.delete" = "Izbriši način";
@@ -975,6 +977,10 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "settings.backup.localDownload.dismiss" = "Opusti";
 "modelLibrary.local.requiresAppleSilicon" = "Zahteva Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Znova zaženi izvorno";
+"modelLibrary.remove.confirm.title" = "Želite odstraniti %@?";
+"modelLibrary.remove.confirm.message" = "Znova ga boste morali prenesti (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Znova ga boste morali prenesti.";
+"modelLibrary.remove.confirm.button" = "Odstrani";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nezadostno število kreditov. Dodaj več kreditov v Nastavitvah.";
@@ -1039,7 +1045,12 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "settings.backup.import.subtitle" = "Obnovi nastavitve iz varnostne kopije datoteke";
 "settings.backup.import.button" = "Uvezi...";
 "settings.backup.import.panel.title" = "Uvezi nastavitve";
-"settings.backup.import.success" = "Uvoz zaključen: %d načinov, %d elementov besednjaka uvoženo";
+"settings.backup.import.result" = "Uvoz zaključen: %@";
+"settings.backup.import.result.settings" = "nastavitve obnovljene";
+"settings.backup.import.result.modes" = "uvoženih načinov: %d";
+"settings.backup.import.result.vocabulary" = "uvoženih elementov besednjaka: %d";
+"settings.backup.import.complete" = "Uvoz zaključen";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Napaka pri branju varnostne kopije datoteke";
 "settings.backup.import.error.decode" = "Neveljavan oblika varnostne kopije datoteke";
 "settings.backup.import.error.decode.keyNotFound" = "Manjka obvezno polje: %@";

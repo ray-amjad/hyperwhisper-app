@@ -322,7 +322,7 @@ class CustomPostProcessingManager: ObservableObject {
         logger.info("Testing endpoint: \(endpoint.name, privacy: .public) at \(endpoint.displayURL, privacy: .public)")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await CredentialNetworkCache.session.data(for: request)
 
             // STEP 5: Check HTTP response
             guard let httpResponse = response as? HTTPURLResponse else {

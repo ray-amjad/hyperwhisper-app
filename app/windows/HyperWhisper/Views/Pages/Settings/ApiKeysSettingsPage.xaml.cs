@@ -11,6 +11,7 @@ using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
 using HyperWhisper.Utilities;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
@@ -211,8 +212,12 @@ public partial class ApiKeysSettingsPage : Page
         var key = card.KeyBoxFor(sender).Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(card.Provider, null);
-            LoggingService.Info($"ApiKeys: Cleared {card.LogLabel} API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(card.Provider, null), card.LogLabel, clearing: true))
+            {
+                ShowKeyWriteFailed();
+                card.SyncShowButtons();
+                return;
+            }
         }
         else
         {
@@ -226,8 +231,13 @@ public partial class ApiKeysSettingsPage : Page
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(card.Provider, key);
-            LoggingService.Info($"ApiKeys: Saved {card.LogLabel} API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(card.Provider, key), card.LogLabel, clearing: false))
+            {
+                // Keep the typed key in the box so the user can retry without retyping.
+                ShowKeyWriteFailed();
+                card.SyncShowButtons();
+                return;
+            }
         }
 
         card.FirstKeyBox.Password = "";
@@ -321,8 +331,12 @@ public partial class ApiKeysSettingsPage : Page
         var key = AnthropicKeyBox.Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Anthropic, null);
-            LoggingService.Info("ApiKeys: Cleared Anthropic API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Anthropic, null), "Anthropic", clearing: true))
+            {
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(PostProcessingProvider.Anthropic, AnthropicStatusText);
+                return;
+            }
         }
         else
         {
@@ -336,8 +350,13 @@ public partial class ApiKeysSettingsPage : Page
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Anthropic, key);
-            LoggingService.Info("ApiKeys: Saved Anthropic API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Anthropic, key), "Anthropic", clearing: false))
+            {
+                // Keep the typed key in the box so the user can retry without retyping.
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(PostProcessingProvider.Anthropic, AnthropicStatusText);
+                return;
+            }
         }
 
         AnthropicKeyBox.Password = "";
@@ -486,8 +505,12 @@ public partial class ApiKeysSettingsPage : Page
         var key = CerebrasKeyBox.Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Cerebras, null);
-            LoggingService.Info("ApiKeys: Cleared Cerebras API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Cerebras, null), "Cerebras", clearing: true))
+            {
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(PostProcessingProvider.Cerebras, CerebrasStatusText);
+                return;
+            }
         }
         else
         {
@@ -501,8 +524,13 @@ public partial class ApiKeysSettingsPage : Page
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Cerebras, key);
-            LoggingService.Info("ApiKeys: Saved Cerebras API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Cerebras, key), "Cerebras", clearing: false))
+            {
+                // Keep the typed key in the box so the user can retry without retyping.
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(PostProcessingProvider.Cerebras, CerebrasStatusText);
+                return;
+            }
         }
 
         CerebrasKeyBox.Password = "";
@@ -541,8 +569,12 @@ public partial class ApiKeysSettingsPage : Page
         var key = DeepgramKeyBox.Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Deepgram, null);
-            LoggingService.Info("ApiKeys: Cleared Deepgram API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Deepgram, null), "Deepgram", clearing: true))
+            {
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.Deepgram, DeepgramStatusText);
+                return;
+            }
         }
         else
         {
@@ -556,8 +588,13 @@ public partial class ApiKeysSettingsPage : Page
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Deepgram, key);
-            LoggingService.Info("ApiKeys: Saved Deepgram API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Deepgram, key), "Deepgram", clearing: false))
+            {
+                // Keep the typed key in the box so the user can retry without retyping.
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.Deepgram, DeepgramStatusText);
+                return;
+            }
         }
 
         DeepgramKeyBox.Password = "";
@@ -596,8 +633,12 @@ public partial class ApiKeysSettingsPage : Page
         var key = AssemblyAIKeyBox.Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.AssemblyAI, null);
-            LoggingService.Info("ApiKeys: Cleared AssemblyAI API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.AssemblyAI, null), "AssemblyAI", clearing: true))
+            {
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.AssemblyAI, AssemblyAIStatusText);
+                return;
+            }
         }
         else
         {
@@ -611,8 +652,13 @@ public partial class ApiKeysSettingsPage : Page
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.AssemblyAI, key);
-            LoggingService.Info("ApiKeys: Saved AssemblyAI API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.AssemblyAI, key), "AssemblyAI", clearing: false))
+            {
+                // Keep the typed key in the box so the user can retry without retyping.
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.AssemblyAI, AssemblyAIStatusText);
+                return;
+            }
         }
 
         AssemblyAIKeyBox.Password = "";
@@ -651,8 +697,12 @@ public partial class ApiKeysSettingsPage : Page
         var key = ElevenLabsKeyBox.Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.ElevenLabs, null);
-            LoggingService.Info("ApiKeys: Cleared ElevenLabs API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.ElevenLabs, null), "ElevenLabs", clearing: true))
+            {
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.ElevenLabs, ElevenLabsStatusText);
+                return;
+            }
         }
         else
         {
@@ -666,8 +716,13 @@ public partial class ApiKeysSettingsPage : Page
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.ElevenLabs, key);
-            LoggingService.Info("ApiKeys: Saved ElevenLabs API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.ElevenLabs, key), "ElevenLabs", clearing: false))
+            {
+                // Keep the typed key in the box so the user can retry without retyping.
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.ElevenLabs, ElevenLabsStatusText);
+                return;
+            }
         }
 
         ElevenLabsKeyBox.Password = "";
@@ -706,8 +761,12 @@ public partial class ApiKeysSettingsPage : Page
         var key = MistralKeyBox.Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Mistral, null);
-            LoggingService.Info("ApiKeys: Cleared Mistral API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Mistral, null), "Mistral", clearing: true))
+            {
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.Mistral, MistralStatusText);
+                return;
+            }
         }
         else
         {
@@ -721,8 +780,13 @@ public partial class ApiKeysSettingsPage : Page
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Mistral, key);
-            LoggingService.Info("ApiKeys: Saved Mistral API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Mistral, key), "Mistral", clearing: false))
+            {
+                // Keep the typed key in the box so the user can retry without retyping.
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.Mistral, MistralStatusText);
+                return;
+            }
         }
 
         MistralKeyBox.Password = "";
@@ -761,8 +825,12 @@ public partial class ApiKeysSettingsPage : Page
         var key = SonioxKeyBox.Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Soniox, null);
-            LoggingService.Info("ApiKeys: Cleared Soniox API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Soniox, null), "Soniox", clearing: true))
+            {
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.Soniox, SonioxStatusText);
+                return;
+            }
         }
         else
         {
@@ -776,8 +844,13 @@ public partial class ApiKeysSettingsPage : Page
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Soniox, key);
-            LoggingService.Info("ApiKeys: Saved Soniox API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Soniox, key), "Soniox", clearing: false))
+            {
+                // Keep the typed key in the box so the user can retry without retyping.
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.Soniox, SonioxStatusText);
+                return;
+            }
         }
 
         SonioxKeyBox.Password = "";
@@ -812,8 +885,12 @@ public partial class ApiKeysSettingsPage : Page
         var key = MetaKeyBox.Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Meta, null);
-            LoggingService.Info("ApiKeys: Cleared Meta API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Meta, null), "Meta", clearing: true))
+            {
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.Meta, MetaStatusText);
+                return;
+            }
         }
         else
         {
@@ -827,8 +904,13 @@ public partial class ApiKeysSettingsPage : Page
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Meta, key);
-            LoggingService.Info("ApiKeys: Saved Meta API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Meta, key), "Meta", clearing: false))
+            {
+                // Keep the typed key in the box so the user can retry without retyping.
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.Meta, MetaStatusText);
+                return;
+            }
         }
 
         MetaKeyBox.Password = "";
@@ -867,8 +949,12 @@ public partial class ApiKeysSettingsPage : Page
         var key = GeminiTranscribeKeyBox.Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, null);
-            LoggingService.Info("ApiKeys: Cleared Gemini 3.5 Transcribe API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, null), "Gemini 3.5 Transcribe", clearing: true))
+            {
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.GeminiTranscribe, GeminiTranscribeStatusText);
+                return;
+            }
         }
         else
         {
@@ -882,8 +968,13 @@ public partial class ApiKeysSettingsPage : Page
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, key);
-            LoggingService.Info("ApiKeys: Saved Gemini 3.5 Transcribe API key");
+            if (!WriteKeyAndLog(() => ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, key), "Gemini 3.5 Transcribe", clearing: false))
+            {
+                // Keep the typed key in the box so the user can retry without retyping.
+                ShowKeyWriteFailed();
+                UpdateKeyStatus(TranscriptionApiKeyType.GeminiTranscribe, GeminiTranscribeStatusText);
+                return;
+            }
         }
 
         GeminiTranscribeKeyBox.Password = "";
@@ -950,6 +1041,41 @@ public partial class ApiKeysSettingsPage : Page
     // =========================================================================
     // UTILITIES
     // =========================================================================
+
+    /// <summary>
+    /// Runs one key write and logs its outcome. "ApiKeys: Saved/Cleared" is
+    /// written ONLY when Credential Manager took the change: it used to be logged
+    /// unconditionally, so support read "Saved" for a key that was never stored
+    /// (#742). Never logs the key or any masked form of it.
+    /// </summary>
+    /// <returns>True when the write succeeded.</returns>
+    internal static bool WriteKeyAndLog(
+        Func<PlatformContracts.PlatformResult> write,
+        string logLabel,
+        bool clearing)
+    {
+        var result = write();
+        if (result.IsFailure)
+        {
+            LoggingService.Warn(
+                $"ApiKeys: Could not {(clearing ? "clear" : "save")} {logLabel} API key ({result.Error?.Code})");
+            return false;
+        }
+
+        LoggingService.Info(clearing
+            ? $"ApiKeys: Cleared {logLabel} API key"
+            : $"ApiKeys: Saved {logLabel} API key");
+        return true;
+    }
+
+    private static void ShowKeyWriteFailed()
+    {
+        WpfMessageBox.Show(
+            Loc.S("onboarding.setup.provider.saveFailed"),
+            Loc.S("common.error"),
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+    }
 
     private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
     {

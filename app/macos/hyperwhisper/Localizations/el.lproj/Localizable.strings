@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "Το κλειδί API %@ δεν έχει διαμορφωθεί. Προσθέστε το στις Ρυθμίσεις για να ενεργοποιήσετε τη μετα-επεξεργασία.";
 "modes.postProcessing.configure" = "Διαμόρφωση στις Ρυθμίσεις";
 "modes.postProcessing.modelRecommendation" = "Συνιστούμε την χρήση GPT-4.1 Nano για την καλύτερη ισορροπία ταχύτητας και ποιότητας.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Η τοπική μετεπεξεργασία απαιτεί ένα ληφθέν τοπικό μοντέλο.";
 "modes.postProcessing.download" = "Λήψη στις Ρυθμίσεις";
@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Κανένα τοπικό μοντέλο δεν έχει εγκατασταθεί";
 "modes.notice.noLocalModels.subtitle" = "Εγκαταστήστε ένα μοντέλο στις Ρυθμίσεις πρώτα";
+"modes.model.notInstalledFormat" = "%@ (δεν είναι εγκατεστημένο)";
+"modes.notice.modelNotInstalled" = "Το μοντέλο αυτής της λειτουργίας δεν είναι εγκατεστημένο. Η αποθήκευση το διατηρεί. Κατεβάστε το από τη Βιβλιοθήκη μοντέλων ή επιλέξτε άλλο μοντέλο.";
 "modes.model.pricing" = "Τιμολόγηση: $%.6f / λεπτό (χρεώνονται ανά δευτερόλεπτο)";
 "modes.button.create" = "Δημιουργία Λειτουργίας";
 "modes.button.delete" = "Διαγραφή Λειτουργίας";
@@ -975,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "Παράβλεψη";
 "modelLibrary.local.requiresAppleSilicon" = "Απαιτεί Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Επανεκκίνηση σε εγγενή λειτουργία";
+"modelLibrary.remove.confirm.title" = "Αφαίρεση του %@;";
+"modelLibrary.remove.confirm.message" = "Θα χρειαστεί να το κατεβάσετε ξανά (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Θα χρειαστεί να το κατεβάσετε ξανά.";
+"modelLibrary.remove.confirm.button" = "Αφαίρεση";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ανεπαρκείς πιστώσεις. Προσθέστε περισσότερες πιστώσεις στις Ρυθμίσεις.";
@@ -1039,7 +1045,12 @@
 "settings.backup.import.subtitle" = "Επαναφορά ρυθμίσεων από ένα αρχείο αντίγραφης ασφαλείας";
 "settings.backup.import.button" = "Εισαγωγή...";
 "settings.backup.import.panel.title" = "Εισαγωγή Ρυθμίσεων";
-"settings.backup.import.success" = "Ολοκλήρωση εισαγωγής: %d λειτουργίες, %d στοιχεία λεξιλογίου εισήχθησαν";
+"settings.backup.import.result" = "Ολοκλήρωση εισαγωγής: %@";
+"settings.backup.import.result.settings" = "οι ρυθμίσεις επαναφέρθηκαν";
+"settings.backup.import.result.modes" = "%d λειτουργίες εισήχθησαν";
+"settings.backup.import.result.vocabulary" = "%d στοιχεία λεξιλογίου εισήχθησαν";
+"settings.backup.import.complete" = "Ολοκλήρωση εισαγωγής";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Αποτυχία ανάγνωσης αρχείου αντίγραφης ασφαλείας";
 "settings.backup.import.error.decode" = "Μη έγκυρη μορφή αρχείου αντίγραφης ασφαλείας";
 "settings.backup.import.error.decode.keyNotFound" = "Λείπει υποχρεωτικό πεδίο: %@";

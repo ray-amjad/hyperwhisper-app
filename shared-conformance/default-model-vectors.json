@@ -76,8 +76,8 @@
     {
       "catalogEntryId": "gemini",
       "providerIdentifier": "gemini",
-      "defaultModelId": "gemini-2.5-flash",
-      "creditsPerMinute": 2.4,
+      "defaultModelId": "gemini-3.8-flash",
+      "creditsPerMinute": 3.0,
       "byokRequestBuilder": true
     },
     {

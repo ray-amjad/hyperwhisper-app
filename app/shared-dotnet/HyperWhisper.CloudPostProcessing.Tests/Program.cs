@@ -52,13 +52,16 @@ static Task TestModelRegistry()
     var expected = new Dictionary<CloudPostProcessingProvider, int>
     {
         // 11 → 8: gpt-5 / -mini / -nano deleted 2026-09-25 (#1018); Migrate sends them to gpt-5.6-luna.
-        [CloudPostProcessingProvider.OpenAi] = 8,
+        // 8 → 9: gpt-6-luna added 2026-10.
+        [CloudPostProcessingProvider.OpenAi] = 9,
         [CloudPostProcessingProvider.Anthropic] = 4,
         // 3 → 4: Groq qwen/qwen3.8-27b added 2026-09-11. Cerebras stays 2 — the
         // dead gemma-4-31b was REPLACED by qwen-3.8-27b, not joined by it.
-        [CloudPostProcessingProvider.Groq] = 4,
+        // 4 → 3: qwen/qwen3.6-27b removed 2026-10; Migrate sends it to qwen/qwen3.8-27b.
+        [CloudPostProcessingProvider.Groq] = 3,
         [CloudPostProcessingProvider.Grok] = 3,
-        [CloudPostProcessingProvider.Gemini] = 11,
+        // 11 → 10: gemini-3-flash-preview removed 2026-10; Migrate sends it to gemini-3.8-flash.
+        [CloudPostProcessingProvider.Gemini] = 10,
         [CloudPostProcessingProvider.Cerebras] = 2,
         [CloudPostProcessingProvider.Mistral] = 2,
     };
@@ -73,12 +76,33 @@ static Task TestModelRegistry()
             $"{retired} is still listed");
     }
     // #1019: the retired Gemma ids resolve to gemini-3.8-flash (not the gated 2.5 Flash,
-    // and not the provider first row gemini-3-flash-preview).
+    // and not the provider first row).
     foreach (var retired in new[] { "gemma-3-12b-it", "gemma-3-27b-it" })
         Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, retired) == "gemini-3.8-flash",
             $"{retired} did not resolve to gemini-3.8-flash");
     Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "gemini-2.5-flash") == "gemini-2.5-flash",
         "gemini-2.5-flash must stay a selectable row, not a redirect");
+    // 2026-10: Claude 4.5 rows retired; each alias goes straight to its 5.5 successor.
+    foreach (var (retired, successor) in new[]
+    {
+        ("claude-haiku-4-5", "claude-haiku-5-5"), ("claude-haiku-4.5", "claude-haiku-5-5"),
+        ("claude-haiku-4-5-latest", "claude-haiku-5-5"), ("claude-3-5-haiku-latest", "claude-haiku-5-5"),
+        ("claude-sonnet-4-5", "claude-sonnet-5-5"), ("claude-sonnet-4-5-latest", "claude-sonnet-5-5"),
+        ("claude-sonnet-4-0", "claude-sonnet-5-5"),
+        ("claude-haiku-4-5-20251001", "claude-haiku-5-5"), ("claude-sonnet-4-5-20250929", "claude-sonnet-5-5"),
+    })
+    {
+        Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Anthropic, retired) == successor,
+            $"{retired} did not resolve to {successor}");
+        Assert(PostProcessingModelCatalog.ForProvider(CloudPostProcessingProvider.Anthropic).All(model => model.Id != retired),
+            $"{retired} is still listed");
+    }
+    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Groq, "qwen/qwen3.6-27b") == "qwen/qwen3.8-27b",
+        "qwen/qwen3.6-27b did not resolve to qwen/qwen3.8-27b");
+    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "gemini-3-flash-preview") == "gemini-3.8-flash",
+        "gemini-3-flash-preview did not resolve to gemini-3.8-flash");
+    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.OpenAi, "gpt-6-luna") == "gpt-6-luna",
+        "gpt-6-luna is not a selectable row");
     return Task.CompletedTask;
 }
 

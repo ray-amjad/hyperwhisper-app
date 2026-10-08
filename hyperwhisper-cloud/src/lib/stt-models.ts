@@ -243,26 +243,60 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // this model, so it is registered here (routable per this file's validation
     // contract) but not yet actually wired end-to-end; see
     // `shared-models/models-catalog.json`'s note on this entry.
+    //
+    // OpenAI deprecated whisper-1, gpt-4o-transcribe and gpt-4o-mini-transcribe
+    // on 2026-08-26 (shutdown 2027-02-26). This map mirrors the shared Rust
+    // core's `OPENAI_ALIASES` (shared-core-rs/crates/hw-catalog/src/
+    // model_alias.rs) so a cloud request for a retiring id is served by its
+    // named replacement instead of reaching OpenAI. Every target must be a row
+    // in `models` below (pinned by a test). The three retiring rows stay so
+    // nothing fails closed if this map is ever edited; with the map in place no
+    // request resolves to them.
+    aliases: {
+      'whisper-1': 'gpt-transcribe',
+      'gpt-4o-transcribe': 'gpt-transcribe',
+      'gpt-4o-mini-transcribe': 'gpt-4o-mini-transcribe-2025-12-15',
+    },
     models: [
       { id: 'gpt-4o-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.009 },
       { id: 'gpt-4o-mini-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.0045 },
       { id: 'whisper-1', supportsVocabulary: true, estimatedUsdPerMinute: 0.006 },
       { id: 'gpt-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.0045 },
       { id: 'gpt-live-transcribe', supportsVocabulary: true, estimatedUsdPerMinute: 0.017 },
+      // The dated snapshot OpenAI names as the mini tier's replacement. It is
+      // token-billed at the gpt-4o-mini-transcribe rates, so it carries that
+      // row's reservation rate: the alias cannot make a mode dearer.
+      { id: 'gpt-4o-mini-transcribe-2025-12-15', supportsVocabulary: true, estimatedUsdPerMinute: 0.0045 },
     ],
   },
   gemini: {
     id: 'gemini',
-    defaultModel: 'gemini-2.5-flash',
+    // #1019: follows cloud-stt-catalog.json's gemini isDefault row, so a client
+    // that sends no X-STT-Model gets the same model as one that sends the
+    // catalog default. Google limits gemini-2.5-flash to past users now.
+    // stt-models.test.ts reads the catalog and pins the two together.
+    defaultModel: 'gemini-3.8-flash',
     fallbackChain: ['gemini'],
     async: false,
+    // gemini-3-flash-preview left the pickers in 2026-10. A client still sending
+    // it is served the catalog default at the same 3.0 credits/min, never a 400.
+    // The native aliases (hw-catalog GEMINI_ALIASES, macOS, Windows, shared-dotnet)
+    // target the same id, so the Cloud and BYOK routes cannot diverge.
+    aliases: { 'gemini-3-flash-preview': 'gemini-3.8-flash' },
     // No dedicated vocabulary API — prompt-only biasing, so supportsVocabulary
     // is false (clients shouldn't promise keyterm accuracy).
     models: [
+      // #1019: the clients' Gemini default (cloud-stt-catalog.json isDefault). A
+      // HyperWhisper Cloud mode on the gemini tier with no model chosen sends it as
+      // X-STT-Model, so it MUST be listed here or resolveModel 400s that mode.
+      // Rate: $0.75/1M input (audio included) + $3.75/1M output, introductory until
+      // 2026-12-31, then $1.50/$7.50. ~1,920 audio tok/min + ~200 out tok/min is
+      // ~$0.0022/min now and ~$0.0044/min in 2027; reserved at 0.0030, the same
+      // figure as the catalog's 3.0 credits/min.
+      { id: 'gemini-3.8-flash', supportsVocabulary: false, estimatedUsdPerMinute: 0.0030 },
       { id: 'gemini-2.5-flash', supportsVocabulary: false, estimatedUsdPerMinute: 0.0024 },
       { id: 'gemini-2.5-flash-lite', supportsVocabulary: false, estimatedUsdPerMinute: 0.0008 },
       { id: 'gemini-2.5-pro', supportsVocabulary: false, estimatedUsdPerMinute: 0.0075 },
-      { id: 'gemini-3-flash-preview', isPreview: true, supportsVocabulary: false, estimatedUsdPerMinute: 0.0030 },
       { id: 'gemini-3.1-pro-preview', isPreview: true, supportsVocabulary: false, estimatedUsdPerMinute: 0.0100 },
     ],
   },

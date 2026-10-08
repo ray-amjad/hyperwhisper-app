@@ -34,10 +34,11 @@ struct BackupSettingsSection: View {
 
     // MARK: - Import State
 
-    /// The file the user picked to import, and what it contains (drives the options sheet).
-    @State private var importURL: URL?
-    @State private var importContents: BackupContents?
-    @State private var showImportSheet = false
+    /// The file the user picked to import, and what it contains. Non-nil presents the options
+    /// sheet; Cancel / Import set it back to nil. Driven by `.sheet(item:)` so the sheet content
+    /// always receives the picked file (issue #1398: the `isPresented` + `if let` form drew an
+    /// empty sheet).
+    @State private var importRequest: BackupImportRequest?
 
     // MARK: - Result State
 
@@ -71,19 +72,18 @@ struct BackupSettingsSection: View {
 
             infoNoteView
         }
-        .sheet(isPresented: $showImportSheet) {
-            if let url = importURL, let contents = importContents {
-                BackupImportOptionsSheet(
-                    fileName: url.lastPathComponent,
-                    contents: contents,
-                    preview: backupManager.vocabularyMergePreview(at: url),
-                    onCancel: { showImportSheet = false },
-                    onImport: { options in
-                        showImportSheet = false
-                        Task { await performImport(from: url, options: options) }
-                    }
-                )
-            }
+        .sheet(item: $importRequest) { request in
+            BackupImportOptionsSheet(
+                fileName: request.url.lastPathComponent,
+                contents: request.contents,
+                preview: backupManager.vocabularyMergePreview(at: request.url),
+                onCancel: { importRequest = nil },
+                onImport: { options in
+                    let url = request.url
+                    importRequest = nil
+                    Task { await performImport(from: url, options: options) }
+                }
+            )
         }
         .alert(resultIsSuccess ? "settings.backup.result.success.title" : "settings.backup.result.error.title",
                isPresented: $showResultAlert) {
@@ -285,9 +285,7 @@ struct BackupSettingsSection: View {
             return
         }
 
-        importURL = url
-        importContents = contents
-        showImportSheet = true
+        importRequest = BackupImportRequest(url: url, contents: contents)
     }
 
     private func performImport(from url: URL, options: ImportOptions) async {
@@ -296,11 +294,9 @@ struct BackupSettingsSection: View {
         if result.success {
             resultIsSuccess = true
             pendingLocalDownloadIds = result.pendingLocalDownloadModelIds
-            resultMessage = String(
-                format: NSLocalizedString("settings.backup.import.success", value: "Import complete: %d modes, %d vocabulary items imported", comment: ""),
-                result.modesImported,
-                result.vocabularyImported
-            )
+            // Describe what was actually applied, so a settings-only import does not
+            // read as "0 modes, 0 vocabulary items" (#1406).
+            resultMessage = result.successMessage(options: options)
         } else if result.partialSuccess {
             resultIsSuccess = false
             pendingLocalDownloadIds = result.pendingLocalDownloadModelIds
@@ -320,6 +316,16 @@ struct BackupSettingsSection: View {
 
         showResultAlert = true
     }
+}
+
+// MARK: - Import Request
+
+/// One pick of a file to import: the file and what it contains. Each pick gets a fresh `id`, so
+/// picking the same file again presents the sheet again.
+struct BackupImportRequest: Identifiable {
+    let id = UUID()
+    let url: URL
+    let contents: BackupContents
 }
 
 // MARK: - Import Options Sheet

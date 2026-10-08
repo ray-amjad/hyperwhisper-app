@@ -153,6 +153,13 @@ class BackupManager: ObservableObject {
             return false
         }
 
+        // The export writes the cached launch-at-login value, so re-read the login
+        // item first — off the main thread (#853). The user may have changed it in
+        // System Settings since the last read.
+        if options.includeSettings {
+            await SettingsManager.shared.refreshLaunchAtLogin()
+        }
+
         // Build the JSON payload and the default filename for the chosen format.
         guard let encoded = encodeBackup(options: options) else {
             // lastError already set by encodeBackup
@@ -232,7 +239,10 @@ class BackupManager: ObservableObject {
                 pushToTalkMode: settingsManager.pushToTalkMode.rawValue,
                 pushToTalkDoublePressEnabled: settingsManager.pushToTalkDoublePressEnabled,
                 quickCaptureEnabled: settingsManager.quickCaptureEnabled,
-                quickCaptureModeId: settingsManager.quickCaptureModeId
+                quickCaptureModeId: settingsManager.quickCaptureModeId,
+                // The key combos themselves (#1481) — without them a restore
+                // silently lost every custom shortcut.
+                keyboardShortcuts: BackupKeyboardShortcuts.liveSnapshot()
             ),
             aiModel: BackupAIModelSettings(
                 showExperimentalModels: settingsManager.showExperimentalModels,
@@ -621,8 +631,10 @@ class BackupManager: ObservableObject {
         var vocabSkipped = 0
 
         // Apply settings (only when selected AND present in the file)
+        var settingsApplied = false
         if options.importSettings, let settings = backupData.settings {
-            applySettings(settings)
+            await applySettings(settings)
+            settingsApplied = true
         }
 
         // Import modes (only when selected AND present)
@@ -670,7 +682,7 @@ class BackupManager: ObservableObject {
                     vocabularySkipped: vocabSkipped,
                     apiKeysImported: apiKeysImported,
                     earlierSectionsApplied: Self.earlierBackupSectionsWereApplied(
-                        settingsApplied: options.importSettings && backupData.settings != nil,
+                        settingsApplied: settingsApplied,
                         modesImported: modesImported,
                         vocabularyImported: vocabImported,
                         apiKeysImported: apiKeysImported
@@ -699,6 +711,7 @@ class BackupManager: ObservableObject {
         )
         result.pendingLocalDownloadModelIds = pendingLocalDownloads
         result.apiKeysFailedProviders = apiKeysFailedProviders
+        result.settingsApplied = settingsApplied
         return result
     }
 
@@ -856,6 +869,9 @@ class BackupManager: ObservableObject {
                 // Build the CURRENT macOS settings JSON as a baseline (the same BackupSettings the v1
                 // path would produce from the live settings), so any macOS-only field the backup
                 // lacks decodes successfully with the user's current value.
+                // Launch-at-login is a cached value, so re-read it (off the main thread,
+                // #853) — otherwise a backup without the field would apply a stale one.
+                await SettingsManager.shared.refreshLaunchAtLogin()
                 let baselineValue = try currentSettingsBaseline()
 
                 // DEEP-MERGE imported OVER baseline: imported values win where present; baseline fills
@@ -867,7 +883,7 @@ class BackupManager: ObservableObject {
                 }
                 // Decode the MERGED 7-category macOS settings into BackupSettings and apply UNCHANGED.
                 let backupSettings = try JSONDecoder().decode(BackupSettings.self, from: mergedData)
-                applySettings(backupSettings)
+                await applySettings(backupSettings)
                 settingsApplied = true
             } catch {
                 // Never abort the import for a settings problem — log and continue.
@@ -983,6 +999,7 @@ class BackupManager: ObservableObject {
         )
         result.pendingLocalDownloadModelIds = pendingLocalDownloads
         result.apiKeysFailedProviders = apiKeysFailedProviders
+        result.settingsApplied = settingsApplied
         return result
     }
 
@@ -1054,7 +1071,9 @@ class BackupManager: ObservableObject {
     /// Projects a `UniversalModeDTO` into the internal `BackupMode`, running the present-only cloud
     /// migrations BEFORE constructing the mode. Migrations run only when the source value is
     /// non-nil/non-empty so we never write a default where the source intended `nil`.
-    nonisolated private static func backupMode(fromV2 dto: UniversalModeDTO) -> BackupMode? {
+    ///
+    /// Internal (not private) so the tests can reach it.
+    nonisolated static func backupMode(fromV2 dto: UniversalModeDTO) -> BackupMode? {
         guard let id = UUID(uuidString: dto.id) else { return nil }
 
         // Present-only migrations (both idempotent with macOS's own fromStorageValue at read time).
@@ -1108,6 +1127,18 @@ class BackupManager: ObservableObject {
             geminiCustomPrompt: dto.geminiCustomPrompt,
             cloudPostProcessingModel: migratedPP,
             cloudTranscriptionDomain: dto.cloudTranscriptionDomain,
+            // #1481: macOS's own per-mode slice first. A Windows or Linux backup
+            // carries enableScreenOCR in its own slice, so that is the fallback;
+            // neither has a per-mode streaming flag. Absent stays nil, and
+            // importModes keeps the local value.
+            enableScreenOCR: dto.platformExtensionBool(
+                UniversalModeDTO.enableScreenOCRKey,
+                platforms: ["macos", "windows", "linux"]
+            ),
+            useStreamingTranscription: dto.platformExtensionBool(
+                UniversalModeDTO.useStreamingTranscriptionKey,
+                platforms: ["macos"]
+            ),
             foreignPlatformExtensions: foreignExt
         )
     }
@@ -1330,11 +1361,12 @@ class BackupManager: ObservableObject {
 
     /// Applies settings from backup to the app
     /// - Parameter settings: BackupSettings to apply
-    private func applySettings(_ settings: BackupSettings) {
+    private func applySettings(_ settings: BackupSettings) async {
         let settingsManager = SettingsManager.shared
 
         // General settings
-        settingsManager.launchAtLogin = settings.general.launchAtLogin
+        // Registering the login item blocks on XPC, so it runs off the main thread (#853).
+        await settingsManager.setLaunchAtLogin(settings.general.launchAtLogin)
         settingsManager.showInDock = settings.general.showInDock
         settingsManager.launchMinimized = settings.general.launchMinimized
         settingsManager.showRecordingWindow = settings.general.showRecordingWindow
@@ -1390,6 +1422,9 @@ class BackupManager: ObservableObject {
         if let qcModeId = settings.shortcuts.quickCaptureModeId {
             settingsManager.quickCaptureModeId = qcModeId
         }
+        // Key combos (#1481). A backup without the map leaves every shortcut
+        // alone; see BackupKeyboardShortcuts for the per-entry rules.
+        BackupKeyboardShortcuts.applyLive(settings.shortcuts.keyboardShortcuts)
         // Programmatic writes above bypass the settings UI's .onChange posters,
         // so re-sync shortcut consumers (PTT observer, feature-gated hotkey
         // registration) explicitly.

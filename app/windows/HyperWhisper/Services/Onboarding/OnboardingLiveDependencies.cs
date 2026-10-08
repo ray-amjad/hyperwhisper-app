@@ -709,15 +709,24 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
             var value = string.IsNullOrEmpty(key) ? null : key;
 
             var postProcessing = provider.GetApiKeyProvider();
+            HyperWhisper.Platform.Abstractions.PlatformResult written;
             if (postProcessing != PostProcessingProvider.None)
             {
-                _apiKeys.SetApiKey(postProcessing, value);
+                written = _apiKeys.SetApiKey(postProcessing, value);
             }
             else if (TranscriptionKeyType(provider) is { } type)
             {
-                _apiKeys.SetApiKey(type, value);
+                written = _apiKeys.SetApiKey(type, value);
             }
             else
+            {
+                _validationError = Loc.S("onboarding.setup.provider.saveFailed");
+                return false;
+            }
+
+            // The write now reports its own failure (#742); the read-back below
+            // stays as the second line of defence.
+            if (written.IsFailure)
             {
                 _validationError = Loc.S("onboarding.setup.provider.saveFailed");
                 return false;

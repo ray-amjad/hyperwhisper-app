@@ -24,6 +24,35 @@ public enum CloudTranscriptionProvider
     Meta,
 }
 
+/// <summary>
+/// The persisted <c>cloudProvider</c> identifier for a provider: the spelling a <c>Mode</c>
+/// carries in that column, and the scope key <c>cloud_stt_resolve_model_alias</c> reads.
+/// Mirrors Windows <c>CloudTranscriptionProviderExtensions.GetIdentifier</c> verbatim.
+/// It lives here, not in TranscriptionRouting, so file preflight (which that project
+/// sits above) resolves an alias with the same scope the router does.
+/// </summary>
+public static class CloudTranscriptionProviderIdentifiers
+{
+    public static string Of(CloudTranscriptionProvider provider) => provider switch
+    {
+        CloudTranscriptionProvider.OpenAi => "openai",
+        CloudTranscriptionProvider.Groq => "groq",
+        CloudTranscriptionProvider.Deepgram => "deepgram",
+        CloudTranscriptionProvider.AssemblyAi => "assemblyai",
+        CloudTranscriptionProvider.ElevenLabs => "elevenlabs",
+        CloudTranscriptionProvider.Mistral => "mistral",
+        CloudTranscriptionProvider.Soniox => "soniox",
+        CloudTranscriptionProvider.HyperWhisperCloud => "hyperwhisper",
+        CloudTranscriptionProvider.Gemini => "gemini",
+        CloudTranscriptionProvider.Grok => "grok",
+        CloudTranscriptionProvider.AzureMai => "microsoftAzureSpeech",
+        CloudTranscriptionProvider.GoogleChirp => "googleSpeech",
+        CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
+        CloudTranscriptionProvider.Meta => "meta",
+        _ => string.Empty,
+    };
+}
+
 public sealed record CloudCredential(string? ApiKey = null, string? LicenseKey = null, string? DeviceId = null);
 
 public interface ICloudCredentialSource

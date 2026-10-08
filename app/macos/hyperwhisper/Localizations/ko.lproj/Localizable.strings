@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "%@ API 키가 구성되지 않았습니다. 후처리를 활성화하려면 설정에 추가하세요.";
 "modes.postProcessing.configure" = "설정에서 구성";
 "modes.postProcessing.modelRecommendation" = "속도와 품질의 최상의 균형을 위해 GPT-4.1 Nano를 사용하는 것이 좋습니다.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "로컬 후처리에는 다운로드된 로컬 모델이 필요합니다.";
 "modes.postProcessing.download" = "설정에서 다운로드";
@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "클라우드";
 "modes.notice.noLocalModels.title" = "로컬 모델이 설치되지 않음";
 "modes.notice.noLocalModels.subtitle" = "먼저 설정에서 모델 설치";
+"modes.model.notInstalledFormat" = "%@ (설치되지 않음)";
+"modes.notice.modelNotInstalled" = "이 모드의 모델이 설치되어 있지 않습니다. 저장해도 그대로 유지됩니다. 모델 라이브러리에서 다운로드하거나 다른 모델을 선택하세요.";
 "modes.model.pricing" = "가격: $%.6f / 분 (초당 청구)";
 "modes.button.create" = "모드 만들기";
 "modes.button.delete" = "모드 삭제";
@@ -975,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "닫기";
 "modelLibrary.local.requiresAppleSilicon" = "Apple Silicon 필요";
 "modelLibrary.local.needsNativeRelaunch" = "네이티브로 다시 실행";
+"modelLibrary.remove.confirm.title" = "%@을(를) 제거하시겠습니까?";
+"modelLibrary.remove.confirm.message" = "다시 다운로드해야 합니다(%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "다시 다운로드해야 합니다.";
+"modelLibrary.remove.confirm.button" = "제거";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "크레딧이 부족합니다. 설정에서 크레딧을 더 추가하세요.";
@@ -1039,7 +1045,12 @@
 "settings.backup.import.subtitle" = "백업 파일에서 설정 복원";
 "settings.backup.import.button" = "가져오기...";
 "settings.backup.import.panel.title" = "설정 가져오기";
-"settings.backup.import.success" = "가져오기 완료: %d개 모드, %d개 어휘 항목 가져옴";
+"settings.backup.import.result" = "가져오기 완료: %@";
+"settings.backup.import.result.settings" = "설정 복원됨";
+"settings.backup.import.result.modes" = "%d개 모드 가져옴";
+"settings.backup.import.result.vocabulary" = "%d개 어휘 항목 가져옴";
+"settings.backup.import.complete" = "가져오기 완료";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "백업 파일 읽기 실패";
 "settings.backup.import.error.decode" = "잘못된 백업 파일 형식";
 "settings.backup.import.error.decode.keyNotFound" = "필수 필드가 없습니다: %@";

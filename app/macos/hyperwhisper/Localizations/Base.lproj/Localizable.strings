@@ -773,7 +773,7 @@
 "modes.provider.needsKey" = "%@ needs a working key.";
 "modes.provider.manageInLibrary" = "Manage in Library →";
 "modes.postProcessing.modelRecommendation" = "We recommend using GPT-4.1 Nano for the best balance of speed and quality.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Local post-processing requires a downloaded model.";
 "modes.postProcessing.download" = "Download in Settings";
@@ -848,6 +848,8 @@
 "modes.badge.recommended" = "Recommended";
 "modes.notice.noLocalModels.title" = "No local models installed";
 "modes.notice.noLocalModels.subtitle" = "Install a model in Settings first";
+"modes.model.notInstalledFormat" = "%@ (not installed)";
+"modes.notice.modelNotInstalled" = "This mode's model is not installed. Saving keeps it. Download it in Model Library, or pick another model.";
 "modes.model.pricing" = "Pricing: $%.6f / minute (billed per second)";
 "modes.button.create" = "Create Mode";
 "modes.button.delete" = "Delete Mode";
@@ -1014,6 +1016,10 @@
 // MARK: - Model Library (local capability gate)
 "modelLibrary.local.requiresAppleSilicon" = "Requires Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Relaunch natively";
+"modelLibrary.remove.confirm.title" = "Remove %@?";
+"modelLibrary.remove.confirm.message" = "You will need to download it again (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "You will need to download it again.";
+"modelLibrary.remove.confirm.button" = "Remove";
 
 // MARK: - Backup restore: local-model re-download prompt
 "settings.backup.localDownload.title" = "Download local models?";
@@ -1084,7 +1090,12 @@
 "settings.backup.import.subtitle" = "Restore settings from a backup file";
 "settings.backup.import.button" = "Import...";
 "settings.backup.import.panel.title" = "Import Settings";
-"settings.backup.import.success" = "Import complete: %d modes, %d vocabulary items imported";
+"settings.backup.import.result" = "Import complete: %@";
+"settings.backup.import.result.settings" = "settings restored";
+"settings.backup.import.result.modes" = "%d modes imported";
+"settings.backup.import.result.vocabulary" = "%d vocabulary items imported";
+"settings.backup.import.complete" = "Import complete";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "Failed to read backup file";
 "settings.backup.import.error.decode" = "Invalid backup file format";
 "settings.backup.import.error.decode.keyNotFound" = "Missing required field: %@";

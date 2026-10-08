@@ -251,8 +251,12 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         // A recording, a live stream or its transcription owns the status line while it runs, so a
         // sidebar click must not say "Ready" under a live overlay (#1190).
         if (_isRecordingActive?.Invoke() == true) return;
-        Status.Success(Text("linux.status.ready", "Ready"));
+        ShowReadyStatus();
     }
+
+    /// <summary>The resting status line, "Ready", worded exactly as a page change writes it. A finished
+    /// dictation writes it too, so "Recording…" does not outlive the recording (#958).</summary>
+    public void ShowReadyStatus() => Status.Success(Text("linux.status.ready", "Ready"));
 
     private string Text(string key, string fallback) => _localize?.Invoke(key) ?? fallback;
 

@@ -27,7 +27,7 @@ class DeepgramProvider: TranscriptionProvider {
 
     /// Shared session with 180s resource timeout (matches Windows)
     private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = 180
         config.waitsForConnectivity = false

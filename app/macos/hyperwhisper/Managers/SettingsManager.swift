@@ -286,9 +286,18 @@ class SettingsManager: ObservableObject {
     
     // MARK: - Forwarding Properties - General Settings
 
-    var launchAtLogin: Bool {
-        get { general.launchAtLogin }
-        set { general.launchAtLogin = newValue }
+    /// Last-read launch-at-login state. Read-only: reading or writing the login
+    /// item blocks on XPC, so both go through the async methods below (#853).
+    var launchAtLogin: Bool { general.launchAtLogin }
+
+    @discardableResult
+    func refreshLaunchAtLogin() async -> Bool {
+        await general.refreshLaunchAtLogin()
+    }
+
+    @discardableResult
+    func setLaunchAtLogin(_ enabled: Bool) async -> Bool {
+        await general.setLaunchAtLogin(enabled)
     }
 
     var showInDock: Bool {

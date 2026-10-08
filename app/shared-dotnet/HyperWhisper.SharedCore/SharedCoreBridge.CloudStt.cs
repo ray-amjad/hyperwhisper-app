@@ -109,6 +109,16 @@ public static partial class SharedCoreBridge
         HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
 
     /// <summary>
+    /// The picker-space language codes a cloud-stt entry declares, folded to primary subtags
+    /// with <c>auto</c> always present, or null when the entry's set is "unverified" or the id
+    /// is unknown, and the caller should keep its full list. The fold lives in the Rust core,
+    /// so this answers exactly what Windows <c>CloudSttCatalog.PickerLanguageCodesForId</c>
+    /// and macOS <c>CloudSTTCatalog.pickerLanguageCodes</c> answer.
+    /// </summary>
+    public static IReadOnlyList<string>? CloudSttPickerLanguageCodes(string? entryId) =>
+        string.IsNullOrWhiteSpace(entryId) ? null : HyperwhisperCoreMethods.CloudSttPickerLanguageCodes(entryId.Trim());
+
+    /// <summary>
     /// PER-MODEL supported language codes from <c>shared-models/models-catalog.json</c>,
     /// or null when that file carries no explicit list for the model (a wildcard
     /// row, a <c>supportsAllLanguages</c> row, or no row at all) and the caller
@@ -229,7 +239,7 @@ public static partial class SharedCoreBridge
     ///
     /// It rescues an alias only when the alias TARGET is still catalogued.
     /// <c>universal</c> resolves to <c>universal-2</c>, which the
-    /// <c>assemblyAI</c> entry carries. Gemini's two aliases resolve to
+    /// <c>assemblyAI</c> entry carries. Two of Gemini's aliases resolve to
     /// <c>gemini-3.6-flash</c> and <c>gemini-3.1-flash-lite</c>, which the
     /// <c>gemini</c> entry does not carry, so those ids are still judged foreign
     /// — the alias table and the catalog disagree, which is a data question and

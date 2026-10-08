@@ -578,6 +578,17 @@ struct CloudTranscriptionModels {
         ),
 
         // Google Gemini Models
+        // gemini-3.8-flash is the catalog default since #1019: Google limits the
+        // 2.5 models to accounts that used them before 2026-09-18, so a fresh key
+        // may not reach 2.5 Flash. The 2.5 rows stay for the users who have them.
+        CloudTranscriptionModel(
+            id: "gemini-3.8-flash",
+            isAvailable: true,
+            description: "Google's current Flash model and the default for new keys. Supports custom vocabulary via prompting.",
+            provider: .gemini,
+            isPopular: true,
+            pricePerSecond: nil  // Token-based pricing, not per-second
+        ),
         CloudTranscriptionModel(
             id: "gemini-2.5-flash",
             isAvailable: true,
@@ -606,13 +617,6 @@ struct CloudTranscriptionModels {
             id: "gemini-3.1-flash-lite",
             isAvailable: true,
             description: "Latest generation lightweight Gemini model. Fast and cost-effective transcription.",
-            provider: .gemini,
-            pricePerSecond: nil
-        ),
-        CloudTranscriptionModel(
-            id: "gemini-3-flash-preview",
-            isAvailable: true,
-            description: "Next-gen Gemini Flash with improved accuracy and speed.",
             provider: .gemini,
             pricePerSecond: nil
         ),
@@ -748,6 +752,8 @@ struct CloudTranscriptionModels {
 
     private static let legacyGeminiAliases: [String: String] = [
         "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
+        // Left the picker 2026-10 for the GA model. PARITY: hw-catalog GEMINI_ALIASES.
+        "gemini-3-flash-preview": "gemini-3.8-flash",
     ]
 
     static func resolveGeminiModelAlias(_ id: String) -> String {

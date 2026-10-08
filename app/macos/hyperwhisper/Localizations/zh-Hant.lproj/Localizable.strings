@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "%@ API 金鑰未設定。請在設定中新增它以啟用後處理。";
 "modes.postProcessing.configure" = "在設定中設定";
 "modes.postProcessing.modelRecommendation" = "我們建議使用 GPT-4.1 Nano 以取得最佳的速度和品質平衡。";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "本機後處理需要已下載的本機模型。";
 "modes.postProcessing.download" = "在設定中下載";
@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "雲端";
 "modes.notice.noLocalModels.title" = "未安裝本地模型";
 "modes.notice.noLocalModels.subtitle" = "請先在設定中安裝模型";
+"modes.model.notInstalledFormat" = "%@（未安裝）";
+"modes.notice.modelNotInstalled" = "此模式的模型未安裝。儲存時會保留它。請在模型庫中下載，或選擇其他模型。";
 "modes.model.pricing" = "定價：$%.6f / 分鐘（按秒計費）";
 "modes.button.create" = "建立模式";
 "modes.button.delete" = "刪除模式";
@@ -975,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "關閉";
 "modelLibrary.local.requiresAppleSilicon" = "需要 Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "以原生模式重新啟動";
+"modelLibrary.remove.confirm.title" = "移除 %@？";
+"modelLibrary.remove.confirm.message" = "你需要重新下載它（%@）。";
+"modelLibrary.remove.confirm.messageNoSize" = "你需要重新下載它。";
+"modelLibrary.remove.confirm.button" = "移除";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "額度不足。請在設定中新增更多額度。";
@@ -1039,7 +1045,12 @@
 "settings.backup.import.subtitle" = "從備份檔案恢復設定";
 "settings.backup.import.button" = "匯入...";
 "settings.backup.import.panel.title" = "匯入設定";
-"settings.backup.import.success" = "匯入完成：%d 個模式，%d 個詞彙項目已匯入";
+"settings.backup.import.result" = "匯入完成：%@";
+"settings.backup.import.result.settings" = "已還原設定";
+"settings.backup.import.result.modes" = "已匯入 %d 個模式";
+"settings.backup.import.result.vocabulary" = "已匯入 %d 個詞彙項目";
+"settings.backup.import.complete" = "匯入完成";
+"settings.backup.import.result.separator" = "，";
 "settings.backup.import.error.read" = "無法讀取備份檔案";
 "settings.backup.import.error.decode" = "無效的備份檔案格式";
 "settings.backup.import.error.decode.keyNotFound" = "缺少必填欄位：%@";

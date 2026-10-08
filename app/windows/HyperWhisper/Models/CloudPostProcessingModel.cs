@@ -60,7 +60,7 @@ public sealed class CloudPostProcessingModel : IEquatable<CloudPostProcessingMod
     public static CloudPostProcessingModel CerebrasGptOss120B => new("cerebras", "gpt-oss-120b");
     public static CloudPostProcessingModel GroqGptOss120B => new("groq", "openai/gpt-oss-120b");
     public static CloudPostProcessingModel GrokFast => new("grok", "grok-4.3");
-    public static CloudPostProcessingModel ClaudeHaiku => new("anthropic", "claude-haiku-4-5");
+    public static CloudPostProcessingModel ClaudeHaiku => new("anthropic", "claude-haiku-5-5");
 
     /// <summary>
     /// Fallback used when the stored value is empty/unknown. Preserves the historical
@@ -121,7 +121,7 @@ public sealed class CloudPostProcessingEngine : IEquatable<CloudPostProcessingEn
 
     /// <summary>
     /// True for the single engine flagged <c>isRecommended</c> in the catalog
-    /// (Anthropic / Claude Haiku 4.5 today).
+    /// (Anthropic / Claude Haiku 5.5 today).
     /// </summary>
     public bool IsRecommended => CatalogProvider?.IsRecommended == true;
 
@@ -222,7 +222,7 @@ public static class CloudPostProcessingModelExtensions
                 => CloudPostProcessingModel.CerebrasGptOss120B,
             "groq" or "groq-gpt-oss-120b" or "groqgptoss120b" or "openai/gpt-oss-120b"
                 => CloudPostProcessingModel.GroqGptOss120B,
-            "anthropic" or "claude-haiku-4-5" or "claude-haiku-4.5" or "claudehaiku"
+            "anthropic" or "claude-haiku-5-5" or "claude-haiku-4-5" or "claude-haiku-4.5" or "claudehaiku"
                 => CloudPostProcessingModel.ClaudeHaiku,
             "grok" or "grok-4.3" or "grokfast"
                 or "grok-4-1-fast-non-reasoning" or "grok-4.1-fast-non-reasoning"

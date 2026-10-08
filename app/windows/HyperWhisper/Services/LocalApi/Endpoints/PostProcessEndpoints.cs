@@ -454,9 +454,9 @@ internal static class PostProcessEndpoints
             PostProcessingProvider = "hyperwhispercloud",
             ProviderType = "cloud",
             // Defaults mirror the GUI/default-mode recommendation
-            // (ModeDefaults.cs): ElevenLabs Scribe v2 + Anthropic Claude Haiku 4.5.
+            // (ModeDefaults.cs): ElevenLabs Scribe v2 + Anthropic Claude Haiku 5.5.
             CloudAccuracyTier = "elevenLabsScribeV2",
-            CloudPostProcessingModel = "anthropic:claude-haiku-4-5",
+            CloudPostProcessingModel = "anthropic:claude-haiku-5-5",
             SortOrder = int.MaxValue,
             CreatedDate = DateTime.UtcNow,
             ModifiedDate = DateTime.UtcNow

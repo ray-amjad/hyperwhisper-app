@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "מפתח API של %@ לא מוגדר. הוסף אותו בהגדרות כדי לאפשר עיבוד לאחר.";
 "modes.postProcessing.configure" = "הגדר בהגדרות";
 "modes.postProcessing.modelRecommendation" = "אנו ממליצים להשתמש ב-GPT-4.1 Nano לאיזון הטוב ביותר בין מהירות ואיכות.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "עיבוד מאוחר מקומי דורש מודל מקומי שהורד.";
 "modes.postProcessing.download" = "הורד בהגדרות";
@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "ענן";
 "modes.notice.noLocalModels.title" = "אין מודלים מקומיים מותקנים";
 "modes.notice.noLocalModels.subtitle" = "התקן מודל בהגדרות תחילה";
+"modes.model.notInstalledFormat" = "%@ (לא מותקן)";
+"modes.notice.modelNotInstalled" = "המודל של מצב זה אינו מותקן. השמירה משאירה אותו. הורידו אותו מספריית המודלים, או בחרו מודל אחר.";
 "modes.model.pricing" = "תמחור: $%.6f / דקה (מחויב לפי שנייה)";
 "modes.button.create" = "צור מצב";
 "modes.button.delete" = "מחק מצב";
@@ -975,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "התעלם";
 "modelLibrary.local.requiresAppleSilicon" = "דורש Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "הפעלה מחדש כאפליקציה מקורית";
+"modelLibrary.remove.confirm.title" = "להסיר את %@?";
+"modelLibrary.remove.confirm.message" = "יהיה עליך להוריד אותו שוב (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "יהיה עליך להוריד אותו שוב.";
+"modelLibrary.remove.confirm.button" = "הסר";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "אין מספיק נקודות זכות. הוסף עוד נקודות זכות בהגדרות.";
@@ -1039,7 +1045,12 @@
 "settings.backup.import.subtitle" = "שחזר הגדרות מקובץ גיבוי";
 "settings.backup.import.button" = "ייבא...";
 "settings.backup.import.panel.title" = "ייבא הגדרות";
-"settings.backup.import.success" = "ייבוא הושלם: %d מצבים, %d פריטי אוצר מילים יובאו";
+"settings.backup.import.result" = "ייבוא הושלם: %@";
+"settings.backup.import.result.settings" = "ההגדרות שוחזרו";
+"settings.backup.import.result.modes" = "%d מצבים יובאו";
+"settings.backup.import.result.vocabulary" = "%d פריטי אוצר מילים יובאו";
+"settings.backup.import.complete" = "ייבוא הושלם";
+"settings.backup.import.result.separator" = ", ";
 "settings.backup.import.error.read" = "כשל בקריאת קובץ גיבוי";
 "settings.backup.import.error.decode" = "פורמט קובץ גיבוי לא תקין";
 "settings.backup.import.error.decode.keyNotFound" = "שדה חובה חסר: %@";

@@ -325,15 +325,18 @@ public static class TranscriptionDiagnosticsService
         try
         {
             var fileInfo = new FileInfo(audioPath);
-            using var reader = new AudioFileReader(audioPath);
+            // AudioFileDecoder, not AudioFileReader: a WAVE_FORMAT_EXTENSIBLE WAV (any
+            // ffmpeg WAV with more than two channels) otherwise goes to ACM and fails, and
+            // the analysis would report a readable file as AnalysisSucceeded: false (#1450).
+            using var reader = AudioFileDecoder.Open(audioPath);
 
             // Same pair the transcription paths already run
             // (TranscriptionService.PrepareAudioStream:820-828,
             // FileTranscriptionService.ConvertToWhisperFormatAsync:119-128): fold to
             // mono, then resample to 16 kHz.
             //
-            // The fold is MonoFoldSampleProvider rather than NAudio's ToMono() /
-            // StereoToMonoSampleProvider, which handle two channels and throw
+            // The fold is AudioFileDecoder.ToMono (MonoFoldSampleProvider) rather than
+            // NAudio's ToMono() / StereoToMonoSampleProvider, which handle two channels and throw
             // NotImplementedException on anything else. Throwing here would downgrade a
             // perfectly readable multichannel file to AnalysisSucceeded: false, and NOT
             // folding it would measure the interleaved stream - a 3-channel 48 kHz file
@@ -343,11 +346,7 @@ public static class TranscriptionDiagnosticsService
             // classification arm fires. Averaging every channel matches what the 2-channel
             // case already did (NAudio 2.2.1's StereoToMonoSampleProvider defaults to
             // 0.5/0.5) and extends it to any channel count.
-            ISampleProvider provider = reader;
-            if (provider.WaveFormat.Channels > 1)
-            {
-                provider = new MonoFoldSampleProvider(provider);
-            }
+            ISampleProvider provider = AudioFileDecoder.ToMono(reader.Samples);
 
             // Counted BEFORE the resampler on purpose - see the extras comment in
             // CaptureNoSpeechDiagnostic. WdlResamplingSampleProvider.Read returns 0 when it
@@ -644,99 +643,6 @@ public static class TranscriptionDiagnosticsService
         long? DecodedSampleCount = null,
         long? MeasuredSampleCount = null
     );
-
-    /// <summary>
-    /// Folds any channel count down to mono by averaging across channels, for any channel
-    /// count and without throwing.
-    /// </summary>
-    /// <remarks>
-    /// NAudio 2.2.1's <c>ToMono()</c> and <see cref="StereoToMonoSampleProvider"/> handle
-    /// exactly two channels and throw <see cref="NotImplementedException"/> on anything
-    /// else. A diagnostic must not turn a readable file into an analysis failure, and it
-    /// must not measure a multichannel stream interleaved either, so it folds its own.
-    /// A plain average is the same 0.5/0.5 mix the 2-channel provider defaults to,
-    /// generalized to N channels.
-    /// </remarks>
-    // internal (not private): test seam for HyperWhisper.SmokeTests via
-    // InternalsVisibleTo, which drives it with a source that returns awkward
-    // read counts - see the short-read test.
-    internal sealed class MonoFoldSampleProvider : ISampleProvider
-    {
-        private readonly ISampleProvider _source;
-        private readonly int _channels;
-        private float[] _sourceBuffer = [];
-
-        /// <summary>
-        /// Samples of an incomplete frame held over from the previous <see cref="Read"/>, at the
-        /// start of <see cref="_sourceBuffer"/>. A source is free to return any count it likes,
-        /// including one that ends mid-frame; dropping the remainder instead of carrying it
-        /// would rotate every later frame across the channels by that many samples.
-        /// </summary>
-        private int _pending;
-
-        internal MonoFoldSampleProvider(ISampleProvider source)
-        {
-            _source = source;
-            _channels = source.WaveFormat.Channels;
-            WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(source.WaveFormat.SampleRate, 1);
-        }
-
-        public WaveFormat WaveFormat { get; }
-
-        public int Read(float[] buffer, int offset, int count)
-        {
-            if (count <= 0)
-            {
-                return 0;
-            }
-
-            var required = count * _channels;
-            if (_sourceBuffer.Length < required)
-            {
-                // Resize, not reallocate: the carried partial frame lives at the start of it.
-                Array.Resize(ref _sourceBuffer, required);
-            }
-
-            // Returning fewer than `count` frames is legal; returning 0 while the source still
-            // has audio is not — both the analysis loop and WdlResamplingSampleProvider read a 0
-            // as end-of-stream, so a source that returned 0 < read < _channels once would
-            // silently truncate the measurement and still report AnalysisSucceeded: true. Keep
-            // pulling until a whole frame exists or the source is genuinely exhausted.
-            var available = _pending;
-            while (available < _channels)
-            {
-                var read = _source.Read(_sourceBuffer, available, required - available);
-                if (read <= 0)
-                {
-                    break;
-                }
-
-                available += read;
-            }
-
-            var frames = available / _channels;
-            for (var frame = 0; frame < frames; frame++)
-            {
-                double sum = 0;
-                var start = frame * _channels;
-                for (var channel = 0; channel < _channels; channel++)
-                {
-                    sum += _sourceBuffer[start + channel];
-                }
-
-                buffer[offset + frame] = (float)(sum / _channels);
-            }
-
-            // Carry whatever did not make up a whole frame to the next call.
-            _pending = available - (frames * _channels);
-            if (_pending > 0)
-            {
-                Array.Copy(_sourceBuffer, frames * _channels, _sourceBuffer, 0, _pending);
-            }
-
-            return frames;
-        }
-    }
 
     /// <summary>
     /// Passes samples straight through and counts them. Inserted before the resampler so

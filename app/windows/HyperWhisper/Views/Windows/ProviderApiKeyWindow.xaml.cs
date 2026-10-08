@@ -3,6 +3,7 @@ using System.Windows;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Views.Windows;
 
@@ -11,7 +12,7 @@ public partial class ProviderApiKeyWindow : Window
     private readonly string _displayName;
     private readonly string _apiKeyUrl;
     private readonly Func<string?> _getKey;
-    private readonly Action<string?> _setKey;
+    private readonly Func<string?, PlatformContracts.PlatformResult> _setKey;
     private readonly Func<string?, bool> _validateKey;
     private readonly string _invalidMessage;
 
@@ -88,7 +89,7 @@ public partial class ProviderApiKeyWindow : Window
 
     private void Clear_Click(object sender, RoutedEventArgs e)
     {
-        _setKey(null);
+        if (!TryWriteKey(null)) return;
         DialogResult = true;
         Close();
     }
@@ -115,12 +116,32 @@ public partial class ProviderApiKeyWindow : Window
             return;
         }
 
-        _setKey(key);
+        // On failure the window stays open with the typed key, so the user can retry.
+        if (!TryWriteKey(key)) return;
         DialogResult = true;
         Close();
     }
 
-    private static (string displayName, string apiKeyUrl, Func<string?> getKey, Action<string?> setKey, Func<string?, bool> validateKey, string invalidMessage)
+    /// <summary>
+    /// Writes (or clears, for null) the key. A Credential Manager failure is shown
+    /// instead of being swallowed (#742); the key is never logged.
+    /// </summary>
+    private bool TryWriteKey(string? key)
+    {
+        var result = _setKey(key);
+        if (result.IsSuccess) return true;
+
+        LoggingService.Warn(
+            $"ProviderApiKeyWindow: Could not {(key == null ? "clear" : "save")} {_displayName} API key ({result.Error?.Code})");
+        WpfMessageBox.Show(
+            Loc.S("onboarding.setup.provider.saveFailed"),
+            Loc.S("common.error"),
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+        return false;
+    }
+
+    private static (string displayName, string apiKeyUrl, Func<string?> getKey, Func<string?, PlatformContracts.PlatformResult> setKey, Func<string?, bool> validateKey, string invalidMessage)
         CreatePostProcessingTarget(PostProcessingProvider provider)
     {
         var displayName = provider.ToDisplayName();

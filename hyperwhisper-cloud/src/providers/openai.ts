@@ -25,6 +25,13 @@ const DEFAULT_MODEL = 'gpt-4o-transcribe';
 // Models that accept a structured keyword list. gpt-live-transcribe is
 // realtime-only and never reaches this synchronous adapter.
 const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
+// Models OpenAI bills per audio minute rather than per token
+// (cost-calculator.ts). Each one is billed on the duration OpenAI reports
+// when it reports one, and on the conservative byte estimate only when it
+// does not. gpt-transcribe was billed on the byte estimate alone, which reads a
+// 16 kHz mono WAV as ~4x its length; since #797 aliases whisper-1 and
+// gpt-4o-transcribe to it, that would have tripled their bill.
+const DURATION_BILLED_MODELS: ReadonlySet<string> = new Set(['whisper-1', 'gpt-transcribe', 'gpt-live-transcribe']);
 // OpenAI encodes array parameters on this endpoint with a trailing `[]`, one
 // field per element — the same shape as the documented
 // `timestamp_granularities[]`.
@@ -177,10 +184,12 @@ export async function transcribeWithOpenAI(
   }
 
   const transcript = data.text || '';
-  // whisper-1 verbose_json gives a real duration; gpt-4o gives only tokens, so
-  // estimate seconds from payload for telemetry (billing uses tokens regardless).
+  // whisper-1 verbose_json gives a real duration, and a duration-billed model's
+  // `usage` block carries the seconds OpenAI billed. gpt-4o gives only tokens,
+  // so estimate seconds from payload for telemetry (billing uses tokens
+  // regardless).
   const rawWhisperDuration = data.duration ?? data.usage?.seconds ?? 0;
-  let durationSeconds = isWhisper
+  let durationSeconds = DURATION_BILLED_MODELS.has(model)
     ? rawWhisperDuration
     : estimateSecondsFromBytes(audio.byteLength);
 
@@ -195,10 +204,10 @@ export async function transcribeWithOpenAI(
     return { text: '', language: data.language, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
   }
 
-  // Fail-closed: whisper-1 is duration-billed, so a successful transcript with a
+  // Fail-closed: a duration-billed model's successful transcript with a
   // missing/non-positive duration falls back to a byte-size estimate (never $0).
   // The gpt-4o branch already estimates from bytes above.
-  if (isWhisper && !(durationSeconds > 0 && Number.isFinite(durationSeconds))) {
+  if (DURATION_BILLED_MODELS.has(model) && !(durationSeconds > 0 && Number.isFinite(durationSeconds))) {
     durationSeconds = estimateSecondsFromBytes(audio.byteLength);
   }
 

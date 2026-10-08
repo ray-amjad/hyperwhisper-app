@@ -24,7 +24,7 @@
 //    POST /v1beta/models/{model}:generateContent?key=... with file_data → transcript
 //    DELETE /v1beta/{file.name}?key=... for best-effort cleanup (fire-and-forget)
 //
-//  The core owns model defaulting (empty → gemini-2.5-flash), the prompt build
+//  The core owns model defaulting (empty → the catalog default, gemini-3.8-flash), the prompt build
 //  (`geminiBuildPrompt`: base instruction + language hint + vocabulary +
 //  `params.prompt` custom prompt), and the generate `{text}` parse +
 //  NoSpeech-on-empty.
@@ -72,7 +72,7 @@ class GeminiTranscriptionProvider: TranscriptionProvider {
         AppLogger.transcription.debug("Gemini audio file size · sizeKB=\(fileSizeBytes / 1024, privacy: .public)")
 
         // Build TranscribeParams. Pass the RAW model id (empty → core default
-        // gemini-2.5-flash), sanitized vocabulary boost terms, and the per-mode custom
+        // gemini-3.8-flash, read from cloud-stt-catalog.json), sanitized vocabulary boost terms, and the per-mode custom
         // Gemini prompt as `params.prompt` — the core's `geminiBuildPrompt`
         // assembles the final prompt (base instruction + language hint +
         // vocabulary + custom prompt).
@@ -287,7 +287,7 @@ class GeminiTranscriptionProvider: TranscriptionProvider {
     }
 
     private static func makeSessionConfiguration() -> URLSessionConfiguration {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = 120
         config.timeoutIntervalForResource = 900
         config.waitsForConnectivity = false

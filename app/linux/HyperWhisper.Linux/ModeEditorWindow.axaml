@@ -278,7 +278,7 @@
                          Text="{ReflectionBinding [mode.editor.field.cloudModel], Source={StaticResource Localization}}"/>
               <!-- A ComboBox, not a TextBox: Windows picks this from the CloudPp catalog and shows
                    the model's display name (ModeEditorWindow.xaml:437-452). The TextBox that used
-                   to sit here printed the stored "anthropic:claude-haiku-4-5" pair on screen. -->
+                   to sit here printed the stored "anthropic:claude-haiku-5-5" pair on screen. -->
               <ComboBox x:Name="ModeHyperWhisperCloudModel" HorizontalAlignment="Stretch"
                         ItemsSource="{Binding HyperWhisperCloudModels}" SelectedItem="{Binding HyperWhisperCloudModel}">
                 <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource CloudPostProcessingLabelConverter}}"/></DataTemplate></ComboBox.ItemTemplate>

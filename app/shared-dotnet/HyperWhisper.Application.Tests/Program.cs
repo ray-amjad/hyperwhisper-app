@@ -68,6 +68,7 @@ try
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
+    await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
 
     var history = new HistoryRepository(database);
@@ -1002,6 +1003,7 @@ try
             _ => PlatformResult.Success()) { AccountKey = "one-at-a-time" };
         var activation = gatedAccount.ActivateAsync();
         await blockingAccountHttp.Started.Task;
+        gatedAccount.AccountKey = "typed-while-validating";
         Assert(!gatedAccount.ActivateCommand.CanExecute(null)
             && !gatedAccount.DeactivateCommand.CanExecute(null)
             && !gatedAccount.RefreshCreditsCommand.CanExecute(null),
@@ -1011,6 +1013,81 @@ try
         Assert(gatedAccount.ActivateCommand.CanExecute(null)
             && gatedAccount.DeactivateCommand.CanExecute(null),
             "account operation gate did not re-enable commands after completion");
+        Assert(gatedAccount.HasAccount && gatedAccount.AccountKey.Length == 0,
+            "a successful activation left a value typed during validation in the key field");
+    }
+
+    // #670: a FAILED activation must leave the typed key in the field so the user can see and
+    // correct it. Only a success clears it (asserted above). One fresh service per case.
+    static PortableCloudAccountService NewAccountService(HttpMessageHandler handler, string statePath)
+    {
+        var store = new MemoryCredentialStore();
+        return new PortableCloudAccountService(
+            store,
+            new PortableLicenseStateStore(store, new MemoryPrivateFileService(), statePath),
+            new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan });
+    }
+
+    const string typedKey = "HW-0000-0000-0000";
+    using (var rejectingService = NewAccountService(new RejectingCloudAccountHttpHandler(), "/rejected-license-state.json"))
+    {
+        var rejected = new CloudAccountViewModel(
+            rejectingService, new StaticDeviceIdentity(), "Ray Linux", _ => PlatformResult.Success())
+        { AccountKey = typedKey };
+        await rejected.ActivateAsync();
+        Assert(rejected.AccountKey == typedKey && rejected.ActivationError == "License key not found",
+            $"a rejected activation did not keep the typed key (field: '{rejected.AccountKey}', error: '{rejected.ActivationError}')");
+        Assert(!rejected.HasAccount && rejected.Status.HasError
+            && !rejected.Status.Message.Contains(typedKey, StringComparison.Ordinal),
+            "a rejected activation reported success or echoed the key into the status line");
+        Assert(rejected.ActivateCommand.CanExecute(null),
+            "a rejected activation did not re-enable Activate for the corrected key");
+    }
+
+    using (var identityService = NewAccountService(new CloudAccountHttpHandler(), "/identity-license-state.json"))
+    {
+        var noIdentity = new CloudAccountViewModel(
+            identityService, new FailingDeviceIdentity(), "Ray Linux", _ => PlatformResult.Success())
+        { AccountKey = typedKey };
+        await noIdentity.ActivateAsync();
+        Assert(noIdentity.AccountKey == typedKey && !noIdentity.HasAccount && noIdentity.Status.HasError,
+            "a device-identity failure did not keep the typed key");
+    }
+
+    var cancelledHttp = new DelayedHttpHandler();
+    using (var cancelledService = NewAccountService(cancelledHttp, "/cancelled-license-state.json"))
+    {
+        var cancelled = new CloudAccountViewModel(
+            cancelledService, new StaticDeviceIdentity(), "Ray Linux", _ => PlatformResult.Success())
+        { AccountKey = typedKey };
+        using var cancel = new CancellationTokenSource();
+        var cancelledActivation = cancelled.ActivateAsync(cancel.Token);
+        await cancelledHttp.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancel.Cancel();
+        await cancelledActivation;
+        Assert(cancelled.AccountKey == typedKey && !cancelled.HasAccount
+            // The service turns a cancelled request into a failure result, so the message is
+            // the service's; what matters here is that it failed and the key survived.
+            && cancelled.HasActivationError && cancelled.Status.HasError,
+            $"a cancelled activation did not keep the typed key (field: '{cancelled.AccountKey}', error: '{cancelled.ActivationError}')");
+    }
+
+    var gatedRejectHttp = new RejectingCloudAccountHttpHandler { Gate = true };
+    using (var gatedRejectService = NewAccountService(gatedRejectHttp, "/gated-rejected-license-state.json"))
+    {
+        var editedMidFlight = new CloudAccountViewModel(
+            gatedRejectService, new StaticDeviceIdentity(), "Ray Linux", _ => PlatformResult.Success())
+        { AccountKey = typedKey };
+        var editedActivation = editedMidFlight.ActivateAsync();
+        await gatedRejectHttp.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // The user corrects the key while the first one is still being validated. The failure
+        // of the old key must not overwrite the newer value with the old one, or blank it.
+        editedMidFlight.AccountKey = "HW-0000-0000-0001";
+        gatedRejectHttp.Release.TrySetResult();
+        await editedActivation;
+        Assert(editedMidFlight.AccountKey == "HW-0000-0000-0001"
+            && editedMidFlight.ActivationError == "License key not found",
+            $"a rejected activation overwrote a key edited during validation (field: '{editedMidFlight.AccountKey}')");
     }
 
     var customModes = new HyperWhisper.PortableApplication.ViewModels.ModesViewModel(
@@ -1455,6 +1532,56 @@ static async Task RunDictationModeTestsAsync(string root)
     Assert(editor.CloudDomain == "medical", "Loading an invalid mode silently rewrote its domain");
     await editor.SaveAsync();
     Assert(editor.Status.ErrorCode == "modes.dictation_selection", "Restored Dictation with a medical domain bypassed validation");
+}
+
+/// <summary>
+/// A mode saved before the 2026-10 Haiku retirement stores "anthropic:claude-haiku-4-5".
+/// The picker lists only Haiku 5.5, so a raw load left it blank on every existing mode.
+/// </summary>
+static async Task RunCloudPostProcessingModelLoadTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+
+    Assert(!editor.HyperWhisperCloudModels.Contains("anthropic:claude-haiku-4-5"),
+        "the picker still lists the retired Haiku 4.5");
+    Assert(editor.HyperWhisperCloudModels.Contains("anthropic:claude-haiku-5-5"),
+        "the picker does not list Haiku 5.5");
+
+    var legacy = new Mode
+    {
+        Name = "Legacy Haiku",
+        PostProcessingMode = 1,
+        PostProcessingProvider = "hyperwhisper",
+        CloudPostProcessingModel = "anthropic:claude-haiku-4-5",
+    };
+    await repository.UpsertAsync(legacy);
+    editor.Selected = legacy;
+    Assert(editor.HyperWhisperCloudModel == "anthropic:claude-haiku-5-5",
+        $"a stored anthropic:claude-haiku-4-5 loaded as '{editor.HyperWhisperCloudModel}', not the Haiku 5.5 row");
+    Assert(editor.HyperWhisperCloudModels.Contains(editor.HyperWhisperCloudModel),
+        "the loaded cloud post-processing model is not a picker row");
+
+    // A listed value loads unchanged; an unknown provider is left alone, not rewritten.
+    // The row must be present: if the core catalog failed to load, the fallback list holds
+    // only Haiku 5.5 and this check must fail rather than pass vacuously.
+    Assert(editor.HyperWhisperCloudModels.Contains("groq:openai/gpt-oss-120b"),
+        "the picker does not list groq:openai/gpt-oss-120b; did the core catalog load?");
+    Assert(HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("groq:openai/gpt-oss-120b")
+            == "groq:openai/gpt-oss-120b",
+        "a listed cloud post-processing value was rewritten");
+    // The engine and model match case-insensitively, like Windows FromString, macOS
+    // fromStorageValue and hw-backup; the result is the catalog's own spelling.
+    var mixedRetired = HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("Anthropic:claude-haiku-4-5");
+    Assert(mixedRetired == "anthropic:claude-haiku-5-5",
+        $"a stored Anthropic:claude-haiku-4-5 canonicalised to '{mixedRetired}', not anthropic:claude-haiku-5-5");
+    var mixedListed = HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("GROQ:OpenAI/GPT-OSS-120B");
+    Assert(mixedListed == "groq:openai/gpt-oss-120b",
+        $"a mixed-case listed value canonicalised to '{mixedListed}', not groq:openai/gpt-oss-120b");
+    Assert(HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("nosuchvendor:x") == "nosuchvendor:x",
+        "an unknown provider was rewritten");
 }
 
 /// <summary>
@@ -3340,6 +3467,35 @@ file sealed class StaticDeviceIdentity : IDeviceIdentityProvider
 {
     public PlatformResult<DeviceIdentity> GetDeviceIdentity() => PlatformResult<DeviceIdentity>.Success(
         new DeviceIdentity("privacy-preserving-device-id", DeviceIdentitySource.StoredFallback));
+}
+
+file sealed class FailingDeviceIdentity : IDeviceIdentityProvider
+{
+    public PlatformResult<DeviceIdentity> GetDeviceIdentity() =>
+        PlatformResult<DeviceIdentity>.Failure("device.identity_unavailable", "simulated device identity failure");
+}
+
+/// <summary>The validate endpoint's real rejection for an unknown key (HTTP 400, not_entitled).</summary>
+file sealed class RejectingCloudAccountHttpHandler : HttpMessageHandler
+{
+    public bool Gate { get; init; }
+    public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        Started.TrySetResult();
+        if (Gate) await Release.Task.WaitAsync(cancellationToken);
+        return new HttpResponseMessage(System.Net.HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent(
+                "{\"valid\":false,\"error\":\"License key not found\",\"reason\":\"not_entitled\"}",
+                Encoding.UTF8,
+                "application/json"),
+        };
+    }
 }
 
 file sealed class CloudAccountHttpHandler : HttpMessageHandler

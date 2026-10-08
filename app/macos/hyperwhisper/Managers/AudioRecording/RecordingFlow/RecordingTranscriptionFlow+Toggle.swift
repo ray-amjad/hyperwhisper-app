@@ -70,6 +70,16 @@ extension RecordingTranscriptionFlow {
         currentRecordingTriggerSource = trigger
         toggleTask?.cancel()
 
+        // A toggle that starts or stops a session is a newer flow: an in-flight
+        // pending-file retry must not write its outcome over it (#1276).
+        if Self.toggleTakesOverSession(
+            stopOnly: stopOnly,
+            isRecording: recordingLifecycle.isRecording,
+            isStreamingActive: isStreamingActive
+        ) {
+            appState?.beginTranscriptionSession()
+        }
+
         // Create a new task for this toggle operation
         // The task will check for cancellation at key points
         toggleTask = Task {
@@ -101,6 +111,18 @@ extension RecordingTranscriptionFlow {
                 await handleStartRecording(mode: modeToUse)
             }
         }
+    }
+
+    /// Whether a toggle starts or stops a session, and so supersedes an
+    /// in-flight pending-file retry (#1276). A stop-only toggle with nothing
+    /// recording does nothing, so it takes nothing over: bumping the generation
+    /// for it would leave the retry's dialog stuck on "transcribing".
+    nonisolated static func toggleTakesOverSession(
+        stopOnly: Bool,
+        isRecording: Bool,
+        isStreamingActive: Bool
+    ) -> Bool {
+        !stopOnly || isRecording || isStreamingActive
     }
 
     // MARK: - Cancel Shortcut
