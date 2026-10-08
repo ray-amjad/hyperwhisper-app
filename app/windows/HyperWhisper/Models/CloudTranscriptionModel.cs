@@ -403,12 +403,6 @@ public static class CloudTranscriptionModels
         },
         new CloudTranscriptionModel
         {
-            Id = "gemini-3-flash-preview",
-            Description = "Next-gen flash model (preview)",
-            Provider = CloudTranscriptionProvider.Gemini
-        },
-        new CloudTranscriptionModel
-        {
             Id = "gemini-3.1-pro-preview",
             Description = "Next-gen pro model - highest quality (preview)",
             Provider = CloudTranscriptionProvider.Gemini

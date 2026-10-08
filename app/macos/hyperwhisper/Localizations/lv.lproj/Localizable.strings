@@ -727,7 +727,7 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "modes.postProcessing.apiKeyMissing" = "%@ API atslēga nav konfigurēta. Pievienojiet to sadaļā Iestatījumi, lai iespējotu pēcapstrādi.";
 "modes.postProcessing.configure" = "Konfigurēt iestatījumos";
 "modes.postProcessing.modelRecommendation" = "Mēs ieteicam izmantot GPT-4.1 Nano labākam ātruma un kvalitātes līdzsvaram.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokālā pēcapstrāde prasa lejupielādētu lokālu modeli.";
 "modes.postProcessing.download" = "Lejupielādēt iestatījumos";

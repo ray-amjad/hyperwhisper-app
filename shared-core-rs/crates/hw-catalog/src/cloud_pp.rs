@@ -260,9 +260,9 @@ mod tests {
         assert_eq!(p.api_style.as_deref(), Some("anthropic"));
         assert_eq!(p.llm_provider, "anthropic");
         let dm = c.default_model("anthropic").unwrap();
-        assert_eq!(dm.id, "claude-haiku-4-5");
-        assert_eq!(dm.price_per_m_input, Some(1.00));
-        assert_eq!(dm.price_per_m_output, Some(5.00));
+        assert_eq!(dm.id, "claude-haiku-5-5");
+        assert_eq!(dm.price_per_m_input, Some(0.10));
+        assert_eq!(dm.price_per_m_output, Some(0.50));
     }
 
     // --- Golden: case-insensitive lookup ------------------------------------

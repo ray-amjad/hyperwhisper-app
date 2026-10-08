@@ -399,24 +399,8 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
     /// both heads. The core lowercases the identifier before matching, so the
     /// casing costs nothing there and keeps the two tables textually comparable.
     /// </remarks>
-    public static string ProviderIdentifier(CloudTranscriptionProvider provider) => provider switch
-    {
-        CloudTranscriptionProvider.OpenAi => "openai",
-        CloudTranscriptionProvider.Groq => "groq",
-        CloudTranscriptionProvider.Deepgram => "deepgram",
-        CloudTranscriptionProvider.AssemblyAi => "assemblyai",
-        CloudTranscriptionProvider.ElevenLabs => "elevenlabs",
-        CloudTranscriptionProvider.Mistral => "mistral",
-        CloudTranscriptionProvider.Soniox => "soniox",
-        CloudTranscriptionProvider.HyperWhisperCloud => "hyperwhisper",
-        CloudTranscriptionProvider.Gemini => "gemini",
-        CloudTranscriptionProvider.Grok => "grok",
-        CloudTranscriptionProvider.AzureMai => "microsoftAzureSpeech",
-        CloudTranscriptionProvider.GoogleChirp => "googleSpeech",
-        CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
-        CloudTranscriptionProvider.Meta => "meta",
-        _ => string.Empty,
-    };
+    public static string ProviderIdentifier(CloudTranscriptionProvider provider) =>
+        CloudTranscriptionProviderIdentifiers.Of(provider);
 
     /// <summary>
     /// Whether <paramref name="modelId"/> is really one of

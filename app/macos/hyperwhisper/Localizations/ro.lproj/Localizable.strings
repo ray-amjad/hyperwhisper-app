@@ -727,7 +727,7 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.postProcessing.apiKeyMissing" = "Cheia API %@ nu este configurată. Adăugați-o în Setări pentru a activa post-procesare.";
 "modes.postProcessing.configure" = "Configurați în Setări";
 "modes.postProcessing.modelRecommendation" = "Recomandăm să utilizați GPT-4.1 Nano pentru cel mai bun echilibru dintre viteză și calitate.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Post-procesarea locală necesită un model local descărcat.";
 "modes.postProcessing.download" = "Descărcați în Setări";

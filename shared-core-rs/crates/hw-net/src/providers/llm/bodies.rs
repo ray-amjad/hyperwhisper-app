@@ -85,24 +85,53 @@ pub fn openai_chat(
     json_body(Value::Object(map))
 }
 
+/// The `thinking` value that turns extended thinking OFF for `model`, or `None`
+/// when the model needs no field.
+///
+/// Claude Haiku 5.5 and Claude Sonnet 5 think by default (adaptive), which adds
+/// latency a punctuation pass does not need, so they get `{"type":"disabled"}`.
+/// Claude Sonnet 5.5 rejects `disabled` with a 400; its off switch is
+/// `{"type":"between_tools"}`, with no other thinking field. Every other id
+/// (Sonnet 4.6, older ids) does not think unless asked, so it gets no field and
+/// its body bytes stay exactly as they were. PARITY: hyperwhisper-cloud
+/// `anthropicThinkingFor` in `src/providers/anthropic.ts`.
+pub fn anthropic_thinking(model: &str) -> Option<Value> {
+    let id = model.trim().to_ascii_lowercase();
+    match id.as_str() {
+        "claude-haiku-5-5" | "claude-sonnet-5" => Some(json!({ "type": "disabled" })),
+        "claude-sonnet-5-5" => Some(json!({ "type": "between_tools" })),
+        _ => None,
+    }
+}
+
 /// The Anthropic native Messages body.
 ///
 /// The static system prompt is a cacheable `cache_control: ephemeral` text
 /// block; the dynamic context travels in the user message so the cached prefix
-/// stays byte-identical between requests.
+/// stays byte-identical between requests. `thinking` is appended last, and only
+/// for the models [`anthropic_thinking`] names.
 pub fn anthropic_messages(model: &str, system_prompt: &str, user_message: &str) -> Body {
-    json_body(json!({
-        "model": model,
-        "max_tokens": super::MAX_OUTPUT_TOKENS,
-        "system": [
+    let mut map = Map::new();
+    map.insert("model".to_string(), json!(model));
+    map.insert("max_tokens".to_string(), json!(super::MAX_OUTPUT_TOKENS));
+    map.insert(
+        "system".to_string(),
+        json!([
             {
                 "type": "text",
                 "text": system_prompt,
                 "cache_control": { "type": "ephemeral" },
             }
-        ],
-        "messages": [ { "role": "user", "content": user_message } ],
-    }))
+        ]),
+    );
+    map.insert(
+        "messages".to_string(),
+        json!([ { "role": "user", "content": user_message } ]),
+    );
+    if let Some(thinking) = anthropic_thinking(model) {
+        map.insert("thinking".to_string(), thinking);
+    }
+    json_body(Value::Object(map))
 }
 
 /// The hosted `/post-process` body.

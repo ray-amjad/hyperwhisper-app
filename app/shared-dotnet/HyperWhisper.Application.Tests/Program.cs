@@ -68,6 +68,7 @@ try
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
+    await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
 
     var history = new HistoryRepository(database);
@@ -1455,6 +1456,56 @@ static async Task RunDictationModeTestsAsync(string root)
     Assert(editor.CloudDomain == "medical", "Loading an invalid mode silently rewrote its domain");
     await editor.SaveAsync();
     Assert(editor.Status.ErrorCode == "modes.dictation_selection", "Restored Dictation with a medical domain bypassed validation");
+}
+
+/// <summary>
+/// A mode saved before the 2026-10 Haiku retirement stores "anthropic:claude-haiku-4-5".
+/// The picker lists only Haiku 5.5, so a raw load left it blank on every existing mode.
+/// </summary>
+static async Task RunCloudPostProcessingModelLoadTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+
+    Assert(!editor.HyperWhisperCloudModels.Contains("anthropic:claude-haiku-4-5"),
+        "the picker still lists the retired Haiku 4.5");
+    Assert(editor.HyperWhisperCloudModels.Contains("anthropic:claude-haiku-5-5"),
+        "the picker does not list Haiku 5.5");
+
+    var legacy = new Mode
+    {
+        Name = "Legacy Haiku",
+        PostProcessingMode = 1,
+        PostProcessingProvider = "hyperwhisper",
+        CloudPostProcessingModel = "anthropic:claude-haiku-4-5",
+    };
+    await repository.UpsertAsync(legacy);
+    editor.Selected = legacy;
+    Assert(editor.HyperWhisperCloudModel == "anthropic:claude-haiku-5-5",
+        $"a stored anthropic:claude-haiku-4-5 loaded as '{editor.HyperWhisperCloudModel}', not the Haiku 5.5 row");
+    Assert(editor.HyperWhisperCloudModels.Contains(editor.HyperWhisperCloudModel),
+        "the loaded cloud post-processing model is not a picker row");
+
+    // A listed value loads unchanged; an unknown provider is left alone, not rewritten.
+    // The row must be present: if the core catalog failed to load, the fallback list holds
+    // only Haiku 5.5 and this check must fail rather than pass vacuously.
+    Assert(editor.HyperWhisperCloudModels.Contains("groq:openai/gpt-oss-120b"),
+        "the picker does not list groq:openai/gpt-oss-120b; did the core catalog load?");
+    Assert(HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("groq:openai/gpt-oss-120b")
+            == "groq:openai/gpt-oss-120b",
+        "a listed cloud post-processing value was rewritten");
+    // The engine and model match case-insensitively, like Windows FromString, macOS
+    // fromStorageValue and hw-backup; the result is the catalog's own spelling.
+    var mixedRetired = HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("Anthropic:claude-haiku-4-5");
+    Assert(mixedRetired == "anthropic:claude-haiku-5-5",
+        $"a stored Anthropic:claude-haiku-4-5 canonicalised to '{mixedRetired}', not anthropic:claude-haiku-5-5");
+    var mixedListed = HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("GROQ:OpenAI/GPT-OSS-120B");
+    Assert(mixedListed == "groq:openai/gpt-oss-120b",
+        $"a mixed-case listed value canonicalised to '{mixedListed}', not groq:openai/gpt-oss-120b");
+    Assert(HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("nosuchvendor:x") == "nosuchvendor:x",
+        "an unknown provider was rewritten");
 }
 
 /// <summary>

@@ -159,7 +159,7 @@ public sealed partial class ApplicationLocalApiBackend
         else if (mode.LocalEngine == "parakeet") mode.Model = mode.LocalParakeetModel ?? mode.Model ?? "parakeet-v3";
         else { mode.Model = string.IsNullOrWhiteSpace(mode.Model) ? "base" : mode.Model; mode.ModelType = mode.Model; }
         mode.CloudAccuracyTier = string.IsNullOrWhiteSpace(mode.CloudAccuracyTier) ? "elevenLabsScribeV2" : mode.CloudAccuracyTier;
-        mode.CloudPostProcessingModel = string.IsNullOrWhiteSpace(mode.CloudPostProcessingModel) ? "anthropic:claude-haiku-4-5" : mode.CloudPostProcessingModel;
+        mode.CloudPostProcessingModel = string.IsNullOrWhiteSpace(mode.CloudPostProcessingModel) ? "anthropic:claude-haiku-5-5" : mode.CloudPostProcessingModel;
     }
 
     /// <summary>

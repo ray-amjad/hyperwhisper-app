@@ -727,7 +727,7 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.postProcessing.apiKeyMissing" = "%@ API-nyckel inte konfigurerad. Lägg till den i inställningar för att aktivera efterbearbetning.";
 "modes.postProcessing.configure" = "Konfigurera i inställningar";
 "modes.postProcessing.modelRecommendation" = "Vi rekommenderar att du använder GPT-4.1 Nano för bästa balans mellan hastighet och kvalitet.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokal efterbehandling kräver en nedladdad lokal modell.";
 "modes.postProcessing.download" = "Ladda ner i inställningar";

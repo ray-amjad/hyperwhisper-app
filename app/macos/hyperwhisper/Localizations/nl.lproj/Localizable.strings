@@ -727,7 +727,7 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "modes.postProcessing.apiKeyMissing" = "%@ API-sleutel niet geconfigureerd. Voeg dit toe in Instellingen om nabewerking in te schakelen.";
 "modes.postProcessing.configure" = "Configureren in Instellingen";
 "modes.postProcessing.modelRecommendation" = "We raden GPT-4.1 Nano aan voor de beste balans tussen snelheid en kwaliteit.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokale nabewerking vereist een gedownload lokaal model.";
 "modes.postProcessing.download" = "Download in Instellingen";

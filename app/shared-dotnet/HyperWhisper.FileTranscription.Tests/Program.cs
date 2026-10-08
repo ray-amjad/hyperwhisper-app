@@ -11,6 +11,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("cloud credentials and models fail before metadata", CloudReadinessPrecedesMetadata),
     ("HyperWhisper guest device readiness and model fallback match routing", HyperWhisperGuestReadiness),
     ("Azure MAI file transcription accepts both models", AzureMaiAcceptsBothModels),
+    ("a retired BYOK model id resolves through the alias table before the check", RetiredModelAliasesBeforeCheck),
     ("AssemblyAI Dictation accepts only short PCM16 WAV on BYOK and Cloud", AssemblyAiDictationFiles),
     ("Meta Muse accepts canonical WAV without conversion", MetaMuseCanonicalWave),
     ("Meta Muse converts portable non-WAV and incompatible WAV inputs", MetaMuseNormalization),
@@ -118,6 +119,24 @@ static async Task AzureMaiAcceptsBothModels()
     AssertCode(await Service(new FakeMetadata { Value = metadata.Value }, account: true).ValidateAsync(
         "recording.wav",
         new(FileTranscriptionRoute.Cloud, "mai-transcribe-3", CloudProvider: CloudTranscriptionProvider.AzureMai)),
+        "file_preflight.model_unsupported");
+}
+
+// A Linux mode saved before the 2026-10 retirement carries cloudProvider=gemini and
+// cloudTranscriptionModel=gemini-3-flash-preview. The allow-list no longer holds that id,
+// so a raw check failed it as model_unsupported. Preflight now resolves it through the
+// shared hw-catalog alias table (scoped by the provider identifier) first.
+static async Task RetiredModelAliasesBeforeCheck()
+{
+    var metadata = new FakeMetadata { Value = new(1024, TimeSpan.FromSeconds(1)) };
+    var result = await Service(metadata).ValidateAsync("recording.wav",
+        new(FileTranscriptionRoute.Cloud, "gemini-3-flash-preview", CloudProvider: CloudTranscriptionProvider.Gemini));
+    Assert(result.IsSuccess && result.ResolvedModel == "gemini-3.8-flash",
+        $"a Gemini gemini-3-flash-preview mode resolved to '{result.ResolvedModel}' ({result.Failure?.Code}), not gemini-3.8-flash");
+
+    // Scoped by provider: the Gemini alias does not rescue the id under another vendor.
+    AssertCode(await Service(new FakeMetadata { Value = metadata.Value }).ValidateAsync("recording.wav",
+        new(FileTranscriptionRoute.Cloud, "gemini-3-flash-preview", CloudProvider: CloudTranscriptionProvider.Groq)),
         "file_preflight.model_unsupported");
 }
 

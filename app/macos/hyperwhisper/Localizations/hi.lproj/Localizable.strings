@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "%@ API कुंजी कॉन्फ़िगर नहीं है। बाद में प्रोसेसिंग सक्षम करने के लिए इसे सेटिंग्स में जोड़ें।";
 "modes.postProcessing.configure" = "सेटिंग्स में कॉन्फ़िगर करें";
 "modes.postProcessing.modelRecommendation" = "हम गति और गुणवत्ता के सर्वोत्तम संतुलन के लिए GPT-4.1 Nano का उपयोग करने की सिफारिश करते हैं।";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "स्थानीय पोस्ट-प्रोसेसिंग के लिए एक डाउनलोड किया हुआ स्थानीय मॉडल आवश्यक है।";
 "modes.postProcessing.download" = "सेटिंग्स में डाउनलोड करें";

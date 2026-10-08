@@ -89,7 +89,6 @@ const GEMINI_RATES: Record<string, GeminiRate> = {
     textInputPerToken: 1.25 / M, audioInputPerToken: 1.25 / M, outputPerToken: 10.00 / M,
     longContext: { textInputPerToken: 2.50 / M, audioInputPerToken: 2.50 / M, outputPerToken: 15.00 / M },
   },
-  'gemini-3-flash-preview': { textInputPerToken: 0.50 / M, audioInputPerToken: 1.00 / M, outputPerToken: 3.00 / M },
   // #1019. Google lists ONE input price for 3.8 Flash (audio included), and it is
   // INTRODUCTORY: $0.75/$3.75 through 2026-12-31, $1.50/$7.50 from 2027-01-01.
   // Change it together with the chat rate for the same id further down.
@@ -185,12 +184,26 @@ export function estimateSonioxContextTokens(contextText: string | undefined): nu
   return Math.ceil(contextText.length * SONIOX_TOKENS_PER_CHAR);
 }
 
-// Anthropic Claude Haiku 4.5 Pricing (USD)
-const ANTHROPIC_HAIKU_PROMPT_COST_PER_TOKEN = 1.00 / 1_000_000;
-const ANTHROPIC_HAIKU_COMPLETION_COST_PER_TOKEN = 5.00 / 1_000_000;
-// Prompt caching: writes bill at 1.25x input, reads at 0.10x input (5-minute TTL).
-const ANTHROPIC_HAIKU_CACHE_WRITE_COST_PER_TOKEN = ANTHROPIC_HAIKU_PROMPT_COST_PER_TOKEN * 1.25;
-const ANTHROPIC_HAIKU_CACHE_READ_COST_PER_TOKEN = ANTHROPIC_HAIKU_PROMPT_COST_PER_TOKEN * 0.10;
+// Anthropic Claude Haiku 5.5 Pricing (USD). Two tiers, keyed on the request's
+// TOTAL input tokens (uncached input + cache write + cache read):
+//   * up to 100K: $0.10 / $0.50 per 1M (input / output)
+//   * above 100K: $0.50 / $2.50 per 1M
+// The tier a request lands in prices EVERY token of that request, output and
+// both cache buckets included, not just the tokens past the threshold.
+// The base tier MUST match the anthropic row in
+// shared-app-classification/cloud-pp-catalog.json.
+interface AnthropicRate {
+  promptPerToken: number;
+  completionPerToken: number;
+}
+const ANTHROPIC_HAIKU_LONG_PROMPT_THRESHOLD = 100_000;
+const ANTHROPIC_HAIKU_RATE: AnthropicRate = { promptPerToken: 0.10 / M, completionPerToken: 0.50 / M };
+const ANTHROPIC_HAIKU_LONG_PROMPT_RATE: AnthropicRate = { promptPerToken: 0.50 / M, completionPerToken: 2.50 / M };
+// Prompt caching: writes bill at 1.25x input, reads at 0.10x input (5-minute TTL),
+// applied to whichever tier's input rate the request lands in.
+// ASSUMED unchanged from Haiku 4.5 — Anthropic's standard cache multipliers.
+const ANTHROPIC_CACHE_WRITE_MULTIPLIER = 1.25;
+const ANTHROPIC_CACHE_READ_MULTIPLIER = 0.10;
 
 // Cerebras GPT-OSS-120B Pricing (USD)
 const CEREBRAS_PROMPT_COST_PER_TOKEN = 0.35 / 1_000_000;
@@ -661,10 +674,15 @@ export function computeAnthropicCost(
   cacheReadTokens: number = 0,
 ): number {
   // `inputTokens` is the uncached input delta; cache buckets are billed separately.
-  const promptCost = inputTokens * ANTHROPIC_HAIKU_PROMPT_COST_PER_TOKEN;
-  const completionCost = outputTokens * ANTHROPIC_HAIKU_COMPLETION_COST_PER_TOKEN;
-  const cacheWriteCost = cacheCreationTokens * ANTHROPIC_HAIKU_CACHE_WRITE_COST_PER_TOKEN;
-  const cacheReadCost = cacheReadTokens * ANTHROPIC_HAIKU_CACHE_READ_COST_PER_TOKEN;
+  // The tier is decided by the whole prompt — all three input buckets together.
+  const totalInputTokens = inputTokens + cacheCreationTokens + cacheReadTokens;
+  const rate = totalInputTokens > ANTHROPIC_HAIKU_LONG_PROMPT_THRESHOLD
+    ? ANTHROPIC_HAIKU_LONG_PROMPT_RATE
+    : ANTHROPIC_HAIKU_RATE;
+  const promptCost = inputTokens * rate.promptPerToken;
+  const completionCost = outputTokens * rate.completionPerToken;
+  const cacheWriteCost = cacheCreationTokens * rate.promptPerToken * ANTHROPIC_CACHE_WRITE_MULTIPLIER;
+  const cacheReadCost = cacheReadTokens * rate.promptPerToken * ANTHROPIC_CACHE_READ_MULTIPLIER;
   return roundUsd(promptCost + completionCost + cacheWriteCost + cacheReadCost);
 }
 

@@ -727,7 +727,7 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.postProcessing.apiKeyMissing" = "Khóa API %@ không được cấu hình. Thêm nó trong Cài đặt để bật xử lý sau.";
 "modes.postProcessing.configure" = "Cấu hình trong Cài đặt";
 "modes.postProcessing.modelRecommendation" = "Chúng tôi đề xuất sử dụng GPT-4.1 Nano để có sự cân bằng tốt nhất giữa tốc độ và chất lượng.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Hậu xử lý cục bộ yêu cầu một mô hình cục bộ đã tải xuống.";
 "modes.postProcessing.download" = "Tải xuống trong Cài đặt";

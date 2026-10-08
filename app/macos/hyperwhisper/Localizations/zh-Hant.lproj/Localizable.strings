@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "%@ API 金鑰未設定。請在設定中新增它以啟用後處理。";
 "modes.postProcessing.configure" = "在設定中設定";
 "modes.postProcessing.modelRecommendation" = "我們建議使用 GPT-4.1 Nano 以取得最佳的速度和品質平衡。";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "本機後處理需要已下載的本機模型。";
 "modes.postProcessing.download" = "在設定中下載";

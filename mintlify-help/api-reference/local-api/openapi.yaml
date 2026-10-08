@@ -516,7 +516,7 @@ components:
         cloudPostProcessingModel:
           type: string
           nullable: true
-          description: "On create, an omitted or empty value resolves to `anthropic:claude-haiku-4-5`."
+          description: "On create, an omitted or empty value resolves to `anthropic:claude-haiku-5-5`."
         cloudTranscriptionDomain: { type: string, nullable: true }
         localEngine: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it. Defaults to `whisper` on create." }
         localParakeetModel: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it." }

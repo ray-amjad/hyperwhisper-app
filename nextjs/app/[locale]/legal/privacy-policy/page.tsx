@@ -431,7 +431,7 @@ export default function PrivacyPolicyPage() {
           >
             Anthropic (Claude)
           </a>{" "}
-          (Claude Haiku 4.5). Falls back to Cerebras on failure.
+          (Claude Haiku 5.5). Falls back to Cerebras on failure.
         </li>
         <li>
           <a

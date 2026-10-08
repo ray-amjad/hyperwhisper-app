@@ -727,7 +727,7 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "modes.postProcessing.apiKeyMissing" = "%@ API-avainta ei ole määritetty. Lisää se asetuksissa ottaaksesi jälkikäsittelyn käyttöön.";
 "modes.postProcessing.configure" = "Määritä asetuksissa";
 "modes.postProcessing.modelRecommendation" = "Suosittelemme GPT-4.1 Nano -mallin käyttöä parhaan nopeuden ja laadun tasapainon saavuttamiseksi.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Paikallinen jälkikäsittely vaatii ladatun paikallisen mallin.";
 "modes.postProcessing.download" = "Lataa asetuksissa";

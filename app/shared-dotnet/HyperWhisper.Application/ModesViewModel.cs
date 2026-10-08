@@ -33,7 +33,7 @@ public sealed class ModesViewModel : ViewModelBase
     private string _postProcessingMode = "off";
     private string _postProcessingProvider = "openai";
     private string _postProcessingModel = "gpt-4.1-mini";
-    private string _hyperWhisperCloudModel = "anthropic:claude-haiku-4-5";
+    private string _hyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
     private string _customInstructions = string.Empty;
     private bool _punctuation = true;
     private bool _capitalization = true;
@@ -87,7 +87,7 @@ public sealed class ModesViewModel : ViewModelBase
             CloudProvider = "hyperwhisper"; CloudAccuracyTier = "elevenLabsScribeV2"; CloudDomain = string.Empty;
             GeminiPrompt = string.Empty; CustomVocabulary = string.Empty; EnableScreenOcr = false;
             PostProcessingMode = "cloud"; PostProcessingProvider = "hyperwhispercloud";
-            PostProcessingModel = "gpt-4.1-mini"; HyperWhisperCloudModel = "anthropic:claude-haiku-4-5";
+            PostProcessingModel = "gpt-4.1-mini"; HyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
             CustomInstructions = string.Empty; Punctuation = true; Capitalization = true;
             ProfanityFilter = false; RemoveTrailingPeriod = false; EnglishSpelling = string.Empty;
             Preset = "hyper"; UserPromptEnabled = false;
@@ -158,7 +158,11 @@ public sealed class ModesViewModel : ViewModelBase
             PostProcessingProvider = value.PostProcessingProvider?.StartsWith("custom:", StringComparison.OrdinalIgnoreCase) == true
                 ? "custom" : value.PostProcessingProvider ?? "openai";
             PostProcessingModel = value.LanguageModel ?? string.Empty;
-            HyperWhisperCloudModel = value.CloudPostProcessingModel;
+            // Canonicalise on load: a mode saved before 2026-10 stores
+            // "anthropic:claude-haiku-4-5", which the picker no longer lists. Map it to the
+            // provider's default (Haiku 5.5), as Windows FromString does, so the picker opens
+            // on a row instead of blank.
+            HyperWhisperCloudModel = HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize(value.CloudPostProcessingModel);
             CustomInstructions = value.CustomInstructions ?? string.Empty;
             Punctuation = value.Punctuation; Capitalization = value.Capitalization;
             ProfanityFilter = value.ProfanityFilter; RemoveTrailingPeriod = value.RemoveTrailingPeriod;
@@ -836,8 +840,8 @@ public sealed class ModesViewModel : ViewModelBase
     /// Every HyperWhisper Cloud post-processing model, as the "provider:model" storage value the
     /// mode actually saves. Windows offers these in a pair of pickers rather than a text field
     /// (ModeEditorWindow.xaml:437-452, filled by LoadCloudPostProcessingModelsForEngine), so a
-    /// Linux mode editor that typed the id by hand showed a raw "anthropic:claude-haiku-4-5" where
-    /// Windows shows "Claude Haiku 4.5 (Recommended)".
+    /// Linux mode editor that typed the id by hand showed a raw "anthropic:claude-haiku-5-5" where
+    /// Windows shows "Claude Haiku 5.5 (Recommended)".
     ///
     /// Read once, from the same cloud post-processing catalog Windows reads through CloudPpCatalog
     /// and the model library reads through UnifiedModelCatalog, so there is no second list to keep
@@ -1234,7 +1238,7 @@ public sealed class ModesViewModel : ViewModelBase
             : LocalPostProcessingModel.Trim();
         mode.LanguageModel = string.IsNullOrWhiteSpace(PostProcessingModel) ? null : PostProcessingModel.Trim();
         mode.CloudPostProcessingModel = string.IsNullOrWhiteSpace(HyperWhisperCloudModel)
-            ? "anthropic:claude-haiku-4-5" : HyperWhisperCloudModel.Trim();
+            ? "anthropic:claude-haiku-5-5" : HyperWhisperCloudModel.Trim();
         mode.UserSystemPrompt = string.IsNullOrWhiteSpace(UserSystemPrompt) ? null : UserSystemPrompt.Trim();
         mode.CustomInstructions = string.IsNullOrWhiteSpace(CustomInstructions) ? null : CustomInstructions.Trim();
         mode.Punctuation = Punctuation; mode.Capitalization = Capitalization;

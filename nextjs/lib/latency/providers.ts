@@ -149,7 +149,6 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
       { id: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash" },
       { id: "gemini-2.5-flash-lite", displayName: "Gemini 2.5 Flash Lite" },
       { id: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro" },
-      { id: "gemini-3-flash-preview", displayName: "Gemini 3 Flash" },
       { id: "gemini-3.1-pro-preview", displayName: "Gemini 3.1 Pro" },
     ],
   },

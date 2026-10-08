@@ -727,7 +727,7 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "modes.postProcessing.apiKeyMissing" = "%@ API ključ nije konfiguriran. Dodajte ga u Postavke za omogućavanje naknadne obrade.";
 "modes.postProcessing.configure" = "Konfiguriraj u Postavkama";
 "modes.postProcessing.modelRecommendation" = "Preporučujemo korištenje GPT-4.1 Nano za najbolju ravnotežu brzine i kvalitete.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokalna naknadna obrada zahtijeva preuzet lokalni model.";
 "modes.postProcessing.download" = "Preuzmi u Postavkama";

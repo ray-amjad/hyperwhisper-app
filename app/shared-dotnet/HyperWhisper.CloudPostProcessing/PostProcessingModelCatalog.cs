@@ -13,7 +13,8 @@ public static class PostProcessingModelCatalog
         {
             [CloudPostProcessingProvider.OpenAi] =
             [
-                new("gpt-5.6-luna", "GPT-5.6 Luna"), new("gpt-4.1-mini", "GPT-4.1 Mini"),
+                new("gpt-5.6-luna", "GPT-5.6 Luna"), new("gpt-6-luna", "GPT-6 Luna"),
+                new("gpt-4.1-mini", "GPT-4.1 Mini"),
                 new("gpt-4.1", "GPT-4.1"),
                 new("gpt-5.1", "GPT-5.1"), new("gpt-5.2", "GPT-5.2"),
                 new("gpt-5.4-nano", "GPT-5.4 Nano"), new("gpt-5.4-mini", "GPT-5.4 Mini"),
@@ -21,19 +22,19 @@ public static class PostProcessingModelCatalog
             ],
             [CloudPostProcessingProvider.Anthropic] =
             [
-                new("claude-haiku-4-5", "Claude 4.5 Haiku"), new("claude-sonnet-4-5", "Claude 4.5 Sonnet"),
+                new("claude-haiku-5-5", "Claude Haiku 5.5"), new("claude-sonnet-5-5", "Claude Sonnet 5.5"),
                 new("claude-sonnet-4-6", "Claude 4.6 Sonnet"), new("claude-sonnet-5", "Claude Sonnet 5"),
             ],
             [CloudPostProcessingProvider.Groq] =
             [
                 new("openai/gpt-oss-120b", "GPT OSS 120B"), new("openai/gpt-oss-20b", "GPT OSS 20B"),
-                new("qwen/qwen3.6-27b", "Qwen 3.6 27B"), new("qwen/qwen3.8-27b", "Qwen 3.8 27B"),
+                new("qwen/qwen3.8-27b", "Qwen 3.8 27B"),
             ],
             [CloudPostProcessingProvider.Grok] =
             [new("grok-4.3", "Grok 4.3"), new("grok-4.5", "Grok 4.5"), new("grok-4.6", "Grok 4.6")],
             [CloudPostProcessingProvider.Gemini] =
             [
-                new("gemini-3-flash-preview", "Gemini 3 Flash"), new("gemini-3.5-flash", "Gemini 3.5 Flash"),
+                new("gemini-3.5-flash", "Gemini 3.5 Flash"),
                 new("gemini-3.6-flash", "Gemini 3.6 Flash"), new("gemini-3.7-flash", "Gemini 3.7 Flash"),
                 new("gemini-3.8-flash", "Gemini 3.8 Flash"),
                 new("gemini-2.5-flash", "Gemini 2.5 Flash"), new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite"),
@@ -63,9 +64,12 @@ public static class PostProcessingModelCatalog
         // gpt-4.1-nano retires 2026-10-23; gpt-5 / -mini / -nano lose their only snapshots
         // 2026-12-11. All four go to gpt-5.6-luna (matches Windows and macOS).
         "gpt-4.1-nano" or "gpt-5-nano" or "gpt-5-mini" or "gpt-5" => "gpt-5.6-luna",
+        // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10; every old id maps straight to
+        // its 5.5 successor (matches Windows and macOS).
         "claude-3-haiku-20240307" or "claude-3-5-haiku-latest" or "claude-haiku-4.5" or
-            "claude-haiku-4-5-latest" => "claude-haiku-4-5",
-        "claude-sonnet-4-20250514" or "claude-sonnet-4-0" or "claude-sonnet-4-5-latest" => "claude-sonnet-4-5",
+            "claude-haiku-4-5-latest" or "claude-haiku-4-5" or "claude-haiku-4-5-20251001" => "claude-haiku-5-5",
+        "claude-sonnet-4-20250514" or "claude-sonnet-4-0" or "claude-sonnet-4-5-latest" or
+            "claude-sonnet-4-5" or "claude-sonnet-4-5-20250929" => "claude-sonnet-5-5",
         "claude-sonnet-4-6-latest" => "claude-sonnet-4-6",
         "meta-llama/llama-4-maverick-17b-128e-instruct" or "moonshotai/kimi-k2-instruct" or
             "mixtral-8x7b-32768" or "llama-3.3-70b-versatile" or "llama-3.1-8b-instant" or
@@ -82,6 +86,10 @@ public static class PostProcessingModelCatalog
         "gemini-3-pro-preview" => "gemini-3.1-pro-preview",
         "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
         "gemini-2.0-flash" => "gemini-3.6-flash",
+        // Left the picker 2026-10. 3.8 Flash on every route: HyperWhisper Cloud does not
+        // serve 3.6 (PARITY: hw-catalog GEMINI_ALIASES, Windows, macOS).
+        "gemini-3-flash-preview" => "gemini-3.8-flash",
+        "qwen/qwen3.6-27b" => "qwen/qwen3.8-27b",
         "gemini-2.0-flash-lite" => "gemini-3.1-flash-lite",
         _ => model,
     };

@@ -587,28 +587,57 @@ describe('LLM chat costs', () => {
     total_tokens: prompt + completion,
   });
 
-  test('Anthropic bills prompt and completion tokens at the Haiku 4.5 rates', () => {
-    // $1.00/1M input, $5.00/1M output.
-    expect(computeAnthropicCost(1_000_000, 0)).toBeCloseTo(1.00, 6);
-    expect(computeAnthropicCost(0, 1_000_000)).toBeCloseTo(5.00, 6);
+  test('Anthropic bills prompt and completion tokens at the Haiku 5.5 base rates', () => {
+    // Up to 100K input tokens: $0.10/1M input, $0.50/1M output.
+    expect(computeAnthropicCost(100_000, 0)).toBeCloseTo(0.01, 9);
+    expect(computeAnthropicCost(0, 1_000_000)).toBeCloseTo(0.50, 6);
   });
 
-  test('Anthropic prices cache writes at 1.25x input and cache reads at 0.10x input', () => {
-    const input = computeAnthropicCost(1_000_000, 0);
-    const cacheWrite = computeAnthropicCost(0, 0, 1_000_000, 0);
-    const cacheRead = computeAnthropicCost(0, 0, 0, 1_000_000);
-    expect(cacheWrite).toBeCloseTo(input * 1.25, 6);
-    expect(cacheRead).toBeCloseTo(input * 0.10, 6);
-    // A cache read must be the cheapest of the three, or caching costs money.
-    expect(cacheRead).toBeLessThan(input);
-    expect(input).toBeLessThan(cacheWrite);
+  test('Anthropic switches the whole request to the long-prompt tier above 100K input tokens', () => {
+    // Exactly 100K is still the base tier.
+    expect(computeAnthropicCost(100_000, 1000)).toBeCloseTo(0.01 + 0.0005, 9);
+    // Above it, EVERY token of the request bills at $0.50 / $2.50 per 1M,
+    // output included, not just the tokens past the threshold.
+    expect(computeAnthropicCost(110_000, 1000)).toBeCloseTo(110_000 * 0.50 / 1e6 + 1000 * 2.50 / 1e6, 9);
+    // The step is at the boundary itself: one token past 100K is 5x the price.
+    expect(computeAnthropicCost(100_001, 0)).toBeGreaterThan(computeAnthropicCost(100_000, 0) * 4.9);
+    expect(computeAnthropicCost(1_000_000, 0)).toBeCloseTo(0.50, 6);
+    expect(computeAnthropicCost(1_000_000, 1_000_000)).toBeCloseTo(3.00, 6);
+  });
+
+  test('Anthropic decides the tier from uncached input + cache write + cache read', () => {
+    // 40K + 40K + 40K = 120K total input: long tier, though no one bucket passes 100K.
+    const long = computeAnthropicCost(40_000, 1000, 40_000, 40_000);
+    const expected = 40_000 * 0.50 / 1e6
+      + 1000 * 2.50 / 1e6
+      + 40_000 * 0.50 / 1e6 * 1.25
+      + 40_000 * 0.50 / 1e6 * 0.10;
+    expect(long).toBeCloseTo(expected, 9);
+    // 30K + 30K + 30K = 90K: base tier.
+    const base = computeAnthropicCost(30_000, 1000, 30_000, 30_000);
+    expect(base).toBeCloseTo(30_000 * 0.10 / 1e6 + 1000 * 0.50 / 1e6 + 30_000 * 0.10 / 1e6 * 1.25 + 30_000 * 0.10 / 1e6 * 0.10, 9);
+    // Output tokens never count toward the threshold.
+    expect(computeAnthropicCost(1000, 500_000)).toBeCloseTo(1000 * 0.10 / 1e6 + 500_000 * 0.50 / 1e6, 9);
+  });
+
+  test('Anthropic prices cache writes at 1.25x input and cache reads at 0.10x input in both tiers', () => {
+    for (const tokens of [50_000, 1_000_000]) {
+      const input = computeAnthropicCost(tokens, 0);
+      const cacheWrite = computeAnthropicCost(0, 0, tokens, 0);
+      const cacheRead = computeAnthropicCost(0, 0, 0, tokens);
+      expect(cacheWrite).toBeCloseTo(input * 1.25, 6);
+      expect(cacheRead).toBeCloseTo(input * 0.10, 6);
+      // A cache read must be the cheapest of the three, or caching costs money.
+      expect(cacheRead).toBeLessThan(input);
+      expect(input).toBeLessThan(cacheWrite);
+    }
   });
 
   test('Anthropic sums all four token buckets and defaults the cache buckets to 0', () => {
-    // 1000 of each: 0.001 + 0.005 + 0.00125 + 0.0001.
-    expect(computeAnthropicCost(1000, 1000, 1000, 1000)).toBeCloseTo(0.00735, 9);
+    // 1000 of each: 0.0001 + 0.0005 + 0.000125 + 0.00001.
+    expect(computeAnthropicCost(1000, 1000, 1000, 1000)).toBeCloseTo(0.000735, 9);
     // Omitting the cache arguments must not add a charge.
-    expect(computeAnthropicCost(1000, 1000)).toBeCloseTo(0.006, 9);
+    expect(computeAnthropicCost(1000, 1000)).toBeCloseTo(0.0006, 9);
     expect(computeAnthropicCost(1000, 1000)).toBe(computeAnthropicCost(1000, 1000, 0, 0));
   });
 
@@ -721,7 +750,9 @@ const ONE_M_OUTPUT: GroqUsage = { prompt_tokens: 0, completion_tokens: ONE_M, to
 const BILLED_PER_M: Record<string, (model: string) => { input: number; output: number }> = {
   cerebras: () => ({ input: computeCerebrasChatCost(ONE_M_INPUT), output: computeCerebrasChatCost(ONE_M_OUTPUT) }),
   groq: () => ({ input: computeGroqChatCost(ONE_M_INPUT), output: computeGroqChatCost(ONE_M_OUTPUT) }),
-  anthropic: () => ({ input: computeAnthropicCost(ONE_M, 0), output: computeAnthropicCost(0, ONE_M) }),
+  // The catalog lists the base (<=100K-token prompt) tier, so price 100K input
+  // tokens and scale: 1M input tokens in ONE request would land in the long tier.
+  anthropic: () => ({ input: computeAnthropicCost(ONE_M / 10, 0) * 10, output: computeAnthropicCost(0, ONE_M) }),
   grok: () => ({ input: computeXaiGrokFastChatCost(ONE_M_INPUT), output: computeXaiGrokFastChatCost(ONE_M_OUTPUT) }),
   openai: model => ({ input: computeOpenAIChatCost(model, ONE_M_INPUT), output: computeOpenAIChatCost(model, ONE_M_OUTPUT) }),
   gemini: model => ({ input: computeGeminiChatCost(model, ONE_M_INPUT), output: computeGeminiChatCost(model, ONE_M_OUTPUT) }),

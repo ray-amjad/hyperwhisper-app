@@ -727,7 +727,7 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "modes.postProcessing.apiKeyMissing" = "Clé API %@ non configurée. Ajoutez-la dans Réglages pour activer le post-traitement.";
 "modes.postProcessing.configure" = "Configurer dans Réglages";
 "modes.postProcessing.modelRecommendation" = "Nous recommandons GPT-4.1 Nano pour le meilleur équilibre entre vitesse et qualité.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Le post-traitement local nécessite un modèle local téléchargé.";
 "modes.postProcessing.download" = "Télécharger dans Réglages";

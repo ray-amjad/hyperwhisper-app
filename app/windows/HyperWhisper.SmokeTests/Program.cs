@@ -1188,6 +1188,16 @@ internal static class Program
                     // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
                     ("gemma-4-31b", "qwen-3.8-27b"),
                     ("qwen-3-235b-a22b-instruct-2507", "gpt-oss-120b"),
+                    // 2026-10: Claude 4.5, qwen3.6 and Gemini 3 Flash Preview left the picker.
+                    ("claude-haiku-4-5", "claude-haiku-5-5"),
+                    ("claude-haiku-4.5", "claude-haiku-5-5"),
+                    ("claude-3-5-haiku-latest", "claude-haiku-5-5"),
+                    ("claude-sonnet-4-5", "claude-sonnet-5-5"),
+                    ("claude-sonnet-4-0", "claude-sonnet-5-5"),
+                    ("claude-haiku-4-5-20251001", "claude-haiku-5-5"),
+                    ("claude-sonnet-4-5-20250929", "claude-sonnet-5-5"),
+                    ("qwen/qwen3.6-27b", "qwen/qwen3.8-27b"),
+                    ("gemini-3-flash-preview", "gemini-3.8-flash"),
                 };
 
                 foreach (var (oldId, replacement) in cases)
@@ -1344,12 +1354,12 @@ internal static class Program
                 // catalog value: `FromString` answers `CloudPostProcessingModel
                 // .Fallback` for an id it cannot resolve, so a weaker "non-empty and
                 // not the Mode's model" check passes even when the entry is gone.
-                var cloudModel = CloudPostProcessingModelExtensions.FromString("anthropic:claude-haiku-4-5");
+                var cloudModel = CloudPostProcessingModelExtensions.FromString("anthropic:claude-haiku-5-5");
                 var cloudLabel = cloudModel.ToLlmModelHeader() ?? cloudModel.ModelId;
                 var fallbackModel = CloudPostProcessingModel.Fallback;
                 var fallbackLabel = fallbackModel.ToLlmModelHeader() ?? fallbackModel.ModelId;
-                Assert(cloudLabel == "claude-haiku-4-5",
-                    "the anthropic cloud post-processing engine no longer yields the claude-haiku-4-5 X-LLM-Model label");
+                Assert(cloudLabel == "claude-haiku-5-5",
+                    "the anthropic cloud post-processing engine no longer yields the claude-haiku-5-5 X-LLM-Model label");
                 Assert(cloudLabel != fallbackLabel,
                     "the cloud label check is no longer distinguishable from the catalog fallback");
                 Assert(Labels("hyperwhispercloud", "gpt-4.1-nano", "hyperwhispercloud", cloudLabel).Model == cloudLabel,

@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 
 import {
+  ANTHROPIC_MODEL,
   ANTHROPIC_WRAPPER_INSTRUCTION,
+  anthropicThinkingFor,
   ANTHROPIC_STREAM_IDLE_TIMEOUT_MS,
   requestAnthropicChat,
   streamAnthropicChat,
@@ -176,6 +178,28 @@ describe('requestAnthropicChat', () => {
     expect(body.max_tokens).toBe(ANTHROPIC_MAX_TOKENS);
   });
 
+  test('serves Haiku 5.5 with thinking turned off, sent as the last body key', async () => {
+    stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 } }));
+
+    await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
+
+    const body = requestBody();
+    expect(ANTHROPIC_MODEL).toBe('claude-haiku-5-5');
+    expect(body.model).toBe('claude-haiku-5-5');
+    expect(body.thinking).toEqual({ type: 'disabled' });
+    expect(Object.keys(body).at(-1)).toBe('thinking');
+  });
+
+  test('a model that needs no thinking switch gets no thinking field', async () => {
+    stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 } }));
+
+    await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, undefined, 'claude-sonnet-4-6');
+
+    const body = requestBody();
+    expect(body.model).toBe('claude-sonnet-4-6');
+    expect('thinking' in body).toBe(false);
+  });
+
   test('still sends the marker instruction when the payload has no system turn', async () => {
     stubFetch(
       Response.json({
@@ -207,9 +231,9 @@ describe('requestAnthropicChat', () => {
 
     const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
 
-    // Haiku 4.5: $1/Mtok in, $5/Mtok out, cache write 1.25x in, cache read 0.10x in.
-    // 0.001000 + 0.002500 + 0.002500 + 0.000400
-    expect(result.costUsd).toBeCloseTo(0.0064, 9);
+    // Haiku 5.5: $0.10/Mtok in, $0.50/Mtok out, cache write 1.25x in, cache read 0.10x in.
+    // 0.000100 + 0.000250 + 0.000250 + 0.000040
+    expect(result.costUsd).toBeCloseTo(0.00064, 9);
     // Usage is normalized to the shared GroqUsage shape; the cache buckets are a
     // billing input only and must not inflate the reported prompt/total tokens.
     expect(result.usage).toEqual({ prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 });
@@ -237,7 +261,7 @@ describe('requestAnthropicChat', () => {
 
     expect(Number.isFinite(result.costUsd)).toBe(true);
     // Only the 500 well-formed output tokens are billed.
-    expect(result.costUsd).toBeCloseTo(0.0025, 9);
+    expect(result.costUsd).toBeCloseTo(0.00025, 9);
     expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 500, total_tokens: 500 });
   });
 
@@ -326,13 +350,38 @@ describe('streamAnthropicChat', () => {
       '[DONE]',
     ]);
     // Same buckets as the non-streaming path: 1000 in + 500 out + 2000 write + 4000 read.
-    expect(await costPromise).toBeCloseTo(0.0064, 9);
+    expect(await costPromise).toBeCloseTo(0.00064, 9);
 
     const body = requestBody();
     expect(body.stream).toBe(true);
     expect(body.system).toBe('sys prompt');
     expect(body.messages).toEqual(ASSISTANT_MESSAGES);
     expect(body.max_tokens).toBe(ANTHROPIC_MAX_TOKENS);
+  });
+
+  test('sends thinking off on the stream body and ignores any thinking deltas', async () => {
+    stubFetch(
+      new Response(
+        bodyStream(
+          sseText([
+            { type: 'message_start', message: { usage: { input_tokens: 10 } } },
+            { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } },
+            { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'hmm' } },
+            { type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'abc' } },
+            { type: 'content_block_stop', index: 0 },
+            { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'Answer' } },
+            { type: 'message_delta', usage: { output_tokens: 5 } },
+            { type: 'message_stop' },
+          ]),
+        ),
+      ),
+    );
+
+    const { stream } = streamAnthropicChat('sys', ASSISTANT_MESSAGES, REQUEST_ID);
+    const out = await drain(stream);
+
+    expect(sseDataLines(out)).toEqual([JSON.stringify({ choices: [{ delta: { content: 'Answer' } }] }), '[DONE]']);
+    expect(requestBody().thinking).toEqual({ type: 'disabled' });
   });
 
   test('skips malformed data lines without dropping the deltas around them', async () => {
@@ -370,7 +419,7 @@ describe('streamAnthropicChat', () => {
 
     expect(Number.isFinite(cost)).toBe(true);
     // Only the 500 well-formed output tokens are billed.
-    expect(cost).toBeCloseTo(0.0025, 9);
+    expect(cost).toBeCloseTo(0.00025, 9);
   });
 
   test('a non-string text delta is dropped, not stringified into the client stream (#922)', async () => {
@@ -443,7 +492,7 @@ describe('streamAnthropicChat', () => {
       '[DONE]',
     ]);
     // Anthropic charges for what it generated before the break: 1000 in + 500 out.
-    expect(await costPromise).toBeCloseTo(0.0035, 9);
+    expect(await costPromise).toBeCloseTo(0.00035, 9);
   });
 
   test('a client disconnect aborts the upstream request and bills only the tokens seen so far', async () => {
@@ -474,7 +523,7 @@ describe('streamAnthropicChat', () => {
     expect(upstreamAborted).toBe(true);
     // Input tokens are known from message_start; no message_delta arrived, so
     // output is billed at 0 rather than the cost being dropped entirely.
-    expect(await costPromise).toBeCloseTo(0.001, 9);
+    expect(await costPromise).toBeCloseTo(0.0001, 9);
   });
 });
 
@@ -621,7 +670,7 @@ describe('streamAnthropicChat first-byte timeout', () => {
       '[DONE]',
     ]);
     // 1000 in + 500 out: the full usage, so the stream ran to its end.
-    expect(await costPromise).toBeCloseTo(0.0035, 9);
+    expect(await costPromise).toBeCloseTo(0.00035, 9);
   });
 });
 
@@ -681,7 +730,7 @@ describe('streamAnthropicChat idle timeout', () => {
         '[DONE]',
       ]);
       // 1000 input tokens from message_start are billed, not zeroed.
-      expect(await costPromise).toBeCloseTo(0.001, 9);
+      expect(await costPromise).toBeCloseTo(0.0001, 9);
       expect(elapsedMs).toBeGreaterThanOrEqual(IDLE_MS - 20);
       expect(elapsedMs).toBeLessThan(IDLE_MS + 1500);
       // Logged as an idle timeout, not as a client disconnect or a first-byte timeout.
@@ -731,7 +780,7 @@ describe('streamAnthropicChat idle timeout', () => {
       '[DONE]',
     ]);
     // 1000 in + 500 out: the full usage, so the stream ran to its end.
-    expect(await costPromise).toBeCloseTo(0.0035, 9);
+    expect(await costPromise).toBeCloseTo(0.00035, 9);
     // The whole stream outlasts the idle bound several times: a gap cap, not a total cap.
     expect(elapsedMs).toBeGreaterThan(IDLE_MS * 3);
   }, 10_000);
@@ -785,5 +834,15 @@ describe('requestAnthropicChat timeout scales with the transcript', () => {
       requestAnthropicChat(correctionPayload('sys', 'x'.repeat(4_997)), REQUEST_ID, 1_234));
     expect(delays).toContain(1_234);
     expect(delays).not.toContain(50_000);
+  });
+});
+
+describe('anthropicThinkingFor', () => {
+  test('matches the Rust hw-net table: off for Haiku 5.5 and Sonnet 5, between_tools for Sonnet 5.5', () => {
+    expect(anthropicThinkingFor('claude-haiku-5-5')).toEqual({ type: 'disabled' });
+    expect(anthropicThinkingFor('claude-sonnet-5')).toEqual({ type: 'disabled' });
+    expect(anthropicThinkingFor('claude-sonnet-5-5')).toEqual({ type: 'between_tools' });
+    expect(anthropicThinkingFor('claude-sonnet-4-6')).toBeUndefined();
+    expect(anthropicThinkingFor('claude-haiku-4-5')).toBeUndefined();
   });
 });
