@@ -100,7 +100,7 @@ pub const FALLBACK_CLOUD_TRANSCRIPTION_MODEL: &str = "scribe_v2";
 ///
 /// Carries the `<engineId>:<modelId>` prefix deliberately — see
 /// [`ModeSeed::cloud_post_processing_model`].
-pub const FALLBACK_CLOUD_POST_PROCESSING_MODEL: &str = "anthropic:claude-haiku-4-5";
+pub const FALLBACK_CLOUD_POST_PROCESSING_MODEL: &str = "anthropic:claude-haiku-5-5";
 
 /// The single mode a brand-new install creates, on every platform.
 ///
@@ -325,7 +325,7 @@ mod tests {
         let model = pp
             .default_model(CLOUD_POST_PROCESSING_ENGINE)
             .expect("the seed's PP engine must exist in the catalog and name a default");
-        assert_eq!(model.id, "claude-haiku-4-5");
+        assert_eq!(model.id, "claude-haiku-5-5");
     }
 
     /// The build-time half of "fail closed" — see the module docs.
@@ -490,7 +490,7 @@ mod tests {
         assert_eq!(seed.post_processing_provider, "hyperwhispercloud");
         assert_eq!(
             seed.cloud_post_processing_model,
-            "anthropic:claude-haiku-4-5"
+            "anthropic:claude-haiku-5-5"
         );
         assert_eq!(seed.english_spelling, "american");
         assert!(seed.punctuation);

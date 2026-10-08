@@ -371,16 +371,6 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-3-flash-preview",
-      "kind": "voice",
-      "displayName": "Gemini 3 Flash",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "platforms": ["macos", "windows"],
-      "supportsAllLanguages": true
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-3.1-pro-preview",
       "kind": "voice",
       "displayName": "Gemini 3.1 Pro",
@@ -396,9 +386,9 @@
       "displayName": "Gemini 3.6 Flash",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
-      "platforms": ["windows"],
+      "platforms": ["macos", "windows"],
       "supportsAllLanguages": true,
-      "notes": "Windows BYOK transcription replacement for gemini-2.0-flash."
+      "notes": "BYOK transcription replacement for gemini-2.0-flash and, from 2026-10, for gemini-3-flash-preview (both alias here in hw-catalog model_alias.rs)."
     },
 
     {
@@ -438,11 +428,21 @@
 
     {
       "provider": "anthropic",
-      "id": "claude-haiku-4-5",
+      "id": "claude-haiku-5-5",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
-      "platforms": ["macos", "windows"]
+      "platforms": ["macos", "windows"],
+      "notes": "Replaced claude-haiku-4-5 (2026-10) as the BYOK Haiku row and the HyperWhisper Cloud anthropic engine; kept in sync with cloud-pp-catalog.json. Saved claude-haiku-4-5 modes redirect here."
+    },
+    {
+      "provider": "anthropic",
+      "id": "claude-sonnet-5-5",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "BYOK-only native-app catalog addition (2026-10). Replaced claude-sonnet-4-5, whose saved modes redirect here."
     },
     {
       "provider": "anthropic",
@@ -463,21 +463,12 @@
     },
     {
       "provider": "groq",
-      "id": "qwen/qwen3.6-27b",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "platforms": ["macos", "windows"],
-      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts."
-    },
-    {
-      "provider": "groq",
       "id": "qwen/qwen3.8-27b",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
-      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Preview tier in GroqCloud, like qwen/qwen3.6-27b."
+      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Preview tier in GroqCloud. Replaced qwen/qwen3.6-27b (2026-10), whose saved modes redirect here."
     },
     {
       "provider": "cerebras",
@@ -587,6 +578,15 @@
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
       "notes": "OpenAI's named replacement for gpt-4.1-nano (retires 2026-10-23) and gpt-5-nano (removed 2026-12-11); also the redirect target for gpt-5 and gpt-5-mini. Routed through HyperWhisper Cloud as the only OpenAI model (hyperwhisper-cloud llm-provider.ts, #1018); kept in sync with cloud-pp-catalog.json. Distinct from the existing `kind: voice` openai entries in this catalog; disambiguated by `kind`."
+    },
+    {
+      "provider": "openai",
+      "id": "gpt-6-luna",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "BYOK-only native-app catalog addition (2026-10) — NOT routed through hyperwhisper-cloud's llm-provider.ts; gpt-5.6-luna stays the Cloud OpenAI model."
     },
 
     {

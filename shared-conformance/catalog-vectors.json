@@ -819,15 +819,6 @@
           "streaming": null
         },
         {
-          "id": "gemini-3-flash-preview",
-          "displayName": "Gemini 3 Flash",
-          "creditsPerMinute": 3.0,
-          "isDefault": false,
-          "previewStatus": true,
-          "supportsCustomVocabulary": true,
-          "streaming": null
-        },
-        {
           "id": "gemini-3.1-pro-preview",
           "displayName": "Gemini 3.1 Pro",
           "creditsPerMinute": 10.0,
@@ -942,7 +933,6 @@
         "gemini/gemini-2.5-flash",
         "gemini/gemini-2.5-flash-lite",
         "gemini/gemini-2.5-pro",
-        "gemini/gemini-3-flash-preview",
         "gemini/gemini-3.1-pro-preview"
       ]
     },
@@ -1684,7 +1674,7 @@
   "modelsEntries": [
     {
       "provider": "anthropic",
-      "id": "claude-haiku-4-5",
+      "id": "claude-haiku-5-5",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
@@ -1695,6 +1685,16 @@
     {
       "provider": "anthropic",
       "id": "claude-sonnet-5",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "anthropic",
+      "id": "claude-sonnet-5-5",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
@@ -2206,16 +2206,6 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-3-flash-preview",
-      "kind": "voice",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-3.1-flash-lite",
       "kind": "voice",
       "supportsCustomVocabulary": true,
@@ -2486,16 +2476,6 @@
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "groq",
-      "id": "qwen/qwen3.6-27b",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
@@ -2810,6 +2790,16 @@
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "openai",
+      "id": "gpt-6-luna",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null

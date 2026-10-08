@@ -73,6 +73,8 @@ const SONIOX_ALIASES: &[(&str, &str)] = &[("stt-async-v4", "stt-async-v5")];
 const GEMINI_ALIASES: &[(&str, &str)] = &[
     ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
     ("gemini-2.0-flash", "gemini-3.6-flash"),
+    // The preview left the pickers in favour of the GA model (2026-10).
+    ("gemini-3-flash-preview", "gemini-3.6-flash"),
 ];
 
 /// OpenAI STT ids deprecated 2026-08-26, shutdown 2027-02-26
@@ -227,6 +229,14 @@ mod tests {
         );
         assert_eq!(
             resolve_model_alias("gemini-2.0-flash", Some("gemini")),
+            "gemini-3.6-flash"
+        );
+        assert_eq!(
+            resolve_model_alias("gemini-3-flash-preview", Some("gemini")),
+            "gemini-3.6-flash"
+        );
+        assert_eq!(
+            resolve_model_alias("gemini-3-flash-preview", None),
             "gemini-3.6-flash"
         );
     }
