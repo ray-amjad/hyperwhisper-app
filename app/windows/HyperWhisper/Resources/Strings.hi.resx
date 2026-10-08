@@ -1121,6 +1121,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows ऐप्लिकेशन नियंत्रण ने {0} को ब्लॉक कर दिया है, जो HyperWhisper के लिए ज़रूरी फ़ाइल है। अपने IT व्यवस्थापक से HyperWhisper को अनुमति देने के लिए कहें, या Windows सुरक्षा में स्मार्ट ऐप नियंत्रण जाँचें।</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>

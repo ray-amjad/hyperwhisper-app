@@ -1121,6 +1121,9 @@ Vous devez conserver au moins un mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Erreur : {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Le contrôle d'application Windows a bloqué {0}, un fichier nécessaire à HyperWhisper. Demandez à votre administrateur informatique d'autoriser HyperWhisper, ou vérifiez le Contrôle intelligent des applications dans Sécurité Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Impossible d'activer le démarrage automatique. Vérifiez que vous avez l'autorisation de modifier les réglages de démarrage.</value>

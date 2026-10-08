@@ -1121,6 +1121,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Controlul aplicațiilor Windows a blocat {0}, un fișier de care HyperWhisper are nevoie. Roagă administratorul IT să permită HyperWhisper sau verifică Controlul inteligent al aplicațiilor din Securitate Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>

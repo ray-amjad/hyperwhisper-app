@@ -1121,6 +1121,9 @@ Tem de ter pelo menos um modo.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Erro: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>O Controlo de Aplicações do Windows bloqueou {0}, um ficheiro de que o HyperWhisper precisa. Peça ao seu administrador de TI que permita o HyperWhisper ou verifique o Controlo Inteligente de Aplicações na Segurança do Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Não foi possível ativar o arranque automático. Verifique se tem permissão para alterar as definições de arranque.</value>

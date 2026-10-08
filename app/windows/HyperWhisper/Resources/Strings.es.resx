@@ -1209,6 +1209,9 @@ Debe tener al menos un modo.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>El Control de aplicaciones de Windows ha bloqueado {0}, un archivo que HyperWhisper necesita. Pide a tu administrador de TI que permita HyperWhisper o revisa el Control inteligente de aplicaciones en Seguridad de Windows.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>No se pudo habilitar el inicio con Windows. Compruebe si tiene permiso para modificar la configuración de inicio.</value>

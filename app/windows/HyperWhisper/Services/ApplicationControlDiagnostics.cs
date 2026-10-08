@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace HyperWhisper.Services;
@@ -107,6 +108,339 @@ internal static class ApplicationControlDiagnostics
         {
             return false;
         }
+    }
+
+    // ----- #933: a block on ANY binary, mandatory ones included -----------------
+    //
+    // Application Control can block HyperWhisper.SharedCore.dll (a managed
+    // FileLoadException) or the native hyperwhisper_core.dll (a DllNotFoundException
+    // under a TypeInitializationException). Both arrive inside a XamlParseException
+    // while WPF builds MainWindow, and both carry a sentence the OS localizes, so
+    // the generic crash path splits one fault into one Sentry issue per language.
+    // The code below recognises the block by its HRESULT, names the file by its file
+    // name only, and builds one fixed report and one fixed notice.
+    //
+    // Everything here must keep working when SharedCore and the native core are
+    // blocked: it names no type from either, and it reads no setting.
+
+    /// <summary>ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION as an HRESULT.</summary>
+    internal const int ApplicationControlBlockedHResult = unchecked((int)0x800711C7);
+
+    /// <summary>The resource key of the notice the user sees.</summary>
+    internal const string BlockedNoticeKey = "errors.applicationControl.blocked";
+
+    /// <summary>The resource key of the notice title (shared with the generic crash box).</summary>
+    internal const string BlockedNoticeTitleKey = "errors.unhandled.title";
+
+    /// <summary>
+    /// The English notice, used when the string catalog cannot be read. A blocked
+    /// binary can be a satellite resource assembly too, so the lookup can throw.
+    /// </summary>
+    internal const string BlockedNoticeFallback =
+        "Windows Application Control blocked {0}, a file HyperWhisper needs. " +
+        "Ask your IT administrator to allow HyperWhisper, or check Smart App Control in Windows Security.";
+
+    internal const string BlockedNoticeTitleFallback = "HyperWhisper Error";
+
+    /// <summary>The file name reported when none can be derived safely.</summary>
+    internal const string UnknownBlockedFile = "unknown";
+
+    private const string BlockedHResultText = "0x800711C7";
+    private const int MaxChainLength = 32;
+
+    private static readonly Regex SafeFileName =
+        new(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.CultureInvariant);
+
+    private static readonly Regex QuotedLibraryName =
+        new(@"'([^']{1,260})'", RegexOptions.CultureInvariant);
+
+    internal sealed record BlockReport(
+        string Message,
+        string[] Fingerprint,
+        string DedupeKey,
+        IReadOnlyDictionary<string, string> Tags,
+        IReadOnlyDictionary<string, object> Extras);
+
+    /// <summary>
+    /// True when Application Control blocked a binary anywhere in
+    /// <paramref name="exception"/>'s chain: every InnerException, and every inner
+    /// exception of an AggregateException.
+    /// </summary>
+    internal static bool IsApplicationControlBlock(Exception? exception) =>
+        FindApplicationControlBlock(exception) != null;
+
+    /// <summary>The exception in the chain that carries the block, or null.</summary>
+    internal static Exception? FindApplicationControlBlock(Exception? exception)
+    {
+        foreach (var candidate in Chain(exception))
+        {
+            if (IsBlockedLoad(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The blocked binary's FILE NAME, never its directory: the install path holds
+    /// the Windows account name. Returns <see cref="UnknownBlockedFile"/> when no
+    /// name passes a strict file-name check.
+    /// </summary>
+    internal static string DescribeBlockedAssembly(Exception exception)
+    {
+        var blocked = FindApplicationControlBlock(exception) ?? exception;
+        try
+        {
+            var raw = blocked switch
+            {
+                FileLoadException fileLoad => fileLoad.FileName,
+                FileNotFoundException fileNotFound => fileNotFound.FileName,
+                BadImageFormatException badImage => badImage.FileName,
+                // "Unable to load DLL 'hyperwhisper_core' or one of its dependencies: ..."
+                // The runtime part of the message is not localized; the OS sentence
+                // after the colon is.
+                DllNotFoundException dllNotFound => ReadQuotedLibraryName(dllNotFound.Message),
+                _ => null,
+            };
+
+            return SanitizeFileName(raw);
+        }
+        catch
+        {
+            return UnknownBlockedFile;
+        }
+    }
+
+    /// <summary>
+    /// The one Sentry report for a block. Built only from the file name, the fixed
+    /// HRESULT, the stage and exception TYPE names: never a message, never a path,
+    /// so every OS language produces the same event and groups as one issue.
+    /// </summary>
+    internal static BlockReport BuildBlockReport(Exception exception, string stage)
+    {
+        var blocked = FindApplicationControlBlock(exception) ?? exception;
+        var fileName = DescribeBlockedAssembly(exception);
+        var hresult = OptionalAssemblyGuard.DescribeHResult(ApplicationControlBlockedHResult);
+        var matchedBy = blocked.HResult == ApplicationControlBlockedHResult ? "hresult" : "message_code";
+
+        return new(
+            "Application Control blocked a required file",
+            ["application-control", "blocked", fileName],
+            $"application-control:blocked:{fileName}",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["component"] = "application_control",
+                ["diagnostic_name"] = "application_control_blocked",
+                ["blocked_file_name"] = fileName,
+                ["capture_stage"] = stage,
+            },
+            new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["blocked_file_name"] = fileName,
+                ["blocked_hresult"] = hresult,
+                ["blocked_match"] = matchedBy,
+                ["blocked_exception_type"] = ExceptionType(blocked),
+                ["outer_exception_type"] = ExceptionType(exception),
+                ["capture_stage"] = stage,
+            });
+    }
+
+    /// <summary>
+    /// Reports <paramref name="exception"/> through <paramref name="send"/> when it
+    /// is a block, and returns whether it was one. A failing reporter is logged and
+    /// swallowed: the notice after it must still reach the user.
+    /// </summary>
+    internal static bool TryReportBlock(Exception? exception, string stage, Action<BlockReport> send)
+    {
+        if (exception == null || !IsApplicationControlBlock(exception))
+        {
+            return false;
+        }
+
+        BlockReport report;
+        try
+        {
+            report = BuildBlockReport(exception, stage);
+        }
+        catch (Exception buildException)
+        {
+            LoggingService.Error(
+                $"ApplicationControlDiagnostics: Block report build failed " +
+                $"(exception_type={buildException.GetType().Name}, hresult={HResult(buildException.HResult)})");
+            return true;
+        }
+
+        LoggingService.Error(
+            $"ApplicationControlDiagnostics: Application Control blocked a required file " +
+            $"(file={report.Tags["blocked_file_name"]}, stage={stage}, " +
+            $"hresult={report.Extras["blocked_hresult"]}, match={report.Extras["blocked_match"]})");
+
+        try
+        {
+            send(report);
+        }
+        catch (Exception reportException)
+        {
+            LoggingService.Error(
+                $"ApplicationControlDiagnostics: Block report failed " +
+                $"(exception_type={reportException.GetType().Name}, hresult={HResult(reportException.HResult)})");
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Sends a block report to Sentry once per file per process. No setting is read
+    /// here: SentryService is only initialized when the user opted in, and the
+    /// opt-out shuts it down.
+    /// </summary>
+    internal static void SendBlockReport(BlockReport report) =>
+        SentryService.CaptureDiagnosticEvent(
+            message: report.Message,
+            extras: new(report.Extras, StringComparer.Ordinal),
+            tags: new(report.Tags, StringComparer.Ordinal),
+            fingerprint: report.Fingerprint,
+            dedupeKey: report.DedupeKey);
+
+    /// <summary>
+    /// The title and text of the notice. <paramref name="lookup"/> is the string
+    /// catalog; when it throws, or returns the key itself, the English text is used.
+    /// </summary>
+    internal static (string Title, string Message) BuildBlockedNotice(
+        string fileName,
+        Func<string, string> lookup)
+    {
+        var title = Lookup(lookup, BlockedNoticeTitleKey, BlockedNoticeTitleFallback);
+        var format = Lookup(lookup, BlockedNoticeKey, BlockedNoticeFallback);
+        string message;
+        try
+        {
+            message = string.Format(CultureInfo.CurrentCulture, format, fileName);
+        }
+        catch (FormatException)
+        {
+            message = string.Format(CultureInfo.InvariantCulture, BlockedNoticeFallback, fileName);
+        }
+
+        return (title, message);
+    }
+
+    private static string Lookup(Func<string, string> lookup, string key, string fallback)
+    {
+        try
+        {
+            var value = lookup(key);
+            return string.IsNullOrWhiteSpace(value) || string.Equals(value, key, StringComparison.Ordinal)
+                ? fallback
+                : value;
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
+
+    private static bool IsBlockedLoad(Exception exception)
+    {
+        try
+        {
+            if (!OptionalAssemblyGuard.IsLoadFailure(exception))
+            {
+                return false;
+            }
+
+            if (exception.HResult == ApplicationControlBlockedHResult)
+            {
+                return true;
+            }
+
+            // A DllNotFoundException keeps COR_E_DLLNOTFOUND as its own HResult. The
+            // OS error is only in the message, as "(0x800711C7)" after a localized
+            // sentence; the hex code itself is the same in every language.
+            return exception is DllNotFoundException
+                && exception.Message.Contains(BlockedHResultText, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static IEnumerable<Exception> Chain(Exception? exception)
+    {
+        if (exception == null)
+        {
+            yield break;
+        }
+
+        var pending = new Queue<Exception>();
+        var seen = new HashSet<Exception>(ReferenceEqualityComparer.Instance);
+        pending.Enqueue(exception);
+        while (pending.Count > 0 && seen.Count < MaxChainLength)
+        {
+            var current = pending.Dequeue();
+            if (!seen.Add(current))
+            {
+                continue;
+            }
+
+            yield return current;
+
+            if (current is AggregateException aggregate)
+            {
+                foreach (var inner in aggregate.InnerExceptions)
+                {
+                    pending.Enqueue(inner);
+                }
+            }
+            else if (current.InnerException is { } next)
+            {
+                pending.Enqueue(next);
+            }
+        }
+    }
+
+    private static string? ReadQuotedLibraryName(string? message)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return null;
+        }
+
+        var match = QuotedLibraryName.Match(message);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
+    private static string SanitizeFileName(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return UnknownBlockedFile;
+        }
+
+        // The directory goes first, by hand rather than Path.GetFileName so both
+        // separators are handled the same on every OS. A directory can hold a comma
+        // ("Doe, Jane"), so the display-name cut comes after it.
+        var name = raw.Trim();
+        name = name[(name.LastIndexOfAny(['\\', '/']) + 1)..];
+
+        // An assembly display name: "HyperWhisper.SharedCore, Version=1.0.0.0, ..."
+        var comma = name.IndexOf(',');
+        if (comma >= 0)
+        {
+            name = name[..comma];
+        }
+
+        name = name.Trim();
+        if (!name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
+            && !name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            name += ".dll";
+        }
+
+        return SafeFileName.IsMatch(name) ? name : UnknownBlockedFile;
     }
 
     internal static bool HandleFirstChanceException(

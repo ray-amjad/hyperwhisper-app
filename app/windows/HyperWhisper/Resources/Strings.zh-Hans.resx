@@ -1209,6 +1209,9 @@
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>错误：{0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows 应用程序控制阻止了 HyperWhisper 所需的文件 {0}。请让您的 IT 管理员允许 HyperWhisper，或在 Windows 安全中心检查智能应用控制。</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>启用开机启动失败。请检查你是否有权限修改启动设置。</value>

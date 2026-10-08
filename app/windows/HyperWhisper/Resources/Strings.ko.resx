@@ -1121,6 +1121,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows 애플리케이션 제어가 HyperWhisper에 필요한 파일 {0}을(를) 차단했습니다. IT 관리자에게 HyperWhisper를 허용해 달라고 요청하거나 Windows 보안에서 스마트 앱 컨트롤을 확인하세요.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>

@@ -1209,6 +1209,9 @@
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>エラー: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows のアプリケーション制御により、HyperWhisper に必要なファイル {0} がブロックされました。IT 管理者に HyperWhisper の許可を依頼するか、Windows セキュリティでスマート アプリ コントロールを確認してください。</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>起動時に開始の有効化に失敗しました。スタートアップ設定を変更する権限があるか確認してください。</value>

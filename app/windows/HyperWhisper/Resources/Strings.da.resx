@@ -1121,6 +1121,9 @@ You must have at least one mode.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows-programkontrol har blokeret {0}, en fil som HyperWhisper skal bruge. Bed din it-administrator om at tillade HyperWhisper, eller tjek Smart App Control i Windows Sikkerhed.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>

@@ -74,9 +74,30 @@ public partial class App : WpfApplication
         // so that startup crashes are logged instead of silently terminating.
         // Without this, background thread crashes and native library failures
         // cause the app to show a white screen and close with no error info.
+        //
+        // An Application Control block (#933) is checked first in all three: it is
+        // reported once with a fixed fingerprint instead of the raw, localized
+        // exception, and the user is told what blocked the app.
         DispatcherUnhandledException += (s, args) =>
         {
             LoggingService.Error("Unhandled UI exception", args.Exception);
+
+            // MainWindow is not loaded yet: the block hit while WPF built it (the
+            // MainViewModel in its DataContext), so there is no app to keep running.
+            var duringStartup = MainWindow is not { IsLoaded: true };
+            if (HandleApplicationControlBlock(
+                    args.Exception,
+                    duringStartup ? "ui_startup" : "ui_running",
+                    showNotice: true))
+            {
+                args.Handled = true;
+                if (duringStartup)
+                {
+                    Shutdown(1);
+                }
+                return;
+            }
+
             SentryService.Capture(args.Exception, "Unhandled UI exception");
             WpfMessageBox.Show(Loc.S("errors.unhandled.message", args.Exception.Message), Loc.S("errors.unhandled.title"), MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
@@ -86,12 +107,28 @@ public partial class App : WpfApplication
         {
             var ex = args.ExceptionObject as Exception;
             LoggingService.Error("Unhandled non-UI exception (IsTerminating=" + args.IsTerminating + ")", ex);
+
+            // A terminating block would otherwise close the app with no word at all.
+            if (HandleApplicationControlBlock(ex, "non_ui_unhandled", showNotice: args.IsTerminating))
+            {
+                return;
+            }
+
             SentryService.Capture(ex, "Unhandled non-UI exception");
         };
 
         TaskScheduler.UnobservedTaskException += (s, args) =>
         {
             LoggingService.Error("Unobserved task exception", args.Exception);
+
+            // Reported, not shown: this fires from the finalizer at an arbitrary time,
+            // and the process keeps running.
+            if (HandleApplicationControlBlock(args.Exception, "unobserved_task", showNotice: false))
+            {
+                args.SetObserved();
+                return;
+            }
+
             SentryService.Capture(args.Exception, "Unobserved task exception");
             args.SetObserved();
         };
@@ -103,6 +140,16 @@ public partial class App : WpfApplication
         LoggingService.LogSystemInfo();
         LoggingService.LogHangHypotheses();
 
+        // SENTRY INITIALIZATION
+        // Initialize Sentry for error tracking if user has opted in (default: true).
+        // It runs BEFORE the database: the database_init catch below reports an
+        // Application Control block (#933), and a report made before Initialize()
+        // is dropped. The opt-in lives in settings.json, which SettingsService reads
+        // with no database, so nothing here waits on the migrator's assembly.
+        StartErrorReporting(
+            static () => SettingsService.Instance.EnableErrorLogging,
+            SentryService.Initialize);
+
         // DATABASE INITIALIZATION
         // Initialize database with auto-migration before any services that use it
         try
@@ -112,6 +159,15 @@ public partial class App : WpfApplication
         catch (Exception ex)
         {
             LoggingService.Error("Failed to initialize database", ex);
+
+            // The migrator lives in HyperWhisper.Application.dll, which Application
+            // Control can block like any other file (#933).
+            if (HandleApplicationControlBlock(ex, "database_init", showNotice: true))
+            {
+                Shutdown(1);
+                return;
+            }
+
             WpfMessageBox.Show(Loc.S("errors.database.initFailed", ex.Message), Loc.S("errors.database.title"), MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
@@ -134,19 +190,6 @@ public partial class App : WpfApplication
         {
             LoggingService.Warn($"Failed to recover orphaned Processing transcripts: {ex.Message}");
             // Continue — recovery failure shouldn't block app startup
-        }
-
-        // SENTRY INITIALIZATION
-        // Initialize Sentry for error tracking if user has opted in (default: true)
-        // Must be done early to catch any startup errors, but after logging is available
-        if (SettingsService.Instance.EnableErrorLogging)
-        {
-            SentryService.Initialize();
-            LoggingService.Info("Sentry error logging enabled");
-        }
-        else
-        {
-            LoggingService.Info("Sentry error logging disabled by user preference");
         }
 
         // Observe blocked loads before any application-context classifier code runs.
@@ -266,6 +309,68 @@ public partial class App : WpfApplication
         {
             LoggingService.Warn($"Failed to initialize Local API server: {ex.Message}");
             // Continue — Local API failures must not block app startup.
+        }
+    }
+
+    /// <summary>
+    /// Starts Sentry when, and only when, the user has opted into error reporting.
+    /// Returns whether <paramref name="initialize"/> was called.
+    /// </summary>
+    internal static bool StartErrorReporting(Func<bool> isOptedIn, Action initialize)
+    {
+        if (!isOptedIn())
+        {
+            LoggingService.Info("Sentry error logging disabled by user preference");
+            return false;
+        }
+
+        initialize();
+        LoggingService.Info("Sentry error logging enabled");
+        return true;
+    }
+
+    private static int _applicationControlNoticeShown;
+
+    /// <summary>
+    /// Reports and explains an Application Control block (#933). Returns false, and
+    /// does nothing, when <paramref name="exception"/> is not one.
+    /// </summary>
+    /// <remarks>
+    /// Nothing on this path may need the blocked binary: it names no type from
+    /// HyperWhisper.SharedCore or the native core, and the string lookup falls back
+    /// to English when the catalog itself cannot be read.
+    /// </remarks>
+    private static bool HandleApplicationControlBlock(Exception? exception, string stage, bool showNotice)
+    {
+        try
+        {
+            if (!ApplicationControlDiagnostics.TryReportBlock(
+                    exception, stage, ApplicationControlDiagnostics.SendBlockReport))
+            {
+                return false;
+            }
+
+            // One notice per process: a blocked file fails again on every attempt.
+            if (!showNotice
+                || IsSessionEnding
+                || Interlocked.Exchange(ref _applicationControlNoticeShown, 1) != 0)
+            {
+                return true;
+            }
+
+            var (title, message) = ApplicationControlDiagnostics.BuildBlockedNotice(
+                ApplicationControlDiagnostics.DescribeBlockedAssembly(exception!),
+                static key => Loc.S(key));
+            WpfMessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
+            return true;
+        }
+        catch (Exception handlerException)
+        {
+            // The handler must not become the next unhandled exception. Saying it was
+            // handled keeps the generic path from reporting the raw exception again.
+            LoggingService.Error(
+                $"App: Application Control notice failed (exception_type={handlerException.GetType().Name})");
+            return ApplicationControlDiagnostics.IsApplicationControlBlock(exception);
         }
     }
 

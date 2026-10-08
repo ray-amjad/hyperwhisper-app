@@ -1121,6 +1121,9 @@ Je hebt minstens één modus nodig.</value>
   <data name="errors.unhandled.message" xml:space="preserve">
     <value>Fout: {0}</value>
   </data>
+  <data name="errors.applicationControl.blocked" xml:space="preserve">
+    <value>Windows Toepassingsbeheer heeft {0} geblokkeerd, een bestand dat HyperWhisper nodig heeft. Vraag je IT-beheerder om HyperWhisper toe te staan, of controleer Slim app-beheer in Windows-beveiliging.</value>
+  </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
     <value>Kan automatisch starten niet inschakelen. Controleer of je de opstartinstellingen mag wijzigen.</value>
