@@ -214,8 +214,6 @@ struct GeminiTranscribeBackupKeyTests {
             geminitranscribe: Self.transcribeKey,
             meta: nil
         )
-        #expect(keys.hasAnyKey, "a backup holding only this key is not an empty backup")
-
         let data = try JSONEncoder().encode(keys)
         let json = try #require(
             try JSONSerialization.jsonObject(with: data) as? [String: Any]

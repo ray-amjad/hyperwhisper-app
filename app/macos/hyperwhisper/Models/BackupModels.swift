@@ -738,14 +738,6 @@ struct BackupAPIKeys: Codable {
     let geminitranscribe: String?
     /// Direct Meta Muse key. Optional for backward-compatible decoding.
     let meta: String?
-
-    /// Returns true if any API key is present
-    var hasAnyKey: Bool {
-        [openai, groq, fireworks, anthropic, gemini, deepgram, assemblyai, elevenlabs, mistral, grok,
-         geminitranscribe, meta]
-            .compactMap { $0 }
-            .contains { !$0.isEmpty }
-    }
 }
 
 // MARK: - Import/Export Options
@@ -1005,8 +997,8 @@ extension ImportResult {
     /// they were applied. Modes and vocabulary are listed whenever the user chose them, with
     /// their count, so a chosen section whose items were all skipped still reads "0 … imported";
     /// an unchosen section never appears. API keys and the license key are not reported here:
-    /// `apiKeysImported` can be true when no key was written, so the message makes no claim
-    /// about them.
+    /// a key that failed to save is named in the result's own failure text (#770), so the
+    /// summary makes no claim about them.
     func summaryItems(options: ImportOptions) -> [SummaryItem] {
         var items: [SummaryItem] = []
         if settingsApplied { items.append(.settings) }
