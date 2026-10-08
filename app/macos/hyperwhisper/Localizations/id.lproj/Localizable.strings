@@ -1070,6 +1070,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.backup.info.note" = "Cadangan mencakup pengaturan, mode, dan kosakata. Rekaman dan transkrip tidak disertakan.";
 "settings.backup.result.success.title" = "Berhasil";
 "settings.backup.result.error.title" = "Kesalahan";
+"settings.backup.result.incomplete.title" = "Impor Tidak Lengkap";
 "settings.backup.export.choose.subtitle" = "Pilih apa yang akan disertakan dalam file cadangan";
 "settings.backup.export.section.settings" = "Pengaturan";
 "settings.backup.export.section.modes" = "Mode";

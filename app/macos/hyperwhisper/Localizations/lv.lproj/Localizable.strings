@@ -1070,6 +1070,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "settings.backup.info.note" = "Rezerves kopijas ietver iestatījumus, režīmus un vārdu krājumu. Ieraksti un transkripti netiek iekļauti.";
 "settings.backup.result.success.title" = "Sekmīgi";
 "settings.backup.result.error.title" = "Kļūda";
+"settings.backup.result.incomplete.title" = "Importēšana nepabeigta";
 "settings.backup.export.choose.subtitle" = "Izvēlieties, ko iekļaut dublējuma failā";
 "settings.backup.export.section.settings" = "Iestatījumi";
 "settings.backup.export.section.modes" = "Režīmi";

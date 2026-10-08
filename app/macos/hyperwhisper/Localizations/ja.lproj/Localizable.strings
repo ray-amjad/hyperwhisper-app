@@ -1071,6 +1071,7 @@
 "settings.backup.info.note" = "バックアップには設定、モード、語彙が含まれます。録音と文字起こしは含まれません。";
 "settings.backup.result.success.title" = "成功";
 "settings.backup.result.error.title" = "エラー";
+"settings.backup.result.incomplete.title" = "インポート未完了";
 "settings.backup.export.choose.subtitle" = "バックアップファイルに含めるものを選択してください";
 "settings.backup.export.section.settings" = "設定";
 "settings.backup.export.section.modes" = "モード";

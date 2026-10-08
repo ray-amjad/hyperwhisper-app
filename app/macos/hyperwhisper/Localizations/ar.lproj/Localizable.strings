@@ -1070,6 +1070,7 @@
 "settings.backup.info.note" = "تحتوي النسخ الاحتياطية على الإعدادات والأوضاع والمفردات. لا يتم تضمين التسجيلات والنسخ.";
 "settings.backup.result.success.title" = "نجح";
 "settings.backup.result.error.title" = "خطأ";
+"settings.backup.result.incomplete.title" = "الاستيراد غير مكتمل";
 "settings.backup.export.choose.subtitle" = "اختر ما تريد تضمينه في ملف النسخ الاحتياطي";
 "settings.backup.export.section.settings" = "الإعدادات";
 "settings.backup.export.section.modes" = "الأوضاع";

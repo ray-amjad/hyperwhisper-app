@@ -1070,6 +1070,7 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "settings.backup.info.note" = "Sigurnosne kopije uključuju postavke, načine i rječnik. Snimanja i transkripcije nisu uključene.";
 "settings.backup.result.success.title" = "Uspjeh";
 "settings.backup.result.error.title" = "Greška";
+"settings.backup.result.incomplete.title" = "Uvoz nije potpun";
 "settings.backup.export.choose.subtitle" = "Odaberite što ćete uključiti u datoteku sigurnosne kopije";
 "settings.backup.export.section.settings" = "Postavke";
 "settings.backup.export.section.modes" = "Načini rada";

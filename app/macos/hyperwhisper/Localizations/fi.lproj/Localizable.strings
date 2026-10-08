@@ -1070,6 +1070,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "settings.backup.info.note" = "Varmuuskopiot sisältävät asetukset, tilat ja sanaston. Nauhoituksia ja transkriptioita ei sisällytetä.";
 "settings.backup.result.success.title" = "Onnistui";
 "settings.backup.result.error.title" = "Virhe";
+"settings.backup.result.incomplete.title" = "Tuonti keskeneräinen";
 "settings.backup.export.choose.subtitle" = "Valitse, mitä varmuuskopiointitiedostoon sisällytetään";
 "settings.backup.export.section.settings" = "Asetukset";
 "settings.backup.export.section.modes" = "Tilat";

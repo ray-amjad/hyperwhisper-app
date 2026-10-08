@@ -1070,6 +1070,7 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "settings.backup.info.note" = "Резервне копије укључују поставке, режиме и речник. Снимања и транскрипције нису укључена.";
 "settings.backup.result.success.title" = "Успех";
 "settings.backup.result.error.title" = "Грешка";
+"settings.backup.result.incomplete.title" = "Увоз није потпун";
 "settings.backup.export.choose.subtitle" = "Изаберите шта да укључите у датотеку резервне копије";
 "settings.backup.export.section.settings" = "Подешавања";
 "settings.backup.export.section.modes" = "Режими";

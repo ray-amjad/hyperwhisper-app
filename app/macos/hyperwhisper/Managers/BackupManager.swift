@@ -67,8 +67,8 @@ class BackupManager: ObservableObject {
     /// What a BYOK key restore actually did, read off the Keychain writes
     /// rather than off the backup file.
     struct APIKeyRestoreOutcome {
-        /// Writes that succeeded.
-        var saved = 0
+        /// Whether at least one write succeeded.
+        var anySaved = false
         /// Providers whose key is in the file but is NOT in the Keychain,
         /// in restore order, each listed once.
         var failed: [KeychainManager.APIKeyType] = []
@@ -663,7 +663,7 @@ class BackupManager: ObservableObject {
         var apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
         if options.importAPIKeys, let apiKeys = backupData.apiKeys {
             let outcome = importAPIKeys(apiKeys)
-            apiKeysImported = outcome.saved > 0
+            apiKeysImported = outcome.anySaved
             apiKeysFailedProviders = outcome.failed
         }
 
@@ -955,7 +955,7 @@ class BackupManager: ObservableObject {
         var apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
         if options.importAPIKeys, let apiKeys = dto.apiKeys, !apiKeys.isEmpty {
             let outcome = importUniversalAPIKeys(apiKeys)
-            apiKeysImported = outcome.saved > 0
+            apiKeysImported = outcome.anySaved
             apiKeysFailedProviders = outcome.failed
         }
 
@@ -1011,7 +1011,7 @@ class BackupManager: ObservableObject {
         apiKeysImported: Bool,
         earlierSectionsApplied: Bool,
         repairImportedModes: Bool,
-        apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
+        apiKeysFailedProviders: [KeychainManager.APIKeyType]
     ) -> ImportResult {
         let failureMessage = "Failed to securely import the license key"
         guard earlierSectionsApplied else {
@@ -1174,14 +1174,11 @@ class BackupManager: ObservableObject {
         for (provider, key) in assignments {
             do {
                 try apiKeyWriter.saveAPIKey(key, for: provider)
-                outcome.saved += 1
-                // The last write to a slot decides what it holds (the Gemini
-                // Transcribe alias is written before its canonical member).
-                outcome.failed.removeAll { $0 == provider }
+                outcome.anySaved = true
             } catch {
-                if !outcome.failed.contains(provider) {
-                    outcome.failed.append(provider)
-                }
+                // Both mappings write each slot at most once, so a provider
+                // listed here holds no key from this backup.
+                outcome.failed.append(provider)
                 // PRIVACY: the provider name and the error only. NEVER the key.
                 let providerName = provider.displayName
                 AppLogger.settings.error("Backup import: could not save the \(providerName, privacy: .public) API key to the Keychain: \(error.localizedDescription, privacy: .public)")
@@ -1254,11 +1251,16 @@ class BackupManager: ObservableObject {
         from keys: [String: String]
     ) -> [(provider: KeychainManager.APIKeyType, key: String)] {
         var assignments: [(provider: KeychainManager.APIKeyType, key: String)] = []
-        // Non-canonical spellings FIRST, so a file carrying both ends on the
-        // value from the documented member below.
-        for alias in geminiTranscribeBackupKeyAliases {
-            guard let key = keys[alias], !key.isEmpty else { continue }
-            assignments.append((.geminiTranscribe, key))
+        // An alias is read only when the documented member is absent, so each
+        // slot gets at most one write and a failed write is reported against
+        // the value that was meant to land.
+        let canonicalTranscribeKey = keys[geminiTranscribeBackupKey] ?? ""
+        if canonicalTranscribeKey.isEmpty {
+            for alias in geminiTranscribeBackupKeyAliases {
+                guard let key = keys[alias], !key.isEmpty else { continue }
+                assignments.append((.geminiTranscribe, key))
+                break
+            }
         }
         for member in universalAPIKeyMembers {
             guard let key = keys[member.name], !key.isEmpty else { continue }

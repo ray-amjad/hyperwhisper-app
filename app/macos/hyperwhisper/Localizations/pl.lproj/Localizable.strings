@@ -1070,6 +1070,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "settings.backup.info.note" = "Kopie zapasowe zawierają ustawienia, tryby i słownictwo. Nagrania i transkrypcje nie są uwzględniane.";
 "settings.backup.result.success.title" = "Sukces";
 "settings.backup.result.error.title" = "Błąd";
+"settings.backup.result.incomplete.title" = "Import niepełny";
 "settings.backup.export.choose.subtitle" = "Wybierz, co uwzględnić w pliku kopii zapasowej";
 "settings.backup.export.section.settings" = "Ustawienia";
 "settings.backup.export.section.modes" = "Tryby";

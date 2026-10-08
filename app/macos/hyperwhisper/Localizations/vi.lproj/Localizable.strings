@@ -1070,6 +1070,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "settings.backup.info.note" = "Bản sao lưu bao gồm cài đặt, chế độ và từ vựng. Các bản ghi âm và bản chuyển đổi không được bao gồm.";
 "settings.backup.result.success.title" = "Thành công";
 "settings.backup.result.error.title" = "Lỗi";
+"settings.backup.result.incomplete.title" = "Nhập chưa hoàn tất";
 "settings.backup.export.choose.subtitle" = "Chọn những gì cần đưa vào tệp sao lưu";
 "settings.backup.export.section.settings" = "Cài đặt";
 "settings.backup.export.section.modes" = "Chế độ";

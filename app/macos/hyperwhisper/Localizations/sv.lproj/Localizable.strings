@@ -1070,6 +1070,7 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "settings.backup.info.note" = "Säkerhetskopior inkluderar inställningar, lägen och ordförråd. Inspelningar och transkriptioner inkluderas inte.";
 "settings.backup.result.success.title" = "Framgång";
 "settings.backup.result.error.title" = "Fel";
+"settings.backup.result.incomplete.title" = "Importen är ofullständig";
 "settings.backup.export.choose.subtitle" = "Välj vad som ska inkluderas i säkerhetskopieringsfilen";
 "settings.backup.export.section.settings" = "Inställningar";
 "settings.backup.export.section.modes" = "Lägen";

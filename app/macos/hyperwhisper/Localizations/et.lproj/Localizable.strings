@@ -1070,6 +1070,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "settings.backup.info.note" = "Varukoopiad sisaldavad seadeid, režiime ja sõnavara. Salvestused ja transkriptsioonid ei ole kaasatud.";
 "settings.backup.result.success.title" = "Edukalt";
 "settings.backup.result.error.title" = "Viga";
+"settings.backup.result.incomplete.title" = "Import on poolik";
 "settings.backup.export.choose.subtitle" = "Valige, mida lisada varundusfilesse";
 "settings.backup.export.section.settings" = "Seaded";
 "settings.backup.export.section.modes" = "Režiimid";

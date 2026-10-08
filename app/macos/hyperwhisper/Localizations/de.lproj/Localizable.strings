@@ -1070,6 +1070,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "settings.backup.info.note" = "Backups umfassen Einstellungen, Modi und Vokabular. Aufzeichnungen und Transkripte sind nicht enthalten.";
 "settings.backup.result.success.title" = "Erfolg";
 "settings.backup.result.error.title" = "Fehler";
+"settings.backup.result.incomplete.title" = "Import unvollständig";
 "settings.backup.export.choose.subtitle" = "Wählen Sie aus, was in die Sicherungsdatei aufgenommen werden soll";
 "settings.backup.export.section.settings" = "Einstellungen";
 "settings.backup.export.section.modes" = "Modi";

@@ -1070,6 +1070,7 @@ Aggiorna queste modalità per usare un modello diverso prima di eliminarlo.";
 "settings.backup.info.note" = "I backup includono impostazioni, modalità e vocabolario. Registrazioni e trascrizioni non sono incluse.";
 "settings.backup.result.success.title" = "Successo";
 "settings.backup.result.error.title" = "Errore";
+"settings.backup.result.incomplete.title" = "Importazione incompleta";
 "settings.backup.export.choose.subtitle" = "Scegli cosa includere nel file di backup";
 "settings.backup.export.section.settings" = "Impostazioni";
 "settings.backup.export.section.modes" = "Modalità";

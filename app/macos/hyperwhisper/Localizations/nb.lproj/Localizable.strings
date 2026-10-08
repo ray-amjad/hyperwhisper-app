@@ -1070,6 +1070,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "settings.backup.info.note" = "Sikkerhetskopier inkluderer innstillinger, moduser og ordforråd. Opptak og transkripsjoner er ikke inkludert.";
 "settings.backup.result.success.title" = "Vellykket";
 "settings.backup.result.error.title" = "Feil";
+"settings.backup.result.incomplete.title" = "Import ufullstendig";
 "settings.backup.export.choose.subtitle" = "Velg hva som skal inkluderes i sikkerhetskopifilen";
 "settings.backup.export.section.settings" = "Innstillinger";
 "settings.backup.export.section.modes" = "Modi";

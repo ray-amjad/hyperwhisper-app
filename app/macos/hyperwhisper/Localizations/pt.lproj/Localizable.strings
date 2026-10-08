@@ -1070,6 +1070,7 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "settings.backup.info.note" = "Backups incluem configurações, modos e vocabulário. Gravações e transcrições não são incluídas.";
 "settings.backup.result.success.title" = "Sucesso";
 "settings.backup.result.error.title" = "Erro";
+"settings.backup.result.incomplete.title" = "Importação incompleta";
 "settings.backup.export.choose.subtitle" = "Escolha o que incluir no ficheiro de cópia de segurança";
 "settings.backup.export.section.settings" = "Definições";
 "settings.backup.export.section.modes" = "Modos";

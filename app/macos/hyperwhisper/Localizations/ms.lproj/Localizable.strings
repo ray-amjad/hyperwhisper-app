@@ -1070,6 +1070,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "settings.backup.info.note" = "Sandaran termasuk tetapan, mod, dan perbendaharaan kata. Rakaman dan transkrip tidak disertakan.";
 "settings.backup.result.success.title" = "Berjaya";
 "settings.backup.result.error.title" = "Ralat";
+"settings.backup.result.incomplete.title" = "Import Tidak Lengkap";
 "settings.backup.export.choose.subtitle" = "Pilih apa yang hendak disertakan dalam fail sandaran";
 "settings.backup.export.section.settings" = "Tetapan";
 "settings.backup.export.section.modes" = "Mod";

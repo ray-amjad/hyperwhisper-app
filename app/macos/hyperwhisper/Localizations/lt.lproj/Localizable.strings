@@ -1070,6 +1070,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.info.note" = "Atsarginės kopijos apima nustatymus, režimus ir žodyną. Įrašai ir transkriptsiniu neįtrauki.";
 "settings.backup.result.success.title" = "Sėkmė";
 "settings.backup.result.error.title" = "Klaida";
+"settings.backup.result.incomplete.title" = "Importavimas nebaigtas";
 "settings.backup.export.choose.subtitle" = "Pasirinkite, ką įtraukti į atsarginės kopijos failą";
 "settings.backup.export.section.settings" = "Nustatymai";
 "settings.backup.export.section.modes" = "Režimai";

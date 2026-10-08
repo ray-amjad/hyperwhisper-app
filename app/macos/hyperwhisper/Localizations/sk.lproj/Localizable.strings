@@ -1070,6 +1070,7 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "settings.backup.info.note" = "Zálohy zahŕňajú nastavenia, režimy a slovník. Nahrávky a prepisy nie sú zahrnuté.";
 "settings.backup.result.success.title" = "Úspech";
 "settings.backup.result.error.title" = "Chyba";
+"settings.backup.result.incomplete.title" = "Import nie je úplný";
 "settings.backup.export.choose.subtitle" = "Vyberte, čo zahrnúť do záložného súboru";
 "settings.backup.export.section.settings" = "Nastavenia";
 "settings.backup.export.section.modes" = "Režimy";

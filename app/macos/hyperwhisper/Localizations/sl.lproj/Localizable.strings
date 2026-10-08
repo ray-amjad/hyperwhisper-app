@@ -1070,6 +1070,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "settings.backup.info.note" = "Varnostne kopije vključujejo nastavitve, načine in besednjak. Posnetki in prepisi niso vključeni.";
 "settings.backup.result.success.title" = "Uspeh";
 "settings.backup.result.error.title" = "Napaka";
+"settings.backup.result.incomplete.title" = "Uvoz ni popoln";
 "settings.backup.export.choose.subtitle" = "Izberite, kaj vključiti v datoteko varnostne kopije";
 "settings.backup.export.section.settings" = "Nastavitve";
 "settings.backup.export.section.modes" = "Načini";

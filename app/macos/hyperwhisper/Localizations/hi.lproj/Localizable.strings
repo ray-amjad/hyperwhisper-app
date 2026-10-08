@@ -1070,6 +1070,7 @@
 "settings.backup.info.note" = "बैकअप में सेटिंग्स, मोड और शब्दावली शामिल होती है। रिकॉर्डिंग और ट्रांसक्रिप्ट शामिल नहीं हैं।";
 "settings.backup.result.success.title" = "सफलता";
 "settings.backup.result.error.title" = "त्रुटि";
+"settings.backup.result.incomplete.title" = "आयात अधूरा";
 "settings.backup.export.choose.subtitle" = "बैकअप फ़ाइल में क्या शामिल करना है चुनें";
 "settings.backup.export.section.settings" = "सेटिंग्स";
 "settings.backup.export.section.modes" = "मोड";

@@ -1070,6 +1070,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.backup.info.note" = "Öryggisafrit innihalda stillingar, hama og orðaforða. Upptökur og afrit eru ekki innifalin.";
 "settings.backup.result.success.title" = "Árangur";
 "settings.backup.result.error.title" = "Villa";
+"settings.backup.result.incomplete.title" = "Innflutningur ófullgerður";
 "settings.backup.export.choose.subtitle" = "Veldu hvað á að hafa með í öryggisafritunarskránni";
 "settings.backup.export.section.settings" = "Stillingar";
 "settings.backup.export.section.modes" = "Stillingar";

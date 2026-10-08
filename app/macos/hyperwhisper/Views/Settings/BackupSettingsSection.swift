@@ -48,6 +48,9 @@ struct BackupSettingsSection: View {
     @State private var resultMessage = ""
     /// Whether result is success or error
     @State private var resultIsSuccess = false
+    /// The import applied, but some BYOK keys did not reach the Keychain. The
+    /// alert then must not be titled "Error" over an "Import complete" body.
+    @State private var resultIsIncomplete = false
 
     /// Local-LLM model ids referenced by restored `.local` modes that aren't
     /// downloaded yet (capable hardware only) — drives the re-download prompt.
@@ -85,9 +88,9 @@ struct BackupSettingsSection: View {
                 }
             )
         }
-        .alert(resultIsSuccess ? "settings.backup.result.success.title" : "settings.backup.result.error.title",
-               isPresented: $showResultAlert) {
+        .alert(resultAlertTitle, isPresented: $showResultAlert) {
             Button("common.ok", role: .cancel) {
+                resultIsIncomplete = false
                 // Chain the local-model re-download prompt after the result alert so
                 // two alerts never contend for presentation.
                 if !pendingLocalDownloadIds.isEmpty {
@@ -264,6 +267,12 @@ struct BackupSettingsSection: View {
         }
     }
 
+    private var resultAlertTitle: LocalizedStringKey {
+        if resultIsSuccess { return "settings.backup.result.success.title" }
+        if resultIsIncomplete { return "settings.backup.result.incomplete.title" }
+        return "settings.backup.result.error.title"
+    }
+
     private func selectImportFile() async {
         // Present open dialog
         let panel = NSOpenPanel()
@@ -310,6 +319,7 @@ struct BackupSettingsSection: View {
         // rest of the import still applied, but the alert must not read as a
         // clean success while those providers are unconfigured.
         if let apiKeysFailure = result.apiKeysFailureMessage {
+            resultIsIncomplete = resultIsSuccess
             resultIsSuccess = false
             resultMessage += "\n\n" + apiKeysFailure
         }

@@ -1070,6 +1070,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "settings.backup.info.note" = "Yedeklemeler ayarları, modları ve kelime hazinesini içerir. Kayıtlar ve transkriptler dahil değildir.";
 "settings.backup.result.success.title" = "Başarı";
 "settings.backup.result.error.title" = "Hata";
+"settings.backup.result.incomplete.title" = "İçe Aktarma Eksik";
 "settings.backup.export.choose.subtitle" = "Yedek dosyasına nelerin dahil edileceğini seçin";
 "settings.backup.export.section.settings" = "Ayarlar";
 "settings.backup.export.section.modes" = "Modlar";

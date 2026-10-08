@@ -1070,6 +1070,7 @@
 "settings.backup.info.note" = "Резервні копії включають параметри, режими та словник. Записи та транскрипти не включені.";
 "settings.backup.result.success.title" = "Успіх";
 "settings.backup.result.error.title" = "Помилка";
+"settings.backup.result.incomplete.title" = "Імпорт неповний";
 "settings.backup.export.choose.subtitle" = "Виберіть, що включити до файлу резервної копії";
 "settings.backup.export.section.settings" = "Налаштування";
 "settings.backup.export.section.modes" = "Режими";

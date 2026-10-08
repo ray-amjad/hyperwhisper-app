@@ -1070,6 +1070,7 @@
 "settings.backup.info.note" = "Τα αντίγραφα ασφαλείας περιλαμβάνουν ρυθμίσεις, λειτουργίες και λεξιλόγιο. Οι εγγραφές και οι μεταγραφές δεν περιλαμβάνονται.";
 "settings.backup.result.success.title" = "Επιτυχία";
 "settings.backup.result.error.title" = "Σφάλμα";
+"settings.backup.result.incomplete.title" = "Ελλιπής εισαγωγή";
 "settings.backup.export.choose.subtitle" = "Επιλέξτε τι θα συμπεριλάβετε στο αρχείο αντιγράφου ασφαλείας";
 "settings.backup.export.section.settings" = "Ρυθμίσεις";
 "settings.backup.export.section.modes" = "Λειτουργίες";

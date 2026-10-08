@@ -1070,6 +1070,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.info.note" = "A biztonsági mentések beállításokat, módokat és szókincset tartalmaznak. Felvételek és átírások nem kerülnek bele.";
 "settings.backup.result.success.title" = "Sikeres";
 "settings.backup.result.error.title" = "Hiba";
+"settings.backup.result.incomplete.title" = "Hiányos importálás";
 "settings.backup.export.choose.subtitle" = "Válassza ki, mit tartalmazzon a biztonsági mentési fájl";
 "settings.backup.export.section.settings" = "Beállítások";
 "settings.backup.export.section.modes" = "Módok";

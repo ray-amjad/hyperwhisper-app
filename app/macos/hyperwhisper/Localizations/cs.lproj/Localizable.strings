@@ -1070,6 +1070,7 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "settings.backup.info.note" = "Zalohy zahrnuji nastaveni, rezimy a slovnik. Nahravky a prepisy nejsou zahrnuty.";
 "settings.backup.result.success.title" = "Uspech";
 "settings.backup.result.error.title" = "Chyba";
+"settings.backup.result.incomplete.title" = "Import není úplný";
 "settings.backup.export.choose.subtitle" = "Vyberte, co zahrnout do záložního souboru";
 "settings.backup.export.section.settings" = "Nastavení";
 "settings.backup.export.section.modes" = "Režimy";

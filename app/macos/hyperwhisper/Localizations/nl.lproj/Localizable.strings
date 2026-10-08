@@ -1070,6 +1070,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "settings.backup.info.note" = "Back-ups bevatten instellingen, modi en woordenlijst. Opnamen en transcripties zijn niet inbegrepen.";
 "settings.backup.result.success.title" = "Succes";
 "settings.backup.result.error.title" = "Fout";
+"settings.backup.result.incomplete.title" = "Import onvolledig";
 "settings.backup.export.choose.subtitle" = "Kies wat u in het back-upbestand wilt opnemen";
 "settings.backup.export.section.settings" = "Instellingen";
 "settings.backup.export.section.modes" = "Modi";

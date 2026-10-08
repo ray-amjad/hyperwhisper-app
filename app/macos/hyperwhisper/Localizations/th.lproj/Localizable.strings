@@ -1070,6 +1070,7 @@
 "settings.backup.info.note" = "ไฟล์สำรองรวมถึงการตั้งค่า โหมด และศัพท์เฉพาะ การบันทึกและการสัญลักษณ์ไม่รวม";
 "settings.backup.result.success.title" = "ความสำเร็จ";
 "settings.backup.result.error.title" = "ข้อผิดพลาด";
+"settings.backup.result.incomplete.title" = "นำเข้าไม่ครบถ้วน";
 "settings.backup.export.choose.subtitle" = "เลือกสิ่งที่จะรวมไว้ในไฟล์สำรองข้อมูล";
 "settings.backup.export.section.settings" = "การตั้งค่า";
 "settings.backup.export.section.modes" = "โหมด";

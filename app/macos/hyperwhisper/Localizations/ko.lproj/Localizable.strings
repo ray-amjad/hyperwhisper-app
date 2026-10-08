@@ -1070,6 +1070,7 @@
 "settings.backup.info.note" = "백업에는 설정, 모드 및 어휘가 포함됩니다. 녹음 및 음성 인식은 포함되지 않습니다.";
 "settings.backup.result.success.title" = "성공";
 "settings.backup.result.error.title" = "오류";
+"settings.backup.result.incomplete.title" = "가져오기 불완전";
 "settings.backup.export.choose.subtitle" = "백업 파일에 포함할 항목 선택";
 "settings.backup.export.section.settings" = "설정";
 "settings.backup.export.section.modes" = "모드";

@@ -1071,6 +1071,7 @@
 "settings.backup.info.note" = "备份包含设置、模式和词汇，不包含录音和转写。";
 "settings.backup.result.success.title" = "成功";
 "settings.backup.result.error.title" = "错误";
+"settings.backup.result.incomplete.title" = "导入未完成";
 "settings.backup.export.choose.subtitle" = "选择要包含在备份文件中的内容";
 "settings.backup.export.section.settings" = "设置";
 "settings.backup.export.section.modes" = "模式";

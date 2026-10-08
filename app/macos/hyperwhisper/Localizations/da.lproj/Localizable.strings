@@ -1070,6 +1070,7 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "settings.backup.info.note" = "Sikkerhedskopier inkluderer indstillinger, tilstande og ordforråd. Optagelser og transkripter er ikke inkluderet.";
 "settings.backup.result.success.title" = "Succes";
 "settings.backup.result.error.title" = "Fejl";
+"settings.backup.result.incomplete.title" = "Import ufuldstændig";
 "settings.backup.export.choose.subtitle" = "Vælg, hvad der skal inkluderes i sikkerhedskopifilen";
 "settings.backup.export.section.settings" = "Indstillinger";
 "settings.backup.export.section.modes" = "Tilstande";
