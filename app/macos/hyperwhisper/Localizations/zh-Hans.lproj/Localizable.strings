@@ -982,6 +982,7 @@
 "modelLibrary.remove.confirm.message" = "你需要重新下载它（%@）。";
 "modelLibrary.remove.confirm.messageNoSize" = "你需要重新下载它。";
 "modelLibrary.remove.confirm.button" = "移除";
+"settings.models.inUse.localAPI" = "一个 Local API 请求正在使用此模型。请在它完成后重试。";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "额度不足。请在设置中添加更多额度。";

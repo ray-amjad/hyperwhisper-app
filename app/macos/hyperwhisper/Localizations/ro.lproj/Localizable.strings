@@ -981,6 +981,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "modelLibrary.remove.confirm.message" = "Va trebui să îl descărcați din nou (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Va trebui să îl descărcați din nou.";
 "modelLibrary.remove.confirm.button" = "Elimină";
+"settings.models.inUse.localAPI" = "O cerere Local API folosește acest model chiar acum. Încearcă din nou după ce se termină.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Credite insuficiente. Adăugați mai multe credite în Setări.";

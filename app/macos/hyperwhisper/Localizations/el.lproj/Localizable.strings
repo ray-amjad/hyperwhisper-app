@@ -981,6 +981,7 @@
 "modelLibrary.remove.confirm.message" = "Θα χρειαστεί να το κατεβάσετε ξανά (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Θα χρειαστεί να το κατεβάσετε ξανά.";
 "modelLibrary.remove.confirm.button" = "Αφαίρεση";
+"settings.models.inUse.localAPI" = "Ένα αίτημα Local API χρησιμοποιεί αυτό το μοντέλο αυτή τη στιγμή. Δοκιμάστε ξανά όταν ολοκληρωθεί.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ανεπαρκείς πιστώσεις. Προσθέστε περισσότερες πιστώσεις στις Ρυθμίσεις.";

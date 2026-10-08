@@ -981,6 +981,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "modelLibrary.remove.confirm.message" = "Peate selle uuesti alla laadima (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Peate selle uuesti alla laadima.";
 "modelLibrary.remove.confirm.button" = "Eemalda";
+"settings.models.inUse.localAPI" = "Local API päring kasutab praegu seda mudelit. Proovi uuesti, kui see on lõppenud.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ebapiisavad krediidid. Lisage rohkem krediite seadetes.";

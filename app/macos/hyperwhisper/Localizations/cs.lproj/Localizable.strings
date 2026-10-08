@@ -981,6 +981,7 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "modelLibrary.remove.confirm.message" = "Budete ho muset stáhnout znovu (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Budete ho muset stáhnout znovu.";
 "modelLibrary.remove.confirm.button" = "Odstranit";
+"settings.models.inUse.localAPI" = "Tento model právě používá požadavek Local API. Zkuste to znovu, až skončí.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nedostatek kreditů. Přidejte více kreditů v Nastavení.";

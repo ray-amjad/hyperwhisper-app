@@ -981,6 +981,7 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "modelLibrary.remove.confirm.message" = "Мораћете поново да га преузмете (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Мораћете поново да га преузмете.";
 "modelLibrary.remove.confirm.button" = "Уклони";
+"settings.models.inUse.localAPI" = "Захтев Local API-ја тренутно користи овај модел. Покушајте поново када се заврши.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недовољно кредита. Додај више кредита у Поставкама.";

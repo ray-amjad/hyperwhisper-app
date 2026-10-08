@@ -981,6 +981,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "modelLibrary.remove.confirm.message" = "Sinun on ladattava se uudelleen (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Sinun on ladattava se uudelleen.";
 "modelLibrary.remove.confirm.button" = "Poista";
+"settings.models.inUse.localAPI" = "Local API -pyyntö käyttää tätä mallia juuri nyt. Yritä uudelleen, kun se on valmis.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Krediitit eivät riitä. Lisää krediittejä asetuksissa.";

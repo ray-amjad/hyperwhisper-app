@@ -981,6 +981,7 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "modelLibrary.remove.confirm.message" = "Du måste ladda ned den igen (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Du måste ladda ned den igen.";
 "modelLibrary.remove.confirm.button" = "Ta bort";
+"settings.models.inUse.localAPI" = "En Local API-begäran använder den här modellen just nu. Försök igen när den är klar.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Otillräckliga krediter. Lägg till mer krediter i inställningar.";

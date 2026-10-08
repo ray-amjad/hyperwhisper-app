@@ -981,6 +981,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "modelLibrary.remove.confirm.message" = "L’haureu de tornar a baixar (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "L’haureu de tornar a baixar.";
 "modelLibrary.remove.confirm.button" = "Elimina";
+"settings.models.inUse.localAPI" = "Una sol·licitud de la Local API està utilitzant aquest model ara mateix. Torna-ho a provar quan acabi.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Crèdits insuficients. Afegiu més crèdits a la Configuració.";

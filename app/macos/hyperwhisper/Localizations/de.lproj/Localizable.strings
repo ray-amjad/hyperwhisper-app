@@ -981,6 +981,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "modelLibrary.remove.confirm.message" = "Du musst es erneut herunterladen (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Du musst es erneut herunterladen.";
 "modelLibrary.remove.confirm.button" = "Entfernen";
+"settings.models.inUse.localAPI" = "Eine Local-API-Anfrage verwendet dieses Modell gerade. Versuche es erneut, wenn sie abgeschlossen ist.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nicht genügend Credits. Fügen Sie in den Einstellungen weitere Credits hinzu.";

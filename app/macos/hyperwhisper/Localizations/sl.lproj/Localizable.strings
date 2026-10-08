@@ -981,6 +981,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "modelLibrary.remove.confirm.message" = "Znova ga boste morali prenesti (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Znova ga boste morali prenesti.";
 "modelLibrary.remove.confirm.button" = "Odstrani";
+"settings.models.inUse.localAPI" = "Zahteva Local API trenutno uporablja ta model. Poskusite znova, ko se konča.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nezadostno število kreditov. Dodaj več kreditov v Nastavitvah.";

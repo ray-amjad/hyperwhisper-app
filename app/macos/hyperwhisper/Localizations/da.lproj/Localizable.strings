@@ -981,6 +981,7 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "modelLibrary.remove.confirm.message" = "Du skal downloade den igen (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Du skal downloade den igen.";
 "modelLibrary.remove.confirm.button" = "Fjern";
+"settings.models.inUse.localAPI" = "En Local API-anmodning bruger denne model lige nu. Prøv igen, når den er færdig.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Utilstrækkelige credits. Tilføj flere credits i Indstillinger.";

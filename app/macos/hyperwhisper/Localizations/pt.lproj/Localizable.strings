@@ -981,6 +981,7 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "modelLibrary.remove.confirm.message" = "Você precisará baixá-lo novamente (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Você precisará baixá-lo novamente.";
 "modelLibrary.remove.confirm.button" = "Remover";
+"settings.models.inUse.localAPI" = "Uma solicitação da Local API está usando este modelo agora. Tente novamente quando ela terminar.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Créditos insuficientes. Adicione mais créditos em Configurações.";

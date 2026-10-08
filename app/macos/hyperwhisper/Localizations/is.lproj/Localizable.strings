@@ -981,6 +981,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "modelLibrary.remove.confirm.message" = "Þú þarft að sækja það aftur (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Þú þarft að sækja það aftur.";
 "modelLibrary.remove.confirm.button" = "Fjarlægja";
+"settings.models.inUse.localAPI" = "Local API-beiðni er að nota þetta líkan núna. Reyndu aftur þegar henni lýkur.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ófullnægjandi einingar. Bættu við fleiri einingum í stillingum.";
