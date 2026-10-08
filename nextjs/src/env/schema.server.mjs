@@ -1,4 +1,10 @@
 // @ts-check
+/**
+ * SERVER-ONLY. The server env schema: the names of every server secret and the
+ * format rule for each. Import it from `server.mjs` alone. A client module that
+ * imports it publishes this whole list in the browser bundle, and brings the
+ * zod runtime with it (#917). The client schema lives in `schema.client.mjs`.
+ */
 import { z } from "zod";
 
 /**
@@ -96,29 +102,4 @@ export const serverEnv = {
   // Outrank blog publishing webhook (POST /api/webhooks/add-blog-post)
   OUTRANK_WEBHOOK_TOKEN: process.env.OUTRANK_WEBHOOK_TOKEN,
   OUTRANK_WEBHOOK_SIGNING_SECRET: process.env.OUTRANK_WEBHOOK_SIGNING_SECRET,
-};
-
-/**
- * Specify your client-side environment variables schema here.
- * This way you can ensure the app isn't built with invalid env vars.
- * To expose them to the client, prefix them with `NEXT_PUBLIC_`.
- */
-export const clientSchema = z.object({
-  NEXT_PUBLIC_ENVIRONMENT: z.enum(["development", "test", "production"]).optional(),
-  NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
-  NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
-});
-
-/**
- * You can't destruct `process.env` as a regular object, so you have to do
- * it manually here. This is because Next.js evaluates this at build time,
- * and only used environment variables are included in the build.
- * @type {{ [k in keyof z.input<typeof clientSchema>]: string | undefined }}
- */
-export const clientEnv = {
-  NEXT_PUBLIC_ENVIRONMENT: process.env.NEXT_PUBLIC_ENVIRONMENT,
-  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-  NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-  NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
 };
