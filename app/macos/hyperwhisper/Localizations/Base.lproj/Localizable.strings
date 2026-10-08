@@ -1016,6 +1016,10 @@
 // MARK: - Model Library (local capability gate)
 "modelLibrary.local.requiresAppleSilicon" = "Requires Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Relaunch natively";
+"modelLibrary.remove.confirm.title" = "Remove %@?";
+"modelLibrary.remove.confirm.message" = "You will need to download it again (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "You will need to download it again.";
+"modelLibrary.remove.confirm.button" = "Remove";
 
 // MARK: - Backup restore: local-model re-download prompt
 "settings.backup.localDownload.title" = "Download local models?";

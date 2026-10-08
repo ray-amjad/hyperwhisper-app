@@ -977,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "Παράβλεψη";
 "modelLibrary.local.requiresAppleSilicon" = "Απαιτεί Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Επανεκκίνηση σε εγγενή λειτουργία";
+"modelLibrary.remove.confirm.title" = "Αφαίρεση του %@;";
+"modelLibrary.remove.confirm.message" = "Θα χρειαστεί να το κατεβάσετε ξανά (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Θα χρειαστεί να το κατεβάσετε ξανά.";
+"modelLibrary.remove.confirm.button" = "Αφαίρεση";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ανεπαρκείς πιστώσεις. Προσθέστε περισσότερες πιστώσεις στις Ρυθμίσεις.";

@@ -977,6 +977,10 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "settings.backup.localDownload.dismiss" = "Ketepikan";
 "modelLibrary.local.requiresAppleSilicon" = "Memerlukan Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Lancar semula secara asli";
+"modelLibrary.remove.confirm.title" = "Alih keluar %@?";
+"modelLibrary.remove.confirm.message" = "Anda perlu memuat turunnya semula (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Anda perlu memuat turunnya semula.";
+"modelLibrary.remove.confirm.button" = "Alih keluar";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Kredit tidak mencukupi. Tambah lebih banyak kredit dalam Tetapan.";

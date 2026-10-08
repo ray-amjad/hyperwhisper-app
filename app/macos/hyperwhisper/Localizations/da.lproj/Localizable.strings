@@ -977,6 +977,10 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "settings.backup.localDownload.dismiss" = "Afvis";
 "modelLibrary.local.requiresAppleSilicon" = "Kræver Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Genstart som native app";
+"modelLibrary.remove.confirm.title" = "Fjern %@?";
+"modelLibrary.remove.confirm.message" = "Du skal downloade den igen (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Du skal downloade den igen.";
+"modelLibrary.remove.confirm.button" = "Fjern";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Utilstrækkelige credits. Tilføj flere credits i Indstillinger.";

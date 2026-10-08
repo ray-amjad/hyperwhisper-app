@@ -977,6 +977,10 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "settings.backup.localDownload.dismiss" = "Zavrieť";
 "modelLibrary.local.requiresAppleSilicon" = "Vyžaduje Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Spustiť natívne";
+"modelLibrary.remove.confirm.title" = "Odstrániť %@?";
+"modelLibrary.remove.confirm.message" = "Budete ho musieť znova stiahnuť (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Budete ho musieť znova stiahnuť.";
+"modelLibrary.remove.confirm.button" = "Odstrániť";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nedostatočné kredity. Pridajte ďalšie kredity v Nastaveniach.";

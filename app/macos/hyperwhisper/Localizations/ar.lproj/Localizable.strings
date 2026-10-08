@@ -977,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "تجاهل";
 "modelLibrary.local.requiresAppleSilicon" = "يتطلب Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "إعادة التشغيل كتطبيق أصلي";
+"modelLibrary.remove.confirm.title" = "إزالة %@؟";
+"modelLibrary.remove.confirm.message" = "ستحتاج إلى تنزيله مرة أخرى (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "ستحتاج إلى تنزيله مرة أخرى.";
+"modelLibrary.remove.confirm.button" = "إزالة";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "رصيد غير كافٍ. أضف المزيد من الرصيد في الإعدادات.";

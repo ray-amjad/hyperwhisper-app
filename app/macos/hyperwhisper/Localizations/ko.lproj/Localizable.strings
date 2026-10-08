@@ -977,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "닫기";
 "modelLibrary.local.requiresAppleSilicon" = "Apple Silicon 필요";
 "modelLibrary.local.needsNativeRelaunch" = "네이티브로 다시 실행";
+"modelLibrary.remove.confirm.title" = "%@을(를) 제거하시겠습니까?";
+"modelLibrary.remove.confirm.message" = "다시 다운로드해야 합니다(%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "다시 다운로드해야 합니다.";
+"modelLibrary.remove.confirm.button" = "제거";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "크레딧이 부족합니다. 설정에서 크레딧을 더 추가하세요.";

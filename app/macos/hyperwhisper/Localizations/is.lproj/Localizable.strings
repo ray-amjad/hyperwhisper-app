@@ -977,6 +977,10 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.backup.localDownload.dismiss" = "Loka";
 "modelLibrary.local.requiresAppleSilicon" = "Krefst Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Endurræsa sem innbyggt forrit";
+"modelLibrary.remove.confirm.title" = "Fjarlægja %@?";
+"modelLibrary.remove.confirm.message" = "Þú þarft að sækja það aftur (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Þú þarft að sækja það aftur.";
+"modelLibrary.remove.confirm.button" = "Fjarlægja";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ófullnægjandi einingar. Bættu við fleiri einingum í stillingum.";

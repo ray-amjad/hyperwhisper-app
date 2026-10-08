@@ -978,6 +978,10 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "settings.backup.localDownload.dismiss" = "Descartar";
 "modelLibrary.local.requiresAppleSilicon" = "Requiere Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Reiniciar en modo nativo";
+"modelLibrary.remove.confirm.title" = "¿Eliminar %@?";
+"modelLibrary.remove.confirm.message" = "Tendrás que volver a descargarlo (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Tendrás que volver a descargarlo.";
+"modelLibrary.remove.confirm.button" = "Eliminar";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Créditos insuficientes. Añade más créditos en Ajustes.";

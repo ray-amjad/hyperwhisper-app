@@ -977,6 +977,10 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "settings.backup.localDownload.dismiss" = "Ignorera";
 "modelLibrary.local.requiresAppleSilicon" = "Kräver Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Starta om nativt";
+"modelLibrary.remove.confirm.title" = "Ta bort %@?";
+"modelLibrary.remove.confirm.message" = "Du måste ladda ned den igen (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Du måste ladda ned den igen.";
+"modelLibrary.remove.confirm.button" = "Ta bort";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Otillräckliga krediter. Lägg till mer krediter i inställningar.";

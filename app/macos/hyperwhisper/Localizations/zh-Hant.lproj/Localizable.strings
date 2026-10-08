@@ -977,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "關閉";
 "modelLibrary.local.requiresAppleSilicon" = "需要 Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "以原生模式重新啟動";
+"modelLibrary.remove.confirm.title" = "移除 %@？";
+"modelLibrary.remove.confirm.message" = "你需要重新下載它（%@）。";
+"modelLibrary.remove.confirm.messageNoSize" = "你需要重新下載它。";
+"modelLibrary.remove.confirm.button" = "移除";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "額度不足。請在設定中新增更多額度。";

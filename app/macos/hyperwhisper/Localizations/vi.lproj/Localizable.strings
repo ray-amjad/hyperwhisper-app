@@ -977,6 +977,10 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "settings.backup.localDownload.dismiss" = "Bỏ qua";
 "modelLibrary.local.requiresAppleSilicon" = "Yêu cầu Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Khởi động lại ở chế độ gốc";
+"modelLibrary.remove.confirm.title" = "Xóa %@?";
+"modelLibrary.remove.confirm.message" = "Bạn sẽ cần tải lại mô hình này (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Bạn sẽ cần tải lại mô hình này.";
+"modelLibrary.remove.confirm.button" = "Xóa";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Tín dụng không đủ. Thêm tín dụng trong Cài đặt.";

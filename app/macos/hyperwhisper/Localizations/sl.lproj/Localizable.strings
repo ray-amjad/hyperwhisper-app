@@ -977,6 +977,10 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "settings.backup.localDownload.dismiss" = "Opusti";
 "modelLibrary.local.requiresAppleSilicon" = "Zahteva Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Znova zaženi izvorno";
+"modelLibrary.remove.confirm.title" = "Želite odstraniti %@?";
+"modelLibrary.remove.confirm.message" = "Znova ga boste morali prenesti (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Znova ga boste morali prenesti.";
+"modelLibrary.remove.confirm.button" = "Odstrani";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nezadostno število kreditov. Dodaj več kreditov v Nastavitvah.";

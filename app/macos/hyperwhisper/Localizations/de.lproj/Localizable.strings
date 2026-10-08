@@ -977,6 +977,10 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "settings.backup.localDownload.dismiss" = "Schließen";
 "modelLibrary.local.requiresAppleSilicon" = "Erfordert Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Nativ neu starten";
+"modelLibrary.remove.confirm.title" = "%@ entfernen?";
+"modelLibrary.remove.confirm.message" = "Du musst es erneut herunterladen (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Du musst es erneut herunterladen.";
+"modelLibrary.remove.confirm.button" = "Entfernen";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nicht genügend Credits. Fügen Sie in den Einstellungen weitere Credits hinzu.";
