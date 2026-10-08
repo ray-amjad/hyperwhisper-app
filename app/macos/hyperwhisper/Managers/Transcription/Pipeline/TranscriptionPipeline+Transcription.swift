@@ -300,12 +300,16 @@ extension TranscriptionPipeline {
             )
             capturedShouldRunPostProcessing = shouldRunPostProcessing
 
-            // Issue #1538: `text` already holds a finished transcript here. A
-            // pre-flight that says the LOCAL LLM runtime cannot start must not
-            // throw that transcript away — it skips the AI step instead, the same
-            // way `AIPostProcessor` does when the runtime fails mid-pass, and the
-            // user hears about it through the same non-fatal channel. Every other
-            // pre-flight failure still fails the run, exactly as before.
+            // Issues #1538 and #1547: `text` already holds a finished transcript
+            // here. A post-processing pre-flight that fails — the LOCAL LLM
+            // runtime cannot start (#1538), or a cloud / BYOK post-processing
+            // provider fails its health check (#1547: bad key, endpoint down) —
+            // must not throw that transcript away. It skips the AI step instead,
+            // the same way `AIPostProcessor` does when the provider fails
+            // mid-pass, and the user hears about it through the same non-fatal
+            // channel. Cancellation still ends the run. The SPEECH provider's
+            // health check is not here: it runs in `selectProvider` above,
+            // before any transcript exists, and still fails the run.
             var postProcessingPreflightFailure: TranscriptionError?
             if shouldRunPostProcessing {
                 markStage("post_processing_health_check")
@@ -319,11 +323,11 @@ extension TranscriptionPipeline {
             }
             if let postProcessingPreflightFailure {
                 AppLogger.transcription.warning(
-                    "Post-processing pre-flight failed with a non-fatal local runtime error; keeping the raw transcript and skipping AI post-processing · error=\(postProcessingPreflightFailure.localizedDescription, privacy: .public)"
+                    "Post-processing pre-flight failed with a non-fatal error; keeping the raw transcript and skipping AI post-processing · error=\(postProcessingPreflightFailure.localizedDescription, privacy: .public)"
                 )
-                // Only promise "your raw transcript was kept" when the raw
-                // transcript is what the user gets. Server-side AI text, when
-                // present, is used below and never needed the local runtime.
+                // Only report the skip when the raw transcript is what the user
+                // gets. Server-side AI text, when present, is used below and
+                // never needed the client-side post-processing provider.
                 if hyperwhisperCloudAIText == nil {
                     reportNonFatalPostProcessingError(postProcessingPreflightFailure)
                 }
@@ -376,11 +380,11 @@ extension TranscriptionPipeline {
                 finalText = vocabularyProcessor.applyVocabularyReplacements(aiProcessedText, mode: mode)
             } else {
                 // Branch: no post-processing — off, handled by HyperWhisper
-                // Cloud, or skipped because the local runtime cannot start
-                // (issue #1538). The kept transcript gets exactly the
-                // deterministic clean-up a post-processing-off run gets.
+                // Cloud, or skipped because the post-processing pre-flight
+                // failed (issues #1538, #1547). The kept transcript gets exactly
+                // the deterministic clean-up a post-processing-off run gets.
                 if postProcessingPreflightFailure != nil {
-                    AppLogger.transcription.info("ℹ️ AI post-processing skipped: the local runtime is unavailable; saving the raw transcript")
+                    AppLogger.transcription.info("ℹ️ AI post-processing skipped: the post-processing provider failed its pre-flight; saving the raw transcript")
                 } else if needsPostProcessing {
                     AppLogger.transcription.info("ℹ️ Post-processing handled by HyperWhisper Cloud; skipping client-side step")
                 } else {
@@ -606,32 +610,51 @@ extension TranscriptionPipeline {
         }
     }
 
-    // MARK: - Post-processing pre-flight (issue #1538)
+    // MARK: - Post-processing pre-flight (issues #1538, #1547)
 
     /// Whether a post-processing pre-flight failure may be absorbed once a
     /// transcript exists: the transcript is kept and the AI step is skipped.
     ///
-    /// Only `.localRuntimeUnavailable` qualifies. It is what
-    /// `TranscriptionProviderRouter.runLocalLLMHealthCheck` throws for every way
-    /// the embedded llama-server can fail to start, and it is the error
-    /// `AIPostProcessor` already treats as non-fatal when the same runtime fails
-    /// during the pass — its user-facing copy says the raw transcript was kept.
-    /// Every other pre-flight failure (a cloud or BYOK provider that is
-    /// unauthorized, unreachable or unavailable, and cancellation) stays fatal,
-    /// as it was before.
+    /// Exactly the errors `TranscriptionProviderRouter.checkPostProcessingProviderHealth`
+    /// throws for an unhealthy post-processing provider qualify:
+    /// - `.localRuntimeUnavailable` — `runLocalLLMHealthCheck`, every way the
+    ///   embedded llama-server can fail to start (issue #1538).
+    /// - `.unauthorized`, `.transientNetwork`, `.modelNotDownloaded`,
+    ///   `.providerNotAvailable` — `errorForHealthStatus`, a cloud or BYOK
+    ///   post-processing provider that failed its health check (issue #1547).
+    ///   `AIPostProcessor` already keeps the raw transcript when the same
+    ///   provider fails during the pass; the pre-flight now agrees with it.
+    ///
+    /// Everything else stays fatal: cancellation (a user cancel is not a
+    /// provider failure), any error that is not a `TranscriptionError`, and
+    /// any `TranscriptionError` case the health check does not produce — a new
+    /// throw site has to opt in here, not inherit the skip by accident.
+    ///
+    /// The SPEECH provider's health check maps through the same
+    /// `errorForHealthStatus`, but it runs in `selectProvider` before any
+    /// transcript exists and never passes through this decision.
     nonisolated static func isNonFatalPostProcessingPreflightError(_ error: Error) -> Bool {
         guard let transcriptionError = error as? TranscriptionError else { return false }
-        if case .localRuntimeUnavailable = transcriptionError {
+        switch transcriptionError {
+        case .localRuntimeUnavailable,
+             .unauthorized,
+             .transientNetwork,
+             .modelNotDownloaded,
+             .providerNotAvailable:
             return true
+        default:
+            return false
         }
-        return false
     }
 
     /// Await a post-processing pre-flight after the transcript exists.
     ///
     /// - Returns: `nil` when the check passed, or the non-fatal error to report
     ///   when the run should keep its raw transcript and skip AI post-processing.
-    /// - Throws: every pre-flight error that is not non-fatal, unchanged.
+    /// - Throws: every pre-flight error that is not non-fatal, unchanged — and
+    ///   ANY pre-flight error when the run itself has been cancelled, so a
+    ///   health probe that failed because the user cancelled cannot turn the
+    ///   cancel into a saved `completed` row.
     static func awaitPostProcessingPreflight(
         _ check: () async throws -> Void
     ) async throws -> TranscriptionError? {
@@ -639,7 +662,8 @@ extension TranscriptionPipeline {
             try await check()
             return nil
         } catch {
-            guard isNonFatalPostProcessingPreflightError(error),
+            guard !Task.isCancelled,
+                  isNonFatalPostProcessingPreflightError(error),
                   let transcriptionError = error as? TranscriptionError else {
                 throw error
             }
