@@ -442,7 +442,7 @@ struct PasteOutcomeReportingTests {
             let restore = try await armRestoreThroughSuppressedPaste(transcript)
 
             // The streaming paste's round trip, as `TextInputService` makes it.
-            func streamingRoundTrip() {
+            @MainActor func streamingRoundTrip() {
                 let before = pasteboard.changeCount
                 let held = pasteboard.string(forType: .string) ?? ""
                 pasteboard.clearContents()
