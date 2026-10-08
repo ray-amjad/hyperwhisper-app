@@ -10,7 +10,8 @@
 // Here one timer covers the request AND the body read done in `read`.
 //
 // Error mapping. shouldFallback() only accepts an LLMRequestError with a 5xx
-// status, so the mapping is what lets a silent upstream reach the FALLBACK:
+// or 429 status, so the mapping is what lets a silent upstream reach the
+// FALLBACK:
 //   - our timer fired           -> LLMTimeoutError (an LLMRequestError, 504,
 //                                  provider). callWithRetry does NOT retry it on
 //                                  the same provider (review round 2): it goes
@@ -19,7 +20,7 @@
 //                                  a network error stays an untagged error
 //                                  (retried, not failed over), and the non-2xx
 //                                  handling in each caller keeps its own status
-//                                  (retried, and a 5xx then fails over).
+//                                  (retried, and a 5xx or 429 then fails over).
 
 import { LLMRequestError, LLMTimeoutError } from './llm-errors';
 

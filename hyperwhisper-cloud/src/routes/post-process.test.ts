@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import { Hono } from 'hono';
 import { computeCerebrasChatCost, computeGroqChatCost, creditsForCost } from '../lib/cost-calculator';
 
@@ -238,7 +238,51 @@ describe('postProcessRoute LLM provider chain', () => {
     expect(response.headers.get('X-LLM-Provider')).toBe('groq-gpt-oss-120b');
   });
 
-  test('returns 500 without falling back when the primary provider fails with a non-5xx error', async () => {
+  // #1565: a Cerebras 429 ended the request with a 500 (llm_failed_no_fallback)
+  // because shouldFallback() took a 5xx only. Groq has its own rate limit, so
+  // the fallback does fix a Cerebras 429.
+  test('falls back to groq when cerebras rate-limits with a 429', async () => {
+    let cerebrasCalls = 0;
+    let groqCalls = 0;
+    withProviders({
+      'api.cerebras.ai': () => {
+        cerebrasCalls += 1;
+        return new Response('rate limited', { status: 429 });
+      },
+      'api.groq.com': () => {
+        groqCalls += 1;
+        return Response.json(chatCompletion('Hello from groq.'));
+      },
+    });
+    const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      const response = await buildApp().fetch(
+        postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+      );
+      const body = await response.json() as { corrected: string };
+
+      expect(response.status).toBe(200);
+      expect(body.corrected).toBe('Hello from groq.');
+      expect(response.headers.get('X-LLM-Provider')).toBe('groq-gpt-oss-120b');
+      // cerebras keeps 0 same-provider retries: one 429, then straight to groq.
+      expect(cerebrasCalls).toBe(1);
+      expect(groqCalls).toBe(1);
+
+      const events = logSpy.mock.calls
+        .map((call) => String(call[0]))
+        .filter((raw) => raw.startsWith('{') && raw.includes('"event":"post_process.'))
+        .map((raw) => JSON.parse(raw) as Record<string, unknown>);
+      const fallbackStart = events.filter((line) => line.event === 'post_process.llm_fallback_start');
+      expect(fallbackStart).toHaveLength(1);
+      expect(fallbackStart[0]).toMatchObject({ requestedProvider: 'cerebras', provider: 'groq' });
+      expect(events.some((line) => line.reason === 'llm_failed_no_fallback')).toBe(false);
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  test('returns 500 without falling back when the primary provider fails with a 4xx other than 429', async () => {
     let groqCalled = false;
     withProviders({
       'api.cerebras.ai': () => new Response('bad request', { status: 400 }),

@@ -175,11 +175,14 @@ describe('fallback map', () => {
 });
 
 describe('shouldFallback', () => {
-  test('accepts only normalized 5xx request errors', () => {
+  test('accepts only normalized 5xx and 429 request errors', () => {
     expect(shouldFallback(new LLMRequestError('upstream failed', 500, 'openai'))).toBe(true);
     expect(shouldFallback(new LLMRequestError('upstream failed', 599, 'openai'))).toBe(true);
+    // #1565: the fallback vendor has its own rate limit, so a 429 fails over.
+    expect(shouldFallback(new LLMRequestError('rate limited', 429, 'openai'))).toBe(true);
     expect(shouldFallback(new LLMRequestError('bad request', 400, 'openai'))).toBe(false);
-    expect(shouldFallback(new LLMRequestError('rate limited', 429, 'openai'))).toBe(false);
+    expect(shouldFallback(new LLMRequestError('too early', 428, 'openai'))).toBe(false);
+    expect(shouldFallback(new LLMRequestError('header too large', 431, 'openai'))).toBe(false);
   });
 
   test('rejects arbitrary errors that look like provider failures', () => {
