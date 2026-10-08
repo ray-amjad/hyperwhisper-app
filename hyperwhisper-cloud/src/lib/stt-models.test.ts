@@ -52,14 +52,44 @@ describe('resolveModel', () => {
     }
   });
 
-  test('a deprecated model is still routable until OpenAI shuts it down', () => {
-    // The three ids retire 2027-02-26. Until then an explicit request for one
-    // must keep working — the apps migrate saved settings off them via the
-    // shared alias table, and nothing here should fail-closed early.
-    for (const id of ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe']) {
+  test('a deprecated OpenAI model is still accepted, and is served by its replacement', () => {
+    // The three ids retire 2027-02-26. An explicit request for one must keep
+    // working — nothing here may fail closed on a saved setting — but it is
+    // served by the replacement OpenAI names, mirroring the shared Rust core's
+    // OPENAI_ALIASES, so the retiring id never reaches OpenAI.
+    const expected: Record<string, string> = {
+      'whisper-1': 'gpt-transcribe',
+      'gpt-4o-transcribe': 'gpt-transcribe',
+      'gpt-4o-mini-transcribe': 'gpt-4o-mini-transcribe-2025-12-15',
+    };
+    for (const [id, target] of Object.entries(expected)) {
       const r = resolveModel('openai', id);
       expect(r.ok).toBe(true);
-      if (r.ok) expect(r.model.id).toBe(id);
+      if (r.ok) expect(r.model.id).toBe(target);
+    }
+  });
+
+  test('every alias target is a model of the same provider', () => {
+    // An alias whose target is not in `models` turns a working request into a
+    // 400 (resolveModel fails closed on the canonical id).
+    const openai = getProviderDef('openai');
+    expect(openai.aliases).toBeDefined();
+    for (const providerId of ALL_STT_PROVIDER_IDS) {
+      const def = getProviderDef(providerId);
+      const ids = new Set(def.models.map((m) => m.id));
+      for (const [from, to] of Object.entries(def.aliases ?? {})) {
+        expect(ids.has(to), `${providerId} aliases ${from} to ${to}, which is not in its models`).toBe(true);
+      }
+    }
+  });
+
+  test('an aliased OpenAI request never reserves more than the id it replaces', () => {
+    // The issue's billing rule: the alias cannot make a mode dearer.
+    const openai = getProviderDef('openai');
+    const rateOf = (id: string) => openai.models.find((m) => m.id === id)!.estimatedUsdPerMinute;
+    for (const [from, to] of Object.entries(openai.aliases ?? {})) {
+      expect(rateOf(to)).toBeLessThanOrEqual(rateOf(from));
+      expect(estimatedUsdPerMinute('openai', from)).toBe(rateOf(to));
     }
   });
 
@@ -191,9 +221,10 @@ describe('resolveModel', () => {
 
 describe('estimatedUsdPerMinute', () => {
   test('is model-specific within a provider', () => {
-    const transcribe = estimatedUsdPerMinute('openai', 'gpt-4o-transcribe');
-    const mini = estimatedUsdPerMinute('openai', 'gpt-4o-mini-transcribe');
-    expect(mini).toBeLessThan(transcribe);
+    // gpt-4o-transcribe vs mini until #797 aliased both to $0.0045/min rows.
+    const transcribe = estimatedUsdPerMinute('openai', 'gpt-transcribe');
+    const live = estimatedUsdPerMinute('openai', 'gpt-live-transcribe');
+    expect(transcribe).toBeLessThan(live);
   });
 
   test('adds the medical add-on only for AssemblyAI', () => {

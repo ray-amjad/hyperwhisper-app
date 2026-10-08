@@ -60,6 +60,15 @@ const OPENAI_GPT4O_MINI_TRANSCRIBE_OUTPUT_COST_PER_TOKEN = 5.00 / 1_000_000;
 // so a gpt-4o transcription never bills $0 (fail-closed).
 const OPENAI_GPT4O_TRANSCRIBE_FLOOR_PER_MINUTE = 0.006;
 const OPENAI_GPT4O_MINI_TRANSCRIBE_FLOOR_PER_MINUTE = 0.003;
+// The mini tier's ids. `gpt-4o-mini-transcribe-2025-12-15` is the dated
+// snapshot OpenAI names as the replacement for the deprecated
+// `gpt-4o-mini-transcribe` (stt-models.ts aliases one to the other). It is
+// token-billed at the same mini rates, so it must not fall through to the
+// dearer gpt-4o-transcribe branch below.
+const OPENAI_GPT4O_MINI_TRANSCRIBE_MODELS: ReadonlySet<string> = new Set([
+  'gpt-4o-mini-transcribe',
+  'gpt-4o-mini-transcribe-2025-12-15',
+]);
 // gpt-transcribe / gpt-live-transcribe (launched 2026-07-29) are flat
 // per-audio-minute billed — like whisper-1, NOT token-billed like gpt-4o-*.
 // Verified against OpenAI's pricing docs (developers.openai.com/api/docs/pricing).
@@ -367,7 +376,7 @@ export function computeOpenAITranscriptionCost(model: string, usage: OpenAITrans
 
   const inputTokens = Math.max(0, usage.inputTokens ?? 0);
   const outputTokens = Math.max(0, usage.outputTokens ?? 0);
-  const isMini = model === 'gpt-4o-mini-transcribe';
+  const isMini = OPENAI_GPT4O_MINI_TRANSCRIBE_MODELS.has(model);
 
   const tokenCost = isMini
     ? inputTokens * OPENAI_GPT4O_MINI_TRANSCRIBE_INPUT_COST_PER_TOKEN
@@ -466,7 +475,7 @@ export function estimatePromptInputReservationUsd(
     // (duration) billed — no separate prompt-token charge. Default + the
     // explicit gpt-4o-transcribe use the (more expensive) transcribe input rate.
     if (model === 'whisper-1' || model === 'gpt-transcribe' || model === 'gpt-live-transcribe') return 0;
-    if (model === 'gpt-4o-mini-transcribe') return tokens * OPENAI_GPT4O_MINI_TRANSCRIBE_INPUT_COST_PER_TOKEN;
+    if (OPENAI_GPT4O_MINI_TRANSCRIBE_MODELS.has(model ?? '')) return tokens * OPENAI_GPT4O_MINI_TRANSCRIBE_INPUT_COST_PER_TOKEN;
     return tokens * OPENAI_GPT4O_TRANSCRIBE_INPUT_COST_PER_TOKEN;
   }
   if (provider === 'gemini-transcribe') {

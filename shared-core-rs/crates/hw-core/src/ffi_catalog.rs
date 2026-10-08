@@ -1462,6 +1462,7 @@ mod tests {
                 "whisper-1",
                 "gpt-transcribe",
                 "gpt-live-transcribe",
+                "gpt-4o-mini-transcribe-2025-12-15",
             ]
         );
 
