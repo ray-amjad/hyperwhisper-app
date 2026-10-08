@@ -6,6 +6,11 @@ using HyperWhisper.PortableApplication.Transcription;
 
 namespace HyperWhisper.TranscriptionRouting;
 
+/// <param name="Transcription">
+/// The response-timeout FLOOR for one whole-file request: the whole budget for a short or
+/// unreadable file. The real wait grows with the audio length (#1569); see
+/// <see cref="ParakeetDaemonTranscriber.ComputeResponseTimeout"/>.
+/// </param>
 public sealed record ParakeetDaemonTimeouts(
     TimeSpan Startup,
     TimeSpan Transcription,
@@ -49,6 +54,34 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
         _timeouts = timeouts ?? ParakeetDaemonTimeouts.Default;
     }
 
+    /// <summary>
+    /// The hard ceiling on one request's response timeout. It only guards against a
+    /// nonsense duration from a broken header; no real input reaches it before several
+    /// hours of audio.
+    /// </summary>
+    internal static readonly TimeSpan MaxResponseTimeout = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// How long to wait for the daemon's one reply to an <c>audio_path</c> request (#1569,
+    /// the Linux side of Windows #1562).
+    ///
+    /// The daemon answers once, for the whole file, so the wait must grow with the audio:
+    /// <c>floor + audioSeconds * floor / 30</c>. With the default 180 s floor that is 6 s of
+    /// wait per audio second, so a 600 s file gets 3,780 s. A short clip keeps the floor.
+    /// An unknown, zero, negative or non-finite duration falls back to the floor alone,
+    /// and the 24 h <see cref="MaxResponseTimeout"/> bounds a nonsense header.
+    /// </summary>
+    internal static TimeSpan ComputeResponseTimeout(TimeSpan floor, double? audioSeconds)
+    {
+        if (audioSeconds is not { } seconds || !double.IsFinite(seconds) || seconds <= 0)
+            return floor;
+        if (floor >= MaxResponseTimeout) return floor;
+        var scaledSeconds = floor.TotalSeconds + seconds * floor.TotalSeconds / 30.0;
+        return scaledSeconds >= MaxResponseTimeout.TotalSeconds
+            ? MaxResponseTimeout
+            : TimeSpan.FromSeconds(scaledSeconds);
+    }
+
     public TranscriptionBackendCapability Capability
     {
         get
@@ -90,6 +123,10 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
             return Failure(PortableTranscriptionErrorCode.BackendUnavailable, "The selected Parakeet model is not downloaded.");
 
         var language = NormalizeLanguage(request.Language ?? mode?.Language);
+        // Read before the gate: only the header is parsed, and an unreadable or non-WAV
+        // file gives null, which keeps the fixed floor.
+        var responseTimeout = ComputeResponseTimeout(
+            _timeouts.Transcription, WaveFileDuration.TryReadSeconds(audioPath));
         try { await _gate.WaitAsync(cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException)
         { return Failure(PortableTranscriptionErrorCode.Cancelled, "Parakeet transcription was cancelled."); }
@@ -108,7 +145,7 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
                 var payload = JsonSerializer.Serialize(new { audio_path = Path.GetFullPath(audioPath) });
                 await _stdin!.WriteLineAsync(payload).ConfigureAwait(false);
                 await _stdin.FlushAsync(cancellationToken).ConfigureAwait(false);
-                var response = await ReadLineAsync(_stdout!, _timeouts.Transcription, cancellationToken).ConfigureAwait(false);
+                var response = await ReadLineAsync(_stdout!, responseTimeout, cancellationToken).ConfigureAwait(false);
                 if (response is null)
                 {
                     await StopDaemonAsync(CancellationToken.None).ConfigureAwait(false);
