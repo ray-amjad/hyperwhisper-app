@@ -29,6 +29,9 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
     private readonly string _vadModelPath;
     private readonly ParakeetDaemonTimeouts _timeouts;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    // Cancelled by Dispose once the in-flight response has had the floor (#1569): the
+    // scaled wait can be hours, and Dispose blocks its (UI) thread on the gate.
+    private readonly CancellationTokenSource _disposeCts = new();
     private IChildProcess? _process;
     private StreamReader? _stdout;
     private StreamWriter? _stdin;
@@ -145,7 +148,9 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
                 var payload = JsonSerializer.Serialize(new { audio_path = Path.GetFullPath(audioPath) });
                 await _stdin!.WriteLineAsync(payload).ConfigureAwait(false);
                 await _stdin.FlushAsync(cancellationToken).ConfigureAwait(false);
-                var response = await ReadLineAsync(_stdout!, responseTimeout, cancellationToken).ConfigureAwait(false);
+                string? response;
+                using (var responseCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposeCts.Token))
+                    response = await ReadLineAsync(_stdout!, responseTimeout, responseCts.Token).ConfigureAwait(false);
                 if (response is null)
                 {
                     await StopDaemonAsync(CancellationToken.None).ConfigureAwait(false);
@@ -163,7 +168,8 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
                         ? "The Parakeet daemon could not transcribe the audio."
                         : "The Parakeet daemon returned no speech.");
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested
+                || _disposeCts.IsCancellationRequested)
             {
                 await StopDaemonAsync(CancellationToken.None, force: true).ConfigureAwait(false);
                 return Failure(PortableTranscriptionErrorCode.Cancelled, "Parakeet transcription was cancelled.");
@@ -191,9 +197,13 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
     {
         if (_disposed) return;
         _disposed = true;
+        // As on main, an in-flight request gets up to the floor to finish; past that it is
+        // cancelled, so teardown never waits out a long file's scaled budget (#1569, as
+        // Windows #1562 keeps its teardown wait at the engine floor).
+        _disposeCts.CancelAfter(_timeouts.Transcription);
         _gate.Wait();
         try { StopDaemonAsync(CancellationToken.None).GetAwaiter().GetResult(); }
-        finally { _gate.Release(); _gate.Dispose(); }
+        finally { _gate.Release(); _gate.Dispose(); _disposeCts.Dispose(); }
     }
 
     private async Task<PortableTranscriptionResult?> StartDaemonAsync(
