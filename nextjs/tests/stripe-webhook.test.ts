@@ -682,8 +682,9 @@ test("a mint whose insert fails with drizzle's 23505 falls back to the winner's 
 });
 
 // A 23505 is a duplicate delivery ONLY on the stripe_session_id index. On the
-// key index (or with no constraint reported) it must throw, so the route
-// answers 500 and Stripe retries, instead of a 200 with no licence and no email.
+// key index (or with no constraint reported) it must rethrow the insert error
+// itself, so the route answers 500 and Stripe retries, instead of falling back
+// to a session re-read that could grant onto another delivery's row.
 for (const [label, constraint] of [
   ["idx_account_keys_key", "idx_account_keys_key"],
   ["no reported constraint", null],

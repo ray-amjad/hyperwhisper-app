@@ -37,13 +37,17 @@ function getStripeCustomerId(
  */
 
 /**
- * A concurrent delivery of the same Checkout Session inserted its licence row
- * first: a 23505 on the unique stripe_session_id index, and ONLY that. A 23505
- * on any other account_keys unique index (the key itself, the Polar id) is not
- * a duplicate delivery, and taking the duplicate path for it would answer 200
- * with no licence and no email (#1039 review). An error that names no
- * constraint fails closed too: it throws, Stripe retries, and the retry's
- * session lookup finds the row if there is one.
+ * Used by the credit mint path only. A concurrent delivery of the same
+ * Checkout Session inserted its key row first: a 23505 on the unique
+ * stripe_session_id index, and ONLY that. On a match the mint path re-reads
+ * the row by session id and grants onto it; if that re-read finds nothing it
+ * throws "Failed to resolve minted license" (a 500, so Stripe retries).
+ * A 23505 on any other account_keys unique index (the key itself, the Polar
+ * id) is not a duplicate delivery: the re-read would find no row for this
+ * session, and the real insert error would be hidden behind that generic
+ * throw (#1039 review). So it, and an error that names no constraint, are
+ * rethrown as they are: the route answers 500, Stripe retries, and the
+ * retry's session lookup finds the row if there is one.
  */
 const STRIPE_SESSION_INDEX = "idx_account_keys_stripe_session";
 
