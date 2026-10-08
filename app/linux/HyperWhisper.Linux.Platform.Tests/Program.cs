@@ -72,6 +72,16 @@ var tests = new (string Name, Func<Task> Run)[]
     ("injection falls back when target changes before paste", InjectionTargetChanged),
     ("injection propagates cancellation", InjectionCancellation),
     ("disposing injection cancels scheduled restore", InjectionDisposalSafety),
+    ("chained dictations inside the restore window restore the user clipboard", InjectionChainedDictationsRestoreUserClipboard),
+    ("chained dictations keep the user clipboard with the privacy hint on", InjectionChainedDictationsWithPrivacyHint),
+    ("a user copy between chained dictations is what comes back", InjectionUserCopyBetweenDictationsComesBack),
+    ("a rich user copy of the transcript text is snapshotted afresh", InjectionRichUserCopyOfTranscriptIsSnapshotted),
+    ("a single dictation restores the user clipboard", InjectionSingleDictationRestoresUserClipboard),
+    ("a transcript left with no restore is snapshotted by the next dictation", InjectionTranscriptLeftWithoutRestoreIsSnapshotted),
+    ("a copy-only transcript with a restore keeps the user clipboard in a chain", InjectionCopyOnlyChainKeepsUserClipboard),
+    ("a cancelled chained dictation restores the user clipboard at once", InjectionCancelledChainedDictationRestoresAtOnce),
+    ("a chained dictation that writes nothing keeps the user clipboard", InjectionNoWriteChainedDictationKeepsUserClipboard),
+    ("own-transcript match reads every target a transcript write publishes", InjectionOwnTranscriptMatchByTargets),
     ("Wayland AT-SPI target accepts stable focused identity", AtSpiTargetStable),
     ("Wayland AT-SPI target rejects changed identity", AtSpiTargetChanged),
     ("AT-SPI insertion context matches Windows terminators", AtSpiInsertionContextClassification),
@@ -1208,6 +1218,200 @@ static async Task InjectionDisposalSafety()
     service.Dispose();
     await Task.Delay(300);
     Assert.Equal(0, clipboard.RestoreCalls);
+}
+
+// #1514: the restore window of the first dictation is long, so the second one starts inside it,
+// as a user does who dictates twice within the restore delay of the first paste.
+static TimeSpan ChainRestoreWindow() => TimeSpan.FromSeconds(30);
+static TimeSpan ShortRestoreDelay() => TimeSpan.FromMilliseconds(20);
+
+// The coordinator's order for one dictation: capture the target, start the session, deliver,
+// end the session (the caller then schedules the restore when the outcome asks for one).
+static async Task DictateAsync(LinuxTextInjectionService service, string text)
+{
+    service.CaptureTarget();
+    service.StartSession();
+    Assert.Equal(TextInjectionOutcome.Pasted, await service.InjectTranscriptAsync(text));
+    service.EndSession();
+}
+
+static async Task WaitForRestoreCallsAsync(FakeClipboard clipboard, int calls)
+{
+    var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+    while (clipboard.RestoreCalls < calls && DateTime.UtcNow < deadline) await Task.Delay(10);
+    Assert.Equal(calls, clipboard.RestoreCalls);
+}
+
+static Task InjectionChainedDictationsRestoreUserClipboard() =>
+    ChainedDictationsRestoreUserClipboard(ClipboardHistoryPrivacyPolicy.Disabled);
+
+static Task InjectionChainedDictationsWithPrivacyHint() =>
+    ChainedDictationsRestoreUserClipboard(ClipboardHistoryPrivacyPolicy.BestEffort);
+
+static async Task ChainedDictationsRestoreUserClipboard(ClipboardHistoryPrivacyPolicy policy)
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    service.SetClipboardHistoryPrivacyPolicy(policy);
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+    Assert.Equal("transcript A", clipboard.Text);
+
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+    Assert.Equal("transcript B", clipboard.Text);
+
+    await DictateAsync(service, "transcript C");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("marker", clipboard.Text);
+    Assert.Equal(1, clipboard.Formats.Count);
+}
+
+static async Task InjectionUserCopyBetweenDictationsComesBack()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+    clipboard.UserCopy("user copy");
+
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("user copy", clipboard.Text);
+}
+
+static async Task InjectionRichUserCopyOfTranscriptIsSnapshotted()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+    // The user copies the pasted transcript back out of a browser: the same text, plus HTML.
+    var richCopy = new Dictionary<string, byte[]>(StringComparer.Ordinal)
+    {
+        ["text/plain;charset=utf-8"] = "transcript A"u8.ToArray(),
+        ["text/html"] = "<p>transcript A</p>"u8.ToArray(),
+    };
+    clipboard.UserCopy(richCopy);
+
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal(2, clipboard.Formats.Count);
+    Assert.SequenceEqual(richCopy["text/html"], clipboard.Formats["text/html"]);
+}
+
+static async Task InjectionSingleDictationRestoresUserClipboard()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("marker", clipboard.Text);
+
+    // A later dictation snapshots the restored marker afresh.
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 2);
+    Assert.Equal("marker", clipboard.Text);
+}
+
+static async Task InjectionTranscriptLeftWithoutRestoreIsSnapshotted()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    // Restore after paste off: no restore is scheduled, so transcript A stays on purpose.
+    await DictateAsync(service, "transcript A");
+
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("transcript A", clipboard.Text);
+}
+
+static async Task InjectionCopyOnlyChainKeepsUserClipboard()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(false));
+    // Auto-paste off: the transcript is copied, and the caller still schedules the restore.
+    service.StartSession();
+    Assert.Success(await service.CopyToClipboardAsync("transcript A"));
+    service.EndSession();
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+
+    service.StartSession();
+    Assert.Success(await service.CopyToClipboardAsync("transcript B"));
+    service.EndSession();
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("marker", clipboard.Text);
+}
+
+static async Task InjectionCancelledChainedDictationRestoresAtOnce()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+
+    // Dictation B starts inside A's window and is cancelled: the coordinator restores at once.
+    service.CaptureTarget();
+    service.StartSession();
+    service.EndSession();
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal("marker", clipboard.Text);
+
+    // The restore put the user's content back, so the next dictation snapshots it afresh.
+    clipboard.UserCopy("user copy");
+    await DictateAsync(service, "transcript C");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 2);
+    Assert.Equal("user copy", clipboard.Text);
+}
+
+static Task InjectionOwnTranscriptMatchByTargets()
+{
+    var transcript = "transcript A"u8.ToArray();
+    static ClipboardSnapshot Snapshot(params (string Format, string Value)[] formats) => new(
+        formats.ToDictionary(pair => pair.Format, pair => System.Text.Encoding.UTF8.GetBytes(pair.Value), StringComparer.Ordinal));
+    // What wl-copy or the native X11 owner publishes for a transcript, with and without the privacy hint.
+    Assert.True(LinuxTextInjectionService.HoldsOnlyTranscript(Snapshot(
+        ("text/plain;charset=utf-8", "transcript A"), ("text/plain", "transcript A"), ("UTF8_STRING", "transcript A"),
+        ("STRING", "transcript A"), ("TEXT", "transcript A")), transcript));
+    Assert.True(LinuxTextInjectionService.HoldsOnlyTranscript(Snapshot(
+        ("UTF8_STRING", "transcript A"), ("x-kde-passwordManagerHint", "secret")), transcript));
+    // Someone else's content: other text, an extra format, a text target that differs, or no UTF-8 text at all.
+    Assert.True(!LinuxTextInjectionService.HoldsOnlyTranscript(Snapshot(("UTF8_STRING", "user copy")), transcript));
+    Assert.True(!LinuxTextInjectionService.HoldsOnlyTranscript(Snapshot(
+        ("UTF8_STRING", "transcript A"), ("text/html", "<p>transcript A</p>")), transcript));
+    Assert.True(!LinuxTextInjectionService.HoldsOnlyTranscript(Snapshot(
+        ("UTF8_STRING", "transcript A"), ("text/plain", "transcript B")), transcript));
+    Assert.True(!LinuxTextInjectionService.HoldsOnlyTranscript(Snapshot(("STRING", "transcript A")), transcript));
+    Assert.True(!LinuxTextInjectionService.HoldsOnlyTranscript(null, transcript));
+    return Task.CompletedTask;
+}
+
+static async Task InjectionNoWriteChainedDictationKeepsUserClipboard()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+
+    // Dictation B writes nothing (no speech, or a secure field) and schedules no restore.
+    service.CaptureTarget();
+    service.StartSession();
+    service.EndSession();
+    Assert.Equal("transcript A", clipboard.Text);
+
+    // The clipboard still holds transcript A, so C keeps the user's snapshot too.
+    await DictateAsync(service, "transcript C");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("marker", clipboard.Text);
 }
 
 static async Task AtSpiTargetStable()
@@ -3316,6 +3520,10 @@ sealed class FakeClipboard : ILinuxClipboardBackend
     public bool BlockWrites { get; init; }
     public int RestoreCalls { get; private set; }
     public ClipboardHistoryPrivacyPolicy LastPrivacyPolicy { get; private set; }
+    /// <summary>Another app (the user) puts new content on the clipboard.</summary>
+    public void UserCopy(IReadOnlyDictionary<string, byte[]> formats) => Formats = Clone(formats);
+    public void UserCopy(string text) => UserCopy(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+        { ["text/plain;charset=utf-8"] = System.Text.Encoding.UTF8.GetBytes(text) });
     public LinuxTextInjectionCapabilities GetCapabilities() => new(true, "fake", false, true, true, true,
         ClipboardHistoryPrivacyCapability.BestEffortAvailable);
     public ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken cancellationToken) =>
