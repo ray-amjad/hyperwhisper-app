@@ -970,6 +970,10 @@
 "transcription.guidance.needsNativeRelaunch" = "أغلق HyperWhisper وأعد فتحه كتطبيق أصلي لاستخدام المعالجة اللاحقة المحلية.";
 "transcription.guidance.localRuntimeUnavailable" = "حاول مرة أخرى، أو اختر نموذجاً محلياً أصغر في إعدادات الوضع.";
 "transcription.error.localRuntimeUnavailable" = "تعذّر على الذكاء الاصطناعي المحلي إكمال المعالجة — تم الاحتفاظ بالنص الأصلي.";
+"transcription.error.postProcessingPreflight.unauthorized" = "رفض %@ مفتاح API الخاص بك — تم الاحتفاظ بالنص الأصلي.";
+"transcription.error.postProcessingPreflight.unreachable" = "تعذّر الوصول إلى %@ — تم الاحتفاظ بالنص الأصلي.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ غير مثبّت — تم الاحتفاظ بالنص الأصلي.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ غير متاح — تم الاحتفاظ بالنص الأصلي.";
 "transcription.error.localSpeechModelEvicted" = "تم إلغاء تحميل نموذج الكلام لتحرير الذاكرة ولم تتم إعادة تحميله. أغلق بعض التطبيقات وحاول مرة أخرى.";
 "settings.backup.localDownload.title" = "تنزيل النماذج المحلية؟";
 "settings.backup.localDownload.message" = "%d من الأوضاع المستعادة تستخدم نماذج ذكاء اصطناعي على الجهاز لم يتم تنزيلها بعد.";

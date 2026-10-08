@@ -970,6 +970,10 @@
 "transcription.guidance.needsNativeRelaunch" = "צא מ-HyperWhisper ופתח אותה מחדש כאפליקציה מקורית כדי להשתמש בעיבוד מקומי.";
 "transcription.guidance.localRuntimeUnavailable" = "נסה שוב, או בחר מודל מקומי קטן יותר בהגדרות המצב.";
 "transcription.error.localRuntimeUnavailable" = "ה-AI המקומי לא הצליח לסיים — התמלול הגולמי נשמר.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ דחה את מפתח ה-API שלך — התמלול הגולמי נשמר.";
+"transcription.error.postProcessingPreflight.unreachable" = "אין חיבור אל %@ — התמלול הגולמי נשמר.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ אינו מותקן — התמלול הגולמי נשמר.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ אינו זמין — התמלול הגולמי נשמר.";
 "transcription.error.localSpeechModelEvicted" = "מודל הדיבור נפרק כדי לפנות זיכרון ולא ניתן היה לטעון אותו מחדש. סגור כמה אפליקציות ונסה שוב.";
 "settings.backup.localDownload.title" = "להוריד מודלים מקומיים?";
 "settings.backup.localDownload.message" = "%d מהמצבים ששוחזרו משתמשים במודלי AI מקומיים שטרם הורדו.";

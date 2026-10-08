@@ -970,6 +970,10 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.guidance.needsNativeRelaunch" = "A helyi utófeldolgozáshoz lépjen ki, és indítsa újra a HyperWhispert natív módban.";
 "transcription.guidance.localRuntimeUnavailable" = "Próbálja újra, vagy válasszon kisebb helyi modellt a Mód beállításaiban.";
 "transcription.error.localRuntimeUnavailable" = "A helyi MI nem tudta befejezni — a nyers átirat megmaradt.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@: az API-kulcs elutasítva — a nyers átirat megmaradt.";
+"transcription.error.postProcessingPreflight.unreachable" = "%@: nincs kapcsolat — a nyers átirat megmaradt.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ nincs telepítve — a nyers átirat megmaradt.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ nem érhető el — a nyers átirat megmaradt.";
 "transcription.error.localSpeechModelEvicted" = "A beszédmodellt a memória felszabadításához eltávolítottuk, és nem sikerült újratölteni. Zárjon be néhány alkalmazást, és próbálja újra.";
 "settings.backup.localDownload.title" = "Letölti a helyi modelleket?";
 "settings.backup.localDownload.message" = "A visszaállított módok közül %d olyan helyi MI-modellt használ, amely még nincs letöltve.";
