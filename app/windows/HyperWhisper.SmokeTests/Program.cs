@@ -8024,6 +8024,162 @@ internal static class Program
                     "Store-as-M4A can delete a user-owned fallback source");
             });
 
+            RunAsync("M4A compression runs on the thread pool and does not block the caller — issue #1499", async () =>
+            {
+                // The UI thread froze 13-42 s while TryConvertWavToM4A ran on it. The
+                // start must return at once, with the encode still running elsewhere.
+                var callerThread = Environment.CurrentManagedThreadId;
+                using var release = new ManualResetEventSlim(false);
+                int convertThread = -1;
+                var onPool = false;
+                var compression = MainViewModel.StartRecordingCompression(path =>
+                {
+                    convertThread = Environment.CurrentManagedThreadId;
+                    onPool = Thread.CurrentThread.IsThreadPoolThread;
+                    release.Wait(TimeSpan.FromSeconds(10));
+                    return Path.ChangeExtension(path, ".m4a");
+                }, @"C:\x\rec.wav");
+
+                Assert(!compression.IsCompleted, "the start waited for the encode, so the caller was blocked");
+                release.Set();
+                var result = await compression;
+                Assert(result == @"C:\x\rec.m4a", $"got '{result}'");
+                Assert(onPool, "the encode did not run on a thread-pool thread");
+                Assert(convertThread != callerThread, "the encode ran on the calling thread");
+
+                // A throwing encode keeps the WAV: null, not a faulted task.
+                var failed = await MainViewModel.StartRecordingCompression(
+                    _ => throw new InvalidOperationException("MF failed"), @"C:\x\rec.wav");
+                Assert(failed is null, "a throwing encode must come back as null (keep the WAV)");
+            });
+
+            RunAsync("M4A compression: the finish step re-points a live row, deletes the M4A of a removed one — issue #1499", async () =>
+            {
+                var id = Guid.NewGuid();
+                var pointed = new List<(Guid, string)>();
+                var deleted = new List<string>();
+
+                await MainViewModel.FinishRecordingCompressionAsync(
+                    Task.FromResult<string?>("a.m4a"), id,
+                    (rowId, path) => { pointed.Add((rowId, path)); return true; }, deleted.Add);
+                Assert(pointed.Count == 1 && pointed[0] == (id, "a.m4a"), "a live row was not pointed at its M4A");
+                Assert(deleted.Count == 0, "the M4A of a live row was deleted");
+
+                pointed.Clear();
+                await MainViewModel.FinishRecordingCompressionAsync(
+                    Task.FromResult<string?>("b.m4a"), id,
+                    (rowId, path) => { pointed.Add((rowId, path)); return false; }, deleted.Add);
+                Assert(deleted.SequenceEqual(new[] { "b.m4a" }), "the M4A of a row deleted mid-encode was orphaned");
+
+                pointed.Clear();
+                deleted.Clear();
+                await MainViewModel.FinishRecordingCompressionAsync(
+                    Task.FromResult<string?>(null), id,
+                    (rowId, path) => { pointed.Add((rowId, path)); return true; }, deleted.Add);
+                Assert(pointed.Count == 0 && deleted.Count == 0, "a failed encode touched the row or deleted a file");
+
+                // Never throws: the dictation path discards this task.
+                await MainViewModel.FinishRecordingCompressionAsync(
+                    Task.FromResult<string?>("c.m4a"), id,
+                    (_, _) => throw new InvalidOperationException("database is locked"), deleted.Add);
+
+                // Cancelled file job whose row went: both files go once the encode ends.
+                deleted.Clear();
+                await MainViewModel.DeleteRecordingAfterCompressionAsync(
+                    Task.FromResult<string?>("d.m4a"), "d.wav", deleted.Add);
+                Assert(deleted.SequenceEqual(new[] { "d.m4a", "d.wav" }), $"deleted [{string.Join(", ", deleted)}]");
+                deleted.Clear();
+                await MainViewModel.DeleteRecordingAfterCompressionAsync(
+                    Task.FromResult<string?>(null), "e.wav", deleted.Add);
+                Assert(deleted.SequenceEqual(new[] { "e.wav" }), "a failed encode's kept WAV was orphaned");
+            });
+
+            Run("history: UpdateAudioFilePath re-points only the audio path, and reports a removed row — issue #1499", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var history = HistoryService.Instance;
+                var row = history.CreateProcessingTranscript(1.0, "percy1499", audioFilePath: @"C:\x\rec.wav");
+                Transcript? raised = null;
+                EventHandler<Transcript> onUpdated = (_, t) => { if (t.Id == row.Id) raised = t; };
+                history.TranscriptUpdated += onUpdated;
+                try
+                {
+                    // The user edited the text while the encode ran; the path write must keep it.
+                    row.Status = TranscriptStatus.Completed;
+                    row.Text = "edited by the user";
+                    history.UpdateTranscript(row);
+
+                    Assert(history.UpdateAudioFilePath(row.Id, @"C:\x\rec.m4a"), "a live row was reported as gone");
+                    var persisted = history.GetTranscript(row.Id);
+                    Assert(persisted?.AudioFilePath == @"C:\x\rec.m4a", $"path is '{persisted?.AudioFilePath}'");
+                    Assert(persisted?.Text == "edited by the user", $"text is '{persisted?.Text}'");
+                    Assert(raised != null && !ReferenceEquals(raised, row) && raised.AudioFilePath == @"C:\x\rec.m4a",
+                        "TranscriptUpdated must carry the re-read row with the new path");
+
+                    // The History page applies that re-read row; the path must land so a later
+                    // edit's ToEntity does not write the deleted WAV path back.
+                    var vm = new TranscriptViewModel(new Transcript { Id = row.Id, AudioFilePath = @"C:\x\rec.wav" });
+                    vm.ApplyUpdate(raised!);
+                    Assert(vm.AudioFilePath == @"C:\x\rec.m4a", $"view model path is '{vm.AudioFilePath}'");
+                    Assert(vm.ToEntity().AudioFilePath == @"C:\x\rec.m4a", "ToEntity wrote the stale WAV path back");
+
+                    history.DeleteTranscript(row.Id);
+                    Assert(!history.UpdateAudioFilePath(row.Id, @"C:\x\rec.m4a"), "a removed row was reported as updated");
+                }
+                finally
+                {
+                    history.TranscriptUpdated -= onUpdated;
+                    history.DeleteTranscript(row.Id);
+                }
+            });
+
+            RunAsync("M4A compression: a real Media Foundation encode on a thread-pool thread — issue #1499", async () =>
+            {
+                // TryConvertWavToM4A used to run on the STA UI thread for file imports.
+                // It now runs on an MTA pool thread, twice at once (a dictation can overlap
+                // a file import), and Media Foundation must stay usable afterwards.
+                var settings = SettingsService.Instance;
+                var storeBefore = settings.StoreAsM4A;
+                var root = Path.Combine(Path.GetTempPath(), $"hw-1499-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(root);
+                try
+                {
+                    settings.StoreAsM4A = true;
+                    string WriteWav(string name)
+                    {
+                        var path = Path.Combine(root, name);
+                        using var writer = new NAudio.Wave.WaveFileWriter(path, new NAudio.Wave.WaveFormat(16000, 16, 1));
+                        var frame = new float[1];
+                        for (var i = 0; i < 16000 * 3; i++)
+                        {
+                            frame[0] = (float)(0.3 * Math.Sin(2 * Math.PI * 440 * i / 16000.0));
+                            writer.WriteSamples(frame, 0, 1);
+                        }
+                        return path;
+                    }
+
+                    var wavs = new[] { WriteWav("a.wav"), WriteWav("b.wav") };
+                    var results = await Task.WhenAll(wavs.Select(wav =>
+                        MainViewModel.StartRecordingCompression(StorageService.Instance.TryConvertWavToM4A, wav)));
+                    for (var i = 0; i < wavs.Length; i++)
+                    {
+                        Assert(results[i] == Path.ChangeExtension(wavs[i], ".m4a"), $"encode {i} returned '{results[i]}'");
+                        Assert(File.Exists(results[i]!) && new FileInfo(results[i]!).Length > 0, $"encode {i} wrote no M4A");
+                        Assert(!File.Exists(wavs[i]), $"encode {i} kept its WAV after success");
+                    }
+
+                    // A third encode after the pair: nothing shut Media Foundation down under it.
+                    var again = await MainViewModel.StartRecordingCompression(
+                        StorageService.Instance.TryConvertWavToM4A, WriteWav("c.wav"));
+                    Assert(again != null && File.Exists(again), "Media Foundation was unusable after the pair");
+                }
+                finally
+                {
+                    settings.StoreAsM4A = storeBefore;
+                    Directory.Delete(root, recursive: true);
+                }
+            });
+
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>
             {
                 // Grok's registry entry was stored under the empty id until xAI

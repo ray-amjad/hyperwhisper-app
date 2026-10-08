@@ -177,6 +177,9 @@ public partial class MainViewModel
         string? convertedTempPath = null;
         bool ownsPathForTranscription = false;
         double duration = 0;
+        // Set only while the M4A compression is awaited, so a Cancel in that window can
+        // hand the still-running encode to FinishRecordingCompressionAsync (#1499).
+        Task<string?>? compression = null;
 
         try
         {
@@ -265,14 +268,30 @@ public partial class MainViewModel
             transcript.TranscriptionProvider = result.TranscriptionProvider;
             transcript.PostProcessingProvider = result.PostProcessingProvider;
 
-            // STORAGE: Optionally compress to M4A for space savings (local mode saves WAV)
+            // STORAGE: Optionally compress to M4A for space savings (local mode saves WAV).
+            // The encode runs on the thread pool and this awaits it, so the window, the
+            // tray, the hotkeys and the progress window's Cancel stay live (#1499). The
+            // code after the await is back on the dispatcher.
             if (ShouldConvertImportedAudioToM4A(
                     _storageService.StoreAsM4A, pathForTranscription, permanentPath))
             {
-                var compressedPath = _storageService.TryConvertWavToM4A(permanentPath);
+                compression = StartRecordingCompression(_storageService.TryConvertWavToM4A, permanentPath);
+                var compressedPath = await compression.WaitAsync(transcriptionCts.Token);
+                compression = null; // Recorded below; the cancel path must not finish it again.
                 if (!string.IsNullOrEmpty(compressedPath))
                 {
-                    transcript.AudioFilePath = compressedPath;
+                    if (HistoryService.Instance.GetTranscript(transcript.Id) == null)
+                    {
+                        // The user deleted the row while it compressed. Its delete could
+                        // not remove the WAV (the encoder held it open) and never knew
+                        // about the M4A.
+                        LoggingService.Info($"TranscribeFileAsync: Transcript {transcript.Id} was removed while its audio compressed; deleting the M4A");
+                        HistoryService.Instance.DeleteAudioFile(compressedPath);
+                    }
+                    else
+                    {
+                        transcript.AudioFilePath = compressedPath;
+                    }
                 }
             }
 
@@ -317,6 +336,21 @@ public partial class MainViewModel
                 // row terminal. HistoryService already logged it.
                 var deleteResult = HistoryService.Instance.DeleteTranscript(transcript.Id);
                 transcriptDeleted = deleteResult.IsSuccess && deleteResult.Value;
+
+                // Cancelled while the M4A compression ran (#1499). The encode cannot be
+                // stopped part-way and holds the WAV open, so the delete above could not
+                // remove it. Clean up once it ends: both files if the row went, else
+                // point the kept row at the M4A. Both helpers never throw.
+                if (compression != null && permanentPath != null)
+                {
+                    _ = transcriptDeleted
+                        ? DeleteRecordingAfterCompressionAsync(
+                            compression, permanentPath, HistoryService.Instance.DeleteAudioFile)
+                        : FinishRecordingCompressionAsync(
+                            compression, transcript.Id,
+                            HistoryService.Instance.UpdateAudioFilePath,
+                            HistoryService.Instance.DeleteAudioFile);
+                }
             }
             else if (!string.IsNullOrEmpty(permanentPath))
             {

@@ -393,6 +393,49 @@ public class HistoryService
         TranscriptUpdated?.Invoke(this, transcript);
     }
 
+    /// <summary>
+    /// Points an existing row at new audio (the M4A a background compression just wrote)
+    /// and writes nothing else, so a text edit made while the compression ran is kept.
+    /// Safe on any thread: the event carries the freshly-read row, never a caller's live
+    /// instance, and the History page applies it on the dispatcher (#1499).
+    /// </summary>
+    /// <returns>False when no row has that id (the user deleted it meanwhile).</returns>
+    public bool UpdateAudioFilePath(Guid id, string audioFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(audioFilePath))
+            throw new ArgumentException("An audio path is required.", nameof(audioFilePath));
+
+        Transcript updated;
+        lock (_lock)
+        {
+            try
+            {
+                using var context = new HyperWhisperDbContext();
+
+                var existing = context.Transcripts.Find(id);
+                if (existing == null)
+                {
+                    LoggingService.Info($"HistoryService: Transcript {id} is gone; not pointing it at new audio");
+                    return false;
+                }
+
+                existing.AudioFilePath = audioFilePath;
+                context.SaveChanges();
+                updated = existing;
+                LoggingService.Info($"HistoryService: Updated audio path of transcript {id}");
+            }
+            catch (DbUpdateException ex)
+            {
+                LoggingService.Error($"HistoryService: Failed to update audio path of transcript {id}", ex);
+                throw;
+            }
+        }
+
+        // Fire event outside lock to prevent deadlock
+        TranscriptUpdated?.Invoke(this, updated);
+        return true;
+    }
+
     // =========================================================================
     // PUBLIC METHODS - DELETE
     // =========================================================================

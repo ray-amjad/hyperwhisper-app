@@ -1895,27 +1895,18 @@ public partial class MainViewModel : ViewModelBase
                 LoggingService.Warn($"History terminal update failed after paste; retrying from safety net: {ex.Message}");
             }
 
-            // Compress audio in background after the terminal status is durable.
-            // ast-grep-ignore: no-discarded-task-run -- compression is deliberately off the critical path, after the terminal status is durable
-            _ = Task.Run(() =>
+            // Compress audio in background after the terminal status is durable. The
+            // finish step writes only the row's audio path, from the thread pool, and
+            // never mutates `transcript`: the History page shares that instance (#1499).
+            if (_storageService.StoreAsM4A)
             {
-                try
-                {
-                    if (_storageService.StoreAsM4A)
-                    {
-                        var compressedPath = _storageService.TryConvertWavToM4A(permanentAudioPath);
-                        if (!string.IsNullOrEmpty(compressedPath))
-                        {
-                            transcript.AudioFilePath = compressedPath;
-                            HistoryService.Instance.UpdateTranscript(transcript);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LoggingService.Warn($"Background audio compression failed: {ex.Message}");
-                }
-            });
+                // FinishRecordingCompressionAsync never throws, so nothing is left unobserved.
+                _ = FinishRecordingCompressionAsync(
+                    StartRecordingCompression(_storageService.TryConvertWavToM4A, permanentAudioPath),
+                    transcript.Id,
+                    HistoryService.Instance.UpdateAudioFilePath,
+                    HistoryService.Instance.DeleteAudioFile);
+            }
             LoggingService.LogPerformanceMarker("TranscriptionFlow", "Paste done, history save attempted");
 
             switch (pasteResult)
