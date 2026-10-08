@@ -82,6 +82,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a cancelled chained dictation restores the user clipboard at once", InjectionCancelledChainedDictationRestoresAtOnce),
     ("a chained dictation that writes nothing keeps the user clipboard", InjectionNoWriteChainedDictationKeepsUserClipboard),
     ("own-transcript match reads every target a transcript write publishes", InjectionOwnTranscriptMatchByTargets),
+    ("a restore that finishes after a chained session starts keeps its snapshot", InjectionInFlightRestoreKeepsChainedSnapshot),
     ("Wayland AT-SPI target accepts stable focused identity", AtSpiTargetStable),
     ("Wayland AT-SPI target rejects changed identity", AtSpiTargetChanged),
     ("AT-SPI insertion context matches Windows terminators", AtSpiInsertionContextClassification),
@@ -1393,6 +1394,34 @@ static Task InjectionOwnTranscriptMatchByTargets()
     Assert.True(!LinuxTextInjectionService.HoldsOnlyTranscript(Snapshot(("STRING", "transcript A")), transcript));
     Assert.True(!LinuxTextInjectionService.HoldsOnlyTranscript(null, transcript));
     return Task.CompletedTask;
+}
+
+// A restore already inside the helper when the next session cancels it can still finish. The
+// chained session keeps the same snapshot object, so the finished restore must not clear it:
+// that left the session with no snapshot, no restore was scheduled, and transcript B stayed.
+static async Task InjectionInFlightRestoreKeepsChainedSnapshot()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    var gate = new TaskCompletionSource();
+    clipboard.RestoreGate = gate;
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await clipboard.RestoreEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+    // Dictation B starts while A's restore is inside the helper: the clipboard still holds A.
+    service.CaptureTarget();
+    service.StartSession();
+    clipboard.RestoreGate = null;
+    gate.SetResult();
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("marker", clipboard.Text);
+
+    Assert.Equal(TextInjectionOutcome.Pasted, await service.InjectTranscriptAsync("transcript B"));
+    service.EndSession();
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 2);
+    Assert.Equal("marker", clipboard.Text);
 }
 
 static async Task InjectionNoWriteChainedDictationKeepsUserClipboard()
@@ -3576,9 +3605,13 @@ sealed class FakeClipboard : ILinuxClipboardBackend
         ClipboardHistoryPrivacyCapability.BestEffortAvailable);
     public ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken cancellationToken) =>
         ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Clone(Formats))));
+    /// <summary>When set, a restore waits for it and ignores cancellation, as a helper already writing does.</summary>
+    public TaskCompletionSource? RestoreGate { get; set; }
+    public TaskCompletionSource RestoreEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public ValueTask<PlatformResult> RestoreAsync(ClipboardSnapshot snapshot, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (RestoreGate is { } gate) return GatedRestoreAsync(snapshot, gate);
         RestoreCalls++;
         Formats = Clone(snapshot.Formats);
         return ValueTask.FromResult(PlatformResult.Success());
@@ -3594,6 +3627,14 @@ sealed class FakeClipboard : ILinuxClipboardBackend
         if (privacyPolicy == ClipboardHistoryPrivacyPolicy.BestEffort)
             formats["x-kde-passwordManagerHint"] = "secret"u8.ToArray();
         Formats = formats;
+        return PlatformResult.Success();
+    }
+    private async ValueTask<PlatformResult> GatedRestoreAsync(ClipboardSnapshot snapshot, TaskCompletionSource gate)
+    {
+        RestoreEntered.TrySetResult();
+        await gate.Task;
+        RestoreCalls++;
+        Formats = Clone(snapshot.Formats);
         return PlatformResult.Success();
     }
     private static Dictionary<string, byte[]> Clone(IReadOnlyDictionary<string, byte[]> source) =>

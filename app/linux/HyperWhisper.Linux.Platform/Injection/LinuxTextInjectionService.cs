@@ -51,6 +51,10 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     // moves it to _scheduledTranscript; a session that starts while it is still set treats that
     // transcript as left on the clipboard on purpose (restore off) and snapshots it afresh.
     private byte[]? _unscheduledTranscript;
+    // Bumped by every StartSession. A restore records it with the snapshot it restores and clears
+    // state only while it is unchanged: a chained session keeps the SAME snapshot object, so a
+    // reference check cannot tell its snapshot from the one an in-flight restore read. Guarded by _gate.
+    private long _sessionGeneration;
     private CapturedTarget? _capturedTarget;
     private CancellationTokenSource? _restoreCancellation;
     private int _clipboardHistoryPrivacyPolicy;
@@ -107,6 +111,9 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     public void StartSession()
     {
         if (_disposed) return;
+        // Before the cancel: a restore already inside RestoreAsync may still finish, and must not
+        // clear the state this session is about to keep or replace.
+        lock (_gate) _sessionGeneration++;
         CancelPendingClipboardRestore();
         PlatformResult<ClipboardSnapshot?>? result;
         try
@@ -155,10 +162,10 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     public async ValueTask<PlatformResult> RestoreClipboardImmediatelyAsync(CancellationToken cancellationToken = default)
     {
         CancelPendingClipboardRestore();
-        var snapshot = _snapshot;
+        var (snapshot, generation) = ReadSnapshot();
         if (snapshot is null) return PlatformResult.Success();
         var result = await TryRestoreAsync(snapshot, cancellationToken).ConfigureAwait(false);
-        if (result.IsSuccess) ClearRestoredSnapshot(snapshot);
+        if (result.IsSuccess) ClearRestoredSnapshot(generation);
         return result;
     }
     public async ValueTask<PlatformResult> CopyToClipboardAsync(string text, CancellationToken cancellationToken = default)
@@ -206,9 +213,9 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         try
         {
             await Task.Delay(delay < TimeSpan.Zero ? TimeSpan.Zero : delay, cancellation.Token);
-            var snapshot = _snapshot;
+            var (snapshot, generation) = ReadSnapshot();
             if (snapshot is not null && (await TryRestoreAsync(snapshot, cancellation.Token).ConfigureAwait(false)).IsSuccess)
-                ClearRestoredSnapshot(snapshot);
+                ClearRestoredSnapshot(generation);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch { }
@@ -233,13 +240,19 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         }
     }
 
+    private (ClipboardSnapshot? Snapshot, long Generation) ReadSnapshot()
+    {
+        lock (_gate) return (_snapshot, _sessionGeneration);
+    }
+
     /// <summary>The user's content is back on the clipboard: no snapshot or mark is current.</summary>
-    private void ClearRestoredSnapshot(ClipboardSnapshot restored)
+    private void ClearRestoredSnapshot(long generation)
     {
         lock (_gate)
         {
-            // A session that started meanwhile owns _snapshot now; leave its state alone.
-            if (!ReferenceEquals(_snapshot, restored)) return;
+            // A session that started meanwhile owns the state now, even when it kept the very
+            // snapshot this restore wrote (a chain): it schedules its own restore of it.
+            if (_sessionGeneration != generation) return;
             _snapshot = null;
             _scheduledTranscript = null;
             _unscheduledTranscript = null;
