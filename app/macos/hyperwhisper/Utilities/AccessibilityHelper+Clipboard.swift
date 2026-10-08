@@ -141,6 +141,19 @@ extension AccessibilityHelper {
             activeRestorationWorkItem = nil
             logger.debug("❌ Cancelled pending clipboard restoration")
         }
+        restoreExpectedChangeCount = nil
+    }
+
+    /// The app itself wrote to the clipboard and then put back what was there
+    /// (the streaming paste, #1591). `before` is the change count right before
+    /// that first write, `after` the one right after the write-back. When the
+    /// pending restore expected `before`, the clipboard holds what it held then,
+    /// so the restore now expects `after` and still runs. Any other `before`
+    /// means a write the app did not make came first: leave the expectation, so
+    /// the restore keeps skipping.
+    func clipboardRoundTripRestored(from before: Int, to after: Int) {
+        guard activeRestorationWorkItem != nil, restoreExpectedChangeCount == before else { return }
+        restoreExpectedChangeCount = after
     }
 
     /// Call at an exit that pasted nothing, left the transcript on the clipboard
@@ -210,13 +223,22 @@ extension AccessibilityHelper {
 
             // Copy new text
             copyToClipboard(text)
+            // Read now, so a later write (the user's own copy) breaks the match (#1591).
+            let copiedChangeCount = NSPasteboard.general.changeCount
 
             // Schedule simple restoration (not tied to recording sessions)
             if let previous = previousContent {
                 let delay = settings.clipboardRestoreDelaySeconds
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                    self?.copyToClipboard(previous)
-                    self?.logger.info("♻️ Restored previous clipboard content (manual copy)")
+                    guard let self else { return }
+                    // Something else wrote to the clipboard since this copy: that
+                    // is the user's clipboard now, so leave it (#1591).
+                    guard NSPasteboard.general.changeCount == copiedChangeCount else {
+                        self.logger.info("📋 Clipboard changed since the copy; skipped the restore (manual copy)")
+                        return
+                    }
+                    self.copyToClipboard(previous)
+                    self.logger.info("♻️ Restored previous clipboard content (manual copy)")
                 }
             }
         } else {
@@ -242,7 +264,16 @@ extension AccessibilityHelper {
     /// **Why create new items?**
     /// NSPasteboardItem objects cannot be reused across pasteboards or after clearContents().
     /// We must create fresh items from the stored data.
-    func scheduleClipboardRestoration(settings: SettingsManager?) {
+    ///
+    /// **A copy made inside the restore window survives (#1591):**
+    /// `transcriptChangeCount` is `NSPasteboard.general.changeCount` read right
+    /// after the transcript was written. When the restore runs and the count has
+    /// moved, something else wrote to the clipboard since (the user copied
+    /// something new). The restore then writes nothing and drops the snapshot,
+    /// so no later restore writes the stale clipboard back either. The one
+    /// exception keeps the snapshot: the clipboard holds an unpasted transcript
+    /// the app wrote itself (#1061 mark), so the next recording still keeps it.
+    func scheduleClipboardRestoration(settings: SettingsManager?, transcriptChangeCount: Int) {
         // Check if restoration is enabled and we have original content
         guard let settings = settings,
               settings.restoreClipboardAfterPaste,
@@ -255,6 +286,7 @@ extension AccessibilityHelper {
 
         // Cancel any existing restoration timer
         cancelPendingClipboardRestoration()
+        restoreExpectedChangeCount = transcriptChangeCount
 
         // Create a new work item for restoration
         let workItem = DispatchWorkItem { [weak self] in
@@ -262,8 +294,17 @@ extension AccessibilityHelper {
 
             // Check if this work item is still the active one (not cancelled)
             if self.activeRestorationWorkItem?.isCancelled == false {
-                // ENHANCED: Restore ALL clipboard types (text, images, files, etc.)
                 let pasteboard = NSPasteboard.general
+
+                // #1591: put the snapshot back only over the app's own write.
+                if let expected = self.restoreExpectedChangeCount,
+                   pasteboard.changeCount != expected {
+                    self.skipRestorationAfterForeignWrite()
+                    return
+                }
+                self.restoreExpectedChangeCount = nil
+
+                // ENHANCED: Restore ALL clipboard types (text, images, files, etc.)
                 pasteboard.clearContents()
 
                 // Create NEW pasteboard items from the stored data
@@ -304,6 +345,25 @@ extension AccessibilityHelper {
 
         // Schedule the restoration
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    /// The restore found a clipboard the app did not write (#1591): write
+    /// nothing, and disarm. The snapshot goes too, so no later restore writes
+    /// the stale clipboard back over the user's copy, unless the clipboard holds
+    /// an unpasted transcript of the app's own (the #1061 mark matches): then
+    /// the next recording still keeps the user's older clipboard.
+    private func skipRestorationAfterForeignWrite() {
+        activeRestorationWorkItem = nil
+        restoreExpectedChangeCount = nil
+
+        if let kept = keptClipboardSnapshotChangeCount,
+           kept == NSPasteboard.general.changeCount {
+            logger.info("📋 Clipboard holds an unpasted transcript; skipped the restore and kept the clipboard snapshot for the next recording")
+            return
+        }
+
+        originalClipboardData = nil
+        logger.info("📋 Clipboard changed since the transcript was written; skipped the restore and dropped the clipboard snapshot")
     }
 }
 
