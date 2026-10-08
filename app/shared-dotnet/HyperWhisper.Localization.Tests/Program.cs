@@ -130,7 +130,11 @@ static void AllCatalogsLoad()
     // the user the microphone sent no audio instead of "No speech detected".
     // 852 -> 853: `transcripts.delete.failed` is new (#974). Windows History and
     // Delete Now tell the user a delete SQLite refused removed nothing.
-    Equal(853, PortableLocalizer.BaseKeyCount, "base key count");
+    // 853 -> 855 (#1574): two Windows keys landed without this bump, because Linux CI
+    // does not run on a Strings.resx-only change:
+    //   errors.applicationControl.blocked                    (#933, PR #1368)
+    //   settings.general.launchAtLogin.isolatedProfileNote   (#1471, PR #1556)
+    Equal(855, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");
