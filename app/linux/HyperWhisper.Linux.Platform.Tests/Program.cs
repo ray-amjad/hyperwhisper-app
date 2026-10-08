@@ -89,6 +89,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("clipboard failure prevents uinput", ClipboardFailurePreventsUInput),
     ("uinput exception preserves clipboard fallback", UInputExceptionFallsBack),
     ("Wayland fallback advertises partial multi-MIME restore", CommandClipboardCapability),
+    ("Wayland capture reads with --no-newline", CommandClipboardReadArguments),
     ("Wayland native owner receives every MIME format", NativeWaylandRestore),
     ("clipboard restore rejects snapshots above 32 MiB", ClipboardSnapshotBound),
     ("native X11 owner receives every MIME format", NativeX11Restore),
@@ -1503,6 +1504,53 @@ static async Task CommandClipboardCapability()
         ["text/html"] = "<b>text</b>"u8.ToArray(),
     }), CancellationToken.None);
     Assert.True(result.IsFailure && result.Error!.Code == "clipboard_restore_partial");
+}
+
+// #1514: wl-paste appends a newline to a text type unless it gets --no-newline, so a Wayland
+// capture of "T" was "T\n": a restore wrote the extra newline back, and a chained dictation never
+// recognised its own transcript. A fake helper echoes the read arguments it was given.
+static async Task CommandClipboardReadArguments()
+{
+    var directory = Directory.CreateTempSubdirectory("hw-clipboard-args-");
+    try
+    {
+        var helper = Path.Combine(directory.FullName, "paste");
+        await File.WriteAllTextAsync(helper,
+            "#!/bin/sh\ncase \"$*\" in *--list-types*|*TARGETS*) printf 'text/plain\\n'; exit 0;; esac\nprintf '%s|' \"$@\"\n");
+        File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        using (var wayland = new CommandClipboardBackend("/bin/true", helper, true, null))
+        {
+            var captured = await wayland.CaptureAsync(CancellationToken.None);
+            Assert.True(captured.IsSuccess);
+            Assert.Equal("--no-newline|--type|text/plain|",
+                System.Text.Encoding.UTF8.GetString(captured.Value!.Formats["text/plain"]));
+        }
+        using (var x11 = new CommandClipboardBackend("/bin/true", helper, false, null))
+        {
+            var captured = await x11.CaptureAsync(CancellationToken.None);
+            Assert.True(captured.IsSuccess);
+            Assert.Equal("-selection|clipboard|-target|text/plain|-out|",
+                System.Text.Encoding.UTF8.GetString(captured.Value!.Formats["text/plain"]));
+        }
+    }
+    finally { directory.Delete(true); }
+
+    // With a real compositor and wl-clipboard, the capture holds exactly the copied bytes.
+    if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"))) return;
+    var wlCopy = CommandClipboardBackend.FindExecutable("wl-copy");
+    var wlPaste = CommandClipboardBackend.FindExecutable("wl-paste");
+    if (wlCopy is null || wlPaste is null) return;
+    // Seed with wl-copy directly: its forked server keeps any inherited pipe open, so detach it.
+    var seeded = await ExternalProcessRunner.RunAsync("/bin/sh",
+        ["-c", "printf 'no newline' | \"$0\" >/dev/null 2>&1", wlCopy], null, CancellationToken.None);
+    Assert.Equal(0, seeded.ExitCode);
+    using var real = new CommandClipboardBackend(wlCopy, wlPaste, true, null);
+    var realCaptured = await real.CaptureAsync(CancellationToken.None);
+    Assert.True(realCaptured.IsSuccess);
+    Assert.True(realCaptured.Value!.Formats.Count > 0);
+    foreach (var (_, value) in realCaptured.Value.Formats)
+        Assert.SequenceEqual("no newline"u8.ToArray(), value);
 }
 
 static async Task NativeWaylandRestore()
