@@ -136,13 +136,15 @@ class LicenseManager: ObservableObject {
             return true
         }
 
-        // The secure delete failed. When a fresh read proves no license record
-        // exists, there is nothing left to remove, so a published `.active`
-        // state cannot be backed by a stored key: clear it instead of leaving
-        // the user stuck in an activated layout (#1490). A record that is still
-        // present, or a store that cannot be read, keeps the failure: clearing
-        // the UI then would hide a key that the next launch restores.
-        if networkService.readStoredLicenseKey(retryAfterFailure: true) == .missing {
+        // The secure delete failed. Read the Keychain itself, not this
+        // session's cached record: the next launch's `loadStoredLicense()`
+        // starts from exactly that read. When it answers `.missing`, the
+        // Keychain holds no license record, so the next launch publishes Trial
+        // anyway and nothing is left to remove: clear the published state now
+        // instead of leaving the user stuck in an activated layout (#1490).
+        // `.present` or `.unavailable` keeps the failure, because clearing the
+        // UI then could hide a key that the next launch restores.
+        if await networkService.readStoredLicenseKeyFromSecureStore() == .missing {
             publishClearedLicenseState()
             return true
         }

@@ -352,13 +352,37 @@ final class RustLicenseStore: KeyValueStore {
                 licenseRecordCacheState = .unloaded
             }
             guard loadLicenseRecordIfNeeded() else { return .unavailable }
-            guard let key = cachedLicenseRecord?.key?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-                  !key.isEmpty else {
-                return .missing
-            }
-            return .present(key)
+            return Self.storedKeyRead(from: cachedLicenseRecord)
         }
+    }
+
+    /// Reads the Keychain record now, even when this session already holds a
+    /// cached copy. `readStoredLicenseKey` answers from the cache once a read
+    /// succeeded, so it cannot prove what the Keychain holds after a failed
+    /// write or delete. A successful read refreshes the cache. A failed read
+    /// answers `.unavailable` and leaves the cache as it was.
+    func readStoredLicenseKeyFromSecureStore() -> StoredLicenseKeyRead {
+        withTransactionLock {
+            do {
+                let record = try licenseStore.readRecord()
+                cachedLicenseRecord = record
+                licenseRecordCacheState = .available
+                return Self.storedKeyRead(from: record)
+            } catch {
+                AppLogger.network.error(
+                    "License Keychain fresh read failed: \(error.localizedDescription, privacy: .public)"
+                )
+                return .unavailable
+            }
+        }
+    }
+
+    private static func storedKeyRead(from record: LicenseKeychainRecord?) -> StoredLicenseKeyRead {
+        guard let key = record?.key?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !key.isEmpty else {
+            return .missing
+        }
+        return .present(key)
     }
 
     private func loadLicenseRecordIfNeeded() -> Bool {
