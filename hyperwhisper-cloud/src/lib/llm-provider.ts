@@ -152,21 +152,30 @@ export function resolveLLMModel(provider: LLMProvider, request: Request): string
  * retry would only make the caller wait that long again before the fallback
  * provider gets its turn. An upstream-returned 504, any other non-2xx and a
  * network error are still retried.
+ *
+ * `retryRateLimit: false` also refuses a 429 (#1568). The caller sets it when a
+ * fallback provider is next: the vendor has just said no, and the fallback has
+ * its own rate limit. The fallback call itself keeps the default, because it
+ * has no further provider to try (Ray, #1568 decision 2).
  */
-export function isRetryableLLMError(error: Error): boolean {
-  return !(error instanceof LLMTimeoutError);
+export function isRetryableLLMError(error: Error, retryRateLimit = true): boolean {
+  if (error instanceof LLMTimeoutError) return false;
+  if (!retryRateLimit && error instanceof LLMRequestError && error.status === 429) return false;
+  return true;
 }
 
 /**
  * Retry LLM call with exponential backoff. `model` is the resolved (allowlisted)
  * model id — the anthropic/openai/gemini/mistral clients send it as the request
- * model; the other providers ignore it.
+ * model; the other providers ignore it. See isRetryableLLMError for
+ * `retryRateLimit`.
  */
 export async function callWithRetry(
   provider: LLMProvider,
   payload: CorrectionRequestPayload,
   requestId: string,
-  model: string
+  model: string,
+  { retryRateLimit = true }: { retryRateLimit?: boolean } = {}
 ): Promise<Awaited<ReturnType<typeof requestCerebrasChat>>> {
   return retryWithBackoff(
     () => {
@@ -183,7 +192,7 @@ export async function callWithRetry(
       maxRetries: LLM_PROVIDER_RETRIES[provider],
       initialDelayMs: 1000,
       backoffMultiplier: 2,
-      shouldRetry: isRetryableLLMError,
+      shouldRetry: (error) => isRetryableLLMError(error, retryRateLimit),
       onRetry: (attempt, error, delayMs) => {
         console.warn(`[llm] ${provider} failed - retrying`, {
           attempt,

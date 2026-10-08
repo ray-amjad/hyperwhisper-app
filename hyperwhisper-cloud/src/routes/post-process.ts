@@ -124,7 +124,8 @@ export async function postProcessRoute(c: Context) {
   logEvent(requestId, startTime, 'post_process.llm_attempt_start', { provider, attempt: 1 });
 
   try {
-    llmResponse = await callWithRetry(provider, payload, requestId, model);
+    // A 429 goes straight to the fallback below, with no same-provider retry (#1568).
+    llmResponse = await callWithRetry(provider, payload, requestId, model, { retryRateLimit: false });
   } catch (error) {
     logEvent(requestId, startTime, 'post_process.llm_attempt_fail', {
       provider,

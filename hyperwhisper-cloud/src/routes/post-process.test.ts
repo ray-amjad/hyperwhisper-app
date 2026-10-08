@@ -282,6 +282,64 @@ describe('postProcessRoute LLM provider chain', () => {
     }
   });
 
+  // #1568: groq keeps 3 same-provider retries, but a 429 from the requested
+  // provider skips them (1 s + 2 s + 4 s of waiting on a vendor that just said
+  // no) and goes straight to the fallback.
+  test('a groq 429 falls over to cerebras at once, with exactly 1 groq call', async () => {
+    let groqCalls = 0;
+    let cerebrasCalls = 0;
+    withProviders({
+      'api.groq.com': () => {
+        groqCalls += 1;
+        return new Response('rate limited', { status: 429 });
+      },
+      'api.cerebras.ai': () => {
+        cerebrasCalls += 1;
+        return Response.json(chatCompletion('Hello from cerebras.'));
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest(
+        { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' },
+        { 'X-LLM-Provider': 'groq' }
+      )
+    );
+    const body = await response.json() as { corrected: string };
+
+    expect(response.status).toBe(200);
+    expect(body.corrected).toBe('Hello from cerebras.');
+    expect(response.headers.get('X-LLM-Provider')).toBe('cerebras-gpt-oss-120b');
+    expect(groqCalls).toBe(1);
+    expect(cerebrasCalls).toBe(1);
+  });
+
+  // #1568 decision 2: the fallback has no provider after it, so a 429 from the
+  // fallback keeps its same-provider retries (groq: 1 attempt + 3 retries).
+  test('a 429 from the fallback provider keeps its same-provider retries', async () => {
+    let cerebrasCalls = 0;
+    let groqCalls = 0;
+    withProviders({
+      'api.cerebras.ai': () => {
+        cerebrasCalls += 1;
+        return new Response('rate limited', { status: 429 });
+      },
+      'api.groq.com': () => {
+        groqCalls += 1;
+        return new Response('rate limited', { status: 429 });
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    );
+
+    expect(response.status).toBe(500);
+    expect(cerebrasCalls).toBe(1);
+    expect(groqCalls).toBe(4);
+    // Real exponential backoff on the groq fallback (1 s + 2 s + 4 s).
+  }, 15000);
+
   test('returns 500 without falling back when the primary provider fails with a 4xx other than 429', async () => {
     let groqCalled = false;
     withProviders({
