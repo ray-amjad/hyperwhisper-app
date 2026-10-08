@@ -107,11 +107,11 @@ public class TranscriptionRetryHandler : IDisposable
 
         try
         {
-            // Ensure local model is loaded for local modes
-            if (mode.ProviderType != "cloud")
-            {
-                await EnsureLocalModelLoadedAsync(mode, cancellationToken);
-            }
+            // Ensure local model is loaded for local modes. A Parakeet lease keeps the
+            // model loaded until this retry's transcription has ended (#1608).
+            using var parakeetModelLease = mode.ProviderType != "cloud"
+                ? await EnsureLocalModelLoadedAsync(mode, cancellationToken)
+                : null;
 
             // Select correct provider based on engine
             ITranscriptionProvider? localProvider = null;
@@ -155,16 +155,16 @@ public class TranscriptionRetryHandler : IDisposable
     // PRIVATE HELPERS
     // =========================================================================
 
-    private async Task EnsureLocalModelLoadedAsync(Mode mode, CancellationToken cancellationToken)
+    /// <returns>The Parakeet model lease (#1608), or null for Whisper.</returns>
+    private async Task<IDisposable?> EnsureLocalModelLoadedAsync(Mode mode, CancellationToken cancellationToken)
     {
         if (mode.LocalEngine == "parakeet")
         {
-            await EnsureParakeetModelLoadedAsync(mode, cancellationToken);
+            return await EnsureParakeetModelLoadedAsync(mode, cancellationToken);
         }
-        else
-        {
-            await EnsureWhisperModelLoadedAsync(mode, cancellationToken);
-        }
+
+        await EnsureWhisperModelLoadedAsync(mode, cancellationToken);
+        return null;
     }
 
     private async Task EnsureWhisperModelLoadedAsync(Mode mode, CancellationToken cancellationToken)
@@ -188,7 +188,7 @@ public class TranscriptionRetryHandler : IDisposable
         await _localTranscriptionService.InitializeAsync(modelPath, progress => { }, cancellationToken);
     }
 
-    private async Task EnsureParakeetModelLoadedAsync(Mode mode, CancellationToken cancellationToken)
+    private async Task<IDisposable> EnsureParakeetModelLoadedAsync(Mode mode, CancellationToken cancellationToken)
     {
         var modelInfo = ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == mode.LocalParakeetModel);
         if (modelInfo == null)
@@ -200,15 +200,15 @@ public class TranscriptionRetryHandler : IDisposable
 
         string? language = mode.Language == "auto" ? null : mode.Language;
 
-        // Skip when NeedsReload's per-engine rules say the warm daemon still fits.
-        if (!_parakeetTranscriptionService.NeedsReload(modelInfo.Id, mode.Language))
+        if (_parakeetTranscriptionService.NeedsReload(modelInfo.Id, mode.Language))
         {
-            return;
+            LoggingService.Info($"TranscriptionRetryHandler: Loading Parakeet model {modelInfo.DisplayName}");
         }
 
-        // A retry must not end another job on the shared daemon (#1608): wait until it is idle.
-        LoggingService.Info($"TranscriptionRetryHandler: Loading Parakeet model {modelInfo.DisplayName}");
-        await _parakeetTranscriptionService.ReloadWhenIdleAsync(modelInfo.Id, modelDir, language, cancellationToken);
+        // A retry must not end another job on the shared daemon (#1608): wait until it is
+        // idle (a warm daemon that fits returns at once), and hold the model until the
+        // retry has transcribed.
+        return await _parakeetTranscriptionService.ReloadWhenIdleAsync(modelInfo.Id, modelDir, language, cancellationToken);
     }
 
     private void UpdateTranscriptSuccess(TranscriptViewModel transcript, Mode mode, TranscriptionResult result)

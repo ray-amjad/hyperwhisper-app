@@ -1679,9 +1679,11 @@ internal static class Program
                 try
                 {
                     // Same model, same language: nothing to wait for, nothing to reload.
-                    Assert(!await service.ReloadWhenIdleAsync("fake-parakeet", Path.Combine(dir, "no-such-model"), null, CancellationToken.None)
-                            .WaitAsync(TimeSpan.FromSeconds(5)),
-                        "a reload the warm daemon already fits ran anyway");
+                    using (var warm = await service.ReloadWhenIdleAsync("fake-parakeet", Path.Combine(dir, "no-such-model"), null, CancellationToken.None)
+                            .WaitAsync(TimeSpan.FromSeconds(5)))
+                    {
+                        Assert(!warm.Reloaded, "a reload the warm daemon already fits ran anyway");
+                    }
 
                     var job = service.TranscribeAsync(audio);
                     using var clientGone = new CancellationTokenSource();
@@ -1739,6 +1741,129 @@ internal static class Program
                     {
                         Assert(ex.Code == TranscriptionErrorCode.Cancelled, $"expected Cancelled, got {ex.Code}");
                     }
+                }
+                finally
+                {
+                    StopFakeParakeetDaemon(service, daemon);
+                }
+            });
+
+            // #1608 review: an idle reload holds the lock through the old daemon's exit and
+            // the new one's READY wait. A GUI DisposeModel / InitializeAsync (the user's own
+            // mode switch, on the UI thread) must cancel it at once instead of blocking for
+            // up to floor + 5 s, and the reload's caller then fails as Cancelled.
+            RunAsync("Parakeet GUI teardown cancels an idle reload at once; its caller gets Cancelled (#1608 review)", async () =>
+            {
+                var dir = Path.Combine(tempRoot, "parakeet-1608-teardown");
+                Directory.CreateDirectory(dir);
+                foreach (var viaModeSwitch in new[] { false, true })
+                {
+                    var label = viaModeSwitch ? "InitializeAsync" : "DisposeModel";
+                    var service = new ParakeetTranscriptionService();
+                    using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out _);
+                    var daemonPid = daemon.Id;
+                    try
+                    {
+                        // The fake daemon ignores the quit command, so the reload sits in the
+                        // old daemon's 3 s graceful-exit wait with the lock held: a long phase
+                        // of the reload, as the real 30-90 s READY wait is.
+                        var reload = Task.Run(() => service.ReloadWhenIdleAsync(
+                            "other-parakeet", Path.Combine(dir, "no-such-model"), null, CancellationToken.None));
+                        await Task.Delay(500);
+                        Assert(!reload.IsCompleted, $"{label}: the reload should still be stopping the old daemon");
+
+                        var clock = Stopwatch.StartNew();
+                        if (viaModeSwitch)
+                        {
+                            try
+                            {
+                                await Task.Run(() => service.InitializeAsync(Path.Combine(dir, "no-such-model"), null))
+                                    .WaitAsync(TimeSpan.FromSeconds(20));
+                            }
+                            catch (TranscriptionException)
+                            {
+                                // No model directory: the GUI's own load fails after its teardown.
+                            }
+                        }
+                        else
+                        {
+                            await Task.Run(service.DisposeModel).WaitAsync(TimeSpan.FromSeconds(20));
+                        }
+                        clock.Stop();
+                        Assert(clock.Elapsed < TimeSpan.FromSeconds(2),
+                            $"{label} waited {clock.Elapsed.TotalMilliseconds:F0} ms for the idle reload (UI thread blocked)");
+
+                        try
+                        {
+                            await reload.WaitAsync(TimeSpan.FromSeconds(5));
+                            Assert(false, $"{label}: the idle reload finished despite the teardown");
+                        }
+                        catch (TranscriptionException ex)
+                        {
+                            Assert(ex.Code == TranscriptionErrorCode.Cancelled, $"{label}: expected Cancelled, got {ex.Code}");
+                        }
+
+                        Assert(FakeParakeetDaemonExited(daemonPid), $"{label}: the old daemon is still running");
+                        Assert(PendingParakeetRequests(service) == 0, $"{label}: the cancelled reload left its caller counted in");
+                    }
+                    finally
+                    {
+                        StopFakeParakeetDaemon(service, daemon);
+                    }
+                }
+            });
+
+            // #1608 review (Codex P1): the reload and the transcription it is for are one unit.
+            // A second caller's idle reload for another model must not run in the gap after the
+            // first caller got its model and before its TranscribeAsync. Caller A's model is the
+            // warm one here (the fake daemon cannot be respawned); the lease it gets is the same
+            // one a successful reload returns.
+            RunAsync("Parakeet model lease: another model's idle reload waits until the first caller has transcribed (#1608 review)", async () =>
+            {
+                var dir = Path.Combine(tempRoot, "parakeet-1608-lease");
+                var audio = WriteSilentParakeetWav(dir, seconds: 60);
+                var service = new ParakeetTranscriptionService();
+                using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out var daemonStdout);
+                try
+                {
+                    var job = service.TranscribeAsync(audio); // the GUI's job, in flight
+
+                    var leaseA = await service.ReloadWhenIdleAsync(
+                            "fake-parakeet", Path.Combine(dir, "no-such-model"), null, CancellationToken.None)
+                        .WaitAsync(TimeSpan.FromSeconds(5));
+                    Assert(!leaseA.Reloaded, "caller A's warm model was reloaded");
+
+                    var reloadB = service.ReloadWhenIdleAsync(
+                        "other-parakeet", Path.Combine(dir, "no-such-model"), null, CancellationToken.None);
+
+                    await daemonStdout.WriteLineAsync("{\"text\":\"gui\",\"duration_ms\":1}");
+                    Assert(await job.WaitAsync(TimeSpan.FromSeconds(10)) == "gui", "the GUI job got its own result");
+
+                    // The window: nothing inside TranscribeAsync, A has not started yet.
+                    await Task.Delay(400);
+                    Assert(!reloadB.IsCompleted, "B's reload replaced the model before A transcribed");
+
+                    var a = service.TranscribeAsync(audio);
+                    await daemonStdout.WriteLineAsync("{\"text\":\"a\",\"duration_ms\":1}");
+                    Assert(await a.WaitAsync(TimeSpan.FromSeconds(10)) == "a", "A transcribed on its own model's daemon");
+                    Assert(service.LoadedModelId == "fake-parakeet", "A's model was swapped before A finished");
+
+                    await Task.Delay(300);
+                    Assert(!reloadB.IsCompleted, "B's reload ran while A still held its lease");
+
+                    leaseA.Dispose();
+                    leaseA.Dispose(); // a second dispose must not release anyone else's count
+
+                    try
+                    {
+                        await reloadB.WaitAsync(TimeSpan.FromSeconds(20));
+                        Assert(false, "B's reload should have tried to start the missing model");
+                    }
+                    catch (TranscriptionException ex) when (ex.Code is TranscriptionErrorCode.OnnxModelFileMissing or TranscriptionErrorCode.DaemonStartFailed)
+                    {
+                    }
+
+                    Assert(PendingParakeetRequests(service) == 0, "a lease or a failed reload left a caller counted in");
                 }
                 finally
                 {
@@ -18677,6 +18802,12 @@ internal static class Program
         Set("_isReady", true);
         return process;
     }
+
+    /// <summary>The service's count of pending requests and leases (#1608 tests).</summary>
+    private static int PendingParakeetRequests(ParakeetTranscriptionService service) =>
+        (int)(typeof(ParakeetTranscriptionService).GetField("_pendingRequests", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("ParakeetTranscriptionService._pendingRequests is gone; update this test"))
+        .GetValue(service)!;
 
     private static bool FakeParakeetDaemonExited(int pid)
     {

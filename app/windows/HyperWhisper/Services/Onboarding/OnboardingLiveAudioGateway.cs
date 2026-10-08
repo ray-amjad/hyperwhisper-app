@@ -633,6 +633,9 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     private async Task TranscribeAndPublishAsync(string audioPath, bool deleteWhenDone, CancellationToken cancellationToken)
     {
         var converted = audioPath;
+        // A Parakeet model lease, held until this transcription has ended, so no other
+        // caller's idle reload swaps the model in between (#1608).
+        IDisposable? parakeetModelLease = null;
 
         // A warning belongs to the transcript it was raised for, so the previous
         // attempt's must not survive into this one.
@@ -674,7 +677,8 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
             // is supposed to prove the product works.
             if (localProvider is not null)
             {
-                var ready = await EnsureLocalEngineReadyAsync(mode, localProvider, cancellationToken);
+                var (ready, lease) = await EnsureLocalEngineReadyAsync(mode, localProvider, cancellationToken);
+                parakeetModelLease = lease;
                 if (!ready)
                 {
                     return;
@@ -720,6 +724,8 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         }
         finally
         {
+            parakeetModelLease?.Dispose();
+
             if (!string.Equals(converted, audioPath, StringComparison.OrdinalIgnoreCase))
             {
                 TryDelete(converted);
@@ -757,9 +763,10 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     /// defect that is entirely inside onboarding.
     ///
     /// Both branches are no-ops when the engine is already warm, which is the
-    /// common case for a returning user re-running setup.
+    /// common case for a returning user re-running setup. The Parakeet branch also
+    /// returns the model lease the caller holds until it has transcribed (#1608).
     /// </summary>
-    private async Task<bool> EnsureLocalEngineReadyAsync(
+    private async Task<(bool Ready, IDisposable? ModelLease)> EnsureLocalEngineReadyAsync(
         Mode mode,
         ITranscriptionProvider provider,
         CancellationToken cancellationToken)
@@ -776,22 +783,22 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
                 if (info is null || !_parakeetModels.IsModelDownloaded(info))
                 {
                     PublishTranscript(Error(Loc.S("errors.modelNotDownloaded", modelId ?? "")));
-                    return false;
+                    return (false, null);
                 }
 
-                if (!parakeet.NeedsReload(info.Id, mode.Language))
+                if (parakeet.NeedsReload(info.Id, mode.Language))
                 {
-                    return true;
+                    LoggingService.Info($"LiveOnboardingAudioGateway: loading Parakeet-family model {info.DisplayName} for the Try It step");
                 }
 
-                // Waits for an idle daemon instead of ending a job already on it (#1608).
-                LoggingService.Info($"LiveOnboardingAudioGateway: loading Parakeet-family model {info.DisplayName} for the Try It step");
-                await parakeet.ReloadWhenIdleAsync(
+                // Waits for an idle daemon instead of ending a job already on it (#1608);
+                // a warm daemon that fits returns at once.
+                var lease = await parakeet.ReloadWhenIdleAsync(
                     info.Id,
                     _parakeetModels.GetModelDirectory(info),
                     mode.Language == "auto" ? null : mode.Language,
                     cancellationToken);
-                return true;
+                return (true, lease);
             }
 
             if (provider is TranscriptionService whisper)
@@ -802,24 +809,24 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
                 if (info is null || !_whisperModels.IsModelDownloaded(info))
                 {
                     PublishTranscript(Error(Loc.S("errors.modelNotDownloaded", modelType ?? "")));
-                    return false;
+                    return (false, null);
                 }
 
                 var modelPath = _whisperModels.GetModelPath(info);
                 if (whisper.IsInitialized
                     && string.Equals(whisper.LoadedModelPath, modelPath, StringComparison.OrdinalIgnoreCase))
                 {
-                    return true;
+                    return (true, null);
                 }
 
                 LoggingService.Info($"LiveOnboardingAudioGateway: loading Whisper model {info.DisplayName} for the Try It step");
                 await whisper.InitializeAsync(modelPath, null, cancellationToken);
-                return true;
+                return (true, null);
             }
 
             // An unrecognised provider is not a reason to refuse: let the
             // orchestrator decide, exactly as it did before this check existed.
-            return true;
+            return (true, null);
         }
         catch (OperationCanceledException)
         {
@@ -829,7 +836,7 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         {
             LoggingService.Error($"LiveOnboardingAudioGateway: local model load failed: {ex.Message}", ex);
             PublishTranscript(Error(Loc.S("errors.modelLoadFailed")));
-            return false;
+            return (false, null);
         }
     }
 

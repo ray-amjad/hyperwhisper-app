@@ -67,6 +67,9 @@ internal static class TranscribeEndpoints
             string audioPath;
             bool tempFileCreated;
             FileStream? audioPathReadLock;
+            // Held from the Parakeet model check until this request's transcription has
+            // ended, so no other caller's idle reload swaps the model in between (#1608).
+            IDisposable? parakeetModelLease = null;
             try
             {
                 (audioPath, tempFileCreated, audioPathReadLock) = ResolveAudioSource(req);
@@ -110,7 +113,7 @@ internal static class TranscribeEndpoints
                 {
                     try
                     {
-                        await EnsureLocalModelLoadedAsync(server, effectiveMode, localProvider, ctx.RequestAborted);
+                        parakeetModelLease = await EnsureLocalModelLoadedAsync(server, effectiveMode, localProvider, ctx.RequestAborted);
                     }
                     catch (ApiInputException aiex)
                     {
@@ -175,6 +178,7 @@ internal static class TranscribeEndpoints
             }
             finally
             {
+                parakeetModelLease?.Dispose();
                 audioPathReadLock?.Dispose();
 
                 if (tempFileCreated)
@@ -238,7 +242,11 @@ internal static class TranscribeEndpoints
         };
     }
 
-    private static async Task EnsureLocalModelLoadedAsync(
+    /// <returns>
+    /// For a Parakeet-family Mode, the model lease the caller holds until its
+    /// transcription has ended (#1608); null for Whisper.
+    /// </returns>
+    private static async Task<IDisposable?> EnsureLocalModelLoadedAsync(
         LocalApiServer server,
         Mode mode,
         ITranscriptionProvider? provider,
@@ -253,11 +261,11 @@ internal static class TranscribeEndpoints
 
         if (IsParakeetMode(mode))
         {
-            await EnsureParakeetModelLoadedAsync(server, mode, provider, cancellationToken);
-            return;
+            return await EnsureParakeetModelLoadedAsync(server, mode, provider, cancellationToken);
         }
 
         await EnsureWhisperModelLoadedAsync(server, mode, provider, cancellationToken);
+        return null;
     }
 
     private static async Task EnsureWhisperModelLoadedAsync(
@@ -309,7 +317,7 @@ internal static class TranscribeEndpoints
         await transcriptionService.InitializeAsync(modelPath, _ => { }, cancellationToken);
     }
 
-    private static async Task EnsureParakeetModelLoadedAsync(
+    private static async Task<IDisposable> EnsureParakeetModelLoadedAsync(
         LocalApiServer server,
         Mode mode,
         ITranscriptionProvider provider,
@@ -351,16 +359,17 @@ internal static class TranscribeEndpoints
 
         var language = mode.Language == "auto" ? null : mode.Language;
 
-        if (!parakeetService.NeedsReload(modelInfo.Id, mode.Language))
+        if (parakeetService.NeedsReload(modelInfo.Id, mode.Language))
         {
-            return;
+            LoggingService.Info($"LocalAPI /transcribe: Loading Parakeet-family model {modelInfo.DisplayName}");
         }
 
         // Never InitializeAsync here: that is the GUI's mode switch, and it cancels the
         // transcription in flight, e.g. the user's Transcribe File job (#1608). This waits
-        // until the daemon is idle, then reloads; a client that disconnects stops waiting.
-        LoggingService.Info($"LocalAPI /transcribe: Loading Parakeet-family model {modelInfo.DisplayName}");
-        await parakeetService.ReloadWhenIdleAsync(
+        // until the daemon is idle, then reloads (a warm daemon that fits returns at once);
+        // a client that disconnects stops waiting. The lease keeps this request's model
+        // loaded until its transcription has ended.
+        return await parakeetService.ReloadWhenIdleAsync(
             modelInfo.Id,
             modelService.GetModelDirectory(modelInfo),
             language,
