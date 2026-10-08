@@ -1141,12 +1141,14 @@ enum TranscribeEndpoint {
         // exactly as if the caller had omitted `model`. Nemotron, qwen3Asr and
         // appleSpeech already write only their own ids, so they need nothing.
         //
-        // For WHISPER this is now the backstop, not the answer: `resolve`
-        // calls `validateMixedPathEngineModel` first, which REFUSES a blank
-        // or "cloud" Whisper model (Ray's decision 2026-10-08), so the
-        // default below is reached for those values only by a caller that
-        // skips that check. It stays so no caller can ever leave a
-        // Cloud-routing model on the Mode. Parakeet's default is the answer.
+        // For WHISPER and for a "cloud" PARAKEET model this is now the
+        // backstop, not the answer: `resolve` calls
+        // `validateMixedPathEngineModel` first, which REFUSES a blank or
+        // "cloud" Whisper model (Ray's decision 2026-10-08) and a Parakeet
+        // model that does not canonicalise (review round 2), so the defaults
+        // below are reached for those values only by a caller that skips that
+        // check. It stays so no caller can ever leave a Cloud-routing model on
+        // the Mode. A blank Parakeet model still defaults to v3 by design.
         let localModel: String? = Self.modelRoutesToCloud(model) ? nil : model
 
         switch resolvedEngine {
@@ -1246,11 +1248,20 @@ enum TranscribeEndpoint {
     ///   already rely on.
     ///
     /// Any other Whisper id is left to `selectProvider`, which already throws
-    /// "Unknown local model" for one it cannot map. Other local engines are
-    /// untouched: Parakeet keeps its v3 default for blank/"cloud" (the
-    /// engine-only path defaults it too), and nemotron / qwen3Asr / appleSpeech
-    /// write only their own ids. A cloud engine is skipped exactly as
-    /// `applyEngineModel` and `resolveProvider` check the cloud half first.
+    /// "Unknown local model" for one it cannot map.
+    ///
+    /// PARAKEET mirrors `resolveProvider`'s parakeet arm (#1466 review round
+    /// 2): a non-blank model that does not canonicalise to a Parakeet id throws
+    /// "Unknown Parakeet model '<id>'". Without this the mixed path ran
+    /// `{engine: "parakeet", model: "cloud"}` on v3 with `ok: true` (the
+    /// backstop below dropped "cloud" to nil), and `model: "base"` swapped to
+    /// local Whisper, where the engine-only path refuses both. A nil or blank
+    /// Parakeet model still defaults to v3 — `modelIdForSelection` answers v3
+    /// for both, on both paths.
+    ///
+    /// nemotron / qwen3Asr / appleSpeech write only their own ids, so they need
+    /// nothing. A cloud engine is skipped exactly as `applyEngineModel` and
+    /// `resolveProvider` check the cloud half first.
     @MainActor
     static func validateMixedPathEngineModel(engine: String, model: String?) throws {
         let trimmedEngine = engine.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1262,16 +1273,27 @@ enum TranscribeEndpoint {
         if CloudProvider.parse(providerNormalization.provider) != nil {
             return
         }
-        guard localApiResolveEngineAlias(alias: trimmedEngine) == .whisperLocal else {
+        switch localApiResolveEngineAlias(alias: trimmedEngine) {
+        case .whisperLocal?:
+            guard let model else { return }
+            let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmedModel.isEmpty {
+                throw TranscriptionError.providerNotAvailable(provider: "Whisper", reason: "Missing 'model' for whisperLocal engine")
+            }
+            if trimmedModel.lowercased() == "cloud" {
+                throw TranscriptionError.providerNotAvailable(provider: "Local", reason: "Unknown local model: \(trimmedModel)")
+            }
+        case .parakeet?:
+            // The same two calls, in the same order, as `resolveProvider`.
+            let requestedModelId = ParakeetModelManager.Constants.modelIdForSelection(model)
+            if ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) == nil {
+                throw TranscriptionError.providerNotAvailable(
+                    provider: "Parakeet",
+                    reason: "Unknown Parakeet model '\(requestedModelId)'"
+                )
+            }
+        default:
             return
-        }
-        guard let model else { return }
-        let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedModel.isEmpty {
-            throw TranscriptionError.providerNotAvailable(provider: "Whisper", reason: "Missing 'model' for whisperLocal engine")
-        }
-        if trimmedModel.lowercased() == "cloud" {
-            throw TranscriptionError.providerNotAvailable(provider: "Local", reason: "Unknown local model: \(trimmedModel)")
         }
     }
 

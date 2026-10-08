@@ -107,10 +107,27 @@ struct LocalEngineNeverRoutesToCloudTests {
         }
     }
 
-    /// What the validator must let through: a missing `model` (kept on the
-    /// mixed path's `base` default), a real Whisper id, every non-Whisper
-    /// local engine (Parakeet keeps its v3 default for blank/"cloud"), and a
-    /// cloud engine with a blank model.
+    /// Review round 2: a Parakeet model that does not canonicalise — "cloud",
+    /// or another engine's id such as "base" — is refused on the mixed path
+    /// exactly as `resolveProvider`'s parakeet arm refuses it, naming the
+    /// trimmed id. Before, "cloud" ran v3 with `ok: true` and "base" swapped
+    /// to local Whisper.
+    @Test func anUnknownParakeetModelOnTheMixedPathIsRefusedLikeTheEngineOnlyPath() {
+        for engine in ["parakeet", "Parakeet", " parakeet "] {
+            for model in ["cloud", "CLOUD", " Cloud ", "base", "typo", "large-v3-turbo"] {
+                let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+                let refused = Self.refusal(engine: engine, model: model)
+                #expect(refused != nil, "engine '\(engine)' with model '\(model)' was not refused")
+                #expect(refused?.provider == "Parakeet")
+                #expect(refused?.reason == "Unknown Parakeet model '\(trimmed)'")
+            }
+        }
+    }
+
+    /// What the validator must let through: a missing Whisper `model` (kept
+    /// on the mixed path's `base` default), a real Whisper id, a missing or
+    /// blank or real Parakeet model (v3 default on both paths), every other
+    /// local engine, and a cloud engine with a blank model.
     @Test func theValidatorRefusesNothingElse() {
         for engine in Self.whisperSpellings {
             #expect(Self.refusal(engine: engine, model: nil) == nil, "a missing model must keep the base default")
@@ -119,11 +136,27 @@ struct LocalEngineNeverRoutesToCloudTests {
             }
         }
 
+        // Parakeet: a missing or blank model defaults to v3 on both paths, and
+        // a real Parakeet id (any case, padded) is accepted.
+        let parakeetAccepted: [String?] = [
+            nil, "", "  ",
+            ParakeetModelManager.Constants.v2ModelId,
+            ParakeetModelManager.Constants.v3ModelId,
+            " \(ParakeetModelManager.Constants.v3ModelId.uppercased()) ",
+            "parakeet-tdt-v3-multilingual",
+        ]
+        for model in parakeetAccepted {
+            #expect(
+                Self.refusal(engine: "parakeet", model: model) == nil,
+                "parakeet with model '\(model ?? "nil")' was refused"
+            )
+        }
+
         // Driven off the shared engine table, like the general property below.
         let others = localApiAllEngineIds()
-            .filter { $0 != .whisperLocal }
+            .filter { $0 != .whisperLocal && $0 != .parakeet }
             .map { localApiEngineWireLabel(id: $0) }
-        #expect(others.count >= 4, "the shared engine table answered too few non-Whisper engines")
+        #expect(others.count >= 3, "the shared engine table answered too few other local engines")
         let models: [String?] = ["", "  ", "cloud", "CLOUD", nil]
         for engine in others {
             for model in models {
@@ -175,7 +208,8 @@ struct LocalEngineNeverRoutesToCloudTests {
 
     /// The wider hole the issue names: `model: "cloud"` with a local engine
     /// wrote the literal onto the Mode for whisper and for parakeet (whose
-    /// `modelIdForSelection` passes an unknown id through unchanged).
+    /// `modelIdForSelection` passes an unknown id through unchanged). BACKSTOP
+    /// only: `resolve` now refuses both values first (see "The refusal").
     @Test func aCloudModelOnALocalEngineFallsBackToThatEnginesDefault() {
         let persistence = PersistenceController(inMemory: true)
 
@@ -258,9 +292,10 @@ struct LocalEngineNeverRoutesToCloudTests {
         )
         #expect(v2.model == ParakeetModelManager.Constants.v2ModelId)
 
-        // Parakeet's documented pass-through of an unknown id is untouched, so
-        // `resolveProvider` can still name the caller's own spelling in its
-        // error on the engine-only path.
+        // Parakeet's documented pass-through of an unknown id is untouched in
+        // `applyEngineModel`. Both paths now refuse such an id before this
+        // runs (`resolveProvider` on engine-only, the validator on mixed),
+        // naming the caller's own spelling.
         let typo = Mode(context: persistence.container.viewContext)
         TranscribeEndpoint.applyEngineModel(to: typo, engine: "parakeet", model: "typo")
         #expect(typo.model == "typo")
