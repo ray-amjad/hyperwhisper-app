@@ -95,16 +95,16 @@
       "enabled": true,
       "enabledNote": "Set true once hyperwhisper-cloud PR #47 deploys with GEMINI_API_KEY set.",
       "models": [
+        { "id": "gemini-3.8-flash", "displayName": "Gemini 3.8 Flash", "llmModelHeader": "gemini-3.8-flash",
+          "pricePerMInput": 0.75, "pricePerMOutput": 3.75, "isDefault": true, "isRecommended": true,
+          "accuracy": 5, "speed": 2, "previewStatus": false, "enabled": true,
+          "priceNote": "GA 2026-09-02. $0.75/$3.75 per 1M is INTRODUCTORY pricing and expires 2026-12-31 — both copies (here and GEMINI_CHAT_RATES in hyperwhisper-cloud/src/lib/cost-calculator.ts) are wrong from 2027-01-01. Re-confirm at the first model watch of 2027." },
         { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "llmModelHeader": "gemini-2.5-flash",
-          "pricePerMInput": 0.30, "pricePerMOutput": 2.50, "isDefault": true, "isRecommended": true,
+          "pricePerMInput": 0.30, "pricePerMOutput": 2.50, "isDefault": false, "isRecommended": false,
           "accuracy": 3, "speed": 1, "previewStatus": false, "enabled": true },
         { "id": "gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash Lite", "llmModelHeader": "gemini-2.5-flash-lite",
           "pricePerMInput": 0.10, "pricePerMOutput": 0.40, "isDefault": false, "isRecommended": false,
-          "accuracy": 2, "speed": 2, "previewStatus": false, "enabled": true },
-        { "id": "gemini-3.8-flash", "displayName": "Gemini 3.8 Flash", "llmModelHeader": "gemini-3.8-flash",
-          "pricePerMInput": 0.75, "pricePerMOutput": 3.75, "isDefault": false, "isRecommended": false,
-          "accuracy": 5, "speed": 2, "previewStatus": false, "enabled": true,
-          "priceNote": "GA 2026-09-02. $0.75/$3.75 per 1M is INTRODUCTORY pricing and expires 2026-12-31 — both copies (here and GEMINI_CHAT_RATES in hyperwhisper-cloud/src/lib/cost-calculator.ts) are wrong from 2027-01-01. Re-confirm at the first model watch of 2027." }
+          "accuracy": 2, "speed": 2, "previewStatus": false, "enabled": true }
       ],
       "sources": ["https://ai.google.dev/gemini-api/docs/pricing", "https://ai.google.dev/gemini-api/docs/openai"]
     },

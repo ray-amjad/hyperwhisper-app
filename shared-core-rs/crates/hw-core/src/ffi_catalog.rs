@@ -1565,15 +1565,15 @@ mod tests {
         // gemini, not openai: gpt-5.6-luna has accuracy == speed (4, 4), so it
         // could not catch a swapped pair.
         let m = cloud_pp_default_model("gemini".to_string()).expect("gemini has a default model");
-        assert_eq!(m.id, "gemini-2.5-flash");
-        assert_eq!(m.display_name, "Gemini 2.5 Flash");
-        assert_eq!(m.llm_model_header.as_deref(), Some("gemini-2.5-flash"));
-        assert_eq!(m.price_per_m_input, Some(0.30));
-        assert_eq!(m.price_per_m_output, Some(2.5));
+        assert_eq!(m.id, "gemini-3.8-flash");
+        assert_eq!(m.display_name, "Gemini 3.8 Flash");
+        assert_eq!(m.llm_model_header.as_deref(), Some("gemini-3.8-flash"));
+        assert_eq!(m.price_per_m_input, Some(0.75));
+        assert_eq!(m.price_per_m_output, Some(3.75));
         assert_eq!(m.is_default, Some(true));
         assert_eq!(m.is_recommended, Some(true));
-        assert_eq!(m.accuracy, Some(3));
-        assert_eq!(m.speed, Some(1));
+        assert_eq!(m.accuracy, Some(5));
+        assert_eq!(m.speed, Some(2));
         assert_eq!(m.preview_status, Some(false));
         assert_eq!(m.enabled, Some(true));
 
@@ -1623,9 +1623,9 @@ mod tests {
         assert_eq!(
             ids,
             vec![
+                "gemini-3.8-flash".to_string(),
                 "gemini-2.5-flash".to_string(),
-                "gemini-2.5-flash-lite".to_string(),
-                "gemini-3.8-flash".to_string()
+                "gemini-2.5-flash-lite".to_string()
             ]
         );
         let openai: Vec<String> = cloud_pp_models("openai".to_string())
