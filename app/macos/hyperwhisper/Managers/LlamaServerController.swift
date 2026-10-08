@@ -301,9 +301,17 @@ final class LlamaServerController: ObservableObject {
         }
 
         try launchProcess(executableURL: executableURL, modelURL: modelURL, configuration: configuration)
+        let generation = launchGeneration
 
         let ready = try await waitForReadiness(host: configuration.host, port: configuration.port)
         guard ready else {
+            // A stop() or a newer launch ran while this one waited (a mode
+            // change mid-start). That call owns the process and the state now:
+            // stopping here would kill the newer launch, and `.failed` would
+            // overwrite its state.
+            guard generation == launchGeneration else {
+                throw Error.healthCheckFailed
+            }
             // stop() resets state to `.stopped`, so the failure is written
             // after it. Otherwise a runtime that exited before readiness reads
             // as cleanly stopped rather than failed.
