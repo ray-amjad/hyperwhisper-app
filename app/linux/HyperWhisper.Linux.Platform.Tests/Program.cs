@@ -83,6 +83,16 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a chained dictation that writes nothing keeps the user clipboard", InjectionNoWriteChainedDictationKeepsUserClipboard),
     ("own-transcript match reads every target a transcript write publishes", InjectionOwnTranscriptMatchByTargets),
     ("a restore that finishes after a chained session starts keeps its snapshot", InjectionInFlightRestoreKeepsChainedSnapshot),
+    ("a user copy in the restore window survives the scheduled restore", InjectionUserCopyInRestoreWindowSurvivesScheduledRestore),
+    ("with no copy in the restore window the snapshot is restored", InjectionNoCopyInRestoreWindowRestoresSnapshot),
+    ("a user copy survives the immediate restore", InjectionUserCopySurvivesImmediateRestore),
+    ("a cancelled dictation keeps a copy made while recording", InjectionCancelledDictationKeepsUserCopy),
+    ("chained dictations keep a user copy made after the last paste", InjectionChainedDictationsKeepUserCopyAfterLastPaste),
+    ("an unreadable clipboard restores as before", InjectionUnreadableClipboardRestoresAsBefore),
+    ("a clipboard too large to snapshot skips the restore", InjectionTooLargeClipboardSkipsRestore),
+    ("a clipboard with an undeliverable target restores as before", InjectionUndeliverableClipboardRestoresAsBefore),
+    ("a clipboard with excess targets skips the restore", InjectionExcessTargetsClipboardSkipsRestore),
+    ("a Copy button press in the restore window survives the restore", InjectionCopyButtonInRestoreWindowSurvivesRestore),
     ("Wayland AT-SPI target accepts stable focused identity", AtSpiTargetStable),
     ("Wayland AT-SPI target rejects changed identity", AtSpiTargetChanged),
     ("AT-SPI insertion context matches Windows terminators", AtSpiInsertionContextClassification),
@@ -1442,6 +1452,212 @@ static async Task InjectionNoWriteChainedDictationKeepsUserClipboard()
     service.ScheduleClipboardRestore(ShortRestoreDelay());
     await WaitForRestoreCallsAsync(clipboard, 1);
     Assert.Equal("marker", clipboard.Text);
+}
+
+// #1590 (the Linux twin of #1583): a restore writes the snapshot back only over the app's own
+// transcript. A copy the user makes inside the restore window is their clipboard now.
+static TimeSpan SkipRestoreDelay() => TimeSpan.FromMilliseconds(200);
+
+// The scheduled restore has decided: it captured, and it dropped the snapshot, either by skipping
+// (#1590) or after RestoreAsync returned. So RestoreCalls is final once this returns, and a restore
+// that never decides fails here instead of passing an "== 0" check vacuously.
+static async Task WaitForRestoreDecisionAsync(LinuxTextInjectionService service, FakeClipboard clipboard, int captures)
+{
+    var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+    while ((clipboard.CaptureCalls < captures || service.HoldsSnapshot) && DateTime.UtcNow < deadline)
+        await Task.Delay(5);
+    Assert.Equal(captures, clipboard.CaptureCalls);
+    Assert.True(!service.HoldsSnapshot);
+}
+
+static async Task InjectionUserCopyInRestoreWindowSurvivesScheduledRestore()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(SkipRestoreDelay());
+    var captures = clipboard.CaptureCalls;
+    clipboard.UserCopy("user copy");
+    await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("user copy", clipboard.Text);
+
+    // The stale snapshot is dropped: a later restore has nothing to write.
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("user copy", clipboard.Text);
+}
+
+static async Task InjectionNoCopyInRestoreWindowRestoresSnapshot()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(SkipRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("marker", clipboard.Text);
+}
+
+static async Task InjectionUserCopySurvivesImmediateRestore()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(false));
+    service.StartSession();
+    Assert.Success(await service.CopyToClipboardAsync("transcript A"));
+    clipboard.UserCopy("user copy");
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("user copy", clipboard.Text);
+}
+
+static async Task InjectionCancelledDictationKeepsUserCopy()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    // The recording is cancelled before any transcript is written; the user copied meanwhile.
+    service.CaptureTarget();
+    service.StartSession();
+    clipboard.UserCopy("user copy");
+    service.EndSession();
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("user copy", clipboard.Text);
+
+    // The next dictation snapshots the copy and restores it.
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("user copy", clipboard.Text);
+}
+
+static async Task InjectionChainedDictationsKeepUserCopyAfterLastPaste()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(SkipRestoreDelay());
+    var captures = clipboard.CaptureCalls;
+    clipboard.UserCopy("user copy");
+    await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("user copy", clipboard.Text);
+
+    // A chained dictation cancelled after a copy made during its recording: the restore expects
+    // the previous transcript, finds the copy, and keeps it.
+    clipboard.UserCopy("marker");
+    await DictateAsync(service, "transcript C");
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+    service.CaptureTarget();
+    service.StartSession();
+    clipboard.UserCopy("copy while recording");
+    service.EndSession();
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("copy while recording", clipboard.Text);
+}
+
+static async Task InjectionUnreadableClipboardRestoresAsBefore()
+{
+    // No helper, the helper failed listing the targets, or a read of one target failed (incomplete):
+    // the content is unknown. null = a throw.
+    foreach (var code in new[] { "clipboard_unavailable", "clipboard_command_failed", "clipboard_capture_incomplete", null })
+    {
+        var clipboard = new FakeClipboard("marker");
+        using var service = NewInjection(clipboard, new FakeUInput(false));
+        service.StartSession();
+        Assert.Success(await service.CopyToClipboardAsync("transcript A"));
+        clipboard.UserCopy("user copy");
+        if (code is null) clipboard.ThrowOnCapture = true;
+        else clipboard.CaptureFailureCode = code;
+        Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+        Assert.Equal(1, clipboard.RestoreCalls);
+        Assert.Equal("marker", clipboard.Text);
+    }
+}
+
+static async Task InjectionTooLargeClipboardSkipsRestore()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(SkipRestoreDelay());
+    var captures = clipboard.CaptureCalls;
+    clipboard.UserCopy("a copy larger than any snapshot");
+    clipboard.CaptureFailureCode = "clipboard_snapshot_too_large";
+    await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+    Assert.Equal(0, clipboard.RestoreCalls);
+
+    clipboard.CaptureFailureCode = null;
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("a copy larger than any snapshot", clipboard.Text);
+}
+
+// #1590 round 2: a capture that fails because the owner advertises a target it cannot deliver
+// (incomplete) looks the same as a transient helper failure, so it is unknown and both restores
+// run as before.
+static Task InjectionUndeliverableClipboardRestoresAsBefore() =>
+    AssertCaptureFailureRestoreDecisionAsync("clipboard_capture_incomplete", skips: false);
+
+// #1590 review: more than 64 targets proves the clipboard is not a transcript write (it publishes
+// at most six): the user's copy, so neither restore writes over it.
+static Task InjectionExcessTargetsClipboardSkipsRestore() =>
+    AssertCaptureFailureRestoreDecisionAsync("clipboard_snapshot_invalid", skips: true);
+
+static async Task AssertCaptureFailureRestoreDecisionAsync(string code, bool skips)
+{
+    var expectedText = skips ? "an app copy with a broken target" : "marker";
+
+    // The scheduled restore.
+    var clipboard = new FakeClipboard("marker");
+    using (var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService()))
+    {
+        await DictateAsync(service, "transcript A");
+        service.ScheduleClipboardRestore(SkipRestoreDelay());
+        var captures = clipboard.CaptureCalls;
+        clipboard.UserCopy("an app copy with a broken target");
+        clipboard.CaptureFailureCode = code;
+        await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+        Assert.Equal(skips ? 0 : 1, clipboard.RestoreCalls);
+        Assert.Equal(expectedText, clipboard.Text);
+    }
+
+    // The immediate restore (a cancelled or failed dictation).
+    clipboard = new FakeClipboard("marker");
+    using (var service = NewInjection(clipboard, new FakeUInput(false)))
+    {
+        service.StartSession();
+        Assert.Success(await service.CopyToClipboardAsync("transcript A"));
+        clipboard.UserCopy("an app copy with a broken target");
+        clipboard.CaptureFailureCode = code;
+        Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+        Assert.Equal(skips ? 0 : 1, clipboard.RestoreCalls);
+        Assert.True(!service.HoldsSnapshot);
+        Assert.Equal(expectedText, clipboard.Text);
+    }
+}
+
+// #1590 review: CopyToClipboardAsync outside a dictation session is a Copy button (history, Local
+// API, account key): the user's copy. A pending restore leaves it and drops the snapshot.
+static async Task InjectionCopyButtonInRestoreWindowSurvivesRestore()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(SkipRestoreDelay());
+    var captures = clipboard.CaptureCalls;
+    Assert.Success(await service.CopyToClipboardAsync("NEW"));
+    await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("NEW", clipboard.Text);
+
+    // A dictation started next snapshots NEW (not marked as ours) and restores it.
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("NEW", clipboard.Text);
 }
 
 static async Task AtSpiTargetStable()
@@ -3603,8 +3819,20 @@ sealed class FakeClipboard : ILinuxClipboardBackend
         { ["text/plain;charset=utf-8"] = System.Text.Encoding.UTF8.GetBytes(text) });
     public LinuxTextInjectionCapabilities GetCapabilities() => new(true, "fake", false, true, true, true,
         ClipboardHistoryPrivacyCapability.BestEffortAvailable);
-    public ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken cancellationToken) =>
-        ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Clone(Formats))));
+    public int CaptureCalls => Volatile.Read(ref _captureCalls);
+    private int _captureCalls;
+    /// <summary>When set, a capture fails with this error code (#1590).</summary>
+    public string? CaptureFailureCode { get; set; }
+    /// <summary>When set, a capture throws, as a helper that crashes does (#1590).</summary>
+    public bool ThrowOnCapture { get; set; }
+    public ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref _captureCalls);
+        if (ThrowOnCapture) throw new InvalidOperationException("test");
+        if (CaptureFailureCode is { } code)
+            return ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Failure(code, "test"));
+        return ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Clone(Formats))));
+    }
     /// <summary>When set, a restore waits for it and ignores cancellation, as a helper already writing does.</summary>
     public TaskCompletionSource? RestoreGate { get; set; }
     public TaskCompletionSource RestoreEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
