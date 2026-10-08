@@ -1388,18 +1388,8 @@ internal static class Program
                 Assert(ParakeetTranscriptionService.MaxResponseTimeout == TimeSpan.FromHours(24), "cap is 24h");
             });
 
-            Run("Parakeet teardown and drain waits follow the active request budget", () =>
+            Run("Parakeet drain of a cancelled request stays bounded by the floor", () =>
             {
-                // Idle (no budget left): today's floor + 5 s.
-                Assert(ParakeetTranscriptionService.ComputeTeardownWait(60, TimeSpan.Zero) == TimeSpan.FromSeconds(65), "idle Parakeet → 65s");
-                Assert(ParakeetTranscriptionService.ComputeTeardownWait(180, TimeSpan.Zero) == TimeSpan.FromSeconds(185), "idle Qwen3 → 185s");
-                // Less than the floor left: still the floor (deadline may not be recorded yet).
-                Assert(ParakeetTranscriptionService.ComputeTeardownWait(60, TimeSpan.FromSeconds(10)) == TimeSpan.FromSeconds(65), "10s left → 65s");
-                // A long file still running: wait out its budget, not the floor.
-                Assert(ParakeetTranscriptionService.ComputeTeardownWait(60, TimeSpan.FromSeconds(600)) == TimeSpan.FromSeconds(605), "600s left → 605s");
-                Assert(ParakeetTranscriptionService.ComputeTeardownWait(60, TimeSpan.FromDays(3))
-                    == ParakeetTranscriptionService.MaxResponseTimeout + TimeSpan.FromSeconds(5), "capped");
-
                 // A cancelled request's drain never holds the lock past the floor.
                 Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.FromHours(5)) == TimeSpan.FromSeconds(60), "5h left → 60s drain");
                 Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.FromSeconds(12)) == TimeSpan.FromSeconds(12), "12s left → 12s drain");
