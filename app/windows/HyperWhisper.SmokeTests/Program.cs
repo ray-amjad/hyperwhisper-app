@@ -2473,6 +2473,56 @@ internal static class Program
                 }
             });
 
+            // Issue #1588. An OnStartup exit (database init failure, Application
+            // Control block, second instance) called Shutdown and returned, and
+            // WPF then loaded StartupUri anyway: MainWindow and its MainViewModel
+            // against the broken database, and a second, raw error box. This
+            // drives WPF's own post-OnStartup step (Application.DoStartup) on the
+            // real App, after the abort hook, and asserts nothing is built.
+            Run("an aborted startup cancels the StartupUri load, so no MainWindow is built", () =>
+            {
+                var app = EnsureSmokeApplication() as HyperWhisper.App;
+                Assert(app is not null, "the smoke Application is not the app's own App");
+                Assert(app!.StartupUri?.OriginalString.EndsWith("MainWindow.xaml", StringComparison.Ordinal) == true,
+                    $"App.xaml's StartupUri changed ({app.StartupUri}); this case guards MainWindow.xaml");
+
+                var doStartup = typeof(System.Windows.Application).GetMethod(
+                    "DoStartup", BindingFlags.Instance | BindingFlags.NonPublic, Type.EmptyTypes);
+                Assert(doStartup is not null, "WPF no longer has Application.DoStartup; rewrite this case");
+
+                // A backstop runs after the app's handler. It records whether the
+                // app already cancelled, then cancels anyway, so a regression fails
+                // this case instead of building a real MainWindow in the suite.
+                var seen = new List<(string Uri, bool CancelledByApp)>();
+                System.Windows.Navigation.NavigatingCancelEventHandler backstop = (_, args) =>
+                {
+                    seen.Add((args.Uri?.OriginalString ?? "", args.Cancel));
+                    args.Cancel = true;
+                };
+
+                var windowsBefore = app.Windows.Count;
+                app.CancelStartupUriNavigation();
+                app.Navigating += backstop;
+                try
+                {
+                    doStartup!.Invoke(app, null);
+                    // The hook is one-shot: the next navigation is not cancelled.
+                    doStartup.Invoke(app, null);
+                }
+                finally
+                {
+                    app.Navigating -= backstop;
+                }
+
+                Assert(seen.Count == 2, $"WPF raised Navigating {seen.Count} times for two StartupUri loads, not 2");
+                Assert(seen[0].Uri.EndsWith("MainWindow.xaml", StringComparison.Ordinal),
+                    $"the cancelled navigation was '{seen[0].Uri}', not the StartupUri load");
+                Assert(seen[0].CancelledByApp, "an aborted startup did not cancel the StartupUri load");
+                Assert(!seen[1].CancelledByApp, "the abort hook cancelled a second navigation; it must be one-shot");
+                Assert(app.Windows.Count == windowsBefore && !app.Windows.OfType<MainWindow>().Any(),
+                    "a MainWindow was built after the startup was aborted");
+            });
+
             // Issue #510. The heading said "Edit Endpoint" and Window.Title still
             // said "Add Endpoint", so the taskbar entry and Alt+Tab named the
             // wrong operation. The two now come from one string, and this asserts
