@@ -110,9 +110,11 @@ private final class GiveUpWatch: @unchecked Sendable {
     var elapsed: Duration? { found.withLock { $0 } }
 
     init(_ reader: ClipboardSnapshotReader) {
+        // Start the clock here, not in the closure: a late start of the
+        // closure must not shorten the time it reports.
+        let clock = ContinuousClock()
+        let started = clock.now
         DispatchQueue.global(qos: .userInitiated).async { [found] in
-            let clock = ContinuousClock()
-            let started = clock.now
             while started.duration(to: clock.now) < .seconds(10) {
                 if reader.hasAbandonedRead {
                     found.withLock { $0 = started.duration(to: clock.now) }
