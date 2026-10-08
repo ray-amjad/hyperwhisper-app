@@ -128,7 +128,7 @@ struct BackupAPIKeyRestoreTests {
     private static func runImport(
         _ json: String,
         writer: BackupKeyWriterStub,
-        options: ImportOptions = keysOnlyOptions()
+        options: ImportOptions? = nil
     ) async throws -> ImportResult {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("hw-770-\(UUID().uuidString).json")
@@ -138,7 +138,7 @@ struct BackupAPIKeyRestoreTests {
         // Own instance, never `.shared` — see `BackupManager.init`.
         let backup = BackupManager()
         backup.apiKeyWriter = writer
-        return await backup.importSettings(from: url, options: options)
+        return await backup.importSettings(from: url, options: options ?? keysOnlyOptions())
     }
 
     // MARK: - v1 importer
