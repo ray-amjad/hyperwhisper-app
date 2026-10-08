@@ -1306,6 +1306,41 @@ internal static class Program
                     $"got '{result}'");
             });
 
+            // Whisper turned the silence after the last word into "Okay." or
+            // "Thank you." on ~10% of real dictations; the trim must cut that
+            // silence and nothing a speaker said.
+            Run("TrailingSilenceTrimPoint cuts trailing silence and keeps speech", () =>
+            {
+                const int rate = 16000;
+                var random = new Random(7);
+                float[] Clip(params (double Seconds, double Level)[] parts)
+                {
+                    var list = new List<float>();
+                    foreach (var (seconds, level) in parts)
+                        for (int i = 0; i < (int)(seconds * rate); i++)
+                            list.Add((float)(level * Math.Sin(i * 2 * Math.PI * 220 / rate)
+                                + 0.0002 * (random.NextDouble() - 0.5)));
+                    return list.ToArray();
+                }
+
+                var trailing = Clip((4, 0.2), (3, 0));
+                var keep = TranscriptionService.TrailingSilenceTrimPoint(trailing, rate);
+                Assert(Math.Abs(keep - (int)(4.3 * rate)) <= rate / 20, $"trailing silence: kept {keep / (double)rate:F2}s, want 4.30s");
+
+                var toTheEnd = Clip((5, 0.2));
+                Assert(TranscriptionService.TrailingSilenceTrimPoint(toTheEnd, rate) == toTheEnd.Length, "speech to the end is untouched");
+
+                var quietLastWord = Clip((4, 0.3), (0.5, 0), (0.4, 0.03), (2, 0));
+                keep = TranscriptionService.TrailingSilenceTrimPoint(quietLastWord, rate);
+                Assert(keep >= (int)(4.9 * rate), $"a quiet last word is kept: kept {keep / (double)rate:F2}s");
+
+                var silent = Clip((3, 0));
+                Assert(TranscriptionService.TrailingSilenceTrimPoint(silent, rate) == silent.Length, "an all-silent clip is untouched");
+
+                var shortWord = Clip((0.3, 0.2), (2, 0));
+                Assert(TranscriptionService.TrailingSilenceTrimPoint(shortWord, rate) == (int)(1.1 * rate), "never shorter than whisper.cpp's 1s minimum");
+            });
+
             Run("IsNoSpaceLanguage / NormalizeLanguage truth tables", () =>
             {
                 foreach (var code in new[] { "ja", "zh", "ko", "yue" })
