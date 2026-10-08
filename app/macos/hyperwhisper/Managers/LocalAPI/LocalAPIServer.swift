@@ -696,7 +696,11 @@ final class LocalAPIServer: ObservableObject {
     }
 
     private func handleModeDelete(request: HTTPRequest) async -> HTTPResponse {
-        await ModesEndpoint.delete(request: request)
+        await ModesEndpoint.delete(
+            request: request,
+            appState: transcriptionPipeline?.appState,
+            settingsManager: settingsManager
+        )
     }
 
     private func handleTranscribe(body: Data) async -> HTTPResponse {
