@@ -821,6 +821,113 @@ struct BackupLicenseStorageTests {
         #expect(manager.lastError == "Could not securely save the license")
     }
 
+    /// The service's answer when the server says Active but the key and cache
+    /// did not commit (`LicenseNetworkService`, `.storageFailed`).
+    private static var unsavedActiveVerdict: LicenseValidationResult {
+        LicenseValidationResult(
+            isValid: false,
+            status: .active,
+            customerId: nil,
+            customerEmail: "server@example.com",
+            customerName: nil,
+            errorMessage: "Could not securely save the license",
+            storagePersistenceFailed: true
+        )
+    }
+
+    /// #1490: an Active verdict whose save failed is not an activation. From
+    /// any unlicensed state the published status, customer and badge stay put.
+    @Test func unsavedActiveVerdictDoesNotActivateFromUnlicensedState() async {
+        for priorStatus in [LicenseStatus.trial, .invalid, .expired] {
+            let service = BackupLicenseNetworkSpy()
+            service.validationResultOverride = Self.unsavedActiveVerdict
+            let center = NotificationCenter()
+            let manager = LicenseManager(
+                networkService: service,
+                loadStoredLicenseOnInit: false,
+                notificationCenter: center
+            )
+            manager.licenseStatus = priorStatus
+            let notificationCount = NotificationCountBox()
+            let observer = center.addObserver(
+                forName: .licenseStatusChanged,
+                object: nil,
+                queue: nil
+            ) { _ in
+                notificationCount.value += 1
+            }
+
+            let result = await manager.activateLicense("new-key")
+            center.removeObserver(observer)
+
+            #expect(!result.isValid)
+            #expect(manager.licenseStatus == priorStatus)
+            #expect(manager.customerEmail == nil)
+            #expect(manager.lastError == "Could not securely save the license")
+            #expect(notificationCount.value == 0)
+        }
+    }
+
+    /// #1490 sibling: launch revalidation publishes through the same path.
+    @Test func unsavedActiveVerdictAtLaunchDoesNotActivateFromTrial() async {
+        let service = BackupLicenseNetworkSpy()
+        #expect(service.replaceStoredLicenseKeyForImport("stored-key"))
+        service.requiresRevalidation = true
+        service.validationResultOverride = Self.unsavedActiveVerdict
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+
+        await manager.loadStoredLicense()
+
+        #expect(manager.licenseStatus == .trial)
+        #expect(manager.lastError == "Could not securely save the license")
+    }
+
+    /// #1490 sibling: a backup import's validation publishes through the same path.
+    @Test func unsavedActiveVerdictForImportedKeyDoesNotActivateFromTrial() async {
+        let service = BackupLicenseNetworkSpy()
+        #expect(service.replaceStoredLicenseKeyForImport("imported-key"))
+        service.validationResultOverride = Self.unsavedActiveVerdict
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+
+        await manager.validateImportedLicenseKey("imported-key")
+
+        #expect(manager.licenseStatus == .trial)
+        #expect(manager.lastError == "Could not securely save the license")
+    }
+
+    /// #1490: when the secure delete fails but no record is stored, there is
+    /// nothing to deactivate, so the published Active state must not stick.
+    @Test func deactivateClearsPublishedStateWhenNoRecordIsStored() async {
+        let service = BackupLicenseNetworkSpy()
+        service.clearSucceeds = false
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+        manager.licenseStatus = .active
+        manager.customerEmail = "stale@example.com"
+
+        #expect(await manager.deactivateLicense())
+
+        #expect(manager.licenseStatus == .trial)
+        #expect(manager.customerEmail == nil)
+        #expect(manager.lastError == nil)
+    }
+
+    /// A failed delete of a record that is still there, or that cannot be read,
+    /// stays a failure: clearing the UI would hide a key the next launch restores.
+    @Test func failedDeactivateKeepsActiveStateWhileRecordMayRemain() async {
+        for read in [RustLicenseStore.StoredLicenseKeyRead.present("stored-key"), .unavailable] {
+            let service = BackupLicenseNetworkSpy()
+            service.clearSucceeds = false
+            service.queuedStoredReads = [read]
+            let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+            manager.licenseStatus = .active
+
+            #expect(!(await manager.deactivateLicense()))
+
+            #expect(manager.licenseStatus == .active)
+            #expect(manager.lastError == "Could not securely remove the license")
+        }
+    }
+
     @Test func missingSecureRecordClearsCustomerStateAndNotifiesObservers() async {
         let service = BackupLicenseNetworkSpy()
         let center = NotificationCenter()
@@ -884,7 +991,10 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
         validationResult
     }
 
-    func deactivateLicense() async -> (success: Bool, error: String?) { (true, nil) }
+    func deactivateLicense() async -> (success: Bool, error: String?) {
+        guard clearSucceeds else { return (false, "Could not securely remove the license") }
+        return (true, nil)
+    }
 
     func validateLicense(
         _ licenseKey: String,
