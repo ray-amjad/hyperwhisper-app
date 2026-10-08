@@ -214,10 +214,13 @@ struct PostProcessingPreflightFailureTests {
 
     /// A cloud health-check failure that lands after the user cancelled the
     /// run is NOT absorbed: the cancel must not become a saved `completed`
-    /// row. The task is cancelled before its body starts (both run on the
-    /// main actor, and nothing suspends between `Task {}` and `cancel()`).
+    /// row. It is thrown as a `CancellationError`, not as the provider's
+    /// error, so callers take the quiet cancel path instead of reporting a
+    /// provider failure. The task is cancelled before its body starts (both
+    /// run on the main actor, and nothing suspends between `Task {}` and
+    /// `cancel()`).
     @MainActor
-    @Test func aCloudHealthCheckFailureInACancelledRunIsStillThrown() async {
+    @Test func aCloudHealthCheckFailureInACancelledRunIsThrownAsCancellation() async {
         let run = Task { () async throws -> Bool in
             let failure = try await TranscriptionPipeline.awaitPostProcessingPreflight {
                 throw TranscriptionError.unauthorized(provider: "OpenAI")
@@ -229,12 +232,26 @@ struct PostProcessingPreflightFailureTests {
         case .success(let returnedAFailure):
             Issue.record("A cancelled run must not keep the transcript; returned a failure: \(returnedAFailure)")
         case .failure(let error):
-            guard let transcriptionError = error as? TranscriptionError,
-                  case .unauthorized(let provider, _) = transcriptionError else {
-                Issue.record("Expected the original .unauthorized, got \(error)")
-                return
+            #expect(error is CancellationError, "Expected a CancellationError, got \(error)")
+        }
+    }
+
+    /// Issue #1538's local-runtime failure in a cancelled run also ends as a
+    /// cancel, not as a failed run with a toast.
+    @MainActor
+    @Test func aLocalRuntimeFailureInACancelledRunIsThrownAsCancellation() async {
+        let run = Task { () async throws -> Bool in
+            let failure = try await TranscriptionPipeline.awaitPostProcessingPreflight {
+                throw TranscriptionError.localRuntimeUnavailable(reason: "dyld: Library not loaded")
             }
-            #expect(provider == "OpenAI")
+            return failure != nil
+        }
+        run.cancel()
+        switch await run.result {
+        case .success(let returnedAFailure):
+            Issue.record("A cancelled run must not keep the transcript; returned a failure: \(returnedAFailure)")
+        case .failure(let error):
+            #expect(error is CancellationError, "Expected a CancellationError, got \(error)")
         }
     }
 

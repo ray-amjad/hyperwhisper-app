@@ -693,9 +693,16 @@ extension TranscriptionPipeline {
     /// - Returns: `nil` when the check passed, or the non-fatal error to report
     ///   when the run should keep its raw transcript and skip AI post-processing.
     /// - Throws: every pre-flight error that is not non-fatal, unchanged — and
-    ///   ANY pre-flight error when the run itself has been cancelled, so a
-    ///   health probe that failed because the user cancelled cannot turn the
-    ///   cancel into a saved `completed` row.
+    ///   a `CancellationError` for ANY pre-flight failure when the run itself
+    ///   has been cancelled. A health probe that failed because the user
+    ///   cancelled (or the run was superseded) cannot turn the cancel into a
+    ///   saved `completed` row, and it cannot turn it into a provider failure
+    ///   either: callers' `catch is CancellationError` arms take the quiet
+    ///   cancel path, with no "API key rejected" toast, no failed row and no
+    ///   Sentry event. A `CancellationError` from the check itself is
+    ///   rethrown as is. The concurrent pre-flight is an unstructured `Task`
+    ///   the run does not cancel, so its `.value` can surface the provider's
+    ///   own error after a cancel — this is the place that catches that.
     static func awaitPostProcessingPreflight(
         _ check: () async throws -> Void
     ) async throws -> TranscriptionError? {
@@ -703,8 +710,11 @@ extension TranscriptionPipeline {
             try await check()
             return nil
         } catch {
-            guard !Task.isCancelled,
-                  isNonFatalPostProcessingPreflightError(error),
+            if Task.isCancelled {
+                if error is CancellationError { throw error }
+                throw CancellationError()
+            }
+            guard isNonFatalPostProcessingPreflightError(error),
                   let transcriptionError = error as? TranscriptionError else {
                 throw error
             }
