@@ -402,8 +402,14 @@ final class ClipboardSnapshotReader: @unchecked Sendable {
         let progress = ClipboardSnapshotProgress()
         let started = ContinuousClock.now
 
-        // A late read's data is dropped on the queue: the caller already got nil.
-        let outcome = await gate.run({ provider(progress) }, discardLate: { _ in })
+        // MUTATION (#1550 proof, never merge): hold the main actor until the
+        // deadline, then give up, instead of suspending the caller.
+        let outcome: DeadlineGate.Outcome<Snapshot?> = await MainActor.run {
+            let done = DispatchSemaphore(value: 0)
+            DispatchQueue.global().async { _ = provider(progress); done.signal() }
+            _ = done.wait(timeout: .now() + .nanoseconds(self.deadlineNanoseconds))
+            return .timedOut
+        }
 
         switch outcome {
         case .finished(let value):
