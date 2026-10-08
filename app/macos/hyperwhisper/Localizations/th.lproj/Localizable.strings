@@ -1061,6 +1061,7 @@
 "settings.backup.import.error.decode.corruptedField" = "ค่าฟิลด์เสียหาย: %@";
 "settings.backup.import.error.version" = "ไฟล์สำรองมาจากเวอร์ชันที่ใหม่กว่า";
 "settings.backup.import.error.unknown" = "นำเข้าล้มเหลว";
+"settings.backup.import.apiKeysFailed" = "ไม่สามารถบันทึกคีย์ API เหล่านี้ลงในพวงกุญแจได้และไม่ได้กู้คืน: %@ โปรดป้อนอีกครั้งในการตั้งค่า";
 "settings.backup.import.confirm.title" = "นำเข้าการตั้งค่า?";
 "settings.backup.import.confirm.message" = "สิ่งนี้จะแทนที่โหมดและศัพท์เฉพาะที่มีอยู่ของคุณด้วยส่วนจากไฟล์สำรอง การตั้งค่าจะได้รับการอัปเดตด้วย";
 "settings.backup.import.confirm.button" = "นำเข้า";
@@ -1070,6 +1071,7 @@
 "settings.backup.info.note" = "ไฟล์สำรองรวมถึงการตั้งค่า โหมด และศัพท์เฉพาะ การบันทึกและการสัญลักษณ์ไม่รวม";
 "settings.backup.result.success.title" = "ความสำเร็จ";
 "settings.backup.result.error.title" = "ข้อผิดพลาด";
+"settings.backup.result.incomplete.title" = "นำเข้าไม่ครบถ้วน";
 "settings.backup.export.choose.subtitle" = "เลือกสิ่งที่จะรวมไว้ในไฟล์สำรองข้อมูล";
 "settings.backup.export.section.settings" = "การตั้งค่า";
 "settings.backup.export.section.modes" = "โหมด";

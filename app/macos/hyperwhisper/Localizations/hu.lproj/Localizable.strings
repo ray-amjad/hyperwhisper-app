@@ -1061,6 +1061,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.import.error.decode.corruptedField" = "Sérült érték a mezőnél: %@";
 "settings.backup.import.error.version" = "A biztonsági mentés fájl újabb verzióból származik";
 "settings.backup.import.error.unknown" = "Importálás sikertelen";
+"settings.backup.import.apiKeysFailed" = "Ezeket az API-kulcsokat nem sikerült a kulcskarikába menteni, ezért nem lettek visszaállítva: %@. Add meg őket újra a Beállításokban.";
 "settings.backup.import.confirm.title" = "Beállítások importálása?";
 "settings.backup.import.confirm.message" = "Ez lecseréli a meglévő módokat és szókincset a biztonsági mentés fájlból származókra. A beállítások szintén frissítésre kerülnek.";
 "settings.backup.import.confirm.button" = "Importálás";
@@ -1070,6 +1071,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.info.note" = "A biztonsági mentések beállításokat, módokat és szókincset tartalmaznak. Felvételek és átírások nem kerülnek bele.";
 "settings.backup.result.success.title" = "Sikeres";
 "settings.backup.result.error.title" = "Hiba";
+"settings.backup.result.incomplete.title" = "Hiányos importálás";
 "settings.backup.export.choose.subtitle" = "Válassza ki, mit tartalmazzon a biztonsági mentési fájl";
 "settings.backup.export.section.settings" = "Beállítások";
 "settings.backup.export.section.modes" = "Módok";

@@ -82,8 +82,8 @@ struct BackupImportSuccessMessageTests {
         #expect(items == [.modes(1)])
     }
 
-    /// The import flags for keys can be true when no key was written (an empty or unknown
-    /// entry), so the summary never lists keys, imported or not.
+    /// Keys and the license are reported through the result's own failure text, not the
+    /// summary, so the summary never lists them, imported or not.
     @Test func keysAndLicenseAreNeverListed() {
         let items = result(settingsApplied: true, apiKeys: true, license: true)
             .summaryItems(options: options(settings: true, modes: false, vocabulary: false, apiKeys: true, license: true))

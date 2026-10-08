@@ -1061,6 +1061,7 @@
 "settings.backup.import.error.decode.corruptedField" = "Κατεστραμμένη τιμή για το πεδίο: %@";
 "settings.backup.import.error.version" = "Το αρχείο αντίγραφης ασφαλείας είναι από νεότερη έκδοση";
 "settings.backup.import.error.unknown" = "Αποτυχία εισαγωγής";
+"settings.backup.import.apiKeysFailed" = "Αυτά τα κλειδιά API δεν ήταν δυνατό να αποθηκευτούν στην Κλειδοθήκη και δεν επαναφέρθηκαν: %@. Εισαγάγετέ τα ξανά στις Ρυθμίσεις.";
 "settings.backup.import.confirm.title" = "Εισαγωγή Ρυθμίσεων;";
 "settings.backup.import.confirm.message" = "Αυτό θα αντικαταστήσει τις υπάρχουσες λειτουργίες και το λεξιλόγιό σας με αυτές από το αρχείο αντίγραφης ασφαλείας. Οι ρυθμίσεις θα ενημερωθούν επίσης.";
 "settings.backup.import.confirm.button" = "Εισαγωγή";
@@ -1070,6 +1071,7 @@
 "settings.backup.info.note" = "Τα αντίγραφα ασφαλείας περιλαμβάνουν ρυθμίσεις, λειτουργίες και λεξιλόγιο. Οι εγγραφές και οι μεταγραφές δεν περιλαμβάνονται.";
 "settings.backup.result.success.title" = "Επιτυχία";
 "settings.backup.result.error.title" = "Σφάλμα";
+"settings.backup.result.incomplete.title" = "Ελλιπής εισαγωγή";
 "settings.backup.export.choose.subtitle" = "Επιλέξτε τι θα συμπεριλάβετε στο αρχείο αντιγράφου ασφαλείας";
 "settings.backup.export.section.settings" = "Ρυθμίσεις";
 "settings.backup.export.section.modes" = "Λειτουργίες";

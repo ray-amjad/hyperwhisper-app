@@ -173,14 +173,24 @@ struct GeminiTranscribeBackupKeyTests {
         #expect(aliasOnly.first?.provider == .geminiTranscribe)
         #expect(aliasOnly.first?.key == Self.transcribeKey)
 
-        // Both present: assignments are applied in order, so the LAST one wins
-        // and that must be the documented member.
+        // Both present: the alias is not read at all, so the slot gets ONE write,
+        // from the documented member (#770: a failed write must name the value
+        // that was meant to land).
         let both = BackupManager.universalAPIKeyAssignments(from: [
             "geminiTranscribe": "from-alias",
             BackupManager.geminiTranscribeBackupKey: "from-canonical",
         ])
-        #expect(both.last?.provider == .geminiTranscribe)
-        #expect(both.last?.key == "from-canonical")
+        #expect(both.count == 1)
+        #expect(both.first?.provider == .geminiTranscribe)
+        #expect(both.first?.key == "from-canonical")
+
+        // An empty documented member does not hide a filled alias.
+        let emptyCanonical = BackupManager.universalAPIKeyAssignments(from: [
+            "geminiTranscribe": "from-alias",
+            BackupManager.geminiTranscribeBackupKey: "",
+        ])
+        #expect(emptyCanonical.count == 1)
+        #expect(emptyCanonical.first?.key == "from-alias")
     }
 
     @Test("Empty values and unknown members are ignored")
@@ -204,8 +214,6 @@ struct GeminiTranscribeBackupKeyTests {
             geminitranscribe: Self.transcribeKey,
             meta: nil
         )
-        #expect(keys.hasAnyKey, "a backup holding only this key is not an empty backup")
-
         let data = try JSONEncoder().encode(keys)
         let json = try #require(
             try JSONSerialization.jsonObject(with: data) as? [String: Any]

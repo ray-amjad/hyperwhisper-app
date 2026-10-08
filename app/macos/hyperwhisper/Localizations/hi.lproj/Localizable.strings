@@ -1061,6 +1061,7 @@
 "settings.backup.import.error.decode.corruptedField" = "फ़ील्ड के लिए दूषित मान: %@";
 "settings.backup.import.error.version" = "बैकअप फ़ाइल एक नए संस्करण से है";
 "settings.backup.import.error.unknown" = "आयात विफल";
+"settings.backup.import.apiKeysFailed" = "ये API कुंजियाँ कीचेन में सहेजी नहीं जा सकीं और पुनर्स्थापित नहीं हुईं: %@. इन्हें सेटिंग्स में फिर से दर्ज करें।";
 "settings.backup.import.confirm.title" = "सेटिंग्स आयात करें?";
 "settings.backup.import.confirm.message" = "यह आपके मौजूदा मोड और शब्दावली को बैकअप फ़ाइल से प्रतिस्थापित कर देगा। सेटिंग्स भी अपडेट की जाएंगी।";
 "settings.backup.import.confirm.button" = "आयात करें";
@@ -1070,6 +1071,7 @@
 "settings.backup.info.note" = "बैकअप में सेटिंग्स, मोड और शब्दावली शामिल होती है। रिकॉर्डिंग और ट्रांसक्रिप्ट शामिल नहीं हैं।";
 "settings.backup.result.success.title" = "सफलता";
 "settings.backup.result.error.title" = "त्रुटि";
+"settings.backup.result.incomplete.title" = "आयात अधूरा";
 "settings.backup.export.choose.subtitle" = "बैकअप फ़ाइल में क्या शामिल करना है चुनें";
 "settings.backup.export.section.settings" = "सेटिंग्स";
 "settings.backup.export.section.modes" = "मोड";

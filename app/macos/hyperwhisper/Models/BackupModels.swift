@@ -738,14 +738,6 @@ struct BackupAPIKeys: Codable {
     let geminitranscribe: String?
     /// Direct Meta Muse key. Optional for backward-compatible decoding.
     let meta: String?
-
-    /// Returns true if any API key is present
-    var hasAnyKey: Bool {
-        [openai, groq, fireworks, anthropic, gemini, deepgram, assemblyai, elevenlabs, mistral, grok,
-         geminitranscribe, meta]
-            .compactMap { $0 }
-            .contains { !$0.isEmpty }
-    }
 }
 
 // MARK: - Import/Export Options
@@ -902,6 +894,27 @@ struct ImportResult {
     /// restore flow offers a batched "Download all" prompt. Empty on Intel/Rosetta.
     var pendingLocalDownloadModelIds: Set<String> = []
 
+    /// BYOK providers whose key was in the backup but could not be written to
+    /// the Keychain. The import does not stop for these (a partial key restore
+    /// beats none), so this is the only place the user learns which providers
+    /// still need their key re-entered. Empty when every key restored.
+    var apiKeysFailedProviders: [KeychainManager.APIKeyType] = []
+
+    /// One user-facing sentence naming the providers in
+    /// `apiKeysFailedProviders`, or nil when every key restored.
+    var apiKeysFailureMessage: String? {
+        guard !apiKeysFailedProviders.isEmpty else { return nil }
+        let names = ListFormatter.localizedString(byJoining: apiKeysFailedProviders.map(\.displayName))
+        return String(
+            format: NSLocalizedString(
+                "settings.backup.import.apiKeysFailed",
+                value: "These API keys could not be saved to the Keychain and were not restored: %@. Enter them again in Settings.",
+                comment: "Backup import: some BYOK API keys failed to restore; %@ is a list of provider names"
+            ),
+            names
+        )
+    }
+
     /// Whether the settings section was actually applied. Selecting Settings is not enough:
     /// the universal-v2 path logs and continues when its settings step fails, so the success
     /// message reads this flag rather than `ImportOptions.importSettings` (#1406).
@@ -984,8 +997,8 @@ extension ImportResult {
     /// they were applied. Modes and vocabulary are listed whenever the user chose them, with
     /// their count, so a chosen section whose items were all skipped still reads "0 … imported";
     /// an unchosen section never appears. API keys and the license key are not reported here:
-    /// `apiKeysImported` can be true when no key was written, so the message makes no claim
-    /// about them.
+    /// a key that failed to save is named in the result's own failure text (#770), so the
+    /// summary makes no claim about them.
     func summaryItems(options: ImportOptions) -> [SummaryItem] {
         var items: [SummaryItem] = []
         if settingsApplied { items.append(.settings) }
