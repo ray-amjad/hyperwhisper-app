@@ -21,6 +21,13 @@
 //  `NemotronLocalAPIEngineTests`). `modelRoutesToCloud` is the mirror of its
 //  first three lines, and is itself pinned below against those literals.
 //
+//  Ray's decision 2026-10-08: on the mixed path a blank Whisper model is
+//  REFUSED, like Windows and Linux, with the engine-only path's own error.
+//  `resolve` runs `validateMixedPathEngineModel` before it builds the
+//  transient Mode; that validator is the seam pinned in "The refusal" below
+//  (`resolve` itself needs a live pipeline). The `applyEngineModel` default
+//  stays as the never-to-Cloud backstop and is still pinned.
+//
 
 import Foundation
 import Testing
@@ -47,11 +54,96 @@ struct LocalEngineNeverRoutesToCloudTests {
         return modelString.lowercased() == "cloud"
     }
 
-    // MARK: - The issue's repro
+    /// The `provider` and `reason` of a `.providerNotAvailable` thrown by the
+    /// validator, or nil when it threw nothing. `TranscriptionError` is not
+    /// Equatable, so the case is matched by hand.
+    private static func refusal(engine: String, model: String?) -> (provider: String?, reason: String?)? {
+        do {
+            try TranscribeEndpoint.validateMixedPathEngineModel(engine: engine, model: model)
+            return nil
+        } catch let error as TranscriptionError {
+            if case .providerNotAvailable(let provider, let reason) = error {
+                return (provider, reason)
+            }
+            Issue.record("engine '\(engine)' model '\(model ?? "nil")' threw \(error), not providerNotAvailable")
+            return nil
+        } catch {
+            Issue.record("engine '\(engine)' model '\(model ?? "nil")' threw a non-TranscriptionError: \(error)")
+            return nil
+        }
+    }
+
+    private static let whisperSpellings = ["whisperLocal", "whisper", "libwhisper", "WhisperLocal", " whisper "]
+
+    // MARK: - The refusal (Ray's decision 2026-10-08)
 
     /// Steps 2 and 3 of the issue: `whisperLocal` and `whisper` with `""` and
-    /// `"  "`. A blank model is treated exactly like a missing one, which the
-    /// arm already defaults to "base".
+    /// `"  "` on the mixed path. Refused with the engine-only path's error,
+    /// which the endpoint maps to ENGINE_UNAVAILABLE — never run, never sent
+    /// to Cloud.
+    @Test func aBlankWhisperModelOnTheMixedPathIsRefused() {
+        for engine in Self.whisperSpellings {
+            for blank in ["", " ", "  ", "\t", "\t\n"] {
+                let refused = Self.refusal(engine: engine, model: blank)
+                #expect(refused != nil, "engine '\(engine)' with model '\(blank)' was not refused")
+                #expect(refused?.provider == "Whisper")
+                #expect(refused?.reason == "Missing 'model' for whisperLocal engine")
+            }
+        }
+    }
+
+    /// `model: "cloud"` with a Whisper engine is refused the way the
+    /// engine-only path refuses it: `resolveProvider` hands the trimmed id to
+    /// `selectLocalProvider`, which throws "Unknown local model: <id>".
+    @Test func aCloudWhisperModelOnTheMixedPathIsRefusedLikeTheEngineOnlyPath() {
+        for engine in Self.whisperSpellings {
+            for cloud in ["cloud", "CLOUD", " Cloud "] {
+                let trimmed = cloud.trimmingCharacters(in: .whitespacesAndNewlines)
+                let refused = Self.refusal(engine: engine, model: cloud)
+                #expect(refused != nil, "engine '\(engine)' with model '\(cloud)' was not refused")
+                #expect(refused?.provider == "Local")
+                #expect(refused?.reason == "Unknown local model: \(trimmed)")
+            }
+        }
+    }
+
+    /// What the validator must let through: a missing `model` (kept on the
+    /// mixed path's `base` default), a real Whisper id, every non-Whisper
+    /// local engine (Parakeet keeps its v3 default for blank/"cloud"), and a
+    /// cloud engine with a blank model.
+    @Test func theValidatorRefusesNothingElse() {
+        for engine in Self.whisperSpellings {
+            #expect(Self.refusal(engine: engine, model: nil) == nil, "a missing model must keep the base default")
+            for id in ["base", "small.en", "large-v3-turbo", "cloudy"] {
+                #expect(Self.refusal(engine: engine, model: id) == nil, "'\(id)' must reach selectProvider")
+            }
+        }
+
+        // Driven off the shared engine table, like the general property below.
+        let others = localApiAllEngineIds()
+            .filter { $0 != .whisperLocal }
+            .map { localApiEngineWireLabel(id: $0) }
+        #expect(others.count >= 4, "the shared engine table answered too few non-Whisper engines")
+        let models: [String?] = ["", "  ", "cloud", "CLOUD", nil]
+        for engine in others {
+            for model in models {
+                #expect(
+                    Self.refusal(engine: engine, model: model) == nil,
+                    "engine '\(engine)' with model '\(model ?? "nil")' was refused"
+                )
+            }
+        }
+
+        for engine in ["cloud", "openai", "groq"] {
+            #expect(Self.refusal(engine: engine, model: "") == nil, "cloud engine '\(engine)' was refused")
+        }
+    }
+
+    // MARK: - The backstop
+
+    /// `applyEngineModel` itself still never leaves a blank Whisper model on
+    /// the Mode: `resolve` refuses it first, and this default is the backstop
+    /// for any caller that does not.
     @Test func aBlankWhisperModelFallsBackToBaseLikeAMissingOne() {
         let persistence = PersistenceController(inMemory: true)
 

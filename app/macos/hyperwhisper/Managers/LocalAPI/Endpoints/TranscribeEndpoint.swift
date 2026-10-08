@@ -884,6 +884,14 @@ enum TranscribeEndpoint {
             }
 
             // Mixed: saved mode supplies defaults, request overrides specific fields.
+            //
+            // Refuse a blank Whisper model HERE, before a transient Mode exists
+            // (issue #1466; Ray's decision 2026-10-08: "be refused, like Windows
+            // and Linux"). This path never calls `resolveProvider`, so without
+            // this it had its own, softer answer for the same body.
+            if let engine = trimmedEngine, !engine.isEmpty {
+                try validateMixedPathEngineModel(engine: engine, model: trimmedModel)
+            }
             let transient = makeTransientMode(baseline: stored, engine: trimmedEngine, model: trimmedModel, language: trimmedLanguage)
             let selection = try await router.selectProvider(for: transient, vocabulary: vocabulary)
             return ProviderResolution(
@@ -1132,6 +1140,13 @@ enum TranscribeEndpoint {
         // treated as absent: each arm then applies its own no-model default,
         // exactly as if the caller had omitted `model`. Nemotron, qwen3Asr and
         // appleSpeech already write only their own ids, so they need nothing.
+        //
+        // For WHISPER this is now the backstop, not the answer: `resolve`
+        // calls `validateMixedPathEngineModel` first, which REFUSES a blank
+        // or "cloud" Whisper model (Ray's decision 2026-10-08), so the
+        // default below is reached for those values only by a caller that
+        // skips that check. It stays so no caller can ever leave a
+        // Cloud-routing model on the Mode. Parakeet's default is the answer.
         let localModel: String? = Self.modelRoutesToCloud(model) ? nil : model
 
         switch resolvedEngine {
@@ -1207,6 +1222,56 @@ enum TranscribeEndpoint {
             mode.model = Qwen3AsrModelManager.Constants.modelId
         case .appleSpeech:
             mode.model = "apple-speech-analyzer"
+        }
+    }
+
+    /// Throw, on the mixed mode_id+engine path, the error the engine-only path
+    /// (`TranscriptionProviderRouter.resolveProvider`) throws for the same
+    /// Whisper `engine` + `model` pair, where that error comes from the model
+    /// string itself (issue #1466).
+    ///
+    /// - A blank model (`""`, whitespace) throws `resolveProvider`'s own
+    ///   "Missing 'model' for whisperLocal engine", which the endpoint maps to
+    ///   ENGINE_UNAVAILABLE. Ray's decision 2026-10-08: refuse it, like Windows
+    ///   (`ApplyEngineModel`) and Linux (`ApplyTranscriptionOverrides`) do on
+    ///   both paths, rather than default it to "base".
+    /// - `"cloud"` (any case, padded) throws "Unknown local model: <model>".
+    ///   The engine-only path already refuses it that way: `resolveProvider`
+    ///   passes it to `selectLocalProvider`, which matches no local model and
+    ///   throws exactly this. On the mixed path the same value would instead
+    ///   land on `mode.model`, where `selectProvider` reads it as Cloud.
+    /// - `nil` (no `model` key) is NOT refused: it keeps the mixed path's
+    ///   long-standing `base` default. Ray's question was about a blank value,
+    ///   and a client that omits `model` with a saved mode is a shape callers
+    ///   already rely on.
+    ///
+    /// Any other Whisper id is left to `selectProvider`, which already throws
+    /// "Unknown local model" for one it cannot map. Other local engines are
+    /// untouched: Parakeet keeps its v3 default for blank/"cloud" (the
+    /// engine-only path defaults it too), and nemotron / qwen3Asr / appleSpeech
+    /// write only their own ids. A cloud engine is skipped exactly as
+    /// `applyEngineModel` and `resolveProvider` check the cloud half first.
+    @MainActor
+    static func validateMixedPathEngineModel(engine: String, model: String?) throws {
+        let trimmedEngine = engine.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedEngine = trimmedEngine.lowercased()
+        if normalizedEngine == "cloud" || normalizedEngine == "meta" {
+            return
+        }
+        let providerNormalization = CloudSTTCatalog.shared.normalizeCloudProvider(normalizedEngine)
+        if CloudProvider.parse(providerNormalization.provider) != nil {
+            return
+        }
+        guard localApiResolveEngineAlias(alias: trimmedEngine) == .whisperLocal else {
+            return
+        }
+        guard let model else { return }
+        let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedModel.isEmpty {
+            throw TranscriptionError.providerNotAvailable(provider: "Whisper", reason: "Missing 'model' for whisperLocal engine")
+        }
+        if trimmedModel.lowercased() == "cloud" {
+            throw TranscriptionError.providerNotAvailable(provider: "Local", reason: "Unknown local model: \(trimmedModel)")
         }
     }
 
