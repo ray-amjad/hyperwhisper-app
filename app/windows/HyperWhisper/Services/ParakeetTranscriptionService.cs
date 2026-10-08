@@ -203,6 +203,23 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         && ex is not TranscriptionException { Code: TranscriptionErrorCode.Cancelled };
 
     /// <summary>
+    /// True when a teardown ran after the request captured <paramref name="capturedGeneration"/>
+    /// at entry. Such a request was meant for the model that teardown unloaded: it must not
+    /// read daemon state, kill a daemon, or auto-restart; it fails as Cancelled.
+    /// </summary>
+    internal static bool IsStaleTeardownGeneration(long capturedGeneration, long currentGeneration) =>
+        capturedGeneration != currentGeneration;
+
+    /// <summary>
+    /// Whether a failed request may reload <c>_lastModelDirectory</c> and retry: only a
+    /// DaemonCrashed failure of a request no teardown has overtaken. Never a Cancelled one,
+    /// and never a stale one (its reload would undo the mode switch that tore it down).
+    /// </summary>
+    internal static bool ShouldAutoRestart(TranscriptionErrorCode code, long capturedGeneration, long currentGeneration) =>
+        code == TranscriptionErrorCode.DaemonCrashed
+        && !IsStaleTeardownGeneration(capturedGeneration, currentGeneration);
+
+    /// <summary>
     /// The failure a request ended by model teardown raises. Its code is Cancelled,
     /// which the auto-restart filter does not match and the Local API already maps.
     /// </summary>
@@ -250,6 +267,19 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     private CancellationTokenSource? _activeRequestTeardownCts;
     private TimeSpan _activeRequestBudget;
+
+    /// <summary>
+    /// Advanced (Interlocked) by every deliberate teardown — <see cref="DisposeModel"/>,
+    /// including the one inside a mode switch's <see cref="InitializeAsync"/> — BEFORE it
+    /// cancels or waits. <see cref="TranscribeAsync"/> captures it at entry, before the
+    /// lock wait, so a request that began before a teardown (e.g. a Local API call queued
+    /// behind the request being torn down) knows it is stale once it gets the lock, and
+    /// fails as Cancelled without touching the daemon or auto-restarting the old model.
+    /// The auto-restart's own reload does not advance it.
+    /// </summary>
+    private long _teardownGeneration;
+
+    private long CurrentTeardownGeneration => Interlocked.Read(ref _teardownGeneration);
 
     /// <summary>
     /// Options for serializing daemon requests. Uses the relaxed encoder so non-ASCII
@@ -446,7 +476,14 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// Requested language code. Parakeet TDT auto-detects language and does not
     /// apply this at decode time; engines that support language hints receive it.
     /// </param>
-    public async Task InitializeAsync(string modelDirectory, string? language)
+    public Task InitializeAsync(string modelDirectory, string? language) =>
+        InitializeCoreAsync(modelDirectory, language, advanceTeardownGeneration: true);
+
+    /// <param name="advanceTeardownGeneration">
+    /// False only for the auto-restart in <see cref="TranscribeAsync"/>: reloading the same
+    /// model after a crash is not a teardown, so requests queued behind it stay current.
+    /// </param>
+    private async Task InitializeCoreAsync(string modelDirectory, string? language, bool advanceTeardownGeneration)
     {
         LoggingService.Info("========== INITIALIZING PARAKEET TRANSCRIPTION SERVICE ==========");
         // The model id, not the directory. Models live under
@@ -456,7 +493,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"  Model: {Path.GetFileName(modelDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))}");
 
         // Dispose any existing daemon first
-        DisposeModel();
+        DisposeModelCore(advanceTeardownGeneration);
 
         var daemonPath = GetDaemonPath();
         var vadModelPath = GetVadModelPath();
@@ -719,6 +756,9 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         IReadOnlyList<string>? vocabulary = null,
         CancellationToken cancellationToken = default)
     {
+        // Captured before any lock wait: a teardown after this point makes the request stale.
+        var teardownGeneration = CurrentTeardownGeneration;
+
         // Guard: validate audio file exists
         if (!File.Exists(audioPath))
         {
@@ -737,10 +777,17 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
         try
         {
-            return ApplyLocalVocabulary(await TranscribeInternalAsync(audioPath, cancellationToken));
+            return ApplyLocalVocabulary(await TranscribeInternalAsync(audioPath, teardownGeneration, cancellationToken));
         }
         catch (TranscriptionException ex) when (ex.Code == TranscriptionErrorCode.DaemonCrashed)
         {
+            if (!ShouldAutoRestart(ex.Code, teardownGeneration, CurrentTeardownGeneration))
+            {
+                // A teardown overtook this request: reloading _lastModelDirectory would undo it.
+                LoggingService.Info("ParakeetTranscriptionService: Daemon failure after a model teardown; not auto-restarting");
+                throw CreateTeardownCancelledException(ex);
+            }
+
             // Auto-restart: attempt to restart daemon and retry once
             LoggingService.Warn("ParakeetTranscriptionService: Daemon crashed during transcription, attempting auto-restart...");
 
@@ -752,9 +799,10 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
             try
             {
-                await InitializeAsync(_lastModelDirectory, _lastLanguage);
+                await InitializeCoreAsync(_lastModelDirectory, _lastLanguage, advanceTeardownGeneration: false);
                 LoggingService.Info("ParakeetTranscriptionService: Auto-restart successful, retrying transcription...");
-                return ApplyLocalVocabulary(await TranscribeInternalAsync(audioPath, cancellationToken));
+                // Same entry generation: a teardown during the restart makes the retry stale.
+                return ApplyLocalVocabulary(await TranscribeInternalAsync(audioPath, teardownGeneration, cancellationToken));
             }
             catch (OperationCanceledException)
             {
@@ -843,7 +891,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// Internal transcription implementation that handles the stdio protocol.
     /// Separated from TranscribeAsync to allow retry logic in the caller.
     /// </summary>
-    private async Task<string> TranscribeInternalAsync(string audioPath, CancellationToken cancellationToken)
+    private async Task<string> TranscribeInternalAsync(string audioPath, long teardownGeneration, CancellationToken cancellationToken)
     {
         // Acquire the transcription lock — stdio is serial.
         //
@@ -857,6 +905,16 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
         try
         {
+            // Guard: a teardown ran while this request waited for the lock (#1562 review).
+            // It was meant for the model that teardown unloaded, so it ends here as
+            // Cancelled: it must not read daemon state, and its failure must not reach the
+            // auto-restart (which would reload the old model and undo a mode switch).
+            if (IsStaleTeardownGeneration(teardownGeneration, CurrentTeardownGeneration))
+            {
+                LoggingService.Info("ParakeetTranscriptionService: Model was torn down while this transcription waited; cancelling it");
+                throw CreateTeardownCancelledException(null);
+            }
+
             // Guard: daemon must be ready
             if (!IsAvailable)
             {
@@ -866,6 +924,11 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                     "Parakeet daemon is not running",
                     "Parakeet");
             }
+
+            // The daemon instance this request talks to. Every kill below targets this
+            // instance, never whatever _daemonProcess holds by then: if a teardown gave up
+            // on the lock and a new model loaded, this request must not kill the new daemon.
+            var daemonProcess = _daemonProcess;
 
             var stopwatch = Stopwatch.StartNew();
             LoggingService.Info("========== STARTING PARAKEET TRANSCRIPTION ==========");
@@ -917,8 +980,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                 // TranscribeAsync does not auto-restart the old model.
                 LoggingService.Info("ParakeetTranscriptionService: Model teardown ended the in-flight transcription; killing daemon");
                 _ = ObserveInFlightReadAsync(responseReadTask);
-                _isReady = false;
-                KillDaemonProcess();
+                StopDaemonInstance(daemonProcess);
                 throw;
             }
             catch (OperationCanceledException) when (readTimeoutCts.IsCancellationRequested)
@@ -926,8 +988,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                 // Timeout — kill the daemon
                 LoggingService.Error($"ParakeetTranscriptionService: Transcription timed out after {responseSeconds} seconds");
                 _ = ObserveInFlightReadAsync(responseReadTask);
-                _isReady = false;
-                KillDaemonProcess();
+                StopDaemonInstance(daemonProcess);
                 throw new TranscriptionException(
                     TranscriptionErrorCode.DaemonTimeout,
                     $"Parakeet daemon did not respond within {responseSeconds} seconds",
@@ -952,7 +1013,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                     Math.Max(0, responseDeadlineTicks - Environment.TickCount64));
                 var drainBudget = ComputeDrainBudget(ResponseFloorSeconds(_isQwen3, _isOnline), remainingBudget);
                 readTimeoutCts.CancelAfter(drainBudget);
-                StartInFlightDrain(responseReadTask, readTimeoutCts, teardownCts);
+                StartInFlightDrain(responseReadTask, readTimeoutCts, teardownCts, daemonProcess);
                 // Throw the standard cancellation shape so UI/API callers reach their
                 // dedicated cancel handlers instead of showing a transcription error.
                 throw new OperationCanceledException("Parakeet transcription was cancelled", cancellationToken);
@@ -968,7 +1029,10 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
             if (responseLine == null)
             {
                 LoggingService.Error("ParakeetTranscriptionService: Daemon closed stdout during transcription (crashed?)");
-                _isReady = false;
+                if (ReferenceEquals(_daemonProcess, daemonProcess))
+                {
+                    _isReady = false;
+                }
                 throw new TranscriptionException(
                     TranscriptionErrorCode.DaemonCrashed,
                     "Parakeet daemon closed stdout unexpectedly",
@@ -1042,11 +1106,14 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
             return transcribedText;
         }
-        catch (Exception ex) when (IsEndedByTeardown(ex, teardownCts.IsCancellationRequested, cancellationToken.IsCancellationRequested))
+        catch (Exception ex) when (IsEndedByTeardown(
+            ex,
+            teardownCts.IsCancellationRequested || IsStaleTeardownGeneration(teardownGeneration, CurrentTeardownGeneration),
+            cancellationToken.IsCancellationRequested))
         {
-            // Teardown cancelled this request. Whatever ended it (the kill above, or a
-            // stream disposed if teardown ever had to give up on the lock), report it as
-            // Cancelled so the auto-restart never undoes the teardown.
+            // Teardown cancelled (or began after) this request. Whatever ended it (the kill
+            // above, or a stream disposed if teardown ever had to give up on the lock),
+            // report it as Cancelled so the auto-restart never undoes the teardown.
             throw CreateTeardownCancelledException(ex);
         }
         finally
@@ -1073,7 +1140,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// gone away, the daemon is force-killed so the next call reloads from a clean state
     /// rather than reading a desynced stdout line.
     /// </summary>
-    private void StartInFlightDrain(Task<string?> inFlightReadTask, CancellationTokenSource drainCts, CancellationTokenSource requestTeardownCts)
+    private void StartInFlightDrain(Task<string?> inFlightReadTask, CancellationTokenSource drainCts, CancellationTokenSource requestTeardownCts, Process? daemonProcess)
     {
         lock (_drainSync)
         {
@@ -1085,7 +1152,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                 _activeRequestTeardownCts = null;
             }
 
-            var drainTask = DrainInFlightResultAndReleaseLockAsync(inFlightReadTask, drainCts);
+            var drainTask = DrainInFlightResultAndReleaseLockAsync(inFlightReadTask, drainCts, daemonProcess);
             _inFlightDrainCts = drainCts;
             _inFlightDrainTask = drainTask;
             if (drainTask.IsCompleted)
@@ -1169,7 +1236,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         }
     }
 
-    private async Task DrainInFlightResultAndReleaseLockAsync(Task<string?> inFlightReadTask, CancellationTokenSource drainCts)
+    private async Task DrainInFlightResultAndReleaseLockAsync(Task<string?> inFlightReadTask, CancellationTokenSource drainCts, Process? daemonProcess)
     {
         try
         {
@@ -1183,8 +1250,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                 {
                     // Daemon closed stdout (crashed or exited) — clean up so the next call reloads.
                     LoggingService.Warn("ParakeetTranscriptionService: Daemon closed stdout while draining cancelled result; resetting");
-                    _isReady = false;
-                    KillDaemonProcess();
+                    StopDaemonInstance(daemonProcess);
                 }
                 else
                 {
@@ -1196,8 +1262,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                 // Timeout or stream error — fall back to killing the daemon to guarantee the
                 // stdout protocol is aligned for the next transcription.
                 LoggingService.Warn($"ParakeetTranscriptionService: Failed to drain in-flight result ({ex.Message}); killing daemon to stay aligned");
-                _isReady = false;
-                KillDaemonProcess();
+                StopDaemonInstance(daemonProcess);
             }
         }
         finally
@@ -1335,20 +1400,37 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// Forcefully kills the daemon process if it is still running.
     /// Used during timeout and error recovery scenarios.
     /// </summary>
-    private void KillDaemonProcess()
+    private void KillDaemonProcess() => KillDaemonProcess(_daemonProcess);
+
+    private static void KillDaemonProcess(Process? process)
     {
         try
         {
-            if (_daemonProcess != null && !_daemonProcess.HasExited)
+            if (process != null && !process.HasExited)
             {
-                LoggingService.Debug($"ParakeetTranscriptionService: Killing daemon process (PID: {_daemonProcess.Id})");
-                _daemonProcess.Kill(entireProcessTree: true);
+                LoggingService.Debug($"ParakeetTranscriptionService: Killing daemon process (PID: {process.Id})");
+                process.Kill(entireProcessTree: true);
             }
         }
         catch (Exception ex)
         {
             LoggingService.Warn($"ParakeetTranscriptionService: Failed to kill daemon process: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Kills the daemon instance a request (or its drain) captured, and clears
+    /// _isReady only while that instance is still the current daemon. If a teardown
+    /// already replaced it with a new model's daemon, the new one is left alone (#1562).
+    /// </summary>
+    private void StopDaemonInstance(Process? process)
+    {
+        if (ReferenceEquals(_daemonProcess, process))
+        {
+            _isReady = false;
+        }
+
+        KillDaemonProcess(process);
     }
 
     // =========================================================================
@@ -1364,8 +1446,19 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// 3. If still running, force-kill the process
     /// 4. Clean up streams and process handle
     /// </summary>
-    public void DisposeModel()
+    public void DisposeModel() => DisposeModelCore(advanceTeardownGeneration: true);
+
+    private void DisposeModelCore(bool advanceTeardownGeneration)
     {
+        // FIRST, before any cancel or wait: every request that entered TranscribeAsync
+        // before this point is now stale. One still queued on the lock fails as Cancelled
+        // when it gets it, instead of finding the daemon gone and auto-restarting the old
+        // model (#1562 review). Only the auto-restart's own reload skips this.
+        if (advanceTeardownGeneration)
+        {
+            Interlocked.Increment(ref _teardownGeneration);
+        }
+
         // Mark the provider unavailable BEFORE waiting on the lock. IsAvailable keys off
         // _isReady, so clearing it here closes the window where — during the up-to-65s
         // wait below — the Local API path (TranscriptionOrchestrator.TranscribeLocalAsync)

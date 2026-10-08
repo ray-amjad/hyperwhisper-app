@@ -1443,6 +1443,31 @@ internal static class Program
                     "already Cancelled → not wrapped twice");
             });
 
+            // #1562 review round 2: a request that entered before a teardown (e.g. a Local API
+            // call queued behind the request being torn down) is stale once it gets the lock.
+            Run("Parakeet request overtaken by a teardown never auto-restarts", () =>
+            {
+                Assert(!ParakeetTranscriptionService.IsStaleTeardownGeneration(4, 4), "no teardown since entry → current");
+                Assert(ParakeetTranscriptionService.IsStaleTeardownGeneration(4, 5), "one teardown since entry → stale");
+                Assert(ParakeetTranscriptionService.IsStaleTeardownGeneration(4, 7), "several teardowns → stale");
+
+                Assert(ParakeetTranscriptionService.ShouldAutoRestart(TranscriptionErrorCode.DaemonCrashed, 4, 4),
+                    "a real crash with no teardown still auto-restarts");
+                Assert(!ParakeetTranscriptionService.ShouldAutoRestart(TranscriptionErrorCode.DaemonCrashed, 4, 5),
+                    "a crash after a mode switch does not reload the old model");
+                Assert(!ParakeetTranscriptionService.ShouldAutoRestart(TranscriptionErrorCode.Cancelled, 4, 4),
+                    "Cancelled never auto-restarts");
+                Assert(!ParakeetTranscriptionService.ShouldAutoRestart(TranscriptionErrorCode.DaemonTimeout, 4, 4),
+                    "a timeout never auto-restarts");
+
+                // A stale request's failure is reported as Cancelled (the outer catch passes
+                // "teardown requested" = token cancelled OR generation stale).
+                var crashed = new TranscriptionException(TranscriptionErrorCode.DaemonCrashed, "not running", "Parakeet");
+                Assert(ParakeetTranscriptionService.IsEndedByTeardown(crashed,
+                        teardownRequested: ParakeetTranscriptionService.IsStaleTeardownGeneration(4, 5), callerCancelled: false),
+                    "queued request after teardown → Cancelled, not DaemonCrashed");
+            });
+
             Run("XaiFormattingLanguages shared between Grok batch and streaming", () =>
             {
                 Assert(XaiFormattingLanguages.TryGetSupportedCode("en", out var en) && en == "en", "en supported");
