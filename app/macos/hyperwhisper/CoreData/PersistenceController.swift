@@ -2552,10 +2552,15 @@ class PersistenceController: ObservableObject {
             settingsManager.defaultModelByMode.removeValue(forKey: deletedModeId)
         }
 
-        appState?.reconcileSelectionAfterDeletingMode(
-            id: deletedModeId,
-            remainingModes: fetchAllModes()
-        )
+        // Fetch only when the deleted mode was the selected one; any other
+        // delete would sort-fetch every mode just to throw the result away.
+        // `reconcileSelectionAfterDeletingMode` keeps its own guard.
+        if let appState, appState.selectedModeId == deletedModeId {
+            appState.reconcileSelectionAfterDeletingMode(
+                id: deletedModeId,
+                remainingModes: fetchAllModes()
+            )
+        }
     }
 
     /// Make exactly one mode the default again, if something left the store with
