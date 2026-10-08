@@ -835,55 +835,71 @@ struct BackupLicenseStorageTests {
         )
     }
 
-    /// #1490: an Active verdict whose save failed is not an activation. From
-    /// any unlicensed state the published status, customer and badge stay put.
-    @Test func unsavedActiveVerdictDoesNotActivateFromUnlicensedState() async {
-        for priorStatus in [LicenseStatus.trial, .invalid, .expired] {
-            let service = BackupLicenseNetworkSpy()
-            service.validationResultOverride = Self.unsavedActiveVerdict
-            let center = NotificationCenter()
-            let manager = LicenseManager(
-                networkService: service,
-                loadStoredLicenseOnInit: false,
-                notificationCenter: center
-            )
-            manager.licenseStatus = priorStatus
-            let notificationCount = NotificationCountBox()
-            let observer = center.addObserver(
-                forName: .licenseStatusChanged,
-                object: nil,
-                queue: nil
-            ) { _ in
-                notificationCount.value += 1
+    /// #1490: an Active verdict whose save failed is not an activation when
+    /// the store holds no key, or a different key, for it. From any unlicensed
+    /// state the published status, customer and badge stay put.
+    @Test func unsavedActiveVerdictForUnstoredKeyDoesNotActivate() async {
+        for storedKey in [String?.none, "other-key"] {
+            for priorStatus in [LicenseStatus.trial, .invalid, .expired] {
+                let service = BackupLicenseNetworkSpy()
+                if let storedKey {
+                    #expect(service.replaceStoredLicenseKeyForImport(storedKey))
+                }
+                service.validationResultOverride = Self.unsavedActiveVerdict
+                let center = NotificationCenter()
+                let manager = LicenseManager(
+                    networkService: service,
+                    loadStoredLicenseOnInit: false,
+                    notificationCenter: center
+                )
+                manager.licenseStatus = priorStatus
+                let notificationCount = NotificationCountBox()
+                let observer = center.addObserver(
+                    forName: .licenseStatusChanged,
+                    object: nil,
+                    queue: nil
+                ) { _ in
+                    notificationCount.value += 1
+                }
+
+                let result = await manager.activateLicense("new-key")
+                center.removeObserver(observer)
+
+                #expect(!result.isValid)
+                #expect(manager.licenseStatus == priorStatus)
+                #expect(manager.customerEmail == nil)
+                #expect(manager.lastError == "Could not securely save the license")
+                #expect(notificationCount.value == 0)
+                #expect(!manager.getTranscriptionIdentifier().isLicensed)
             }
-
-            let result = await manager.activateLicense("new-key")
-            center.removeObserver(observer)
-
-            #expect(!result.isValid)
-            #expect(manager.licenseStatus == priorStatus)
-            #expect(manager.customerEmail == nil)
-            #expect(manager.lastError == "Could not securely save the license")
-            #expect(notificationCount.value == 0)
         }
     }
 
-    /// #1490 sibling: launch revalidation publishes through the same path.
-    @Test func unsavedActiveVerdictAtLaunchDoesNotActivateFromTrial() async {
-        let service = BackupLicenseNetworkSpy()
-        #expect(service.replaceStoredLicenseKeyForImport("stored-key"))
-        service.requiresRevalidation = true
-        service.validationResultOverride = Self.unsavedActiveVerdict
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+    /// An unsaved Active verdict for the key that IS stored (only the verdict
+    /// cache failed to commit) publishes Active, and the identifier is that key.
+    /// Launch revalidation starts from no cache, a cached Expired or a cached
+    /// Invalid verdict (a renewal since the last check).
+    @Test func unsavedActiveVerdictAtLaunchActivatesStoredKey() async {
+        for cachedStatus in [LicenseStatus?.none, .expired, .invalid] {
+            let service = BackupLicenseNetworkSpy()
+            #expect(service.replaceStoredLicenseKeyForImport("stored-key"))
+            service.requiresRevalidation = true
+            service.cachedStatus = cachedStatus
+            service.validationResultOverride = Self.unsavedActiveVerdict
+            let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
 
-        await manager.loadStoredLicense()
+            await manager.loadStoredLicense()
 
-        #expect(manager.licenseStatus == .trial)
-        #expect(manager.lastError == "Could not securely save the license")
+            #expect(manager.licenseStatus == .active)
+            #expect(manager.getTranscriptionIdentifier().identifier == "stored-key")
+            #expect(manager.getTranscriptionIdentifier().isLicensed)
+            #expect(manager.lastError == "Could not securely save the license")
+        }
     }
 
-    /// #1490 sibling: a backup import's validation publishes through the same path.
-    @Test func unsavedActiveVerdictForImportedKeyDoesNotActivateFromTrial() async {
+    /// A backup import commits the key before it validates, so an unsaved
+    /// Active verdict for it is backed by the stored key.
+    @Test func unsavedActiveVerdictForImportedKeyActivatesStoredKey() async {
         let service = BackupLicenseNetworkSpy()
         #expect(service.replaceStoredLicenseKeyForImport("imported-key"))
         service.validationResultOverride = Self.unsavedActiveVerdict
@@ -891,7 +907,26 @@ struct BackupLicenseStorageTests {
 
         await manager.validateImportedLicenseKey("imported-key")
 
-        #expect(manager.licenseStatus == .trial)
+        #expect(manager.licenseStatus == .active)
+        #expect(manager.getTranscriptionIdentifier().identifier == "imported-key")
+        #expect(manager.getTranscriptionIdentifier().isLicensed)
+        #expect(manager.lastError == "Could not securely save the license")
+    }
+
+    /// Re-entering the stored key (with stray whitespace) after an Expired
+    /// verdict activates it even when the new verdict could not be cached.
+    @Test func unsavedActiveVerdictForReenteredStoredKeyActivates() async {
+        let service = BackupLicenseNetworkSpy()
+        #expect(service.replaceStoredLicenseKeyForImport("stored-key"))
+        service.validationResultOverride = Self.unsavedActiveVerdict
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+        manager.licenseStatus = .expired
+
+        _ = await manager.activateLicense("  stored-key\n")
+
+        #expect(manager.licenseStatus == .active)
+        #expect(manager.getTranscriptionIdentifier().identifier == "stored-key")
+        #expect(manager.getTranscriptionIdentifier().isLicensed)
         #expect(manager.lastError == "Could not securely save the license")
     }
 
@@ -982,6 +1017,7 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     var expectedKeys: [String?] = []
     var validationResultOverride: LicenseValidationResult?
     var requiresRevalidation = false
+    var cachedStatus: LicenseStatus?
     var queuedStoredReads: [RustLicenseStore.StoredLicenseKeyRead] = []
     private(set) var storedReadCount = 0
     private var storedKey: String?
@@ -1018,7 +1054,7 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
 
     func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { validationResult }
     func shouldRevalidateLicense() -> Bool { requiresRevalidation }
-    func getCachedLicenseStatus() -> LicenseStatus? { nil }
+    func getCachedLicenseStatus() -> LicenseStatus? { cachedStatus }
     func getStoredLicenseKey() -> String? { storedKey }
     func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead {
         storedReadCount += 1

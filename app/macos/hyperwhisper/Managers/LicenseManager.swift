@@ -118,7 +118,7 @@ class LicenseManager: ObservableObject {
         defer { isValidating = false }
 
         let result = await networkService.activateLicense(licenseKey)
-        await processValidationResult(result)
+        processValidationResult(result, attemptedKey: licenseKey)
         return result
     }
 
@@ -168,7 +168,7 @@ class LicenseManager: ObservableObject {
             isLaunchValidation: isLaunchValidation,
             expectedStoredLicenseKey: isLaunchValidation ? licenseKey : nil
         )
-        await processValidationResult(result)
+        processValidationResult(result, attemptedKey: licenseKey)
 
         return result
     }
@@ -283,7 +283,7 @@ class LicenseManager: ObservableObject {
                   self.networkService.getStoredLicenseKey() == licenseKey else {
                 return
             }
-            self.processValidationResult(result)
+            self.processValidationResult(result, attemptedKey: licenseKey)
         }
     }
 
@@ -342,7 +342,7 @@ class LicenseManager: ObservableObject {
             expectedStoredLicenseKey: licenseKey
         )
         guard networkService.getStoredLicenseKey() == licenseKey else { return }
-        processValidationResult(result)
+        processValidationResult(result, attemptedKey: licenseKey)
     }
 
     private func publishClearedLicenseState() {
@@ -412,19 +412,36 @@ class LicenseManager: ObservableObject {
     }
 
     /// Updates UI state from validation result and posts notification.
-    private func processValidationResult(_ result: LicenseValidationResult) {
+    /// - Parameter attemptedKey: the key this verdict is for, as the caller
+    ///   sent it to the service.
+    private func processValidationResult(
+        _ result: LicenseValidationResult,
+        attemptedKey: String
+    ) {
         if result.storagePersistenceFailed,
            result.status == .active {
             // The server accepts the attempted key, but the failed transaction
-            // left the prior secure record unchanged. Never publish an
-            // entitlement that was not committed (#1490): from Trial, Invalid
-            // or Expired, publishing `.active` here showed PRO with no key
+            // left the prior secure record unchanged.
+            //
+            // A prior `.active` session keeps its published entitlement.
+            //
+            // Otherwise, publish `.active` only when the attempted key is the
+            // key already in the store, which is the key
+            // `getTranscriptionIdentifier()` sends. That covers a stored key
+            // whose launch revalidation or backup-import validation could not
+            // commit its verdict cache: the key itself is stored. When the
+            // store holds no key or a different key, the attempted key was
+            // never saved. Publishing `.active` then showed PRO with no key
             // stored, sent the device ID as the account key, and left a state
-            // Deactivate could not clear. From a prior `.active` session, keep
-            // that published entitlement. Either way, report the write error
-            // and change nothing else.
-            lastError = result.errorMessage
-            return
+            // Deactivate could not clear (#1490). Keep the prior state and
+            // report the write error.
+            let attempted = attemptedKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard licenseStatus != .active,
+                  !attempted.isEmpty,
+                  networkService.getStoredLicenseKey() == attempted else {
+                lastError = result.errorMessage
+                return
+            }
         }
         licenseStatus = result.status
         customerEmail = result.customerEmail

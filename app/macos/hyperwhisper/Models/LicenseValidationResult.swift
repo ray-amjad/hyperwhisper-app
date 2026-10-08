@@ -83,8 +83,10 @@ struct LicenseValidationResult {
     /// commit it. `status` still carries that authoritative server verdict.
     /// `LicenseManager` keeps an existing Active state only when the server also
     /// returned Active; an Invalid or Expired verdict revokes it immediately.
-    /// An Active verdict never activates a session that was not already Active,
-    /// because nothing was stored (#1490).
+    /// From any other state, an Active verdict activates only when its key is
+    /// the key already stored (only the verdict cache failed to commit). When
+    /// the store holds no key or a different key, nothing was saved for it, so
+    /// the prior state stays (#1490).
     let storagePersistenceFailed: Bool
 
     init(
