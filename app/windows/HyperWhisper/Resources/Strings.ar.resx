@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>غير متاح في ملف تعريف اختباري. يستخدم هذا الإصدار مجلد بيانات تطبيق منفصلًا، لذا لا يغيّر إدخال تسجيل الدخول الخاص بالتطبيق المثبّت.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>إطلاق مصغراً</value>
   </data>

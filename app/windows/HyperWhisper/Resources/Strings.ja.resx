@@ -409,6 +409,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>ログイン時にHyperWhisperを自動的に起動します。</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>テスト用プロファイルでは利用できません。このビルドは別のアプリデータフォルダーを使用するため、インストール済みアプリのログイン項目は変更しません。</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>最小化して起動</value>
   </data>

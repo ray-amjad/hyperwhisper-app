@@ -409,6 +409,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>登录时自动启动 HyperWhisper。</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>在测试配置文件中不可用。此版本使用单独的应用数据文件夹，因此不会更改已安装应用的登录项。</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>最小化启动</value>
   </data>

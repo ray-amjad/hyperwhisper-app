@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Niedostępne w profilu testowym. Ta kompilacja używa osobnego folderu danych aplikacji, więc nie zmienia wpisu logowania zainstalowanej aplikacji.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Uruchom zminimalizowany</value>
   </data>

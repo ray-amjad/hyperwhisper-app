@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Avvia HyperWhisper automaticamente quando accedi.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Non disponibile in un profilo di prova. Questa build usa una cartella dati dell'app separata, quindi non modifica la voce di accesso dell'app installata.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Avvia ridotto a icona</value>
   </data>

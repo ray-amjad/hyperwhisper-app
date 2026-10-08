@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Запускать HyperWhisper автоматически при входе в систему.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Недоступно в тестовом профиле. Эта сборка использует отдельную папку данных приложения, поэтому не изменяет запись автозапуска установленного приложения.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Запуск в свернутом виде</value>
   </data>

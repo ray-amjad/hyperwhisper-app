@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>ไม่พร้อมใช้งานในโปรไฟล์ทดสอบ บิลด์นี้ใช้โฟลเดอร์ข้อมูลแอปแยกต่างหาก จึงไม่เปลี่ยนรายการเข้าสู่ระบบของแอปที่ติดตั้งไว้</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>เปิดตัวแบบย่อขนาด</value>
   </data>

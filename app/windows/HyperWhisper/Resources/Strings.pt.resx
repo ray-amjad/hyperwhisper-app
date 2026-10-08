@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Iniciar o HyperWhisper automaticamente quando inicia sessão.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Indisponível num perfil de teste. Esta compilação usa uma pasta de dados da app separada, por isso não altera a entrada de início de sessão da app instalada.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Iniciar minimizado</value>
   </data>

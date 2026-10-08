@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Není k dispozici v testovacím profilu. Toto sestavení používá samostatnou složku dat aplikace, takže nemění položku přihlášení nainstalované aplikace.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Spustit minimalizovaně</value>
   </data>
