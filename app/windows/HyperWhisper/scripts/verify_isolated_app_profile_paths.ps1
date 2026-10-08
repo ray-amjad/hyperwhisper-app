@@ -32,6 +32,18 @@ Assert-Contains $appPaths 'ProfileRecordingsDirectory' "AppPaths must provide a 
 Assert-Contains $appSource 'IsFirstLaunch && !AppPaths\.IsAppDataRootOverridden' "Isolated first launches must not register the app in the real Windows startup Run key."
 Assert-Contains $appSource 'skipping launch at startup registration' "Isolated first-launch startup skip must be logged."
 
+# #1471: the HKCU Run value "HyperWhisper" is shared with the installed app, so
+# StartupService refuses every read, write and delete under the override, and
+# Settings > General disables the box with a note instead of reading it.
+$startup = Read-Text (Join-Path $appRoot "Services\StartupService.cs")
+Assert-Contains $startup 'IsAvailable\s*=>\s*!AppPaths\.IsAppDataRootOverridden' "StartupService must report launch at startup unavailable on an isolated profile."
+Assert-Contains $startup '(?s)public bool IsEnabled\s*\{\s*get\s*\{\s*if \(!IsAvailable\)' "StartupService.IsEnabled must not read the shared Run value on an isolated profile."
+Assert-Contains $startup '(?s)public bool Enable\(\)\s*\{\s*if \(!IsAvailable\)' "StartupService.Enable must refuse on an isolated profile."
+Assert-Contains $startup '(?s)public bool Disable\(\)\s*\{\s*if \(!IsAvailable\)' "StartupService.Disable must refuse on an isolated profile."
+$general = Read-Text (Join-Path $appRoot "Views\Pages\Settings\GeneralSettingsPage.xaml.cs")
+Assert-Contains $general 'LaunchAtStartupCheckbox\.IsEnabled\s*=\s*startupAvailable' "Settings > General must disable Launch at startup on an isolated profile."
+Assert-Contains $general 'LaunchAtStartupIsolatedNote\.Visibility' "Settings > General must show the isolated-profile note."
+
 $csFiles = Get-ChildItem -LiteralPath $appRoot -Recurse -Filter *.cs |
     Where-Object { $_.FullName -notlike "*\obj\*" -and $_.Name -ne "AppPaths.cs" }
 
