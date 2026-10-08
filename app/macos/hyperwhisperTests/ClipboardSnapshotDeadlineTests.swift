@@ -15,7 +15,9 @@ import Testing
 @testable import HyperWhisper
 
 /// Holds a stub read until the test lets it go. Never longer than 5 s, so a
-/// failed test cannot wedge the queue for the rest of the run.
+/// failed test cannot wedge the queue for the rest of the run. (The slow-read
+/// stub first waits up to 10 s for its main-actor job, so that one read can
+/// hold the queue for up to 15 s.)
 private final class SnapshotStubGate: @unchecked Sendable {
     private let semaphore = DispatchSemaphore(value: 0)
 
@@ -29,13 +31,17 @@ private final class SnapshotStubGate: @unchecked Sendable {
 }
 
 /// What the stub saw: how often it ran, whether any run was on the main thread,
-/// whether it is still blocked, and the main-actor tick count when it began.
+/// whether it is still blocked, and what the main-actor job it posted saw.
 private final class SnapshotStubProbe: @unchecked Sendable {
     private struct State {
         var calls = 0
         var finished = 0
         var didRunOnMainThread = false
-        var ticksAtStart = 0
+        var callerReturned = false
+        /// nil until the stub has its answer: true when its main-actor job ran
+        /// before the caller got its result, false when it ran after it or
+        /// never ran inside the cap.
+        var mainActorJobRanFirst: Bool?
     }
 
     private let state = OSAllocatedUnfairLock(initialState: State())
@@ -43,30 +49,46 @@ private final class SnapshotStubProbe: @unchecked Sendable {
     var calls: Int { state.withLock { $0.calls } }
     var finished: Int { state.withLock { $0.finished } }
     var didRunOnMainThread: Bool { state.withLock { $0.didRunOnMainThread } }
-    var ticksAtStart: Int { state.withLock { $0.ticksAtStart } }
+    var mainActorJobRanFirst: Bool? { state.withLock { $0.mainActorJobRanFirst } }
 
-    func begin(ticks: Int) {
+    func begin() {
         state.withLock {
             $0.calls += 1
             $0.didRunOnMainThread = $0.didRunOnMainThread || Thread.isMainThread
-            $0.ticksAtStart = ticks
+        }
+    }
+
+    /// The test calls this on the main actor as soon as `snapshot` returns.
+    func markCallerReturned() {
+        state.withLock { $0.callerReturned = true }
+    }
+
+    /// Called from inside the blocked read: posts one job to the main actor and
+    /// waits for it, then notes whether the caller had its result yet.
+    ///
+    /// The caller is on the main actor too, and its resume is queued there only
+    /// at the deadline. The main queue runs jobs in order, so this job, queued
+    /// as the read starts, runs first however busy the main actor is. If the
+    /// call held the main actor until the deadline, the job runs after the
+    /// caller's result instead. If the read itself ran on the main actor, the
+    /// job cannot run until it returns, so the wait hits its cap.
+    ///
+    /// #1550: this replaced a count of main-actor ticks inside the 150 ms
+    /// deadline. In the parallel CI run other suites keep the main actor busy,
+    /// so that count fell short while the read was off the main actor.
+    func noteWhetherMainActorRunsFirst() {
+        let ran = DispatchSemaphore(value: 0)
+        Task { @MainActor in
+            self.state.withLock { $0.mainActorJobRanFirst = !$0.callerReturned }
+            ran.signal()
+        }
+        if ran.wait(timeout: .now() + 10) == .timedOut {
+            state.withLock { $0.mainActorJobRanFirst = false }
         }
     }
 
     func end() {
         state.withLock { $0.finished += 1 }
-    }
-}
-
-/// Counts main-actor ticks. Written only by a main-actor task, read from any
-/// thread, so the stub can note the count at the moment it starts blocking.
-private final class MainActorTicks: @unchecked Sendable {
-    private let count = OSAllocatedUnfairLock(initialState: 0)
-
-    var value: Int { count.withLock { $0 } }
-
-    func tick() {
-        count.withLock { $0 += 1 }
     }
 }
 
@@ -91,25 +113,30 @@ struct ClipboardSnapshotDeadlineTests {
         )
     }
 
+    /// Polls every ~1 ms, so `iterations` is a floor in milliseconds.
     private static func waitUntil(
+        iterations: Int = 5_000,
         _ condition: @escaping @Sendable () -> Bool
     ) async {
-        for _ in 0..<5_000 {
+        for _ in 0..<iterations {
             if condition() { return }
             try? await Task.sleep(nanoseconds: 1_000_000)
         }
         Issue.record("Timed out while waiting for the stub pasteboard read")
     }
 
-    /// Starts a main-actor task that ticks every ~2 ms until cancelled. If the
-    /// pasteboard read ran on the main actor, no tick could land while it blocks.
-    private static func startTicking(_ ticks: MainActorTicks) -> Task<Void, Never> {
-        Task { @MainActor in
-            while !Task.isCancelled {
-                ticks.tick()
-                try? await Task.sleep(nanoseconds: 2_000_000)
-            }
-        }
+    /// Calls `snapshot` and times it OFF the main actor. #1550: timed on the
+    /// main actor, the elapsed time also holds the wait for this test to get the
+    /// main actor back, and in the parallel CI run that wait passed 2 s.
+    private nonisolated static func timedSnapshot(
+        _ reader: ClipboardSnapshotReader,
+        caller: String,
+        provider: @escaping ClipboardSnapshotReader.Provider
+    ) async -> (snapshot: ClipboardSnapshotReader.Snapshot?, elapsed: Duration) {
+        let clock = ContinuousClock()
+        let started = clock.now
+        let snapshot = await reader.snapshot(caller: caller, provider: provider)
+        return (snapshot, started.duration(to: clock.now))
     }
 
     @Test func productionDeadlineIsOneSecond() {
@@ -124,35 +151,39 @@ struct ClipboardSnapshotDeadlineTests {
         let reader = Self.makeReader()
         let probe = SnapshotStubProbe()
         let gate = SnapshotStubGate()
-        let ticks = MainActorTicks()
-        let ticker = Self.startTicking(ticks)
-        defer {
-            ticker.cancel()
-            gate.release()
-        }
+        defer { gate.release() }
 
+        // Called from the main actor, as production calls it.
         let clock = ContinuousClock()
         let started = clock.now
         let result = await reader.snapshot(caller: "test slow read") { _ in
-            probe.begin(ticks: ticks.value)
+            probe.begin()
+            probe.noteWhetherMainActorRunsFirst()
             gate.wait()
             probe.end()
             return stubSnapshot
         }
+        probe.markCallerReturned()
         let elapsed = started.duration(to: clock.now)
-        let ticksAtReturn = ticks.value
 
-        // (a) nil at the deadline, while the stub is still blocked.
+        // (a) nil at the deadline, while the stub is still blocked. No upper
+        // bound on `elapsed`: timed here, on the main actor, it also holds
+        // the wait to get the main actor back, which passed 2 s in the
+        // parallel CI run (#1550). `finished == 0` is the real check: the
+        // call came back before the stub did.
         #expect(result == nil)
         #expect(probe.calls == 1)
         #expect(probe.finished == 0, "the call waited for the stub to finish instead of returning at the deadline")
         #expect(elapsed >= .milliseconds(100), "returned before the deadline: \(elapsed)")
-        #expect(elapsed < .seconds(2), "returned long after the deadline: \(elapsed)")
 
-        // (b) the main actor was free while the stub blocked.
+        // (b) the main actor was free while the stub blocked: the job the stub
+        // posted ran before this test got its result. The stub waits up to
+        // 10 s for that job, so wait longer than that for its answer.
         #expect(probe.didRunOnMainThread == false)
-        #expect(ticksAtReturn - probe.ticksAtStart >= 5,
-                "the main actor ticked \(ticksAtReturn - probe.ticksAtStart) times while the stub blocked")
+        await Self.waitUntil(iterations: 15_000) { probe.mainActorJobRanFirst != nil }
+        #expect(probe.mainActorJobRanFirst == true,
+                "the main actor did not run the stub's job before the call returned")
+        #expect(probe.finished == 0)
         MainActor.assertIsolated()
 
         // The late result is thrown away, and the reader is clear afterwards.
@@ -168,7 +199,7 @@ struct ClipboardSnapshotDeadlineTests {
         let probe = SnapshotStubProbe()
 
         let result = await reader.snapshot(caller: "test fast read") { _ in
-            probe.begin(ticks: 0)
+            probe.begin()
             probe.end()
             return stubSnapshot
         }
@@ -189,7 +220,7 @@ struct ClipboardSnapshotDeadlineTests {
         defer { gate.release() }
 
         let first = await reader.snapshot(caller: "test stuck read") { _ in
-            stuckProbe.begin(ticks: 0)
+            stuckProbe.begin()
             gate.wait()
             stuckProbe.end()
             return stubSnapshot
@@ -198,14 +229,11 @@ struct ClipboardSnapshotDeadlineTests {
         #expect(reader.hasAbandonedRead)
 
         let skippedProbe = SnapshotStubProbe()
-        let clock = ContinuousClock()
-        let started = clock.now
-        let second = await reader.snapshot(caller: "test read behind a stuck read") { _ in
-            skippedProbe.begin(ticks: 0)
+        let (second, elapsed) = await Self.timedSnapshot(reader, caller: "test read behind a stuck read") { _ in
+            skippedProbe.begin()
             skippedProbe.end()
             return stubSnapshot
         }
-        let elapsed = started.duration(to: clock.now)
 
         #expect(second == nil)
         #expect(skippedProbe.calls == 0, "the call queued a read behind the stuck one")
@@ -230,7 +258,7 @@ struct ClipboardSnapshotDeadlineTests {
 
         let first = Task {
             await reader.snapshot(caller: "test slow read") { _ in
-                firstProbe.begin(ticks: 0)
+                firstProbe.begin()
                 gate.wait()
                 firstProbe.end()
                 return stubSnapshot
@@ -242,7 +270,7 @@ struct ClipboardSnapshotDeadlineTests {
         // queues behind it.
         let queued = Task {
             await reader.snapshot(caller: "test queued read") { _ in
-                queuedProbe.begin(ticks: 0)
+                queuedProbe.begin()
                 queuedProbe.end()
                 return stubSnapshot
             }
