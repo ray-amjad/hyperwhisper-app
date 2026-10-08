@@ -6,7 +6,8 @@ namespace HyperWhisper.PortableApplication.ViewModels;
 
 /// <summary>
 /// Account-specific UI state. Account keys are accepted only for online
-/// validation and the input is cleared before any result is displayed.
+/// validation. A successful activation clears the input; a failed one leaves
+/// the typed key in place so the user can see and correct it.
 /// </summary>
 public sealed class CloudAccountViewModel : ViewModelBase
 {
@@ -190,8 +191,11 @@ public sealed class CloudAccountViewModel : ViewModelBase
 
         ActivationError = null;
         Status.Busy("Validating account…");
+        // The field is NOT cleared here. A failed activation must leave the key the user typed on
+        // screen so a one-character typo can be corrected rather than retyped (#670). Only a
+        // successful activation clears it, in the finally below.
         var submittedKey = AccountKey;
-        AccountKey = string.Empty;
+        var activated = false;
         try
         {
             var identity = _deviceIdentity.GetDeviceIdentity();
@@ -213,6 +217,7 @@ public sealed class CloudAccountViewModel : ViewModelBase
             }
 
             ApplyDetails(result.Value!);
+            activated = true;
             Status.Success(ActivatedMessage);
             return true;
         }
@@ -230,8 +235,11 @@ public sealed class CloudAccountViewModel : ViewModelBase
         }
         finally
         {
-            // Clear a value assigned by the UI while validation was in flight too.
-            AccountKey = string.Empty;
+            // After a success the key is stored securely and must never stay on screen, so the
+            // field is cleared, including any value the UI assigned while validation was in
+            // flight. After a failure nothing is written: the field keeps whatever it holds now,
+            // which is the submitted key, or the user's newer value if they edited it mid-flight.
+            if (activated) AccountKey = string.Empty;
             IsActivating = false;
             EndOperation();
         }
