@@ -1620,6 +1620,132 @@ internal static class Program
                     "queued request after teardown → Cancelled, not DaemonCrashed");
             });
 
+            // #1608: a Local API request (or a History retry / onboarding Try It) that needs
+            // a Parakeet respawn must not end the job already on the shared daemon. Real
+            // concurrency through the service's lock, with a fake daemon: a sacrificial child
+            // process for IsAvailable and an in-memory pipe for its stdout.
+            RunAsync("Parakeet reload by a non-GUI caller waits for every job on the daemon (#1608)", async () =>
+            {
+                var dir = Path.Combine(tempRoot, "parakeet-1608-wait");
+                var audio = WriteSilentParakeetWav(dir, seconds: 60);
+                var service = new ParakeetTranscriptionService();
+                using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out var daemonStdout);
+                var daemonPid = daemon.Id;
+                try
+                {
+                    var job = service.TranscribeAsync(audio);      // the GUI's Transcribe File, in flight
+                    var queued = service.TranscribeAsync(audio);   // a second job queued on the lock
+                    var reload = service.ReloadWhenIdleAsync(
+                        "other-parakeet", Path.Combine(dir, "no-such-model"), null, CancellationToken.None);
+
+                    await Task.Delay(400);
+                    Assert(!job.IsCompleted, "the reload ended the in-flight job (#1608)");
+                    Assert(!queued.IsCompleted, "the reload ended the queued job");
+                    Assert(!reload.IsCompleted, "the reload ran while a job was on the daemon");
+
+                    await daemonStdout.WriteLineAsync("{\"text\":\"one\",\"duration_ms\":1}");
+                    Assert(await job.WaitAsync(TimeSpan.FromSeconds(10)) == "one", "in-flight job got its own result");
+
+                    await Task.Delay(400);
+                    Assert(!reload.IsCompleted, "the reload ran while the queued job still waited");
+                    await daemonStdout.WriteLineAsync("{\"text\":\"two\",\"duration_ms\":1}");
+                    Assert(await queued.WaitAsync(TimeSpan.FromSeconds(10)) == "two", "queued job ran on the old daemon, not stale");
+
+                    // Idle now: the reload tears the old daemon down and starts the new model,
+                    // which fails here only because there is no model directory.
+                    try
+                    {
+                        await reload.WaitAsync(TimeSpan.FromSeconds(20));
+                        Assert(false, "the reload should have tried to start the missing model");
+                    }
+                    catch (TranscriptionException ex) when (ex.Code is TranscriptionErrorCode.OnnxModelFileMissing or TranscriptionErrorCode.DaemonStartFailed)
+                    {
+                    }
+                    // The teardown disposed the Process object, so look the daemon up by id.
+                    Assert(FakeParakeetDaemonExited(daemonPid), "the reload did not stop the old daemon");
+                }
+                finally
+                {
+                    StopFakeParakeetDaemon(service, daemon);
+                }
+            });
+
+            RunAsync("Parakeet idle reload honours its caller's token and skips a reload no longer needed (#1608)", async () =>
+            {
+                var dir = Path.Combine(tempRoot, "parakeet-1608-cancel");
+                var audio = WriteSilentParakeetWav(dir, seconds: 60);
+                var service = new ParakeetTranscriptionService();
+                using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out var daemonStdout);
+                try
+                {
+                    // Same model, same language: nothing to wait for, nothing to reload.
+                    Assert(!await service.ReloadWhenIdleAsync("fake-parakeet", Path.Combine(dir, "no-such-model"), null, CancellationToken.None)
+                            .WaitAsync(TimeSpan.FromSeconds(5)),
+                        "a reload the warm daemon already fits ran anyway");
+
+                    var job = service.TranscribeAsync(audio);
+                    using var clientGone = new CancellationTokenSource();
+                    var reload = service.ReloadWhenIdleAsync(
+                        "other-parakeet", Path.Combine(dir, "no-such-model"), null, clientGone.Token);
+                    await Task.Delay(200);
+                    clientGone.Cancel();
+                    try
+                    {
+                        await reload.WaitAsync(TimeSpan.FromSeconds(5));
+                        Assert(false, "a cancelled wait still reloaded");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+
+                    Assert(!job.IsCompleted, "the cancelled reload touched the in-flight job");
+                    await daemonStdout.WriteLineAsync("{\"text\":\"three\",\"duration_ms\":1}");
+                    Assert(await job.WaitAsync(TimeSpan.FromSeconds(10)) == "three", "in-flight job finished after the cancelled reload");
+                    Assert(!daemon.HasExited, "the cancelled reload stopped the daemon");
+                }
+                finally
+                {
+                    StopFakeParakeetDaemon(service, daemon);
+                }
+            });
+
+            // The GUI's own mode switch (InitializeAsync) keeps cancelling the job in flight;
+            // that is what /transcribe called before #1608.
+            RunAsync("Parakeet GUI mode switch still ends the in-flight job as Cancelled (#1608 contrast)", async () =>
+            {
+                var dir = Path.Combine(tempRoot, "parakeet-1608-switch");
+                var audio = WriteSilentParakeetWav(dir, seconds: 60);
+                var service = new ParakeetTranscriptionService();
+                using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out _);
+                try
+                {
+                    var job = service.TranscribeAsync(audio);
+                    try
+                    {
+                        await Task.Run(() => service.InitializeAsync(Path.Combine(dir, "no-such-model"), null))
+                            .WaitAsync(TimeSpan.FromSeconds(20));
+                    }
+                    catch (TranscriptionException)
+                    {
+                        // No model directory: the load fails after the teardown, as intended.
+                    }
+
+                    try
+                    {
+                        await job.WaitAsync(TimeSpan.FromSeconds(10));
+                        Assert(false, "the mode switch let the job finish");
+                    }
+                    catch (TranscriptionException ex)
+                    {
+                        Assert(ex.Code == TranscriptionErrorCode.Cancelled, $"expected Cancelled, got {ex.Code}");
+                    }
+                }
+                finally
+                {
+                    StopFakeParakeetDaemon(service, daemon);
+                }
+            });
+
             Run("XaiFormattingLanguages shared between Grok batch and streaming", () =>
             {
                 Assert(XaiFormattingLanguages.TryGetSupportedCode("en", out var en) && en == "en", "en supported");
@@ -18515,6 +18641,74 @@ internal static class Program
 
     private static void RunAsync(string name, Func<Task> check)
         => Run(name, () => check().GetAwaiter().GetResult());
+
+    /// <summary>
+    /// Gives <paramref name="service"/> a fake ready daemon (#1608 tests): a sacrificial
+    /// child process so IsAvailable holds and a teardown has something to kill, a null
+    /// stdin, and an in-memory stdout the test writes the daemon's reply lines to.
+    /// </summary>
+    private static Process AttachFakeParakeetDaemon(
+        ParakeetTranscriptionService service,
+        string loadedModelId,
+        out StreamWriter daemonStdout)
+    {
+        var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = "ping.exe",
+            ArgumentList = { "-n", "600", "127.0.0.1" },
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            CreateNoWindow = true,
+        }) ?? throw new InvalidOperationException("could not start the fake daemon process");
+
+        var stdout = new System.IO.Pipelines.Pipe();
+        daemonStdout = new StreamWriter(stdout.Writer.AsStream()) { AutoFlush = true };
+
+        void Set(string field, object? value) =>
+            (typeof(ParakeetTranscriptionService).GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException($"ParakeetTranscriptionService.{field} is gone; update this test"))
+            .SetValue(service, value);
+
+        Set("_daemonProcess", process);
+        Set("_stdinWriter", new StreamWriter(Stream.Null));
+        Set("_stdoutReader", new StreamReader(stdout.Reader.AsStream()));
+        Set("_loadedModelId", loadedModelId);
+        Set("_lastLanguage", "auto");
+        Set("_isReady", true);
+        return process;
+    }
+
+    private static bool FakeParakeetDaemonExited(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return process.WaitForExit(5000);
+        }
+        catch (ArgumentException)
+        {
+            return true; // no such process any more
+        }
+    }
+
+    private static void StopFakeParakeetDaemon(ParakeetTranscriptionService service, Process daemon)
+    {
+        try { if (!daemon.HasExited) daemon.Kill(entireProcessTree: true); } catch { }
+        service.DisposeModel();
+    }
+
+    private static string WriteSilentParakeetWav(string directory, int seconds)
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "job.wav");
+        using var writer = new NAudio.Wave.WaveFileWriter(path, new NAudio.Wave.WaveFormat(16000, 16, 1));
+        var second = new byte[16000 * 2];
+        for (var i = 0; i < seconds; i++)
+        {
+            writer.Write(second, 0, second.Length);
+        }
+        return path;
+    }
 
     private static void Assert(bool condition, string message)
     {
