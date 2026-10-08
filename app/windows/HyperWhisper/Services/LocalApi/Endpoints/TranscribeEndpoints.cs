@@ -356,8 +356,15 @@ internal static class TranscribeEndpoints
             return;
         }
 
+        // Never InitializeAsync here: that is the GUI's mode switch, and it cancels the
+        // transcription in flight, e.g. the user's Transcribe File job (#1608). This waits
+        // until the daemon is idle, then reloads; a client that disconnects stops waiting.
         LoggingService.Info($"LocalAPI /transcribe: Loading Parakeet-family model {modelInfo.DisplayName}");
-        await parakeetService.InitializeAsync(modelService.GetModelDirectory(modelInfo), language);
+        await parakeetService.ReloadWhenIdleAsync(
+            modelInfo.Id,
+            modelService.GetModelDirectory(modelInfo),
+            language,
+            cancellationToken);
     }
 
     // =========================================================================

@@ -282,6 +282,17 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     private long CurrentTeardownGeneration => Interlocked.Read(ref _teardownGeneration);
 
     /// <summary>
+    /// Requests inside <see cref="TranscribeAsync"/> right now: running, queued on the
+    /// lock, or auto-restarting. Guarded by <see cref="_drainSync"/>, and changed in the
+    /// same step as the generation capture, so <see cref="ReloadWhenIdleAsync"/> sees an
+    /// idle daemon only when no request could be ended by its teardown (#1608).
+    /// </summary>
+    private int _pendingRequests;
+
+    /// <summary>How often <see cref="ReloadWhenIdleAsync"/> re-checks a busy daemon.</summary>
+    private static readonly TimeSpan IdleReloadPollInterval = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
     /// Options for serializing daemon requests. Uses the relaxed encoder so non-ASCII
     /// characters in file paths stay literal UTF-8 instead of being escaped as \uXXXX.
     /// Safe here because the payload is written to a child process's stdin, never to HTML/JS.
@@ -479,11 +490,116 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     public Task InitializeAsync(string modelDirectory, string? language) =>
         InitializeCoreAsync(modelDirectory, language, advanceTeardownGeneration: true);
 
+    /// <summary>
+    /// Reloads the daemon for a caller that shares it with someone else's job — the Local
+    /// API, a History retry, onboarding's Try It — without ending that job (#1608).
+    /// <see cref="InitializeAsync"/> is the user's own mode switch: it cancels whatever is
+    /// in flight. This instead waits, honouring <paramref name="cancellationToken"/>, until
+    /// it holds the transcription lock with no other request inside
+    /// <see cref="TranscribeAsync"/> (running, queued or auto-restarting; a caller-cancel
+    /// drain holds the lock, so it is waited out too). It then reloads while still holding
+    /// the lock, so no request can start on the old daemon between the wait and the
+    /// teardown. Returns false when, by then, the warm daemon already fits.
+    /// </summary>
+    /// <param name="language">The init form: null for auto-detect, as for InitializeAsync.</param>
+    public async Task<bool> ReloadWhenIdleAsync(
+        string modelId,
+        string modelDirectory,
+        string? language,
+        CancellationToken cancellationToken)
+    {
+        var loggedWait = false;
+        while (true)
+        {
+            await _transcriptionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                // Re-checked under the lock: a reload queued ahead of this one may have
+                // loaded this very model already.
+                if (!NeedsReload(modelId, language))
+                {
+                    return false;
+                }
+
+                if (TryReserveIdleReload())
+                {
+                    await InitializeCoreAsync(
+                        modelDirectory,
+                        language,
+                        advanceTeardownGeneration: false,
+                        transcriptionLockHeld: true).ConfigureAwait(false);
+                    return true;
+                }
+            }
+            finally
+            {
+                _transcriptionLock.Release();
+            }
+
+            if (!loggedWait)
+            {
+                LoggingService.Info("ParakeetTranscriptionService: Waiting for the other transcription to finish before reloading the model");
+                loggedWait = true;
+            }
+
+            await Task.Delay(IdleReloadPollInterval, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Counts a request in and returns the teardown generation it belongs to, in one step
+    /// under <see cref="_drainSync"/> so it cannot interleave with <see cref="TryReserveIdleReload"/>.
+    /// </summary>
+    private long EnterRequest()
+    {
+        lock (_drainSync)
+        {
+            _pendingRequests++;
+            return CurrentTeardownGeneration;
+        }
+    }
+
+    private void ExitRequest()
+    {
+        lock (_drainSync)
+        {
+            _pendingRequests--;
+        }
+    }
+
+    /// <summary>
+    /// With the transcription lock held: true, and the teardown generation advanced, when
+    /// no request is inside <see cref="TranscribeAsync"/>. A request that enters after this
+    /// belongs to the new generation, waits on the lock, and runs on the reloaded daemon.
+    /// </summary>
+    private bool TryReserveIdleReload()
+    {
+        lock (_drainSync)
+        {
+            if (_pendingRequests > 0)
+            {
+                return false;
+            }
+
+            Interlocked.Increment(ref _teardownGeneration);
+            return true;
+        }
+    }
+
     /// <param name="advanceTeardownGeneration">
-    /// False only for the auto-restart in <see cref="TranscribeAsync"/>: reloading the same
-    /// model after a crash is not a teardown, so requests queued behind it stay current.
+    /// False for the auto-restart in <see cref="TranscribeAsync"/> (reloading the same model
+    /// after a crash is not a teardown, so requests queued behind it stay current) and for
+    /// <see cref="ReloadWhenIdleAsync"/>, which advanced it already when it found the daemon idle.
     /// </param>
-    private async Task InitializeCoreAsync(string modelDirectory, string? language, bool advanceTeardownGeneration)
+    /// <param name="transcriptionLockHeld">
+    /// True only from <see cref="ReloadWhenIdleAsync"/>, which holds the lock: the teardown
+    /// must not wait on it or cancel anyone.
+    /// </param>
+    private async Task InitializeCoreAsync(
+        string modelDirectory,
+        string? language,
+        bool advanceTeardownGeneration,
+        bool transcriptionLockHeld = false)
     {
         LoggingService.Info("========== INITIALIZING PARAKEET TRANSCRIPTION SERVICE ==========");
         // The model id, not the directory. Models live under
@@ -493,7 +609,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"  Model: {Path.GetFileName(modelDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))}");
 
         // Dispose any existing daemon first
-        DisposeModelCore(advanceTeardownGeneration);
+        DisposeModelCore(advanceTeardownGeneration, transcriptionLockHeld);
 
         var daemonPath = GetDaemonPath();
         var vadModelPath = GetVadModelPath();
@@ -650,7 +766,10 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
             try
             {
                 var readLineTask = _stdoutReader.ReadLineAsync(readyCts.Token);
-                var line = await readLineTask;
+                // ConfigureAwait(false): ReloadWhenIdleAsync holds the transcription lock
+                // across this wait, and DisposeModel can block the UI thread on that lock,
+                // so the continuation must not need the UI thread (#1608).
+                var line = await readLineTask.ConfigureAwait(false);
 
                 if (line == null)
                 {
@@ -757,8 +876,24 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         CancellationToken cancellationToken = default)
     {
         // Captured before any lock wait: a teardown after this point makes the request stale.
-        var teardownGeneration = CurrentTeardownGeneration;
+        // Counted until it returns, so ReloadWhenIdleAsync never tears it down (#1608).
+        var teardownGeneration = EnterRequest();
+        try
+        {
+            return await TranscribeEnteredAsync(audioPath, vocabulary, teardownGeneration, cancellationToken);
+        }
+        finally
+        {
+            ExitRequest();
+        }
+    }
 
+    private async Task<string> TranscribeEnteredAsync(
+        string audioPath,
+        IReadOnlyList<string>? vocabulary,
+        long teardownGeneration,
+        CancellationToken cancellationToken)
+    {
         // Guard: validate audio file exists
         if (!File.Exists(audioPath))
         {
@@ -1448,7 +1583,11 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     public void DisposeModel() => DisposeModelCore(advanceTeardownGeneration: true);
 
-    private void DisposeModelCore(bool advanceTeardownGeneration)
+    /// <param name="transcriptionLockHeld">
+    /// The caller (<see cref="ReloadWhenIdleAsync"/>) already holds the lock with no request
+    /// pending, so there is nothing to cancel or wait for, and the lock stays the caller's.
+    /// </param>
+    private void DisposeModelCore(bool advanceTeardownGeneration, bool transcriptionLockHeld = false)
     {
         // FIRST, before any cancel or wait: every request that entered TranscribeAsync
         // before this point is now stale. One still queued on the lock fails as Cancelled
@@ -1468,7 +1607,10 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         // switch. A transcription already past its IsAvailable guard holds the lock; the
         // wait below either lets it finish (a short clip) or cancels it as Cancelled.
         _isReady = false;
-        CancelAndWaitForInFlightDrain("model disposal");
+        if (!transcriptionLockHeld)
+        {
+            CancelAndWaitForInFlightDrain("model disposal");
+        }
 
         // Serialize teardown against an in-flight TranscribeInternalAsync (which holds
         // this same lock while awaiting ReadLineAsync/WriteLineAsync on the stdio streams).
@@ -1492,34 +1634,38 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         //   3. Teardown takes the lock for the rest of the floor + 5 s. Only a request
         //      that ignores the cancel runs that out; teardown then proceeds rather than
         //      deadlock, and that request still reports Cancelled.
-        var floorSeconds = ResponseFloorSeconds(_isQwen3, _isOnline);
-        var teardownClock = Stopwatch.StartNew();
-        var teardownWait = TeardownLockWait(floorSeconds);
-        var grace = ComputeTeardownGrace(floorSeconds, SnapshotActiveRequestBudget());
-        bool lockTaken = grace > TimeSpan.Zero && _transcriptionLock.Wait(grace);
-        if (!lockTaken)
+        var lockTaken = false;
+        if (!transcriptionLockHeld)
         {
-            CancelActiveRequest("model disposal");
-            // A caller cancel may have handed the request to a drain meanwhile.
-            CancelAndWaitForInFlightDrain("model disposal");
-            // Wait in short slices and re-cancel each time, so a request that took the
-            // lock just before it registered itself is cancelled too.
-            while (true)
+            var floorSeconds = ResponseFloorSeconds(_isQwen3, _isOnline);
+            var teardownClock = Stopwatch.StartNew();
+            var teardownWait = TeardownLockWait(floorSeconds);
+            var grace = ComputeTeardownGrace(floorSeconds, SnapshotActiveRequestBudget());
+            lockTaken = grace > TimeSpan.Zero && _transcriptionLock.Wait(grace);
+            if (!lockTaken)
             {
-                var remaining = teardownWait - teardownClock.Elapsed;
-                if (remaining <= TimeSpan.Zero)
-                {
-                    LoggingService.Warn($"ParakeetTranscriptionService: Transcription lock not released within {teardownWait.TotalSeconds:F0}s; tearing down anyway");
-                    break;
-                }
-
-                lockTaken = _transcriptionLock.Wait(remaining < TeardownCancelSlice ? remaining : TeardownCancelSlice);
-                if (lockTaken)
-                {
-                    break;
-                }
-
                 CancelActiveRequest("model disposal");
+                // A caller cancel may have handed the request to a drain meanwhile.
+                CancelAndWaitForInFlightDrain("model disposal");
+                // Wait in short slices and re-cancel each time, so a request that took the
+                // lock just before it registered itself is cancelled too.
+                while (true)
+                {
+                    var remaining = teardownWait - teardownClock.Elapsed;
+                    if (remaining <= TimeSpan.Zero)
+                    {
+                        LoggingService.Warn($"ParakeetTranscriptionService: Transcription lock not released within {teardownWait.TotalSeconds:F0}s; tearing down anyway");
+                        break;
+                    }
+
+                    lockTaken = _transcriptionLock.Wait(remaining < TeardownCancelSlice ? remaining : TeardownCancelSlice);
+                    if (lockTaken)
+                    {
+                        break;
+                    }
+
+                    CancelActiveRequest("model disposal");
+                }
             }
         }
         try
