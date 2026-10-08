@@ -96,8 +96,10 @@ class LicenseNetworkService: LicenseNetworkServing {
     /// URLSession for API calls with timeout configuration
     private let session: URLSession
 
-    private static func makeDefaultSession() -> URLSession {
-        let config = URLSessionConfiguration.default
+    /// No URL cache (#1491): the validate body carries `license_key`, and a
+    /// `.default` session archived it into the on-disk `Cache.db`.
+    static func makeDefaultSession() -> URLSession {
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = NetworkConfig.licenseValidationTimeout
         return URLSession(configuration: config)
     }

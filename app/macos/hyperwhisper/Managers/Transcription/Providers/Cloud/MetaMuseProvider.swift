@@ -20,7 +20,7 @@ final class MetaMuseProvider: TranscriptionProvider {
     private let execute: RustRetry.Executor
     private let isOnline: () -> Bool
     private lazy var session: URLSession = {
-        let configuration = URLSessionConfiguration.default
+        let configuration = URLSessionConfiguration.credentialBearing
         configuration.timeoutIntervalForRequest = 120
         configuration.timeoutIntervalForResource = 600
         configuration.waitsForConnectivity = false
