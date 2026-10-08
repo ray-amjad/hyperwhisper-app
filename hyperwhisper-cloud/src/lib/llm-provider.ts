@@ -18,7 +18,7 @@ export const DEFAULT_LLM_PROVIDER: LLMProvider = 'cerebras';
 export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
   cerebras: 'cerebras-gpt-oss-120b',
   groq: 'groq-gpt-oss-120b',
-  anthropic: 'claude-haiku-4-5',
+  anthropic: 'claude-haiku-5-5',
   grok: 'xai-grok-4.3',
   openai: 'openai-gpt-5.6-luna',
   gemini: 'gemini-2.5-flash',
@@ -78,14 +78,15 @@ const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
 };
 
 // Per-provider allowlist of valid X-LLM-Model ids, with the default first. The
-// resolved model is threaded through callWithRetry to the openai/gemini/mistral
-// clients, which put it in the request body (the other 4 providers ignore it).
+// resolved model is threaded through callWithRetry to the anthropic/openai/
+// gemini/mistral clients, which put it in the request body (the other 3
+// providers ignore it).
 // Only gemini allows more than one model today. MUST match the model ids in
 // shared-app-classification/cloud-pp-catalog.json.
 const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: readonly string[] }> = {
   cerebras: { default: 'gpt-oss-120b', allowed: ['gpt-oss-120b'] },
   groq: { default: 'openai/gpt-oss-120b', allowed: ['openai/gpt-oss-120b'] },
-  anthropic: { default: 'claude-haiku-4-5', allowed: ['claude-haiku-4-5'] },
+  anthropic: { default: 'claude-haiku-5-5', allowed: ['claude-haiku-5-5'] },
   grok: { default: 'grok-4.3', allowed: ['grok-4.3'] },
   // gpt-5-mini / gpt-5-nano lose their only snapshots 2026-12-11. They are no
   // longer allowlisted, so an old client still sending either id resolves to the
@@ -96,6 +97,19 @@ const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: reado
     allowed: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.8-flash'],
   },
   mistral: { default: 'mistral-small-latest', allowed: ['mistral-small-latest'] },
+};
+
+// Retired X-LLM-Model ids that installed clients still send, mapped to the id
+// that now serves them. An alias is resolved BEFORE the allowlist check, so the
+// request is answered (and billed) as the target model instead of 400ing or
+// silently reading as "invalid header". Clients built before the Haiku 5.5
+// catalog send `claude-haiku-4-5`; the dated snapshot is the id this service
+// itself pinned until 2026-10.
+const LLM_MODEL_ALIASES: Partial<Record<LLMProvider, Record<string, string>>> = {
+  anthropic: {
+    'claude-haiku-4-5': 'claude-haiku-5-5',
+    'claude-haiku-4-5-20251001': 'claude-haiku-5-5',
+  },
 };
 
 export function defaultModelFor(provider: LLMProvider): string {
@@ -133,7 +147,8 @@ export function extractLLMProvider(request: Request): LLMProvider {
  * provider default so a bad header never bills the wrong (or no) model.
  */
 export function resolveLLMModel(provider: LLMProvider, request: Request): string {
-  const requested = request.headers.get('x-llm-model')?.toLowerCase().trim();
+  const raw = request.headers.get('x-llm-model')?.toLowerCase().trim();
+  const requested = raw ? (LLM_MODEL_ALIASES[provider]?.[raw] ?? raw) : raw;
   const config = LLM_PROVIDER_MODELS[provider];
   if (requested && config.allowed.includes(requested)) {
     return requested;
@@ -155,8 +170,8 @@ export function isRetryableLLMError(error: Error): boolean {
 
 /**
  * Retry LLM call with exponential backoff. `model` is the resolved (allowlisted)
- * model id — the openai/gemini/mistral clients send it as the request model; the
- * other providers ignore it.
+ * model id — the anthropic/openai/gemini/mistral clients send it as the request
+ * model; the other providers ignore it.
  */
 export async function callWithRetry(
   provider: LLMProvider,
@@ -166,7 +181,7 @@ export async function callWithRetry(
 ): Promise<Awaited<ReturnType<typeof requestCerebrasChat>>> {
   return retryWithBackoff(
     () => {
-      if (provider === 'anthropic') return requestAnthropicChat(payload, requestId);
+      if (provider === 'anthropic') return requestAnthropicChat(payload, requestId, undefined, model);
       if (provider === 'grok') return requestXaiGrokChat(payload, requestId);
       if (provider === 'openai') return requestOpenAIChat(payload, requestId, model);
       if (provider === 'gemini') return requestGeminiChat(payload, requestId, model);
@@ -204,4 +219,5 @@ export { buildCorrectionRequest };
 export const __tables = {
   LLM_PROVIDER_MODELS,
   LLM_PROVIDER_RETRIES,
+  LLM_MODEL_ALIASES,
 };

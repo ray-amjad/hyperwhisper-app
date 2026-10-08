@@ -64,6 +64,13 @@ describe('resolveLLMModel', () => {
     expect(resolveLLMModel('mistral', requestWith({ 'x-llm-model': 'open-mistral-nemo' }))).toBe('mistral-small-latest');
   });
 
+  test('an old client sending a Claude Haiku 4.5 id is served Haiku 5.5, never a 400', () => {
+    expect(defaultModelFor('anthropic')).toBe('claude-haiku-5-5');
+    expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'claude-haiku-5-5' }))).toBe('claude-haiku-5-5');
+    expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'claude-haiku-4-5' }))).toBe('claude-haiku-5-5');
+    expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'Claude-Haiku-4-5-20251001' }))).toBe('claude-haiku-5-5');
+  });
+
   test('returns the provider default for missing or invalid model', () => {
     for (const provider of ALL_PROVIDERS) {
       expect(resolveLLMModel(provider, requestWith({}))).toBe(defaultModelFor(provider));

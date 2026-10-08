@@ -185,10 +185,14 @@ export function estimateSonioxContextTokens(contextText: string | undefined): nu
   return Math.ceil(contextText.length * SONIOX_TOKENS_PER_CHAR);
 }
 
-// Anthropic Claude Haiku 4.5 Pricing (USD)
-const ANTHROPIC_HAIKU_PROMPT_COST_PER_TOKEN = 1.00 / 1_000_000;
-const ANTHROPIC_HAIKU_COMPLETION_COST_PER_TOKEN = 5.00 / 1_000_000;
+// Anthropic Claude Haiku 5.5 Pricing (USD), for prompts up to 100K tokens.
+// Anthropic bills $0.50 / $2.50 per 1M above 100K; a post-process or /assistant
+// prompt is far below that, so the long-prompt tier is not modelled here.
+// MUST match the anthropic row in shared-app-classification/cloud-pp-catalog.json.
+const ANTHROPIC_HAIKU_PROMPT_COST_PER_TOKEN = 0.10 / 1_000_000;
+const ANTHROPIC_HAIKU_COMPLETION_COST_PER_TOKEN = 0.50 / 1_000_000;
 // Prompt caching: writes bill at 1.25x input, reads at 0.10x input (5-minute TTL).
+// ASSUMED unchanged from Haiku 4.5 — Anthropic's standard cache multipliers.
 const ANTHROPIC_HAIKU_CACHE_WRITE_COST_PER_TOKEN = ANTHROPIC_HAIKU_PROMPT_COST_PER_TOKEN * 1.25;
 const ANTHROPIC_HAIKU_CACHE_READ_COST_PER_TOKEN = ANTHROPIC_HAIKU_PROMPT_COST_PER_TOKEN * 0.10;
 

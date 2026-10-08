@@ -587,10 +587,10 @@ describe('LLM chat costs', () => {
     total_tokens: prompt + completion,
   });
 
-  test('Anthropic bills prompt and completion tokens at the Haiku 4.5 rates', () => {
-    // $1.00/1M input, $5.00/1M output.
-    expect(computeAnthropicCost(1_000_000, 0)).toBeCloseTo(1.00, 6);
-    expect(computeAnthropicCost(0, 1_000_000)).toBeCloseTo(5.00, 6);
+  test('Anthropic bills prompt and completion tokens at the Haiku 5.5 rates', () => {
+    // $0.10/1M input, $0.50/1M output.
+    expect(computeAnthropicCost(1_000_000, 0)).toBeCloseTo(0.10, 6);
+    expect(computeAnthropicCost(0, 1_000_000)).toBeCloseTo(0.50, 6);
   });
 
   test('Anthropic prices cache writes at 1.25x input and cache reads at 0.10x input', () => {
@@ -605,10 +605,10 @@ describe('LLM chat costs', () => {
   });
 
   test('Anthropic sums all four token buckets and defaults the cache buckets to 0', () => {
-    // 1000 of each: 0.001 + 0.005 + 0.00125 + 0.0001.
-    expect(computeAnthropicCost(1000, 1000, 1000, 1000)).toBeCloseTo(0.00735, 9);
+    // 1000 of each: 0.0001 + 0.0005 + 0.000125 + 0.00001.
+    expect(computeAnthropicCost(1000, 1000, 1000, 1000)).toBeCloseTo(0.000735, 9);
     // Omitting the cache arguments must not add a charge.
-    expect(computeAnthropicCost(1000, 1000)).toBeCloseTo(0.006, 9);
+    expect(computeAnthropicCost(1000, 1000)).toBeCloseTo(0.0006, 9);
     expect(computeAnthropicCost(1000, 1000)).toBe(computeAnthropicCost(1000, 1000, 0, 0));
   });
 

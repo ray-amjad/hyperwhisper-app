@@ -77,7 +77,7 @@ function respondWith(status: number): { calls: number } {
 // groq retries 3 times, anthropic 2 (LLM_PROVIDER_RETRIES).
 const CASES: Array<{ provider: LLMProvider; model: string; attempts: number }> = [
   { provider: 'groq', model: 'openai/gpt-oss-120b', attempts: 4 },
-  { provider: 'anthropic', model: 'claude-haiku-4-5', attempts: 3 },
+  { provider: 'anthropic', model: 'claude-haiku-5-5', attempts: 3 },
 ];
 
 describe('callWithRetry', () => {

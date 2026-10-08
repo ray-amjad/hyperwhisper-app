@@ -8,8 +8,42 @@ import { LLMRequestError } from './llm-errors';
 import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, LLM_REQUEST_TIMEOUT_MS, transcriptCharCount } from './llm-fetch';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
+// Undated id on purpose: Anthropic's undated aliases are the supported form, and
+// a pinned snapshot is what left this file on Haiku 4.5 after Haiku 5.5 shipped.
+export const ANTHROPIC_MODEL = 'claude-haiku-5-5';
 const ANTHROPIC_VERSION = '2023-06-01';
+
+/**
+ * The `thinking` field that turns extended thinking OFF for `model`, or
+ * undefined when the model needs none.
+ *
+ * - `claude-haiku-5-5` and `claude-sonnet-5` think by default (adaptive), which
+ *   adds latency and output tokens to a punctuation pass: `{type:'disabled'}`.
+ * - `claude-sonnet-5-5` answers `disabled` with a 400; its off switch is
+ *   `{type:'between_tools'}`, with no other thinking field.
+ * - Every other id does not think unless asked, so it gets no field and its
+ *   request body is byte-for-byte what it was.
+ *
+ * PARITY: the BYOK builder `anthropic_thinking` in
+ * shared-core-rs/crates/hw-net/src/providers/llm/bodies.rs.
+ */
+export function anthropicThinkingFor(model: string): { type: 'disabled' | 'between_tools' } | undefined {
+  switch (model.trim().toLowerCase()) {
+    case 'claude-haiku-5-5':
+    case 'claude-sonnet-5':
+      return { type: 'disabled' };
+    case 'claude-sonnet-5-5':
+      return { type: 'between_tools' };
+    default:
+      return undefined;
+  }
+}
+
+/** Append `thinking` (last, so the other keys keep their order) when the model needs it. */
+function withThinking<T extends Record<string, unknown>>(model: string, body: T): T & { thinking?: { type: string } } {
+  const thinking = anthropicThinkingFor(model);
+  return thinking ? { ...body, thinking } : body;
+}
 export const ANTHROPIC_WRAPPER_INSTRUCTION =
   'IMPORTANT: Output ONLY the corrected text surrounded by <<CLEANED>> and <<END>> exactly. Do not add markdown headers, labels, or text outside those markers.';
 
@@ -38,7 +72,9 @@ export interface AnthropicStreamResult {
 interface AnthropicStreamEvent {
   type?: string;
   message?: { usage?: { input_tokens?: unknown; cache_creation_input_tokens?: unknown; cache_read_input_tokens?: unknown } };
-  delta?: { text?: unknown };
+  // `type` is `text_delta` for answer text; `thinking_delta` / `signature_delta`
+  // belong to a thinking block and must never reach the client.
+  delta?: { type?: unknown; text?: unknown };
   usage?: { output_tokens?: unknown };
 }
 
@@ -57,6 +93,7 @@ export async function requestAnthropicChat(
   payload: CorrectionRequestPayload,
   requestId: string,
   timeoutMs?: number,
+  model: string = ANTHROPIC_MODEL,
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -84,13 +121,13 @@ export async function requestAnthropicChat(
         'anthropic-version': ANTHROPIC_VERSION,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
+      body: JSON.stringify(withThinking(model, {
+        model,
         max_tokens: ANTHROPIC_MAX_TOKENS,
         system: systemContent,
         messages: [{ role: 'user', content: userContent }],
         stream: false,
-      }),
+      })),
     },
     async (response) => {
       if (!response.ok) {
@@ -208,13 +245,13 @@ export function streamAnthropicChat(
             'anthropic-version': ANTHROPIC_VERSION,
             'content-type': 'application/json',
           },
-          body: JSON.stringify({
+          body: JSON.stringify(withThinking(ANTHROPIC_MODEL, {
             model: ANTHROPIC_MODEL,
             max_tokens: ANTHROPIC_MAX_TOKENS,
             system: systemPrompt,
             messages,
             stream: true,
-          }),
+          })),
           signal: abortController.signal,
         });
 
@@ -279,9 +316,13 @@ export function streamAnthropicChat(
               cacheReadTokens = toTokenCount(event.message.usage.cache_read_input_tokens);
             }
 
-            // Emit text deltas as OpenAI-compatible chunks
+            // Emit text deltas as OpenAI-compatible chunks. A delta that names a
+            // type other than `text_delta` (a thinking or signature delta) is
+            // skipped, so a thinking block can never leak into the answer.
             const text = event.delta?.text;
-            if (event.type === 'content_block_delta' && typeof text === 'string' && text) {
+            const deltaType = event.delta?.type;
+            const isTextDelta = deltaType === undefined || deltaType === 'text_delta';
+            if (event.type === 'content_block_delta' && isTextDelta && typeof text === 'string' && text) {
               const chunk = JSON.stringify({
                 choices: [{ delta: { content: text } }],
               });
