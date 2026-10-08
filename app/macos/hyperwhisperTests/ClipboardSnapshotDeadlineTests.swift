@@ -14,15 +14,17 @@ import os
 import Testing
 @testable import HyperWhisper
 
-/// Holds a stub read until the test lets it go. Never longer than 5 s, so a
-/// failed test cannot wedge the queue for the rest of the run. (The slow-read
-/// stub first waits up to 10 s for its main-actor job, so that one read can
-/// hold the queue for up to 15 s.)
+/// Holds a stub read until the test lets it go. Never longer than 20 s, so a
+/// failed test cannot wedge its reader's queue for good. Each test makes its
+/// own reader and queue, so the cap only bounds how long a failing test runs.
+/// #1550: the cap was 5 s, and a test that waits seconds for the busy main
+/// actor in the parallel CI run could see the stub give up before it looked.
+/// (The slow-read stub first waits up to 10 s for its main-actor job.)
 private final class SnapshotStubGate: @unchecked Sendable {
     private let semaphore = DispatchSemaphore(value: 0)
 
     func wait() {
-        _ = semaphore.wait(timeout: .now() + 5)
+        _ = semaphore.wait(timeout: .now() + 20)
     }
 
     func release() {
@@ -78,17 +80,47 @@ private final class SnapshotStubProbe: @unchecked Sendable {
     /// so that count fell short while the read was off the main actor.
     func noteWhetherMainActorRunsFirst() {
         let ran = DispatchSemaphore(value: 0)
+        // Only the first answer counts: a job that runs after the cap must not
+        // turn a timed-out `false` into `true`.
         Task { @MainActor in
-            self.state.withLock { $0.mainActorJobRanFirst = !$0.callerReturned }
+            self.state.withLock {
+                if $0.mainActorJobRanFirst == nil { $0.mainActorJobRanFirst = !$0.callerReturned }
+            }
             ran.signal()
         }
         if ran.wait(timeout: .now() + 10) == .timedOut {
-            state.withLock { $0.mainActorJobRanFirst = false }
+            state.withLock {
+                if $0.mainActorJobRanFirst == nil { $0.mainActorJobRanFirst = false }
+            }
         }
     }
 
     func end() {
         state.withLock { $0.finished += 1 }
+    }
+}
+
+/// Notes, on its own thread, how long after it starts the reader gives up on a
+/// read (`hasAbandonedRead` turns true). Off the main actor, so a busy main
+/// actor in the parallel CI run does not count against the deadline (#1550).
+private final class GiveUpWatch: @unchecked Sendable {
+    private let found = OSAllocatedUnfairLock<Duration?>(initialState: nil)
+
+    /// nil until the reader gave up, or for 10 s.
+    var elapsed: Duration? { found.withLock { $0 } }
+
+    init(_ reader: ClipboardSnapshotReader) {
+        DispatchQueue.global(qos: .userInitiated).async { [found] in
+            let clock = ContinuousClock()
+            let started = clock.now
+            while started.duration(to: clock.now) < .seconds(10) {
+                if reader.hasAbandonedRead {
+                    found.withLock { $0 = started.duration(to: clock.now) }
+                    return
+                }
+                usleep(1_000)
+            }
+        }
     }
 }
 
@@ -154,6 +186,7 @@ struct ClipboardSnapshotDeadlineTests {
         defer { gate.release() }
 
         // Called from the main actor, as production calls it.
+        let giveUp = GiveUpWatch(reader)
         let clock = ContinuousClock()
         let started = clock.now
         let result = await reader.snapshot(caller: "test slow read") { _ in
@@ -166,21 +199,28 @@ struct ClipboardSnapshotDeadlineTests {
         probe.markCallerReturned()
         let elapsed = started.duration(to: clock.now)
 
-        // (a) nil at the deadline, while the stub is still blocked. No upper
-        // bound on `elapsed`: timed here, on the main actor, it also holds
-        // the wait to get the main actor back, which passed 2 s in the
-        // parallel CI run (#1550). `finished == 0` is the real check: the
-        // call came back before the stub did.
+        // (a) nil at the deadline, while the stub is still blocked. `elapsed`
+        // is timed here, on the main actor, so it also holds the wait to get
+        // the main actor back, which passed 2 s in the parallel CI run (#1550):
+        // it gets only the lower bound. The upper bound is on the moment the
+        // reader gave up, watched off the main actor.
         #expect(result == nil)
         #expect(probe.calls == 1)
         #expect(probe.finished == 0, "the call waited for the stub to finish instead of returning at the deadline")
         #expect(elapsed >= .milliseconds(100), "returned before the deadline: \(elapsed)")
+        await Self.waitUntil { giveUp.elapsed != nil }
+        if let gaveUpAfter = giveUp.elapsed {
+            #expect(gaveUpAfter >= .milliseconds(100), "gave up before the deadline: \(gaveUpAfter)")
+            #expect(gaveUpAfter < .seconds(2), "gave up long after the deadline: \(gaveUpAfter)")
+        }
 
         // (b) the main actor was free while the stub blocked: the job the stub
         // posted ran before this test got its result. The stub waits up to
         // 10 s for that job, so wait longer than that for its answer.
         #expect(probe.didRunOnMainThread == false)
-        await Self.waitUntil(iterations: 15_000) { probe.mainActorJobRanFirst != nil }
+        if probe.calls == 1 {
+            await Self.waitUntil(iterations: 15_000) { probe.mainActorJobRanFirst != nil }
+        }
         #expect(probe.mainActorJobRanFirst == true,
                 "the main actor did not run the stub's job before the call returned")
         #expect(probe.finished == 0)
