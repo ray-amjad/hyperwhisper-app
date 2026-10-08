@@ -262,8 +262,8 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     async: false,
     // gemini-3-flash-preview left the pickers in 2026-10. A client still sending
     // it is served the catalog default at the same 3.0 credits/min, never a 400.
-    // (The native BYOK alias targets gemini-3.6-flash, which this service does
-    // not serve.)
+    // The native aliases (hw-catalog GEMINI_ALIASES, macOS, Windows, shared-dotnet)
+    // target the same id, so the Cloud and BYOK routes cannot diverge.
     aliases: { 'gemini-3-flash-preview': 'gemini-3.8-flash' },
     // No dedicated vocabulary API — prompt-only biasing, so supportsVocabulary
     // is false (clients shouldn't promise keyterm accuracy).
