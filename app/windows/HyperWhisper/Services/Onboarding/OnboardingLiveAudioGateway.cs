@@ -784,10 +784,13 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
                     return true;
                 }
 
+                // Waits for an idle daemon instead of ending a job already on it (#1608).
                 LoggingService.Info($"LiveOnboardingAudioGateway: loading Parakeet-family model {info.DisplayName} for the Try It step");
-                await parakeet.InitializeAsync(
+                await parakeet.ReloadWhenIdleAsync(
+                    info.Id,
                     _parakeetModels.GetModelDirectory(info),
-                    mode.Language == "auto" ? null : mode.Language);
+                    mode.Language == "auto" ? null : mode.Language,
+                    cancellationToken);
                 return true;
             }
 

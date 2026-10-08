@@ -206,8 +206,9 @@ public class TranscriptionRetryHandler : IDisposable
             return;
         }
 
+        // A retry must not end another job on the shared daemon (#1608): wait until it is idle.
         LoggingService.Info($"TranscriptionRetryHandler: Loading Parakeet model {modelInfo.DisplayName}");
-        await _parakeetTranscriptionService.InitializeAsync(modelDir, language);
+        await _parakeetTranscriptionService.ReloadWhenIdleAsync(modelInfo.Id, modelDir, language, cancellationToken);
     }
 
     private void UpdateTranscriptSuccess(TranscriptViewModel transcript, Mode mode, TranscriptionResult result)
