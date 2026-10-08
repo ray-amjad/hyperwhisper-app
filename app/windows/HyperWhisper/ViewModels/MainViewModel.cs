@@ -1059,26 +1059,75 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        var modelDir = _parakeetModelService.GetModelDirectory(model);
         if (!_parakeetModelService.IsModelDownloaded(model)) return;
 
-        // #1534: the Whisper unload below can wait out a whole running job, and
-        // the UI thread is now free for that whole wait. Serialize on the same
-        // lock as the Whisper loads so a second caller (a dictation start, another
-        // mode switch, Transcribe File) cannot start a second parakeet-engine
-        // daemon and orphan the first, and cannot interleave a Whisper load.
-        bool superseded = false;
+        // #1534: the work under the model lock lives in its own method, so a
+        // `return` inside its try cannot skip the follow-up below. (It did: the
+        // superseded reload sat after the finally and never ran.)
+        var outcome = await LoadParakeetModelUnderLockAsync(mode, model, language);
+        if (outcome != ParakeetLoadOutcome.SupersededAfterWhisperUnload)
+        {
+            return;
+        }
+
+        // The user switched away while the unload waited out a running job, and
+        // this call has since unloaded Whisper. The newest selection's own load
+        // may have returned early because Whisper was still loaded when it ran,
+        // so: reset the status that still says "loading Parakeet" and describes
+        // the unloaded model, then load for the selection as it stands now,
+        // outside the lock (LoadModelAsync takes it again), under the same rules
+        // as the mode-switch preload: local modes with a downloaded model only.
+        LoggingService.Info("LoadParakeetModelAsync: Mode changed during the Whisper unload; skipped the Parakeet daemon, reloading for the current mode");
+        IsModelLoaded = false;
+        UpdateModelStatus();
+        StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+        var current = SelectedMode;
+        if (current != null && current.ProviderType != "cloud" && IsLocalModelDownloaded(current))
+        {
+            await LoadModelAsync();
+        }
+    }
+
+    /// <summary>What <see cref="LoadParakeetModelUnderLockAsync"/> did (#1534).</summary>
+    internal enum ParakeetLoadOutcome
+    {
+        /// <summary>The daemon was already up for this model, or this call started it.</summary>
+        Ready,
+        /// <summary>The user switched away before anything was unloaded. Nothing to undo.</summary>
+        SupersededBeforeUnload,
+        /// <summary>The user switched away while the Whisper unload waited; Whisper is now unloaded.</summary>
+        SupersededAfterWhisperUnload,
+    }
+
+    /// <summary>
+    /// The part of <see cref="LoadParakeetModelAsync"/> that holds
+    /// <see cref="_modelLoadLock"/> (#1534). The Whisper unload can wait out a
+    /// whole running job with the UI thread free, so the lock stops a second
+    /// caller (a dictation start, another mode switch, Transcribe File) from
+    /// starting a second parakeet-engine daemon and orphaning the first, or
+    /// interleaving a Whisper load.
+    ///
+    /// Keep any follow-up work in the caller: a `return` here leaves through the
+    /// finally only.
+    /// </summary>
+    private async Task<ParakeetLoadOutcome> LoadParakeetModelUnderLockAsync(Mode mode, ParakeetModelInfo model, string? language)
+    {
         await _modelLoadLock.WaitAsync();
         try
         {
             // Re-check after acquiring the lock: a load queued ahead of this one
             // may already have started this daemon, or the user may have picked
             // another mode while this call waited.
-            if (!_parakeetTranscriptionService.NeedsReload(model.Id, mode.Language)) return;
+            if (!_parakeetTranscriptionService.NeedsReload(model.Id, mode.Language))
+            {
+                return ParakeetLoadOutcome.Ready;
+            }
+
             if (!IsParakeetLoadStillWanted(SelectedMode, model.Id, mode.Language))
             {
-                superseded = true;
-                return;
+                // Nothing touched yet; the newest selection's own load handles it.
+                LoggingService.Info("LoadParakeetModelAsync: Mode changed while waiting for the model lock; skipped the Parakeet daemon");
+                return ParakeetLoadOutcome.SupersededBeforeUnload;
             }
 
             IsModelLoading = true;
@@ -1088,15 +1137,16 @@ public partial class MainViewModel : ViewModelBase
                 && !IsParakeetLoadStillWanted(SelectedMode, model.Id, mode.Language))
             {
                 // The unload waited out a running job, and the user switched away
-                // during it. Do not start a daemon the newest selection does not use.
-                superseded = true;
-                return;
+                // during it. Do not start a daemon the newest selection does not
+                // use; the caller resets the status and reloads.
+                return ParakeetLoadOutcome.SupersededAfterWhisperUnload;
             }
 
-            await _parakeetTranscriptionService.InitializeAsync(modelDir, language);
+            await _parakeetTranscriptionService.InitializeAsync(_parakeetModelService.GetModelDirectory(model), language);
             IsModelLoaded = true;
             ModelStatus = Loc.S("status.model.parakeet.ready", model.DisplayName, _parakeetTranscriptionService.ActiveProvider ?? "CPU");
             StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+            return ParakeetLoadOutcome.Ready;
         }
         catch (Exception ex)
         {
@@ -1108,23 +1158,6 @@ public partial class MainViewModel : ViewModelBase
         {
             IsModelLoading = false;
             _modelLoadLock.Release();
-        }
-
-        if (superseded)
-        {
-            // The newest selection's own load may have returned early because
-            // Whisper was still loaded when it ran, and this call may since have
-            // unloaded it. Load for the selection as it stands now, outside the
-            // lock (LoadModelAsync takes it again), under the same rules as the
-            // mode-switch preload: local modes with a downloaded model only.
-            LoggingService.Info("LoadParakeetModelAsync: Mode changed while waiting; skipped the Parakeet daemon");
-            UpdateModelStatus();
-            StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
-            var current = SelectedMode;
-            if (current != null && current.ProviderType != "cloud" && IsLocalModelDownloaded(current))
-            {
-                await LoadModelAsync();
-            }
         }
     }
 

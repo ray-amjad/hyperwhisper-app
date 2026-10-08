@@ -1394,13 +1394,40 @@ internal static class Program
 
                 Assert(AsyncBodyCalls(helper, unloadAsync),
                     "UnloadWhisperForParakeetIfLowMemoryAsync no longer calls TranscriptionService.UnloadModelAsync");
-                foreach (var name in new[] { "LoadParakeetModelAsync", "EnsureLocalProviderReadyForFileAsync" })
+                foreach (var name in new[] { "LoadParakeetModelUnderLockAsync", "EnsureLocalProviderReadyForFileAsync" })
                 {
                     var method = typeof(MainViewModel).GetMethod(name, all)
                         ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test");
                     Assert(AsyncBodyCalls(method, helper),
                         $"MainViewModel.{name} no longer unloads Whisper through the awaited helper (#1534)");
                 }
+            });
+
+            // #1534. When the user switches away during the Whisper unload, the
+            // Parakeet load must reset the status and reload the current mode's
+            // model. That follow-up once sat after a finally whose try returned,
+            // so it never ran. Pin the shape that makes it reachable: the lock
+            // (and every early return under it) lives in the inner method, and the
+            // outer method acts on the outcome with no lock of its own.
+            Run("A superseded Parakeet load reloads the current mode outside the lock (#1534)", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                MethodInfo Vm(string name) => typeof(MainViewModel).GetMethod(name, all)
+                    ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test");
+                var outer = Vm("LoadParakeetModelAsync");
+                var inner = Vm("LoadParakeetModelUnderLockAsync");
+                var release = typeof(SemaphoreSlim).GetMethod("Release", Type.EmptyTypes)!;
+                var waitAsync = typeof(SemaphoreSlim).GetMethod("WaitAsync", Type.EmptyTypes)!;
+
+                Assert(AsyncBodyCalls(outer, inner), "LoadParakeetModelAsync no longer runs its locked part through LoadParakeetModelUnderLockAsync");
+                Assert(AsyncBodyCalls(inner, waitAsync) && AsyncBodyCalls(inner, release),
+                    "LoadParakeetModelUnderLockAsync no longer takes and releases the model lock");
+                Assert(!AsyncBodyCalls(outer, waitAsync) && !AsyncBodyCalls(outer, release),
+                    "LoadParakeetModelAsync takes the model lock itself again; a return inside that try skips the superseded reload");
+                Assert(AsyncBodyCalls(outer, Vm("UpdateModelStatus")) && AsyncBodyCalls(outer, Vm("LoadModelAsync")),
+                    "LoadParakeetModelAsync no longer resets the status and reloads after a superseded load");
+                Assert(Enum.IsDefined(typeof(MainViewModel.ParakeetLoadOutcome), "SupersededAfterWhisperUnload"),
+                    "ParakeetLoadOutcome.SupersededAfterWhisperUnload is gone; update this test");
             });
 
             // #1534. A queued Parakeet load re-checks the selection after its waits
