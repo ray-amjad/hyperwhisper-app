@@ -54,13 +54,17 @@ enum PostProcessEndpoint {
         // Build the working Mode: stored mode (if any) provides defaults, then
         // we overlay the per-request overrides onto either the saved mode (if
         // it's safe to mutate) or a transient mode based on it.
-        let working: (mode: Mode, isTransient: Bool)
+        let working: WorkingMode
         do { working = try buildWorkingMode(req: req) } catch let inputError as PostProcessInputError {
             return LocalAPIResponder.failure(code: inputError.code, message: inputError.message, hint: inputError.hint)
         } catch {
             let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(error)
             return LocalAPIResponder.failure(code: code, message: message, hint: hint)
         }
+        // Every return below ends the per-request Mode, success or failure
+        // (issue #1509). It never touched the store; this only drops it from
+        // the in-flight registry the Model Library delete check reads.
+        defer { working.transient?.end() }
 
         let started = Date()
         // Request-scoped mutation signal: the shared `processor.didMutateLastRun`
@@ -94,7 +98,6 @@ enum PostProcessEndpoint {
                 onSegmentTextUpdate: { _ in }
             )
         } catch {
-            if working.isTransient { cleanupTransientMode(working.mode) }
             let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(error)
             return LocalAPIResponder.failure(code: code, message: message, hint: hint)
         }
@@ -111,7 +114,6 @@ enum PostProcessEndpoint {
         // report `ok: true, post_processed: true` for a response that's silently
         // a mix of processed and raw/unprocessed segment text.
         if mutationSignal.anyPartialFailure {
-            if working.isTransient { cleanupTransientMode(working.mode) }
             return LocalAPIResponder.failure(
                 code: .transcriptionFailed,
                 message: "Post-processing partially failed: some segments were processed and at least one was not."
@@ -139,8 +141,6 @@ enum PostProcessEndpoint {
         let providerLabel = labels.provider
         let modelLabel = labels.model
         let presetLabel = working.mode.preset ?? "hyper"
-
-        if working.isTransient { cleanupTransientMode(working.mode) }
 
         let response = PostProcessResponse(
             ok: true,
@@ -253,14 +253,33 @@ enum PostProcessEndpoint {
 
     // MARK: - Working Mode
 
+    /// The Mode that drives one post-processing run, and the per-request
+    /// handle when that Mode was built for this request.
+    struct WorkingMode {
+        let mode: Mode
+        /// Non-nil when `mode` is a per-request Mode. The caller MUST
+        /// `end()` it once the request finishes; `handle` does so in a
+        /// `defer`.
+        let transient: LocalAPITransientMode?
+    }
+
     /// Build the Mode that drives the post-processing run. If the caller
     /// passes `mode_id` AND no overrides, we just use the stored mode. If
-    /// overrides exist (or no mode_id), we build a transient Mode in the
-    /// viewContext seeded from the stored mode (when present).
+    /// overrides exist (or no mode_id), we build a per-request Mode seeded
+    /// from the stored mode (when present).
+    ///
+    /// The per-request Mode lives in a never-saved scratch context, not the
+    /// shared `viewContext` (issue #1509), so another save of the
+    /// `viewContext` during the run cannot commit it. See
+    /// `LocalAPITransientMode`.
+    ///
+    /// `internal` and `parent`-injectable so `LocalAPITransientModeTests`
+    /// can build it against an in-memory store exactly as a request does.
     @MainActor
-    private static func buildWorkingMode(req: PostProcessRequest) throws -> (mode: Mode, isTransient: Bool) {
-        let context = PersistenceController.shared.container.viewContext
-
+    static func buildWorkingMode(
+        req: PostProcessRequest,
+        parent: NSManagedObjectContext = PersistenceController.shared.container.viewContext
+    ) throws -> WorkingMode {
         // Stored mode (optional).
         var baseline: Mode?
         if let modeId = req.mode_id?.trimmingCharacters(in: .whitespacesAndNewlines), !modeId.isEmpty {
@@ -289,13 +308,15 @@ enum PostProcessEndpoint {
                     message: "Mode '\(name)' has post-processing disabled. Supply an explicit 'provider' or 'preset' to override."
                 )
             }
-            return (baseline, false)
+            return WorkingMode(mode: baseline, transient: nil)
         }
 
         // Build transient — copy baseline fields, then apply overrides.
-        let mode = Mode(context: context)
-        mode.id = UUID()
-        mode.name = "__local_api_postproc_transient__"
+        let transient = LocalAPITransientMode(
+            name: LocalAPITransientModeMarker.postProcessName,
+            parent: parent
+        )
+        let mode = transient.mode
         mode.preset = baseline?.preset ?? "hyper"
         mode.language = baseline?.language ?? "auto"
         mode.model = baseline?.model ?? "base"
@@ -326,11 +347,6 @@ enum PostProcessEndpoint {
         mode.geminiCustomPrompt = baseline?.geminiCustomPrompt
         mode.cloudPostProcessingModel = baseline?.cloudPostProcessingModel
         mode.cloudTranscriptionDomain = baseline?.cloudTranscriptionDomain
-        mode.isDefault = false
-        mode.isSystemProvided = false
-        mode.sortOrder = Int16.max
-        mode.createdDate = Date()
-        mode.modifiedDate = Date()
 
         // Always enable post-processing for the transient mode — the request
         // asked for post-processing by hitting this endpoint.
@@ -356,13 +372,7 @@ enum PostProcessEndpoint {
             mode.languageModel = modelId
         }
 
-        return (mode, true)
-    }
-
-    @MainActor
-    private static func cleanupTransientMode(_ mode: Mode) {
-        let context = PersistenceController.shared.container.viewContext
-        context.delete(mode)
+        return WorkingMode(mode: mode, transient: transient)
     }
 }
 
