@@ -17,7 +17,7 @@ namespace HyperWhisper.Services;
 /// - M4A - Apple audio format (NAudio via MediaFoundation)
 ///
 /// NAudio PIPELINE:
-/// AudioFileReader → ToMono() → WdlResamplingSampleProvider → WaveFileWriter (16-bit PCM)
+/// AudioFileDecoder → MonoFoldSampleProvider → WdlResamplingSampleProvider → WaveFileWriter (16-bit PCM)
 ///
 /// FUTURE PHASES:
 /// - FLAC, OGG support (requires additional NAudio packages)
@@ -58,8 +58,8 @@ public static class FileTranscriptionService
     /// - Otherwise: converts to temp file and returns new path
     ///
     /// CONVERSION PIPELINE:
-    /// 1. AudioFileReader - Reads any format (WAV, MP3, M4A) via MediaFoundation
-    /// 2. ToMono() - Converts stereo to mono if needed
+    /// 1. AudioFileDecoder - Reads any format (WAV, MP3, M4A); an Extensible PCM/float WAV without ACM
+    /// 2. AudioFileDecoder.ToMono - Averages any channel count down to mono
     /// 3. WdlResamplingSampleProvider - Resamples to 16kHz if needed
     /// 4. WaveFileWriter - Writes 16kHz mono 16-bit PCM WAV to temp file
     ///
@@ -104,7 +104,10 @@ public static class FileTranscriptionService
                     return Result<string>.Success(inputPath);
                 }
 
-                using var reader = new AudioFileReader(inputPath);
+                // AudioFileDecoder, not AudioFileReader: a WAVE_FORMAT_EXTENSIBLE PCM or
+                // float WAV (every ffmpeg WAV with more than two channels) would go to ACM
+                // and fail with "NoDriver calling acmFormatSuggest" (#1450).
+                using var reader = AudioFileDecoder.Open(inputPath);
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // CONVERSION NEEDED: Create temp file for converted audio
@@ -115,12 +118,9 @@ public static class FileTranscriptionService
 
                 try
                 {
-                    // STEP 1: Convert to mono if stereo
-                    ISampleProvider sampleProvider = reader;
-                    if (reader.WaveFormat.Channels > 1)
-                    {
-                        sampleProvider = reader.ToMono();
-                    }
+                    // STEP 1: Fold to mono by averaging every channel. NAudio's ToMono()
+                    // handles exactly two channels and throws on a 5.1 file.
+                    ISampleProvider sampleProvider = AudioFileDecoder.ToMono(reader.Samples);
 
                     // STEP 2: Resample to 16kHz if needed
                     if (reader.WaveFormat.SampleRate != WhisperSampleRate)
@@ -207,7 +207,7 @@ public static class FileTranscriptionService
 
     /// <summary>
     /// Gets the duration of an audio file in seconds.
-    /// Uses NAudio's AudioFileReader to handle multiple formats.
+    /// Uses AudioFileDecoder (NAudio's AudioFileReader, plus Extensible PCM/float WAVs).
     ///
     /// RESULT PATTERN:
     /// Returns Result&lt;double&gt; with:
@@ -227,7 +227,7 @@ public static class FileTranscriptionService
 
         try
         {
-            using var reader = new AudioFileReader(filePath);
+            using var reader = AudioFileDecoder.Open(filePath);
             double duration = reader.TotalTime.TotalSeconds;
             LoggingService.Debug($"FileTranscriptionService: Audio duration = {duration:F2}s");
             return Result<double>.Success(duration);
