@@ -89,7 +89,6 @@ const GEMINI_RATES: Record<string, GeminiRate> = {
     textInputPerToken: 1.25 / M, audioInputPerToken: 1.25 / M, outputPerToken: 10.00 / M,
     longContext: { textInputPerToken: 2.50 / M, audioInputPerToken: 2.50 / M, outputPerToken: 15.00 / M },
   },
-  'gemini-3-flash-preview': { textInputPerToken: 0.50 / M, audioInputPerToken: 1.00 / M, outputPerToken: 3.00 / M },
   // #1019. Google lists ONE input price for 3.8 Flash (audio included), and it is
   // INTRODUCTORY: $0.75/$3.75 through 2026-12-31, $1.50/$7.50 from 2027-01-01.
   // Change it together with the chat rate for the same id further down.

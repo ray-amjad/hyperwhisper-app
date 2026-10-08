@@ -118,6 +118,12 @@ describe('resolveModel', () => {
     if (slam.ok) expect(slam.model.id).toBe('universal-3-5-pro');
   });
 
+  test('the retired gemini-3-flash-preview id is served as gemini-3.8-flash', () => {
+    const legacy = resolveModel('gemini', 'gemini-3-flash-preview');
+    expect(legacy.ok).toBe(true);
+    if (legacy.ok) expect(legacy.model.id).toBe('gemini-3.8-flash');
+  });
+
   test('gemini-transcribe resolves both speech models and defaults to the pre-recorded one', () => {
     const defaulted = resolveModel('gemini-transcribe', undefined);
     expect(defaulted.ok).toBe(true);
