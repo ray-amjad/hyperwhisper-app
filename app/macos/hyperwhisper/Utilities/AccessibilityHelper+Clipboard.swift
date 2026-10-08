@@ -388,7 +388,7 @@ final class ClipboardSnapshotReader: @unchecked Sendable {
 
     /// The pasteboard's data, or nil when it is empty, when the read passed the
     /// deadline, or when an earlier read is still stuck.
-    func snapshot(
+    @MainActor func snapshot(
         caller: String,
         provider: @escaping Provider = ClipboardSnapshotReader.generalPasteboardProvider
     ) async -> Snapshot? {
@@ -402,14 +402,12 @@ final class ClipboardSnapshotReader: @unchecked Sendable {
         let progress = ClipboardSnapshotProgress()
         let started = ContinuousClock.now
 
-        // MUTATION (#1550 proof, never merge): hold the main actor until the
-        // deadline, then give up, instead of suspending the caller.
-        let outcome: DeadlineGate.Outcome<Snapshot?> = await MainActor.run {
-            let done = DispatchSemaphore(value: 0)
-            DispatchQueue.global().async { _ = provider(progress); done.signal() }
-            _ = done.wait(timeout: .now() + .nanoseconds(self.deadlineNanoseconds))
-            return .timedOut
-        }
+        // MUTATION (#1550 proof, never merge): block the main actor until the
+        // deadline with a semaphore, instead of suspending the caller.
+        let done = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async { _ = provider(progress); done.signal() }
+        let outcome: DeadlineGate.Outcome<Snapshot?> =
+            done.wait(timeout: .now() + .nanoseconds(deadlineNanoseconds)) == .timedOut ? .timedOut : .finished(nil)
 
         switch outcome {
         case .finished(let value):
