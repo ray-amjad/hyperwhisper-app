@@ -315,7 +315,14 @@ struct AutoDeleteCleanupServiceTests {
         let snapshot = try #require(completedSnapshot)
 
         #expect(snapshot.transcriptsDeleted == 2)
-        #expect(snapshot.audioPaths == [firstOriginalPath, firstTrimmedPath, secondOriginalPath])
+        // The trimmed WAV's derived upload copy (#1513) follows its row's
+        // recorded paths. A missing file is skipped at unlink time.
+        #expect(snapshot.audioPaths == [
+            firstOriginalPath,
+            firstTrimmedPath,
+            "/test/expired-first-trimmed.m4a",
+            secondOriginalPath
+        ])
         #expect(!snapshot.hasMore)
         #expect(try transcriptCount(in: context) == 1)
     }
@@ -612,6 +619,95 @@ struct AutoDeleteCleanupServiceTests {
         let remaining = try transcriptCount(in: context)
         #expect(remaining == 0)
         #expect(!service.isCleanupInProgress)
+    }
+
+    /// VAD's `<trimmed>.m4a` upload copy is in no Core Data column, so the
+    /// pass must find it from the trimmed path and remove it with the row
+    /// (#1513) — while a newer row's copy and an unrelated file stay.
+    @Test func cleanupRemovesTheTrimmedWAVsDerivedM4A() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+
+        func file(_ name: String, byteCount: Int) throws -> String {
+            let url = directory.appendingPathComponent(name)
+            try Data(repeating: 0x41, count: byteCount).write(to: url)
+            return url.path
+        }
+
+        let expiredOriginal = try file("imported_1_old.wav", byteCount: 1024)
+        let expiredTrimmed = try file("imported_1_old_wav_trimmed.wav", byteCount: 512)
+        let expiredUploadCopy = try file("imported_1_old_wav_trimmed.m4a", byteCount: 128)
+        let recentOriginal = try file("imported_2_new.wav", byteCount: 64)
+        let recentTrimmed = try file("imported_2_new_wav_trimmed.wav", byteCount: 64)
+        let recentUploadCopy = try file("imported_2_new_wav_trimmed.m4a", byteCount: 64)
+        let unrelated = try file("unrelated.m4a", byteCount: 64)
+
+        insertTranscript(
+            into: context,
+            date: Date().addingTimeInterval(-3600),
+            audioFilePath: expiredOriginal,
+            trimmedAudioFilePath: expiredTrimmed
+        )
+        insertTranscript(
+            into: context,
+            date: Date(),
+            audioFilePath: recentOriginal,
+            trimmedAudioFilePath: recentTrimmed
+        )
+        try context.save()
+
+        let settings = FixedAutoDeleteSettings(enabled: true)
+        let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
+
+        let completedStats = await service.performCleanup()
+        let stats = try #require(completedStats)
+
+        #expect(stats.transcriptsDeleted == 1)
+        #expect(stats.audioFilesDeleted == 3)
+        #expect(stats.bytesFreed == 1024 + 512 + 128)
+        #expect(!FileManager.default.fileExists(atPath: expiredOriginal))
+        #expect(!FileManager.default.fileExists(atPath: expiredTrimmed))
+        #expect(!FileManager.default.fileExists(atPath: expiredUploadCopy))
+        #expect(FileManager.default.fileExists(atPath: recentOriginal))
+        #expect(FileManager.default.fileExists(atPath: recentTrimmed))
+        #expect(FileManager.default.fileExists(atPath: recentUploadCopy))
+        #expect(FileManager.default.fileExists(atPath: unrelated))
+        #expect(try transcriptCount(in: context) == 1)
+    }
+
+    /// Replacing a pre-upgrade trimmed WAV removes its unrecorded `.m4a`
+    /// upload copy along with it (#1513).
+    @Test func replacingTrimmedPathRemovesThePreviousUploadCopy() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let originalPath = try makeFile(in: directory, byteCount: 64)
+        let legacyPath = directory.appendingPathComponent("recording_trimmed.wav").path
+        let legacyUploadCopy = directory.appendingPathComponent("recording_trimmed.m4a").path
+        let replacementPath = directory.appendingPathComponent("recording_wav_trimmed.wav").path
+        for path in [legacyPath, legacyUploadCopy, replacementPath] {
+            try Data(repeating: 0x41, count: 32).write(to: URL(fileURLWithPath: path))
+        }
+        let transcript = insertTranscript(
+            into: context,
+            date: Date(),
+            audioFilePath: originalPath,
+            trimmedAudioFilePath: legacyPath
+        )
+        try context.save()
+
+        let saved = await persistence.setTrimmedAudioPath(transcript, trimmedPath: replacementPath)
+
+        #expect(saved)
+        #expect(!FileManager.default.fileExists(atPath: legacyPath))
+        #expect(!FileManager.default.fileExists(atPath: legacyUploadCopy))
+        #expect(FileManager.default.fileExists(atPath: replacementPath))
+        #expect(FileManager.default.fileExists(atPath: originalPath))
     }
 
     /// Only rows older than the cutoff go. A pass that swept everything would

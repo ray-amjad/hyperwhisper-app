@@ -391,7 +391,9 @@ class FileTranscriptionFlow {
                 progressState.animateProgress(to: 0.10, duration: 0.5)
 
                 // Create output path for extracted audio (same name but .m4a extension)
-                let extractedAudioURL = copiedURL.deletingPathExtension().appendingPathExtension("m4a")
+                // No Core Data column records this file; transcript deletes find
+                // it from the copied video's path through the same rule (#1513).
+                let extractedAudioURL = TranscriptAudioFiles.extractedAudioURL(forVideo: copiedURL)
 
                 do {
                     // Extract audio from video using AudioFileConverter
@@ -903,8 +905,7 @@ class FileTranscriptionFlow {
     /// - Parameter url: URL of the file to check
     /// - Returns: `true` if file is a video type requiring audio extraction
     private func isVideoFileType(_ url: URL) -> Bool {
-        let videoExtensions = ["mp4", "mov", "m4v"]
-        return videoExtensions.contains(url.pathExtension.lowercased())
+        TranscriptAudioFiles.isVideoFile(url)
     }
 
     /// Shows an error alert to the user

@@ -9,13 +9,15 @@
 //  - Perform cleanup on app launch
 //  - Run periodic cleanup based on timer
 //  - Delete transcripts older than the configured duration
-//  - Delete associated audio files (original and trimmed)
+//  - Delete associated audio files (original, trimmed, and the derived `.m4a`
+//    files no column records — see `TranscriptAudioFiles`, #1513)
 //
 //  CLEANUP FLOW:
 //  1. Read the settings once, off the main actor, and check if auto-delete is enabled
 //  2. Calculate the cutoff date from that same read (time unit and value)
 //  3. In ONE uninterrupted serial-writer transaction: fetch transcripts older than the
-//     cutoff date, collect every audio file path to remove (original + trimmed),
+//     cutoff date, collect every audio file path to remove (original + trimmed +
+//     derived, via `PersistenceController.audioFilePathsToDelete`),
 //     delete those transcripts from Core Data, and save
 //  4. If the fetch or save fails, abort — nothing is unlinked
 //  5. Delete those files from disk in one batch, off the main actor
