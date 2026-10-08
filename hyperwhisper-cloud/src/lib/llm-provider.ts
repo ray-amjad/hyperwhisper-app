@@ -21,7 +21,7 @@ export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
   anthropic: 'claude-haiku-5-5',
   grok: 'xai-grok-4.3',
   openai: 'openai-gpt-5.6-luna',
-  gemini: 'gemini-2.5-flash',
+  gemini: 'gemini-3.8-flash',
   mistral: 'mistral-small-latest',
 };
 
@@ -92,9 +92,12 @@ const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: reado
   // longer allowlisted, so an old client still sending either id resolves to the
   // default and is billed at the luna rate (the open-mistral-nemo precedent).
   openai: { default: 'gpt-5.6-luna', allowed: ['gpt-5.6-luna'] },
+  // Google limits gemini-2.5-* to past users, so a request with no (or an
+  // unknown) X-LLM-Model resolves to 3.8 Flash, the cloud-pp-catalog.json
+  // isDefault row. The 2.5 ids stay allowed for clients that ask for them.
   gemini: {
-    default: 'gemini-2.5-flash',
-    allowed: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.8-flash'],
+    default: 'gemini-3.8-flash',
+    allowed: ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'],
   },
   mistral: { default: 'mistral-small-latest', allowed: ['mistral-small-latest'] },
 };

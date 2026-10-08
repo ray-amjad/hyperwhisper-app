@@ -257,7 +257,9 @@ const GEMINI_CHAT_RATES: Record<string, LLMChatRate> = {
   // priceNote on the gemini-3.8-flash row in cloud-pp-catalog.json together.
   'gemini-3.8-flash': { promptPerToken: 0.75 / 1_000_000, completionPerToken: 3.75 / 1_000_000 },
 };
-const GEMINI_DEFAULT_CHAT_MODEL = 'gemini-2.5-flash';
+// Follows the gemini default in llm-provider.ts. An unknown id bills at 3.8
+// Flash, the dearest row here, so drift never under-bills.
+const GEMINI_DEFAULT_CHAT_MODEL = 'gemini-3.8-flash';
 
 // Mistral (chat/completions). https://mistral.ai/pricing + docs.mistral.ai
 // `mistral-small-latest` resolves to Mistral Small 4: the model-specific docs
