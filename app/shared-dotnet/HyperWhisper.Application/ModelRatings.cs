@@ -21,11 +21,11 @@ public readonly record struct ModelRating(int Speed, int Accuracy);
 /// ModelRatingsParityTests pins the two sets equal by parsing the Windows source. Do not "fix" a
 /// number here alone; change it here and let that test tell you what else to update.
 ///
-/// FOUR tables, not one, and the split is load-bearing: six ids appear in both
+/// FOUR tables, not one, and the split is load-bearing: five ids appear in both
 /// <see cref="Cloud"/> and <see cref="PostProcessing"/> with DIFFERENT values (gemini-2.5-flash,
-/// gemini-2.5-pro, gemini-3.6-flash, gemini-3-flash-preview, gemini-3.1-pro-preview,
-/// gemini-3.1-flash-lite), because a model that transcribes well does not necessarily clean text
-/// up well. Merging the dictionaries would silently corrupt all six.
+/// gemini-2.5-pro, gemini-3.6-flash, gemini-3.1-pro-preview, gemini-3.1-flash-lite), because a
+/// model that transcribes well does not necessarily clean text up well. Merging the dictionaries
+/// would silently corrupt all five.
 /// </summary>
 public static class ModelRatings
 {
@@ -76,7 +76,6 @@ public static class ModelRatings
             ["gemini-2.5-pro"] = new(1, 5),
             ["gemini-3.1-flash-lite"] = new(3, 4),
             ["gemini-3.6-flash"] = new(2, 4),
-            ["gemini-3-flash-preview"] = new(2, 1),
             ["gemini-3.1-pro-preview"] = new(1, 5),
         };
 
@@ -121,10 +120,11 @@ public static class ModelRatings
             ["gpt-5.4-nano"] = new(4, 4),
             ["gpt-5.4-mini"] = new(4, 4),
             ["gpt-5.6-luna"] = new(4, 4),
+            ["gpt-6-luna"] = new(4, 4),
             ["claude-sonnet-4-6"] = new(4, 5),
             ["claude-sonnet-5"] = new(4, 5),
-            ["claude-sonnet-4-5"] = new(3, 5),
-            ["claude-haiku-4-5"] = new(4, 4),
+            ["claude-sonnet-5-5"] = new(4, 5),
+            ["claude-haiku-5-5"] = new(4, 4),
             ["gemini-2.5-flash"] = new(2, 5),
             ["gemini-3.5-flash"] = new(2, 5),
             ["gemini-3.6-flash"] = new(2, 5),
@@ -132,12 +132,10 @@ public static class ModelRatings
             ["gemini-2.5-flash-lite"] = new(4, 5),
             ["gemini-3.5-flash-lite"] = new(5, 4),
             ["gemini-2.5-pro"] = new(2, 4),
-            ["gemini-3-flash-preview"] = new(1, 4),
             ["gemini-3.1-pro-preview"] = new(2, 3),
             ["gemini-3.1-flash-lite"] = new(4, 3),
             ["openai/gpt-oss-120b"] = new(4, 4),
             ["openai/gpt-oss-20b"] = new(4, 4),
-            ["qwen/qwen3.6-27b"] = new(4, 3),
             ["qwen/qwen3.8-27b"] = new(4, 3),
             ["grok-4.3"] = new(2, 5),
             ["grok-4.5"] = new(2, 5),

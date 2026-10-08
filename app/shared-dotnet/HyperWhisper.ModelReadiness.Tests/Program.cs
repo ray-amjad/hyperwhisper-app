@@ -360,6 +360,11 @@ static Task TestPostProcessingCoverageAsync()
     Equal(expectedByok, rows.Count(x => x.Key.StartsWith("cloud/pp-byok/", StringComparison.Ordinal)));
     Equal(expectedTier, rows.Count(x => x.Key.StartsWith("cloud/pp-tier/", StringComparison.Ordinal)));
     True(rows.All(x => x.Workload == ModelWorkload.Text));
+    // A BYOK row is labelled with the catalog's model name, not its raw id.
+    Equal("GPT-6 Luna", rows.Single(x => x.Key == "cloud/pp-byok/openai/gpt-6-luna").DisplayName);
+    Equal("Claude Sonnet 5.5", rows.Single(x => x.Key == "cloud/pp-byok/anthropic/claude-sonnet-5-5").DisplayName);
+    True(rows.Where(x => x.Key.StartsWith("cloud/pp-byok/", StringComparison.Ordinal))
+        .All(x => !string.Equals(x.DisplayName, x.ModelId, StringComparison.Ordinal)));
     return Task.CompletedTask;
 }
 

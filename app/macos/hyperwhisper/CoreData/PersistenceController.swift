@@ -1395,14 +1395,11 @@ class PersistenceController: ObservableObject {
             }
 
             let batch = Array(transcripts.prefix(Self.autoDeleteBatchLimit))
-            var paths: [String] = []
+            // Same file list as History's Delete, including the unrecorded
+            // derived files (#1513). Collected before any row is deleted so
+            // the ownership check sees only the rows that survive this batch.
+            let paths = Self.audioFilePathsToDelete(for: batch, in: context)
             for transcript in batch {
-                if let audioPath = transcript.audioFilePath {
-                    paths.append(audioPath)
-                }
-                if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String {
-                    paths.append(trimmedPath)
-                }
                 context.delete(transcript)
             }
 
@@ -1870,7 +1867,9 @@ class PersistenceController: ObservableObject {
     }
 
     private struct TrimmedPathUpdate: Sendable {
-        let unownedPreviousPath: String?
+        /// The replaced trimmed file and its derived upload copy (#1513), when
+        /// no transcript owns them any more. Empty when nothing is unowned.
+        let unownedPreviousPaths: [String]
     }
 
     /// Sets the trimmed audio file path for a transcript on the serial writer.
@@ -1901,7 +1900,7 @@ class PersistenceController: ObservableObject {
             // with the corrected collision-safe WAV path. Delete the prior
             // artifact only after no transcript owns it and the path is not the
             // original recording. The delete runs after this transaction saves.
-            var unownedPreviousPath: String?
+            var unownedPreviousPaths: [String] = []
             if let previousPath,
                previousPath != trimmedPath,
                previousPath != originalPath {
@@ -1914,11 +1913,19 @@ class PersistenceController: ObservableObject {
                 ownersRequest.fetchLimit = 1
 
                 if let owners = try? context.count(for: ownersRequest), owners == 0 {
-                    unownedPreviousPath = previousPath
+                    // The old trimmed WAV may also have a `.m4a` upload copy
+                    // that no column records (#1513). The shared helper adds it
+                    // unless a transcript (this one included, with its new
+                    // path) still records or derives it.
+                    unownedPreviousPaths = Self.audioFilePathsToDelete(
+                        for: [TranscriptRecordedAudioPaths(audioFilePath: nil, trimmedAudioFilePath: previousPath)],
+                        excluding: [],
+                        in: context
+                    )
                 }
             }
 
-            return TrimmedPathUpdate(unownedPreviousPath: unownedPreviousPath)
+            return TrimmedPathUpdate(unownedPreviousPaths: unownedPreviousPaths)
         }
 
         guard let update else {
@@ -1929,8 +1936,8 @@ class PersistenceController: ObservableObject {
             return false
         }
 
-        if let previousPath = update.unownedPreviousPath {
-            _ = await FileDeletion.deleteFiles(at: [previousPath])
+        if !update.unownedPreviousPaths.isEmpty {
+            _ = await FileDeletion.deleteFiles(at: update.unownedPreviousPaths)
             AppLogger.coreData.info("Removed replaced trimmed audio artifact")
         }
 
@@ -1949,32 +1956,15 @@ class PersistenceController: ObservableObject {
             return
         }
         
-        // DELETE AUDIO FILES FROM DISK:
-        // Remove the original audio file if it exists
-        if let audioFilePath = transcript.audioFilePath,
-           FileManager.default.fileExists(atPath: audioFilePath) {
-            do {
-                try FileManager.default.removeItem(atPath: audioFilePath)
-                AppLogger.coreData.info("Deleted audio file: \(audioFilePath, privacy: .public)")
-            } catch {
-                AppLogger.coreData.error("Failed to delete audio file: \(error.localizedDescription, privacy: .public)")
-            }
-        }
-
-        // DELETE TRIMMED AUDIO FILE FROM DISK:
-        // Remove the VAD-trimmed audio file if it exists
-        // This prevents orphaned trimmed files from accumulating
-        if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String,
-           FileManager.default.fileExists(atPath: trimmedPath) {
-            do {
-                try FileManager.default.removeItem(atPath: trimmedPath)
-                AppLogger.coreData.info("Deleted trimmed audio file: \(trimmedPath, privacy: .public)")
-            } catch {
-                AppLogger.coreData.error("Failed to delete trimmed audio file: \(error.localizedDescription, privacy: .public)")
-            }
-        }
-
         let context = container.viewContext
+
+        // DELETE AUDIO FILES FROM DISK:
+        // The original, the VAD-trimmed file, and the unrecorded files derived
+        // from them (#1513) — one list shared with bulk delete and auto-delete.
+        for path in Self.audioFilePathsToDelete(for: [transcript], in: context) {
+            removeTranscriptAudioFile(atPath: path)
+        }
+
         context.delete(transcript)
         save()
     }
@@ -1995,31 +1985,95 @@ class PersistenceController: ObservableObject {
         }
         
         // DELETE AUDIO FILES FROM DISK:
-        // Remove associated audio files for each transcript (both original and trimmed)
-        validTranscripts.forEach { transcript in
-            // Delete original audio file
-            if let audioFilePath = transcript.audioFilePath,
-               FileManager.default.fileExists(atPath: audioFilePath) {
-                do {
-                    try FileManager.default.removeItem(atPath: audioFilePath)
-                    AppLogger.coreData.info("Deleted audio file: \(audioFilePath, privacy: .public)")
-                } catch {
-                    AppLogger.coreData.error("Failed to delete audio file: \(error.localizedDescription, privacy: .public)")
-                }
-            }
-            // Delete trimmed audio file (VAD-processed version)
-            if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String,
-               FileManager.default.fileExists(atPath: trimmedPath) {
-                do {
-                    try FileManager.default.removeItem(atPath: trimmedPath)
-                    AppLogger.coreData.info("Deleted trimmed audio file: \(trimmedPath, privacy: .public)")
-                } catch {
-                    AppLogger.coreData.error("Failed to delete trimmed audio file: \(error.localizedDescription, privacy: .public)")
-                }
-            }
-            context.delete(transcript)
+        // Every file of every selected transcript: original, trimmed, and the
+        // unrecorded files derived from them (#1513). Collected for the whole
+        // selection before any row is deleted, so the ownership check sees
+        // exactly the transcripts that survive.
+        let transcriptsToDelete = Array(validTranscripts)
+        for path in Self.audioFilePathsToDelete(for: transcriptsToDelete, in: context) {
+            removeTranscriptAudioFile(atPath: path)
         }
+        transcriptsToDelete.forEach { context.delete($0) }
         save()
+    }
+
+    // MARK: - Transcript Audio Files
+
+    /// The recorded audio paths of `transcript`, as plain values.
+    /// Call on the queue of the transcript's context.
+    static func recordedAudioPaths(of transcript: Transcript) -> TranscriptRecordedAudioPaths {
+        TranscriptRecordedAudioPaths(
+            audioFilePath: transcript.audioFilePath,
+            trimmedAudioFilePath: transcript.value(forKey: "trimmedAudioFilePath") as? String
+        )
+    }
+
+    /// Every file on disk that belongs to `transcripts`, in delete order.
+    ///
+    /// The single source for History's single and bulk Delete and for
+    /// auto-delete, so the three cannot drift. It returns the two recorded
+    /// paths of each row (unchanged behaviour) plus the files derived from them
+    /// that no column records — VAD's `<trimmed>.m4a` upload copy (#1513) and
+    /// a video import's extracted `.m4a` (see `TranscriptAudioFiles`).
+    ///
+    /// A derived path is a name guessed from a naming rule, so it is dropped
+    /// when any transcript outside `transcripts` records it or derives the same
+    /// name. If that ownership fetch fails, every derived path is dropped: a
+    /// leaked file is recoverable, a deleted file another row plays is not.
+    ///
+    /// Must run on `context`'s queue, BEFORE the rows are deleted from it.
+    static func audioFilePathsToDelete(
+        for transcripts: [Transcript],
+        in context: NSManagedObjectContext
+    ) -> [String] {
+        audioFilePathsToDelete(
+            for: transcripts.map(Self.recordedAudioPaths(of:)),
+            excluding: transcripts,
+            in: context
+        )
+    }
+
+    /// `audioFilePathsToDelete(for:in:)` for plain recorded paths. `excluding`
+    /// lists the rows that do not count as owners (the rows being deleted).
+    static func audioFilePathsToDelete(
+        for rows: [TranscriptRecordedAudioPaths],
+        excluding transcripts: [Transcript],
+        in context: NSManagedObjectContext
+    ) -> [String] {
+        let lookupPaths = TranscriptAudioFiles.ownershipLookupPaths(for: rows)
+        guard !lookupPaths.isEmpty else {
+            return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: [])
+        }
+
+        let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "NOT (SELF IN %@) AND (audioFilePath IN %@ OR trimmedAudioFilePath IN %@)",
+            transcripts as NSArray,
+            lookupPaths as NSArray,
+            lookupPaths as NSArray
+        )
+
+        let protectedPaths: Set<String>
+        do {
+            let survivors = try context.fetch(request)
+            protectedPaths = TranscriptAudioFiles.protectedPaths(for: survivors.map(Self.recordedAudioPaths(of:)))
+        } catch {
+            AppLogger.coreData.error("Could not check owners of derived audio files; keeping them: \(error.localizedDescription, privacy: .public)")
+            protectedPaths = Set(lookupPaths)
+        }
+
+        return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: protectedPaths)
+    }
+
+    /// Removes one transcript audio file if it exists, logging the outcome.
+    private func removeTranscriptAudioFile(atPath path: String) {
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        do {
+            try FileManager.default.removeItem(atPath: path)
+            AppLogger.coreData.info("Deleted audio file: \(path, privacy: .public)")
+        } catch {
+            AppLogger.coreData.error("Failed to delete audio file: \(error.localizedDescription, privacy: .public)")
+        }
     }
     
     // MARK: - Mode Operations
@@ -2518,6 +2572,51 @@ class PersistenceController: ObservableObject {
         save()
     }
 
+    /// Deletes a mode the user asked to delete, then repairs the app state that
+    /// pointed at it. The Modes page and Local API `DELETE /modes/:id` both use
+    /// this, so the two cannot drift apart again.
+    ///
+    /// Issue #1439: the Modes page read `mode.id` AFTER `deleteMode(_:)` had
+    /// deleted and saved the object. A deleted, saved Core Data object no longer
+    /// gives attribute values, so the id read back nil, the "was it selected?"
+    /// test was always false, and the app stayed on the deleted mode until a
+    /// relaunch. The id is read here before anything is deleted.
+    ///
+    /// - Parameters:
+    ///   - mode: The mode to delete. The caller still ensures one mode remains.
+    ///   - appState: Moves its selection to the first remaining mode when the
+    ///     deleted mode was selected. `nil` deletes without touching selection.
+    ///   - settingsManager: Drops the deleted mode's `defaultModelByMode` entry.
+    @MainActor
+    func deleteModeAndReconcileSelection(
+        _ mode: Mode,
+        appState: AppState?,
+        settingsManager: SettingsManager?
+    ) {
+        // Read BEFORE the delete — see the note above.
+        let deletedModeId = mode.id?.uuidString
+
+        deleteMode(mode)
+
+        guard let deletedModeId else { return }
+
+        // Guarded: `defaultModelByMode`'s didSet rewrites UserDefaults on every
+        // mutation, even a removal of a key that is not there.
+        if let settingsManager, settingsManager.defaultModelByMode[deletedModeId] != nil {
+            settingsManager.defaultModelByMode.removeValue(forKey: deletedModeId)
+        }
+
+        // Fetch only when the deleted mode was the selected one; any other
+        // delete would sort-fetch every mode just to throw the result away.
+        // `reconcileSelectionAfterDeletingMode` keeps its own guard.
+        if let appState, appState.selectedModeId == deletedModeId {
+            appState.reconcileSelectionAfterDeletingMode(
+                id: deletedModeId,
+                remainingModes: fetchAllModes()
+            )
+        }
+    }
+
     /// Make exactly one mode the default again, if something left the store with
     /// two or with none.
     ///
@@ -2815,6 +2914,19 @@ class PersistenceController: ObservableObject {
             }
             let hasConflict = !conflicts.isEmpty
 
+            // #1481: a backup without enableScreenOCR / useStreamingTranscription
+            // (one written before they were exported) keeps the value of the
+            // local mode this row replaces or updates: the same id first, then
+            // the same-name row `.replace` deletes below. Read it BEFORE that
+            // delete. With no such row (a new mode, or `.keepBoth`'s copy) the
+            // value is `false`, which is what every restore wrote before.
+            let localCounterpart: Mode? = (hasConflict && resolution == .keepBoth)
+                ? nil
+                : (fetchAllModes().first { $0.id == backupMode.id } ?? conflicts.first)
+            let restoredScreenOCR = backupMode.enableScreenOCR ?? localCounterpart?.enableScreenOCR ?? false
+            let restoredStreaming = backupMode.useStreamingTranscription
+                ?? localCounterpart?.useStreamingTranscription ?? false
+
             if hasConflict {
                 switch resolution {
                 case .skip:
@@ -2890,9 +3002,11 @@ class PersistenceController: ObservableObject {
                 // backup restores the same way on both platforms.
                 englishSpelling: backupMode.englishSpelling ?? "",
                 userSystemPrompt: backupMode.userSystemPrompt,
+                useStreamingTranscription: restoredStreaming,
                 cloudAccuracyTier: normalized.accuracyTier
                     ?? CloudAccuracyTier.fromStorageValue(backupMode.cloudAccuracyTier).rawValue,
                 removeTrailingPeriod: backupMode.removeTrailingPeriod ?? false,
+                enableScreenOCR: restoredScreenOCR,
                 geminiCustomPrompt: backupMode.geminiCustomPrompt,
                 cloudPostProcessingModel: backupMode.cloudPostProcessingModel,
                 cloudTranscriptionDomain: backupMode.cloudTranscriptionDomain,

@@ -43,6 +43,9 @@ enum ModeEditorConfiguration {
 struct ModeEditorView: View {
     let configuration: ModeEditorConfiguration
     let availableModelIds: [String]
+    /// EDIT only: the mode's stored local model when it is not installed. The
+    /// picker lists it as not installed so the selection is kept (issue #1434).
+    let missingLocalModelId: String?
     let onSave: (ModeData) -> Void
 
     @Environment(\.dismiss) var dismiss
@@ -125,29 +128,16 @@ struct ModeEditorView: View {
             _preset = State(initialValue: isLegacyVoiceToText ? "hyper" : rawPreset)
             _language = State(initialValue: LanguageData.canonicalLanguageCode(mode.language))
 
-            // Resolve model and provider
-            let initialModel = mode.model ?? "base"
-            let initialProvider: ProviderType = (mode.model ?? "base").lowercased() == "cloud" ? .cloud : .local
-            var resolvedProvider = initialProvider
-            var resolvedModel = initialModel
-
-            if resolvedProvider == .local {
-                if availableModelIds.isEmpty {
-                    resolvedProvider = .cloud
-                } else if !availableModelIds.contains(initialModel) {
-                    // Sort according to WhisperModel enum order
-                    let canonicalOrder = WhisperModel.allCases.map { $0.rawValue }
-                    let sorted = availableModelIds.sorted { first, second in
-                        let firstIndex = canonicalOrder.firstIndex(of: first) ?? Int.max
-                        let secondIndex = canonicalOrder.firstIndex(of: second) ?? Int.max
-                        return firstIndex < secondIndex
-                    }
-                    resolvedModel = sorted.first ?? initialModel
-                }
-            }
-
-            _model = State(initialValue: resolvedModel)
-            _provider = State(initialValue: resolvedProvider)
+            // Open on the STORED model and provider, installed or not. A missing
+            // local model is listed in the picker as not installed, with a
+            // warning, so Save with no change keeps it (issue #1434).
+            let selection = ModeEditorDefaults.editModelSelection(
+                storedModel: mode.model,
+                availableModelIds: availableModelIds
+            )
+            self.missingLocalModelId = selection.missingLocalModelId
+            _model = State(initialValue: selection.model)
+            _provider = State(initialValue: selection.provider)
             _punctuation = State(initialValue: mode.punctuation)
             _capitalization = State(initialValue: mode.capitalization)
             _profanityFilter = State(initialValue: mode.profanityFilter)
@@ -232,6 +222,7 @@ struct ModeEditorView: View {
             // CREATE MODE: Initialize with defaults
             // The seeds that depend on the licence and the installed models come
             // from the pure ModeEditorDefaults resolver (issue #873).
+            self.missingLocalModelId = nil
             let seededProvider = ModeEditorDefaults.initialProvider(
                 licenseActive: licenseActive,
                 availableModelIds: availableModelIds
@@ -283,10 +274,27 @@ struct ModeEditorView: View {
 
     // MARK: - Computed Properties
 
-    /// Installed model ids in On-device picker order: non-Whisper models first,
-    /// then Whisper in `WhisperModel` order. The CREATE seed uses the same table.
-    private func sortedModelIds() -> [String] {
-        ModeEditorDefaults.sortedLocalModelIds(availableModelIds)
+    /// Rows of the On-device Model picker: installed model ids in picker order
+    /// (non-Whisper first, then Whisper in `WhisperModel` order; the CREATE seed
+    /// uses the same table), preceded by the mode's own missing model when it
+    /// has one (issue #1434).
+    private func localPickerModelIds() -> [String] {
+        ModeEditorDefaults.localPickerModelIds(
+            availableModelIds: availableModelIds,
+            missingLocalModelId: missingLocalModelId
+        )
+    }
+
+    /// True while the On-device selection is the mode's missing model.
+    private var isShowingMissingLocalModel: Bool {
+        provider == .local && missingLocalModelId != nil && model == missingLocalModelId
+    }
+
+    /// Picker row label: the missing model is marked as not installed.
+    private func localPickerLabel(for id: String) -> String {
+        let name = displayName(for: id)
+        guard id == missingLocalModelId else { return name }
+        return "modes.model.notInstalledFormat".localized(arguments: name)
     }
 
     /// Get display name for a model ID
@@ -349,9 +357,13 @@ struct ModeEditorView: View {
                 switch newSource {
                 case .onDevice:
                     provider = .local
-                    if !availableModelIds.isEmpty, !availableModelIds.contains(model) {
-                        model = sortedModelIds().first ?? model
-                    }
+                    // Back on On-device, a local mode's own missing model is
+                    // kept, not swapped for the first installed one (issue #1434).
+                    model = ModeEditorDefaults.onDeviceModel(
+                        current: model,
+                        availableModelIds: availableModelIds,
+                        missingLocalModelId: missingLocalModelId
+                    )
                 case .hyperwhisperCloud:
                     provider = .cloud
                     cloudProvider = CloudProvider.hyperwhisper.rawValue
@@ -715,12 +727,20 @@ struct ModeEditorView: View {
         .background(Color(NSColor.windowBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onAppear {
-            // Ensure model selection is valid to avoid Picker selection warnings
+            // Ensure model selection is valid to avoid Picker selection warnings.
+            // The mode's own missing model IS a picker row, so it is kept: this
+            // clamp used to swap it for the first installed model (or flip the
+            // mode to Cloud), and Save then wrote the substitute (issue #1434).
             if provider == .local {
-                if availableModelIds.isEmpty {
+                let pickerIds = localPickerModelIds()
+                if pickerIds.isEmpty {
                     provider = .cloud
-                } else if !availableModelIds.contains(model) {
-                    model = sortedModelIds().first ?? model
+                } else if !pickerIds.contains(model) {
+                    model = ModeEditorDefaults.onDeviceModel(
+                        current: model,
+                        availableModelIds: availableModelIds,
+                        missingLocalModelId: missingLocalModelId
+                    )
                 }
             }
 
@@ -991,7 +1011,7 @@ struct ModeEditorView: View {
 
     @ViewBuilder
     private var editorLocalTranscription: some View {
-        if availableModelIds.isEmpty {
+        if localPickerModelIds().isEmpty {
             HStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.orange)
@@ -1017,13 +1037,32 @@ struct ModeEditorView: View {
                     Text(localized: "modes.field.model")
                         .frame(width: 80, alignment: .leading)
                     Picker("", selection: $model) {
-                        ForEach(sortedModelIds(), id: \.self) { mid in
-                            Text(displayName(for: mid)).tag(mid)
+                        ForEach(localPickerModelIds(), id: \.self) { mid in
+                            Text(localPickerLabel(for: mid)).tag(mid)
                         }
                     }
                     .pickerStyle(.menu)
                     .labelsHidden()
                     Spacer()
+                }
+
+                // The mode's stored model is not installed (issue #1434). Save
+                // keeps it; the user can download it or pick another model.
+                if isShowingMissingLocalModel {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text(localized: "modes.notice.modelNotInstalled")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                    }
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.orange.opacity(0.1))
+                    )
                 }
 
                 // Language selection for local
@@ -1425,8 +1464,16 @@ struct ModeEditorView: View {
             // Save/Create button
             Button {
                 guard hasValidDictationLanguage else { return }
-                let chosenModel = provider == .cloud ? "cloud" : (model.isEmpty ? (sortedModelIds().first ?? "base") : model)
-                let finalLanguage = isEnglishOnlyModel(provider: provider, model: chosenModel) ? "en" : language
+                let chosenModel = ModeEditorDefaults.savedModel(
+                    provider: provider,
+                    model: model,
+                    availableModelIds: availableModelIds
+                )
+                let finalLanguage = ModeEditorDefaults.savedLanguage(
+                    provider: provider,
+                    savedModel: chosenModel,
+                    language: language
+                )
                 let modeData = ModeData(
                     id: configuration.mode?.id ?? UUID(),
                     name: normalizedName ?? name,
@@ -1463,7 +1510,7 @@ struct ModeEditorView: View {
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(normalizedName == nil || !hasValidDictationLanguage || (provider == .local && availableModelIds.isEmpty))
+            .disabled(normalizedName == nil || !hasValidDictationLanguage || (provider == .local && localPickerModelIds().isEmpty))
         }
         .padding(20)
         .background(Color(NSColor.controlBackgroundColor))

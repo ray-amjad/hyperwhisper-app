@@ -215,7 +215,10 @@ class BackupManager: ObservableObject {
                 pushToTalkMode: settingsManager.pushToTalkMode.rawValue,
                 pushToTalkDoublePressEnabled: settingsManager.pushToTalkDoublePressEnabled,
                 quickCaptureEnabled: settingsManager.quickCaptureEnabled,
-                quickCaptureModeId: settingsManager.quickCaptureModeId
+                quickCaptureModeId: settingsManager.quickCaptureModeId,
+                // The key combos themselves (#1481) — without them a restore
+                // silently lost every custom shortcut.
+                keyboardShortcuts: BackupKeyboardShortcuts.liveSnapshot()
             ),
             aiModel: BackupAIModelSettings(
                 showExperimentalModels: settingsManager.showExperimentalModels,
@@ -1030,7 +1033,9 @@ class BackupManager: ObservableObject {
     /// Projects a `UniversalModeDTO` into the internal `BackupMode`, running the present-only cloud
     /// migrations BEFORE constructing the mode. Migrations run only when the source value is
     /// non-nil/non-empty so we never write a default where the source intended `nil`.
-    nonisolated private static func backupMode(fromV2 dto: UniversalModeDTO) -> BackupMode? {
+    ///
+    /// Internal (not private) so the tests can reach it.
+    nonisolated static func backupMode(fromV2 dto: UniversalModeDTO) -> BackupMode? {
         guard let id = UUID(uuidString: dto.id) else { return nil }
 
         // Present-only migrations (both idempotent with macOS's own fromStorageValue at read time).
@@ -1084,6 +1089,18 @@ class BackupManager: ObservableObject {
             geminiCustomPrompt: dto.geminiCustomPrompt,
             cloudPostProcessingModel: migratedPP,
             cloudTranscriptionDomain: dto.cloudTranscriptionDomain,
+            // #1481: macOS's own per-mode slice first. A Windows or Linux backup
+            // carries enableScreenOCR in its own slice, so that is the fallback;
+            // neither has a per-mode streaming flag. Absent stays nil, and
+            // importModes keeps the local value.
+            enableScreenOCR: dto.platformExtensionBool(
+                UniversalModeDTO.enableScreenOCRKey,
+                platforms: ["macos", "windows", "linux"]
+            ),
+            useStreamingTranscription: dto.platformExtensionBool(
+                UniversalModeDTO.useStreamingTranscriptionKey,
+                platforms: ["macos"]
+            ),
             foreignPlatformExtensions: foreignExt
         )
     }
@@ -1344,6 +1361,9 @@ class BackupManager: ObservableObject {
         if let qcModeId = settings.shortcuts.quickCaptureModeId {
             settingsManager.quickCaptureModeId = qcModeId
         }
+        // Key combos (#1481). A backup without the map leaves every shortcut
+        // alone; see BackupKeyboardShortcuts for the per-entry rules.
+        BackupKeyboardShortcuts.applyLive(settings.shortcuts.keyboardShortcuts)
         // Programmatic writes above bypass the settings UI's .onChange posters,
         // so re-sync shortcut consumers (PTT observer, feature-gated hotkey
         // registration) explicitly.

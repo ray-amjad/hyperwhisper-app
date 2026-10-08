@@ -402,7 +402,9 @@ class VADProcessingService {
         let fileSizeMB = Double(fileSize) / (1024 * 1024)
         AppLogger.audio.info("🔄 \(logPrefix, privacy: .public)Trimmed WAV file is \(String(format: "%.1f", fileSizeMB), privacy: .public)MB - converting to M4A")
 
-        let m4aURL = wavURL.deletingPathExtension().appendingPathExtension("m4a")
+        // No Core Data column records this file. Every transcript delete path
+        // finds it from the trimmed path through the same rule (#1513).
+        let m4aURL = TranscriptAudioFiles.uploadCopyURL(forTrimmedWAV: wavURL)
 
         // Remove any existing M4A file from previous attempts
         try? FileManager.default.removeItem(at: m4aURL)

@@ -727,7 +727,7 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "modes.postProcessing.apiKeyMissing" = "%@ API-avainta ei ole määritetty. Lisää se asetuksissa ottaaksesi jälkikäsittelyn käyttöön.";
 "modes.postProcessing.configure" = "Määritä asetuksissa";
 "modes.postProcessing.modelRecommendation" = "Suosittelemme GPT-4.1 Nano -mallin käyttöä parhaan nopeuden ja laadun tasapainon saavuttamiseksi.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Paikallinen jälkikäsittely vaatii ladatun paikallisen mallin.";
 "modes.postProcessing.download" = "Lataa asetuksissa";
@@ -793,6 +793,8 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "modes.provider.cloud" = "Pilvi";
 "modes.notice.noLocalModels.title" = "Ei paikallisia malleja asennettuna";
 "modes.notice.noLocalModels.subtitle" = "Asenna malli ensin asetuksissa";
+"modes.model.notInstalledFormat" = "%@ (ei asennettu)";
+"modes.notice.modelNotInstalled" = "Tämän tilan mallia ei ole asennettu. Tallennus säilyttää sen. Lataa se mallikirjastosta tai valitse toinen malli.";
 "modes.model.pricing" = "Hinnoittelu: $%.6f / minuutti (laskutetaan sekunnittain)";
 "modes.button.create" = "Luo tila";
 "modes.button.delete" = "Poista tila";
@@ -975,6 +977,10 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "settings.backup.localDownload.dismiss" = "Sulje";
 "modelLibrary.local.requiresAppleSilicon" = "Vaatii Apple Silicon -suorittimen";
 "modelLibrary.local.needsNativeRelaunch" = "Käynnistä uudelleen natiivina";
+"modelLibrary.remove.confirm.title" = "Poistetaanko %@?";
+"modelLibrary.remove.confirm.message" = "Sinun on ladattava se uudelleen (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Sinun on ladattava se uudelleen.";
+"modelLibrary.remove.confirm.button" = "Poista";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Krediitit eivät riitä. Lisää krediittejä asetuksissa.";

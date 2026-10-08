@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "%@ API ключът не е конфигуриран. Добавете го в Настройки, за да активирате последващата обработка.";
 "modes.postProcessing.configure" = "Настройване в Настройки";
 "modes.postProcessing.modelRecommendation" = "Препоръчваме използването на GPT-4.1 Nano за най-добрия баланс между скорост и качество.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Локалната последваща обработка изисква изтеглен локален модел.";
 "modes.postProcessing.download" = "Изтеглете в Настройки";
@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "Облак";
 "modes.notice.noLocalModels.title" = "Няма инсталирани локални модели";
 "modes.notice.noLocalModels.subtitle" = "Първо инсталирайте модел в Настройки";
+"modes.model.notInstalledFormat" = "%@ (не е инсталиран)";
+"modes.notice.modelNotInstalled" = "Моделът на този режим не е инсталиран. Запазването го запазва. Изтеглете го от Библиотеката с модели или изберете друг модел.";
 "modes.model.pricing" = "Цена: $%.6f / минута (таксуване по секунда)";
 "modes.button.create" = "Създаване на режим";
 "modes.button.delete" = "Изтриване на режим";
@@ -975,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "Отхвърляне";
 "modelLibrary.local.requiresAppleSilicon" = "Изисква Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Рестартиране в нативен режим";
+"modelLibrary.remove.confirm.title" = "Да се премахне ли %@?";
+"modelLibrary.remove.confirm.message" = "Ще трябва да го изтеглите отново (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Ще трябва да го изтеглите отново.";
+"modelLibrary.remove.confirm.button" = "Премахни";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недостатъчно кредити. Добавете повече кредити в Настройки.";

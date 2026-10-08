@@ -727,7 +727,7 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.postProcessing.apiKeyMissing" = "Cheia API %@ nu este configurată. Adăugați-o în Setări pentru a activa post-procesare.";
 "modes.postProcessing.configure" = "Configurați în Setări";
 "modes.postProcessing.modelRecommendation" = "Recomandăm să utilizați GPT-4.1 Nano pentru cel mai bun echilibru dintre viteză și calitate.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Post-procesarea locală necesită un model local descărcat.";
 "modes.postProcessing.download" = "Descărcați în Setări";
@@ -793,6 +793,8 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Niciun model local instalat";
 "modes.notice.noLocalModels.subtitle" = "Instalați mai întâi un model în Setări";
+"modes.model.notInstalledFormat" = "%@ (neinstalat)";
+"modes.notice.modelNotInstalled" = "Modelul acestui mod nu este instalat. Salvarea îl păstrează. Descărcați-l din Biblioteca de modele sau alegeți alt model.";
 "modes.model.pricing" = "Preț: $%.6f / minut (facturat per secundă)";
 "modes.button.create" = "Creați modul";
 "modes.button.delete" = "Ștergeți modul";
@@ -975,6 +977,10 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "settings.backup.localDownload.dismiss" = "Ignoră";
 "modelLibrary.local.requiresAppleSilicon" = "Necesită Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Repornește nativ";
+"modelLibrary.remove.confirm.title" = "Eliminați %@?";
+"modelLibrary.remove.confirm.message" = "Va trebui să îl descărcați din nou (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Va trebui să îl descărcați din nou.";
+"modelLibrary.remove.confirm.button" = "Elimină";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Credite insuficiente. Adăugați mai multe credite în Setări.";

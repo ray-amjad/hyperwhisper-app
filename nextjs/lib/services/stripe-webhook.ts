@@ -3,6 +3,8 @@ import { stripe } from "@/lib/clients/stripe";
 import { emailService } from "@/lib/services/email";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { emailTag } from "@/lib/shared/redact";
+import { refundedCreditsTotal } from "@/lib/services/credit-refund";
+import { CREDITS_PER_DOLLAR } from "@/app/api/checkout/credits/validation";
 import {
   dbErrorCode,
   dbErrorConstraint,
@@ -493,18 +495,19 @@ async function handleCreditMint(
  *
  * REFUND SCOPE (per purchase type):
  * - license: acts only on a FULL refund (amount_refunded === amount).
- * - credits: the 6% processing fee is a separate, non-refundable line item, so a
- *   policy-compliant credit refund refunds only the credit value — a *partial*
- *   Stripe refund. Acts once amount_refunded covers the credit portion
- *   (charge total minus the non-refundable fee).
+ * - credits: acts on ANY refund. The refund removes unused credits at the
+ *   price the buyer paid (tax and the non-refundable fee excluded, promo
+ *   discount applied), from that purchase's grant only. See
+ *   `refundedCreditsTotal` and `refundCreditGrant` (#1351).
  *
  * TRACE PATH:
  * Charge -> PaymentIntent -> Checkout Session -> license_keys.stripe_session_id
  *
  * IDEMPOTENCY:
- * License revocation is idempotent ("revoked" status). Credit deduction is
- * recorded in stripe_processed_events keyed by charge.id, so retried
- * charge.refunded events never double-deduct.
+ * License revocation is idempotent ("revoked" status). A credit refund passes
+ * the grant's cumulative refunded total (Stripe's amount_refunded is
+ * cumulative) and the grant's refunded_amount records it, so a retried or
+ * repeated charge.refunded event never double-deducts.
  */
 export async function handleChargeRefunded(
   charge: Stripe.Charge
@@ -545,17 +548,7 @@ export async function handleChargeRefunded(
   // STEP 4: Route by purchase type, applying the right "is this refund
   // actionable?" rule for each.
   if (purchaseType === "credits") {
-    // The 6% fee is a separate, non-refundable line item, so a credit refund
-    // refunds only the credit value — a partial Stripe refund. Act once the
-    // refunded amount covers the credit portion (charge total minus the fee).
-    const feeCents = parseInt(checkoutSession.metadata?.fee_cents || "0", 10);
-    const creditPortion = charge.amount - feeCents;
-    if (charge.amount_refunded < creditPortion) {
-      console.log(
-        `Refund ${charge.amount_refunded}/${charge.amount} does not cover the credit portion (${creditPortion}) for credits session ${checkoutSession.id}, skipping`
-      );
-      return;
-    }
+    // Any refund, partial or full, removes credits at the price paid (#1351).
     await handleCreditRefund(charge, checkoutSession);
     return;
   }
@@ -618,11 +611,12 @@ export async function handleChargeRefunded(
 }
 
 /**
- * Reverse a refunded credit-pack purchase.
+ * Reverse a refunded credit-pack purchase, in whole or in part.
  *
- * Looks up the original credit grant from the checkout session metadata and
- * atomically deducts it (clamped at 0). Idempotent via stripe_processed_events
- * keyed by charge.id, so webhook retries never double-deduct.
+ * Turns the charge's cumulative refunded cents into the grant's cumulative
+ * refunded credits at the price paid, then lets `refundCreditGrant` remove
+ * the part not yet recorded, from that grant only. Idempotent: the same
+ * cumulative total twice removes nothing the second time.
  */
 async function handleCreditRefund(
   charge: Stripe.Charge,
@@ -644,20 +638,53 @@ async function handleCreditRefund(
     return;
   }
 
+  const feeCents = parseInt(checkoutSession.metadata?.fee_cents || "0", 10);
+  // The session's totals are what the buyer paid: after any promo discount,
+  // with tax. A session without them (never seen in practice) falls back to
+  // the charge itself with no tax.
+  const amountTotal = checkoutSession.amount_total ?? charge.amount;
+  const amountTax = checkoutSession.total_details?.amount_tax ?? 0;
+  const refundedCredits = refundedCreditsTotal({
+    grantCredits: creditAmount,
+    listCreditCents: (creditAmount * 100) / CREDITS_PER_DOLLAR,
+    listFeeCents: Number.isFinite(feeCents) ? feeCents : 0,
+    amountTotal,
+    amountTax,
+    amountRefunded: charge.amount_refunded,
+  });
+
+  if (refundedCredits <= 0) {
+    console.log(
+      `Refund ${charge.amount_refunded}/${charge.amount} on charge ${charge.id} is worth no credits for session ${checkoutSession.id}, skipping`
+    );
+    return;
+  }
+
   const result = await refundCreditGrant({
     sourceType: "stripe_credit_pack",
     sourceId: checkoutSession.id,
+    refundedCreditsTotal: refundedCredits,
   });
 
   if (result.status === "duplicate") {
     console.log(
-      `Credit refund already processed for charge ${charge.id}, skipping`
+      `Credit refund already processed for charge ${charge.id} (${refundedCredits} credits refunded in total), skipping`
     );
     return;
   }
 
   const licenseHint = licenseKey ? ` (license ${licenseKey.substring(0, 7)}...)` : "";
   console.log(
-    `Deducted ${result.refundedAmount} credits for refunded charge ${charge.id}${licenseHint}`
+    `Refunded ${result.refundedAmount} credits (${refundedCredits}/${creditAmount} in total) for charge ${charge.id}${licenseHint}; removed ${result.removedAmount} from the grant`
   );
+
+  // The policy refunds only unused credits. A refund worth more than the
+  // grant had left cannot be taken from another grant (#1351), so the gap is
+  // left here for support to see.
+  const shortfall = result.refundedAmount - result.removedAmount;
+  if (shortfall > 0) {
+    console.warn(
+      `Refund on charge ${charge.id} is worth ${shortfall} more credits than session ${checkoutSession.id}'s grant had left; those credits were already spent`
+    );
+  }
 }

@@ -34,7 +34,7 @@ final class GrokSTTProvider: TranscriptionProvider {
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "GrokSTTProvider")
 
     private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.credentialBearing
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = Constants.resourceTimeout
         config.waitsForConnectivity = false

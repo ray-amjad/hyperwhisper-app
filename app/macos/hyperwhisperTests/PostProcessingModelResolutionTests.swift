@@ -19,7 +19,7 @@ struct PostProcessingModelResolutionTests {
         let retiredIds: [(id: String, provider: PostProcessingProvider, replacement: String)] = [
             ("moonshotai/kimi-k2-instruct", .groq, "openai/gpt-oss-120b"),
             ("open-mistral-nemo", .mistral, "mistral-small-latest"),
-            ("claude-sonnet-4-0", .anthropic, "claude-sonnet-4-5"),
+            ("claude-sonnet-4-0", .anthropic, "claude-sonnet-5-5"),
             ("meta-llama/llama-4-maverick-17b-128e-instruct", .groq, "openai/gpt-oss-120b"),
             ("zai-glm-4.7", .cerebras, "gpt-oss-120b"),
             ("gpt-4.1-nano", .openai, "gpt-5.6-luna"),
@@ -39,6 +39,15 @@ struct PostProcessingModelResolutionTests {
             // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
             ("gemma-4-31b", .cerebras, "qwen-3.8-27b"),
             ("qwen-3-235b-a22b-instruct-2507", .cerebras, "gpt-oss-120b"),
+            // 2026-10 catalog refresh: each old id goes straight to its final row.
+            ("claude-haiku-4-5", .anthropic, "claude-haiku-5-5"),
+            ("claude-haiku-4.5", .anthropic, "claude-haiku-5-5"),
+            ("claude-3-5-haiku-latest", .anthropic, "claude-haiku-5-5"),
+            ("claude-haiku-4-5-20251001", .anthropic, "claude-haiku-5-5"),
+            ("claude-sonnet-4-5", .anthropic, "claude-sonnet-5-5"),
+            ("claude-sonnet-4-5-20250929", .anthropic, "claude-sonnet-5-5"),
+            ("gemini-3-flash-preview", .gemini, "gemini-3.8-flash"),
+            ("qwen/qwen3.6-27b", .groq, "qwen/qwen3.8-27b"),
         ]
 
         for entry in retiredIds {
@@ -59,9 +68,14 @@ struct PostProcessingModelResolutionTests {
             "gemini-3.1-flash-lite-preview", "llama3.1-8b",
             "qwen-3-235b-a22b-instruct-2507",
             "gemma-4-31b",
+            "claude-haiku-4-5", "claude-sonnet-4-5",
+            "gemini-3-flash-preview", "qwen/qwen3.6-27b",
         ])
         #expect(PostProcessingModels.availableModels.allSatisfy { !retired.contains($0.id) })
         #expect(PostProcessingModels.defaultModel(for: .openai)?.id == "gpt-5.6-luna")
+        #expect(PostProcessingModels.model(withId: "gpt-6-luna", provider: .openai)?.displayName == "GPT-6 Luna")
+        #expect(PostProcessingModels.defaultModel(for: .anthropic)?.id == "claude-haiku-5-5")
+        #expect(PostProcessingModels.displayName(for: "claude-haiku-4-5", provider: .anthropic) == "Claude Haiku 5.5")
         // #1018: the gpt-5 family rows are deleted, not hidden. A stored id still
         // shows the name of the model that runs, through the redirect to luna.
         for retiredId in ["gpt-5-nano", "gpt-5-mini", "gpt-5"] {

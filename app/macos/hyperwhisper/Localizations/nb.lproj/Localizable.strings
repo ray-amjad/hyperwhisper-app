@@ -727,7 +727,7 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.postProcessing.apiKeyMissing" = "%@ API-nøkkel ikke konfigurert. Legg den til i Innstillinger for å aktivere etterbehandling.";
 "modes.postProcessing.configure" = "Konfigurer i Innstillinger";
 "modes.postProcessing.modelRecommendation" = "Vi anbefaler å bruke GPT-4.1 Nano for den beste balansen mellom hastighet og kvalitet.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokal etterbehandling krever en nedlastet lokal modell.";
 "modes.postProcessing.download" = "Last ned i Innstillinger";
@@ -793,6 +793,8 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.provider.cloud" = "Sky";
 "modes.notice.noLocalModels.title" = "Ingen lokale modeller installert";
 "modes.notice.noLocalModels.subtitle" = "Installer en modell i Innstillinger først";
+"modes.model.notInstalledFormat" = "%@ (ikke installert)";
+"modes.notice.modelNotInstalled" = "Modellen for denne modusen er ikke installert. Lagring beholder den. Last den ned i Modellbiblioteket, eller velg en annen modell.";
 "modes.model.pricing" = "Prising: $%.6f / minutt (faktureres per sekund)";
 "modes.button.create" = "Opprett modus";
 "modes.button.delete" = "Slett modus";
@@ -975,6 +977,10 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "settings.backup.localDownload.dismiss" = "Avvis";
 "modelLibrary.local.requiresAppleSilicon" = "Krever Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Start på nytt nativt";
+"modelLibrary.remove.confirm.title" = "Vil du fjerne %@?";
+"modelLibrary.remove.confirm.message" = "Du må laste den ned på nytt (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Du må laste den ned på nytt.";
+"modelLibrary.remove.confirm.button" = "Fjern";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Utilstrekkelige kreditter. Legg til flere kreditter i Innstillinger.";

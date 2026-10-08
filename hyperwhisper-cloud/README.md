@@ -84,7 +84,7 @@ The service is a proxy. Once a request reaches the upstream provider, that provi
 
 - `cerebras.ts` — Cerebras `gpt-oss-120b` (default).
 - `groq-llm.ts` — Groq `gpt-oss-120b`.
-- `anthropic.ts` — Anthropic Claude Haiku 4.5.
+- `anthropic.ts` — Anthropic Claude Haiku 5.5.
 - `xai-llm.ts` — SpaceXAI Grok.
 
 **Assistant mode**

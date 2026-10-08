@@ -18,7 +18,7 @@ export const DEFAULT_LLM_PROVIDER: LLMProvider = 'cerebras';
 export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
   cerebras: 'cerebras-gpt-oss-120b',
   groq: 'groq-gpt-oss-120b',
-  anthropic: 'claude-haiku-4-5',
+  anthropic: 'claude-haiku-5-5',
   grok: 'xai-grok-4.3',
   openai: 'openai-gpt-5.6-luna',
   gemini: 'gemini-2.5-flash',
@@ -78,14 +78,15 @@ const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
 };
 
 // Per-provider allowlist of valid X-LLM-Model ids, with the default first. The
-// resolved model is threaded through callWithRetry to the openai/gemini/mistral
-// clients, which put it in the request body (the other 4 providers ignore it).
+// resolved model is threaded through callWithRetry to the anthropic/openai/
+// gemini/mistral clients, which put it in the request body (the other 3
+// providers ignore it).
 // Only gemini allows more than one model today. MUST match the model ids in
 // shared-app-classification/cloud-pp-catalog.json.
 const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: readonly string[] }> = {
   cerebras: { default: 'gpt-oss-120b', allowed: ['gpt-oss-120b'] },
   groq: { default: 'openai/gpt-oss-120b', allowed: ['openai/gpt-oss-120b'] },
-  anthropic: { default: 'claude-haiku-4-5', allowed: ['claude-haiku-4-5'] },
+  anthropic: { default: 'claude-haiku-5-5', allowed: ['claude-haiku-5-5'] },
   grok: { default: 'grok-4.3', allowed: ['grok-4.3'] },
   // gpt-5-mini / gpt-5-nano lose their only snapshots 2026-12-11. They are no
   // longer allowlisted, so an old client still sending either id resolves to the
@@ -155,8 +156,8 @@ export function isRetryableLLMError(error: Error): boolean {
 
 /**
  * Retry LLM call with exponential backoff. `model` is the resolved (allowlisted)
- * model id — the openai/gemini/mistral clients send it as the request model; the
- * other providers ignore it.
+ * model id — the anthropic/openai/gemini/mistral clients send it as the request
+ * model; the other providers ignore it.
  */
 export async function callWithRetry(
   provider: LLMProvider,
@@ -166,7 +167,7 @@ export async function callWithRetry(
 ): Promise<Awaited<ReturnType<typeof requestCerebrasChat>>> {
   return retryWithBackoff(
     () => {
-      if (provider === 'anthropic') return requestAnthropicChat(payload, requestId);
+      if (provider === 'anthropic') return requestAnthropicChat(payload, requestId, undefined, model);
       if (provider === 'grok') return requestXaiGrokChat(payload, requestId);
       if (provider === 'openai') return requestOpenAIChat(payload, requestId, model);
       if (provider === 'gemini') return requestGeminiChat(payload, requestId, model);

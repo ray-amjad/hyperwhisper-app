@@ -727,7 +727,7 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "modes.postProcessing.apiKeyMissing" = "%@ API-Schlüssel nicht konfiguriert. Fügen Sie es in den Einstellungen hinzu, um die Nachbearbeitung zu aktivieren.";
 "modes.postProcessing.configure" = "Konfigurieren Sie in den Einstellungen";
 "modes.postProcessing.modelRecommendation" = "Wir empfehlen die Verwendung von GPT-4.1 Nano für die beste Balance zwischen Geschwindigkeit und Qualität.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Für die lokale Nachbearbeitung ist ein heruntergeladenes lokales Modell erforderlich.";
 "modes.postProcessing.download" = "In den Einstellungen herunterladen";
@@ -793,6 +793,8 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "modes.provider.cloud" = "Wolke";
 "modes.notice.noLocalModels.title" = "Keine lokalen Modelle installiert";
 "modes.notice.noLocalModels.subtitle" = "Installieren Sie zunächst ein Modell in den Einstellungen";
+"modes.model.notInstalledFormat" = "%@ (nicht installiert)";
+"modes.notice.modelNotInstalled" = "Das Modell dieses Modus ist nicht installiert. Beim Speichern bleibt es erhalten. Laden Sie es in der Modellbibliothek herunter oder wählen Sie ein anderes Modell.";
 "modes.model.pricing" = "Preis: $%.6f / Minute (abgerechnet pro Sekunde)";
 "modes.button.create" = "Erstellungsmodus";
 "modes.button.delete" = "Löschmodus";
@@ -975,6 +977,10 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "settings.backup.localDownload.dismiss" = "Schließen";
 "modelLibrary.local.requiresAppleSilicon" = "Erfordert Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Nativ neu starten";
+"modelLibrary.remove.confirm.title" = "%@ entfernen?";
+"modelLibrary.remove.confirm.message" = "Du musst es erneut herunterladen (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Du musst es erneut herunterladen.";
+"modelLibrary.remove.confirm.button" = "Entfernen";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nicht genügend Credits. Fügen Sie in den Einstellungen weitere Credits hinzu.";

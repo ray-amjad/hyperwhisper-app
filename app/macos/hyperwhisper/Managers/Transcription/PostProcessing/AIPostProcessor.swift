@@ -416,7 +416,7 @@ class AIPostProcessor: ObservableObject {
                 AppLogger.network.debug("Request provider: \(provider.displayName, privacy: .public)")
                 AppLogger.logTranscription(.apiCall(endpoint: endpoint, status: 0))
                 
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await CredentialNetworkCache.session.data(for: request)
                 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw TranscriptionError.invalidResponse(details: nil)
@@ -1169,7 +1169,7 @@ class AIPostProcessor: ObservableObject {
                 AppLogger.network.debug("HyperWhisper Cloud post-processing attempt \(attempt, privacy: .public) of \(config.maxAttempts, privacy: .public)")
                 AppLogger.network.info("POST \(NetworkConfig.hyperwhisperCloudPostProcessEndpoint, privacy: .public)")
 
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await CredentialNetworkCache.session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw TranscriptionError.invalidResponse(details: "Invalid server response")
@@ -1410,7 +1410,7 @@ class AIPostProcessor: ObservableObject {
             return try await performWithRetry(config: config) { attempt in
                 AppLogger.network.debug("Custom endpoint post-processing attempt \(attempt, privacy: .public) of \(config.maxAttempts, privacy: .public)")
 
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await CredentialNetworkCache.session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw TranscriptionError.invalidResponse(details: "Invalid server response")

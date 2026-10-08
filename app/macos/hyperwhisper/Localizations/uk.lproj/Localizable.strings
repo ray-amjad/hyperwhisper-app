@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "API ключ %@ не налаштований. Додайте його в параметрах для увімкнення постобробки.";
 "modes.postProcessing.configure" = "Налаштувати в параметрах";
 "modes.postProcessing.modelRecommendation" = "Ми рекомендуємо використовувати GPT-4.1 Nano для найкращого балансу між швидкістю та якістю.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Для локальної постобробки потрібна завантажена локальна модель.";
 "modes.postProcessing.download" = "Завантажити в параметрах";
@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "Хмара";
 "modes.notice.noLocalModels.title" = "Нема встановлених локальних моделей";
 "modes.notice.noLocalModels.subtitle" = "Спочатку встановіть модель у параметрах";
+"modes.model.notInstalledFormat" = "%@ (не встановлено)";
+"modes.notice.modelNotInstalled" = "Модель цього режиму не встановлено. Збереження її залишає. Завантажте її в Бібліотеці моделей або виберіть іншу модель.";
 "modes.model.pricing" = "Ціна: $%.6f / хвилина (виставляється в секунду)";
 "modes.button.create" = "Створити режим";
 "modes.button.delete" = "Видалити режим";
@@ -975,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "Закрити";
 "modelLibrary.local.requiresAppleSilicon" = "Потрібен Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Перезапустити нативно";
+"modelLibrary.remove.confirm.title" = "Видалити %@?";
+"modelLibrary.remove.confirm.message" = "Вам доведеться завантажити її знову (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Вам доведеться завантажити її знову.";
+"modelLibrary.remove.confirm.button" = "Видалити";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недостатньо кредитів. Додайте більше кредитів у Налаштуваннях.";

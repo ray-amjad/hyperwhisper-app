@@ -16,8 +16,10 @@
 #     still written in 10 provider enums and converters. Unifying them is the
 #     same 5 steps again and it is filed separately.
 #   - a POST-PROCESSING model name (`Gemini 2.5 Flash`). A `kind: "text"` row in
-#     `models-catalog.json` carries no `displayName` at all, so those 3
-#     registries have nothing to read yet. Filed with the tier names.
+#     `models-catalog.json` now carries a `displayName` (the Linux Model Library
+#     reads it), but the macOS and Windows picker registries still hold their own
+#     copies, including retired ids the catalog does not list. Filed with the
+#     tier names.
 #   - a LOCAL model name (`Whisper Base`, `Whisper Large v3 Turbo`). No shared
 #     catalog lists a local model, so onboarding is its only owner.
 #

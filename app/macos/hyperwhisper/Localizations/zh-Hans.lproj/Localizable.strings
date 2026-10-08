@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "%@ API 密钥未配置。请在设置中添加以启用后处理。";
 "modes.postProcessing.configure" = "在设置中配置";
 "modes.postProcessing.modelRecommendation" = "我们推荐使用 GPT-4.1 Nano，以获得最佳速度与质量平衡。";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "本地后处理需要已下载的本地模型。";
 "modes.postProcessing.download" = "在设置中下载";
@@ -794,6 +794,8 @@
 "modes.provider.cloud" = "云端";
 "modes.notice.noLocalModels.title" = "未安装本地模型";
 "modes.notice.noLocalModels.subtitle" = "先在设置中安装模型";
+"modes.model.notInstalledFormat" = "%@（未安装）";
+"modes.notice.modelNotInstalled" = "此模式的模型未安装。保存时会保留它。请在模型库中下载，或选择其他模型。";
 "modes.model.pricing" = "价格：$%.6f / 分钟（按秒计费）";
 "modes.button.create" = "创建模式";
 "modes.button.delete" = "删除模式";
@@ -976,6 +978,10 @@
 "settings.backup.localDownload.dismiss" = "忽略";
 "modelLibrary.local.requiresAppleSilicon" = "需要 Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "以原生方式重新启动";
+"modelLibrary.remove.confirm.title" = "移除 %@？";
+"modelLibrary.remove.confirm.message" = "你需要重新下载它（%@）。";
+"modelLibrary.remove.confirm.messageNoSize" = "你需要重新下载它。";
+"modelLibrary.remove.confirm.button" = "移除";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "额度不足。请在设置中添加更多额度。";

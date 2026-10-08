@@ -230,7 +230,7 @@ public sealed class ModePostProcessingConverter : IValueConverter
         if (!enabled) return null;
         // Windows (Converters/PostProcessingDisplayConverter.cs) names the PROVIDER, not the
         // model, when post-processing runs on HyperWhisper Cloud, so its card reads
-        // "HyperWhisper" where this one read the raw "anthropic:claude-haiku-4-5".
+        // "HyperWhisper" where this one read the raw "anthropic:claude-haiku-5-5".
         if (mode.PostProcessingMode == 1 && ModeProviderLineConverter.IsHyperWhisperCloud(mode.PostProcessingProvider))
             return "HyperWhisper";
         // Local post-processing names a GGUF file; a BYOK cloud provider names a "vendor:model"
@@ -417,7 +417,7 @@ public sealed class ProviderLogoConverter : IValueConverter
 }
 
 /// <summary>
-/// "anthropic:claude-haiku-4-5" becomes "Anthropic — Claude Haiku 4.5".
+/// "anthropic:claude-haiku-5-5" becomes "Anthropic — Claude Haiku 5.5".
 ///
 /// The stored value of a HyperWhisper Cloud post-processing choice is a raw "provider:model"
 /// pair. Windows never shows it: its mode editor draws two combos whose items carry

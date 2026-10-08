@@ -727,7 +727,7 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.postProcessing.apiKeyMissing" = "%@ API lykill ekki stilltur. Bættu honum við í stillingum til að virkja eftirvinnslu.";
 "modes.postProcessing.configure" = "Stilla í stillingum";
 "modes.postProcessing.modelRecommendation" = "Við mælum með að nota GPT-4.1 Nano fyrir besta jafnvægi hraða og gæða.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Staðbundin eftirvinnsla krefst niðurhalaðs staðbundins líkans.";
 "modes.postProcessing.download" = "Sækja í stillingum";
@@ -793,6 +793,8 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.provider.cloud" = "Skýið";
 "modes.notice.noLocalModels.title" = "Engin staðbundin líkön uppsett";
 "modes.notice.noLocalModels.subtitle" = "Settu upp líkan í stillingum fyrst";
+"modes.model.notInstalledFormat" = "%@ (ekki uppsett)";
+"modes.notice.modelNotInstalled" = "Líkan þessarar stillingar er ekki uppsett. Vistun heldur því. Sæktu það í Líkanaasafni eða veldu annað líkan.";
 "modes.model.pricing" = "Verðlagning: $%.6f / mínútu (reikningað á sekúndu)";
 "modes.button.create" = "Búa til ham";
 "modes.button.delete" = "Eyða hami";
@@ -975,6 +977,10 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.backup.localDownload.dismiss" = "Loka";
 "modelLibrary.local.requiresAppleSilicon" = "Krefst Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Endurræsa sem innbyggt forrit";
+"modelLibrary.remove.confirm.title" = "Fjarlægja %@?";
+"modelLibrary.remove.confirm.message" = "Þú þarft að sækja það aftur (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Þú þarft að sækja það aftur.";
+"modelLibrary.remove.confirm.button" = "Fjarlægja";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ófullnægjandi einingar. Bættu við fleiri einingum í stillingum.";

@@ -727,7 +727,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.postProcessing.apiKeyMissing" = "Kunci API %@ tidak dikonfigurasi. Tambahkan di Pengaturan untuk mengaktifkan pascapemrosesan.";
 "modes.postProcessing.configure" = "Konfigurasi di Pengaturan";
 "modes.postProcessing.modelRecommendation" = "Kami merekomendasikan menggunakan GPT-4.1 Nano untuk keseimbangan terbaik antara kecepatan dan kualitas.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Pasca-pemrosesan lokal memerlukan model lokal yang diunduh.";
 "modes.postProcessing.download" = "Unduh di Pengaturan";
@@ -793,6 +793,8 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.provider.cloud" = "Cloud";
 "modes.notice.noLocalModels.title" = "Tidak ada model lokal terinstal";
 "modes.notice.noLocalModels.subtitle" = "Instal model di Pengaturan terlebih dahulu";
+"modes.model.notInstalledFormat" = "%@ (tidak terpasang)";
+"modes.notice.modelNotInstalled" = "Model mode ini tidak terpasang. Menyimpan akan mempertahankannya. Unduh di Perpustakaan Model, atau pilih model lain.";
 "modes.model.pricing" = "Harga: $%.6f / menit (ditagih per detik)";
 "modes.button.create" = "Buat Mode";
 "modes.button.delete" = "Hapus Mode";
@@ -975,6 +977,10 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.backup.localDownload.dismiss" = "Abaikan";
 "modelLibrary.local.requiresAppleSilicon" = "Memerlukan Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Jalankan ulang secara native";
+"modelLibrary.remove.confirm.title" = "Hapus %@?";
+"modelLibrary.remove.confirm.message" = "Anda perlu mengunduhnya lagi (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Anda perlu mengunduhnya lagi.";
+"modelLibrary.remove.confirm.button" = "Hapus";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Kredit tidak mencukupi. Tambahkan lebih banyak kredit di Pengaturan.";

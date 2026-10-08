@@ -674,47 +674,135 @@ test("a full refund whose license row is missing stops without a revocation", as
   assert.deepEqual(calls.revokeAccountKey, []);
 });
 
-test("a credit refund short of the credit portion is left alone", async () => {
-  behaviour.stripeSessions = [
-    {
-      id: "cs_1",
-      metadata: { purchase_type: "credits", fee_cents: "60", credit_amount: "1000" },
+// Credit refunds (#1351): a refund of any size removes credits at the price
+// the buyer paid, tax and the non-refundable fee excluded, promo applied.
+
+/** A credit-pack Checkout Session as Stripe returns it from sessions.list. */
+function creditSession(o: {
+  id?: string;
+  credits: number;
+  feeCents?: number;
+  amountTotal: number;
+  amountTax?: number;
+  amountDiscount?: number;
+  licenseKey?: string;
+}) {
+  return {
+    id: o.id ?? "cs_1",
+    amount_total: o.amountTotal,
+    total_details: {
+      amount_discount: o.amountDiscount ?? 0,
+      amount_shipping: 0,
+      amount_tax: o.amountTax ?? 0,
     },
-  ];
-
-  // Credit portion is 1000 - 60 = 940. 939 does not cover it.
-  await handleChargeRefunded(charge({ amount_refunded: 939 }));
-
-  assert.deepEqual(calls.refundCreditGrant, []);
-});
-
-test("a credit refund that covers the credit portion less the 6% fee claws the grant back", async () => {
-  behaviour.stripeSessions = [
-    {
-      id: "cs_1",
-      metadata: { purchase_type: "credits", fee_cents: "60", credit_amount: "1000" },
+    metadata: {
+      purchase_type: "credits",
+      credit_amount: String(o.credits),
+      ...(o.feeCents === undefined ? {} : { fee_cents: String(o.feeCents) }),
+      ...(o.licenseKey ? { license_key: o.licenseKey } : {}),
     },
-  ];
-  behaviour.refundResult = { status: "processed", refundedAmount: 1_000 };
+  };
+}
 
-  await handleChargeRefunded(charge({ amount_refunded: 940 }));
+/** The total each refundCreditGrant call asked the ledger to reach. */
+const refundedTotals = () =>
+  calls.refundCreditGrant.map((c) => c.refundedCreditsTotal);
+
+test("a $4.50 refund of a $5.30 pack of 5,000 credits removes 4,500 credits from that pack", async () => {
+  // $5.00 of credits + $0.30 fee. The buyer used 500 credits; support refunds
+  // the unused $4.50. The old rule skipped this (450 < 500 credit portion).
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+
+  await handleChargeRefunded(charge({ amount: 530, amount_refunded: 450 }));
 
   assert.deepEqual(calls.refundCreditGrant, [
-    { sourceType: "stripe_credit_pack", sourceId: "cs_1" },
+    { sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 4500 },
   ]);
   assert.deepEqual(calls.revokeAccountKey, []);
 });
 
-test("a credit refund with no fee_cents metadata needs the whole charge refunded", async () => {
+test("refunding the whole credit value, or the whole charge with the fee, removes the whole pack and no more", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+
+  await handleChargeRefunded(charge({ amount: 530, amount_refunded: 500 }));
+  await handleChargeRefunded(charge({ amount: 530, amount_refunded: 530 }));
+
+  assert.deepEqual(refundedTotals(), [5000, 5000]);
+});
+
+test("a promo-code purchase is refunded at the discounted price paid", async () => {
+  // Ray's example: 5,000 credits bought for $4.00 with a 20% promo ($5.00 -> $4.00,
+  // fee $0.30 -> $0.24, charged $4.24). $2.00 refunded -> 2,500 credits.
   behaviour.stripeSessions = [
-    { id: "cs_1", metadata: { purchase_type: "credits", credit_amount: "1000" } },
+    creditSession({ credits: 5000, feeCents: 30, amountTotal: 424, amountDiscount: 106 }),
   ];
 
-  await handleChargeRefunded(charge({ amount_refunded: 999 }));
-  assert.deepEqual(calls.refundCreditGrant, []);
+  await handleChargeRefunded(charge({ amount: 424, amount_refunded: 200 }));
+  // The whole $4.00 paid for credits is the whole pack, never more.
+  await handleChargeRefunded(charge({ amount: 424, amount_refunded: 400 }));
 
-  await handleChargeRefunded(charge({ amount_refunded: 1_000 }));
-  assert.equal(calls.refundCreditGrant.length, 1);
+  assert.deepEqual(refundedTotals(), [2500, 5000]);
+});
+
+test("a tax-exclusive charge excludes the tax: the credit value plus its tax refunds the whole pack", async () => {
+  // $5.00 credits + $0.30 fee + 10% tax ($0.53) = $5.83. The old rule needed
+  // 583 - 30 = 553 refunded, so refunding $5.00 + its $0.50 tax was skipped.
+  behaviour.stripeSessions = [
+    creditSession({ credits: 5000, feeCents: 30, amountTotal: 583, amountTax: 53 }),
+  ];
+
+  await handleChargeRefunded(charge({ amount: 583, amount_refunded: 550 }));
+  // $4.50 of credit value plus its $0.45 tax.
+  await handleChargeRefunded(charge({ amount: 583, amount_refunded: 495 }));
+
+  assert.deepEqual(refundedTotals(), [5000, 4500]);
+});
+
+test("a tax-inclusive charge excludes the tax inside the price", async () => {
+  // Prices include tax: $5.30 charged, $0.48 of it is tax.
+  behaviour.stripeSessions = [
+    creditSession({ credits: 5000, feeCents: 30, amountTotal: 530, amountTax: 48 }),
+  ];
+
+  await handleChargeRefunded(charge({ amount: 530, amount_refunded: 450 }));
+
+  assert.deepEqual(refundedTotals(), [4500]);
+});
+
+test("a second partial refund passes the cumulative total, so the ledger removes only the new part", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 10000, feeCents: 60, amountTotal: 1060 })];
+
+  // Stripe's amount_refunded is cumulative: $3.00, then $5.00 more.
+  await handleChargeRefunded(charge({ amount: 1060, amount_refunded: 300 }));
+  await handleChargeRefunded(charge({ amount: 1060, amount_refunded: 800 }));
+
+  assert.deepEqual(refundedTotals(), [3000, 8000]);
+});
+
+test("a credit refund with no fee_cents metadata treats the whole charge as credit value", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 1000, amountTotal: 100 })];
+
+  await handleChargeRefunded(charge({ amount: 100, amount_refunded: 45 }));
+
+  assert.deepEqual(refundedTotals(), [450]);
+});
+
+test("a session with no totals falls back to the charge amount", async () => {
+  behaviour.stripeSessions = [
+    { id: "cs_1", metadata: { purchase_type: "credits", fee_cents: "30", credit_amount: "5000" } },
+  ];
+
+  await handleChargeRefunded(charge({ amount: 530, amount_refunded: 450 }));
+
+  assert.deepEqual(refundedTotals(), [4500]);
+});
+
+test("a refund worth no credits does not touch the ledger", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+
+  await handleChargeRefunded(charge({ amount: 530, amount_refunded: 0 }));
+
+  assert.deepEqual(calls.refundCreditGrant, []);
 });
 
 test("a credit refund with unusable credit_amount metadata does not touch the ledger", async () => {
@@ -729,22 +817,36 @@ test("a credit refund with unusable credit_amount metadata does not touch the le
 
 test("a redelivered credit refund does not deduct twice", async () => {
   behaviour.stripeSessions = [
-    {
-      id: "cs_1",
-      metadata: {
-        purchase_type: "credits",
-        fee_cents: "0",
-        credit_amount: "1000",
-        license_key: "HW-OWNED-0001",
-      },
-    },
+    creditSession({ credits: 1000, feeCents: 0, amountTotal: 1000, licenseKey: "HW-OWNED-0001" }),
   ];
-  behaviour.refundResult = { status: "duplicate", refundedAmount: 0 };
+  behaviour.refundResult = { status: "duplicate", refundedAmount: 0, removedAmount: 0 };
 
   await handleChargeRefunded(charge());
 
   assert.equal(calls.refundCreditGrant.length, 1);
   assert.deepEqual(calls.revokeAccountKey, []);
+});
+
+test("a refund worth more than the pack has left logs the shortfall", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+  behaviour.refundResult = { status: "processed", refundedAmount: 4500, removedAmount: 1200 };
+  const from = logLines.length;
+
+  await handleChargeRefunded(charge({ id: "ch_short", amount: 530, amount_refunded: 450 }));
+
+  const warnings = logLines.slice(from).filter((line) => line.startsWith("warn "));
+  assert.equal(warnings.length, 1, warnings.join("\n"));
+  assert.ok(warnings[0].includes("ch_short") && warnings[0].includes("3300"), warnings[0]);
+});
+
+test("a refund the pack fully covers logs no shortfall", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
+  behaviour.refundResult = { status: "processed", refundedAmount: 4500, removedAmount: 4500 };
+  const from = logLines.length;
+
+  await handleChargeRefunded(charge({ amount: 530, amount_refunded: 450 }));
+
+  assert.deepEqual(logLines.slice(from).filter((line) => line.startsWith("warn ")), []);
 });
 
 // ---------------------------------------------------------------------------

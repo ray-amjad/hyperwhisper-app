@@ -19,15 +19,14 @@ The server is **off by default**. You turn it on one time in Settings. It stays 
     2. Set the toggle to **on**. The status line then shows the bound address and the last four characters of your bearer token.
   </Tab>
   <Tab title="Linux">
-    1. Open the main window, then click **Settings**. Scroll to the **Local API** section.
-    2. Check **Enable the loopback-only local API**.
-    3. Click **Save settings**. The status line then shows the result of the start.
+    1. Open the main window, then click **Settings**. Then click **Local API** in the sidebar.
+    2. Check the box next to **Server disabled**. The label changes to **Server enabled**, and the status line then shows the bound address.
 
-    Linux shows the same fields as the other platforms in one list, not in tabs.
+    Linux saves each change automatically. There is no Save button.
   </Tab>
 </Tabs>
 
-When the server runs, the panel shows three tabs on macOS and Windows: **Connection**, **MCP setup**, and **cURL**. Linux shows the same content as one list.
+When the server runs, the panel shows three tabs on every platform: **Connection**, **MCP setup**, and **cURL**.
 
 ## Connection tab
 
@@ -37,7 +36,7 @@ The Connection tab shows the current values that you need to make requests to th
 |---|---|
 | **Port** | The port that the server listens on. The **Copy** button copies the port to the clipboard. |
 | **Bearer token** | Hidden by default. Click **Reveal** to show the full value. Click **Copy** to copy the token. Click the regenerate button to make a new token (see the next section). |
-| **Port file** | The full path of the discovery file. The **Show** button opens the file in Finder (macOS) or Explorer (Windows). Linux shows the path in a read-only field that you can copy. |
+| **Port file** | The full path of the discovery file. The **Show** button opens the file in Finder (macOS) or Explorer (Windows). On Linux, the **Show** button opens the folder of the file in your file manager. |
 
 If an error occurs after the server starts (for example, the port is already in use), an orange warning appears below these fields.
 
@@ -51,7 +50,7 @@ Authorization: Bearer <token>
 
 HyperWhisper makes the token the first time the server starts. macOS keeps the token in the Keychain. Windows keeps the token in a DPAPI-protected file at `%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. Linux keeps the token in an owner-only file at `$XDG_DATA_HOME/hyperwhisper/local-api-token`. The token stays the same across restarts. You do not update your scripts each time.
 
-To make a new token, click the regenerate button. This button is a circular arrows icon on macOS, a rotate button on Windows, and a **Regenerate** button on Linux. The previous token stops immediately. Update each MCP client and each script that cached the old token. These clients and scripts can read the new value from the discovery file.
+To make a new token, click the regenerate button. This button is a circular arrows icon on macOS, a rotate button on Windows, and a refresh icon with the tooltip **Regenerate** on Linux. The previous token stops immediately. Update each MCP client and each script that cached the old token. These clients and scripts can read the new value from the discovery file.
 
 ### Host and Origin check
 

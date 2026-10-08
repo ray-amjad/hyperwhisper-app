@@ -727,7 +727,7 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "modes.postProcessing.apiKeyMissing" = "Klucz API %@ nie został skonfigurowany. Dodaj go w Ustawieniach, aby włączyć przetwarzanie końcowe.";
 "modes.postProcessing.configure" = "Skonfiguruj w Ustawieniach";
 "modes.postProcessing.modelRecommendation" = "Zalecamy korzystanie z GPT-4.1 Nano w celu uzyskania najlepszej równowagi między prędkością a jakością.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokalne przetwarzanie końcowe wymaga pobranego modelu lokalnego.";
 "modes.postProcessing.download" = "Pobierz w Ustawieniach";
@@ -793,6 +793,8 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "modes.provider.cloud" = "Chmura";
 "modes.notice.noLocalModels.title" = "Brak zainstalowanych modeli lokalnych";
 "modes.notice.noLocalModels.subtitle" = "Najpierw zainstaluj model w Ustawieniach";
+"modes.model.notInstalledFormat" = "%@ (niezainstalowany)";
+"modes.notice.modelNotInstalled" = "Model tego trybu nie jest zainstalowany. Zapisanie go zachowa. Pobierz go w Bibliotece modeli lub wybierz inny model.";
 "modes.model.pricing" = "Cena: $%.6f / minutę (rozliczane za sekundę)";
 "modes.button.create" = "Utwórz tryb";
 "modes.button.delete" = "Usuń tryb";
@@ -975,6 +977,10 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "settings.backup.localDownload.dismiss" = "Zamknij";
 "modelLibrary.local.requiresAppleSilicon" = "Wymaga Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Uruchom ponownie natywnie";
+"modelLibrary.remove.confirm.title" = "Usunąć %@?";
+"modelLibrary.remove.confirm.message" = "Trzeba będzie pobrać go ponownie (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Trzeba będzie pobrać go ponownie.";
+"modelLibrary.remove.confirm.button" = "Usuń";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Niewystarczające kredyty. Dodaj więcej kredytów w Ustawieniach.";

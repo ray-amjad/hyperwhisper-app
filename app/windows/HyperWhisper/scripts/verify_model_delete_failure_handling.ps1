@@ -67,12 +67,17 @@ Assert-Match `
 
 Assert-Match `
     -Content $MacModelLibrarySource `
-    -Pattern "checkAndRemoveModel\(_ modelId: String\).*?showCannotDeleteAlertIfNeeded.*?await whisperManager\.deleteModel\(model\)" `
-    -Label "macOS Model Library blocks in-use Whisper models before delete"
+    -Pattern "private func triggerDelete\(for model: LibraryModel\).*?showCannotDeleteAlertIfNeeded.*?pendingRemoval = model" `
+    -Label "macOS Model Library blocks in-use models, then asks before delete"
 
 Assert-Match `
     -Content $MacModelLibrarySource `
-    -Pattern "checkAndRemoveParakeetModel\(_ modelId: String\).*?showCannotDeleteAlertIfNeeded.*?parakeetManager\.deleteModel\(modelId\)" `
-    -Label "macOS Model Library blocks in-use Parakeet models before delete"
+    -Pattern "private func confirmRemoval\(of model: LibraryModel\).*?showCannotDeleteAlertIfNeeded.*?performDelete\(for: model\)" `
+    -Label "macOS Model Library deletes only from the Remove confirmation"
+
+Assert-Match `
+    -Content $MacModelLibrarySource `
+    -Pattern "private func performDelete\(for model: LibraryModel\).*?await whisperManager\.deleteModel\(item\).*?parakeetManager\.deleteModel\(canonical\)" `
+    -Label "macOS Model Library deletes Whisper and Parakeet models"
 
 Write-Host "Model delete failure handling verifier passed."

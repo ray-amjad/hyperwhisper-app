@@ -258,18 +258,18 @@ describe("refundCreditGrant", () => {
 
     const result = await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "nope" });
 
-    assert.deepEqual(result, { status: "duplicate", refundedAmount: 0 });
+    assert.deepEqual(result, { status: "duplicate", refundedAmount: 0, removedAmount: 0 });
     assert.equal((await grantsBySource("u1")).get("a")?.remaining, 100);
   });
 
-  test("an unspent pack is removed in full and marked refunded", async () => {
+  test("with no total given, an unspent pack is removed in full and marked refunded", async () => {
     await seedUser("u1");
     await seedGrant({ userId: "u1", sourceType: "admin_manual", sourceId: "bundle", amount: 1000 });
     await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 300 });
 
     const result = await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1" });
 
-    assert.deepEqual(result, { status: "processed", refundedAmount: 300 });
+    assert.deepEqual(result, { status: "processed", refundedAmount: 300, removedAmount: 300 });
     const g = await grantsBySource("u1");
     assert.equal(g.get("cs_1")?.remaining, 0);
     assert.equal(g.get("cs_1")?.refunded, 300);
@@ -278,56 +278,94 @@ describe("refundCreditGrant", () => {
     assert.equal(await cachedBalance("u1"), 1000);
   });
 
-  test("a fully spent pack is clawed back from the account's other grants (#872)", async () => {
+  test("a partial refund removes only its credits and leaves the rest of the pack spendable (#1351)", async () => {
     await seedUser("u1");
-    // The pack expires first, so spending drains it before the bundle.
-    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 300, expiresAt: inDays(10) });
-    await seedGrant({ userId: "u1", sourceType: "admin_manual", sourceId: "bundle", amount: 1000, expiresAt: inDays(200) });
-    await L.spendCreditGrantsByProvenance("u1", 300);
-    assert.equal((await grantsBySource("u1")).get("cs_1")?.status, "spent");
+    // 5,000 credits, 500 used; $4.50 of $5.00 refunded = 4,500 credits.
+    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 5000, remaining: 4500 });
 
-    const result = await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1" });
+    const result = await L.refundCreditGrant({
+      sourceType: "stripe_credit_pack",
+      sourceId: "cs_1",
+      refundedCreditsTotal: 4500,
+    });
 
-    assert.deepEqual(result, { status: "processed", refundedAmount: 300 });
+    assert.deepEqual(result, { status: "processed", refundedAmount: 4500, removedAmount: 4500 });
     const g = await grantsBySource("u1");
-    assert.equal(g.get("bundle")?.remaining, 700);
-    assert.equal(g.get("cs_1")?.refunded, 300);
+    assert.equal(g.get("cs_1")?.remaining, 0);
+    assert.equal(g.get("cs_1")?.refunded, 4500);
     assert.equal(g.get("cs_1")?.status, "refunded");
-    assert.equal(await cachedBalance("u1"), 700);
+    assert.equal(await cachedBalance("u1"), 0);
   });
 
-  test("the clawback draws from the refunded grant first, then soonest-to-expire, and skips expired grants", async () => {
+  test("a partial refund of an unused pack keeps the pack active with the rest", async () => {
     await seedUser("u1");
-    await seedGrant({ userId: "u1", sourceId: "expired", amount: 500, expiresAt: inDays(-1) });
-    await seedGrant({ userId: "u1", sourceId: "late", amount: 100, expiresAt: inDays(300) });
-    await seedGrant({ userId: "u1", sourceId: "soon", amount: 100, expiresAt: inDays(20) });
-    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 200, remaining: 50, expiresAt: inDays(250) });
+    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 5000 });
 
-    const result = await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1" });
+    await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 2500 });
 
-    // 200 to reclaim: 50 from the pack itself, then 100 from "soon", then 50 from "late".
-    assert.deepEqual(result, { status: "processed", refundedAmount: 200 });
     const g = await grantsBySource("u1");
-    assert.equal(g.get("soon")?.remaining, 0);
-    assert.equal(g.get("soon")?.status, "spent");
-    assert.equal(g.get("late")?.remaining, 50);
-    assert.equal(g.get("late")?.status, "active");
-    assert.equal(g.get("expired")?.remaining, 500);
-    assert.equal(await cachedBalance("u1"), 50);
+    assert.equal(g.get("cs_1")?.remaining, 2500);
+    assert.equal(g.get("cs_1")?.refunded, 2500);
+    assert.equal(g.get("cs_1")?.status, "active");
+    assert.equal(await cachedBalance("u1"), 2500);
+    // The rest is still spendable.
+    assert.deepEqual(await L.spendCreditGrantsByProvenance("u1", 100), { balance: 2400, deductedAmount: 100 });
   });
 
-  test("the clawback is clamped at the active balance, so the account never goes negative", async () => {
+  test("refunding pack A never touches pack B (#1351 two-pack case)", async () => {
+    await seedUser("u1");
+    // Pack A expires first, so it is spent first: 500 used.
+    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_A", amount: 5000, expiresAt: inDays(100) });
+    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_B", amount: 10000, expiresAt: inDays(300) });
+    await L.spendCreditGrantsByProvenance("u1", 500);
+
+    // A full refund of pack A's whole value: 5,000 credits, only 4,500 left.
+    const result = await L.refundCreditGrant({
+      sourceType: "stripe_credit_pack",
+      sourceId: "cs_A",
+      refundedCreditsTotal: 5000,
+    });
+
+    assert.deepEqual(result, { status: "processed", refundedAmount: 5000, removedAmount: 4500 });
+    const g = await grantsBySource("u1");
+    assert.equal(g.get("cs_A")?.remaining, 0);
+    assert.equal(g.get("cs_A")?.refunded, 5000);
+    assert.equal(g.get("cs_A")?.status, "refunded");
+    assert.equal(g.get("cs_B")?.remaining, 10000);
+    assert.equal(g.get("cs_B")?.status, "active");
+    assert.equal(await cachedBalance("u1"), 10000);
+  });
+
+  test("a fully spent pack records the refund and takes nothing from other grants", async () => {
     await seedUser("u1");
     await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 300, remaining: 0, status: "spent" });
     await seedGrant({ userId: "u1", sourceId: "bundle", amount: 80 });
 
     const result = await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1" });
 
-    assert.deepEqual(result, { status: "processed", refundedAmount: 300 });
+    assert.deepEqual(result, { status: "processed", refundedAmount: 300, removedAmount: 0 });
     const g = await grantsBySource("u1");
-    assert.equal(g.get("bundle")?.remaining, 0);
+    assert.equal(g.get("bundle")?.remaining, 80);
     assert.equal(g.get("cs_1")?.refunded, 300);
-    assert.equal(await cachedBalance("u1"), 0);
+    assert.equal(g.get("cs_1")?.status, "refunded");
+    assert.equal(await cachedBalance("u1"), 80);
+  });
+
+  test("a total above the grant is capped at the grant", async () => {
+    await seedUser("u1");
+    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 300 });
+    await seedGrant({ userId: "u1", sourceId: "bundle", amount: 1000 });
+
+    const result = await L.refundCreditGrant({
+      sourceType: "stripe_credit_pack",
+      sourceId: "cs_1",
+      refundedCreditsTotal: 999_999,
+    });
+
+    assert.deepEqual(result, { status: "processed", refundedAmount: 300, removedAmount: 300 });
+    const g = await grantsBySource("u1");
+    assert.equal(g.get("cs_1")?.refunded, 300);
+    assert.equal(g.get("bundle")?.remaining, 1000);
   });
 
   test("a second refund of the same grant is a duplicate that reclaims nothing", async () => {
@@ -338,24 +376,66 @@ describe("refundCreditGrant", () => {
 
     const again = await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1" });
 
-    assert.deepEqual(again, { status: "duplicate", refundedAmount: 0 });
+    assert.deepEqual(again, { status: "duplicate", refundedAmount: 0, removedAmount: 0 });
     const g = await grantsBySource("u1");
     assert.equal(g.get("bundle")?.remaining, 1000);
     assert.equal(g.get("cs_1")?.refunded, 300);
   });
 
+  test("the same cumulative total twice removes credits once", async () => {
+    await seedUser("u1");
+    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 5000 });
+    const refund = { sourceType: "stripe_credit_pack" as const, sourceId: "cs_1", refundedCreditsTotal: 2000 };
+    await L.refundCreditGrant(refund);
+
+    const again = await L.refundCreditGrant(refund);
+
+    assert.deepEqual(again, { status: "duplicate", refundedAmount: 0, removedAmount: 0 });
+    const g = await grantsBySource("u1");
+    assert.equal(g.get("cs_1")?.remaining, 3000);
+    assert.equal(g.get("cs_1")?.refunded, 2000);
+  });
+
+  test("a growing cumulative total removes only the new part, and a stale lower total is a no-op", async () => {
+    await seedUser("u1");
+    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 10000 });
+
+    await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 3000 });
+    const second = await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 8000 });
+    const stale = await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 3000 });
+
+    assert.deepEqual(second, { status: "processed", refundedAmount: 5000, removedAmount: 5000 });
+    assert.equal(stale.status, "duplicate");
+    const g = await grantsBySource("u1");
+    assert.equal(g.get("cs_1")?.remaining, 2000);
+    assert.equal(g.get("cs_1")?.refunded, 8000);
+    assert.equal(await cachedBalance("u1"), 2000);
+  });
+
   test("a refund touches only the refunded grant's own account", async () => {
     await seedUser("u1");
     await seedUser("u2");
-    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 300, remaining: 0, status: "spent" });
+    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 300, remaining: 100 });
     await seedGrant({ userId: "u1", sourceId: "mine", amount: 100, expiresAt: inDays(300) });
-    // Another account's grant expires sooner, so it would be drawn first.
     await seedGrant({ userId: "u2", sourceId: "other", amount: 500, expiresAt: inDays(5) });
 
     await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1" });
 
     assert.equal((await grantsBySource("u2")).get("other")?.remaining, 500);
-    assert.equal((await grantsBySource("u1")).get("mine")?.remaining, 0);
+    assert.equal((await grantsBySource("u1")).get("mine")?.remaining, 100);
+    assert.equal((await grantsBySource("u1")).get("cs_1")?.remaining, 0);
+    assert.equal(await cachedBalance("u1"), 100);
+  });
+
+  test("the cache is reconciled after a refund, healing drift", async () => {
+    await seedUser("u1");
+    await seedGrant({ userId: "u1", sourceType: "stripe_credit_pack", sourceId: "cs_1", amount: 300 });
+    await seedGrant({ userId: "u1", sourceId: "bundle", amount: 50 });
+    await setCachedBalance("u1", 9999);
+
+    await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 100 });
+
+    assert.equal(await cachedBalance("u1"), 250);
   });
 });
 

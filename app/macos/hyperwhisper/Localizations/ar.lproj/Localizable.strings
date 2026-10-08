@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "لم يتم تكوين مفتاح API %@. أضفه في الإعدادات لتفعيل المعالجة اللاحقة.";
 "modes.postProcessing.configure" = "تكوين في الإعدادات";
 "modes.postProcessing.modelRecommendation" = "نوصي باستخدام GPT-4.1 Nano للحصول على أفضل توازن بين السرعة والجودة.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "تتطلب المعالجة اللاحقة المحلية نموذجاً محلياً تم تنزيله.";
 "modes.postProcessing.download" = "تحميل في الإعدادات";
@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "السحابة";
 "modes.notice.noLocalModels.title" = "لم يتم تثبيت نماذج محلية";
 "modes.notice.noLocalModels.subtitle" = "ثبت نموذجاً في الإعدادات أولاً";
+"modes.model.notInstalledFormat" = "%@ (غير مثبت)";
+"modes.notice.modelNotInstalled" = "نموذج هذا الوضع غير مثبت. الحفظ يبقيه كما هو. نزّله من مكتبة النماذج، أو اختر نموذجاً آخر.";
 "modes.model.pricing" = "التسعير: $%.6f / دقيقة (فواتير في الثانية)";
 "modes.button.create" = "إنشاء وضع";
 "modes.button.delete" = "حذف الوضع";
@@ -975,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "تجاهل";
 "modelLibrary.local.requiresAppleSilicon" = "يتطلب Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "إعادة التشغيل كتطبيق أصلي";
+"modelLibrary.remove.confirm.title" = "إزالة %@؟";
+"modelLibrary.remove.confirm.message" = "ستحتاج إلى تنزيله مرة أخرى (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "ستحتاج إلى تنزيله مرة أخرى.";
+"modelLibrary.remove.confirm.button" = "إزالة";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "رصيد غير كافٍ. أضف المزيد من الرصيد في الإعدادات.";

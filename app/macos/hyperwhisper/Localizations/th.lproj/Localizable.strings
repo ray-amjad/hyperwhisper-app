@@ -727,7 +727,7 @@
 "modes.postProcessing.apiKeyMissing" = "ไม่ได้กำหนดค่าคีย์ API %@ เพิ่มในการตั้งค่าเพื่อเปิดใช้งานการประมวลผลหลังจาก";
 "modes.postProcessing.configure" = "กำหนดค่าในการตั้งค่า";
 "modes.postProcessing.modelRecommendation" = "เราแนะนำให้ใช้ GPT-4.1 Nano เพื่อให้ได้ความสมดุลที่ดีที่สุดระหว่างความเร็วและคุณภาพ";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "การประมวลผลภายหลังในเครื่องต้องมีโมเดลท้องถิ่นที่ดาวน์โหลดแล้ว";
 "modes.postProcessing.download" = "ดาวน์โหลดในการตั้งค่า";
@@ -793,6 +793,8 @@
 "modes.provider.cloud" = "คลาวด์";
 "modes.notice.noLocalModels.title" = "ไม่มีโมเดลท้องถิ่นติดตั้ง";
 "modes.notice.noLocalModels.subtitle" = "ติดตั้งโมเดลในการตั้งค่าก่อน";
+"modes.model.notInstalledFormat" = "%@ (ยังไม่ได้ติดตั้ง)";
+"modes.notice.modelNotInstalled" = "ยังไม่ได้ติดตั้งโมเดลของโหมดนี้ การบันทึกจะคงโมเดลนี้ไว้ ดาวน์โหลดได้ในคลังโมเดล หรือเลือกโมเดลอื่น";
 "modes.model.pricing" = "ราคา: $%.6f / นาที (เรียกเก็บต่อวินาที)";
 "modes.button.create" = "สร้างโหมด";
 "modes.button.delete" = "ลบโหมด";
@@ -975,6 +977,10 @@
 "settings.backup.localDownload.dismiss" = "ปิด";
 "modelLibrary.local.requiresAppleSilicon" = "ต้องใช้ Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "เปิดใหม่แบบเนทีฟ";
+"modelLibrary.remove.confirm.title" = "ลบ %@ ใช่ไหม";
+"modelLibrary.remove.confirm.message" = "คุณจะต้องดาวน์โหลดอีกครั้ง (%@)";
+"modelLibrary.remove.confirm.messageNoSize" = "คุณจะต้องดาวน์โหลดอีกครั้ง";
+"modelLibrary.remove.confirm.button" = "ลบ";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "เครดิตไม่เพียงพอ เพิ่มเครดิตในการตั้งค่า";

@@ -727,7 +727,7 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.postProcessing.apiKeyMissing" = "%@ API-nyckel inte konfigurerad. Lägg till den i inställningar för att aktivera efterbearbetning.";
 "modes.postProcessing.configure" = "Konfigurera i inställningar";
 "modes.postProcessing.modelRecommendation" = "Vi rekommenderar att du använder GPT-4.1 Nano för bästa balans mellan hastighet och kvalitet.";
-"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude Haiku 5.5 for the best balance of speed and quality.";
 "modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
 "modes.postProcessing.localRequirement" = "Lokal efterbehandling kräver en nedladdad lokal modell.";
 "modes.postProcessing.download" = "Ladda ner i inställningar";
@@ -793,6 +793,8 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.provider.cloud" = "Moln";
 "modes.notice.noLocalModels.title" = "Inga lokala modeller installerade";
 "modes.notice.noLocalModels.subtitle" = "Installera en modell i inställningar först";
+"modes.model.notInstalledFormat" = "%@ (inte installerad)";
+"modes.notice.modelNotInstalled" = "Lägets modell är inte installerad. Den behålls när du sparar. Ladda ner den i Modellbiblioteket eller välj en annan modell.";
 "modes.model.pricing" = "Prissättning: $%.6f / minut (faktureras per sekund)";
 "modes.button.create" = "Skapa läge";
 "modes.button.delete" = "Radera läge";
@@ -975,6 +977,10 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "settings.backup.localDownload.dismiss" = "Ignorera";
 "modelLibrary.local.requiresAppleSilicon" = "Kräver Apple Silicon";
 "modelLibrary.local.needsNativeRelaunch" = "Starta om nativt";
+"modelLibrary.remove.confirm.title" = "Ta bort %@?";
+"modelLibrary.remove.confirm.message" = "Du måste ladda ned den igen (%@).";
+"modelLibrary.remove.confirm.messageNoSize" = "Du måste ladda ned den igen.";
+"modelLibrary.remove.confirm.button" = "Ta bort";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Otillräckliga krediter. Lägg till mer krediter i inställningar.";

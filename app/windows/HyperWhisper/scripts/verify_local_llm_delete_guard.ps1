@@ -74,7 +74,7 @@ Assert-Match `
 
 Assert-Match `
     -Content $MacModelLibrarySource `
-    -Pattern "matchesProvider = provider == PostProcessingProvider\.localLLM\.rawValue.*?matchesModel = \(mode\.languageModel \?\? `"`"\)\.caseInsensitiveCompare\(modelId\) == \.orderedSame.*?localLLMManager\.deleteModel\(modelId\)" `
+    -Pattern "private func removalBlocker\(for model: LibraryModel\).*?case \.postProcessing\(\.localLLM\):\s*return \(modes: modesUsingLocalLLM\(canonical\).*?private func performDelete\(for model: LibraryModel\).*?case \.postProcessing\(\.localLLM\):\s*localLLMManager\.deleteModel\(canonical\).*?private func modesUsingLocalLLM\(_ modelId: String\).*?matchesProvider = provider == PostProcessingProvider\.localLLM\.rawValue.*?matchesModel = \(mode\.languageModel \?\? `"`"\)\.caseInsensitiveCompare\(modelId\) == \.orderedSame.*?return isActiveLocalMode && matchesProvider && matchesModel" `
     -Label "macOS Model Library delete guard checks the Local LLM languageModel before deletion"
 
 Assert-Match `
