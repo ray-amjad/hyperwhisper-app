@@ -65,9 +65,12 @@ describe('resolveLLMModel', () => {
   });
 
   test('an old client sending a Claude Haiku 4.5 id is served Haiku 5.5, never a 400', () => {
+    // No alias table: a retired id is not allowlisted, so it takes the provider
+    // default, the same fallback as open-mistral-nemo above.
     expect(defaultModelFor('anthropic')).toBe('claude-haiku-5-5');
     expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'claude-haiku-5-5' }))).toBe('claude-haiku-5-5');
     expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'claude-haiku-4-5' }))).toBe('claude-haiku-5-5');
+    expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'claude-haiku-4-5-20251001' }))).toBe('claude-haiku-5-5');
     expect(resolveLLMModel('anthropic', requestWith({ 'x-llm-model': 'Claude-Haiku-4-5-20251001' }))).toBe('claude-haiku-5-5');
   });
 

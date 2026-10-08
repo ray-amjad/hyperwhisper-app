@@ -99,19 +99,6 @@ const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: reado
   mistral: { default: 'mistral-small-latest', allowed: ['mistral-small-latest'] },
 };
 
-// Retired X-LLM-Model ids that installed clients still send, mapped to the id
-// that now serves them. An alias is resolved BEFORE the allowlist check, so the
-// request is answered (and billed) as the target model instead of 400ing or
-// silently reading as "invalid header". Clients built before the Haiku 5.5
-// catalog send `claude-haiku-4-5`; the dated snapshot is the id this service
-// itself pinned until 2026-10.
-const LLM_MODEL_ALIASES: Partial<Record<LLMProvider, Record<string, string>>> = {
-  anthropic: {
-    'claude-haiku-4-5': 'claude-haiku-5-5',
-    'claude-haiku-4-5-20251001': 'claude-haiku-5-5',
-  },
-};
-
 export function defaultModelFor(provider: LLMProvider): string {
   return LLM_PROVIDER_MODELS[provider].default;
 }
@@ -147,8 +134,7 @@ export function extractLLMProvider(request: Request): LLMProvider {
  * provider default so a bad header never bills the wrong (or no) model.
  */
 export function resolveLLMModel(provider: LLMProvider, request: Request): string {
-  const raw = request.headers.get('x-llm-model')?.toLowerCase().trim();
-  const requested = raw ? (LLM_MODEL_ALIASES[provider]?.[raw] ?? raw) : raw;
+  const requested = request.headers.get('x-llm-model')?.toLowerCase().trim();
   const config = LLM_PROVIDER_MODELS[provider];
   if (requested && config.allowed.includes(requested)) {
     return requested;
@@ -219,5 +205,4 @@ export { buildCorrectionRequest };
 export const __tables = {
   LLM_PROVIDER_MODELS,
   LLM_PROVIDER_RETRIES,
-  LLM_MODEL_ALIASES,
 };
