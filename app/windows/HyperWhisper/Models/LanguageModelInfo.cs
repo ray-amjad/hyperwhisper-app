@@ -57,6 +57,7 @@ public class LanguageModelInfo
         // OpenAI Models
         // GPT-4.1 and GPT-5 series - text-focused models optimized for writing tasks
         new("gpt-5.6-luna", "GPT-5.6 Luna", PostProcessingProvider.OpenAI, "Latest generation, fastest"),
+        new("gpt-6-luna", "GPT-6 Luna", PostProcessingProvider.OpenAI, "Newest generation, fast"),
         new("gpt-4.1-mini", "GPT-4.1 Mini", PostProcessingProvider.OpenAI, "Balanced (recommended)"),
         new("gpt-4.1", "GPT-4.1", PostProcessingProvider.OpenAI, "High quality"),
         // gpt-5 / gpt-5-mini / gpt-5-nano rows removed (#1018): OpenAI removes them
@@ -69,8 +70,10 @@ public class LanguageModelInfo
 
         // Anthropic Models
         // Claude series - known for nuanced text understanding
-        new("claude-haiku-4-5", "Claude 4.5 Haiku", PostProcessingProvider.Anthropic, "Fast and affordable"),
-        new("claude-sonnet-4-5", "Claude 4.5 Sonnet", PostProcessingProvider.Anthropic, "High quality"),
+        // claude-haiku-4-5 / claude-sonnet-4-5 rows removed (2026-10): MigrateModelId
+        // sends both, and every older alias, to their 5.5 successors.
+        new("claude-haiku-5-5", "Claude Haiku 5.5", PostProcessingProvider.Anthropic, "Fast and affordable"),
+        new("claude-sonnet-5-5", "Claude Sonnet 5.5", PostProcessingProvider.Anthropic, "Latest Sonnet model, highest quality"),
         new("claude-sonnet-4-6", "Claude 4.6 Sonnet", PostProcessingProvider.Anthropic, "High quality, capable Sonnet model"),
         new("claude-sonnet-5", "Claude Sonnet 5", PostProcessingProvider.Anthropic, "Latest, most capable Sonnet model"),
 
@@ -78,7 +81,6 @@ public class LanguageModelInfo
         // Ultra-fast inference via specialized hardware
         new("openai/gpt-oss-120b", "GPT OSS 120B", PostProcessingProvider.Groq, "Fast, high quality"),
         new("openai/gpt-oss-20b", "GPT OSS 20B", PostProcessingProvider.Groq, "Fast, lightweight"),
-        new("qwen/qwen3.6-27b", "Qwen 3.6 27B", PostProcessingProvider.Groq, "Capable Qwen, strong quality-to-speed ratio"),
         new("qwen/qwen3.8-27b", "Qwen 3.8 27B", PostProcessingProvider.Groq, "Latest Qwen, strong quality-to-speed ratio"),
 
         // xAI Grok Models
@@ -88,7 +90,6 @@ public class LanguageModelInfo
 
         // Google Gemini Models
         // Fast and efficient models via OpenAI-compatible endpoint
-        new("gemini-3-flash-preview", "Gemini 3 Flash", PostProcessingProvider.Gemini, "Pro-level intelligence"),
         new("gemini-3.5-flash", "Gemini 3.5 Flash", PostProcessingProvider.Gemini, "Most intelligent flash, frontier agentic performance"),
         new("gemini-3.6-flash", "Gemini 3.6 Flash", PostProcessingProvider.Gemini, "Capable flash model, frontier performance for agentic tasks"),
         new("gemini-3.7-flash", "Gemini 3.7 Flash", PostProcessingProvider.Gemini, "Capable flash model, frontier performance for agentic tasks"),
@@ -133,14 +134,20 @@ public class LanguageModelInfo
         "gpt-5-mini" => "gpt-5.6-luna",
         "gpt-5" => "gpt-5.6-luna",
         // Anthropic model ID migrations
-        "claude-3-haiku-20240307" => "claude-haiku-4-5",
-        "claude-3-5-haiku-latest" => "claude-haiku-4-5",
-        "claude-haiku-4.5" => "claude-haiku-4-5",
-        "claude-haiku-4-5-latest" => "claude-haiku-4-5",
-        "claude-sonnet-4-20250514" => "claude-sonnet-4-5",
-        "claude-sonnet-4-0" => "claude-sonnet-4-5",
-        "claude-sonnet-4-5-latest" => "claude-sonnet-4-5",
+        // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10; each old id maps
+        // straight to its final row (matches macOS).
+        "claude-3-haiku-20240307" => "claude-haiku-5-5",
+        "claude-3-5-haiku-latest" => "claude-haiku-5-5",
+        "claude-haiku-4.5" => "claude-haiku-5-5",
+        "claude-haiku-4-5" => "claude-haiku-5-5",
+        "claude-haiku-4-5-latest" => "claude-haiku-5-5",
+        "claude-sonnet-4-20250514" => "claude-sonnet-5-5",
+        "claude-sonnet-4-0" => "claude-sonnet-5-5",
+        "claude-sonnet-4-5" => "claude-sonnet-5-5",
+        "claude-sonnet-4-5-latest" => "claude-sonnet-5-5",
         "claude-sonnet-4-6-latest" => "claude-sonnet-4-6",
+        // Groq: qwen3.6 left the picker 2026-10 for its successor (matches macOS).
+        "qwen/qwen3.6-27b" => "qwen/qwen3.8-27b",
         // Groq model removals
         // Shut down by Groq 2026-03-09 → openai/gpt-oss-120b (GroqCloud deprecation notice).
         // Missed when the 2026-07-17 removals were mapped below, so it stayed in the
@@ -196,6 +203,7 @@ public class LanguageModelInfo
         "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
         "gemini-2.0-flash" => "gemini-3.6-flash",
         "gemini-2.0-flash-lite" => "gemini-3.1-flash-lite",
+        "gemini-3-flash-preview" => "gemini-3.6-flash",
         _ => oldId
     };
 

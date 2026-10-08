@@ -52,6 +52,6 @@ public static class CloudPostProcessingCatalog
 
         return entries.Count > 0
             ? entries
-            : [new Entry("anthropic:claude-haiku-4-5", "Anthropic — Claude Haiku 4.5")];
+            : [new Entry("anthropic:claude-haiku-5-5", "Anthropic — Claude Haiku 5.5")];
     }
 }

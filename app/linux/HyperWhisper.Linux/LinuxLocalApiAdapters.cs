@@ -274,7 +274,7 @@ internal sealed class LinuxLocalApiPostProcessor(
         PostProcessingProvider = "hyperwhispercloud",
         ProviderType = "cloud",
         CloudAccuracyTier = "elevenLabsScribeV2",
-        CloudPostProcessingModel = "anthropic:claude-haiku-4-5",
+        CloudPostProcessingModel = "anthropic:claude-haiku-5-5",
         SortOrder = int.MaxValue,
         CreatedDate = DateTime.UtcNow,
         ModifiedDate = DateTime.UtcNow,
