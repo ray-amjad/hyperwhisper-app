@@ -15448,8 +15448,13 @@ internal static class Program
                             new HyperWhisper.Views.Pages.VocabularyPage(), ContentWidth, PageHeight, problems);
                         CheckLabelsFit(culture, "ModelsSettingsPage",
                             new ModelsSettingsPage(), ContentWidth, PageHeight, problems);
+                        // #1471: the isolated-profile note under Launch at startup is
+                        // collapsed until the page loads on an isolated profile, and a
+                        // collapsed block is never laid out. Show it so it is measured.
+                        var generalPage = new GeneralSettingsPage();
+                        generalPage.LaunchAtStartupIsolatedNote.Visibility = Visibility.Visible;
                         CheckLabelsFit(culture, "GeneralSettingsPage",
-                            new GeneralSettingsPage(), FormWidth, PageHeight, problems);
+                            generalPage, FormWidth, PageHeight, problems);
                         CheckLabelsFit(culture, "SoundSettingsPage",
                             new SoundSettingsPage(), FormWidth, PageHeight, problems);
                         CheckLabelsFit(culture, "CloudAccountSettingsPage",
@@ -15517,6 +15522,116 @@ internal static class Program
                 finally
                 {
                     System.Threading.Thread.CurrentThread.CurrentUICulture = originalCulture;
+                }
+            });
+
+            Run("startup: an isolated profile never reads, writes or deletes the shared HKCU Run value — issue #1471", () =>
+            {
+                // #1471. The Run value name "HyperWhisper" is shared with the
+                // installed app. A build on an isolated app-data profile showed the
+                // installed copy's state, deleted the value on untick and pointed it
+                // at itself on tick. The harness runs under an override, so every
+                // StartupService door and the Settings page must leave it alone.
+                Assert(AppPaths.IsAppDataRootOverridden,
+                    "the smoke harness is expected to run under an app-data override");
+                Assert(!StartupService.IsAvailable,
+                    "StartupService reports launch at startup as available on an isolated profile");
+
+                const string RunKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+                const string ValueName = "HyperWhisper";
+                const string Sentinel = "\"C:\\HyperWhisper.SmokeTests\\issue-1471-sentinel.exe\"";
+
+                object? ReadRunValue()
+                {
+                    using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKeyPath, false);
+                    return key?.GetValue(ValueName, null, Microsoft.Win32.RegistryValueOptions.DoNotExpandEnvironmentNames);
+                }
+
+                // A runner with no installed copy has no value, and then a guard
+                // that still READ the key would pass. So a sentinel is planted when
+                // the value is absent, and removed in finally. A machine that has the
+                // value already (an installed app) is not written to unless a broken
+                // guard changed it, in which case finally puts the original back.
+                var original = ReadRunValue();
+                var originalKind = Microsoft.Win32.RegistryValueKind.String;
+                if (original != null)
+                {
+                    using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKeyPath, false);
+                    originalKind = key!.GetValueKind(ValueName);
+                }
+
+                var planted = false;
+                try
+                {
+                    if (original == null)
+                    {
+                        using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RunKeyPath, true);
+                        key.SetValue(ValueName, Sentinel);
+                        planted = true;
+                    }
+
+                    var expected = ReadRunValue();
+                    Assert(expected != null, "precondition: the shared Run value is present");
+
+                    // The service, through both doors.
+                    var service = StartupService.Instance;
+                    Assert(!service.IsEnabled,
+                        "IsEnabled reported the shared Run value on an isolated profile");
+                    Assert(!service.Enable(), "Enable reported success on an isolated profile");
+                    Assert(Equals(ReadRunValue(), expected), "Enable overwrote the shared Run value");
+                    Assert(!service.Disable(), "Disable reported success on an isolated profile");
+                    Assert(Equals(ReadRunValue(), expected), "Disable deleted or changed the shared Run value");
+
+                    var contract = (PlatformContracts.IAutostartService)service;
+                    var contractEnabled = contract.IsEnabled();
+                    Assert(contractEnabled.IsSuccess && !contractEnabled.Value,
+                        "IAutostartService.IsEnabled reported the shared Run value on an isolated profile");
+                    var contractEnable = contract.Enable();
+                    Assert(contractEnable.IsFailure
+                            && contractEnable.Error?.Code == StartupService.IsolatedProfileFailureCode,
+                        $"IAutostartService.Enable was not refused as isolated: {contractEnable.Error?.Code ?? "success"}");
+                    var contractDisable = contract.Disable();
+                    Assert(contractDisable.IsFailure
+                            && contractDisable.Error?.Code == StartupService.IsolatedProfileFailureCode,
+                        $"IAutostartService.Disable was not refused as isolated: {contractDisable.Error?.Code ?? "success"}");
+                    Assert(Equals(ReadRunValue(), expected),
+                        "the IAutostartService door changed the shared Run value");
+
+                    // The Settings page: greyed out, unticked, with the note, and a
+                    // programmatic tick/untick (what a click does) reaches nothing.
+                    DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                    EnsureSmokeApplication();
+                    var page = new GeneralSettingsPage();
+                    typeof(GeneralSettingsPage)
+                        .GetMethod("InitializeSettings", BindingFlags.Instance | BindingFlags.NonPublic)!
+                        .Invoke(page, null);
+
+                    Assert(!page.LaunchAtStartupCheckbox.IsEnabled,
+                        "Launch at startup is not disabled on an isolated profile");
+                    Assert(page.LaunchAtStartupCheckbox.IsChecked == false,
+                        "Launch at startup is ticked on an isolated profile, so it reflects the installed app");
+                    Assert(page.LaunchAtStartupIsolatedNote.Visibility == Visibility.Visible,
+                        "the isolated-profile note is not shown");
+                    const string NoteKey = "settings.general.launchAtLogin.isolatedProfileNote";
+                    Assert(HyperWhisper.Localization.Loc.S(NoteKey) != NoteKey,
+                        $"'{NoteKey}' is missing from Strings.resx");
+
+                    page.LaunchAtStartupCheckbox.IsChecked = true;
+                    Assert(Equals(ReadRunValue(), expected), "ticking the box changed the shared Run value");
+                    page.LaunchAtStartupCheckbox.IsChecked = false;
+                    Assert(Equals(ReadRunValue(), expected), "unticking the box deleted or changed the shared Run value");
+                }
+                finally
+                {
+                    using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RunKeyPath, true);
+                    if (planted)
+                    {
+                        key.DeleteValue(ValueName, false);
+                    }
+                    else if (original != null && !Equals(ReadRunValue(), original))
+                    {
+                        key.SetValue(ValueName, original, originalKind);
+                    }
                 }
             });
 
