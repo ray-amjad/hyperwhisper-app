@@ -94,15 +94,26 @@ final class TextInputService {
     /// something else (the user's own copy) wrote to the clipboard, so leave it.
     /// After a write-back, a pending dictation restore that expected the clipboard
     /// from before this paste is told the new count, so it still runs.
-    private func restoreSnapshotUnlessClipboardChanged(
+    ///
+    /// With no snapshot (the #879 deadline passed) the streamed text stays on the
+    /// clipboard. It is still the app's own write, so the pending dictation
+    /// restore is told the post-write count and writes the original back over
+    /// it, as before #1591. Internal, not private: a test drives it.
+    func restoreSnapshotUnlessClipboardChanged(
         _ snapshot: [AccessibilityHelper.ClipboardItemData]?,
         to pasteboard: NSPasteboard,
         changeCountBeforeWrite: Int,
         changeCountAfterWrite: Int
     ) async {
-        guard let snapshot else { return }
         guard pasteboard.changeCount == changeCountAfterWrite else {
             logger.info("📋 Clipboard changed since the streaming paste wrote it; skipped the restore")
+            return
+        }
+        guard let snapshot else {
+            await AccessibilityHelper.shared.clipboardRoundTripRestored(
+                from: changeCountBeforeWrite,
+                to: changeCountAfterWrite
+            )
             return
         }
         restorePasteboardSnapshot(snapshot, to: pasteboard)

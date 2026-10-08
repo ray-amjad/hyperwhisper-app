@@ -23,6 +23,7 @@ extension AccessibilityHelper {
     ///
     /// **How it works:**
     /// 1. Preserves an existing snapshot and pending restore when a previous clipboard restore is still pending
+    ///    and nothing has written to the clipboard since its transcript (#1591)
     /// 2. Cancels any pending restoration from previous recording if no restore snapshot needs to survive
     /// 3. Extracts DATA from all NSPasteboardItem objects (not the objects themselves)
     /// 4. Each item's data is stored for all its types (public.utf8-plain-text, public.png, etc.)
@@ -50,8 +51,19 @@ extension AccessibilityHelper {
         let keptChangeCount = keptClipboardSnapshotChangeCount
         keptClipboardSnapshotChangeCount = nil
 
+        // Stacked only while the clipboard still holds what the pending restore
+        // expects (#1591). When the count moved, something else wrote to the
+        // clipboard inside the window (the user copied something new): the
+        // window is over for that restore. It is cancelled below, and this
+        // session runs as if it began after the restore skipped: the #1061 keep
+        // when the clipboard holds an unpasted transcript of the app's own, a
+        // fresh snapshot of the user's copy otherwise.
+        let pendingRestoreStillMatches = restoreExpectedChangeCount.map {
+            $0 == NSPasteboard.general.changeCount
+        } ?? true
         if activeRestorationWorkItem?.isCancelled == false,
-           originalClipboardData != nil {
+           originalClipboardData != nil,
+           pendingRestoreStillMatches {
             logger.info("📋 Preserving saved clipboard snapshot and pending restore across stacked recording session")
             isInRecordingSession = true
             return
@@ -144,13 +156,15 @@ extension AccessibilityHelper {
         restoreExpectedChangeCount = nil
     }
 
-    /// The app itself wrote to the clipboard and then put back what was there
-    /// (the streaming paste, #1591). `before` is the change count right before
-    /// that first write, `after` the one right after the write-back. When the
-    /// pending restore expected `before`, the clipboard holds what it held then,
-    /// so the restore now expects `after` and still runs. Any other `before`
-    /// means a write the app did not make came first: leave the expectation, so
-    /// the restore keeps skipping.
+    /// The app itself wrote to the clipboard (the streaming paste, #1591).
+    /// `before` is the change count right before that write, `after` the count
+    /// the clipboard holds now that the app is done with it: right after the
+    /// write-back, or right after the write when there was no snapshot to put
+    /// back (the streamed text stays, and the restore still writes over it, as
+    /// before #1591). When the pending restore expected `before`, every write
+    /// since is the app's own, so the restore now expects `after` and still
+    /// runs. Any other `before` means a write the app did not make came first:
+    /// leave the expectation, so the restore keeps skipping.
     func clipboardRoundTripRestored(from before: Int, to after: Int) {
         guard activeRestorationWorkItem != nil, restoreExpectedChangeCount == before else { return }
         restoreExpectedChangeCount = after
@@ -352,6 +366,13 @@ extension AccessibilityHelper {
     /// the stale clipboard back over the user's copy, unless the clipboard holds
     /// an unpasted transcript of the app's own (the #1061 mark matches): then
     /// the next recording still keeps the user's older clipboard.
+    ///
+    /// Inside a recording session the snapshot stays, as on the success path.
+    /// Only a stacked session reaches this (`startRecordingSession()` cancels
+    /// any other pending restore), and it stacked only because the count still
+    /// matched at its start. So the write came during that recording, and the
+    /// session's own paste and restore handle the clipboard as a session that
+    /// began after this restore would have.
     private func skipRestorationAfterForeignWrite() {
         activeRestorationWorkItem = nil
         restoreExpectedChangeCount = nil
@@ -359,6 +380,11 @@ extension AccessibilityHelper {
         if let kept = keptClipboardSnapshotChangeCount,
            kept == NSPasteboard.general.changeCount {
             logger.info("📋 Clipboard holds an unpasted transcript; skipped the restore and kept the clipboard snapshot for the next recording")
+            return
+        }
+
+        if isInRecordingSession {
+            logger.info("📋 Clipboard changed during a stacked recording; skipped the restore and kept the clipboard snapshot for that recording's restore")
             return
         }
 
