@@ -1397,6 +1397,52 @@ internal static class Program
                 Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.FromSeconds(-3)) == TimeSpan.Zero, "negative → 0");
             });
 
+            // #1562 review: teardown (mode switch, on the UI thread) must not wait out an
+            // hours-long budget, and must end the request as Cancelled so the DaemonCrashed
+            // auto-restart never reloads the old model.
+            Run("Parakeet teardown stays bounded and ends the request as Cancelled", () =>
+            {
+                // The whole UI-thread wait is main's floor + 5 s, for every engine.
+                Assert(ParakeetTranscriptionService.TeardownLockWait(60) == TimeSpan.FromSeconds(65), "Parakeet teardown 65s");
+                Assert(ParakeetTranscriptionService.TeardownLockWait(120) == TimeSpan.FromSeconds(125), "online teardown 125s");
+                Assert(ParakeetTranscriptionService.TeardownLockWait(180) == TimeSpan.FromSeconds(185), "Qwen3 teardown 185s");
+
+                // No request in flight → no grace; a short clip gets the floor to land, never more
+                // than the teardown wait; a long file is cancelled at once.
+                Assert(ParakeetTranscriptionService.ComputeTeardownGrace(60, null) == TimeSpan.Zero, "idle → 0");
+                var shortClip = ParakeetTranscriptionService.ComputeResponseTimeout(60, 10);
+                Assert(ParakeetTranscriptionService.ComputeTeardownGrace(60, shortClip) == TimeSpan.FromSeconds(60), "10s clip → 60s grace");
+                var thirtySeconds = ParakeetTranscriptionService.ComputeResponseTimeout(60, 30);
+                Assert(ParakeetTranscriptionService.ComputeTeardownGrace(60, thirtySeconds) == TimeSpan.FromSeconds(60), "30s clip → 60s grace");
+                var thirtyMinutes = ParakeetTranscriptionService.ComputeResponseTimeout(60, 30 * 60);
+                Assert(ParakeetTranscriptionService.ComputeTeardownGrace(60, thirtyMinutes) == TimeSpan.Zero, "30-min file → cancel at once");
+                Assert(ParakeetTranscriptionService.ComputeTeardownGrace(60, ParakeetTranscriptionService.ComputeResponseTimeout(60, 31)) == TimeSpan.Zero, "31s → cancel at once");
+                foreach (var floor in new[] { 60, 120, 180 })
+                {
+                    var grace = ParakeetTranscriptionService.ComputeTeardownGrace(floor, TimeSpan.FromSeconds(floor));
+                    Assert(grace < ParakeetTranscriptionService.TeardownLockWait(floor), $"floor {floor}: grace inside the teardown wait");
+                }
+
+                // A teardown-ended request is Cancelled, which the auto-restart filter
+                // (Code == DaemonCrashed) does not match, whatever ended the read.
+                var ended = ParakeetTranscriptionService.CreateTeardownCancelledException(new ObjectDisposedException("stdout"));
+                Assert(ended.Code == TranscriptionErrorCode.Cancelled, "teardown → Cancelled");
+                Assert(ended.Code != TranscriptionErrorCode.DaemonCrashed, "teardown is never DaemonCrashed");
+                Assert(ended.InnerException is ObjectDisposedException, "cause kept");
+
+                var crashed = new TranscriptionException(TranscriptionErrorCode.DaemonCrashed, "closed stdout", "Parakeet");
+                Assert(ParakeetTranscriptionService.IsEndedByTeardown(crashed, teardownRequested: true, callerCancelled: false),
+                    "DaemonCrashed during teardown → converted");
+                Assert(ParakeetTranscriptionService.IsEndedByTeardown(new OperationCanceledException(), teardownRequested: true, callerCancelled: false),
+                    "cancelled wait during teardown → converted");
+                Assert(!ParakeetTranscriptionService.IsEndedByTeardown(crashed, teardownRequested: false, callerCancelled: false),
+                    "a real crash with no teardown still auto-restarts");
+                Assert(!ParakeetTranscriptionService.IsEndedByTeardown(new OperationCanceledException(), teardownRequested: true, callerCancelled: true),
+                    "a caller cancel keeps its own OperationCanceledException");
+                Assert(!ParakeetTranscriptionService.IsEndedByTeardown(ended, teardownRequested: true, callerCancelled: false),
+                    "already Cancelled → not wrapped twice");
+            });
+
             Run("XaiFormattingLanguages shared between Grok batch and streaming", () =>
             {
                 Assert(XaiFormattingLanguages.TryGetSupportedCode("en", out var en) && en == "en", "en supported");
