@@ -1489,9 +1489,21 @@ static async Task RunCloudPostProcessingModelLoadTestsAsync(string root)
         "the loaded cloud post-processing model is not a picker row");
 
     // A listed value loads unchanged; an unknown provider is left alone, not rewritten.
+    // The row must be present: if the core catalog failed to load, the fallback list holds
+    // only Haiku 5.5 and this check must fail rather than pass vacuously.
+    Assert(editor.HyperWhisperCloudModels.Contains("groq:openai/gpt-oss-120b"),
+        "the picker does not list groq:openai/gpt-oss-120b; did the core catalog load?");
     Assert(HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("groq:openai/gpt-oss-120b")
-            == "groq:openai/gpt-oss-120b" || !editor.HyperWhisperCloudModels.Contains("groq:openai/gpt-oss-120b"),
+            == "groq:openai/gpt-oss-120b",
         "a listed cloud post-processing value was rewritten");
+    // The engine and model match case-insensitively, like Windows FromString, macOS
+    // fromStorageValue and hw-backup; the result is the catalog's own spelling.
+    var mixedRetired = HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("Anthropic:claude-haiku-4-5");
+    Assert(mixedRetired == "anthropic:claude-haiku-5-5",
+        $"a stored Anthropic:claude-haiku-4-5 canonicalised to '{mixedRetired}', not anthropic:claude-haiku-5-5");
+    var mixedListed = HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("GROQ:OpenAI/GPT-OSS-120B");
+    Assert(mixedListed == "groq:openai/gpt-oss-120b",
+        $"a mixed-case listed value canonicalised to '{mixedListed}', not groq:openai/gpt-oss-120b");
     Assert(HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize("nosuchvendor:x") == "nosuchvendor:x",
         "an unknown provider was rewritten");
 }

@@ -33,9 +33,13 @@ public static class CloudPostProcessingCatalog
     {
         var trimmed = stored?.Trim() ?? string.Empty;
         if (trimmed.Length == 0) return string.Empty;
-        var entries = Entries;
-        if (entries.Any(entry => string.Equals(entry.Value, trimmed, StringComparison.Ordinal)))
-            return trimmed;
+        // Case-insensitive, like Windows FromString (CloudPpCatalog GetModel / DefaultModelForId),
+        // macOS fromStorageValue and hw-backup: a stored "Anthropic:claude-haiku-4-5" is still
+        // the Anthropic engine. A match returns the catalog's own spelling.
+        var listed = Entries.FirstOrDefault(entry =>
+            string.Equals(entry.Value, trimmed, StringComparison.OrdinalIgnoreCase));
+        if (listed.Value is not null)
+            return listed.Value;
         var colon = trimmed.IndexOf(':');
         if (colon <= 0) return trimmed;
         var provider = trimmed[..colon];
@@ -47,7 +51,7 @@ public static class CloudPostProcessingCatalog
     private static IReadOnlyList<Entry> Load()
     {
         var entries = new List<Entry>();
-        var defaults = new Dictionary<string, string>(StringComparer.Ordinal);
+        var defaults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         try
         {
             foreach (var provider in HyperwhisperCoreMethods.CloudPpProviders())
@@ -84,7 +88,7 @@ public static class CloudPostProcessingCatalog
             _providerDefaults = defaults;
             return entries;
         }
-        _providerDefaults = new(StringComparer.Ordinal) { ["anthropic"] = "anthropic:claude-haiku-5-5" };
+        _providerDefaults = new(StringComparer.OrdinalIgnoreCase) { ["anthropic"] = "anthropic:claude-haiku-5-5" };
         return [new Entry("anthropic:claude-haiku-5-5", "Anthropic — Claude Haiku 5.5")];
     }
 }
