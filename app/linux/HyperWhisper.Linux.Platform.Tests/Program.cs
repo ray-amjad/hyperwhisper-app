@@ -90,7 +90,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("chained dictations keep a user copy made after the last paste", InjectionChainedDictationsKeepUserCopyAfterLastPaste),
     ("an unreadable clipboard restores as before", InjectionUnreadableClipboardRestoresAsBefore),
     ("a clipboard too large to snapshot skips the restore", InjectionTooLargeClipboardSkipsRestore),
-    ("a clipboard with an undeliverable or excess target skips the restore", InjectionUndeliverableClipboardSkipsRestore),
+    ("a clipboard with an undeliverable target restores as before", InjectionUndeliverableClipboardRestoresAsBefore),
+    ("a clipboard with excess targets skips the restore", InjectionExcessTargetsClipboardSkipsRestore),
     ("a Copy button press in the restore window survives the restore", InjectionCopyButtonInRestoreWindowSurvivesRestore),
     ("Wayland AT-SPI target accepts stable focused identity", AtSpiTargetStable),
     ("Wayland AT-SPI target rejects changed identity", AtSpiTargetChanged),
@@ -1559,8 +1560,9 @@ static async Task InjectionChainedDictationsKeepUserCopyAfterLastPaste()
 
 static async Task InjectionUnreadableClipboardRestoresAsBefore()
 {
-    // No helper, or the helper failed listing the targets: the content is unknown. null = a throw.
-    foreach (var code in new[] { "clipboard_unavailable", "clipboard_command_failed", null })
+    // No helper, the helper failed listing the targets, or a read of one target failed (incomplete):
+    // the content is unknown. null = a throw.
+    foreach (var code in new[] { "clipboard_unavailable", "clipboard_command_failed", "clipboard_capture_incomplete", null })
     {
         var clipboard = new FakeClipboard("marker");
         using var service = NewInjection(clipboard, new FakeUInput(false));
@@ -1593,40 +1595,47 @@ static async Task InjectionTooLargeClipboardSkipsRestore()
     Assert.Equal("a copy larger than any snapshot", clipboard.Text);
 }
 
-// #1590 review: a capture that fails because the owner advertises a target it cannot deliver, or
-// more than 64 targets, proves the clipboard is not a transcript write (it publishes at most six,
-// all readable): the user's copy, so neither restore writes over it.
-static async Task InjectionUndeliverableClipboardSkipsRestore()
-{
-    foreach (var code in new[] { "clipboard_capture_incomplete", "clipboard_snapshot_invalid" })
-    {
-        // The scheduled restore.
-        var clipboard = new FakeClipboard("marker");
-        using (var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService()))
-        {
-            await DictateAsync(service, "transcript A");
-            service.ScheduleClipboardRestore(SkipRestoreDelay());
-            var captures = clipboard.CaptureCalls;
-            clipboard.UserCopy("an app copy with a broken target");
-            clipboard.CaptureFailureCode = code;
-            await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
-            Assert.Equal(0, clipboard.RestoreCalls);
-            Assert.Equal("an app copy with a broken target", clipboard.Text);
-        }
+// #1590 round 2: a capture that fails because the owner advertises a target it cannot deliver
+// (incomplete) looks the same as a transient helper failure, so it is unknown and both restores
+// run as before.
+static Task InjectionUndeliverableClipboardRestoresAsBefore() =>
+    AssertCaptureFailureRestoreDecisionAsync("clipboard_capture_incomplete", skips: false);
 
-        // The immediate restore (a cancelled or failed dictation).
-        clipboard = new FakeClipboard("marker");
-        using (var service = NewInjection(clipboard, new FakeUInput(false)))
-        {
-            service.StartSession();
-            Assert.Success(await service.CopyToClipboardAsync("transcript A"));
-            clipboard.UserCopy("an app copy with a broken target");
-            clipboard.CaptureFailureCode = code;
-            Assert.Success(await service.RestoreClipboardImmediatelyAsync());
-            Assert.Equal(0, clipboard.RestoreCalls);
-            Assert.True(!service.HoldsSnapshot);
-            Assert.Equal("an app copy with a broken target", clipboard.Text);
-        }
+// #1590 review: more than 64 targets proves the clipboard is not a transcript write (it publishes
+// at most six): the user's copy, so neither restore writes over it.
+static Task InjectionExcessTargetsClipboardSkipsRestore() =>
+    AssertCaptureFailureRestoreDecisionAsync("clipboard_snapshot_invalid", skips: true);
+
+static async Task AssertCaptureFailureRestoreDecisionAsync(string code, bool skips)
+{
+    var expectedText = skips ? "an app copy with a broken target" : "marker";
+
+    // The scheduled restore.
+    var clipboard = new FakeClipboard("marker");
+    using (var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService()))
+    {
+        await DictateAsync(service, "transcript A");
+        service.ScheduleClipboardRestore(SkipRestoreDelay());
+        var captures = clipboard.CaptureCalls;
+        clipboard.UserCopy("an app copy with a broken target");
+        clipboard.CaptureFailureCode = code;
+        await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+        Assert.Equal(skips ? 0 : 1, clipboard.RestoreCalls);
+        Assert.Equal(expectedText, clipboard.Text);
+    }
+
+    // The immediate restore (a cancelled or failed dictation).
+    clipboard = new FakeClipboard("marker");
+    using (var service = NewInjection(clipboard, new FakeUInput(false)))
+    {
+        service.StartSession();
+        Assert.Success(await service.CopyToClipboardAsync("transcript A"));
+        clipboard.UserCopy("an app copy with a broken target");
+        clipboard.CaptureFailureCode = code;
+        Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+        Assert.Equal(skips ? 0 : 1, clipboard.RestoreCalls);
+        Assert.True(!service.HoldsSnapshot);
+        Assert.Equal(expectedText, clipboard.Text);
     }
 }
 

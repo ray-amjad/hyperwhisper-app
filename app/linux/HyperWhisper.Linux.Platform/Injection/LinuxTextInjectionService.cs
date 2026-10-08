@@ -47,8 +47,9 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     // _snapshot was scheduled for it. It means "this transcript is on the clipboard and the
     // user's content is due back". While the clipboard still holds exactly this transcript,
     // StartSession keeps _snapshot instead of capturing the transcript. Guarded by _gate.
-    // #1590: a restore writes _snapshot back only while the clipboard still holds exactly the
-    // transcript in this field or _unscheduledTranscript (see ClipboardChangedSinceOwnWriteAsync).
+    // #1590: a restore skips (and drops _snapshot) when the clipboard reads back as something
+    // other than the transcript in this field or _unscheduledTranscript. An unreadable clipboard
+    // restores as before (see ClipboardChangedSinceOwnWriteAsync).
     private byte[]? _scheduledTranscript;
     // The last transcript written with no restore scheduled for it yet. ScheduleClipboardRestore
     // moves it to _scheduledTranscript; a session that starts while it is still set treats that
@@ -290,7 +291,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     /// an empty clipboard) was written by someone else. Linux has no change counter, so this
     /// reads the content. A capture failure that proves the content is not a transcript write
     /// (ChangedCaptureFailures) counts as changed. Any other read failure (no helper, the helper
-    /// failed) is unknown: false, and the restore runs as before.
+    /// failed, an incomplete capture, an exception) is unknown: false, and the restore runs as before.
     /// </summary>
     private async ValueTask<bool> ClipboardChangedSinceOwnWriteAsync(byte[]? expected, CancellationToken token)
     {
@@ -304,12 +305,13 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
 
     /// <summary>
     /// CommandClipboardBackend.CaptureAsync failures a transcript write cannot cause: larger than
-    /// any transcript (too_large), more than 64 targets (invalid), or a target the owner advertises
-    /// but cannot deliver (incomplete). Every target a transcript write publishes reads back.
+    /// any transcript (too_large) or more than 64 targets (invalid). clipboard_capture_incomplete
+    /// is not here: the backend returns it for any failed read of one target, a transient helper
+    /// failure included, so it cannot tell an undeliverable target from a busy X server.
     /// </summary>
     private static readonly FrozenSet<string> ChangedCaptureFailures = new[]
     {
-        "clipboard_snapshot_too_large", "clipboard_snapshot_invalid", "clipboard_capture_incomplete",
+        "clipboard_snapshot_too_large", "clipboard_snapshot_invalid",
     }.ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>Test seam (#1590): whether a snapshot is still held, i.e. a restore decision is pending.</summary>
