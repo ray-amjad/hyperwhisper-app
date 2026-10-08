@@ -35,6 +35,10 @@ struct LocalAPITransientModeTests {
     /// The controller is a PARAMETER and every test holds it for its whole
     /// length: a store dropped inside a helper deallocates on return (the
     /// `DeleteActiveModeTests` trap).
+    ///
+    /// `createdDate` and `modifiedDate` are mandatory with no default. Without
+    /// them `persistence.save()` fails validation, logs instead of throwing,
+    /// and leaves every insert pending, so the store these tests read is empty.
     private func makeSavedMode(
         in persistence: PersistenceController,
         name: String,
@@ -48,7 +52,15 @@ struct LocalAPITransientModeTests {
         mode.sortOrder = sortOrder
         mode.isDefault = isDefault
         mode.isSystemProvided = isSystemProvided
+        mode.createdDate = Date()
+        mode.modifiedDate = Date()
         return mode
+    }
+
+    /// `persistence.save()` swallows a failed save, so check that it committed.
+    private func saveFixtures(_ persistence: PersistenceController) throws {
+        persistence.save()
+        try #require(!persistence.container.viewContext.hasChanges, "the fixture save failed")
     }
 
     /// Every Mode name in the STORE, read through a fresh background context so
@@ -68,7 +80,7 @@ struct LocalAPITransientModeTests {
         let baseline = makeSavedMode(in: persistence, name: "S3SmallEN", sortOrder: 0)
         baseline.model = "small.en"
         baseline.language = "en"
-        persistence.save()
+        try saveFixtures(persistence)
 
         // What a `{mode_id, language}` request builds.
         let transient = TranscribeEndpoint.makeTransientMode(
@@ -105,7 +117,7 @@ struct LocalAPITransientModeTests {
     @Test func anotherViewContextSaveDoesNotCommitThePostProcessMode() throws {
         let persistence = PersistenceController(inMemory: true)
         _ = makeSavedMode(in: persistence, name: "Hyper", sortOrder: 0, isDefault: true)
-        persistence.save()
+        try saveFixtures(persistence)
 
         // What a `{text, preset}` request with no mode_id builds.
         let request = PostProcessRequest(
@@ -298,7 +310,7 @@ struct LocalAPITransientModeTests {
         // createOrUpdateMode gives a new Mode Int16.max once a leaked row holds it.
         _ = makeSavedMode(in: persistence, name: "Created After The Leak", sortOrder: top)
         _ = makeSavedMode(in: persistence, name: "\(t) 2b", sortOrder: top)
-        persistence.save()
+        try saveFixtures(persistence)
 
         #expect(persistence.purgeLeakedLocalAPITransientModes() == 3)
 
@@ -313,7 +325,7 @@ struct LocalAPITransientModeTests {
     @Test func theLaunchPurgeLeavesARunningRequestAlone() throws {
         let persistence = PersistenceController(inMemory: true)
         _ = makeSavedMode(in: persistence, name: LocalAPITransientModeMarker.transcribeName, sortOrder: Int16.max)
-        persistence.save()
+        try saveFixtures(persistence)
 
         let transient = TranscribeEndpoint.makeTransientMode(
             baseline: nil,
