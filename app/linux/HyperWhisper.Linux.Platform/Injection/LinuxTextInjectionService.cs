@@ -46,6 +46,8 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     // _snapshot was scheduled for it. It means "this transcript is on the clipboard and the
     // user's content is due back". While the clipboard still holds exactly this transcript,
     // StartSession keeps _snapshot instead of capturing the transcript. Guarded by _gate.
+    // #1590: a restore writes _snapshot back only while the clipboard still holds exactly the
+    // transcript in this field or _unscheduledTranscript (see ClipboardChangedSinceOwnWriteAsync).
     private byte[]? _scheduledTranscript;
     // The last transcript written with no restore scheduled for it yet. ScheduleClipboardRestore
     // moves it to _scheduledTranscript; a session that starts while it is still set treats that
@@ -159,11 +161,20 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         }
         _ = RestoreAfterDelayAsync(delay, cancellation);
     }
+    /// <summary>
+    /// Restores the snapshot now (cancel, start failure, stop error). Like the scheduled restore,
+    /// it leaves a user copy made since the last transcript write alone (#1590); a skip is not a failure.
+    /// </summary>
     public async ValueTask<PlatformResult> RestoreClipboardImmediatelyAsync(CancellationToken cancellationToken = default)
     {
         CancelPendingClipboardRestore();
-        var (snapshot, generation) = ReadSnapshot();
+        var (snapshot, expected, generation) = ReadSnapshot();
         if (snapshot is null) return PlatformResult.Success();
+        if (await ClipboardChangedSinceOwnWriteAsync(expected, cancellationToken).ConfigureAwait(false))
+        {
+            ClearRestoredSnapshot(generation);
+            return PlatformResult.Success();
+        }
         var result = await TryRestoreAsync(snapshot, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess) ClearRestoredSnapshot(generation);
         return result;
@@ -213,8 +224,12 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         try
         {
             await Task.Delay(delay < TimeSpan.Zero ? TimeSpan.Zero : delay, cancellation.Token);
-            var (snapshot, generation) = ReadSnapshot();
-            if (snapshot is not null && (await TryRestoreAsync(snapshot, cancellation.Token).ConfigureAwait(false)).IsSuccess)
+            var (snapshot, expected, generation) = ReadSnapshot();
+            if (snapshot is null) return;
+            // #1590: a copy made inside the restore window is the user's clipboard now.
+            if (await ClipboardChangedSinceOwnWriteAsync(expected, cancellation.Token).ConfigureAwait(false))
+                ClearRestoredSnapshot(generation);
+            else if ((await TryRestoreAsync(snapshot, cancellation.Token).ConfigureAwait(false)).IsSuccess)
                 ClearRestoredSnapshot(generation);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
@@ -240,9 +255,32 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         }
     }
 
-    private (ClipboardSnapshot? Snapshot, long Generation) ReadSnapshot()
+    /// <summary>
+    /// The snapshot, the transcript a restore may write over (#1590: the last one this service
+    /// wrote since the snapshot, or the previous one a chained session kept it for; null when
+    /// nothing was written since), and the session generation, read together.
+    /// </summary>
+    private (ClipboardSnapshot? Snapshot, byte[]? Expected, long Generation) ReadSnapshot()
     {
-        lock (_gate) return (_snapshot, _sessionGeneration);
+        lock (_gate) return (_snapshot, _unscheduledTranscript ?? _scheduledTranscript, _sessionGeneration);
+    }
+
+    /// <summary>
+    /// Whether the clipboard no longer holds what a restore would replace (#1590, the Linux twin
+    /// of #1583): with no transcript written since the snapshot, any readable content is the
+    /// user's or newer; otherwise anything but exactly that transcript (other text, other formats,
+    /// an empty clipboard) was written by someone else. Linux has no change counter, so this
+    /// reads the content. A clipboard too large to snapshot is larger than any transcript, so it
+    /// is not ours either. Any other read failure is unknown: false, and the restore runs as before.
+    /// </summary>
+    private async ValueTask<bool> ClipboardChangedSinceOwnWriteAsync(byte[]? expected, CancellationToken token)
+    {
+        PlatformResult<ClipboardSnapshot?> current;
+        try { current = await _clipboard.CaptureAsync(token).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch { return false; }
+        if (current.IsFailure) return current.Error?.Code == "clipboard_snapshot_too_large";
+        return expected is null || !HoldsOnlyTranscript(current.Value, expected);
     }
 
     /// <summary>The user's content is back on the clipboard: no snapshot or mark is current.</summary>
