@@ -597,6 +597,14 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 // Each voice recording is independent — don't use prior text as decoder context
                 builder.WithNoContext();
 
+                // WithNoContext only clears the context once, before the first 30s window.
+                // whisper.cpp still primes every later window with the text decoded so far,
+                // so on long recordings one window's phrase gets copied into the next and
+                // replaces the real speech (a repetition loop the entropy gate misses, because
+                // each repeat carries new timestamp tokens). 0 stops that carry-over. Safe
+                // here: no initial prompt is set, and that prompt rides the same channel.
+                builder.WithMaxLastTextTokens(0);
+
                 if (isLongRecording)
                 {
                     // Long recording — enable Whisper's built-in loop-recovery fallback.
