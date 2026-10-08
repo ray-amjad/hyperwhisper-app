@@ -133,10 +133,21 @@ class LicenseManager: ObservableObject {
         let (success, error) = await networkService.deactivateLicense()
         if success {
             publishClearedLicenseState()
-        } else {
-            lastError = error
+            return true
         }
-        return success
+
+        // The secure delete failed. When a fresh read proves no license record
+        // exists, there is nothing left to remove, so a published `.active`
+        // state cannot be backed by a stored key: clear it instead of leaving
+        // the user stuck in an activated layout (#1490). A record that is still
+        // present, or a store that cannot be read, keeps the failure: clearing
+        // the UI then would hide a key that the next launch restores.
+        if networkService.readStoredLicenseKey(retryAfterFailure: true) == .missing {
+            publishClearedLicenseState()
+            return true
+        }
+        lastError = error
+        return false
     }
 
     /// Validates a license key with the backend.
@@ -403,11 +414,15 @@ class LicenseManager: ObservableObject {
     /// Updates UI state from validation result and posts notification.
     private func processValidationResult(_ result: LicenseValidationResult) {
         if result.storagePersistenceFailed,
-           result.status == .active,
-           licenseStatus == .active {
-            // The server still accepts the attempted key, but the failed
-            // transaction leaves the prior secure record unchanged. Keep that
-            // prior published entitlement and report the write error.
+           result.status == .active {
+            // The server accepts the attempted key, but the failed transaction
+            // left the prior secure record unchanged. Never publish an
+            // entitlement that was not committed (#1490): from Trial, Invalid
+            // or Expired, publishing `.active` here showed PRO with no key
+            // stored, sent the device ID as the account key, and left a state
+            // Deactivate could not clear. From a prior `.active` session, keep
+            // that published entitlement. Either way, report the write error
+            // and change nothing else.
             lastError = result.errorMessage
             return
         }
