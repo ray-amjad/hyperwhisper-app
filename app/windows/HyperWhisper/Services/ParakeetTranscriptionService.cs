@@ -99,6 +99,111 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     private bool _isOnline;
 
     /// <summary>
+    /// <see cref="Environment.TickCount64"/> at which the most recent request's
+    /// response budget runs out (#1562). <see cref="DisposeModel"/> sizes its wait
+    /// for <see cref="_transcriptionLock"/> off this, so it does not tear the daemon
+    /// down under a long file that is still inside its budget. A stale value from a
+    /// finished request is in the past and reads as "nothing left".
+    /// </summary>
+    private long _activeResponseDeadlineTicks;
+
+    /// <summary>
+    /// The response-timeout floor, in seconds, for one request: the whole budget
+    /// for a short clip. Qwen3 decodes autoregressively and Nemotron-online streams
+    /// on CPU, so both get a longer floor than the Parakeet transducer.
+    /// </summary>
+    internal static int ResponseFloorSeconds(bool isQwen3, bool isOnline) =>
+        isQwen3 ? 180 : (isOnline ? 120 : 60);
+
+    /// <summary>
+    /// The hard ceiling on one request's response timeout. It only guards against a
+    /// nonsense duration from a broken header; no real input reaches it before
+    /// several hours of audio.
+    /// </summary>
+    internal static readonly TimeSpan MaxResponseTimeout = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// How long to wait for the daemon's reply to one <c>audio_path</c> request (#1562).
+    ///
+    /// The daemon answers once, for the whole file, so the wait must grow with the
+    /// audio: <c>floor + audioSeconds * floor / 30</c>. That is 2 s of wait per audio
+    /// second for Parakeet, 4 s for Nemotron-online and 6 s for Qwen3, keeping the
+    /// engines' existing 1:2:3 ratio. Parakeet ran at ~0.4x real time on a DirectML
+    /// GPU in #1562, so 2x leaves 5x headroom for a slower GPU or the CPU provider.
+    /// A short clip keeps today's floor. An unknown, zero, negative or non-finite
+    /// duration falls back to the floor alone.
+    /// </summary>
+    internal static TimeSpan ComputeResponseTimeout(int floorSeconds, double? audioSeconds)
+    {
+        var floor = TimeSpan.FromSeconds(floorSeconds);
+        if (audioSeconds is not { } seconds || !double.IsFinite(seconds) || seconds <= 0)
+        {
+            return floor;
+        }
+
+        var scaledSeconds = floorSeconds + seconds * floorSeconds / 30.0;
+        if (scaledSeconds >= MaxResponseTimeout.TotalSeconds)
+        {
+            return MaxResponseTimeout;
+        }
+
+        return TimeSpan.FromSeconds(Math.Ceiling(scaledSeconds));
+    }
+
+    /// <summary>
+    /// How long <see cref="DisposeModel"/> waits for the transcription lock: what is
+    /// left of the active request's budget, never less than the engine floor (a
+    /// request can hold the lock a moment before it records its deadline), plus a
+    /// 5 s margin for the reply to be parsed and the lock released.
+    /// </summary>
+    internal static TimeSpan ComputeTeardownWait(int floorSeconds, TimeSpan remainingActiveBudget)
+    {
+        var floor = TimeSpan.FromSeconds(floorSeconds);
+        var wait = remainingActiveBudget > floor ? remainingActiveBudget : floor;
+        if (wait > MaxResponseTimeout)
+        {
+            wait = MaxResponseTimeout;
+        }
+
+        return wait + TimeSpan.FromSeconds(5);
+    }
+
+    /// <summary>
+    /// How long the background drain of a caller-cancelled request may wait for the
+    /// daemon's reply: what is left of the request's budget, but never more than the
+    /// engine floor. The drain holds the transcription lock, so a cancelled multi-hour
+    /// file must not keep the next dictation waiting; past this the daemon is killed.
+    /// </summary>
+    internal static TimeSpan ComputeDrainBudget(int floorSeconds, TimeSpan remainingBudget)
+    {
+        var floor = TimeSpan.FromSeconds(floorSeconds);
+        if (remainingBudget <= TimeSpan.Zero)
+        {
+            return TimeSpan.Zero;
+        }
+
+        return remainingBudget < floor ? remainingBudget : floor;
+    }
+
+    /// <summary>
+    /// The audio length of the file the daemon is about to read, or null when it
+    /// cannot be read. Only the header is parsed for a WAV.
+    /// </summary>
+    private static double? TryGetAudioDurationSeconds(string audioPath)
+    {
+        try
+        {
+            using var reader = AudioFileDecoder.Open(audioPath);
+            return reader.TotalTime.TotalSeconds;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"ParakeetTranscriptionService: Could not read audio duration, using the fixed timeout floor: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Serializes access to stdin/stdout — only one transcription can be in flight at a time.
     /// </summary>
     private readonly SemaphoreSlim _transcriptionLock = new(1, 1);
@@ -731,13 +836,18 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
             await _stdinWriter!.WriteLineAsync(request);
             await _stdinWriter.FlushAsync();
 
-            // STEP 2: Read the response from stdout with a model-aware timeout.
-            // Qwen3 decodes autoregressively (much slower than the Parakeet
-            // transducer), so it gets a longer ceiling.
-            var responseSeconds = _isQwen3 ? 180 : (_isOnline ? 120 : 60);
-            LoggingService.Debug($"ParakeetTranscriptionService: Waiting for transcription response ({responseSeconds}s timeout)...");
+            // STEP 2: Read the response from stdout with a model-aware timeout that
+            // grows with the audio length (#1562): the daemon replies once for the
+            // whole file, so a fixed ceiling failed every long Transcribe File.
+            var audioSeconds = TryGetAudioDurationSeconds(audioPath);
+            var responseTimeout = ComputeResponseTimeout(ResponseFloorSeconds(_isQwen3, _isOnline), audioSeconds);
+            var responseSeconds = (long)responseTimeout.TotalSeconds;
+            Interlocked.Exchange(
+                ref _activeResponseDeadlineTicks,
+                Environment.TickCount64 + (long)responseTimeout.TotalMilliseconds);
+            var audioLabel = audioSeconds is { } knownSeconds ? $"{knownSeconds:F1}s" : "unknown";
+            LoggingService.Debug($"ParakeetTranscriptionService: Waiting for transcription response ({responseSeconds}s timeout, audio {audioLabel})...");
 
-            var responseTimeout = TimeSpan.FromSeconds(responseSeconds);
             var readTimeoutCts = new CancellationTokenSource(responseTimeout);
             var responseReadTask = _stdoutReader!.ReadLineAsync(readTimeoutCts.Token).AsTask();
             var readTimeoutTransferredToDrain = false;
@@ -771,6 +881,16 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                 LoggingService.Info("ParakeetTranscriptionService: Transcription cancelled by caller, draining in-flight result in background to keep daemon alive");
                 releaseLockInFinally = false;
                 readTimeoutTransferredToDrain = true;
+                // The drain holds the lock, so the next dictation waits on it. A long file's
+                // budget can be hours (#1562); bound the drain to the engine floor so a
+                // cancelled long job is killed instead of blocking the next request.
+                var remainingBudget = TimeSpan.FromMilliseconds(
+                    Math.Max(0, Interlocked.Read(ref _activeResponseDeadlineTicks) - Environment.TickCount64));
+                var drainBudget = ComputeDrainBudget(ResponseFloorSeconds(_isQwen3, _isOnline), remainingBudget);
+                Interlocked.Exchange(
+                    ref _activeResponseDeadlineTicks,
+                    Environment.TickCount64 + (long)drainBudget.TotalMilliseconds);
+                readTimeoutCts.CancelAfter(drainBudget);
                 StartInFlightDrain(responseReadTask, readTimeoutCts);
                 // Throw the standard cancellation shape so UI/API callers reach their
                 // dedicated cancel handlers instead of showing a transcription error.
@@ -1097,7 +1217,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     public void DisposeModel()
     {
         // Mark the provider unavailable BEFORE waiting on the lock. IsAvailable keys off
-        // _isReady, so clearing it here closes the window where — during the up-to-65s
+        // _isReady, so clearing it here closes the window where — during the lock
         // wait below — the Local API path (TranscriptionOrchestrator.TranscribeLocalAsync)
         // could still see IsAvailable == true and queue another Parakeet request behind
         // the in-flight transcription. Such a queued request would resume after teardown,
@@ -1115,15 +1235,18 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         // provider is a process-wide singleton shared with the Local API server),
         // surfacing as an ObjectDisposedException / NullReferenceException.
         //
-        // Size the wait off the SAME per-engine read budget that TranscribeInternalAsync
-        // uses (_isQwen3 ? 180 : _isOnline ? 120 : 60), plus a small margin so a legitimate
+        // Size the wait off the SAME read budget that TranscribeInternalAsync gave the
+        // in-flight request: what is left of it (it grows with the audio length since
+        // #1562), never less than the engine floor, plus a small margin so a legitimate
         // in-flight transcription can finish and release the lock before we tear down. A
-        // hard-coded 65s would expire mid-transcription for Qwen3 (180s) and Nemotron-online
-        // (120s) models and proceed to dispose the streams/process out from under the running
+        // shorter wait would expire mid-transcription (a long file, or Qwen3 / Nemotron-
+        // online) and proceed to dispose the streams/process out from under the running
         // read. If the wait still times out we proceed with teardown anyway rather than
         // deadlock — a genuinely hung transcription gets its daemon killed regardless.
-        var teardownWaitSeconds = (_isQwen3 ? 180 : (_isOnline ? 120 : 60)) + 5;
-        bool lockTaken = _transcriptionLock.Wait(TimeSpan.FromSeconds(teardownWaitSeconds));
+        var remainingActiveBudget = TimeSpan.FromMilliseconds(
+            Math.Max(0, Interlocked.Read(ref _activeResponseDeadlineTicks) - Environment.TickCount64));
+        var teardownWait = ComputeTeardownWait(ResponseFloorSeconds(_isQwen3, _isOnline), remainingActiveBudget);
+        bool lockTaken = _transcriptionLock.Wait(teardownWait);
         try
         {
             // Step 1: Send quit command if daemon is running
