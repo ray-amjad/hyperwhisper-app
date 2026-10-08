@@ -677,7 +677,7 @@ describe('LLM chat costs', () => {
     // recognise bills at the provider default, not free.
     const tokens = usage(1_000_000, 1_000_000);
     expect(computeOpenAIChatCost('gpt-9-imaginary', tokens)).toBe(computeOpenAIChatCost('gpt-5.6-luna', tokens));
-    expect(computeGeminiChatCost('gemini-99-ultra', tokens)).toBe(computeGeminiChatCost('gemini-2.5-flash', tokens));
+    expect(computeGeminiChatCost('gemini-99-ultra', tokens)).toBe(computeGeminiChatCost('gemini-3.8-flash', tokens));
     // The retired Nemo id is no longer allowlisted; old clients still sending
     // it resolve to the Mistral default rate.
     expect(computeMistralChatCost('open-mistral-nemo', tokens)).toBe(computeMistralChatCost('mistral-small-latest', tokens));
