@@ -376,6 +376,149 @@ struct PasteOutcomeReportingTests {
         }
     }
 
+    // MARK: - #1591: a copy made inside the restore window survives the restore
+
+    /// #1591: the user copies something after the transcript was written and
+    /// before the delayed restore runs. That copy is now the user's clipboard:
+    /// the restore must write nothing and drop the snapshot, so no later restore
+    /// writes the stale clipboard back either. Before #1591 the restore wrote
+    /// "clipboard before recording" over the copy.
+    ///
+    /// The suppressed exit arms the real restore (see the test above). The test
+    /// runs the armed work item at once instead of waiting out the user's delay
+    /// (`clipboardRestoreDelaySeconds` is `@AppStorage`, never written here).
+    @Test(.restoreClipboardIsOn, .sentryIsOff)
+    func userCopyInsideRestoreWindowSurvivesRestore() async throws {
+        let helper = AccessibilityHelper.shared
+        let userCopy = "copied by the user inside the restore window #1591"
+
+        try await withSavedPasteState(deliverySuppressed: true,
+                                      requireAccessibilityUntrusted: false) {
+            let restore = try await armRestoreThroughSuppressedPaste("restored-over transcript #1591")
+
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(userCopy, forType: .string)
+            runArmedRestore(restore)
+
+            #expect(NSPasteboard.general.string(forType: .string) == userCopy,
+                    "the restore wrote over the user's own copy")
+            #expect(helper.originalClipboardData == nil,
+                    "the stale snapshot was kept for a later restore")
+            #expect(helper.activeRestorationWorkItem == nil)
+            #expect(helper.restoreExpectedChangeCount == nil)
+        }
+    }
+
+    /// #1591 keeps the restore itself: with no write after the transcript, the
+    /// restore still writes the record-start clipboard back.
+    @Test(.restoreClipboardIsOn, .sentryIsOff)
+    func restoreWithoutUserCopyStillWritesOriginalClipboardBack() async throws {
+        let helper = AccessibilityHelper.shared
+
+        try await withSavedPasteState(deliverySuppressed: true,
+                                      requireAccessibilityUntrusted: false) {
+            let restore = try await armRestoreThroughSuppressedPaste("transcript before the restore #1591")
+
+            runArmedRestore(restore)
+
+            #expect(NSPasteboard.general.string(forType: .string) == "clipboard before recording")
+            #expect(helper.activeRestorationWorkItem == nil)
+            #expect(helper.restoreExpectedChangeCount == nil)
+        }
+    }
+
+    /// #1591: the streaming paste writes its text and puts the clipboard back
+    /// inside the window. That round trip is the app's own, so it hands the
+    /// restore the new count and the restore still runs. A user copy before the
+    /// round trip is not handed over: the restore keeps skipping.
+    @Test(.restoreClipboardIsOn, .sentryIsOff)
+    func streamingRoundTripKeepsRestoreButUserCopyBeforeItDoesNot() async throws {
+        let helper = AccessibilityHelper.shared
+        let pasteboard = NSPasteboard.general
+
+        try await withSavedPasteState(deliverySuppressed: true,
+                                      requireAccessibilityUntrusted: false) {
+            let transcript = "transcript before a streaming paste #1591"
+            let restore = try await armRestoreThroughSuppressedPaste(transcript)
+
+            // The streaming paste's round trip, as `TextInputService` makes it.
+            func streamingRoundTrip() {
+                let before = pasteboard.changeCount
+                let held = pasteboard.string(forType: .string) ?? ""
+                pasteboard.clearContents()
+                pasteboard.setString("streamed segment #1591", forType: .string)
+                pasteboard.clearContents()
+                pasteboard.setString(held, forType: .string)
+                helper.clipboardRoundTripRestored(from: before, to: pasteboard.changeCount)
+            }
+
+            streamingRoundTrip()
+            try #require(pasteboard.string(forType: .string) == transcript)
+            #expect(helper.restoreExpectedChangeCount == pasteboard.changeCount,
+                    "the app's own round trip was not handed to the restore")
+
+            let userCopy = "copied by the user before a streaming paste #1591"
+            pasteboard.clearContents()
+            pasteboard.setString(userCopy, forType: .string)
+            streamingRoundTrip()
+            runArmedRestore(restore)
+
+            #expect(pasteboard.string(forType: .string) == userCopy)
+            #expect(helper.originalClipboardData == nil)
+        }
+    }
+
+    /// #1591 meets #1061: a no-paste exit inside the window leaves an unpasted
+    /// transcript of the app's own on the clipboard. The restore must not write
+    /// over it, and the snapshot stays, so the next recording keeps the user's
+    /// older clipboard as #1061 requires.
+    @Test(.restoreClipboardIsOn, .sentryIsOff)
+    func unpastedTranscriptInsideRestoreWindowKeepsSnapshot() async throws {
+        let helper = AccessibilityHelper.shared
+        let unpasted = "unpasted transcript inside the restore window #1591"
+
+        try await withSavedPasteState(deliverySuppressed: true,
+                                      requireAccessibilityUntrusted: false) {
+            let restore = try await armRestoreThroughSuppressedPaste("pasted transcript #1591")
+
+            helper.copyToClipboard(unpasted)
+            helper.keepClipboardSnapshotForNextRecording(transcriptChangeCount: NSPasteboard.general.changeCount,
+                                                         settings: SettingsManager.shared)
+            runArmedRestore(restore)
+
+            #expect(NSPasteboard.general.string(forType: .string) == unpasted)
+            #expect(savedSnapshotText() == "clipboard before recording",
+                    "the #1061 snapshot was dropped")
+            #expect(helper.activeRestorationWorkItem == nil)
+        }
+    }
+
+    /// Drives the suppressed send-paste exit, which arms the real restore, and
+    /// returns the armed work item. Call inside `withSavedPasteState` with the
+    /// gate suppressed; no keystroke is sent on any Mac.
+    private func armRestoreThroughSuppressedPaste(_ transcript: String) async throws -> DispatchWorkItem {
+        let helper = AccessibilityHelper.shared
+        helper.canPasteOverrideForTesting = { true }
+
+        let result = await pasteIntoThisProcess(transcript)
+
+        var failure: Error?
+        if case .failed(let error) = result { failure = error }
+        try #require(failure.map { ($0 as NSError).domain } == "AccessibilityHelper",
+                     "expected the suppressed send-paste exit, got \(result)")
+        try #require(NSPasteboard.general.string(forType: .string) == transcript)
+        try #require(helper.restoreExpectedChangeCount == NSPasteboard.general.changeCount,
+                     "the restore was not armed with the transcript's change count")
+        return try #require(helper.activeRestorationWorkItem)
+    }
+
+    /// Runs the armed restore now, as its timer would, then cancels it so the
+    /// timer that is still scheduled does nothing.
+    private func runArmedRestore(_ restore: DispatchWorkItem) {
+        restore.perform()
+        restore.cancel()
+    }
+
     // MARK: - #1061: the next recording keeps the user's older clipboard
 
     /// #1061 (Ray's option B): after a no-paste exit leaves the transcript on the
