@@ -96,14 +96,14 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     public bool IsInitialized => _whisperFactory != null;
 
     /// <summary>
-    /// Held across <see cref="InitializeAsync"/> and <see cref="UnloadModel"/>
+    /// Held across <see cref="InitializeAsync"/> and <see cref="UnloadModelAsync"/>
     /// so they serialize against each other and against the in-flight wait.
     /// </summary>
     private readonly SemaphoreSlim _modelLock = new(1, 1);
 
     /// <summary>
     /// Number of <see cref="TranscribeFileInternalAsync"/> calls currently in
-    /// the critical native code. <see cref="UnloadModel"/> waits for this to
+    /// the critical native code. <see cref="UnloadModelAsync"/> waits for this to
     /// reach zero before disposing the WhisperFactory.
     /// </summary>
     private int _inFlight;
@@ -214,8 +214,8 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         LoggingService.Info("========== INITIALIZING TRANSCRIPTION SERVICE ==========");
         LoggingService.Info($"  Model file: {Path.GetFileName(modelPath)}");
 
-        // Serialize against UnloadModel and concurrent InitializeAsync calls.
-        // The API server may already be holding the lock via UnloadModel; wait
+        // Serialize against UnloadModelAsync and concurrent InitializeAsync calls.
+        // The API server may already be holding the lock via UnloadModelAsync; wait
         // it out instead of racing the factory pointer.
         await _modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -343,6 +343,10 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     /// to finish (no AV/crash on concurrent /transcribe). After this returns,
     /// <see cref="IsAvailable"/> is false until <see cref="InitializeAsync"/>
     /// is called again.
+    ///
+    /// There is deliberately no synchronous wrapper. The wait can last as long
+    /// as a whole file job (74-92 s on a 3-hour file), and a UI-thread caller
+    /// that blocked on it froze the main window for that long (#1534). Await it.
     /// </summary>
     public async Task UnloadModelAsync(CancellationToken cancellationToken = default)
     {
@@ -362,15 +366,6 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         {
             _modelLock.Release();
         }
-    }
-
-    /// <summary>
-    /// Synchronous wrapper around <see cref="UnloadModelAsync"/> for callers
-    /// that can't await (e.g. the existing GUI Whisper→Parakeet switch path).
-    /// </summary>
-    public void UnloadModel()
-    {
-        UnloadModelAsync().GetAwaiter().GetResult();
     }
 
     // =========================================================================
@@ -1236,9 +1231,9 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             // Process-wide singleton — handed out by TranscriptionRuntime and
             // referenced by both the API server and the GUI. Disposing would
             // leave one of them with a dead factory pointer. Caller probably
-            // meant UnloadModel(); release the model without killing the
+            // meant UnloadModelAsync(); release the model without killing the
             // service.
-            LoggingService.Debug("TranscriptionService: Dispose() called on shared instance — ignoring (use UnloadModel)");
+            LoggingService.Debug("TranscriptionService: Dispose() called on shared instance — ignoring (use UnloadModelAsync)");
             return;
         }
         LoggingService.Info("TranscriptionService: Disposing...");

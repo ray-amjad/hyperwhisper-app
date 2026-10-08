@@ -519,16 +519,23 @@ public partial class MainViewModel
                 return true;
             }
 
+            // #1534: serialize with the other model loads. The Whisper unload can
+            // wait out a running job with the UI thread free, so without the lock a
+            // mode switch or dictation start could start a second daemon meanwhile.
+            await _modelLoadLock.WaitAsync();
             try
             {
-                if (GetTotalSystemMemoryGB() < 32 && _transcriptionService.IsInitialized)
+                // Re-check after acquiring the lock: a load queued ahead of this
+                // one may already have started the daemon this file needs. No
+                // SelectedMode re-check here: the file job asked for THIS mode.
+                if (!_parakeetTranscriptionService.NeedsReload(model.Id, mode.Language))
                 {
-                    LoggingService.Info("EnsureLocalProviderReadyForFileAsync: Unloading Whisper model to free memory before Parakeet file transcription");
-                    _transcriptionService.UnloadModel();
+                    return true;
                 }
 
                 IsModelLoading = true;
                 StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
+                await UnloadWhisperForParakeetIfLowMemoryAsync("EnsureLocalProviderReadyForFileAsync");
                 await _parakeetTranscriptionService.InitializeAsync(
                     _parakeetModelService.GetModelDirectory(model),
                     language);
@@ -549,6 +556,7 @@ public partial class MainViewModel
             finally
             {
                 IsModelLoading = false;
+                _modelLoadLock.Release();
             }
         }
 
@@ -576,18 +584,20 @@ public partial class MainViewModel
             return true;
         }
 
-        if (_parakeetTranscriptionService.IsInitialized)
-        {
-            LoggingService.Info("EnsureLocalProviderReadyForFileAsync: Disposing Parakeet daemon before Whisper file transcription");
-            _parakeetTranscriptionService.DisposeModel();
-        }
-
         await _modelLoadLock.WaitAsync();
         try
         {
             if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath)
             {
                 return true;
+            }
+
+            // Inside the lock (#1534), as in LoadWhisperModelAsync: dispose the
+            // daemon a Parakeet load queued ahead of this one may have started.
+            if (_parakeetTranscriptionService.IsInitialized)
+            {
+                LoggingService.Info("EnsureLocalProviderReadyForFileAsync: Disposing Parakeet daemon before Whisper file transcription");
+                _parakeetTranscriptionService.DisposeModel();
             }
 
             IsModelLoading = true;
