@@ -886,6 +886,14 @@ enum TranscribeEndpoint {
             }
 
             // Mixed: saved mode supplies defaults, request overrides specific fields.
+            //
+            // Refuse a blank Whisper model HERE, before a transient Mode exists
+            // (issue #1466; Ray's decision 2026-10-08: "be refused, like Windows
+            // and Linux"). This path never calls `resolveProvider`, so without
+            // this it had its own, softer answer for the same body.
+            if let engine = trimmedEngine, !engine.isEmpty {
+                try validateMixedPathEngineModel(engine: engine, model: trimmedModel)
+            }
             let transient = makeTransientMode(baseline: stored, engine: trimmedEngine, model: trimmedModel, language: trimmedLanguage)
             let selection: TranscriptionProviderRouter.ProviderSelection
             do {
@@ -1132,11 +1140,40 @@ enum TranscribeEndpoint {
             return
         }
 
+        // A LOCAL ENGINE MUST NEVER LEAVE A CLOUD MODEL ON THE MODE (issue
+        // #1466). `TranscriptionProviderRouter.selectProvider` sends a Mode to
+        // its CLOUD branch when `model` trims to "" or reads "cloud" (the
+        // empty-means-cloud rule exists for legacy/imported modes, #1440), and
+        // then picks `CloudProvider.parse(cloudProvider) ?? .hyperwhisper`. The
+        // mixed mode_id+engine path resolves through `selectProvider(for:
+        // transient)` alone and never reaches `resolveProvider`, which is the
+        // only place that refuses a blank Whisper model — the same gap the
+        // nemotron arm below documents. So `{mode_id: X, engine:
+        // "whisperLocal", model: ""}` wrote "" here (`??` catches nil only),
+        // and on-device audio went to HyperWhisper Cloud: uploaded and billed
+        // for any user with an account key. `model: "cloud"` did the same for
+        // whisper, and for parakeet, whose `modelIdForSelection` passes an
+        // unknown id through unchanged. `engine=` naming a local engine is a
+        // request to stay on the Mac, so a model that would route to Cloud is
+        // treated as absent: each arm then applies its own no-model default,
+        // exactly as if the caller had omitted `model`. Nemotron, qwen3Asr and
+        // appleSpeech already write only their own ids, so they need nothing.
+        //
+        // For WHISPER and for a "cloud" PARAKEET model this is now the
+        // backstop, not the answer: `resolve` calls
+        // `validateMixedPathEngineModel` first, which REFUSES a blank or
+        // "cloud" Whisper model (Ray's decision 2026-10-08) and a Parakeet
+        // model that does not canonicalise (review round 2), so the defaults
+        // below are reached for those values only by a caller that skips that
+        // check. It stays so no caller can ever leave a Cloud-routing model on
+        // the Mode. A blank Parakeet model still defaults to v3 by design.
+        let localModel: String? = Self.modelRoutesToCloud(model) ? nil : model
+
         switch resolvedEngine {
         case .whisperLocal:
-            mode.model = model ?? "base"
+            mode.model = localModel ?? "base"
         case .parakeet:
-            mode.model = ParakeetModelManager.Constants.modelIdForSelection(model)
+            mode.model = ParakeetModelManager.Constants.modelIdForSelection(localModel)
         // The four `nemotron*` spellings are now `EngineId::Nemotron` in the
         // shared table; `NemotronModelManager.Constants.engineAliases` stays as
         // the pin that the two lists still agree
@@ -1206,6 +1243,87 @@ enum TranscribeEndpoint {
         case .appleSpeech:
             mode.model = "apple-speech-analyzer"
         }
+    }
+
+    /// Throw, on the mixed mode_id+engine path, the error the engine-only path
+    /// (`TranscriptionProviderRouter.resolveProvider`) throws for the same
+    /// Whisper `engine` + `model` pair, where that error comes from the model
+    /// string itself (issue #1466).
+    ///
+    /// - A blank model (`""`, whitespace) throws `resolveProvider`'s own
+    ///   "Missing 'model' for whisperLocal engine", which the endpoint maps to
+    ///   ENGINE_UNAVAILABLE. Ray's decision 2026-10-08: refuse it, like Windows
+    ///   (`ApplyEngineModel`) and Linux (`ApplyTranscriptionOverrides`) do on
+    ///   both paths, rather than default it to "base".
+    /// - `"cloud"` (any case, padded) throws "Unknown local model: <model>".
+    ///   The engine-only path already refuses it that way: `resolveProvider`
+    ///   passes it to `selectLocalProvider`, which matches no local model and
+    ///   throws exactly this. On the mixed path the same value would instead
+    ///   land on `mode.model`, where `selectProvider` reads it as Cloud.
+    /// - `nil` (no `model` key) is NOT refused: it keeps the mixed path's
+    ///   long-standing `base` default. Ray's question was about a blank value,
+    ///   and a client that omits `model` with a saved mode is a shape callers
+    ///   already rely on.
+    ///
+    /// Any other Whisper id is left to `selectProvider`, which already throws
+    /// "Unknown local model" for one it cannot map.
+    ///
+    /// PARAKEET mirrors `resolveProvider`'s parakeet arm (#1466 review round
+    /// 2): a non-blank model that does not canonicalise to a Parakeet id throws
+    /// "Unknown Parakeet model '<id>'". Without this the mixed path ran
+    /// `{engine: "parakeet", model: "cloud"}` on v3 with `ok: true` (the
+    /// backstop below dropped "cloud" to nil), and `model: "base"` swapped to
+    /// local Whisper, where the engine-only path refuses both. A nil or blank
+    /// Parakeet model still defaults to v3 — `modelIdForSelection` answers v3
+    /// for both, on both paths.
+    ///
+    /// nemotron / qwen3Asr / appleSpeech write only their own ids, so they need
+    /// nothing. A cloud engine is skipped exactly as `applyEngineModel` and
+    /// `resolveProvider` check the cloud half first.
+    @MainActor
+    static func validateMixedPathEngineModel(engine: String, model: String?) throws {
+        let trimmedEngine = engine.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedEngine = trimmedEngine.lowercased()
+        if normalizedEngine == "cloud" || normalizedEngine == "meta" {
+            return
+        }
+        let providerNormalization = CloudSTTCatalog.shared.normalizeCloudProvider(normalizedEngine)
+        if CloudProvider.parse(providerNormalization.provider) != nil {
+            return
+        }
+        switch localApiResolveEngineAlias(alias: trimmedEngine) {
+        case .whisperLocal?:
+            guard let model else { return }
+            let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmedModel.isEmpty {
+                throw TranscriptionError.providerNotAvailable(provider: "Whisper", reason: "Missing 'model' for whisperLocal engine")
+            }
+            if trimmedModel.lowercased() == "cloud" {
+                throw TranscriptionError.providerNotAvailable(provider: "Local", reason: "Unknown local model: \(trimmedModel)")
+            }
+        case .parakeet?:
+            // The same two calls, in the same order, as `resolveProvider`.
+            let requestedModelId = ParakeetModelManager.Constants.modelIdForSelection(model)
+            if ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) == nil {
+                throw TranscriptionError.providerNotAvailable(
+                    provider: "Parakeet",
+                    reason: "Unknown Parakeet model '\(requestedModelId)'"
+                )
+            }
+        default:
+            return
+        }
+    }
+
+    /// Whether a Mode whose `model` is `model` would take the CLOUD branch of
+    /// `TranscriptionProviderRouter.selectProvider`. Mirrors that function's
+    /// own test (trim, empty counts as cloud, case-insensitive "cloud") so the
+    /// two cannot disagree about what "routes to Cloud" means. nil is not a
+    /// cloud model here: it means "no override", which each local arm defaults.
+    static func modelRoutesToCloud(_ model: String?) -> Bool {
+        guard let model else { return false }
+        let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty || trimmed.lowercased() == "cloud"
     }
 
     /// Whether the Nemotron variant named by `modelId` can transcribe
