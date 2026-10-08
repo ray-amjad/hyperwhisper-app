@@ -1384,6 +1384,125 @@ internal static class Program
                     "600MB → capped at 30min");
             });
 
+            // #1562: the daemon answers once per file, so a fixed 60 s ceiling failed
+            // every Parakeet Transcribe File longer than ~2.5 min on a 0.4x-real-time PC.
+            Run("Parakeet response timeout keeps the floor and grows with the audio", () =>
+            {
+                Assert(ParakeetTranscriptionService.ResponseFloorSeconds(isQwen3: false, isOnline: false) == 60, "Parakeet floor 60s");
+                Assert(ParakeetTranscriptionService.ResponseFloorSeconds(isQwen3: false, isOnline: true) == 120, "Nemotron-online floor 120s");
+                Assert(ParakeetTranscriptionService.ResponseFloorSeconds(isQwen3: true, isOnline: false) == 180, "Qwen3 floor 180s");
+                Assert(ParakeetTranscriptionService.ResponseFloorSeconds(isQwen3: true, isOnline: true) == 180, "Qwen3 wins over online");
+
+                // Unknown or unusable duration → the floor alone.
+                foreach (var bad in new double?[] { null, 0, -5, double.NaN, double.PositiveInfinity })
+                    Assert(ParakeetTranscriptionService.ComputeResponseTimeout(60, bad) == TimeSpan.FromSeconds(60),
+                        $"{bad?.ToString() ?? "null"} → 60s floor");
+
+                // The issue's 300 s file: 60 + 300*2 = 660 s, well past the 120 s it needed at 0.4x.
+                var parakeet300 = ParakeetTranscriptionService.ComputeResponseTimeout(60, 300);
+                Assert(parakeet300 == TimeSpan.FromSeconds(660), $"Parakeet 300s → 660s, got {parakeet300}");
+                Assert(parakeet300 > TimeSpan.FromSeconds(300 * 0.4), "300s at 0.4x fits");
+
+                // A short dictation barely moves off the floor.
+                Assert(ParakeetTranscriptionService.ComputeResponseTimeout(60, 5) == TimeSpan.FromSeconds(70), "5s clip → 70s");
+
+                // Engine ratios hold: 2 / 4 / 6 s per audio second.
+                Assert(ParakeetTranscriptionService.ComputeResponseTimeout(120, 300) == TimeSpan.FromSeconds(1320), "online 300s → 1320s");
+                Assert(ParakeetTranscriptionService.ComputeResponseTimeout(180, 300) == TimeSpan.FromSeconds(1980), "Qwen3 300s → 1980s");
+
+                // A 3-hour recording completes even at real time on the CPU provider.
+                var threeHours = ParakeetTranscriptionService.ComputeResponseTimeout(60, 3 * 3600);
+                Assert(threeHours == TimeSpan.FromSeconds(60 + 2 * 3 * 3600), $"3h → 6h + 60s, got {threeHours}");
+
+                // Fractional seconds round up, never down.
+                Assert(ParakeetTranscriptionService.ComputeResponseTimeout(60, 0.25) == TimeSpan.FromSeconds(61), "0.25s → 61s");
+
+                // A nonsense header duration is still bounded.
+                Assert(ParakeetTranscriptionService.ComputeResponseTimeout(180, 1e9) == ParakeetTranscriptionService.MaxResponseTimeout,
+                    "huge duration → capped");
+                Assert(ParakeetTranscriptionService.MaxResponseTimeout == TimeSpan.FromHours(24), "cap is 24h");
+            });
+
+            Run("Parakeet drain of a cancelled request stays bounded by the floor", () =>
+            {
+                // A cancelled request's drain never holds the lock past the floor.
+                Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.FromHours(5)) == TimeSpan.FromSeconds(60), "5h left → 60s drain");
+                Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.FromSeconds(12)) == TimeSpan.FromSeconds(12), "12s left → 12s drain");
+                Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.Zero) == TimeSpan.Zero, "expired → 0");
+                Assert(ParakeetTranscriptionService.ComputeDrainBudget(60, TimeSpan.FromSeconds(-3)) == TimeSpan.Zero, "negative → 0");
+            });
+
+            // #1562 review: teardown (mode switch, on the UI thread) must not wait out an
+            // hours-long budget, and must end the request as Cancelled so the DaemonCrashed
+            // auto-restart never reloads the old model.
+            Run("Parakeet teardown stays bounded and ends the request as Cancelled", () =>
+            {
+                // The whole UI-thread wait is main's floor + 5 s, for every engine.
+                Assert(ParakeetTranscriptionService.TeardownLockWait(60) == TimeSpan.FromSeconds(65), "Parakeet teardown 65s");
+                Assert(ParakeetTranscriptionService.TeardownLockWait(120) == TimeSpan.FromSeconds(125), "online teardown 125s");
+                Assert(ParakeetTranscriptionService.TeardownLockWait(180) == TimeSpan.FromSeconds(185), "Qwen3 teardown 185s");
+
+                // No request in flight → no grace; a short clip gets the floor to land, never more
+                // than the teardown wait; a long file is cancelled at once.
+                Assert(ParakeetTranscriptionService.ComputeTeardownGrace(60, null) == TimeSpan.Zero, "idle → 0");
+                var shortClip = ParakeetTranscriptionService.ComputeResponseTimeout(60, 10);
+                Assert(ParakeetTranscriptionService.ComputeTeardownGrace(60, shortClip) == TimeSpan.FromSeconds(60), "10s clip → 60s grace");
+                var thirtySeconds = ParakeetTranscriptionService.ComputeResponseTimeout(60, 30);
+                Assert(ParakeetTranscriptionService.ComputeTeardownGrace(60, thirtySeconds) == TimeSpan.FromSeconds(60), "30s clip → 60s grace");
+                var thirtyMinutes = ParakeetTranscriptionService.ComputeResponseTimeout(60, 30 * 60);
+                Assert(ParakeetTranscriptionService.ComputeTeardownGrace(60, thirtyMinutes) == TimeSpan.Zero, "30-min file → cancel at once");
+                Assert(ParakeetTranscriptionService.ComputeTeardownGrace(60, ParakeetTranscriptionService.ComputeResponseTimeout(60, 31)) == TimeSpan.Zero, "31s → cancel at once");
+                foreach (var floor in new[] { 60, 120, 180 })
+                {
+                    var grace = ParakeetTranscriptionService.ComputeTeardownGrace(floor, TimeSpan.FromSeconds(floor));
+                    Assert(grace < ParakeetTranscriptionService.TeardownLockWait(floor), $"floor {floor}: grace inside the teardown wait");
+                }
+
+                // A teardown-ended request is Cancelled, which the auto-restart filter
+                // (Code == DaemonCrashed) does not match, whatever ended the read.
+                var ended = ParakeetTranscriptionService.CreateTeardownCancelledException(new ObjectDisposedException("stdout"));
+                Assert(ended.Code == TranscriptionErrorCode.Cancelled, "teardown → Cancelled");
+                Assert(ended.Code != TranscriptionErrorCode.DaemonCrashed, "teardown is never DaemonCrashed");
+                Assert(ended.InnerException is ObjectDisposedException, "cause kept");
+
+                var crashed = new TranscriptionException(TranscriptionErrorCode.DaemonCrashed, "closed stdout", "Parakeet");
+                Assert(ParakeetTranscriptionService.IsEndedByTeardown(crashed, teardownRequested: true, callerCancelled: false),
+                    "DaemonCrashed during teardown → converted");
+                Assert(ParakeetTranscriptionService.IsEndedByTeardown(new OperationCanceledException(), teardownRequested: true, callerCancelled: false),
+                    "cancelled wait during teardown → converted");
+                Assert(!ParakeetTranscriptionService.IsEndedByTeardown(crashed, teardownRequested: false, callerCancelled: false),
+                    "a real crash with no teardown still auto-restarts");
+                Assert(!ParakeetTranscriptionService.IsEndedByTeardown(new OperationCanceledException(), teardownRequested: true, callerCancelled: true),
+                    "a caller cancel keeps its own OperationCanceledException");
+                Assert(!ParakeetTranscriptionService.IsEndedByTeardown(ended, teardownRequested: true, callerCancelled: false),
+                    "already Cancelled → not wrapped twice");
+            });
+
+            // #1562 review round 2: a request that entered before a teardown (e.g. a Local API
+            // call queued behind the request being torn down) is stale once it gets the lock.
+            Run("Parakeet request overtaken by a teardown never auto-restarts", () =>
+            {
+                Assert(!ParakeetTranscriptionService.IsStaleTeardownGeneration(4, 4), "no teardown since entry → current");
+                Assert(ParakeetTranscriptionService.IsStaleTeardownGeneration(4, 5), "one teardown since entry → stale");
+                Assert(ParakeetTranscriptionService.IsStaleTeardownGeneration(4, 7), "several teardowns → stale");
+
+                Assert(ParakeetTranscriptionService.ShouldAutoRestart(TranscriptionErrorCode.DaemonCrashed, 4, 4),
+                    "a real crash with no teardown still auto-restarts");
+                Assert(!ParakeetTranscriptionService.ShouldAutoRestart(TranscriptionErrorCode.DaemonCrashed, 4, 5),
+                    "a crash after a mode switch does not reload the old model");
+                Assert(!ParakeetTranscriptionService.ShouldAutoRestart(TranscriptionErrorCode.Cancelled, 4, 4),
+                    "Cancelled never auto-restarts");
+                Assert(!ParakeetTranscriptionService.ShouldAutoRestart(TranscriptionErrorCode.DaemonTimeout, 4, 4),
+                    "a timeout never auto-restarts");
+
+                // A stale request's failure is reported as Cancelled (the outer catch passes
+                // "teardown requested" = token cancelled OR generation stale).
+                var crashed = new TranscriptionException(TranscriptionErrorCode.DaemonCrashed, "not running", "Parakeet");
+                Assert(ParakeetTranscriptionService.IsEndedByTeardown(crashed,
+                        teardownRequested: ParakeetTranscriptionService.IsStaleTeardownGeneration(4, 5), callerCancelled: false),
+                    "queued request after teardown → Cancelled, not DaemonCrashed");
+            });
+
             Run("XaiFormattingLanguages shared between Grok batch and streaming", () =>
             {
                 Assert(XaiFormattingLanguages.TryGetSupportedCode("en", out var en) && en == "en", "en supported");
