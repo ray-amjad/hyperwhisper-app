@@ -150,6 +150,9 @@ final class LlamaServerController: ObservableObject {
     private var stderrPipe: Pipe?
     private var monitorTask: Task<Void, Never>?
     private var readinessTask: Task<Bool, Never>?
+    /// Bumped by every launch and every stop. An output reader or termination
+    /// handler from an older launch compares against it before touching state.
+    private var launchGeneration: UInt64 = 0
     private var missingDependencyHinted = false
     private var recentRuntimeLines: [String] = []
     private var lastHealthStatusCode: Int?
@@ -173,8 +176,12 @@ final class LlamaServerController: ObservableObject {
     /// Signal that a local runtime will be needed (shows "Warming Up" in the status bar).
     /// Called before the async `ensureRunning` work begins.
     func markPending() {
-        guard case .stopped = state else { return }
-        state = .pending
+        switch state {
+        case .stopped, .failed:
+            state = .pending
+        default:
+            return
+        }
     }
 
     init() {
@@ -193,17 +200,16 @@ final class LlamaServerController: ObservableObject {
         // Using Task { @MainActor in ... } would schedule async work that may never
         // execute before the app terminates, leaving llama-server orphaned.
         //
-        // The fix: Use DispatchQueue.main.sync to block until stop() completes.
-        // This ensures the process is terminated before the app exits.
+        // It also must not touch the actor or ask Swift concurrency which
+        // executor it is on (#1537): `MainActor.assumeIsolated` here crashed
+        // with SIGSEGV on quit once the main executor had been left broken.
+        // Quit only needs the tracked process identity, which the PID file holds.
         terminationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            guard let self else { return }
-            // Execute synchronously - we're already on main thread via queue: .main
-            // Must block until stop() completes to prevent orphaned processes
-            self.stopSynchronously(reason: .applicationTerminating)
+        ) { _ in
+            LlamaServerController.stopTrackedRuntimeForTermination()
         }
         #endif
     }
@@ -298,8 +304,11 @@ final class LlamaServerController: ObservableObject {
 
         let ready = try await waitForReadiness(host: configuration.host, port: configuration.port)
         guard ready else {
-            state = .failed("Timed out waiting for runtime")
+            // stop() resets state to `.stopped`, so the failure is written
+            // after it. Otherwise a runtime that exited before readiness reads
+            // as cleanly stopped rather than failed.
             stop(reason: .modeChanged)
+            state = .failed("Timed out waiting for runtime")
             throw Error.healthCheckFailed
         }
 
@@ -321,9 +330,19 @@ final class LlamaServerController: ObservableObject {
         // (fire-and-forget: stop() is synchronous, the registry is an actor).
         Task { await ModelResidencyRegistry.shared.deregister(id: Self.residencyId) }
 
-        monitorTask?.cancel()
-        readinessTask?.cancel()
+        // Any output the old process still writes is logged but no longer
+        // touches this controller's state (see `stream(pipe:...)`).
+        launchGeneration &+= 1
+
+        // The output readers are NOT cancelled and their read handles are NOT
+        // closed here (#1536). A reader that has not started yet would open
+        // `bytes` on a closed NSFileHandle, and Foundation raises an
+        // Objective-C exception Swift cannot catch; it unwound through a
+        // main-executor job and the main queue never drained again. Each reader
+        // ends by itself at EOF, when the process it reads from exits, and the
+        // pipe closes when the last reader releases it.
         monitorTask = nil
+        readinessTask?.cancel()
         readinessTask = nil
 
         guard let process else {
@@ -332,9 +351,6 @@ final class LlamaServerController: ObservableObject {
             currentModelURL = nil
             return
         }
-
-        stdoutPipe?.fileHandleForReading.closeFile()
-        stderrPipe?.fileHandleForReading.closeFile()
 
         if process.isRunning {
             logger.info("🛑 Stopping local runtime (reason: \(reason.rawValue))")
@@ -447,54 +463,23 @@ final class LlamaServerController: ObservableObject {
 
     // MARK: - Synchronous Stop Methods
 
-    /// Synchronous stop for use in willTerminateNotification handler.
-    /// This method is nonisolated so it can be called from notification handlers,
-    /// but it dispatches synchronously to the main thread to execute stop().
+    /// Synchronous stop for the willTerminateNotification handler.
     ///
     /// CRITICAL: This must complete synchronously before returning to ensure
     /// the llama-server process is terminated before the app exits.
     ///
-    /// Unlike the regular stop(), this method:
-    /// 1. Captures the PID before stopping
-    /// 2. Calls stop() to send SIGTERM and clean up state
-    /// 3. Waits synchronously for the process to die (with SIGKILL fallback)
-    nonisolated func stopSynchronously(reason: StopReason) {
+    /// It reads only the PID file, never the actor's state, and never asks the
+    /// concurrency runtime which executor it is on (#1537). The PID file holds
+    /// the full process identity (`savePIDFile()` writes it on every launch and
+    /// `stop()` removes it), so this sends SIGTERM, waits up to 3 s, then
+    /// SIGKILLs, with every signal gated on that identity.
+    private nonisolated static func stopTrackedRuntimeForTermination() {
         #if os(macOS)
-        var pid: Int32 = 0
-        var terminationRecord: LlamaServerPIDRecord?
-
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                pid = self.process?.processIdentifier ?? 0
-                if pid > 0 {
-                    terminationRecord = LlamaProcessIdentity.recordForLiveProcess(pid: pid)
-                }
-                self.stop(reason: reason)
-            }
-        } else {
-            DispatchQueue.main.sync {
-                MainActor.assumeIsolated {
-                    pid = self.process?.processIdentifier ?? 0
-                    if pid > 0 {
-                        terminationRecord = LlamaProcessIdentity.recordForLiveProcess(pid: pid)
-                    }
-                    self.stop(reason: reason)
-                }
-            }
+        guard let contents = readPIDFileContents() else { return }
+        if case .record(let record) = contents {
+            killProcessSynchronously(record: record, timeout: 3.0)
         }
-
-        // Wait synchronously for process to die (SIGTERM already sent by stop())
-        guard pid > 0 else { return }
-        guard let terminationRecord else { return }
-        Self.killProcessSynchronously(record: terminationRecord, timeout: 3.0, sendInitialSigterm: false)
-        #else
-        if Thread.isMainThread {
-            MainActor.assumeIsolated { self.stop(reason: reason) }
-        } else {
-            DispatchQueue.main.sync {
-                MainActor.assumeIsolated { self.stop(reason: reason) }
-            }
-        }
+        try? FileManager.default.removeItem(at: pidFileURL)
         #endif
     }
 
@@ -556,11 +541,24 @@ final class LlamaServerController: ObservableObject {
         process.terminationHandler = { [weak self] proc in
             Task { @MainActor in
                 guard let self else { return }
-                // Cancel the stdout/stderr stream task and wait for it before
-                // dropping the pipes, so we don't race `bytes.lines` against pipe
-                // teardown and lose llama-server's final messages.
-                self.monitorTask?.cancel()
+                let reasonLabel = proc.terminationReason == .uncaughtSignal ? "signal" : "exit"
+
+                // A process that stop() already let go of (a failed start, a
+                // mode change, a relaunch) owns none of the current state. Its
+                // exit is logged, but it must not cancel the NEW launch's
+                // readers, drop its pipes or overwrite its state.
+                guard self.process === proc else {
+                    self.logger.info("Earlier local runtime exited · status=\(proc.terminationStatus) · reason=\(reasonLabel, privacy: .public)")
+                    return
+                }
+
+                // Wait for the stdout/stderr readers before dropping the pipes.
+                // The process has exited, so both reach EOF by themselves; they
+                // are not cancelled, so llama-server's final messages are kept.
                 _ = await self.monitorTask?.value
+                // The await is a suspension point: stop() or a new launch may
+                // have run meanwhile, and then this exit is no longer current.
+                guard self.process === proc else { return }
                 self.monitorTask = nil
 
                 // Drain any trailing bytes still buffered in stderr — these are
@@ -576,7 +574,6 @@ final class LlamaServerController: ObservableObject {
                     }
                 }
 
-                let reasonLabel = proc.terminationReason == .uncaughtSignal ? "signal" : "exit"
                 if proc.terminationStatus == 0 {
                     self.logger.info("♻️ Local runtime exited cleanly · reason=\(reasonLabel, privacy: .public)")
                 } else {
@@ -617,10 +614,12 @@ final class LlamaServerController: ObservableObject {
         // This allows cleanup of this process if the app crashes before normal shutdown
         savePIDFile()
 
+        launchGeneration &+= 1
+        let generation = launchGeneration
         monitorTask = Task { [weak self] in
             guard let self else { return }
-            async let stdoutStream = self.stream(pipe: stdoutPipe, level: .debug, source: "stdout")
-            async let stderrStream = self.stream(pipe: stderrPipe, level: .error, source: "stderr")
+            async let stdoutStream = self.stream(pipe: stdoutPipe, level: .debug, source: "stdout", generation: generation)
+            async let stderrStream = self.stream(pipe: stderrPipe, level: .error, source: "stderr", generation: generation)
             _ = await (stdoutStream, stderrStream)
         }
     }
@@ -754,12 +753,20 @@ final class LlamaServerController: ObservableObject {
         return await readinessTask?.value ?? false
     }
 
-    private func stream(pipe: Pipe, level: OSLogType, source: String) async {
+    /// Logs one output pipe of the launch numbered `generation` until EOF.
+    ///
+    /// Nothing in this class closes `pipe`'s read handle (#1536): the read
+    /// ends at EOF when the process exits, and the handle closes when the last
+    /// reference to the pipe goes. A launch that `stop()` has since replaced
+    /// still has its lines logged, but they no longer feed the diagnostics
+    /// buffer or the runtime state.
+    private func stream(pipe: Pipe, level: OSLogType, source: String, generation: UInt64) async {
         do {
             for try await line in pipe.fileHandleForReading.bytes.lines {
                 let message = String(line)
-                captureRuntimeLine("[\(source)] \(message)")
                 logger.log(level: level, "[llama] \(message, privacy: .public)")
+                guard generation == launchGeneration else { continue }
+                captureRuntimeLine("[\(source)] \(message)")
                 if level == .error,
                    message.contains("libmtmd.dylib") || message.contains("image not found") {
                     if !missingDependencyHinted {
