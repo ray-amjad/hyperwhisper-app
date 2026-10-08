@@ -329,7 +329,48 @@ extension TranscriptionPipeline {
                 // gets. Server-side AI text, when present, is used below and
                 // never needed the client-side post-processing provider.
                 if hyperwhisperCloudAIText == nil {
-                    reportNonFatalPostProcessingError(postProcessingPreflightFailure)
+                    reportNonFatalPostProcessingPreflightFailure(
+                        postProcessingPreflightFailure,
+                        providerDisplayName: resolvedPostProcessingProvider?.displayName ?? resolvedPostProcessingProviderId
+                    )
+                }
+                // Issue #1547: before the skip, a cloud / BYOK pre-flight failure
+                // left this function and reached the `catch` below, which
+                // captured it in Sentry when `shouldCaptureTranscriptionErrorInSentry`
+                // says so (a pre-flight `.unauthorized` is the HYPERWHISPER-T2
+                // signal). Absorbing it must not silence that. Same filter, same
+                // sanitised error, same fingerprint, so the events stay in the
+                // issue they always grouped into; the `post_processing_preflight`
+                // tag marks the ones where the transcript was kept. Only enum and
+                // category values are sent — never the transcript, the error
+                // text or the Mode's name.
+                if AppLogger.isErrorLoggingEnabled,
+                   shouldCaptureTranscriptionErrorInSentry(postProcessingPreflightFailure) {
+                    let classification = classifyTranscriptionError(postProcessingPreflightFailure)
+                    var preflightTags: [String: String] = [
+                        "component": "transcription",
+                        "error_class": classification.category,
+                        "error_stage": stage,
+                        "post_processing_preflight": "non_fatal"
+                    ]
+                    if let httpStatus = classification.httpStatus {
+                        preflightTags["error_http_status"] = String(httpStatus)
+                    }
+                    SentryService.capture(
+                        error: Self.sentrySafeTranscriptionError(postProcessingPreflightFailure),
+                        message: "TranscriptionPipeline post-processing pre-flight failed (non-fatal, raw transcript kept)",
+                        extras: [
+                            "errorCategory": classification.category,
+                            "errorKind": classification.kind,
+                            "postProcessingProvider": resolvedPostProcessingProvider?.rawValue ?? "unknown",
+                            "isHyperwhisperTranscription": isHyperwhisperTranscription
+                        ],
+                        tags: preflightTags,
+                        fingerprint: Self.sentryFingerprintForTranscriptionFailure(
+                            classification: classification,
+                            stage: stage
+                        )
+                    )
                 }
             }
             let runClientPostProcessing = shouldRunPostProcessing && postProcessingPreflightFailure == nil
@@ -680,6 +721,63 @@ extension TranscriptionPipeline {
         } else {
             appState?.showInlineError(error)
         }
+    }
+
+    /// The inline toast text for a cloud / BYOK post-processing pre-flight
+    /// failure that was absorbed (issue #1547), or `nil` for any other error.
+    ///
+    /// The error's own `localizedDescription` is the copy for a FAILED
+    /// dictation ("Network error: Provider unreachable", "Please download a
+    /// model first"), and two of the four cases do not carry the provider at
+    /// all. Here the dictation succeeded, so the toast names the
+    /// post-processing provider and the problem, and says the raw transcript
+    /// was kept — the shape `transcription.error.localRuntimeUnavailable`
+    /// already uses for the local runtime. The four cases are exactly what
+    /// `TranscriptionProviderRouter.errorForHealthStatus` returns; that
+    /// function and the error enum are untouched, so the SPEECH provider's
+    /// health-check copy and the Local API mapping do not change.
+    ///
+    /// - Parameter localize: key → format string; tests pass the English Base
+    ///   values so the result does not depend on the test process's language.
+    nonisolated static func postProcessingPreflightToastMessage(
+        for error: TranscriptionError,
+        providerDisplayName: String,
+        localize: (String) -> String = { $0.localized }
+    ) -> String? {
+        let key: String
+        switch error {
+        case .unauthorized:
+            key = "transcription.error.postProcessingPreflight.unauthorized"
+        case .transientNetwork:
+            key = "transcription.error.postProcessingPreflight.unreachable"
+        case .modelNotDownloaded:
+            key = "transcription.error.postProcessingPreflight.notInstalled"
+        case .providerNotAvailable:
+            key = "transcription.error.postProcessingPreflight.unavailable"
+        default:
+            return nil
+        }
+        return String(format: localize(key), providerDisplayName)
+    }
+
+    /// Surface an absorbed post-processing pre-flight failure. A cloud / BYOK
+    /// health-check failure gets the provider-naming copy above, with the
+    /// error's own Open Settings rule (a rejected key offers Settings); every
+    /// other error (`.localRuntimeUnavailable`, whose copy already says the
+    /// transcript was kept) goes through `reportNonFatalPostProcessingError`
+    /// unchanged.
+    func reportNonFatalPostProcessingPreflightFailure(
+        _ error: TranscriptionError,
+        providerDisplayName: String
+    ) {
+        guard let message = Self.postProcessingPreflightToastMessage(
+            for: error,
+            providerDisplayName: providerDisplayName
+        ) else {
+            reportNonFatalPostProcessingError(error)
+            return
+        }
+        appState?.showInlineError(message: message, showSettingsButton: error.showSettingsButton)
     }
 
     /// Build the Sentry `extras` payload for a transcription failure.

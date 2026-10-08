@@ -402,7 +402,8 @@ class TranscriptionProviderRouter {
 
         // Run health check. The batch pipeline treats every error thrown here
         // as non-fatal once the transcript exists (issue #1547): it keeps the
-        // raw transcript, skips the AI step and shows this error inline. The
+        // raw transcript, skips the AI step and shows an inline toast that
+        // names this provider (`postProcessingPreflightToastMessage`). The
         // SPEECH provider's check in `selectProvider` uses the same
         // `errorForHealthStatus` and stays fatal.
         if let healthManager = providerHealthManager {

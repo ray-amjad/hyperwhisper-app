@@ -17,10 +17,14 @@
 //  transcript exists) is untouched.
 //
 //  The decision now lives in `TranscriptionPipeline.awaitPostProcessingPreflight`,
-//  which these tests call with fake checks. The last two tests are wiring guards:
-//  they read the source to prove the after-transcript await goes through
-//  that decision and not around it (`ProductionSource` explains why that is the
-//  last resort, and why the decision itself is tested by calling it).
+//  which these tests call with fake checks. The toast copy for an absorbed cloud
+//  failure (it names the post-processing provider and says the raw transcript
+//  was kept) comes from `postProcessingPreflightToastMessage`, also called
+//  directly. The last three tests are wiring guards: they read the source to
+//  prove the after-transcript await goes through that decision and not around
+//  it, and that an absorbed failure still reaches Sentry (`ProductionSource`
+//  explains why that is the last resort, and why the decision itself is tested
+//  by calling it).
 //
 
 import Foundation
@@ -125,8 +129,9 @@ struct PostProcessingPreflightFailureTests {
 
     /// Issue #1547, the bug itself: a BYOK post-processing provider whose key
     /// is bad fails its health check after the transcript exists. The await
-    /// hands the original error back to report (it names the provider), it
-    /// does not throw it. On main this threw and the row was saved `failed`.
+    /// hands the original error back to report (its case picks the toast copy
+    /// and the Sentry classification), it does not throw it. On main this
+    /// threw and the row was saved `failed`.
     @MainActor
     @Test func aCloudHealthCheckFailureIsReturnedNotThrown() async throws {
         let failure = try await TranscriptionPipeline.awaitPostProcessingPreflight {
@@ -139,8 +144,13 @@ struct PostProcessingPreflightFailureTests {
         }
         #expect(provider == "Anthropic")
         #expect(statusCode == 401)
-        // The non-fatal error the user sees names the provider problem.
-        #expect(returned.localizedDescription == TranscriptionError.unauthorized(provider: "Anthropic", statusCode: 401).localizedDescription)
+        // The toast the user sees for it names the provider and the kept transcript.
+        let message = try #require(TranscriptionPipeline.postProcessingPreflightToastMessage(
+            for: returned,
+            providerDisplayName: "Anthropic",
+            localize: english
+        ))
+        #expect(message == "Anthropic rejected your API key — your raw transcript was kept.")
     }
 
     /// The endpoint-down case, arriving as the value of the concurrent
@@ -228,6 +238,136 @@ struct PostProcessingPreflightFailureTests {
         }
     }
 
+    // MARK: - The toast copy (#1547 review)
+
+    private static let toastKeys = [
+        "transcription.error.postProcessingPreflight.unauthorized",
+        "transcription.error.postProcessingPreflight.unreachable",
+        "transcription.error.postProcessingPreflight.notInstalled",
+        "transcription.error.postProcessingPreflight.unavailable",
+    ]
+
+    /// The English Base values, so the copy is pinned without depending on the
+    /// language the test process happens to run in.
+    private func english(_ key: String) -> String {
+        switch key {
+        case "transcription.error.postProcessingPreflight.unauthorized":
+            return "%@ rejected your API key — your raw transcript was kept."
+        case "transcription.error.postProcessingPreflight.unreachable":
+            return "Couldn't reach %@ — your raw transcript was kept."
+        case "transcription.error.postProcessingPreflight.notInstalled":
+            return "%@ isn't installed — your raw transcript was kept."
+        case "transcription.error.postProcessingPreflight.unavailable":
+            return "%@ is unavailable — your raw transcript was kept."
+        default:
+            return key
+        }
+    }
+
+    private func toast(_ error: TranscriptionError, provider: String = "Anthropic") -> String? {
+        TranscriptionPipeline.postProcessingPreflightToastMessage(
+            for: error,
+            providerDisplayName: provider,
+            localize: english
+        )
+    }
+
+    /// Each of the four `errorForHealthStatus` outputs gets a toast that names
+    /// the post-processing provider, names the problem, and says the raw
+    /// transcript was kept — not the failed-dictation copy ("Network error:
+    /// Provider unreachable", "Please download a model first"). The provider
+    /// comes from the pipeline, so the two cases that carry no provider
+    /// (`.transientNetwork`, `.modelNotDownloaded`) still name it.
+    @Test func everyCloudHealthCheckErrorGetsAToastNamingTheProviderAndTheKeptTranscript() throws {
+        let cases: [(TranscriptionError, String)] = [
+            (.unauthorized(provider: "Anthropic"),
+             "Anthropic rejected your API key — your raw transcript was kept."),
+            (.transientNetwork(details: "Provider unreachable"),
+             "Couldn't reach Anthropic — your raw transcript was kept."),
+            (.modelNotDownloaded,
+             "Anthropic isn't installed — your raw transcript was kept."),
+            (.providerNotAvailable(provider: "Anthropic", reason: "Provider health check failed"),
+             "Anthropic is unavailable — your raw transcript was kept."),
+            (.providerNotAvailable(provider: "Anthropic", reason: "Unexpected health status"),
+             "Anthropic is unavailable — your raw transcript was kept."),
+        ]
+        for (error, expected) in cases {
+            let message = try #require(toast(error), "\(error) needs the pre-flight toast")
+            #expect(message == expected)
+            #expect(message.contains("Anthropic"), "\(error) must name the provider")
+            #expect(message.contains("your raw transcript was kept"), "\(error) must say the transcript was kept")
+            // Not the failed-dictation copy, and not the raw health detail.
+            #expect(message != error.localizedDescription)
+            #expect(!message.contains("Provider unreachable"))
+            #expect(!message.contains("health check"))
+        }
+        // The four health-check errors get four different problems.
+        let distinct = Set(Self.cloudHealthCheckErrors.compactMap { toast($0) })
+        #expect(distinct.count == 4)
+    }
+
+    /// The name is the pipeline's post-processing provider, not one the error
+    /// happens to carry: a `.transientNetwork` has none.
+    @Test func theToastUsesThePostProcessingProviderItIsGiven() {
+        #expect(toast(.transientNetwork(details: "Provider unreachable"), provider: "OpenAI")
+                == "Couldn't reach OpenAI — your raw transcript was kept.")
+    }
+
+    /// Every other error keeps its own copy: `.localRuntimeUnavailable` already
+    /// says the transcript was kept, and nothing else reaches this path.
+    @Test func otherErrorsKeepTheirOwnCopy() {
+        let others: [TranscriptionError] = [
+            .localRuntimeUnavailable(reason: "controller unavailable"),
+            .localSpeechModelEvicted(model: "base"),
+            .noSpeechDetected,
+            .cloudAccountRequired(provider: "HyperWhisper Cloud"),
+        ]
+        for error in others {
+            #expect(toast(error) == nil, "\(error) must keep its own copy")
+        }
+    }
+
+    /// A rejected key still offers Open Settings; the others do not — the
+    /// error's own rule, unchanged.
+    @Test func onlyTheRejectedKeyOffersSettings() {
+        #expect(TranscriptionError.unauthorized(provider: "Anthropic").showSettingsButton)
+        #expect(!TranscriptionError.transientNetwork(details: "Provider unreachable").showSettingsButton)
+        #expect(!TranscriptionError.modelNotDownloaded.showSettingsButton)
+        #expect(!TranscriptionError.providerNotAvailable(provider: "Anthropic", reason: "x").showSettingsButton)
+    }
+
+    /// The four keys exist once in every locale, each with exactly one `%@`
+    /// (the provider) and no other format specifier, and each reuses that
+    /// locale's own "raw transcript was kept" wording from
+    /// `transcription.error.localRuntimeUnavailable`.
+    @Test func everyLocaleHasTheToastKeysWithOneProviderSpecifier() throws {
+        let localizations = ProductionSource.url("app/macos/hyperwhisper/Localizations")
+        let locales = try FileManager.default.contentsOfDirectory(
+            at: localizations,
+            includingPropertiesForKeys: nil
+        ).filter { $0.pathExtension == "lproj" }
+        #expect(locales.count == 40)
+
+        for locale in locales {
+            let lines = try ProductionSource.text(of: locale.appendingPathComponent("Localizable.strings"))
+                .components(separatedBy: .newlines)
+            let runtimePrefix = "\"transcription.error.localRuntimeUnavailable\" = \""
+            let runtimeLine = try #require(lines.first(where: { $0.hasPrefix(runtimePrefix) }), "\(locale.lastPathComponent)")
+            let keptTail = try #require(runtimeLine.range(of: " — "), "\(locale.lastPathComponent)")
+            let kept = String(runtimeLine[keptTail.lowerBound...])
+
+            for key in Self.toastKeys {
+                let matches = lines.filter { $0.hasPrefix("\"\(key)\" = \"") }
+                #expect(matches.count == 1, "\(locale.lastPathComponent) needs exactly one \(key)")
+                guard let line = matches.first else { continue }
+                #expect(line.trimmingCharacters(in: .whitespaces).hasSuffix("\";"), "\(locale.lastPathComponent) \(key)")
+                #expect(line.components(separatedBy: "%").count - 1 == 1, "\(locale.lastPathComponent) \(key)")
+                #expect(line.components(separatedBy: "%@").count - 1 == 1, "\(locale.lastPathComponent) \(key)")
+                #expect(line.hasSuffix(kept), "\(locale.lastPathComponent) \(key) must say the transcript was kept")
+            }
+        }
+    }
+
     // MARK: - Wiring
 
     /// The after-transcript await in `transcribeWithDetails` goes through the
@@ -241,7 +381,8 @@ struct PostProcessingPreflightFailureTests {
             to: "AppLogger.transcription.info(\"🔍 Post-processing check:\")"
         )
         #expect(region.contains("Self.awaitPostProcessingPreflight"))
-        #expect(region.contains("reportNonFatalPostProcessingError("))
+        #expect(region.contains("reportNonFatalPostProcessingPreflightFailure("))
+        #expect(region.contains("providerDisplayName: resolvedPostProcessingProvider?.displayName"))
         #expect(region.contains("let runClientPostProcessing = shouldRunPostProcessing && postProcessingPreflightFailure == nil"))
 
         let branches = try ProductionSource.slice(
@@ -260,6 +401,37 @@ struct PostProcessingPreflightFailureTests {
         let skipArm = try #require(flags.range(of: "} else if postProcessingPreflightFailure != nil {"))
         let mutationArm = try #require(flags.range(of: "} else if shouldRunPostProcessing {"))
         #expect(skipArm.lowerBound < mutationArm.lowerBound)
+    }
+
+    /// Issue #1547 review: before the skip, a pre-flight `.unauthorized` left
+    /// `transcribeWithDetails` and the `catch` captured it in Sentry (the
+    /// HYPERWHISPER-T2 signal). The absorbed failure is still captured, through
+    /// the same filter and the same sanitiser, tagged as non-fatal at the
+    /// pre-flight stage.
+    @Test func anAbsorbedPreflightFailureIsStillCapturedInSentry() throws {
+        let region = try ProductionSource.slice(
+            of: Self.pipelineSource,
+            from: "if let postProcessingPreflightFailure {",
+            to: "let runClientPostProcessing = shouldRunPostProcessing && postProcessingPreflightFailure == nil"
+        )
+        #expect(region.contains("shouldCaptureTranscriptionErrorInSentry(postProcessingPreflightFailure)"))
+        #expect(region.contains("SentryService.capture("))
+        #expect(region.contains("error: Self.sentrySafeTranscriptionError(postProcessingPreflightFailure)"))
+        #expect(region.contains("\"error_stage\": stage"))
+        #expect(region.contains("\"post_processing_preflight\": \"non_fatal\""))
+        // No user content in the event: not the error text, not the Mode, not
+        // the transcript, not the toast copy.
+        let capture = try #require(region.range(of: "SentryService.capture("))
+        let event = region[capture.lowerBound...]
+        for banned in ["localizedDescription", "mode?.", "text", "Text", "providerDisplayName", "message: message"] {
+            #expect(!event.contains(banned), "the Sentry event must not carry \(banned)")
+        }
+        // The capture is outside the server-side-AI-text gate, as the fatal
+        // capture was: the toast is conditional, the signal is not.
+        let gate = try #require(region.range(of: "if hyperwhisperCloudAIText == nil {"))
+        let gateBody = region[gate.upperBound...]
+        let gateEnd = try #require(gateBody.range(of: "}"))
+        #expect(gateEnd.upperBound <= capture.lowerBound)
     }
 
     /// Issue #1547: only the POST-PROCESSING pre-flight became non-fatal. The
