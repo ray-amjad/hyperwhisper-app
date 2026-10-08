@@ -2518,6 +2518,46 @@ class PersistenceController: ObservableObject {
         save()
     }
 
+    /// Deletes a mode the user asked to delete, then repairs the app state that
+    /// pointed at it. The Modes page and Local API `DELETE /modes/:id` both use
+    /// this, so the two cannot drift apart again.
+    ///
+    /// Issue #1439: the Modes page read `mode.id` AFTER `deleteMode(_:)` had
+    /// deleted and saved the object. A deleted, saved Core Data object no longer
+    /// gives attribute values, so the id read back nil, the "was it selected?"
+    /// test was always false, and the app stayed on the deleted mode until a
+    /// relaunch. The id is read here before anything is deleted.
+    ///
+    /// - Parameters:
+    ///   - mode: The mode to delete. The caller still ensures one mode remains.
+    ///   - appState: Moves its selection to the first remaining mode when the
+    ///     deleted mode was selected. `nil` deletes without touching selection.
+    ///   - settingsManager: Drops the deleted mode's `defaultModelByMode` entry.
+    @MainActor
+    func deleteModeAndReconcileSelection(
+        _ mode: Mode,
+        appState: AppState?,
+        settingsManager: SettingsManager?
+    ) {
+        // Read BEFORE the delete — see the note above.
+        let deletedModeId = mode.id?.uuidString
+
+        deleteMode(mode)
+
+        guard let deletedModeId else { return }
+
+        // Guarded: `defaultModelByMode`'s didSet rewrites UserDefaults on every
+        // mutation, even a removal of a key that is not there.
+        if let settingsManager, settingsManager.defaultModelByMode[deletedModeId] != nil {
+            settingsManager.defaultModelByMode.removeValue(forKey: deletedModeId)
+        }
+
+        appState?.reconcileSelectionAfterDeletingMode(
+            id: deletedModeId,
+            remainingModes: fetchAllModes()
+        )
+    }
+
     /// Make exactly one mode the default again, if something left the store with
     /// two or with none.
     ///

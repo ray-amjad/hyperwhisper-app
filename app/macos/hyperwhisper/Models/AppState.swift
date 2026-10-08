@@ -1028,6 +1028,34 @@ class AppState: ObservableObject {
         }
     }
 
+    /// Move the selection off a mode that was just deleted (issue #1439).
+    ///
+    /// When `deletedModeId` is the selected mode, select the first of
+    /// `remainingModes` (pass them sorted by `sortOrder`, as `fetchAllModes()`
+    /// returns them) and persist it, so the status bar, the menu-bar Select Mode
+    /// checkmark, the Modes page highlight and the `currentModeId` /
+    /// `currentMode` defaults all move together. With nothing left, clear the
+    /// selection. A delete of any other mode leaves the selection alone.
+    ///
+    /// The caller passes the id it read BEFORE the delete: a Core Data object
+    /// that was deleted and saved no longer gives attribute values, so
+    /// `mode.id` read afterwards is nil and never matches.
+    ///
+    /// - Returns: `true` when the deleted mode was the selected one.
+    @discardableResult
+    func reconcileSelectionAfterDeletingMode(id deletedModeId: String, remainingModes: [Mode]) -> Bool {
+        guard !deletedModeId.isEmpty, selectedModeId == deletedModeId else { return false }
+
+        if let firstMode = remainingModes.first(where: { $0.id?.uuidString != deletedModeId }) {
+            selectMode(firstMode, persist: true)
+            AppLogger.ui.info("Deleted selected mode, switched to first remaining mode · modeId=\(firstMode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: firstMode), privacy: .public)")
+        } else {
+            clearModeSelection()
+            AppLogger.ui.warning("Deleted last mode, cleared mode selection")
+        }
+        return true
+    }
+
     /// The mode currently relevant to the active recording/transcription session.
     /// Falls back to the selected mode when no session is active.
     var currentSessionModeName: String {
