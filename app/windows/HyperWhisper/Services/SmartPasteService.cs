@@ -93,6 +93,13 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int vKey);
 
+    /// <summary>
+    /// The clipboard's change counter: every write to the clipboard by any process
+    /// bumps it, and reading it does not. 0 when it cannot be read.
+    /// </summary>
+    [DllImport("user32.dll")]
+    private static extern uint GetClipboardSequenceNumber();
+
     [StructLayout(LayoutKind.Sequential)]
     private struct GUITHREADINFO
     {
@@ -177,6 +184,21 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     private Dictionary<string, object>? _savedClipboardData;
     private CancellationTokenSource? _restorationCts;
     private bool _isInRecordingSession;
+
+    // The clipboard sequence number read right after this service last wrote a
+    // transcript to the clipboard, or 0 when none is current (#1496). It is set
+    // only once a restore of the snapshot is scheduled for that transcript, so
+    // it means "this transcript is on the clipboard and the user's content is
+    // due back". While the clipboard still shows this number, a new session must
+    // keep the older snapshot instead of capturing the transcript.
+    private uint _ownTranscriptClipboardSequence;
+
+    // The sequence number of a transcript written in this session for which no
+    // restore has been scheduled yet, or 0. ScheduleClipboardRestore moves it to
+    // _ownTranscriptClipboardSequence; EndRecordingSession, finding it still set,
+    // treats the transcript as left on the clipboard on purpose (secure field,
+    // restore off) and drops the mark and the snapshot.
+    private uint _unscheduledTranscriptClipboardSequence;
     private readonly object _clipboardLock = new();
     private bool _disposed;
 
@@ -368,6 +390,19 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     /// 2. Extract data from ALL clipboard formats (not just text)
     /// 3. Store raw data for later restoration
     ///
+    /// CHAINED DICTATIONS (#1496):
+    /// When the last transcript this service wrote had a restore scheduled, and
+    /// nothing has written to the clipboard since, the clipboard holds that
+    /// transcript, not the user's content. Capturing it would make this session's
+    /// restore write the old transcript back, and lose the user's clipboard for
+    /// good. So the earlier snapshot is kept instead. This covers a dictation
+    /// started inside the previous one's restore window, and one after a
+    /// dictation in that chain that wrote nothing (no speech, cancel). If the
+    /// user (or anything else) copied in between, the sequence number has moved
+    /// and a fresh snapshot is taken. A transcript left on the clipboard with no
+    /// restore (secure field, restore off) is not marked, so the next session
+    /// snapshots it as the clipboard, as before.
+    ///
     /// WHY EXTRACT DATA INSTEAD OF STORING IDATAOBJECT?
     /// Windows IDataObject instances are tied to the clipboard they came from.
     /// After Clipboard.SetDataObject() is called, the old IDataObject becomes invalid.
@@ -382,7 +417,21 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
         lock (_clipboardLock)
         {
+            _unscheduledTranscriptClipboardSequence = 0;
+
+            if (ClipboardHoldsOwnTranscript())
+            {
+                // Keep _savedClipboardData as it is, null included: an empty
+                // clipboard before the first dictation stays "nothing to restore",
+                // exactly as after a single dictation.
+                LoggingService.Info(
+                    "SmartPasteService: Clipboard still holds the previous transcript; keeping the earlier clipboard snapshot");
+                _isInRecordingSession = true;
+                return;
+            }
+
             _savedClipboardData = null;
+            _ownTranscriptClipboardSequence = 0;
 
             try
             {
@@ -466,12 +515,67 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     }
 
     /// <summary>
+    /// Whether the clipboard still holds the transcript this service last wrote,
+    /// i.e. nothing has written to it since (#1496). Callers hold _clipboardLock.
+    /// </summary>
+    private bool ClipboardHoldsOwnTranscript()
+    {
+        if (_ownTranscriptClipboardSequence == 0)
+            return false;
+
+        var current = GetClipboardSequenceNumber();
+        return current != 0 && current == _ownTranscriptClipboardSequence;
+    }
+
+    /// <summary>
+    /// Records that the clipboard now holds a transcript this service wrote.
+    /// Call right after the write returns. The mark is armed only when a restore
+    /// is scheduled for it (ScheduleClipboardRestore or EndRecordingSession).
+    /// </summary>
+    private void MarkClipboardHoldsOwnTranscript()
+    {
+        lock (_clipboardLock)
+        {
+            _ownTranscriptClipboardSequence = 0;
+            _unscheduledTranscriptClipboardSequence = GetClipboardSequenceNumber();
+        }
+    }
+
+    /// <summary>
     /// Ends the recording session.
     /// Call this after transcription and paste are complete.
     /// </summary>
     public void EndRecordingSession()
     {
-        _isInRecordingSession = false;
+        lock (_clipboardLock)
+        {
+            if (_unscheduledTranscriptClipboardSequence != 0)
+            {
+                if (_restorationCts != null && _savedClipboardData is { Count: > 0 })
+                {
+                    // A transcript written after this session's restore was
+                    // scheduled (a late streaming segment): that restore still
+                    // brings the user's content back, so it covers this one too.
+                    _ownTranscriptClipboardSequence = _unscheduledTranscriptClipboardSequence;
+                }
+                else
+                {
+                    // The transcript stays on the clipboard on purpose (secure
+                    // field, restore off): it is now the clipboard's content. The
+                    // next session snapshots it afresh, as before #1496, and no
+                    // stale snapshot lingers to be restored later.
+                    _ownTranscriptClipboardSequence = 0;
+                    _savedClipboardData = null;
+                    LoggingService.Debug(
+                        "SmartPasteService: Transcript left on the clipboard with no restore; dropped the clipboard snapshot");
+                }
+
+                _unscheduledTranscriptClipboardSequence = 0;
+            }
+
+            _isInRecordingSession = false;
+        }
+
         LoggingService.Debug("SmartPasteService: Ended recording session");
     }
 
@@ -545,6 +649,18 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         // Create new cancellation token for this restoration
         _restorationCts = new CancellationTokenSource();
         var token = _restorationCts.Token;
+
+        // #1496: the transcript this session wrote is now one whose restore is
+        // due, so a session started before that restore runs keeps the snapshot.
+        // With no write this session (nothing pasted), the earlier mark stands.
+        lock (_clipboardLock)
+        {
+            if (_unscheduledTranscriptClipboardSequence != 0)
+            {
+                _ownTranscriptClipboardSequence = _unscheduledTranscriptClipboardSequence;
+                _unscheduledTranscriptClipboardSequence = 0;
+            }
+        }
 
         // Schedule the restoration without blocking the caller
         _ = RestoreClipboardAfterDelayAsync(delay, token);
@@ -692,6 +808,8 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
                 if (restoredFormats.Count > 0)
                 {
                     Clipboard.SetDataObject(dataObject, true);
+                    // The clipboard holds the user's content again, not a transcript.
+                    _ownTranscriptClipboardSequence = 0;
                     LoggingService.Info($"SmartPasteService: Restored clipboard with {restoredFormats.Count} format(s): {string.Join(", ", restoredFormats)}");
                     return true;
                 }
@@ -735,6 +853,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         try
         {
             SetClipboardText(text);
+            MarkClipboardHoldsOwnTranscript();
             LoggingService.Info("SmartPasteService: Text copied to clipboard (auto-paste disabled)");
             SmartPasteDiagnostics.Report(PasteOutcome.ClipboardOnly, attempt);
             return true;
@@ -921,6 +1040,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         try
         {
             SetClipboardText(text);
+            MarkClipboardHoldsOwnTranscript();
             LoggingService.Debug("SmartPasteService: Text copied to clipboard");
         }
         catch (Exception ex)
@@ -1308,6 +1428,8 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
             // Clear saved clipboard data
             _savedClipboardData = null;
+            _ownTranscriptClipboardSequence = 0;
+            _unscheduledTranscriptClipboardSequence = 0;
 
             LoggingService.Debug("SmartPasteService: Disposed");
         }
