@@ -300,14 +300,35 @@ extension TranscriptionPipeline {
             )
             capturedShouldRunPostProcessing = shouldRunPostProcessing
 
+            // Issue #1538: `text` already holds a finished transcript here. A
+            // pre-flight that says the LOCAL LLM runtime cannot start must not
+            // throw that transcript away — it skips the AI step instead, the same
+            // way `AIPostProcessor` does when the runtime fails mid-pass, and the
+            // user hears about it through the same non-fatal channel. Every other
+            // pre-flight failure still fails the run, exactly as before.
+            var postProcessingPreflightFailure: TranscriptionError?
             if shouldRunPostProcessing {
                 markStage("post_processing_health_check")
-                if let preflightHealthCheck {
-                    try await preflightHealthCheck.value
-                } else {
-                    try await providerCoordinator.checkPostProcessingProviderHealth(for: mode)
+                postProcessingPreflightFailure = try await Self.awaitPostProcessingPreflight {
+                    if let preflightHealthCheck {
+                        try await preflightHealthCheck.value
+                    } else {
+                        try await self.providerCoordinator.checkPostProcessingProviderHealth(for: mode)
+                    }
                 }
             }
+            if let postProcessingPreflightFailure {
+                AppLogger.transcription.warning(
+                    "Post-processing pre-flight failed with a non-fatal local runtime error; keeping the raw transcript and skipping AI post-processing · error=\(postProcessingPreflightFailure.localizedDescription, privacy: .public)"
+                )
+                // Only promise "your raw transcript was kept" when the raw
+                // transcript is what the user gets. Server-side AI text, when
+                // present, is used below and never needed the local runtime.
+                if hyperwhisperCloudAIText == nil {
+                    reportNonFatalPostProcessingError(postProcessingPreflightFailure)
+                }
+            }
+            let runClientPostProcessing = shouldRunPostProcessing && postProcessingPreflightFailure == nil
 
             AppLogger.transcription.info("🔍 Post-processing check:")
             // The Mode's name is NOT logged here (issue #795). This line is
@@ -329,7 +350,7 @@ extension TranscriptionPipeline {
                 // Branch: server-side AI already applied.
                 finalText = vocabularyProcessor.applyVocabularyReplacements(aiText, mode: mode)
                 AppLogger.transcription.info("✅ Using HyperWhisper Cloud AI-enhanced text with vocabulary replacements applied")
-            } else if shouldRunPostProcessing {
+            } else if runClientPostProcessing {
                 // Branch: client-side AI post-processing.
                 await MainActor.run { state = .postProcessing }
                 await MainActor.run { [weak self] in
@@ -354,8 +375,13 @@ extension TranscriptionPipeline {
                 // Apply vocabulary replacements after AI processing.
                 finalText = vocabularyProcessor.applyVocabularyReplacements(aiProcessedText, mode: mode)
             } else {
-                // Branch: no post-processing.
-                if needsPostProcessing {
+                // Branch: no post-processing — off, handled by HyperWhisper
+                // Cloud, or skipped because the local runtime cannot start
+                // (issue #1538). The kept transcript gets exactly the
+                // deterministic clean-up a post-processing-off run gets.
+                if postProcessingPreflightFailure != nil {
+                    AppLogger.transcription.info("ℹ️ AI post-processing skipped: the local runtime is unavailable; saving the raw transcript")
+                } else if needsPostProcessing {
                     AppLogger.transcription.info("ℹ️ Post-processing handled by HyperWhisper Cloud; skipping client-side step")
                 } else {
                     AppLogger.transcription.info("ℹ️ Post-processing skipped (mode setting = \(mode?.postProcessingMode ?? -1) or nil mode)")
@@ -389,6 +415,12 @@ extension TranscriptionPipeline {
                 wasPostProcessed = true
                 postProcessingProvider = "hyperwhisper"
                 postProcessingSkipped = false
+            } else if postProcessingPreflightFailure != nil {
+                // The AI step never ran, so `didMutateLastRun` would only be a
+                // leftover from an earlier run. Report the skip directly.
+                wasPostProcessed = false
+                postProcessingProvider = nil
+                postProcessingSkipped = true
             } else if shouldRunPostProcessing {
                 // HONEST SIGNAL: only mark wasPostProcessed if AIPostProcessor actually ran an
                 // LLM and returned mutated text. When the local runtime is dead or a catch
@@ -571,6 +603,58 @@ extension TranscriptionPipeline {
             return true
         default:
             return false
+        }
+    }
+
+    // MARK: - Post-processing pre-flight (issue #1538)
+
+    /// Whether a post-processing pre-flight failure may be absorbed once a
+    /// transcript exists: the transcript is kept and the AI step is skipped.
+    ///
+    /// Only `.localRuntimeUnavailable` qualifies. It is what
+    /// `TranscriptionProviderRouter.runLocalLLMHealthCheck` throws for every way
+    /// the embedded llama-server can fail to start, and it is the error
+    /// `AIPostProcessor` already treats as non-fatal when the same runtime fails
+    /// during the pass — its user-facing copy says the raw transcript was kept.
+    /// Every other pre-flight failure (a cloud or BYOK provider that is
+    /// unauthorized, unreachable or unavailable, and cancellation) stays fatal,
+    /// as it was before.
+    nonisolated static func isNonFatalPostProcessingPreflightError(_ error: Error) -> Bool {
+        guard let transcriptionError = error as? TranscriptionError else { return false }
+        if case .localRuntimeUnavailable = transcriptionError {
+            return true
+        }
+        return false
+    }
+
+    /// Await a post-processing pre-flight after the transcript exists.
+    ///
+    /// - Returns: `nil` when the check passed, or the non-fatal error to report
+    ///   when the run should keep its raw transcript and skip AI post-processing.
+    /// - Throws: every pre-flight error that is not non-fatal, unchanged.
+    static func awaitPostProcessingPreflight(
+        _ check: () async throws -> Void
+    ) async throws -> TranscriptionError? {
+        do {
+            try await check()
+            return nil
+        } catch {
+            guard isNonFatalPostProcessingPreflightError(error),
+                  let transcriptionError = error as? TranscriptionError else {
+                throw error
+            }
+            return transcriptionError
+        }
+    }
+
+    /// Surface a non-fatal post-processing failure through the channel
+    /// `AIPostProcessor` uses for the same failure (`onPostProcessingError`,
+    /// wired to the inline error toast in `setupAIPostProcessor()`).
+    func reportNonFatalPostProcessingError(_ error: TranscriptionError) {
+        if let report = aiPostProcessor?.onPostProcessingError {
+            report(error)
+        } else {
+            appState?.showInlineError(error)
         }
     }
 

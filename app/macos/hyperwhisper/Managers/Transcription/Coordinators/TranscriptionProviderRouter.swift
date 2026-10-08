@@ -391,8 +391,10 @@ class TranscriptionProviderRouter {
         // Local LLM: probe the llama-server runtime directly. The standard cloud
         // health manager doesn't cover the embedded runtime, so we run the same
         // ensureRunning() call AIPostProcessor would make — if the GGUF is
-        // corrupt or missing, this throws before transcription completes and
-        // the existing inline-error UI surfaces it.
+        // corrupt or missing, this throws `.localRuntimeUnavailable`. The batch
+        // pipeline treats that as non-fatal once the transcript exists (issue
+        // #1538): it keeps the raw transcript, skips the AI step and shows the
+        // inline error, as AIPostProcessor does for the same failure.
         if postProvider == .localLLM {
             try await runLocalLLMHealthCheck(for: mode)
             return
