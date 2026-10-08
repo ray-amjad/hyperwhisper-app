@@ -17249,6 +17249,119 @@ internal static class Program
                 }
             });
 
+            // #1583: the restore wrote the snapshot back over whatever was on the
+            // clipboard, so text the user copied inside the 10 s window after a
+            // dictation was lost. The restore must only replace the app's own
+            // transcript. The scheduled restore and the immediate one share
+            // RestoreClipboard, where the check lives; these drive the immediate
+            // one, as the #1496 case does, so no dispatcher has to be pumped.
+            Run("clipboard restore (#1583): a copy made after the dictation survives the restore", () =>
+            {
+                static string Clip() => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                var operatorClipboard = SnapshotWholeClipboard();
+                var previousGate = TextDeliveryGate.IsSuppressed;
+                var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = true;
+
+                    void Dictate(SmartPasteService paste, string transcript)
+                    {
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(transcript) == SmartPasteResult.CopiedToClipboard,
+                            $"precondition: '{transcript}' must reach the clipboard");
+                        Assert(Clip() == transcript,
+                            $"precondition: the clipboard must hold '{transcript}', got '{Clip()}'");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(TimeSpan.FromHours(1));
+                        Assert(paste.HasPendingClipboardRestore, $"a restore must be pending after '{transcript}'");
+                        paste.EndRecordingSession();
+                    }
+
+                    // One dictation, then the user copies something new inside
+                    // the restore window (S13: 3 s after the paste).
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("S13-ORIG");
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        Clipboard.SetText("S13-USER-NEW");
+                        var result = ((PlatformContracts.ITextInjectionService)paste)
+                            .RestoreClipboardImmediatelyAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                        Assert(result.IsSuccess, "a skipped restore is not a failure");
+                        Assert(Clip() == "S13-USER-NEW",
+                            $"a copy made after the dictation must survive the restore, got '{Clip()}'");
+
+                        // The stale snapshot is gone: the next dictation snapshots
+                        // the new copy, and its restore brings THAT back.
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "S13-USER-NEW",
+                            $"after a skipped restore the next dictation must restore the new copy, got '{Clip()}'");
+                    }
+
+                    // Two dictations inside the restore window (#1512 keeps the
+                    // first snapshot), then a copy after the SECOND paste.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("S13-ORIG");
+                        Dictate(paste, "First dictation. ");
+                        Dictate(paste, "Second dictation. ");
+                        Clipboard.SetText("S13-USER-NEW");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "S13-USER-NEW",
+                            $"a copy made after the second paste must survive the restore, got '{Clip()}'");
+                    }
+
+                    // The same chain with no copy still restores the user's text:
+                    // the check compares against the SECOND transcript's write.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("S13-ORIG");
+                        Dictate(paste, "First dictation. ");
+                        Dictate(paste, "Second dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "S13-ORIG",
+                            $"with no copy the chain must still restore the user's text, got '{Clip()}'");
+                    }
+
+                    // A copy made between the first paste and the second
+                    // dictation, then the second dictation's restore: the copy is
+                    // the snapshot (#1496), and with nothing copied after the
+                    // second paste it comes back.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("S13-ORIG");
+                        Dictate(paste, "First dictation. ");
+                        Clipboard.SetText("copied between");
+                        Dictate(paste, "Second dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "copied between",
+                            $"a copy made between dictations must be what comes back, got '{Clip()}'");
+                    }
+
+                    // A dictation that wrote nothing (paste refused): a copy made
+                    // in its window is not overwritten by the snapshot either.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("S13-ORIG");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(string.Empty) == SmartPasteResult.Failed, "empty text pastes nothing");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(TimeSpan.FromHours(1));
+                        paste.EndRecordingSession();
+                        Clipboard.SetText("S13-USER-NEW");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "S13-USER-NEW",
+                            $"a copy made after a no-paste dictation must survive the restore, got '{Clip()}'");
+                    }
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previousGate);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = previousRestore;
+                    PutBackWholeClipboard(operatorClipboard);
+                }
+            });
+
             Run("shortcuts: the recorder's red border never appears without its reason", () =>
             {
                 // C8. ShowError gated only the TEXT on ShowsInlineError and painted
