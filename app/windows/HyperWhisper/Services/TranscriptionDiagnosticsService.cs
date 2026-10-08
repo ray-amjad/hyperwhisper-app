@@ -335,8 +335,8 @@ public static class TranscriptionDiagnosticsService
             // FileTranscriptionService.ConvertToWhisperFormatAsync:119-128): fold to
             // mono, then resample to 16 kHz.
             //
-            // The fold is MonoFoldSampleProvider rather than NAudio's ToMono() /
-            // StereoToMonoSampleProvider, which handle two channels and throw
+            // The fold is AudioFileDecoder.ToMono (MonoFoldSampleProvider) rather than
+            // NAudio's ToMono() / StereoToMonoSampleProvider, which handle two channels and throw
             // NotImplementedException on anything else. Throwing here would downgrade a
             // perfectly readable multichannel file to AnalysisSucceeded: false, and NOT
             // folding it would measure the interleaved stream - a 3-channel 48 kHz file
@@ -346,11 +346,7 @@ public static class TranscriptionDiagnosticsService
             // classification arm fires. Averaging every channel matches what the 2-channel
             // case already did (NAudio 2.2.1's StereoToMonoSampleProvider defaults to
             // 0.5/0.5) and extends it to any channel count.
-            ISampleProvider provider = reader.Samples;
-            if (provider.WaveFormat.Channels > 1)
-            {
-                provider = new MonoFoldSampleProvider(provider);
-            }
+            ISampleProvider provider = AudioFileDecoder.ToMono(reader.Samples);
 
             // Counted BEFORE the resampler on purpose - see the extras comment in
             // CaptureNoSpeechDiagnostic. WdlResamplingSampleProvider.Read returns 0 when it

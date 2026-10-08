@@ -927,7 +927,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     /// <summary>
     /// Returns the duration of an audio file in seconds.
     ///
-    /// Strategy: try NAudio's AudioFileReader (supports WAV/MP3/etc.). If that fails
+    /// Strategy: try AudioFileDecoder (WAV, including WAVE_FORMAT_EXTENSIBLE, MP3, etc.). If that fails
     /// for any reason, fall back to a rough estimate from file size assuming 16kHz
     /// mono 16-bit PCM (the format we record in). If everything fails, return 0 so
     /// we default to the short-clip fast path (safer than wrongly enabling fallback
@@ -942,7 +942,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"  Duration probe via AudioFileReader failed: {ex.Message}");
+            LoggingService.Debug($"  Duration probe via AudioFileDecoder failed: {ex.Message}");
 
             // Fallback: estimate from WAV file size (16kHz mono 16-bit = 32000 B/s)
             try
