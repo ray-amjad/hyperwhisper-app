@@ -15670,6 +15670,103 @@ internal static class Program
                 }
             });
 
+            Run("backup: a merge import that fails on a later batch leaves the modes as they were — issue #1605", () =>
+            {
+                // ImportEntities committed every batch of 200 modes with its own
+                // SaveChanges, so an import cut short (a kill, a crash, a failed
+                // batch) left a silent partial import: 8,204 of 10,004 modes. The
+                // DB must hold the old modes or all of them, never a part.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                // Plant the failure in the suite's own scratch profile only.
+                string dbPath;
+                using (var probe = new HyperWhisperDbContext())
+                {
+                    dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                        probe.Database.GetConnectionString()).DataSource);
+                }
+                Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+                    $"the database {dbPath} is not under the suite's temp profile; refusing to add a trigger to it");
+
+                const string Prefix = "percy1605-";
+                const string PoisonName = Prefix + "poison";
+                // ImportBatchSize is 200: the poison row sits in the SECOND batch, so
+                // on the old code the whole first batch was already committed.
+                const int Total = 450;
+                const int PoisonIndex = 300;
+
+                var modes = new List<UniversalMode>();
+                for (int i = 0; i < Total; i++)
+                {
+                    modes.Add(UniversalBackupMapper.MapMode(new Mode
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = i == PoisonIndex ? PoisonName : $"{Prefix}{i:D3}",
+                        IsDefault = false,
+                        SortOrder = 10_000 + i
+                    }));
+                }
+
+                var backupPath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests",
+                    $"issue1605-{Guid.NewGuid():N}.hwbackup.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+                File.WriteAllText(backupPath, JsonSerializer.Serialize(new UniversalBackup
+                {
+                    SchemaVersion = 2,
+                    ExportDate = DateTime.UtcNow,
+                    AppVersion = "smoke-1605",
+                    Platform = "windows",
+                    Modes = modes
+                }, UniversalCaptureOptions));
+
+                int CountModes()
+                {
+                    using var ctx = new HyperWhisperDbContext();
+                    return ctx.Modes.Count();
+                }
+
+                void Exec(string sql)
+                {
+                    using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+                    conn.Open();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = sql;
+                    cmd.ExecuteNonQuery();
+                }
+
+                var before = CountModes();
+                // A real SQLite refusal, not a seam: a BEFORE INSERT trigger aborts
+                // the one poison row, so batch 2's SaveChanges throws.
+                Exec($"CREATE TRIGGER IF NOT EXISTS percy1605_poison BEFORE INSERT ON Modes " +
+                     $"WHEN NEW.Name = '{PoisonName}' BEGIN SELECT RAISE(ABORT, 'percy1605 poison row'); END;");
+                try
+                {
+                    var result = BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+                    {
+                        IncludeModes = true
+                    });
+
+                    Assert(!result.IsSuccess,
+                        "the import succeeded although the poison row was refused, so this case proves nothing");
+
+                    var after = CountModes();
+                    Assert(after == before,
+                        $"the failed import left {after - before} of its {Total} modes in the database " +
+                        $"({before} before, {after} after): a silent partial import");
+
+                    using var ctx = new HyperWhisperDbContext();
+                    var leaked = ctx.Modes.Count(m => m.Name.StartsWith(Prefix));
+                    Assert(leaked == 0, $"{leaked} imported modes survived the failed import");
+                }
+                finally
+                {
+                    Exec("DROP TRIGGER IF EXISTS percy1605_poison;");
+                    // Old code leaves the first batch behind; later cases share this DB.
+                    Exec($"DELETE FROM Modes WHERE Name LIKE '{Prefix}%';");
+                    try { File.Delete(backupPath); } catch { }
+                }
+            });
+
             Run("settings: an info notice is given the whole column, so it wraps — issues #503, #508", () =>
             {
                 // A horizontal StackPanel measures its children with infinite available
