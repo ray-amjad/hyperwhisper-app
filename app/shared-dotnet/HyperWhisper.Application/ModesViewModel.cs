@@ -158,7 +158,11 @@ public sealed class ModesViewModel : ViewModelBase
             PostProcessingProvider = value.PostProcessingProvider?.StartsWith("custom:", StringComparison.OrdinalIgnoreCase) == true
                 ? "custom" : value.PostProcessingProvider ?? "openai";
             PostProcessingModel = value.LanguageModel ?? string.Empty;
-            HyperWhisperCloudModel = value.CloudPostProcessingModel;
+            // Canonicalise on load: a mode saved before 2026-10 stores
+            // "anthropic:claude-haiku-4-5", which the picker no longer lists. Map it to the
+            // provider's default (Haiku 5.5), as Windows FromString does, so the picker opens
+            // on a row instead of blank.
+            HyperWhisperCloudModel = HyperWhisper.ModelReadiness.CloudPostProcessingCatalog.Canonicalize(value.CloudPostProcessingModel);
             CustomInstructions = value.CustomInstructions ?? string.Empty;
             Punctuation = value.Punctuation; Capitalization = value.Capitalization;
             ProfanityFilter = value.ProfanityFilter; RemoveTrailingPeriod = value.RemoveTrailingPeriod;
