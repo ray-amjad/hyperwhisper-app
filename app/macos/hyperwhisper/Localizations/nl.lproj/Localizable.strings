@@ -981,6 +981,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "modelLibrary.remove.confirm.message" = "Je moet het opnieuw downloaden (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Je moet het opnieuw downloaden.";
 "modelLibrary.remove.confirm.button" = "Verwijder";
+"settings.models.inUse.localAPI" = "Een Local API-verzoek gebruikt dit model op dit moment. Probeer het opnieuw wanneer het klaar is.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Onvoldoende tegoed. Voeg meer tegoed toe in Instellingen.";

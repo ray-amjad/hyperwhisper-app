@@ -1020,6 +1020,7 @@
 "modelLibrary.remove.confirm.message" = "You will need to download it again (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "You will need to download it again.";
 "modelLibrary.remove.confirm.button" = "Remove";
+"settings.models.inUse.localAPI" = "A Local API request is using this model right now. Try again when it finishes.";
 
 // MARK: - Backup restore: local-model re-download prompt
 "settings.backup.localDownload.title" = "Download local models?";

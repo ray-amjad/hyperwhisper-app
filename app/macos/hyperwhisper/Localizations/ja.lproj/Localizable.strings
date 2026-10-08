@@ -982,6 +982,7 @@
 "modelLibrary.remove.confirm.message" = "再度ダウンロードする必要があります（%@）。";
 "modelLibrary.remove.confirm.messageNoSize" = "再度ダウンロードする必要があります。";
 "modelLibrary.remove.confirm.button" = "削除";
+"settings.models.inUse.localAPI" = "Local API のリクエストがこのモデルを使用中です。完了してからもう一度お試しください。";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "クレジットが不足しています。設定でクレジットを追加してください。";

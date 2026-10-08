@@ -981,6 +981,7 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "modelLibrary.remove.confirm.message" = "Budete ho musieť znova stiahnuť (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Budete ho musieť znova stiahnuť.";
 "modelLibrary.remove.confirm.button" = "Odstrániť";
+"settings.models.inUse.localAPI" = "Tento model práve používa požiadavka Local API. Skúste to znova, keď skončí.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nedostatočné kredity. Pridajte ďalšie kredity v Nastaveniach.";

@@ -981,6 +981,7 @@
 "modelLibrary.remove.confirm.message" = "คุณจะต้องดาวน์โหลดอีกครั้ง (%@)";
 "modelLibrary.remove.confirm.messageNoSize" = "คุณจะต้องดาวน์โหลดอีกครั้ง";
 "modelLibrary.remove.confirm.button" = "ลบ";
+"settings.models.inUse.localAPI" = "คำขอ Local API กำลังใช้โมเดลนี้อยู่ ลองอีกครั้งเมื่อคำขอเสร็จสิ้น";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "เครดิตไม่เพียงพอ เพิ่มเครดิตในการตั้งค่า";

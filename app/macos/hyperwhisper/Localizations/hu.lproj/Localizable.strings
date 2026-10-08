@@ -981,6 +981,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "modelLibrary.remove.confirm.message" = "Újra le kell majd töltenie (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Újra le kell majd töltenie.";
 "modelLibrary.remove.confirm.button" = "Eltávolítás";
+"settings.models.inUse.localAPI" = "Egy Local API-kérés éppen ezt a modellt használja. Próbáld újra, ha befejeződött.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nincs elég kredit. Adj hozzá több kreditet a Beállításokban.";

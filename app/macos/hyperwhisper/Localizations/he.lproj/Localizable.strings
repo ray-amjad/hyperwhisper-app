@@ -981,6 +981,7 @@
 "modelLibrary.remove.confirm.message" = "יהיה עליך להוריד אותו שוב (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "יהיה עליך להוריד אותו שוב.";
 "modelLibrary.remove.confirm.button" = "הסר";
+"settings.models.inUse.localAPI" = "בקשת Local API משתמשת במודל הזה כרגע. נסו שוב כשהיא תסתיים.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "אין מספיק נקודות זכות. הוסף עוד נקודות זכות בהגדרות.";

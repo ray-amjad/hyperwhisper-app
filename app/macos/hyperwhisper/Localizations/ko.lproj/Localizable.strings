@@ -981,6 +981,7 @@
 "modelLibrary.remove.confirm.message" = "다시 다운로드해야 합니다(%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "다시 다운로드해야 합니다.";
 "modelLibrary.remove.confirm.button" = "제거";
+"settings.models.inUse.localAPI" = "Local API 요청이 지금 이 모델을 사용하고 있습니다. 요청이 끝나면 다시 시도하세요.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "크레딧이 부족합니다. 설정에서 크레딧을 더 추가하세요.";

@@ -67,6 +67,10 @@ enum TranscribeEndpoint {
             let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(error)
             return LocalAPIResponder.failure(code: code, message: message, hint: hint)
         }
+        // Every return below ends the per-request Mode, success or failure
+        // (issue #1509). It never touched the store; this only drops it from
+        // the in-flight registry the Model Library delete check reads.
+        defer { resolution.transientMode?.end() }
 
         let language = effectiveLanguage(for: resolution, request: req)
 
@@ -125,7 +129,6 @@ enum TranscribeEndpoint {
                     )
                 }
             }
-            cleanupTransientMode(resolution.transientMode)
             let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(error)
             return LocalAPIResponder.failure(code: code, message: message, hint: hint)
         }
@@ -152,8 +155,6 @@ enum TranscribeEndpoint {
         let words = timestamps?.words.map { ws in
             ws.map { TranscribeWord(word: $0.word, start: $0.start, end: $0.end) }
         }
-
-        cleanupTransientMode(resolution.transientMode)
 
         let response = TranscribeResponse(
             ok: true,
@@ -832,9 +833,10 @@ enum TranscribeEndpoint {
         let vocabulary: [Vocabulary]
         let engineLabel: String
         let modelLabel: String
-        /// Non-nil when we synthesized a Mode in the viewContext just for this
-        /// request — caller MUST delete it after `provider.transcribe(...)`.
-        let transientMode: Mode?
+        /// Non-nil when we synthesized a Mode just for this request. Its
+        /// `mode` is the `mode` above. The caller MUST `end()` it once the
+        /// request finishes; `handle` does so in a `defer`.
+        let transientMode: LocalAPITransientMode?
         /// The cloud provider this request resolved to, straight out of the
         /// router's own resolution (never re-derived here). nil for local
         /// engines. Used to report the transcription outcome back to
@@ -885,13 +887,20 @@ enum TranscribeEndpoint {
 
             // Mixed: saved mode supplies defaults, request overrides specific fields.
             let transient = makeTransientMode(baseline: stored, engine: trimmedEngine, model: trimmedModel, language: trimmedLanguage)
-            let selection = try await router.selectProvider(for: transient, vocabulary: vocabulary)
+            let selection: TranscriptionProviderRouter.ProviderSelection
+            do {
+                selection = try await router.selectProvider(for: transient.mode, vocabulary: vocabulary)
+            } catch {
+                // `handle` never gets a resolution to end, so end it here.
+                transient.end()
+                throw error
+            }
             return ProviderResolution(
                 provider: selection.provider,
-                mode: transient,
+                mode: transient.mode,
                 vocabulary: vocabulary,
-                engineLabel: engineLabel(forMode: transient),
-                modelLabel: modelLabel(forMode: transient),
+                engineLabel: engineLabel(forMode: transient.mode),
+                modelLabel: modelLabel(forMode: transient.mode),
                 transientMode: transient,
                 cloudProviderType: selection.cloudProviderType
             )
@@ -918,31 +927,40 @@ enum TranscribeEndpoint {
         // matches the normalized labels the mode_id paths above already return.
         return ProviderResolution(
             provider: selection.provider,
-            mode: transient,
+            mode: transient.mode,
             vocabulary: vocabulary,
-            engineLabel: engineLabel(forMode: transient),
-            modelLabel: modelLabel(forMode: transient),
+            engineLabel: engineLabel(forMode: transient.mode),
+            modelLabel: modelLabel(forMode: transient.mode),
             transientMode: transient,
             cloudProviderType: selection.cloudProviderType
         )
     }
 
-    /// Build an unsaved Mode in the main viewContext. Seeded either from
-    /// scratch (`baseline == nil`) or by copying every field off `baseline`
-    /// so the request can override only the bits it cares about. The caller
-    /// MUST `cleanupTransientMode(...)` once transcribe finishes (success or
-    /// failure) so the object doesn't linger in the context.
+    /// Build the per-request Mode. Seeded either from scratch
+    /// (`baseline == nil`) or by copying every field off `baseline` so the
+    /// request can override only the bits it cares about.
+    ///
+    /// The Mode lives in a never-saved scratch context, not the shared
+    /// `viewContext` (issue #1509): another save of the `viewContext` while
+    /// the request runs used to commit it as a real row. See
+    /// `LocalAPITransientMode`. The caller MUST `end()` the result once the
+    /// request finishes, success or failure.
+    ///
+    /// `internal` and `parent`-injectable so `LocalAPITransientModeTests`
+    /// can build it against an in-memory store exactly as a request does.
     @MainActor
-    private static func makeTransientMode(baseline: Mode?, engine: String?, model: String?, language: String?) -> Mode {
-        let context = PersistenceController.shared.container.viewContext
-        let mode = Mode(context: context)
-        mode.id = UUID()
-        mode.name = "__local_api_transient__"
-        mode.isDefault = false
-        mode.isSystemProvided = false
-        mode.sortOrder = Int16.max
-        mode.createdDate = Date()
-        mode.modifiedDate = Date()
+    static func makeTransientMode(
+        baseline: Mode?,
+        engine: String?,
+        model: String?,
+        language: String?,
+        parent: NSManagedObjectContext = PersistenceController.shared.container.viewContext
+    ) -> LocalAPITransientMode {
+        let transient = LocalAPITransientMode(
+            name: LocalAPITransientModeMarker.transcribeName,
+            parent: parent
+        )
+        let mode = transient.mode
 
         if let baseline {
             mode.preset = baseline.preset ?? "hyper"
@@ -991,7 +1009,7 @@ enum TranscribeEndpoint {
                 mode.model = model
             }
         }
-        return mode
+        return transient
     }
 
     /// Encode an engine + model override pair onto a Mode's `model` /
@@ -1213,17 +1231,6 @@ enum TranscribeEndpoint {
         }
         let baseCode = String(normalized.prefix { $0 != "-" && $0 != "_" })
         return supported[baseCode] != nil
-    }
-
-    @MainActor
-    private static func cleanupTransientMode(_ mode: Mode?) {
-        guard let mode else { return }
-        let context = PersistenceController.shared.container.viewContext
-        context.delete(mode)
-        // No save() — the transient mode was never saved so nothing to flush.
-        // Just rolling back any pending changes so the deletion doesn't get
-        // committed accidentally by a future save() elsewhere.
-        // (deleted-but-unsaved objects vanish on next refresh.)
     }
 
     @MainActor

@@ -981,6 +981,7 @@
 "modelLibrary.remove.confirm.message" = "Ще трябва да го изтеглите отново (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Ще трябва да го изтеглите отново.";
 "modelLibrary.remove.confirm.button" = "Премахни";
+"settings.models.inUse.localAPI" = "Заявка към Local API използва този модел в момента. Опитайте отново, когато приключи.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недостатъчно кредити. Добавете повече кредити в Настройки.";

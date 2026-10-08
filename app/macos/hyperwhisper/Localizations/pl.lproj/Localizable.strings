@@ -981,6 +981,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "modelLibrary.remove.confirm.message" = "Trzeba będzie pobrać go ponownie (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Trzeba będzie pobrać go ponownie.";
 "modelLibrary.remove.confirm.button" = "Usuń";
+"settings.models.inUse.localAPI" = "Żądanie Local API używa teraz tego modelu. Spróbuj ponownie, gdy się zakończy.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Niewystarczające kredyty. Dodaj więcej kredytów w Ustawieniach.";

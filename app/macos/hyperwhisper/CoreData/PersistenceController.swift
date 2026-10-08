@@ -382,6 +382,10 @@ class PersistenceController: ObservableObject {
             // `geminiTranscribe`, so running this first would leave nothing to do
             // and then let the older migration write the value again.
             migrateGoogleChirp3TierIfNeeded()
+            // BEFORE repairModeNamesOnLaunch: that pass renames a duplicate
+            // name with a " 2" suffix, and a leaked row is gone sooner if it
+            // is never renamed in the first place (issue #1509).
+            purgeLeakedLocalAPITransientModesOnLaunch()
             repairModeNamesOnLaunch()
             repairBrokenLocalModesOnLaunch()
             repairStaleProcessingTranscriptsOnLaunch()
@@ -420,6 +424,69 @@ class PersistenceController: ObservableObject {
 
         if repaired > 0 { save() }
         return repaired
+    }
+
+    /// Deletes the per-request Local API Modes that builds before issue #1509
+    /// committed to the store. Returns how many it deleted.
+    ///
+    /// `/transcribe` and `/post-process` used to build their per-request Mode
+    /// in the `viewContext`, and any other save of that context during a
+    /// request made it a real row: listed in Select Mode and Transcribe File,
+    /// kept across relaunch, and doing nothing when picked. The fuzz that found
+    /// it saw 12 of them. New requests can no longer leak one
+    /// (`LocalAPITransientMode`), so this pass only clears what is already on
+    /// disk, and once a store is clean it deletes nothing.
+    ///
+    /// A row is deleted only when `LocalAPITransientModeMarker.isLeakedRow`
+    /// holds: one of the two endpoint names (bare, or with the " N" suffix
+    /// `repairModeNames()` adds), `sortOrder` exactly `Int16.max`, and
+    /// neither default nor seeded. Runs every launch and saves only when it
+    /// deleted something.
+    @discardableResult
+    func purgeLeakedLocalAPITransientModes() -> Int {
+        let context = container.viewContext
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "sortOrder == %@",
+            NSNumber(value: LocalAPITransientModeMarker.sortOrder)
+        )
+        do {
+            let leaked = try context.fetch(request).filter { mode in
+                LocalAPITransientModeMarker.isLeakedRow(
+                    name: mode.name,
+                    sortOrder: mode.sortOrder,
+                    isDefault: mode.isDefault,
+                    isSystemProvided: mode.isSystemProvided
+                )
+            }
+            guard !leaked.isEmpty else { return 0 }
+            for mode in leaked {
+                context.delete(mode)
+            }
+            try context.save()
+            return leaked.count
+        } catch {
+            // Leave nothing pending on the shared context: a failed save keeps
+            // its changes, and every later save would fail on them. This runs
+            // during init, before anything else has written to the context.
+            // The shape is read first, while the pending deletes still show.
+            let shape = CoreDataSaveDiagnostics.contextShape(context)
+            context.rollback()
+            let nsError = error as NSError
+            AppLogger.logCoreData(
+                .save(site: "purge_leaked_local_api_transient_modes", contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                error: nsError,
+                metadata: shape
+            )
+            return 0
+        }
+    }
+
+    private func purgeLeakedLocalAPITransientModesOnLaunch() {
+        let purged = purgeLeakedLocalAPITransientModes()
+        if purged > 0 {
+            AppLogger.coreData.info("Launch repair deleted \(purged, privacy: .public) leaked Local API transient mode(s)")
+        }
     }
 
     private func repairModeNamesOnLaunch() {

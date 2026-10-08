@@ -981,6 +981,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "modelLibrary.remove.confirm.message" = "Jums tas būs jālejupielādē vēlreiz (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Jums tas būs jālejupielādē vēlreiz.";
 "modelLibrary.remove.confirm.button" = "Noņemt";
+"settings.models.inUse.localAPI" = "Local API pieprasījums pašlaik izmanto šo modeli. Mēģiniet vēlreiz, kad tas būs pabeigts.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nepietiekami kredīti. Pievienojiet vairāk kredītu iestatījumos.";

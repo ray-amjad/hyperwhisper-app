@@ -981,6 +981,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "modelLibrary.remove.confirm.message" = "Bạn sẽ cần tải lại mô hình này (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Bạn sẽ cần tải lại mô hình này.";
 "modelLibrary.remove.confirm.button" = "Xóa";
+"settings.models.inUse.localAPI" = "Một yêu cầu Local API đang sử dụng mô hình này. Hãy thử lại khi yêu cầu hoàn tất.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Tín dụng không đủ. Thêm tín dụng trong Cài đặt.";

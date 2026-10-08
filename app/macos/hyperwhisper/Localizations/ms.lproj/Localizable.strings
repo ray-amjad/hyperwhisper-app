@@ -981,6 +981,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "modelLibrary.remove.confirm.message" = "Anda perlu memuat turunnya semula (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Anda perlu memuat turunnya semula.";
 "modelLibrary.remove.confirm.button" = "Alih keluar";
+"settings.models.inUse.localAPI" = "Permintaan Local API sedang menggunakan model ini. Cuba lagi apabila ia selesai.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Kredit tidak mencukupi. Tambah lebih banyak kredit dalam Tetapan.";

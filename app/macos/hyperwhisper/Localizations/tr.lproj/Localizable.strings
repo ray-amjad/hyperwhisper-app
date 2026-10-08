@@ -981,6 +981,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "modelLibrary.remove.confirm.message" = "Yeniden indirmeniz gerekecek (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Yeniden indirmeniz gerekecek.";
 "modelLibrary.remove.confirm.button" = "Kaldır";
+"settings.models.inUse.localAPI" = "Bir Local API isteği şu anda bu modeli kullanıyor. İstek bittiğinde tekrar deneyin.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Yetersiz krediler. Ayarlar'dan daha fazla kredi ekleyin.";

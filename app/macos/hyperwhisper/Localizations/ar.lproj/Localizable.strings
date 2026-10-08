@@ -981,6 +981,7 @@
 "modelLibrary.remove.confirm.message" = "ستحتاج إلى تنزيله مرة أخرى (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "ستحتاج إلى تنزيله مرة أخرى.";
 "modelLibrary.remove.confirm.button" = "إزالة";
+"settings.models.inUse.localAPI" = "يستخدم طلب من واجهة Local API هذا النموذج الآن. حاول مرة أخرى عند انتهائه.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "رصيد غير كافٍ. أضف المزيد من الرصيد في الإعدادات.";

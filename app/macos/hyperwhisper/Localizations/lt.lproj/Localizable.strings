@@ -981,6 +981,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "modelLibrary.remove.confirm.message" = "Turėsite jį atsisiųsti iš naujo (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Turėsite jį atsisiųsti iš naujo.";
 "modelLibrary.remove.confirm.button" = "Pašalinti";
+"settings.models.inUse.localAPI" = "Local API užklausa šiuo metu naudoja šį modelį. Bandykite dar kartą, kai ji baigsis.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nepakanka kreditų. Pridėkite daugiau kreditų nustatymuose.";

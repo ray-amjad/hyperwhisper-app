@@ -981,6 +981,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "modelLibrary.remove.confirm.message" = "Anda perlu mengunduhnya lagi (%@).";
 "modelLibrary.remove.confirm.messageNoSize" = "Anda perlu mengunduhnya lagi.";
 "modelLibrary.remove.confirm.button" = "Hapus";
+"settings.models.inUse.localAPI" = "Permintaan Local API sedang menggunakan model ini. Coba lagi setelah selesai.";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Kredit tidak mencukupi. Tambahkan lebih banyak kredit di Pengaturan.";

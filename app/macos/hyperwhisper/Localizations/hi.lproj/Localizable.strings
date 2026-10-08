@@ -981,6 +981,7 @@
 "modelLibrary.remove.confirm.message" = "आपको इसे फिर से डाउनलोड करना होगा (%@)।";
 "modelLibrary.remove.confirm.messageNoSize" = "आपको इसे फिर से डाउनलोड करना होगा।";
 "modelLibrary.remove.confirm.button" = "हटाएँ";
+"settings.models.inUse.localAPI" = "एक Local API अनुरोध अभी इस मॉडल का उपयोग कर रहा है। उसके पूरा होने पर फिर से प्रयास करें।";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "अपर्याप्त क्रेडिट। सेटिंग्स में अधिक क्रेडिट जोड़ें।";

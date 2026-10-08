@@ -808,16 +808,18 @@ struct ModelLibraryView: View {
     }
 
     /// Modes whose voice model is `modelId` (Whisper, Parakeet, Qwen3 ASR,
-    /// Nemotron all store it in `mode.model`).
+    /// Nemotron all store it in `mode.model`). Includes a running Local API
+    /// request's Mode; see `modesThatCanUseAModel()`.
     private func modesUsingVoiceModel(_ modelId: String) -> [Mode] {
-        PersistenceController.shared.fetchAllModes().filter { mode in
+        modesThatCanUseAModel().filter { mode in
             (mode.model ?? "").caseInsensitiveCompare(modelId) == .orderedSame
         }
     }
 
-    /// Modes that post-process with the local LLM `modelId`.
+    /// Modes that post-process with the local LLM `modelId`. Includes a
+    /// running Local API request's Mode; see `modesThatCanUseAModel()`.
     private func modesUsingLocalLLM(_ modelId: String) -> [Mode] {
-        PersistenceController.shared.fetchAllModes().filter { mode in
+        modesThatCanUseAModel().filter { mode in
             let processingMode = PostProcessingMode(rawValue: mode.postProcessingMode) ?? .off
             let provider = mode.postProcessingProvider ?? ""
             let isActiveLocalMode = processingMode == .local
@@ -827,14 +829,37 @@ struct ModelLibraryView: View {
         }
     }
 
+    /// The saved Modes, plus the Mode of every Local API request still running.
+    ///
+    /// A request's Mode lives outside the `viewContext` (issue #1509), so
+    /// `fetchAllModes()` alone no longer sees it. It used to, by accident, and
+    /// that is what refused to delete a model a request was transcribing with
+    /// (issue #1446). The in-flight list keeps that refusal.
+    private func modesThatCanUseAModel() -> [Mode] {
+        PersistenceController.shared.fetchAllModes() + LocalAPITransientMode.inFlightModes
+    }
+
+    /// Shows the "Cannot Delete Model" alert when any Mode uses the model.
+    ///
+    /// A saved Mode is listed by name, as before. A running Local API request
+    /// has no name a user can act on (it used to show the internal
+    /// `__local_api_transient__`, issue #1446), so when only requests use the
+    /// model the alert says so and asks to try again once they finish. When a
+    /// saved Mode uses it too, the saved-Mode message wins: that is the one the
+    /// user has to act on.
     @discardableResult
     private func showCannotDeleteAlertIfNeeded(_ modes: [Mode], messageKey: String) -> Bool {
         guard !modes.isEmpty else { return false }
 
-        let bulletItems = modes.map { mode in
-            String(format: "settings.models.mode.bullet".localized, mode.name ?? "settings.models.mode.unknown".localized)
+        let savedModes = modes.filter { !LocalAPITransientMode.isInFlight($0) }
+        if savedModes.isEmpty {
+            modelInUseMessage = "settings.models.inUse.localAPI".localized
+        } else {
+            let bulletItems = savedModes.map { mode in
+                String(format: "settings.models.mode.bullet".localized, mode.name ?? "settings.models.mode.unknown".localized)
+            }
+            modelInUseMessage = String(format: messageKey.localized, bulletItems.joined(separator: "\n"))
         }
-        modelInUseMessage = String(format: messageKey.localized, bulletItems.joined(separator: "\n"))
         showingModelInUseAlert = true
         return true
     }
