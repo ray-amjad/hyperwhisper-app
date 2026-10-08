@@ -1,6 +1,6 @@
 /**
  * Behaviour tests for `lib/services/stripe-webhook.ts` — the module that turns
- * a Stripe event into a license key, a credit grant or a revocation. It was at
+ * a Stripe event into a license key, a credit grant or a credit refund. It was at
  * 0% line coverage, and it is the only place in the website where money
  * becomes entitlement.
  *
@@ -22,13 +22,11 @@ import {
   restoreWebhookLogging,
   silenceWebhookLogging,
 } from "./stripe-webhook-harness";
-import { LEAKY_KEY, SESSION_INDEX, leakyDbError, leakyLines } from "./db-error-fixture";
+import { SESSION_INDEX, leakyDbError, leakyLines } from "./db-error-fixture";
 
 type Webhook = Awaited<ReturnType<typeof loadWebhook>>;
 
 let webhook: Webhook;
-const handleLicensePurchase: Webhook["handleLicensePurchase"] = (...args) =>
-  webhook.handleLicensePurchase(...args);
 const handleCreditPurchase: Webhook["handleCreditPurchase"] = (...args) =>
   webhook.handleCreditPurchase(...args);
 const handleChargeRefunded: Webhook["handleChargeRefunded"] = (...args) =>
@@ -63,164 +61,6 @@ before(async () => {
 });
 after(restoreWebhookLogging);
 beforeEach(resetHarness);
-
-// ---------------------------------------------------------------------------
-// handleLicensePurchase
-// ---------------------------------------------------------------------------
-
-test("a license purchase with no customer email is rejected before any write", async () => {
-  await assert.rejects(
-    handleLicensePurchase(checkoutSession({ customer_details: { email: null, name: "Buyer" } })),
-    { message: "No customer email in checkout session" },
-  );
-
-  assert.deepEqual(calls.insertAccountKey, []);
-  assert.deepEqual(calls.grantCreditLot, []);
-  assert.deepEqual(calls.emails, []);
-});
-
-test("a license purchase with no Stripe customer is rejected before any write", async () => {
-  await assert.rejects(handleLicensePurchase(checkoutSession({ customer: null })), {
-    message: "No Stripe customer in checkout session",
-  });
-
-  assert.deepEqual(calls.insertAccountKey, []);
-  assert.deepEqual(calls.grantCreditLot, []);
-});
-
-test("a license purchase stores a normalised row and grants exactly 5000 bundled credits", async () => {
-  behaviour.generatedKeys = ["HW-NEW-KEY-0001"];
-
-  await handleLicensePurchase(checkoutSession());
-
-  assert.deepEqual(calls.insertAccountKey, [
-    {
-      key: "HW-NEW-KEY-0001",
-      // The session carried "Buyer@Example.com " — stored lowercased and trimmed.
-      email: "buyer@example.com",
-      userId: "user_1",
-      stripeCustomerId: "cus_1",
-      stripeSessionId: "cs_1",
-      status: "granted",
-    },
-  ]);
-  assert.deepEqual(calls.grantCreditLot, [
-    {
-      userId: "user_1",
-      amount: 5_000,
-      sourceType: "license_bundle",
-      sourceId: "cs_1",
-    },
-  ]);
-  assert.equal(calls.emails.length, 1);
-  assert.equal(calls.emails[0].kind, "license");
-  assert.equal(calls.emails[0].payload.licenseKey, "HW-NEW-KEY-0001");
-  assert.equal(calls.emails[0].payload.customerEmail, "Buyer@Example.com ");
-});
-
-test("a redelivered license purchase resends the existing key and writes nothing", async () => {
-  behaviour.bySession.set("cs_1", accountKeyRow({ key: "HW-EXISTING-0001" }));
-
-  await handleLicensePurchase(checkoutSession());
-
-  assert.deepEqual(calls.insertAccountKey, []);
-  assert.deepEqual(calls.grantCreditLot, []);
-  assert.deepEqual(calls.getOrCreateUser, []);
-  assert.equal(calls.emails.length, 1);
-  assert.equal(calls.emails[0].payload.licenseKey, "HW-EXISTING-0001");
-});
-
-test("a license purchase retries a colliding key and gives up after 10 attempts", async () => {
-  behaviour.generatedKeys = Array.from({ length: 12 }, (_unused, i) => `HW-DUP-${i}`);
-  for (const key of behaviour.generatedKeys) behaviour.takenKeys.add(key);
-
-  await assert.rejects(handleLicensePurchase(checkoutSession()), {
-    message: "Failed to generate unique license key after max attempts",
-  });
-
-  assert.equal(calls.generateLicenseKey, 10);
-  assert.equal(calls.findAccountByKey.length, 10);
-  assert.deepEqual(calls.insertAccountKey, []);
-});
-
-test("a license purchase takes the first free key after a collision", async () => {
-  behaviour.generatedKeys = ["HW-TAKEN-0001", "HW-FREE-0002"];
-  behaviour.takenKeys.add("HW-TAKEN-0001");
-
-  await handleLicensePurchase(checkoutSession());
-
-  assert.equal(calls.generateLicenseKey, 2);
-  assert.equal(calls.insertAccountKey[0].key, "HW-FREE-0002");
-});
-
-test("a license purchase fails loudly when the user cannot be created", async () => {
-  behaviour.user = null;
-
-  await assert.rejects(handleLicensePurchase(checkoutSession()), {
-    // The address is logged as its #717 tag (sha256 of "buyer@example.com"),
-    // never in the clear — the webhook route logs this message.
-    message: "Failed to create user for 6a6c26195c36",
-  });
-
-  assert.deepEqual(calls.insertAccountKey, []);
-});
-
-test("a concurrent insert (23505) ends the license purchase without a second grant", async () => {
-  behaviour.insertError = Object.assign(new Error("duplicate key"), {
-    code: "23505",
-    constraint: SESSION_INDEX,
-  });
-
-  await handleLicensePurchase(checkoutSession());
-
-  assert.equal(calls.insertAccountKey.length, 1);
-  assert.deepEqual(calls.grantCreditLot, []);
-  assert.deepEqual(calls.emails, []);
-});
-
-test("a non-duplicate insert failure propagates out of the license purchase", async () => {
-  behaviour.insertError = Object.assign(new Error("connection reset"), { code: "08006" });
-
-  await assert.rejects(handleLicensePurchase(checkoutSession()), {
-    message: "connection reset",
-  });
-
-  assert.deepEqual(calls.grantCreditLot, []);
-  assert.deepEqual(calls.emails, []);
-});
-
-test("a failed bundled-credit grant still delivers the license email", async () => {
-  behaviour.grantLotError = new Error("credit ledger unavailable");
-
-  await handleLicensePurchase(checkoutSession());
-
-  assert.equal(calls.grantCreditLot.length, 1);
-  assert.equal(calls.emails.length, 1);
-  assert.equal(calls.emails[0].kind, "license");
-});
-
-test("a failed license email does not fail the webhook", async () => {
-  behaviour.emailSuccess = false;
-
-  await handleLicensePurchase(checkoutSession());
-
-  assert.equal(calls.insertAccountKey.length, 1);
-  assert.equal(calls.emails.length, 1);
-});
-
-test("a license purchase reads the Stripe customer id out of an expanded customer object", async () => {
-  await handleLicensePurchase(checkoutSession({ customer: { id: "cus_expanded" } }));
-
-  assert.equal(calls.insertAccountKey[0].stripeCustomerId, "cus_expanded");
-});
-
-test("a license purchase with no customer name falls back to the email local part", async () => {
-  await handleLicensePurchase(
-    checkoutSession({ customer_details: { email: "solo@example.com", name: null } }),
-  );
-
-  assert.equal(calls.emails[0].payload.customerName, "solo");
-});
 
 // ---------------------------------------------------------------------------
 // handleCreditPurchase — gates
@@ -360,8 +200,6 @@ test("a guest credit purchase mints a key, grants the credits and sends the mint
       sourceId: "cs_1",
     },
   ]);
-  // A mint gets no license_bundle lot — the bundle belongs to a license purchase.
-  assert.deepEqual(calls.grantCreditLot, []);
   assert.equal(calls.emails.length, 1);
   assert.equal(calls.emails[0].kind, "mint");
   assert.equal(calls.emails[0].payload.licenseKey, "HW-MINT-0001");
@@ -495,6 +333,28 @@ test("a mint gives up after 10 colliding keys", async () => {
   assert.deepEqual(calls.insertAccountKey, []);
 });
 
+test("a mint reads the Stripe customer id out of an expanded customer object", async () => {
+  await handleCreditPurchase(
+    checkoutSession({ customer: { id: "cus_expanded" }, metadata: { credit_amount: "600" } }),
+    "evt_1",
+  );
+
+  assert.equal(calls.insertAccountKey[0].stripeCustomerId, "cus_expanded");
+});
+
+test("a mint with no customer name falls back to the email local part", async () => {
+  await handleCreditPurchase(
+    checkoutSession({
+      customer_details: { email: "solo@example.com", name: null },
+      metadata: { credit_amount: "600" },
+    }),
+    "evt_1",
+  );
+
+  assert.equal(calls.emails[0].kind, "mint");
+  assert.equal(calls.emails[0].payload.customerName, "solo");
+});
+
 test("a mint fails loudly when the user cannot be created", async () => {
   behaviour.user = null;
 
@@ -560,14 +420,7 @@ test("a failed mint email does not fail the webhook", async () => {
 test("no webhook log line carries the buyer's address, on any purchase path", async () => {
   const from = logLines.length;
 
-  // License purchase: success, then a refused license email.
-  await handleLicensePurchase(checkoutSession());
-  resetHarness();
-  behaviour.emailSuccess = false;
-  await handleLicensePurchase(checkoutSession());
-
   // Mint, then a pool into the minted key, each with a refused email.
-  resetHarness();
   behaviour.emailSuccess = false;
   await handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1");
   resetHarness();
@@ -585,7 +438,6 @@ test("no webhook log line carries the buyer's address, on any purchase path", as
     [],
   );
   // Positive control: the lines that used to carry the address carry its tag.
-  assert.ok(lines.some((line) => line.includes("Processing license purchase for 6a6c26195c36")));
   assert.ok(lines.some((line) => line.includes("Processing credit purchase by 6a6c26195c36")));
 });
 
@@ -597,7 +449,7 @@ test("a charge with no payment intent is skipped before Stripe is queried", asyn
   await handleChargeRefunded(charge({ payment_intent: null }));
 
   assert.deepEqual(calls.stripeSessionQueries, []);
-  assert.deepEqual(calls.revokeAccountKey, []);
+  assert.deepEqual(calls.refundCreditGrant, []);
 });
 
 test("a charge with an expanded payment intent is traced by its id", async () => {
@@ -613,7 +465,6 @@ test("a charge with no matching checkout session is skipped", async () => {
 
   assert.equal(calls.stripeSessionQueries.length, 1);
   assert.deepEqual(calls.refundCreditGrant, []);
-  assert.deepEqual(calls.revokeAccountKey, []);
 });
 
 test("a refund for an unknown purchase type touches nothing", async () => {
@@ -622,20 +473,12 @@ test("a refund for an unknown purchase type touches nothing", async () => {
   await handleChargeRefunded(charge());
 
   assert.deepEqual(calls.refundCreditGrant, []);
-  assert.deepEqual(calls.revokeAccountKey, []);
-});
-
-test("a partial refund on a license purchase does not revoke the key", async () => {
-  behaviour.stripeSessions = [{ id: "cs_1", metadata: { purchase_type: "license" } }];
-
-  await handleChargeRefunded(charge({ amount_refunded: 999 }));
-
-  assert.deepEqual(calls.refundCreditGrant, []);
-  assert.deepEqual(calls.revokeAccountKey, []);
   assert.deepEqual(calls.findAccountByStripeSession, []);
 });
 
-test("a full refund on a license purchase claws back the bundle and revokes the key", async () => {
+test("a full refund on a retired license purchase touches nothing (#793)", async () => {
+  // The licence branch, its key revocation and its license_bundle clawback are
+  // gone. A "license" session now takes the unknown-type path.
   behaviour.stripeSessions = [{ id: "cs_1", metadata: { purchase_type: "license" } }];
   behaviour.bySession.set(
     "cs_1",
@@ -644,34 +487,8 @@ test("a full refund on a license purchase claws back the bundle and revokes the 
 
   await handleChargeRefunded(charge());
 
-  assert.deepEqual(calls.refundCreditGrant, [
-    { sourceType: "license_bundle", sourceId: "cs_1" },
-  ]);
-  assert.deepEqual(calls.revokeAccountKey, [{ id: "row_7", userId: "user_7" }]);
-  assert.deepEqual(calls.revokeWebAccess, []);
-});
-
-test("a re-sent refund on an already revoked key sweeps its web sessions instead", async () => {
-  behaviour.stripeSessions = [{ id: "cs_1", metadata: { purchase_type: "license" } }];
-  behaviour.bySession.set(
-    "cs_1",
-    accountKeyRow({ id: "row_7", userId: "user_7", status: "revoked" }),
-  );
-
-  await handleChargeRefunded(charge());
-
-  assert.deepEqual(calls.revokeWebAccess, ["user_7"]);
-  assert.deepEqual(calls.revokeAccountKey, []);
-});
-
-test("a full refund whose license row is missing stops without a revocation", async () => {
-  behaviour.stripeSessions = [{ id: "cs_1", metadata: { purchase_type: "license" } }];
-
-  await handleChargeRefunded(charge());
-
-  assert.deepEqual(calls.findAccountByStripeSession, ["cs_1"]);
   assert.deepEqual(calls.refundCreditGrant, []);
-  assert.deepEqual(calls.revokeAccountKey, []);
+  assert.deepEqual(calls.findAccountByStripeSession, []);
 });
 
 // Credit refunds (#1351): a refund of any size removes credits at the price
@@ -718,7 +535,6 @@ test("a $4.50 refund of a $5.30 pack of 5,000 credits removes 4,500 credits from
   assert.deepEqual(calls.refundCreditGrant, [
     { sourceType: "stripe_credit_pack", sourceId: "cs_1", refundedCreditsTotal: 4500 },
   ]);
-  assert.deepEqual(calls.revokeAccountKey, []);
 });
 
 test("refunding the whole credit value, or the whole charge with the fee, removes the whole pack and no more", async () => {
@@ -824,7 +640,6 @@ test("a redelivered credit refund does not deduct twice", async () => {
   await handleChargeRefunded(charge());
 
   assert.equal(calls.refundCreditGrant.length, 1);
-  assert.deepEqual(calls.revokeAccountKey, []);
 });
 
 test("a refund worth more than the pack has left logs the shortfall", async () => {
@@ -853,16 +668,6 @@ test("a refund the pack fully covers logs no shortfall", async () => {
 // #1039: a REAL drizzle error — 23505 lives on .cause, params hold the secrets
 // ---------------------------------------------------------------------------
 
-test("a redelivered license purchase whose insert fails with drizzle's 23505 takes the duplicate path", async () => {
-  behaviour.insertError = leakyDbError("23505");
-
-  await handleLicensePurchase(checkoutSession());
-
-  assert.equal(calls.insertAccountKey.length, 1);
-  assert.deepEqual(calls.grantCreditLot, []);
-  assert.deepEqual(calls.emails, []);
-});
-
 test("a mint whose insert fails with drizzle's 23505 falls back to the winner's row", async () => {
   behaviour.insertError = leakyDbError("23505");
   let sessionLookups = 0;
@@ -883,21 +688,6 @@ for (const [label, constraint] of [
   ["idx_account_keys_key", "idx_account_keys_key"],
   ["no reported constraint", null],
 ] as const) {
-  test(`a license purchase whose insert hits 23505 on ${label} throws, not the duplicate path`, async () => {
-    const from = logLines.length;
-    const err = leakyDbError("23505", constraint);
-    behaviour.insertError = err;
-
-    await assert.rejects(handleLicensePurchase(checkoutSession()), (thrown) => thrown === err);
-
-    assert.equal(calls.insertAccountKey.length, 1);
-    assert.deepEqual(calls.grantCreditLot, []);
-    assert.deepEqual(calls.emails, []);
-    assert.ok(
-      !logLines.slice(from).some((line) => line.includes("License already inserted by concurrent request")),
-    );
-  });
-
   test(`a mint whose insert hits 23505 on ${label} throws, not the winner fallback`, async () => {
     const err = leakyDbError("23505", constraint);
     behaviour.insertError = err;
@@ -924,19 +714,12 @@ test("no webhook log line carries a drizzle error's bound email or licence key",
   const from = logLines.length;
 
   behaviour.insertError = leakyDbError("22P02");
-  await assert.rejects(handleLicensePurchase(checkoutSession()));
-  resetHarness();
-  behaviour.insertError = leakyDbError("22P02");
   await assert.rejects(
     handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1"),
   );
-  resetHarness();
-  behaviour.generatedKeys = [LEAKY_KEY];
-  behaviour.grantLotError = leakyDbError("22P02");
-  await handleLicensePurchase(checkoutSession());
 
   const errors = logLines.slice(from).filter((line) => line.startsWith("error "));
-  assert.equal(errors.length, 3, errors.join("\n"));
+  assert.equal(errors.length, 1, errors.join("\n"));
   assert.deepEqual(leakyLines(logLines.slice(from)), []);
   assert.ok(errors.every((line) => line.includes("22P02")), "the SQLSTATE survives");
 });
