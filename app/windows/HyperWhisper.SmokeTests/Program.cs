@@ -1341,6 +1341,96 @@ internal static class Program
                 Assert(TranscriptionService.TrailingSilenceTrimPoint(shortWord, rate) == (int)(1.1 * rate), "never shorter than whisper.cpp's 1s minimum");
             });
 
+            // #1534. Switching to a Parakeet mode during a long Whisper file job
+            // froze the main window for 74-92 s: the mode switch called a sync
+            // UnloadModel() that blocked the UI thread on UnloadModelAsync, which
+            // waits for every in-flight transcription. The wrapper is gone, so a
+            // UI-thread caller has to await.
+            Run("TranscriptionService has no blocking UnloadModel wrapper (#1534)", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                Assert(typeof(TranscriptionService).GetMethod("UnloadModel", all, Type.EmptyTypes) == null,
+                    "TranscriptionService.UnloadModel() is back; a UI-thread caller blocks on a whole Whisper job (#1534)");
+                var unloadAsync = typeof(TranscriptionService).GetMethod("UnloadModelAsync", all);
+                Assert(unloadAsync != null && unloadAsync.ReturnType == typeof(Task),
+                    "TranscriptionService.UnloadModelAsync is missing or no longer returns Task");
+            });
+
+            // #1534. UnloadModelAsync must hand back a pending Task while a job is
+            // in flight (the caller's thread stays free), keep the model until the
+            // job drains, and complete once it does. No native Whisper needed: the
+            // in-flight counter is what the wait reads.
+            Run("UnloadModelAsync waits for an in-flight job without blocking its caller (#1534)", () =>
+            {
+                var service = new TranscriptionService();
+                var inFlight = typeof(TranscriptionService).GetField("_inFlight", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?? throw new InvalidOperationException("TranscriptionService._inFlight is gone; update this test");
+                inFlight.SetValue(service, 1);
+
+                var stopwatch = Stopwatch.StartNew();
+                var unload = service.UnloadModelAsync();
+                stopwatch.Stop();
+                Assert(stopwatch.ElapsedMilliseconds < 500,
+                    $"UnloadModelAsync held its caller for {stopwatch.ElapsedMilliseconds} ms while a job was in flight");
+                Assert(!unload.Wait(TimeSpan.FromMilliseconds(300)),
+                    "UnloadModelAsync completed while a transcription was still in flight");
+
+                inFlight.SetValue(service, 0);
+                Assert(unload.Wait(TimeSpan.FromSeconds(5)),
+                    "UnloadModelAsync did not complete after the in-flight job drained");
+                Assert(!service.IsInitialized, "the service still reports a model after the unload");
+                service.Dispose();
+            });
+
+            // #1534. Both Parakeet load paths (the mode-switch preload and Transcribe
+            // File's readiness check) must reach the Whisper unload through the
+            // awaited helper, and the helper must call UnloadModelAsync.
+            Run("Parakeet load paths await the Whisper unload (#1534)", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                var helper = typeof(MainViewModel).GetMethod("UnloadWhisperForParakeetIfLowMemoryAsync", all)
+                    ?? throw new InvalidOperationException("MainViewModel.UnloadWhisperForParakeetIfLowMemoryAsync is gone; update this test");
+                var unloadAsync = typeof(TranscriptionService).GetMethod("UnloadModelAsync", all)!;
+
+                Assert(AsyncBodyCalls(helper, unloadAsync),
+                    "UnloadWhisperForParakeetIfLowMemoryAsync no longer calls TranscriptionService.UnloadModelAsync");
+                foreach (var name in new[] { "LoadParakeetModelAsync", "EnsureLocalProviderReadyForFileAsync" })
+                {
+                    var method = typeof(MainViewModel).GetMethod(name, all)
+                        ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test");
+                    Assert(AsyncBodyCalls(method, helper),
+                        $"MainViewModel.{name} no longer unloads Whisper through the awaited helper (#1534)");
+                }
+            });
+
+            // #1534. A queued Parakeet load re-checks the selection after its waits
+            // (the model lock, the Whisper unload) so it does not start a daemon the
+            // user has already switched away from.
+            Run("IsParakeetLoadStillWanted follows the newest selection (#1534)", () =>
+            {
+                Mode Parakeet(string model, string language = "en") => new Mode
+                {
+                    ProviderType = "local", LocalEngine = "parakeet", LocalParakeetModel = model, Language = language,
+                };
+
+                Assert(MainViewModel.IsParakeetLoadStillWanted(Parakeet("parakeet-v2"), "parakeet-v2", "en"),
+                    "the same Parakeet mode must still want its model");
+                Assert(!MainViewModel.IsParakeetLoadStillWanted(null, "parakeet-v2", "en"),
+                    "no selection wants no daemon");
+                Assert(!MainViewModel.IsParakeetLoadStillWanted(
+                        new Mode { ProviderType = "local", LocalEngine = "whisper", LocalParakeetModel = "parakeet-v2" },
+                        "parakeet-v2", "en"),
+                    "a Whisper mode must not want the daemon");
+                Assert(!MainViewModel.IsParakeetLoadStillWanted(
+                        new Mode { ProviderType = "cloud", LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v2" },
+                        "parakeet-v2", "en"),
+                    "a cloud mode must not want the daemon");
+                Assert(!MainViewModel.IsParakeetLoadStillWanted(Parakeet("parakeet-v3"), "parakeet-v2", "en"),
+                    "another Parakeet model is a different load");
+                Assert(!MainViewModel.IsParakeetLoadStillWanted(Parakeet("parakeet-v2", "ja"), "parakeet-v2", "en"),
+                    "another language is a different load (NeedsReload owns whether it respawns)");
+            });
+
             Run("IsNoSpaceLanguage / NormalizeLanguage truth tables", () =>
             {
                 foreach (var code in new[] { "ja", "zh", "ko", "yue" })
@@ -18551,6 +18641,50 @@ internal static class Program
         Assert(method!.GetMethodImplementationFlags().HasFlag(MethodImplAttributes.NoInlining),
             $"{type.Name}.{methodName} is inlinable again — a blocked optional assembly " +
             "would fault its caller before any catch could run (HYPERWHISPER-Y5/YF)");
+    }
+
+    /// <summary>
+    /// True when the body of <paramref name="method"/> (its async state machine's
+    /// MoveNext, when it is async) has a call or callvirt to <paramref name="target"/>.
+    /// A byte scan for the two opcodes, each candidate token resolved in a
+    /// try/catch: a stray byte pair can only resolve to some unrelated member,
+    /// so a hit on the exact target is a real call site (#1534).
+    /// </summary>
+    private static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
+    {
+        const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+        var body = method;
+        var stateMachine = method.GetCustomAttribute<System.Runtime.CompilerServices.AsyncStateMachineAttribute>();
+        if (stateMachine != null)
+        {
+            body = stateMachine.StateMachineType.GetMethod("MoveNext", all)
+                ?? throw new InvalidOperationException($"{method.Name}: async state machine has no MoveNext");
+        }
+
+        var il = body.GetMethodBody()?.GetILAsByteArray()
+            ?? throw new InvalidOperationException($"{method.Name}: no IL body");
+        for (int i = 0; i + 4 < il.Length; i++)
+        {
+            if (il[i] != 0x28 && il[i] != 0x6F) // call, callvirt
+            {
+                continue;
+            }
+
+            try
+            {
+                if (body.Module.ResolveMethod(BitConverter.ToInt32(il, i + 1)) is MethodInfo called &&
+                    called.MetadataToken == target.MetadataToken && called.Module == target.Module)
+                {
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+                // Not a resolvable method token at this offset.
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
