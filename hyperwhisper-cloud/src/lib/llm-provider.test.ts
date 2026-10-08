@@ -118,6 +118,34 @@ describe('callWithRetry', () => {
       expect(counter.calls).toBe(attempts);
     });
 
+    test(`${provider}: a 429 is NOT retried when retryRateLimit is false (#1568)`, async () => {
+      const counter = respondWith(429);
+
+      const error = await callWithRetry(provider, PAYLOAD, REQUEST_ID, model, { retryRateLimit: false }).catch((e) => e);
+
+      expect((error as LLMRequestError).status).toBe(429);
+      expect(shouldFallback(error)).toBe(true);
+      expect(counter.calls).toBe(1);
+      expect(armed.filter((ms) => ms === 1_000)).toHaveLength(0);
+    });
+
+    test(`${provider}: a 429 is still retried ${attempts - 1} times by default (the fallback call)`, async () => {
+      const counter = respondWith(429);
+
+      const error = await callWithRetry(provider, PAYLOAD, REQUEST_ID, model).catch((e) => e);
+
+      expect((error as LLMRequestError).status).toBe(429);
+      expect(counter.calls).toBe(attempts);
+    });
+
+    test(`${provider}: retryRateLimit false still retries a 503 ${attempts - 1} times`, async () => {
+      const counter = respondWith(503);
+
+      await callWithRetry(provider, PAYLOAD, REQUEST_ID, model, { retryRateLimit: false }).catch((e) => e);
+
+      expect(counter.calls).toBe(attempts);
+    });
+
     test(`${provider}: a network error is still retried ${attempts - 1} times`, async () => {
       const counter = routeTo(refusedUrl());
 
@@ -135,5 +163,14 @@ describe('isRetryableLLMError', () => {
     expect(isRetryableLLMError(new LLMRequestError('upstream 504', 504, 'groq'))).toBe(true);
     expect(isRetryableLLMError(new LLMRequestError('upstream 503', 503))).toBe(true);
     expect(isRetryableLLMError(new TypeError('fetch failed'))).toBe(true);
+    expect(isRetryableLLMError(new LLMRequestError('upstream 429', 429, 'groq'))).toBe(true);
+  });
+
+  test('with retryRateLimit false, also refuses a 429 and nothing else (#1568)', () => {
+    expect(isRetryableLLMError(new LLMRequestError('upstream 429', 429, 'groq'), false)).toBe(false);
+    expect(isRetryableLLMError(new LLMTimeoutError('groq LLM request timeout after 20000ms', 'groq'), false)).toBe(false);
+    expect(isRetryableLLMError(new LLMRequestError('upstream 503', 503), false)).toBe(true);
+    expect(isRetryableLLMError(new LLMRequestError('upstream 400', 400), false)).toBe(true);
+    expect(isRetryableLLMError(new TypeError('fetch failed'), false)).toBe(true);
   });
 });
