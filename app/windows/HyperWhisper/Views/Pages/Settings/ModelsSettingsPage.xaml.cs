@@ -653,7 +653,17 @@ public partial class ModelsSettingsPage : Page
             return;
         }
 
-        CustomEndpointManager.Instance.DuplicateEndpoint(endpoint.Id);
+        if (CustomEndpointManager.Instance.DuplicateEndpoint(endpoint.Id) == null)
+        {
+            // The only refusal reachable from a live row is a failed Credential
+            // Manager write of the copied key (#742).
+            WpfMessageBox.Show(
+                Loc.S("onboarding.setup.provider.saveFailed"),
+                Loc.S("common.error"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
         RebuildLibrary();
     }
 
