@@ -32,8 +32,19 @@ extension AccessibilityHelper {
     /// NSPasteboardItem objects are tied to the pasteboard they came from and cannot be reused.
     /// Attempting to write them to a pasteboard after clearContents() causes a crash:
     /// "Cannot write pasteboard item. It is already associated with another pasteboard."
-    func startRecordingSession() {
+    ///
+    /// **Off the main actor (#879):** `item.data(forType:)` is a synchronous IPC to the
+    /// pasteboard daemon, and a lazy promise makes the owning app render the data on
+    /// demand. It once froze the app for 10 s and more at the moment the user pressed
+    /// the hotkey. The read now runs in `ClipboardSnapshotReader`, on its own serial
+    /// queue, with a 1 s deadline. Past the deadline the snapshot is nil: the
+    /// clipboard is not restored after the paste, and the reader logs why.
+    func startRecordingSession() async {
         logger.info("🎙️ Starting recording session")
+
+        // Any read still in flight from an earlier call is now stale (#879).
+        Self.clipboardSnapshotGeneration &+= 1
+        let generation = Self.clipboardSnapshotGeneration
 
         // Single use: whichever branch runs, the mark from the last exit is spent.
         let keptChangeCount = keptClipboardSnapshotChangeCount
@@ -61,39 +72,57 @@ extension AccessibilityHelper {
         // Cancel any pending restoration from a previous recording
         cancelPendingClipboardRestoration()
 
-        // ENHANCED: Extract DATA from all clipboard items
+        // The session opens and the last session's snapshot goes BEFORE the read
+        // awaits (#879). A paste that lands while the read is in flight then
+        // restores nothing, never an older clipboard, and an endRecordingSession()
+        // in that window is not undone when the read returns.
+        originalClipboardData = nil
+        isInRecordingSession = true
+        let changeCountBeforeRead = NSPasteboard.general.changeCount
+
+        // ENHANCED: Extract DATA from all clipboard items, off the main actor.
         // We cannot store the NSPasteboardItem objects directly because they cannot be reused
-        let pasteboard = NSPasteboard.general
-        if let items = pasteboard.pasteboardItems, !items.isEmpty {
-            // Extract data from each pasteboard item
-            originalClipboardData = items.compactMap { item in
-                var dataDict: [NSPasteboard.PasteboardType: Data] = [:]
+        let snapshot = await readRecordingStartSnapshot()
 
-                // Extract data for each type this item supports
-                for type in item.types {
-                    if let data = item.data(forType: type) {
-                        dataDict[type] = data
-                    }
-                }
-
-                // Only include items that have at least one type with data
-                guard !dataDict.isEmpty else { return nil }
-
-                return ClipboardItemData(types: item.types, data: dataDict)
-            }
-
-            // Log what types we captured for debugging
-            if let data = originalClipboardData {
-                let types = data.flatMap { $0.types }.map { $0.rawValue }
-                let uniqueTypes = Set(types)
-                logger.info("📋 Saved clipboard with \(data.count, privacy: .public) item(s) containing types: \(uniqueTypes.prefix(5).joined(separator: ", "), privacy: .public)")
-            }
-        } else {
-            originalClipboardData = nil
-            logger.info("📋 Clipboard is empty, nothing to save")
+        // A newer startRecordingSession() owns the state now: drop this result.
+        guard generation == Self.clipboardSnapshotGeneration else {
+            logger.info("📋 A newer recording session started while the clipboard was read; dropping this snapshot")
+            return
         }
 
-        isInRecordingSession = true
+        // Something wrote to the clipboard while it was read (a paste, or the
+        // user's own copy). The snapshot may mix the two and no longer shows the
+        // clipboard from before this recording, so keep nothing.
+        guard NSPasteboard.general.changeCount == changeCountBeforeRead else {
+            logger.info("📋 The clipboard changed while it was read; nothing to save")
+            return
+        }
+
+        originalClipboardData = snapshot
+
+        // Log what types we captured for debugging
+        if let data = snapshot {
+            let types = data.flatMap { $0.types }.map { $0.rawValue }
+            let uniqueTypes = Set(types)
+            logger.info("📋 Saved clipboard with \(data.count, privacy: .public) item(s) containing types: \(uniqueTypes.prefix(5).joined(separator: ", "), privacy: .public)")
+        } else {
+            logger.info("📋 Clipboard is empty or was not read in time, nothing to save")
+        }
+    }
+
+    /// Bumped by every `startRecordingSession()`, so a read that returns after a
+    /// newer call began never writes the session state (#879).
+    private static var clipboardSnapshotGeneration = 0
+
+    /// The record-start read: the shared 1 s reader on `NSPasteboard.general`.
+    /// A Debug test can stand in for it (`recordingStartSnapshotOverrideForTesting`).
+    private func readRecordingStartSnapshot() async -> [ClipboardItemData]? {
+        #if DEBUG
+        if let override = recordingStartSnapshotOverrideForTesting {
+            return await override()
+        }
+        #endif
+        return await ClipboardSnapshotReader.shared.snapshot(caller: "recording start")
     }
 
     /// End the recording session
@@ -275,5 +304,152 @@ extension AccessibilityHelper {
 
         // Schedule the restoration
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+}
+
+// MARK: - Clipboard Snapshot Off the Main Actor (#879)
+
+/// What a pasteboard read got through, for the deadline log line. Counts only:
+/// never pasteboard data, never type names.
+final class ClipboardSnapshotProgress: @unchecked Sendable {
+    private struct Counts {
+        var itemCount = 0
+        var typeCount = 0
+    }
+
+    private let counts = OSAllocatedUnfairLock(initialState: Counts())
+
+    var itemCount: Int { counts.withLock { $0.itemCount } }
+    var typeCount: Int { counts.withLock { $0.typeCount } }
+
+    func setItemCount(_ count: Int) {
+        counts.withLock { $0.itemCount = count }
+    }
+
+    func addType() {
+        counts.withLock { $0.typeCount += 1 }
+    }
+}
+
+/// Copies the general pasteboard's data off the main actor, and stops waiting
+/// after a deadline (#879). The ONE implementation of that copy, shared by the
+/// recording-start snapshot (`AccessibilityHelper.startRecordingSession()`) and
+/// the streaming paste (`TextInputService`).
+///
+/// - The read runs on one dedicated serial queue (the `SimpleRecorder.recorderStartQueue`
+///   pattern), never on the main actor, and never two at once.
+/// - Past the deadline the caller gets nil, and a metadata-only line is logged.
+/// - A read cannot be cancelled: `data(forType:)` has no timeout. A read that
+///   returns after its caller gave up is thrown away, so it never reaches anyone's
+///   state. While such a read is still blocked, `snapshot` returns nil at once
+///   instead of queueing behind it, so a stuck pasteboard owner holds up no later
+///   recording or paste, and the queue never holds more than the stuck read plus
+///   reads that will skip their work when they reach the front.
+///
+/// The deadline protocol itself is `DeadlineGate`, shared with `RecorderStartGate`.
+///
+/// `@unchecked Sendable`: no mutable state of its own; `DeadlineGate` owns it.
+final class ClipboardSnapshotReader: @unchecked Sendable {
+
+    typealias Snapshot = [AccessibilityHelper.ClipboardItemData]
+
+    /// Reads the pasteboard. Runs on the reader's queue. Test seam: a test passes
+    /// a stub that blocks; production passes `readGeneralPasteboard`.
+    typealias Provider = @Sendable (ClipboardSnapshotProgress) -> Snapshot?
+
+    /// Ray, 2026-10-07 (#879, inbox ask #227): 1 s on both paths.
+    static let productionDeadline: Duration = .seconds(1)
+
+    static let shared = ClipboardSnapshotReader(
+        queue: DispatchQueue(label: "com.hyperwhisper.clipboard.snapshot", qos: .userInitiated),
+        deadline: productionDeadline
+    )
+
+    private let gate: DeadlineGate
+    private let deadlineNanoseconds: Int
+    private let logger = AppLogger.ui
+
+    init(queue: DispatchQueue, deadline: Duration) {
+        let deadlineNanoseconds = Self.nanoseconds(deadline)
+        self.deadlineNanoseconds = deadlineNanoseconds
+        // `.skip`: a read whose caller already gave up while it waited on the
+        // queue never touches the pasteboard, so reads do not pile up there.
+        self.gate = DeadlineGate(
+            queue: queue,
+            timeout: .nanoseconds(deadlineNanoseconds),
+            queuedPastDeadline: .skip
+        )
+    }
+
+    /// True while a read whose caller already gave up is still on the queue.
+    var hasAbandonedRead: Bool {
+        gate.hasAbandonedWork
+    }
+
+    /// The pasteboard's data, or nil when it is empty, when the read passed the
+    /// deadline, or when an earlier read is still stuck.
+    func snapshot(
+        caller: String,
+        provider: @escaping Provider = ClipboardSnapshotReader.generalPasteboardProvider
+    ) async -> Snapshot? {
+        let deadlineMs = deadlineNanoseconds / 1_000_000
+
+        if hasAbandonedRead {
+            logger.warning("📋 Clipboard snapshot skipped (\(caller, privacy: .public)): an earlier read is still blocked past its \(deadlineMs, privacy: .public) ms deadline; the clipboard will not be restored")
+            return nil
+        }
+
+        let progress = ClipboardSnapshotProgress()
+        let started = ContinuousClock.now
+
+        // A late read's data is dropped on the queue: the caller already got nil.
+        let outcome = await gate.run({ provider(progress) }, discardLate: { _ in })
+
+        switch outcome {
+        case .finished(let value):
+            return value
+        case .timedOut:
+            let elapsedMs = Self.nanoseconds(started.duration(to: .now)) / 1_000_000
+            let itemCount = progress.itemCount
+            let typeCount = progress.typeCount
+            logger.warning("📋 Clipboard snapshot passed its deadline (\(caller, privacy: .public)): items=\(itemCount, privacy: .public) types=\(typeCount, privacy: .public) elapsedMs=\(elapsedMs, privacy: .public) deadlineMs=\(deadlineMs, privacy: .public); the clipboard will not be restored")
+            return nil
+        }
+    }
+
+    /// The production provider, as a `@Sendable` value.
+    static let generalPasteboardProvider: Provider = { progress in
+        readGeneralPasteboard(progress)
+    }
+
+    /// The production read: every type of every item on the general pasteboard.
+    /// Blocking. Runs only on the reader's queue.
+    static func readGeneralPasteboard(_ progress: ClipboardSnapshotProgress) -> Snapshot? {
+        guard let items = NSPasteboard.general.pasteboardItems, !items.isEmpty else {
+            return nil
+        }
+        progress.setItemCount(items.count)
+
+        return items.compactMap { item -> AccessibilityHelper.ClipboardItemData? in
+            var dataByType: [NSPasteboard.PasteboardType: Data] = [:]
+
+            // Extract data for each type this item supports
+            for type in item.types {
+                progress.addType()
+                if let data = item.data(forType: type) {
+                    dataByType[type] = data
+                }
+            }
+
+            // Only include items that have at least one type with data
+            guard !dataByType.isEmpty else { return nil }
+
+            return AccessibilityHelper.ClipboardItemData(types: item.types, data: dataByType)
+        }
+    }
+
+    private static func nanoseconds(_ duration: Duration) -> Int {
+        let (seconds, attoseconds) = duration.components
+        return Int(seconds) * 1_000_000_000 + Int(attoseconds / 1_000_000_000)
     }
 }

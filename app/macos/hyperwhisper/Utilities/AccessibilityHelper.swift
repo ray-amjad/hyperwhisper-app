@@ -98,6 +98,16 @@ public class AccessibilityHelper {
     /// a Mac that grants Accessibility; that is why such a test skips when
     /// `AXIsProcessTrusted()`. Release has no such property.
     var canPasteOverrideForTesting: (@MainActor () -> Bool)?
+
+    /// TEST SEAM, Debug builds only. Always nil in the app. When set,
+    /// `startRecordingSession()` awaits it in place of
+    /// `ClipboardSnapshotReader.shared.snapshot(caller:)`, so a test can hold the
+    /// record-start read open, act while it is in flight, and choose when and in
+    /// which order the reads return (#879). It drives the guards around that
+    /// await: the generation guard, the changeCount guard (the test writes to the
+    /// real pasteboard), and the state reset before the await. Release has no
+    /// such property and always reads through the shared 1 s reader.
+    var recordingStartSnapshotOverrideForTesting: (@MainActor () async -> [ClipboardItemData]?)?
     #endif
 
     // MARK: - Permission Polling Management
