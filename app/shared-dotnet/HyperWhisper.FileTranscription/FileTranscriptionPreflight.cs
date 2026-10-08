@@ -286,7 +286,14 @@ public sealed class PortableFileTranscriptionPreflight
         }
         else
         {
-            modelId = requestedModel.Length == 0 ? descriptor.DefaultModel : requestedModel;
+            // A retired id resolves through the shared hw-catalog alias table first, the one
+            // Windows (ModeService, ModeEditorWindow) and macOS apply to a stored mode, so a
+            // Linux mode saved with Gemini `gemini-3-flash-preview` checks as gemini-3.8-flash
+            // instead of failing as model_unsupported.
+            modelId = requestedModel.Length == 0
+                ? descriptor.DefaultModel
+                : SharedCoreBridge.ResolveCloudSttModelAlias(
+                    requestedModel, CloudTranscriptionProviderIdentifiers.Of(provider));
             if (!descriptor.Models.Contains(modelId)) return TargetFailure(
                 FileTranscriptionPreflightError.ModelUnsupported, "file_preflight.model_unsupported",
                 "The selected transcription model is not supported by this provider.");
