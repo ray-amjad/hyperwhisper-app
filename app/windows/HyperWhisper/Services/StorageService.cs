@@ -156,8 +156,11 @@ public class StorageService
             MediaFoundationApi.Startup();
             try
             {
-                using var reader = new AudioFileReader(wavPath);
-                MediaFoundationEncoder.EncodeToAac(reader, outputPath);
+                // AudioFileDecoder, not AudioFileReader: a cloud-mode file import keeps the
+                // user's own WAV, and a WAVE_FORMAT_EXTENSIBLE one would go to ACM and fail
+                // (#1450). Stream is the AudioFileReader itself for every other file.
+                using var reader = AudioFileDecoder.Open(wavPath);
+                MediaFoundationEncoder.EncodeToAac(reader.Stream, outputPath);
             }
             finally
             {

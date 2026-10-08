@@ -802,9 +802,11 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     /// <returns>A MemoryStream containing a complete WAV file (16kHz mono 16-bit).</returns>
     private static Stream PrepareAudioStream(string audioPath)
     {
-        using var reader = new AudioFileReader(audioPath);
+        // AudioFileDecoder, not AudioFileReader: the Local API hands this method the
+        // caller's own file, and a WAVE_FORMAT_EXTENSIBLE WAV would go to ACM and fail (#1450).
+        using var reader = AudioFileDecoder.Open(audioPath);
 
-        ISampleProvider provider = reader;
+        ISampleProvider provider = reader.Samples;
 
         // Log conversion info
         if (reader.WaveFormat.SampleRate == 16000 && reader.WaveFormat.Channels == 1)
@@ -816,11 +818,8 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             LoggingService.Debug($"  Resampling from {reader.WaveFormat.SampleRate}Hz {reader.WaveFormat.Channels}ch to 16kHz mono");
         }
 
-        // Convert to mono if stereo
-        if (reader.WaveFormat.Channels > 1)
-        {
-            provider = provider.ToMono();
-        }
+        // Fold to mono by averaging every channel (NAudio's ToMono() throws on more than two)
+        provider = AudioFileDecoder.ToMono(provider);
 
         // Resample to 16kHz if needed
         if (reader.WaveFormat.SampleRate != 16000)
@@ -938,7 +937,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     {
         try
         {
-            using var reader = new AudioFileReader(audioPath);
+            using var reader = AudioFileDecoder.Open(audioPath);
             return reader.TotalTime.TotalSeconds;
         }
         catch (Exception ex)
