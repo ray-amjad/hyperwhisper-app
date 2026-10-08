@@ -85,7 +85,10 @@ public static class PostProcessingModelCatalog
         "gemma-3-12b-it" or "gemma-3-27b-it" => "gemini-3.8-flash",
         "gemini-3-pro-preview" => "gemini-3.1-pro-preview",
         "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
-        "gemini-2.0-flash" or "gemini-3-flash-preview" => "gemini-3.6-flash",
+        "gemini-2.0-flash" => "gemini-3.6-flash",
+        // Left the picker 2026-10. 3.8 Flash on every route: HyperWhisper Cloud does not
+        // serve 3.6 (PARITY: hw-catalog GEMINI_ALIASES, Windows, macOS).
+        "gemini-3-flash-preview" => "gemini-3.8-flash",
         "qwen/qwen3.6-27b" => "qwen/qwen3.8-27b",
         "gemini-2.0-flash-lite" => "gemini-3.1-flash-lite",
         _ => model,

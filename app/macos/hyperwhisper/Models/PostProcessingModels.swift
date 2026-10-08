@@ -382,8 +382,10 @@ struct PostProcessingModels {
             "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
             "gemini-2.0-flash": "gemini-3.6-flash",
             "gemini-2.0-flash-lite": "gemini-3.1-flash-lite",
-            // The preview left the picker 2026-10 for the GA 3.6 Flash.
-            "gemini-3-flash-preview": "gemini-3.6-flash",
+            // The preview left the picker 2026-10. 3.8 Flash on every route
+            // (HyperWhisper Cloud does not serve 3.6). PARITY: hw-catalog
+            // GEMINI_ALIASES, Windows MigrateModelId, shared-dotnet Migrate.
+            "gemini-3-flash-preview": "gemini-3.8-flash",
             // Gemma hosted models left the Gemini API 2026-03-08. 3.8 Flash, not
             // 2.5 Flash: Google gates 2.5 to past users since 2026-09-18 (#1019).
             // Matches Windows MigrateModelId, so a mode restored from Windows keeps

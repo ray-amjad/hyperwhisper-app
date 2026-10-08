@@ -1197,7 +1197,7 @@ internal static class Program
                     ("claude-haiku-4-5-20251001", "claude-haiku-5-5"),
                     ("claude-sonnet-4-5-20250929", "claude-sonnet-5-5"),
                     ("qwen/qwen3.6-27b", "qwen/qwen3.8-27b"),
-                    ("gemini-3-flash-preview", "gemini-3.6-flash"),
+                    ("gemini-3-flash-preview", "gemini-3.8-flash"),
                 };
 
                 foreach (var (oldId, replacement) in cases)

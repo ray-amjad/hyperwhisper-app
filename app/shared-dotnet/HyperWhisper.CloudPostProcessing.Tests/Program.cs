@@ -60,7 +60,7 @@ static Task TestModelRegistry()
         // 4 → 3: qwen/qwen3.6-27b removed 2026-10; Migrate sends it to qwen/qwen3.8-27b.
         [CloudPostProcessingProvider.Groq] = 3,
         [CloudPostProcessingProvider.Grok] = 3,
-        // 11 → 10: gemini-3-flash-preview removed 2026-10; Migrate sends it to gemini-3.6-flash.
+        // 11 → 10: gemini-3-flash-preview removed 2026-10; Migrate sends it to gemini-3.8-flash.
         [CloudPostProcessingProvider.Gemini] = 10,
         [CloudPostProcessingProvider.Cerebras] = 2,
         [CloudPostProcessingProvider.Mistral] = 2,
@@ -99,8 +99,8 @@ static Task TestModelRegistry()
     }
     Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Groq, "qwen/qwen3.6-27b") == "qwen/qwen3.8-27b",
         "qwen/qwen3.6-27b did not resolve to qwen/qwen3.8-27b");
-    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "gemini-3-flash-preview") == "gemini-3.6-flash",
-        "gemini-3-flash-preview did not resolve to gemini-3.6-flash");
+    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "gemini-3-flash-preview") == "gemini-3.8-flash",
+        "gemini-3-flash-preview did not resolve to gemini-3.8-flash");
     Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.OpenAi, "gpt-6-luna") == "gpt-6-luna",
         "gpt-6-luna is not a selectable row");
     return Task.CompletedTask;

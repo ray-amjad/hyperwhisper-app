@@ -386,9 +386,9 @@
       "displayName": "Gemini 3.6 Flash",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
-      "platforms": ["macos", "windows"],
+      "platforms": ["windows"],
       "supportsAllLanguages": true,
-      "notes": "BYOK transcription replacement for gemini-2.0-flash and, from 2026-10, for gemini-3-flash-preview (both alias here in hw-catalog model_alias.rs)."
+      "notes": "Windows BYOK transcription replacement for gemini-2.0-flash."
     },
 
     {

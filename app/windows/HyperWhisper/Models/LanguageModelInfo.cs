@@ -205,7 +205,9 @@ public class LanguageModelInfo
         "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
         "gemini-2.0-flash" => "gemini-3.6-flash",
         "gemini-2.0-flash-lite" => "gemini-3.1-flash-lite",
-        "gemini-3-flash-preview" => "gemini-3.6-flash",
+        // Left the picker 2026-10. 3.8 Flash on every route: HyperWhisper Cloud does not
+        // serve 3.6 (PARITY: hw-catalog GEMINI_ALIASES, macOS, shared-dotnet Migrate).
+        "gemini-3-flash-preview" => "gemini-3.8-flash",
         _ => oldId
     };
 

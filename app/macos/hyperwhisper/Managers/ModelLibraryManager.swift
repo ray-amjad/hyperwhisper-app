@@ -289,7 +289,6 @@ final class ModelLibraryManager: ObservableObject {
         "gemini-2.5-flash-lite":             (3, 3),
         "gemini-2.5-pro":                    (1, 5),
         "gemini-3.1-flash-lite":             (3, 4),
-        "gemini-3.6-flash":                  (2, 4),
         "gemini-3.1-pro-preview":            (1, 5),
         // HyperWhisper Cloud routed tiers (Azure MAI / Google Chirp). Chirp 3
         // is a high-accuracy but slow model: inline sync recognize runs ~3.5s
