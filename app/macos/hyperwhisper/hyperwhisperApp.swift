@@ -650,6 +650,15 @@ struct MenuBarIconView: View {
         cloudProviderHealthManager.refreshAll()
         cloudProviderHealthManager.refreshAllPostProcessing()
 
+        // LOCAL API STAGING SWEEP (issue #1484): delete the per-request audio
+        // folders a killed or crashed process left in $TMPDIR. Runs whether
+        // or not the server is on, since an earlier run may have left them.
+        // Off the main actor; it never removes this process's own folders,
+        // so it cannot race a request the server below starts meanwhile.
+        Task.detached(priority: .utility) {
+            LocalAPIStagingSweep.sweep()
+        }
+
         // LOCAL API SERVER: wire dependencies, then start the server if the
         // user toggle is on. The server stays off by default — Settings →
         // API Server flips `localAPIServerEnabled` and calls start()/stop().

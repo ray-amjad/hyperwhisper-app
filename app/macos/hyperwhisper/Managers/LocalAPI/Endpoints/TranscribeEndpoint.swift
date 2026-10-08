@@ -574,9 +574,12 @@ enum TranscribeEndpoint {
         }
     }
 
+    /// The folder name carries this process's pid so a later launch can tell a
+    /// folder a dead request left (issue #1484) from one another running copy
+    /// of the app is still using. `LocalAPIStagingSweep` owns the format.
     private static func makePrivateStagedAudioFile(fileExtension ext: String) throws -> StagedAudioFile {
         let directoryURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("hyperwhisper-local-api-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent(LocalAPIStagingSweep.directoryName(), isDirectory: true)
         try FileManager.default.createDirectory(
             at: directoryURL,
             withIntermediateDirectories: false,
