@@ -196,10 +196,15 @@ export async function callWithRetry(
 }
 
 /**
- * Check if an error should trigger provider fallback (5xx).
+ * Check if an error should trigger provider fallback: an LLMRequestError with a
+ * 5xx or a 429 status (#1565). A 429 is the provider rate-limiting us, and the
+ * fallback vendor has its own, separate rate limit, so a different vendor does
+ * fix it. Every other 4xx is our own bad request and stays excluded: a
+ * different vendor would reject it too.
  */
 export function shouldFallback(error: unknown): boolean {
-  return error instanceof LLMRequestError && error.status >= 500 && error.status <= 599;
+  if (!(error instanceof LLMRequestError)) return false;
+  return error.status === 429 || (error.status >= 500 && error.status <= 599);
 }
 
 export { buildCorrectionRequest };

@@ -21,7 +21,7 @@ const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai
 // to 2.5-flash/flash-lite, i.e. this repo already assumes a 3.x model may not
 // accept fully disabled thinking. No published source confirms whether the
 // OpenAI-compat surface accepts reasoning_effort: 'none' for a 3.x id, and a 400
-// here would NOT fall back — shouldFallback() retries 5xx only.
+// here would NOT fall back — shouldFallback() fails over on a 5xx or 429 only.
 const THINKING_DISABLED_PREFIXES = ['gemini-2.5-flash', 'gemini-3.8-flash'] as const;
 
 export async function requestGeminiChat(
