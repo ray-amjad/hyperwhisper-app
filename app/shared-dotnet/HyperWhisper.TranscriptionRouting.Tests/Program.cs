@@ -17,6 +17,10 @@ try
     await TestLocalVocabularyAsync(root);
     await TestParakeetProtocolAsync(root);
     await TestParakeetCancellationAsync(root);
+    TestParakeetResponseTimeoutFormula();
+    TestWaveFileDuration(root);
+    await TestParakeetScaledResponseTimeoutAsync(root);
+    await TestParakeetDisposeBoundedByFloorAsync(root);
     await TestParakeetLiveProtocolAsync(root);
     TestCredentials();
     TestDefaultModelVectors();
@@ -467,6 +471,198 @@ static async Task TestParakeetCancellationAsync(string root)
         "Parakeet cancellation did not terminate the daemon process tree structurally");
 }
 
+// #1569: the daemon answers once per whole-file request, so the wait must grow with
+// the audio. Pinned against literals, not a second call to the formula.
+static void TestParakeetResponseTimeoutFormula()
+{
+    var floor = ParakeetDaemonTimeouts.Default.Transcription;
+    Assert(floor == TimeSpan.FromSeconds(180), "the Parakeet response floor is no longer 180 s");
+    foreach (var unreadable in new double?[] { null, 0, -5, double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+        Assert(ParakeetDaemonTranscriber.ComputeResponseTimeout(floor, unreadable) == floor,
+            $"an unreadable duration ({unreadable}) did not keep the 180 s floor");
+    Assert(ParakeetDaemonTranscriber.ComputeResponseTimeout(floor, 1) == TimeSpan.FromSeconds(186),
+        "a 1 s clip no longer gets the floor plus 6 s");
+    var tenMinutes = ParakeetDaemonTranscriber.ComputeResponseTimeout(floor, 600);
+    Assert(tenMinutes > floor && tenMinutes == TimeSpan.FromSeconds(3780),
+        $"a 600 s file got {tenMinutes}, not floor + 600 * 6 s = 3780 s");
+    Assert(ParakeetDaemonTranscriber.ComputeResponseTimeout(floor, 3600) == TimeSpan.FromSeconds(21780),
+        "a one-hour file no longer gets floor + 3600 * 6 s");
+    Assert(ParakeetDaemonTranscriber.ComputeResponseTimeout(floor, 1e12) == TimeSpan.FromHours(24),
+        "a nonsense duration is not capped at 24 h");
+    // An injected test floor scales the same way.
+    Assert(ParakeetDaemonTranscriber.ComputeResponseTimeout(TimeSpan.FromMilliseconds(300), 60)
+        == TimeSpan.FromMilliseconds(900), "an injected floor does not scale as floor + seconds * floor / 30");
+}
+
+static void TestWaveFileDuration(string root)
+{
+    var directory = Path.Combine(root, "wave-duration");
+    Directory.CreateDirectory(directory);
+    string Write(string name, byte[] bytes)
+    {
+        var path = Path.Combine(directory, name);
+        File.WriteAllBytes(path, bytes);
+        return path;
+    }
+    static bool Near(double? value, double expected) => value is { } v && Math.Abs(v - expected) < 1e-9;
+
+    // A canonical 16 kHz mono PCM16 file, as recordings and the ffmpeg import write it.
+    var canonical = Write("canonical.wav", Wave(sampleRate: 16_000, dataBytes: 16_000 * 2 * 3));
+    Assert(Near(WaveFileDuration.TryReadSeconds(canonical), 3), "a canonical 3 s WAV was not read as 3 s");
+
+    // An odd-sized LIST chunk before the audio and a JUNK chunk after it are walked past.
+    var listChunk = Chunk("LIST", new byte[5]);
+    var withChunks = Write("chunks.wav", Wave(sampleRate: 48_000, dataBytes: 48_000 * 2 * 2,
+        before: listChunk, after: Chunk("JUNK", new byte[12]), channels: 2));
+    Assert(Near(WaveFileDuration.TryReadSeconds(withChunks), 1), "a WAV with LIST/JUNK chunks was misread");
+
+    // A crash-recovered recording declares 0 data bytes; a streamed header can declare more
+    // than the file holds. Both are measured to the end of the file.
+    var zeroDeclared = Wave(sampleRate: 16_000, dataBytes: 32_000 * 4);
+    BitConverter.GetBytes(0u).CopyTo(zeroDeclared, 40);
+    Assert(Near(WaveFileDuration.TryReadSeconds(Write("zero.wav", zeroDeclared)), 4),
+        "a zero data length was not measured to the end of the file");
+    var overDeclared = Wave(sampleRate: 16_000, dataBytes: 32_000 * 2);
+    BitConverter.GetBytes(uint.MaxValue).CopyTo(overDeclared, 40);
+    Assert(Near(WaveFileDuration.TryReadSeconds(Write("over.wav", overDeclared)), 2),
+        "an over-long data length was not clamped to the file");
+
+    // fmt after data is still found.
+    var fmtLast = new MemoryStream();
+    fmtLast.Write("RIFF"u8); fmtLast.Write(BitConverter.GetBytes(0u)); fmtLast.Write("WAVE"u8);
+    fmtLast.Write(Chunk("data", new byte[32_000]));
+    fmtLast.Write(Chunk("fmt ", Wave(16_000, 0)[20..36]));
+    Assert(Near(WaveFileDuration.TryReadSeconds(Write("fmt-last.wav", fmtLast.ToArray())), 1),
+        "a fmt chunk after the data chunk was not found");
+
+    // Everything unreadable is null, so the caller keeps its floor.
+    var zeroRate = Wave(sampleRate: 16_000, dataBytes: 3200);
+    BitConverter.GetBytes(0u).CopyTo(zeroRate, 28);
+    var noData = Wave(16_000, 0)[..36];
+    foreach (var (name, path) in new[]
+    {
+        ("missing", Path.Combine(directory, "missing.wav")),
+        ("one byte", Write("one.wav", [1])),
+        ("not RIFF", Write("song.mp3", Encoding.ASCII.GetBytes("ID3\u0004 not a wave file at all, really"))),
+        ("RIFF but not WAVE", Write("avi.wav", [.. "RIFF"u8, 0, 0, 0, 0, .. "AVI "u8, .. new byte[40]])),
+        ("zero byte rate", Write("zero-rate.wav", zeroRate)),
+        ("no data chunk", Write("no-data.wav", noData)),
+        ("truncated fmt", Write("truncated.wav", Wave(16_000, 0)[..30])),
+        ("directory", directory),
+    })
+        Assert(WaveFileDuration.TryReadSeconds(path) is null, $"an unreadable file ({name}) did not read as null");
+}
+
+// #1569 behaviour, not only the formula: a daemon that answers after the old fixed
+// wait (the floor) but inside the scaled one now succeeds for a long file, and the
+// same daemon still times out for a short one.
+static async Task TestParakeetScaledResponseTimeoutAsync(string root)
+{
+    var (executable, models) = await ParakeetFixtureAsync(root, "scaled");
+    var floor = TimeSpan.FromMilliseconds(400);
+    var replyDelay = TimeSpan.FromMilliseconds(1000);
+    var timeouts = new ParakeetDaemonTimeouts(TimeSpan.FromSeconds(5), floor, TimeSpan.FromMilliseconds(20));
+    var mode = new Mode { LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3" };
+
+    // 120 s of audio: 400 ms + 120 * 400 / 30 ms = 2000 ms, so a 1000 ms reply lands.
+    var longAudio = Path.Combine(root, "scaled-long.wav");
+    await File.WriteAllBytesAsync(longAudio, Wave(sampleRate: 100, dataBytes: 100 * 2 * 120));
+    var longProcess = new FakeProcess("{\"status\":\"ready\",\"provider\":\"cpu\"}\n",
+        delayedReply: ("{\"text\":\"long file words\"}\n", replyDelay));
+    using (var service = new ParakeetDaemonTranscriber(
+        new StaticRuntime(executable), new RecordingLauncher(longProcess), models, timeouts: timeouts))
+    {
+        var result = await service.TranscribeAsync(longAudio, new TranscriptionWorkflowRequest(SelectedMode: mode));
+        Assert(result.IsSuccess && result.Text == "long file words" && !longProcess.Terminated,
+            $"a reply after the floor but inside the scaled wait was lost: {result.Failure?.Message}");
+    }
+
+    // 1 s of audio: 400 ms + 13 ms, so the same 1000 ms reply is a timeout as before.
+    var shortAudio = Path.Combine(root, "scaled-short.wav");
+    await File.WriteAllBytesAsync(shortAudio, Wave(sampleRate: 100, dataBytes: 100 * 2));
+    var shortProcess = new FakeProcess("{\"status\":\"ready\",\"provider\":\"cpu\"}\n",
+        delayedReply: ("{\"text\":\"late words\"}\n", replyDelay));
+    using (var service = new ParakeetDaemonTranscriber(
+        new StaticRuntime(executable), new RecordingLauncher(shortProcess), models, timeouts: timeouts))
+    {
+        var result = await service.TranscribeAsync(shortAudio, new TranscriptionWorkflowRequest(SelectedMode: mode));
+        Assert(result.Failure?.Code == PortableTranscriptionErrorCode.TranscriptionFailed
+            && result.Failure.Message == "The Parakeet daemon timed out." && shortProcess.Terminated,
+            "a short clip no longer times out at the floor");
+    }
+}
+
+// #1569: Dispose (app exit, on the UI thread) must not wait out a long file's scaled
+// budget; as on main, it waits at most the floor, then the request ends as Cancelled.
+static async Task TestParakeetDisposeBoundedByFloorAsync(string root)
+{
+    var (executable, models) = await ParakeetFixtureAsync(root, "dispose");
+    var audio = Path.Combine(root, "dispose-long.wav");
+    // 3000 s of audio at a 300 ms floor: a 30.3 s scaled budget.
+    await File.WriteAllBytesAsync(audio, Wave(sampleRate: 10, dataBytes: 10 * 2 * 3000));
+    var process = new FakeProcess("{\"status\":\"ready\",\"provider\":\"cpu\"}\n", blockAfterContent: true);
+    var service = new ParakeetDaemonTranscriber(
+        new StaticRuntime(executable), new RecordingLauncher(process), models,
+        timeouts: new(TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(300), TimeSpan.FromMilliseconds(20)));
+    var request = service.TranscribeAsync(audio, new TranscriptionWorkflowRequest(
+        SelectedMode: new Mode { LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3" }));
+    await Task.Delay(100);
+    var clock = System.Diagnostics.Stopwatch.StartNew();
+    await Task.Run(service.Dispose).WaitAsync(TimeSpan.FromSeconds(10));
+    clock.Stop();
+    var result = await request.WaitAsync(TimeSpan.FromSeconds(10));
+    Assert(clock.Elapsed < TimeSpan.FromSeconds(3),
+        $"Dispose waited {clock.Elapsed} for a long request, not about the 300 ms floor");
+    Assert(result.Failure?.Code == PortableTranscriptionErrorCode.Cancelled && process.Terminated,
+        $"a request ended by Dispose was not Cancelled with the daemon killed: {result.Failure?.Code}");
+}
+
+static async Task<(string Executable, string Models)> ParakeetFixtureAsync(string root, string name)
+{
+    var executable = Path.Combine(root, name + "-engine");
+    await File.WriteAllBytesAsync(executable, [1]);
+    var models = Path.Combine(root, name + "-models");
+    var modelDirectory = Path.Combine(models, "Parakeet", "parakeet-v3");
+    Directory.CreateDirectory(modelDirectory);
+    foreach (var file in new[] { "encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "tokens.txt" })
+        await File.WriteAllBytesAsync(Path.Combine(modelDirectory, file), [1]);
+    return (executable, models);
+}
+
+static byte[] Chunk(string id, byte[] body)
+{
+    var chunk = new MemoryStream();
+    chunk.Write(Encoding.ASCII.GetBytes(id));
+    chunk.Write(BitConverter.GetBytes((uint)body.Length));
+    chunk.Write(body);
+    if ((body.Length & 1) != 0) chunk.WriteByte(0);
+    return chunk.ToArray();
+}
+
+// A PCM16 WAV: the canonical 44-byte layout unless extra chunks are given.
+static byte[] Wave(int sampleRate, int dataBytes, byte[]? before = null, byte[]? after = null, short channels = 1)
+{
+    var format = new MemoryStream();
+    format.Write(BitConverter.GetBytes((ushort)1));
+    format.Write(BitConverter.GetBytes((ushort)channels));
+    format.Write(BitConverter.GetBytes((uint)sampleRate));
+    format.Write(BitConverter.GetBytes((uint)(sampleRate * channels * 2)));
+    format.Write(BitConverter.GetBytes((ushort)(channels * 2)));
+    format.Write(BitConverter.GetBytes((ushort)16));
+    var body = new MemoryStream();
+    body.Write("WAVE"u8);
+    body.Write(Chunk("fmt ", format.ToArray()));
+    if (before is not null) body.Write(before);
+    body.Write(Chunk("data", new byte[dataBytes]));
+    if (after is not null) body.Write(after);
+    var file = new MemoryStream();
+    file.Write("RIFF"u8);
+    file.Write(BitConverter.GetBytes((uint)body.Length));
+    body.Position = 0;
+    body.CopyTo(file);
+    return file.ToArray();
+}
+
 static void TestCredentials()
 {
     var store = new MemoryCredentials();
@@ -568,11 +764,14 @@ sealed class RecordingLauncher(FakeProcess process) : IChildProcessLauncher
     { Request = request; return PlatformResult<IChildProcess>.Success(process); }
 }
 
-sealed class FakeProcess(string stdout, bool blockAfterContent = false) : IChildProcess
+sealed class FakeProcess(
+    string stdout, bool blockAfterContent = false, (string Line, TimeSpan Delay)? delayedReply = null) : IChildProcess
 {
     public MemoryStream Input { get; } = new();
     public bool Terminated { get; private set; }
-    private readonly Stream _output = blockAfterContent
+    private readonly Stream _output = delayedReply is { } reply
+        ? new PrefixThenDelayedReplyStream(Encoding.UTF8.GetBytes(stdout), Encoding.UTF8.GetBytes(reply.Line), reply.Delay)
+        : blockAfterContent
         ? new PrefixThenBlockStream(Encoding.UTF8.GetBytes(stdout))
         : new MemoryStream(Encoding.UTF8.GetBytes(stdout));
     public int Id => 42;
@@ -600,6 +799,39 @@ sealed class PrefixThenBlockStream(byte[] prefix) : Stream
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
         var read = await _prefix.ReadAsync(buffer, cancellationToken);
+        if (read > 0) return read;
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        return 0;
+    }
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+}
+
+// Serves the prefix (the daemon's ready line), then answers the next read only after
+// the delay, measured from when that read starts: a daemon that is slow to transcribe.
+sealed class PrefixThenDelayedReplyStream(byte[] prefix, byte[] reply, TimeSpan delay) : Stream
+{
+    private readonly MemoryStream _prefix = new(prefix);
+    private readonly MemoryStream _reply = new(reply);
+    private bool _delayed;
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+    public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        var read = await _prefix.ReadAsync(buffer, cancellationToken);
+        if (read > 0) return read;
+        if (!_delayed)
+        {
+            await Task.Delay(delay, cancellationToken);
+            _delayed = true;
+        }
+        read = await _reply.ReadAsync(buffer, cancellationToken);
         if (read > 0) return read;
         await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         return 0;
