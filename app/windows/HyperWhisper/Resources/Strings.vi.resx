@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Không khả dụng trên hồ sơ thử nghiệm. Bản dựng này dùng một thư mục dữ liệu ứng dụng riêng, nên không thay đổi mục đăng nhập của ứng dụng đã cài đặt.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Khởi động ở trạng thái tối thiểu</value>
   </data>

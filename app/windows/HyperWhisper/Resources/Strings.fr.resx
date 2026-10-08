@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Démarrer HyperWhisper automatiquement à votre connexion.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Indisponible sur un profil de test. Cette version utilise un dossier de données d'application distinct et ne modifie donc pas l'entrée de connexion de l'application installée.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Lancer réduit</value>
   </data>

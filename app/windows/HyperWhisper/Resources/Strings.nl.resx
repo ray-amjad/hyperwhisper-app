@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatisch wanneer je je aanmeldt.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Niet beschikbaar in een testprofiel. Deze build gebruikt een aparte map voor app-gegevens en wijzigt daarom de aanmeldingsvermelding van de geïnstalleerde app niet.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Geminimaliseerd starten</value>
   </data>

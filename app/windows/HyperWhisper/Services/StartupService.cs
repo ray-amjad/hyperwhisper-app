@@ -23,6 +23,14 @@ namespace HyperWhisper.Services;
 /// - Task Scheduler: More complex, overkill for simple startup
 /// - Startup folder shortcut: Less reliable, can be cleared by cleanup tools
 /// - HKLM Run key: Requires admin, affects all users
+///
+/// ISOLATED PROFILES (#1471):
+/// The Run value name "HyperWhisper" is shared by every copy of the app for
+/// this Windows user, including the installed one. A build started with an
+/// overridden app-data root (<see cref="AppPaths.IsAppDataRootOverridden"/>)
+/// must not read, write or delete it: the value cannot carry the override, so
+/// such a build would report and change the INSTALLED app's login entry. Every
+/// member below refuses under the override, so no caller can reach the key.
 /// </summary>
 public class StartupService : PlatformContracts.IAutostartService
 {
@@ -82,13 +90,27 @@ public class StartupService : PlatformContracts.IAutostartService
     // =========================================================================
 
     /// <summary>
+    /// False when this build runs on an isolated app-data profile. The shared
+    /// Run value then belongs to another copy of the app, so this build never
+    /// reads, writes or deletes it, and Settings shows the option disabled.
+    /// </summary>
+    public static bool IsAvailable => !AppPaths.IsAppDataRootOverridden;
+
+    /// <summary>
     /// Gets whether the app is currently registered to start with Windows.
     /// Reads directly from the registry to ensure accuracy.
+    /// Always false on an isolated profile, without reading the registry.
     /// </summary>
     public bool IsEnabled
     {
         get
         {
+            if (!IsAvailable)
+            {
+                LoggingService.Debug("StartupService: isolated app-data profile - not reading the shared Run value");
+                return false;
+            }
+
             try
             {
                 using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, false);
@@ -115,9 +137,15 @@ public class StartupService : PlatformContracts.IAutostartService
     /// <summary>
     /// Enables launch at startup by adding the app to the registry Run key.
     /// </summary>
-    /// <returns>True if successful, false otherwise.</returns>
+    /// <returns>True if successful, false otherwise (and always false on an isolated profile).</returns>
     public bool Enable()
     {
+        if (!IsAvailable)
+        {
+            LoggingService.Warn("StartupService: isolated app-data profile - refusing to write the shared Run value");
+            return false;
+        }
+
         try
         {
             // Get the path to the current executable
@@ -158,9 +186,15 @@ public class StartupService : PlatformContracts.IAutostartService
     /// <summary>
     /// Disables launch at startup by removing the app from the registry Run key.
     /// </summary>
-    /// <returns>True if successful, false otherwise.</returns>
+    /// <returns>True if successful, false otherwise (and always false on an isolated profile).</returns>
     public bool Disable()
     {
+        if (!IsAvailable)
+        {
+            LoggingService.Warn("StartupService: isolated app-data profile - refusing to delete the shared Run value");
+            return false;
+        }
+
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, true);
@@ -200,18 +234,33 @@ public class StartupService : PlatformContracts.IAutostartService
         => PlatformContracts.PlatformResult<bool>.Success(IsEnabled);
 
     PlatformContracts.PlatformResult PlatformContracts.IAutostartService.Enable()
-        => Enable()
-            ? PlatformContracts.PlatformResult.Success()
-            : PlatformContracts.PlatformResult.Failure(
-                "autostart.enable_failed",
-                "Windows could not enable launch at sign-in.");
+        => !IsAvailable
+            ? IsolatedProfileFailure()
+            : Enable()
+                ? PlatformContracts.PlatformResult.Success()
+                : PlatformContracts.PlatformResult.Failure(
+                    "autostart.enable_failed",
+                    "Windows could not enable launch at sign-in.");
 
     PlatformContracts.PlatformResult PlatformContracts.IAutostartService.Disable()
-        => Disable()
-            ? PlatformContracts.PlatformResult.Success()
-            : PlatformContracts.PlatformResult.Failure(
-                "autostart.disable_failed",
-                "Windows could not disable launch at sign-in.");
+        => !IsAvailable
+            ? IsolatedProfileFailure()
+            : Disable()
+                ? PlatformContracts.PlatformResult.Success()
+                : PlatformContracts.PlatformResult.Failure(
+                    "autostart.disable_failed",
+                    "Windows could not disable launch at sign-in.");
+
+    /// <summary>Failure code for a refused call on an isolated app-data profile.</summary>
+    public const string IsolatedProfileFailureCode = "autostart.isolated_profile";
+
+    private static PlatformContracts.PlatformResult IsolatedProfileFailure()
+    {
+        LoggingService.Warn("StartupService: isolated app-data profile - launch at sign-in is not available");
+        return PlatformContracts.PlatformResult.Failure(
+            IsolatedProfileFailureCode,
+            "Launch at sign-in is not available on an isolated app-data profile.");
+    }
 
     // =========================================================================
     // PRIVATE METHODS

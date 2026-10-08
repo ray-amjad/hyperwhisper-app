@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Не е налично в тестов профил. Тази компилация използва отделна папка с данни на приложението, затова не променя записа за влизане на инсталираното приложение.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Стартиране минимизирано</value>
   </data>

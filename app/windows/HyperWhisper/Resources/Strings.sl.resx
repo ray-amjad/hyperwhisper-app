@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Ni na voljo v preskusnem profilu. Ta različica uporablja ločeno mapo s podatki aplikacije, zato ne spremeni vnosa za prijavo nameščene aplikacije.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Zaženi minimiziran</value>
   </data>

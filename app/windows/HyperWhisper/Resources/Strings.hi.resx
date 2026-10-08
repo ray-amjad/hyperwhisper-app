@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>परीक्षण प्रोफ़ाइल पर उपलब्ध नहीं है। यह बिल्ड एक अलग ऐप-डेटा फ़ोल्डर का उपयोग करता है, इसलिए यह इंस्टॉल किए गए ऐप की लॉगिन प्रविष्टि नहीं बदलता।</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>न्यूनतम किया हुआ लॉन्च करें</value>
   </data>

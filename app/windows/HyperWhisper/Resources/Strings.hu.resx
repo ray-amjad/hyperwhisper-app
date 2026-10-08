@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Tesztprofilon nem érhető el. Ez a build külön alkalmazásadat-mappát használ, ezért nem módosítja a telepített alkalmazás bejelentkezési bejegyzését.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Indítás kis méretben</value>
   </data>

@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>HyperWhisper automatisch bei der Anmeldung starten.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>Nicht verfügbar in einem Testprofil. Dieser Build verwendet einen separaten App-Datenordner und ändert daher nicht den Anmeldeeintrag der installierten App.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>Start minimiert</value>
   </data>

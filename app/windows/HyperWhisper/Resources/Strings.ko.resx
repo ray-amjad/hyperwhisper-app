@@ -367,6 +367,9 @@
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
+  <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
+    <value>테스트 프로필에서는 사용할 수 없습니다. 이 빌드는 별도의 앱 데이터 폴더를 사용하므로 설치된 앱의 로그인 항목을 변경하지 않습니다.</value>
+  </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
     <value>최소화 상태로 실행</value>
   </data>
