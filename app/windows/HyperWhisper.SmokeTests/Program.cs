@@ -4652,7 +4652,7 @@ internal static class Program
                 var interleaved = new[] { 1f, 3f, 5f, 7f, 9f, 11f, 13f, 15f, 17f, 19f };
                 // The first read is ONE sample of a two-sample frame.
                 var source = new ChoppySampleProvider(interleaved, 2, [1, 2, 3, 4]);
-                var fold = new TranscriptionDiagnosticsService.MonoFoldSampleProvider(source);
+                var fold = new MonoFoldSampleProvider(source);
 
                 var buffer = new float[16];
                 var produced = new List<float>();
@@ -4672,6 +4672,237 @@ internal static class Program
                     var expected = 2f + (4f * i);
                     Assert(Math.Abs(produced[i] - expected) < 1e-6,
                         $"frame {i} should be {expected}, got {produced[i]} - the frames are channel-rotated");
+                }
+            });
+
+            Run("FileTranscriptionService converts a 48 kHz 6-channel WAVE_FORMAT_EXTENSIBLE PCM WAV to 16 kHz mono (#1450)", () =>
+            {
+                // ffmpeg writes every WAV with more than two channels as WAVE_FORMAT_EXTENSIBLE.
+                // AudioFileReader sent that tag to ACM, which failed at once with "NoDriver
+                // calling acmFormatSuggest", and past that ToMono() threw on six channels.
+                var wavPath = TempWav("Extensible.6ch.Pcm16");
+                string? converted = null;
+                try
+                {
+                    WriteExtensibleWav(wavPath, 48000, 6, 16, ExtensiblePcmSubFormat, 96000, SpeechLikeChannelSample);
+
+                    var duration = FileTranscriptionService.GetAudioDuration(wavPath);
+                    Assert(duration.IsSuccess, $"GetAudioDuration failed on the source file: {duration.Error}");
+                    Assert(Math.Abs(duration.Value - 2.0) < 0.001,
+                        $"the source holds 96000 frames at 48 kHz (2.0 s), GetAudioDuration said {duration.Value}");
+
+                    var result = FileTranscriptionService.ConvertToWhisperFormatAsync(wavPath).GetAwaiter().GetResult();
+                    Assert(result.IsSuccess, $"conversion failed: {result.Error}");
+                    converted = result.Value!;
+                    Assert(!string.Equals(converted, wavPath, StringComparison.OrdinalIgnoreCase),
+                        "a 48 kHz 6-channel file must be converted, not passed through");
+
+                    // The six channels carry the same sine at 1/6 .. 6/6 of 0.5, so the average
+                    // is 0.5 * 3.5 / 6 = 0.29. Channel 0 alone would be 0.083 and a sum 1.75.
+                    AssertWhisperWav(converted, 2.0, 0.5 * 3.5 / 6);
+
+                    var convertedDuration = FileTranscriptionService.GetAudioDuration(converted);
+                    Assert(convertedDuration.IsSuccess && Math.Abs(convertedDuration.Value - 2.0) < 0.05,
+                        $"the converted file should last ~2.0 s, GetAudioDuration said {convertedDuration.Value}");
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                    if (converted != null && converted != wavPath)
+                    {
+                        TryDelete(converted);
+                    }
+                }
+            });
+
+            Run("FileTranscriptionService folds a 6-channel plain-PCM WAV to mono (#1450)", () =>
+            {
+                // The plain tag decoded fine; NAudio's ToMono() then threw NotImplementedException
+                // because it handles exactly two channels.
+                var wavPath = TempWav("Plain.6ch.Pcm16");
+                string? converted = null;
+                try
+                {
+                    var format = new NAudio.Wave.WaveFormat(48000, 16, 6);
+                    using (var writer = new NAudio.Wave.WaveFileWriter(wavPath, format))
+                    {
+                        var frame = new float[6];
+                        for (var i = 0; i < 48000; i++)
+                        {
+                            for (var c = 0; c < 6; c++)
+                            {
+                                frame[c] = (float)SpeechLikeChannelSample(i, c, 6, 48000);
+                            }
+
+                            writer.WriteSamples(frame, 0, 6);
+                        }
+                    }
+
+                    var result = FileTranscriptionService.ConvertToWhisperFormatAsync(wavPath).GetAwaiter().GetResult();
+                    Assert(result.IsSuccess, $"conversion failed: {result.Error}");
+                    converted = result.Value!;
+                    AssertWhisperWav(converted, 1.0, 0.5 * 3.5 / 6);
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                    if (converted != null && converted != wavPath)
+                    {
+                        TryDelete(converted);
+                    }
+                }
+            });
+
+            Run("FileTranscriptionService converts a stereo WAVE_FORMAT_EXTENSIBLE float WAV (#1450)", () =>
+            {
+                // Some recorders write stereo as Extensible too, with an IEEE float SubFormat.
+                var wavPath = TempWav("Extensible.2ch.Float32");
+                string? converted = null;
+                try
+                {
+                    WriteExtensibleWav(wavPath, 44100, 2, 32, ExtensibleIeeeFloatSubFormat, 44100, SpeechLikeChannelSample);
+
+                    var duration = FileTranscriptionService.GetAudioDuration(wavPath);
+                    Assert(duration.IsSuccess && Math.Abs(duration.Value - 1.0) < 0.001,
+                        $"expected a 1.0 s duration, got {(duration.IsSuccess ? duration.Value : duration.Error)}");
+
+                    var result = FileTranscriptionService.ConvertToWhisperFormatAsync(wavPath).GetAwaiter().GetResult();
+                    Assert(result.IsSuccess, $"conversion failed: {result.Error}");
+                    converted = result.Value!;
+                    // 0.5 * (1/2 + 2/2) / 2 = 0.375.
+                    AssertWhisperWav(converted, 1.0, 0.375);
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                    if (converted != null && converted != wavPath)
+                    {
+                        TryDelete(converted);
+                    }
+                }
+            });
+
+            Run("TranscriptionService decodes a 6-channel WAVE_FORMAT_EXTENSIBLE WAV for Whisper (#1450)", () =>
+            {
+                // The Local API hands TranscriptionService the caller's own file, so its
+                // PrepareAudioStream and duration probe see Extensible WAVs directly.
+                var wavPath = TempWav("Extensible.6ch.Whisper");
+                try
+                {
+                    WriteExtensibleWav(wavPath, 48000, 6, 16, ExtensiblePcmSubFormat, 48000, SpeechLikeChannelSample);
+
+                    const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
+                    var prepare = typeof(TranscriptionService).GetMethod("PrepareAudioStream", flags)
+                        ?? throw new InvalidOperationException("TranscriptionService.PrepareAudioStream not found");
+                    var probe = typeof(TranscriptionService).GetMethod("GetAudioDurationSeconds", flags)
+                        ?? throw new InvalidOperationException("TranscriptionService.GetAudioDurationSeconds not found");
+
+                    var seconds = (double)probe.Invoke(null, new object[] { wavPath })!;
+                    // The old fallback guessed from the file size as 16 kHz mono: ~18 s here.
+                    Assert(Math.Abs(seconds - 1.0) < 0.001, $"expected a 1.0 s duration probe, got {seconds}");
+
+                    using var stream = (Stream)prepare.Invoke(null, new object[] { wavPath })!;
+                    using var reader = new NAudio.Wave.WaveFileReader(stream);
+                    Assert(reader.WaveFormat.SampleRate == 16000 && reader.WaveFormat.Channels == 1 &&
+                           reader.WaveFormat.BitsPerSample == 16,
+                        $"expected 16 kHz mono 16-bit, got {reader.WaveFormat}");
+                    Assert(Math.Abs(reader.TotalTime.TotalSeconds - 1.0) < 0.05,
+                        $"expected ~1.0 s of audio, got {reader.TotalTime.TotalSeconds}");
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                }
+            });
+
+            Run("TranscriptionDiagnosticsService.AnalyzeAudioFile reads a WAVE_FORMAT_EXTENSIBLE WAV (#1450)", () =>
+            {
+                var wavPath = TempWav("Extensible.6ch.Diagnostics");
+                try
+                {
+                    WriteExtensibleWav(wavPath, 48000, 6, 16, ExtensiblePcmSubFormat, 48000, SpeechLikeChannelSample);
+
+                    var diagnostics = TranscriptionDiagnosticsService.AnalyzeAudioFile(wavPath, null);
+                    Assert(diagnostics.AnalysisSucceeded,
+                        $"a readable Extensible WAV must analyze, got error '{diagnostics.AnalysisError}'");
+                    Assert(diagnostics.Channels == 6 && diagnostics.SampleRate == 48000,
+                        $"expected the source 48 kHz 6ch, got {diagnostics.SampleRate} Hz {diagnostics.Channels}ch");
+                    Assert(diagnostics.DecodedSampleCount == 48000,
+                        $"expected 48000 folded mono frames, got {diagnostics.DecodedSampleCount}");
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                }
+            });
+
+            Run("AudioFileDecoder relabels only Extensible PCM and float WAVs; compressed WAVs keep ACM (#1450)", () =>
+            {
+                var pcmPath = TempWav("Extensible.Relabel.Pcm24");
+                var muLawExtensiblePath = TempWav("Extensible.Relabel.MuLaw");
+                var muLawPath = TempWav("Plain.MuLaw");
+                string? converted = null;
+                try
+                {
+                    WriteExtensibleWav(pcmPath, 48000, 6, 24, ExtensiblePcmSubFormat, 4800, SpeechLikeChannelSample);
+                    using (var reader = new NAudio.Wave.WaveFileReader(pcmPath))
+                    {
+                        Assert(reader.WaveFormat.Encoding == NAudio.Wave.WaveFormatEncoding.Extensible,
+                            "the fixture must really be WAVE_FORMAT_EXTENSIBLE");
+                        var plain = AudioFileDecoder.TryGetPlainFormat(reader.WaveFormat);
+                        Assert(plain != null && plain.Encoding == NAudio.Wave.WaveFormatEncoding.Pcm &&
+                               plain.BitsPerSample == 24 && plain.Channels == 6 && plain.BlockAlign == 18,
+                            $"a 24-bit PCM Extensible format should relabel to plain 24-bit PCM, got {plain}");
+                    }
+
+                    using (var decoded = AudioFileDecoder.Open(pcmPath))
+                    {
+                        Assert(decoded.WaveFormat.Channels == 6 && decoded.WaveFormat.SampleRate == 48000,
+                            $"samples keep the source rate and channel count, got {decoded.WaveFormat}");
+                        Assert(Math.Abs(decoded.TotalTime.TotalSeconds - 0.1) < 0.0005,
+                            $"expected 0.1 s, got {decoded.TotalTime.TotalSeconds}");
+                        // History playback: more than two channels plays as mono.
+                        var playback = AudioPlaybackService.CreatePlaybackProvider(decoded);
+                        Assert(playback.WaveFormat.Channels == 1, $"expected mono playback, got {playback.WaveFormat}");
+                    }
+
+                    // An Extensible header whose SubFormat is a codec (mu-law here) is not plain
+                    // samples, so it must not be relabelled.
+                    var muLawSubFormat = new Guid("00000007-0000-0010-8000-00aa00389b71");
+                    WriteExtensibleWav(muLawExtensiblePath, 8000, 1, 8, muLawSubFormat, 800, (_, _, _, _) => 0);
+                    using (var reader = new NAudio.Wave.WaveFileReader(muLawExtensiblePath))
+                    {
+                        Assert(AudioFileDecoder.TryGetPlainFormat(reader.WaveFormat) == null,
+                            "an Extensible mu-law format must keep the ACM path");
+                    }
+
+                    // A plain compressed WAV still decodes through ACM exactly as before.
+                    using (var writer = new NAudio.Wave.WaveFileWriter(muLawPath, NAudio.Wave.WaveFormat.CreateMuLawFormat(8000, 1)))
+                    {
+                        var bytes = new byte[8000];
+                        for (var i = 0; i < bytes.Length; i++)
+                        {
+                            bytes[i] = NAudio.Codecs.MuLawEncoder.LinearToMuLawSample(
+                                (short)(8000 * Math.Sin(2 * Math.PI * 440 * i / 8000.0)));
+                        }
+
+                        writer.Write(bytes, 0, bytes.Length);
+                    }
+
+                    var result = FileTranscriptionService.ConvertToWhisperFormatAsync(muLawPath).GetAwaiter().GetResult();
+                    Assert(result.IsSuccess, $"a mu-law WAV should still convert through ACM: {result.Error}");
+                    converted = result.Value!;
+                    AssertWhisperWav(converted, 1.0, 8000 / 32768.0);
+                }
+                finally
+                {
+                    TryDelete(pcmPath);
+                    TryDelete(muLawExtensiblePath);
+                    TryDelete(muLawPath);
+                    if (converted != null)
+                    {
+                        TryDelete(converted);
+                    }
                 }
             });
 
@@ -17061,6 +17292,141 @@ internal static class Program
         }
 
         return recorder;
+    }
+
+    private static readonly Guid ExtensiblePcmSubFormat = new("00000001-0000-0010-8000-00aa00389b71");
+    private static readonly Guid ExtensibleIeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
+
+    private static string TempWav(string label) =>
+        Path.Combine(Path.GetTempPath(), $"HyperWhisper.SmokeTests.{label}.{Guid.NewGuid():N}.wav");
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch
+        {
+            // Best-effort cleanup; a leftover temp file must not fail CI.
+        }
+    }
+
+    /// <summary>
+    /// A 440 Hz sine on every channel, channel c at (c + 1) / channels of 0.5, so the mean
+    /// across channels differs from any one channel and from their sum.
+    /// </summary>
+    private static double SpeechLikeChannelSample(int frame, int channel, int channels, int sampleRate) =>
+        0.5 * (channel + 1) / channels * Math.Sin(2 * Math.PI * 440 * frame / sampleRate);
+
+    /// <summary>
+    /// Writes a WAV with a 40-byte WAVE_FORMAT_EXTENSIBLE fmt chunk, the layout ffmpeg
+    /// writes for any WAV with more than two channels. Written by hand so the fixture does
+    /// not depend on how NAudio serializes its own WaveFormatExtensible.
+    /// </summary>
+    private static void WriteExtensibleWav(
+        string path,
+        int sampleRate,
+        int channels,
+        int bitsPerSample,
+        Guid subFormat,
+        int frames,
+        Func<int, int, int, int, double> sample)
+    {
+        var bytesPerSample = bitsPerSample / 8;
+        var blockAlign = channels * bytesPerSample;
+        var dataBytes = frames * blockAlign;
+        var isFloat = subFormat == ExtensibleIeeeFloatSubFormat;
+
+        using var stream = File.Create(path);
+        using var w = new BinaryWriter(stream);
+        w.Write("RIFF"u8.ToArray());
+        w.Write(4 + (8 + 40) + (8 + dataBytes));
+        w.Write("WAVE"u8.ToArray());
+        w.Write("fmt "u8.ToArray());
+        w.Write(40);
+        w.Write((ushort)0xFFFE);
+        w.Write((ushort)channels);
+        w.Write(sampleRate);
+        w.Write(sampleRate * blockAlign);
+        w.Write((ushort)blockAlign);
+        w.Write((ushort)bitsPerSample);
+        w.Write((ushort)22);
+        w.Write((ushort)bitsPerSample);
+        w.Write(channels == 6 ? 0x3F : (1 << channels) - 1);
+        w.Write(subFormat.ToByteArray());
+        w.Write("data"u8.ToArray());
+        w.Write(dataBytes);
+
+        for (var i = 0; i < frames; i++)
+        {
+            for (var c = 0; c < channels; c++)
+            {
+                var value = Math.Clamp(sample(i, c, channels, sampleRate), -1.0, 1.0);
+                if (isFloat)
+                {
+                    w.Write((float)value);
+                }
+                else if (bitsPerSample == 16)
+                {
+                    w.Write((short)Math.Round(value * short.MaxValue));
+                }
+                else if (bitsPerSample == 24)
+                {
+                    var v = (int)Math.Round(value * 8388607);
+                    w.Write((byte)v);
+                    w.Write((byte)(v >> 8));
+                    w.Write((byte)(v >> 16));
+                }
+                else if (bitsPerSample == 8)
+                {
+                    w.Write((byte)(128 + Math.Round(value * 127)));
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(bitsPerSample));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Asserts <paramref name="path"/> is the 16 kHz mono 16-bit PCM WAV local engines need,
+    /// of about <paramref name="expectedSeconds"/>, with a sine peak near
+    /// <paramref name="expectedPeak"/>.
+    /// </summary>
+    private static void AssertWhisperWav(string path, double expectedSeconds, double expectedPeak)
+    {
+        using var reader = new NAudio.Wave.WaveFileReader(path);
+        var format = reader.WaveFormat;
+        Assert(format.Encoding == NAudio.Wave.WaveFormatEncoding.Pcm && format.SampleRate == 16000 &&
+               format.Channels == 1 && format.BitsPerSample == 16,
+            $"expected 16 kHz mono 16-bit PCM, got {format.Encoding} {format.SampleRate} Hz {format.Channels}ch {format.BitsPerSample}-bit");
+        Assert(Math.Abs(reader.TotalTime.TotalSeconds - expectedSeconds) < 0.05,
+            $"expected ~{expectedSeconds} s, got {reader.TotalTime.TotalSeconds}");
+
+        var samples = NAudio.Wave.WaveExtensionMethods.ToSampleProvider(reader);
+        var buffer = new float[4096];
+        double peak = 0;
+        double sumSquares = 0;
+        long count = 0;
+        int read;
+        while ((read = samples.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            for (var i = 0; i < read; i++)
+            {
+                peak = Math.Max(peak, Math.Abs(buffer[i]));
+                sumSquares += buffer[i] * (double)buffer[i];
+                count++;
+            }
+        }
+
+        var rms = count == 0 ? 0 : Math.Sqrt(sumSquares / count);
+        Assert(Math.Abs(peak - expectedPeak) < expectedPeak * 0.1,
+            $"expected a peak near {expectedPeak:F3}, got {peak:F3}");
+        // A full-length sine has RMS = peak / sqrt(2); silence or a short burst would not.
+        Assert(rms > expectedPeak * 0.6,
+            $"expected a non-silent signal throughout (RMS > {expectedPeak * 0.6:F3}), got {rms:F3}");
     }
 
     private static void Run(string name, Action check)
