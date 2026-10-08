@@ -142,14 +142,28 @@ final class LlamaServerController: ObservableObject {
     // PID file is used to track the llama-server process across app sessions.
     // This allows cleanup of orphaned processes that survive app crashes or force quits.
     // Location: ~/Library/Application Support/hyperwhisper/.llama-server.pid
-    private static let pidFileURL: URL = {
+    private nonisolated static let defaultPIDFileURL: URL = {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return appSupport.appendingPathComponent("hyperwhisper/.llama-server.pid")
     }()
-    private var stdoutPipe: Pipe?
-    private var stderrPipe: Pipe?
-    private var monitorTask: Task<Void, Never>?
+    /// The PID file this controller writes on launch and removes on stop.
+    /// Production uses `defaultPIDFileURL`; a test passes its own file so it
+    /// never overwrites or deletes the host app's record.
+    private nonisolated let pidFileURL: URL
+
+    /// Every llama-server this app launched that Foundation has not yet
+    /// reported as exited. Readable without the actor, so the quit handler
+    /// can stop a runtime the PID file does not hold (#1537).
+    private nonisolated static let trackedRuntimes = TrackedRuntimeRegistry()
+
+    private var stdoutReader: RuntimeOutputReader?
+    private var stderrReader: RuntimeOutputReader?
     private var readinessTask: Task<Bool, Never>?
+    /// The ownership token. Bumped by every stop(), and so by every start
+    /// (ensureRunning stops first, then reads it). A start owns the runtime
+    /// only while the value it read is still current; output readers, the
+    /// termination handler and the residency eviction compare against it too.
+    private var launchGeneration: UInt64 = 0
     private var missingDependencyHinted = false
     private var recentRuntimeLines: [String] = []
     private var lastHealthStatusCode: Int?
@@ -172,38 +186,50 @@ final class LlamaServerController: ObservableObject {
 
     /// Signal that a local runtime will be needed (shows "Warming Up" in the status bar).
     /// Called before the async `ensureRunning` work begins.
+    ///
+    /// Only `.stopped` becomes `.pending`. A `.failed` state keeps its reason:
+    /// the caller can still return without starting (no model manager yet),
+    /// and then "Warming Up" would stay up forever with the reason lost. A
+    /// retry from `.failed` still shows progress, because ensureRunning sets
+    /// `.starting` before its first suspension point.
     func markPending() {
         guard case .stopped = state else { return }
         state = .pending
     }
 
-    init() {
+    /// - Parameter pidFileURL: Where to track the launched process. `nil` (the
+    ///   app) uses the shared Application Support file and sweeps orphans from
+    ///   earlier sessions. Tests pass their own file, which also skips the
+    ///   sweep, so they never signal or untrack the host app's runtime.
+    init(pidFileURL: URL? = nil) {
+        self.pidFileURL = pidFileURL ?? Self.defaultPIDFileURL
         #if os(macOS)
         // ORPHAN CLEANUP ON LAUNCH — dispatched off-main because
         // Process.waitUntilExit() inside Phase 2 spins the main runloop, and
         // on macOS 26.3 that re-enters SwiftUI's AttributeGraph transaction
         // while we're still inside a StateObject initializer, tripping
         // AG::precondition_failure and aborting before the UI ever renders.
-        let cleanupLogger = logger
-        DispatchQueue.global(qos: .utility).async {
-            Self.cleanupOrphanedProcesses(logger: cleanupLogger)
+        if pidFileURL == nil {
+            let cleanupLogger = logger
+            DispatchQueue.global(qos: .utility).async {
+                Self.cleanupOrphanedProcesses(logger: cleanupLogger)
+            }
         }
 
         // CRITICAL: App termination handler must execute SYNCHRONOUSLY
         // Using Task { @MainActor in ... } would schedule async work that may never
         // execute before the app terminates, leaving llama-server orphaned.
         //
-        // The fix: Use DispatchQueue.main.sync to block until stop() completes.
-        // This ensures the process is terminated before the app exits.
+        // It also must not touch the actor or ask Swift concurrency which
+        // executor it is on (#1537): `MainActor.assumeIsolated` here crashed
+        // with SIGSEGV on quit once the main executor had been left broken.
+        // Quit reads the lock-protected launch record and the PID file instead.
         terminationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            guard let self else { return }
-            // Execute synchronously - we're already on main thread via queue: .main
-            // Must block until stop() completes to prevent orphaned processes
-            self.stopSynchronously(reason: .applicationTerminating)
+        ) { _ in
+            LlamaServerController.stopTrackedRuntimeForTermination()
         }
         #endif
     }
@@ -265,6 +291,15 @@ final class LlamaServerController: ObservableObject {
 
         stop(reason: .modeChanged)
 
+        // OWNERSHIP. This start owns the runtime, its state and its residency
+        // only while `generation` is current. Any stop() — a mode change, a
+        // newer ensureRunning (which stops first), memory pressure — bumps
+        // `launchGeneration`, and from then on that call owns them. The value
+        // is read before the first suspension point and re-checked after every
+        // await below, so a superseded start never launches, never writes
+        // `.ready`/`.failed`, and never registers residency.
+        let generation = launchGeneration
+
         currentConfiguration = configuration
         currentModelId = modelId
         currentModelURL = modelURL
@@ -277,29 +312,83 @@ final class LlamaServerController: ObservableObject {
         do {
             executableURL = try await runtimeManager.prepareExecutable(override: configuration.executableOverride)
         } catch let runtimeError as LlamaRuntimeManager.Error {
+            let failure: String
+            let error: Error
             switch runtimeError {
             case .executableNotFound:
                 logger.error("❌ Unable to locate llama-server executable")
-                state = .failed(runtimeError.localizedDescription)
-                throw Error.executableNotFound
+                failure = runtimeError.localizedDescription
+                error = .executableNotFound
             case .runtimeMissingDependencies(let missing):
                 let missingFiles = missing.joined(separator: ", ")
                 logger.error("❌ Runtime missing dependencies: \(missingFiles, privacy: .public)")
-                state = .failed("Runtime missing dependencies: \(missingFiles)")
-                throw Error.launchFailed("Runtime missing dependencies: \(missingFiles)")
+                failure = "Runtime missing dependencies: \(missingFiles)"
+                error = .launchFailed(failure)
             case .copyFailed(let reason):
                 logger.error("❌ Runtime copy failed: \(reason, privacy: .public)")
-                state = .failed(reason)
-                throw Error.launchFailed(reason)
+                failure = reason
+                error = .launchFailed(reason)
             }
+            if generation == launchGeneration {
+                failStart(failure)
+            }
+            throw error
+        } catch {
+            if generation == launchGeneration {
+                failStart(error.localizedDescription)
+            }
+            throw error
         }
 
-        try launchProcess(executableURL: executableURL, modelURL: modelURL, configuration: configuration)
+        guard generation == launchGeneration else {
+            logger.info("Local runtime start for \(modelId, privacy: .public) was superseded before launch")
+            throw Error.healthCheckFailed
+        }
 
-        let ready = try await waitForReadiness(host: configuration.host, port: configuration.port)
+        // No suspension point between the check above and the launch, so the
+        // process launched here is always current when it starts. If a stop()
+        // supersedes this start later, that stop() signals this process (it is
+        // `self.process` until then), so a superseded start leaves no orphan.
+        let launched: Process
+        do {
+            launched = try launchProcess(
+                executableURL: executableURL,
+                modelURL: modelURL,
+                configuration: configuration,
+                generation: generation
+            )
+        } catch Error.launchFailed(let reason) {
+            // `process.run()` threw. Leaving `.starting` would make every later
+            // call for this model return at once as "already starting".
+            failStart(reason)
+            throw Error.launchFailed(reason)
+        } catch {
+            failStart(error.localizedDescription)
+            throw error
+        }
+
+        let ready = await waitForReadiness(host: configuration.host, port: configuration.port)
+        // Both branches: a stop() or a newer start that ran during the wait owns
+        // the process and the state now. Stopping here would kill the newer
+        // launch, and `.ready`/`.failed` would overwrite its state.
+        guard generation == launchGeneration else {
+            logger.info("Local runtime start for \(modelId, privacy: .public) was superseded while waiting for readiness")
+            throw Error.healthCheckFailed
+        }
         guard ready else {
-            state = .failed("Timed out waiting for runtime")
-            stop(reason: .modeChanged)
+            // Keep the real reason. The termination handler ("Exit code N") or
+            // the stderr reader ("Missing runtime dependency") may have set it
+            // already; if the process has exited but its handler has not run
+            // yet, read the status here. Only a live runtime timed out.
+            let failure: String
+            if case .failed(let reason) = state {
+                failure = reason
+            } else if !launched.isRunning {
+                failure = "Exit code \(launched.terminationStatus)"
+            } else {
+                failure = "Timed out waiting for runtime"
+            }
+            failStart(failure)
             throw Error.healthCheckFailed
         }
 
@@ -308,12 +397,34 @@ final class LlamaServerController: ObservableObject {
 
         // Register the local LLM for memory-pressure eviction. Tier `.llm`, so it
         // is reclaimed only under CRITICAL pressure (it is the largest and most
-        // expensive to reload). Weak capture; eviction hops to the main actor.
+        // expensive to reload). Weak capture; eviction hops to the main actor,
+        // and stops the runtime only if this start still owns it, so a stale
+        // registration can never stop a newer runtime.
         await ModelResidencyRegistry.shared.register(id: Self.residencyId, tier: .llm) { [weak self] in
-            await MainActor.run { self?.stop(reason: .memoryPressure) }
+            await MainActor.run { self?.evictForMemoryPressure(generation: generation) }
+        }
+        // A stop() during the registration await has already queued its own
+        // deregistration, and this caller no longer has a runtime.
+        guard generation == launchGeneration else {
+            logger.info("Local runtime for \(modelId, privacy: .public) was stopped while registering residency")
+            throw Error.healthCheckFailed
         }
         AppLogger.memory.info("model.load.cold id=\(Self.residencyId, privacy: .public) footprintMB=\(MemoryFootprint.currentMB(), privacy: .public)")
         return modelId
+    }
+
+    /// Ends the current start as failed. stop() tears down whatever the start
+    /// launched and resets the model and configuration (so the next call
+    /// launches again rather than seeing "already starting"); the reason is
+    /// written after it because stop() sets `.stopped`.
+    private func failStart(_ reason: String) {
+        stop(reason: .modeChanged)
+        state = .failed(reason)
+    }
+
+    private func evictForMemoryPressure(generation: UInt64) {
+        guard generation == launchGeneration else { return }
+        stop(reason: .memoryPressure)
     }
 
     func stop(reason: StopReason = .manual) {
@@ -321,9 +432,20 @@ final class LlamaServerController: ObservableObject {
         // (fire-and-forget: stop() is synchronous, the registry is an actor).
         Task { await ModelResidencyRegistry.shared.deregister(id: Self.residencyId) }
 
-        monitorTask?.cancel()
+        // Ends the ownership of whichever start is in flight (see
+        // ensureRunning). Output already queued from the old process is
+        // logged but no longer touches this controller's state.
+        launchGeneration &+= 1
+
+        // Cancelling a reader is safe at any moment (#1536): it stops a
+        // dispatch read source and never closes the pipe's descriptor, so no
+        // read can land on a closed handle (see `RuntimeOutputReader`). It
+        // also bounds the reader's life when the process never reaches EOF.
+        stdoutReader?.cancel()
+        stderrReader?.cancel()
+        stdoutReader = nil
+        stderrReader = nil
         readinessTask?.cancel()
-        monitorTask = nil
         readinessTask = nil
 
         guard let process else {
@@ -332,9 +454,6 @@ final class LlamaServerController: ObservableObject {
             currentModelURL = nil
             return
         }
-
-        stdoutPipe?.fileHandleForReading.closeFile()
-        stderrPipe?.fileHandleForReading.closeFile()
 
         if process.isRunning {
             logger.info("🛑 Stopping local runtime (reason: \(reason.rawValue))")
@@ -357,8 +476,6 @@ final class LlamaServerController: ObservableObject {
         removePIDFile()
 
         self.process = nil
-        stdoutPipe = nil
-        stderrPipe = nil
         currentModelId = nil
         currentModelURL = nil
         missingDependencyHinted = false
@@ -372,7 +489,10 @@ final class LlamaServerController: ObservableObject {
 
     /// Reads the tracked process identity from disk. Legacy bare PID files are
     /// intentionally not trusted for signaling because the PID may have been reused.
-    private nonisolated static func readPIDFileContents(removeOnFailure: Bool = true) -> LlamaPIDFileContents? {
+    private nonisolated static func readPIDFileContents(
+        at pidFileURL: URL = defaultPIDFileURL,
+        removeOnFailure: Bool = true
+    ) -> LlamaPIDFileContents? {
         #if os(macOS)
         guard FileManager.default.fileExists(atPath: pidFileURL.path) else {
             return nil
@@ -404,18 +524,24 @@ final class LlamaServerController: ObservableObject {
     ///   - timeout: Maximum seconds to wait for graceful termination (default 3.0)
     ///   - pollInterval: Microseconds between liveness checks. Use 0 for single wait.
     ///   - sendInitialSigterm: If true, sends SIGTERM before waiting (default true)
+    ///   - requireKnownPath: If true, only a llama-server at a known HyperWhisper
+    ///     runtime path is signalled. The quit path passes false for a process
+    ///     this app launched itself (an `executableOverride` runtime included).
     /// - Returns: true if process was running and kill was attempted
     @discardableResult
     private nonisolated static func killProcessSynchronously(
         record: LlamaServerPIDRecord,
         timeout: TimeInterval = 3.0,
         pollInterval: useconds_t = 100_000,
-        sendInitialSigterm: Bool = true
+        sendInitialSigterm: Bool = true,
+        requireKnownPath: Bool = true
     ) -> Bool {
         #if os(macOS)
         let pid = record.pid
         guard kill(pid, 0) == 0 else { return false }
-        guard LlamaProcessIdentity.isKnownHyperWhisperLlamaServerPath(record.executablePath) else { return false }
+        if requireKnownPath {
+            guard LlamaProcessIdentity.isKnownHyperWhisperLlamaServerPath(record.executablePath) else { return false }
+        }
         guard LlamaProcessIdentity.liveProcessMatches(record) else { return false }
 
         if sendInitialSigterm {
@@ -447,54 +573,50 @@ final class LlamaServerController: ObservableObject {
 
     // MARK: - Synchronous Stop Methods
 
-    /// Synchronous stop for use in willTerminateNotification handler.
-    /// This method is nonisolated so it can be called from notification handlers,
-    /// but it dispatches synchronously to the main thread to execute stop().
+    /// Synchronous stop for the willTerminateNotification handler.
     ///
     /// CRITICAL: This must complete synchronously before returning to ensure
     /// the llama-server process is terminated before the app exits.
     ///
-    /// Unlike the regular stop(), this method:
-    /// 1. Captures the PID before stopping
-    /// 2. Calls stop() to send SIGTERM and clean up state
-    /// 3. Waits synchronously for the process to die (with SIGKILL fallback)
-    nonisolated func stopSynchronously(reason: StopReason) {
+    /// It never reads the actor's state and never asks the concurrency runtime
+    /// which executor it is on (#1537). It stops two sets of processes:
+    ///
+    /// 1. Every runtime in `trackedRuntimes`: each launch adds its process and
+    ///    Foundation's termination callback removes it, under a lock. This
+    ///    covers a runtime the PID file does not hold (the save failed, another
+    ///    install overwrote the shared file, an `executableOverride` path) and
+    ///    a stopped runtime that has not exited yet. A PID is signalled only if
+    ///    the live process still runs the executable this app launched.
+    /// 2. The PID file record, gated on its full identity and a known
+    ///    HyperWhisper runtime path, as before.
+    ///
+    /// All get SIGTERM first; then each is waited on (up to 3 s) and SIGKILLed.
+    private nonisolated static func stopTrackedRuntimeForTermination() {
         #if os(macOS)
-        var pid: Int32 = 0
-        var terminationRecord: LlamaServerPIDRecord?
-
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                pid = self.process?.processIdentifier ?? 0
-                if pid > 0 {
-                    terminationRecord = LlamaProcessIdentity.recordForLiveProcess(pid: pid)
-                }
-                self.stop(reason: reason)
-            }
-        } else {
-            DispatchQueue.main.sync {
-                MainActor.assumeIsolated {
-                    pid = self.process?.processIdentifier ?? 0
-                    if pid > 0 {
-                        terminationRecord = LlamaProcessIdentity.recordForLiveProcess(pid: pid)
-                    }
-                    self.stop(reason: reason)
-                }
-            }
+        var targets: [LlamaServerPIDRecord] = []
+        for entry in trackedRuntimes.snapshot() {
+            guard let live = LlamaProcessIdentity.liveProcessIdentity(pid: entry.pid),
+                  live.executablePath == entry.executablePath else { continue }
+            targets.append(live)
         }
-
-        // Wait synchronously for process to die (SIGTERM already sent by stop())
-        guard pid > 0 else { return }
-        guard let terminationRecord else { return }
-        Self.killProcessSynchronously(record: terminationRecord, timeout: 3.0, sendInitialSigterm: false)
-        #else
-        if Thread.isMainThread {
-            MainActor.assumeIsolated { self.stop(reason: reason) }
-        } else {
-            DispatchQueue.main.sync {
-                MainActor.assumeIsolated { self.stop(reason: reason) }
-            }
+        if case .record(let record)? = readPIDFileContents(),
+           !targets.contains(where: { $0.pid == record.pid }),
+           LlamaProcessIdentity.isKnownHyperWhisperLlamaServerPath(record.executablePath),
+           LlamaProcessIdentity.liveProcessMatches(record) {
+            targets.append(record)
         }
+        for target in targets {
+            kill(target.pid, SIGTERM)
+        }
+        for target in targets {
+            killProcessSynchronously(
+                record: target,
+                timeout: 3.0,
+                sendInitialSigterm: false,
+                requireKnownPath: false
+            )
+        }
+        try? FileManager.default.removeItem(at: defaultPIDFileURL)
         #endif
     }
 
@@ -506,17 +628,24 @@ final class LlamaServerController: ObservableObject {
     /// to ensure the process is killed even during unexpected deallocation.
     private nonisolated func stopSynchronouslyFromDeinit() {
         #if os(macOS)
-        guard let contents = Self.readPIDFileContents() else { return }
+        guard let contents = Self.readPIDFileContents(at: pidFileURL) else { return }
         guard case .record(let record) = contents else {
-            try? FileManager.default.removeItem(at: Self.pidFileURL)
+            try? FileManager.default.removeItem(at: pidFileURL)
             return
         }
         Self.killProcessSynchronously(record: record, timeout: 0.5, pollInterval: 0)
-        try? FileManager.default.removeItem(at: Self.pidFileURL)
+        try? FileManager.default.removeItem(at: pidFileURL)
         #endif
     }
 
-    private func launchProcess(executableURL: URL, modelURL: URL, configuration: Configuration) throws {
+    /// Launches llama-server for the start that owns `generation` and returns
+    /// the process. Synchronous: the caller checks ownership right before it.
+    private func launchProcess(
+        executableURL: URL,
+        modelURL: URL,
+        configuration: Configuration,
+        generation: UInt64
+    ) throws -> Process {
         let process = Process()
         let arguments = buildArguments(modelURL: modelURL, configuration: configuration)
         process.executableURL = executableURL
@@ -554,29 +683,41 @@ final class LlamaServerController: ObservableObject {
         process.standardError = stderrPipe
 
         process.terminationHandler = { [weak self] proc in
+            // Foundation's queue, no actor hop: the quit path must stop
+            // tracking this PID as soon as the process is gone.
+            LlamaServerController.trackedRuntimes.remove(pid: proc.processIdentifier)
             Task { @MainActor in
                 guard let self else { return }
-                // Cancel the stdout/stderr stream task and wait for it before
-                // dropping the pipes, so we don't race `bytes.lines` against pipe
-                // teardown and lose llama-server's final messages.
-                self.monitorTask?.cancel()
-                _ = await self.monitorTask?.value
-                self.monitorTask = nil
+                let reasonLabel = proc.terminationReason == .uncaughtSignal ? "signal" : "exit"
 
-                // Drain any trailing bytes still buffered in stderr — these are
-                // the last words llama-server wrote before exit, and the streaming
-                // task may have missed them if the pipe closed mid-line.
-                if let stderr = self.stderrPipe {
-                    let trailing = stderr.fileHandleForReading.availableData
-                    if !trailing.isEmpty, let text = String(data: trailing, encoding: .utf8) {
-                        for line in text.split(whereSeparator: \.isNewline) where !line.isEmpty {
-                            self.captureRuntimeLine("[stderr] \(line)")
-                            self.logger.error("[llama] \(String(line), privacy: .public)")
-                        }
-                    }
+                // A process that stop() already let go of (a failed start, a
+                // mode change, a relaunch) owns none of the current state. Its
+                // exit is logged, but it must not cancel the NEW launch's
+                // readers or overwrite its state.
+                guard self.process === proc else {
+                    self.logger.info("Earlier local runtime exited · status=\(proc.terminationStatus) · reason=\(reasonLabel, privacy: .public)")
+                    return
                 }
 
-                let reasonLabel = proc.terminationReason == .uncaughtSignal ? "signal" : "exit"
+                // Give the readers a bounded moment to reach EOF, so
+                // llama-server's last lines (and a missing-library hint) are
+                // seen before the crash is recorded. Bounded, because a
+                // grandchild that inherited a pipe keeps it open past this
+                // exit, and then EOF never comes.
+                let readers = [self.stdoutReader, self.stderrReader].compactMap { $0 }
+                let deadline = Date().addingTimeInterval(1)
+                while readers.contains(where: { !$0.isFinished }), Date() < deadline {
+                    try? await Task.sleep(nanoseconds: 50_000_000)
+                }
+                // Let the line deliveries the readers queued run first.
+                await Task.yield()
+                // The awaits are suspension points: stop() or a new launch may
+                // have run meanwhile, and then this exit is no longer current.
+                guard self.process === proc else { return }
+                readers.forEach { $0.cancel() }
+                self.stdoutReader = nil
+                self.stderrReader = nil
+
                 if proc.terminationStatus == 0 {
                     self.logger.info("♻️ Local runtime exited cleanly · reason=\(reasonLabel, privacy: .public)")
                 } else {
@@ -596,8 +737,6 @@ final class LlamaServerController: ObservableObject {
                     self.state = .failed("Exit code \(proc.terminationStatus)")
                 }
                 self.process = nil
-                self.stdoutPipe = nil
-                self.stderrPipe = nil
             }
         }
 
@@ -609,20 +748,37 @@ final class LlamaServerController: ObservableObject {
         }
 
         self.process = process
-        self.stdoutPipe = stdoutPipe
-        self.stderrPipe = stderrPipe
         self.missingDependencyHinted = false
+
+        #if os(macOS)
+        // Track the child for the quit path before anything else can fail.
+        // If it already exited, its termination callback may have run before
+        // this insert, so take it out again; otherwise the callback does.
+        let pid = process.processIdentifier
+        Self.trackedRuntimes.insert(
+            pid: pid,
+            executablePath: LlamaProcessIdentity.canonicalizedPath(executableURL.path)
+        )
+        if !process.isRunning {
+            Self.trackedRuntimes.remove(pid: pid)
+        }
+        #endif
 
         // Save PID to file for orphan tracking
         // This allows cleanup of this process if the app crashes before normal shutdown
         savePIDFile()
 
-        monitorTask = Task { [weak self] in
-            guard let self else { return }
-            async let stdoutStream = self.stream(pipe: stdoutPipe, level: .debug, source: "stdout")
-            async let stderrStream = self.stream(pipe: stderrPipe, level: .error, source: "stderr")
-            _ = await (stdoutStream, stderrStream)
+        stdoutReader = RuntimeOutputReader(pipe: stdoutPipe, label: "stdout") { [weak self] lines in
+            Task { @MainActor in
+                self?.handleRuntimeOutput(lines, isStderr: false, generation: generation)
+            }
         }
+        stderrReader = RuntimeOutputReader(pipe: stderrPipe, label: "stderr") { [weak self] lines in
+            Task { @MainActor in
+                self?.handleRuntimeOutput(lines, isStderr: true, generation: generation)
+            }
+        }
+        return process
     }
 
     private func buildArguments(modelURL: URL, configuration: Configuration) -> [String] {
@@ -696,7 +852,7 @@ final class LlamaServerController: ObservableObject {
         return args
     }
 
-    private func waitForReadiness(host: String, port: Int) async throws -> Bool {
+    private func waitForReadiness(host: String, port: Int) async -> Bool {
         readinessTask?.cancel()
         let url = URL(string: "http://\(host):\(port)/health")
         readinessTask = Task { @MainActor in
@@ -754,39 +910,41 @@ final class LlamaServerController: ObservableObject {
         return await readinessTask?.value ?? false
     }
 
-    private func stream(pipe: Pipe, level: OSLogType, source: String) async {
-        do {
-            for try await line in pipe.fileHandleForReading.bytes.lines {
-                let message = String(line)
-                captureRuntimeLine("[\(source)] \(message)")
-                logger.log(level: level, "[llama] \(message, privacy: .public)")
-                if level == .error,
-                   message.contains("libmtmd.dylib") || message.contains("image not found") {
-                    if !missingDependencyHinted {
-                        missingDependencyHinted = true
-                        logger.fault("Detected missing runtime dependency libmtmd.dylib")
-                        let error = NSError(
-                            domain: "com.hyperwhisper.app.runtime",
-                            code: -1,
-                            userInfo: [NSLocalizedDescriptionKey: "runtime.error.llama.reportedMissingLib".localized]
-                        )
-                        SentryService.capture(
-                            error: error,
-                            message: "Local runtime reported missing libmtmd.dylib",
-                            tags: ["component": "LlamaRuntime", "severity": "fatal"]
-                        )
-                        state = .failed("Missing runtime dependency")
-                    }
-                }
-
-                if message.localizedCaseInsensitiveContains("error loading model") ||
-                    message.localizedCaseInsensitiveContains("failed to load model") ||
-                    message.localizedCaseInsensitiveContains("unknown model architecture") {
-                    logger.error("Runtime model load diagnostic: \(message, privacy: .public)")
+    /// Handles lines a `RuntimeOutputReader` read from the launch that owned
+    /// `generation`. A launch that `stop()` has since replaced still has its
+    /// lines logged, but they no longer feed the diagnostics buffer or the
+    /// runtime state.
+    private func handleRuntimeOutput(_ lines: [String], isStderr: Bool, generation: UInt64) {
+        let level: OSLogType = isStderr ? .error : .debug
+        let source = isStderr ? "stderr" : "stdout"
+        for message in lines {
+            logger.log(level: level, "[llama] \(message, privacy: .public)")
+            guard generation == launchGeneration else { continue }
+            captureRuntimeLine("[\(source)] \(message)")
+            if isStderr,
+               message.contains("libmtmd.dylib") || message.contains("image not found") {
+                if !missingDependencyHinted {
+                    missingDependencyHinted = true
+                    logger.fault("Detected missing runtime dependency libmtmd.dylib")
+                    let error = NSError(
+                        domain: "com.hyperwhisper.app.runtime",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "runtime.error.llama.reportedMissingLib".localized]
+                    )
+                    SentryService.capture(
+                        error: error,
+                        message: "Local runtime reported missing libmtmd.dylib",
+                        tags: ["component": "LlamaRuntime", "severity": "fatal"]
+                    )
+                    state = .failed("Missing runtime dependency")
                 }
             }
-        } catch {
-            logger.error("Stream error: \(error.localizedDescription, privacy: .public)")
+
+            if message.localizedCaseInsensitiveContains("error loading model") ||
+                message.localizedCaseInsensitiveContains("failed to load model") ||
+                message.localizedCaseInsensitiveContains("unknown model architecture") {
+                logger.error("Runtime model load diagnostic: \(message, privacy: .public)")
+            }
         }
     }
 
@@ -888,19 +1046,19 @@ final class LlamaServerController: ObservableObject {
         case .record(let record):
             guard kill(record.pid, 0) == 0 else {
                 logger.debug("PID \(record.pid) from stale PID file is no longer running")
-                try? FileManager.default.removeItem(at: pidFileURL)
+                try? FileManager.default.removeItem(at: defaultPIDFileURL)
                 return
             }
 
             guard LlamaProcessIdentity.liveProcessMatches(record) else {
                 logger.warning("⚠️ Stale PID file no longer matches HyperWhisper llama-server; removing without signaling")
-                try? FileManager.default.removeItem(at: pidFileURL)
+                try? FileManager.default.removeItem(at: defaultPIDFileURL)
                 return
             }
 
             guard LlamaProcessIdentity.isTrackedHyperWhisperLlamaServerPath(record.executablePath) else {
                 logger.warning("⚠️ Stale PID file points outside HyperWhisper's tracked llama-server runtime; removing without signaling")
-                try? FileManager.default.removeItem(at: pidFileURL)
+                try? FileManager.default.removeItem(at: defaultPIDFileURL)
                 return
             }
 
@@ -919,12 +1077,12 @@ final class LlamaServerController: ObservableObject {
         case .legacyPID(let pid):
             logger.warning("⚠️ Removing legacy bare PID file for PID \(pid) without signaling")
         case .invalid:
-            if FileManager.default.fileExists(atPath: pidFileURL.path) {
+            if FileManager.default.fileExists(atPath: defaultPIDFileURL.path) {
                 logger.warning("⚠️ Invalid PID in stale PID file, removing")
             }
         }
 
-        try? FileManager.default.removeItem(at: pidFileURL)
+        try? FileManager.default.removeItem(at: defaultPIDFileURL)
         #endif
     }
 
@@ -973,12 +1131,12 @@ final class LlamaServerController: ObservableObject {
             }
 
             // Ensure directory exists
-            let directory = Self.pidFileURL.deletingLastPathComponent()
+            let directory = pidFileURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
             // Write verified process identity to file for reuse-safe cleanup.
             let data = try LlamaProcessIdentity.encodePIDRecord(record)
-            try data.write(to: Self.pidFileURL, options: .atomic)
+            try data.write(to: pidFileURL, options: .atomic)
             logger.debug("📝 Saved PID \(pid) to tracking file")
         } catch {
             logger.warning("Failed to save PID file: \(error.localizedDescription, privacy: .public)")
@@ -991,13 +1149,173 @@ final class LlamaServerController: ObservableObject {
     private func removePIDFile() {
         #if os(macOS)
         do {
-            if FileManager.default.fileExists(atPath: Self.pidFileURL.path) {
-                try FileManager.default.removeItem(at: Self.pidFileURL)
+            if FileManager.default.fileExists(atPath: pidFileURL.path) {
+                try FileManager.default.removeItem(at: pidFileURL)
                 logger.debug("🗑️ Removed PID tracking file")
             }
         } catch {
             logger.warning("Failed to remove PID file: \(error.localizedDescription, privacy: .public)")
         }
         #endif
+    }
+}
+
+// MARK: - Runtime Output Reader
+
+/// Reads one llama-server output pipe, line by line, until EOF or `cancel()`.
+///
+/// #1536: the earlier reader used `fileHandleForReading.bytes.lines`. Once
+/// `stop()` had closed that handle, the read raised an Objective-C
+/// NSFileHandleOperationException, which Swift cannot catch, and the main
+/// queue never drained again. This reader never reads through FileHandle
+/// (`bytes`, `availableData`, `readDataToEndOfFile`). A DispatchSourceRead
+/// calls `read(2)` on the pipe's descriptor, which can only return an error.
+///
+/// The descriptor is never closed under a read. Nothing calls `closeFile()`:
+/// the descriptor closes only when the Pipe's read FileHandle is deallocated.
+/// The event handler holds the Pipe, and dispatch releases that handler only
+/// after the source is cancelled and any read in flight has returned.
+///
+/// The reader's life is bounded. EOF ends it when every writer has gone, and
+/// `cancel()` ends it when one never goes (a SIGTERM that `stop()` skipped, a
+/// grandchild that inherited the pipe). It holds the controller only through
+/// the `onLines` closure, which captures it weakly.
+private final class RuntimeOutputReader: @unchecked Sendable {
+    /// Lines longer than this are delivered in pieces.
+    private static let maximumLineBytes = 65_536
+
+    private let lock = NSLock()
+    /// Guarded by `lock`.
+    private var source: DispatchSourceRead?
+    /// Guarded by `lock`.
+    private var finished = false
+    /// Bytes after the last newline. Touched only on the source's queue.
+    private var partialLine: [UInt8] = []
+    private let onLines: @Sendable ([String]) -> Void
+
+    init(pipe: Pipe, label: String, onLines: @escaping @Sendable ([String]) -> Void) {
+        self.onLines = onLines
+        let queue = DispatchQueue(label: "com.hyperwhisper.llama-server.\(label)")
+        let descriptor = pipe.fileHandleForReading.fileDescriptor
+        let source = DispatchSource.makeReadSource(fileDescriptor: descriptor, queue: queue)
+        source.setEventHandler { [weak self] in
+            // Holding `pipe` keeps `descriptor` open for as long as this
+            // handler can run.
+            withExtendedLifetime(pipe) {
+                self?.readAvailable(from: descriptor)
+            }
+        }
+        self.source = source
+        source.resume()
+    }
+
+    deinit {
+        source?.cancel()
+    }
+
+    /// True once EOF was read or `cancel()` ran.
+    var isFinished: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return finished
+    }
+
+    /// Stops reading. Safe from any thread, at any time, more than once.
+    func cancel() {
+        lock.lock()
+        let source = self.source
+        self.source = nil
+        finished = true
+        lock.unlock()
+        source?.cancel()
+    }
+
+    private func readAvailable(from descriptor: Int32) {
+        var buffer = [UInt8](repeating: 0, count: 16_384)
+        let count = buffer.withUnsafeMutableBytes { raw in
+            Darwin.read(descriptor, raw.baseAddress, raw.count)
+        }
+        if count > 0 {
+            consume(buffer[0..<count])
+        } else if count == 0 || (errno != EINTR && errno != EAGAIN) {
+            // EOF, or a read error: either way nothing more will come.
+            finish()
+        }
+    }
+
+    private func consume(_ bytes: ArraySlice<UInt8>) {
+        var lines: [String] = []
+        for byte in bytes {
+            if byte == UInt8(ascii: "\n") {
+                lines.append(Self.decode(partialLine))
+                partialLine.removeAll(keepingCapacity: true)
+            } else {
+                partialLine.append(byte)
+                if partialLine.count >= Self.maximumLineBytes {
+                    lines.append(Self.decode(partialLine))
+                    partialLine.removeAll(keepingCapacity: true)
+                }
+            }
+        }
+        lines.removeAll { $0.isEmpty }
+        if !lines.isEmpty {
+            onLines(lines)
+        }
+    }
+
+    private func finish() {
+        if !partialLine.isEmpty {
+            let tail = Self.decode(partialLine)
+            partialLine.removeAll()
+            if !tail.isEmpty {
+                onLines([tail])
+            }
+        }
+        cancel()
+    }
+
+    private static func decode(_ bytes: [UInt8]) -> String {
+        var line = String(decoding: bytes, as: UTF8.self)
+        if line.hasSuffix("\r") {
+            line.removeLast()
+        }
+        return line
+    }
+}
+
+// MARK: - Tracked Runtime Registry
+
+/// The llama-server processes this app launched and Foundation has not yet
+/// reported as exited, with the executable each was launched from.
+///
+/// Lock-protected and actor-free, so the quit handler can read it without the
+/// main actor (#1537).
+private final class TrackedRuntimeRegistry: @unchecked Sendable {
+    struct Entry: Sendable {
+        let pid: Int32
+        /// Canonical path of the executable the app launched.
+        let executablePath: String
+    }
+
+    private let lock = NSLock()
+    /// Guarded by `lock`.
+    private var entries: [Int32: Entry] = [:]
+
+    func insert(pid: Int32, executablePath: String) {
+        lock.lock()
+        entries[pid] = Entry(pid: pid, executablePath: executablePath)
+        lock.unlock()
+    }
+
+    func remove(pid: Int32) {
+        lock.lock()
+        entries[pid] = nil
+        lock.unlock()
+    }
+
+    func snapshot() -> [Entry] {
+        lock.lock()
+        defer { lock.unlock() }
+        return Array(entries.values)
     }
 }
