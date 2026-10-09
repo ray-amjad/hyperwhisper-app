@@ -155,7 +155,7 @@ describe('estimateCreditsFromSize', () => {
     expect(estimate).toBe(creditsForCost(expensiveEstimator(100)));
   });
 
-  test('ignores an empty costEstimators list and falls back to the blended rate', () => {
+  test('ignores an empty costEstimators list and falls back to the default-route rate', () => {
     const withEmptyList = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE, { costEstimators: [] });
     const withNoOptions = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
     expect(withEmptyList).toBe(withNoOptions);
