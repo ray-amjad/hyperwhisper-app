@@ -1066,6 +1066,12 @@
 "settings.backup.import.error.decode.corruptedField" = "ערך פגום לשדה: %@";
 "settings.backup.import.error.version" = "קובץ גיבוי הוא מגרסה חדשה יותר";
 "settings.backup.import.error.unknown" = "הייבוא נכשל";
+"settings.backup.import.error.storeModes" = "לא ניתן היה לשמור את המצבים, ולכן הם נשארו כפי שהיו.";
+"settings.backup.import.error.storeModesAndVocabulary" = "לא ניתן היה לשמור את המצבים, ולכן המצבים ואוצר המילים נשארו כפי שהיו.";
+"settings.backup.import.error.storeVocabulary" = "לא ניתן היה לשמור את אוצר המילים, ולכן הוא נשאר כפי שהיה.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "המצבים יובאו, אך לא ניתן היה לשמור את אוצר המילים, ולכן הוא נשאר כפי שהיה.";
+"settings.backup.import.error.storeLicense" = "לא ניתן היה לייבא את מפתח הרישיון באופן מאובטח.";
+"settings.backup.import.error.storeOtherSections" = "שאר המקטעים שנבחרו הוחלו.";
 "settings.backup.import.apiKeysFailed" = "לא ניתן היה לשמור את מפתחות ה-API האלה במחזיק המפתחות והם לא שוחזרו: %@. הזן אותם שוב בהגדרות.";
 "settings.backup.import.confirm.title" = "לייבא הגדרות?";
 "settings.backup.import.confirm.message" = "זה יחליף את המצבים ואוצר המילים הקיימים שלך באלה מקובץ הגיבוי. ההגדרות גם יעודכנו.";

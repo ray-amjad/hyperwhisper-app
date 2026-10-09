@@ -1066,6 +1066,12 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "settings.backup.import.error.decode.corruptedField" = "Poškodovana vrednost polja: %@";
 "settings.backup.import.error.version" = "Varnostna kopija datoteke je iz novejše različice";
 "settings.backup.import.error.unknown" = "Uvoz ni uspel";
+"settings.backup.import.error.storeModes" = "Načinov ni bilo mogoče shraniti, zato so ostali nespremenjeni.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Načinov ni bilo mogoče shraniti, zato so načini in besednjak ostali nespremenjeni.";
+"settings.backup.import.error.storeVocabulary" = "Besednjaka ni bilo mogoče shraniti, zato je ostal nespremenjen.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Načini so bili uvoženi, besednjaka pa ni bilo mogoče shraniti, zato je ostal nespremenjen.";
+"settings.backup.import.error.storeLicense" = "Licenčnega ključa ni bilo mogoče varno uvoziti.";
+"settings.backup.import.error.storeOtherSections" = "Drugi izbrani razdelki so bili uporabljeni.";
 "settings.backup.import.apiKeysFailed" = "Teh ključev API ni bilo mogoče shraniti v obesek za ključe in niso bili obnovljeni: %@. Znova jih vnesite v Nastavitvah.";
 "settings.backup.import.confirm.title" = "Uvozi nastavitve?";
 "settings.backup.import.confirm.message" = "To bo nadomestilo tvoje obstoječe načine in besednjak s tistimi iz varnostne kopije datoteke. Nastavitve se bodo tudi posodobljene.";

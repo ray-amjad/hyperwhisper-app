@@ -1066,6 +1066,12 @@
 "settings.backup.import.error.decode.corruptedField" = "Пошкоджене значення поля: %@";
 "settings.backup.import.error.version" = "Файл резервної копії з новішої версії";
 "settings.backup.import.error.unknown" = "Імпорт не вдалось";
+"settings.backup.import.error.storeModes" = "Не вдалося зберегти режими, тому вони залишилися без змін.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Не вдалося зберегти режими, тому режими та словник залишилися без змін.";
+"settings.backup.import.error.storeVocabulary" = "Не вдалося зберегти словник, тому він залишився без змін.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Режими імпортовано, але не вдалося зберегти словник, тому він залишився без змін.";
+"settings.backup.import.error.storeLicense" = "Не вдалося безпечно імпортувати ліцензійний ключ.";
+"settings.backup.import.error.storeOtherSections" = "Інші вибрані розділи застосовано.";
 "settings.backup.import.apiKeysFailed" = "Ці API-ключі не вдалося зберегти у в'язку ключів, тому їх не відновлено: %@. Введіть їх знову в налаштуваннях.";
 "settings.backup.import.confirm.title" = "Імпортувати параметри?";
 "settings.backup.import.confirm.message" = "Це замінить ваші існуючі режими та словник на ті, що з файла резервної копії. Параметри також будуть оновлені.";
