@@ -9,19 +9,31 @@ import CoreData
 import Foundation
 import KeyboardShortcuts
 
+/// The mode the user picked for a pending-file retry, after the mode that made
+/// the recording was deleted (#1617). Plain values, not the Core Data `Mode`,
+/// so the pick can cross into the retry's task.
+struct PendingRetryModeChoice: Equatable, Sendable {
+    let id: String
+    let name: String
+}
+
 extension RecordingTranscriptionFlow {
 
     // MARK: - Error Handling
 
     /// Retry transcription using a previously recorded audio file that failed before transcription started
-    func retryPendingFile() {
+    /// - Parameter pickedMode: the mode the user chose in the recording dialog's
+    ///   picker after the session's mode turned out to be deleted (#1617);
+    ///   `nil` retries with the session's own mode, as before.
+    func retryPendingFile(with pickedMode: PendingRetryModeChoice? = nil) {
         toggleTask?.cancel()
         // A retry is a session of its own: an older retry still in flight is
         // superseded by this one and writes nothing when it ends (#1276).
         guard let appState = appState else { return }
+        appState.pendingRetryNeedsModePick = false
         let identity = PendingRetryIdentity(sessionGeneration: appState.beginTranscriptionSession())
         toggleTask = Task {
-            await retryTranscriptionFromPendingPath(identity: identity)
+            await retryTranscriptionFromPendingPath(identity: identity, pickedMode: pickedMode)
         }
     }
 
@@ -38,7 +50,32 @@ extension RecordingTranscriptionFlow {
         return superseded
     }
 
-    private func retryTranscriptionFromPendingPath(identity: PendingRetryIdentity) async {
+    /// The mode a pending-file retry transcribes with, or `nil` when the user
+    /// must pick one first (#1617).
+    ///
+    /// Looks the mode up by id, then by name, and NEVER falls back to the
+    /// default mode: on a fresh install the default is the Cloud mode "Hyper",
+    /// so a deleted on-device mode would otherwise send the audio to
+    /// HyperWhisper Cloud without asking. Same rule as History's Retry
+    /// (`TranscriptionRetryController`, #1440). A mode that still exists
+    /// resolves through the same id and name steps as before.
+    static func resolvePendingRetryMode(
+        pickedMode: PendingRetryModeChoice?,
+        sessionModeId: String,
+        sessionModeName: String,
+        persistence: PersistenceController = .shared
+    ) async -> Mode? {
+        await persistence.resolveTranscriptionModeInBackground(
+            id: pickedMode?.id ?? sessionModeId,
+            fallbackName: pickedMode?.name ?? sessionModeName,
+            allowDefaultFallback: false
+        )
+    }
+
+    private func retryTranscriptionFromPendingPath(
+        identity: PendingRetryIdentity,
+        pickedMode: PendingRetryModeChoice?
+    ) async {
         guard !isPendingRetrySuperseded(identity) else { return }
 
         guard
@@ -60,14 +97,27 @@ extension RecordingTranscriptionFlow {
             return
         }
 
-        let actualMode = activeSessionModeName
-        let transcriptionMode = await PersistenceController.shared.resolveTranscriptionModeInBackground(
-            id: activeSessionModeId,
-            fallbackName: actualMode
+        let resolvedMode = await Self.resolvePendingRetryMode(
+            pickedMode: pickedMode,
+            sessionModeId: activeSessionModeId,
+            sessionModeName: activeSessionModeName
         )
 
         // The mode lookup suspends; a new dictation may have started meanwhile.
         guard !isPendingRetrySuperseded(identity) else { return }
+
+        // #1617: the mode was deleted (or the picked one was deleted since).
+        // Send nothing and ask: the dialog shows a mode picker and retries with
+        // the user's pick. `pendingRetryAudioPath` is left alone, so the audio
+        // is kept whether the user picks a mode or dismisses the picker.
+        guard let transcriptionMode = resolvedMode else {
+            AppLogger.audio.warning("Pending-file retry: its mode no longer exists; asking the user to pick one, no request sent")
+            await MainActor.run {
+                appState.pendingRetryNeedsModePick = true
+                appState.showRecordingDialog = true
+            }
+            return
+        }
 
         await MainActor.run {
             appState.recordingState = .transcribing
