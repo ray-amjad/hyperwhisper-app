@@ -169,6 +169,7 @@ jobs:
             -configuration Debug \
             -destination "platform=macOS" \
             -only-testing:hyperwhisperTests \
+            -resultBundlePath "$RUNNER_TEMP/unit.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -188,6 +189,27 @@ jobs:
       # also die as `xctest` or as a helper, so the filter is the time, not
       # the name. `ls` names the whole directory when the find matches
       # nothing, so a miss stays visible instead of printing an empty step.
+      - name: DIAG failed test messages
+        if: always()
+        run: |
+          xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/unit.xcresult" --format json > "$RUNNER_TEMP/t.json" || true
+          jq -c '.. | objects | select(.result? == "Failed") | {name, nodeType, children: [.children[]? | {name, nodeType, result}]}' "$RUNNER_TEMP/t.json" | head -c 20000 || true
+
+      - name: DIAG PendingRetrySavesTranscriptTests alone x25
+        if: always()
+        run: |
+          xcodebuild test-without-building \
+            -project app/macos/hyperwhisper.xcodeproj \
+            -scheme hyperwhisper \
+            -configuration Debug \
+            -destination "platform=macOS" \
+            -only-testing:hyperwhisperTests/PendingRetrySavesTranscriptTests \
+            -test-iterations 25 \
+            -resultBundlePath "$RUNNER_TEMP/alone.xcresult" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" 2>&1 | grep -E "PendingRetrySaves|TEST|Executed|error" | sort | uniq -c | head -60 || true
+          xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/alone.xcresult" --format json > "$RUNNER_TEMP/a.json" || true
+          jq -c '.. | objects | select(.result? == "Failed") | {name, nodeType, children: [.children[]? | {name, nodeType, result}]}' "$RUNNER_TEMP/a.json" | sort | uniq -c | head -c 20000 || true
+
       - name: Dump test-host crash reports
         if: failure()
         run: |
