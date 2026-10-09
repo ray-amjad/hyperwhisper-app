@@ -1290,8 +1290,10 @@ internal static class Program
                 Assert(result.Matches[0].Token == "wisper", $"got token '{result.Matches[0].Token}'");
             });
 
-            // NEW ON WINDOWS (#283): the unanchored, diacritic-insensitive pass
-            // the four macOS local providers have always run. The search word is
+            // The shared bridge's unanchored, diacritic-insensitive pass (#283),
+            // which the four macOS local providers run. The Windows head no
+            // longer calls it (issue #1596: it matched inside words and doubled
+            // the \b pass); this keeps the shared bridge covered. The search word is
             // unaccented and the text is decomposed, and the "Zo\u00EB" that is
             // NOT matched keeps its diaeresis and its capital. That is the whole
             // reason the core maps folded byte offsets back to the original
@@ -9795,6 +9797,162 @@ internal static class Program
                     }
                     settings.RemoveFillerWords = previousRemoveFillerWords;
                 }
+            });
+
+            // =================================================================
+            // Windows Parakeet vocabulary runs each pass once (issue #1596)
+            //
+            // ParakeetTranscriptionService ran the phonetic pass AND the
+            // unanchored substring pass inside TranscribeAsync, and the
+            // orchestrator's \b VocabularyProcessor pass then ran again over
+            // that output. So "fox" -> "fox terrier" gave "fox terrier terrier",
+            // "art" -> "ART" gave "quARTerly", and RawText (the History row's
+            // TranscribedText) already held the swaps. Ray's decisions
+            // (2026-10-09): drop the substring pass, never apply a swap twice,
+            // keep the raw text raw. The provider below runs the REAL Parakeet
+            // phonetic code through the real core; only the daemon is faked.
+            // =================================================================
+
+            Run("Parakeet vocabulary: a replacement applies once, whole words only, and RawText stays the engine's text — issue #1596", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var vocabulary = VocabularyService.Instance;
+                var seeded = new List<VocabularyItem>();
+                void Seed(string word, string? replacement)
+                {
+                    Assert(vocabulary.TryAdd(word, replacement, out var error),
+                        $"could not seed the vocabulary row '{word}': {error ?? "no reason given"}");
+                    var row = vocabulary.GetAll()
+                        .FirstOrDefault(v => string.Equals(v.Word, word, StringComparison.OrdinalIgnoreCase));
+                    Assert(row != null, $"the seeded row '{word}' did not come back from VocabularyService");
+                    seeded.Add(row!);
+                }
+
+                TranscriptionResult Run1596(string raw)
+                {
+                    var mode = new Mode
+                    {
+                        Name = "Parakeet vocabulary once",
+                        ProviderType = "local",
+                        Language = "en",
+                        PostProcessingMode = 0
+                    };
+                    var provider = new ParakeetVocabularyTestProvider(raw);
+                    var orchestrator = new TranscriptionOrchestrator();
+                    try
+                    {
+                        var result = orchestrator.TranscribeAsync(
+                            audioPath: "C:\\hyperwhisper-smoketest\\unused.wav",
+                            mode: mode,
+                            vocabulary: null,
+                            localTranscriptionProvider: provider,
+                            applicationContext: null,
+                            cancellationToken: CancellationToken.None,
+                            callSite: TranscriptionCallSite.Gui,
+                            applyAiPostProcessing: false).GetAwaiter().GetResult();
+                        Assert(provider.CorrectionCalls == 1,
+                            $"the Parakeet phonetic pass ran {provider.CorrectionCalls} times for one transcription; it must run once");
+                        return result;
+                    }
+                    finally
+                    {
+                        orchestrator.Dispose();
+                    }
+                }
+
+                static int Count(string text, string word)
+                {
+                    var count = 0;
+                    for (var at = text.IndexOf(word, StringComparison.Ordinal); at >= 0;
+                         at = text.IndexOf(word, at + word.Length, StringComparison.Ordinal))
+                    {
+                        count++;
+                    }
+                    return count;
+                }
+
+                try
+                {
+                    Seed("fox", "fox terrier");
+                    Seed("art", "ART");
+                    // A spelling-hint row (no replacement), so the phonetic pass
+                    // really runs and really rewrites a token in the case below.
+                    Seed("Whisper", null);
+
+                    // The Done-when, verbatim: the replacement lands once.
+                    const string foxRaw = "the quick brown fox jumps";
+                    var fox = Run1596(foxRaw);
+                    Assert(fox.FinalText == "the quick brown fox terrier jumps",
+                        $"'fox' -> 'fox terrier' must apply once, got '{fox.FinalText}'");
+                    Assert(fox.RawText == foxRaw,
+                        $"RawText (History's TranscribedText) must be the engine's text, got '{fox.RawText}'");
+
+                    // Whole words only: no swap inside "quarterly".
+                    const string artRaw = "the quarterly art report";
+                    var art = Run1596(artRaw);
+                    Assert(art.FinalText == "the quarterly ART report",
+                        $"'art' -> 'ART' must leave 'quarterly' alone, got '{art.FinalText}'");
+                    Assert(art.RawText == artRaw,
+                        $"RawText must be the engine's text, got '{art.RawText}'");
+
+                    // Through the phonetic pass too: it corrects "wisper", and the
+                    // replacement still lands exactly once after it.
+                    const string bothRaw = "the quick brown fox jumps over hyper wisper";
+                    var both = Run1596(bothRaw);
+                    Assert(both.FinalText == "the quick brown fox terrier jumps over hyper Whisper",
+                        $"the phonetic pass and the \\b pass must each apply once, got '{both.FinalText}'");
+                    Assert(Count(both.FinalText, "terrier") == 1,
+                        $"'fox terrier' was applied more than once, got '{both.FinalText}'");
+                    Assert(both.RawText == bothRaw,
+                        $"RawText must hold neither swap (phonetic or replacement), got '{both.RawText}'");
+                }
+                finally
+                {
+                    foreach (var row in seeded)
+                    {
+                        vocabulary.Delete(row.Id);
+                    }
+                }
+            });
+
+            Run("Parakeet vocabulary: the phonetic pass never writes a replacement value and has no substring pass — issue #1596", () =>
+            {
+                var replacementRows = new List<VocabularyItem>
+                {
+                    new() { Word = "fox", Replacement = "fox terrier" },
+                    new() { Word = "art", Replacement = "ART" },
+                };
+
+                // Replacement rows are the \b pass's alone: the Parakeet pass
+                // leaves them for it, so it cannot be the second application.
+                var fox = ParakeetTranscriptionService.ApplyLocalVocabularyCorrection(
+                    "the quick brown fox jumps", () => replacementRows, isQwen3: false);
+                Assert(fox == "the quick brown fox jumps",
+                    $"the Parakeet pass applied a replacement row, got '{fox}'");
+                var quarterly = ParakeetTranscriptionService.ApplyLocalVocabularyCorrection(
+                    "the quarterly report", () => replacementRows, isQwen3: false);
+                Assert(quarterly == "the quarterly report",
+                    $"the Parakeet pass still matches inside a word, got '{quarterly}'");
+
+                // The phonetic correction itself is kept.
+                var hints = new List<VocabularyItem> { new() { Word = "Whisper", Replacement = null } };
+                var hint = ParakeetTranscriptionService.ApplyLocalVocabularyCorrection(
+                    "hyper wisper", () => hints, isQwen3: false);
+                Assert(hint == "hyper Whisper", $"the phonetic correction was lost, got '{hint}'");
+
+                // Qwen3 has no phonetic pass (macOS parity), and now no pass at all.
+                var qwen = ParakeetTranscriptionService.ApplyLocalVocabularyCorrection(
+                    "hyper wisper", () => hints, isQwen3: true);
+                Assert(qwen == "hyper wisper", $"Qwen3 must get no local pass, got '{qwen}'");
+
+                // A vocabulary read that throws degrades to the raw text.
+                var failed = ParakeetTranscriptionService.ApplyLocalVocabularyCorrection(
+                    "hyper wisper", () => throw new InvalidOperationException("db gone"), isQwen3: false);
+                Assert(failed == "hyper wisper", $"a failed vocabulary read must return the raw text, got '{failed}'");
+
+                Assert(typeof(ILocalVocabularyCorrection).IsAssignableFrom(typeof(ParakeetTranscriptionService)),
+                    "ParakeetTranscriptionService must hand its phonetic pass to the orchestrator");
             });
 
             Run("the /transcribe response projects FinalText, not RawText — issues #495, #498", () =>
@@ -20280,6 +20438,32 @@ internal static class Program
             string? language = null,
             IReadOnlyList<string>? vocabulary = null,
             CancellationToken cancellationToken = default) => Task.FromResult(text);
+    }
+
+    /// <summary>
+    /// Stands in for <c>ParakeetTranscriptionService</c> in the orchestrator: the
+    /// daemon is faked (one fixed string), but the vocabulary correction is the
+    /// service's REAL phonetic pass through the native core (issue #1596).
+    /// </summary>
+    private sealed class ParakeetVocabularyTestProvider(string text, bool isQwen3 = false)
+        : ITranscriptionProvider, ILocalVocabularyCorrection
+    {
+        public int CorrectionCalls { get; private set; }
+        public bool IsAvailable => true;
+        public string Name => "SmokeTestParakeetVocabulary";
+
+        public Task<string> TranscribeAsync(
+            string audioPath,
+            string? language = null,
+            IReadOnlyList<string>? vocabulary = null,
+            CancellationToken cancellationToken = default) => Task.FromResult(text);
+
+        public string ApplyLocalVocabularyCorrection(string rawText)
+        {
+            CorrectionCalls++;
+            return ParakeetTranscriptionService.ApplyLocalVocabularyCorrection(
+                rawText, VocabularyService.Instance.GetAll, isQwen3);
+        }
     }
 
     /// <summary>

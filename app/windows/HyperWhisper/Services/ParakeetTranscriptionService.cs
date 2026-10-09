@@ -18,6 +18,7 @@ using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.SharedCore;
 using HyperWhisper.Utilities;
@@ -31,7 +32,7 @@ namespace HyperWhisper.Services;
 /// The daemon is a C++ process that loads ONNX Parakeet TDT models and performs
 /// speech-to-text transcription using either DirectML (GPU) or CPU backends.
 /// </summary>
-public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
+public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabularyCorrection, IDisposable
 {
     // =========================================================================
     // STATE
@@ -1098,7 +1099,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
         try
         {
-            return ApplyLocalVocabulary(await TranscribeInternalAsync(audioPath, teardownGeneration, cancellationToken));
+            return await TranscribeInternalAsync(audioPath, teardownGeneration, cancellationToken);
         }
         catch (TranscriptionException ex) when (ex.Code == TranscriptionErrorCode.DaemonCrashed)
         {
@@ -1123,7 +1124,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                 await InitializeCoreAsync(_lastModelDirectory, _lastLanguage, advanceTeardownGeneration: false);
                 LoggingService.Info("ParakeetTranscriptionService: Auto-restart successful, retrying transcription...");
                 // Same entry generation: a teardown during the restart makes the retry stale.
-                return ApplyLocalVocabulary(await TranscribeInternalAsync(audioPath, teardownGeneration, cancellationToken));
+                return await TranscribeInternalAsync(audioPath, teardownGeneration, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -1149,62 +1150,84 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     }
 
     /// <summary>
-    /// The two on-device vocabulary passes over the raw engine result, both via
-    /// the shared Rust core (<c>hw-phonetic</c>, issue #283). They run FIRST on
-    /// the raw text; the orchestrator's <c>\b</c>-anchored
-    /// <see cref="VocabularyProcessor"/> pass runs second — mirrors macOS
-    /// ParakeetProvider.swift / NemotronProvider.swift.
+    /// The on-device phonetic vocabulary pass over the raw engine result, via the
+    /// shared Rust core (<c>hw-phonetic</c>, issue #283). It corrects a misheard
+    /// token towards a spelling-hint row (a vocabulary row with NO replacement);
+    /// the core skips every row that carries a replacement.
     ///
-    /// 1. The phonetic (Beider-Morse) pass. TDT + Nemotron only; Qwen3 gets no
-    ///    phonetic pass on macOS (Qwen3AsrProvider), so it is gated here too.
-    /// 2. The unanchored, diacritic-insensitive substring pass. This one runs
-    ///    for EVERY local engine including Qwen3, which is what all four macOS
-    ///    local providers do. NEW ON WINDOWS — there was no counterpart before.
+    /// <see cref="TranscribeAsync(string, string?, IReadOnlyList{string}?, CancellationToken)"/>
+    /// returns the engine's text untouched. <see cref="Transcription.TranscriptionOrchestrator"/>
+    /// calls this once, AFTER it has kept that text as <c>RawText</c> (the History
+    /// row's raw transcript), and then runs its own <c>\b</c>-anchored
+    /// <see cref="VocabularyProcessor"/> pass once over the result (issue #1596).
     ///
-    /// Vocabulary is GLOBAL (all items, no settings gate) — macOS parity.
+    /// There used to be a second local pass here: the unanchored,
+    /// diacritic-insensitive <c>ApplySubstringVocabulary</c>, a copy of the macOS
+    /// local providers' shape. It is gone on Windows (issue #1596, Ray's decision
+    /// of 2026-10-09). It matched inside words ("art" -> "ART" turned "quarterly"
+    /// into "quARTerly"), and the orchestrator's <c>\b</c> pass then applied every
+    /// replacement row a second time ("fox" -> "fox terrier" gave
+    /// "fox terrier terrier"). Replacement rows are now applied by the <c>\b</c>
+    /// pass alone, whole words only, exactly as on Whisper. macOS and Linux are
+    /// tracked in #1622.
     ///
-    /// One core call per pass per transcription. The retired
-    /// <c>PhoneticVocabularyMatcher</c> encoded one word per call, which is why
-    /// this class used to cache a built matcher and invalidate it on
-    /// <c>VocabularyService.VocabularyChanged</c>. Neither is needed now: the
-    /// core owns its own process-wide code cache, so a fresh read of the
-    /// vocabulary on every transcription costs a hash lookup per row and can
-    /// never serve a stale list.
+    /// Why this cannot apply a replacement twice: the phonetic pass only ever
+    /// writes a hint row's own spelling, never a replacement value, and the
+    /// <c>\b</c> pass runs each replacement row once per transcription
+    /// (<c>replace_all</c> never rescans the text it inserted).
+    ///
+    /// TDT + Nemotron only. Qwen3 gets no phonetic pass on macOS
+    /// (Qwen3AsrProvider), so it is gated here too.
+    ///
+    /// Vocabulary is GLOBAL (all items, no settings gate) — macOS parity. One
+    /// core call per transcription; the core owns its own process-wide code
+    /// cache, so a fresh read of the vocabulary each time can never be stale.
     /// </summary>
-    private string ApplyLocalVocabulary(string text)
+    public string ApplyLocalVocabularyCorrection(string rawText)
+        // Read _isQwen3 once: a model switch between the transcription and this
+        // call is the only way it could disagree with the engine that produced
+        // rawText.
+        => ApplyLocalVocabularyCorrection(rawText, VocabularyService.Instance.GetAll, _isQwen3);
+
+    /// <summary>
+    /// <see cref="ApplyLocalVocabularyCorrection(string)"/> with the vocabulary
+    /// source and the engine passed in, so a test can drive the real core call
+    /// without a loaded model.
+    /// </summary>
+    internal static string ApplyLocalVocabularyCorrection(
+        string rawText,
+        Func<IEnumerable<VocabularyItem>> readVocabulary,
+        bool isQwen3)
     {
-        // Both passes cross the FFI on the transcription hot path; macOS links
-        // the core statically and has no equivalent failure mode, so degrade
-        // gracefully here rather than failing the transcription.
+        if (string.IsNullOrEmpty(rawText) || isQwen3)
+        {
+            return rawText;
+        }
+
+        // Crosses the FFI on the transcription hot path; macOS links the core
+        // statically and has no equivalent failure mode, so degrade gracefully
+        // here rather than failing the transcription.
         try
         {
-            var vocabulary = VocabularyService.Instance.GetAll();
-            if (vocabulary.Count == 0)
-            {
-                return text;
-            }
-
-            var entries = vocabulary
+            var entries = readVocabulary()
                 .Select(item => new PortableVocabularyEntry(item.Word ?? string.Empty, item.Replacement))
                 .ToList();
-
-            var corrected = text;
-            if (!_isQwen3)
+            if (entries.Count == 0)
             {
-                var phonetic = SharedCoreBridge.ApplyPhoneticVocabulary(corrected, entries);
-                foreach (var match in phonetic.Matches)
-                {
-                    LoggingService.Debug($"Phonetic match: '{match.Token}' -> '{match.Replacement}'");
-                }
-                corrected = phonetic.Text;
+                return rawText;
             }
 
-            return SharedCoreBridge.ApplySubstringVocabulary(corrected, entries);
+            var phonetic = SharedCoreBridge.ApplyPhoneticVocabulary(rawText, entries);
+            foreach (var match in phonetic.Matches)
+            {
+                LoggingService.Debug($"Phonetic match: '{match.Token}' -> '{match.Replacement}'");
+            }
+            return phonetic.Text;
         }
         catch (Exception ex)
         {
             LoggingService.Warn($"ParakeetTranscriptionService: Local vocabulary pass failed, returning unmatched text: {ex.Message}");
-            return text;
+            return rawText;
         }
     }
 
