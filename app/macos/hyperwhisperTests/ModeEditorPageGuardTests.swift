@@ -243,6 +243,42 @@ struct ModeEditorPageGuardTests {
         #expect(!source.contains("appState.navigateToModelLibraryAPIKeys()"))
     }
 
+    /// Return and Escape both keep the edit; no key presses Discard. Keep
+    /// Editing holds Return, so the alert leaves Escape unbound, and a key
+    /// monitor that lives only while the prompt is up gives it to Keep Editing.
+    @Test func returnAndEscapeKeepEditingAndNoKeyDiscards() throws {
+        let alert = try ProductionSource.slice(
+            of: Self.editorPath,
+            from: ".alert(\"modes.editor.discard.title\".localized, isPresented: discardPromptIsPresented) {",
+            to: "} message: {"
+        )
+        let keepEditing = try #require(alert.components(separatedBy: "Button(role: .destructive)").first)
+        #expect(keepEditing.contains("appState.keepEditingModeEditor()"))
+        #expect(keepEditing.contains(".keyboardShortcut(.defaultAction)"))
+        let discard = try #require(alert.components(separatedBy: "Button(role: .destructive)").last)
+        #expect(discard.contains("appState.discardModeEditorAndNavigate()"))
+        #expect(!discard.contains(".keyboardShortcut"))
+
+        let source = try ProductionSource.code(of: Self.editorPath)
+        #expect(source.contains(".onChange(of: discardPromptIsPresented.wrappedValue) { _, presented in"))
+        #expect(source.contains("installDiscardPromptEscapeMonitor()"))
+        let monitor = try ProductionSource.slice(
+            of: Self.editorPath,
+            from: "private func installDiscardPromptEscapeMonitor() {",
+            to: "private func removeDiscardPromptEscapeMonitor() {"
+        )
+        #expect(monitor.contains("NSEvent.addLocalMonitorForEvents(matching: .keyDown)"))
+        #expect(monitor.contains("event.keyCode == 53"))
+        #expect(monitor.contains("state.keepEditingModeEditor()"))
+        #expect(!monitor.contains("discardModeEditorAndNavigate"))
+        let teardown = try ProductionSource.slice(
+            of: Self.editorPath,
+            from: "private func removeDiscardPromptEscapeMonitor() {",
+            to: "private var editorHeader: some View {"
+        )
+        #expect(teardown.contains("NSEvent.removeMonitor(monitor)"))
+    }
+
     @Test func everyLocaleHasThePromptKeys() throws {
         let keys = [
             "modes.editor.discard.title",

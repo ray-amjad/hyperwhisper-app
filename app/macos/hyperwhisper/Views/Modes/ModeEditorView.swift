@@ -118,6 +118,10 @@ struct ModeEditorView: View {
     /// What the editor showed once its on-appear repairs had run; nil until then.
     @State private var settledSnapshot: ModeEditorSnapshot?
 
+    /// Escape → Keep Editing while the discard prompt is up. A button holds
+    /// one key: Keep Editing holds Return, so the alert gives Escape to no one.
+    @State private var discardPromptEscapeMonitor: Any?
+
     /// How long after appearing the editor takes its baseline. The on-appear
     /// repairs (model clamp, post-processing and language checks) and the
     /// onChange handlers they trigger run first, so a clean editor whose stored
@@ -888,13 +892,23 @@ struct ModeEditorView: View {
             }
         }
         .onDisappear {
+            removeDiscardPromptEscapeMonitor()
             appState.modeEditorDidClose(session: editorSession)
         }
         .onChange(of: hasUnsavedChanges) { _, unsaved in
             appState.modeEditor(session: editorSession, hasUnsavedChanges: unsaved)
         }
+        .onChange(of: discardPromptIsPresented.wrappedValue) { _, presented in
+            if presented {
+                installDiscardPromptEscapeMonitor()
+            } else {
+                removeDiscardPromptEscapeMonitor()
+            }
+        }
         .alert("modes.editor.discard.title".localized, isPresented: discardPromptIsPresented) {
-            // Keep Editing is the default: Return and Esc both keep the edit.
+            // Keep Editing is the default: Return presses it, and Escape
+            // reaches it through discardPromptEscapeMonitor. Only Discard
+            // leaves.
             Button(role: .cancel) {
                 appState.keepEditingModeEditor()
             } label: {
@@ -908,6 +922,28 @@ struct ModeEditorView: View {
             }
         } message: {
             Text(localized: "modes.editor.discard.message")
+        }
+    }
+
+    // MARK: - Discard prompt Escape
+
+    /// A plain Escape while the prompt is up presses Keep Editing.
+    private func installDiscardPromptEscapeMonitor() {
+        guard discardPromptEscapeMonitor == nil else { return }
+        let state = appState
+        discardPromptEscapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+            guard event.keyCode == 53, modifiers.isEmpty,
+                  state.pendingModeEditorNavigation != nil else { return event }
+            state.keepEditingModeEditor()
+            return nil
+        }
+    }
+
+    private func removeDiscardPromptEscapeMonitor() {
+        if let monitor = discardPromptEscapeMonitor {
+            NSEvent.removeMonitor(monitor)
+            discardPromptEscapeMonitor = nil
         }
     }
 
