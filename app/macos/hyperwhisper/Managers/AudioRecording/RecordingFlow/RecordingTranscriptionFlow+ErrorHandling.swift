@@ -53,33 +53,30 @@ extension RecordingTranscriptionFlow {
     /// The mode a pending-file retry transcribes with, or `nil` when the user
     /// must pick one first (#1617).
     ///
-    /// Looks the mode up by id, then by name, and NEVER falls back to the
-    /// default mode: on a fresh install the default is the Cloud mode "Hyper",
-    /// so a deleted on-device mode would otherwise send the audio to
-    /// HyperWhisper Cloud without asking. Same rule as History's Retry
-    /// (`TranscriptionRetryController`, #1440). A session mode that still
-    /// exists resolves through the same id and name steps as before.
+    /// Looks the mode up by id ONLY, and NEVER falls back to a mode found by
+    /// name or to the default mode: on a fresh install the default is the
+    /// Cloud mode "Hyper", so a deleted on-device mode would otherwise send
+    /// the audio to HyperWhisper Cloud without asking. Same rule as History's
+    /// Retry (`TranscriptionRetryController`, #1440). A session mode that
+    /// still exists resolves by its id, as before.
     ///
-    /// A mode the user PICKED resolves by id only. If it was deleted before
-    /// the lookup, another mode with the same name (maybe a Cloud mode) must
-    /// not stand in for it: `nil` re-opens the picker and nothing is sent.
+    /// No name step, for the session mode or a PICKED one: if the mode was
+    /// deleted, another mode with the same name (maybe a Cloud mode the user
+    /// created or imported since) must not stand in for it. An empty session
+    /// id (no app state, a cleared selection) has no mode to match either: a
+    /// name then ("Default", or "") could only reach some other mode. `nil`
+    /// opens the picker and nothing is sent.
     static func resolvePendingRetryMode(
         pickedMode: PendingRetryModeChoice?,
         sessionModeId: String,
-        sessionModeName: String,
         persistence: PersistenceController = .shared
     ) async -> Mode? {
-        if let pickedMode {
-            return await persistence.resolveTranscriptionModeInBackground(
-                id: pickedMode.id,
-                fallbackName: pickedMode.name,
-                allowNameFallback: false,
-                allowDefaultFallback: false
-            )
-        }
+        let id = pickedMode?.id ?? sessionModeId
+        guard !id.isEmpty else { return nil }
         return await persistence.resolveTranscriptionModeInBackground(
-            id: sessionModeId,
-            fallbackName: sessionModeName,
+            id: id,
+            fallbackName: "",
+            allowNameFallback: false,
             allowDefaultFallback: false
         )
     }
@@ -111,8 +108,7 @@ extension RecordingTranscriptionFlow {
 
         let resolvedMode = await Self.resolvePendingRetryMode(
             pickedMode: pickedMode,
-            sessionModeId: activeSessionModeId,
-            sessionModeName: activeSessionModeName
+            sessionModeId: activeSessionModeId
         )
 
         // The mode lookup suspends; a new dictation may have started meanwhile.

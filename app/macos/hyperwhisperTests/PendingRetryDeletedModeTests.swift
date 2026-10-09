@@ -82,7 +82,6 @@ struct PendingRetryDeletedModeTests {
         let mode = await RecordingTranscriptionFlow.resolvePendingRetryMode(
             pickedMode: nil,
             sessionModeId: id,
-            sessionModeName: "LocNemo",
             persistence: persistence
         )
         #expect(mode == nil, "fell back to \(mode?.name ?? "nil")")
@@ -96,24 +95,46 @@ struct PendingRetryDeletedModeTests {
         let mode = await RecordingTranscriptionFlow.resolvePendingRetryMode(
             pickedMode: nil,
             sessionModeId: onDevice.id!.uuidString,
-            sessionModeName: "LocNemo",
             persistence: persistence
         )
         #expect(mode?.objectID == onDevice.objectID)
     }
 
-    /// Control: the by-name step of the old chain still finds a live mode.
+    /// The issue's sequence, then a Cloud mode created (or imported) with the
+    /// deleted mode's name: the retry must not upload the on-device audio to
+    /// it. The session mode resolves by id only, so it asks instead.
     @MainActor
-    @Test func aLiveSessionModeIsStillFoundByName() async {
+    @Test func aDeletedSessionModeNeverResolvesToASameNamedMode() async {
+        let (persistence, _, onDevice) = makeStore()
+        let id = onDevice.id!.uuidString
+        persistence.deleteMode(onDevice)
+        let sameName = makeMode(in: persistence, name: "LocNemo", model: "cloud", isDefault: false)
+        persistence.save()
+
+        let mode = await RecordingTranscriptionFlow.resolvePendingRetryMode(
+            pickedMode: nil,
+            sessionModeId: id,
+            persistence: persistence
+        )
+        withExtendedLifetime(sameName) {
+            #expect(mode == nil, "resolved the session mode by name to \(mode?.name ?? "nil")")
+        }
+    }
+
+    /// No session id at all (no app state, a cleared selection): there is no
+    /// mode to match, and a name could only reach some other mode. Ask.
+    @MainActor
+    @Test func noSessionModeIdResolvesToNoMode() async {
         let (persistence, _, onDevice) = makeStore()
 
         let mode = await RecordingTranscriptionFlow.resolvePendingRetryMode(
             pickedMode: nil,
             sessionModeId: "",
-            sessionModeName: "LocNemo",
             persistence: persistence
         )
-        #expect(mode?.objectID == onDevice.objectID)
+        withExtendedLifetime(onDevice) {
+            #expect(mode == nil, "fell back to \(mode?.name ?? "nil")")
+        }
     }
 
     /// After the picker: the picked mode wins over the deleted session mode.
@@ -128,7 +149,6 @@ struct PendingRetryDeletedModeTests {
         let mode = await RecordingTranscriptionFlow.resolvePendingRetryMode(
             pickedMode: PendingRetryModeChoice(id: picked.id!.uuidString, name: "Local Whisper"),
             sessionModeId: deletedId,
-            sessionModeName: "LocNemo",
             persistence: persistence
         )
         #expect(mode?.objectID == picked.objectID)
@@ -144,7 +164,6 @@ struct PendingRetryDeletedModeTests {
         let mode = await RecordingTranscriptionFlow.resolvePendingRetryMode(
             pickedMode: picked,
             sessionModeId: "",
-            sessionModeName: "Default",
             persistence: persistence
         )
         #expect(mode == nil, "fell back to \(mode?.name ?? "nil")")
@@ -163,7 +182,6 @@ struct PendingRetryDeletedModeTests {
         let mode = await RecordingTranscriptionFlow.resolvePendingRetryMode(
             pickedMode: picked,
             sessionModeId: "",
-            sessionModeName: "Default",
             persistence: persistence
         )
         withExtendedLifetime(sameName) {
