@@ -296,13 +296,20 @@ public static class UniversalBackupMapper
     /// </summary>
     public static UniversalMode MapMode(Mode mode)
     {
+        // The portable routing fields follow ProviderType, not the stored legacy
+        // columns (#1477). The mode editor used to leave Model = "cloud" and
+        // CloudProvider = "hyperwhisper" on a mode switched to On-device, and
+        // macOS (model == "cloud") and Linux (cloudProvider != null) would restore
+        // that mode as a HyperWhisper Cloud mode. A cloud mode exports as before.
+        var isCloud = LocalModeModel.IsCloud(mode);
+
         var universal = new UniversalMode
         {
             Id = mode.Id,
             Name = mode.Name,
             Preset = mode.Preset,
             Language = mode.Language,
-            Model = mode.Model,
+            Model = isCloud ? mode.Model : LocalModeModel.PortableLocalModel(mode),
             IsDefault = mode.IsDefault,
             SortOrder = mode.SortOrder,
             Punctuation = mode.Punctuation,
@@ -310,8 +317,8 @@ public static class UniversalBackupMapper
             ProfanityFilter = mode.ProfanityFilter,
             RemoveTrailingPeriod = mode.RemoveTrailingPeriod,
             EnglishSpelling = mode.EnglishSpelling,
-            CloudProvider = mode.CloudProvider,
-            CloudTranscriptionModel = mode.CloudTranscriptionModel,
+            CloudProvider = isCloud ? mode.CloudProvider : null,
+            CloudTranscriptionModel = isCloud ? mode.CloudTranscriptionModel : null,
             CloudTranscriptionDomain = mode.CloudTranscriptionDomain,
             PostProcessingMode = mode.PostProcessingMode,
             PostProcessingProvider = PostProcessingProviderExtensions.ToUniversalStorageValue(mode.PostProcessingProvider),

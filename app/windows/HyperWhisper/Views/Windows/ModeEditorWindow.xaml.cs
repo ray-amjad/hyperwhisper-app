@@ -1864,6 +1864,11 @@ public partial class ModeEditorWindow : Window
             {
                 _mode.ModelType = modelId;
             }
+
+            // A new mode is seeded Model = "cloud" / CloudProvider = "hyperwhisper"
+            // (constructor above). Rewrite both so the row stops saying "cloud":
+            // macOS and Linux route on those two fields when a backup crosses (#1477).
+            LocalModeModel.ApplyOnDevice(_mode);
         }
 
         if (LanguageCombo.SelectedItem is ComboBoxItem langItem)
