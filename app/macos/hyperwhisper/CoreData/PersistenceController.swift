@@ -3352,7 +3352,8 @@ class PersistenceController: ObservableObject {
         request.includesPendingChanges = true
 
         do {
-            return try !container.viewContext.fetch(request).isEmpty
+            let matches = try container.viewContext.fetch(request)
+            return !matches.isEmpty
         } catch {
             AppLogger.coreData.error("Failed to check vocabulary existence: \(error, privacy: .public)")
             SentryService.capture(error: error, message: "Failed to check vocabulary existence", tags: ["component": "PersistenceController", "operation": "importedVocabularyItemExists"])
