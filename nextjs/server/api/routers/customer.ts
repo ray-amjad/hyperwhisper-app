@@ -18,11 +18,9 @@ import {
   getPaidCreditGrantsForUsers,
 } from "@/src/lib/db-layer";
 import { stripe } from "@/lib/clients/stripe";
+import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
 import { createCreditHistoryPresenter } from "./customer-credit-history";
 
-// Credits per minute for the default HyperWhisper Cloud STT route.
-// 1 credit = $0.001; xAI Grok STT batch is $0.10/hour = 1.6667 credits/min.
-const CREDITS_PER_MINUTE = 1.67;
 const presentCreditHistory = createCreditHistoryPresenter();
 
 export const customerRouter = createTRPCRouter({
