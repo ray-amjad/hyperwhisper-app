@@ -914,7 +914,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
             // STEP 2: Start background stderr reader for diagnostics
             LoggingService.Debug("Step 2: Starting stderr reader thread...");
-            StartStderrReader(process);
+            var stderrCapture = StartStderrReader(process);
 
             // STEP 3: Wait for READY signal on stdout.
             // Qwen3 loads ~1.2 GB of ONNX sessions on a cold cache — give it longer.
@@ -995,15 +995,20 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                     LoggingService.Error($"ParakeetTranscriptionService: Daemon reported error: {errorMsg}");
                     KillDaemonProcess(process);
 
-                    // The daemon answers "Failed to load model" only when it could not
-                    // build the recognizer from this model's files (every provider
-                    // failed, or a Nemotron vocab/decoder check failed). A same-size
-                    // but invalid ONNX file can land here instead of crashing (#1598
-                    // review), so it is the model's fault: mark it broken. Its other
-                    // startup error ("Invalid arguments") is the app's, not the model's.
-                    if (IsModelLoadErrorResponse(errorMsg))
+                    // "Failed to load model" alone does not say WHY (#1598 review round 2):
+                    // the daemon sends it for a missing sherpa-onnx/onnxruntime DLL, a
+                    // type-initializer fault, OOM, a provider failure and a bad model file
+                    // alike. Its stderr carries the cause, written before this line, so
+                    // read that to its end (the daemon is gone) and mark the model broken
+                    // only when it names a fault in the model's own files.
+                    await stderrCapture.WaitForEndAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                    if (IsModelFileLoadFailure(errorMsg, stderrCapture.Snapshot(), modelDirectory))
                     {
                         LocalModelHealth.MarkBroken(modelDirectory, "Parakeet engine could not load the model");
+                    }
+                    else if (IsModelLoadErrorResponse(errorMsg))
+                    {
+                        LoggingService.Warn("ParakeetTranscriptionService: The daemon's stderr names no fault in the model files (a runtime, provider or memory failure); the model is not marked broken");
                     }
                     throw new TranscriptionException(
                         TranscriptionErrorCode.DaemonStartFailed,
@@ -1726,12 +1731,14 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// each line as debug output. This captures diagnostic messages from the
     /// C++ engine without blocking the main communication channel.
     /// </summary>
-    private void StartStderrReader(Process process)
+    private static StderrCapture StartStderrReader(Process process)
     {
-        _ = ReadStderrAsync(process.StandardError);
+        var capture = new StderrCapture();
+        _ = ReadStderrAsync(process.StandardError, capture);
+        return capture;
     }
 
-    private static async Task ReadStderrAsync(StreamReader stderrReader)
+    private static async Task ReadStderrAsync(StreamReader stderrReader, StderrCapture capture)
     {
         try
         {
@@ -1740,6 +1747,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                 var line = await stderrReader.ReadLineAsync().ConfigureAwait(false);
                 if (line == null) break; // Stream closed
 
+                capture.Add(line);
                 LoggingService.Debug($"ParakeetTranscriptionService [stderr]: {line}");
             }
         }
@@ -1750,6 +1758,53 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         catch (Exception ex)
         {
             LoggingService.Debug($"ParakeetTranscriptionService: Stderr reader stopped: {ex.Message}");
+        }
+        finally
+        {
+            capture.Complete();
+        }
+    }
+
+    /// <summary>
+    /// The daemon's first stderr lines (its startup diagnostics), kept so a startup
+    /// error can be classified by its cause (#1598). Bounded: a long-lived daemon's
+    /// later lines are only logged.
+    /// </summary>
+    private sealed class StderrCapture
+    {
+        private const int MaxLines = 200;
+        private readonly List<string> _lines = new();
+        private readonly TaskCompletionSource _ended = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void Add(string line)
+        {
+            lock (_lines)
+            {
+                if (_lines.Count < MaxLines) _lines.Add(line);
+            }
+        }
+
+        public void Complete() => _ended.TrySetResult();
+
+        public IReadOnlyList<string> Snapshot()
+        {
+            lock (_lines)
+            {
+                return _lines.ToArray();
+            }
+        }
+
+        /// <summary>Waits until stderr reaches its end, or the timeout passes.</summary>
+        public async Task WaitForEndAsync(TimeSpan timeout)
+        {
+            try
+            {
+                await _ended.Task.WaitAsync(timeout).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                // Classify on what arrived; a missing cause means "not marked".
+            }
         }
     }
 
@@ -1780,7 +1835,8 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// The error text the parakeet-engine daemon sends as its startup
     /// <c>{"status":"error"}</c> line when <c>EngineSession.Create</c> throws, i.e.
     /// when no recognizer could be built from the model directory
-    /// (tools/parakeet-engine-dotnet/Program.cs).
+    /// (tools/parakeet-engine/main.cpp, the x64 build: the sherpa-onnx C API returned
+    /// null; tools/parakeet-engine-dotnet/Program.cs, the ARM64 build: any exception).
     /// </summary>
     internal const string DaemonModelLoadError = "Failed to load model";
 
@@ -1791,6 +1847,65 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     internal static bool IsModelLoadErrorResponse(string? error) =>
         string.Equals(error?.Trim(), DaemonModelLoadError, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Stderr text that names a fault in one of the model's own files, written by
+    /// sherpa-onnx's config check (a model file that "does not exist") or by ONNX
+    /// Runtime when it cannot parse a model (#1598). Counts only on a line that also
+    /// names the model directory, so the shipped silero_vad.onnx never counts.
+    /// </summary>
+    private static readonly string[] ModelFileFaultMarkers =
+    {
+        "does not exist",
+        "Protobuf parsing failed",
+        "INVALID_PROTOBUF",
+        "INVALID_GRAPH",
+        "No graph was found in the protobuf",
+        "Load model from",
+    };
+
+    /// <summary>
+    /// The message of the SEHException .NET raises when sherpa-onnx's native code
+    /// throws (ONNX Runtime rejecting a damaged model) inside the recognizer
+    /// constructor. The .NET engine (tools/parakeet-engine-dotnet, the ARM64 build)
+    /// logs it with no path, so it counts on its own.
+    /// </summary>
+    private const string NativeLoadExceptionMarker = "External component has thrown an exception";
+
+    /// <summary>
+    /// True when the daemon's startup error is "Failed to load model" AND its stderr
+    /// names a fault in this model's files (#1598), so a re-download can fix it.
+    /// The daemon sends the same line for every failure to build the recognizer: a
+    /// DllNotFoundException or TypeInitializationException for sherpa-onnx or
+    /// onnxruntime, OutOfMemoryException, or a DirectML and CPU provider that both
+    /// fail on a valid model. None of those name a model file on stderr, so none mark
+    /// the model broken. "Invalid arguments" and the Nemotron validation errors
+    /// (a pinned-size download already rules out a truncated vocab) never count.
+    /// </summary>
+    internal static bool IsModelFileLoadFailure(string? error, IReadOnlyList<string>? stderrLines, string? modelDirectory)
+    {
+        if (!IsModelLoadErrorResponse(error) || stderrLines == null) return false;
+
+        var directory = NormalizeForMatch(modelDirectory);
+        foreach (var raw in stderrLines)
+        {
+            if (string.IsNullOrEmpty(raw)) continue;
+            if (raw.Contains(NativeLoadExceptionMarker, StringComparison.OrdinalIgnoreCase)) return true;
+            if (directory.Length == 0) continue;
+
+            var line = NormalizeForMatch(raw);
+            if (!line.Contains(directory, StringComparison.OrdinalIgnoreCase)) continue;
+            foreach (var marker in ModelFileFaultMarkers)
+            {
+                if (line.Contains(marker, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string NormalizeForMatch(string? text) =>
+        string.IsNullOrEmpty(text) ? "" : text.Replace('/', '\\').TrimEnd('\\');
 
     /// <summary>
     /// True only for 0xC0000409, the fail-fast exit of a daemon whose ONNX Runtime

@@ -4095,7 +4095,7 @@ internal static class Program
                 }
 
                 Assert(ParakeetTranscriptionService.IsModelLoadErrorResponse("Failed to load model"),
-                    "the daemon's status:error 'Failed to load model' (invalid same-size ONNX) must mark the model broken");
+                    "the daemon's status:error 'Failed to load model' is the model-load error line");
                 Assert(ParakeetTranscriptionService.IsModelLoadErrorResponse(ParakeetTranscriptionService.DaemonModelLoadError),
                     "the constant should match itself");
                 Assert(!ParakeetTranscriptionService.IsModelLoadErrorResponse("Invalid arguments"),
@@ -4104,6 +4104,52 @@ internal static class Program
                     "a missing error must not mark the model broken");
                 Assert(!ParakeetTranscriptionService.IsModelLoadErrorResponse("Unexpected response: {}"),
                     "an unexpected startup line must not mark the model broken");
+            });
+
+            Run("Parakeet 'Failed to load model' marks a model broken only when stderr names a model-file fault (#1598 r2)", () =>
+            {
+                const string dir = @"C:\Users\u\AppData\Local\HyperWhisper\Models\parakeet\parakeet-tdt-0.6b-v2";
+                const string fail = ParakeetTranscriptionService.DaemonModelLoadError;
+                bool Marks(string? error, params string[] stderr) =>
+                    ParakeetTranscriptionService.IsModelFileLoadFailure(error, stderr, dir);
+
+                // A damaged same-size ONNX (Codex round 1) must still mark it.
+                Assert(Marks(fail,
+                        "[INFO] Model directory: " + dir,
+                        "Load model from " + dir + @"\encoder.int8.onnx failed:Protobuf parsing failed."),
+                    "an ONNX Runtime protobuf parse error on a model file must mark the model broken");
+                Assert(Marks(fail, "[ERROR] [E:onnxruntime] INVALID_PROTOBUF : Load model from " + dir.Replace('\\', '/') + "/decoder.int8.onnx failed"),
+                    "forward slashes and the ORT status code should still match");
+                Assert(Marks(fail, "C:/sherpa/offline-transducer-model-config.cc:Validate:36 transducer encoder: '" + dir.ToUpperInvariant() + "/encoder.int8.onnx' does not exist",
+                        "Errors in config"),
+                    "sherpa-onnx's missing-model-file check (x64 engine) must mark the model broken");
+                Assert(Marks(fail, "[WARN] Parakeet provider cpu failed: External component has thrown an exception."),
+                    "the ARM64 .NET engine's SEHException from a native model-load throw must mark the model broken");
+
+                // Runtime, provider and memory failures send the same line and must not.
+                foreach (var (stderr, why) in new (string[], string)[]
+                {
+                    (new[] { "[WARN] Parakeet provider cpu failed: Unable to load DLL 'sherpa-onnx-c-api' or one of its dependencies: The specified module could not be found. (0x8007007E)",
+                             "[ERROR] Failed to initialize daemon: Failed to load model" }, "a DllNotFoundException"),
+                    (new[] { "[WARN] Parakeet provider cpu failed: The type initializer for 'SherpaOnnx.OfflineRecognizer' threw an exception." }, "a TypeInitializationException"),
+                    (new[] { "[ERROR] Failed to initialize daemon: Insufficient memory to continue the execution of the program." }, "an OutOfMemoryException"),
+                    (new[] { "[WARN] Parakeet provider directml failed: D3D12CreateDevice failed (0x887A0004)",
+                             "[WARN] Parakeet provider cpu failed: bad allocation" }, "DirectML + CPU provider failures on a valid model"),
+                    (new[] { "[ERROR] Failed to initialize daemon: tokens.txt has 1025 lines; expected multilingual Nemotron vocab" }, "a failed ValidateNemotronModel"),
+                    (new[] { "[INFO] Model directory: " + dir, "[ERROR] Failed to create offline recognizer with any provider" }, "a model-directory line with no fault marker"),
+                    (new[] { @"silero vad model 'C:\Program Files\HyperWhisper\parakeet-engine\silero_vad.onnx' does not exist" }, "a fault in the shipped VAD, not the model"),
+                    (Array.Empty<string>(), "an empty stderr (it timed out or said nothing)"),
+                })
+                {
+                    Assert(!Marks(fail, stderr), $"{why} must not mark the model broken");
+                }
+
+                Assert(!Marks("Invalid arguments", "Load model from " + dir + @"\encoder.int8.onnx failed:Protobuf parsing failed."),
+                    "only the 'Failed to load model' line can mark the model broken");
+                Assert(!Marks("Invalid model for nemotron_ml", "tokens.txt not found: " + dir + "/tokens.txt does not exist"),
+                    "the x64 engine's Nemotron validation error must not mark the model broken");
+                Assert(!ParakeetTranscriptionService.IsModelFileLoadFailure(fail, null, dir),
+                    "no stderr capture must not mark the model broken");
             });
 
             Run("MainViewModel.LocalLibraryModelId matches the Model Library row ids (#1598)", () =>
