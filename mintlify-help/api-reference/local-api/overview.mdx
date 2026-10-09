@@ -76,6 +76,8 @@ The server uses HTTP 4xx for protocol failures only:
 - 401 for a missing or invalid bearer token
 - 403 for a rejected Host/Origin header. This is a DNS-rebinding guard on every
   route, including `/health`.
+- 431 on macOS for a request head that is too large (see
+  [Request limits](#request-limits))
 
 All other errors arrive as `ok:false` with a machine-readable code, and with
 HTTP 200. Examples are a transcription engine error, a missing API key, and a
@@ -148,6 +150,15 @@ Each platform applies the limits differently:
   from malformed JSON — and there was no audio limit at all. Read the `code`
   and the `message`, and keep your client tolerant of both answers if it must
   support older builds.
+
+On **macOS** the request head (the request line and the headers) has limits
+too. One line can be at most 8 KiB (8,192 bytes, without its line break), and
+the whole head at most 64 KiB (65,536 bytes). A head over either limit gets a
+bare **431** with no envelope, and the server closes the connection. A head
+that is not complete within 10 seconds gets no answer: the server closes the
+connection. On a keep-alive connection that wait starts after the previous
+response, so an idle connection closes after 10 seconds. Open a new connection
+for the next request when that happens.
 
 Do not use **413** to find an oversized request. `PAYLOAD_TOO_LARGE` is not one
 of the codes in the closed set, and a client that shares the macOS decoder
