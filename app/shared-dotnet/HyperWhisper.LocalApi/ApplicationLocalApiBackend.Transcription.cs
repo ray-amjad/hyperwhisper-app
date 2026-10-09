@@ -88,6 +88,7 @@ public sealed partial class ApplicationLocalApiBackend
             // `text` exactly as they do on Windows (issues #495, #498, #530).
             if (mode is not null) mode.PostProcessingMode = 0;
             var started = Stopwatch.GetTimestamp();
+            path = await ConvertForParakeetAsync(path, mode, cancellationToken).ConfigureAwait(false);
             var result = await _workflow.TranscribeFileAsync(path, request, cancellationToken).ConfigureAwait(false);
             // The failure's code AND its message both used to die here: the
             // middleware's `catch (InvalidOperationException)` binds no
@@ -124,6 +125,52 @@ public sealed partial class ApplicationLocalApiBackend
             throw;
         }
         finally { if (!succeeded && !retainedByHistory) _ = _privateFiles.Delete(path); }
+    }
+
+    /// <summary>
+    /// A non-WAV upload to a local Parakeet mode becomes a 16 kHz mono PCM WAV
+    /// first, through the same ffmpeg conversion Linux Transcribe File runs
+    /// (issue #1572).
+    /// </summary>
+    /// <remarks>
+    /// The Parakeet daemon reads WAV only, and since #1569 its reply wait scales
+    /// with the duration read from the WAV header. A staged MP3 or M4A therefore
+    /// either failed to decode or kept the fixed floor and timed out on a long
+    /// file. Callers keep every format; the conversion happens here.
+    ///
+    /// On success the WAV REPLACES the staged upload: the upload, which this
+    /// backend created, is deleted, and the WAV takes over its lifecycle (kept
+    /// as the history audio on success, deleted on failure unless a retryable
+    /// row holds it). A WAV — judged by content, not by the caller's file name —
+    /// and every other route pass through untouched, as does every head that
+    /// supplies no converter. A conversion failure answers an existing code:
+    /// <c>ENGINE_UNAVAILABLE</c> when ffmpeg cannot start, otherwise
+    /// <c>AUDIO_DECODE_FAILED</c>.
+    /// </remarks>
+    private async Task<string> ConvertForParakeetAsync(string path, Mode? mode, CancellationToken cancellationToken)
+    {
+        if (_audioImport is null || !IsLocalParakeet(mode) || IsWaveFile(path)) return path;
+        var converted = await _audioImport.ImportAsync(path, progress: null, cancellationToken).ConfigureAwait(false);
+        if (converted.IsFailure) throw LocalApiSharedFailure.AudioConversionFailure(converted.Error);
+        _ = _privateFiles.Delete(path);
+        return converted.Value!;
+    }
+
+    private static bool IsLocalParakeet(Mode? mode) =>
+        mode is not null
+        && !string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsWaveFile(string path)
+    {
+        Span<byte> header = stackalloc byte[12];
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) != header.Length) return false;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { return false; }
+        return header[..4].SequenceEqual("RIFF"u8) && header[8..].SequenceEqual("WAVE"u8);
     }
 
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken cancellationToken)
