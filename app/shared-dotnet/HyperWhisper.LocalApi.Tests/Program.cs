@@ -68,6 +68,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("/recordings reads since and until as UTC in every time zone", () => InTokyo(RecordingsSinceUntilAreUtc))
     ,("a non-WAV upload to a Parakeet mode reaches the daemon as a WAV whose wait scales", ParakeetNonWaveUploadIsConverted)
     ,("a busy workflow refuses a Parakeet upload before converting it", ParakeetUploadRefusedBusyBeforeConversion)
+    ,("a converted upload whose first delete fails is still deleted", ConvertedUploadDeleteIsRetried)
 };
 foreach (var test in tests)
 {
@@ -1357,6 +1358,33 @@ static async Task ParakeetUploadRefusedBusyBeforeConversion()
     Assert(result.Text == "probed" && normalizer.Calls == 1 && transcriber.Path is not null
         && Path.GetFileName(transcriber.Path).StartsWith("import-", StringComparison.Ordinal),
         $"an idle workflow did not convert the upload: {normalizer.Calls} {transcriber.Path}");
+}
+
+/// <summary>
+/// The staged <c>local-api-*</c> upload a conversion replaced is deleted even
+/// when the first delete fails, on success and on failure (#1572 review).
+/// </summary>
+static async Task ConvertedUploadDeleteIsRetried()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var upload = new AudioUpload("meeting.mp3", "audio/mpeg", new byte[] { 0xFF, 0xFB, 0x90, 0x64, 0, 0, 0, 0, 0, 0, 0, 0 }, null, "parakeet", null, "en");
+    foreach (var success in new[] { true, false })
+    {
+        var files = new FirstUploadDeleteFails();
+        var transcriber = new StaticTranscriber(success);
+        using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), transcriber, history);
+        var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), files, paths, "1.0",
+            audioImport: new DurableAudioImportService(files, paths, normalizer: new FakeWaveNormalizer()));
+        if (success) _ = await backend.TranscribeAsync(upload, CancellationToken.None);
+        else _ = await AssertThrowsAsync<LocalApiFailureException>(() => backend.TranscribeAsync(upload, CancellationToken.None).AsTask());
+        Assert(files.UploadDeletes == 2, $"the failed upload delete was not retried (success={success}): {files.UploadDeletes} attempts");
+        Assert(!Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Any(),
+            $"a converted upload was orphaned after a failed delete (success={success})");
+    }
 }
 
 static async Task ApplicationBackendErrors()
@@ -2978,6 +3006,17 @@ sealed class FailDiscoveryPrivateFiles : DiskPrivateFiles
         => path.EndsWith("local-api.json", StringComparison.Ordinal)
             ? PlatformResult.Failure("expected", "expected")
             : base.WriteAllTextAtomically(path, contents);
+}
+
+/// <summary>Fails the first delete of a staged <c>local-api-*</c> upload, then deletes normally.</summary>
+sealed class FirstUploadDeleteFails : DiskPrivateFiles
+{
+    public int UploadDeletes { get; private set; }
+    public override PlatformResult Delete(string path)
+    {
+        if (!Path.GetFileName(path).StartsWith("local-api-", StringComparison.Ordinal)) return base.Delete(path);
+        return ++UploadDeletes == 1 ? PlatformResult.Failure("expected", "expected delete failure") : base.Delete(path);
+    }
 }
 
 sealed class EmptyCatalog : ILocalApiCapabilityCatalog

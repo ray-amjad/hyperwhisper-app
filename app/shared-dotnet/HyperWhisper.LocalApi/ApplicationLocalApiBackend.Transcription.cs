@@ -65,6 +65,9 @@ public sealed partial class ApplicationLocalApiBackend
         var path = Path.Combine(_recordingsDirectory, $"local-api-{Guid.NewGuid():N}{extension}");
         var written = _privateFiles.WriteAllBytesAtomically(path, upload.Content.Span);
         if (written.IsFailure) throw new InvalidOperationException("The uploaded audio could not be staged privately.");
+        // Once converted, `path` is the WAV; the staged upload stays ours to delete.
+        var staged = path;
+        var stagedDeleted = false;
         var succeeded = false;
         var retainedByHistory = false;
         try
@@ -89,6 +92,7 @@ public sealed partial class ApplicationLocalApiBackend
             if (mode is not null) mode.PostProcessingMode = 0;
             var started = Stopwatch.GetTimestamp();
             path = await ConvertForParakeetAsync(path, mode, cancellationToken).ConfigureAwait(false);
+            if (path != staged) stagedDeleted = _privateFiles.Delete(staged).IsSuccess;
             var result = await _workflow.TranscribeFileAsync(path, request, cancellationToken).ConfigureAwait(false);
             // The failure's code AND its message both used to die here: the
             // middleware's `catch (InvalidOperationException)` binds no
@@ -124,7 +128,14 @@ public sealed partial class ApplicationLocalApiBackend
             }
             throw;
         }
-        finally { if (!succeeded && !retainedByHistory) _ = _privateFiles.Delete(path); }
+        finally
+        {
+            if (!succeeded && !retainedByHistory) _ = _privateFiles.Delete(path);
+            // A converted-away upload is never history's audio (the workflow
+            // only saw the WAV), so a failed delete above is retried here
+            // whatever the outcome, rather than orphaning `local-api-*`.
+            if (path != staged && !stagedDeleted) _ = _privateFiles.Delete(staged);
+        }
     }
 
     /// <summary>
@@ -139,7 +150,8 @@ public sealed partial class ApplicationLocalApiBackend
     /// file. Callers keep every format; the conversion happens here.
     ///
     /// On success the WAV REPLACES the staged upload: the upload, which this
-    /// backend created, is deleted, and the WAV takes over its lifecycle (kept
+    /// backend created, is deleted by <see cref="TranscribeAsync"/> (retried in
+    /// its <c>finally</c> if the first delete fails), and the WAV takes over its lifecycle (kept
     /// as the history audio on success, deleted on failure unless a retryable
     /// row holds it). A WAV — judged by content, not by the caller's file name —
     /// and every other route pass through untouched, as does every head that
@@ -157,7 +169,6 @@ public sealed partial class ApplicationLocalApiBackend
         if (_workflow.FileTranscriptionBusyRefusal() is { } busy) ThrowWorkflowFailure(busy);
         var converted = await _audioImport.ImportAsync(path, progress: null, cancellationToken).ConfigureAwait(false);
         if (converted.IsFailure) throw LocalApiSharedFailure.AudioConversionFailure(converted.Error);
-        _ = _privateFiles.Delete(path);
         return converted.Value!;
     }
 
