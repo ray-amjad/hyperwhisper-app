@@ -142,6 +142,8 @@ Both platforms clean the output of local Whisper automatically. The Whisper fami
   <Tab title="Windows">
     HyperWhisper finds repetition loops in the output of local Whisper and collapses them. A repetition loop is a known failure: the model continues to write the same word or phrase. This correction keeps long runs of the same token out of your text.
 
+    Before local Whisper starts, Windows also cuts the silence at the end of the recording, because Whisper can add a closing "Okay." or "Thank you." to silence. Windows also does not give each 30-second window the text of the window before it. This stops a long dictation from ending in a repeated phrase.
+
     Windows applies a separate cleanup pass to local Qwen3 ASR output: it strips replacement-character artifacts, collapses trailing decoder repetition, and flags wrong-script (CJK) hallucinations.
   </Tab>
 </Tabs>
