@@ -846,9 +846,6 @@ Esta ação não pode ser desfeita.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>A transcrição falhou: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Não há nenhum modo disponível para tentar novamente.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>A nova tentativa falhou: {0}</value>
   </data>

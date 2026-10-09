@@ -134,9 +134,10 @@ static void AllCatalogsLoad()
     // does not run on a Strings.resx-only change:
     //   errors.applicationControl.blocked                    (#933, PR #1368)
     //   settings.general.launchAtLogin.isolatedProfileNote   (#1471, PR #1556)
-    // 855 -> 856: `errors.retryModeDeleted` is new (#1644). Windows History Retry refuses
-    // a row whose mode was deleted instead of running the default mode.
-    Equal(856, PortableLocalizer.BaseKeyCount, "base key count");
+    // 855 -> 855 (#1644): `errors.retryModeDeleted` is new (Windows History Retry refuses
+    // a row whose mode was deleted instead of running the default mode), and
+    // `errors.noModeForRetry` is gone, its only use removed by the same change.
+    Equal(855, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

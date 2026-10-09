@@ -846,9 +846,6 @@ Dit kan niet ongedaan worden gemaakt.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcriptie mislukt: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Geen modus beschikbaar om opnieuw te proberen.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Nieuwe poging mislukt: {0}</value>
   </data>

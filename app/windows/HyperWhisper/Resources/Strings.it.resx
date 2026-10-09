@@ -846,9 +846,6 @@ Questa azione non può essere annullata.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Trascrizione non riuscita: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Nessuna modalità disponibile per riprovare.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Nuovo tentativo non riuscito: {0}</value>
   </data>

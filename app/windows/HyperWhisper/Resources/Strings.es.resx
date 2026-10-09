@@ -931,9 +931,6 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>La transcripción falló: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No hay modo disponible para reintentar.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>El reintento falló: {0}</value>
   </data>

@@ -931,9 +931,6 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>转写失败：{0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>没有可用于重试的模式。</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>重试失败：{0}</value>
   </data>

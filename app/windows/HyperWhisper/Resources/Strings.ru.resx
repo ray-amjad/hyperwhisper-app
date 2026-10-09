@@ -846,9 +846,6 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Ошибка транскрипции: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Нет режима для повторной попытки.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Повторная попытка не удалась: {0}</value>
   </data>
