@@ -1066,6 +1066,12 @@
 "settings.backup.import.error.decode.corruptedField" = "Κατεστραμμένη τιμή για το πεδίο: %@";
 "settings.backup.import.error.version" = "Το αρχείο αντίγραφης ασφαλείας είναι από νεότερη έκδοση";
 "settings.backup.import.error.unknown" = "Αποτυχία εισαγωγής";
+"settings.backup.import.error.storeModes" = "Δεν ήταν δυνατή η αποθήκευση των λειτουργιών, οπότε παρέμειναν όπως ήταν.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Δεν ήταν δυνατή η αποθήκευση των λειτουργιών, οπότε οι λειτουργίες και το λεξιλόγιο παρέμειναν όπως ήταν.";
+"settings.backup.import.error.storeVocabulary" = "Δεν ήταν δυνατή η αποθήκευση του λεξιλογίου, οπότε παρέμεινε όπως ήταν.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Οι λειτουργίες εισήχθησαν, αλλά δεν ήταν δυνατή η αποθήκευση του λεξιλογίου, οπότε παρέμεινε όπως ήταν.";
+"settings.backup.import.error.storeLicense" = "Δεν ήταν δυνατή η ασφαλής εισαγωγή του κλειδιού άδειας.";
+"settings.backup.import.error.storeOtherSections" = "Οι υπόλοιπες επιλεγμένες ενότητες εφαρμόστηκαν.";
 "settings.backup.import.apiKeysFailed" = "Αυτά τα κλειδιά API δεν ήταν δυνατό να αποθηκευτούν στην Κλειδοθήκη και δεν επαναφέρθηκαν: %@. Εισαγάγετέ τα ξανά στις Ρυθμίσεις.";
 "settings.backup.import.confirm.title" = "Εισαγωγή Ρυθμίσεων;";
 "settings.backup.import.confirm.message" = "Αυτό θα αντικαταστήσει τις υπάρχουσες λειτουργίες και το λεξιλόγιό σας με αυτές από το αρχείο αντίγραφης ασφαλείας. Οι ρυθμίσεις θα ενημερωθούν επίσης.";

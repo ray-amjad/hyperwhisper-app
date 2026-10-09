@@ -1066,6 +1066,12 @@
 "settings.backup.import.error.decode.corruptedField" = "फ़ील्ड के लिए दूषित मान: %@";
 "settings.backup.import.error.version" = "बैकअप फ़ाइल एक नए संस्करण से है";
 "settings.backup.import.error.unknown" = "आयात विफल";
+"settings.backup.import.error.storeModes" = "मोड सहेजे नहीं जा सके, इसलिए वे पहले जैसे ही रहे।";
+"settings.backup.import.error.storeModesAndVocabulary" = "मोड सहेजे नहीं जा सके, इसलिए मोड और शब्दावली पहले जैसे ही रहे।";
+"settings.backup.import.error.storeVocabulary" = "शब्दावली सहेजी नहीं जा सकी, इसलिए वह पहले जैसी ही रही।";
+"settings.backup.import.error.storeVocabularyAfterModes" = "मोड आयात किए गए, लेकिन शब्दावली सहेजी नहीं जा सकी, इसलिए वह पहले जैसी ही रही।";
+"settings.backup.import.error.storeLicense" = "लाइसेंस कुंजी को सुरक्षित रूप से आयात नहीं किया जा सका।";
+"settings.backup.import.error.storeOtherSections" = "अन्य चुने गए अनुभाग लागू किए गए।";
 "settings.backup.import.apiKeysFailed" = "ये API कुंजियाँ कीचेन में सहेजी नहीं जा सकीं और पुनर्स्थापित नहीं हुईं: %@. इन्हें सेटिंग्स में फिर से दर्ज करें।";
 "settings.backup.import.confirm.title" = "सेटिंग्स आयात करें?";
 "settings.backup.import.confirm.message" = "यह आपके मौजूदा मोड और शब्दावली को बैकअप फ़ाइल से प्रतिस्थापित कर देगा। सेटिंग्स भी अपडेट की जाएंगी।";

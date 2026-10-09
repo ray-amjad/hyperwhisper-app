@@ -1067,6 +1067,12 @@
 "settings.backup.import.error.decode.corruptedField" = "フィールドの値が破損しています: %@";
 "settings.backup.import.error.version" = "新しいバージョンで作成されたバックアップファイルです";
 "settings.backup.import.error.unknown" = "インポートに失敗しました";
+"settings.backup.import.error.storeModes" = "モードを保存できなかったため、変更されていません。";
+"settings.backup.import.error.storeModesAndVocabulary" = "モードを保存できなかったため、モードと語彙は変更されていません。";
+"settings.backup.import.error.storeVocabulary" = "語彙を保存できなかったため、変更されていません。";
+"settings.backup.import.error.storeVocabularyAfterModes" = "モードはインポートされましたが、語彙を保存できなかったため、語彙は変更されていません。";
+"settings.backup.import.error.storeLicense" = "ライセンスキーを安全にインポートできませんでした。";
+"settings.backup.import.error.storeOtherSections" = "選択したその他の項目は適用されました。";
 "settings.backup.import.apiKeysFailed" = "次の API キーはキーチェーンに保存できず、復元されませんでした: %@。設定でもう一度入力してください。";
 "settings.backup.import.confirm.title" = "設定をインポートしますか？";
 "settings.backup.import.confirm.message" = "既存のモードと語彙がバックアップファイルの内容に置き換えられます。設定も更新されます。";
