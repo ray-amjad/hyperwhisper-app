@@ -979,11 +979,17 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
                 mode.Model = staged.Model;
                 mode.ModelType = staged.Model;
             }
+
+            // A Parakeet pick left Model as it was, which is "cloud" once a cloud
+            // source has been committed (the else arm below). Model is the portable
+            // routing field on macOS, so keep it local too (#1477).
+            LocalModeModel.ApplyOnDevice(mode);
         }
         else
         {
-            mode.ProviderType = "cloud";
-            mode.Model = staged.Model;
+            // staged.Model is always "cloud" for a cloud source (the flow's
+            // StagedSource); ApplyCloud writes the same sentinel by name.
+            LocalModeModel.ApplyCloud(mode);
             mode.ModelType = staged.Model;
         }
     }
