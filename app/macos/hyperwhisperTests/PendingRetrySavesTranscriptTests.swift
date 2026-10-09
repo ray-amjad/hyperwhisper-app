@@ -28,6 +28,16 @@ import Testing
 @testable import HyperWhisper
 
 /// DIAG #1653: records every writer save error.
+func diag1653(_ line: String) {
+    let text = "\(Date().timeIntervalSince1970) \(line)\n"
+    let url = URL(fileURLWithPath: "/tmp/diag1653.log")
+    if let handle = try? FileHandle(forWritingTo: url) {
+        handle.seekToEndOfFile(); handle.write(text.data(using: .utf8)!); try? handle.close()
+    } else {
+        try? text.data(using: .utf8)!.write(to: url)
+    }
+}
+
 final class DiagPersistence1653: PersistenceController {
     private let lock = NSLock()
     private var errors: [String] = []
@@ -35,7 +45,9 @@ final class DiagPersistence1653: PersistenceController {
     override func saveWriterContext(_ context: NSManagedObjectContext) throws {
         do {
             try super.saveWriterContext(context)
+            diag1653("saveOK inserted-after-save")
         } catch {
+            diag1653("saveThrew \(error)")
             let ns = error as NSError
             let detail = "DIAG writerSave domain=\(ns.domain) code=\(ns.code) desc=\(ns.localizedDescription) userInfo=\(ns.userInfo)"
             lock.lock(); errors.append(String(detail.prefix(3000))); lock.unlock()
@@ -45,6 +57,8 @@ final class DiagPersistence1653: PersistenceController {
     override func performWriteRequiringSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T?) async -> T? {
         await super.performWriteRequiringSave { [weak self] context in
             let value = block(context)
+            let cm = context.persistentStoreCoordinator?.managedObjectModel
+            diag1653("block value=\(value == nil ? "nil" : "some") inserted=\(context.insertedObjects.map { "\($0.entity.name ?? "?") same=\($0.entity.managedObjectModel === cm) temp=\($0.objectID.isTemporaryID)" }) classEntitySame=\(Transcript.entity().managedObjectModel === cm)")
             if value == nil {
                 let coordinatorModel = context.persistentStoreCoordinator?.managedObjectModel
                 var detail = "DIAG blockReturnedNil inserted=\(context.insertedObjects.count)"
@@ -263,8 +277,10 @@ struct PendingRetrySavesTranscriptTests {
     @Test func aRetryThatEndsBeforeTheFailedRowLandsLeavesOneRow() async throws {
         let persistence = DiagPersistence1653(inMemory: true)
         let (gate, release) = AsyncStream<Void>.makeStream()
+        diag1653("test2 start")
         let failedRowWrite = Task { () -> NSManagedObjectID? in
             for await _ in gate { break }
+            diag1653("test2 gate released cancelled=\(Task.isCancelled)")
             return await persistence.createFailedTranscriptInBackground(
                 duration: 4.2,
                 mode: "LocNemo",
@@ -291,6 +307,7 @@ struct PendingRetrySavesTranscriptTests {
         release.finish()
         let savedID = await save.value
         let failedID = await failedRowWrite.value
+        diag1653("test2 savedID=\(String(describing: savedID)) failedID=\(String(describing: failedID))")
         if failedID == nil { (persistence as? DiagPersistence1653)?.recordErrors("retryBeforeRow") }
 
         #expect(savedID != nil)

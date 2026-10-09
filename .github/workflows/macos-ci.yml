@@ -195,6 +195,10 @@ jobs:
           xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/unit.xcresult" --format json > "$RUNNER_TEMP/t.json" || true
           jq -c '.. | objects | select(.result? == "Failed") | {name, nodeType, children: [.children[]? | {name, nodeType, result}]}' "$RUNNER_TEMP/t.json" | head -c 20000 || true
 
+      - name: DIAG file log
+        if: always()
+        run: cat /tmp/diag1653.log || ls -la /tmp
+
       - name: DIAG PendingRetrySavesTranscriptTests alone x25
         if: always()
         run: |
