@@ -14,6 +14,8 @@
 //  #1669 adds two server error bodies that can echo the transcript: a custom
 //  post-processing endpoint's, and the Cloud post-process error message.
 //
+//  #1680 adds the screen OCR text, which a DEBUG build logged as public.
+//
 //  A log line cannot be observed from a unit test, so these read the source
 //  (`ProductionSource`), comments stripped, and pin the shape of each line.
 //
@@ -92,5 +94,19 @@ struct SpokenTextLogPrivacyTests {
         #expect(!body.contains("localizedDescription, privacy: .public"), "a serverError description carries the server message")
         #expect(body.contains("localizedDescription, privacy: .private"))
         #expect(body.contains("serverStatus, privacy: .public"), "the status code stays")
+    }
+
+    // #1680: the screen OCR text is whatever is on the user's screen (mail,
+    // chat, customer data). The debug line logs it private; the count stays.
+    @Test func theScreenOCRTextIsNotPublic() throws {
+        let body = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/RecordingTranscriptionFlow+StartRecording.swift",
+            from: "if modeSnapshot.enableScreenOCR {",
+            to: "self.capturedApplicationContext = ApplicationContextGatherer.shared.gatherContext("
+        )
+        #expect(body.contains("Screen OCR content"))
+        #expect(!body.contains("(text, privacy: .public)"), "the OCR text is the user's screen")
+        #expect(body.contains("(text, privacy: .private)"))
+        #expect(body.contains("text.count, privacy: .public"), "the character count stays")
     }
 }
