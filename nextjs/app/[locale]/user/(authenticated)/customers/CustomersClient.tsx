@@ -7,6 +7,7 @@ import { api } from "@/lib/trpc/client";
 import { errorSentence } from "@/lib/trpc/input-error";
 import { formatDate } from "@/lib/format-date";
 import { ICON_SWAP } from "@/lib/icon-swap";
+import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
 
 /**
  * Windowed list of page numbers to render in the pager: always page 1,
@@ -37,8 +38,6 @@ function getPageNumbers(
   }
   return result;
 }
-
-const CREDITS_PER_MINUTE = 6.3;
 
 // #1155: shown in place of a zod input failure's serialized issue array.
 const INVALID_EMAIL = "Enter a valid email address.";

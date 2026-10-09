@@ -300,15 +300,15 @@ describe('usageRoute cached path (no force_refresh)', () => {
 
 describe('usageRoute balance reporting', () => {
   test('rounds the balance to a tenth BEFORE deriving minutes_remaining', async () => {
-    // 6.29 credits is under one minute at 6.3 credits/min, but the route rounds
-    // first — so the user is told they have 1 minute, not 0.
-    cachedLicense = { isValid: true, credits: 6.29, cachedAt: 'cached' };
+    // 1.66 credits is under one minute at 1.67 credits/min, but the route rounds
+    // first (to 1.7) — so the user is told they have 1 minute, not 0.
+    cachedLicense = { isValid: true, credits: 1.66, cachedAt: 'cached' };
     forbidFetch();
 
     const response = await buildApp().request('/usage?account_key=valid-key');
     const body = await response.json() as { credits_remaining: number; minutes_remaining: number };
 
-    expect(body.credits_remaining).toBe(6.3);
+    expect(body.credits_remaining).toBe(1.7);
     expect(body.minutes_remaining).toBe(1);
   });
 
@@ -321,7 +321,7 @@ describe('usageRoute balance reporting', () => {
 
     expect(body).toEqual({
       credits_remaining: 63,
-      minutes_remaining: 10,
+      minutes_remaining: 37, // floor(63 / 1.67)
       credits_per_minute: CREDITS_PER_MINUTE,
       is_licensed: true,
       is_trial: false,
@@ -330,7 +330,7 @@ describe('usageRoute balance reporting', () => {
   });
 
   test('a partial minute is floored away, never rounded up', async () => {
-    // 20 credits is 3.17 minutes at 6.3 credits/min — promising 4 would let a
+    // 20 credits is 11.98 minutes at 1.67 credits/min — promising 12 would let a
     // client start a request it cannot pay for.
     cachedLicense = { isValid: true, credits: 20, cachedAt: 'cached' };
     forbidFetch();
@@ -338,7 +338,7 @@ describe('usageRoute balance reporting', () => {
     const response = await buildApp().request('/usage?account_key=valid-key');
     const body = await response.json() as { minutes_remaining: number };
 
-    expect(body.minutes_remaining).toBe(3);
+    expect(body.minutes_remaining).toBe(11);
   });
 
   test('a valid licence with an exhausted balance still reports 200 and zero minutes', async () => {

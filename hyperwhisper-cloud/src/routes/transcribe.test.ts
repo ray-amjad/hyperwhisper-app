@@ -19,13 +19,14 @@ const ELIGIBLE_CLIENT_HEADERS = {
 
 describe('estimateCreditsForProviderFallbacks', () => {
   test('validates grok requests against the most expensive fallback provider', () => {
-    const blendedEstimate = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
+    const defaultRouteEstimate = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
     const grokFallbackEstimate = estimateCreditsForProviderFallbacks(BYTES_PER_MINUTE_ESTIMATE, 'grok');
     const elevenLabsEstimate = creditsForCost(computeElevenLabsTranscriptionCost(60));
 
-    expect(blendedEstimate).toBe(6.3);
+    // 1.67 credits/min rounded up to a tenth.
+    expect(defaultRouteEstimate).toBe(1.7);
     expect(grokFallbackEstimate).toBe(elevenLabsEstimate);
-    expect(grokFallbackEstimate).toBeGreaterThan(blendedEstimate);
+    expect(grokFallbackEstimate).toBeGreaterThan(defaultRouteEstimate);
   });
 
   test('does not under-estimate one minute of 64kbps audio', () => {
