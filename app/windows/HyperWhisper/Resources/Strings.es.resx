@@ -931,11 +931,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>La transcripción falló: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No hay modo disponible para reintentar.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>El reintento falló: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>El modo que hizo esta grabación se eliminó, así que no se reintentó. En Historial, haz clic derecho en la grabación y elige "Reintentar Con..." para escoger otro modo.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Grabación detenida: límite de seguridad de 20 minutos alcanzado.</value>

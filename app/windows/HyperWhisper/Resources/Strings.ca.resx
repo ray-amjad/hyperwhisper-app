@@ -846,11 +846,11 @@ Aquesta acció no es pot desfer.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>El mode que va fer aquesta gravació s'ha eliminat, així que no s'ha tornat a intentar. A Historial, feu clic amb el botó dret a la gravació i trieu «Reintentar amb...» per triar un altre mode.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>S'ha aturat la gravació — s'ha assolit el límit de seguretat de 20 minuts.</value>

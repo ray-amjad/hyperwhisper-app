@@ -846,11 +846,11 @@ Seda toimingut ei saa tagasi võtta.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Režiim, millega see salvestis tehti, on kustutatud, seega uut katset ei tehtud. Paremklõpsa jaotises Ajalugu salvestisel ja vali „Proovi uuesti...“, et valida teine režiim.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Salvestamine peatatud — 20-minutiline ohutuspiir saavutatud.</value>

@@ -846,11 +846,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Hamurinn sem gerði þessa upptöku var eytt, svo ekki var reynt aftur. Í Sögu skaltu hægrismella á upptökuna og velja „Reyna aftur með...“ til að velja annan ham.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Hljóðritun stöðvuð — 20 mínútna öryggismörk náð.</value>

@@ -846,11 +846,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Режимът, с който е направен този запис, е изтрит, затова не беше направен повторен опит. В История щракнете с десния бутон върху записа и изберете „Повтори с...“, за да изберете друг режим.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Записът е спрян — достигнат е 20-минутният лимит за безопасност.</value>

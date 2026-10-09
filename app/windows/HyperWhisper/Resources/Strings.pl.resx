@@ -846,11 +846,11 @@ Tej czynności nie można cofnąć.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Tryb, którym wykonano to nagranie, został usunięty, więc nie ponowiono próby. W Historii kliknij nagranie prawym przyciskiem myszy i wybierz „Ponów z...”, aby wybrać inny tryb.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Nagrywanie zatrzymane — osiągnięto 20-minutowy limit bezpieczeństwa.</value>

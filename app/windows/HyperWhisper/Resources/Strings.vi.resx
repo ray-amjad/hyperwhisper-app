@@ -846,11 +846,11 @@ Hành động này không thể được hoàn tác.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Chế độ đã tạo bản ghi này đã bị xóa, nên bản ghi không được thử lại. Trong Lịch sử, nhấp chuột phải vào bản ghi và chọn "Thử lại với..." để chọn chế độ khác.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Ghi âm đã dừng — đã đạt giới hạn an toàn 20 phút.</value>

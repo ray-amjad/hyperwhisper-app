@@ -846,11 +846,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>建立此錄音的模式已被刪除，因此未重試。在歷史記錄中以滑鼠右鍵按一下該錄音，然後選擇「重試...」以選取其他模式。</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>錄音已停止 — 已達到 20 分鐘的安全限制。</value>

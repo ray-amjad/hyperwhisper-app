@@ -846,11 +846,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>इस रिकॉर्डिंग को बनाने वाला मोड हटा दिया गया है, इसलिए इसे फिर से प्रयास नहीं किया गया। इतिहास में, रिकॉर्डिंग पर राइट-क्लिक करें और कोई दूसरा मोड चुनने के लिए "इसके साथ फिर से प्रयास करें..." चुनें।</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>रिकॉर्डिंग रुक गई — 20 मिनट की सुरक्षा सीमा पहुँच गई।</value>

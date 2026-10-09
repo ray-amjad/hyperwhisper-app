@@ -846,11 +846,11 @@ Túto akciu sa nedá vrátiť.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Režim, ktorý vytvoril tento záznam, bol odstránený, preto sa pokus nezopakoval. V Histórii kliknite na záznam pravým tlačidlom a zvoľte „Skúsiť znova s...“, aby ste vybrali iný režim.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Nahrávanie zastavené — dosiahnutý bezpečnostný limit 20 minút.</value>

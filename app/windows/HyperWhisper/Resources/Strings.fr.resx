@@ -846,11 +846,11 @@ Cette action est irréversible.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Échec de la transcription : {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Aucun mode disponible pour réessayer.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Nouvelle tentative échouée : {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Le mode qui a créé cet enregistrement a été supprimé, il n'a donc pas été relancé. Dans Historique, faites un clic droit sur l'enregistrement et choisissez « Relancer avec... » pour choisir un autre mode.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Enregistrement arrêté — limite de sécurité de 20 minutes atteinte.</value>

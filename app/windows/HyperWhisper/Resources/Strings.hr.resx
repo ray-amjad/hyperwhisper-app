@@ -846,11 +846,11 @@ Ova radnja se ne može poništiti.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Način rada koji je napravio ovu snimku je izbrisan, pa ponovni pokušaj nije pokrenut. U Povijesti desnom tipkom miša kliknite snimku i odaberite „Pokušaj ponovno s...” da biste odabrali drugi način rada.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Snimanje zaustavljeno — dostignut je sigurnosni limit od 20 minuta.</value>
