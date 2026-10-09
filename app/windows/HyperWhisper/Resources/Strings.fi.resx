@@ -852,6 +852,9 @@ Tätä toimintoa ei voi perua.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Tämän tallenteen tehnyt tila on poistettu, joten sitä ei yritetty uudelleen. Napsauta Historia-näkymässä tallennetta hiiren kakkospainikkeella ja valitse "Yritä uudelleen..." valitaksesi toisen tilan.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Tallennus pysäytetty — 20 minuutin turvaraja saavutettu.</value>
   </data>

@@ -852,6 +852,9 @@ Denne handling kan ikke fortrydes.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Den tilstand, der lavede denne optagelse, er slettet, så den blev ikke prøvet igen. Højreklik på optagelsen i Historik, og vælg "Prøv igen med..." for at vælge en anden tilstand.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Optagelse stoppet — 20-minutters sikkerhedsgrænsen nået.</value>
   </data>

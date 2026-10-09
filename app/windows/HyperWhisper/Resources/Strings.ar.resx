@@ -852,6 +852,9 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>تم حذف الوضع الذي أنشأ هذا التسجيل، لذلك لم تتم إعادة المحاولة. في السجل، انقر بزر الماوس الأيمن على التسجيل واختر "إعادة محاولة مع..." لاختيار وضع آخر.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>توقف التسجيل — تم بلوغ حد الأمان البالغ 20 دقيقة.</value>
   </data>

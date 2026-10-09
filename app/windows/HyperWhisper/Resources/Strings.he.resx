@@ -852,6 +852,9 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>המצב שיצר את ההקלטה הזו נמחק, ולכן לא בוצע ניסיון חוזר. בהיסטוריה, לחץ לחיצה ימנית על ההקלטה ובחר "נסה שוב עם..." כדי לבחור מצב אחר.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>ההקלטה נעצרה — הגעת למגבלת הבטיחות של 20 דקות.</value>
   </data>

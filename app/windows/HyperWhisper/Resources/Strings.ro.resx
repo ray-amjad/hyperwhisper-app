@@ -852,6 +852,9 @@ Această acțiune nu poate fi anulată.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Modul care a realizat această înregistrare a fost șters, așa că nu s-a reîncercat. În Istoric, faceți clic dreapta pe înregistrare și alegeți „Reîncercați cu...” pentru a selecta alt mod.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Înregistrarea s-a oprit — limita de siguranță de 20 de minute a fost atinsă.</value>
   </data>

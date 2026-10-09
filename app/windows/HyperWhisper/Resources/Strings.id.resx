@@ -852,6 +852,9 @@ Tindakan ini tidak dapat dibatalkan.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Mode yang membuat rekaman ini telah dihapus, jadi rekaman ini tidak dicoba lagi. Di Riwayat, klik kanan rekaman dan pilih "Coba lagi dengan..." untuk memilih mode lain.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Perekaman dihentikan — batas keamanan 20 menit tercapai.</value>
   </data>

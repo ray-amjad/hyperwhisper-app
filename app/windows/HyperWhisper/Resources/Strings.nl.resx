@@ -852,6 +852,9 @@ Dit kan niet ongedaan worden gemaakt.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Nieuwe poging mislukt: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>De modus waarmee deze opname is gemaakt, is verwijderd, dus er is niet opnieuw geprobeerd. Klik in Geschiedenis met de rechtermuisknop op de opname en kies "Opnieuw proberen met..." om een andere modus te kiezen.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Opname gestopt — veiligheidslimiet van 20 minuten bereikt.</value>
   </data>

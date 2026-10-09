@@ -852,6 +852,9 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Повторная попытка не удалась: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Режим, которым сделана эта запись, удалён, поэтому повторная попытка не выполнялась. В разделе История щёлкните запись правой кнопкой мыши и выберите «Повторить с...», чтобы выбрать другой режим.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Запись остановлена — достигнут 20-минутный лимит безопасности.</value>
   </data>

@@ -852,6 +852,9 @@ Te akcije se ne da razveljaviti.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Način, s katerim je bil narejen ta posnetek, je bil izbrisan, zato ponovni poskus ni bil izveden. V Zgodovini z desno tipko miške kliknite posnetek in izberite »Poskusi znova z ...«, da izberete drug način.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Snemanje ustavljeno — dosežena varnostna omejitev 20 minut.</value>
   </data>

@@ -852,6 +852,9 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>이 녹음을 만든 모드가 삭제되어 재시도하지 않았습니다. 기록에서 녹음을 마우스 오른쪽 버튼으로 클릭하고 "다음으로 재시도..."를 선택해 다른 모드를 고르세요.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>녹음이 중지되었습니다 — 20분 안전 한도에 도달했습니다.</value>
   </data>

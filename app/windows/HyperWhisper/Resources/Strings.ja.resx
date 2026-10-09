@@ -937,6 +937,9 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>再試行に失敗しました: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>この録音を作成したモードは削除されたため、再試行されませんでした。履歴で録音を右クリックし、「再試行...」を選んで別のモードを選択してください。</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>録音が停止しました — 20分の安全制限に達しました。</value>
   </data>

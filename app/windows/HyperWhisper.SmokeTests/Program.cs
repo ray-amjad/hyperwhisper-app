@@ -17989,6 +17989,67 @@ internal static class Program
                     "singleton keeps every History page the user opened alive (issue #977)");
             });
 
+            Run("history: Retry on a row whose mode was deleted never falls back to the default mode — issue #1644", () =>
+            {
+                // #1644 (the Windows twin of macOS #1440). Retry looked the row's mode
+                // up by name and fell back to ModeService.GetDefaultMode(), so a row
+                // from a deleted on-device mode was re-run on the default mode (which
+                // can be HyperWhisper Cloud) and rewritten to it. Ray's rule: refuse,
+                // send nothing, and point the user at "Retry With...".
+                var hyper = new Mode { Name = "Hyper", IsDefault = true, ProviderType = "cloud" };
+                var notes = new Mode { Name = "Notes", ProviderType = "local" };
+                var modes = new List<Mode> { hyper, notes };
+
+                // Positive control: a mode that still exists is the one Retry runs on.
+                Assert(ReferenceEquals(RetryModeResolver.ResolveOriginalMode(modes, "Notes"), notes),
+                    "Retry no longer finds the row's own mode when it still exists");
+
+                // The defect: a deleted mode name resolved to the default mode.
+                Assert(RetryModeResolver.ResolveOriginalMode(modes, "S20 LONG deleted mode") is null,
+                    "Retry on a row whose mode was deleted resolved to a mode - it must refuse, not fall back (#1644)");
+
+                // A row with no stored mode name (legacy / imported) never named a mode
+                // the user picked, so it refuses too rather than running the default.
+                Assert(RetryModeResolver.ResolveOriginalMode(modes, null) is null,
+                    "Retry on a row with no mode name resolved to a mode");
+                Assert(RetryModeResolver.ResolveOriginalMode(modes, "") is null,
+                    "Retry on a row with an empty mode name resolved to a mode");
+
+                // No modes at all: still a refusal, not an exception.
+                Assert(RetryModeResolver.ResolveOriginalMode(new List<Mode>(), "Notes") is null,
+                    "Retry with no modes left resolved to a mode");
+
+                // The name match stays exact: a case variant of a deleted name is not
+                // the user's mode either.
+                Assert(RetryModeResolver.ResolveOriginalMode(modes, "notes") is null,
+                    "Retry matched a mode by a case-insensitive name");
+
+                // The refusal text exists in every shipped catalog and is translated.
+                var key = RetryModeResolver.ModeDeletedMessageKey;
+                Assert(HyperWhisper.Localization.Loc.S(key) != key,
+                    $"{key} is missing from Strings.resx");
+                var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, CultureInfo.InvariantCulture);
+                Assert(neutral != null && neutral.Contains("Retry With...", StringComparison.Ordinal),
+                    $"the English refusal does not name the \"Retry With...\" menu item: '{neutral}'");
+                var catalogs = Directory.GetDirectories(AppContext.BaseDirectory)
+                    .Select(Path.GetFileName)
+                    .Where(name => File.Exists(Path.Combine(AppContext.BaseDirectory, name!, "HyperWhisper.resources.dll")))
+                    .ToList();
+                Assert(catalogs.Count >= 39, $"expected 39 satellite catalogs, found {catalogs.Count}");
+                foreach (var name in catalogs)
+                {
+                    var culture = new CultureInfo(name!);
+                    var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, culture);
+                    Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
+                        $"Strings.{name}.resx has no translated {key}");
+                    // The text names the menu item by its label in that catalog, so a user
+                    // can find it in the right-click menu.
+                    var retryWith = HyperWhisper.Resources.Strings.ResourceManager.GetString("history.context.retryWith", culture);
+                    Assert(retryWith != null && text!.Contains(retryWith.TrimEnd('.', ' ', '…'), StringComparison.Ordinal),
+                        $"Strings.{name}.resx: {key} does not name the menu item '{retryWith}'");
+                }
+            });
+
             Run("frames: the Settings section frame keeps no back stack — issue #977", () =>
             {
                 // #977. A WPF Frame journals every page it leaves, and a journaled page

@@ -852,6 +852,9 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>โหมดที่สร้างการบันทึกนี้ถูกลบไปแล้ว จึงไม่ได้ลองใหม่ ในประวัติ ให้คลิกขวาที่การบันทึกแล้วเลือก "ลองใหม่ด้วย..." เพื่อเลือกโหมดอื่น</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>การบันทึกหยุดแล้ว — ถึงขีดจำกัดความปลอดภัย 20 นาทีแล้ว</value>
   </data>

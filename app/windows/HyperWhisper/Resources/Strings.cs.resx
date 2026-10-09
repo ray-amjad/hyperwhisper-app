@@ -852,6 +852,9 @@ Tuto akci nelze vrátit zpět.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Režim, který vytvořil tento záznam, byl smazán, a proto se pokus neopakoval. V Historii klikněte na záznam pravým tlačítkem a zvolte „Opakovat pomocí...“, abyste vybrali jiný režim.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Nahrávání zastaveno — dosažen bezpečnostní limit 20 minut.</value>
   </data>

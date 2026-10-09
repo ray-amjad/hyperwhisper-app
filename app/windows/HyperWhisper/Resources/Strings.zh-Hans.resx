@@ -937,6 +937,9 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>重试失败：{0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>创建此录音的模式已被删除，因此未重试。在历史记录中右键单击该录音，然后选择“使用...重试”来选择其他模式。</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>录音已停止 — 已达到 20 分钟的安全限制。</value>
   </data>

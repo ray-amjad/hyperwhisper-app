@@ -1112,6 +1112,9 @@ Do you want to restart now?</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>The mode that made this recording was deleted, so it was not retried. In History, right-click the recording and choose "Retry With..." to pick another mode.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Recording stopped — 20-minute safety limit reached.</value>
   </data>

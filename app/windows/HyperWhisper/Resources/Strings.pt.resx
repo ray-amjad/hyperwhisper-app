@@ -852,6 +852,9 @@ Esta ação não pode ser desfeita.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>A nova tentativa falhou: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>O modo que fez esta gravação foi excluído, então ela não foi tentada novamente. Em Histórico, clique com o botão direito na gravação e escolha "Tentar novamente com..." para escolher outro modo.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Gravação parada — limite de segurança de 20 minutos atingido.</value>
   </data>

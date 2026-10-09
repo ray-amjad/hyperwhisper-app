@@ -852,6 +852,9 @@ Questa azione non può essere annullata.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Nuovo tentativo non riuscito: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>La modalità che ha creato questa registrazione è stata eliminata, quindi non è stato fatto un nuovo tentativo. In Cronologia, fai clic con il tasto destro sulla registrazione e scegli "Riprova con..." per selezionare un'altra modalità.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Registrazione interrotta — raggiunto il limite di sicurezza di 20 minuti.</value>
   </data>

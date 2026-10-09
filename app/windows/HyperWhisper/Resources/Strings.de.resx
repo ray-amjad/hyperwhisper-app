@@ -852,6 +852,9 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Erneuter Versuch fehlgeschlagen: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Der Modus, mit dem diese Aufnahme erstellt wurde, wurde gelöscht, daher wurde sie nicht erneut versucht. Klicke im Verlauf mit der rechten Maustaste auf die Aufnahme und wähle „Wiederholen mit...“, um einen anderen Modus auszuwählen.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Aufnahme gestoppt — 20-Minuten-Sicherheitslimit erreicht.</value>
   </data>

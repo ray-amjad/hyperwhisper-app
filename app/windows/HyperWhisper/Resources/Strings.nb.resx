@@ -852,6 +852,9 @@ Denne handlingen kan ikke angres.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Modusen som laget dette opptaket er slettet, så det ble ikke prøvd igjen. Høyreklikk på opptaket i Historikk, og velg «Prøv igjen med...» for å velge en annen modus.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Opptak stoppet — 20-minutters sikkerhetsgrense nådd.</value>
   </data>

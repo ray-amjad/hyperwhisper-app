@@ -852,6 +852,9 @@ Tindakan ini tidak boleh dibuat asal.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Mod yang membuat rakaman ini telah dipadam, jadi rakaman ini tidak dicuba semula. Dalam Sejarah, klik kanan rakaman dan pilih "Cuba semula dengan..." untuk memilih mod lain.</value>
+  </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Rakaman dihentikan — had keselamatan 20 minit dicapai.</value>
   </data>
