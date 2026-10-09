@@ -168,11 +168,7 @@ extension RecordingTranscriptionFlow {
         // recording panel is .nonactivatingPanel, opening it can race with
         // NSWorkspace's frontmostApplication update.
         // Critical for: AUTO-PASTE (need PID), STREAMING DELIVERY MODE (need bundle ID)
-        let frontmostApp = NSWorkspace.shared.frontmostApplication
-        previousFrontmostPID = frontmostApp?.processIdentifier
-        previousFrontmostBundleID = frontmostApp?.bundleIdentifier
-        autoPasteHandler.setPreviousFrontmostApp(pid: previousFrontmostPID,
-                                                 bundleID: previousFrontmostBundleID)
+        capturePasteTarget()
 
         // ═══════════════════════════════════════════════════════════════════════════
         // STREAMING CHECK: Check if streaming shortcut was triggered
@@ -543,6 +539,21 @@ extension RecordingTranscriptionFlow {
 
             logPreflightCheckpoint(.contextCaptureComplete)
         }
+    }
+
+    // MARK: - Paste Target
+
+    /// Captures the app a transcript is pasted into: whichever app is
+    /// frontmost NOW. A recording start calls it before the dialog shows; a
+    /// pending-file Retry calls it at the click (#1636), since the user may be
+    /// in another app by then than when the failed recording began. The PID and
+    /// bundle ID go to `autoPasteHandler` as a pair (PID-reuse guard).
+    func capturePasteTarget() {
+        let frontmostApp = NSWorkspace.shared.frontmostApplication
+        previousFrontmostPID = frontmostApp?.processIdentifier
+        previousFrontmostBundleID = frontmostApp?.bundleIdentifier
+        autoPasteHandler.setPreviousFrontmostApp(pid: previousFrontmostPID,
+                                                 bundleID: previousFrontmostBundleID)
     }
 
     // MARK: - Background Validation Helpers

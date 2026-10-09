@@ -1604,22 +1604,38 @@ class PersistenceController: ObservableObject {
     /// and near-now dedup as the `@MainActor` variant, but no `processPendingChanges()`
     /// and no view-context `refreshAllObjects()` — the merge notification refreshes
     /// HistoryView, and maintenance is debounced off the hot path.
+    ///
+    /// - Parameter completesFailedRowByRetry: the row was saved as FAILED and a
+    ///   retry is completing it (#1636). Clears `failedReason` (History reads
+    ///   any non-empty one as a failure, so a completed row that kept it would
+    ///   still show as failed; a processing row has none) and counts the retry
+    ///   (`retryCount` + 1, `lastRetryDate`) as History's own Retry does
+    ///   (`TranscriptionRetryController`).
+    /// - Returns: whether the row was found and the write was saved.
+    @discardableResult
     func updateTranscriptWithTranscriptionInBackground(
         transcriptID: NSManagedObjectID,
         transcribedText: String,
         postProcessedText: String? = nil,
         transcriptionProvider: String? = nil,
         postProcessingProvider: String? = nil,
-        wordTimestampsJSON: String? = nil
-    ) async {
-        await performWrite { context in
+        wordTimestampsJSON: String? = nil,
+        completesFailedRowByRetry: Bool = false
+    ) async -> Bool {
+        let result = await performWriteReportingSave { context -> Bool in
             guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
                 AppLogger.coreData.warning("updateTranscriptWithTranscriptionInBackground: transcript row not found (cancel race?) — skipping")
-                return
+                return false
             }
 
             transcript.text = postProcessedText ?? transcribedText
             transcript.setValue("completed", forKey: "status")
+            if completesFailedRowByRetry {
+                transcript.setValue(nil, forKey: "failedReason")
+                let currentRetryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
+                transcript.setValue(currentRetryCount + 1, forKey: "retryCount")
+                transcript.setValue(Date(), forKey: "lastRetryDate")
+            }
             transcript.setValue(transcribedText, forKey: "transcribedText")
             if let postProcessedText {
                 transcript.setValue(postProcessedText, forKey: "postProcessedText")
@@ -1663,7 +1679,9 @@ class PersistenceController: ObservableObject {
                     }
                 }
             }
+            return true
         }
+        return result.value && result.saved
     }
 
     /// Mark a transcript failed on the serial writer.

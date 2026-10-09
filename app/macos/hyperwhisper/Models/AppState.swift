@@ -511,12 +511,26 @@ class AppState: ObservableObject {
     @Published var pendingRetryAudioPath: String? {
         didSet {
             // A different pending file (or none) is a different question:
-            // never carry a mode picker over to it (#1617).
+            // never carry a mode picker over to it (#1617), nor the History
+            // row of the file before it (#1636).
             if pendingRetryAudioPath != oldValue {
                 pendingRetryNeedsModePick = false
+                pendingRetryFailedRowWrite = nil
             }
         }
     }
+
+    /// The write of the History row ("Audio file could not be read") saved
+    /// for the file in `pendingRetryAudioPath`; its value is the row's id, or
+    /// `nil` when the write failed. A successful pending-file Retry awaits it
+    /// and completes THAT row in place, so the transcript is not lost and no
+    /// second row appears (#1636). Kept as the write itself, not its id, so a
+    /// Retry that finishes before the write lands still waits for it rather
+    /// than saving a row of its own beside the failed one. Set in the same
+    /// main-actor turn as `pendingRetryAudioPath`; dropped whenever the
+    /// pending file changes or is cleared (see its `didSet`).
+    /// Not `@Published`: no view reads it.
+    var pendingRetryFailedRowWrite: Task<NSManagedObjectID?, Never>?
 
     /// Set when a pending-file retry found that the mode which made the
     /// recording was deleted (#1617). No request was sent; the recording dialog

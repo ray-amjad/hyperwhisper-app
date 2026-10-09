@@ -32,6 +32,12 @@ extension RecordingTranscriptionFlow {
         guard let appState = appState else { return }
         appState.pendingRetryNeedsModePick = false
         let identity = PendingRetryIdentity(sessionGeneration: appState.beginTranscriptionSession())
+        // #1636: a Retry is a new delivery. Paste where the user is at the
+        // click, as a recording start does, not into the app that was
+        // frontmost when the failed recording began (minutes ago, maybe).
+        // The pill is a non-activating panel, so the click leaves that app
+        // frontmost.
+        capturePasteTarget()
         toggleTask = Task {
             await retryTranscriptionFromPendingPath(identity: identity, pickedMode: pickedMode)
         }
@@ -127,6 +133,17 @@ extension RecordingTranscriptionFlow {
             return
         }
 
+        // #1636: the clipboard snapshot the paste's restore writes back, taken
+        // now, as a recording start takes it. The failed recording's snapshot
+        // is as old as that recording: restoring it would overwrite anything
+        // the user copied since. Only here, once a request will be sent: the
+        // exits above paste nothing.
+        await AccessibilityHelper.shared.startRecordingSession()
+
+        // The clipboard read suspends (up to 1 s); a newer flow may own the
+        // dialog now, and took its own snapshot.
+        guard !isPendingRetrySuperseded(identity) else { return }
+
         await MainActor.run {
             appState.recordingState = .transcribing
             appState.showRecordingDialog = true
@@ -147,12 +164,55 @@ extension RecordingTranscriptionFlow {
             // A newer flow owns the dialog, the state and the session mode now.
             guard !isPendingRetrySuperseded(identity) else { return }
 
+            // #1636: the write of the History row saved for THIS file when it
+            // could not be read. Taken before the path is cleared below (which
+            // drops it); awaited by the save, so a row that has not landed yet
+            // is still the one completed.
+            let failedRowWrite = appState.pendingRetryAudioPath == path
+                ? appState.pendingRetryFailedRowWrite
+                : nil
+
+            // Deliver like a dictation (paste, clipboard fallback, the pill's
+            // "Pasted!" only after a real paste), then save. Before #1636 the
+            // retry only set the text: nothing was pasted, copied or saved.
+            let pasteStart = Date()
             await MainActor.run {
                 appState.lastTranscription = transcriptionResult.text
                 appState.recordingState = .idle
                 appState.pendingRetryAudioPath = nil
+                // The recording's session ended at its stop: no onboarding
+                // gate or Quick Capture context of its own is left, and a
+                // newer session would have superseded this retry.
+                deliverBatchTranscript(
+                    transcriptionResult,
+                    transcriptionMode: transcriptionMode,
+                    sessionStartedSuppressed: false,
+                    trigger: .unknown,
+                    isQuickCaptureRouting: false,
+                    pasteStart: pasteStart
+                )
             }
             clearActiveSessionMode()
+
+            let savedTranscriptID = await Self.savePendingRetryTranscript(
+                transcriptionResult,
+                failedRowWrite: failedRowWrite,
+                audioURL: audioURL,
+                modeName: transcriptionMode.name
+            )
+
+            // Same storage step as a dictation's success: the row now holds a
+            // completed transcript, so its WAV may be compressed to M4A.
+            if audioURL.pathExtension.lowercased() == "wav",
+               settingsManager?.storeAsM4A == true,
+               let savedTranscriptID {
+                Task {
+                    await recordingLifecycle.performBackgroundWAVToM4AConversion(
+                        transcriptID: savedTranscriptID,
+                        wavURL: audioURL
+                    )
+                }
+            }
         } catch {
             // Superseded: the newer flow's own request cancelled this one (or it
             // failed while the newer flow ran). Its error is not the user's.
