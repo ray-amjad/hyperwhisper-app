@@ -102,7 +102,7 @@ struct PageChangeGateTests {
     // MARK: - AppState steps
 
     @MainActor
-    private func appState(on page: NavigationItem, sheetUp: @escaping () -> Bool) -> AppState {
+    private func makeAppState(on page: NavigationItem, sheetUp: @escaping () -> Bool) -> AppState {
         let appState = AppState()
         appState.pageSheetPresenceOverride = { false }
         appState.selectedNavigationItem = page
@@ -112,7 +112,7 @@ struct PageChangeGateTests {
 
     @MainActor
     @Test func withNoSheetAppStateShowsTheNewPageAtOnce() {
-        let appState = appState(on: .modes, sheetUp: { false })
+        let appState = makeAppState(on: .modes, sheetUp: { false })
         #expect(appState.displayedNavigationItem == .modes)
         let before = appState.pageSheetDismissalRequest
 
@@ -126,7 +126,7 @@ struct PageChangeGateTests {
     @MainActor
     @Test func aDirectWriteIsHeldWhileASheetIsUpAndAsksThePageToCloseIt() {
         var sheetUp = true
-        let appState = appState(on: .modes, sheetUp: { sheetUp })
+        let appState = makeAppState(on: .modes, sheetUp: { sheetUp })
         let before = appState.pageSheetDismissalRequest
 
         // The menu bar's Settings… writes the property directly.
@@ -147,7 +147,7 @@ struct PageChangeGateTests {
     @MainActor
     @Test func theSettingsSectionStillAppliesToAHeldSettingsPage() {
         var sheetUp = true
-        let appState = appState(on: .modes, sheetUp: { sheetUp })
+        let appState = makeAppState(on: .modes, sheetUp: { sheetUp })
 
         appState.navigateToSettings(section: "shortcuts")
         #expect(appState.displayedNavigationItem == .modes)
@@ -162,7 +162,7 @@ struct PageChangeGateTests {
     @MainActor
     @Test func theAPIKeysFlagWaitsForAHeldModelLibraryPage() {
         var sheetUp = true
-        let appState = appState(on: .modes, sheetUp: { sheetUp })
+        let appState = makeAppState(on: .modes, sheetUp: { sheetUp })
 
         // The mode editor's Manage in Library link, while its sheet closes.
         appState.navigateToModelLibraryAPIKeys()
@@ -179,7 +179,7 @@ struct PageChangeGateTests {
     @MainActor
     @Test func theLastOfSeveralHeldRequestsIsShown() {
         var sheetUp = true
-        let appState = appState(on: .modes, sheetUp: { sheetUp })
+        let appState = makeAppState(on: .modes, sheetUp: { sheetUp })
 
         appState.selectedNavigationItem = .settings
         appState.selectedNavigationItem = .history
@@ -193,7 +193,7 @@ struct PageChangeGateTests {
     @MainActor
     @Test func goingBackToTheShownPageCancelsTheHeldOne() {
         var sheetUp = true
-        let appState = appState(on: .modes, sheetUp: { sheetUp })
+        let appState = makeAppState(on: .modes, sheetUp: { sheetUp })
 
         appState.selectedNavigationItem = .settings
         appState.selectedNavigationItem = .modes
@@ -204,7 +204,7 @@ struct PageChangeGateTests {
 
     @MainActor
     @Test func aSheetThatNeverClosesIsOutwaited() {
-        let appState = appState(on: .modes, sheetUp: { true })
+        let appState = makeAppState(on: .modes, sheetUp: { true })
 
         appState.selectedNavigationItem = .history
         #expect(appState.recheckPendingPageChange(now: Date()))
