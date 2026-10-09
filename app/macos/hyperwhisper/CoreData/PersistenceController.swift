@@ -1604,22 +1604,33 @@ class PersistenceController: ObservableObject {
     /// and near-now dedup as the `@MainActor` variant, but no `processPendingChanges()`
     /// and no view-context `refreshAllObjects()` — the merge notification refreshes
     /// HistoryView, and maintenance is debounced off the hot path.
+    ///
+    /// - Parameter clearFailedReason: also clear `failedReason`, for a row that
+    ///   was saved as FAILED and is now completed by a retry (#1636). History
+    ///   reads any non-empty `failedReason` as a failure, so a completed row
+    ///   that kept it would still show as failed. A processing row has none.
+    /// - Returns: whether the row was found and the write was saved.
+    @discardableResult
     func updateTranscriptWithTranscriptionInBackground(
         transcriptID: NSManagedObjectID,
         transcribedText: String,
         postProcessedText: String? = nil,
         transcriptionProvider: String? = nil,
         postProcessingProvider: String? = nil,
-        wordTimestampsJSON: String? = nil
-    ) async {
-        await performWrite { context in
+        wordTimestampsJSON: String? = nil,
+        clearFailedReason: Bool = false
+    ) async -> Bool {
+        let result = await performWriteReportingSave { context -> Bool in
             guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
                 AppLogger.coreData.warning("updateTranscriptWithTranscriptionInBackground: transcript row not found (cancel race?) — skipping")
-                return
+                return false
             }
 
             transcript.text = postProcessedText ?? transcribedText
             transcript.setValue("completed", forKey: "status")
+            if clearFailedReason {
+                transcript.setValue(nil, forKey: "failedReason")
+            }
             transcript.setValue(transcribedText, forKey: "transcribedText")
             if let postProcessedText {
                 transcript.setValue(postProcessedText, forKey: "postProcessedText")
@@ -1663,7 +1674,9 @@ class PersistenceController: ObservableObject {
                     }
                 }
             }
+            return true
         }
+        return result.value && result.saved
     }
 
     /// Mark a transcript failed on the serial writer.
