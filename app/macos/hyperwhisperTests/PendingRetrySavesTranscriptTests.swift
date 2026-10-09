@@ -27,6 +27,26 @@ import Testing
 
 @testable import HyperWhisper
 
+/// DIAG #1653: records every writer save error.
+final class DiagPersistence1653: PersistenceController {
+    private let lock = NSLock()
+    private var errors: [String] = []
+    var saveErrors: [String] { lock.lock(); defer { lock.unlock() }; return errors }
+    override func saveWriterContext(_ context: NSManagedObjectContext) throws {
+        do {
+            try super.saveWriterContext(context)
+        } catch {
+            let ns = error as NSError
+            let detail = "DIAG writerSave domain=\(ns.domain) code=\(ns.code) desc=\(ns.localizedDescription) userInfo=\(ns.userInfo)"
+            lock.lock(); errors.append(String(detail.prefix(3000))); lock.unlock()
+            throw error
+        }
+    }
+    func recordErrors(_ site: String) {
+        for e in saveErrors { Issue.record(Comment(rawValue: site + " " + e)) }
+    }
+}
+
 @Suite("A successful pending-file Retry delivers and saves its transcript (#1636)")
 struct PendingRetrySavesTranscriptTests {
 
@@ -48,6 +68,7 @@ struct PendingRetrySavesTranscriptTests {
     /// serial writer actually saved.
     @MainActor
     private func rows(in persistence: PersistenceController) async -> [Row] {
+        (persistence as? DiagPersistence1653)?.recordErrors("rows")
         let context = persistence.container.newBackgroundContext()
         return await context.perform {
             let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
@@ -68,41 +89,6 @@ struct PendingRetrySavesTranscriptTests {
         }
     }
 
-
-    /// DIAG #1653: why a write saves nothing in the full run.
-    @MainActor
-    private func probe(_ persistence: PersistenceController, _ site: String) async {
-        let context = persistence.container.newBackgroundContext()
-        let report: String = await context.perform {
-            let containerModel = persistence.container.managedObjectModel
-            let created = Transcript(context: context)
-            created.id = UUID()
-            created.date = Date()
-            created.setValue("failed", forKey: "status")
-            created.text = "probe"
-            let sameModel = created.entity.managedObjectModel === containerModel
-            let classEntity = Transcript.entity()
-            let classSame = classEntity.managedObjectModel === containerModel
-            var out = "site=\(site) entitySameModel=\(sameModel) classEntitySameModel=\(classSame) storeCount=\(persistence.container.persistentStoreCoordinator.persistentStores.count) stores=\(persistence.container.persistentStoreCoordinator.persistentStores.map { $0.url?.path ?? "nil" })"
-            do {
-                try context.obtainPermanentIDs(for: [created])
-                out += " permID=ok"
-            } catch {
-                out += " permIDError=\(error)"
-            }
-            do {
-                try context.save()
-                out += " save=ok"
-            } catch {
-                out += " saveError=\(error)"
-            }
-            return out
-        }
-        if !report.contains("save=ok") || report.contains("SameModel=false") {
-            Issue.record(Comment(rawValue: "DIAG " + report))
-        }
-    }
-
     private static let audioPath = "/tmp/hw-1636-missing-recording.wav"
 
     /// The row the stop flow writes when the recorded file cannot be read.
@@ -115,7 +101,7 @@ struct PendingRetrySavesTranscriptTests {
             failedReason: "Audio file could not be read",
             errorText: "Error: Audio file could not be read"
         )
-        if id == nil { await probe(persistence, "makeFailedRow-nil") }
+        if id == nil { (persistence as? DiagPersistence1653)?.recordErrors("makeFailedRow") }
         return try #require(id)
     }
 
@@ -138,7 +124,7 @@ struct PendingRetrySavesTranscriptTests {
     /// That row now holds the transcript and no longer reads as failed.
     @MainActor
     @Test func theFailedRowIsCompletedInPlace() async throws {
-        let persistence = PersistenceController(inMemory: true)
+        let persistence = DiagPersistence1653(inMemory: true)
         let failedID = try await makeFailedRow(in: persistence)
 
         let savedID = await RecordingTranscriptionFlow.savePendingRetryTranscript(
@@ -166,7 +152,7 @@ struct PendingRetrySavesTranscriptTests {
     /// "retried N times" from `retryCount`.
     @MainActor
     @Test func completingTheFailedRowCountsTheRetry() async throws {
-        let persistence = PersistenceController(inMemory: true)
+        let persistence = DiagPersistence1653(inMemory: true)
         let failedID = try await makeFailedRow(in: persistence)
         let before = Date()
 
@@ -189,7 +175,7 @@ struct PendingRetrySavesTranscriptTests {
     /// post-processed text as the row's text when post-processing ran.
     @MainActor
     @Test func aPostProcessedRetrySavesBothTexts() async throws {
-        let persistence = PersistenceController(inMemory: true)
+        let persistence = DiagPersistence1653(inMemory: true)
         let failedID = try await makeFailedRow(in: persistence)
 
         await RecordingTranscriptionFlow.savePendingRetryTranscript(
@@ -211,7 +197,7 @@ struct PendingRetrySavesTranscriptTests {
     /// saved, as a new completed row for the same file.
     @MainActor
     @Test func withNoFailedRowANewRowHoldsTheTranscript() async throws {
-        let persistence = PersistenceController(inMemory: true)
+        let persistence = DiagPersistence1653(inMemory: true)
 
         let savedID = await RecordingTranscriptionFlow.savePendingRetryTranscript(
             makeResult(postProcessed: false),
@@ -221,7 +207,8 @@ struct PendingRetrySavesTranscriptTests {
             persistence: persistence
         )
 
-        if savedID == nil { await probe(persistence, "noFailedRow-nil") }
+        let diagAll = await rows(in: persistence)
+        if savedID == nil { Issue.record(Comment(rawValue: "DIAG noFailedRow rows=\(diagAll.map { "\($0.status ?? "nil")|\($0.text ?? "nil")" })")) }
         #expect(savedID != nil)
         let all = await rows(in: persistence)
         #expect(all.count == 1)
@@ -235,7 +222,7 @@ struct PendingRetrySavesTranscriptTests {
     /// touch `failedReason`, as before.
     @MainActor
     @Test func aDictationCompletionLeavesFailedReasonAlone() async throws {
-        let persistence = PersistenceController(inMemory: true)
+        let persistence = DiagPersistence1653(inMemory: true)
         let failedID = try await makeFailedRow(in: persistence)
 
         let saved = await RecordingTranscriptionFlow.saveBatchTranscript(
@@ -257,7 +244,7 @@ struct PendingRetrySavesTranscriptTests {
     /// failed row landed after it, and History showed both.
     @MainActor
     @Test func aRetryThatEndsBeforeTheFailedRowLandsLeavesOneRow() async throws {
-        let persistence = PersistenceController(inMemory: true)
+        let persistence = DiagPersistence1653(inMemory: true)
         let (gate, release) = AsyncStream<Void>.makeStream()
         let failedRowWrite = Task { () -> NSManagedObjectID? in
             for await _ in gate { break }
@@ -303,7 +290,7 @@ struct PendingRetrySavesTranscriptTests {
     /// dictation, a retry that ended), drops it.
     @MainActor
     @Test func theRowWriteResetsWhenThePendingFileChanges() async throws {
-        let persistence = PersistenceController(inMemory: true)
+        let persistence = DiagPersistence1653(inMemory: true)
         let failedID = try await makeFailedRow(in: persistence)
         let write = Task<NSManagedObjectID?, Never> { failedID }
         let appState = AppState()
