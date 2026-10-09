@@ -57,17 +57,29 @@ extension RecordingTranscriptionFlow {
     /// default mode: on a fresh install the default is the Cloud mode "Hyper",
     /// so a deleted on-device mode would otherwise send the audio to
     /// HyperWhisper Cloud without asking. Same rule as History's Retry
-    /// (`TranscriptionRetryController`, #1440). A mode that still exists
-    /// resolves through the same id and name steps as before.
+    /// (`TranscriptionRetryController`, #1440). A session mode that still
+    /// exists resolves through the same id and name steps as before.
+    ///
+    /// A mode the user PICKED resolves by id only. If it was deleted before
+    /// the lookup, another mode with the same name (maybe a Cloud mode) must
+    /// not stand in for it: `nil` re-opens the picker and nothing is sent.
     static func resolvePendingRetryMode(
         pickedMode: PendingRetryModeChoice?,
         sessionModeId: String,
         sessionModeName: String,
         persistence: PersistenceController = .shared
     ) async -> Mode? {
-        await persistence.resolveTranscriptionModeInBackground(
-            id: pickedMode?.id ?? sessionModeId,
-            fallbackName: pickedMode?.name ?? sessionModeName,
+        if let pickedMode {
+            return await persistence.resolveTranscriptionModeInBackground(
+                id: pickedMode.id,
+                fallbackName: pickedMode.name,
+                allowNameFallback: false,
+                allowDefaultFallback: false
+            )
+        }
+        return await persistence.resolveTranscriptionModeInBackground(
+            id: sessionModeId,
+            fallbackName: sessionModeName,
             allowDefaultFallback: false
         )
     }

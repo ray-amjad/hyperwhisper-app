@@ -150,6 +150,27 @@ struct PendingRetryDeletedModeTests {
         #expect(mode == nil, "fell back to \(mode?.name ?? "nil")")
     }
 
+    /// A pick deleted before the retry ran must not resolve to ANOTHER mode
+    /// that shares its name (maybe a Cloud one): a pick resolves by id only.
+    @MainActor
+    @Test func aDeletedPickNeverResolvesToASameNamedMode() async {
+        let (persistence, _, onDevice) = makeStore()
+        let picked = PendingRetryModeChoice(id: onDevice.id!.uuidString, name: "LocNemo")
+        persistence.deleteMode(onDevice)
+        let sameName = makeMode(in: persistence, name: "LocNemo", model: "cloud", isDefault: false)
+        persistence.save()
+
+        let mode = await RecordingTranscriptionFlow.resolvePendingRetryMode(
+            pickedMode: picked,
+            sessionModeId: "",
+            sessionModeName: "Default",
+            persistence: persistence
+        )
+        withExtendedLifetime(sameName) {
+            #expect(mode == nil, "resolved the pick by name to \(mode?.name ?? "nil")")
+        }
+    }
+
     // MARK: - The picker's state
 
     /// The picker belongs to one pending file. A new file, or none (a new
@@ -220,6 +241,7 @@ struct PendingRetryDeletedModeTests {
             to: "private func retryTranscriptionFromPendingPath("
         )
         #expect(resolver.contains("allowDefaultFallback: false"), "\(resolver)")
+        #expect(resolver.contains("allowNameFallback: false"), "a pick resolves by name again: \(resolver)")
     }
 
     /// No mode: ask for one, and stop before anything is sent or the pending
