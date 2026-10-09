@@ -126,13 +126,13 @@ public partial class ModeEditorWindow : Window
             // If the current mode uses an unavailable local engine, switch to cloud.
             if (_mode.ProviderType == "local" && !IsLocalEngineSupported(_mode.LocalEngine))
             {
-                _mode.ProviderType = "cloud";
+                LocalModeModel.ApplyCloud(_mode);
                 _mode.CloudProvider = "hyperwhisper"; // Default to HyperWhisper Cloud (no API key needed)
             }
         }
         else if (_mode.ProviderType == "local" && !IsLocalEngineSupported(_mode.LocalEngine))
         {
-            _mode.ProviderType = "cloud";
+            LocalModeModel.ApplyCloud(_mode);
             _mode.CloudProvider = "hyperwhisper";
         }
 
@@ -1797,6 +1797,10 @@ public partial class ModeEditorWindow : Window
 
         if (_mode.ProviderType == "cloud")
         {
+            // The On-device arm below writes a local id into Model; put the cloud
+            // sentinel back so macOS does not restore this mode as local (#1477).
+            LocalModeModel.ApplyCloud(_mode);
+
             // HyperWhisper Cloud is its own source segment; "Your provider" is BYOK.
             if (transcriptionSource == "hwcloud")
             {

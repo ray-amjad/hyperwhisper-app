@@ -13,7 +13,8 @@ namespace HyperWhisper.Services;
 /// model) to the cloud, while Linux routes on <c>cloudProvider</c>. The mode
 /// editor used to seed <c>Model = "cloud"</c> / <c>CloudProvider = "hyperwhisper"</c>
 /// and never rewrite them when the user chose On-device, so a local mode
-/// exported as a HyperWhisper Cloud mode.
+/// exported as a HyperWhisper Cloud mode. The reverse holds too: a cloud mode
+/// stores and exports <c>Model = "cloud"</c> (<see cref="ApplyCloud"/>).
 /// </summary>
 public static class LocalModeModel
 {
@@ -86,6 +87,29 @@ public static class LocalModeModel
     {
         mode.Model = StoredLocalModel(mode);
         mode.CloudProvider = null;
+    }
+
+    /// <summary>
+    /// The <see cref="Mode.Model"/> sentinel of a cloud mode. macOS routes
+    /// <c>model == "cloud"</c> to the cloud and anything else to a local model;
+    /// the cloud model itself travels in <see cref="Mode.CloudTranscriptionModel"/>.
+    /// </summary>
+    public const string CloudModel = "cloud";
+
+    /// <summary>
+    /// The mirror of <see cref="ApplyOnDevice"/>: turning a mode into a cloud mode
+    /// also puts <see cref="Mode.Model"/> back to <c>"cloud"</c>, the value the
+    /// editor's new-mode seed, onboarding's cloud arm and the Local API's
+    /// <c>model:"cloud"</c> already write. Without it a mode saved On-device
+    /// (Model = "base") and later switched to Cloud keeps the local id, and macOS
+    /// restores it as a LOCAL mode. <see cref="Mode.ModelType"/> and
+    /// <see cref="Mode.LocalParakeetModel"/> are left alone, so switching back to
+    /// On-device restores the previous local model. The caller sets the provider.
+    /// </summary>
+    public static void ApplyCloud(Mode mode)
+    {
+        mode.ProviderType = "cloud";
+        mode.Model = CloudModel;
     }
 
     private static string WhisperModel(Mode mode)

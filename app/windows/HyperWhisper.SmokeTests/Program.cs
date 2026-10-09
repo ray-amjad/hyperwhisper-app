@@ -13597,15 +13597,17 @@ internal static class Program
                 AssertReadsAsLocalOnEveryHead(UniversalBackupMapper.MapMode(unset), "ProviderType null");
             });
 
-            Run("backup export (#1477): a cloud mode exports exactly as before", () =>
+            Run("backup export (#1477): a cloud mode exports model cloud and its provider fields as stored", () =>
             {
                 foreach (var (model, provider, cloudModel) in new (string?, string?, string?)[]
                 {
                     ("cloud", "hyperwhisper", "scribe_v2"),
                     ("cloud", "openai", "whisper-1"),
-                    // A stored contradiction in the other direction is out of #1477's scope:
-                    // a cloud mode keeps its stored columns verbatim.
+                    // A stored contradiction in the other direction (a stale local id,
+                    // or a Local API POST's cloud model id in Model) still exports
+                    // model "cloud": macOS routes anything else to a local model.
                     ("base", "deepgram", null),
+                    ("nova-3", "deepgram", "nova-3"),
                 })
                 {
                     var mode = new Mode
@@ -13621,7 +13623,7 @@ internal static class Program
                         CloudTranscriptionModel = cloudModel,
                     };
                     var u = UniversalBackupMapper.MapMode(mode);
-                    Assert(u.Model == model, $"{provider}: model changed to \"{u.Model}\"");
+                    Assert(u.Model == "cloud", $"{provider}/{model}: a cloud mode must export model \"cloud\", got \"{u.Model}\"");
                     Assert(u.CloudProvider == provider, $"{provider}: cloudProvider changed to \"{u.CloudProvider}\"");
                     Assert(u.CloudTranscriptionModel == cloudModel,
                         $"{provider}: cloudTranscriptionModel changed to \"{u.CloudTranscriptionModel}\"");
@@ -13657,6 +13659,64 @@ internal static class Program
                 LocalModeModel.ApplyOnDevice(whisper);
                 Assert(whisper.Model == "large-v3-turbo", $"Model must mirror ModelType, got \"{whisper.Model}\"");
                 Assert(whisper.CloudProvider is null, "CloudProvider must be cleared");
+            });
+
+            Run("backup export (#1477): an On-device mode switched back to Cloud exports model cloud", () =>
+            {
+                // Saved On-device (Model now holds the local id), then a later save
+                // flips only the cloud columns. macOS must still read it as cloud.
+                foreach (var (engine, parakeet, whisperType) in new (string, string?, string)[]
+                {
+                    ("whisper", null, "base"),
+                    ("parakeet", "parakeet-v2", "base"),
+                })
+                {
+                    var mode = new Mode
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Flip",
+                        ProviderType = "local",
+                        LocalEngine = engine,
+                        LocalParakeetModel = parakeet,
+                        ModelType = whisperType,
+                        Model = "cloud",
+                        CloudProvider = "hyperwhisper",
+                    };
+                    LocalModeModel.ApplyOnDevice(mode);
+                    mode.ProviderType = "cloud";
+                    mode.CloudProvider = "hyperwhisper";
+                    mode.CloudTranscriptionModel = "scribe_v2";
+
+                    var u = UniversalBackupMapper.MapMode(mode);
+                    Assert(u.Model == "cloud",
+                        $"{engine}: macOS would restore model \"{u.Model}\" as a LOCAL mode");
+                    Assert(u.CloudProvider == "hyperwhisper", $"{engine}: cloudProvider changed to \"{u.CloudProvider}\"");
+                }
+            });
+
+            Run("mode editor (#1477): choosing Cloud after On-device stores Model cloud and keeps the local ids", () =>
+            {
+                var mode = new Mode
+                {
+                    ProviderType = "local",
+                    LocalEngine = "parakeet",
+                    LocalParakeetModel = "parakeet-v3",
+                    ModelType = "small",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                };
+                LocalModeModel.ApplyOnDevice(mode);
+                Assert(mode.Model == "parakeet-v3", $"setup: On-device must store the local id, got \"{mode.Model}\"");
+
+                // The editor's cloud save arm and ConfigureForArchitecture's fallback.
+                LocalModeModel.ApplyCloud(mode);
+                Assert(mode.ProviderType == "cloud", $"ProviderType must be cloud, got \"{mode.ProviderType}\"");
+                Assert(mode.Model == "cloud", $"a cloud mode must store Model \"cloud\", got \"{mode.Model}\"");
+                Assert(mode.ModelType == "small" && mode.LocalParakeetModel == "parakeet-v3",
+                    "the local ids stay, so switching back to On-device restores the previous model");
+
+                LocalModeModel.ApplyOnDevice(mode);
+                Assert(mode.Model == "parakeet-v3", $"back On-device must restore the local id, got \"{mode.Model}\"");
             });
 
             Run("onboarding: the sample clip ships in the build and extracts as a real WAV", () =>

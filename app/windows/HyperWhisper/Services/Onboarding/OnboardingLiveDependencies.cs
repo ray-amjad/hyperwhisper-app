@@ -987,8 +987,9 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
         }
         else
         {
-            mode.ProviderType = "cloud";
-            mode.Model = staged.Model;
+            // staged.Model is always "cloud" for a cloud source (the flow's
+            // StagedSource); ApplyCloud writes the same sentinel by name.
+            LocalModeModel.ApplyCloud(mode);
             mode.ModelType = staged.Model;
         }
     }

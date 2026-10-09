@@ -300,7 +300,13 @@ public static class UniversalBackupMapper
         // columns (#1477). The mode editor used to leave Model = "cloud" and
         // CloudProvider = "hyperwhisper" on a mode switched to On-device, and
         // macOS (model == "cloud") and Linux (cloudProvider != null) would restore
-        // that mode as a HyperWhisper Cloud mode. A cloud mode exports as before.
+        // that mode as a HyperWhisper Cloud mode. The reverse holds too: a cloud
+        // mode exports model "cloud" even when its stored Model is a stale local
+        // id (an On-device mode switched back to Cloud before ApplyCloud, the
+        // ARM64 ModeService migration, or a Local API POST with providerType
+        // "cloud" and a non-"cloud" model). macOS stores the portable model
+        // verbatim and routes anything but "cloud" to a local model; the cloud
+        // model itself travels in cloudTranscriptionModel.
         var isCloud = LocalModeModel.IsCloud(mode);
 
         var universal = new UniversalMode
@@ -309,7 +315,7 @@ public static class UniversalBackupMapper
             Name = mode.Name,
             Preset = mode.Preset,
             Language = mode.Language,
-            Model = isCloud ? mode.Model : LocalModeModel.PortableLocalModel(mode),
+            Model = isCloud ? LocalModeModel.CloudModel : LocalModeModel.PortableLocalModel(mode),
             IsDefault = mode.IsDefault,
             SortOrder = mode.SortOrder,
             Punctuation = mode.Punctuation,
