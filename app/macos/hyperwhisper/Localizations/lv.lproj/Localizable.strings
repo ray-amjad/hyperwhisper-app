@@ -868,6 +868,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "recording.retry.failed.missing" = "Atkārtošana neizdevās: Audio fails nav atrasts";
 "recording.retry.failed.error" = "Atkārtošana neizdevās: %@";
 "recording.retry.pending" = "Gatavs atkārtot – noklikšķiniet, lai transkribētu";
+"recording.retry.modeDeleted" = "Režīms tika dzēsts";
 "recording.cancel.dialog.title" = "Atcelt ierakstīšanu?";
 "recording.cancel.dialog.message" = "Tas atmesīs pašreizējo ierakstu.";
 "recording.cancel.dialog.confirm" = "Atcelt ierakstīšanu";

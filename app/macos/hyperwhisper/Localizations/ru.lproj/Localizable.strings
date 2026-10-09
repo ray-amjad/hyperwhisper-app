@@ -868,6 +868,7 @@
 "recording.retry.failed.missing" = "Ошибка повтора: аудиофайл не найден";
 "recording.retry.failed.error" = "Ошибка повтора: %@";
 "recording.retry.pending" = "Готов к повтору – щелкните для транскрипции";
+"recording.retry.modeDeleted" = "Режим удалён";
 "recording.cancel.dialog.title" = "Отмена записи?";
 "recording.cancel.dialog.message" = "Это отменит текущую запись.";
 "recording.cancel.dialog.confirm" = "Отмена записи";

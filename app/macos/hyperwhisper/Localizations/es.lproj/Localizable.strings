@@ -869,6 +869,7 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "recording.retry.failed.missing" = "Reintento fallido: archivo de audio no encontrado";
 "recording.retry.failed.error" = "Reintento fallido: %@";
 "recording.retry.pending" = "Listo para reintentar – haz clic para transcribir";
+"recording.retry.modeDeleted" = "Se eliminó el modo";
 "recording.cancel.dialog.title" = "¿Cancelar grabación?";
 "recording.cancel.dialog.message" = "Esto descartará la grabación actual.";
 "recording.cancel.dialog.confirm" = "Cancelar grabación";

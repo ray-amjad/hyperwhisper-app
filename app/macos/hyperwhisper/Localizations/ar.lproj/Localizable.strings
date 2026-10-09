@@ -868,6 +868,7 @@
 "recording.retry.failed.missing" = "فشلت المحاولة: لم يتم العثور على ملف الصوت";
 "recording.retry.failed.error" = "فشلت المحاولة: %@";
 "recording.retry.pending" = "جاهز لإعادة المحاولة – انقر للنسخ";
+"recording.retry.modeDeleted" = "تم حذف الوضع";
 "recording.cancel.dialog.title" = "إلغاء التسجيل؟";
 "recording.cancel.dialog.message" = "سيؤدي هذا إلى تجاهل التسجيل الحالي.";
 "recording.cancel.dialog.confirm" = "إلغاء التسجيل";

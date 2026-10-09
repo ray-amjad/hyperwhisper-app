@@ -868,6 +868,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "recording.retry.failed.missing" = "Uudelleenyritys epäonnistui: Äänitiedostoa ei löydy";
 "recording.retry.failed.error" = "Uudelleenyritys epäonnistui: %@";
 "recording.retry.pending" = "Valmis uudelleenyritykseen – napsauta transkriboidaksesi";
+"recording.retry.modeDeleted" = "Tila poistettiin";
 "recording.cancel.dialog.title" = "Peruuta nauhoitus?";
 "recording.cancel.dialog.message" = "Tämä hylkää nykyisen nauhoituksen.";
 "recording.cancel.dialog.confirm" = "Peruuta nauhoitus";

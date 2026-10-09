@@ -868,6 +868,7 @@
 "recording.retry.failed.missing" = "הניסיון החוזר נכשל: קובץ אודיו לא נמצא";
 "recording.retry.failed.error" = "הניסיון החוזר נכשל: %@";
 "recording.retry.pending" = "מוכן לנסות שוב – לחץ כדי לתמלל";
+"recording.retry.modeDeleted" = "המצב נמחק";
 "recording.cancel.dialog.title" = "לבטל הקלטה?";
 "recording.cancel.dialog.message" = "זה ישליך את ההקלטה הנוכחית.";
 "recording.cancel.dialog.confirm" = "בטל הקלטה";

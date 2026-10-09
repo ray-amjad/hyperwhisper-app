@@ -868,6 +868,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "recording.retry.failed.missing" = "Nytt forsøk mislyktes: Lydfil ikke funnet";
 "recording.retry.failed.error" = "Nytt forsøk mislyktes: %@";
 "recording.retry.pending" = "Klar til å prøve på nytt – klikk for å transkribere";
+"recording.retry.modeDeleted" = "Modusen ble slettet";
 "recording.cancel.dialog.title" = "Avbryt opptak?";
 "recording.cancel.dialog.message" = "Dette vil forkaste det nåværende opptaket.";
 "recording.cancel.dialog.confirm" = "Avbryt opptak";

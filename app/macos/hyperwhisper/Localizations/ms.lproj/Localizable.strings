@@ -868,6 +868,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "recording.retry.failed.missing" = "Cuba semula gagal: Fail audio tidak dijumpai";
 "recording.retry.failed.error" = "Cuba semula gagal: %@";
 "recording.retry.pending" = "Bersedia untuk cuba semula – klik untuk mentranskrip";
+"recording.retry.modeDeleted" = "Mod telah dipadam";
 "recording.cancel.dialog.title" = "Batal Rakaman?";
 "recording.cancel.dialog.message" = "Ini akan membuang rakaman semasa.";
 "recording.cancel.dialog.confirm" = "Batal Rakaman";

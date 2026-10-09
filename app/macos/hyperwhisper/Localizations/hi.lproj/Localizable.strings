@@ -868,6 +868,7 @@
 "recording.retry.failed.missing" = "पुनः प्रयास विफल: ऑडियो फ़ाइल नहीं मिली";
 "recording.retry.failed.error" = "पुनः प्रयास विफल: %@";
 "recording.retry.pending" = "फिर से प्रयास करने के लिए तैयार – ट्रांसक्राइब करने के लिए क्लिक करें";
+"recording.retry.modeDeleted" = "मोड हटा दिया गया";
 "recording.cancel.dialog.title" = "रिकॉर्डिंग रद्द करें?";
 "recording.cancel.dialog.message" = "यह वर्तमान रिकॉर्डिंग को त्यागता है।";
 "recording.cancel.dialog.confirm" = "रिकॉर्डिंग रद्द करें";

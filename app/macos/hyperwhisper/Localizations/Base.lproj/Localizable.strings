@@ -911,6 +911,7 @@
 "recording.retry.failed.missing" = "Retry failed: Audio file not found";
 "recording.retry.failed.error" = "Retry failed: %@";
 "recording.retry.pending" = "Ready to retry – click to transcribe";
+"recording.retry.modeDeleted" = "Mode was deleted";
 "recording.cancel.dialog.title" = "Cancel Recording?";
 "recording.cancel.dialog.message" = "This will discard the current recording.";
 "recording.cancel.dialog.confirm" = "Cancel Recording";
