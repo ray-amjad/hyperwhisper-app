@@ -117,6 +117,8 @@ struct HTTPConnection: Sendable {
         }
         #if canImport(Darwin)
         _ = shutdown(socket.socket.file.rawValue, SHUT_WR)
+        #elseif canImport(Glibc)
+        _ = shutdown(socket.socket.file.rawValue, Int32(SHUT_WR))
         #endif
         _ = try? await withThrowingTimeout(seconds: Self.lingerSeconds) { [bytes] in
             var iterator = bytes.makeAsyncIterator()

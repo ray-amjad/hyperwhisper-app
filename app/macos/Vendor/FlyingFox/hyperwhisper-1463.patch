@@ -1,8 +1,8 @@
 diff --git a/FlyingFox/Sources/HTTPConnection.swift b/FlyingFox/Sources/HTTPConnection.swift
-index 7f69d0e3..4660b9e4 100644
+index 7f69d0e3..76fe9bac 100644
 --- a/FlyingFox/Sources/HTTPConnection.swift
 +++ b/FlyingFox/Sources/HTTPConnection.swift
-@@ -100,6 +100,37 @@ struct HTTPConnection: Sendable {
+@@ -100,6 +100,39 @@ struct HTTPConnection: Sendable {
          try socket.close()
      }
  
@@ -23,6 +23,8 @@ index 7f69d0e3..4660b9e4 100644
 +        }
 +        #if canImport(Darwin)
 +        _ = shutdown(socket.socket.file.rawValue, SHUT_WR)
++        #elseif canImport(Glibc)
++        _ = shutdown(socket.socket.file.rawValue, Int32(SHUT_WR))
 +        #endif
 +        _ = try? await withThrowingTimeout(seconds: Self.lingerSeconds) { [bytes] in
 +            var iterator = bytes.makeAsyncIterator()
