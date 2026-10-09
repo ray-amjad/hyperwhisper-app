@@ -127,6 +127,12 @@ struct VocabularyView: View {
         } message: {
 Text("vocabulary.duplicate.message".localized(arguments: duplicateWord))
         }
+        // Issue #1672: close the alert before a page change removes this view.
+        .closesPresentationsOnPageChange(
+            isPresenting: showDuplicateAlert
+        ) {
+            showDuplicateAlert = false
+        }
     }
 
     // MARK: - Header Section

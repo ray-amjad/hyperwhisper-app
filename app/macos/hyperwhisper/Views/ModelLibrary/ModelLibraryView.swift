@@ -189,6 +189,17 @@ struct ModelLibraryView: View {
         } message: { model in
             Text(model.removalConfirmationMessage())
         }
+        // Issue #1672: close every sheet and prompt (the API keys manager's
+        // own sheet goes with it) before a page change removes this view.
+        .closesPresentationsOnPageChange(
+            isPresenting: sheetTarget != nil || showAPIKeysManager || showCustomEndpointSheet || showingModelInUseAlert || pendingRemoval != nil
+        ) {
+            sheetTarget = nil
+            showAPIKeysManager = false
+            showCustomEndpointSheet = false
+            showingModelInUseAlert = false
+            pendingRemoval = nil
+        }
     }
 
     // MARK: - Sections

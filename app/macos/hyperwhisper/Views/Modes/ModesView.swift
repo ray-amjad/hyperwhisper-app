@@ -219,6 +219,17 @@ struct ModesView: View {
         } message: {
             Text("You cannot delete your last remaining mode. Create a new mode first, then you can delete this one.")
         }
+        // Issue #1672: close the Create / Edit Mode sheet (and the delete
+        // prompts) before a page change removes this view.
+        .closesPresentationsOnPageChange(
+            isPresenting: showingCreateMode || selectedMode != nil || showingDeleteConfirm || showingLastModeAlert
+        ) {
+            showingCreateMode = false
+            selectedMode = nil
+            showingDeleteConfirm = false
+            modeToDelete = nil
+            showingLastModeAlert = false
+        }
     }
 
     // MARK: - Header Section
