@@ -337,6 +337,22 @@
       ],
       "licensed": false,
       "note": "Dev box unreachable 2026-10-07: percy devbox run fails 'SOCKSv5 error: General SOCKS server failure' / 'Connection closed by UNKNOWN port 65535' on 6 tries over ~5 min; KVM shows no_signal (PC off or asleep) even after 2 kvm 'key shift' wake presses. Nothing built or walked; re-pick these 3 routes next round."
+    },
+    {
+      "at": "2026-10-09T01:53:27Z",
+      "platform": "win",
+      "commit": "aa07b744",
+      "routes": [
+        "onboarding",
+        "core-settings",
+        "licence"
+      ],
+      "status": "1-commented",
+      "issues": [
+        649
+      ],
+      "licensed": false,
+      "note": "dev box, unlicensed (no HYPERWHISPER_ACCOUNT_KEY). onboarding: 2 Codex defects, both known/by-design (Start Recording card self-completes = #638 comments; Set Up Later after On this PC keeps Cloud = deferral, not a bug). core-settings: 0 defects (shortcut change to Ctrl+Shift+F9 persisted). licence: commented #649 (status bar Ready after failed activation)."
     }
   ]
 }
