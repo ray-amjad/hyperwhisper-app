@@ -365,4 +365,28 @@ struct BackupImportAtomicityTests {
         #expect(try storedCount("Mode", in: persistence) == 5)
         #expect(persistence.fetchAllModes().filter(\.isDefault).count == 1)
     }
+
+    // MARK: - Failure message
+
+    /// A rolled-back store import never says the modes or vocabulary were
+    /// applied, says "other sections were applied" only when one was, and
+    /// names a failed licence import too instead of hiding it.
+    @Test func theStoreFailureMessageClaimsOnlyWhatWasApplied() {
+        let plain = BackupManager.storeImportFailureMessage(otherSectionsApplied: false, licenseImportFailed: false)
+        let partial = BackupManager.storeImportFailureMessage(otherSectionsApplied: true, licenseImportFailed: false)
+        let licence = BackupManager.storeImportFailureMessage(otherSectionsApplied: false, licenseImportFailed: true)
+        let licencePartial = BackupManager.storeImportFailureMessage(otherSectionsApplied: true, licenseImportFailed: true)
+
+        for message in [plain, partial, licence, licencePartial] {
+            #expect(message.contains("could not be saved"))
+        }
+        #expect(!plain.contains("were applied"))
+        #expect(!licence.contains("were applied"))
+        #expect(partial.contains("were applied"))
+        #expect(licencePartial.contains("were applied"))
+        #expect(!plain.contains("license key"))
+        #expect(!partial.contains("license key"))
+        #expect(licence.contains("license key could not be securely imported"))
+        #expect(licencePartial.contains("license key could not be securely imported"))
+    }
 }

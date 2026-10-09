@@ -3335,7 +3335,8 @@ class PersistenceController: ObservableObject {
                 .filter { $0 !== vocabItem }
                 .map { $0.sortOrder }
                 .max() ?? 0)
-            vocabItem.sortOrder = currentMax + 1
+            // Int16: clamp at .max (as the mode path does) rather than trap on overflow.
+            vocabItem.sortOrder = currentMax == .max ? .max : currentMax + 1
             maxSortOrder = vocabItem.sortOrder
             imported += 1
         }

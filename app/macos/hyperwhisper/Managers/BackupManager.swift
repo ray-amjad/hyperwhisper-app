@@ -687,6 +687,17 @@ class BackupManager: ObservableObject {
            let licenseKey = backupData.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
            !licenseKey.isEmpty {
             guard await importLicenseKeySecurely(licenseKey) else {
+                // The rolled-back store import (#1613) must be reported too, and
+                // the post-restore mode repair skipped.
+                if storeImportFailed {
+                    return storeImportFailureResult(
+                        settingsApplied: settingsApplied,
+                        apiKeysImported: apiKeysImported,
+                        licenseKeyImported: false,
+                        licenseImportFailed: true,
+                        apiKeysFailedProviders: apiKeysFailedProviders
+                    )
+                }
                 return licenseImportFailureResult(
                     modesImported: modesImported,
                     modesSkipped: modesSkipped,
@@ -711,17 +722,17 @@ class BackupManager: ObservableObject {
         // Post-restore: silently turn off local modes that can't run here, and (on
         // capable hardware) collect cataloged-but-undownloaded models to offer a
         // batched re-download. Only when modes were actually imported.
-        let pendingLocalDownloads = options.importModes ? repairRestoredLocalModes() : []
-
+        // Skipped when the store import failed and was rolled back (#1613): the
+        // repair saves modes, and the user's existing modes must stay as they were.
         if storeImportFailed {
             return storeImportFailureResult(
                 settingsApplied: settingsApplied,
                 apiKeysImported: apiKeysImported,
                 licenseKeyImported: licenseKeyImported,
-                apiKeysFailedProviders: apiKeysFailedProviders,
-                pendingLocalDownloads: pendingLocalDownloads
+                apiKeysFailedProviders: apiKeysFailedProviders
             )
         }
+        let pendingLocalDownloads = options.importModes ? repairRestoredLocalModes() : []
 
         var result = ImportResult.success(
             modesImported: modesImported,
@@ -808,8 +819,7 @@ class BackupManager: ObservableObject {
                 settingsApplied: false,
                 apiKeysImported: false,
                 licenseKeyImported: false,
-                apiKeysFailedProviders: [],
-                pendingLocalDownloads: []
+                apiKeysFailedProviders: []
             )
         }
 
@@ -1026,6 +1036,17 @@ class BackupManager: ObservableObject {
            let licenseKey = dto.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
            !licenseKey.isEmpty {
             guard await importLicenseKeySecurely(licenseKey) else {
+                // The rolled-back store import (#1613) must be reported too, and
+                // the post-restore mode repair skipped.
+                if storeImportFailed {
+                    return storeImportFailureResult(
+                        settingsApplied: settingsApplied,
+                        apiKeysImported: apiKeysImported,
+                        licenseKeyImported: false,
+                        licenseImportFailed: true,
+                        apiKeysFailedProviders: apiKeysFailedProviders
+                    )
+                }
                 return licenseImportFailureResult(
                     modesImported: modesImported,
                     modesSkipped: modesSkipped,
@@ -1048,17 +1069,17 @@ class BackupManager: ObservableObject {
         AppLogger.settings.info("Universal v2 backup imported: settingsApplied=\(settingsApplied, privacy: .public), \(modesImported) modes, \(vocabImported) vocabulary items")
 
         // Post-restore local-mode repair + re-download collection (see v1 path).
-        let pendingLocalDownloads = options.importModes ? repairRestoredLocalModes() : []
-
+        // Skipped when the store import failed and was rolled back (#1613): the
+        // repair saves modes, and the user's existing modes must stay as they were.
         if storeImportFailed {
             return storeImportFailureResult(
                 settingsApplied: settingsApplied,
                 apiKeysImported: apiKeysImported,
                 licenseKeyImported: licenseKeyImported,
-                apiKeysFailedProviders: apiKeysFailedProviders,
-                pendingLocalDownloads: pendingLocalDownloads
+                apiKeysFailedProviders: apiKeysFailedProviders
             )
         }
+        let pendingLocalDownloads = options.importModes ? repairRestoredLocalModes() : []
 
         var result = ImportResult.success(
             modesImported: modesImported,
@@ -1108,17 +1129,19 @@ class BackupManager: ObservableObject {
     }
 
     /// The result when the modes + vocabulary transaction failed and was rolled
-    /// back (#1613). The store holds the modes and vocabulary it held before.
+    /// back (#1613). The store holds the modes and vocabulary it held before,
+    /// and the post-restore mode repair is skipped, so no mode was written.
     /// The other sections ran as they always did (settings before the store
     /// step; API keys and the licence after it), so when any of them changed
     /// something the result is a partial failure that says so, and otherwise a
-    /// plain failure. Neither message claims more than was applied.
+    /// plain failure. When the licence import failed too, the message says so
+    /// as well. No message claims more than was applied.
     private func storeImportFailureResult(
         settingsApplied: Bool,
         apiKeysImported: Bool,
         licenseKeyImported: Bool,
-        apiKeysFailedProviders: [KeychainManager.APIKeyType],
-        pendingLocalDownloads: Set<String>
+        licenseImportFailed: Bool = false,
+        apiKeysFailedProviders: [KeychainManager.APIKeyType]
     ) -> ImportResult {
         let otherSectionsApplied = Self.earlierBackupSectionsWereApplied(
             settingsApplied: settingsApplied,
@@ -1126,25 +1149,18 @@ class BackupManager: ObservableObject {
             vocabularyImported: 0,
             apiKeysImported: apiKeysImported
         ) || licenseKeyImported
+        let message = Self.storeImportFailureMessage(
+            otherSectionsApplied: otherSectionsApplied,
+            licenseImportFailed: licenseImportFailed
+        )
+        lastError = message
 
         guard otherSectionsApplied else {
-            let message = NSLocalizedString(
-                "settings.backup.import.error.store",
-                value: "The modes and vocabulary could not be saved, so they were left as they were.",
-                comment: "Backup import: the modes/vocabulary save failed and was rolled back; no other section changed anything"
-            )
-            lastError = message
             var failure = ImportResult.failure(message)
             failure.apiKeysFailedProviders = apiKeysFailedProviders
             return failure
         }
 
-        let message = NSLocalizedString(
-            "settings.backup.import.error.storePartial",
-            value: "The modes and vocabulary could not be saved, so they were left as they were. The other selected sections were applied.",
-            comment: "Backup import: the modes/vocabulary save failed and was rolled back; settings, API keys or the licence key were applied"
-        )
-        lastError = message
         var result = ImportResult(
             success: false,
             partialSuccess: true,
@@ -1156,10 +1172,44 @@ class BackupManager: ObservableObject {
             licenseKeyImported: licenseKeyImported,
             errorMessage: message
         )
-        result.pendingLocalDownloadModelIds = pendingLocalDownloads
         result.apiKeysFailedProviders = apiKeysFailedProviders
         result.settingsApplied = settingsApplied
         return result
+    }
+
+    /// The message for a rolled-back modes + vocabulary import (#1613), by
+    /// whether another section changed something and whether the licence
+    /// import failed too.
+    nonisolated static func storeImportFailureMessage(
+        otherSectionsApplied: Bool,
+        licenseImportFailed: Bool
+    ) -> String {
+        switch (otherSectionsApplied, licenseImportFailed) {
+        case (false, false):
+            return NSLocalizedString(
+                "settings.backup.import.error.store",
+                value: "The modes and vocabulary could not be saved, so they were left as they were.",
+                comment: "Backup import: the modes/vocabulary save failed and was rolled back; no other section changed anything"
+            )
+        case (true, false):
+            return NSLocalizedString(
+                "settings.backup.import.error.storePartial",
+                value: "The modes and vocabulary could not be saved, so they were left as they were. The other selected sections were applied.",
+                comment: "Backup import: the modes/vocabulary save failed and was rolled back; settings, API keys or the licence key were applied"
+            )
+        case (false, true):
+            return NSLocalizedString(
+                "settings.backup.import.error.storeAndLicense",
+                value: "The modes and vocabulary could not be saved, so they were left as they were, and the license key could not be securely imported.",
+                comment: "Backup import: the modes/vocabulary save failed and was rolled back, the licence key import failed too, and no other section changed anything"
+            )
+        case (true, true):
+            return NSLocalizedString(
+                "settings.backup.import.error.storeAndLicensePartial",
+                value: "The modes and vocabulary could not be saved, so they were left as they were, and the license key could not be securely imported. The other selected sections were applied.",
+                comment: "Backup import: the modes/vocabulary save failed and was rolled back and the licence key import failed; settings or API keys were applied"
+            )
+        }
     }
 
     /// A partial-success message is truthful only when an earlier section made
