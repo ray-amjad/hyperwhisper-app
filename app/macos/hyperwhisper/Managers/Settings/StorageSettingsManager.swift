@@ -51,13 +51,20 @@ class StorageSettingsManager: ObservableObject {
         return appSupport.appendingPathComponent("HyperWhisper").path
     }()
 
+    /// The default recordings folder: ~/Documents/hyperwhisper/recordings.
+    /// The ONE place this default is derived. `recordingsFolder` starts with
+    /// its `.path`, and the Sentry diagnostics that report "is the folder the
+    /// default" (`recordingsFolderIsDefault`, `dstInDefaultRecordingsFolder`)
+    /// compare against it, so changing the default here keeps them all honest.
+    /// `nonisolated` so off-main-actor callers can read it.
+    nonisolated static var defaultRecordingsFolderURL: URL? {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("hyperwhisper/recordings")
+    }
+
     /// Recordings folder location for storing audio files
     /// Default: ~/Documents/hyperwhisper/recordings (requires TCC on first access)
-    @AppStorage("recordingsFolder") var recordingsFolder: String = {
-        // Default to Documents/hyperwhisper/recordings
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsPath.appendingPathComponent("hyperwhisper/recordings").path
-    }()
+    @AppStorage("recordingsFolder") var recordingsFolder: String = StorageSettingsManager.defaultRecordingsFolderURL!.path
 
     // MARK: - Permission Tracking
 

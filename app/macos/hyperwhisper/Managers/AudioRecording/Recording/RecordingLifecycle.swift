@@ -1153,12 +1153,9 @@ class RecordingLifecycle {
             freeBytes = capacity
         }
 
-        // Same default `StorageSettingsManager.recordingsFolder` starts with
-        // (Documents/hyperwhisper/recordings), derived the same way as the
-        // `recordingsFolderIsDefault` extra in RecordingTranscriptionFlow.
-        let defaultRecordingsFolder = fm
-            .urls(for: .documentDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("hyperwhisper/recordings", isDirectory: true)
+        // The same default `StorageSettingsManager.recordingsFolder` starts
+        // with (Documents/hyperwhisper/recordings), from its single source.
+        let defaultRecordingsFolder = StorageSettingsManager.defaultRecordingsFolderURL
 
         var diagnostics: [String: Any] = [
             "rawExists": rawExists,

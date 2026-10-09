@@ -278,9 +278,7 @@ extension RecordingTranscriptionFlow {
         // booleans below carry the diagnostic value the path was carrying:
         // "did the user move this folder, and is it off the home volume".
         let recordingsFolder = settingsManager?.recordingsFolder ?? ""
-        let defaultRecordingsFolder = FileManager.default
-            .urls(for: .documentDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("hyperwhisper/recordings").path
+        let defaultRecordingsFolder = StorageSettingsManager.defaultRecordingsFolderURL?.path
         metadata["recordingsFolderIsDefault"] = !recordingsFolder.isEmpty && recordingsFolder == defaultRecordingsFolder
         metadata["recordingsFolderIsInHome"] = recordingsFolder.hasPrefix(NSHomeDirectory() + "/")
         if recordingsFolder.isEmpty {
