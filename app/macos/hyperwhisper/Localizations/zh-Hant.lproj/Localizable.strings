@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "這將永久刪除 %d 個錄音及其音頻檔案。\n\n此操作無法復原。";
 "transcripts.delete.multiple.confirm" = "全部刪除";
 "transcripts.retry.error.title" = "重試失敗";
+"transcripts.retry.error.modeDeleted" = "建立此錄音的模式已被刪除，因此未重試。請在歷史記錄中以右鍵點按該錄音，然後選擇\"重試...\"以選取其他模式。";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "選擇錄音資料夾";

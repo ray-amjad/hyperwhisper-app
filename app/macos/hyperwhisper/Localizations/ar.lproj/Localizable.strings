@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "سيؤدي هذا إلى حذف %d تسجيلات وملفات الصوت الخاصة بها بشكل دائم.\n\nلا يمكن التراجع عن هذا الإجراء.";
 "transcripts.delete.multiple.confirm" = "حذف الكل";
 "transcripts.retry.error.title" = "فشلت المحاولة";
+"transcripts.retry.error.modeDeleted" = "تم حذف الوضع الذي أنشأ هذا التسجيل، لذلك لم تتم إعادة المحاولة. في السجل، انقر بزر الماوس الأيمن على التسجيل واختر \"إعادة محاولة مع...\" لاختيار وضع آخر.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "اختر مجلد التسجيلات";

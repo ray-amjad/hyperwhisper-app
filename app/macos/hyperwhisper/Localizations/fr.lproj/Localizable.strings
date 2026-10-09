@@ -815,6 +815,7 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "transcripts.delete.multiple.message" = "Cela supprimera définitivement %d enregistrements et leurs fichiers audio.\n\nCette action est irréversible.";
 "transcripts.delete.multiple.confirm" = "Tout supprimer";
 "transcripts.retry.error.title" = "Nouvelle tentative échouée";
+"transcripts.retry.error.modeDeleted" = "Le mode qui a créé cet enregistrement a été supprimé, il n'a donc pas été relancé. Dans l'Historique, faites un clic droit sur l'enregistrement et choisissez \"Relancer avec...\" pour sélectionner un autre mode.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Choisir le dossier des enregistrements";

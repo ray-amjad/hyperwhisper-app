@@ -815,6 +815,7 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "transcripts.delete.multiple.message" = "Toto natrvalo vymaže %d nahrávok a ich zvukové súbory.\n\nTúto akciu sa nedá vrátiť.";
 "transcripts.delete.multiple.confirm" = "Vymazať všetko";
 "transcripts.retry.error.title" = "Opakovný pokus zlyhal";
+"transcripts.retry.error.modeDeleted" = "Režim, ktorý vytvoril tento záznam, bol odstránený, preto sa opakovanie nevykonalo. V Histórii kliknite na záznam pravým tlačidlom a zvoľte \"Skúsiť znova s...\" na výber iného režimu.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Zvoľte zložku nahrávok";

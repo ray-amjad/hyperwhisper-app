@@ -815,6 +815,7 @@ Edite esses modos para selecionar um modelo diferente antes de removê-lo.";
 "transcripts.delete.multiple.message" = "Isso excluirá permanentemente %d gravações e seus arquivos de áudio.\n\nEsta ação não pode ser desfeita.";
 "transcripts.delete.multiple.confirm" = "Excluir Tudo";
 "transcripts.retry.error.title" = "Falha na Retentativa";
+"transcripts.retry.error.modeDeleted" = "O modo que criou esta gravação foi apagado, por isso não foi tentado novamente. No Histórico, clique com o botão direito na gravação e escolha \"Tentar novamente com...\" para selecionar outro modo.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Escolha Pasta de Gravações";

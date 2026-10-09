@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "זה ימחק לצמיתות %d הקלטות וקבצי האודיו שלהן.\n\nלא ניתן לבטל פעולה זו.";
 "transcripts.delete.multiple.confirm" = "מחק הכל";
 "transcripts.retry.error.title" = "הניסיון החוזר נכשל";
+"transcripts.retry.error.modeDeleted" = "המצב שיצר את ההקלטה הזו נמחק, ולכן לא בוצע ניסיון חוזר. בהיסטוריה, לחץ לחיצה ימנית על ההקלטה ובחר \"נסה שוב עם...\" כדי לבחור מצב אחר.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "בחר תיקיית הקלטות";

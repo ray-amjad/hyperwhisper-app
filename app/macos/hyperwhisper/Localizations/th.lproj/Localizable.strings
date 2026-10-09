@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "สิ่งนี้จะลบ %d การบันทึกและไฟล์เสียงของพวกเขาอย่างถาวร\n\nไม่สามารถเลิกทำการดำเนินการนี้ได้";
 "transcripts.delete.multiple.confirm" = "ลบทั้งหมด";
 "transcripts.retry.error.title" = "การลองใหม่ล้มเหลว";
+"transcripts.retry.error.modeDeleted" = "โหมดที่สร้างการบันทึกนี้ถูกลบไปแล้ว จึงไม่ได้ลองใหม่ ในประวัติ ให้คลิกขวาที่การบันทึกแล้วเลือก \"ลองใหม่ด้วย...\" เพื่อเลือกโหมดอื่น";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "เลือกโฟลเดอร์การบันทึก";

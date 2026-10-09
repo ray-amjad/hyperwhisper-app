@@ -815,6 +815,7 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "transcripts.delete.multiple.message" = "Detta tar permanent bort %d inspelningar och deras ljudfiler.\n\nDenna åtgärd kan inte ångras.";
 "transcripts.delete.multiple.confirm" = "Radera alla";
 "transcripts.retry.error.title" = "Försök igen misslyckades";
+"transcripts.retry.error.modeDeleted" = "Läget som skapade den här inspelningen har tagits bort, så det gjordes inget nytt försök. Högerklicka på inspelningen i Historik och välj \"Försök igen med...\" för att välja ett annat läge.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Välj inspelningsmapp";

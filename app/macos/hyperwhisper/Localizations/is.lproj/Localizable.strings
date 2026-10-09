@@ -815,6 +815,7 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "transcripts.delete.multiple.message" = "Þetta mun varanlega eyða %d upptökum og hljóðskránum þeirra.\n\nÞessa aðgerð er ekki hægt að afturkalla.";
 "transcripts.delete.multiple.confirm" = "Eyða öllum";
 "transcripts.retry.error.title" = "Endurtilraun mistókst";
+"transcripts.retry.error.modeDeleted" = "Hamurinn sem gerði þessa upptöku var eyddur, svo ekki var reynt aftur. Í Sögu skaltu hægrismella á upptökuna og velja \"Reyna aftur með...\" til að velja annan ham.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Velja upptökumöppu";

@@ -815,6 +815,7 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "transcripts.delete.multiple.message" = "Hiermee worden %d opnamen en hun audiobestanden permanent verwijderd.\n\nDit kan niet ongedaan worden gemaakt.";
 "transcripts.delete.multiple.confirm" = "Alles verwijderen";
 "transcripts.retry.error.title" = "Opnieuw proberen mislukt";
+"transcripts.retry.error.modeDeleted" = "De modus waarmee deze opname is gemaakt, is verwijderd, dus er is niet opnieuw geprobeerd. Klik in Geschiedenis met de rechtermuisknop op de opname en kies \"Opnieuw proberen met...\" om een andere modus te kiezen.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Map voor opnamen kiezen";

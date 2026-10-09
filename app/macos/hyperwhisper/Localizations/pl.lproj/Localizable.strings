@@ -815,6 +815,7 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "transcripts.delete.multiple.message" = "Spowoduje to trwałe usunięcie %d nagrań i ich plików audio.\n\nTej czynności nie można cofnąć.";
 "transcripts.delete.multiple.confirm" = "Usuń wszystko";
 "transcripts.retry.error.title" = "Ponowienie nie powiodło się";
+"transcripts.retry.error.modeDeleted" = "Tryb, w którym powstało to nagranie, został usunięty, więc nie ponowiono próby. W Historii kliknij nagranie prawym przyciskiem myszy i wybierz \"Ponów z...\", aby wybrać inny tryb.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Wybierz folder nagrań";

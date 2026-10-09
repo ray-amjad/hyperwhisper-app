@@ -815,6 +815,7 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "transcripts.delete.multiple.message" = "Dette vil permanent slette %d opptak og deres lydfiler.\n\nDenne handlingen kan ikke angres.";
 "transcripts.delete.multiple.confirm" = "Slett alle";
 "transcripts.retry.error.title" = "Nytt forsøk mislyktes";
+"transcripts.retry.error.modeDeleted" = "Modusen som laget dette opptaket er slettet, så det ble ikke prøvd på nytt. Høyreklikk på opptaket i Historikk og velg \"Prøv igjen med...\" for å velge en annen modus.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Velg opptaksmappe";

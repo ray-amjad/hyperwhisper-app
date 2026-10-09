@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "Это будет постоянно удалять %d записей и их аудиофайлы.\n\nЭто действие невозможно отменить.";
 "transcripts.delete.multiple.confirm" = "Удалить все";
 "transcripts.retry.error.title" = "Ошибка повтора";
+"transcripts.retry.error.modeDeleted" = "Режим, в котором была сделана эта запись, удалён, поэтому повтор не выполнен. В Истории щёлкните запись правой кнопкой мыши и выберите \"Повторить с...\", чтобы выбрать другой режим.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Выбрать папку записей";

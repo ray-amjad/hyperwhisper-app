@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "Това ще изтрие окончателно %d записа и техните аудио файлове.\n\nТова действие не може да бъде отменено.";
 "transcripts.delete.multiple.confirm" = "Изтрий всички";
 "transcripts.retry.error.title" = "Повторният опит е неуспешен";
+"transcripts.retry.error.modeDeleted" = "Режимът, създал този запис, е изтрит, затова не беше опитано отново. В Историята щракнете с десния бутон върху записа и изберете \"Повтори с...\", за да изберете друг режим.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Изберете папка за записи";

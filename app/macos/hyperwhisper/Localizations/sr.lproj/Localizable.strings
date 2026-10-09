@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "Ово ће трајно обрисати %d снимања и њихове звучне датотеке.\n\nОва акција не може бити поништена.";
 "transcripts.delete.multiple.confirm" = "Обриши Све";
 "transcripts.retry.error.title" = "Покушај поново Неуспешан";
+"transcripts.retry.error.modeDeleted" = "Режим који је направио овај снимак је обрисан, па поновни покушај није изведен. У Историји кликните десним тастером на снимак и изаберите \"Покушај поново са...\" да бисте изабрали други режим.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Изабери Фолдер за Снимања";

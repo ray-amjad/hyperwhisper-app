@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "%d개 녹음과 오디오 파일을 영구적으로 삭제합니다.\n\n이 작업은 실행 취소할 수 없습니다.";
 "transcripts.delete.multiple.confirm" = "모두 삭제";
 "transcripts.retry.error.title" = "재시도 실패";
+"transcripts.retry.error.modeDeleted" = "이 녹음을 만든 모드가 삭제되어 재시도하지 않았습니다. 기록에서 녹음을 마우스 오른쪽 버튼으로 클릭하고 \"다음으로 재시도...\"을(를) 선택하여 다른 모드를 고르세요.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "녹음 폴더 선택";
