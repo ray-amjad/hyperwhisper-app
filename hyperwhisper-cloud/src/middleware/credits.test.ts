@@ -133,7 +133,9 @@ describe('estimateAudioSecondsFromSize', () => {
 describe('estimateCreditsFromSize', () => {
   test('applies the blended per-minute rate by default', () => {
     const estimate = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
-    expect(estimate).toBeCloseTo(CREDITS_PER_MINUTE, 5);
+    // One minute at CREDITS_PER_MINUTE (1.67), rounded up to a tenth like every estimate.
+    expect(estimate).toBe(Math.ceil(CREDITS_PER_MINUTE * 10) / 10);
+    expect(estimate).toBe(1.7);
   });
 
   test('never returns below the 0.1 credit floor for a tiny upload', () => {

@@ -120,9 +120,9 @@ describe('insufficientCreditsResponse', () => {
     const body = await bodyOf(insufficientCreditsResponse(12.5, 30.2));
 
     expect(body['minutes_remaining']).toBe(Math.floor(12.5 / CREDITS_PER_MINUTE));
-    expect(body['minutes_remaining']).toBe(1);
+    expect(body['minutes_remaining']).toBe(7); // 12.5 / 1.67 = 7.49
     expect(body['minutes_required']).toBe(Math.ceil(30.2 / CREDITS_PER_MINUTE));
-    expect(body['minutes_required']).toBe(5);
+    expect(body['minutes_required']).toBe(19); // 30.2 / 1.67 = 18.08
   });
 
   test('reports 0 minutes remaining for a balance just short of a minute', async () => {

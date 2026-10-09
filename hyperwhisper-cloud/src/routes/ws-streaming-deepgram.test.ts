@@ -184,7 +184,8 @@ describe('wsStreamingPreflight', () => {
     const body = await res.json() as { error: string; credits_remaining: number; minutes_required: number };
     expect(body.error).toBe('Insufficient credits');
     expect(body.credits_remaining).toBe(2.7);
-    expect(body.minutes_required).toBe(1);
+    // ceil(2.8-credit floor / CREDITS_PER_MINUTE 1.67) = ceil(1.68) = 2 (#1657).
+    expect(body.minutes_required).toBe(2);
     const entry = expectOneRejection('insufficient_credits', 402);
     // The rounded balance the credit check compared, which the 402 body reports too.
     expect(entry.credits).toBe(2.7);

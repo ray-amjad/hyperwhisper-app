@@ -23,7 +23,8 @@ describe('estimateCreditsForProviderFallbacks', () => {
     const grokFallbackEstimate = estimateCreditsForProviderFallbacks(BYTES_PER_MINUTE_ESTIMATE, 'grok');
     const elevenLabsEstimate = creditsForCost(computeElevenLabsTranscriptionCost(60));
 
-    expect(blendedEstimate).toBe(6.3);
+    // 1.67 credits/min rounded up to a tenth.
+    expect(blendedEstimate).toBe(1.7);
     expect(grokFallbackEstimate).toBe(elevenLabsEstimate);
     expect(grokFallbackEstimate).toBeGreaterThan(blendedEstimate);
   });
