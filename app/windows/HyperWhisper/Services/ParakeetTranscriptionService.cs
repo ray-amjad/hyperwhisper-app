@@ -968,7 +968,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
                         "Parakeet");
                 }
 
-                LoggingService.Debug($"ParakeetTranscriptionService: Received from daemon: {line}");
+                LoggingService.Debug($"ParakeetTranscriptionService: Received from daemon: {DescribeDaemonResponse(line)}");
 
                 // Parse the READY JSON
                 using var readyDoc = JsonDocument.Parse(line);
@@ -1224,6 +1224,59 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
         => ApplyLocalVocabularyCorrection(rawText, VocabularyService.Instance.GetAll, _isQwen3);
 
     /// <summary>
+    /// Describes one daemon response line for the log without the transcript
+    /// (#1645). The result line is <c>{"text":"…","duration_ms":N}</c>, and the
+    /// log ships in the Export Diagnostics bundle, which promises no transcripts.
+    ///
+    /// Numbers, booleans and nulls are kept as they are. A string is kept only
+    /// for <c>status</c>, <c>provider</c> and <c>error</c>, which the engine fills
+    /// from fixed text; every other string, <c>text</c> included, is reduced to
+    /// its length. A line that is not a JSON object is reduced to its length.
+    /// </summary>
+    internal static string DescribeDaemonResponse(string? responseLine)
+    {
+        if (string.IsNullOrEmpty(responseLine))
+        {
+            return "(empty)";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseLine);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return $"(JSON {root.ValueKind}, {responseLine.Length} chars)";
+            }
+
+            var parts = new List<string>();
+            foreach (var property in root.EnumerateObject())
+            {
+                var value = property.Value;
+                parts.Add(value.ValueKind switch
+                {
+                    JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null
+                        => $"{property.Name}={value.GetRawText()}",
+                    JsonValueKind.String when s_daemonResponsePlainStringKeys.Contains(property.Name)
+                        => $"{property.Name}={value.GetString()}",
+                    JsonValueKind.String
+                        => $"{property.Name}=<{value.GetString()?.Length ?? 0} chars>",
+                    _ => $"{property.Name}=<{value.ValueKind}>"
+                });
+            }
+
+            return parts.Count == 0 ? "{}" : string.Join(", ", parts);
+        }
+        catch (JsonException)
+        {
+            return $"(not JSON, {responseLine.Length} chars)";
+        }
+    }
+
+    private static readonly HashSet<string> s_daemonResponsePlainStringKeys =
+        new(StringComparer.Ordinal) { "status", "provider", "error" };
+
+    /// <summary>
     /// <see cref="ApplyLocalVocabularyCorrection(string)"/> with the vocabulary
     /// source and the engine passed in, so a test can drive the real core call
     /// without a loaded model.
@@ -1252,9 +1305,10 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             }
 
             var phonetic = SharedCoreBridge.ApplyPhoneticVocabulary(rawText, entries);
-            foreach (var match in phonetic.Matches)
+            // The count only: a match's token is a word the user spoke (#1645).
+            if (phonetic.Matches.Count > 0)
             {
-                LoggingService.Debug($"Phonetic match: '{match.Token}' -> '{match.Replacement}'");
+                LoggingService.Debug($"Phonetic match: {phonetic.Matches.Count} token(s) corrected");
             }
             return phonetic.Text;
         }
@@ -1417,7 +1471,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
                     "Parakeet");
             }
 
-            LoggingService.Debug($"ParakeetTranscriptionService: Received response: {responseLine}");
+            LoggingService.Debug($"ParakeetTranscriptionService: Received response: {DescribeDaemonResponse(responseLine)}");
 
             // STEP 3: Parse the JSON response
             string transcribedText;
@@ -1450,7 +1504,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             }
             catch (JsonException ex)
             {
-                LoggingService.Error($"ParakeetTranscriptionService: Failed to parse daemon response: {responseLine}", ex);
+                LoggingService.Error($"ParakeetTranscriptionService: Failed to parse daemon response: {DescribeDaemonResponse(responseLine)}", ex);
                 throw new TranscriptionException(
                     TranscriptionErrorCode.DaemonCrashed,
                     "Parakeet daemon returned invalid JSON response",

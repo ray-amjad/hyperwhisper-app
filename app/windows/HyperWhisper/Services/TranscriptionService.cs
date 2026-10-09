@@ -660,7 +660,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                         segmentCount++;
                         var segmentText = segment.Text ?? "";
                         text.Append(segmentText);
-                        LoggingService.Debug($"  Segment: [{segment.Start:mm\\:ss} - {segment.End:mm\\:ss}] {segmentText.Trim()}");
+                        LoggingService.Debug(DescribeSegment(segment.Start, segment.End, segmentText));
                     });
 
                 // Configure language
@@ -1082,6 +1082,17 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
 
             return 0.0;
         }
+    }
+
+    /// <summary>
+    /// The log line for one Whisper segment: its timestamps and its length, never
+    /// its words (#1645). The log ships in the Export Diagnostics bundle, which
+    /// promises no transcripts, and it stays on disk for days.
+    /// </summary>
+    internal static string DescribeSegment(TimeSpan start, TimeSpan end, string? segmentText)
+    {
+        var characters = segmentText?.Trim().Length ?? 0;
+        return $"  Segment: [{start:mm\\:ss} - {end:mm\\:ss}] {characters} chars";
     }
 
     /// <summary>
