@@ -43,8 +43,8 @@ struct FinalizationDiagnosticsPathTests {
         // Exactly the four measurements; a new key here is a new Sentry extra
         // and should be a deliberate edit of this list.
         #expect(Set(diagnostics.keys) == [
-            "rawExtension",
-            "dstExtension",
+            "rawFileType",
+            "dstFileType",
             "rawIsIncompleteName",
             "dstInDefaultRecordingsFolder"
         ])
@@ -57,10 +57,32 @@ struct FinalizationDiagnosticsPathTests {
             defaultRecordingsFolder: Self.defaultFolder
         )
 
-        #expect(diagnostics["rawExtension"] as? String == "wav")
-        #expect(diagnostics["dstExtension"] as? String == "wav")
+        #expect(diagnostics["rawFileType"] as? String == "wav")
+        #expect(diagnostics["dstFileType"] as? String == "wav")
         #expect(diagnostics["rawIsIncompleteName"] as? Bool == true)
         #expect(diagnostics["dstInDefaultRecordingsFolder"] as? Bool == true)
+    }
+
+    /// `beforeSend` turns a String extra into `[redacted]` when its key contains
+    /// transcript/text/prompt. A key ending in "Extension" contains "text", so the
+    /// file kind reached Sentry as `[redacted]` (seen on a real Mac). Every key
+    /// here must reach Sentry with its value intact.
+    @Test func noKeyIsRedactedByBeforeSend() {
+        let diagnostics = RecordingLifecycle.pathDiagnostics(
+            rawURL: Self.rawURL,
+            dstURL: Self.dstURL,
+            defaultRecordingsFolder: Self.defaultFolder
+        )
+
+        #expect(!diagnostics.isEmpty)
+        for (key, value) in diagnostics {
+            #expect(!SentryService.isRedactedExtraKey(key), "\(key) is redacted by beforeSend")
+            #expect(
+                String(describing: SentryService.redactedValue(forKey: key, value: value))
+                    == String(describing: value),
+                "\(key) loses its value in beforeSend"
+            )
+        }
     }
 
     @Test func customFolderIsReportedAsNotDefaultAndNotNamed() {
@@ -71,7 +93,7 @@ struct FinalizationDiagnosticsPathTests {
             defaultRecordingsFolder: Self.defaultFolder
         )
 
-        #expect(diagnostics["dstExtension"] as? String == "m4a")
+        #expect(diagnostics["dstFileType"] as? String == "m4a")
         #expect(diagnostics["rawIsIncompleteName"] as? Bool == false)
         #expect(diagnostics["dstInDefaultRecordingsFolder"] as? Bool == false)
         for (key, value) in diagnostics {

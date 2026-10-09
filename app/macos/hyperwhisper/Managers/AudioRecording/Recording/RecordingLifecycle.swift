@@ -1191,6 +1191,11 @@ class RecordingLifecycle {
     /// destination sat in the default recordings folder. Never put a path, a
     /// trimmed path or a hash of a path in here.
     ///
+    /// No key may contain "transcript", "text" or "prompt": `SentryService`
+    /// turns a String under such a key into `[redacted]`. That is why the file
+    /// kinds are `rawFileType` / `dstFileType` and not "...Extension", which
+    /// contains "text".
+    ///
     /// Pure and `nonisolated` so a test can call it off the main actor.
     nonisolated static func pathDiagnostics(
         rawURL: URL,
@@ -1202,8 +1207,8 @@ class RecordingLifecycle {
             .map { $0.standardizedFileURL.path == dstFolder } ?? false
 
         return [
-            "rawExtension": rawURL.pathExtension.lowercased(),
-            "dstExtension": dstURL.pathExtension.lowercased(),
+            "rawFileType": rawURL.pathExtension.lowercased(),
+            "dstFileType": dstURL.pathExtension.lowercased(),
             "rawIsIncompleteName": rawURL.lastPathComponent.hasPrefix(".incomplete_"),
             "dstInDefaultRecordingsFolder": dstInDefaultRecordingsFolder
         ]
