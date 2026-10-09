@@ -36,7 +36,7 @@ struct PageChangeGate: Equatable {
         /// again on a later run-loop turn.
         case waitForSheet
         /// Nothing to do.
-        case none
+        case unchanged
     }
 
     /// How often AppState checks whether the sheet has gone.
@@ -66,7 +66,7 @@ struct PageChangeGate: Equatable {
             // Staying on the shown page removes nothing. It also cancels a
             // page that was held back (the last request wins).
             pending = nil
-            return .none
+            return .unchanged
         }
         if !sheetPresented {
             pending = nil
@@ -81,7 +81,7 @@ struct PageChangeGate: Equatable {
     /// A later run-loop turn: show the held page if the sheet has gone, or if
     /// it has waited past the limit.
     mutating func recheck(sheetPresented: Bool, waitLimitPassed: Bool) -> Outcome {
-        guard let item = pending else { return .none }
+        guard let item = pending else { return .unchanged }
         if sheetPresented && !waitLimitPassed {
             return .waitForSheet
         }

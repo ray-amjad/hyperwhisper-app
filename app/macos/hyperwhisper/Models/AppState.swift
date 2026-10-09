@@ -128,7 +128,7 @@ extension AppState {
             AppLogger.ui.info("Page change to \(item.rawValue, privacy: .public) waits for the open sheet to close (#1672)")
             pageSheetDismissalRequest &+= 1
             startPageChangeWait()
-        case .none:
+        case .unchanged:
             if !pageChangeGate.isWaitingForSheet {
                 stopPageChangeWait()
             }
@@ -152,7 +152,7 @@ extension AppState {
             return false
         case .waitForSheet:
             return true
-        case .none:
+        case .unchanged:
             stopPageChangeWait()
             return false
         }
