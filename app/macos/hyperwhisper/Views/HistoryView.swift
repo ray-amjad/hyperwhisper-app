@@ -452,19 +452,11 @@ private final class HistoryViewModel: ObservableObject {
     }
 
     private func refreshAvailableModes() {
-        let allModes = PersistenceController.shared.fetchAllModes()
-
-        if NetworkStatus.shared.isOnline {
-            availableModes = allModes
-            return
-        }
-
-        availableModes = allModes.filter { mode in
-            let isCloudModel = (mode.model ?? "").lowercased() == "cloud"
-            let processingMode = PostProcessingMode(rawValue: mode.postProcessingMode) ?? .off
-            let hasCloudPostProcessing = processingMode.requiresInternet
-            return !isCloudModel && !hasCloudPostProcessing
-        }
+        // Shared with the recording dialog's pending-file mode picker (#1617).
+        availableModes = RetryModeChoices.available(
+            from: PersistenceController.shared.fetchAllModes(),
+            isOnline: NetworkStatus.shared.isOnline
+        )
     }
 
     private func observeTranscriptChanges() {
