@@ -1153,9 +1153,14 @@ class RecordingLifecycle {
             freeBytes = capacity
         }
 
+        // Same default `StorageSettingsManager.recordingsFolder` starts with
+        // (Documents/hyperwhisper/recordings), derived the same way as the
+        // `recordingsFolderIsDefault` extra in RecordingTranscriptionFlow.
+        let defaultRecordingsFolder = fm
+            .urls(for: .documentDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("hyperwhisper/recordings", isDirectory: true)
+
         var diagnostics: [String: Any] = [
-            "rawURL": rawURL.path,
-            "dstURL": dstURL.path,
             "rawExists": rawExists,
             "rawReadable": rawReadable,
             "dstExists": dstExists,
@@ -1165,11 +1170,46 @@ class RecordingLifecycle {
             "sessionId": sessionManager.currentRecordingSession?.id?.uuidString ?? "nil"
         ]
 
+        for (key, value) in Self.pathDiagnostics(
+            rawURL: rawURL,
+            dstURL: dstURL,
+            defaultRecordingsFolder: defaultRecordingsFolder
+        ) {
+            diagnostics[key] = value
+        }
+
         for (key, value) in collectInputDeviceDiagnostics() {
             diagnostics[key] = value
         }
 
         return diagnostics
+    }
+
+    /// Path-derived diagnostics for the "Audio finalization failed" Sentry extras
+    /// (HYPERWHISPER-F1, #1649). The extras used to carry `rawURL.path` and
+    /// `dstURL.path`, and both hold the macOS account name (and, for a custom
+    /// recordings folder, folder names the user chose). These values answer the
+    /// same questions without any part of the path: which file kinds were
+    /// involved, whether the raw file was the session temp file, and whether the
+    /// destination sat in the default recordings folder. Never put a path, a
+    /// trimmed path or a hash of a path in here.
+    ///
+    /// Pure and `nonisolated` so a test can call it off the main actor.
+    nonisolated static func pathDiagnostics(
+        rawURL: URL,
+        dstURL: URL,
+        defaultRecordingsFolder: URL?
+    ) -> [String: Any] {
+        let dstFolder = dstURL.deletingLastPathComponent().standardizedFileURL.path
+        let dstInDefaultRecordingsFolder = defaultRecordingsFolder
+            .map { $0.standardizedFileURL.path == dstFolder } ?? false
+
+        return [
+            "rawExtension": rawURL.pathExtension.lowercased(),
+            "dstExtension": dstURL.pathExtension.lowercased(),
+            "rawIsIncompleteName": rawURL.lastPathComponent.hasPrefix(".incomplete_"),
+            "dstInDefaultRecordingsFolder": dstInDefaultRecordingsFolder
+        ]
     }
 
     /// STILL SYNCHRONOUS ON PURPOSE. When `availableDevices` is supplied — which is
