@@ -164,11 +164,12 @@ extension RecordingTranscriptionFlow {
             // A newer flow owns the dialog, the state and the session mode now.
             guard !isPendingRetrySuperseded(identity) else { return }
 
-            // #1636: the History row saved for THIS file when it could not be
-            // read. Read now, not before the request: its write may have
-            // landed while the retry ran.
-            let failedTranscriptID = appState.pendingRetryAudioPath == path
-                ? appState.pendingRetryTranscriptID
+            // #1636: the write of the History row saved for THIS file when it
+            // could not be read. Taken before the path is cleared below (which
+            // drops it); awaited by the save, so a row that has not landed yet
+            // is still the one completed.
+            let failedRowWrite = appState.pendingRetryAudioPath == path
+                ? appState.pendingRetryFailedRowWrite
                 : nil
 
             // Deliver like a dictation (paste, clipboard fallback, the pill's
@@ -195,7 +196,7 @@ extension RecordingTranscriptionFlow {
 
             let savedTranscriptID = await Self.savePendingRetryTranscript(
                 transcriptionResult,
-                failedTranscriptID: failedTranscriptID,
+                failedRowWrite: failedRowWrite,
                 audioURL: audioURL,
                 modeName: transcriptionMode.name
             )

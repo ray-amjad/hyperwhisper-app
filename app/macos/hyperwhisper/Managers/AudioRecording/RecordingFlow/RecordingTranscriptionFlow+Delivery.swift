@@ -188,20 +188,25 @@ extension RecordingTranscriptionFlow {
     /// Saves a successful pending-file Retry's transcript to History (#1636).
     ///
     /// Completes the failed "Audio file could not be read" row in place, as
-    /// History's own Retry does. A new completed row is the fallback, only when
-    /// there is no such row: its write failed, it has not landed yet, or the
-    /// user deleted it meanwhile.
+    /// History's own Retry does. Awaits that row's write first: a Retry can
+    /// finish before it lands, and saving then would leave two rows, the
+    /// failed one and the retry's. A new completed row is the fallback, only
+    /// when there is no such row: its write failed, or the user deleted it
+    /// meanwhile.
     ///
+    /// - Parameter failedRowWrite: the failed row's write
+    ///   (`AppState.pendingRetryFailedRowWrite`), landed or not.
     /// - Returns: the id of the row that now holds the transcript, or `nil`
     ///   when no write could be saved.
     @discardableResult
     static func savePendingRetryTranscript(
         _ transcriptionResult: TranscriptionResult,
-        failedTranscriptID: NSManagedObjectID?,
+        failedRowWrite: Task<NSManagedObjectID?, Never>?,
         audioURL: URL,
         modeName: String?,
         persistence: PersistenceController = .shared
     ) async -> NSManagedObjectID? {
+        let failedTranscriptID = await failedRowWrite?.value
         if let failedTranscriptID,
            await saveBatchTranscript(
                transcriptionResult,

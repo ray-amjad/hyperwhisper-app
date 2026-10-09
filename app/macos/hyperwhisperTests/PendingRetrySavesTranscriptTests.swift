@@ -11,8 +11,8 @@
 //
 //  The fix: the stop flow's delivery and row write are shared helpers
 //  (`deliverBatchTranscript`, `saveBatchTranscript`) and the retry calls them;
-//  the failed row's id is kept in `AppState.pendingRetryTranscriptID` so the
-//  retry completes that row in place.
+//  the failed row's write is kept in `AppState.pendingRetryFailedRowWrite` so
+//  the retry awaits it and completes that row in place.
 //
 //  `retryTranscriptionFromPendingPath` needs a live `RecordingLifecycle` and a
 //  pipeline, so it cannot run here (see `PendingRetrySupersessionTests`). The
@@ -103,7 +103,7 @@ struct PendingRetrySavesTranscriptTests {
 
         let savedID = await RecordingTranscriptionFlow.savePendingRetryTranscript(
             makeResult(postProcessed: false),
-            failedTranscriptID: failedID,
+            failedRowWrite: Task { failedID },
             audioURL: URL(fileURLWithPath: Self.audioPath),
             modeName: "LocNemo",
             persistence: persistence
@@ -130,7 +130,7 @@ struct PendingRetrySavesTranscriptTests {
 
         await RecordingTranscriptionFlow.savePendingRetryTranscript(
             makeResult(postProcessed: true),
-            failedTranscriptID: failedID,
+            failedRowWrite: Task { failedID },
             audioURL: URL(fileURLWithPath: Self.audioPath),
             modeName: "LocNemo",
             persistence: persistence
@@ -143,15 +143,15 @@ struct PendingRetrySavesTranscriptTests {
         #expect(row.transcribedText == "the quick brown fox")
     }
 
-    /// No failed row (its write failed, or had not landed): the transcript is
-    /// still saved, as a new completed row for the same file.
+    /// No failed row (no write was handed over): the transcript is still
+    /// saved, as a new completed row for the same file.
     @MainActor
     @Test func withNoFailedRowANewRowHoldsTheTranscript() async throws {
         let persistence = PersistenceController(inMemory: true)
 
         let savedID = await RecordingTranscriptionFlow.savePendingRetryTranscript(
             makeResult(postProcessed: false),
-            failedTranscriptID: nil,
+            failedRowWrite: nil,
             audioURL: URL(fileURLWithPath: Self.audioPath),
             modeName: "LocNemo",
             persistence: persistence
@@ -185,28 +185,74 @@ struct PendingRetrySavesTranscriptTests {
         #expect(row.failedReason == "Audio file could not be read")
     }
 
-    // MARK: - The row id's lifetime
+    /// Review r1: a Retry that finishes before the failed row's write lands
+    /// waits for it and completes that row. Before, it saved a new row, the
+    /// failed row landed after it, and History showed both.
+    @MainActor
+    @Test func aRetryThatEndsBeforeTheFailedRowLandsLeavesOneRow() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let (gate, release) = AsyncStream<Void>.makeStream()
+        let failedRowWrite = Task { () -> NSManagedObjectID? in
+            for await _ in gate { break }
+            return await persistence.createFailedTranscriptInBackground(
+                duration: 4.2,
+                mode: "LocNemo",
+                audioFilePath: Self.audioPath,
+                failedReason: "Audio file could not be read",
+                errorText: "Error: Audio file could not be read"
+            )
+        }
+        let result = makeResult(postProcessed: false)
+        let save = Task {
+            await RecordingTranscriptionFlow.savePendingRetryTranscript(
+                result,
+                failedRowWrite: failedRowWrite,
+                audioURL: URL(fileURLWithPath: Self.audioPath),
+                modeName: "LocNemo",
+                persistence: persistence
+            )
+        }
+        for _ in 0..<20 { await Task.yield() }
+        let beforeTheWrite = await rows(in: persistence)
+        #expect(beforeTheWrite.isEmpty, "the retry saved a row of its own before the failed row landed")
 
-    /// The row id belongs to one pending file. A new file, or none (a new
+        release.yield()
+        release.finish()
+        let savedID = await save.value
+        let failedID = await failedRowWrite.value
+
+        #expect(savedID != nil)
+        #expect(savedID == failedID, "the retry did not complete the failed row")
+        let all = await rows(in: persistence)
+        #expect(all.count == 1, "History shows \(all.count) rows for one recording")
+        let row = try #require(all.first)
+        #expect(row.status == "completed")
+        #expect(row.failedReason == nil)
+    }
+
+    // MARK: - The row write's lifetime
+
+    /// The row write belongs to one pending file. A new file, or none (a new
     /// dictation, a retry that ended), drops it.
     @MainActor
-    @Test func theRowIdResetsWhenThePendingFileChanges() async throws {
+    @Test func theRowWriteResetsWhenThePendingFileChanges() async throws {
         let persistence = PersistenceController(inMemory: true)
         let failedID = try await makeFailedRow(in: persistence)
+        let write = Task<NSManagedObjectID?, Never> { failedID }
         let appState = AppState()
 
         appState.pendingRetryAudioPath = "/tmp/a.wav"
-        appState.pendingRetryTranscriptID = failedID
+        appState.pendingRetryFailedRowWrite = write
 
         appState.pendingRetryAudioPath = "/tmp/a.wav"
-        #expect(appState.pendingRetryTranscriptID == failedID, "re-setting the same file must keep its row")
+        #expect(appState.pendingRetryFailedRowWrite == write, "re-setting the same file must keep its row")
 
         appState.pendingRetryAudioPath = "/tmp/b.wav"
-        #expect(appState.pendingRetryTranscriptID == nil)
+        #expect(appState.pendingRetryFailedRowWrite == nil)
 
-        appState.pendingRetryTranscriptID = failedID
+        appState.pendingRetryFailedRowWrite = write
         appState.pendingRetryAudioPath = nil
-        #expect(appState.pendingRetryTranscriptID == nil)
+        #expect(appState.pendingRetryFailedRowWrite == nil)
     }
 
     // MARK: - Call sites, read from the production source
@@ -237,9 +283,9 @@ struct PendingRetrySavesTranscriptTests {
         let success = try Self.retrySuccessPath()
         #expect(success.contains("deliverBatchTranscript("), "the retry no longer delivers: \(success)")
         #expect(success.contains("savePendingRetryTranscript("), "the retry no longer saves: \(success)")
-        #expect(success.contains("failedTranscriptID: failedTranscriptID"),
+        #expect(success.contains("failedRowWrite: failedRowWrite"),
                 "the retry no longer completes the failed row: \(success)")
-        #expect(success.contains("appState.pendingRetryTranscriptID"), "\(success)")
+        #expect(success.contains("appState.pendingRetryFailedRowWrite"), "\(success)")
     }
 
     /// A stale retry must still write nothing (#1276): delivery and the save
@@ -294,16 +340,24 @@ struct PendingRetrySavesTranscriptTests {
                 "the mode-picker exit sends nothing and must not take the clipboard snapshot")
     }
 
-    /// The stop flow keeps the failed row's id for the retry.
-    @Test func theUnreadableFileBranchKeepsItsRowId() throws {
+    /// The stop flow hands the failed row's write to the retry, in the same
+    /// main-actor turn as the path that shows the Retry button, so no Retry
+    /// can run without it (review r1).
+    @Test func theUnreadableFileBranchHandsOverItsRowWrite() throws {
         let branch = try ProductionSource.slice(
             of: Self.stopPath,
-            from: "appState?.pendingRetryAudioPath = audioURL.path",
+            from: "Audio file not readable after stop-flow check.",
             to: "let vadStart = Date()"
         )
-        #expect(branch.contains("createFailedTranscriptInBackground("), "\(branch)")
-        #expect(branch.contains("pendingRetryTranscriptID = failedTranscriptID"),
-                "the failed row's id is discarded again: \(branch)")
+        let write = try #require(branch.range(of: "createFailedTranscriptInBackground("), "\(branch)")
+        let path = try #require(branch.range(of: "appState?.pendingRetryAudioPath = audioURL.path"), "\(branch)")
+        let handOver = try #require(branch.range(of: "appState?.pendingRetryFailedRowWrite = failedRowWrite"),
+                                    "the failed row's write is discarded again: \(branch)")
+        #expect(write.lowerBound < path.lowerBound, "the Retry button can show before the row write exists")
+        #expect(path.lowerBound < handOver.lowerBound,
+                "the path's didSet drops a write handed over before it")
+        let turn = String(branch[path.lowerBound..<handOver.lowerBound])
+        #expect(!turn.contains("await"), "the path and the write are set in different main-actor turns: \(turn)")
     }
 
     /// One delivery and one row write for a dictation and a retry, so the two

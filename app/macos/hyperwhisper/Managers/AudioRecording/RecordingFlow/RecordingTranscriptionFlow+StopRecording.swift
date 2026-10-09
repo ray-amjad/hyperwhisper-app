@@ -324,29 +324,29 @@ extension RecordingTranscriptionFlow {
                     ]
                 )
             }
+            // Persist failed attempt to history so user can retry later — one write.
+            let failedRowWrite = Task {
+                await PersistenceController.shared.createFailedTranscriptInBackground(
+                    duration: recordingDuration,
+                    mode: sessionModeName,
+                    audioFilePath: audioURL.path,
+                    failedReason: "Audio file could not be read",
+                    errorText: "Error: Audio file could not be read"
+                )
+            }
             await MainActor.run {
                 appState?.recordingState = .idle
                 appState?.lastTranscription = "Error: \("audio.error.readFile".localized)"
                 appState?.pendingRetryAudioPath = audioURL.path
+                // #1636: the pill's Retry completes THIS row. The write itself
+                // is handed over, in the same turn as the path that shows the
+                // Retry button, so a Retry that ends before the row lands
+                // awaits it instead of saving a second row.
+                appState?.pendingRetryFailedRowWrite = failedRowWrite
                 appState?.showRecordingDialog = true
                 KeyboardShortcuts.disable(.cancelRecording)
             }
-            // Persist failed attempt to history so user can retry later — one write.
-            let failedTranscriptID = await PersistenceController.shared.createFailedTranscriptInBackground(
-                duration: recordingDuration,
-                mode: sessionModeName,
-                audioFilePath: audioURL.path,
-                failedReason: "Audio file could not be read",
-                errorText: "Error: Audio file could not be read"
-            )
-            // #1636: the pill's Retry completes THIS row. Only while the pill
-            // still offers this file: a newer flow (or a retry that already
-            // ended) may have moved `pendingRetryAudioPath` on during the write.
-            await MainActor.run {
-                if let failedTranscriptID, appState?.pendingRetryAudioPath == audioURL.path {
-                    appState?.pendingRetryTranscriptID = failedTranscriptID
-                }
-            }
+            _ = await failedRowWrite.value
 
             powerActivityManager.endPowerActivity()
             return
