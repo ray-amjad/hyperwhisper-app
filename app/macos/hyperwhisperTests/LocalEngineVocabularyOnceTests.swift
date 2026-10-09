@@ -43,13 +43,15 @@ struct LocalEngineVocabularyOnceTests {
     }
 
     /// Every local engine that used to run a vocabulary pass inside
-    /// `transcribe(...)`. Apple Speech is macOS 26+ only.
+    /// `transcribe(...)`. Qwen3-ASR is macOS 15+ only, Apple Speech 26+ only.
     private var localEngines: [(name: String, provider: TranscriptionProvider)] {
         var engines: [(name: String, provider: TranscriptionProvider)] = [
             ("Parakeet", ParakeetProvider()),
             ("Nemotron", NemotronProvider()),
-            ("Qwen3-ASR", Qwen3AsrProvider()),
         ]
+        if #available(macOS 15.0, *) {
+            engines.append(("Qwen3-ASR", Qwen3AsrProvider()))
+        }
         if #available(macOS 26.0, *) {
             engines.append(("Apple Speech", AppleSpeechAnalyzerProvider()))
         }
