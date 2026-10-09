@@ -868,6 +868,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "recording.retry.failed.missing" = "Uuesti proovimine ebaõnnestus: helifail ei leitud";
 "recording.retry.failed.error" = "Uuesti proovimine ebaõnnestus: %@";
 "recording.retry.pending" = "Valmis uuesti proovima – klõpsake transkribeerimiseks";
+"recording.retry.modeDeleted" = "Režiim kustutati";
 "recording.cancel.dialog.title" = "Tühista salvestamine?";
 "recording.cancel.dialog.message" = "See loobub praegusest salvestusest.";
 "recording.cancel.dialog.confirm" = "Tühista salvestamine";

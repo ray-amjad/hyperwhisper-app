@@ -868,6 +868,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "recording.retry.failed.missing" = "Reîncercare eșuată: Fișier audio nu a fost găsit";
 "recording.retry.failed.error" = "Reîncercare eșuată: %@";
 "recording.retry.pending" = "Pregătit pentru reîncercare – faceți clic pentru a transcrie";
+"recording.retry.modeDeleted" = "Modul a fost șters";
 "recording.cancel.dialog.title" = "Anulați înregistrare?";
 "recording.cancel.dialog.message" = "Aceasta va renunța la înregistrarea curentă.";
 "recording.cancel.dialog.confirm" = "Anulați înregistrare";

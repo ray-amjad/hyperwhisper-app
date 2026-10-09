@@ -928,8 +928,10 @@ class AudioRecordingManager: NSObject, ObservableObject {
     }
 
     /// Retry transcription for a previously recorded file that failed before transcription
-    func retryTranscriptionFromPendingFile() {
-        recordingTranscriptionFlow.retryPendingFile()
+    /// - Parameter pickedMode: the mode picked in the recording dialog after the
+    ///   recording's own mode was deleted (#1617); `nil` uses the session's mode.
+    func retryTranscriptionFromPendingFile(with pickedMode: PendingRetryModeChoice? = nil) {
+        recordingTranscriptionFlow.retryPendingFile(with: pickedMode)
     }
 
     // MARK: - Public API: Push to Talk

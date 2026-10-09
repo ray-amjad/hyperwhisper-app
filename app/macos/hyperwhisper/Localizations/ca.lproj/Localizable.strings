@@ -868,6 +868,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "recording.retry.failed.missing" = "Reintent fallat: Fitxer d'àudio no trobat";
 "recording.retry.failed.error" = "Reintent fallat: %@";
 "recording.retry.pending" = "Preparat per reintentar – feu clic per transcriure";
+"recording.retry.modeDeleted" = "S'ha suprimit el mode";
 "recording.cancel.dialog.title" = "Cancel·lar gravació?";
 "recording.cancel.dialog.message" = "Això descartarà la gravació actual.";
 "recording.cancel.dialog.confirm" = "Cancel·lar gravació";

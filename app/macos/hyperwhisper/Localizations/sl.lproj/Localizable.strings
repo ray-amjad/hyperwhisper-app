@@ -868,6 +868,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "recording.retry.failed.missing" = "Ponovno ni uspelo: Zvočna datoteka ne obstaja";
 "recording.retry.failed.error" = "Ponovno ni uspelo: %@";
 "recording.retry.pending" = "Pripravljen za ponovno poskus – klikni za prepis";
+"recording.retry.modeDeleted" = "Način je bil izbrisan";
 "recording.cancel.dialog.title" = "Prekliči snemanje?";
 "recording.cancel.dialog.message" = "To bo zavrg trenutni posnetek.";
 "recording.cancel.dialog.confirm" = "Prekliči snemanje";

@@ -868,6 +868,7 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "recording.retry.failed.missing" = "Falha na retentativa: Arquivo de áudio não encontrado";
 "recording.retry.failed.error" = "Falha na retentativa: %@";
 "recording.retry.pending" = "Pronto para tentar novamente – clique para transcrever";
+"recording.retry.modeDeleted" = "O modo foi eliminado";
 "recording.cancel.dialog.title" = "Cancelar Gravação?";
 "recording.cancel.dialog.message" = "Isso descartará a gravação atual.";
 "recording.cancel.dialog.confirm" = "Cancelar Gravação";

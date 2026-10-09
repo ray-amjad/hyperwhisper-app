@@ -868,6 +868,7 @@
 "recording.retry.failed.missing" = "Повторна спроба не вдалася: аудіо файл не знайдено";
 "recording.retry.failed.error" = "Повторна спроба не вдалася: %@";
 "recording.retry.pending" = "Готово для повторення – клацніть для транскрипції";
+"recording.retry.modeDeleted" = "Режим видалено";
 "recording.cancel.dialog.title" = "Скасувати запис?";
 "recording.cancel.dialog.message" = "Це відхилить поточний запис.";
 "recording.cancel.dialog.confirm" = "Скасувати запис";

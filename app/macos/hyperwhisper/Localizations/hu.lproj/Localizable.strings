@@ -868,6 +868,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "recording.retry.failed.missing" = "Újrapróbálás sikertelen: Audio fájl nem található";
 "recording.retry.failed.error" = "Újrapróbálás sikertelen: %@";
 "recording.retry.pending" = "Kész az újrapróbálásra – kattints az átíráshoz";
+"recording.retry.modeDeleted" = "A mód törölve lett";
 "recording.cancel.dialog.title" = "Felvétel megszakítása?";
 "recording.cancel.dialog.message" = "Ez elveti a jelenlegi felvételt.";
 "recording.cancel.dialog.confirm" = "Felvétel megszakítása";

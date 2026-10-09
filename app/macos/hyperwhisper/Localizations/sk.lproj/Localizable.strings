@@ -868,6 +868,7 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "recording.retry.failed.missing" = "Opakovný pokus zlyhal: Zvukový súbor sa nenašiel";
 "recording.retry.failed.error" = "Opakovný pokus zlyhal: %@";
 "recording.retry.pending" = "Pripravené na opakovný pokus – kliknite na prepis";
+"recording.retry.modeDeleted" = "Režim bol odstránený";
 "recording.cancel.dialog.title" = "Zrušiť nahrávanie?";
 "recording.cancel.dialog.message" = "Toto zahodí aktuálne nahrávanie.";
 "recording.cancel.dialog.confirm" = "Zrušiť nahrávanie";

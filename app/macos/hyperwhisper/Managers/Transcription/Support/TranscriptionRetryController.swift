@@ -43,6 +43,23 @@ enum TranscriptionRetryError: LocalizedError, Equatable {
     }
 }
 
+/// The modes a user can pick to retry a recording with: History's
+/// "Retry with..." menu and the recording dialog's pending-file mode picker
+/// (#1617) both list exactly these, so the two never disagree.
+enum RetryModeChoices {
+    /// Every mode while online. Offline, the modes that need the internet
+    /// (a Cloud transcription model or cloud post-processing) are left out.
+    static func available(from modes: [Mode], isOnline: Bool) -> [Mode] {
+        guard !isOnline else { return modes }
+        return modes.filter { mode in
+            let isCloudModel = (mode.model ?? "").lowercased() == "cloud"
+            let processingMode = PostProcessingMode(rawValue: mode.postProcessingMode) ?? .off
+            let hasCloudPostProcessing = processingMode.requiresInternet
+            return !isCloudModel && !hasCloudPostProcessing
+        }
+    }
+}
+
 /// Handles retry logic for failed transcriptions
 @MainActor
 class TranscriptionRetryController {

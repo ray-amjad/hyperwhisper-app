@@ -868,6 +868,7 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "recording.retry.failed.missing" = "Opakovani selhalo: Zvukovy soubor nenalezen";
 "recording.retry.failed.error" = "Opakovani selhalo: %@";
 "recording.retry.pending" = "Pripraveno k opakovani – kliknete pro prepis";
+"recording.retry.modeDeleted" = "Režim byl smazán";
 "recording.cancel.dialog.title" = "Zrusit nahravani?";
 "recording.cancel.dialog.message" = "Timto zahodite aktualni nahravku.";
 "recording.cancel.dialog.confirm" = "Zrusit nahravani";

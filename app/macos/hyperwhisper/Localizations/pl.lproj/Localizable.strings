@@ -868,6 +868,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "recording.retry.failed.missing" = "Ponowienie nie powiodło się: Plik audio nie znaleziony";
 "recording.retry.failed.error" = "Ponowienie nie powiodło się: %@";
 "recording.retry.pending" = "Gotowy do ponowienia – kliknij, aby transkrybować";
+"recording.retry.modeDeleted" = "Tryb został usunięty";
 "recording.cancel.dialog.title" = "Anulować nagrywanie?";
 "recording.cancel.dialog.message" = "Spowoduje to odrzucenie bieżącego nagrania.";
 "recording.cancel.dialog.confirm" = "Anuluj nagrywanie";

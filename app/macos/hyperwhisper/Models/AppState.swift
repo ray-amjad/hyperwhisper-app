@@ -508,7 +508,21 @@ class AppState: ObservableObject {
     @Published var lastFailedTranscript: Transcript?
 
     /// Pending audio file path to retry transcription if the initial attempt fails before processing
-    @Published var pendingRetryAudioPath: String?
+    @Published var pendingRetryAudioPath: String? {
+        didSet {
+            // A different pending file (or none) is a different question:
+            // never carry a mode picker over to it (#1617).
+            if pendingRetryAudioPath != oldValue {
+                pendingRetryNeedsModePick = false
+            }
+        }
+    }
+
+    /// Set when a pending-file retry found that the mode which made the
+    /// recording was deleted (#1617). No request was sent; the recording dialog
+    /// shows a mode picker, and the retry runs again only with the user's pick.
+    /// The pending file is kept either way.
+    @Published var pendingRetryNeedsModePick = false
 
     /// Bumped by every flow that takes over `recordingState` and the recording
     /// dialog: a dictation start or stop, a pending-file retry, a file

@@ -868,6 +868,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "recording.retry.failed.missing" = "Opnieuw proberen mislukt: Audiobestand niet gevonden";
 "recording.retry.failed.error" = "Opnieuw proberen mislukt: %@";
 "recording.retry.pending" = "Klaar om opnieuw te proberen – klik om te transcriberen";
+"recording.retry.modeDeleted" = "Modus is verwijderd";
 "recording.cancel.dialog.title" = "Opnamen annuleren?";
 "recording.cancel.dialog.message" = "Hiermee wordt de huidige opname verwijderd.";
 "recording.cancel.dialog.confirm" = "Opnamen annuleren";

@@ -868,6 +868,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "recording.retry.failed.missing" = "Thử lại không thành công: Tệp âm thanh không tìm thấy";
 "recording.retry.failed.error" = "Thử lại không thành công: %@";
 "recording.retry.pending" = "Sẵn sàng để thử lại – nhấp để chuyển đổi";
+"recording.retry.modeDeleted" = "Chế độ đã bị xóa";
 "recording.cancel.dialog.title" = "Hủy Ghi âm?";
 "recording.cancel.dialog.message" = "Điều này sẽ loại bỏ bản ghi âm hiện tại.";
 "recording.cancel.dialog.confirm" = "Hủy Ghi âm";

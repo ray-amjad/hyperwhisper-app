@@ -868,6 +868,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "recording.retry.failed.missing" = "Wiederholen fehlgeschlagen: Audiodatei nicht gefunden";
 "recording.retry.failed.error" = "Wiederholen fehlgeschlagen: %@";
 "recording.retry.pending" = "Bereit zum erneuten Versuch – zum Transkribieren klicken";
+"recording.retry.modeDeleted" = "Modus wurde gelöscht";
 "recording.cancel.dialog.title" = "Aufzeichnung abbrechen?";
 "recording.cancel.dialog.message" = "Dadurch wird die aktuelle Aufzeichnung verworfen Aufnahme.";
 "recording.cancel.dialog.confirm" = "Aufnahme abbrechen";

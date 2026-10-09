@@ -868,6 +868,7 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "recording.retry.failed.missing" = "Поново Покушавање Неуспешно: Звучна датотека није пронађена";
 "recording.retry.failed.error" = "Поново Покушавање Неуспешно: %@";
 "recording.retry.pending" = "Спремно за поновно покушавање – кликни да транскрибујеш";
+"recording.retry.modeDeleted" = "Режим је обрисан";
 "recording.cancel.dialog.title" = "Отмени Снимање?";
 "recording.cancel.dialog.message" = "Ово ће одбацити тренутно снимање.";
 "recording.cancel.dialog.confirm" = "Отмени Снимање";

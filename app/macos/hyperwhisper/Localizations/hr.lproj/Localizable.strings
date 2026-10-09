@@ -868,6 +868,7 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "recording.retry.failed.missing" = "Ponovno pokušavanje nije uspjelo: audio datoteka nije pronađena";
 "recording.retry.failed.error" = "Ponovno pokušavanje nije uspjelo: %@";
 "recording.retry.pending" = "Spremno za ponovno pokušavanje – kliknite za transkripciju";
+"recording.retry.modeDeleted" = "Način je izbrisan";
 "recording.cancel.dialog.title" = "Otkazati snimanje?";
 "recording.cancel.dialog.message" = "Ovo će odbaciti trenutno snimanje.";
 "recording.cancel.dialog.confirm" = "Otkaži snimanje";

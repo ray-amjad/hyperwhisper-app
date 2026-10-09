@@ -2384,9 +2384,13 @@ class PersistenceController: ObservableObject {
     /// The stop/retry paths are called while SwiftUI is transitioning recording UI state.
     /// Keep the fallback chain equivalent to the recording hot-path logic:
     /// mode id -> mode name -> default mode.
+    ///
+    /// `allowNameFallback: false` resolves by id only: a mode the user picked
+    /// must never resolve to a different mode that happens to share its name.
     func resolveTranscriptionModeInBackground(
         id: String,
         fallbackName: String,
+        allowNameFallback: Bool = true,
         allowDefaultFallback: Bool = true
     ) async -> Mode? {
         let context = container.newBackgroundContext()
@@ -2399,6 +2403,8 @@ class PersistenceController: ObservableObject {
                     return mode.objectID
                 }
             }
+
+            guard allowNameFallback else { return nil }
 
             let byName: NSFetchRequest<Mode> = Mode.fetchRequest()
             byName.predicate = NSPredicate(format: "name == %@", fallbackName)
