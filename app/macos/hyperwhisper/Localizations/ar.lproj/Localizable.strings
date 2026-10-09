@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "حذف الوضع؟";
 "modes.delete.confirm.message" = "سيؤدي هذا إلى إزالة الوضع المحدد. لا يمكن التراجع عن هذا الإجراء.";
+"modes.editor.discard.title" = "تجاهل التغييرات غير المحفوظة؟";
+"modes.editor.discard.message" = "لم يتم حفظ تغييراتك على هذا الوضع.";
+"modes.editor.discard.keepEditing" = "متابعة التعديل";
+"modes.editor.discard.button" = "تجاهل";
 "modes.header.title" = "الأوضاع";
 "modes.header.subtitle" = "إنشاء ملفات تعريف مخصصة لسياقات وسير عمل مختلفة";
 "modes.header.create" = "إنشاء وضع";

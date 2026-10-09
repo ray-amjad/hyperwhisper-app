@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "Изтриване на режима?";
 "modes.delete.confirm.message" = "Това ще премахне избрания режим. Това действие не може да бъде отменено.";
+"modes.editor.discard.title" = "Отхвърляне на незапазените промени?";
+"modes.editor.discard.message" = "Промените ви в този режим не са запазени.";
+"modes.editor.discard.keepEditing" = "Продължаване на редакцията";
+"modes.editor.discard.button" = "Отхвърляне";
 "modes.header.title" = "Режими";
 "modes.header.subtitle" = "Създайте потребителски профили за различни контексти и работни процеси";
 "modes.header.create" = "Създаване на режим";

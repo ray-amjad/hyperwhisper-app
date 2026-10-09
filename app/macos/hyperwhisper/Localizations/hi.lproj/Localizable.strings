@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "मोड हटाएं?";
 "modes.delete.confirm.message" = "यह चयनित मोड को हटा देगा। यह कार्य को पूर्ववत नहीं किया जा सकता।";
+"modes.editor.discard.title" = "बिना सहेजे गए बदलाव छोड़ें?";
+"modes.editor.discard.message" = "इस मोड में आपके बदलाव सहेजे नहीं गए हैं।";
+"modes.editor.discard.keepEditing" = "संपादन जारी रखें";
+"modes.editor.discard.button" = "छोड़ें";
 "modes.header.title" = "मोड";
 "modes.header.subtitle" = "विभिन्न संदर्भों और वर्कफ़्लो के लिए कस्टम प्रोफ़ाइल बनाएं";
 "modes.header.create" = "मोड बनाएं";

@@ -683,6 +683,10 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 // MARK: - Modes
 "modes.delete.confirm.title" = "Mód törlése?";
 "modes.delete.confirm.message" = "Ez eltávolítja a kiválasztott módot. Ez a művelet nem vonható vissza.";
+"modes.editor.discard.title" = "Elveti a nem mentett módosításokat?";
+"modes.editor.discard.message" = "Az ebben a módban végzett módosításai nincsenek mentve.";
+"modes.editor.discard.keepEditing" = "Szerkesztés folytatása";
+"modes.editor.discard.button" = "Elvetés";
 "modes.header.title" = "Módok";
 "modes.header.subtitle" = "Egyéni profilok létrehozása különböző kontextusokhoz és munkafolyamatokhoz";
 "modes.header.create" = "Mód létrehozása";

@@ -683,6 +683,10 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 // MARK: - Modes
 "modes.delete.confirm.title" = "Ištrinti režimą?";
 "modes.delete.confirm.message" = "Tai pašalins pasirinktą režimą. Šis veiksmas negali būti atšauktas.";
+"modes.editor.discard.title" = "Atmesti neišsaugotus pakeitimus?";
+"modes.editor.discard.message" = "Šio režimo pakeitimai neišsaugoti.";
+"modes.editor.discard.keepEditing" = "Tęsti redagavimą";
+"modes.editor.discard.button" = "Atmesti";
 "modes.header.title" = "Režimai";
 "modes.header.subtitle" = "Sukurkite pasirinktus profilius skirtingiems kontekstams ir darbo eigoms";
 "modes.header.create" = "Sukurti režimą";

@@ -683,6 +683,10 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Slet tilstand?";
 "modes.delete.confirm.message" = "Dette vil fjerne den valgte tilstand. Denne handling kan ikke fortrydes.";
+"modes.editor.discard.title" = "Kassér ikke-gemte ændringer?";
+"modes.editor.discard.message" = "Dine ændringer af denne tilstand er ikke gemt.";
+"modes.editor.discard.keepEditing" = "Fortsæt redigering";
+"modes.editor.discard.button" = "Kassér";
 "modes.header.title" = "Tilstande";
 "modes.header.subtitle" = "Opret brugerdefinerede profiler til forskellige sammenhænge og workflows";
 "modes.header.create" = "Opret tilstand";

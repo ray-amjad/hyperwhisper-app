@@ -683,6 +683,10 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "¿Eliminar modo?";
 "modes.delete.confirm.message" = "Esto eliminará el modo seleccionado. Esta acción no se puede deshacer.";
+"modes.editor.discard.title" = "¿Descartar los cambios no guardados?";
+"modes.editor.discard.message" = "Los cambios en este modo no se han guardado.";
+"modes.editor.discard.keepEditing" = "Seguir editando";
+"modes.editor.discard.button" = "Descartar";
 "modes.header.title" = "Modos";
 "modes.header.subtitle" = "Crea perfiles personalizados para distintos contextos y flujos de trabajo";
 "modes.header.create" = "Crear modo";

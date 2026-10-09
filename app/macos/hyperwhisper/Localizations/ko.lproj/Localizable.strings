@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "모드를 삭제하시겠습니까?";
 "modes.delete.confirm.message" = "선택한 모드를 제거합니다. 이 작업은 실행 취소할 수 없습니다.";
+"modes.editor.discard.title" = "저장하지 않은 변경 사항을 버리시겠습니까?";
+"modes.editor.discard.message" = "이 모드의 변경 사항이 저장되지 않았습니다.";
+"modes.editor.discard.keepEditing" = "계속 편집";
+"modes.editor.discard.button" = "버리기";
 "modes.header.title" = "모드";
 "modes.header.subtitle" = "다양한 컨텍스트 및 워크플로에 대한 사용자 정의 프로필 만들기";
 "modes.header.create" = "모드 만들기";

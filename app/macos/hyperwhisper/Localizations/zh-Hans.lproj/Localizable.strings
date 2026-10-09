@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "删除模式？";
 "modes.delete.confirm.message" = "这将删除所选模式。此操作无法撤销。";
+"modes.editor.discard.title" = "放弃未保存的更改？";
+"modes.editor.discard.message" = "你对此模式的更改尚未保存。";
+"modes.editor.discard.keepEditing" = "继续编辑";
+"modes.editor.discard.button" = "放弃";
 "modes.header.title" = "模式";
 "modes.header.subtitle" = "为不同场景和工作流创建自定义配置";
 "modes.header.create" = "创建模式";

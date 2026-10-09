@@ -683,6 +683,10 @@ Modifica queste modalità per selezionare un modello diverso prima di rimuoverlo
 // MARK: - Modes
 "modes.delete.confirm.title" = "Eliminare la modalità?";
 "modes.delete.confirm.message" = "Questo rimuoverà la modalità selezionata. Questa azione non può essere annullata.";
+"modes.editor.discard.title" = "Annullare le modifiche non salvate?";
+"modes.editor.discard.message" = "Le modifiche a questa modalità non sono state salvate.";
+"modes.editor.discard.keepEditing" = "Continua a modificare";
+"modes.editor.discard.button" = "Annulla modifiche";
 "modes.header.title" = "Modalità";
 "modes.header.subtitle" = "Crea profili personalizzati per diversi contesti e flussi di lavoro";
 "modes.header.create" = "Crea Modalità";

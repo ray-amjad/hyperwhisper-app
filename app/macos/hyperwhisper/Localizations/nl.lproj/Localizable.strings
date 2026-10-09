@@ -683,6 +683,10 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Modus verwijderen?";
 "modes.delete.confirm.message" = "Hiermee wordt de geselecteerde modus verwijderd. Dit kan niet ongedaan worden gemaakt.";
+"modes.editor.discard.title" = "Niet-bewaarde wijzigingen weggooien?";
+"modes.editor.discard.message" = "Je wijzigingen in deze modus zijn niet bewaard.";
+"modes.editor.discard.keepEditing" = "Doorgaan met bewerken";
+"modes.editor.discard.button" = "Weggooien";
 "modes.header.title" = "Modi";
 "modes.header.subtitle" = "Maak aangepaste profielen voor verschillende contexten en werkstromen";
 "modes.header.create" = "Modus maken";

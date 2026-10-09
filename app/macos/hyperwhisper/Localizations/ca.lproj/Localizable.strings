@@ -683,6 +683,10 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Eliminar mode?";
 "modes.delete.confirm.message" = "Això eliminarà el mode seleccionat. Aquesta acció no es pot desfer.";
+"modes.editor.discard.title" = "Voleu descartar els canvis no desats?";
+"modes.editor.discard.message" = "Els canvis en aquest mode no s'han desat.";
+"modes.editor.discard.keepEditing" = "Continua editant";
+"modes.editor.discard.button" = "Descarta";
 "modes.header.title" = "Modes";
 "modes.header.subtitle" = "Creeu perfils personalitzats per a diferents contextos i fluxos de treball";
 "modes.header.create" = "Crear mode";

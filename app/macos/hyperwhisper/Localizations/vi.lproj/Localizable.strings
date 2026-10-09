@@ -683,6 +683,10 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 // MARK: - Modes
 "modes.delete.confirm.title" = "Xóa chế độ?";
 "modes.delete.confirm.message" = "Điều này sẽ xóa chế độ được chọn. Hành động này không thể được hoàn tác.";
+"modes.editor.discard.title" = "Hủy các thay đổi chưa lưu?";
+"modes.editor.discard.message" = "Các thay đổi của bạn đối với chế độ này chưa được lưu.";
+"modes.editor.discard.keepEditing" = "Tiếp tục chỉnh sửa";
+"modes.editor.discard.button" = "Hủy thay đổi";
 "modes.header.title" = "Chế độ";
 "modes.header.subtitle" = "Tạo hồ sơ tùy chỉnh cho các bối cảnh và quy trình công việc khác nhau";
 "modes.header.create" = "Tạo Chế độ";

@@ -683,6 +683,10 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Hapus mode?";
 "modes.delete.confirm.message" = "Ini akan menghapus mode yang dipilih. Tindakan ini tidak dapat dibatalkan.";
+"modes.editor.discard.title" = "Buang perubahan yang belum disimpan?";
+"modes.editor.discard.message" = "Perubahan Anda pada mode ini belum disimpan.";
+"modes.editor.discard.keepEditing" = "Lanjutkan Mengedit";
+"modes.editor.discard.button" = "Buang";
 "modes.header.title" = "Mode";
 "modes.header.subtitle" = "Buat profil khusus untuk konteks dan alur kerja berbeda";
 "modes.header.create" = "Buat Mode";

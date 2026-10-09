@@ -683,6 +683,10 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Modu sil?";
 "modes.delete.confirm.message" = "Bu, seçilen modu kaldıracaktır. Bu işlem geri alınamaz.";
+"modes.editor.discard.title" = "Kaydedilmemiş değişiklikler silinsin mi?";
+"modes.editor.discard.message" = "Bu modda yaptığınız değişiklikler kaydedilmedi.";
+"modes.editor.discard.keepEditing" = "Düzenlemeye Devam Et";
+"modes.editor.discard.button" = "Sil";
 "modes.header.title" = "Modlar";
 "modes.header.subtitle" = "Farklı bağlamlar ve iş akışları için özel profiller oluşturun";
 "modes.header.create" = "Mod Oluştur";

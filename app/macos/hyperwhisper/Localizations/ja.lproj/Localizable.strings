@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "モードを削除しますか？";
 "modes.delete.confirm.message" = "選択したモードを削除します。この操作は元に戻せません。";
+"modes.editor.discard.title" = "保存されていない変更を破棄しますか？";
+"modes.editor.discard.message" = "このモードへの変更は保存されていません。";
+"modes.editor.discard.keepEditing" = "編集を続ける";
+"modes.editor.discard.button" = "破棄";
 "modes.header.title" = "モード";
 "modes.header.subtitle" = "用途に合わせたカスタムプロファイルを作成できます";
 "modes.header.create" = "モードを作成";

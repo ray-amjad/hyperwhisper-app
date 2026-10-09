@@ -683,6 +683,10 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Kustuta režiim?";
 "modes.delete.confirm.message" = "See eemaldab valitud režiimi. Seda toimingut ei saa tagasi võtta.";
+"modes.editor.discard.title" = "Kas loobuda salvestamata muudatustest?";
+"modes.editor.discard.message" = "Selle režiimi muudatusi pole salvestatud.";
+"modes.editor.discard.keepEditing" = "Jätka muutmist";
+"modes.editor.discard.button" = "Loobu";
 "modes.header.title" = "Režiimid";
 "modes.header.subtitle" = "Loo kohandatud profiile erinevate kontekstide ja töövoogude jaoks";
 "modes.header.create" = "Loo režiim";

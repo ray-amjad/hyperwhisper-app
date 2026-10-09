@@ -727,6 +727,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "Delete mode?";
 "modes.delete.confirm.message" = "This will remove the selected mode. This action cannot be undone.";
+"modes.editor.discard.title" = "Discard unsaved changes?";
+"modes.editor.discard.message" = "Your changes to this mode have not been saved.";
+"modes.editor.discard.keepEditing" = "Keep Editing";
+"modes.editor.discard.button" = "Discard";
 "modes.header.title" = "Modes";
 "modes.header.subtitle" = "Create custom profiles for different contexts and workflows";
 "modes.header.create" = "Create Mode";

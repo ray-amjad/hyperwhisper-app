@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "למחוק מצב?";
 "modes.delete.confirm.message" = "זה יסיר את המצב שנבחר. לא ניתן לבטל פעולה זו.";
+"modes.editor.discard.title" = "לבטל את השינויים שלא נשמרו?";
+"modes.editor.discard.message" = "השינויים שלך במצב זה לא נשמרו.";
+"modes.editor.discard.keepEditing" = "להמשיך לערוך";
+"modes.editor.discard.button" = "ביטול השינויים";
 "modes.header.title" = "מצבים";
 "modes.header.subtitle" = "צור פרופילים מותאמים אישית להקשרים וזרימות עבודה שונים";
 "modes.header.create" = "צור מצב";

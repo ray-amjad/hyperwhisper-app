@@ -683,6 +683,10 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Ștergeți modul?";
 "modes.delete.confirm.message" = "Aceasta va elimina modul selectat. Această acțiune nu poate fi anulată.";
+"modes.editor.discard.title" = "Renunțați la modificările nesalvate?";
+"modes.editor.discard.message" = "Modificările aduse acestui mod nu au fost salvate.";
+"modes.editor.discard.keepEditing" = "Continuați editarea";
+"modes.editor.discard.button" = "Renunțați";
 "modes.header.title" = "Moduri";
 "modes.header.subtitle" = "Creați profiluri personalizate pentru contexte și fluxuri de lucru diferite";
 "modes.header.create" = "Creați modul";

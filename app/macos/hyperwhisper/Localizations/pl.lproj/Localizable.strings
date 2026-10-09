@@ -683,6 +683,10 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Usunąć tryb?";
 "modes.delete.confirm.message" = "To usunie wybrany tryb. Tej czynności nie można cofnąć.";
+"modes.editor.discard.title" = "Odrzucić niezapisane zmiany?";
+"modes.editor.discard.message" = "Zmiany w tym trybie nie zostały zapisane.";
+"modes.editor.discard.keepEditing" = "Kontynuuj edycję";
+"modes.editor.discard.button" = "Odrzuć";
 "modes.header.title" = "Tryby";
 "modes.header.subtitle" = "Utwórz niestandardowe profile dla różnych kontekstów i przepływów pracy";
 "modes.header.create" = "Utwórz tryb";

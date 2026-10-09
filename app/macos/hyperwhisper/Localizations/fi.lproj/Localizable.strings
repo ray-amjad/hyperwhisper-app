@@ -683,6 +683,10 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Poista tila?";
 "modes.delete.confirm.message" = "Tämä poistaa valitun tilan. Tätä toimintoa ei voi perua.";
+"modes.editor.discard.title" = "Hylätäänkö tallentamattomat muutokset?";
+"modes.editor.discard.message" = "Tämän tilan muutoksia ei ole tallennettu.";
+"modes.editor.discard.keepEditing" = "Jatka muokkausta";
+"modes.editor.discard.button" = "Hylkää";
 "modes.header.title" = "Tilat";
 "modes.header.subtitle" = "Luo mukautettuja profiileja eri konteksteja ja työnkulkuja varten";
 "modes.header.create" = "Luo tila";
