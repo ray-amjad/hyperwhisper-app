@@ -337,11 +337,13 @@ static async Task TestRouterAsync(string root)
         "unsupported cloud provider did not fail structurally");
 }
 
-// The two on-device vocabulary passes on the router's LOCAL branch (issue
-// #283). Both are new on this head: it had no phonetic matching and no
-// substring pass at all before. The phonetic pass is parakeet-only, the
-// substring pass runs for every local engine, and a cloud transcription sees
-// neither — same split macOS and Windows have.
+// The on-device vocabulary step on the router's LOCAL branch. Issue #283
+// added a phonetic pass (parakeet only) and an unanchored substring pass (every
+// local engine). Issue #1622 dropped the substring pass: it matched inside
+// words, and SpeechOutputProcessor's \b pass ran every replacement row again
+// afterwards. The router now returns the engine's own text, and the phonetic
+// pass is a separate call TranscriptionWorkflow makes AFTER it keeps that text
+// as the raw transcript. A cloud transcription sees neither.
 static async Task TestLocalVocabularyAsync(string root)
 {
     var audio = Path.Combine(root, "vocabulary.wav");
@@ -350,55 +352,76 @@ static async Task TestLocalVocabularyAsync(string root)
     var parakeetMode = new Mode { ProviderType = "local", LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3" };
     var whisperMode = new Mode { ProviderType = "local", LocalEngine = "whisper" };
 
-    async Task<string> Transcribe(string spoken, Mode mode, TranscriptionWorkflowRequest request)
+    async Task<(string Engine, string Corrected)> Transcribe(string spoken, Mode mode, TranscriptionWorkflowRequest request)
     {
         using var router = new ModeAwareTranscriptionRouter(
             new FakeTranscriber("whisper", available: false, text: spoken),
             new FakeTranscriber("parakeet", available: false, text: spoken),
             new RecordingCloud());
-        var result = await router.TranscribeAsync(audio, request with { SelectedMode = mode });
+        var routed = request with { SelectedMode = mode };
+        var result = await router.TranscribeAsync(audio, routed);
         Assert(result.IsSuccess, "the local route failed");
-        return result.Text!;
+        return (result.Text!, router.ApplyLocalVocabularyCorrection(result.Text!, routed));
+    }
+
+    // The router never changes the engine's text, for any engine or row.
+    var everything = new TranscriptionWorkflowRequest(
+        Vocabulary: ["Whisper", "fox", "art"],
+        VocabularyReplacements:
+        [
+            new PortableVocabularyReplacement("fox", "fox terrier"),
+            new PortableVocabularyReplacement("art", "ART"),
+        ]);
+    foreach (var mode in new[] { parakeetMode, whisperMode })
+    {
+        var routed = await Transcribe("hyper wisper fox quarterly art", mode, everything);
+        Assert(routed.Engine == "hyper wisper fox quarterly art",
+            "the router changed the engine's text before the raw transcript was kept");
     }
 
     var whisperWord = new TranscriptionWorkflowRequest(Vocabulary: ["Whisper"]);
-    Assert(await Transcribe("hyper wisper", parakeetMode, whisperWord) == "hyper Whisper",
+    Assert((await Transcribe("hyper wisper", parakeetMode, whisperWord)).Corrected == "hyper Whisper",
         "the phonetic pass did not correct a Parakeet misrecognition");
     // whisper.cpp is this head's equivalent of the macOS providers that skip
     // the phonetic pass, so a misrecognition stays as spoken.
-    Assert(await Transcribe("hyper wisper", whisperMode, whisperWord) == "hyper wisper",
+    Assert((await Transcribe("hyper wisper", whisperMode, whisperWord)).Corrected == "hyper wisper",
         "the phonetic pass ran for an engine that must not get it");
 
-    var cafe = new TranscriptionWorkflowRequest(
-        Vocabulary: ["cafe"],
-        VocabularyReplacements: [new PortableVocabularyReplacement("cafe", "Coffee House")]);
+    // A replacement row is never applied here: the \b pass in
+    // SpeechOutputProcessor is its only place. No inside-word match, no swap.
+    var swaps = new TranscriptionWorkflowRequest(
+        Vocabulary: ["fox", "art", "cafe", "Whisper"],
+        VocabularyReplacements:
+        [
+            new PortableVocabularyReplacement("fox", "fox terrier"),
+            new PortableVocabularyReplacement("art", "ART"),
+            new PortableVocabularyReplacement("cafe", "Coffee House"),
+            new PortableVocabularyReplacement("Whisper", "Dictation"),
+        ]);
     foreach (var mode in new[] { parakeetMode, whisperMode })
-        Assert(await Transcribe("Zoë went to the Café today", mode, cafe) == "Zoë went to the Coffee House today",
-            "the substring pass did not match through an accent");
-
-    // A word with a replacement is the substring pass's row alone. Same word as
-    // the phonetic case above, so the misrecognition stays as spoken while the
-    // literal spelling is still replaced.
-    var replaced = new TranscriptionWorkflowRequest(
-        Vocabulary: ["Whisper"],
-        VocabularyReplacements: [new PortableVocabularyReplacement("Whisper", "Dictation")]);
-    Assert(await Transcribe("hyper wisper", parakeetMode, replaced) == "hyper wisper",
+    {
+        foreach (var spoken in new[] { "the quick brown fox jumps", "the quarterly report", "Zoë went to the Café today", "hyper Whisper" })
+            Assert((await Transcribe(spoken, mode, swaps)).Corrected == spoken,
+                $"the local vocabulary step applied a replacement row to '{spoken}'");
+    }
+    // A word with a replacement never reaches the phonetic matcher either.
+    Assert((await Transcribe("hyper wisper", parakeetMode, swaps)).Corrected == "hyper wisper",
         "a replacement-bearing row reached the phonetic matcher");
-    Assert(await Transcribe("hyper Whisper", parakeetMode, replaced) == "hyper Dictation",
-        "the substring pass did not apply a replacement");
 
-    Assert(await Transcribe("hyper wisper", parakeetMode, new TranscriptionWorkflowRequest()) == "hyper wisper",
+    Assert((await Transcribe("hyper wisper", parakeetMode, new TranscriptionWorkflowRequest())).Corrected == "hyper wisper",
         "an empty vocabulary changed the text");
 
-    // The cloud branch runs neither pass on any platform.
+    // The cloud branch runs no local vocabulary step on any platform.
     using var cloudRouter = new ModeAwareTranscriptionRouter(
         new FakeTranscriber("whisper", available: false),
         new FakeTranscriber("parakeet", available: false),
         new RecordingCloud());
     var cloudMode = new Mode { ProviderType = "cloud", CloudProvider = "openai", CloudTranscriptionModel = "m" };
-    var cloudResult = await cloudRouter.TranscribeAsync(
-        audio, new TranscriptionWorkflowRequest(Vocabulary: ["Cloud"], SelectedMode: cloudMode));
-    Assert(cloudResult.Text == "cloud words", "a cloud transcription reached the local vocabulary passes");
+    var cloudRequest = new TranscriptionWorkflowRequest(Vocabulary: ["Cloud"], SelectedMode: cloudMode);
+    var cloudResult = await cloudRouter.TranscribeAsync(audio, cloudRequest);
+    Assert(cloudResult.Text == "cloud words", "a cloud transcription reached the local vocabulary step");
+    Assert(cloudRouter.ApplyLocalVocabularyCorrection("cloud wurds", cloudRequest) == "cloud wurds",
+        "the local vocabulary step ran for a cloud mode");
 }
 
 static async Task TestParakeetProtocolAsync(string root)

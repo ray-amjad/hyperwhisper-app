@@ -23,7 +23,8 @@ public sealed class SharedCoreBatchCloudClient(CloudTranscriptionService service
 }
 
 /// <summary>Routes one completed audio file using the selected persisted mode.</summary>
-public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, IDisposable
+public sealed class ModeAwareTranscriptionRouter :
+    IRecordedAudioTranscriber, ILocalEngineVocabularyCorrection, IDisposable
 {
     private readonly IRecordedAudioTranscriber _whisper;
     private readonly IRecordedAudioTranscriber _parakeet;
@@ -62,11 +63,12 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
         var mode = request.SelectedMode;
         if (!string.Equals(mode?.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
         {
-            var isParakeet = string.Equals(mode?.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase);
-            var local = isParakeet ? _parakeet : _whisper;
-            var localResult = await local.TranscribeAsync(audioPath, request, cancellationToken)
+            // The engine's own text, untouched: TranscriptionWorkflow keeps it
+            // as the raw transcript, then calls ApplyLocalVocabularyCorrection
+            // below once, then runs the \b replacement pass once (issue #1622).
+            var local = IsParakeet(mode) ? _parakeet : _whisper;
+            return await local.TranscribeAsync(audioPath, request, cancellationToken)
                 .ConfigureAwait(false);
-            return ApplyLocalVocabulary(localResult, request, isParakeet);
         }
 
         if (!TryMapProvider(mode!.CloudProvider, out var provider))
@@ -99,42 +101,46 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
     }
 
     /// <summary>
-    /// The two on-device vocabulary passes, over the raw local engine result
-    /// (issue #283). NEW ON LINUX: this head had no phonetic matching and no
-    /// substring pass at all — <c>grep -rn "Phonetic|BeiderMorse" app/linux
-    /// app/shared-dotnet</c> returned nothing, and the Windows copy lived in
-    /// <c>app/windows</c> where Linux could not reach it.
+    /// The on-device phonetic (Beider-Morse) vocabulary pass over the raw local
+    /// engine text, for parakeet only (issue #283). It corrects a misheard token
+    /// towards a spelling-hint row (a vocabulary row with NO replacement); the
+    /// core skips every row that carries a replacement, so it never applies a
+    /// swap. macOS runs it for Parakeet and Nemotron and NOT for Qwen3-ASR or
+    /// Apple Speech; whisper.cpp is this head's equivalent of the latter, so it
+    /// is gated the same way. A cloud transcription never sees it.
     ///
-    /// This is the LOCAL branch only, which is where macOS and Windows run them:
-    /// inside the on-device provider, over its own raw output, BEFORE the
-    /// pipeline's <c>\b</c>-anchored pass in <c>SpeechOutputProcessor</c>. A
-    /// cloud transcription never sees either pass on any platform.
+    /// <see cref="TranscribeAsync(string, TranscriptionWorkflowRequest, CancellationToken)"/>
+    /// returns the engine's text untouched. <c>TranscriptionWorkflow</c> calls
+    /// this once, AFTER it has kept that text as the raw transcript (the History
+    /// row's <c>TranscribedText</c>), and <c>SpeechOutputProcessor</c> then runs
+    /// its <c>\b</c>-anchored replacement pass once over the result.
     ///
-    /// 1. The phonetic (Beider-Morse) pass, for parakeet only. macOS runs it in
-    ///    ParakeetProvider and NemotronProvider and NOT in Qwen3AsrProvider or
-    ///    AppleSpeechAnalyzerProvider; whisper.cpp is this head's equivalent of
-    ///    the latter, so it is gated the same way.
-    /// 2. The unanchored, diacritic-insensitive substring pass, for every local
-    ///    engine — which is what all four macOS local providers do.
+    /// There used to be a second local pass here, for every local engine: the
+    /// unanchored, diacritic-insensitive <c>ApplySubstringVocabulary</c>, a copy
+    /// of the macOS providers' shape. It is gone (issue #1622, Ray's decision of
+    /// 2026-10-09, as Windows #1596). It matched inside words ("art" -> "ART"
+    /// turned "quarterly" into "quARTerly"), and the \b pass then applied every
+    /// replacement row a second time ("fox" -> "fox terrier" gave
+    /// "fox terrier terrier"). Replacement rows are now applied by the \b pass
+    /// alone, whole words only, as on Whisper.
     /// </summary>
-    private static PortableTranscriptionResult ApplyLocalVocabulary(
-        PortableTranscriptionResult result,
-        TranscriptionWorkflowRequest request,
-        bool isParakeet)
+    public string ApplyLocalVocabularyCorrection(string rawText, TranscriptionWorkflowRequest request)
     {
-        if (!result.IsSuccess) return result;
+        ArgumentNullException.ThrowIfNull(request);
+        var mode = request.SelectedMode;
+        if (string.IsNullOrEmpty(rawText)
+            || string.Equals(mode?.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+            || !IsParakeet(mode))
+            return rawText;
 
         var entries = BuildVocabularyEntries(request);
-        if (entries.Count == 0) return result;
-
-        var text = result.Text!;
-        if (isParakeet) text = SharedCoreBridge.ApplyPhoneticVocabulary(text, entries).Text;
-        text = SharedCoreBridge.ApplySubstringVocabulary(text, entries);
-
-        return string.Equals(text, result.Text, StringComparison.Ordinal)
-            ? result
-            : result with { Text = text };
+        return entries.Count == 0
+            ? rawText
+            : SharedCoreBridge.ApplyPhoneticVocabulary(rawText, entries).Text;
     }
+
+    private static bool IsParakeet(Mode? mode) =>
+        string.Equals(mode?.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Rebuild the whole vocabulary rows — word plus its optional replacement —

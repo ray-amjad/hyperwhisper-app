@@ -512,9 +512,17 @@ public sealed class TranscriptionWorkflow : IDisposable
         {
             operation.Token.ThrowIfCancellationRequested();
             var rawText = result.Text!.Trim();
+            // The local engine's own vocabulary correction (the Parakeet
+            // family's phonetic pass). It runs HERE, once, after rawText is
+            // kept, so the History row's raw transcript is the engine's own
+            // text, as it is for Whisper; it used to run inside the router,
+            // together with an unanchored substring pass, so TranscribedText
+            // already held the swaps and SpeechOutputProcessor's \b pass then
+            // applied every replacement row a second time (issue #1622).
+            var correctedText = ApplyLocalEngineVocabularyCorrection(rawText, request);
             string? postProcessedText = null;
             var (processingInput, postProcessingProvider) =
-                await ApplyPostProcessingAsync(rawText, request, operation.Token).ConfigureAwait(false);
+                await ApplyPostProcessingAsync(correctedText, request, operation.Token).ConfigureAwait(false);
 
             var output = SpeechOutputProcessor.Process(new SpeechOutputProcessingRequest(
                 processingInput,
@@ -606,6 +614,27 @@ public sealed class TranscriptionWorkflow : IDisposable
                 result.Provider,
                 audioPath,
                 deleteOwnedAudioOnTerminalFailure).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Runs the transcriber's local engine vocabulary correction over its raw
+    /// text, when it has one (<see cref="ILocalEngineVocabularyCorrection"/>).
+    /// Every other transcriber gets <paramref name="rawText"/> back. A failure
+    /// degrades to the raw text: a vocabulary pass must never fail a
+    /// transcription that already succeeded.
+    /// </summary>
+    private string ApplyLocalEngineVocabularyCorrection(string rawText, TranscriptionWorkflowRequest request)
+    {
+        if (_transcriber is not ILocalEngineVocabularyCorrection corrector) return rawText;
+        try
+        {
+            var corrected = corrector.ApplyLocalVocabularyCorrection(rawText, request);
+            return string.IsNullOrWhiteSpace(corrected) ? rawText : corrected.Trim();
+        }
+        catch (Exception)
+        {
+            return rawText;
         }
     }
 
