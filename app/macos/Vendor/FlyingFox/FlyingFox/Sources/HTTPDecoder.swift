@@ -36,10 +36,14 @@ struct HTTPDecoder {
 
     var sharedRequestBufferSize: Int
     var sharedRequestReplaySize: Int
+    // HyperWhisper patch (#1463): see HTTPServer.RequestHeadLimits.
+    var requestHeadLimits: HTTPServer.RequestHeadLimits = .unlimited
 
     func decodeRequest(from bytes: some AsyncBufferedSequence<UInt8>) async throws -> HTTPRequest {
-        let status = try await bytes.lines.takeNext()
-        let comps = status
+        // HyperWhisper patch (#1463): the request line and the headers are read
+        // together, in linear time, within the byte limits and the deadline.
+        let head = try await readRequestHead(from: bytes)
+        let comps = head.startLine
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
         guard comps.count == 3 else {
@@ -49,7 +53,7 @@ struct HTTPDecoder {
         let method = HTTPMethod(String(comps[0]))
         let version = HTTPVersion(String(comps[2]))
         let target = makeTarget(from: comps[1])
-        let headers = try await readHeaders(from: bytes)
+        let headers = head.headers
         let body = try await readBody(
             from: bytes,
             contentLength: headers[.contentLength],
@@ -66,7 +70,9 @@ struct HTTPDecoder {
     }
 
     func decodeResponse(from bytes: some AsyncBufferedSequence<UInt8>) async throws -> HTTPResponse {
-        let comps = try await bytes.lines.takeNext()
+        // HyperWhisper patch (#1463): linear head reader, no deadline.
+        let head = try await readHead(from: bytes)
+        let comps = head.startLine
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
         guard comps.count == 3,
@@ -77,7 +83,7 @@ struct HTTPDecoder {
         let version = HTTPVersion(String(comps[0]))
         let statusCode = HTTPStatusCode(code, phrase: String(comps[2]))
 
-        let headers = try await readHeaders(from: bytes)
+        let headers = head.headers
         let body = try await readBody(
             from: bytes,
             contentLength: headers[.contentLength],
@@ -127,12 +133,58 @@ struct HTTPDecoder {
         return (HTTPHeader(name), value)
     }
 
+    // HyperWhisper patch (#1463). Upstream read every line through
+    // `bytes.lines`, whose `CollectUntil` re-checked the whole line's suffix
+    // after each byte: O(n²) per line, with no limit on a line or on the head.
+    // These read each byte once and stop at `requestHeadLimits`.
+
+    struct Head: Sendable {
+        var startLine: String
+        var headers: [HTTPHeader: String]
+    }
+
+    /// Reads a request head within `requestHeadLimits.readTimeout`, when set.
+    func readRequestHead(from bytes: some AsyncBufferedSequence<UInt8>) async throws -> Head {
+        guard let timeout = requestHeadLimits.readTimeout else {
+            return try await readHead(from: bytes)
+        }
+        return try await withThrowingTimeout(seconds: timeout) {
+            try await readHead(from: bytes)
+        }
+    }
+
+    /// The start line and the header lines, through the blank line that ends
+    /// them. Throws `SequenceTerminationError` when the stream ends before the
+    /// first byte, as upstream's `lines.takeNext()` did.
+    func readHead(from bytes: some AsyncBufferedSequence<UInt8>) async throws -> Head {
+        var reader = HeadLineReader(limits: requestHeadLimits)
+        var iterator = bytes.makeAsyncIterator()
+        guard let startLine = try await reader.readLine(from: &iterator) else {
+            throw SequenceTerminationError()
+        }
+        let headers = try await readHeaderLines(from: &iterator, reader: &reader)
+        return Head(startLine: startLine, headers: headers)
+    }
+
     func readHeaders(from bytes: some AsyncBufferedSequence<UInt8>) async throws -> [HTTPHeader : String] {
-        try await bytes
-            .lines
-            .prefix { $0 != "\r" && $0 != "" }
-            .compactMap(readHeader)
-            .reduce(into: [HTTPHeader: String]()) { $0[$1.header] = $1.value }
+        var reader = HeadLineReader(limits: requestHeadLimits)
+        var iterator = bytes.makeAsyncIterator()
+        return try await readHeaderLines(from: &iterator, reader: &reader)
+    }
+
+    /// Same semantics as upstream: stop at an empty line (CRLF or bare LF) or
+    /// at the end of the stream, skip a line with no colon, last value wins.
+    private func readHeaderLines<I: AsyncIteratorProtocol>(
+        from iterator: inout I,
+        reader: inout HeadLineReader
+    ) async throws -> [HTTPHeader: String] where I.Element == UInt8 {
+        var headers = [HTTPHeader: String]()
+        while let line = try await reader.readLine(from: &iterator), line != "\r", line != "" {
+            if let header = readHeader(from: line) {
+                headers[header.header] = header.value
+            }
+        }
+        return headers
     }
 
     func readBody(
@@ -207,6 +259,61 @@ extension HTTPDecoder {
         init(_ description: String) {
             self.errorDescription = description
         }
+    }
+
+    // HyperWhisper patch (#1463): HTTPServer answers this with 431.
+    struct HeadTooLargeError: LocalizedError {
+        var errorDescription: String?
+
+        init(_ description: String) {
+            self.errorDescription = description
+        }
+    }
+}
+
+// HyperWhisper patch (#1463).
+/// Reads the lines of one message head, one byte at a time, counting every
+/// byte against the head limit and each line against the line limit.
+struct HeadLineReader {
+    let maxLineBytes: Int
+    let maxHeadBytes: Int
+    private(set) var headBytes = 0
+
+    init(limits: HTTPServer.RequestHeadLimits) {
+        self.maxLineBytes = limits.maxLineBytes
+        self.maxHeadBytes = limits.maxHeadBytes
+    }
+
+    /// The bytes before the next LF, as a string that keeps a trailing CR
+    /// (upstream's `lines` did the same; callers trim it). The LF is consumed
+    /// and not returned. Returns nil when the stream ends before any byte, and
+    /// the partial line when it ends mid-line.
+    ///
+    /// A line's length is its bytes less one trailing CR, so a line of exactly
+    /// `maxLineBytes` is allowed with or without its CR.
+    mutating func readLine<I: AsyncIteratorProtocol>(
+        from iterator: inout I
+    ) async throws -> String? where I.Element == UInt8 {
+        var line = [UInt8]()
+        var sawByte = false
+        while let byte = try await iterator.next() {
+            sawByte = true
+            headBytes += 1
+            guard headBytes <= maxHeadBytes else {
+                throw HTTPDecoder.HeadTooLargeError("Request head exceeds \(maxHeadBytes) bytes")
+            }
+            if byte == 0x0A { break }
+            line.append(byte)
+            let length = byte == 0x0D ? line.count - 1 : line.count
+            guard length <= maxLineBytes else {
+                throw HTTPDecoder.HeadTooLargeError("Request head line exceeds \(maxLineBytes) bytes")
+            }
+        }
+        guard sawByte else { return nil }
+        guard let string = String(bytes: line, encoding: .utf8) else {
+            throw AsyncSequenceError("Invalid String Conversion")
+        }
+        return string
     }
 }
 

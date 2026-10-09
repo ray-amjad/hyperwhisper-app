@@ -100,6 +100,37 @@ struct HTTPConnection: Sendable {
         try socket.close()
     }
 
+    // HyperWhisper patch (#1463).
+    /// Sends `431 Request Header Fields Too Large` with `Connection: close`,
+    /// then half-closes and briefly drains what the client is still sending, so
+    /// the close that follows does not reset the connection under the 431
+    /// before the client has read it. The caller closes the socket.
+    func refuseHeadTooLarge() async {
+        let response = HTTPResponse(
+            statusCode: .requestHeaderFieldsTooLarge,
+            headers: [.connection: "close"]
+        )
+        do {
+            try await sendResponse(response)
+        } catch {
+            return
+        }
+        #if canImport(Darwin)
+        _ = shutdown(socket.socket.file.rawValue, SHUT_WR)
+        #endif
+        _ = try? await withThrowingTimeout(seconds: Self.lingerSeconds) { [bytes] in
+            var iterator = bytes.makeAsyncIterator()
+            var drained = 0
+            while drained < Self.lingerMaxBytes,
+                  let chunk = try await iterator.nextBuffer(suggested: 4_096) {
+                drained += chunk.count
+            }
+        }
+    }
+
+    static let lingerSeconds: TimeInterval = 1
+    static let lingerMaxBytes = 1_048_576
+
     struct Error: LocalizedError {
         var errorDescription: String?
 

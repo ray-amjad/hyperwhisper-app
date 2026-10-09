@@ -41,20 +41,50 @@ public extension HTTPServer {
         public var sharedRequestReplaySize: Int
         public var pool: any AsyncSocketPool
         public var logger: any Logging
+        // HyperWhisper patch (#1463): bounds on reading a request head.
+        public var requestHeadLimits: RequestHeadLimits
 
         public init(address: some SocketAddress,
                     timeout: TimeInterval = 15,
                     sharedRequestBufferSize: Int = 4_096,
                     sharedRequestReplaySize: Int = 2_097_152,
                     pool: any AsyncSocketPool = HTTPServer.defaultPool(),
-                    logger: any Logging = HTTPServer.defaultLogger()) {
+                    logger: any Logging = HTTPServer.defaultLogger(),
+                    requestHeadLimits: RequestHeadLimits = .unlimited) {
             self.address = address
             self.timeout = timeout
             self.sharedRequestBufferSize = sharedRequestBufferSize
             self.sharedRequestReplaySize = sharedRequestReplaySize
             self.pool = pool
             self.logger = logger
+            self.requestHeadLimits = requestHeadLimits
         }
+    }
+
+    // HyperWhisper patch (#1463).
+    //
+    // Bounds on reading a request head: the request line and the header lines,
+    // up to and including the blank line that ends them. A line is the bytes
+    // before its LF, less one trailing CR. A head that breaks a byte limit is
+    // refused with 431 Request Header Fields Too Large and the connection is
+    // closed. A head that is not complete within `readTimeout` seconds of the
+    // server starting to wait for it gets no answer: the connection is closed
+    // and its task ends. On a keep-alive connection that wait starts after the
+    // previous response, so the timeout is also the idle limit.
+    struct RequestHeadLimits: Sendable, Equatable {
+        public var maxLineBytes: Int
+        public var maxHeadBytes: Int
+        public var readTimeout: TimeInterval?
+
+        public init(maxLineBytes: Int, maxHeadBytes: Int, readTimeout: TimeInterval?) {
+            self.maxLineBytes = maxLineBytes
+            self.maxHeadBytes = maxHeadBytes
+            self.readTimeout = readTimeout
+        }
+
+        /// Upstream FlyingFox behaviour: no byte limits and no deadline. The head
+        /// is still read in linear time.
+        public static let unlimited = RequestHeadLimits(maxLineBytes: .max, maxHeadBytes: .max, readTimeout: nil)
     }
 }
 

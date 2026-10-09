@@ -216,7 +216,11 @@ public final actor HTTPServer {
     private func makeConnection(socket: AsyncSocket) -> HTTPConnection {
         HTTPConnection(
             socket: socket,
-            decoder: HTTPDecoder(sharedRequestBufferSize: config.sharedRequestBufferSize, sharedRequestReplaySize: config.sharedRequestReplaySize),
+            decoder: HTTPDecoder(
+                sharedRequestBufferSize: config.sharedRequestBufferSize,
+                sharedRequestReplaySize: config.sharedRequestReplaySize,
+                requestHeadLimits: config.requestHeadLimits // HyperWhisper patch (#1463)
+            ),
             logger: config.logger
         )
     }
@@ -233,6 +237,10 @@ public final actor HTTPServer {
                 try await request.bodySequence.flushIfNeeded()
                 try await connection.sendResponse(response)
             }
+        } catch let error as HTTPDecoder.HeadTooLargeError {
+            // HyperWhisper patch (#1463): answer 431, then close below.
+            logger.logError(error, on: connection)
+            await connection.refuseHeadTooLarge()
         } catch {
             // TODO: send `400 Bad Request` on `HTTPDecoder.Error` before closing.
             // Closing without a response is RFC 9112 §6.3 #5-compliant for unrecoverable
