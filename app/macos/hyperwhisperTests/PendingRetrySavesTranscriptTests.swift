@@ -1,0 +1,295 @@
+//
+//  PendingRetrySavesTranscriptTests.swift
+//  hyperwhisperTests
+//
+//  Regression cover for issue #1636.
+//
+//  The recording pill's pending-file Retry (offered when the recorded file
+//  could not be read) showed "Pasted!" on success but only set
+//  `lastTranscription`: nothing was pasted or copied, and the failed History
+//  row ("Audio file could not be read") never got the transcript.
+//
+//  The fix: the stop flow's delivery and row write are shared helpers
+//  (`deliverBatchTranscript`, `saveBatchTranscript`) and the retry calls them;
+//  the failed row's id is kept in `AppState.pendingRetryTranscriptID` so the
+//  retry completes that row in place.
+//
+//  `retryTranscriptionFromPendingPath` needs a live `RecordingLifecycle` and a
+//  pipeline, so it cannot run here (see `PendingRetrySupersessionTests`). The
+//  save is tested by calling `savePendingRetryTranscript` on an in-memory
+//  store; the source tests pin that the retry and the stop flow route through
+//  the shared helpers.
+//
+
+import CoreData
+import Foundation
+import Testing
+
+@testable import HyperWhisper
+
+@Suite("A successful pending-file Retry delivers and saves its transcript (#1636)")
+struct PendingRetrySavesTranscriptTests {
+
+    // MARK: - Fixtures
+
+    private struct Row: Sendable {
+        let status: String?
+        let failedReason: String?
+        let text: String?
+        let transcribedText: String?
+        let postProcessedText: String?
+        let transcriptionProvider: String?
+        let audioFilePath: String?
+    }
+
+    /// Every Transcript row, read on a fresh context so it sees what the
+    /// serial writer actually saved.
+    @MainActor
+    private func rows(in persistence: PersistenceController) async -> [Row] {
+        let context = persistence.container.newBackgroundContext()
+        return await context.perform {
+            let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+            let fetched = (try? context.fetch(request)) ?? []
+            return fetched.map { transcript in
+                Row(
+                    status: transcript.value(forKey: "status") as? String,
+                    failedReason: transcript.value(forKey: "failedReason") as? String,
+                    text: transcript.text,
+                    transcribedText: transcript.value(forKey: "transcribedText") as? String,
+                    postProcessedText: transcript.value(forKey: "postProcessedText") as? String,
+                    transcriptionProvider: transcript.value(forKey: "transcriptionProvider") as? String,
+                    audioFilePath: transcript.audioFilePath
+                )
+            }
+        }
+    }
+
+    private static let audioPath = "/tmp/hw-1636-missing-recording.wav"
+
+    /// The row the stop flow writes when the recorded file cannot be read.
+    @MainActor
+    private func makeFailedRow(in persistence: PersistenceController) async throws -> NSManagedObjectID {
+        let id = await persistence.createFailedTranscriptInBackground(
+            duration: 4.2,
+            mode: "LocNemo",
+            audioFilePath: Self.audioPath,
+            failedReason: "Audio file could not be read",
+            errorText: "Error: Audio file could not be read"
+        )
+        return try #require(id)
+    }
+
+    private func makeResult(postProcessed: Bool) -> TranscriptionResult {
+        TranscriptionResult(
+            text: postProcessed ? "The quick brown fox." : "the quick brown fox",
+            rawText: "the quick brown fox",
+            timestamp: Date(),
+            duration: 0,
+            mode: nil,
+            provider: "local",
+            wasPostProcessed: postProcessed,
+            postProcessingProvider: postProcessed ? "openai" : nil
+        )
+    }
+
+    // MARK: - The save
+
+    /// The issue's own sequence: the failed row exists, the retry succeeds.
+    /// That row now holds the transcript and no longer reads as failed.
+    @MainActor
+    @Test func theFailedRowIsCompletedInPlace() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let failedID = try await makeFailedRow(in: persistence)
+
+        let savedID = await RecordingTranscriptionFlow.savePendingRetryTranscript(
+            makeResult(postProcessed: false),
+            failedTranscriptID: failedID,
+            audioURL: URL(fileURLWithPath: Self.audioPath),
+            modeName: "LocNemo",
+            persistence: persistence
+        )
+
+        #expect(savedID == failedID)
+        let all = await rows(in: persistence)
+        #expect(all.count == 1, "the retry added a row instead of completing the failed one")
+        let row = try #require(all.first)
+        #expect(row.status == "completed")
+        #expect(row.failedReason == nil, "History reads any failedReason as failed: \(row.failedReason ?? "")")
+        #expect(row.text == "the quick brown fox")
+        #expect(row.transcribedText == "the quick brown fox")
+        #expect(row.transcriptionProvider == "local")
+        #expect(row.audioFilePath == Self.audioPath)
+    }
+
+    /// The retry saves the same fields a dictation saves: raw text, and the
+    /// post-processed text as the row's text when post-processing ran.
+    @MainActor
+    @Test func aPostProcessedRetrySavesBothTexts() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let failedID = try await makeFailedRow(in: persistence)
+
+        await RecordingTranscriptionFlow.savePendingRetryTranscript(
+            makeResult(postProcessed: true),
+            failedTranscriptID: failedID,
+            audioURL: URL(fileURLWithPath: Self.audioPath),
+            modeName: "LocNemo",
+            persistence: persistence
+        )
+
+        let savedRows = await rows(in: persistence)
+        let row = try #require(savedRows.first)
+        #expect(row.text == "The quick brown fox.")
+        #expect(row.postProcessedText == "The quick brown fox.")
+        #expect(row.transcribedText == "the quick brown fox")
+    }
+
+    /// No failed row (its write failed, or had not landed): the transcript is
+    /// still saved, as a new completed row for the same file.
+    @MainActor
+    @Test func withNoFailedRowANewRowHoldsTheTranscript() async throws {
+        let persistence = PersistenceController(inMemory: true)
+
+        let savedID = await RecordingTranscriptionFlow.savePendingRetryTranscript(
+            makeResult(postProcessed: false),
+            failedTranscriptID: nil,
+            audioURL: URL(fileURLWithPath: Self.audioPath),
+            modeName: "LocNemo",
+            persistence: persistence
+        )
+
+        #expect(savedID != nil)
+        let all = await rows(in: persistence)
+        #expect(all.count == 1)
+        let row = try #require(all.first)
+        #expect(row.status == "completed")
+        #expect(row.text == "the quick brown fox")
+        #expect(row.audioFilePath == Self.audioPath)
+    }
+
+    /// Control: a dictation's own completion (a processing row) does not
+    /// touch `failedReason`, as before.
+    @MainActor
+    @Test func aDictationCompletionLeavesFailedReasonAlone() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let failedID = try await makeFailedRow(in: persistence)
+
+        let saved = await RecordingTranscriptionFlow.saveBatchTranscript(
+            makeResult(postProcessed: false),
+            to: failedID,
+            persistence: persistence
+        )
+
+        #expect(saved)
+        let savedRows = await rows(in: persistence)
+        let row = try #require(savedRows.first)
+        #expect(row.failedReason == "Audio file could not be read")
+    }
+
+    // MARK: - The row id's lifetime
+
+    /// The row id belongs to one pending file. A new file, or none (a new
+    /// dictation, a retry that ended), drops it.
+    @MainActor
+    @Test func theRowIdResetsWhenThePendingFileChanges() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let failedID = try await makeFailedRow(in: persistence)
+        let appState = AppState()
+
+        appState.pendingRetryAudioPath = "/tmp/a.wav"
+        appState.pendingRetryTranscriptID = failedID
+
+        appState.pendingRetryAudioPath = "/tmp/a.wav"
+        #expect(appState.pendingRetryTranscriptID == failedID, "re-setting the same file must keep its row")
+
+        appState.pendingRetryAudioPath = "/tmp/b.wav"
+        #expect(appState.pendingRetryTranscriptID == nil)
+
+        appState.pendingRetryTranscriptID = failedID
+        appState.pendingRetryAudioPath = nil
+        #expect(appState.pendingRetryTranscriptID == nil)
+    }
+
+    // MARK: - Call sites, read from the production source
+
+    private static let errorHandlingPath =
+        "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/RecordingTranscriptionFlow+ErrorHandling.swift"
+    private static let stopPath =
+        "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/RecordingTranscriptionFlow+StopRecording.swift"
+    private static let deliveryPath =
+        "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/RecordingTranscriptionFlow+Delivery.swift"
+
+    /// The retry's success path, from the transcription call to its catch.
+    private static func retrySuccessPath() throws -> String {
+        let body = try ProductionSource.slice(
+            of: errorHandlingPath,
+            from: "private func retryTranscriptionFromPendingPath(",
+            to: "func handleRecordingStartFailure("
+        )
+        guard let call = body.range(of: "transcribeWithDetails("),
+              let catchArm = body[call.upperBound...].range(of: "} catch {") else {
+            throw ProductionSource.Failure.anchorNotFound(anchor: "transcribeWithDetails( … } catch {", file: errorHandlingPath)
+        }
+        return String(body[call.upperBound..<catchArm.lowerBound])
+    }
+
+    /// The bug itself: a success that delivers nothing and saves nothing.
+    @Test func theRetrySuccessDeliversAndSaves() throws {
+        let success = try Self.retrySuccessPath()
+        #expect(success.contains("deliverBatchTranscript("), "the retry no longer delivers: \(success)")
+        #expect(success.contains("savePendingRetryTranscript("), "the retry no longer saves: \(success)")
+        #expect(success.contains("failedTranscriptID: failedTranscriptID"),
+                "the retry no longer completes the failed row: \(success)")
+        #expect(success.contains("appState.pendingRetryTranscriptID"), "\(success)")
+    }
+
+    /// A stale retry must still write nothing (#1276): delivery and the save
+    /// come after the supersede check.
+    @Test func theRetryDeliversOnlyAfterTheSupersedeCheck() throws {
+        let success = try Self.retrySuccessPath()
+        let check = try #require(success.range(of: "isPendingRetrySuperseded(identity)"))
+        for site in ["deliverBatchTranscript(", "savePendingRetryTranscript("] {
+            let at = try #require(success.range(of: site))
+            #expect(check.lowerBound < at.lowerBound, "\(site) is reachable before the supersede check")
+        }
+    }
+
+    /// The stop flow keeps the failed row's id for the retry.
+    @Test func theUnreadableFileBranchKeepsItsRowId() throws {
+        let branch = try ProductionSource.slice(
+            of: Self.stopPath,
+            from: "appState?.pendingRetryAudioPath = audioURL.path",
+            to: "let vadStart = Date()"
+        )
+        #expect(branch.contains("createFailedTranscriptInBackground("), "\(branch)")
+        #expect(branch.contains("pendingRetryTranscriptID = failedTranscriptID"),
+                "the failed row's id is discarded again: \(branch)")
+    }
+
+    /// One delivery and one row write for a dictation and a retry, so the two
+    /// cannot drift apart again.
+    @Test func theStopFlowUsesTheSharedHelpers() throws {
+        let flow = try ProductionSource.slice(
+            of: Self.stopPath,
+            from: "func handleStopRecordingWithTranscription(",
+            to: "static func stageExtras("
+        )
+        #expect(flow.contains("deliverBatchTranscript("), "\(flow)")
+        #expect(flow.contains("Self.saveBatchTranscript("), "\(flow)")
+        #expect(!flow.contains("handleAutoPaste("), "the stop flow pastes on its own again")
+        #expect(!flow.contains("updateTranscriptWithTranscriptionInBackground("),
+                "the stop flow writes the row on its own again")
+    }
+
+    /// "Pasted!" only after a real paste: a failed or disabled delivery marks
+    /// the paste failed, so the pill shows the Copy state instead.
+    @Test func aFailedDeliveryMarksThePasteFailed() throws {
+        let helper = try ProductionSource.slice(
+            of: Self.deliveryPath,
+            from: "func deliverBatchTranscript(",
+            to: "static func saveBatchTranscript("
+        )
+        #expect(helper.contains("autoPasteHandler.handleAutoPaste("), "\(helper)")
+        #expect(helper.components(separatedBy: "appState?.transcriptionPasteFailed = true").count - 1 == 2,
+                "both the failed paste and the auto-paste-off arm must mark the paste failed: \(helper)")
+    }
+}
