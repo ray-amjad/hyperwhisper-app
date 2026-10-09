@@ -124,9 +124,11 @@ class VocabularyProcessor {
             AppLogger.transcription.info(
                 "Phonetic matcher ran with \(result.entryCount, privacy: .public) vocabulary entries")
         }
-        for match in result.matches {
+        // The count only, never the words: a match says what the user dictated,
+        // and `.public` text reaches `log show` and the diagnostics export (#1647).
+        if !result.matches.isEmpty {
             AppLogger.transcription.debug(
-                "Phonetic match: '\(match.token, privacy: .public)' → '\(match.replacement, privacy: .public)'")
+                "Phonetic match: \(result.matches.count, privacy: .public) token(s) corrected")
         }
 
         return result.text

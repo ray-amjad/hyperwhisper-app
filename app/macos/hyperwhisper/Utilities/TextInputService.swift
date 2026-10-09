@@ -185,7 +185,8 @@ final class TextInputService {
             // The actual character is set via keyboardSetUnicodeString
             guard let keyDown = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
                   let keyUp = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) else {
-                logger.warning("⚠️ Failed to create CGEvent for character: \(String(char), privacy: .public)")
+                // No character: it is the user's transcript, one letter per line (#1647).
+                logger.warning("⚠️ Failed to create CGEvent for a character")
                 continue
             }
 
