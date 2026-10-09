@@ -526,7 +526,8 @@ extension RecordingTranscriptionFlow {
                 if let text = screenOCRText {
                     AppLogger.audio.info("Screen OCR captured: \(text.count, privacy: .public) characters")
                     #if DEBUG
-                    AppLogger.audio.debug("Screen OCR content: \(text, privacy: .public)")
+                    // The OCR text is whatever is on the user's screen (#1680).
+                    AppLogger.audio.debug("Screen OCR content: \(text, privacy: .private)")
                     #endif
                 }
             }
