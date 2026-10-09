@@ -164,14 +164,15 @@ extension RecordingTranscriptionFlow {
     /// Saves the same text either way: whatever the stop flow saves, a retry
     /// saves too.
     ///
-    /// - Parameter clearFailedReason: the row was saved as FAILED and a retry
-    ///   is completing it (see `updateTranscriptWithTranscriptionInBackground`).
+    /// - Parameter completesFailedRowByRetry: the row was saved as FAILED and
+    ///   a retry is completing it: clear its failure and count the retry (see
+    ///   `updateTranscriptWithTranscriptionInBackground`).
     /// - Returns: whether the row was found and the write was saved.
     @discardableResult
     static func saveBatchTranscript(
         _ transcriptionResult: TranscriptionResult,
         to transcriptID: NSManagedObjectID,
-        clearFailedReason: Bool = false,
+        completesFailedRowByRetry: Bool = false,
         persistence: PersistenceController = .shared
     ) async -> Bool {
         await persistence.updateTranscriptWithTranscriptionInBackground(
@@ -181,7 +182,7 @@ extension RecordingTranscriptionFlow {
             transcriptionProvider: transcriptionResult.provider,
             postProcessingProvider: transcriptionResult.postProcessingProvider,
             wordTimestampsJSON: transcriptionResult.timestamps?.wordTimestampsJSON(),
-            clearFailedReason: clearFailedReason
+            completesFailedRowByRetry: completesFailedRowByRetry
         )
     }
 
@@ -211,7 +212,7 @@ extension RecordingTranscriptionFlow {
            await saveBatchTranscript(
                transcriptionResult,
                to: failedTranscriptID,
-               clearFailedReason: true,
+               completesFailedRowByRetry: true,
                persistence: persistence
            ) {
             return failedTranscriptID

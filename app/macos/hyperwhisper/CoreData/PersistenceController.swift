@@ -1605,10 +1605,12 @@ class PersistenceController: ObservableObject {
     /// and no view-context `refreshAllObjects()` — the merge notification refreshes
     /// HistoryView, and maintenance is debounced off the hot path.
     ///
-    /// - Parameter clearFailedReason: also clear `failedReason`, for a row that
-    ///   was saved as FAILED and is now completed by a retry (#1636). History
-    ///   reads any non-empty `failedReason` as a failure, so a completed row
-    ///   that kept it would still show as failed. A processing row has none.
+    /// - Parameter completesFailedRowByRetry: the row was saved as FAILED and a
+    ///   retry is completing it (#1636). Clears `failedReason` (History reads
+    ///   any non-empty one as a failure, so a completed row that kept it would
+    ///   still show as failed; a processing row has none) and counts the retry
+    ///   (`retryCount` + 1, `lastRetryDate`) as History's own Retry does
+    ///   (`TranscriptionRetryController`).
     /// - Returns: whether the row was found and the write was saved.
     @discardableResult
     func updateTranscriptWithTranscriptionInBackground(
@@ -1618,7 +1620,7 @@ class PersistenceController: ObservableObject {
         transcriptionProvider: String? = nil,
         postProcessingProvider: String? = nil,
         wordTimestampsJSON: String? = nil,
-        clearFailedReason: Bool = false
+        completesFailedRowByRetry: Bool = false
     ) async -> Bool {
         let result = await performWriteReportingSave { context -> Bool in
             guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
@@ -1628,8 +1630,11 @@ class PersistenceController: ObservableObject {
 
             transcript.text = postProcessedText ?? transcribedText
             transcript.setValue("completed", forKey: "status")
-            if clearFailedReason {
+            if completesFailedRowByRetry {
                 transcript.setValue(nil, forKey: "failedReason")
+                let currentRetryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
+                transcript.setValue(currentRetryCount + 1, forKey: "retryCount")
+                transcript.setValue(Date(), forKey: "lastRetryDate")
             }
             transcript.setValue(transcribedText, forKey: "transcribedText")
             if let postProcessedText {

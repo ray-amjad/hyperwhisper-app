@@ -40,6 +40,8 @@ struct PendingRetrySavesTranscriptTests {
         let postProcessedText: String?
         let transcriptionProvider: String?
         let audioFilePath: String?
+        let retryCount: Int16
+        let lastRetryDate: Date?
     }
 
     /// Every Transcript row, read on a fresh context so it sees what the
@@ -58,7 +60,9 @@ struct PendingRetrySavesTranscriptTests {
                     transcribedText: transcript.value(forKey: "transcribedText") as? String,
                     postProcessedText: transcript.value(forKey: "postProcessedText") as? String,
                     transcriptionProvider: transcript.value(forKey: "transcriptionProvider") as? String,
-                    audioFilePath: transcript.audioFilePath
+                    audioFilePath: transcript.audioFilePath,
+                    retryCount: transcript.value(forKey: "retryCount") as? Int16 ?? 0,
+                    lastRetryDate: transcript.value(forKey: "lastRetryDate") as? Date
                 )
             }
         }
@@ -119,6 +123,30 @@ struct PendingRetrySavesTranscriptTests {
         #expect(row.transcribedText == "the quick brown fox")
         #expect(row.transcriptionProvider == "local")
         #expect(row.audioFilePath == Self.audioPath)
+    }
+
+    /// Review r1: completing the failed row counts as a retry, as History's
+    /// own Retry counts it (`TranscriptionRetryController`): History shows
+    /// "retried N times" from `retryCount`.
+    @MainActor
+    @Test func completingTheFailedRowCountsTheRetry() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let failedID = try await makeFailedRow(in: persistence)
+        let before = Date()
+
+        await RecordingTranscriptionFlow.savePendingRetryTranscript(
+            makeResult(postProcessed: false),
+            failedRowWrite: Task { failedID },
+            audioURL: URL(fileURLWithPath: Self.audioPath),
+            modeName: "LocNemo",
+            persistence: persistence
+        )
+
+        let savedRows = await rows(in: persistence)
+        let row = try #require(savedRows.first)
+        #expect(row.retryCount == 1)
+        let retried = try #require(row.lastRetryDate, "the retry did not record lastRetryDate")
+        #expect(retried >= before.addingTimeInterval(-1))
     }
 
     /// The retry saves the same fields a dictation saves: raw text, and the
@@ -183,6 +211,8 @@ struct PendingRetrySavesTranscriptTests {
         let savedRows = await rows(in: persistence)
         let row = try #require(savedRows.first)
         #expect(row.failedReason == "Audio file could not be read")
+        #expect(row.retryCount == 0, "a dictation's completion is not a retry")
+        #expect(row.lastRetryDate == nil)
     }
 
     /// Review r1: a Retry that finishes before the failed row's write lands
