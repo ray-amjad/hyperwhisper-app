@@ -433,11 +433,15 @@ internal static class ModesEndpoints
     /// Windows streaming is configured globally, so `useStreamingTranscription`
     /// maps to the global Streaming enabled setting instead of a per-mode column.
     /// </summary>
-    private static void ApplyPatch(ModePatchDto patch, Mode mode)
+    internal static void ApplyPatch(ModePatchDto patch, Mode mode)
     {
         if (patch.Name is { } n) mode.Name = n.Trim();
         if (patch.Preset is { } p) mode.Preset = p;
         if (patch.Language is { } l) mode.Language = l;
+        // The engine goes first, because `model` below is routed by it (issue
+        // #1542). A PATCH carrying both `localEngine` and `model` must write the
+        // model into the field of the engine it asks for, as POST already does.
+        if (patch.LocalEngine is { } v19) mode.LocalEngine = v19;
         if (patch.Model is { } m)
         {
             // Reverse the macOS "cloud" sentinel normalization so callers can
@@ -500,7 +504,7 @@ internal static class ModesEndpoints
         if (patch.EnableScreenOcr is { } v16) mode.EnableScreenOCR = v16;
         if (patch.GeminiCustomPrompt is { } v17) mode.GeminiCustomPrompt = string.IsNullOrEmpty(v17) ? null : v17;
         if (patch.CloudPostProcessingModel is { } v18) mode.CloudPostProcessingModel = v18;
-        if (patch.LocalEngine is { } v19) mode.LocalEngine = v19;
+        // An explicit `localParakeetModel` still wins over `model`: it is applied after.
         if (patch.LocalParakeetModel is { } v20) mode.LocalParakeetModel = v20;
         if (patch.LocalPostProcessingModel is { } v21) mode.LocalPostProcessingModel = v21;
         if (patch.CustomVocabulary is { } v22) mode.CustomVocabulary = v22;
