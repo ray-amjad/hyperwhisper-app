@@ -52,7 +52,7 @@ NAudio (MIT), and `silero_vad.onnx` (CC-BY-4.0). No Parakeet weights are bundled
 | ZIPFoundation | MIT | Thomas Zoechling |
 | sentry-cocoa | MIT | Sentry |
 | swift-atomics | Apache-2.0 | Apple |
-| FlyingFox | MIT | Simon Whitty |
+| FlyingFox (patched copy in `app/macos/Vendor/FlyingFox`) | MIT | Simon Whitty |
 | AXSwift | MIT | Tyler Mandry et al. |
 | KeyboardShortcuts | MIT | Sindre Sorhus |
 | KeySender | MIT | Sindre Sorhus |
