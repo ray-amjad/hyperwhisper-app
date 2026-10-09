@@ -637,24 +637,33 @@ class BackupManager: ObservableObject {
             settingsApplied = true
         }
 
-        // Import modes (only when selected AND present)
-        if options.importModes, let modes = backupData.modes {
-            let modeResult = PersistenceController.shared.importModes(modes, resolution: options.modeConflict)
-            modesImported = modeResult.imported
-            modesSkipped = modeResult.skipped
+        // Import modes and vocabulary (each only when selected AND present; vocabulary is
+        // merge only, never a wipe) as ONE store transaction (#1613): a failure part-way
+        // leaves the store as it was, and the user is told instead of shown a summary.
+        let modesToImport = options.importModes ? backupData.modes : nil
+        let vocabToImport = options.importVocabulary ? backupData.vocabulary : nil
+        if modesToImport != nil || vocabToImport != nil {
+            let storeResult: PersistenceController.BackupStoreImportResult
+            do {
+                storeResult = try PersistenceController.shared.importBackupStore(
+                    modes: modesToImport,
+                    modeResolution: options.modeConflict,
+                    vocabulary: vocabToImport,
+                    vocabularyResolution: options.vocabularyConflict
+                )
+            } catch {
+                return storeImportFailureResult(settingsApplied: settingsApplied)
+            }
+            modesImported = storeResult.modesImported
+            modesSkipped = storeResult.modesSkipped
+            vocabImported = storeResult.vocabularyImported
+            vocabSkipped = storeResult.vocabularySkipped
             // Per-mode default model selections live in settings.aiModel — only apply them when
             // the user actually chose to import Settings (and the section is present). Otherwise a
             // modes-only import would silently mutate a settings value the user deselected.
-            if options.importSettings, let aiMap = backupData.settings?.aiModel.defaultModelByMode {
-                applyDefaultModelByMode(aiMap, idRemap: modeResult.idRemap)
+            if modesToImport != nil, options.importSettings, let aiMap = backupData.settings?.aiModel.defaultModelByMode {
+                applyDefaultModelByMode(aiMap, idRemap: storeResult.modeIdRemap)
             }
-        }
-
-        // Import vocabulary (only when selected AND present) — merge only, never a wipe
-        if options.importVocabulary, let vocab = backupData.vocabulary {
-            let vocabResult = PersistenceController.shared.importVocabulary(vocab, resolution: options.vocabularyConflict)
-            vocabImported = vocabResult.imported
-            vocabSkipped = vocabResult.skipped
         }
 
         // Import API keys if present and requested. Success is read off the
@@ -772,15 +781,26 @@ class BackupManager: ObservableObject {
                 source: entry["source"] as? String
             )
         }
-        let vocabResult = PersistenceController.shared.importVocabulary(items, resolution: options.vocabularyConflict)
+        // One store transaction (#1613): all of the vocabulary or none of it.
+        let vocabResult: PersistenceController.BackupStoreImportResult
+        do {
+            vocabResult = try PersistenceController.shared.importBackupStore(
+                modes: nil,
+                modeResolution: options.modeConflict,
+                vocabulary: items,
+                vocabularyResolution: options.vocabularyConflict
+            )
+        } catch {
+            return storeImportFailureResult(settingsApplied: false)
+        }
 
-        AppLogger.settings.info("Vocabulary imported from universal file: \(vocabResult.imported) items, \(vocabResult.skipped) skipped")
+        AppLogger.settings.info("Vocabulary imported from universal file: \(vocabResult.vocabularyImported) items, \(vocabResult.vocabularySkipped) skipped")
 
         return .success(
             modesImported: 0,
             modesSkipped: 0,
-            vocabularyImported: vocabResult.imported,
-            vocabularySkipped: vocabResult.skipped
+            vocabularyImported: vocabResult.vocabularyImported,
+            vocabularySkipped: vocabResult.vocabularySkipped
         )
     }
 
@@ -892,6 +912,8 @@ class BackupManager: ObservableObject {
         }
 
         // 3. MODES (only when selected AND present): DTO -> present-only migrations -> BackupMode.
+        //    Built here, written in step 4 together with the vocabulary.
+        var modesToImport: [BackupMode]?
         if options.importModes, let modeDTOs = dto.modes {
             let backupModes: [BackupMode] = modeDTOs.compactMap { modeDTO in
                 guard let mode = Self.backupMode(fromV2: modeDTO) else {
@@ -917,19 +939,11 @@ class BackupManager: ObservableObject {
                 }
                 return mode
             }
-            let modeResult = PersistenceController.shared.importModes(backupModes, resolution: options.modeConflict)
-            modesImported = modeResult.imported
-            modesSkipped = modeResult.skipped
-
-            // Per-mode default model selections are parked under
-            // platformExtensions.macos.settings.defaultModelByMode in v2 (NOT top-level settings).
-            // Only apply when Settings import was chosen (mirrors the v1 guard).
-            if options.importSettings, let map = Self.defaultModelByModeFromExtensions(dto.platformExtensions) {
-                applyDefaultModelByMode(map, idRemap: modeResult.idRemap)
-            }
+            modesToImport = backupModes
         }
 
         // 4. VOCABULARY (merge only — never a wipe), reusing the existing universal-vocab logic.
+        var vocabToImport: [BackupVocabularyItem]?
         if options.importVocabulary, let vocabArray = topLevel["vocabulary"] as? [[String: Any]] {
             let items: [BackupVocabularyItem] = vocabArray.compactMap { entry in
                 guard let word = entry["word"] as? String,
@@ -944,9 +958,34 @@ class BackupManager: ObservableObject {
                     source: entry["source"] as? String
                 )
             }
-            let vocabResult = PersistenceController.shared.importVocabulary(items, resolution: options.vocabularyConflict)
-            vocabImported = vocabResult.imported
-            vocabSkipped = vocabResult.skipped
+            vocabToImport = items
+        }
+
+        // Steps 3 + 4 are written as ONE store transaction (#1613): a failure part-way
+        // leaves the modes and vocabulary as they were, and the user is told.
+        if modesToImport != nil || vocabToImport != nil {
+            let storeResult: PersistenceController.BackupStoreImportResult
+            do {
+                storeResult = try PersistenceController.shared.importBackupStore(
+                    modes: modesToImport,
+                    modeResolution: options.modeConflict,
+                    vocabulary: vocabToImport,
+                    vocabularyResolution: options.vocabularyConflict
+                )
+            } catch {
+                return storeImportFailureResult(settingsApplied: settingsApplied)
+            }
+            modesImported = storeResult.modesImported
+            modesSkipped = storeResult.modesSkipped
+            vocabImported = storeResult.vocabularyImported
+            vocabSkipped = storeResult.vocabularySkipped
+
+            // Per-mode default model selections are parked under
+            // platformExtensions.macos.settings.defaultModelByMode in v2 (NOT top-level settings).
+            // Only apply when Settings import was chosen (mirrors the v1 guard).
+            if modesToImport != nil, options.importSettings, let map = Self.defaultModelByModeFromExtensions(dto.platformExtensions) {
+                applyDefaultModelByMode(map, idRemap: storeResult.modeIdRemap)
+            }
         }
 
         // 5. API keys + license (reuse the existing flat-lowercase logic + license write).
@@ -1034,6 +1073,37 @@ class BackupManager: ObservableObject {
         result.pendingLocalDownloadModelIds = repairImportedModes ? repairRestoredLocalModes() : []
         result.apiKeysFailedProviders = apiKeysFailedProviders
         return result
+    }
+
+    /// The result when the modes + vocabulary transaction failed and was rolled
+    /// back (#1613). The import stops there: nothing after it (API keys, the
+    /// licence) runs. Settings, applied before the store step, are UserDefaults
+    /// and cannot join the store transaction, so when they were applied the
+    /// result says so rather than claiming nothing changed.
+    private func storeImportFailureResult(settingsApplied: Bool) -> ImportResult {
+        guard settingsApplied else {
+            let message = NSLocalizedString(
+                "settings.backup.import.error.store",
+                value: "The modes and vocabulary could not be saved, so the import was stopped. Nothing was changed.",
+                comment: "Backup import: the modes/vocabulary save failed and was rolled back; nothing was applied"
+            )
+            lastError = message
+            return .failure(message)
+        }
+        let message = NSLocalizedString(
+            "settings.backup.import.error.storeAfterSettings",
+            value: "The settings were applied, but the modes and vocabulary could not be saved and were left as they were. Nothing else was imported.",
+            comment: "Backup import: settings applied, then the modes/vocabulary save failed and was rolled back"
+        )
+        lastError = message
+        return .partialFailure(
+            message,
+            modesImported: 0,
+            modesSkipped: 0,
+            vocabularyImported: 0,
+            vocabularySkipped: 0,
+            apiKeysImported: false
+        )
     }
 
     /// A partial-success message is truthful only when an earlier section made
