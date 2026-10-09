@@ -88,6 +88,98 @@ enum NavigationItem: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Page change gate wiring (issue #1672)
+//
+// An extension here, beside NavigationItem, so the setters of
+// `displayedNavigationItem` and `pageSheetDismissalRequest` stay private to
+// this file. The rules are in `PageChangeGate`.
+
+@MainActor
+extension AppState {
+
+    /// Whether a sheet that a page owns is up on the main window.
+    var mainWindowHasPageSheet: Bool {
+        if let override = pageSheetPresenceOverride { return override() }
+        // The onboarding sheet belongs to MainAppView itself, not to a page,
+        // so a page change does not remove it. Holding the page for it would
+        // only delay onboarding's own page changes.
+        if showOnboarding { return false }
+        return Self.windowHasSwiftUISheet(MainWindowStore.window)
+    }
+
+    /// True when `window` has a sheet attached that SwiftUI presents. An
+    /// AppKit open/save panel run as a sheet (Backup's file picker) is not
+    /// torn down by SwiftUI when the page goes, so it does not hold the page.
+    static func windowHasSwiftUISheet(_ window: NSWindow?) -> Bool {
+        guard let sheet = window?.attachedSheet else { return false }
+        return !(sheet is NSSavePanel)
+    }
+
+    /// Every write to `selectedNavigationItem` comes here (its `didSet`), so
+    /// the menu bar, the sidebar, `navigate(to:)` and every direct write are
+    /// all covered by one rule.
+    func routePageChange(to item: NavigationItem) {
+        switch pageChangeGate.request(item, sheetPresented: mainWindowHasPageSheet) {
+        case .show(let page):
+            // Inside the caller's transaction, so `navigate(to:)` still animates.
+            stopPageChangeWait()
+            displayedNavigationItem = page
+        case .waitForSheet:
+            AppLogger.ui.info("Page change to \(item.rawValue, privacy: .public) waits for the open sheet to close (#1672)")
+            pageSheetDismissalRequest &+= 1
+            startPageChangeWait()
+        case .none:
+            if !pageChangeGate.isWaitingForSheet {
+                stopPageChangeWait()
+            }
+        }
+    }
+
+    /// Checks a held page change. Shows the page once the sheet has gone, or
+    /// once the wait limit has passed.
+    /// - Returns: true while the page is still held.
+    @discardableResult
+    func recheckPendingPageChange(now: Date = Date()) -> Bool {
+        let limitPassed = pageChangeWaitDeadline.map { now >= $0 } ?? true
+        let sheetUp = mainWindowHasPageSheet
+        switch pageChangeGate.recheck(sheetPresented: sheetUp, waitLimitPassed: limitPassed) {
+        case .show(let page):
+            if sheetUp {
+                AppLogger.ui.warning("Page change to \(page.rawValue, privacy: .public) shown with a sheet still up: the sheet did not close in time (#1672)")
+            }
+            stopPageChangeWait()
+            displayedNavigationItem = page
+            return false
+        case .waitForSheet:
+            return true
+        case .none:
+            stopPageChangeWait()
+            return false
+        }
+    }
+
+    /// Polls on later run-loop turns, never inside the update that closed the
+    /// sheet: the page is removed only after AppKit has detached the sheet.
+    private func startPageChangeWait() {
+        guard pageChangeWaitTask == nil else { return }
+        pageChangeWaitDeadline = Date().addingTimeInterval(PageChangeGate.sheetWaitLimit)
+        let interval = UInt64(PageChangeGate.sheetPollInterval * 1_000_000_000)
+        pageChangeWaitTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: interval)
+                guard let self, !Task.isCancelled else { return }
+                if !self.recheckPendingPageChange() { return }
+            }
+        }
+    }
+
+    private func stopPageChangeWait() {
+        pageChangeWaitTask?.cancel()
+        pageChangeWaitTask = nil
+        pageChangeWaitDeadline = nil
+    }
+}
+
 // MARK: - Recording State Enum
 
 /// Represents the different states of the recording process
@@ -284,7 +376,9 @@ class AppState: ObservableObject {
     // @Published creates a publisher that emits when the value changes
     // SwiftUI automatically re-renders views that depend on these values
     
-    /// Currently selected navigation item in the sidebar
+    /// Currently selected navigation item in the sidebar: the page the user or
+    /// the app ASKED FOR. The window shows `displayedNavigationItem`, which
+    /// follows this at once unless a sheet is up (issue #1672).
     @Published var selectedNavigationItem: NavigationItem = .home {
         willSet {
             MainActorHangTrace.shared.recordUIUpdateRequest(
@@ -292,8 +386,32 @@ class AppState: ObservableObject {
                 state: newValue.mainActorUIState
             )
         }
+        didSet { routePageChange(to: selectedNavigationItem) }
     }
-    
+
+    /// The page `MainAppView` shows. It lags `selectedNavigationItem` only
+    /// while the shown page still presents a sheet: removing a page in the
+    /// same update as its open sheet crashes AppKit (issue #1672). See
+    /// `PageChangeGate`.
+    @Published private(set) var displayedNavigationItem: NavigationItem = .home
+
+    /// Bumped when a page change waits for a sheet. Every page that presents
+    /// a sheet or alert closes it on this (`closesPresentationsOnPageChange`).
+    @Published private(set) var pageSheetDismissalRequest: Int = 0
+
+    /// Holds a page change while a sheet closes (issue #1672). Only
+    /// `routePageChange(to:)` and `recheckPendingPageChange(now:)` change it.
+    private(set) var pageChangeGate = PageChangeGate(displayed: .home)
+
+    /// The run-loop poll that shows a held page once the sheet has gone.
+    private var pageChangeWaitTask: Task<Void, Never>?
+
+    /// When the held page stops waiting for the sheet.
+    private var pageChangeWaitDeadline: Date?
+
+    /// Tests set this to stand in for the main window's sheet. nil in the app.
+    var pageSheetPresenceOverride: (() -> Bool)?
+
     /// Current state of the recording process
     @Published var recordingState: RecordingState = .idle {
         willSet {

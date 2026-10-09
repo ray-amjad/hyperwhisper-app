@@ -214,9 +214,12 @@ struct MainAppView: View {
 
     // MARK: - Content View
 
+    /// Switches on the DISPLAYED page, not the selected one: a page that still
+    /// presents a sheet is removed only after its sheet has closed (issue
+    /// #1672, see `PageChangeGate`).
     @ViewBuilder
     private var contentView: some View {
-        switch appState.selectedNavigationItem {
+        switch appState.displayedNavigationItem {
         case .home:
             HomeView()
         case .modes:

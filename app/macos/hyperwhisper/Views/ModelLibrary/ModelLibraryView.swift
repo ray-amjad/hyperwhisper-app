@@ -158,6 +158,8 @@ struct ModelLibraryView: View {
             APIKeysManagerModal()
                 .environmentObject(apiKeys)
                 .environmentObject(cloudHealth)
+                // For its own page-change close (#1672).
+                .environmentObject(appState)
         }
         .sheet(isPresented: $showCustomEndpointSheet, onDismiss: { editingEndpoint = nil }) {
             CustomEndpointSheet(existingEndpoint: editingEndpoint, onSave: { _ in })
@@ -188,6 +190,15 @@ struct ModelLibraryView: View {
             }
         } message: { model in
             Text(model.removalConfirmationMessage())
+        }
+        // Issue #1672: close every sheet and prompt (the API keys manager's
+        // own sheet goes with it) before a page change removes this view.
+        .closesPresentationsOnPageChange {
+            sheetTarget = nil
+            showAPIKeysManager = false
+            showCustomEndpointSheet = false
+            showingModelInUseAlert = false
+            pendingRemoval = nil
         }
     }
 

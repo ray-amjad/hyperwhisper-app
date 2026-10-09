@@ -38,6 +38,12 @@ struct APIKeysManagerModal: View {
                 .environmentObject(apiKeys)
                 .environmentObject(cloudHealth)
         }
+        // Issue #1672: a page change closes this modal; close the key sheet
+        // stacked on it in the same update, so no sheet is left presented by
+        // a view that is going away.
+        .closesPresentationsOnPageChange {
+            sheetTarget = nil
+        }
     }
 
     private var header: some View {
