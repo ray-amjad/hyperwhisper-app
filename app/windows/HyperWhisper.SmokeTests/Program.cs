@@ -16133,6 +16133,98 @@ internal static class Program
                     "the mirror image of the reported bug");
             });
 
+            Run("mode editor: leaving an English-only local model for a cloud source brings the Language row back", () =>
+            {
+                // #1641. AutoSelectEnglishForModel is the only code that shows or hides
+                // LanguagePanel. It ran on a local-model change and at load, but not on
+                // a SOURCE change, so a Parakeet v2 (or Whisper *.en) mode switched to
+                // HyperWhisper Cloud kept the row collapsed and saved Language = "en"
+                // with no control left to change it.
+                //
+                // The combos fill only in OnLoaded, which a console process never
+                // raises, so it is invoked directly. Nothing in it downloads or loads
+                // a model: LoadLocalModels lists the catalog and only checks whether
+                // each file exists, so this holds on a runner with no models.
+                EnsureSmokeApplication();
+
+                // Declared-only and by signature: a base class has an OnLoaded too.
+                var onLoaded = typeof(ModeEditorWindow).GetMethod(
+                    "OnLoaded", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly, null,
+                    new[] { typeof(object), typeof(RoutedEventArgs) }, null)
+                    ?? throw new InvalidOperationException(
+                        "ModeEditorWindow.OnLoaded is gone - this case can no longer fill the editor");
+
+                static string? SelectedLanguage(ModeEditorWindow editor)
+                    => (editor.LanguageCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag?.ToString();
+
+                ModeEditorWindow LoadedEditor(string engine, string modelId)
+                {
+                    var editor = new ModeEditorWindow(new Mode
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "S20 Lang",
+                        ProviderType = "local",
+                        LocalEngine = engine,
+                        LocalParakeetModel = engine == "parakeet" ? modelId : null,
+                        ModelType = engine == "whisper" ? modelId : "base",
+                        CloudProvider = "hyperwhisper",
+                        CloudAccuracyTier = "elevenLabsScribeV2",
+                        Language = "en"
+                    });
+                    onLoaded.Invoke(editor, new object[] { editor, new RoutedEventArgs() });
+
+                    // Precondition: the editor really is on the English-only model.
+                    // An ARM64 runner without the local engine converts the mode to
+                    // Cloud in ConfigureForArchitecture, and this case would then
+                    // pass without exercising the switch at all.
+                    Assert(editor.SourceOnDeviceSegment.IsChecked == true,
+                        $"{engine}:{modelId} did not load as an on-device mode, so the source switch " +
+                        "this case is about never happens");
+                    Assert(editor.LanguagePanel.Visibility == Visibility.Collapsed,
+                        $"{engine}:{modelId} is English-only but the Language row shows at load - the " +
+                        "state #1641 starts from is not reached");
+                    return editor;
+                }
+
+                foreach (var (engine, modelId) in new[] { ("parakeet", "parakeet-v2"), ("whisper", "base.en") })
+                {
+                    foreach (var target in new[] { "hwcloud", "yourprovider" })
+                    {
+                        var editor = LoadedEditor(engine, modelId);
+                        var segment = target == "hwcloud"
+                            ? editor.SourceHwCloudSegment
+                            : editor.SourceYourProviderSegment;
+                        segment.IsChecked = true;
+
+                        Assert(editor.SourceOnDeviceSegment.IsChecked != true,
+                            $"checking {target} left On-device checked - the switch did not happen");
+                        Assert(editor.LanguagePanel.Visibility == Visibility.Visible,
+                            $"{engine}:{modelId} -> {target}: the Language row stayed hidden, so the " +
+                            "cloud mode saves locked to English (#1641)");
+                        Assert(editor.LanguageCombo.IsEnabled,
+                            $"{engine}:{modelId} -> {target}: the Language row shows but is disabled");
+
+                        // The user can now pick another language on the cloud source.
+                        editor.LanguageCombo.SelectedItem = editor.LanguageCombo.Items
+                            .OfType<System.Windows.Controls.ComboBoxItem>()
+                            .FirstOrDefault(item => item.Tag?.ToString() == "ja")
+                            ?? throw new InvalidOperationException(
+                                $"{target}: the language list has no Japanese - this case's pick is stale");
+
+                        // And the reverse direction: back to the English-only model,
+                        // the row hides again and English is forced, as on a model change.
+                        editor.SourceOnDeviceSegment.IsChecked = true;
+                        Assert(editor.LanguagePanel.Visibility == Visibility.Collapsed
+                               && !editor.LanguageCombo.IsEnabled,
+                            $"{target} -> {engine}:{modelId}: the Language row is still offered on an " +
+                            "English-only local model");
+                        Assert(SelectedLanguage(editor) == "en",
+                            $"{target} -> {engine}:{modelId}: language is '{SelectedLanguage(editor)}', not " +
+                            "the English an English-only model can transcribe");
+                    }
+                }
+            });
+
             Run("modes: exactly one default, and its name is fixed", () =>
             {
                 // #536. #535 made the three editors agree that the default mode's
