@@ -150,6 +150,11 @@ public sealed partial class ApplicationLocalApiBackend
     private async Task<string> ConvertForParakeetAsync(string path, Mode? mode, CancellationToken cancellationToken)
     {
         if (_audioImport is null || !IsLocalParakeet(mode) || IsWaveFile(path)) return path;
+        // Refuse a busy workflow BEFORE converting, with the workflow's own busy
+        // result: otherwise a long upload is transcoded alongside live dictation
+        // only to be refused afterwards. The workflow re-checks in
+        // TranscribeFileAsync, which still guards the window between the two.
+        if (_workflow.FileTranscriptionBusyRefusal() is { } busy) ThrowWorkflowFailure(busy);
         var converted = await _audioImport.ImportAsync(path, progress: null, cancellationToken).ConfigureAwait(false);
         if (converted.IsFailure) throw LocalApiSharedFailure.AudioConversionFailure(converted.Error);
         _ = _privateFiles.Delete(path);

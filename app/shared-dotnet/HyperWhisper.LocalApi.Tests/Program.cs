@@ -67,6 +67,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("/recordings filters, counts and pages in SQL with the old match rule", () => InTokyo(RecordingsQueryRunsInSql))
     ,("/recordings reads since and until as UTC in every time zone", () => InTokyo(RecordingsSinceUntilAreUtc))
     ,("a non-WAV upload to a Parakeet mode reaches the daemon as a WAV whose wait scales", ParakeetNonWaveUploadIsConverted)
+    ,("a busy workflow refuses a Parakeet upload before converting it", ParakeetUploadRefusedBusyBeforeConversion)
 };
 foreach (var test in tests)
 {
@@ -1311,6 +1312,51 @@ static async Task ParakeetNonWaveUploadIsConverted()
         }
     }
     finally { Directory.Delete(sourceDirectory, recursive: true); }
+}
+
+/// <summary>
+/// While dictation records, an MP3 to a Parakeet mode is refused busy at once,
+/// with the same answer the workflow gives, and ffmpeg never runs (#1572 review).
+/// </summary>
+/// <remarks>
+/// The expected answer is measured, not written down: the same busy workflow is
+/// asked through a backend with NO converter, which is exactly the pre-#1572
+/// path, and the two refusals must match field for field.
+/// </remarks>
+static async Task ParakeetUploadRefusedBusyBeforeConversion()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var transcriber = new WaveProbeTranscriber();
+    using var workflow = new TranscriptionWorkflow(new TestRecorder(paths), new TestDevices(), transcriber, history);
+    workflow.RefreshDevices();
+    var started = await workflow.StartRecordingAsync(CancellationToken.None);
+    Assert(started.IsSuccess && workflow.Snapshot.State == TranscriptionWorkflowState.Recording, "the workflow did not start recording");
+
+    static AudioUpload Mp3() => new("meeting.mp3", "audio/mpeg", new byte[] { 0xFF, 0xFB, 0x90, 0x64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, null, "parakeet", null, "en");
+    var unconverted = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    var expected = await AssertThrowsAsync<LocalApiFailureException>(() => unconverted.TranscribeAsync(Mp3(), CancellationToken.None).AsTask());
+
+    var normalizer = new FakeWaveNormalizer();
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+        audioImport: new DurableAudioImportService(new DiskPrivateFiles(), paths, normalizer: normalizer));
+    var busy = await AssertThrowsAsync<LocalApiFailureException>(() => backend.TranscribeAsync(Mp3(), CancellationToken.None).AsTask());
+    Assert(busy.Code == expected.Code && busy.HttpStatus == expected.HttpStatus && busy.Message == expected.Message && busy.Hint == expected.Hint,
+        $"the busy refusal changed: {busy.Code} {busy.HttpStatus} '{busy.Message}' vs {expected.Code} {expected.HttpStatus} '{expected.Message}'");
+    Assert(normalizer.Calls == 0, "a busy workflow still converted the upload");
+    Assert(transcriber.Path is null, "a busy workflow still transcribed");
+    Assert(workflow.Snapshot.State == TranscriptionWorkflowState.Recording, "the busy refusal disturbed the running recording");
+    Assert(!Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Any(), "a busy refusal left the staged upload behind");
+
+    // Once the workflow is idle the same upload converts as before.
+    await workflow.CancelAsync();
+    var result = await backend.TranscribeAsync(Mp3(), CancellationToken.None);
+    Assert(result.Text == "probed" && normalizer.Calls == 1 && transcriber.Path is not null
+        && Path.GetFileName(transcriber.Path).StartsWith("import-", StringComparison.Ordinal),
+        $"an idle workflow did not convert the upload: {normalizer.Calls} {transcriber.Path}");
 }
 
 static async Task ApplicationBackendErrors()
@@ -3043,6 +3089,24 @@ sealed class BlockingNormalizer : HyperWhisper.AudioNormalization.IAudioNormaliz
         Started.TrySetResult();
         await Task.Delay(Timeout.Infinite, cancellationToken);
         throw new InvalidOperationException("unreachable");
+    }
+}
+
+/// <summary>Counts its calls and writes a tiny owner-only WAV, so no ffmpeg runs.</summary>
+sealed class FakeWaveNormalizer : HyperWhisper.AudioNormalization.IAudioNormalizationService
+{
+    public int Calls { get; private set; }
+    public Task<PlatformResult<string>> NormalizeAsync(
+        string sourcePath, string destinationDirectory,
+        IProgress<HyperWhisper.AudioNormalization.AudioNormalizationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        var wave = new byte[44 + 320];
+        "RIFF"u8.CopyTo(wave); "WAVE"u8.CopyTo(wave.AsSpan(8));
+        var path = Path.Combine(destinationDirectory, $"import-{Guid.NewGuid():N}.wav");
+        new DiskPrivateFiles().WriteAllBytesAtomically(path, wave);
+        return Task.FromResult(PlatformResult<string>.Success(path));
     }
 }
 
