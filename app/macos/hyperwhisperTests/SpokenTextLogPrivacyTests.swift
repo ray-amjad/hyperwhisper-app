@@ -79,4 +79,18 @@ struct SpokenTextLogPrivacyTests {
         #expect(!body.contains("errorMessage, privacy: .public"), "the message can carry an upstream error body")
         #expect(body.contains("statusCode, privacy: .public"), "the status code stays")
     }
+
+    // #1669 sibling: that 5xx message is thrown as `serverError(message:)`, and
+    // the Cloud post-process catch logs the error's description, which holds it.
+    @Test func aCloudPostProcessFailureDescriptionIsNotPublic() throws {
+        let body = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/PostProcessing/AIPostProcessor.swift",
+            from: "try self.handleHyperWhisperCloudError(statusCode: httpResponse.statusCode, data: data)",
+            to: "private func handleHyperWhisperCloudError(statusCode: Int, data: Data) throws {"
+        )
+        #expect(body.contains("HyperWhisper Cloud post-processing failed"))
+        #expect(!body.contains("localizedDescription, privacy: .public"), "a serverError description carries the server message")
+        #expect(body.contains("localizedDescription, privacy: .private"))
+        #expect(body.contains("serverStatus, privacy: .public"), "the status code stays")
+    }
 }

@@ -1241,7 +1241,15 @@ class AIPostProcessor: ObservableObject {
             }
         } catch {
             // FALLBACK: Return original text on failure
-            AppLogger.transcription.error("HyperWhisper Cloud post-processing failed: \(error.localizedDescription, privacy: .public)")
+            // A 5xx `serverError` carries the Cloud's `message`, which can hold an
+            // upstream provider's error body that echoes the transcript (#1669).
+            // The error's identity and status are public; its description is private.
+            let nsError = error as NSError
+            var serverStatus = "none"
+            if case .serverError(let statusCode, _)? = error as? TranscriptionError {
+                serverStatus = String(statusCode)
+            }
+            AppLogger.transcription.error("HyperWhisper Cloud post-processing failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · serverStatus=\(serverStatus, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
 
             // NOTIFY USER of actionable credential errors (can be fixed in Settings)
             if let transcriptionError = error as? TranscriptionError,
