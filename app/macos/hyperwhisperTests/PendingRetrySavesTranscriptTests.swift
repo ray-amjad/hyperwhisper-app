@@ -42,6 +42,23 @@ final class DiagPersistence1653: PersistenceController {
             throw error
         }
     }
+    override func performWriteRequiringSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T?) async -> T? {
+        await super.performWriteRequiringSave { [weak self] context in
+            let value = block(context)
+            if value == nil {
+                let coordinatorModel = context.persistentStoreCoordinator?.managedObjectModel
+                var detail = "DIAG blockReturnedNil inserted=\(context.insertedObjects.count)"
+                for object in context.insertedObjects {
+                    detail += " entity=\(object.entity.name ?? "?") sameModelAsCoordinator=\(object.entity.managedObjectModel === coordinatorModel)"
+                    do { try context.obtainPermanentIDs(for: [object]) } catch { detail += " permIDError=\(error)" }
+                }
+                let classEntity = Transcript.entity()
+                detail += " classEntitySameModel=\(classEntity.managedObjectModel === coordinatorModel)"
+                self?.lock.lock(); self?.errors.append(String(detail.prefix(3000))); self?.lock.unlock()
+            }
+            return value
+        }
+    }
     func recordErrors(_ site: String) {
         for e in saveErrors { Issue.record(Comment(rawValue: site + " " + e)) }
     }
@@ -274,6 +291,7 @@ struct PendingRetrySavesTranscriptTests {
         release.finish()
         let savedID = await save.value
         let failedID = await failedRowWrite.value
+        if failedID == nil { (persistence as? DiagPersistence1653)?.recordErrors("retryBeforeRow") }
 
         #expect(savedID != nil)
         #expect(savedID == failedID, "the retry did not complete the failed row")
