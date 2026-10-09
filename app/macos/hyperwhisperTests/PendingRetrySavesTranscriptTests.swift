@@ -253,6 +253,47 @@ struct PendingRetrySavesTranscriptTests {
         }
     }
 
+    private static let startPath =
+        "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/RecordingTranscriptionFlow+StartRecording.swift"
+
+    /// A Retry is a new delivery (review r1): it pastes where the user is at
+    /// the click, not into the app that was frontmost when the failed
+    /// recording began, and it captures the target the same way a recording
+    /// start does.
+    @Test func theRetryCapturesThePasteTargetAtTheClick() throws {
+        let click = try ProductionSource.slice(
+            of: Self.errorHandlingPath,
+            from: "func retryPendingFile(",
+            to: "private func isPendingRetrySuperseded("
+        )
+        #expect(click.contains("capturePasteTarget()"), "the Retry pastes into the old recording's app: \(click)")
+
+        let start = try ProductionSource.slice(
+            of: Self.startPath,
+            from: "appState?.lastDeliveryWasQuickCapture = false",
+            to: "if appState?.isStreamingShortcutTriggered == true {"
+        )
+        #expect(start.contains("capturePasteTarget()"),
+                "a recording start no longer shares the Retry's paste-target capture: \(start)")
+    }
+
+    /// The paste's clipboard restore writes back a snapshot taken for THIS
+    /// Retry, before the request, not the failed recording's (review r1).
+    @Test func theRetryTakesAFreshClipboardSnapshotBeforeTheRequest() throws {
+        let body = try ProductionSource.slice(
+            of: Self.errorHandlingPath,
+            from: "private func retryTranscriptionFromPendingPath(",
+            to: "func handleRecordingStartFailure("
+        )
+        let snapshot = try #require(body.range(of: "AccessibilityHelper.shared.startRecordingSession()"),
+                                    "the Retry restores the failed recording's clipboard snapshot")
+        let request = try #require(body.range(of: "transcribeWithDetails("))
+        #expect(snapshot.lowerBound < request.lowerBound, "the snapshot is taken after the request")
+        let modeGate = try #require(body.range(of: "guard let transcriptionMode = resolvedMode"))
+        #expect(modeGate.lowerBound < snapshot.lowerBound,
+                "the mode-picker exit sends nothing and must not take the clipboard snapshot")
+    }
+
     /// The stop flow keeps the failed row's id for the retry.
     @Test func theUnreadableFileBranchKeepsItsRowId() throws {
         let branch = try ProductionSource.slice(

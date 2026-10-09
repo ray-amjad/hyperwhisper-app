@@ -32,6 +32,12 @@ extension RecordingTranscriptionFlow {
         guard let appState = appState else { return }
         appState.pendingRetryNeedsModePick = false
         let identity = PendingRetryIdentity(sessionGeneration: appState.beginTranscriptionSession())
+        // #1636: a Retry is a new delivery. Paste where the user is at the
+        // click, as a recording start does, not into the app that was
+        // frontmost when the failed recording began (minutes ago, maybe).
+        // The pill is a non-activating panel, so the click leaves that app
+        // frontmost.
+        capturePasteTarget()
         toggleTask = Task {
             await retryTranscriptionFromPendingPath(identity: identity, pickedMode: pickedMode)
         }
@@ -126,6 +132,17 @@ extension RecordingTranscriptionFlow {
             }
             return
         }
+
+        // #1636: the clipboard snapshot the paste's restore writes back, taken
+        // now, as a recording start takes it. The failed recording's snapshot
+        // is as old as that recording: restoring it would overwrite anything
+        // the user copied since. Only here, once a request will be sent: the
+        // exits above paste nothing.
+        await AccessibilityHelper.shared.startRecordingSession()
+
+        // The clipboard read suspends (up to 1 s); a newer flow may own the
+        // dialog now, and took its own snapshot.
+        guard !isPendingRetrySuperseded(identity) else { return }
 
         await MainActor.run {
             appState.recordingState = .transcribing
