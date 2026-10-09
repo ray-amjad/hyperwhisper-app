@@ -1262,7 +1262,9 @@ class AIPostProcessor: ObservableObject {
         if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let errorMessage = errorJson["message"] as? String ?? errorJson["error"] as? String {
 
-            AppLogger.network.error("HyperWhisper Cloud API error · message=\(errorMessage, privacy: .public)")
+            // A failed upstream LLM call's message can carry that provider's
+            // error body, which can echo the transcript (#1669).
+            AppLogger.network.error("HyperWhisper Cloud API error · messageLen=\(errorMessage.count, privacy: .public) · message=\(errorMessage, privacy: .private)")
 
             switch statusCode {
             case 402:
@@ -1455,7 +1457,10 @@ class AIPostProcessor: ObservableObject {
 
                 // Handle error responses
                 let responseString = String(data: data, encoding: .utf8) ?? "No response body"
-                AppLogger.network.error("Custom endpoint HTTP error \(httpResponse.statusCode, privacy: .public): \(responseString.prefix(200), privacy: .public)")
+                // The body is server text that can echo the request, and the
+                // request holds the transcript (#1669): length public, body private.
+                let preview = responseString.prefix(200)
+                AppLogger.network.error("Custom endpoint HTTP error \(httpResponse.statusCode, privacy: .public) · bodyLen=\(responseString.count, privacy: .public) · bodyPreview=\(preview, privacy: .private)")
 
                 switch httpResponse.statusCode {
                 case 401, 403:
