@@ -105,7 +105,7 @@ const MUTANTS = [
     file: RATE,
     name: "change the credits-per-minute rate",
     from: "export const CREDITS_PER_MINUTE = 1.67;",
-    to: "const CREDITS_PER_MINUTE = 1.6667;",
+    to: "export const CREDITS_PER_MINUTE = 1.6667;",
   },
   {
     file: CUSTOMER,
