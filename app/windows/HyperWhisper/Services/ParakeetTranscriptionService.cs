@@ -942,7 +942,19 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                 if (line == null)
                 {
                     LoggingService.Error("ParakeetTranscriptionService: Daemon closed stdout before sending READY");
+                    var earlyExitCode = TryGetEarlyExitCode(process);
                     KillDaemonProcess(process);
+
+                    // The daemon died while loading the model: a damaged ONNX file
+                    // exits it with 0xC0000409 before READY (#1598). Mark the model
+                    // broken so it stops counting as installed and Model Library
+                    // offers it for download again (the only way out for Qwen3,
+                    // whose file sizes are not pinned). A daemon that could not even
+                    // load its own DLLs is not the model's fault, so it is left alone.
+                    if (earlyExitCode is not { } code || !IsRuntimeStartExitCode(code))
+                    {
+                        LocalModelHealth.MarkBroken(modelDirectory, "Parakeet engine exited before READY");
+                    }
                     throw new TranscriptionException(
                         TranscriptionErrorCode.DaemonStartFailed,
                         "Parakeet daemon closed stdout before sending READY signal",
@@ -1729,6 +1741,32 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// Used during timeout and error recovery scenarios.
     /// </summary>
     private void KillDaemonProcess() => KillDaemonProcess(_daemonProcess);
+
+    /// <summary>
+    /// The exit code of a daemon that closed stdout before READY, once it has
+    /// exited (waits up to 1 s), or null when it is still running or unreadable.
+    /// </summary>
+    private static int? TryGetEarlyExitCode(Process? process)
+    {
+        try
+        {
+            if (process == null) return null;
+            return process.WaitForExit(1000) ? process.ExitCode : null;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// True for the NTSTATUS exit codes of a process the loader could not start
+    /// (#1598): a missing DLL (0xC0000135), a wrong-architecture image
+    /// (0xC000007B) or a missing entry point (0xC0000139). Those are the engine
+    /// install's fault, not the model's, so they must not mark the model broken.
+    /// </summary>
+    internal static bool IsRuntimeStartExitCode(int exitCode) =>
+        unchecked((uint)exitCode) is 0xC0000135 or 0xC000007B or 0xC0000139;
 
     private static void KillDaemonProcess(Process? process)
     {

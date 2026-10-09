@@ -338,6 +338,26 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     }
 
     /// <summary>
+    /// True when a <see cref="WhisperModelLoadException"/> is about the model
+    /// file, not the native runtime (#1598). A missing or wrong-architecture
+    /// whisper DLL raises the same exception with a DllNotFoundException or
+    /// BadImageFormatException inside it; a new download cannot fix that, so it
+    /// must not mark the model broken.
+    /// </summary>
+    internal static bool IsModelFileLoadFault(Exception ex)
+    {
+        for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)
+        {
+            if (inner is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Releases the loaded Whisper model so a different model can be loaded
     /// without disposing the service. Waits for any in-flight transcription
     /// to finish (no AV/crash on concurrent /transcribe). After this returns,
@@ -564,6 +584,15 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 LoggingService.LogRuntimesDirectory();
                 LoggingService.LogLoadedAssemblies("Whisper");
                 LoggingService.Error("========== END MODEL LOAD FAILURE ==========");
+
+                // Whisper.net loads the file lazily here, not in InitializeAsync, so a
+                // damaged file showed "Ready" and failed every transcription with no
+                // in-app way out (#1598). Mark it broken: it then counts as not
+                // installed, and Model Library offers it for download again.
+                if (IsModelFileLoadFault(ex))
+                {
+                    LocalModelHealth.MarkBroken(LoadedModelPath, "Whisper model failed to load");
+                }
 
                 arm64Factory?.Dispose();
                 throw;
