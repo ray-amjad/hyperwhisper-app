@@ -16147,8 +16147,10 @@ internal static class Program
                 // each file exists, so this holds on a runner with no models.
                 EnsureSmokeApplication();
 
+                // Declared-only and by signature: a base class has an OnLoaded too.
                 var onLoaded = typeof(ModeEditorWindow).GetMethod(
-                    "OnLoaded", BindingFlags.Instance | BindingFlags.NonPublic)
+                    "OnLoaded", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly, null,
+                    new[] { typeof(object), typeof(RoutedEventArgs) }, null)
                     ?? throw new InvalidOperationException(
                         "ModeEditorWindow.OnLoaded is gone - this case can no longer fill the editor");
 
