@@ -14187,6 +14187,59 @@ internal static class Program
                 Assert(whisper.CloudProvider is null, "CloudProvider must be cleared");
             });
 
+            Run("Local API PATCH /modes (#1542): model is routed by the engine the same PATCH asks for", () =>
+            {
+                // POST /modes {model:"small"} leaves a local Whisper mode like this one.
+                Mode WhisperSmall() => new()
+                {
+                    ProviderType = "local",
+                    LocalEngine = "whisper",
+                    ModelType = "small",
+                    Model = "small",
+                };
+
+                // Whisper -> Parakeet with model in ONE PATCH: the Parakeet field the
+                // GUI reads gets the id, and ModelType keeps the prior Whisper model.
+                var toParakeet = WhisperSmall();
+                ModesEndpoints.ApplyPatch(new ModePatchDto { LocalEngine = "parakeet", Model = "parakeet-v2" }, toParakeet);
+                Assert(toParakeet.LocalEngine == "parakeet", $"engine must be parakeet, got \"{toParakeet.LocalEngine}\"");
+                Assert(toParakeet.LocalParakeetModel == "parakeet-v2",
+                    $"localParakeetModel must be parakeet-v2, got \"{toParakeet.LocalParakeetModel}\"");
+                Assert(toParakeet.ModelType == "small",
+                    $"a Parakeet id must not land in ModelType, got \"{toParakeet.ModelType}\"");
+
+                // Parakeet -> Whisper with model in ONE PATCH (the issue's step 3):
+                // base lands in ModelType, not in LocalParakeetModel.
+                var toWhisper = toParakeet;
+                ModesEndpoints.ApplyPatch(new ModePatchDto { LocalEngine = "whisper", Model = "base" }, toWhisper);
+                Assert(toWhisper.LocalEngine == "whisper", $"engine must be whisper, got \"{toWhisper.LocalEngine}\"");
+                Assert(toWhisper.ModelType == "base",
+                    $"the Whisper model the caller sent must land in ModelType, got \"{toWhisper.ModelType}\"");
+                Assert(toWhisper.LocalParakeetModel == "parakeet-v2",
+                    $"a Whisper id must not land in localParakeetModel, got \"{toWhisper.LocalParakeetModel}\"");
+                Assert(ModesEndpoints.ToDto(toWhisper).Model == "base",
+                    $"GET /modes must report base, got \"{ModesEndpoints.ToDto(toWhisper).Model}\"");
+
+                // The two-PATCH split keeps working in both directions.
+                var split = WhisperSmall();
+                ModesEndpoints.ApplyPatch(new ModePatchDto { LocalEngine = "parakeet" }, split);
+                ModesEndpoints.ApplyPatch(new ModePatchDto { Model = "parakeet-v2" }, split);
+                Assert(split.LocalParakeetModel == "parakeet-v2" && split.ModelType == "small",
+                    $"split to Parakeet: got localParakeetModel \"{split.LocalParakeetModel}\", ModelType \"{split.ModelType}\"");
+                ModesEndpoints.ApplyPatch(new ModePatchDto { LocalEngine = "whisper" }, split);
+                ModesEndpoints.ApplyPatch(new ModePatchDto { Model = "base" }, split);
+                Assert(split.ModelType == "base" && split.LocalParakeetModel == "parakeet-v2",
+                    $"split to Whisper: got ModelType \"{split.ModelType}\", localParakeetModel \"{split.LocalParakeetModel}\"");
+
+                // An explicit localParakeetModel in the same PATCH still wins over model.
+                var explicitParakeet = WhisperSmall();
+                ModesEndpoints.ApplyPatch(
+                    new ModePatchDto { LocalEngine = "parakeet", Model = "parakeet-v2", LocalParakeetModel = "parakeet-v3" },
+                    explicitParakeet);
+                Assert(explicitParakeet.LocalParakeetModel == "parakeet-v3",
+                    $"an explicit localParakeetModel must win, got \"{explicitParakeet.LocalParakeetModel}\"");
+            });
+
             Run("backup export (#1477): an On-device mode switched back to Cloud exports model cloud", () =>
             {
                 // Saved On-device (Model now holds the local id), then a later save
