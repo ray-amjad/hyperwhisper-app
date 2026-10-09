@@ -639,7 +639,9 @@ class BackupManager: ObservableObject {
 
         // Import modes and vocabulary (each only when selected AND present; vocabulary is
         // merge only, never a wipe) as ONE store transaction (#1613): a failure part-way
-        // leaves the store as it was, and the user is told instead of shown a summary.
+        // leaves the store as it was. The API-key and licence steps below still run, as
+        // they always did; the result then reports the failure instead of a summary.
+        var storeImportFailed = false
         let modesToImport = options.importModes ? backupData.modes : nil
         let vocabToImport = options.importVocabulary ? backupData.vocabulary : nil
         if modesToImport != nil || vocabToImport != nil {
@@ -652,7 +654,8 @@ class BackupManager: ObservableObject {
                     vocabularyResolution: options.vocabularyConflict
                 )
             } catch {
-                return storeImportFailureResult(settingsApplied: settingsApplied)
+                storeImportFailed = true
+                storeResult = PersistenceController.BackupStoreImportResult()
             }
             modesImported = storeResult.modesImported
             modesSkipped = storeResult.modesSkipped
@@ -661,7 +664,7 @@ class BackupManager: ObservableObject {
             // Per-mode default model selections live in settings.aiModel — only apply them when
             // the user actually chose to import Settings (and the section is present). Otherwise a
             // modes-only import would silently mutate a settings value the user deselected.
-            if modesToImport != nil, options.importSettings, let aiMap = backupData.settings?.aiModel.defaultModelByMode {
+            if !storeImportFailed, modesToImport != nil, options.importSettings, let aiMap = backupData.settings?.aiModel.defaultModelByMode {
                 applyDefaultModelByMode(aiMap, idRemap: storeResult.modeIdRemap)
             }
         }
@@ -709,6 +712,16 @@ class BackupManager: ObservableObject {
         // capable hardware) collect cataloged-but-undownloaded models to offer a
         // batched re-download. Only when modes were actually imported.
         let pendingLocalDownloads = options.importModes ? repairRestoredLocalModes() : []
+
+        if storeImportFailed {
+            return storeImportFailureResult(
+                settingsApplied: settingsApplied,
+                apiKeysImported: apiKeysImported,
+                licenseKeyImported: licenseKeyImported,
+                apiKeysFailedProviders: apiKeysFailedProviders,
+                pendingLocalDownloads: pendingLocalDownloads
+            )
+        }
 
         var result = ImportResult.success(
             modesImported: modesImported,
@@ -791,7 +804,13 @@ class BackupManager: ObservableObject {
                 vocabularyResolution: options.vocabularyConflict
             )
         } catch {
-            return storeImportFailureResult(settingsApplied: false)
+            return storeImportFailureResult(
+                settingsApplied: false,
+                apiKeysImported: false,
+                licenseKeyImported: false,
+                apiKeysFailedProviders: [],
+                pendingLocalDownloads: []
+            )
         }
 
         AppLogger.settings.info("Vocabulary imported from universal file: \(vocabResult.vocabularyImported) items, \(vocabResult.vocabularySkipped) skipped")
@@ -962,7 +981,9 @@ class BackupManager: ObservableObject {
         }
 
         // Steps 3 + 4 are written as ONE store transaction (#1613): a failure part-way
-        // leaves the modes and vocabulary as they were, and the user is told.
+        // leaves the modes and vocabulary as they were. Step 5 still runs, as it always
+        // did; the result then reports the failure instead of a summary.
+        var storeImportFailed = false
         if modesToImport != nil || vocabToImport != nil {
             let storeResult: PersistenceController.BackupStoreImportResult
             do {
@@ -973,7 +994,8 @@ class BackupManager: ObservableObject {
                     vocabularyResolution: options.vocabularyConflict
                 )
             } catch {
-                return storeImportFailureResult(settingsApplied: settingsApplied)
+                storeImportFailed = true
+                storeResult = PersistenceController.BackupStoreImportResult()
             }
             modesImported = storeResult.modesImported
             modesSkipped = storeResult.modesSkipped
@@ -983,7 +1005,7 @@ class BackupManager: ObservableObject {
             // Per-mode default model selections are parked under
             // platformExtensions.macos.settings.defaultModelByMode in v2 (NOT top-level settings).
             // Only apply when Settings import was chosen (mirrors the v1 guard).
-            if modesToImport != nil, options.importSettings, let map = Self.defaultModelByModeFromExtensions(dto.platformExtensions) {
+            if !storeImportFailed, modesToImport != nil, options.importSettings, let map = Self.defaultModelByModeFromExtensions(dto.platformExtensions) {
                 applyDefaultModelByMode(map, idRemap: storeResult.modeIdRemap)
             }
         }
@@ -1027,6 +1049,16 @@ class BackupManager: ObservableObject {
 
         // Post-restore local-mode repair + re-download collection (see v1 path).
         let pendingLocalDownloads = options.importModes ? repairRestoredLocalModes() : []
+
+        if storeImportFailed {
+            return storeImportFailureResult(
+                settingsApplied: settingsApplied,
+                apiKeysImported: apiKeysImported,
+                licenseKeyImported: licenseKeyImported,
+                apiKeysFailedProviders: apiKeysFailedProviders,
+                pendingLocalDownloads: pendingLocalDownloads
+            )
+        }
 
         var result = ImportResult.success(
             modesImported: modesImported,
@@ -1076,34 +1108,58 @@ class BackupManager: ObservableObject {
     }
 
     /// The result when the modes + vocabulary transaction failed and was rolled
-    /// back (#1613). The import stops there: nothing after it (API keys, the
-    /// licence) runs. Settings, applied before the store step, are UserDefaults
-    /// and cannot join the store transaction, so when they were applied the
-    /// result says so rather than claiming nothing changed.
-    private func storeImportFailureResult(settingsApplied: Bool) -> ImportResult {
-        guard settingsApplied else {
+    /// back (#1613). The store holds the modes and vocabulary it held before.
+    /// The other sections ran as they always did (settings before the store
+    /// step; API keys and the licence after it), so when any of them changed
+    /// something the result is a partial failure that says so, and otherwise a
+    /// plain failure. Neither message claims more than was applied.
+    private func storeImportFailureResult(
+        settingsApplied: Bool,
+        apiKeysImported: Bool,
+        licenseKeyImported: Bool,
+        apiKeysFailedProviders: [KeychainManager.APIKeyType],
+        pendingLocalDownloads: Set<String>
+    ) -> ImportResult {
+        let otherSectionsApplied = Self.earlierBackupSectionsWereApplied(
+            settingsApplied: settingsApplied,
+            modesImported: 0,
+            vocabularyImported: 0,
+            apiKeysImported: apiKeysImported
+        ) || licenseKeyImported
+
+        guard otherSectionsApplied else {
             let message = NSLocalizedString(
                 "settings.backup.import.error.store",
-                value: "The modes and vocabulary could not be saved, so the import was stopped. Nothing was changed.",
-                comment: "Backup import: the modes/vocabulary save failed and was rolled back; nothing was applied"
+                value: "The modes and vocabulary could not be saved, so they were left as they were.",
+                comment: "Backup import: the modes/vocabulary save failed and was rolled back; no other section changed anything"
             )
             lastError = message
-            return .failure(message)
+            var failure = ImportResult.failure(message)
+            failure.apiKeysFailedProviders = apiKeysFailedProviders
+            return failure
         }
+
         let message = NSLocalizedString(
-            "settings.backup.import.error.storeAfterSettings",
-            value: "The settings were applied, but the modes and vocabulary could not be saved and were left as they were. Nothing else was imported.",
-            comment: "Backup import: settings applied, then the modes/vocabulary save failed and was rolled back"
+            "settings.backup.import.error.storePartial",
+            value: "The modes and vocabulary could not be saved, so they were left as they were. The other selected sections were applied.",
+            comment: "Backup import: the modes/vocabulary save failed and was rolled back; settings, API keys or the licence key were applied"
         )
         lastError = message
-        return .partialFailure(
-            message,
+        var result = ImportResult(
+            success: false,
+            partialSuccess: true,
             modesImported: 0,
             modesSkipped: 0,
             vocabularyImported: 0,
             vocabularySkipped: 0,
-            apiKeysImported: false
+            apiKeysImported: apiKeysImported,
+            licenseKeyImported: licenseKeyImported,
+            errorMessage: message
         )
+        result.pendingLocalDownloadModelIds = pendingLocalDownloads
+        result.apiKeysFailedProviders = apiKeysFailedProviders
+        result.settingsApplied = settingsApplied
+        return result
     }
 
     /// A partial-success message is truthful only when an earlier section made
