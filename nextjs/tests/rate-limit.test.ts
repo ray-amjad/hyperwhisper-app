@@ -18,9 +18,16 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import { createRequire } from "node:module";
 import { after, afterEach, before, describe, mock, test } from "node:test";
 
-import RedisMock from "ioredis-mock";
+import type Redis from "ioredis";
+
+// Loaded through `require` so `tsc` never resolves the module's types:
+// `@types/ioredis-mock` is only a transitive dependency, which npm hoists
+// and pnpm (the Vercel build) does not, so a static import fails the
+// production build with TS7016. ioredis-mock implements the ioredis API.
+const RedisMock = createRequire(import.meta.url)("ioredis-mock") as new () => Redis;
 
 type RateLimitModule = typeof import("../lib/rate-limit");
 type Command = (string | number)[];
