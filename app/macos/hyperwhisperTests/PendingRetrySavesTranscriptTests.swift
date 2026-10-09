@@ -68,6 +68,41 @@ struct PendingRetrySavesTranscriptTests {
         }
     }
 
+
+    /// DIAG #1653: why a write saves nothing in the full run.
+    @MainActor
+    private func probe(_ persistence: PersistenceController, _ site: String) async {
+        let context = persistence.container.newBackgroundContext()
+        let report: String = await context.perform {
+            let containerModel = persistence.container.managedObjectModel
+            let created = Transcript(context: context)
+            created.id = UUID()
+            created.date = Date()
+            created.setValue("failed", forKey: "status")
+            created.text = "probe"
+            let sameModel = created.entity.managedObjectModel === containerModel
+            let classEntity = Transcript.entity()
+            let classSame = classEntity.managedObjectModel === containerModel
+            var out = "site=\(site) entitySameModel=\(sameModel) classEntitySameModel=\(classSame) storeCount=\(persistence.container.persistentStoreCoordinator.persistentStores.count) stores=\(persistence.container.persistentStoreCoordinator.persistentStores.map { $0.url?.path ?? "nil" })"
+            do {
+                try context.obtainPermanentIDs(for: [created])
+                out += " permID=ok"
+            } catch {
+                out += " permIDError=\(error)"
+            }
+            do {
+                try context.save()
+                out += " save=ok"
+            } catch {
+                out += " saveError=\(error)"
+            }
+            return out
+        }
+        if !report.contains("save=ok") || report.contains("SameModel=false") {
+            Issue.record(Comment(rawValue: "DIAG " + report))
+        }
+    }
+
     private static let audioPath = "/tmp/hw-1636-missing-recording.wav"
 
     /// The row the stop flow writes when the recorded file cannot be read.
@@ -80,6 +115,7 @@ struct PendingRetrySavesTranscriptTests {
             failedReason: "Audio file could not be read",
             errorText: "Error: Audio file could not be read"
         )
+        if id == nil { await probe(persistence, "makeFailedRow-nil") }
         return try #require(id)
     }
 
@@ -185,6 +221,7 @@ struct PendingRetrySavesTranscriptTests {
             persistence: persistence
         )
 
+        if savedID == nil { await probe(persistence, "noFailedRow-nil") }
         #expect(savedID != nil)
         let all = await rows(in: persistence)
         #expect(all.count == 1)
