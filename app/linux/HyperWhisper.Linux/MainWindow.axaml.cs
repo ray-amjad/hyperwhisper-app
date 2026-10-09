@@ -1477,7 +1477,11 @@ public partial class MainWindow : Window
                 // The same projection dictation runs under, so /transcribe
                 // honours "Remove filler words" instead of the workflow's
                 // hard-coded default (issue #530).
-                outputOptions: _viewModel.CreateOutputOptions);
+                outputOptions: _viewModel.CreateOutputOptions,
+                // A non-WAV upload to a Parakeet mode is converted to WAV with
+                // the same ffmpeg import Transcribe File uses, so the daemon can
+                // read it and its reply wait scales with the length (#1572).
+                audioImport: new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths));
             _localApiHost = new PortableLocalApiHost(
                 _platformServices.PrivateFiles, _platformServices.Paths, backend, AppVersion,
                 _viewModel.Settings.LocalApiPort);

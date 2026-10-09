@@ -72,6 +72,27 @@ public sealed class TranscriptionWorkflow : IDisposable
         }
     }
 
+    /// <summary>
+    /// The busy refusal <see cref="TranscribeFileAsync"/> would give right now,
+    /// or null. Starts nothing and changes no state.
+    /// </summary>
+    /// <remarks>
+    /// Lets a caller that must do expensive work BEFORE handing a file over (the
+    /// Local API's ffmpeg conversion, issue #1572) refuse first, with the very
+    /// result the workflow's own check builds. It mirrors that check's order: an
+    /// unavailable backend answers null here, because the workflow answers that
+    /// case as unavailable, not busy. Advisory only — the state can change
+    /// before the caller's <see cref="TranscribeFileAsync"/>, whose own check
+    /// still decides.
+    /// </remarks>
+    public PortableTranscriptionResult? FileTranscriptionBusyRefusal()
+    {
+        lock (_sync)
+        {
+            return _transcriber.Capability.IsAvailable && IsActiveState(_state) ? BusyLocked() : null;
+        }
+    }
+
     public void RefreshDevices()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
