@@ -108,25 +108,34 @@ struct ModeEditorView: View {
     // MARK: - Unsaved-changes tracking (issue #1525)
     //
     // The sheet registers with AppState's page guard while it is open, and
-    // reports whether its values differ from the ones it settled on after
-    // opening. A page change the app makes on its own then keeps the sheet,
-    // and a menu-bar History… / Settings… asks before it discards an edit.
+    // reports whether its values differ from its baseline. A page change the
+    // app makes on its own then keeps the sheet, and a menu-bar History… /
+    // Settings… asks before it discards an edit.
+    //
+    // The baseline follows every change until the user's first key press,
+    // click or menu in the app; from then on it is frozen. So the editor's own
+    // repairs (on-open clamps, their onChange cascades, however long they
+    // take) never read as an edit, and the user's edit is never the baseline,
+    // however fast it comes. A repair AFTER the first input (a local model
+    // download finishing) does read as an edit: an extra prompt, not a lost
+    // edit.
 
     /// This sheet's registration with AppState's page guard.
     @State private var editorSession = UUID()
 
-    /// What the editor showed once its on-appear repairs had run; nil until then.
+    /// The values a clean editor holds; nil until the editor appears.
     @State private var settledSnapshot: ModeEditorSnapshot?
+
+    /// Set by the first key press, click or menu in the app while the editor
+    /// is open; it freezes `settledSnapshot`.
+    @State private var userHasInteracted = false
+
+    /// Watches for that first input; removed once it comes or on close.
+    @State private var userInputMonitor: Any?
 
     /// Escape → Keep Editing while the discard prompt is up. A button holds
     /// one key: Keep Editing holds Return, so the alert gives Escape to no one.
     @State private var discardPromptEscapeMonitor: Any?
-
-    /// How long after appearing the editor takes its baseline. The on-appear
-    /// repairs (model clamp, post-processing and language checks) and the
-    /// onChange handlers they trigger run first, so a clean editor whose stored
-    /// values were repaired does not count as edited.
-    static let settledSnapshotDelay: TimeInterval = 0.3
 
     /// Every value Save writes, as the editor holds it now.
     private var currentSnapshot: ModeEditorSnapshot {
@@ -157,7 +166,11 @@ struct ModeEditorView: View {
     }
 
     private var hasUnsavedChanges: Bool {
-        ModeEditorSnapshot.hasUnsavedChanges(settled: settledSnapshot, current: currentSnapshot)
+        ModeEditorSnapshot.hasUnsavedChanges(
+            settled: settledSnapshot,
+            current: currentSnapshot,
+            userHasInteracted: userHasInteracted
+        )
     }
 
     /// Shown while AppState holds a menu-bar page for THIS editor's prompt.
@@ -885,15 +898,24 @@ struct ModeEditorView: View {
         // Issue #1525: register with the page guard, and report unsaved changes.
         .onAppear {
             appState.modeEditorDidOpen(session: editorSession)
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.settledSnapshotDelay) {
-                if settledSnapshot == nil {
-                    settledSnapshot = currentSnapshot
-                }
-            }
+            settledSnapshot = currentSnapshot
+            installUserInputMonitor()
         }
         .onDisappear {
             removeDiscardPromptEscapeMonitor()
+            removeUserInputMonitor()
             appState.modeEditorDidClose(session: editorSession)
+        }
+        .onChange(of: currentSnapshot) { _, current in
+            settledSnapshot = ModeEditorSnapshot.settled(
+                previous: settledSnapshot,
+                current: current,
+                userHasInteracted: userHasInteracted
+            )
+        }
+        // Edit > Paste from the menu bar sends no event the monitor sees.
+        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
+            markUserInteracted()
         }
         .onChange(of: hasUnsavedChanges) { _, unsaved in
             appState.modeEditor(session: editorSession, hasUnsavedChanges: unsaved)
@@ -922,6 +944,35 @@ struct ModeEditorView: View {
             }
         } message: {
             Text(localized: "modes.editor.discard.message")
+        }
+    }
+
+    // MARK: - First user input
+
+    /// Any key press (including a modifier, e.g. a dictation shortcut) or
+    /// click in the app counts. The monitor runs before the event reaches the
+    /// control, so the edit that event makes already compares against a frozen
+    /// baseline.
+    private func installUserInputMonitor() {
+        guard userInputMonitor == nil else { return }
+        userInputMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { event in
+            markUserInteracted()
+            return event
+        }
+    }
+
+    private func markUserInteracted() {
+        if !userHasInteracted {
+            userHasInteracted = true
+        }
+    }
+
+    private func removeUserInputMonitor() {
+        if let monitor = userInputMonitor {
+            NSEvent.removeMonitor(monitor)
+            userInputMonitor = nil
         }
     }
 
@@ -1682,5 +1733,29 @@ struct ModeEditorSnapshot: Equatable {
     static func hasUnsavedChanges(settled: ModeEditorSnapshot?, current: ModeEditorSnapshot) -> Bool {
         guard let settled else { return false }
         return settled != current
+    }
+
+    /// Before the user's first input every change is the editor's own, so
+    /// there is no edit (and no prompt) even in the update pass before
+    /// `settled(previous:current:userHasInteracted:)` catches up.
+    static func hasUnsavedChanges(
+        settled: ModeEditorSnapshot?,
+        current: ModeEditorSnapshot,
+        userHasInteracted: Bool
+    ) -> Bool {
+        userHasInteracted && hasUnsavedChanges(settled: settled, current: current)
+    }
+
+    /// The baseline once the editor holds `current`. Until the user's first
+    /// key press, click or menu, a change can only be the editor's own repair
+    /// (on-open clamps and their onChange cascades, a model download
+    /// finishing), so the baseline follows it. After that it never moves:
+    /// a user's edit is never absorbed, and a later repair reads as an edit.
+    static func settled(
+        previous: ModeEditorSnapshot?,
+        current: ModeEditorSnapshot,
+        userHasInteracted: Bool
+    ) -> ModeEditorSnapshot? {
+        userHasInteracted ? previous : current
     }
 }

@@ -197,6 +197,59 @@ struct ModeEditorPageGuardTests {
         #expect(ModeEditorSnapshot.hasUnsavedChanges(settled: snapshot(), current: medical))
     }
 
+    // MARK: - Baseline: repairs follow, the user's edit never does
+
+    /// The editor's own repairs, however many and however late, become the
+    /// baseline while the user has not touched the editor: no prompt.
+    @Test func aRepairBeforeTheFirstInputIsTheBaseline() {
+        var repaired = snapshot()
+        repaired.cloudTranscriptionModel = "scribe_v2_repaired"
+        let afterRepair = ModeEditorSnapshot.settled(previous: snapshot(), current: repaired, userHasInteracted: false)
+        #expect(afterRepair == repaired)
+
+        var cascaded = repaired
+        cascaded.languageModel = "qwen3-4b"
+        let afterCascade = ModeEditorSnapshot.settled(previous: afterRepair, current: cascaded, userHasInteracted: false)
+        #expect(afterCascade == cascaded)
+        #expect(ModeEditorSnapshot.hasUnsavedChanges(settled: afterCascade, current: cascaded, userHasInteracted: false) == false)
+        #expect(ModeEditorSnapshot.hasUnsavedChanges(settled: afterCascade, current: cascaded, userHasInteracted: true) == false)
+    }
+
+    /// Before the baseline catches up (the same update pass), an untouched
+    /// editor still reads clean.
+    @Test func anUntouchedEditorIsNeverDirty() {
+        #expect(ModeEditorSnapshot.hasUnsavedChanges(
+            settled: snapshot(), current: snapshot(name: "Repaired"), userHasInteracted: false
+        ) == false)
+    }
+
+    /// The user's first key press freezes the baseline before the edit lands,
+    /// so an edit made the instant the editor opens is an unsaved change.
+    @Test func anEditAfterTheFirstInputIsNeverTheBaseline() {
+        let opened = snapshot()
+        let typed = snapshot(name: "HyperZZ")
+        let settled = ModeEditorSnapshot.settled(previous: opened, current: typed, userHasInteracted: true)
+        #expect(settled == opened)
+        #expect(ModeEditorSnapshot.hasUnsavedChanges(settled: settled, current: typed, userHasInteracted: true))
+
+        // Its own onChange cascade does not move the baseline either.
+        var cascaded = typed
+        cascaded.language = "en"
+        let afterCascade = ModeEditorSnapshot.settled(previous: settled, current: cascaded, userHasInteracted: true)
+        #expect(afterCascade == opened)
+        #expect(ModeEditorSnapshot.hasUnsavedChanges(settled: afterCascade, current: cascaded, userHasInteracted: true))
+    }
+
+    /// A repair after the first input (a model download finishing) reads as
+    /// an edit: an extra prompt, never a lost edit.
+    @Test func aRepairAfterTheFirstInputReadsAsAnEdit() {
+        var downloaded = snapshot()
+        downloaded.languageModel = "qwen3-4b"
+        let settled = ModeEditorSnapshot.settled(previous: snapshot(), current: downloaded, userHasInteracted: true)
+        #expect(settled == snapshot())
+        #expect(ModeEditorSnapshot.hasUnsavedChanges(settled: settled, current: downloaded, userHasInteracted: true))
+    }
+
     // MARK: - Wiring
 
     private static let menuBarPath = "app/macos/hyperwhisper/Views/MainAppView.swift"
@@ -241,6 +294,32 @@ struct ModeEditorPageGuardTests {
         // The editor's own Manage in Library link dismisses first, then goes.
         #expect(source.contains("appState.navigateToModelLibraryAPIKeys(trigger: .fromModeEditor)"))
         #expect(!source.contains("appState.navigateToModelLibraryAPIKeys()"))
+    }
+
+    /// The baseline is taken on appear and follows every change until the
+    /// first input; no timer decides it.
+    @Test func theBaselineFollowsChangesUntilTheFirstInput() throws {
+        let source = try ProductionSource.code(of: Self.editorPath)
+        #expect(!source.contains("settledSnapshotDelay"))
+        #expect(source.contains("settledSnapshot = currentSnapshot"))
+        #expect(source.contains(".onChange(of: currentSnapshot) { _, current in"))
+        #expect(source.contains("userHasInteracted: userHasInteracted"))
+        #expect(source.contains("NSMenu.didBeginTrackingNotification"))
+        let monitor = try ProductionSource.slice(
+            of: Self.editorPath,
+            from: "private func installUserInputMonitor() {",
+            to: "private func removeUserInputMonitor() {"
+        )
+        #expect(monitor.contains(".keyDown"))
+        #expect(monitor.contains(".leftMouseDown"))
+        #expect(monitor.contains("markUserInteracted()"))
+        #expect(monitor.contains("return event"))
+        let teardown = try ProductionSource.slice(
+            of: Self.editorPath,
+            from: ".onDisappear {",
+            to: "appState.modeEditorDidClose(session: editorSession)"
+        )
+        #expect(teardown.contains("removeUserInputMonitor()"))
     }
 
     /// Return and Escape both keep the edit; no key presses Discard. Keep
