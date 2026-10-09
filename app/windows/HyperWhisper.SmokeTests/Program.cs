@@ -1093,6 +1093,48 @@ internal static class Program
                 Assert(!described.Contains("quarterly", StringComparison.OrdinalIgnoreCase), "path description leaked the file name");
             });
 
+            Run("On-device transcript log lines carry metadata, never the words — issue #1645", () =>
+            {
+                const string spoken = "Hello, this is a short 5 second test of the transcription.";
+
+                // Whisper: one line per segment, timestamps and length only.
+                var segment = TranscriptionService.DescribeSegment(
+                    TimeSpan.Zero, TimeSpan.FromSeconds(30), "  " + spoken + " ");
+                Assert(!segment.Contains("short 5 second", StringComparison.OrdinalIgnoreCase),
+                    $"the Whisper segment line leaked the transcript: '{segment}'");
+                Assert(segment.Contains("[00:00 - 00:30]", StringComparison.Ordinal),
+                    $"the Whisper segment line lost its timestamps: '{segment}'");
+                Assert(segment.Contains($"{spoken.Length} chars", StringComparison.Ordinal),
+                    $"the Whisper segment line lost the segment length: '{segment}'");
+                Assert(TranscriptionService.DescribeSegment(TimeSpan.Zero, TimeSpan.Zero, null).Contains("0 chars", StringComparison.Ordinal),
+                    "a null segment text must describe as 0 chars");
+
+                // Parakeet: the engine's result line, exactly as issue #1645 saw it.
+                var result = ParakeetTranscriptionService.DescribeDaemonResponse(
+                    "{\"text\":\"" + spoken + "\",\"duration_ms\":2170}");
+                Assert(!result.Contains("short 5 second", StringComparison.OrdinalIgnoreCase),
+                    $"the Parakeet response line leaked the transcript: '{result}'");
+                Assert(result.Contains($"text=<{spoken.Length} chars>", StringComparison.Ordinal),
+                    $"the Parakeet response line lost the text length: '{result}'");
+                Assert(result.Contains("duration_ms=2170", StringComparison.Ordinal),
+                    $"the Parakeet response line lost duration_ms: '{result}'");
+
+                // The fixed engine strings stay readable.
+                var ready = ParakeetTranscriptionService.DescribeDaemonResponse("{\"status\":\"ready\",\"provider\":\"directml\"}");
+                Assert(ready == "status=ready, provider=directml", $"the READY line must stay readable, got '{ready}'");
+                var error = ParakeetTranscriptionService.DescribeDaemonResponse("{\"error\":\"Failed to read audio file\"}");
+                Assert(error == "error=Failed to read audio file", $"a daemon error must stay readable, got '{error}'");
+
+                // A line that is not JSON (the parse-failure log) is reduced to its length.
+                var broken = ParakeetTranscriptionService.DescribeDaemonResponse("{\"text\":\"" + spoken);
+                Assert(!broken.Contains("short 5 second", StringComparison.OrdinalIgnoreCase),
+                    $"an unparseable response leaked the transcript: '{broken}'");
+                Assert(ParakeetTranscriptionService.DescribeDaemonResponse(null) == "(empty)", "a null line must describe as (empty)");
+                var array = ParakeetTranscriptionService.DescribeDaemonResponse("[\"" + spoken + "\"]");
+                Assert(!array.Contains("short 5 second", StringComparison.OrdinalIgnoreCase),
+                    $"a non-object response leaked the transcript: '{array}'");
+            });
+
             Run("Windows lifecycle seams implement contracts and isolate activation handlers", () =>
             {
                 Assert(
