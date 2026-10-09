@@ -21,6 +21,18 @@
 import Foundation
 import SwiftUI
 
+// MARK: - UserDefaults Keys
+
+/// The `UserDefaults.standard` keys behind audio settings that are also read
+/// off the main actor (HYPERWHISPER-10D, #1648).
+///
+/// Shared by the `@AppStorage` property below and by the plain reader in
+/// `KeepWarmDefaultsObserver`, so the two can never read different keys.
+/// Deliberately not main-actor isolated.
+enum AudioDefaultsKey {
+    static let keepMicrophoneWarm = "keepMicrophoneWarm"
+}
+
 /// Manages audio-related application settings
 @MainActor
 class AudioSettingsManager: ObservableObject {
@@ -38,7 +50,7 @@ class AudioSettingsManager: ObservableObject {
 
     /// Whether HyperWhisper keeps an idle microphone session running between recordings.
     /// This reduces push-to-talk startup delay, especially on Bluetooth devices.
-    @AppStorage("keepMicrophoneWarm") var keepMicrophoneWarm: Bool = false
+    @AppStorage(AudioDefaultsKey.keepMicrophoneWarm) var keepMicrophoneWarm: Bool = false
 
     /// MEDIA CONTROL MODE SETTING
     /// Controls how HyperWhisper handles other audio sources during recording.

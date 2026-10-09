@@ -223,8 +223,8 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Observer for UserDefaults changes
     private var defaultsObserver: NSObjectProtocol?
 
-    /// Observer for settings changes that affect microphone keep-warm
-    private var keepWarmSettingsObserver: NSObjectProtocol?
+    /// Watches the keepMicrophoneWarm setting off the main actor (#1648)
+    private var keepWarmDefaultsObserver: KeepWarmDefaultsObserver?
 
     /// Observer for Accessibility permission grants, used to re-arm Push to Talk
     private var accessibilityObserver: NSObjectProtocol?
@@ -296,9 +296,7 @@ class AudioRecordingManager: NSObject, ObservableObject {
         if let observer = defaultsObserver {
             NotificationCenter.default.removeObserver(observer)
         }
-        if let observer = keepWarmSettingsObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+        keepWarmDefaultsObserver?.invalidate()
         if let observer = accessibilityObserver {
             NotificationCenter.default.removeObserver(observer)
         }
@@ -378,8 +376,12 @@ class AudioRecordingManager: NSObject, ObservableObject {
         // Setup Push to Talk
         setupPushToTalkObserver()
         setupPushToTalk()
-        setupKeepWarmObserver()
-        syncKeepWarmConfiguration()
+        // The one launch-time read of keepMicrophoneWarm stays on the main
+        // actor, as before. Every later change arrives through the off-main
+        // observer, seeded with this value (HYPERWHISPER-10D, #1648).
+        let keepWarmEnabled = settingsManager?.keepMicrophoneWarm ?? false
+        setupKeepWarmObserver(initialValue: keepWarmEnabled)
+        syncKeepWarmConfiguration(enabled: keepWarmEnabled)
 
         AppLogger.audio.info("AudioRecordingManager configured with dependencies")
     }
@@ -429,26 +431,26 @@ class AudioRecordingManager: NSObject, ObservableObject {
         }
     }
 
-    private func setupKeepWarmObserver() {
-        if let observer = keepWarmSettingsObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+    /// Watches keepMicrophoneWarm without touching the main actor on a
+    /// defaults write (HYPERWHISPER-10D, #1648). The observer reads the key on
+    /// a background queue and calls back on the main actor only when the value
+    /// changed, so an unrelated key's write does no main-actor work.
+    private func setupKeepWarmObserver(initialValue: Bool) {
+        keepWarmDefaultsObserver?.invalidate()
 
-        keepWarmSettingsObserver = NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.syncKeepWarmConfiguration()
-            }
+        let observer = KeepWarmDefaultsObserver(initialValue: initialValue) { [weak self] enabled in
+            self?.syncKeepWarmConfiguration(enabled: enabled)
         }
+        observer.start()
+        keepWarmDefaultsObserver = observer
     }
 
-    private func syncKeepWarmConfiguration() {
+    /// Applies the keep-warm setting. `enabled` is passed in, never read here,
+    /// so this main-actor method makes no UserDefaults read.
+    private func syncKeepWarmConfiguration(enabled: Bool) {
         keepWarmManager.updateActiveInputDevice(uid: activeInputDeviceIdentifier, name: activeInputDeviceName)
         keepWarmManager.setPermissionGranted(hasMicrophonePermission)
-        keepWarmManager.setEnabled(settingsManager?.keepMicrophoneWarm ?? false)
+        keepWarmManager.setEnabled(enabled)
     }
 
     /// DUPLICATE HANDLER PREVENTION:
@@ -1169,5 +1171,160 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// - When app becomes active (to detect permission changes)
     func checkMicrophonePermission() {
         permissionManager.checkMicrophonePermission()
+    }
+}
+
+// MARK: - Keep-Warm Defaults Observer (HYPERWHISPER-10D, #1648)
+
+/// Watches `UserDefaults.didChangeNotification` for a change of the
+/// `keepMicrophoneWarm` setting, reading it OFF the main actor.
+///
+/// The old observer hopped to the main actor on every defaults write in the
+/// process and read `keepMicrophoneWarm` through `@AppStorage` there. When
+/// cfprefsd held its lock, that read froze the app for 10 s
+/// (HYPERWHISPER-10D, the same fault as HYPERWHISPER-Y0 / #880).
+///
+/// Now:
+/// - The notification is taken on the posting thread (`queue: nil`) and does
+///   no read there, since a write on the main thread posts on the main thread.
+///   It only schedules one read on `readQueue`, a serial background queue, so a
+///   slow cfprefsd parks that queue and never the main thread.
+/// - A burst of writes coalesces: while a read is scheduled but not started,
+///   further notifications add nothing. The scheduled read runs after them, so
+///   it still sees their values.
+/// - The read decodes the value exactly as `@AppStorage(AudioDefaultsKey.keepMicrophoneWarm)`
+///   with a default of `false` does.
+/// - `onChange` runs on the main actor ONLY when the value differs from the
+///   last value seen, so an unrelated key's write does no main-actor work.
+///
+/// Thread safety: `lastValue`, `readScheduled` and `isInvalidated` are only
+/// touched under `lock`. The notification can arrive on any thread, and the
+/// read runs on `readQueue`.
+final class KeepWarmDefaultsObserver: @unchecked Sendable {
+
+    /// Reads the setting exactly as `@AppStorage(AudioDefaultsKey.keepMicrophoneWarm)`
+    /// with a default of `false` does: a stored Bool, else the default.
+    static func isKeepMicrophoneWarmEnabled(in defaults: UserDefaults) -> Bool {
+        (defaults.object(forKey: AudioDefaultsKey.keepMicrophoneWarm) as? Bool) ?? false
+    }
+
+    private let defaults: UserDefaults
+    private let notificationCenter: NotificationCenter
+    private let readQueue: DispatchQueue
+    private let onChange: @MainActor (Bool) -> Void
+
+    private let lock = NSLock()
+    /// The last value handed to `onChange` (or the seed). Guarded by `lock`.
+    private var lastValue: Bool
+    /// True while a read is queued on `readQueue` and has not started yet.
+    /// Guarded by `lock`.
+    private var readScheduled = false
+    /// Set by `invalidate()`. Guarded by `lock`.
+    private var isInvalidated = false
+    /// The block observer's token. Guarded by `lock`.
+    private var token: NSObjectProtocol?
+
+    /// - Parameters:
+    ///   - defaults: The store to read, `UserDefaults.standard` in the app (the
+    ///     store `@AppStorage` uses). A test passes a private suite.
+    ///   - initialValue: The value the caller has already applied, so the
+    ///     first notification only calls `onChange` if the setting has moved
+    ///     away from it.
+    ///   - notificationCenter: Where `UserDefaults.didChangeNotification` is posted.
+    ///   - readQueue: A SERIAL queue for the read. Never the main queue.
+    ///   - onChange: Called on the main actor with the new value, once per change.
+    init(
+        defaults: UserDefaults = .standard,
+        initialValue: Bool,
+        notificationCenter: NotificationCenter = .default,
+        readQueue: DispatchQueue = DispatchQueue(
+            label: "com.hyperwhisper.keepWarm.settingsRead",
+            qos: .utility
+        ),
+        onChange: @escaping @MainActor (Bool) -> Void
+    ) {
+        self.defaults = defaults
+        self.lastValue = initialValue
+        self.notificationCenter = notificationCenter
+        self.readQueue = readQueue
+        self.onChange = onChange
+    }
+
+    deinit {
+        invalidate()
+    }
+
+    /// Starts observing. Calling it again does nothing.
+    func start() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard token == nil, !isInvalidated else { return }
+        // object: nil, as before: any defaults instance's write may be the
+        // one that changed the key. queue: nil, so the block runs on the
+        // posting thread and only schedules the read (see `scheduleRead`).
+        token = notificationCenter.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.scheduleRead()
+        }
+    }
+
+    /// Stops observing and drops any read still queued. Safe to call more than once.
+    func invalidate() {
+        lock.lock()
+        isInvalidated = true
+        let token = self.token
+        self.token = nil
+        lock.unlock()
+        if let token {
+            notificationCenter.removeObserver(token)
+        }
+    }
+
+    private func scheduleRead() {
+        lock.lock()
+        if isInvalidated || readScheduled {
+            lock.unlock()
+            return
+        }
+        readScheduled = true
+        lock.unlock()
+
+        readQueue.async { [weak self] in
+            self?.readAndDeliverIfChanged()
+        }
+    }
+
+    /// Runs on `readQueue`.
+    private func readAndDeliverIfChanged() {
+        // Clear the flag BEFORE the read, so a write that lands during the
+        // read schedules one more read and is not lost.
+        lock.lock()
+        readScheduled = false
+        let invalidatedBeforeRead = isInvalidated
+        lock.unlock()
+        guard !invalidatedBeforeRead else { return }
+
+        // The cfprefsd round trip, off the main actor.
+        let value = Self.isKeepMicrophoneWarmEnabled(in: defaults)
+
+        lock.lock()
+        let changed = !isInvalidated && value != lastValue
+        if changed {
+            lastValue = value
+        }
+        lock.unlock()
+        guard changed else { return }
+
+        // The serial read queue hands values out in order, and the main queue
+        // runs them in that order, so the last delivered value is the latest.
+        let onChange = self.onChange
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                onChange(value)
+            }
+        }
     }
 }
