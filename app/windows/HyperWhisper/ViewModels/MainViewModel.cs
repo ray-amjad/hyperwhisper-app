@@ -400,6 +400,7 @@ public partial class MainViewModel : ViewModelBase
             RefreshModes();
             UpdateModelStatus();
             InitializeShortcuts();
+            InitializeLocalModelHealthMonitoring();
             _pasteService = new SmartPasteService();
             await AutoLoadModelAsync();
             InitializeGettingStarted();
@@ -744,6 +745,16 @@ public partial class MainViewModel : ViewModelBase
         var mode = ModeService.Instance.GetSelectedMode();
         if (mode == null || mode.ProviderType == "cloud") return;
 
+        // A missing, wrong-size or broken model is not loaded, and the status bar
+        // must not say Ready for it (#1598): a ggml file cut to 96% used to load
+        // "successfully" here and then fail every transcription.
+        if (!IsLocalModelDownloaded(mode))
+        {
+            LoggingService.Warn($"AutoLoadModelAsync: Model not installed - {LocalModelLabel(mode)}; skipping the preload");
+            StatusText = Loc.S("errors.modelNotDownloaded", LocalModelLabel(mode));
+            return;
+        }
+
         // A failed preload must not abort startup, so the error is reported and
         // dropped here. StartRecordingAsync retries the load and shows the toast.
         try { await LoadModelAsync(); }
@@ -791,6 +802,108 @@ public partial class MainViewModel : ViewModelBase
             },
             fingerprint: ["model-load", "background", engine, exceptionType],
             dedupeKey: $"model-load:background:{engine}:{exceptionType}");
+    }
+
+    // =========================================================================
+    // BROKEN LOCAL MODELS (#1598)
+    // =========================================================================
+
+    private void InitializeLocalModelHealthMonitoring()
+    {
+        LocalModelHealth.Changed += OnLocalModelHealthChanged;
+        ModelDownloadService.Instance.DownloadChanged += OnModelDownloadChanged;
+    }
+
+    /// <summary>The name StartRecordingAsync's "not downloaded" toast uses for a local mode's model.</summary>
+    private static string LocalModelLabel(Mode mode) => mode.LocalEngine == "parakeet"
+        ? mode.LocalParakeetModel ?? "Unknown"
+        : mode.ModelType ?? "Unknown";
+
+    /// <summary>The Model Library row id (ModelLibraryManager) of a local mode's model.</summary>
+    internal static string? LocalLibraryModelId(Mode mode)
+    {
+        if (mode.ProviderType == "cloud") return null;
+        return mode.LocalEngine == "parakeet"
+            ? (mode.LocalParakeetModel is { } p ? $"parakeet-{p}" : null)
+            : (mode.ModelType is { } w ? $"whisper-{w}" : null);
+    }
+
+    // Raised on the thread whose load failed, mid-transcription.
+    private void OnLocalModelHealthChanged(object? sender, string modelPath)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.HasShutdownStarted) return;
+
+        dispatcher.BeginInvoke(() => { _ = ApplyLocalModelHealthAsync(); });
+    }
+
+    /// <summary>
+    /// A model was marked broken (or the mark was cleared). Unload a broken
+    /// Whisper model, then refresh the status bar so it no longer says Ready.
+    ///
+    /// The unload matters for the way back: LoadWhisperModelAsync skips a path
+    /// that is already loaded, and Whisper.net keeps the failed lazy load, so a
+    /// re-downloaded file at the same path would never be read. UnloadModelAsync
+    /// waits for the failing transcription to leave, so this runs after it.
+    /// </summary>
+    private async Task ApplyLocalModelHealthAsync()
+    {
+        try
+        {
+            if (_transcriptionService.IsInitialized && LocalModelHealth.IsBroken(_transcriptionService.LoadedModelPath))
+            {
+                LoggingService.Info("MainViewModel: Unloading the Whisper model that failed to load");
+                await _transcriptionService.UnloadModelAsync();
+                IsModelLoaded = false;
+            }
+
+            UpdateModelStatus();
+
+            var mode = SelectedMode;
+            if (mode != null && mode.ProviderType != "cloud" && !IsLocalModelDownloaded(mode)
+                && !IsRecording && !IsTranscribing && !IsModelLoading)
+            {
+                StatusText = Loc.S("errors.modelNotDownloaded", LocalModelLabel(mode));
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error("MainViewModel: Failed to apply a local model health change", ex);
+        }
+    }
+
+    /// <summary>
+    /// A finished download of the selected mode's model makes it Ready again
+    /// (#1598): refresh the status bar and preload it, as a mode switch does.
+    /// Before this, the status bar kept "Not downloaded" until the next mode
+    /// switch or recording.
+    /// </summary>
+    private void OnModelDownloadChanged(object? sender, ModelDownloadChangedEventArgs e)
+    {
+        if (!e.IsCompleted || !e.IsSuccess) return;
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.HasShutdownStarted) return;
+
+        dispatcher.BeginInvoke(() =>
+        {
+            try
+            {
+                UpdateModelStatus();
+
+                var mode = SelectedMode;
+                if (mode == null || LocalLibraryModelId(mode) != e.ModelId) return;
+                if (!PlatformHelper.SupportsLocalTranscription || !IsLocalModelDownloaded(mode)) return;
+                if (IsRecording || IsTranscribing || IsModelLoading) return;
+
+                StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+                LoadModelInBackground(mode);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error("MainViewModel: Failed to refresh after a model download", ex);
+            }
+        });
     }
 
     [RelayCommand] private void NavigateToHome() => CurrentPage = NavigationPage.Home;
@@ -1002,6 +1115,17 @@ public partial class MainViewModel : ViewModelBase
         var model = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == SelectedMode.ModelType);
         if (model == null) return;
         var modelPath = _modelService.GetModelPath(model);
+
+        // Never load a file that is not the exact catalog size or that already
+        // failed to load (#1598). Checked before the "already loaded" shortcut,
+        // because Whisper.net loads lazily: a broken file looks loaded.
+        if (!_modelService.IsModelDownloaded(model))
+        {
+            LoggingService.Warn($"LoadWhisperModelAsync: Model not installed - {model.Type}; not loading it");
+            UpdateModelStatus();
+            return;
+        }
+
         if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath) return;
 
         // Serialize model loads — concurrent WhisperFactory.FromPath calls cause
@@ -1252,7 +1376,8 @@ public partial class MainViewModel : ViewModelBase
             var model = ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == SelectedMode.LocalParakeetModel);
             if (model == null) { ModelStatus = Loc.S("status.model.unknown"); return; }
             bool isLoaded = _parakeetTranscriptionService.IsInitialized &&
-                            _parakeetTranscriptionService.LoadedModelId == model.Id;
+                            _parakeetTranscriptionService.LoadedModelId == model.Id &&
+                            !LocalModelHealth.IsBroken(_parakeetModelService.GetModelDirectory(model));
             ModelStatus = isLoaded
                 ? Loc.S("status.model.parakeet.ready", model.DisplayName, _parakeetTranscriptionService.ActiveProvider ?? "CPU")
                 : _parakeetModelService.IsModelDownloaded(model)
@@ -1264,7 +1389,8 @@ public partial class MainViewModel : ViewModelBase
             var model = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == SelectedMode.ModelType);
             if (model == null) { ModelStatus = Loc.S("status.model.unknown"); return; }
             var modelPath = _modelService.GetModelPath(model);
-            bool isLoaded = _transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath;
+            bool isLoaded = _transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath &&
+                            !LocalModelHealth.IsBroken(modelPath);
             ModelStatus = isLoaded ? Loc.S("status.model.computeReady", model.DisplayName, computeMode) :
                           _modelService.IsModelDownloaded(model) ? Loc.S("status.model.downloaded", model.DisplayName) :
                           Loc.S("status.model.notDownloaded", model.DisplayName);
@@ -2458,6 +2584,10 @@ public partial class MainViewModel : ViewModelBase
 
     private bool IsLocalProviderReady(Mode mode)
     {
+        // A loaded model that has since been marked broken (#1598) is not ready:
+        // StartRecordingAsync then reports it as not downloaded instead of
+        // recording into a load failure.
+        if (!IsLocalModelDownloaded(mode)) return false;
         if (mode.LocalEngine == "parakeet")
             return _parakeetTranscriptionService.IsAvailable;
         return _transcriptionService.IsInitialized;
@@ -2667,6 +2797,8 @@ public partial class MainViewModel : ViewModelBase
         _shortcutService.ShortcutPressed -= OnShortcutPressed;
         _shortcutService.ShortcutReleased -= OnShortcutReleased;
         _settingsService.SettingsChanged -= OnSettingsChanged;
+        LocalModelHealth.Changed -= OnLocalModelHealthChanged;
+        ModelDownloadService.Instance.DownloadChanged -= OnModelDownloadChanged;
         _transcriptionOrchestrator.PostProcessingWarning -= _orchestratorWarningHandler;
 
         // Use try-finally to ensure device service cleanup happens

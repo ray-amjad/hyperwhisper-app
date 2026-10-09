@@ -79,7 +79,14 @@ public class WhisperModelService
     }
 
     /// <summary>
-    /// Checks if a model is downloaded.
+    /// Checks if a model is downloaded and usable.
+    ///
+    /// The file must be EXACTLY the catalog byte size (#1598). The ggerganov
+    /// ggml-*.bin files are fixed, so any other size is a damaged file: one cut to
+    /// 96% kept its GGML header, passed the old ">= 95%" check, showed "Ready" and
+    /// "Installed", and then failed every transcription. A model that failed to
+    /// load this session (<see cref="LocalModelHealth"/>) also counts as not
+    /// installed, so Model Library offers it for download again.
     /// </summary>
     public bool IsModelDownloaded(WhisperModelInfo model)
     {
@@ -89,11 +96,15 @@ public class WhisperModelService
             return false;
         }
 
+        if (LocalModelHealth.IsBroken(modelPath))
+        {
+            return false;
+        }
+
         try
         {
             var actualSize = new FileInfo(modelPath).Length;
-            var minimumExpectedSize = (long)(model.SizeInBytes * 0.95);
-            return actualSize >= minimumExpectedSize && HasGgmlHeader(modelPath);
+            return actualSize == model.SizeInBytes && HasGgmlHeader(modelPath);
         }
         catch (Exception ex)
         {
@@ -115,8 +126,8 @@ public class WhisperModelService
     /// 3. Save to local models directory
     ///
     /// PROGRESS CALCULATION:
-    /// Uses the model's SizeInBytes property to calculate download progress.
-    /// This is approximate since actual file sizes may vary slightly.
+    /// Uses the response Content-Length, falling back to the model's SizeInBytes
+    /// (the exact catalog byte size, which the finished file must match).
     ///
     /// RESULT PATTERN:
     /// Returns Result<string> containing the model path on success.
@@ -204,10 +215,14 @@ public class WhisperModelService
             }
             File.Move(tempPath, modelPath);
 
+            // A fresh file replaces the one that failed to load (#1598). Clear the
+            // mark before the check below, which would otherwise reject it.
+            LocalModelHealth.ClearBroken(modelPath);
+
             if (!IsModelDownloaded(model))
             {
                 CleanupFile(modelPath);
-                LoggingService.Warn($"WhisperModelService: Downloaded file failed GGML validation for {model.DisplayName}");
+                LoggingService.Warn($"WhisperModelService: Downloaded file failed validation for {model.DisplayName} (got {totalBytesRead:N0} bytes, catalog size {model.SizeInBytes:N0}, needs the exact size and a GGML header)");
                 return Result<string>.Failure(Loc.S("settings.models.download.failed", Loc.S("settings.models.localLlm.invalidModelFile")));
             }
 
@@ -249,6 +264,7 @@ public class WhisperModelService
                 File.Delete(path);
             }
 
+            LocalModelHealth.ClearBroken(path);
             return Result.Success();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)

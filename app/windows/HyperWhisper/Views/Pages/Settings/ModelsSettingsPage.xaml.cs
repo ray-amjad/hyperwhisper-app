@@ -96,6 +96,7 @@ public partial class ModelsSettingsPage : Page
         CloudProviderHealthService.Instance.TranscriptionProviderStatusChanged += OnTranscriptionProviderHealthChanged;
         CloudProviderHealthService.Instance.PostProcessingProviderStatusChanged += OnPostProcessingProviderHealthChanged;
         ModelDownloadService.Instance.DownloadChanged += OnModelDownloadChanged;
+        LocalModelHealth.Changed += OnLocalModelHealthChanged;
 
         RebuildLibrary();
         _ = RefreshProviderHealthAsync();
@@ -117,6 +118,7 @@ public partial class ModelsSettingsPage : Page
         CloudProviderHealthService.Instance.TranscriptionProviderStatusChanged -= OnTranscriptionProviderHealthChanged;
         CloudProviderHealthService.Instance.PostProcessingProviderStatusChanged -= OnPostProcessingProviderHealthChanged;
         ModelDownloadService.Instance.DownloadChanged -= OnModelDownloadChanged;
+        LocalModelHealth.Changed -= OnLocalModelHealthChanged;
 
         if (_mainViewModel != null)
         {
@@ -974,6 +976,14 @@ public partial class ModelsSettingsPage : Page
 
     private void OnPostProcessingProviderHealthChanged(object? sender, PostProcessingProvider e)
         => Dispatcher.Invoke(RebuildLibrary);
+
+    // A model that failed to load (#1598) turns from Installed into Download
+    // while the page is open. Raised on the failing transcription's thread.
+    private void OnLocalModelHealthChanged(object? sender, string modelPath)
+    {
+        if (Dispatcher.HasShutdownStarted) return;
+        Dispatcher.BeginInvoke(new Action(RebuildLibrary));
+    }
 
     private void OnModelDownloadChanged(object? sender, ModelDownloadChangedEventArgs e)
     {
