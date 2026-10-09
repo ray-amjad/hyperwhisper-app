@@ -1066,6 +1066,12 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "settings.backup.import.error.decode.corruptedField" = "Valoare coruptă pentru câmp: %@";
 "settings.backup.import.error.version" = "Fișier copie de siguranță din versiune mai nouă";
 "settings.backup.import.error.unknown" = "Import eșuat";
+"settings.backup.import.error.storeModes" = "Modurile nu au putut fi salvate, așa că au rămas neschimbate.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Modurile nu au putut fi salvate, așa că modurile și vocabularul au rămas neschimbate.";
+"settings.backup.import.error.storeVocabulary" = "Vocabularul nu a putut fi salvat, așa că a rămas neschimbat.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Modurile au fost importate, dar vocabularul nu a putut fi salvat, așa că a rămas neschimbat.";
+"settings.backup.import.error.storeLicense" = "Cheia de licență nu a putut fi importată în siguranță.";
+"settings.backup.import.error.storeOtherSections" = "Celelalte secțiuni selectate au fost aplicate.";
 "settings.backup.import.apiKeysFailed" = "Aceste chei API nu au putut fi salvate în portchei și nu au fost restaurate: %@. Introdu-le din nou în Setări.";
 "settings.backup.import.confirm.title" = "Importați setări?";
 "settings.backup.import.confirm.message" = "Aceasta va înlocui modurile și vocabularul existent cu cel din fișierul de copie de siguranță. Setările vor fi de asemenea actualizate.";

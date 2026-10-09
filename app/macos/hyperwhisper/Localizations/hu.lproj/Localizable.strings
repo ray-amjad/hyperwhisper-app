@@ -1066,6 +1066,12 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.import.error.decode.corruptedField" = "Sérült érték a mezőnél: %@";
 "settings.backup.import.error.version" = "A biztonsági mentés fájl újabb verzióból származik";
 "settings.backup.import.error.unknown" = "Importálás sikertelen";
+"settings.backup.import.error.storeModes" = "A módokat nem sikerült menteni, ezért változatlanok maradtak.";
+"settings.backup.import.error.storeModesAndVocabulary" = "A módokat nem sikerült menteni, ezért a módok és a szókincs változatlanok maradtak.";
+"settings.backup.import.error.storeVocabulary" = "A szókincset nem sikerült menteni, ezért változatlan maradt.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "A módok importálása megtörtént, de a szókincset nem sikerült menteni, ezért változatlan maradt.";
+"settings.backup.import.error.storeLicense" = "A licenckulcsot nem sikerült biztonságosan importálni.";
+"settings.backup.import.error.storeOtherSections" = "A többi kiválasztott szakasz alkalmazva lett.";
 "settings.backup.import.apiKeysFailed" = "Ezeket az API-kulcsokat nem sikerült a kulcskarikába menteni, ezért nem lettek visszaállítva: %@. Add meg őket újra a Beállításokban.";
 "settings.backup.import.confirm.title" = "Beállítások importálása?";
 "settings.backup.import.confirm.message" = "Ez lecseréli a meglévő módokat és szókincset a biztonsági mentés fájlból származókra. A beállítások szintén frissítésre kerülnek.";
