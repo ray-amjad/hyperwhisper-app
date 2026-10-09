@@ -63,6 +63,39 @@ struct BackupImportAtomicityTests {
         }
     }
 
+    /// Makes the save that writes the vocabulary word `poisonWord` fail
+    /// validation: when such a row is about to be saved, a Mode with no name
+    /// (a required attribute) is inserted into the same save. The rollback
+    /// discards it with the vocabulary. Removed by the caller.
+    @MainActor
+    private final class VocabularySavePoison {
+        private(set) var fired = false
+        private var token: NSObjectProtocol?
+
+        init(context: NSManagedObjectContext, poisonWord: String) {
+            token = NotificationCenter.default.addObserver(
+                forName: NSManagedObjectContext.willSaveObjectsNotification,
+                object: context,
+                queue: nil
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    let poisoned = context.insertedObjects.contains { ($0 as? Vocabulary)?.word == poisonWord }
+                    if poisoned {
+                        _ = Mode(context: context)
+                        self?.fired = true
+                    }
+                }
+            }
+        }
+
+        func remove() {
+            if let token {
+                NotificationCenter.default.removeObserver(token)
+            }
+            token = nil
+        }
+    }
+
     private static func backupMode(id: UUID = UUID(), name: String, isDefault: Bool = false) -> BackupMode {
         BackupMode(
             id: id,
@@ -192,8 +225,10 @@ struct BackupImportAtomicityTests {
         #expect(persistence.fetchAllModes().filter(\.isDefault).count == 1)
     }
 
+    /// A failed modes save stops the import: the vocabulary is not attempted,
+    /// so both are left as they were.
     @MainActor
-    @Test func aFailedImportThrowsAndLeavesModesAndVocabularyAsTheyWere() throws {
+    @Test func aFailedModesSaveThrowsAndLeavesModesAndVocabularyAsTheyWere() throws {
         let persistence = PersistenceController(inMemory: true)
         try seedLocalStore(persistence)
         let modesBefore = try storedCount("Mode", in: persistence)
@@ -202,28 +237,31 @@ struct BackupImportAtomicityTests {
         let poison = SavePoison(context: persistence.container.viewContext, poisonName: Self.poisonName)
         defer { poison.remove() }
 
-        var threw = false
+        var failure: PersistenceController.BackupStoreImportError?
         do {
             _ = try persistence.importBackupStore(
                 modes: Self.largeBackup(),
                 modeResolution: .replace,
                 vocabulary: [
-                    Self.vocabularyItem("TEH", "The"),   // replaces "teh" in place
+                    Self.vocabularyItem("TEH", "The"),   // would replace "teh" in place
                     Self.vocabularyItem("brand-new", nil),
                 ],
                 vocabularyResolution: .replace
             )
-        } catch {
-            threw = true
+        } catch let error as PersistenceController.BackupStoreImportError {
+            failure = error
         }
 
         #expect(poison.fired)
-        #expect(threw, "a failed save must reach the caller so it can report it")
+        let thrown = try #require(failure, "a failed save must reach the caller so it can report it")
+        #expect(thrown.failedSection == .modes)
+        #expect(thrown.committed.modesImported == 0)
+        #expect(thrown.committed.modeIdRemap.isEmpty)
         #expect(try storedCount("Mode", in: persistence) == modesBefore)
         #expect(try storedCount("Vocabulary", in: persistence) == vocabularyBefore)
         #expect(persistence.container.viewContext.hasChanges == false)
 
-        // The in-place replacement was rolled back too.
+        // The vocabulary was never written.
         let teh = persistence.fetchAllVocabularyItems().first { $0.word?.lowercased() == "teh" }
         #expect(teh?.word == "teh")
         #expect(teh?.replacement == "the")
@@ -235,6 +273,53 @@ struct BackupImportAtomicityTests {
             punctuation: true, capitalization: true, profanityFilter: false
         )
         #expect(try storedCount("Mode", in: persistence) == modesBefore + 1)
+    }
+
+    /// Modes and vocabulary live in different stores, so each is its own save.
+    /// When the vocabulary save fails after the modes saved, the modes stay
+    /// imported (with exactly one default) and the vocabulary is as it was.
+    @MainActor
+    @Test func aFailedVocabularySaveKeepsTheSavedModesAndLeavesTheVocabularyAsItWas() throws {
+        let persistence = PersistenceController(inMemory: true)
+        try seedLocalStore(persistence)
+        let backup = Self.successBackup()
+
+        let poisonWord = "percy1613-poison-word"
+        let poison = VocabularySavePoison(context: persistence.container.viewContext, poisonWord: poisonWord)
+        defer { poison.remove() }
+
+        var failure: PersistenceController.BackupStoreImportError?
+        do {
+            _ = try persistence.importBackupStore(
+                modes: backup.modes,
+                modeResolution: .replace,
+                vocabulary: [
+                    Self.vocabularyItem("TEH", "The"),   // would replace "teh" in place
+                    Self.vocabularyItem(poisonWord, nil),
+                ],
+                vocabularyResolution: .replace
+            )
+        } catch let error as PersistenceController.BackupStoreImportError {
+            failure = error
+        }
+
+        #expect(poison.fired, "the poisoned vocabulary save never ran")
+        let thrown = try #require(failure)
+        #expect(thrown.failedSection == .vocabulary)
+        #expect(thrown.committed.modesImported == 301)
+        #expect(thrown.committed.vocabularyImported == 0)
+
+        // The modes committed: Beta replaced, 301 imported, one default.
+        #expect(try storedCount("Mode", in: persistence) == 3 - 1 + 301)
+        #expect(try storedPrefixedModeCount(in: persistence) == 300)
+        #expect(persistence.fetchAllModes().filter(\.isDefault).map(\.id) == [Self.conflictingBetaId])
+
+        // The vocabulary is as it was.
+        #expect(try storedCount("Vocabulary", in: persistence) == 2)
+        let vocabulary = persistence.fetchAllVocabularyItems()
+        #expect(vocabulary.first { $0.word?.lowercased() == "teh" }?.replacement == "the")
+        #expect(vocabulary.contains { $0.word == poisonWord } == false)
+        #expect(persistence.container.viewContext.hasChanges == false)
     }
 
     // MARK: - A successful import still writes everything
@@ -368,25 +453,54 @@ struct BackupImportAtomicityTests {
 
     // MARK: - Failure message
 
-    /// A rolled-back store import never says the modes or vocabulary were
-    /// applied, says "other sections were applied" only when one was, and
-    /// names a failed licence import too instead of hiding it.
-    @Test func theStoreFailureMessageClaimsOnlyWhatWasApplied() {
-        let plain = BackupManager.storeImportFailureMessage(otherSectionsApplied: false, licenseImportFailed: false)
-        let partial = BackupManager.storeImportFailureMessage(otherSectionsApplied: true, licenseImportFailed: false)
-        let licence = BackupManager.storeImportFailureMessage(otherSectionsApplied: false, licenseImportFailed: true)
-        let licencePartial = BackupManager.storeImportFailureMessage(otherSectionsApplied: true, licenseImportFailed: true)
-
-        for message in [plain, partial, licence, licencePartial] {
-            #expect(message.contains("could not be saved"))
+    /// Each message names the section that failed and claims only what
+    /// happened: a vocabulary-only failure never mentions modes, a modes
+    /// failure says the vocabulary was left too, and "imported" / "applied"
+    /// appear only when something was.
+    @Test func theStoreFailureMessageClaimsOnlyWhatHappened() {
+        func message(
+            _ section: PersistenceController.BackupStoreImportError.Section,
+            modesSaved: Bool = false,
+            vocabularySelected: Bool = true,
+            other: Bool = false,
+            licence: Bool = false
+        ) -> String {
+            BackupManager.storeImportFailureMessage(
+                failedSection: section,
+                modesSaved: modesSaved,
+                vocabularySelected: vocabularySelected,
+                otherSectionsApplied: other,
+                licenseImportFailed: licence
+            )
         }
-        #expect(!plain.contains("were applied"))
-        #expect(!licence.contains("were applied"))
+
+        let modesOnly = message(.modes, vocabularySelected: false)
+        let modesAndVocabulary = message(.modes)
+        let vocabularyOnly = message(.vocabulary)
+        let vocabularyAfterModes = message(.vocabulary, modesSaved: true)
+
+        for text in [modesOnly, modesAndVocabulary, vocabularyOnly, vocabularyAfterModes] {
+            #expect(text.contains("could not be saved"))
+            #expect(!text.contains("were applied"))
+            #expect(!text.contains("license key"))
+        }
+        #expect(modesOnly.contains("modes could not be saved"))
+        #expect(!modesOnly.contains("vocabulary"))
+        #expect(modesAndVocabulary.contains("modes and vocabulary were left as they were"))
+        #expect(!modesAndVocabulary.contains("imported"))
+        #expect(vocabularyOnly.contains("vocabulary could not be saved"))
+        #expect(!vocabularyOnly.contains("mode"))
+        #expect(vocabularyAfterModes.contains("modes were imported"))
+        #expect(vocabularyAfterModes.contains("vocabulary could not be saved"))
+
+        let partial = message(.vocabulary, other: true)
+        let licence = message(.modes, licence: true)
+        let licencePartial = message(.vocabulary, modesSaved: true, other: true, licence: true)
         #expect(partial.contains("were applied"))
-        #expect(licencePartial.contains("were applied"))
-        #expect(!plain.contains("license key"))
-        #expect(!partial.contains("license key"))
+        #expect(!licence.contains("were applied"))
         #expect(licence.contains("license key could not be securely imported"))
+        #expect(licencePartial.contains("modes were imported"))
         #expect(licencePartial.contains("license key could not be securely imported"))
+        #expect(licencePartial.hasSuffix("The other selected sections were applied."))
     }
 }

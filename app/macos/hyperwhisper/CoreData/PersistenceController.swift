@@ -2966,30 +2966,52 @@ class PersistenceController: ObservableObject {
         var vocabularySkipped = 0
     }
 
-    /// Imports a backup's modes and vocabulary as ONE store transaction
-    /// (issue #1613).
+    /// A backup store import whose save failed and was rolled back (#1613).
+    struct BackupStoreImportError: Error {
+        enum Section {
+            case modes
+            case vocabulary
+        }
+
+        /// The section whose save failed. `.modes`: nothing was written (the
+        /// vocabulary is not attempted after a failed modes save).
+        /// `.vocabulary`: the vocabulary was left as it was, and the modes in
+        /// `committed` (when modes were selected) were saved before it.
+        let failedSection: Section
+        /// What was saved before the failure: the modes counts and id remap
+        /// when the modes section committed; empty otherwise.
+        let committed: BackupStoreImportResult
+        let underlying: Error
+    }
+
+    /// Imports a backup's modes and vocabulary, each section as ONE store
+    /// transaction (issue #1613).
     ///
     /// Every row used to be saved on its own (`createOrUpdateMode`,
     /// `deleteMode`, `addVocabularyItem` and the default-flag pass each
     /// saved), so a crash, a kill or a failed save part-way left a silent
-    /// partial import. Now the rows are written to `viewContext` with no save,
-    /// and one `save()` at the end commits them. A failed save rolls the
-    /// context back and throws, so nothing half-applied stays pending (the
-    /// plain `save()` only logs, and its rejected row would poison every later
-    /// save) and the caller can tell the user the import failed.
+    /// partial import. Now each section's rows are written to `viewContext`
+    /// with no save, and one `save()` commits that section. A failed save
+    /// rolls the context back and throws, so nothing half-applied stays
+    /// pending (the plain `save()` only logs, and its rejected row would
+    /// poison every later save) and the caller can tell the user exactly
+    /// which section failed.
+    ///
+    /// Why one save per section, not one for both: `Mode` lives in the
+    /// `Local` store and `Vocabulary` in the `Cloud` one. A single save writes
+    /// each store in its own SQLite transaction, with no two-phase commit, so
+    /// it could commit the modes, fail the vocabulary, and a rollback could
+    /// not undo the committed modes. Saving the sections one after the other
+    /// makes each outcome known: modes first (with the default-mode repair in
+    /// the same save), then the vocabulary only if the modes committed.
     ///
     /// Pass `nil` for a section the user did not select. An empty array still
     /// runs that section (for modes, the default-mode repair).
     ///
-    /// Across stores: `Mode` lives in the `Local` store and `Vocabulary` in the
-    /// `Cloud` one. The single save validates every object before it writes
-    /// either store, so a validation failure leaves both untouched; the two
-    /// SQLite writes are still two transactions, so only a kill in the instant
-    /// between them can split the result.
-    ///
-    /// - Throws: the save error, after the rollback. Changes the context held
-    ///   BEFORE the import are saved first so the rollback cannot discard them;
-    ///   if that save fails, this throws before importing anything.
+    /// - Throws: `BackupStoreImportError`, after the rollback. Changes the
+    ///   context held BEFORE the import are saved first so the rollback cannot
+    ///   discard them; if that save fails, this throws (as a failure of the
+    ///   first selected section) before importing anything.
     @MainActor
     func importBackupStore(
         modes backupModes: [BackupMode]?,
@@ -3011,7 +3033,11 @@ class PersistenceController: ObservableObject {
                     error: error as NSError,
                     metadata: CoreDataSaveDiagnostics.contextShape(context)
                 )
-                throw error
+                throw BackupStoreImportError(
+                    failedSection: backupModes != nil ? .modes : .vocabulary,
+                    committed: BackupStoreImportResult(),
+                    underlying: error
+                )
             }
         }
 
@@ -3019,17 +3045,39 @@ class PersistenceController: ObservableObject {
 
         if let backupModes {
             let modes = applyImportedModes(backupModes, resolution: modeResolution)
+            do {
+                try saveBackupImportSection(context: context, saveSite: saveSite)
+            } catch {
+                AppLogger.coreData.error("Backup import: the modes save failed and was rolled back · no mode or vocabulary row was changed")
+                throw BackupStoreImportError(failedSection: .modes, committed: BackupStoreImportResult(), underlying: error)
+            }
             result.modesImported = modes.imported
             result.modesSkipped = modes.skipped
             result.modeIdRemap = modes.idRemap
+            AppLogger.coreData.info("Backup import: modes committed · \(modes.imported) imported, \(modes.skipped) skipped")
         }
 
         if let backupItems {
             let vocabulary = applyImportedVocabulary(backupItems, resolution: vocabularyResolution)
+            do {
+                try saveBackupImportSection(context: context, saveSite: saveSite)
+            } catch {
+                AppLogger.coreData.error("Backup import: the vocabulary save failed and was rolled back · no vocabulary row was changed")
+                throw BackupStoreImportError(failedSection: .vocabulary, committed: result, underlying: error)
+            }
             result.vocabularyImported = vocabulary.imported
             result.vocabularySkipped = vocabulary.skipped
+            AppLogger.coreData.info("Backup import: vocabulary committed · \(vocabulary.imported) imported, \(vocabulary.skipped) skipped")
         }
 
+        return result
+    }
+
+    /// Saves one staged backup-import section. A failed save rolls the whole
+    /// context back (the section's staged rows and nothing else: the import
+    /// saved everything else first) and rethrows.
+    @MainActor
+    private func saveBackupImportSection(context: NSManagedObjectContext, saveSite: String) throws {
         do {
             if context.hasChanges {
                 try context.save()
@@ -3044,12 +3092,8 @@ class PersistenceController: ObservableObject {
                 error: error as NSError,
                 metadata: shape
             )
-            AppLogger.coreData.error("Backup import rolled back · no mode or vocabulary row was changed")
             throw error
         }
-
-        AppLogger.coreData.info("Backup store import committed: \(result.modesImported) modes imported, \(result.modesSkipped) skipped; \(result.vocabularyImported) vocabulary imported, \(result.vocabularySkipped) skipped")
-        return result
     }
 
     /// Imports modes from backup data with conflict resolution, as one
@@ -3087,7 +3131,7 @@ class PersistenceController: ObservableObject {
     }
 
     /// Writes backup modes into `viewContext` with conflict resolution. Saves
-    /// NOTHING: `importBackupStore` commits or rolls back the whole import.
+    /// NOTHING: `importBackupStore` commits or rolls back the whole section.
     ///
     /// CONFLICT RESOLUTION:
     /// - .skip: Don't import if mode with same name exists (case-insensitive)
@@ -3256,7 +3300,7 @@ class PersistenceController: ObservableObject {
     }
 
     /// Writes backup vocabulary into `viewContext` with conflict resolution.
-    /// Saves NOTHING: `importBackupStore` commits or rolls back the whole import.
+    /// Saves NOTHING: `importBackupStore` commits or rolls back the whole section.
     ///
     /// CONFLICT RESOLUTION:
     /// - .skip: Don't import if word already exists (case-insensitive)
