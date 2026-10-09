@@ -996,7 +996,6 @@ class AIPostProcessor: ObservableObject {
             let evaluation = TranscriptionTextProcessing.evaluateCompletion(original: trimmed, content: trimmedBuffer, state: state)
             if !evaluation.accepted {
                 let reason: String
-                let bufferPreview = String(buffer.prefix(200))
                 switch evaluation.failure {
                 case .outputLimit:
                     reason = "Local AI reached its output limit"
@@ -1010,7 +1009,9 @@ class AIPostProcessor: ObservableObject {
                 default:
                     reason = "Local AI returned an incomplete response"
                 }
-                AppLogger.transcription.warning("\(reason, privacy: .public) — delivering raw transcript · provider=\(provider.displayName, privacy: .public) · receivedAnyChunk=\(receivedAnyChunk) · bufferLen=\(buffer.count) · bufferPreview=\(bufferPreview, privacy: .public)")
+                // The length only, never the text: the buffer is the model's
+                // rewrite of the user's transcript (#1647).
+                AppLogger.transcription.warning("\(reason, privacy: .public) — delivering raw transcript · provider=\(provider.displayName, privacy: .public) · receivedAnyChunk=\(receivedAnyChunk) · bufferLen=\(buffer.count)")
                 emitStreamingUpdate("")
                 onPostProcessingError?(.localRuntimeUnavailable(reason: reason))
                 return trimmed
