@@ -61,7 +61,7 @@ public partial class App : WpfApplication
         if (!SingleInstanceGuard.TryAcquire())
         {
             SingleInstanceGuard.SignalExistingInstance();
-            Shutdown(0);
+            AbortStartup(0);
             return;
         }
 
@@ -84,6 +84,8 @@ public partial class App : WpfApplication
 
             // MainWindow is not loaded yet: the block hit while WPF built it (the
             // MainViewModel in its DataContext), so there is no app to keep running.
+            // An OnStartup exit never gets here from MainWindow: AbortStartup
+            // cancels the StartupUri load, so WPF does not build it at all.
             var duringStartup = MainWindow is not { IsLoaded: true };
             if (HandleApplicationControlBlock(
                     args.Exception,
@@ -164,12 +166,12 @@ public partial class App : WpfApplication
             // Control can block like any other file (#933).
             if (HandleApplicationControlBlock(ex, "database_init", showNotice: true))
             {
-                Shutdown(1);
+                AbortStartup(1);
                 return;
             }
 
             WpfMessageBox.Show(Loc.S("errors.database.initFailed", ex.Message), Loc.S("errors.database.title"), MessageBoxButton.OK, MessageBoxImage.Error);
-            Shutdown(1);
+            AbortStartup(1);
             return;
         }
 
@@ -309,6 +311,43 @@ public partial class App : WpfApplication
         {
             LoggingService.Warn($"Failed to initialize Local API server: {ex.Message}");
             // Continue — Local API failures must not block app startup.
+        }
+    }
+
+    /// <summary>
+    /// Ends the launch from inside OnStartup with <paramref name="exitCode"/>, and
+    /// keeps WPF from building MainWindow on the way out (#1588).
+    /// </summary>
+    /// <remarks>
+    /// Shutdown alone does not stop the launch. It only queues the shutdown, and
+    /// when OnStartup returns WPF goes on to load StartupUri (App.xaml) at once:
+    /// MainWindow and the MainViewModel in its DataContext, against whatever made
+    /// OnStartup give up (a broken database), which raised a second, raw error box.
+    /// StartupUri cannot be cleared (its setter refuses null), but WPF raises
+    /// Navigating for it first and honours Cancel, so cancelling that one
+    /// navigation is the whole fix. A launch that does not abort is untouched.
+    /// </remarks>
+    private void AbortStartup(int exitCode)
+    {
+        CancelStartupUriNavigation();
+        Shutdown(exitCode);
+    }
+
+    /// <summary>
+    /// Cancels the next navigation this Application raises, which during
+    /// OnStartup is the StartupUri load, then stops listening. Split from
+    /// <see cref="AbortStartup"/> so the smoke suite can prove it without
+    /// shutting its own Application down.
+    /// </summary>
+    internal void CancelStartupUriNavigation()
+    {
+        Navigating += CancelOnce;
+
+        void CancelOnce(object sender, System.Windows.Navigation.NavigatingCancelEventArgs args)
+        {
+            Navigating -= CancelOnce;
+            args.Cancel = true;
+            LoggingService.Info($"App: startup aborted, so the StartupUri load ({args.Uri}) is cancelled");
         }
     }
 

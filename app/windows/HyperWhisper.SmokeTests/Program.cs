@@ -1341,6 +1341,123 @@ internal static class Program
                 Assert(TranscriptionService.TrailingSilenceTrimPoint(shortWord, rate) == (int)(1.1 * rate), "never shorter than whisper.cpp's 1s minimum");
             });
 
+            // #1534. Switching to a Parakeet mode during a long Whisper file job
+            // froze the main window for 74-92 s: the mode switch called a sync
+            // UnloadModel() that blocked the UI thread on UnloadModelAsync, which
+            // waits for every in-flight transcription. The wrapper is gone, so a
+            // UI-thread caller has to await.
+            Run("TranscriptionService has no blocking UnloadModel wrapper (#1534)", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                Assert(typeof(TranscriptionService).GetMethod("UnloadModel", all, Type.EmptyTypes) == null,
+                    "TranscriptionService.UnloadModel() is back; a UI-thread caller blocks on a whole Whisper job (#1534)");
+                var unloadAsync = typeof(TranscriptionService).GetMethod("UnloadModelAsync", all);
+                Assert(unloadAsync != null && unloadAsync.ReturnType == typeof(Task),
+                    "TranscriptionService.UnloadModelAsync is missing or no longer returns Task");
+            });
+
+            // #1534. UnloadModelAsync must hand back a pending Task while a job is
+            // in flight (the caller's thread stays free), keep the model until the
+            // job drains, and complete once it does. No native Whisper needed: the
+            // in-flight counter is what the wait reads.
+            Run("UnloadModelAsync waits for an in-flight job without blocking its caller (#1534)", () =>
+            {
+                var service = new TranscriptionService();
+                var inFlight = typeof(TranscriptionService).GetField("_inFlight", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?? throw new InvalidOperationException("TranscriptionService._inFlight is gone; update this test");
+                inFlight.SetValue(service, 1);
+
+                var stopwatch = Stopwatch.StartNew();
+                var unload = service.UnloadModelAsync();
+                stopwatch.Stop();
+                Assert(stopwatch.ElapsedMilliseconds < 500,
+                    $"UnloadModelAsync held its caller for {stopwatch.ElapsedMilliseconds} ms while a job was in flight");
+                Assert(!unload.Wait(TimeSpan.FromMilliseconds(300)),
+                    "UnloadModelAsync completed while a transcription was still in flight");
+
+                inFlight.SetValue(service, 0);
+                Assert(unload.Wait(TimeSpan.FromSeconds(5)),
+                    "UnloadModelAsync did not complete after the in-flight job drained");
+                Assert(!service.IsInitialized, "the service still reports a model after the unload");
+                service.Dispose();
+            });
+
+            // #1534. Both Parakeet load paths (the mode-switch preload and Transcribe
+            // File's readiness check) must reach the Whisper unload through the
+            // awaited helper, and the helper must call UnloadModelAsync.
+            Run("Parakeet load paths await the Whisper unload (#1534)", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                var helper = typeof(MainViewModel).GetMethod("UnloadWhisperForParakeetIfLowMemoryAsync", all)
+                    ?? throw new InvalidOperationException("MainViewModel.UnloadWhisperForParakeetIfLowMemoryAsync is gone; update this test");
+                var unloadAsync = typeof(TranscriptionService).GetMethod("UnloadModelAsync", all)!;
+
+                Assert(AsyncBodyCalls(helper, unloadAsync),
+                    "UnloadWhisperForParakeetIfLowMemoryAsync no longer calls TranscriptionService.UnloadModelAsync");
+                foreach (var name in new[] { "LoadParakeetModelUnderLockAsync", "EnsureLocalProviderReadyForFileAsync" })
+                {
+                    var method = typeof(MainViewModel).GetMethod(name, all)
+                        ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test");
+                    Assert(AsyncBodyCalls(method, helper),
+                        $"MainViewModel.{name} no longer unloads Whisper through the awaited helper (#1534)");
+                }
+            });
+
+            // #1534. When the user switches away during the Whisper unload, the
+            // Parakeet load must reset the status and reload the current mode's
+            // model. That follow-up once sat after a finally whose try returned,
+            // so it never ran. Pin the shape that makes it reachable: the lock
+            // (and every early return under it) lives in the inner method, and the
+            // outer method acts on the outcome with no lock of its own.
+            Run("A superseded Parakeet load reloads the current mode outside the lock (#1534)", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                MethodInfo Vm(string name) => typeof(MainViewModel).GetMethod(name, all)
+                    ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test");
+                var outer = Vm("LoadParakeetModelAsync");
+                var inner = Vm("LoadParakeetModelUnderLockAsync");
+                var release = typeof(SemaphoreSlim).GetMethod("Release", Type.EmptyTypes)!;
+                var waitAsync = typeof(SemaphoreSlim).GetMethod("WaitAsync", Type.EmptyTypes)!;
+
+                Assert(AsyncBodyCalls(outer, inner), "LoadParakeetModelAsync no longer runs its locked part through LoadParakeetModelUnderLockAsync");
+                Assert(AsyncBodyCalls(inner, waitAsync) && AsyncBodyCalls(inner, release),
+                    "LoadParakeetModelUnderLockAsync no longer takes and releases the model lock");
+                Assert(!AsyncBodyCalls(outer, waitAsync) && !AsyncBodyCalls(outer, release),
+                    "LoadParakeetModelAsync takes the model lock itself again; a return inside that try skips the superseded reload");
+                Assert(AsyncBodyCalls(outer, Vm("UpdateModelStatus")) && AsyncBodyCalls(outer, Vm("LoadModelAsync")),
+                    "LoadParakeetModelAsync no longer resets the status and reloads after a superseded load");
+                Assert(Enum.IsDefined(typeof(MainViewModel.ParakeetLoadOutcome), "SupersededAfterWhisperUnload"),
+                    "ParakeetLoadOutcome.SupersededAfterWhisperUnload is gone; update this test");
+            });
+
+            // #1534. A queued Parakeet load re-checks the selection after its waits
+            // (the model lock, the Whisper unload) so it does not start a daemon the
+            // user has already switched away from.
+            Run("IsParakeetLoadStillWanted follows the newest selection (#1534)", () =>
+            {
+                Mode Parakeet(string model, string language = "en") => new Mode
+                {
+                    ProviderType = "local", LocalEngine = "parakeet", LocalParakeetModel = model, Language = language,
+                };
+
+                Assert(MainViewModel.IsParakeetLoadStillWanted(Parakeet("parakeet-v2"), "parakeet-v2", "en"),
+                    "the same Parakeet mode must still want its model");
+                Assert(!MainViewModel.IsParakeetLoadStillWanted(null, "parakeet-v2", "en"),
+                    "no selection wants no daemon");
+                Assert(!MainViewModel.IsParakeetLoadStillWanted(
+                        new Mode { ProviderType = "local", LocalEngine = "whisper", LocalParakeetModel = "parakeet-v2" },
+                        "parakeet-v2", "en"),
+                    "a Whisper mode must not want the daemon");
+                Assert(!MainViewModel.IsParakeetLoadStillWanted(
+                        new Mode { ProviderType = "cloud", LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v2" },
+                        "parakeet-v2", "en"),
+                    "a cloud mode must not want the daemon");
+                Assert(!MainViewModel.IsParakeetLoadStillWanted(Parakeet("parakeet-v3"), "parakeet-v2", "en"),
+                    "another Parakeet model is a different load");
+                Assert(!MainViewModel.IsParakeetLoadStillWanted(Parakeet("parakeet-v2", "ja"), "parakeet-v2", "en"),
+                    "another language is a different load (NeedsReload owns whether it respawns)");
+            });
+
             Run("IsNoSpaceLanguage / NormalizeLanguage truth tables", () =>
             {
                 foreach (var code in new[] { "ja", "zh", "ko", "yue" })
@@ -2471,6 +2588,56 @@ internal static class Program
                 {
                     settings.CustomEndpoints = saved;
                 }
+            });
+
+            // Issue #1588. An OnStartup exit (database init failure, Application
+            // Control block, second instance) called Shutdown and returned, and
+            // WPF then loaded StartupUri anyway: MainWindow and its MainViewModel
+            // against the broken database, and a second, raw error box. This
+            // drives WPF's own post-OnStartup step (Application.DoStartup) on the
+            // real App, after the abort hook, and asserts nothing is built.
+            Run("an aborted startup cancels the StartupUri load, so no MainWindow is built", () =>
+            {
+                var app = EnsureSmokeApplication() as HyperWhisper.App;
+                Assert(app is not null, "the smoke Application is not the app's own App");
+                Assert(app!.StartupUri?.OriginalString.EndsWith("MainWindow.xaml", StringComparison.Ordinal) == true,
+                    $"App.xaml's StartupUri changed ({app.StartupUri}); this case guards MainWindow.xaml");
+
+                var doStartup = typeof(System.Windows.Application).GetMethod(
+                    "DoStartup", BindingFlags.Instance | BindingFlags.NonPublic, Type.EmptyTypes);
+                Assert(doStartup is not null, "WPF no longer has Application.DoStartup; rewrite this case");
+
+                // A backstop runs after the app's handler. It records whether the
+                // app already cancelled, then cancels anyway, so a regression fails
+                // this case instead of building a real MainWindow in the suite.
+                var seen = new List<(string Uri, bool CancelledByApp)>();
+                System.Windows.Navigation.NavigatingCancelEventHandler backstop = (_, args) =>
+                {
+                    seen.Add((args.Uri?.OriginalString ?? "", args.Cancel));
+                    args.Cancel = true;
+                };
+
+                var windowsBefore = app.Windows.Count;
+                app.CancelStartupUriNavigation();
+                app.Navigating += backstop;
+                try
+                {
+                    doStartup!.Invoke(app, null);
+                    // The hook is one-shot: the next navigation is not cancelled.
+                    doStartup.Invoke(app, null);
+                }
+                finally
+                {
+                    app.Navigating -= backstop;
+                }
+
+                Assert(seen.Count == 2, $"WPF raised Navigating {seen.Count} times for two StartupUri loads, not 2");
+                Assert(seen[0].Uri.EndsWith("MainWindow.xaml", StringComparison.Ordinal),
+                    $"the cancelled navigation was '{seen[0].Uri}', not the StartupUri load");
+                Assert(seen[0].CancelledByApp, "an aborted startup did not cancel the StartupUri load");
+                Assert(!seen[1].CancelledByApp, "the abort hook cancelled a second navigation; it must be one-shot");
+                Assert(app.Windows.Count == windowsBefore && !app.Windows.OfType<MainWindow>().Any(),
+                    "a MainWindow was built after the startup was aborted");
             });
 
             // Issue #510. The heading said "Edit Endpoint" and Window.Title still
@@ -7972,6 +8139,162 @@ internal static class Program
                 Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(
                         true, "user-owned.wav", "user-owned.wav"),
                     "Store-as-M4A can delete a user-owned fallback source");
+            });
+
+            RunAsync("M4A compression runs on the thread pool and does not block the caller — issue #1499", async () =>
+            {
+                // The UI thread froze 13-42 s while TryConvertWavToM4A ran on it. The
+                // start must return at once, with the encode still running elsewhere.
+                var callerThread = Environment.CurrentManagedThreadId;
+                using var release = new ManualResetEventSlim(false);
+                int convertThread = -1;
+                var onPool = false;
+                var compression = MainViewModel.StartRecordingCompression(path =>
+                {
+                    convertThread = Environment.CurrentManagedThreadId;
+                    onPool = Thread.CurrentThread.IsThreadPoolThread;
+                    release.Wait(TimeSpan.FromSeconds(10));
+                    return Path.ChangeExtension(path, ".m4a");
+                }, @"C:\x\rec.wav");
+
+                Assert(!compression.IsCompleted, "the start waited for the encode, so the caller was blocked");
+                release.Set();
+                var result = await compression;
+                Assert(result == @"C:\x\rec.m4a", $"got '{result}'");
+                Assert(onPool, "the encode did not run on a thread-pool thread");
+                Assert(convertThread != callerThread, "the encode ran on the calling thread");
+
+                // A throwing encode keeps the WAV: null, not a faulted task.
+                var failed = await MainViewModel.StartRecordingCompression(
+                    _ => throw new InvalidOperationException("MF failed"), @"C:\x\rec.wav");
+                Assert(failed is null, "a throwing encode must come back as null (keep the WAV)");
+            });
+
+            RunAsync("M4A compression: the finish step re-points a live row, deletes the M4A of a removed one — issue #1499", async () =>
+            {
+                var id = Guid.NewGuid();
+                var pointed = new List<(Guid, string)>();
+                var deleted = new List<string>();
+
+                await MainViewModel.FinishRecordingCompressionAsync(
+                    Task.FromResult<string?>("a.m4a"), id,
+                    (rowId, path) => { pointed.Add((rowId, path)); return true; }, deleted.Add);
+                Assert(pointed.Count == 1 && pointed[0] == (id, "a.m4a"), "a live row was not pointed at its M4A");
+                Assert(deleted.Count == 0, "the M4A of a live row was deleted");
+
+                pointed.Clear();
+                await MainViewModel.FinishRecordingCompressionAsync(
+                    Task.FromResult<string?>("b.m4a"), id,
+                    (rowId, path) => { pointed.Add((rowId, path)); return false; }, deleted.Add);
+                Assert(deleted.SequenceEqual(new[] { "b.m4a" }), "the M4A of a row deleted mid-encode was orphaned");
+
+                pointed.Clear();
+                deleted.Clear();
+                await MainViewModel.FinishRecordingCompressionAsync(
+                    Task.FromResult<string?>(null), id,
+                    (rowId, path) => { pointed.Add((rowId, path)); return true; }, deleted.Add);
+                Assert(pointed.Count == 0 && deleted.Count == 0, "a failed encode touched the row or deleted a file");
+
+                // Never throws: the dictation path discards this task.
+                await MainViewModel.FinishRecordingCompressionAsync(
+                    Task.FromResult<string?>("c.m4a"), id,
+                    (_, _) => throw new InvalidOperationException("database is locked"), deleted.Add);
+
+                // Cancelled file job whose row went: both files go once the encode ends.
+                deleted.Clear();
+                await MainViewModel.DeleteRecordingAfterCompressionAsync(
+                    Task.FromResult<string?>("d.m4a"), "d.wav", deleted.Add);
+                Assert(deleted.SequenceEqual(new[] { "d.m4a", "d.wav" }), $"deleted [{string.Join(", ", deleted)}]");
+                deleted.Clear();
+                await MainViewModel.DeleteRecordingAfterCompressionAsync(
+                    Task.FromResult<string?>(null), "e.wav", deleted.Add);
+                Assert(deleted.SequenceEqual(new[] { "e.wav" }), "a failed encode's kept WAV was orphaned");
+            });
+
+            Run("history: UpdateAudioFilePath re-points only the audio path, and reports a removed row — issue #1499", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var history = HistoryService.Instance;
+                var row = history.CreateProcessingTranscript(1.0, "percy1499", audioFilePath: @"C:\x\rec.wav");
+                Transcript? raised = null;
+                EventHandler<Transcript> onUpdated = (_, t) => { if (t.Id == row.Id) raised = t; };
+                history.TranscriptUpdated += onUpdated;
+                try
+                {
+                    // The user edited the text while the encode ran; the path write must keep it.
+                    row.Status = TranscriptStatus.Completed;
+                    row.Text = "edited by the user";
+                    history.UpdateTranscript(row);
+
+                    Assert(history.UpdateAudioFilePath(row.Id, @"C:\x\rec.m4a"), "a live row was reported as gone");
+                    var persisted = history.GetTranscript(row.Id);
+                    Assert(persisted?.AudioFilePath == @"C:\x\rec.m4a", $"path is '{persisted?.AudioFilePath}'");
+                    Assert(persisted?.Text == "edited by the user", $"text is '{persisted?.Text}'");
+                    Assert(raised != null && !ReferenceEquals(raised, row) && raised.AudioFilePath == @"C:\x\rec.m4a",
+                        "TranscriptUpdated must carry the re-read row with the new path");
+
+                    // The History page applies that re-read row; the path must land so a later
+                    // edit's ToEntity does not write the deleted WAV path back.
+                    var vm = new TranscriptViewModel(new Transcript { Id = row.Id, AudioFilePath = @"C:\x\rec.wav" });
+                    vm.ApplyUpdate(raised!);
+                    Assert(vm.AudioFilePath == @"C:\x\rec.m4a", $"view model path is '{vm.AudioFilePath}'");
+                    Assert(vm.ToEntity().AudioFilePath == @"C:\x\rec.m4a", "ToEntity wrote the stale WAV path back");
+
+                    history.DeleteTranscript(row.Id);
+                    Assert(!history.UpdateAudioFilePath(row.Id, @"C:\x\rec.m4a"), "a removed row was reported as updated");
+                }
+                finally
+                {
+                    history.TranscriptUpdated -= onUpdated;
+                    history.DeleteTranscript(row.Id);
+                }
+            });
+
+            RunAsync("M4A compression: a real Media Foundation encode on a thread-pool thread — issue #1499", async () =>
+            {
+                // TryConvertWavToM4A used to run on the STA UI thread for file imports.
+                // It now runs on an MTA pool thread, twice at once (a dictation can overlap
+                // a file import), and Media Foundation must stay usable afterwards.
+                var settings = SettingsService.Instance;
+                var storeBefore = settings.StoreAsM4A;
+                var root = Path.Combine(Path.GetTempPath(), $"hw-1499-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(root);
+                try
+                {
+                    settings.StoreAsM4A = true;
+                    string WriteWav(string name)
+                    {
+                        var path = Path.Combine(root, name);
+                        using var writer = new NAudio.Wave.WaveFileWriter(path, new NAudio.Wave.WaveFormat(16000, 16, 1));
+                        var frame = new float[1];
+                        for (var i = 0; i < 16000 * 3; i++)
+                        {
+                            frame[0] = (float)(0.3 * Math.Sin(2 * Math.PI * 440 * i / 16000.0));
+                            writer.WriteSamples(frame, 0, 1);
+                        }
+                        return path;
+                    }
+
+                    var wavs = new[] { WriteWav("a.wav"), WriteWav("b.wav") };
+                    var results = await Task.WhenAll(wavs.Select(wav =>
+                        MainViewModel.StartRecordingCompression(StorageService.Instance.TryConvertWavToM4A, wav)));
+                    for (var i = 0; i < wavs.Length; i++)
+                    {
+                        Assert(results[i] == Path.ChangeExtension(wavs[i], ".m4a"), $"encode {i} returned '{results[i]}'");
+                        Assert(File.Exists(results[i]!) && new FileInfo(results[i]!).Length > 0, $"encode {i} wrote no M4A");
+                        Assert(!File.Exists(wavs[i]), $"encode {i} kept its WAV after success");
+                    }
+
+                    // A third encode after the pair: nothing shut Media Foundation down under it.
+                    var again = await MainViewModel.StartRecordingCompression(
+                        StorageService.Instance.TryConvertWavToM4A, WriteWav("c.wav"));
+                    Assert(again != null && File.Exists(again), "Media Foundation was unusable after the pair");
+                }
+                finally
+                {
+                    settings.StoreAsM4A = storeBefore;
+                    Directory.Delete(root, recursive: true);
+                }
             });
 
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>
@@ -15347,6 +15670,103 @@ internal static class Program
                 }
             });
 
+            Run("backup: a merge import that fails on a later batch leaves the modes as they were — issue #1605", () =>
+            {
+                // ImportEntities committed every batch of 200 modes with its own
+                // SaveChanges, so an import cut short (a kill, a crash, a failed
+                // batch) left a silent partial import: 8,204 of 10,004 modes. The
+                // DB must hold the old modes or all of them, never a part.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                // Plant the failure in the suite's own scratch profile only.
+                string dbPath;
+                using (var probe = new HyperWhisperDbContext())
+                {
+                    dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                        probe.Database.GetConnectionString()).DataSource);
+                }
+                Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+                    $"the database {dbPath} is not under the suite's temp profile; refusing to add a trigger to it");
+
+                const string Prefix = "percy1605-";
+                const string PoisonName = Prefix + "poison";
+                // ImportBatchSize is 200: the poison row sits in the SECOND batch, so
+                // on the old code the whole first batch was already committed.
+                const int Total = 450;
+                const int PoisonIndex = 300;
+
+                var modes = new List<UniversalMode>();
+                for (int i = 0; i < Total; i++)
+                {
+                    modes.Add(UniversalBackupMapper.MapMode(new Mode
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = i == PoisonIndex ? PoisonName : $"{Prefix}{i:D3}",
+                        IsDefault = false,
+                        SortOrder = 10_000 + i
+                    }));
+                }
+
+                var backupPath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests",
+                    $"issue1605-{Guid.NewGuid():N}.hwbackup.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+                File.WriteAllText(backupPath, JsonSerializer.Serialize(new UniversalBackup
+                {
+                    SchemaVersion = 2,
+                    ExportDate = DateTime.UtcNow,
+                    AppVersion = "smoke-1605",
+                    Platform = "windows",
+                    Modes = modes
+                }, UniversalCaptureOptions));
+
+                int CountModes()
+                {
+                    using var ctx = new HyperWhisperDbContext();
+                    return ctx.Modes.Count();
+                }
+
+                void Exec(string sql)
+                {
+                    using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+                    conn.Open();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = sql;
+                    cmd.ExecuteNonQuery();
+                }
+
+                var before = CountModes();
+                // A real SQLite refusal, not a seam: a BEFORE INSERT trigger aborts
+                // the one poison row, so batch 2's SaveChanges throws.
+                Exec($"CREATE TRIGGER IF NOT EXISTS percy1605_poison BEFORE INSERT ON Modes " +
+                     $"WHEN NEW.Name = '{PoisonName}' BEGIN SELECT RAISE(ABORT, 'percy1605 poison row'); END;");
+                try
+                {
+                    var result = BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+                    {
+                        IncludeModes = true
+                    });
+
+                    Assert(!result.IsSuccess,
+                        "the import succeeded although the poison row was refused, so this case proves nothing");
+
+                    var after = CountModes();
+                    Assert(after == before,
+                        $"the failed import left {after - before} of its {Total} modes in the database " +
+                        $"({before} before, {after} after): a silent partial import");
+
+                    using var ctx = new HyperWhisperDbContext();
+                    var leaked = ctx.Modes.Count(m => m.Name.StartsWith(Prefix));
+                    Assert(leaked == 0, $"{leaked} imported modes survived the failed import");
+                }
+                finally
+                {
+                    Exec("DROP TRIGGER IF EXISTS percy1605_poison;");
+                    // Old code leaves the first batch behind; later cases share this DB.
+                    Exec($"DELETE FROM Modes WHERE Name LIKE '{Prefix}%';");
+                    try { File.Delete(backupPath); } catch { }
+                }
+            });
+
             Run("settings: an info notice is given the whole column, so it wraps — issues #503, #508", () =>
             {
                 // A horizontal StackPanel measures its children with infinite available
@@ -17249,6 +17669,119 @@ internal static class Program
                 }
             });
 
+            // #1583: the restore wrote the snapshot back over whatever was on the
+            // clipboard, so text the user copied inside the 10 s window after a
+            // dictation was lost. The restore must only replace the app's own
+            // transcript. The scheduled restore and the immediate one share
+            // RestoreClipboard, where the check lives; these drive the immediate
+            // one, as the #1496 case does, so no dispatcher has to be pumped.
+            Run("clipboard restore (#1583): a copy made after the dictation survives the restore", () =>
+            {
+                static string Clip() => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                var operatorClipboard = SnapshotWholeClipboard();
+                var previousGate = TextDeliveryGate.IsSuppressed;
+                var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = true;
+
+                    void Dictate(SmartPasteService paste, string transcript)
+                    {
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(transcript) == SmartPasteResult.CopiedToClipboard,
+                            $"precondition: '{transcript}' must reach the clipboard");
+                        Assert(Clip() == transcript,
+                            $"precondition: the clipboard must hold '{transcript}', got '{Clip()}'");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(TimeSpan.FromHours(1));
+                        Assert(paste.HasPendingClipboardRestore, $"a restore must be pending after '{transcript}'");
+                        paste.EndRecordingSession();
+                    }
+
+                    // One dictation, then the user copies something new inside
+                    // the restore window (S13: 3 s after the paste).
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("S13-ORIG");
+                        Dictate(paste, "The apple tree grows near the riverbank. ");
+                        Clipboard.SetText("S13-USER-NEW");
+                        var result = ((PlatformContracts.ITextInjectionService)paste)
+                            .RestoreClipboardImmediatelyAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                        Assert(result.IsSuccess, "a skipped restore is not a failure");
+                        Assert(Clip() == "S13-USER-NEW",
+                            $"a copy made after the dictation must survive the restore, got '{Clip()}'");
+
+                        // The stale snapshot is gone: the next dictation snapshots
+                        // the new copy, and its restore brings THAT back.
+                        Dictate(paste, "Blue whale sing across the cold ocean. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "S13-USER-NEW",
+                            $"after a skipped restore the next dictation must restore the new copy, got '{Clip()}'");
+                    }
+
+                    // Two dictations inside the restore window (#1512 keeps the
+                    // first snapshot), then a copy after the SECOND paste.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("S13-ORIG");
+                        Dictate(paste, "First dictation. ");
+                        Dictate(paste, "Second dictation. ");
+                        Clipboard.SetText("S13-USER-NEW");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "S13-USER-NEW",
+                            $"a copy made after the second paste must survive the restore, got '{Clip()}'");
+                    }
+
+                    // The same chain with no copy still restores the user's text:
+                    // the check compares against the SECOND transcript's write.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("S13-ORIG");
+                        Dictate(paste, "First dictation. ");
+                        Dictate(paste, "Second dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "S13-ORIG",
+                            $"with no copy the chain must still restore the user's text, got '{Clip()}'");
+                    }
+
+                    // A copy made between the first paste and the second
+                    // dictation, then the second dictation's restore: the copy is
+                    // the snapshot (#1496), and with nothing copied after the
+                    // second paste it comes back.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("S13-ORIG");
+                        Dictate(paste, "First dictation. ");
+                        Clipboard.SetText("copied between");
+                        Dictate(paste, "Second dictation. ");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "copied between",
+                            $"a copy made between dictations must be what comes back, got '{Clip()}'");
+                    }
+
+                    // A dictation that wrote nothing (paste refused): a copy made
+                    // in its window is not overwritten by the snapshot either.
+                    using (var paste = new SmartPasteService())
+                    {
+                        Clipboard.SetText("S13-ORIG");
+                        paste.StartRecordingSession();
+                        Assert(paste.SmartPaste(string.Empty) == SmartPasteResult.Failed, "empty text pastes nothing");
+                        ((PlatformContracts.ITextInjectionService)paste).ScheduleClipboardRestore(TimeSpan.FromHours(1));
+                        paste.EndRecordingSession();
+                        Clipboard.SetText("S13-USER-NEW");
+                        paste.RestoreClipboardImmediately();
+                        Assert(Clip() == "S13-USER-NEW",
+                            $"a copy made after a no-paste dictation must survive the restore, got '{Clip()}'");
+                    }
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previousGate);
+                    SettingsService.Instance.RestoreClipboardAfterPaste = previousRestore;
+                    PutBackWholeClipboard(operatorClipboard);
+                }
+            });
+
             Run("shortcuts: the recorder's red border never appears without its reason", () =>
             {
                 // C8. ShowError gated only the TEXT on ShowsInlineError and painted
@@ -18232,6 +18765,50 @@ internal static class Program
         Assert(method!.GetMethodImplementationFlags().HasFlag(MethodImplAttributes.NoInlining),
             $"{type.Name}.{methodName} is inlinable again — a blocked optional assembly " +
             "would fault its caller before any catch could run (HYPERWHISPER-Y5/YF)");
+    }
+
+    /// <summary>
+    /// True when the body of <paramref name="method"/> (its async state machine's
+    /// MoveNext, when it is async) has a call or callvirt to <paramref name="target"/>.
+    /// A byte scan for the two opcodes, each candidate token resolved in a
+    /// try/catch: a stray byte pair can only resolve to some unrelated member,
+    /// so a hit on the exact target is a real call site (#1534).
+    /// </summary>
+    private static bool AsyncBodyCalls(MethodInfo method, MethodInfo target)
+    {
+        const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+        var body = method;
+        var stateMachine = method.GetCustomAttribute<System.Runtime.CompilerServices.AsyncStateMachineAttribute>();
+        if (stateMachine != null)
+        {
+            body = stateMachine.StateMachineType.GetMethod("MoveNext", all)
+                ?? throw new InvalidOperationException($"{method.Name}: async state machine has no MoveNext");
+        }
+
+        var il = body.GetMethodBody()?.GetILAsByteArray()
+            ?? throw new InvalidOperationException($"{method.Name}: no IL body");
+        for (int i = 0; i + 4 < il.Length; i++)
+        {
+            if (il[i] != 0x28 && il[i] != 0x6F) // call, callvirt
+            {
+                continue;
+            }
+
+            try
+            {
+                if (body.Module.ResolveMethod(BitConverter.ToInt32(il, i + 1)) is MethodInfo called &&
+                    called.MetadataToken == target.MetadataToken && called.Module == target.Module)
+                {
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+                // Not a resolvable method token at this offset.
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

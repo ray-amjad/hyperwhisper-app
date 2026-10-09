@@ -278,17 +278,9 @@ public class BackupService
             }
             else
             {
-                // 3. Import modes
-                if (modes != null && modes.Count > 0)
-                {
-                    modesImported = ImportEntities(modes, ctx => ctx.Modes);
-                }
-
-                // 4. Import vocabulary
-                if (vocabulary != null && vocabulary.Count > 0)
-                {
-                    vocabImported = ImportEntities(vocabulary, ctx => ctx.VocabularyItems);
-                }
+                // 3 + 4. Merge modes and vocabulary in ONE transaction, the same
+                // all-or-nothing shape as the replace branch (issue #1605).
+                (modesImported, vocabImported) = MergeDatabaseEntities(modes, vocabulary);
             }
 
             // A backup carries whatever `isDefault` its own machine held, so a
@@ -403,7 +395,9 @@ public class BackupService
             if (selection.IncludeModes && backup.Modes is { Count: > 0 })
             {
                 var modes = backup.Modes.Select(UniversalBackupMapper.MapToMode).ToList();
-                summary.ModesImported = ImportEntities(modes, ctx => ctx.Modes);
+                // All or nothing (issue #1605): one transaction across every batch,
+                // so a crash or a failed batch leaves the old modes, never a part.
+                summary.ModesImported = MergeDatabaseEntities(modes, null).modesImported;
                 // A backup carries whatever `isDefault` its own machine held, and
                 // a merge can therefore land a second default beside the local
                 // one, or none at all (issue #536). The imports above go straight
@@ -728,35 +722,73 @@ public class BackupService
     }
 
     /// <summary>
-    /// Generic merge import with batched upsert to avoid EF change tracker accumulation.
+    /// Merges (upserts by Id) database-backed backup entities in ONE transaction,
+    /// committed once after the last batch. A crash, kill or failed batch therefore
+    /// leaves the database exactly as it was, never a silent partial import
+    /// (issue #1605). A failure rolls back and rethrows, so the caller's catch turns
+    /// it into a failed Result as before.
     /// </summary>
-    private static int ImportEntities<T>(
-        List<T> items,
-        Func<HyperWhisperDbContext, DbSet<T>> dbSetSelector) where T : class
+    private static (int modesImported, int vocabularyImported) MergeDatabaseEntities(
+        List<Mode>? modes,
+        List<VocabularyItem>? vocabulary)
     {
-        int count = 0;
+        int modesImported = 0;
+        int vocabularyImported = 0;
 
         lock (_dbLock)
         {
-            for (int i = 0; i < items.Count; i += ImportBatchSize)
+            using var context = new HyperWhisperDbContext();
+            using var transaction = context.Database.BeginTransaction();
+
+            if (modes != null && modes.Count > 0)
             {
-                using var context = new HyperWhisperDbContext();
-                var batch = items.Skip(i).Take(ImportBatchSize);
-
-                foreach (var item in batch)
-                {
-                    var dbSet = dbSetSelector(context);
-                    var key = context.Entry(item).Property("Id").CurrentValue;
-                    var existing = dbSet.Find(key);
-                    if (existing != null)
-                        context.Entry(existing).CurrentValues.SetValues(item);
-                    else
-                        dbSet.Add(item);
-                    count++;
-                }
-
-                context.SaveChanges();
+                modesImported = MergeEntitySet(context, context.Modes, modes);
             }
+
+            if (vocabulary != null && vocabulary.Count > 0)
+            {
+                vocabularyImported = MergeEntitySet(context, context.VocabularyItems, vocabulary);
+            }
+
+            // Disposing an uncommitted transaction rolls it back, so any throw
+            // above undoes every batch already written.
+            transaction.Commit();
+        }
+
+        return (modesImported, vocabularyImported);
+    }
+
+    /// <summary>
+    /// Batched upsert by Id inside the caller's transaction. Each batch is flushed
+    /// and the change tracker cleared so memory stays bounded, but nothing is
+    /// committed here: the caller commits once.
+    /// </summary>
+    private static int MergeEntitySet<T>(
+        HyperWhisperDbContext context,
+        DbSet<T> dbSet,
+        List<T> items) where T : class
+    {
+        int count = 0;
+
+        for (int i = 0; i < items.Count; i += ImportBatchSize)
+        {
+            var batch = items.Skip(i).Take(ImportBatchSize);
+
+            foreach (var item in batch)
+            {
+                var key = context.Entry(item).Property("Id").CurrentValue;
+                // Find reads through the open transaction, so an Id repeated in a
+                // later batch updates the row an earlier batch inserted.
+                var existing = dbSet.Find(key);
+                if (existing != null)
+                    context.Entry(existing).CurrentValues.SetValues(item);
+                else
+                    dbSet.Add(item);
+                count++;
+            }
+
+            context.SaveChanges();
+            context.ChangeTracker.Clear();
         }
 
         return count;
