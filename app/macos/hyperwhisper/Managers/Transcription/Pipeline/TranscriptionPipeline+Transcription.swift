@@ -276,6 +276,21 @@ extension TranscriptionPipeline {
             // filler-word removal when the requested language was "auto".
             let detectedLanguage = provider.detectedLanguage
 
+            // The local engine's own vocabulary correction (the Parakeet
+            // family's phonetic pass), run ONCE, here, after `text` is kept as
+            // the raw transcript (`rawText: text` below, the History row's
+            // `transcribedText`). It used to run inside the engine, together
+            // with an unanchored substring pass, so the raw transcript already
+            // held the swaps and every replacement row then ran a second time
+            // in `applyVocabularyReplacements` below (issue #1622, as Windows
+            // #1596). Everything below works on `correctedText`; the `\b` pass
+            // runs once over it in whichever branch is taken.
+            let correctedText = VocabularyProcessor.applyLocalEngineVocabularyCorrection(
+                to: text,
+                provider: provider,
+                vocabulary: vocabulary
+            )
+
             // Use server-provided AI-enhanced text when HyperWhisper Cloud returns it.
             let hyperwhisperCloudAIText: String?
             if let hwProvider = provider as? HyperWhisperCloudProvider,
@@ -408,13 +423,13 @@ extension TranscriptionPipeline {
                     let providerName = resolvedPostProcessingProvider?.displayName ?? resolvedPostProcessingProviderId
                     AppLogger.transcription.info("✅ Starting AI post-processing with provider: \(providerName, privacy: .public)")
                     aiProcessedText = try await processor.performAIPostProcessingPreservingBreaks(
-                        text: text,
+                        text: correctedText,
                         mode: mode,
                         applicationContext: applicationContext
                     )
                 } else {
                     AppLogger.transcription.warning("⚠️ Post-processing needed but aiPostProcessor is nil! Check initialization.")
-                    aiProcessedText = text
+                    aiProcessedText = correctedText
                 }
 
                 // Apply vocabulary replacements after AI processing.
@@ -432,8 +447,8 @@ extension TranscriptionPipeline {
                     AppLogger.transcription.info("ℹ️ Post-processing skipped (mode setting = \(mode?.postProcessingMode ?? -1) or nil mode)")
                 }
                 let withoutFillers = settingsManager?.removeFillerWords == false
-                    ? text
-                    : TranscriptionTextProcessing.removeFillerWords(text, language: detectedLanguage ?? languageArg)
+                    ? correctedText
+                    : TranscriptionTextProcessing.removeFillerWords(correctedText, language: detectedLanguage ?? languageArg)
                 // Honor dictated break commands ("new line" / "new paragraph")
                 // in the batch path too — they were streaming-only, so with AI
                 // post-processing off they were silently dropped (issue #1).

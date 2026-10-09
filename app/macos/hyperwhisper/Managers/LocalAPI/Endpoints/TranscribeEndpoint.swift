@@ -134,13 +134,24 @@ enum TranscribeEndpoint {
         }
         let latencyMs = Int(Date().timeIntervalSince(started) * 1000)
 
+        // The local engine's own vocabulary correction (the Parakeet family's
+        // phonetic pass), once, exactly where `TranscriptionPipeline` runs it:
+        // after the engine's text and before the `\b` replacement pass below.
+        // It used to run inside the engine with an unanchored substring pass,
+        // so every replacement row was applied twice (issue #1622).
+        let correctedText = VocabularyProcessor.applyLocalEngineVocabularyCorrection(
+            to: text,
+            provider: resolution.provider,
+            vocabulary: resolution.vocabulary
+        )
+
         // The deterministic passes, in the order and on the terms
         // `TranscriptionPipeline`'s no-post-processing branch applies them.
         // Filler removal is gated on the language that actually came back
         // rather than on a requested "auto" — "er" and "um" are real words in
         // other languages (issue #278).
         let finalText = Self.applyDeterministicTextPasses(
-            to: text,
+            to: correctedText,
             language: detectedLanguage ?? language,
             mode: resolution.mode,
             pipeline: pipeline

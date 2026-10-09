@@ -53,53 +53,41 @@ class VocabularyProcessor {
         )
     }
 
-    // MARK: - Local Provider Replacement Helper
+    // MARK: - Local Engine Correction
 
-    /// Apply a single substring vocabulary replacement, the way the on-device
-    /// providers do it.
+    /// Run a local engine's own vocabulary correction over its raw text, once.
     ///
-    /// This is deliberately NOT `applyHardenedReplacement` above. The local
-    /// providers (Apple Speech Analyzer, Nemotron, Parakeet, Qwen3-ASR) run an
-    /// unanchored, diacritic-insensitive substring pass over their own raw
-    /// output before the pipeline's batch pass ever sees it, and each one used
-    /// to carry its own private `applyVocabulary` copy. The four copies were
-    /// identical, so they are unified here unchanged — the semantics stay:
-    /// - both `word` and `replacement` are trimmed, and an empty trimmed word or
-    ///   an empty trimmed replacement is a no-op,
-    /// - matching is `.caseInsensitive` AND `.diacriticInsensitive`,
-    /// - matching is plain substring matching, with no `\b…\b` word boundary.
+    /// Only an engine that conforms to `LocalVocabularyCorrecting` has one (the
+    /// Parakeet family's phonetic pass); every other provider, Whisper and every
+    /// cloud provider included, gets `rawText` back unchanged.
     ///
-    /// Keep this next to `applyHardenedReplacement` so the two rule sets stay
-    /// visible side by side rather than hidden in four provider files.
+    /// The caller runs this AFTER it has kept `rawText` as the raw transcript
+    /// (the History row's `transcribedText`) and BEFORE
+    /// `applyVocabularyReplacements`. It used to run inside the engine, so the
+    /// raw transcript already held the swaps (issue #1622, as Windows #1596).
     ///
-    /// Now a thin shim over the shared Rust core (`hw-phonetic`,
-    /// `applySubstringVocabulary`), so Windows and Linux — which had no
-    /// counterpart at all — run the same rules (issue #283). Foundation's
-    /// `.diacriticInsensitive` option splices the replacement into the ORIGINAL
-    /// text at the original range, so the core does the same via an
-    /// NFD-folded-to-original byte-offset map rather than returning a folded
-    /// string. The transcript is deliberately NOT normalized here: text outside
-    /// a match comes back byte-identical, exactly as Foundation left it.
-    static func applySubstringReplacement(to text: String, word: String, replacement: String) -> String {
-        HyperWhisper.applySubstringVocabulary(
-            text: text,
-            entries: [HwVocabularyEntry(word: word, replacement: replacement)]
-        )
-    }
-
-    /// Apply every entry of `vocabulary` to `text` with the local-provider
-    /// substring rules, in list order.
-    ///
-    /// Entries with a nil `word` or a nil `replacement` are skipped, matching
-    /// the `guard let … else { continue }` the provider copies used. One core
-    /// call for the whole list.
-    static func applySubstringVocabulary(to text: String, vocabulary: [Vocabulary]) -> String {
-        HyperWhisper.applySubstringVocabulary(
-            text: text,
-            entries: vocabulary.map {
-                HwVocabularyEntry(word: $0.word ?? "", replacement: $0.replacement)
-            }
-        )
+    /// There used to be a second local pass, too: an unanchored,
+    /// diacritic-insensitive substring pass (`applySubstringVocabulary`) that
+    /// all four on-device providers (Parakeet, Nemotron, Qwen3-ASR, Apple Speech)
+    /// ran over their output. It is gone (issue #1622, Ray's decision of
+    /// 2026-10-09). It matched inside words ("art" -> "ART" turned "quarterly"
+    /// into "quARTerly"), and the pipeline's `\b` pass then applied every
+    /// replacement row a second time ("fox" -> "fox terrier" gave
+    /// "fox terrier terrier"). Replacement rows are now applied by
+    /// `applyVocabularyReplacements` alone, whole words only, as on Whisper.
+    static func applyLocalEngineVocabularyCorrection(
+        to rawText: String,
+        provider: TranscriptionProvider,
+        vocabulary: [Vocabulary]
+    ) -> String {
+        guard let corrector = provider as? LocalVocabularyCorrecting,
+              !vocabulary.isEmpty,
+              !rawText.isEmpty else {
+            return rawText
+        }
+        let corrected = corrector.applyLocalVocabularyCorrection(to: rawText, vocabulary: vocabulary)
+        // A correction must never blank a transcript the engine produced.
+        return corrected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? rawText : corrected
     }
 
     // MARK: - Phonetic Matcher
@@ -156,13 +144,20 @@ class VocabularyProcessor {
     ///   - mode: Transcription mode (currently unused, kept for API compatibility)
     /// - Returns: Text with vocabulary replacements applied
     func applyVocabularyReplacements(_ text: String, mode: Mode?) -> String {
-        var processed = text
-
         // STEP 1: VOCABULARY REPLACEMENT PHASE
         // Fetch vocabulary from Core Data
         // Only processes vocabulary items that have a replacement value
         // Items without replacements are already handled by Whisper's prompt mechanism
-        let vocabulary = PersistenceController.shared.fetchAllVocabularyItems()
+        Self.applyVocabularyReplacements(
+            text,
+            vocabulary: PersistenceController.shared.fetchAllVocabularyItems()
+        )
+    }
+
+    /// `applyVocabularyReplacements(_:mode:)` over a vocabulary the caller
+    /// passes in, so a test can drive the real pass without the shared store.
+    static func applyVocabularyReplacements(_ text: String, vocabulary: [Vocabulary]) -> String {
+        var processed = text
 
         for vocabItem in vocabulary {
             if let word = vocabItem.word,
