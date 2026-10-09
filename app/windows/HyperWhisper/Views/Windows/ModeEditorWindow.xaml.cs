@@ -1163,6 +1163,13 @@ public partial class ModeEditorWindow : Window
         // UpdateSourcePanels sets the API-key warning with the correct provider for
         // each source (HW Cloud → no key; BYOK → the combo provider; local → cleared).
         UpdateSourcePanels(source);
+        // The Language row's visibility follows the SOURCE as well as the local
+        // model: leaving an English-only local model (Parakeet v2, Whisper *.en)
+        // for a cloud source must bring the picker back, and returning to one must
+        // hide it and force English again (#1641). Runs before the list filter, in
+        // the same order as LocalModelCombo_SelectionChanged, so the filter sees
+        // the forced "en" and keeps it selected.
+        AutoSelectEnglishForModel();
         UpdateLanguagesForSelectedModel();
         UpdateAllWarnings();
         UpdateSaveButtonState();
@@ -2105,8 +2112,10 @@ public partial class ModeEditorWindow : Window
     }
 
     /// <summary>
-    /// Auto-selects English language for English-only models.
-    /// Also disables language dropdown for English-only cloud models.
+    /// Auto-selects English language for English-only local models and hides the
+    /// language row; shows and enables it again for every other model and source.
+    /// Every handler that can change the source or the local model must call this
+    /// (#1641: the source segment did not, so the row stayed hidden on Cloud).
     /// </summary>
     private void AutoSelectEnglishForModel()
     {
