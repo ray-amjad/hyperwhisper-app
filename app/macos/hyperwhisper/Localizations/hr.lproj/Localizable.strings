@@ -815,6 +815,7 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "transcripts.delete.multiple.message" = "Ovo će trajno izbrisati %d snimanja i njihove audio datoteke.\n\nOva radnja se ne može poništiti.";
 "transcripts.delete.multiple.confirm" = "Izbriši sve";
 "transcripts.retry.error.title" = "Ponovno pokušavanje nije uspjelo";
+"transcripts.retry.error.modeDeleted" = "Način koji je napravio ovu snimku je izbrisan, pa nije ponovno pokušano. U Povijesti desnom tipkom kliknite snimku i odaberite \"Pokušaj ponovno s...\" za odabir drugog načina.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Odaberi mapu snimki";

@@ -815,6 +815,7 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "transcripts.delete.multiple.message" = "Bu, %d kaydı ve ses dosyalarını kalıcı olarak siler.\n\nBu işlem geri alınamaz.";
 "transcripts.delete.multiple.confirm" = "Tümünü Sil";
 "transcripts.retry.error.title" = "Yeniden Deneme Başarısız";
+"transcripts.retry.error.modeDeleted" = "Bu kaydı oluşturan mod silindi, bu yüzden yeniden denenmedi. Geçmiş'te kayda sağ tıklayın ve başka bir mod seçmek için \"İle Yeniden Dene...\" seçeneğini kullanın.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Kayıtlar Klasörünü Seç";

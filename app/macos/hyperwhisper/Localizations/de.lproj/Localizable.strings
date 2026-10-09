@@ -815,6 +815,7 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "transcripts.delete.multiple.message" = "Dadurch werden %d Aufnahmen und ihre Audiodateien dauerhaft gelöscht.\n\nDiese Aktion kann nicht rückgängig gemacht werden.";
 "transcripts.delete.multiple.confirm" = "Alle löschen";
 "transcripts.retry.error.title" = "Wiederholung fehlgeschlagen";
+"transcripts.retry.error.modeDeleted" = "Der Modus, mit dem diese Aufnahme erstellt wurde, wurde gelöscht, daher wurde sie nicht erneut versucht. Klicken Sie im Verlauf mit der rechten Maustaste auf die Aufnahme und wählen Sie \"Wiederholen Sie den Vorgang mit...\", um einen anderen Modus auszuwählen.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Wählen Sie den Aufnahmeordner";

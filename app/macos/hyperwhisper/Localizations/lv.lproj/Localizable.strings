@@ -815,6 +815,7 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "transcripts.delete.multiple.message" = "Tas neatgriezenski dzēsīs %d ierakstus un to audio failus.\n\nŠo darbību nevar atsaukt.";
 "transcripts.delete.multiple.confirm" = "Dzēst visus";
 "transcripts.retry.error.title" = "Atkārtošana neizdevās";
+"transcripts.retry.error.modeDeleted" = "Režīms, ar kuru tika veikts šis ieraksts, ir izdzēsts, tāpēc atkārtots mēģinājums netika veikts. Vēsturē ar peles labo pogu noklikšķiniet uz ieraksta un izvēlieties \"Atkārtot ar...\", lai izvēlētos citu režīmu.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Izvēlieties ierakstu mapi";

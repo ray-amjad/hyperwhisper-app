@@ -815,6 +815,7 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "transcripts.delete.multiple.message" = "Aceasta va șterge permanent %d înregistrări și fișierele audio.\n\nAceastă acțiune nu poate fi anulată.";
 "transcripts.delete.multiple.confirm" = "Ștergeți toate";
 "transcripts.retry.error.title" = "Reîncercare eșuată";
+"transcripts.retry.error.modeDeleted" = "Modul care a creat această înregistrare a fost șters, așa că nu s-a reîncercat. În Istoric, faceți clic dreapta pe înregistrare și alegeți \"Reîncercați cu...\" pentru a selecta alt mod.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Alegeți folderul înregistrări";

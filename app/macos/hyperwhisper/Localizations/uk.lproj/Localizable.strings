@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "Це назавжди видалить %d записів та їхні аудіо файли.\n\nЦю дію не можна скасувати.";
 "transcripts.delete.multiple.confirm" = "Видалити все";
 "transcripts.retry.error.title" = "Повторна спроба не вдалася";
+"transcripts.retry.error.modeDeleted" = "Режим, у якому зроблено цей запис, видалено, тому повтор не виконано. В Історії клацніть запис правою кнопкою миші та виберіть \"Повторити з...\", щоб вибрати інший режим.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Виберіть папку для записів";

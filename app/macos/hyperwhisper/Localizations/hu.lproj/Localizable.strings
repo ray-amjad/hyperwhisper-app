@@ -815,6 +815,7 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "transcripts.delete.multiple.message" = "Ez véglegesen töröl %d felvételt és az audio fájljaikat.\n\nEz a művelet nem vonható vissza.";
 "transcripts.delete.multiple.confirm" = "Összes törlése";
 "transcripts.retry.error.title" = "Újrapróbálás sikertelen";
+"transcripts.retry.error.modeDeleted" = "A felvételt készítő mód törölve lett, ezért nem történt újrapróbálás. Az Előzményekben kattintson jobb gombbal a felvételre, és válassza a(z) \"Újrapróbálás ezzel...\" lehetőséget egy másik mód kiválasztásához.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Felvételek mappa kiválasztása";

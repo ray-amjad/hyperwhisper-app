@@ -816,6 +816,7 @@
 "transcripts.delete.multiple.message" = "这将永久删除 %d 条录音及其音频文件。\n\n此操作无法撤销。";
 "transcripts.delete.multiple.confirm" = "全部删除";
 "transcripts.retry.error.title" = "重试失败";
+"transcripts.retry.error.modeDeleted" = "创建此录音的模式已被删除，因此未重试。请在历史记录中右键点击该录音，然后选择\"重试并使用...\"以选择其他模式。";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "选择录音文件夹";

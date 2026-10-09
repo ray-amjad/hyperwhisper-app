@@ -815,6 +815,7 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "transcripts.delete.multiple.message" = "Điều này sẽ xóa vĩnh viễn %d bản ghi âm và các tệp âm thanh của chúng.\n\nHành động này không thể được hoàn tác.";
 "transcripts.delete.multiple.confirm" = "Xóa Tất cả";
 "transcripts.retry.error.title" = "Thử lại Không thành công";
+"transcripts.retry.error.modeDeleted" = "Chế độ đã tạo bản ghi này đã bị xóa, nên không thử lại. Trong Lịch sử, nhấp chuột phải vào bản ghi và chọn \"Thử lại với...\" để chọn chế độ khác.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Chọn Thư mục Bản ghi âm";

@@ -815,6 +815,7 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "transcripts.delete.multiple.message" = "Tämä poistaa pysyvästi %d nauhoitusta ja niiden äänitiedostot.\n\nTätä toimintoa ei voi perua.";
 "transcripts.delete.multiple.confirm" = "Poista kaikki";
 "transcripts.retry.error.title" = "Uudelleenyritys epäonnistui";
+"transcripts.retry.error.modeDeleted" = "Tämän tallenteen tehnyt tila on poistettu, joten sitä ei yritetty uudelleen. Napsauta tallennetta hiiren oikealla painikkeella Historiassa ja valitse \"Yritä uudelleen...\" valitaksesi toisen tilan.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Valitse nauhoituskansio";

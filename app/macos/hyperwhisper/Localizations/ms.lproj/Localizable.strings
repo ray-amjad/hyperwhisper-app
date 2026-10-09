@@ -815,6 +815,7 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "transcripts.delete.multiple.message" = "Ini akan memadam %d rakaman dan fail audio mereka secara kekal.\n\nTindakan ini tidak boleh dibuat asal.";
 "transcripts.delete.multiple.confirm" = "Padam Semua";
 "transcripts.retry.error.title" = "Cuba Semula Gagal";
+"transcripts.retry.error.modeDeleted" = "Mod yang membuat rakaman ini telah dipadam, jadi ia tidak dicuba semula. Dalam Sejarah, klik kanan rakaman dan pilih \"Cuba semula dengan...\" untuk memilih mod lain.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Pilih Folder Rakaman";

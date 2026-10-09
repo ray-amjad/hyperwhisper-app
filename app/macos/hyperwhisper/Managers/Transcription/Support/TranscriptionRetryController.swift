@@ -21,6 +21,28 @@
 
 import Foundation
 
+/// Why a History Retry refused to start.
+///
+/// Its own type, not a `TranscriptionError` case: a refusal is decided here,
+/// before any provider runs, so it never reaches the Local API error mapping,
+/// Sentry classification or anything else that switches over
+/// `TranscriptionError`. The caller only shows `localizedDescription`.
+enum TranscriptionRetryError: LocalizedError, Equatable {
+    /// The mode that made the recording no longer exists (it was deleted, or
+    /// the row never named one). Issue #1440: with no mode, the router picks
+    /// HyperWhisper Cloud, so a retry would upload audio an on-device mode
+    /// recorded, without asking. Ray (2026-10-08): Retry stops, sends nothing,
+    /// and points the user at "Retry with..." to pick another mode.
+    case originalModeDeleted
+
+    var errorDescription: String? {
+        switch self {
+        case .originalModeDeleted:
+            return "transcripts.retry.error.modeDeleted".localized
+        }
+    }
+}
+
 /// Handles retry logic for failed transcriptions
 @MainActor
 class TranscriptionRetryController {
@@ -34,6 +56,10 @@ class TranscriptionRetryController {
     /// Settings manager for checking VAD enabled state
     private weak var settingsManager: SettingsManager?
 
+    /// Store for the mode lookup and the row's saves. `.shared` in the app;
+    /// tests pass an in-memory store.
+    private let persistence: PersistenceController
+
     /// VAD processing service for silence trimming and M4A conversion
     private let vadProcessingService = VADProcessingService()
 
@@ -43,9 +69,15 @@ class TranscriptionRetryController {
     /// - Parameters:
     ///   - transcriptionPipeline: The manager that will execute transcription
     ///   - settingsManager: Settings manager for VAD configuration
-    init(transcriptionPipeline: TranscriptionPipeline?, settingsManager: SettingsManager? = nil) {
+    ///   - persistence: Store for the mode lookup and saves (tests only)
+    init(
+        transcriptionPipeline: TranscriptionPipeline?,
+        settingsManager: SettingsManager? = nil,
+        persistence: PersistenceController = .shared
+    ) {
         self.transcriptionPipeline = transcriptionPipeline
         self.settingsManager = settingsManager
+        self.persistence = persistence
     }
 
     /// Update settings manager reference
@@ -59,7 +91,8 @@ class TranscriptionRetryController {
     /// Retry a failed transcription using the stored audio file
     /// RETRY FLOW:
     /// 1. Validate audio file exists on disk
-    /// 2. Extract mode from transcript (either from relationship or name)
+    /// 2. Extract mode from transcript (either from relationship or name);
+    ///    refuse, leaving the row untouched, when it no longer exists
     /// 3. Update transcript to "processing" status
     /// 4. Increment retry count and update timestamp
     /// 5. Apply VAD silence trimming if enabled and duration >= 30s
@@ -92,11 +125,21 @@ class TranscriptionRetryController {
             // Keep the SQL off the main context; retry can be triggered while
             // recording UI is transitioning. Do not fall back to the default
             // mode here; a renamed/deleted legacy mode should remain unresolved.
-            mode = await PersistenceController.shared.resolveTranscriptionModeInBackground(
+            mode = await persistence.resolveTranscriptionModeInBackground(
                 id: "",
                 fallbackName: modeName,
                 allowDefaultFallback: false
             )
+        }
+
+        // REFUSAL (issue #1440): no mode means the router would pick
+        // HyperWhisper Cloud, so audio an on-device mode recorded would be
+        // uploaded without asking. Stop here, before the row is touched: no
+        // status flip, no retryCount bump, `text` and `failedReason` keep
+        // the original failure. The user picks a mode with "Retry with...".
+        guard let mode else {
+            AppLogger.transcription.warning("Retry refused: the transcript's mode no longer exists; no request sent")
+            throw TranscriptionRetryError.originalModeDeleted
         }
 
         // UPDATE STEP 1: Mark transcript as processing
@@ -112,7 +155,7 @@ class TranscriptionRetryController {
 
         // Save changes to Core Data before starting transcription
         // This ensures UI updates immediately even if transcription takes time
-        PersistenceController.shared.save()
+        persistence.save()
 
         // VAD SILENCE TRIMMING (Optional)
         // Uses VADProcessingService to analyze audio and trim leading/trailing silence.
@@ -146,14 +189,14 @@ class TranscriptionRetryController {
             // If VAD created a valid trimmed file, store the path in Core Data.
             // This allows users to toggle between original and trimmed audio in history view.
             if vadResult.wasProcessed, let result = trimResult {
-                if await PersistenceController.shared.setTrimmedAudioPath(transcript, trimmedPath: result.outputURL.path) {
+                if await persistence.setTrimmedAudioPath(transcript, trimmedPath: result.outputURL.path) {
                     AppLogger.transcription.debug("📝 [Retry] Saved trimmed audio path to transcript")
                 }
             }
 
             // SUCCESS HANDLING: Update transcript with successful result
             // This marks the transcript as completed and stores the text
-            PersistenceController.shared.updateTranscriptWithTranscription(
+            persistence.updateTranscriptWithTranscription(
                 transcript,
                 transcribedText: result.rawText,
                 postProcessedText: result.wasPostProcessed ? result.text : nil,
@@ -172,7 +215,7 @@ class TranscriptionRetryController {
             transcript.text = "Retry failed: \(error.localizedDescription)"
 
             // Save the failed state
-            PersistenceController.shared.save()
+            persistence.save()
 
             AppLogger.transcription.error("❌ Retry failed for transcript: \(error.localizedDescription)")
 

@@ -815,6 +815,7 @@ Modifica queste modalità per selezionare un modello diverso prima di rimuoverlo
 "transcripts.delete.multiple.message" = "Questo eliminerà permanentemente %d registrazioni e i loro file audio.\n\nQuesta azione non può essere annullata.";
 "transcripts.delete.multiple.confirm" = "Elimina Tutto";
 "transcripts.retry.error.title" = "Nuovo Tentativo Fallito";
+"transcripts.retry.error.modeDeleted" = "La modalità che ha creato questa registrazione è stata eliminata, quindi non è stata riprovata. Nella Cronologia, fai clic destro sulla registrazione e scegli \"Riprova con...\" per selezionare un'altra modalità.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Scegli Cartella Registrazioni";

@@ -815,6 +815,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "transcripts.delete.multiple.message" = "Ini akan menghapus %d rekaman dan file audio mereka secara permanen.\n\nTindakan ini tidak dapat dibatalkan.";
 "transcripts.delete.multiple.confirm" = "Hapus Semua";
 "transcripts.retry.error.title" = "Coba Lagi Gagal";
+"transcripts.retry.error.modeDeleted" = "Mode yang membuat rekaman ini telah dihapus, jadi tidak dicoba lagi. Di Riwayat, klik kanan rekaman dan pilih \"Coba lagi dengan...\" untuk memilih mode lain.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Pilih Folder Rekaman";

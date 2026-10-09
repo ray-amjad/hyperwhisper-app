@@ -815,6 +815,7 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "transcripts.delete.multiple.message" = "Tai visam laikui ištrins %d įrašymus ir jų audio failus.\n\nŠis veiksmas negali būti atšauktas.";
 "transcripts.delete.multiple.confirm" = "Ištrinti visus";
 "transcripts.retry.error.title" = "Pakartojimas nepavyko";
+"transcripts.retry.error.modeDeleted" = "Režimas, kuriuo padarytas šis įrašas, ištrintas, todėl bandymas nekartotas. Istorijoje dešiniuoju pelės mygtuku spustelėkite įrašą ir pasirinkite \"Bandyti su...\", kad parinktumėte kitą režimą.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Pasirinkti įrašų aplanką";

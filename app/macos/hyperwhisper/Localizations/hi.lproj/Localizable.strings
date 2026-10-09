@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "यह %d रिकॉर्डिंग और उनकी ऑडियो फ़ाइलों को स्थायी रूप से हटा देगा।\n\nयह कार्य को पूर्ववत नहीं किया जा सकता।";
 "transcripts.delete.multiple.confirm" = "सभी हटाएं";
 "transcripts.retry.error.title" = "पुनः प्रयास विफल";
+"transcripts.retry.error.modeDeleted" = "जिस मोड ने यह रिकॉर्डिंग बनाई थी, वह हटा दिया गया है, इसलिए दोबारा प्रयास नहीं किया गया। इतिहास में रिकॉर्डिंग पर राइट-क्लिक करें और दूसरा मोड चुनने के लिए \"इसके साथ फिर से प्रयास करें...\" चुनें।";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "रिकॉर्डिंग फ़ोल्डर चुनें";

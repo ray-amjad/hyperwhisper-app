@@ -815,6 +815,7 @@ Upravte tyto režimy a vyberte jiný model před jeho odebráním.";
 "transcripts.delete.multiple.message" = "Timto trvale smazete %d nahravek a jejich zvukove soubory.\n\nTuto akci nelze vratit zpet.";
 "transcripts.delete.multiple.confirm" = "Smazat vse";
 "transcripts.retry.error.title" = "Opakovani selhalo";
+"transcripts.retry.error.modeDeleted" = "Režim, který vytvořil tento záznam, byl smazán, proto se opakování neprovedlo. V Historii klikněte na záznam pravým tlačítkem a zvolte \"Opakovat pomoci...\" pro výběr jiného režimu.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Vybrat slozku nahravek";

@@ -815,6 +815,7 @@
 "transcripts.delete.multiple.message" = "Αυτό θα διαγράψει μόνιμα %d εγγραφές και τα αρχεία ήχου τους.\n\nΑυτή η ενέργεια δεν μπορεί να αναιρεθεί.";
 "transcripts.delete.multiple.confirm" = "Διαγραφή Όλων";
 "transcripts.retry.error.title" = "Η Δοκιμή Απέτυχε";
+"transcripts.retry.error.modeDeleted" = "Η λειτουργία που δημιούργησε αυτή την εγγραφή διαγράφηκε, οπότε δεν έγινε νέα προσπάθεια. Στο Ιστορικό, κάντε δεξί κλικ στην εγγραφή και επιλέξτε \"Δοκιμάστε ξανά με...\" για να διαλέξετε άλλη λειτουργία.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Επιλέξτε Φάκελο Εγγραφών";

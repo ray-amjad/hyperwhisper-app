@@ -815,6 +815,7 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "transcripts.delete.multiple.message" = "See kustutab püsivalt %d salvestust ja nende helifailid.\n\nSeda toimingut ei saa tagasi võtta.";
 "transcripts.delete.multiple.confirm" = "Kustuta kõik";
 "transcripts.retry.error.title" = "Uuesti proovimine ebaõnnestus";
+"transcripts.retry.error.modeDeleted" = "Režiim, millega see salvestis tehti, on kustutatud, seega uuesti ei proovitud. Paremklõpsa ajaloos salvestisel ja vali \"Proovi uuesti...\", et valida teine režiim.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Vali salvestuste kaust";

@@ -816,6 +816,7 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 "transcripts.delete.multiple.message" = "Esto eliminará permanentemente %d grabaciones y sus archivos de audio.\n\nEsta acción no se puede deshacer.";
 "transcripts.delete.multiple.confirm" = "Eliminar todas";
 "transcripts.retry.error.title" = "Reintento fallido";
+"transcripts.retry.error.modeDeleted" = "El modo que creó esta grabación se eliminó, así que no se volvió a intentar. En el Historial, haz clic derecho en la grabación y elige \"Reintentar con...\" para escoger otro modo.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Elegir carpeta de grabaciones";
