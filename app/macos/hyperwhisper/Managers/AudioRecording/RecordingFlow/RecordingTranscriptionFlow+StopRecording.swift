@@ -305,9 +305,7 @@ extension RecordingTranscriptionFlow {
                 // carrying — does the file exist, how big is it, and did the user
                 // move the folder off the default or off the home volume.
                 let recordingsFolder = settingsManager?.recordingsFolder ?? ""
-                let defaultRecordingsFolder = FileManager.default
-                    .urls(for: .documentDirectory, in: .userDomainMask).first?
-                    .appendingPathComponent("hyperwhisper/recordings").path
+                let defaultRecordingsFolder = StorageSettingsManager.defaultRecordingsFolderURL?.path
                 let unreadableFileSize = (try? FileManager.default.attributesOfItem(atPath: audioURL.path)[.size] as? Int64) ?? -1
                 SentryService.addBreadcrumb(
                     message: "Audio file unreadable after wait",
