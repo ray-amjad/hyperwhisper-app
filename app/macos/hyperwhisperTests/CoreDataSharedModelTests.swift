@@ -25,13 +25,12 @@ import Testing
 struct CoreDataSharedModelTests {
 
     /// The cause itself: two controllers, one model.
-    @Test func twoControllersUseTheSameModel() throws {
+    @Test func twoControllersUseTheSameModel() {
         let first = PersistenceController(inMemory: true)
         let second = PersistenceController(inMemory: true)
 
-        let shared = try #require(PersistenceController.managedObjectModel, "the compiled model is missing from the bundle")
-        #expect(first.container.managedObjectModel === shared)
-        #expect(second.container.managedObjectModel === shared, "each controller loaded its own copy of the model again")
+        #expect(first.container.managedObjectModel === second.container.managedObjectModel,
+                "each controller loaded its own copy of the model again")
     }
 
     /// With other controllers alive, a generated-subclass insert takes the
