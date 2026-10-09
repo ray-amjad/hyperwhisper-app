@@ -723,18 +723,19 @@ struct MenuBarItems: View {
             
             Divider()
             
-            // History
+            // History. A user-chosen jump: an open mode editor with unsaved
+            // changes asks "Discard unsaved changes?" first (issue #1525).
             Button {
                 openMainWindow()
-                appState.selectedNavigationItem = .history
+                appState.requestNavigation(to: .history, trigger: .userChosen)
             } label: {
                 Text(localized: "menu.history")
             }
-            
-            // Settings
+
+            // Settings (user-chosen, as History above)
             Button {
                 openMainWindow()
-                appState.selectedNavigationItem = .settings
+                appState.requestNavigation(to: .settings, trigger: .userChosen)
             } label: {
                 Text(localized: "menu.settings")
             }
