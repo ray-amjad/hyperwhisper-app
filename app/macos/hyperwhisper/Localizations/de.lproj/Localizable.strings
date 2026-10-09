@@ -1066,6 +1066,12 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "settings.backup.import.error.decode.corruptedField" = "Beschädigter Wert für Feld: %@";
 "settings.backup.import.error.version" = "Sicherungsdatei stammt aus einer neueren Version";
 "settings.backup.import.error.unknown" = "Import fehlgeschlagen";
+"settings.backup.import.error.storeModes" = "Die Modi konnten nicht gespeichert werden und bleiben daher unverändert.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Die Modi konnten nicht gespeichert werden, daher bleiben Modi und Vokabular unverändert.";
+"settings.backup.import.error.storeVocabulary" = "Das Vokabular konnte nicht gespeichert werden und bleibt daher unverändert.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Die Modi wurden importiert, aber das Vokabular konnte nicht gespeichert werden und bleibt daher unverändert.";
+"settings.backup.import.error.storeLicense" = "Der Lizenzschlüssel konnte nicht sicher importiert werden.";
+"settings.backup.import.error.storeOtherSections" = "Die anderen ausgewählten Bereiche wurden übernommen.";
 "settings.backup.import.apiKeysFailed" = "Diese API-Schlüssel konnten nicht im Schlüsselbund gespeichert werden und wurden nicht wiederhergestellt: %@. Gib sie in den Einstellungen erneut ein.";
 "settings.backup.import.confirm.title" = "Einstellungen importieren?";
 "settings.backup.import.confirm.message" = "Dadurch werden Ihre vorhandenen Modi und Ihr Vokabular durch diejenigen aus der Sicherungsdatei ersetzt. Die Einstellungen werden ebenfalls aktualisiert.";
