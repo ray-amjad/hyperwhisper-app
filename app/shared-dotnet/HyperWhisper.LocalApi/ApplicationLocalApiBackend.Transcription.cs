@@ -60,8 +60,20 @@ public sealed partial class ApplicationLocalApiBackend
 
     public async ValueTask<TranscriptionResult> TranscribeAsync(AudioUpload upload, CancellationToken cancellationToken)
     {
+        // The request is resolved BEFORE the upload is staged, because the mode
+        // decides the staged name: an upload that will be converted for Parakeet
+        // is staged under a name the converter accepts, whatever the caller
+        // called it (#1572 review round 2). Nothing is staged yet, so a refused
+        // mode leaves no file to clean up.
+        var request = await BuildRequestAsync(
+            upload.ModeId, upload.Language, cancellationToken,
+            upload.Engine, upload.Model, upload.ApplicationContext?.ToSnapshot(),
+            RequestsTimestamps(upload.TimestampGranularities)).ConfigureAwait(false);
+        var mode = request.SelectedMode;
+        var convert = _audioImport is not null && IsLocalParakeet(mode) && !IsWave(upload.Content.Span);
         var extension = Path.GetExtension(upload.FileName);
         if (extension.Length > 12 || extension.Any(ch => !char.IsAsciiLetterOrDigit(ch) && ch != '.')) extension = ".audio";
+        if (convert) extension = ConversionStagingExtension;
         var path = Path.Combine(_recordingsDirectory, $"local-api-{Guid.NewGuid():N}{extension}");
         var written = _privateFiles.WriteAllBytesAtomically(path, upload.Content.Span);
         if (written.IsFailure) throw new InvalidOperationException("The uploaded audio could not be staged privately.");
@@ -72,11 +84,6 @@ public sealed partial class ApplicationLocalApiBackend
         var retainedByHistory = false;
         try
         {
-            var request = await BuildRequestAsync(
-                upload.ModeId, upload.Language, cancellationToken,
-                upload.Engine, upload.Model, upload.ApplicationContext?.ToSnapshot(),
-                RequestsTimestamps(upload.TimestampGranularities)).ConfigureAwait(false);
-            var mode = request.SelectedMode;
             // Match the Windows Local API contract: /transcribe declines the AI
             // REWRITE, even when the resolved Mode enables it. Callers that want
             // enhancement use the separate /post-process route.
@@ -91,7 +98,7 @@ public sealed partial class ApplicationLocalApiBackend
             // `text` exactly as they do on Windows (issues #495, #498, #530).
             if (mode is not null) mode.PostProcessingMode = 0;
             var started = Stopwatch.GetTimestamp();
-            path = await ConvertForParakeetAsync(path, mode, cancellationToken).ConfigureAwait(false);
+            if (convert) path = await ConvertForParakeetAsync(path, cancellationToken).ConfigureAwait(false);
             if (path != staged) stagedDeleted = _privateFiles.Delete(staged).IsSuccess;
             var result = await _workflow.TranscribeFileAsync(path, request, cancellationToken).ConfigureAwait(false);
             // The failure's code AND its message both used to die here: the
@@ -153,21 +160,23 @@ public sealed partial class ApplicationLocalApiBackend
     /// backend created, is deleted by <see cref="TranscribeAsync"/> (retried in
     /// its <c>finally</c> if the first delete fails), and the WAV takes over its lifecycle (kept
     /// as the history audio on success, deleted on failure unless a retryable
-    /// row holds it). A WAV — judged by content, not by the caller's file name —
+    /// row holds it). <see cref="TranscribeAsync"/> calls this only for a
+    /// conversion: a WAV (judged by content, not by the caller's file name)
     /// and every other route pass through untouched, as does every head that
-    /// supplies no converter. A conversion failure answers an existing code:
+    /// supplies no converter. The upload arrives staged under
+    /// <see cref="ConversionStagingExtension"/>, so any format ffmpeg decodes
+    /// is converted, whatever the caller named it. A conversion failure answers an existing code:
     /// <c>ENGINE_UNAVAILABLE</c> when ffmpeg cannot start, otherwise
     /// <c>AUDIO_DECODE_FAILED</c>.
     /// </remarks>
-    private async Task<string> ConvertForParakeetAsync(string path, Mode? mode, CancellationToken cancellationToken)
+    private async Task<string> ConvertForParakeetAsync(string path, CancellationToken cancellationToken)
     {
-        if (_audioImport is null || !IsLocalParakeet(mode) || IsWaveFile(path)) return path;
         // Refuse a busy workflow BEFORE converting, with the workflow's own busy
         // result: otherwise a long upload is transcoded alongside live dictation
         // only to be refused afterwards. The workflow re-checks in
         // TranscribeFileAsync, which still guards the window between the two.
         if (_workflow.FileTranscriptionBusyRefusal() is { } busy) ThrowWorkflowFailure(busy);
-        var converted = await _audioImport.ImportAsync(path, progress: null, cancellationToken).ConfigureAwait(false);
+        var converted = await _audioImport!.ImportAsync(path, progress: null, cancellationToken).ConfigureAwait(false);
         if (converted.IsFailure) throw LocalApiSharedFailure.AudioConversionFailure(converted.Error);
         return converted.Value!;
     }
@@ -177,17 +186,30 @@ public sealed partial class ApplicationLocalApiBackend
         && !string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
         && string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsWaveFile(string path)
-    {
-        Span<byte> header = stackalloc byte[12];
-        try
-        {
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            if (stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) != header.Length) return false;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { return false; }
-        return header[..4].SequenceEqual("RIFF"u8) && header[8..].SequenceEqual("WAVE"u8);
-    }
+    /// <summary>
+    /// The extension an upload that will be converted is staged under,
+    /// whatever the caller named it (#1572 review round 2).
+    /// </summary>
+    /// <remarks>
+    /// The caller's name says nothing reliable about the bytes: a browser
+    /// <c>FormData</c> blob is called <c>blob</c>, and <c>.opus</c>,
+    /// <c>.aac</c> or <c>.mp4</c> are real audio ffmpeg decodes. But
+    /// <c>FfmpegAudioNormalizationService</c> gates on the source extension
+    /// (its Transcribe File picker rule: WAV, MP3, M4A, FLAC, OGG, WebM), so a
+    /// staged <c>local-api-*.opus</c> or extension-less upload was refused as
+    /// <c>AUDIO_DECODE_FAILED</c> before ffmpeg ran. That allowlist is left
+    /// alone for Transcribe File. This name only has to pass the gate: the
+    /// normalizer copies the source to <c>.normalize-&lt;id&gt;&lt;ext&gt;.partial</c>
+    /// and hands THAT to ffprobe and ffmpeg, whose last extension is
+    /// <c>.partial</c>, so they already pick the demuxer from the content and
+    /// never from this extension. Bytes ffmpeg cannot decode still fail there,
+    /// as <c>AUDIO_DECODE_FAILED</c>. The staged file is deleted as soon as
+    /// the conversion succeeds, so the name is never history's audio.
+    /// </remarks>
+    private const string ConversionStagingExtension = ".ogg";
+
+    private static bool IsWave(ReadOnlySpan<byte> content) =>
+        content.Length >= 12 && content[..4].SequenceEqual("RIFF"u8) && content[8..12].SequenceEqual("WAVE"u8);
 
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken cancellationToken)
         => _postProcessor?.ProcessAsync(request, cancellationToken)

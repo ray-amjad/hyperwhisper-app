@@ -67,6 +67,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("/recordings filters, counts and pages in SQL with the old match rule", () => InTokyo(RecordingsQueryRunsInSql))
     ,("/recordings reads since and until as UTC in every time zone", () => InTokyo(RecordingsSinceUntilAreUtc))
     ,("a non-WAV upload to a Parakeet mode reaches the daemon as a WAV whose wait scales", ParakeetNonWaveUploadIsConverted)
+    ,("a Parakeet upload converts whatever the caller named it", ParakeetUploadConvertsWhateverItsName)
     ,("a busy workflow refuses a Parakeet upload before converting it", ParakeetUploadRefusedBusyBeforeConversion)
     ,("a converted upload whose first delete fails is still deleted", ConvertedUploadDeleteIsRetried)
 };
@@ -1310,6 +1311,107 @@ static async Task ParakeetNonWaveUploadIsConverted()
                 && passthrough.Path.EndsWith(Path.GetExtension(name), StringComparison.Ordinal),
                 $"{name} in a {engine} mode was converted: {passthrough.Path}");
             Assert(!Leftovers().Any(item => item.StartsWith("import-", StringComparison.Ordinal)), $"{name} produced a converted WAV");
+        }
+    }
+    finally { Directory.Delete(sourceDirectory, recursive: true); }
+}
+
+/// <summary>
+/// The caller's file name does not decide whether a Parakeet upload converts:
+/// an MP3 posted as a browser `FormData` `blob` or with no name, and Opus,
+/// AAC and MP4 audio, all reach the transcriber as a WAV whose length reads
+/// correctly (#1572 review round 2).
+/// </summary>
+/// <remarks>
+/// Real ffmpeg, as in <see cref="ParakeetNonWaveUploadIsConverted"/>. Before
+/// the fix each of these was staged under the caller's extension (or
+/// <c>.audio</c>/none) and `FfmpegAudioNormalizationService`'s Transcribe File
+/// allowlist refused it as AUDIO_DECODE_FAILED before ffmpeg ran. Bytes ffmpeg
+/// cannot decode must still fail with that code at once, under any name, and
+/// leave nothing behind.
+/// </remarks>
+static async Task ParakeetUploadConvertsWhateverItsName()
+{
+    const double seconds = 5;
+    var sourceDirectory = Path.Combine(Path.GetTempPath(), $"hyperwhisper-1572-names-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(sourceDirectory);
+    try
+    {
+        async Task<byte[]> Encode(string file, params string[] codec)
+        {
+            var output = Path.Combine(sourceDirectory, file);
+            var start = new System.Diagnostics.ProcessStartInfo("ffmpeg") { RedirectStandardError = true };
+            foreach (var argument in new[] { "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi",
+                "-i", $"sine=frequency=440:duration={seconds}", "-ac", "1", "-ar", "48000" }) start.ArgumentList.Add(argument);
+            foreach (var argument in codec) start.ArgumentList.Add(argument);
+            start.ArgumentList.Add(output);
+            using var ffmpeg = System.Diagnostics.Process.Start(start)!;
+            var stderr = await ffmpeg.StandardError.ReadToEndAsync();
+            await ffmpeg.WaitForExitAsync();
+            Assert(ffmpeg.ExitCode == 0 && File.Exists(output), $"ffmpeg could not make the fixture {file}: {stderr}");
+            return await File.ReadAllBytesAsync(output);
+        }
+        var mp3 = await Encode("fixture.mp3", "-c:a", "libmp3lame", "-b:a", "32k");
+        var opus = await Encode("fixture.opus", "-c:a", "libopus", "-b:a", "24k");
+        var aac = await Encode("fixture.aac", "-c:a", "aac", "-b:a", "32k", "-f", "adts");
+        var mp4 = await Encode("fixture.mp4", "-c:a", "aac", "-b:a", "32k");
+
+        using var paths = new TempPaths();
+        var database = new ApplicationDb(paths);
+        await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+        var history = new HistoryRepository(database);
+        var modes = new ModeRepository(database);
+        string[] Leftovers() => [.. Directory.EnumerateFiles(paths.RecordingsDirectory)
+            .Select(Path.GetFileName)
+            .Where(name => name!.StartsWith("local-api-", StringComparison.Ordinal)
+                || name.StartsWith("import-", StringComparison.Ordinal)
+                || name.StartsWith(".normalize-", StringComparison.Ordinal))!];
+
+        foreach (var (name, contentType, bytes) in new[]
+        {
+            ("blob", "application/octet-stream", mp3),
+            ("", "audio/mpeg", mp3),
+            ("voice.opus", "audio/ogg", opus),
+            ("rec.aac", "audio/aac", aac),
+            ("clip.mp4", "video/mp4", mp4),
+        })
+        {
+            var probe = new WaveProbeTranscriber();
+            using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), probe, history);
+            var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+                audioImport: new DurableAudioImportService(new DiskPrivateFiles(), paths));
+            var result = await backend.TranscribeAsync(
+                new AudioUpload(name, contentType, bytes, null, "parakeet", null, "en"), CancellationToken.None);
+            Assert(result.Text == "probed", $"'{name}' did not transcribe");
+            Assert(probe.Path is not null && probe.Path.EndsWith(".wav", StringComparison.Ordinal)
+                && Path.GetFileName(probe.Path).StartsWith("import-", StringComparison.Ordinal),
+                $"'{name}' did not reach the Parakeet transcriber as the converted WAV: {probe.Path}");
+            Assert(probe.Seconds is { } read && Math.Abs(read - seconds) < 0.5,
+                $"'{name}' converted to a WAV whose duration did not read as {seconds} s: {probe.Seconds}");
+            var completed = (await history.ListAsync()).Single();
+            Assert(completed.AudioFilePath == probe.Path && Leftovers().SequenceEqual([Path.GetFileName(probe.Path)]),
+                $"'{name}' left files other than the history WAV: {string.Join(", ", Leftovers())}");
+            await history.DeleteAsync(completed.Id);
+            File.Delete(probe.Path!);
+        }
+
+        // Bytes ffmpeg cannot decode still fail at once with AUDIO_DECODE_FAILED,
+        // under an odd extension and under no useful name, and leave nothing.
+        var garbage = new byte[4096];
+        new Random(1572).NextBytes(garbage);
+        foreach (var name in new[] { "junk.xyz", "blob", "voice.opus" })
+        {
+            var untouched = new WaveProbeTranscriber();
+            using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), untouched, history);
+            var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+                audioImport: new DurableAudioImportService(new DiskPrivateFiles(), paths));
+            var failure = await AssertThrowsAsync<LocalApiFailureException>(() => backend.TranscribeAsync(
+                new AudioUpload(name, "application/octet-stream", garbage, null, "parakeet", null, "en"), CancellationToken.None).AsTask());
+            Assert(failure.Code == LocalApiErrorCodes.AudioDecodeFailed && failure.HttpStatus == 200,
+                $"undecodable '{name}' did not answer AUDIO_DECODE_FAILED: {failure.Code} {failure.HttpStatus}");
+            Assert(untouched.Path is null, $"undecodable '{name}' reached the transcriber");
+            Assert(Leftovers().Length == 0, $"undecodable '{name}' left files behind: {string.Join(", ", Leftovers())}");
+            Assert(!(await history.ListAsync()).Any(), $"undecodable '{name}' wrote a history row");
         }
     }
     finally { Directory.Delete(sourceDirectory, recursive: true); }
