@@ -3847,6 +3847,264 @@ internal static class Program
                 }
             });
 
+            // ---------------------------------------------------------------
+            // #1598: a damaged local model must not count as installed.
+            // ---------------------------------------------------------------
+
+            Run("WhisperModelService.IsModelDownloaded demands the exact catalog size, not 95% (#1598)", () =>
+            {
+                var service = new WhisperModelService();
+                var model = new WhisperModelInfo("smoke-1598", "Smoke 1598", "4 KB", false, 4096, 0);
+                var path = service.GetModelPath(model);
+                try
+                {
+                    WriteGgmlFile(path, 4096);
+                    Assert(service.IsModelDownloaded(model), "an exact-size GGML file should count as installed");
+
+                    // The issue's repro: the file cut to 96% with its header intact.
+                    WriteGgmlFile(path, 4096 * 96 / 100);
+                    Assert(!service.IsModelDownloaded(model), "a file cut to 96% still counts as installed");
+
+                    WriteGgmlFile(path, 4095);
+                    Assert(!service.IsModelDownloaded(model), "a file one byte short still counts as installed");
+
+                    WriteGgmlFile(path, 4097);
+                    Assert(!service.IsModelDownloaded(model), "a file one byte long still counts as installed");
+
+                    File.WriteAllBytes(path, new byte[4096]);
+                    Assert(!service.IsModelDownloaded(model), "an exact-size file with no GGML header counts as installed");
+                }
+                finally
+                {
+                    try { File.Delete(path); } catch { /* best effort */ }
+                }
+            });
+
+            Run("Whisper catalog sizes are the exact Hugging Face byte sizes (#1598)", () =>
+            {
+                // Measured from huggingface.co/api/models/ggerganov/whisper.cpp/tree/main
+                // on 2026-10-09. The install check now demands these to the byte.
+                var expected = new Dictionary<string, long>
+                {
+                    ["tiny"] = 77_691_713,
+                    ["tiny.en"] = 77_704_715,
+                    ["base"] = 147_951_465,
+                    ["base.en"] = 147_964_211,
+                    ["small"] = 487_601_967,
+                    ["small.en"] = 487_614_201,
+                    ["medium"] = 1_533_763_059,
+                    ["medium.en"] = 1_533_774_781,
+                    ["large-v3-turbo"] = 1_624_555_275,
+                    ["large-v2"] = 3_094_623_691,
+                    ["large-v3"] = 3_095_033_483,
+                };
+                Assert(WhisperModelInfo.AllModels.Length == expected.Count,
+                    $"the catalog has {WhisperModelInfo.AllModels.Length} models; measure the new one's exact size");
+                foreach (var model in WhisperModelInfo.AllModels)
+                {
+                    Assert(expected.TryGetValue(model.Type, out var size) && size == model.SizeInBytes,
+                        $"{model.Type}: catalog size {model.SizeInBytes:N0} is not the measured Hugging Face size");
+                }
+            });
+
+            Run("ParakeetModelService.IsModelDownloaded checks every pinned file size (#1598)", () =>
+            {
+                var service = new ParakeetModelService();
+                var model = new ParakeetModelInfo(
+                    id: "smoke-1598-parakeet",
+                    displayName: "Smoke 1598",
+                    size: "1 KB",
+                    sizeInBytes: 1034,
+                    isEnglishOnly: true,
+                    supportedLanguages: ["en"],
+                    onnxFileNames: ["encoder.int8.onnx", "tokens.txt"],
+                    huggingFaceRepo: "smoke/none",
+                    fileSizes: new Dictionary<string, long>
+                    {
+                        ["encoder.int8.onnx"] = 1024,
+                        ["tokens.txt"] = 10,
+                    });
+                var dir = service.GetModelDirectory(model);
+                var encoder = Path.Combine(dir, "encoder.int8.onnx");
+                try
+                {
+                    Directory.CreateDirectory(dir);
+                    File.WriteAllBytes(encoder, new byte[1024]);
+                    File.WriteAllBytes(Path.Combine(dir, "tokens.txt"), new byte[10]);
+                    Assert(service.IsModelDownloaded(model), "exact-size files should count as installed");
+
+                    // The issue's repro: encoder.int8.onnx cut short.
+                    File.WriteAllBytes(encoder, new byte[500]);
+                    Assert(!service.IsModelDownloaded(model), "an encoder cut short still counts as installed");
+
+                    File.WriteAllBytes(encoder, new byte[1024]);
+                    File.Delete(Path.Combine(dir, "tokens.txt"));
+                    Assert(!service.IsModelDownloaded(model), "a missing file still counts as installed");
+                }
+                finally
+                {
+                    try { Directory.Delete(dir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            Run("Parakeet catalog pins the exact size of every file of every flat model (#1598)", () =>
+            {
+                foreach (var model in ParakeetModelInfo.AllModels)
+                {
+                    if (model.Engine == ParakeetEngine.Qwen3)
+                    {
+                        // Varying export filenames: Qwen3 relies on the load-failure mark.
+                        Assert(model.FileSizes == null, "Qwen3 should not pin file sizes");
+                        continue;
+                    }
+
+                    Assert(model.FileSizes != null, $"{model.Id} has no pinned file sizes");
+                    foreach (var file in model.OnnxFileNames)
+                    {
+                        Assert(model.FileSizes!.TryGetValue(file, out var size) && size > 0,
+                            $"{model.Id}: {file} has no pinned size");
+                    }
+                    Assert(model.FileSizes!.Values.Sum() == model.SizeInBytes,
+                        $"{model.Id}: SizeInBytes {model.SizeInBytes:N0} is not the sum of its pinned files");
+                }
+
+                var v2 = ParakeetModelInfo.AllModels.Single(m => m.Id == "parakeet-v2");
+                Assert(v2.FileSizes!["encoder.int8.onnx"] == 652_184_296,
+                    "parakeet-v2 encoder.int8.onnx is not the measured Hugging Face size");
+            });
+
+            Run("LocalModelHealth: a model that failed to load counts as not installed until cleared (#1598)", () =>
+            {
+                var whisper = new WhisperModelService();
+                var whisperModel = new WhisperModelInfo("smoke-1598-broken", "Smoke 1598 broken", "4 KB", false, 4096, 0);
+                var whisperPath = whisper.GetModelPath(whisperModel);
+                var parakeet = new ParakeetModelService();
+                var parakeetModel = new ParakeetModelInfo(
+                    "smoke-1598-broken-parakeet", "Smoke", "1 KB", 10, true, ["en"], ["tokens.txt"], "smoke/none",
+                    fileSizes: new Dictionary<string, long> { ["tokens.txt"] = 10 });
+                var parakeetDir = parakeet.GetModelDirectory(parakeetModel);
+
+                var changes = new List<string>();
+                EventHandler<string> onChanged = (_, path) => changes.Add(path);
+                LocalModelHealth.Changed += onChanged;
+                try
+                {
+                    WriteGgmlFile(whisperPath, 4096);
+                    Directory.CreateDirectory(parakeetDir);
+                    File.WriteAllBytes(Path.Combine(parakeetDir, "tokens.txt"), new byte[10]);
+                    Assert(whisper.IsModelDownloaded(whisperModel) && parakeet.IsModelDownloaded(parakeetModel),
+                        "precondition: both models installed");
+
+                    LocalModelHealth.MarkBroken(whisperPath, "smoke");
+                    LocalModelHealth.MarkBroken(parakeetDir + Path.DirectorySeparatorChar, "smoke");
+                    Assert(!whisper.IsModelDownloaded(whisperModel), "a broken Whisper model still counts as installed");
+                    Assert(!parakeet.IsModelDownloaded(parakeetModel), "a broken Parakeet model still counts as installed");
+                    Assert(LocalModelHealth.IsBroken(whisperPath.ToUpperInvariant()), "the mark should ignore path case");
+
+                    // Marking twice raises once.
+                    LocalModelHealth.MarkBroken(whisperPath, "smoke again");
+                    Assert(changes.Count == 2, $"expected 2 change events, got {changes.Count}");
+
+                    // A delete clears the mark (the file is gone either way).
+                    Assert(whisper.DeleteModel(whisperModel).IsSuccess, "DeleteModel failed");
+                    Assert(!LocalModelHealth.IsBroken(whisperPath), "DeleteModel left the broken mark");
+
+                    LocalModelHealth.ClearBroken(parakeetDir);
+                    Assert(parakeet.IsModelDownloaded(parakeetModel), "a cleared Parakeet model should count as installed again");
+                    Assert(changes.Count == 4, $"expected 4 change events, got {changes.Count}");
+                }
+                finally
+                {
+                    LocalModelHealth.Changed -= onChanged;
+                    LocalModelHealth.ClearBroken(whisperPath);
+                    LocalModelHealth.ClearBroken(parakeetDir);
+                    try { File.Delete(whisperPath); } catch { /* best effort */ }
+                    try { Directory.Delete(parakeetDir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            Run("Model Library offers Download for a broken model, even one a mode uses (#1598)", () =>
+            {
+                // A real catalog row: Base, the default "Hyper" mode's model. The
+                // file is extended, not written, so the 148 MB costs no I/O.
+                var whisper = new WhisperModelService();
+                var baseModel = WhisperModelInfo.AllModels.Single(m => m.Type == "base");
+                var path = whisper.GetModelPath(baseModel);
+                var library = new ModelLibraryManager(
+                    whisper,
+                    new ParakeetModelService(),
+                    new LocalLlmModelService(),
+                    ApiKeyService.Instance,
+                    CloudProviderHealthService.Instance);
+                LibraryModelStatusKind RowStatus() =>
+                    library.Rebuild().Single(r => r.Id == "whisper-base").StatusKind;
+                var installedStatus = PlatformHelper.SupportsWhisperTranscription
+                    ? LibraryModelStatusKind.Enabled
+                    : LibraryModelStatusKind.Error;
+                var missingStatus = PlatformHelper.SupportsWhisperTranscription
+                    ? LibraryModelStatusKind.Downloadable
+                    : LibraryModelStatusKind.Error;
+                try
+                {
+                    WriteGgmlFile(path, baseModel.SizeInBytes);
+                    Assert(RowStatus() == installedStatus, $"an exact-size Base should be {installedStatus}, got {RowStatus()}");
+
+                    WriteGgmlFile(path, 142_033_406); // the issue's 96% file
+                    Assert(RowStatus() == missingStatus, $"a 96% Base should be {missingStatus}, got {RowStatus()}");
+
+                    WriteGgmlFile(path, baseModel.SizeInBytes);
+                    LocalModelHealth.MarkBroken(path, "smoke");
+                    Assert(RowStatus() == missingStatus, $"a Base that failed to load should be {missingStatus}, got {RowStatus()}");
+                }
+                finally
+                {
+                    LocalModelHealth.ClearBroken(path);
+                    try { File.Delete(path); } catch { /* best effort */ }
+                }
+            });
+
+            Run("Only a model-file load failure marks a model broken, not a native runtime fault (#1598)", () =>
+            {
+                Assert(TranscriptionService.IsModelFileLoadFault(new InvalidOperationException("Failed to load the whisper model.")),
+                    "a plain load failure should mark the model broken");
+                Assert(!TranscriptionService.IsModelFileLoadFault(
+                        new InvalidOperationException("load", new DllNotFoundException("whisper.dll"))),
+                    "a missing whisper.dll must not mark the model broken");
+                Assert(!TranscriptionService.IsModelFileLoadFault(
+                        new InvalidOperationException("load", new InvalidOperationException("wrap", new BadImageFormatException()))),
+                    "a wrong-architecture DLL (nested) must not mark the model broken");
+
+                Assert(ParakeetTranscriptionService.IsRuntimeStartExitCode(unchecked((int)0xC0000135)),
+                    "STATUS_DLL_NOT_FOUND is a runtime fault");
+                Assert(ParakeetTranscriptionService.IsRuntimeStartExitCode(unchecked((int)0xC000007B)),
+                    "STATUS_INVALID_IMAGE_FORMAT is a runtime fault");
+                Assert(!ParakeetTranscriptionService.IsRuntimeStartExitCode(unchecked((int)0xC0000409)),
+                    "the issue's 0xC0000409 (damaged encoder) must mark the model broken");
+                Assert(!ParakeetTranscriptionService.IsRuntimeStartExitCode(1),
+                    "an ordinary non-zero exit must mark the model broken");
+            });
+
+            Run("MainViewModel.LocalLibraryModelId matches the Model Library row ids (#1598)", () =>
+            {
+                var library = new ModelLibraryManager(
+                    new WhisperModelService(),
+                    new ParakeetModelService(),
+                    new LocalLlmModelService(),
+                    ApiKeyService.Instance,
+                    CloudProviderHealthService.Instance);
+                var rowIds = library.Rebuild().Select(r => r.Id).ToHashSet(StringComparer.Ordinal);
+
+                var whisperMode = new Mode { ProviderType = "local", LocalEngine = "whisper", ModelType = "base" };
+                var parakeetMode = new Mode { ProviderType = "local", LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v2" };
+                var cloudMode = new Mode { ProviderType = "cloud", ModelType = "base" };
+
+                Assert(MainViewModel.LocalLibraryModelId(whisperMode) is { } w && rowIds.Contains(w),
+                    $"whisper id '{MainViewModel.LocalLibraryModelId(whisperMode)}' is not a library row");
+                Assert(MainViewModel.LocalLibraryModelId(parakeetMode) is { } p && rowIds.Contains(p),
+                    $"parakeet id '{MainViewModel.LocalLibraryModelId(parakeetMode)}' is not a library row");
+                Assert(MainViewModel.LocalLibraryModelId(cloudMode) == null, "a cloud mode has no local model row");
+            });
+
             Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech skips exactly at the low-signal threshold boundary (inclusive <=)", () =>
             {
                 // The gate's comparisons are inclusive (<=), so a reading sitting exactly on
@@ -19088,6 +19346,19 @@ internal static class Program
 
     private static void RunAsync(string name, Func<Task> check)
         => Run(name, () => check().GetAwaiter().GetResult());
+
+    /// <summary>
+    /// Writes a file that starts with the GGML magic and is exactly
+    /// <paramref name="length"/> bytes (#1598). SetLength extends without writing,
+    /// so a catalog-size file costs no real I/O.
+    /// </summary>
+    private static void WriteGgmlFile(string path, long length)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write);
+        stream.Write("lmgg"u8);
+        stream.SetLength(length);
+    }
 
     /// <summary>
     /// Gives <paramref name="service"/> a fake ready daemon (#1608 tests): a sacrificial
