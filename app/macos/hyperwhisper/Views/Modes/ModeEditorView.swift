@@ -105,6 +105,69 @@ struct ModeEditorView: View {
     @State private var lastHyperwhisperCloudTranscriptionModel: String?
     @State private var lastHyperwhisperCloudTranscriptionDomain: String?
 
+    // MARK: - Unsaved-changes tracking (issue #1525)
+    //
+    // The sheet registers with AppState's page guard while it is open, and
+    // reports whether its values differ from the ones it settled on after
+    // opening. A page change the app makes on its own then keeps the sheet,
+    // and a menu-bar History… / Settings… asks before it discards an edit.
+
+    /// This sheet's registration with AppState's page guard.
+    @State private var editorSession = UUID()
+
+    /// What the editor showed once its on-appear repairs had run; nil until then.
+    @State private var settledSnapshot: ModeEditorSnapshot?
+
+    /// How long after appearing the editor takes its baseline. The on-appear
+    /// repairs (model clamp, post-processing and language checks) and the
+    /// onChange handlers they trigger run first, so a clean editor whose stored
+    /// values were repaired does not count as edited.
+    static let settledSnapshotDelay: TimeInterval = 0.3
+
+    /// Every value Save writes, as the editor holds it now.
+    private var currentSnapshot: ModeEditorSnapshot {
+        ModeEditorSnapshot(
+            name: name,
+            preset: preset,
+            language: language,
+            model: model,
+            provider: provider,
+            punctuation: punctuation,
+            capitalization: capitalization,
+            profanityFilter: profanityFilter,
+            customInstructions: customInstructions,
+            languageModel: languageModel,
+            postProcessingMode: postProcessingMode,
+            postProcessingProvider: postProcessingProvider,
+            cloudProvider: cloudProvider,
+            cloudAccuracyTier: cloudAccuracyTier,
+            cloudPostProcessingModel: cloudPostProcessingModel,
+            cloudTranscriptionModel: cloudTranscriptionModel,
+            cloudTranscriptionDomain: cloudTranscriptionDomain,
+            englishSpelling: englishSpelling,
+            userSystemPrompt: userSystemPrompt,
+            removeTrailingPeriod: removeTrailingPeriod,
+            enableScreenOCR: enableScreenOCR,
+            geminiCustomPrompt: geminiCustomPrompt
+        )
+    }
+
+    private var hasUnsavedChanges: Bool {
+        ModeEditorSnapshot.hasUnsavedChanges(settled: settledSnapshot, current: currentSnapshot)
+    }
+
+    /// Shown while AppState holds a menu-bar page for THIS editor's prompt.
+    /// The buttons clear it; the setter has nothing to do.
+    private var discardPromptIsPresented: Binding<Bool> {
+        Binding(
+            get: {
+                appState.pendingModeEditorNavigation != nil
+                    && appState.openModeEditorSession == editorSession
+            },
+            set: { _ in }
+        )
+    }
+
     // MARK: - Initialization
 
     /// `licenseActive` is read only by the CREATE branch, to pick the provider a
@@ -815,6 +878,37 @@ struct ModeEditorView: View {
                 language = "en"
             }
         }
+        // Issue #1525: register with the page guard, and report unsaved changes.
+        .onAppear {
+            appState.modeEditorDidOpen(session: editorSession)
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.settledSnapshotDelay) {
+                if settledSnapshot == nil {
+                    settledSnapshot = currentSnapshot
+                }
+            }
+        }
+        .onDisappear {
+            appState.modeEditorDidClose(session: editorSession)
+        }
+        .onChange(of: hasUnsavedChanges) { _, unsaved in
+            appState.modeEditor(session: editorSession, hasUnsavedChanges: unsaved)
+        }
+        .alert("modes.editor.discard.title".localized, isPresented: discardPromptIsPresented) {
+            // Keep Editing is the default: Return and Esc both keep the edit.
+            Button(role: .cancel) {
+                appState.keepEditingModeEditor()
+            } label: {
+                Text(localized: "modes.editor.discard.keepEditing")
+            }
+            .keyboardShortcut(.defaultAction)
+            Button(role: .destructive) {
+                appState.discardModeEditorAndNavigate()
+            } label: {
+                Text(localized: "modes.editor.discard.button")
+            }
+        } message: {
+            Text(localized: "modes.editor.discard.message")
+        }
     }
 
     // MARK: - Header
@@ -1514,5 +1608,43 @@ struct ModeEditorView: View {
         }
         .padding(20)
         .background(Color(NSColor.controlBackgroundColor))
+    }
+}
+
+// MARK: - Unsaved-changes snapshot (issue #1525)
+
+/// Every value the mode editor's Save writes, so the editor can tell whether
+/// it holds an unsaved edit. View-only state (the "Show all models" box, the
+/// info popover, the Source toggle's memory) is left out: changing it changes
+/// nothing Save writes.
+struct ModeEditorSnapshot: Equatable {
+    var name: String
+    var preset: String
+    var language: String
+    var model: String
+    var provider: ProviderType
+    var punctuation: Bool
+    var capitalization: Bool
+    var profanityFilter: Bool
+    var customInstructions: String
+    var languageModel: String
+    var postProcessingMode: PostProcessingMode
+    var postProcessingProvider: String
+    var cloudProvider: String
+    var cloudAccuracyTier: String
+    var cloudPostProcessingModel: String
+    var cloudTranscriptionModel: String
+    var cloudTranscriptionDomain: String?
+    var englishSpelling: EnglishSpelling
+    var userSystemPrompt: String
+    var removeTrailingPeriod: Bool
+    var enableScreenOCR: Bool
+    var geminiCustomPrompt: String
+
+    /// True when the editor's values differ from the ones it settled on. Before
+    /// it has settled there is nothing the user could have changed yet.
+    static func hasUnsavedChanges(settled: ModeEditorSnapshot?, current: ModeEditorSnapshot) -> Bool {
+        guard let settled else { return false }
+        return settled != current
     }
 }
