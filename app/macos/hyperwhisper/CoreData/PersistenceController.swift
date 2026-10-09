@@ -154,6 +154,25 @@ class PersistenceController: ObservableObject {
     /// Singleton instance for app-wide access
     static let shared = PersistenceController()
 
+    /// The one `HyperWhisper` model every container in this process uses (#1653).
+    ///
+    /// `NSPersistentContainer(name:)` loads a NEW model instance each time it is
+    /// called. With two or more loaded, `+[Transcript entity]` cannot tell them
+    /// apart, so `Transcript(context:)` can take another model's entity: the
+    /// insert then has no store, `obtainPermanentIDs` throws and the write
+    /// saves nothing. The unit tests build many in-memory controllers at once
+    /// and hit this; one shared model removes the ambiguity.
+    ///
+    /// Build every `HyperWhisper` container on this model, never by name. A
+    /// missing model stops the app here, as a failed store load already does.
+    static let managedObjectModel: NSManagedObjectModel = {
+        guard let url = Bundle.main.url(forResource: "HyperWhisper", withExtension: "momd"),
+              let model = NSManagedObjectModel(contentsOf: url) else {
+            fatalError("Core Data model HyperWhisper.momd is missing from the app bundle")
+        }
+        return model
+    }()
+
     /// True when THIS launch seeded the default modes — i.e. a genuine fresh
     /// install (no modes existed yet). Used to gate first-run onboarding so
     /// existing users (who already have modes) are never re-onboarded when the
@@ -261,7 +280,7 @@ class PersistenceController: ObservableObject {
     init(inMemory: Bool = false) {
         // Use NSPersistentCloudKitContainer so the Cloud store can mirror to iCloud.
         // The Local store is configured without `cloudKitContainerOptions` and stays on disk only.
-        container = NSPersistentCloudKitContainer(name: "HyperWhisper")
+        container = NSPersistentCloudKitContainer(name: "HyperWhisper", managedObjectModel: Self.managedObjectModel)
 
         if inMemory {
             // Single in-memory store for tests/previews. CloudKit mirroring is disabled.
@@ -702,7 +721,7 @@ class PersistenceController: ObservableObject {
     /// CloudKit mirroring is NOT enabled during this write — it happens on first launch
     /// of the main container, which will push the rows up from the local cloud store file.
     private static func writeVocabularySnapshots(_ snapshots: [VocabularySnapshot], to url: URL) throws {
-        let tempContainer = NSPersistentContainer(name: "HyperWhisper")
+        let tempContainer = NSPersistentContainer(name: "HyperWhisper", managedObjectModel: managedObjectModel)
         let desc = NSPersistentStoreDescription(url: url)
         desc.configuration = cloudConfigurationName
         desc.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)

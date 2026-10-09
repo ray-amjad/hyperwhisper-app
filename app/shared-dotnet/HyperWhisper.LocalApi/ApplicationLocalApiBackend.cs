@@ -81,6 +81,7 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
     private readonly VocabularyRepository? _vocabulary;
     private readonly Func<Mode?, SpeechOutputProcessingOptions>? _outputOptions;
     private readonly IPrivateFileService _privateFiles;
+    private readonly DurableAudioImportService? _audioImport;
     private readonly string _recordingsDirectory;
     private readonly string _appVersion;
     private readonly SemaphoreSlim _recordingToggle = new(1, 1);
@@ -96,7 +97,8 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
         string appVersion,
         ILocalApiPostProcessor? postProcessor = null,
         VocabularyRepository? vocabulary = null,
-        Func<Mode?, SpeechOutputProcessingOptions>? outputOptions = null)
+        Func<Mode?, SpeechOutputProcessingOptions>? outputOptions = null,
+        DurableAudioImportService? audioImport = null)
     {
         _modes = modes ?? throw new ArgumentNullException(nameof(modes));
         _history = history ?? throw new ArgumentNullException(nameof(history));
@@ -109,6 +111,10 @@ public sealed partial class ApplicationLocalApiBackend : ILocalApiBackend
         _postProcessor = postProcessor;
         _vocabulary = vocabulary;
         _outputOptions = outputOptions;
+        // Optional, and only the Linux head supplies it: the ffmpeg conversion
+        // Transcribe File already runs, reused for a non-WAV upload to a local
+        // Parakeet mode (issue #1572). Null keeps /transcribe as it was.
+        _audioImport = audioImport;
     }
 
     public ValueTask<HealthSnapshot> GetHealthAsync(CancellationToken cancellationToken)

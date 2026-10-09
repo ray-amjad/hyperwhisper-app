@@ -1,3 +1,4 @@
+using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Transcription;
 using Microsoft.AspNetCore.Http;
 using uniffi.hyperwhisper_core;
@@ -67,6 +68,30 @@ internal static class LocalApiSharedFailure
             new HwLocalApiTranscriptionFailureParams(
                 @provider: null,
                 @detail: failure?.Message,
+                @model: null,
+                @limitBytes: null,
+                @httpStatus: null,
+                @retryAfterSeconds: null,
+                @hint: null)));
+
+    /// <summary>
+    /// A failed ffmpeg conversion of an upload (issue #1572), through the same
+    /// shared table and onto codes already in the closed set.
+    /// </summary>
+    /// <remarks>
+    /// ffmpeg that cannot start is the host missing a capability, so it is
+    /// <c>ENGINE_UNAVAILABLE</c>; anything else the converter refuses is
+    /// <c>AUDIO_DECODE_FAILED</c>, the code Windows sends for
+    /// <c>UnsupportedFormat</c> and macOS for <c>.audioConversionFailed</c>.
+    /// </remarks>
+    internal static LocalApiFailureException AudioConversionFailure(PlatformError? error) =>
+        LocalApiFailureException.From(HyperwhisperCoreMethods.LocalApiMapTranscriptionError(
+            error?.Code == "audio_normalization.ffmpeg_unavailable"
+                ? HwLocalApiTranscriptionFailureReason.EngineUnavailable
+                : HwLocalApiTranscriptionFailureReason.AudioDecodeFailed,
+            new HwLocalApiTranscriptionFailureParams(
+                @provider: null,
+                @detail: error?.Message,
                 @model: null,
                 @limitBytes: null,
                 @httpStatus: null,

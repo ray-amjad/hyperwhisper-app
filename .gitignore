@@ -106,3 +106,9 @@ bug-hunt/
 *.env.local
 .env.local
 .vercel
+
+# Verification screenshots must not land in the repo root. #659 committed 26
+# of them by accident. Keep the two real brand icons that live here.
+/*.png
+!/icon.png
+!/icon-200px-round.png
