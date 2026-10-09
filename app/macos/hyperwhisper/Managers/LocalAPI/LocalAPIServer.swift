@@ -306,11 +306,10 @@ final class LocalAPIServer: ObservableObject {
             AppLogger.network.error("LocalAPI server: bind address error · \(error.localizedDescription, privacy: .public)")
             return
         }
-        // Transcription/post-processing jobs can run much longer than the
-        // FlyingFox default (15s) — a large-v3 pass on a 30s clip or a slow
-        // cloud LLM round-trip routinely takes 30-90s. Allow up to 10 min
-        // per request so long jobs don't return an empty body.
-        let httpServer = HTTPServer(address: address, timeout: 600)
+        // The 10-minute handler timeout and the request-head limits (issue
+        // #1463: 8 KB a line, 64 KB a head, 10 s to arrive, else 431 or a
+        // close) both live in `serverConfiguration` (LocalAPIRequestHead.swift).
+        let httpServer = HTTPServer(config: Self.serverConfiguration(address: address))
         self.server = httpServer
         self.preferredPort = preferredPort
 

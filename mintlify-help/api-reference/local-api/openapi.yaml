@@ -18,7 +18,8 @@ info:
     HTTP 4xx is reserved for protocol failures: malformed JSON (400), missing
     or invalid bearer token (401), or a rejected Host/Origin header (403 — a
     DNS-rebinding guard applied to every route, including the unauthenticated
-    /health, on every platform).
+    /health, on every platform). On macOS, a request head over 8 KiB a line
+    or 64 KiB in total gets a bare 431 and the connection closes.
   version: "1.0.0"
 servers:
   - url: http://127.0.0.1:{port}
