@@ -739,23 +739,31 @@ class AppState: ObservableObject {
     
     /// Navigate to a specific section
     /// - Parameter item: The navigation item to select
-    func navigate(to item: NavigationItem) {
+    /// - Parameter trigger: who asked. Defaults to `.automatic`: a call that is
+    ///   not a click on the page itself must not close an open mode editor
+    ///   (issue #1525).
+    /// - Returns: false when an open mode editor kept the page where it is.
+    @discardableResult
+    func navigate(to item: NavigationItem, trigger: NavigationTrigger = .automatic) -> Bool {
+        guard modeEditorAllowsPageChange(to: item, trigger: trigger) else { return false }
+
         // Add animation for smooth transition
         withAnimation(.easeInOut(duration: 0.2)) {
             selectedNavigationItem = item
         }
-        
+
         // Log navigation for analytics (optional)
         logNavigation(to: item)
+        return true
     }
-    
+
     /// Navigate to a specific configuration section
     /// - Parameters:
     ///   - section: The configuration section to select (e.g., "apikeys", "general", "shortcuts")
     func navigateToSettings(section: String) {
         // First navigate to the settings view
-        navigate(to: .settings)
-        
+        guard navigate(to: .settings) else { return }
+
         // Then set the selected section
         withAnimation(.easeInOut(duration: 0.2)) {
             selectedSettingsSection = section
@@ -763,9 +771,12 @@ class AppState: ObservableObject {
     }
 
     /// Navigate to Model Library and open the centralized API keys manager.
-    func navigateToModelLibraryAPIKeys() {
+    func navigateToModelLibraryAPIKeys(trigger: NavigationTrigger = .automatic) {
+        // Checked first, so a kept page does not leave the flag set for the
+        // next Model Library visit.
+        guard modeEditorAllowsPageChange(to: .modelLibrary, trigger: trigger) else { return }
         shouldOpenModelLibraryAPIKeys = true
-        navigate(to: .modelLibrary)
+        navigate(to: .modelLibrary, trigger: trigger)
     }
     
     /// Show an error message to the user
@@ -995,8 +1006,114 @@ class AppState: ObservableObject {
 
     /// Expose a helper for the toast action to take the user to Settings.
     func openSettingsFromErrorToast() {
-        selectedNavigationItem = .settings
+        requestNavigation(to: .settings, trigger: .automatic)
         bringMainWindowToFront()
+    }
+
+    // MARK: - Mode editor page guard (issue #1525)
+    //
+    // The Edit and Create Mode sheets belong to `ModesView`, and
+    // `MainAppView.contentView` switches on `selectedNavigationItem`. So any
+    // page change drops the sheet and the unsaved edit with it. The open
+    // editor registers here, and page changes from outside the Modes page go
+    // through `requestNavigation(to:trigger:)` (or `navigate(to:)`), which
+    // applies `modeEditorNavigationDecision`.
+
+    /// Token of the open mode editor sheet (Edit or Create); nil when none is
+    /// open. A token, not a Bool, so a closing editor's late `onDisappear`
+    /// cannot clear the registration of an editor opened after it.
+    private(set) var openModeEditorSession: UUID?
+
+    /// Whether the open editor holds values that differ from what it opened with.
+    private(set) var modeEditorHasUnsavedChanges = false
+
+    /// A user-chosen page held back by the open editor's "Discard unsaved
+    /// changes?" prompt. The editor presents the prompt while this is set.
+    @Published private(set) var pendingModeEditorNavigation: NavigationItem?
+
+    var isModeEditorOpen: Bool { openModeEditorSession != nil }
+
+    func modeEditorDidOpen(session: UUID) {
+        openModeEditorSession = session
+        modeEditorHasUnsavedChanges = false
+        pendingModeEditorNavigation = nil
+    }
+
+    func modeEditorDidClose(session: UUID) {
+        guard openModeEditorSession == session else { return }
+        openModeEditorSession = nil
+        modeEditorHasUnsavedChanges = false
+        pendingModeEditorNavigation = nil
+    }
+
+    func modeEditor(session: UUID, hasUnsavedChanges: Bool) {
+        guard openModeEditorSession == session else { return }
+        modeEditorHasUnsavedChanges = hasUnsavedChanges
+    }
+
+    /// The rule Ray set for issue #1525. Pure, so tests call it directly.
+    nonisolated static func modeEditorNavigationDecision(
+        editorOpen: Bool,
+        hasUnsavedChanges: Bool,
+        trigger: NavigationTrigger
+    ) -> ModeEditorNavigationDecision {
+        guard editorOpen else { return .navigate }
+        switch trigger {
+        case .automatic:
+            // The user did not ask to leave: keep the sheet and the page.
+            return .keepEditor
+        case .userChosen:
+            // Honour the click, but never drop an edit without asking. A clean
+            // editor closes as it always has.
+            return hasUnsavedChanges ? .askToDiscard : .navigate
+        case .fromModeEditor:
+            // The editor's own link, which has already dismissed the sheet.
+            return .navigate
+        }
+    }
+
+    /// True when the page may change to `item` now. When it may not, this
+    /// either leaves everything as it is (automatic) or stages the page for the
+    /// editor's discard prompt (user-chosen, unsaved changes).
+    func modeEditorAllowsPageChange(to item: NavigationItem, trigger: NavigationTrigger) -> Bool {
+        // Staying on the current page does not rebuild ModesView.
+        if item == selectedNavigationItem { return true }
+        switch Self.modeEditorNavigationDecision(
+            editorOpen: isModeEditorOpen,
+            hasUnsavedChanges: modeEditorHasUnsavedChanges,
+            trigger: trigger
+        ) {
+        case .navigate:
+            return true
+        case .keepEditor:
+            logger.info("Page change to \(item.rawValue, privacy: .public) skipped: a mode editor is open")
+            return false
+        case .askToDiscard:
+            pendingModeEditorNavigation = item
+            return false
+        }
+    }
+
+    /// Change the page unless an open mode editor holds it (issue #1525).
+    /// - Returns: true when the page changed (or was already `item`).
+    @discardableResult
+    func requestNavigation(to item: NavigationItem, trigger: NavigationTrigger) -> Bool {
+        guard modeEditorAllowsPageChange(to: item, trigger: trigger) else { return false }
+        selectedNavigationItem = item
+        return true
+    }
+
+    /// "Discard" in the editor's prompt: go to the page that was held back.
+    /// The page change removes ModesView, which closes the sheet.
+    func discardModeEditorAndNavigate() {
+        guard let item = pendingModeEditorNavigation else { return }
+        pendingModeEditorNavigation = nil
+        selectedNavigationItem = item
+    }
+
+    /// "Keep Editing" in the editor's prompt: forget the held-back page.
+    func keepEditingModeEditor() {
+        pendingModeEditorNavigation = nil
     }
     
     // MARK: - API Key Alert Properties
@@ -1626,6 +1743,30 @@ class AppState: ObservableObject {
         // Clean up timers and subscriptions
         cancellables.removeAll()
     }
+}
+
+// MARK: - Mode editor page guard types (issue #1525)
+
+/// Who asked for a page change, for the open-mode-editor guard.
+enum NavigationTrigger: Equatable, Sendable {
+    /// The app moved the page on its own: a Transcribe File job ended, an error
+    /// toast's action, any `navigate(to:)` that is not a click on the page.
+    case automatic
+    /// The user picked a page from outside the main window (menu bar History…
+    /// / Settings…).
+    case userChosen
+    /// A link inside the open mode editor, which has already dismissed itself.
+    case fromModeEditor
+}
+
+/// What a page change does while a mode editor sheet may be open.
+enum ModeEditorNavigationDecision: Equatable, Sendable {
+    /// Change the page (no editor open, a clean editor, or the editor's own link).
+    case navigate
+    /// Skip the page change and keep the sheet.
+    case keepEditor
+    /// Ask "Discard unsaved changes?" first; change the page only on Discard.
+    case askToDiscard
 }
 
 // MARK: - Transcription Mode

@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "Διαγραφή λειτουργίας;";
 "modes.delete.confirm.message" = "Αυτό θα αφαιρέσει την επιλεγμένη λειτουργία. Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.";
+"modes.editor.discard.title" = "Απόρριψη μη αποθηκευμένων αλλαγών;";
+"modes.editor.discard.message" = "Οι αλλαγές σας σε αυτή τη λειτουργία δεν έχουν αποθηκευτεί.";
+"modes.editor.discard.keepEditing" = "Συνέχεια επεξεργασίας";
+"modes.editor.discard.button" = "Απόρριψη";
 "modes.header.title" = "Λειτουργίες";
 "modes.header.subtitle" = "Δημιουργήστε προσαρμοσμένα προφίλ για διαφορετικά πλαίσια και ροές εργασίας";
 "modes.header.create" = "Δημιουργία Λειτουργίας";

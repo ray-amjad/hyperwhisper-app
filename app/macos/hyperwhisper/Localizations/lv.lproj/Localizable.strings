@@ -683,6 +683,10 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Dzēst režīmu?";
 "modes.delete.confirm.message" = "Tas noņems atlasīto režīmu. Šo darbību nevar atsaukt.";
+"modes.editor.discard.title" = "Atmest nesaglabātās izmaiņas?";
+"modes.editor.discard.message" = "Šī režīma izmaiņas nav saglabātas.";
+"modes.editor.discard.keepEditing" = "Turpināt rediģēšanu";
+"modes.editor.discard.button" = "Atmest";
 "modes.header.title" = "Režīmi";
 "modes.header.subtitle" = "Izveidojiet pielāgotus profilus dažādiem kontekstiem un darbplūsmām";
 "modes.header.create" = "Izveidot režīmu";

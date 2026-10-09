@@ -683,6 +683,10 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Padam mod?";
 "modes.delete.confirm.message" = "Ini akan mengeluarkan mod yang dipilih. Tindakan ini tidak boleh dibuat asal.";
+"modes.editor.discard.title" = "Buang perubahan yang belum disimpan?";
+"modes.editor.discard.message" = "Perubahan anda pada mod ini belum disimpan.";
+"modes.editor.discard.keepEditing" = "Teruskan Mengedit";
+"modes.editor.discard.button" = "Buang";
 "modes.header.title" = "Mod";
 "modes.header.subtitle" = "Cipta profil tersuai untuk konteks dan aliran kerja yang berbeza";
 "modes.header.create" = "Cipta Mod";

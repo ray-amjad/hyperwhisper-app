@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "ลบโหมด?";
 "modes.delete.confirm.message" = "สิ่งนี้จะลบโหมดที่เลือก ไม่สามารถเลิกทำการดำเนินการนี้ได้";
+"modes.editor.discard.title" = "ละทิ้งการเปลี่ยนแปลงที่ยังไม่ได้บันทึกหรือไม่";
+"modes.editor.discard.message" = "การเปลี่ยนแปลงโหมดนี้ยังไม่ได้บันทึก";
+"modes.editor.discard.keepEditing" = "แก้ไขต่อ";
+"modes.editor.discard.button" = "ละทิ้ง";
 "modes.header.title" = "โหมด";
 "modes.header.subtitle" = "สร้างโปรไฟล์ที่กำหนดเองสำหรับบริบทและขั้นตอนการทำงานต่างๆ";
 "modes.header.create" = "สร้างโหมด";

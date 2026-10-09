@@ -683,6 +683,10 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Slett modus?";
 "modes.delete.confirm.message" = "Dette vil fjerne den valgte modusen. Denne handlingen kan ikke angres.";
+"modes.editor.discard.title" = "Forkaste ulagrede endringer?";
+"modes.editor.discard.message" = "Endringene dine i denne modusen er ikke lagret.";
+"modes.editor.discard.keepEditing" = "Fortsett å redigere";
+"modes.editor.discard.button" = "Forkast";
 "modes.header.title" = "Moduser";
 "modes.header.subtitle" = "Opprett tilpassede profiler for ulike kontekster og arbeidsflyter";
 "modes.header.create" = "Opprett modus";

@@ -683,6 +683,10 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 // MARK: - Modes
 "modes.delete.confirm.title" = "Eyða hami?";
 "modes.delete.confirm.message" = "Þetta mun fjarlægja valinn ham. Þessa aðgerð er ekki hægt að afturkalla.";
+"modes.editor.discard.title" = "Henda óvistuðum breytingum?";
+"modes.editor.discard.message" = "Breytingar þínar á þessari stillingu hafa ekki verið vistaðar.";
+"modes.editor.discard.keepEditing" = "Halda áfram að breyta";
+"modes.editor.discard.button" = "Henda";
 "modes.header.title" = "Hamar";
 "modes.header.subtitle" = "Búðu til sérsniðnar notendaupplýsingar fyrir mismunandi samhengi og verkflæði";
 "modes.header.create" = "Búa til ham";

@@ -683,6 +683,10 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Izbriši način?";
 "modes.delete.confirm.message" = "To bo odstranil izbrani način. Te akcije se ne da razveljaviti.";
+"modes.editor.discard.title" = "Želite zavreči neshranjene spremembe?";
+"modes.editor.discard.message" = "Vaše spremembe tega načina niso shranjene.";
+"modes.editor.discard.keepEditing" = "Nadaljuj urejanje";
+"modes.editor.discard.button" = "Zavrzi";
 "modes.header.title" = "Načini";
 "modes.header.subtitle" = "Ustvari prilagojene profile za različne kontekste in delovne tokove";
 "modes.header.create" = "Ustvari način";

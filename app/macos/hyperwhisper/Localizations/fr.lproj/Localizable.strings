@@ -683,6 +683,10 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 // MARK: - Modes
 "modes.delete.confirm.title" = "Supprimer ce mode ?";
 "modes.delete.confirm.message" = "Le mode sélectionné sera supprimé. Cette action est irréversible.";
+"modes.editor.discard.title" = "Ignorer les modifications non enregistrées ?";
+"modes.editor.discard.message" = "Vos modifications de ce mode n'ont pas été enregistrées.";
+"modes.editor.discard.keepEditing" = "Continuer la modification";
+"modes.editor.discard.button" = "Ignorer";
 "modes.header.title" = "Modes";
 "modes.header.subtitle" = "Créez des profils personnalisés pour différents contextes et workflows";
 "modes.header.create" = "Créer un mode";

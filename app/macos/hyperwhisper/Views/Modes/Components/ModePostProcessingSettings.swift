@@ -575,7 +575,7 @@ struct LanguageProcessingSettingsView: View {
                                     Button {
                                         dismiss()
                                         DispatchQueue.main.async {
-                                            appState.navigateToModelLibraryAPIKeys()
+                                            appState.navigateToModelLibraryAPIKeys(trigger: .fromModeEditor)
                                         }
                                     } label: {
                                         Text(localized: "modes.provider.manageInLibrary")

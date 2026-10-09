@@ -683,6 +683,10 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 // MARK: - Modes
 "modes.delete.confirm.title" = "Löschmodus?";
 "modes.delete.confirm.message" = "Dadurch wird der ausgewählte Modus entfernt. Diese Aktion kann nicht rückgängig gemacht werden.";
+"modes.editor.discard.title" = "Ungesicherte Änderungen verwerfen?";
+"modes.editor.discard.message" = "Deine Änderungen an diesem Modus wurden nicht gesichert.";
+"modes.editor.discard.keepEditing" = "Weiter bearbeiten";
+"modes.editor.discard.button" = "Verwerfen";
 "modes.header.title" = "Modi";
 "modes.header.subtitle" = "Erstellen Sie benutzerdefinierte Profile für verschiedene Kontexte und Arbeitsabläufe";
 "modes.header.create" = "Erstellungsmodus";

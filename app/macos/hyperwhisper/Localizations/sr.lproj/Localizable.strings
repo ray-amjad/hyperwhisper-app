@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "Обриши режим?";
 "modes.delete.confirm.message" = "Ово ће уклонити изабрани режим. Ова акција не може бити поништена.";
+"modes.editor.discard.title" = "Одбацити несачуване измене?";
+"modes.editor.discard.message" = "Ваше измене овог режима нису сачуване.";
+"modes.editor.discard.keepEditing" = "Настави уређивање";
+"modes.editor.discard.button" = "Одбаци";
 "modes.header.title" = "Режими";
 "modes.header.subtitle" = "Направи прилагођене профиле за различите контексте и работне токове";
 "modes.header.create" = "Направи Режим";

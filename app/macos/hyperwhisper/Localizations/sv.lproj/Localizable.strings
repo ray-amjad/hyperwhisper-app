@@ -683,6 +683,10 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Radera läge?";
 "modes.delete.confirm.message" = "Detta kommer att ta bort det valda läget. Denna åtgärd kan inte ångras.";
+"modes.editor.discard.title" = "Kasta osparade ändringar?";
+"modes.editor.discard.message" = "Dina ändringar i det här läget har inte sparats.";
+"modes.editor.discard.keepEditing" = "Fortsätt redigera";
+"modes.editor.discard.button" = "Kasta";
 "modes.header.title" = "Lägen";
 "modes.header.subtitle" = "Skapa anpassade profiler för olika sammanhang och arbetsflöden";
 "modes.header.create" = "Skapa läge";

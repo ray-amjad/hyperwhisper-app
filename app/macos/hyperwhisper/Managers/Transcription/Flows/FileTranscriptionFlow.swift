@@ -556,8 +556,10 @@ class FileTranscriptionFlow {
             currentCopiedFilePath = nil
             currentTranscriptionTask = nil
 
-            // Navigate to History view
-            appState?.selectedNavigationItem = .history
+            // Navigate to History view. An automatic jump: an open mode editor
+            // keeps the page and its sheet; the row is in History either way
+            // (issue #1525).
+            appState?.requestNavigation(to: .history, trigger: .automatic)
             openMainWindowWithHistory()
 
             // Reset state after completion

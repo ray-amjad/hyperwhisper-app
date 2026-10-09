@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "Видалити режим?";
 "modes.delete.confirm.message" = "Це видалить вибраний режим. Цю дію не можна скасувати.";
+"modes.editor.discard.title" = "Скасувати незбережені зміни?";
+"modes.editor.discard.message" = "Ваші зміни цього режиму не збережено.";
+"modes.editor.discard.keepEditing" = "Продовжити редагування";
+"modes.editor.discard.button" = "Скасувати зміни";
 "modes.header.title" = "Режими";
 "modes.header.subtitle" = "Створюйте спеціальні профілі для різних контекстів та робочих процесів";
 "modes.header.create" = "Створити режим";

@@ -683,6 +683,10 @@ Upravte tyto režimy a vyberte jiný model před jeho odebráním.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Smazat rezim?";
 "modes.delete.confirm.message" = "Timto odeberete vybrany rezim. Tuto akci nelze vratit zpet.";
+"modes.editor.discard.title" = "Zahodit neuložené změny?";
+"modes.editor.discard.message" = "Vaše změny tohoto režimu nebyly uloženy.";
+"modes.editor.discard.keepEditing" = "Pokračovat v úpravách";
+"modes.editor.discard.button" = "Zahodit";
 "modes.header.title" = "Rezimy";
 "modes.header.subtitle" = "Vytvarrejte vlastni profily pro ruzne kontexty a pracovni postupy";
 "modes.header.create" = "Vytvorit rezim";

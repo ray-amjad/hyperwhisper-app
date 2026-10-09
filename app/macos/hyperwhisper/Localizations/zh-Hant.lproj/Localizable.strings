@@ -683,6 +683,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "刪除模式？";
 "modes.delete.confirm.message" = "這將移除選定的模式。此操作無法復原。";
+"modes.editor.discard.title" = "放棄未儲存的變更？";
+"modes.editor.discard.message" = "你對此模式的變更尚未儲存。";
+"modes.editor.discard.keepEditing" = "繼續編輯";
+"modes.editor.discard.button" = "放棄";
 "modes.header.title" = "模式";
 "modes.header.subtitle" = "為不同的內容和工作流程建立自訂設定檔";
 "modes.header.create" = "建立模式";
