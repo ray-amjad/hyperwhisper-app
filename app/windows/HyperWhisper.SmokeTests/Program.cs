@@ -14240,6 +14240,94 @@ internal static class Program
                     $"an explicit localParakeetModel must win, got \"{explicitParakeet.LocalParakeetModel}\"");
             });
 
+            Run("Local API Cloud mode with no cloudProvider (#1521): runs and shows as HyperWhisper Cloud", () =>
+            {
+                // The parse itself. Blank means HyperWhisper Cloud, as macOS
+                // reads a nil cloudProvider; a known id is unchanged; a non-blank
+                // unknown id is still None (a bad value, not an omitted one).
+                foreach (var blank in new string?[] { null, "", "   " })
+                {
+                    Assert(CloudTranscriptionProviderExtensions.FromModeCloudProvider(blank)
+                            == CloudTranscriptionProvider.HyperWhisperCloud,
+                        $"a blank cloudProvider ('{blank ?? "<null>"}') must read as HyperWhisper Cloud");
+                }
+                Assert(CloudTranscriptionProviderExtensions.FromModeCloudProvider("hyperwhisper")
+                        == CloudTranscriptionProvider.HyperWhisperCloud,
+                    "'hyperwhisper' must read as HyperWhisper Cloud");
+                Assert(CloudTranscriptionProviderExtensions.FromModeCloudProvider("openai")
+                        == CloudTranscriptionProvider.OpenAI,
+                    "a BYOK provider id must keep its own provider");
+                Assert(CloudTranscriptionProviderExtensions.FromModeCloudProvider("not-a-provider")
+                        == CloudTranscriptionProvider.None,
+                    "an unknown non-blank id must still read as None");
+                // The plain identifier parse is untouched: the editor's combo
+                // tags and the engine dispatch still rely on blank -> None.
+                Assert(CloudTranscriptionProviderExtensions.FromIdentifier(null) == CloudTranscriptionProvider.None,
+                    "FromIdentifier(null) must stay None");
+
+                // The mode POST /modes stores for the issue's body:
+                // {"model":"cloud", ...} with no cloudProvider.
+                var posted = new Mode
+                {
+                    Name = "S8 Cloud",
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = null,
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                };
+                Assert(TranscriptionProviderFactory.IsHyperWhisperCloudActive(posted),
+                    "a Cloud mode with no cloudProvider must resolve to HyperWhisper Cloud");
+                var tierDefault = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
+                    .DefaultModelIdForId("elevenLabsScribeV2");
+                Assert(TranscribeEndpoints.ModelLabel(posted) == tierDefault,
+                    $"/transcribe must report the tier's model for it, got \"{TranscribeEndpoints.ModelLabel(posted)}\"");
+                var subtitle = new ModeToSubtitleConverter()
+                    .Convert(posted, typeof(string), null!, CultureInfo.InvariantCulture) as string;
+                Assert(subtitle == CloudTranscriptionProvider.HyperWhisperCloud.GetDisplayName(),
+                    $"the mode subtitle must name HyperWhisper Cloud, got \"{subtitle}\"");
+                Assert(subtitle != CloudTranscriptionProvider.None.GetDisplayName(),
+                    "the mode subtitle must not read None");
+                // The wire value is unchanged: GET /modes still reports no
+                // cloudProvider for this mode, like macOS.
+                Assert(ModesEndpoints.ToDto(posted).CloudProvider is null,
+                    "GET /modes must keep reporting the stored (absent) cloudProvider");
+
+                // PATCH {"model":"cloud"} on a local mode leaves cloudProvider
+                // null too; it must run on HyperWhisper Cloud the same way.
+                var flipped = new Mode
+                {
+                    ProviderType = "local",
+                    LocalEngine = "whisper",
+                    ModelType = "base",
+                    Model = "base",
+                    CloudProvider = null,
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                };
+                ModesEndpoints.ApplyPatch(new ModePatchDto { Model = "cloud" }, flipped);
+                Assert(flipped.ProviderType == "cloud", $"PATCH model:cloud must make the mode cloud, got \"{flipped.ProviderType}\"");
+                Assert(TranscriptionProviderFactory.IsHyperWhisperCloudActive(flipped),
+                    "a mode PATCHed to Cloud with no cloudProvider must resolve to HyperWhisper Cloud");
+
+                // A LOCAL mode with no cloudProvider is not a HyperWhisper Cloud
+                // mode: the default applies to cloud modes only.
+                Assert(!TranscriptionProviderFactory.IsHyperWhisperCloudActive(new Mode
+                {
+                    ProviderType = "local",
+                    LocalEngine = "whisper",
+                    ModelType = "base",
+                    Model = "base",
+                    CloudProvider = null,
+                }), "a local mode must not read as HyperWhisper Cloud");
+
+                // An explicit BYOK provider is untouched.
+                Assert(!TranscriptionProviderFactory.IsHyperWhisperCloudActive(new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "openai",
+                }), "a BYOK cloud mode must not read as HyperWhisper Cloud");
+            });
+
             Run("backup export (#1477): an On-device mode switched back to Cloud exports model cloud", () =>
             {
                 // Saved On-device (Model now holds the local id), then a later save
