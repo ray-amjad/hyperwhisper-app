@@ -70,6 +70,7 @@ try
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
+    await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
 
     var history = new HistoryRepository(database);
     var transcript = new Transcript
@@ -1307,6 +1308,76 @@ finally
 // write paths applying it — the repository the Linux GUI saves through, the
 // startup repair, and the backup import that is the realistic way a broken set
 // arrives on a machine at all.
+// Issue #1622 (the Linux side of Windows #1596): a local engine applied every
+// Vocabulary swap twice, and the first pass matched inside words. The router
+// ran the phonetic pass and the unanchored substring pass over the engine's
+// text, TranscriptionWorkflow kept THAT as the raw transcript, and
+// SpeechOutputProcessor's \b pass then ran every replacement row again:
+// "fox" -> "fox terrier" gave "fox terrier terrier", "art" -> "ART" gave
+// "quARTerly", and History's TranscribedText held the swaps. This drives the
+// real workflow, the real router, the real \b pass and the real native core
+// (phonetic pass) with a fake engine, and reads the History row back.
+static async Task RunLocalEngineVocabularyOnceTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    var database = new ApplicationDb(paths);
+    await database.MigrateAsync();
+    var history = new HistoryRepository(database);
+    var audio = Path.Combine(root, "vocabulary.wav");
+    await File.WriteAllBytesAsync(audio, [1]);
+
+    var engines = new[]
+    {
+        new Mode { Name = "Parakeet", ProviderType = "local", LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3" },
+        new Mode { Name = "Whisper", ProviderType = "local", LocalEngine = "whisper", Model = "base" },
+    };
+
+    async Task<(PortableTranscriptionResult Result, Transcript Saved)> Run(
+        Mode mode, string engineText, IReadOnlyList<string> vocabulary, IReadOnlyList<PortableVocabularyReplacement> replacements)
+    {
+        var engine = new FakeTranscriber((_, _, _) => Task.FromResult(
+            PortableTranscriptionResult.Success(engineText, mode.Name!)));
+        using var router = new ModeAwareTranscriptionRouter(engine, engine, new LanguageRecordingCloud());
+        using var recorder = new FakeRecorder(audio);
+        using var devices = new FakeDevices();
+        using var workflow = new TranscriptionWorkflow(recorder, devices, router, history);
+        var result = await workflow.TranscribeFileAsync(audio, new TranscriptionWorkflowRequest(
+            "en", mode.Name, mode.Id, mode, vocabulary, VocabularyReplacements: replacements));
+        Assert(result.IsSuccess, $"{mode.Name}: the local transcription failed");
+        var saved = (await history.ListAsync()).OrderByDescending(item => item.Date).First();
+        return (result, saved);
+    }
+
+    foreach (var mode in engines)
+    {
+        var fox = await Run(mode, "the quick brown fox jumps", ["fox"],
+            [new PortableVocabularyReplacement("fox", "fox terrier")]);
+        Assert(fox.Result.Text == "the quick brown fox terrier jumps",
+            $"{mode.Name}: a swap whose output contains its word was not applied exactly once: '{fox.Result.Text}'");
+        Assert(fox.Result.RawText == "the quick brown fox jumps"
+            && fox.Saved.TranscribedText == "the quick brown fox jumps"
+            && fox.Saved.Text == "the quick brown fox terrier jumps",
+            $"{mode.Name}: History's raw transcript held a vocabulary swap: '{fox.Saved.TranscribedText}'");
+
+        var art = await Run(mode, "the quarterly art report", ["art"],
+            [new PortableVocabularyReplacement("art", "ART")]);
+        Assert(art.Result.Text == "the quarterly ART report",
+            $"{mode.Name}: a swap matched inside a word, or missed the whole word: '{art.Result.Text}'");
+        Assert(art.Saved.TranscribedText == "the quarterly art report",
+            $"{mode.Name}: History's raw transcript held a vocabulary swap: '{art.Saved.TranscribedText}'");
+
+        // The phonetic pass is kept, for parakeet only, and runs after the raw
+        // text is kept.
+        var hint = await Run(mode, "hyper wisper", ["Whisper"], []);
+        var expected = mode.LocalEngine == "parakeet" ? "hyper Whisper" : "hyper wisper";
+        Assert(hint.Result.Text == expected,
+            $"{mode.Name}: the phonetic pass changed: '{hint.Result.Text}'");
+        Assert(hint.Saved.TranscribedText == "hyper wisper",
+            $"{mode.Name}: History's raw transcript held a phonetic correction");
+    }
+}
+
 static async Task RunShellLanguageRoutingTestsAsync(string root)
 {
     Directory.CreateDirectory(root);

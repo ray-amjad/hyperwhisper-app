@@ -231,13 +231,13 @@ final class NemotronProvider: TranscriptionProvider {
 
         do {
             _ = try await manager.process(samples: samples)
-            var text = try await manager.finish()
+            // The engine's own text, untouched: it is the History row's raw
+            // transcript. The phonetic pass (`applyLocalVocabularyCorrection`
+            // below) and the `\b` replacement pass run once each, in the
+            // caller, after that raw text is kept (issue #1622).
+            let text = try await manager.finish()
             await manager.cleanup()
 
-            if !vocabulary.isEmpty {
-                text = VocabularyProcessor.applyPhoneticVocabulary(to: text, vocabulary: vocabulary)
-                text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
-            }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             await manager.cleanup()
@@ -292,5 +292,19 @@ final class NemotronProvider: TranscriptionProvider {
 
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Transcription failed: \(errorDescription)")
         }
+    }
+}
+
+// MARK: - Local vocabulary correction (issue #1622)
+
+extension NemotronProvider: LocalVocabularyCorrecting {
+    /// The phonetic (Beider-Morse) pass over the engine's raw text. It corrects
+    /// a misheard token towards a spelling-hint row (a vocabulary row with NO
+    /// replacement); the core skips every row that carries a replacement, so
+    /// this never applies a swap. The caller runs it once, after it has kept
+    /// the raw text, and then runs the `\b` replacement pass once
+    /// (`VocabularyProcessor.applyLocalEngineVocabularyCorrection`).
+    func applyLocalVocabularyCorrection(to rawText: String, vocabulary: [Vocabulary]) -> String {
+        VocabularyProcessor.applyPhoneticVocabulary(to: rawText, vocabulary: vocabulary)
     }
 }

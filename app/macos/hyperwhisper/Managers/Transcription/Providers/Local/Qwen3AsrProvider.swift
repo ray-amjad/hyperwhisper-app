@@ -405,10 +405,10 @@ final class Qwen3AsrProvider: TranscriptionProvider {
                 )
                 pieces.append(Qwen3AsrChunker.Piece(text: chunkText, overlapsPrevious: chunk.overlapsPrevious))
             }
-            var text = Qwen3AsrChunker.join(pieces)
-            if !vocabulary.isEmpty {
-                text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
-            }
+            // No vocabulary pass here (issue #1622): the pipeline's `\b` pass
+            // applies replacement rows once, to whole words, after the raw
+            // text is kept. Qwen3 has no phonetic pass.
+            let text = Qwen3AsrChunker.join(pieces)
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             // `Task.isCancelled` is task-local: read it once here, at the catch

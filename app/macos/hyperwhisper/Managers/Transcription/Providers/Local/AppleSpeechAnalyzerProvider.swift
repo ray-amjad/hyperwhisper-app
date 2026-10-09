@@ -134,12 +134,10 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             let segments = try await resultsTask
 
             // Join all segments into final text
-            var text = segments.joined(separator: " ")
-
-            // Apply vocabulary replacements post-transcription
-            if !vocabulary.isEmpty {
-                text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
-            }
+            // No vocabulary replacement here (issue #1622): the pipeline's `\b`
+            // pass applies replacement rows once, to whole words, after the
+            // raw text is kept. The vocabulary still biases the analyzer above.
+            let text = segments.joined(separator: " ")
 
             let result = text.trimmingCharacters(in: .whitespacesAndNewlines)
             logger.info("Transcription complete: \(result.count) characters")

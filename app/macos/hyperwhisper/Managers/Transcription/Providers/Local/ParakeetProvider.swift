@@ -510,18 +510,11 @@ final class ParakeetProvider: TranscriptionProvider {
         do {
             var decoderState = try TdtDecoderState()
             let result = try await manager.transcribe(audioURL, decoderState: &decoderState, language: nil)
-            var text = result.text
-
-            // STEP 4a: Phonetic vocabulary matching (Beider-Morse)
-            // Catches phonetically similar misrecognitions before exact matching
-            if !vocabulary.isEmpty {
-                text = VocabularyProcessor.applyPhoneticVocabulary(to: text, vocabulary: vocabulary)
-            }
-
-            // STEP 4b: Exact vocabulary replacements (case-insensitive string match)
-            if !vocabulary.isEmpty {
-                text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
-            }
+            // The engine's own text, untouched: it is the History row's raw
+            // transcript. The phonetic pass (`applyLocalVocabularyCorrection`
+            // below) and the `\b` replacement pass run once each, in the
+            // caller, after that raw text is kept (issue #1622).
+            let text = result.text
             if let parakeetToken {
                 await ModelResidencyRegistry.shared.markIdle(parakeetToken)
             }
@@ -598,5 +591,19 @@ final class ParakeetProvider: TranscriptionProvider {
                 reason: "Transcription failed: \(errorDescription)"
             )
         }
+    }
+}
+
+// MARK: - Local vocabulary correction (issue #1622)
+
+extension ParakeetProvider: LocalVocabularyCorrecting {
+    /// The phonetic (Beider-Morse) pass over the engine's raw text. It corrects
+    /// a misheard token towards a spelling-hint row (a vocabulary row with NO
+    /// replacement); the core skips every row that carries a replacement, so
+    /// this never applies a swap. The caller runs it once, after it has kept
+    /// the raw text, and then runs the `\b` replacement pass once
+    /// (`VocabularyProcessor.applyLocalEngineVocabularyCorrection`).
+    func applyLocalVocabularyCorrection(to rawText: String, vocabulary: [Vocabulary]) -> String {
+        VocabularyProcessor.applyPhoneticVocabulary(to: rawText, vocabulary: vocabulary)
     }
 }
