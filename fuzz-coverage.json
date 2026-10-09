@@ -353,6 +353,23 @@
       ],
       "licensed": false,
       "note": "dev box, unlicensed (no HYPERWHISPER_ACCOUNT_KEY). onboarding: 2 Codex defects, both known/by-design (Start Recording card self-completes = #638 comments; Set Up Later after On this PC keeps Cloud = deferral, not a bug). core-settings: 0 defects (shortcut change to Ctrl+Shift+F9 persisted). licence: commented #649 (status bar Ready after failed activation)."
+    },
+    {
+      "at": "2026-10-09T04:16:25Z",
+      "platform": "linux",
+      "commit": "60f5c1d4",
+      "routes": [
+        "home-and-tray",
+        "modes",
+        "local-api"
+      ],
+      "status": "1-filed",
+      "issues": [
+        1629,
+        632
+      ],
+      "licensed": false,
+      "note": "unlicensed. 1629 = #474 regression (Parakeet blanks model picker, saves parakeet-v2); commented #632 (stale 'Mode saved' in Create dialog). local-api: busy/80/65536/abc ports fall back to a free port and the page shows the real one; clipboard copy fails only because the box has no xclip/wl-copy (not a defect). sandbox-up.sh apt gate skips install on this image (command -v with many names returns 0 if any exists) — install the package list by hand, incl. 'time'."
     }
   ]
 }
