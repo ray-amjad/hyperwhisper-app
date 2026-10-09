@@ -1143,7 +1143,7 @@ internal static class TranscribeEndpoints
     {
         if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
         {
-            var provider = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+            var provider = CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider);
             if (provider == CloudTranscriptionProvider.HyperWhisperCloud)
             {
                 return HyperWhisperCloudService.ResolveDictationModelId(

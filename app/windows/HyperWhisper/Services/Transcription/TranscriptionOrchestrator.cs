@@ -369,7 +369,7 @@ public class TranscriptionOrchestrator : IDisposable
         CancellationToken cancellationToken,
         double? knownDurationSeconds = null)
     {
-        var providerType = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+        var providerType = CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider);
 
         LoggingService.LogPerformanceMarker("TranscriptionOrchestrator", $"Cloud transcription via {providerType}");
 

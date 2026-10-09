@@ -200,6 +200,33 @@ public static class CloudTranscriptionProviderExtensions
     };
 
     /// <summary>
+    /// Parses the stored <c>Mode.CloudProvider</c> of a CLOUD mode. A missing
+    /// (null, empty or whitespace) value means HyperWhisper Cloud.
+    ///
+    /// <c>openapi.yaml</c> marks <c>cloudProvider</c> optional, so
+    /// <c>POST /modes</c> with <c>"model":"cloud"</c> and no
+    /// <c>cloudProvider</c> stores null, and so did every older build. macOS
+    /// reads that nil as <c>"hyperwhisper"</c> (<c>ModeModels.swift</c>,
+    /// <c>ModeCard.swift</c>, <c>CloudSTTCatalog.swift</c>); Windows read it as
+    /// <see cref="CloudTranscriptionProvider.None"/>, so the Modes card said
+    /// "None" and every transcription failed with "Unknown cloud provider: None"
+    /// (issue #1521). Defaulting at the READ keeps the stored value and the
+    /// Local API response as they are (both heads answer GET /modes with no
+    /// <c>cloudProvider</c>) and heals modes older builds already saved.
+    ///
+    /// A non-blank value that is not a known identifier still parses to
+    /// <see cref="CloudTranscriptionProvider.None"/>: that is a bad value, not
+    /// an omitted one, and guessing a vendor for it is a different decision.
+    ///
+    /// Call this only where the mode is a cloud mode. A local mode carries a
+    /// null <c>CloudProvider</c> on purpose (<c>LocalModeModel.ApplyOnDevice</c>).
+    /// </summary>
+    public static CloudTranscriptionProvider FromModeCloudProvider(string? identifier)
+        => string.IsNullOrWhiteSpace(identifier)
+            ? CloudTranscriptionProvider.HyperWhisperCloud
+            : FromIdentifier(identifier);
+
+    /// <summary>
     /// Parses a <c>cloud-stt-catalog.json</c> <c>sttProvider</c> value — the
     /// backend's <c>X-STT-Provider</c> dispatch key — to this enum.
     ///

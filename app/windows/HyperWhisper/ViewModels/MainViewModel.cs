@@ -1359,7 +1359,7 @@ public partial class MainViewModel : ViewModelBase
                     _parakeetTranscriptionService.ActiveProvider ?? "CPU");
                 return;
             }
-            var provider = CloudTranscriptionProviderExtensions.FromIdentifier(SelectedMode.CloudProvider);
+            var provider = CloudTranscriptionProviderExtensions.FromModeCloudProvider(SelectedMode.CloudProvider);
             var providerName = provider.GetDisplayName();
             var model = CloudTranscriptionModels.GetById(SelectedMode.CloudTranscriptionModel, provider)
                         ?? CloudTranscriptionModels.GetDefault(provider);
