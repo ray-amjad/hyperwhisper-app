@@ -92,27 +92,23 @@ enum NavigationItem: String, CaseIterable, Identifiable {
 //
 // An extension here, beside NavigationItem, so the setters of
 // `displayedNavigationItem` and `pageSheetDismissalRequest` stay private to
-// this file. The rules are in `PageChangeGate`.
+// this file. The rules are in `PageChangeGate`; pages report and close their
+// presentations through `PagePresentations`.
 
 @MainActor
 extension AppState {
 
-    /// Whether a sheet that a page owns is up on the main window.
+    /// Whether a sheet that a page owns is up on the main window. A sheet no
+    /// page change removes (MainAppView's alerts, the auto-paste NSAlert, an
+    /// AppKit file panel) does not count, so it neither holds nor cancels
+    /// navigation.
     var mainWindowHasPageSheet: Bool {
         if let override = pageSheetPresenceOverride { return override() }
         // The onboarding sheet belongs to MainAppView itself, not to a page,
         // so a page change does not remove it. Holding the page for it would
         // only delay onboarding's own page changes.
         if showOnboarding { return false }
-        return Self.windowHasSwiftUISheet(MainWindowStore.window)
-    }
-
-    /// True when `window` has a sheet attached that SwiftUI presents. An
-    /// AppKit open/save panel run as a sheet (Backup's file picker) is not
-    /// torn down by SwiftUI when the page goes, so it does not hold the page.
-    static func windowHasSwiftUISheet(_ window: NSWindow?) -> Bool {
-        guard let sheet = window?.attachedSheet else { return false }
-        return !(sheet is NSSavePanel)
+        return PagePresentations.shared.pageOwnsAttachedSheet
     }
 
     /// Every write to `selectedNavigationItem` comes here (its `didSet`), so
@@ -127,31 +123,41 @@ extension AppState {
         case .waitForSheet:
             AppLogger.ui.info("Page change to \(item.rawValue, privacy: .public) waits for the open sheet to close (#1672)")
             pageSheetDismissalRequest &+= 1
+            PagePresentations.shared.requestClose()
             startPageChangeWait()
+        case .cancelled:
+            // `request` never cancels; only `recheck` does.
+            stopPageChangeWait()
         case .unchanged:
-            if !pageChangeGate.isWaitingForSheet {
-                stopPageChangeWait()
-            }
+            // The gate has dropped any held page (the shown page was asked for).
+            stopPageChangeWait()
         }
     }
 
-    /// Checks a held page change. Shows the page once the sheet has gone, or
-    /// once the wait limit has passed.
+    /// Checks a held page change. Shows the page once the sheet has gone.
+    /// Never while the sheet is still attached: past the wait limit the held
+    /// page change is cancelled and the selection goes back to the shown page.
     /// - Returns: true while the page is still held.
     @discardableResult
     func recheckPendingPageChange(now: Date = Date()) -> Bool {
         let limitPassed = pageChangeWaitDeadline.map { now >= $0 } ?? true
-        let sheetUp = mainWindowHasPageSheet
-        switch pageChangeGate.recheck(sheetPresented: sheetUp, waitLimitPassed: limitPassed) {
+        let held = pageChangeGate.pending
+        switch pageChangeGate.recheck(sheetPresented: mainWindowHasPageSheet, waitLimitPassed: limitPassed) {
         case .show(let page):
-            if sheetUp {
-                AppLogger.ui.warning("Page change to \(page.rawValue, privacy: .public) shown with a sheet still up: the sheet did not close in time (#1672)")
-            }
             stopPageChangeWait()
             displayedNavigationItem = page
             return false
         case .waitForSheet:
             return true
+        case .cancelled(let shown):
+            let heldName = held?.rawValue ?? "none"
+            AppLogger.ui.warning("Page change to \(heldName, privacy: .public) cancelled: the sheet did not close within the wait limit, staying on \(shown.rawValue, privacy: .public) (#1672)")
+            stopPageChangeWait()
+            // Put the sidebar back on the page the window shows. The gate has
+            // already dropped the held page and still shows `shown`, so this
+            // write routes to `.unchanged` and is never held again.
+            selectedNavigationItem = shown
+            return false
         case .unchanged:
             stopPageChangeWait()
             return false
@@ -395,9 +401,10 @@ class AppState: ObservableObject {
     /// `PageChangeGate`.
     @Published private(set) var displayedNavigationItem: NavigationItem = .home
 
-    /// Bumped when a page change waits for a sheet. Every page that presents
-    /// a sheet or alert closes it on this (`closesPresentationsOnPageChange`).
-    @Published private(set) var pageSheetDismissalRequest: Int = 0
+    /// Counts the page changes that waited for a page's sheet. Each one also
+    /// sends `PagePresentations.closeRequests`, which every page that presents
+    /// a sheet or alert closes it on (`closesPresentationsOnPageChange`).
+    private(set) var pageSheetDismissalRequest: Int = 0
 
     /// Holds a page change while a sheet closes (issue #1672). Only
     /// `routePageChange(to:)` and `recheckPendingPageChange(now:)` change it.

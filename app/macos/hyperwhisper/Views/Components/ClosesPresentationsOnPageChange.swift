@@ -6,30 +6,54 @@
 //  closes it when the window is about to change page, so the page is never
 //  removed in the same update as its open sheet (that crashes AppKit).
 //
-//  `AppState.routePageChange(to:)` holds the page change while the main
-//  window has a sheet up and bumps `pageSheetDismissalRequest`; this modifier
-//  runs the page's own close action on that bump. The page changes once AppKit
-//  has detached the sheet.
+//  The page reports whether it presents something (`isPresenting`) to
+//  `PagePresentations`, so `AppState.routePageChange(to:)` holds a page change
+//  only for a sheet a page owns. When it holds one it sends
+//  `PagePresentations.closeRequests`, and this modifier runs the page's own
+//  close action. The page changes once AppKit has detached the sheet.
+//
+//  No environment object is read here: a view using this modifier works in a
+//  `#Preview` or any host that does not inject AppState.
 //
 
 import SwiftUI
 
 private struct ClosesPresentationsOnPageChange: ViewModifier {
-    @EnvironmentObject private var appState: AppState
+    let isPresenting: Bool
     let close: () -> Void
+    /// This view's identity in `PagePresentations`.
+    @State private var owner = UUID()
+
+    init(isPresenting: Bool, close: @escaping () -> Void) {
+        self.isPresenting = isPresenting
+        self.close = close
+    }
 
     func body(content: Content) -> some View {
-        content.onChange(of: appState.pageSheetDismissalRequest) { _, _ in
-            close()
-        }
+        content
+            .onReceive(PagePresentations.shared.closeRequests) { _ in
+                close()
+            }
+            .onAppear {
+                PagePresentations.shared.report(owner, isPresenting: isPresenting)
+            }
+            .onChange(of: isPresenting) { _, presenting in
+                PagePresentations.shared.report(owner, isPresenting: presenting)
+            }
+            .onDisappear {
+                PagePresentations.shared.remove(owner)
+            }
     }
 }
 
 extension View {
-    /// Runs `close` when a page change waits for this page's sheets to close.
-    /// `close` sets every sheet, alert and dialog state the view owns back to
-    /// its closed value.
-    func closesPresentationsOnPageChange(_ close: @escaping () -> Void) -> some View {
-        modifier(ClosesPresentationsOnPageChange(close: close))
+    /// Reports whether this view presents a sheet, alert or dialog, and runs
+    /// `close` when a page change waits for it. `isPresenting` is true while
+    /// any of them is open; `close` sets every one back to its closed value.
+    func closesPresentationsOnPageChange(
+        isPresenting: Bool,
+        _ close: @escaping () -> Void
+    ) -> some View {
+        modifier(ClosesPresentationsOnPageChange(isPresenting: isPresenting, close: close))
     }
 }

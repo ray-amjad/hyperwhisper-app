@@ -41,7 +41,9 @@ struct APIKeysManagerModal: View {
         // Issue #1672: a page change closes this modal; close the key sheet
         // stacked on it in the same update, so no sheet is left presented by
         // a view that is going away.
-        .closesPresentationsOnPageChange {
+        .closesPresentationsOnPageChange(
+            isPresenting: sheetTarget != nil
+        ) {
             sheetTarget = nil
         }
     }

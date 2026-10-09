@@ -17,8 +17,11 @@
 //  which every caller still writes). With no sheet on the main window the shown
 //  page follows at once. With a sheet up, the gate holds the request, AppState
 //  asks the page to close its sheets, and the page changes on a later run-loop
-//  turn, once the sheet is gone (or after a time limit, so a sheet that ignores
-//  the request can never pin the window to one page).
+//  turn, once the sheet is gone. The shown page NEVER changes while the sheet
+//  is still attached: if the sheet has not gone by the time limit, the held
+//  page change is cancelled and the selection goes back to the shown page, so
+//  a sheet that ignores the request can neither crash the app nor pin the
+//  sidebar to a page the window does not show.
 //
 //  The gate is a plain value with no window, timer or SwiftUI in it, so the
 //  rules are unit-tested by calling it (`PageChangeGateTests`).
@@ -35,6 +38,9 @@ struct PageChangeGate: Equatable {
         /// A sheet is up: ask the shown page to close its sheets, and check
         /// again on a later run-loop turn.
         case waitForSheet
+        /// The sheet outlasted the wait limit: the held page change is
+        /// dropped. Put the selection back to this page (the shown one).
+        case cancelled(stayOn: NavigationItem)
         /// Nothing to do.
         case unchanged
     }
@@ -42,9 +48,9 @@ struct PageChangeGate: Equatable {
     /// How often AppState checks whether the sheet has gone.
     static let sheetPollInterval: TimeInterval = 0.05
 
-    /// How long a held page waits for the sheet before it is shown anyway.
-    /// A sheet's close animation takes about 0.25 s; this only fires when a
-    /// sheet does not answer the close request.
+    /// How long a held page waits for the sheet before the page change is
+    /// cancelled. A sheet's close animation takes about 0.25 s; this only
+    /// fires when a sheet does not answer the close request.
     static let sheetWaitLimit: TimeInterval = 2.0
 
     /// The page the window shows.
@@ -78,12 +84,15 @@ struct PageChangeGate: Equatable {
         return .waitForSheet
     }
 
-    /// A later run-loop turn: show the held page if the sheet has gone, or if
-    /// it has waited past the limit.
+    /// A later run-loop turn: show the held page once the sheet has gone.
+    /// While the sheet is attached the shown page never changes; past the
+    /// wait limit the held page change is cancelled instead.
     mutating func recheck(sheetPresented: Bool, waitLimitPassed: Bool) -> Outcome {
         guard let item = pending else { return .unchanged }
-        if sheetPresented && !waitLimitPassed {
-            return .waitForSheet
+        if sheetPresented {
+            guard waitLimitPassed else { return .waitForSheet }
+            pending = nil
+            return .cancelled(stayOn: displayed)
         }
         pending = nil
         displayed = item

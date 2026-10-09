@@ -320,7 +320,9 @@ struct ShortcutsSettingsSection: View {
                 Text("settings.shortcuts.reset.dialog.message".localized)
             }
             // Issue #1672: close the dialog before a page change removes this view.
-            .closesPresentationsOnPageChange {
+            .closesPresentationsOnPageChange(
+                isPresenting: showResetShortcutsConfirmation
+            ) {
                 showResetShortcutsConfirmation = false
             }
 

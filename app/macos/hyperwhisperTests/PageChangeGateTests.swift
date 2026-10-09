@@ -10,9 +10,11 @@
 //  update cycle from inside its own commit and the app died with SIGSEGV.
 //
 //  The fix keeps the SHOWN page (`displayedNavigationItem`) apart from the
-//  ASKED-FOR page (`selectedNavigationItem`). With a sheet up the page change
-//  is held, the page is asked to close its sheets, and the page changes on a
-//  later run-loop turn once the sheet has gone.
+//  ASKED-FOR page (`selectedNavigationItem`). With a page's sheet up the page
+//  change is held, the page is asked to close its sheets, and the page changes
+//  on a later run-loop turn once the sheet has gone. The shown page never
+//  changes while the sheet is attached: past the wait limit the held change is
+//  cancelled and the selection goes back to the shown page.
 //
 //  The rules are a plain value (`PageChangeGate`) and are tested by calling
 //  it; the AppState steps run on a bare AppState with the window's sheet
@@ -20,6 +22,7 @@
 //  reading the source, as `ModeEditorSheetHeightTests` does.
 //
 
+import AppKit
 import Foundation
 import Testing
 
@@ -84,13 +87,36 @@ struct PageChangeGateTests {
         #expect(gate.displayed == .history)
     }
 
-    /// A sheet that never answers the close request cannot pin the window to
-    /// one page.
-    @Test func theWaitLimitShowsTheHeldPageWithTheSheetStillUp() {
+    /// Showing the held page while the sheet is attached would remove the
+    /// sheet's presenter: the #1672 crash. No recheck may do it.
+    @Test func aHeldPageIsNeverShownWhileTheSheetIsAttached() {
+        for limitPassed in [false, true] {
+            var gate = PageChangeGate(displayed: .modes)
+            _ = gate.request(.settings, sheetPresented: true)
+            let outcome = gate.recheck(sheetPresented: true, waitLimitPassed: limitPassed)
+            #expect(outcome != .show(.settings))
+            #expect(gate.displayed == .modes)
+        }
+    }
+
+    /// A sheet that never answers the close request cancels the held page
+    /// change; it is never forced under the sheet.
+    @Test func theWaitLimitCancelsTheHeldPageWithTheSheetStillUp() {
         var gate = PageChangeGate(displayed: .modelLibrary)
         _ = gate.request(.home, sheetPresented: true)
-        #expect(gate.recheck(sheetPresented: true, waitLimitPassed: true) == .show(.home))
-        #expect(gate.displayed == .home)
+        #expect(gate.recheck(sheetPresented: true, waitLimitPassed: true) == .cancelled(stayOn: .modelLibrary))
+        #expect(gate.displayed == .modelLibrary)
+        #expect(gate.pending == nil)
+        #expect(gate.recheck(sheetPresented: false, waitLimitPassed: true) == PageChangeGate.Outcome.unchanged)
+        // Putting the selection back on the shown page is never held again.
+        #expect(gate.request(.modelLibrary, sheetPresented: true) == PageChangeGate.Outcome.unchanged)
+        #expect(gate.pending == nil)
+    }
+
+    @Test func aSheetThatGoesJustAtTheLimitStillShowsTheHeldPage() {
+        var gate = PageChangeGate(displayed: .modes)
+        _ = gate.request(.history, sheetPresented: true)
+        #expect(gate.recheck(sheetPresented: false, waitLimitPassed: true) == .show(.history))
     }
 
     @Test func theWaitLimitOutlastsASheetCloseAnimation() {
@@ -203,8 +229,9 @@ struct PageChangeGateTests {
     }
 
     @MainActor
-    @Test func aSheetThatNeverClosesIsOutwaited() {
+    @Test func aSheetThatNeverClosesCancelsTheHeldPageAndRestoresTheSelection() {
         let appState = makeAppState(on: .modes, sheetUp: { true })
+        let before = appState.pageSheetDismissalRequest
 
         appState.selectedNavigationItem = .history
         #expect(appState.recheckPendingPageChange(now: Date()))
@@ -212,12 +239,76 @@ struct PageChangeGateTests {
 
         let pastLimit = Date().addingTimeInterval(PageChangeGate.sheetWaitLimit + 1)
         #expect(appState.recheckPendingPageChange(now: pastLimit) == false)
-        #expect(appState.displayedNavigationItem == .history)
+        // Never shown under the sheet; the sidebar matches the content again.
+        #expect(appState.displayedNavigationItem == .modes)
+        #expect(appState.selectedNavigationItem == .modes)
+        // The restore did not re-enter the gate as a new held request.
+        #expect(appState.pageChangeGate.isWaitingForSheet == false)
+        #expect(appState.pageSheetDismissalRequest == before + 1)
+        #expect(appState.recheckPendingPageChange(now: pastLimit) == false)
+        #expect(appState.displayedNavigationItem == .modes)
+    }
+
+    // MARK: - Which sheets hold a page change
+
+    @MainActor
+    private func makeWindow() -> NSWindow {
+        NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
     }
 
     @MainActor
-    @Test func noWindowMeansNoSheet() {
-        #expect(AppState.windowHasSwiftUISheet(nil) == false)
+    @Test func noAttachedSheetHoldsNothing() {
+        let presentations = PagePresentations()
+        presentations.attachedSheet = { nil }
+        presentations.report(UUID(), isPresenting: true)
+        #expect(presentations.pageOwnsAttachedSheet == false)
+    }
+
+    /// MainAppView's alerts and the auto-paste NSAlert are not removed by a
+    /// page change, so they neither hold nor cancel navigation.
+    @MainActor
+    @Test func aSheetNoPageReportsDoesNotHoldAPageChange() {
+        let presentations = PagePresentations()
+        let rootAlert = makeWindow()
+        presentations.attachedSheet = { rootAlert }
+        #expect(presentations.pageOwnsAttachedSheet == false)
+    }
+
+    @MainActor
+    @Test func aPageSheetHoldsUntilAppKitHasDetachedIt() {
+        let presentations = PagePresentations()
+        let pageSheet = makeWindow()
+        var attached: NSWindow? = pageSheet
+        presentations.attachedSheet = { attached }
+        let page = UUID()
+
+        presentations.report(page, isPresenting: true)
+        #expect(presentations.pageOwnsAttachedSheet)
+
+        // The page has closed it; the sheet is still animating out.
+        presentations.report(page, isPresenting: false)
+        #expect(presentations.openOwners.isEmpty)
+        #expect(presentations.pageOwnsAttachedSheet)
+
+        attached = nil
+        #expect(presentations.pageOwnsAttachedSheet == false)
+
+        // A later sheet no page reports does not hold.
+        let rootAlert = makeWindow()
+        attached = rootAlert
+        #expect(presentations.pageOwnsAttachedSheet == false)
+    }
+
+    @MainActor
+    @Test func aPageThatGoesAwayStopsReporting() {
+        let presentations = PagePresentations()
+        let sheet = makeWindow()
+        presentations.attachedSheet = { sheet }
+        let page = UUID()
+        presentations.report(page, isPresenting: true)
+        presentations.remove(page)
+        #expect(presentations.openOwners.isEmpty)
+        #expect(presentations.pageOwnsAttachedSheet == false)
     }
 
     // MARK: - Wiring
@@ -246,8 +337,8 @@ struct PageChangeGateTests {
         #expect(property.contains("didSet { routePageChange(to: selectedNavigationItem) }"))
     }
 
-    /// Each page (or sheet) that presents a sheet, alert or dialog closes it
-    /// when a page change waits, and closes every presentation it owns.
+    /// Each page (or sheet) that presents a sheet, alert or dialog reports it
+    /// open, and closes every presentation it owns when a page change waits.
     private static let pagesThatClose: [(path: String, closes: [String])] = [
         ("app/macos/hyperwhisper/Views/Modes/ModesView.swift",
          ["showingCreateMode = false", "selectedMode = nil", "showingDeleteConfirm = false", "showingLastModeAlert = false"]),
@@ -271,23 +362,31 @@ struct PageChangeGateTests {
         for page in Self.pagesThatClose {
             let handler = try ProductionSource.slice(
                 of: page.path,
-                from: ".closesPresentationsOnPageChange {",
+                from: ".closesPresentationsOnPageChange(",
                 to: "}"
+            )
+            let reported = try ProductionSource.slice(
+                of: page.path,
+                from: "isPresenting:",
+                to: ") {"
             )
             for line in page.closes {
                 #expect(handler.contains(line), "\(page.path) must run \(line)")
+                let state = String(line.prefix { $0 != " " })
+                #expect(reported.contains(state), "\(page.path) must report \(state) as presenting")
             }
         }
     }
 
-    /// The API keys manager's own sheet reads AppState for its close, and a
-    /// macOS sheet is not guaranteed to inherit environment objects.
-    @Test func theAPIKeysManagerSheetIsGivenAppState() throws {
-        let sheet = try ProductionSource.slice(
-            of: "app/macos/hyperwhisper/Views/ModelLibrary/ModelLibraryView.swift",
-            from: ".sheet(isPresented: $showAPIKeysManager) {",
-            to: ".sheet(isPresented: $showCustomEndpointSheet"
+    /// The modifier reads nothing from the environment, so a `#Preview` or a
+    /// sheet host without AppState does not crash.
+    @Test func theModifierNeedsNoAppStateInTheEnvironment() throws {
+        let code = try ProductionSource.code(
+            of: "app/macos/hyperwhisper/Views/Components/ClosesPresentationsOnPageChange.swift"
         )
-        #expect(sheet.contains(".environmentObject(appState)"))
+        #expect(!code.contains("@EnvironmentObject"))
+        #expect(!code.contains("@Environment("))
+        #expect(!code.contains("AppState"))
+        #expect(code.contains(".onReceive(PagePresentations.shared.closeRequests)"))
     }
 }

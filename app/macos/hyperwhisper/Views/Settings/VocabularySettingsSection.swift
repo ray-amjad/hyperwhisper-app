@@ -33,7 +33,9 @@ struct VocabularySettingsSection: View {
             Text("vocabulary.icloudSync.restart.message".localized)
         }
         // Issue #1672: close the alert before a page change removes this view.
-        .closesPresentationsOnPageChange {
+        .closesPresentationsOnPageChange(
+            isPresenting: showRestartAlert
+        ) {
             showRestartAlert = false
         }
     }

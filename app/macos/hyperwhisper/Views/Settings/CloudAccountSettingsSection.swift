@@ -74,7 +74,9 @@ struct CloudAccountSettingsSection: View {
             Text(licenseManager.lastError ?? "alerts.license.failed.message".localized)
         }
         // Issue #1672: close the alerts before a page change removes this view.
-        .closesPresentationsOnPageChange {
+        .closesPresentationsOnPageChange(
+            isPresenting: showLicenseSuccess || showLicenseError
+        ) {
             showLicenseSuccess = false
             showLicenseError = false
         }

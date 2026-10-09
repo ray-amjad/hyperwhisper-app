@@ -221,7 +221,9 @@ struct ModesView: View {
         }
         // Issue #1672: close the Create / Edit Mode sheet (and the delete
         // prompts) before a page change removes this view.
-        .closesPresentationsOnPageChange {
+        .closesPresentationsOnPageChange(
+            isPresenting: showingCreateMode || selectedMode != nil || showingDeleteConfirm || showingLastModeAlert
+        ) {
             showingCreateMode = false
             selectedMode = nil
             showingDeleteConfirm = false
