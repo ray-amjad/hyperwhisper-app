@@ -2627,6 +2627,13 @@ class PersistenceController: ObservableObject {
     /// - Parameter mode: The mode to delete
     /// - Note: The caller is responsible for ensuring at least one mode remains
     func deleteMode(_ mode: Mode) {
+        deleteModeWithoutSaving(mode)
+        save()
+    }
+
+    /// `deleteMode` without its save: the backup import (issue #1613) deletes
+    /// inside one transaction and saves once at the end.
+    private func deleteModeWithoutSaving(_ mode: Mode) {
         let context = container.viewContext
         let wasDefault = mode.isDefault
         context.delete(mode)
@@ -2636,7 +2643,6 @@ class PersistenceController: ObservableObject {
         if wasDefault {
             DefaultModePolicy.apply(to: fetchAllModes())
         }
-        save()
     }
 
     /// Deletes a mode the user asked to delete, then repairs the app state that
@@ -2950,7 +2956,138 @@ class PersistenceController: ObservableObject {
     
     // MARK: - Bulk Import Operations (Backup/Restore)
 
-    /// Imports modes from backup data with conflict resolution
+    /// What one backup store import changed.
+    struct BackupStoreImportResult {
+        var modesImported = 0
+        var modesSkipped = 0
+        /// Old-to-new mode ids created by `.keepBoth`.
+        var modeIdRemap: [UUID: UUID] = [:]
+        var vocabularyImported = 0
+        var vocabularySkipped = 0
+    }
+
+    /// Imports a backup's modes and vocabulary as ONE store transaction
+    /// (issue #1613).
+    ///
+    /// Every row used to be saved on its own (`createOrUpdateMode`,
+    /// `deleteMode`, `addVocabularyItem` and the default-flag pass each
+    /// saved), so a crash, a kill or a failed save part-way left a silent
+    /// partial import. Now the rows are written to `viewContext` with no save,
+    /// and one `save()` at the end commits them. A failed save rolls the
+    /// context back and throws, so nothing half-applied stays pending (the
+    /// plain `save()` only logs, and its rejected row would poison every later
+    /// save) and the caller can tell the user the import failed.
+    ///
+    /// Pass `nil` for a section the user did not select. An empty array still
+    /// runs that section (for modes, the default-mode repair).
+    ///
+    /// Across stores: `Mode` lives in the `Local` store and `Vocabulary` in the
+    /// `Cloud` one. The single save validates every object before it writes
+    /// either store, so a validation failure leaves both untouched; the two
+    /// SQLite writes are still two transactions, so only a kill in the instant
+    /// between them can split the result.
+    ///
+    /// - Throws: the save error, after the rollback. Changes the context held
+    ///   BEFORE the import are saved first so the rollback cannot discard them;
+    ///   if that save fails, this throws before importing anything.
+    @MainActor
+    func importBackupStore(
+        modes backupModes: [BackupMode]?,
+        modeResolution: ModeConflictResolution,
+        vocabulary backupItems: [BackupVocabularyItem]?,
+        vocabularyResolution: VocabularyConflictResolution
+    ) throws -> BackupStoreImportResult {
+        let context = container.viewContext
+        let saveSite = "backup_import"
+
+        // The rollback below must undo the import and nothing else, so commit
+        // whatever was pending before it starts.
+        if context.hasChanges {
+            do {
+                try context.save()
+            } catch {
+                AppLogger.logCoreData(
+                    .save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                    error: error as NSError,
+                    metadata: CoreDataSaveDiagnostics.contextShape(context)
+                )
+                throw error
+            }
+        }
+
+        var result = BackupStoreImportResult()
+
+        if let backupModes {
+            let modes = applyImportedModes(backupModes, resolution: modeResolution)
+            result.modesImported = modes.imported
+            result.modesSkipped = modes.skipped
+            result.modeIdRemap = modes.idRemap
+        }
+
+        if let backupItems {
+            let vocabulary = applyImportedVocabulary(backupItems, resolution: vocabularyResolution)
+            result.vocabularyImported = vocabulary.imported
+            result.vocabularySkipped = vocabulary.skipped
+        }
+
+        do {
+            if context.hasChanges {
+                try context.save()
+            }
+            AppLogger.logCoreData(.save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey))
+        } catch {
+            // Read the shape BEFORE the rollback empties the pending sets.
+            let shape = CoreDataSaveDiagnostics.contextShape(context)
+            context.rollback()
+            AppLogger.logCoreData(
+                .save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                error: error as NSError,
+                metadata: shape
+            )
+            AppLogger.coreData.error("Backup import rolled back · no mode or vocabulary row was changed")
+            throw error
+        }
+
+        AppLogger.coreData.info("Backup store import committed: \(result.modesImported) modes imported, \(result.modesSkipped) skipped; \(result.vocabularyImported) vocabulary imported, \(result.vocabularySkipped) skipped")
+        return result
+    }
+
+    /// Imports modes from backup data with conflict resolution, as one
+    /// transaction (see `importBackupStore`).
+    ///
+    /// - Returns: the counts and `.keepBoth` id remap; all zero/empty when the
+    ///   save failed and the import was rolled back. `BackupManager` calls
+    ///   `importBackupStore` instead, which reports that failure.
+    @MainActor
+    func importModes(_ backupModes: [BackupMode], resolution: ModeConflictResolution) -> (imported: Int, skipped: Int, idRemap: [UUID: UUID]) {
+        guard let result = try? importBackupStore(
+            modes: backupModes,
+            modeResolution: resolution,
+            vocabulary: nil,
+            vocabularyResolution: .skip
+        ) else {
+            return (0, 0, [:])
+        }
+        return (result.modesImported, result.modesSkipped, result.modeIdRemap)
+    }
+
+    /// Imports vocabulary items from backup data, as one transaction (see
+    /// `importBackupStore`). All zero when the save failed and was rolled back.
+    @MainActor
+    func importVocabulary(_ backupItems: [BackupVocabularyItem], resolution: VocabularyConflictResolution) -> (imported: Int, skipped: Int) {
+        guard let result = try? importBackupStore(
+            modes: nil,
+            modeResolution: .skip,
+            vocabulary: backupItems,
+            vocabularyResolution: resolution
+        ) else {
+            return (0, 0)
+        }
+        return (result.vocabularyImported, result.vocabularySkipped)
+    }
+
+    /// Writes backup modes into `viewContext` with conflict resolution. Saves
+    /// NOTHING: `importBackupStore` commits or rolls back the whole import.
     ///
     /// CONFLICT RESOLUTION:
     /// - .skip: Don't import if mode with same name exists (case-insensitive)
@@ -2964,10 +3101,12 @@ class PersistenceController: ObservableObject {
     ///
     /// `@MainActor`: the entire import runs against `container.viewContext`, which is bound to
     /// the main queue. Pinning this method to the main actor enforces that queue confinement at
-    /// compile time so no caller can reach the fetch/save/delete work off-queue (Core Data
-    /// undefined behavior). The only caller today (`BackupManager`) is already main-actor isolated.
+    /// compile time so no caller can reach the fetch/delete work off-queue (Core Data
+    /// undefined behavior). Every fetch below includes the context's unsaved inserts and
+    /// excludes its unsaved deletes, so later rows see earlier ones exactly as they did when
+    /// each row was saved on its own.
     @MainActor
-    func importModes(_ backupModes: [BackupMode], resolution: ModeConflictResolution) -> (imported: Int, skipped: Int, idRemap: [UUID: UUID]) {
+    private func applyImportedModes(_ backupModes: [BackupMode], resolution: ModeConflictResolution) -> (imported: Int, skipped: Int, idRemap: [UUID: UUID]) {
         var imported = 0
         var skipped = 0
         var idRemap: [UUID: UUID] = [:]
@@ -3006,7 +3145,7 @@ class PersistenceController: ObservableObject {
                     // Re-fetch on the next iteration so duplicate backup rows use
                     // last-one-wins semantics without retaining deleted objects.
                     for existingMode in conflicts where !existingMode.isDeleted {
-                        deleteMode(existingMode)
+                        deleteModeWithoutSaving(existingMode)
                     }
                     // Fall through to create new mode
 
@@ -3078,6 +3217,8 @@ class PersistenceController: ObservableObject {
                 cloudPostProcessingModel: backupMode.cloudPostProcessingModel,
                 cloudTranscriptionDomain: backupMode.cloudTranscriptionDomain,
                 foreignPlatformExtensions: backupMode.foreignPlatformExtensions,
+                // One save for the whole import (issue #1613).
+                persist: false,
                 restoringFromBackup: true
             )
 
@@ -3085,15 +3226,14 @@ class PersistenceController: ObservableObject {
             // Only set as default if the original was default AND we're not in keepBoth mode
             if backupMode.isDefault && !(hasConflict && resolution == .keepBoth) {
                 // Clear existing default(s) first. Re-fetch here rather than reusing
-                // `existingModes`: under `.replace`, `deleteMode` above deletes and
-                // saves managed objects on earlier iterations, so that captured array
-                // can hold invalidated objects (reading/writing them is a Core Data
+                // `existingModes`: under `.replace`, the delete above removes managed
+                // objects on earlier iterations, so that captured array can hold
+                // deleted objects (reading/writing them is a Core Data
                 // use-after-delete). The fresh fetch never returns deleted objects;
                 // `!mode.isDeleted` guards any in-flight, unsaved delete.
                 // One decision, three heads (issue #536): the flag moves onto the
                 // imported mode and off every other row in the same pass.
                 DefaultModePolicy.apply(to: fetchAllModes(), preferred: finalId)
-                save()
             }
 
             imported += 1
@@ -3103,14 +3243,20 @@ class PersistenceController: ObservableObject {
         // the field existed, or one whose default row was skipped as a conflict
         // — used to restore a store with NO default mode (issue #536). Nothing
         // repaired it: `initializeDefaultModes()` returns early whenever any
-        // mode exists.
-        enforceDefaultModeInvariant()
+        // mode exists. The same repair as `enforceDefaultModeInvariant()`,
+        // without its save.
+        if DefaultModePolicy.apply(to: fetchAllModes()) {
+            AppLogger.coreData.info(
+                "Repaired the default-mode flag · exactly one mode is the default again"
+            )
+        }
 
-        AppLogger.coreData.info("Mode import complete: \(imported) imported, \(skipped) skipped")
+        AppLogger.coreData.info("Mode import staged: \(imported) imported, \(skipped) skipped")
         return (imported, skipped, idRemap)
     }
 
-    /// Imports vocabulary items from backup data with conflict resolution
+    /// Writes backup vocabulary into `viewContext` with conflict resolution.
+    /// Saves NOTHING: `importBackupStore` commits or rolls back the whole import.
     ///
     /// CONFLICT RESOLUTION:
     /// - .skip: Don't import if word already exists (case-insensitive)
@@ -3121,12 +3267,16 @@ class PersistenceController: ObservableObject {
     ///   - resolution: How to handle conflicts
     /// - Returns: Tuple with counts of imported and skipped items
     ///
-    /// `@MainActor`: like `importModes`, all work runs against `container.viewContext` (main
+    /// `@MainActor`: like `applyImportedModes`, all work runs against `container.viewContext` (main
     /// queue). Pinning to the main actor enforces that queue confinement at compile time.
     @MainActor
-    func importVocabulary(_ backupItems: [BackupVocabularyItem], resolution: VocabularyConflictResolution) -> (imported: Int, skipped: Int) {
+    private func applyImportedVocabulary(_ backupItems: [BackupVocabularyItem], resolution: VocabularyConflictResolution) -> (imported: Int, skipped: Int) {
+        let context = container.viewContext
         var imported = 0
         var skipped = 0
+        // Highest sortOrder so far, read once and then advanced per insert —
+        // the same "add to end" order `addVocabularyItem` gives each row.
+        var maxSortOrder: Int16?
 
         for item in backupItems {
             let normalizedWord = item.word.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -3139,8 +3289,11 @@ class PersistenceController: ObservableObject {
                 continue
             }
 
-            // Check for existing item
-            let exists = vocabularyItemExists(word: normalizedWord)
+            // Check for an existing item. A FETCH, not `vocabularyItemExists`'s
+            // count: nothing is saved until the end now, and a fetch evaluates
+            // the context's unsaved inserts too, so a word repeated in the same
+            // backup still finds the row an earlier entry staged.
+            let exists = importedVocabularyItemExists(word: normalizedWord)
 
             if exists {
                 switch resolution {
@@ -3158,25 +3311,52 @@ class PersistenceController: ObservableObject {
                         existing.word = normalizedWord
                         existing.replacement = normalizedReplacement?.isEmpty == true ? nil : normalizedReplacement
                         existing.setValue(item.source, forKey: "source")
-                        save()
                         imported += 1
                         continue
                     }
-                    // Fall through to add new item
+                    // A case-insensitive match the lowercase compare above missed.
+                    // `addVocabularyItem` refused these as duplicates, so they
+                    // stay skipped.
+                    skipped += 1
+                    continue
                 }
             }
 
-            // Add the vocabulary item. `addVocabularyItem` can return false (e.g. a
-            // duplicate that wasn't removed), in which case nothing was persisted — count
-            // it as skipped so the success summary doesn't overstate what was saved.
-            if addVocabularyItem(word: normalizedWord, replacement: item.replacement, source: item.source) {
-                imported += 1
-            } else {
-                skipped += 1
-            }
+            // Add the vocabulary item: `addVocabularyItem`'s insert, without its save.
+            let normalizedReplacement = item.replacement?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let vocabItem = Vocabulary(context: context)
+            vocabItem.id = UUID()
+            vocabItem.word = normalizedWord
+            vocabItem.replacement = normalizedReplacement?.isEmpty == true ? nil : normalizedReplacement
+            vocabItem.setValue(item.source, forKey: "source")
+            vocabItem.createdDate = Date()
+
+            let currentMax = maxSortOrder ?? (fetchAllVocabularyItems()
+                .filter { $0 !== vocabItem }
+                .map { $0.sortOrder }
+                .max() ?? 0)
+            vocabItem.sortOrder = currentMax + 1
+            maxSortOrder = vocabItem.sortOrder
+            imported += 1
         }
 
-        AppLogger.coreData.info("Vocabulary import complete: \(imported) imported, \(skipped) skipped")
+        AppLogger.coreData.info("Vocabulary import staged: \(imported) imported, \(skipped) skipped")
         return (imported, skipped)
+    }
+
+    /// Whether `word` (trimmed, case-insensitive) is already in the vocabulary,
+    /// counting rows this import staged but has not saved yet.
+    private func importedVocabularyItemExists(word: String) -> Bool {
+        let request: NSFetchRequest<Vocabulary> = Vocabulary.fetchRequest()
+        request.predicate = NSPredicate(format: "word ==[c] %@", word)
+        request.includesPendingChanges = true
+
+        do {
+            return try !container.viewContext.fetch(request).isEmpty
+        } catch {
+            AppLogger.coreData.error("Failed to check vocabulary existence: \(error, privacy: .public)")
+            SentryService.capture(error: error, message: "Failed to check vocabulary existence", tags: ["component": "PersistenceController", "operation": "importedVocabularyItemExists"])
+            return false
+        }
     }
 }
