@@ -6,12 +6,12 @@
  * (`lib/services/stripe-webhook.ts`) already has its own harness and its own
  * suite. The route owns a different job, and that job was untested: it decides
  * whether a request is authentic at all (the HMAC gate), whether the session
- * is paid, which of the three handlers receives it, and what status a handler
+ * is paid, which of the two handlers receives it, and what status a handler
  * fault turns into. A wrong answer on any of those either drops a paid
  * purchase or accepts a forged one.
  *
  * The route reaches two collaborators at import time: the Stripe client
- * (`lib/clients/stripe.ts`, for `webhooks.constructEvent`) and the three
+ * (`lib/clients/stripe.ts`, for `webhooks.constructEvent`) and the two
  * handlers in `lib/services/stripe-webhook.ts`. Both are replaced here with
  * `mock.module`, so the tests run the REAL route module with no Stripe
  * account, no database and no network.
@@ -46,7 +46,6 @@ export interface CreditPurchaseCall {
 /** Everything the route asked its collaborators to do, in call order. */
 export const calls = {
   constructEvent: [] as ConstructEventCall[],
-  licensePurchase: [] as Record<string, unknown>[],
   creditPurchase: [] as CreditPurchaseCall[],
   chargeRefunded: [] as Record<string, unknown>[],
 };
@@ -60,8 +59,6 @@ export const behaviour = {
   verifiedEvent: null as Record<string, unknown> | null,
   /** Message the verifier throws with when `verifiedEvent` is null. */
   verifyError: "No signatures found matching the expected signature for payload",
-  /** Thrown by `handleLicensePurchase` when set. */
-  licenseError: null as unknown,
   /** Thrown by `handleCreditPurchase` when set. */
   creditError: null as unknown,
   /** Thrown by `handleChargeRefunded` when set. */
@@ -70,14 +67,12 @@ export const behaviour = {
 
 export function resetHarness(): void {
   calls.constructEvent.length = 0;
-  calls.licensePurchase.length = 0;
   calls.creditPurchase.length = 0;
   calls.chargeRefunded.length = 0;
 
   behaviour.verifiedEvent = null;
   behaviour.verifyError =
     "No signatures found matching the expected signature for payload";
-  behaviour.licenseError = null;
   behaviour.creditError = null;
   behaviour.refundError = null;
 }
@@ -192,12 +187,6 @@ moduleMock.module(moduleUrl("../lib/clients/stripe.ts"), {
 
 moduleMock.module(moduleUrl("../lib/services/stripe-webhook.ts"), {
   namedExports: {
-    handleLicensePurchase: async (
-      session: Record<string, unknown>,
-    ): Promise<void> => {
-      calls.licensePurchase.push(session);
-      if (behaviour.licenseError) throw behaviour.licenseError;
-    },
     handleCreditPurchase: async (
       session: Record<string, unknown>,
       eventId: string,

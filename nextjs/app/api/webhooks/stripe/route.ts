@@ -3,7 +3,6 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/clients/stripe";
 import { describeDbError } from "@/lib/shared/db-error";
 import {
-  handleLicensePurchase,
   handleCreditPurchase,
   handleChargeRefunded,
 } from "@/lib/services/stripe-webhook";
@@ -15,8 +14,10 @@ import {
  * Primary event: checkout.session.completed
  *
  * SUPPORTED PURCHASE TYPES:
- * - "license": One-time license purchase
  * - "credits": Credit pack purchase (adds to Stripe Billing Meter)
+ *
+ * Any other purchase_type, including the retired "license" type (#793), is
+ * logged and answered 200 so Stripe does not retry it.
  *
  * SECURITY:
  * - Verifies webhook signature using STRIPE_WEBHOOK_SECRET
@@ -74,20 +75,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Route to appropriate handler based on purchase type
-    if (purchaseType === "license") {
-      try {
-        await handleLicensePurchase(session);
-      } catch (error) {
-        console.error(
-          "Stripe webhook: Error processing license purchase:",
-          describeDbError(error)
-        );
-        return NextResponse.json(
-          { error: "Failed to process license purchase" },
-          { status: 500 }
-        );
-      }
-    } else if (purchaseType === "credits") {
+    if (purchaseType === "credits") {
       try {
         await handleCreditPurchase(session, event.id, event.type);
       } catch (error) {
@@ -118,7 +106,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Handle charge.refunded for license revocation / credit reversal
+  // Handle charge.refunded for credit reversal
   if (event.type === "charge.refunded") {
     const charge = event.data.object;
     try {
@@ -131,7 +119,7 @@ export async function POST(req: NextRequest) {
       // Answer 500 so Stripe retries a transient fault (with backoff, for up
       // to 3 days). The known permanent cases return inside
       // handleChargeRefunded and answer 200; any throw lands here.
-      // refundCreditGrant / revokeAccountKey are idempotent, so a retry is
+      // refundCreditGrant is idempotent, so a retry is
       // safe. A fault that keeps throwing stops after Stripe's 3-day retry
       // window and is left in this log.
       return NextResponse.json(

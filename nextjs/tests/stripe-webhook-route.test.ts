@@ -2,17 +2,17 @@
  * `POST /api/webhooks/stripe`, driven as HTTP.
  *
  * This is the door money comes through. Stripe is the only caller, and the
- * route is the only thing between a raw HTTP body and a license grant or a
- * credit grant. It has four jobs, and each one is a way to lose money:
+ * route is the only thing between a raw HTTP body and a credit grant. It has four jobs, and each one is a way to lose money:
  *
  * 1. The HMAC gate. The body must be verified BYTE FOR BYTE, with the header
  *    Stripe sent and the configured secret. A re-serialized body, a missing
  *    header accepted, or a missing secret treated as "fine" turns the endpoint
  *    into an open grant faucet.
  * 2. The payment gate. `checkout.session.completed` arrives for unpaid
- *    sessions too. Granting on one of those hands out a license nobody paid
+ *    sessions too. Granting on one of those hands out credits nobody paid
  *    for.
- * 3. The dispatch. "license" and "credits" go to different handlers, and the
+ * 3. The dispatch. Only "credits" reaches a purchase handler (the retired
+ *    "license" type grants nothing, #793), and the
  *    credit handler needs the EVENT id and type — that pair is its idempotency
  *    key, so a wrong argument double-grants on Stripe's retry.
  * 4. The status it answers with. Stripe retries a 5xx and never retries a 2xx.
@@ -90,7 +90,6 @@ function signedPost(body: unknown): Promise<Response> {
 
 /** No handler ran at all — the request was refused or deliberately skipped. */
 function assertNoHandlerRan(): void {
-  assert.equal(calls.licensePurchase.length, 0, "license handler ran");
   assert.equal(calls.creditPurchase.length, 0, "credit handler ran");
   assert.equal(calls.chargeRefunded.length, 0, "refund handler ran");
 }
@@ -111,7 +110,7 @@ describe("POST /api/webhooks/stripe — the signature gate", () => {
 
   test("refuses every request when STRIPE_WEBHOOK_SECRET is not configured", async () => {
     delete process.env.STRIPE_WEBHOOK_SECRET;
-    behaviour.verifiedEvent = checkoutEvent({ purchaseType: "license" });
+    behaviour.verifiedEvent = checkoutEvent({ purchaseType: "credits" });
 
     const response = await signedPost(behaviour.verifiedEvent);
 
@@ -134,7 +133,7 @@ describe("POST /api/webhooks/stripe — the signature gate", () => {
     behaviour.verifyError = "No signatures found matching the expected signature";
 
     const response = await signedPost(
-      checkoutEvent({ purchaseType: "license" }),
+      checkoutEvent({ purchaseType: "credits" }),
     );
 
     assert.equal(response.status, 400);
@@ -169,9 +168,9 @@ describe("POST /api/webhooks/stripe — the signature gate", () => {
   });
 
   test("dispatches on the VERIFIED event, never on the posted body", async () => {
-    // The body claims a license purchase. The verifier returns a credits
-    // event. Only the verified object may decide anything, so the credit
-    // handler must run and the license handler must not.
+    // The body claims a different purchase type. The verifier returns a
+    // credits event. Only the verified object may decide anything, so the
+    // credit handler must run with the verified session.
     behaviour.verifiedEvent = checkoutEvent({
       purchaseType: "credits",
       sessionId: "cs_verified",
@@ -185,7 +184,6 @@ describe("POST /api/webhooks/stripe — the signature gate", () => {
     );
 
     assert.equal(response.status, 200);
-    assert.equal(calls.licensePurchase.length, 0);
     assert.equal(calls.creditPurchase.length, 1);
     assert.equal(
       (calls.creditPurchase[0].session as { id: string }).id,
@@ -197,7 +195,7 @@ describe("POST /api/webhooks/stripe — the signature gate", () => {
 describe("POST /api/webhooks/stripe — the payment gate", () => {
   test("skips an unpaid checkout.session.completed without granting", async () => {
     behaviour.verifiedEvent = checkoutEvent({
-      purchaseType: "license",
+      purchaseType: "credits",
       paymentStatus: "unpaid",
     });
 
@@ -225,7 +223,10 @@ describe("POST /api/webhooks/stripe — the payment gate", () => {
 });
 
 describe("POST /api/webhooks/stripe — dispatch", () => {
-  test("hands a paid license session to handleLicensePurchase", async () => {
+  test("grants nothing for a paid session of the retired license type (#793)", async () => {
+    // The licence purchase and its $5 credit grant are gone. A "license"
+    // session takes the unknown-type path: no handler, and a 200 so Stripe
+    // does not retry it forever.
     behaviour.verifiedEvent = checkoutEvent({
       purchaseType: "license",
       sessionId: "cs_license_1",
@@ -235,14 +236,11 @@ describe("POST /api/webhooks/stripe — dispatch", () => {
 
     assert.equal(response.status, 200);
     assert.deepEqual(await readJson(response), { received: true });
-    assert.equal(calls.licensePurchase.length, 1);
-    assert.equal(
-      (calls.licensePurchase[0] as { id: string }).id,
-      "cs_license_1",
-      "the handler must receive the session object, not the event",
+    assertNoHandlerRan();
+    assert.ok(
+      logLines.some((line) => line.includes("Unknown purchase type (license)")),
+      "the skipped licence session must reach the log",
     );
-    assert.equal(calls.creditPurchase.length, 0);
-    assert.equal(calls.chargeRefunded.length, 0);
   });
 
   test("hands a paid credits session the session AND the event identity", async () => {
@@ -268,7 +266,6 @@ describe("POST /api/webhooks/stripe — dispatch", () => {
       calls.creditPurchase[0].eventType,
       "checkout.session.completed",
     );
-    assert.equal(calls.licensePurchase.length, 0);
   });
 
   test("treats checkout.session.async_payment_succeeded as a purchase", async () => {
@@ -345,19 +342,6 @@ describe("POST /api/webhooks/stripe — dispatch", () => {
 });
 
 describe("POST /api/webhooks/stripe — handler faults", () => {
-  test("answers 500 when the license handler throws, so Stripe retries", async () => {
-    behaviour.verifiedEvent = checkoutEvent({ purchaseType: "license" });
-    behaviour.licenseError = new Error("database is down");
-
-    const response = await signedPost(behaviour.verifiedEvent);
-
-    assert.equal(response.status, 500);
-    assert.deepEqual(await readJson(response), {
-      error: "Failed to process license purchase",
-    });
-    assert.equal(calls.licensePurchase.length, 1);
-  });
-
   test("answers 500 when the credit handler throws, so Stripe retries", async () => {
     behaviour.verifiedEvent = checkoutEvent({ purchaseType: "credits" });
     behaviour.creditError = new Error("credit ledger write failed");
@@ -386,7 +370,7 @@ describe("POST /api/webhooks/stripe — refunds", () => {
       "ch_refund_7",
       "the handler must receive the charge, not the event",
     );
-    assert.equal(calls.licensePurchase.length, 0);
+    assert.equal(calls.creditPurchase.length, 0);
   });
 
   test("answers 500 so Stripe retries a refund fault", async () => {
@@ -414,7 +398,6 @@ describe("POST /api/webhooks/stripe — refunds", () => {
 
 describe("POST /api/webhooks/stripe — a drizzle error in a handler (#1039)", () => {
   const cases = [
-    { name: "license", event: () => checkoutEvent({ purchaseType: "license" }), set: (e: unknown) => { behaviour.licenseError = e; }, status: 500 },
     { name: "credit", event: () => checkoutEvent({ purchaseType: "credits" }), set: (e: unknown) => { behaviour.creditError = e; }, status: 500 },
     { name: "refund", event: () => refundEvent(), set: (e: unknown) => { behaviour.refundError = e; }, status: 500 },
   ];

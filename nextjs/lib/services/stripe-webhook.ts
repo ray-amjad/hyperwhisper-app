@@ -16,9 +16,6 @@ import {
   findAccountByStripeSession,
   insertAccountKey,
   getOrCreateUser,
-  revokeAccountKey,
-  revokeWebAccess,
-  grantCreditLot,
   grantCreditsForStripeEvent,
   refundCreditGrant,
   getCreditBalance,
@@ -35,17 +32,22 @@ function getStripeCustomerId(
  * Stripe Webhook Handlers
  *
  * Service module for processing Stripe webhook events.
- * Handles license purchases and credit purchases.
+ * Handles credit purchases and their refunds. The standalone licence purchase,
+ * and the $5 credit it granted, are gone (#793).
  */
 
 /**
- * A concurrent delivery of the same Checkout Session inserted its licence row
- * first: a 23505 on the unique stripe_session_id index, and ONLY that. A 23505
- * on any other account_keys unique index (the key itself, the Polar id) is not
- * a duplicate delivery, and taking the duplicate path for it would answer 200
- * with no licence and no email (#1039 review). An error that names no
- * constraint fails closed too: it throws, Stripe retries, and the retry's
- * session lookup finds the row if there is one.
+ * Used by the credit mint path only. A concurrent delivery of the same
+ * Checkout Session inserted its key row first: a 23505 on the unique
+ * stripe_session_id index, and ONLY that. On a match the mint path re-reads
+ * the row by session id and grants onto it; if that re-read finds nothing it
+ * throws "Failed to resolve minted license" (a 500, so Stripe retries).
+ * A 23505 on any other account_keys unique index (the key itself, the Polar
+ * id) is not a duplicate delivery: the re-read would find no row for this
+ * session, and the real insert error would be hidden behind that generic
+ * throw (#1039 review). So it, and an error that names no constraint, are
+ * rethrown as they are: the route answers 500, Stripe retries, and the
+ * retry's session lookup finds the row if there is one.
  */
 const STRIPE_SESSION_INDEX = "idx_account_keys_stripe_session";
 
@@ -54,156 +56,6 @@ function isDuplicateSessionInsert(err: unknown): boolean {
     dbErrorCode(err) === "23505" &&
     dbErrorConstraint(err) === STRIPE_SESSION_INDEX
   );
-}
-
-/**
- * Process a completed license purchase.
- *
- * CRITICAL: This function must be idempotent.
- * Stripe may send the same event multiple times.
- * We use upsert with stripe_session_id as the idempotency key.
- */
-export async function handleLicensePurchase(
-  session: Stripe.Checkout.Session
-): Promise<void> {
-  const customerEmail = session.customer_details?.email;
-  const customerName =
-    session.customer_details?.name ||
-    customerEmail?.split("@")[0] ||
-    "Customer";
-  const stripeCustomerId = getStripeCustomerId(session.customer);
-
-  if (!customerEmail) {
-    throw new Error("No customer email in checkout session");
-  }
-  if (!stripeCustomerId) {
-    throw new Error("No Stripe customer in checkout session");
-  }
-  // Logs carry a hash tag of the address, never the address itself (#717).
-  const customerTag = emailTag(customerEmail);
-
-  console.log(`Processing license purchase for ${customerTag}`);
-
-  // STEP 1: Check if we already processed this session (idempotency)
-  const existingLicense = await findAccountByStripeSession(session.id);
-
-  if (existingLicense) {
-    console.log(
-      `License already exists for session ${session.id}, resending email...`
-    );
-    // Still send email in case it failed before
-    await sendLicenseEmail(customerName, customerEmail, existingLicense.key);
-    return;
-  }
-
-  // STEP 2: Generate unique license key with collision check
-  let licenseKey: string;
-  let attempts = 0;
-  const maxAttempts = 10;
-
-  do {
-    licenseKey = generateLicenseKey();
-    attempts++;
-
-    // Check uniqueness in database
-    const collision = await findAccountByKey(licenseKey);
-
-    if (!collision) break;
-
-    console.warn(`License key collision detected, retrying... (${attempts})`);
-
-    if (attempts >= maxAttempts) {
-      throw new Error("Failed to generate unique license key after max attempts");
-    }
-  } while (true);
-
-  console.log(`Generated license key: ${licenseKey.substring(0, 7)}...`);
-
-  // STEP 3: Get or create user for the customer
-  const user = await getOrCreateUser(customerEmail, {
-    name: customerName,
-    stripeCustomerId,
-  });
-
-  if (!user) {
-    throw new Error(`Failed to create user for ${customerTag}`);
-  }
-
-  console.log(`User ready for ${customerTag}: ${user.id}`);
-
-  // STEP 4: Store license in database
-  let insertedLicense: Awaited<ReturnType<typeof insertAccountKey>>;
-  try {
-    insertedLicense = await insertAccountKey({
-      key: licenseKey,
-      email: customerEmail.toLowerCase().trim(),
-      userId: user.id,
-      stripeCustomerId,
-      stripeSessionId: session.id,
-      status: "granted",
-    });
-  } catch (insertError: unknown) {
-    // Check if it's a duplicate (race condition with webhook retry)
-    if (isDuplicateSessionInsert(insertError)) {
-      console.log("License already inserted by concurrent request");
-      return;
-    }
-    console.error("Failed to store license key:", describeDbError(insertError));
-    throw insertError;
-  }
-
-  console.log(`License key stored in database for ${customerTag}`);
-
-  // STEP 4b: Grant initial credits
-  if (insertedLicense) {
-    try {
-      await grantCreditLot({
-        userId: insertedLicense.userId,
-        amount: 5000,
-        sourceType: "license_bundle",
-        sourceId: session.id,
-      });
-      console.log(`Granted 5000 initial credits for license ${licenseKey.substring(0, 7)}...`);
-    } catch (creditError) {
-      console.error(
-        "Failed to create initial credit balance:",
-        describeDbError(creditError),
-      );
-      // Don't throw - license was created, credits can be added later
-    }
-  }
-
-  // STEP 5: Send license email
-  await sendLicenseEmail(customerName, customerEmail, licenseKey);
-}
-
-/**
- * Send the license key email to the customer.
- *
- * Uses the existing email service with retry logic.
- * Does not throw - logs errors but allows the webhook to succeed.
- */
-async function sendLicenseEmail(
-  customerName: string,
-  customerEmail: string,
-  licenseKey: string
-): Promise<void> {
-  const emailResult = await emailService.sendLicenseKey({
-    customerName,
-    customerEmail,
-    licenseKey,
-    productName: "HyperWhisper",
-    downloadUrl: "https://www.hyperwhisper.com",
-    supportEmail: "hi@support.hyperwhisper.com",
-  });
-
-  if (!emailResult.success) {
-    // Log but don't throw - license is created, email can be resent manually
-    console.error(`Failed to send license email: ${emailResult.error}`);
-  } else {
-    const customerTag = emailTag(customerEmail);
-    console.log(`License email sent to ${customerTag}`);
-  }
 }
 
 /**
@@ -490,21 +342,19 @@ async function handleCreditMint(
 /**
  * Process a charge refund.
  *
- * - "license" purchases: revoke the associated license.
- * - "credits" purchases: deduct the granted credits from the balance.
+ * Only "credits" purchases are acted on: the refund deducts the granted
+ * credits from the balance. Any other purchase type is logged and skipped.
  *
- * REFUND SCOPE (per purchase type):
- * - license: acts only on a FULL refund (amount_refunded === amount).
- * - credits: acts on ANY refund. The refund removes unused credits at the
- *   price the buyer paid (tax and the non-refundable fee excluded, promo
- *   discount applied), from that purchase's grant only. See
- *   `refundedCreditsTotal` and `refundCreditGrant` (#1351).
+ * REFUND SCOPE: acts on ANY refund. The refund removes unused credits at the
+ * price the buyer paid (tax and the non-refundable fee excluded, promo
+ * discount applied), from that purchase's grant only. See
+ * `refundedCreditsTotal` and `refundCreditGrant` (#1351).
  *
  * TRACE PATH:
- * Charge -> PaymentIntent -> Checkout Session -> license_keys.stripe_session_id
+ * Charge -> PaymentIntent -> Checkout Session -> credit grant (source_id)
  *
  * IDEMPOTENCY:
- * License revocation is idempotent ("revoked" status). A credit refund passes
+ * A credit refund passes
  * the grant's cumulative refunded total (Stripe's amount_refunded is
  * cumulative) and the grant's refunded_amount records it, so a retried or
  * repeated charge.refunded event never double-deducts.
@@ -545,68 +395,17 @@ export async function handleChargeRefunded(
   const checkoutSession = sessions.data[0];
   const purchaseType = checkoutSession.metadata?.purchase_type;
 
-  // STEP 4: Route by purchase type, applying the right "is this refund
-  // actionable?" rule for each.
+  // STEP 4: Route by purchase type.
   if (purchaseType === "credits") {
     // Any refund, partial or full, removes credits at the price paid (#1351).
     await handleCreditRefund(charge, checkoutSession);
     return;
   }
 
-  if (purchaseType !== "license") {
-    console.log(
-      `Refund for unknown purchase type (${purchaseType}), skipping`
-    );
-    return;
-  }
-
-  // License purchases: act only on a FULL refund.
-  if (charge.amount_refunded !== charge.amount) {
-    console.log(
-      `Partial refund (${charge.amount_refunded}/${charge.amount}) for license session ${checkoutSession.id}, skipping`
-    );
-    return;
-  }
-
-  console.log(`Revoking license for checkout session ${checkoutSession.id}`);
-
-  // STEP 5: Revoke the license in database
-  const license = await findAccountByStripeSession(checkoutSession.id);
-
-  if (!license) {
-    console.error(`License not found for session ${checkoutSession.id}`);
-    return;
-  }
-
-  await refundCreditGrant({
-    sourceType: "license_bundle",
-    sourceId: checkoutSession.id,
-  });
-
-  // Already revoked - idempotent. Still sweep the sessions before returning:
-  // this branch is the ONLY thing a manual webhook re-send can reach, so if it
-  // returned here the status write would permanently block its own second half
-  // and a key could stay revoked with live 90-day sessions forever. It is also
-  // how keys revoked before this deploy — which still hold session rows, and
-  // whose sessions this branch used to re-extend from 7 to 90 days on first
-  // read — get cleaned up. `revokeWebAccess` is a no-op DELETE when there is
-  // nothing left to delete, so re-sends stay cheap and idempotent.
-  if (license.status === "revoked") {
-    await revokeWebAccess(license.userId);
-    console.log(
-      `License ${license.key.substring(0, 7)}... already revoked; swept any remaining web sessions`,
-    );
-    return;
-  }
-
-  // STEP 6: Update status to revoked
-  // Also drops the owner’s web sessions, in the same transaction — a 90-day
-  // session minted by license-key sign-in would otherwise outlive the revoked
-  // key. See `revokeAccountKey` / `revokeWebAccess`.
-  await revokeAccountKey(license.id, license.userId);
-
+  // Any other purchase type (including the retired "license" type, #793)
+  // has nothing to reverse here: answer 200 so Stripe does not retry.
   console.log(
-    `License ${license.key.substring(0, 7)}... revoked due to full refund`
+    `Refund for unknown purchase type (${purchaseType}), skipping`
   );
 }
 
