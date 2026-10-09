@@ -4074,14 +4074,36 @@ internal static class Program
                         new InvalidOperationException("load", new InvalidOperationException("wrap", new BadImageFormatException()))),
                     "a wrong-architecture DLL (nested) must not mark the model broken");
 
-                Assert(ParakeetTranscriptionService.IsRuntimeStartExitCode(unchecked((int)0xC0000135)),
-                    "STATUS_DLL_NOT_FOUND is a runtime fault");
-                Assert(ParakeetTranscriptionService.IsRuntimeStartExitCode(unchecked((int)0xC000007B)),
-                    "STATUS_INVALID_IMAGE_FORMAT is a runtime fault");
-                Assert(!ParakeetTranscriptionService.IsRuntimeStartExitCode(unchecked((int)0xC0000409)),
+                // Parakeet: only the daemon's own model-load failures mark the model.
+                Assert(ParakeetTranscriptionService.IsModelLoadCrashExitCode(unchecked((int)0xC0000409)),
                     "the issue's 0xC0000409 (damaged encoder) must mark the model broken");
-                Assert(!ParakeetTranscriptionService.IsRuntimeStartExitCode(1),
-                    "an ordinary non-zero exit must mark the model broken");
+                foreach (var (code, why) in new (int?, string)[]
+                {
+                    (unchecked((int)0xC0000135), "STATUS_DLL_NOT_FOUND"),
+                    (unchecked((int)0xC000007B), "STATUS_INVALID_IMAGE_FORMAT"),
+                    (unchecked((int)0xC0000139), "STATUS_ENTRYPOINT_NOT_FOUND"),
+                    (unchecked((int)0xC0000142), "STATUS_DLL_INIT_FAILED"),
+                    (unchecked((int)0xC0000005), "an access violation (GPU driver)"),
+                    (unchecked((int)0xC0000017), "STATUS_NO_MEMORY"),
+                    (1, "exit 1"),
+                    (2, "exit 2 (invalid arguments)"),
+                    (null, "a daemon still running"),
+                })
+                {
+                    Assert(!ParakeetTranscriptionService.IsModelLoadCrashExitCode(code),
+                        $"{why} must not mark the model broken");
+                }
+
+                Assert(ParakeetTranscriptionService.IsModelLoadErrorResponse("Failed to load model"),
+                    "the daemon's status:error 'Failed to load model' (invalid same-size ONNX) must mark the model broken");
+                Assert(ParakeetTranscriptionService.IsModelLoadErrorResponse(ParakeetTranscriptionService.DaemonModelLoadError),
+                    "the constant should match itself");
+                Assert(!ParakeetTranscriptionService.IsModelLoadErrorResponse("Invalid arguments"),
+                    "the daemon's argument error must not mark the model broken");
+                Assert(!ParakeetTranscriptionService.IsModelLoadErrorResponse(null),
+                    "a missing error must not mark the model broken");
+                Assert(!ParakeetTranscriptionService.IsModelLoadErrorResponse("Unexpected response: {}"),
+                    "an unexpected startup line must not mark the model broken");
             });
 
             Run("MainViewModel.LocalLibraryModelId matches the Model Library row ids (#1598)", () =>

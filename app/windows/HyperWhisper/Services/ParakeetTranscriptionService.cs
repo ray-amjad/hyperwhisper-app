@@ -945,15 +945,21 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                     var earlyExitCode = TryGetEarlyExitCode(process);
                     KillDaemonProcess(process);
 
-                    // The daemon died while loading the model: a damaged ONNX file
-                    // exits it with 0xC0000409 before READY (#1598). Mark the model
-                    // broken so it stops counting as installed and Model Library
-                    // offers it for download again (the only way out for Qwen3,
-                    // whose file sizes are not pinned). A daemon that could not even
-                    // load its own DLLs is not the model's fault, so it is left alone.
-                    if (earlyExitCode is not { } code || !IsRuntimeStartExitCode(code))
+                    // The daemon died while ONNX Runtime parsed the model: a damaged
+                    // ONNX file throws a native exception nothing catches, and the
+                    // engine fail-fasts with 0xC0000409 before READY (#1598). Mark the
+                    // model broken so it stops counting as installed and Model Library
+                    // offers it for download again (the only way out for Qwen3, whose
+                    // file sizes are not pinned). Any other exit (a missing DLL, an
+                    // access violation, OOM, a kill, a bad argument, still running)
+                    // is not something a re-download fixes, so it is left alone.
+                    if (IsModelLoadCrashExitCode(earlyExitCode))
                     {
-                        LocalModelHealth.MarkBroken(modelDirectory, "Parakeet engine exited before READY");
+                        LocalModelHealth.MarkBroken(modelDirectory, "Parakeet engine crashed while loading the model");
+                    }
+                    else
+                    {
+                        LoggingService.Warn($"ParakeetTranscriptionService: Daemon exit code {FormatExitCode(earlyExitCode)} is not a model-load crash; the model is not marked broken");
                     }
                     throw new TranscriptionException(
                         TranscriptionErrorCode.DaemonStartFailed,
@@ -988,6 +994,17 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
                     LoggingService.Error($"ParakeetTranscriptionService: Daemon reported error: {errorMsg}");
                     KillDaemonProcess(process);
+
+                    // The daemon answers "Failed to load model" only when it could not
+                    // build the recognizer from this model's files (every provider
+                    // failed, or a Nemotron vocab/decoder check failed). A same-size
+                    // but invalid ONNX file can land here instead of crashing (#1598
+                    // review), so it is the model's fault: mark it broken. Its other
+                    // startup error ("Invalid arguments") is the app's, not the model's.
+                    if (IsModelLoadErrorResponse(errorMsg))
+                    {
+                        LocalModelHealth.MarkBroken(modelDirectory, "Parakeet engine could not load the model");
+                    }
                     throw new TranscriptionException(
                         TranscriptionErrorCode.DaemonStartFailed,
                         $"Parakeet daemon failed to initialize: {errorMsg}",
@@ -1760,13 +1777,34 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     }
 
     /// <summary>
-    /// True for the NTSTATUS exit codes of a process the loader could not start
-    /// (#1598): a missing DLL (0xC0000135), a wrong-architecture image
-    /// (0xC000007B) or a missing entry point (0xC0000139). Those are the engine
-    /// install's fault, not the model's, so they must not mark the model broken.
+    /// The error text the parakeet-engine daemon sends as its startup
+    /// <c>{"status":"error"}</c> line when <c>EngineSession.Create</c> throws, i.e.
+    /// when no recognizer could be built from the model directory
+    /// (tools/parakeet-engine-dotnet/Program.cs).
     /// </summary>
-    internal static bool IsRuntimeStartExitCode(int exitCode) =>
-        unchecked((uint)exitCode) is 0xC0000135 or 0xC000007B or 0xC0000139;
+    internal const string DaemonModelLoadError = "Failed to load model";
+
+    /// <summary>
+    /// True when the daemon's startup error says it could not load the model's own
+    /// files (#1598), so a re-download can fix it. Its other startup error,
+    /// "Invalid arguments", is the app's fault and does not count.
+    /// </summary>
+    internal static bool IsModelLoadErrorResponse(string? error) =>
+        string.Equals(error?.Trim(), DaemonModelLoadError, StringComparison.Ordinal);
+
+    /// <summary>
+    /// True only for 0xC0000409, the fail-fast exit of a daemon whose ONNX Runtime
+    /// threw on a damaged model file while it loaded the model (#1598: a truncated
+    /// encoder.int8.onnx). Every other pre-READY exit (a missing DLL, a DLL init
+    /// failure, an access violation from a GPU driver, OOM, a kill, an argument
+    /// error, or a daemon still alive) is not something a re-download can fix, so
+    /// it does not mark the model broken.
+    /// </summary>
+    internal static bool IsModelLoadCrashExitCode(int? exitCode) =>
+        exitCode is { } code && unchecked((uint)code) == 0xC0000409;
+
+    private static string FormatExitCode(int? exitCode) =>
+        exitCode is { } code ? $"0x{unchecked((uint)code):X8}" : "unknown (still running)";
 
     private static void KillDaemonProcess(Process? process)
     {

@@ -13,8 +13,9 @@ namespace HyperWhisper.Services;
 /// way to re-download it from inside the app.
 ///
 /// When a load fails because of the model itself (a Whisper
-/// <c>WhisperModelLoadException</c>, or the Parakeet engine daemon exiting before
-/// READY), the loader marks the model's path here. The model services then count
+/// <c>WhisperModelLoadException</c>, or the Parakeet engine daemon answering
+/// "Failed to load model" or crashing with 0xC0000409 while it loads the model
+/// before READY), the loader marks the model's path here. The model services then count
 /// it as not installed, so the status bar stops saying Ready and Model Library
 /// offers Download again. A successful download or a delete clears the mark.
 ///
