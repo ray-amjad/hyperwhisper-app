@@ -2506,13 +2506,17 @@ class PersistenceController: ObservableObject {
         foreignPlatformExtensions: String? = nil,
         persist: Bool = true,
         restoringFromBackup: Bool = false,
+        updating existingMode: Mode? = nil,
         in suppliedContext: NSManagedObjectContext? = nil
     ) -> Mode {
         let context = suppliedContext ?? container.viewContext
-        
-        // Check if mode exists (for update)
-        var mode: Mode?
-        if let id = id {
+
+        // Check if mode exists (for update). A caller that already holds the
+        // row (the backup restore's in-place `.replace`, issue #1479) passes it
+        // in, so the update never depends on a predicate fetch matching an
+        // unsaved `id` change.
+        var mode: Mode? = existingMode
+        if mode == nil, let id = id {
             let request: NSFetchRequest<Mode> = Mode.fetchRequest()
             request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             request.fetchLimit = 1
@@ -3178,7 +3182,8 @@ class PersistenceController: ObservableObject {
     ///
     /// CONFLICT RESOLUTION:
     /// - .skip: Don't import if mode with same name exists (case-insensitive)
-    /// - .replace: Delete existing mode, import new one
+    /// - .replace: Update the local counterpart in place (same id, else the
+    ///   first same-name row; issue #1479) and delete any other same-name row
     /// - .keepBoth: Import as "Mode Name (imported)"
     ///
     /// - Parameters:
@@ -3210,8 +3215,8 @@ class PersistenceController: ObservableObject {
             // #1481: a backup without enableScreenOCR / useStreamingTranscription
             // (one written before they were exported) keeps the value of the
             // local mode this row replaces or updates: the same id first, then
-            // the same-name row `.replace` deletes below. Read it BEFORE that
-            // delete. With no such row (a new mode, or `.keepBoth`'s copy) the
+            // the first same-name row. `.replace` updates that row in place
+            // (issue #1479) and deletes any other same-name row below. With no such row (a new mode, or `.keepBoth`'s copy) the
             // value is `false`, which is what every restore wrote before.
             let localCounterpart: Mode? = (hasConflict && resolution == .keepBoth)
                 ? nil
@@ -3219,6 +3224,10 @@ class PersistenceController: ObservableObject {
             let restoredScreenOCR = backupMode.enableScreenOCR ?? localCounterpart?.enableScreenOCR ?? false
             let restoredStreaming = backupMode.useStreamingTranscription
                 ?? localCounterpart?.useStreamingTranscription ?? false
+
+            // The row `.replace` updates in place (issue #1479); nil means
+            // `createOrUpdateMode` looks the id up, or creates a new row.
+            var inPlaceTarget: Mode?
 
             if hasConflict {
                 switch resolution {
@@ -3228,13 +3237,24 @@ class PersistenceController: ObservableObject {
                     continue
 
                 case .replace:
-                    // Replace every row whose stored canonical name conflicts.
-                    // Re-fetch on the next iteration so duplicate backup rows use
+                    // Issue #1479: the local counterpart (the row with the
+                    // backup's id, else the first same-name row) is updated IN
+                    // PLACE, not deleted and re-created. It keeps its object
+                    // (Z_PK), its `isSystemProvided` flag and its `sortOrder`,
+                    // so importing your own backup again changes nothing. It
+                    // takes the backup's id, as the re-created row did.
+                    // Every OTHER same-name row is still deleted. Re-fetch on
+                    // the next iteration so duplicate backup rows use
                     // last-one-wins semantics without retaining deleted objects.
-                    for existingMode in conflicts where !existingMode.isDeleted {
+                    for existingMode in conflicts where !existingMode.isDeleted && existingMode !== localCounterpart {
                         deleteModeWithoutSaving(existingMode)
                     }
-                    // Fall through to create new mode
+                    if let keeper = localCounterpart, !keeper.isDeleted {
+                        if keeper.id != backupMode.id {
+                            keeper.id = backupMode.id
+                        }
+                        inPlaceTarget = keeper
+                    }
 
                 case .keepBoth:
                     // Will create with modified name below
@@ -3306,7 +3326,8 @@ class PersistenceController: ObservableObject {
                 foreignPlatformExtensions: backupMode.foreignPlatformExtensions,
                 // One save for the whole import (issue #1613).
                 persist: false,
-                restoringFromBackup: true
+                restoringFromBackup: true,
+                updating: inPlaceTarget
             )
 
             // Update isDefault flag if this mode should be default
