@@ -119,6 +119,13 @@ enum SingleInstanceGuard {
     /// kernel frees it when the process exits, however it exits.
     private static var heldLock: StoreInstanceLock?
 
+    /// Posted by a second launch, observed by the copy that owns the store.
+    /// The notification's object is the lock file's path, so only the owner of
+    /// THAT store answers — a copy on another store ignores it.
+    static let activationRequest = Notification.Name("com.hyperwhisper.singleInstance.activationRequest")
+
+    private static var activationObserver: NSObjectProtocol?
+
     /// Return when this process may open the data store. When another copy
     /// already owns it, bring that copy forward and exit without touching the
     /// store or starting the Local API.
@@ -135,6 +142,7 @@ enum SingleInstanceGuard {
         switch lock.acquire() {
         case .acquired:
             heldLock = lock
+            listenForActivationRequests(storeKey: lock.url.path)
         case .unavailable(let code):
             // Fail open: a launch that cannot test the lock runs as before.
             AppLogger.coreData.error("Single-instance lock unavailable · code=\(code, privacy: .public) — continuing without it")
@@ -142,9 +150,7 @@ enum SingleInstanceGuard {
             let pid = ownerPID ?? waitForOwnerPID(at: lock.url)
             let pidText = pid.map { String($0) } ?? "unknown"
             AppLogger.coreData.notice("Another HyperWhisper owns this data store · pid=\(pidText, privacy: .public) — handing off and exiting")
-            if let pid {
-                activateOwner(pid: pid)
-            }
+            requestOwnerActivation(storeKey: lock.url.path, ownerPID: pid)
             exit(0)
         }
     }
@@ -164,9 +170,47 @@ enum SingleInstanceGuard {
         return nil
     }
 
-    /// Bring the running copy to the front.
-    private static func activateOwner(pid: pid_t) {
-        guard let owner = NSRunningApplication(processIdentifier: pid) else { return }
-        owner.activate(options: [.activateAllWindows])
+    /// Second launch: ask the owner to come forward.
+    ///
+    /// Since macOS 14 activation is cooperative: a process that is still
+    /// launching is not active, so `NSRunningApplication.activate` from here is
+    /// ignored (seen on the Mac, macOS 26). The owner activates ITSELF on this
+    /// request; the direct call stays as a second try.
+    private static func requestOwnerActivation(storeKey: String, ownerPID: pid_t?) {
+        DistributedNotificationCenter.default().postNotificationName(
+            activationRequest,
+            object: storeKey,
+            userInfo: nil,
+            deliverImmediately: true
+        )
+        if let ownerPID, let owner = NSRunningApplication(processIdentifier: ownerPID) {
+            owner.activate(options: [.activateAllWindows])
+        }
+        // Let the post leave this process before it exits.
+        usleep(100_000)
+    }
+
+    /// Owner: answer a second launch's request by coming to the front with the
+    /// main window, as a click on the Dock icon would.
+    private static func listenForActivationRequests(storeKey: String) {
+        activationObserver = DistributedNotificationCenter.default().addObserver(
+            forName: activationRequest,
+            object: storeKey,
+            queue: .main
+        ) { _ in
+            MainActor.assumeIsolated {
+                bringToFront()
+            }
+        }
+    }
+
+    private static func bringToFront() {
+        AppLogger.ui.info("Another launch of HyperWhisper on this data store asked this copy to come forward")
+        // A deliberate open: `launchMinimized` must not hide this window.
+        HyperWhisperApp.suppressLaunchMinimizedHide()
+        NSApp.activate(ignoringOtherApps: true)
+        let mainWindow = MainWindowStore.window
+            ?? NSApp.windows.first(where: { $0.identifier == .hyperwhisperMainWindow })
+        mainWindow?.makeKeyAndOrderFront(nil)
     }
 }
