@@ -89,6 +89,20 @@ final class NemotronProvider: TranscriptionProvider {
     private let runtime = Runtime()
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "NemotronProvider")
 
+    /// 30 s of 16 kHz audio per `process(samples:)` call: the longest a file
+    /// pass runs between cancel checks. Each slice drops FluidAudio's prefetch
+    /// for its last chunk only, so the cost is small.
+    static let processSliceSamples = 30 * 16_000
+
+    /// The contiguous ranges, in order, that one file pass feeds to
+    /// `process(samples:)`: every sample once, none longer than
+    /// `processSliceSamples`.
+    static func processSlices(sampleCount: Int) -> [Range<Int>] {
+        stride(from: 0, to: sampleCount, by: processSliceSamples).map { start in
+            start..<min(start + processSliceSamples, sampleCount)
+        }
+    }
+
     /// Optional handle on the model manager used for actionable error
     /// surfacing — when a load fails on a variant that the metadata-only
     /// probe said was installed, we flip a "broken" flag the Library row
@@ -230,7 +244,15 @@ final class NemotronProvider: TranscriptionProvider {
         }
 
         do {
-            _ = try await manager.process(samples: samples)
+            // FluidAudio's `process(samples:)` runs every chunk it is given
+            // without checking for cancellation, so a whole file in one call
+            // cannot be cancelled (issue #1507). The manager streams, so feeding
+            // it in slices gives the same text and a cancel check per slice.
+            for slice in Self.processSlices(sampleCount: samples.count) {
+                try Task.checkCancellation()
+                _ = try await manager.process(samples: Array(samples[slice]))
+            }
+            try Task.checkCancellation()
             // The engine's own text, untouched: it is the History row's raw
             // transcript. The phonetic pass (`applyLocalVocabularyCorrection`
             // below) and the `\b` replacement pass run once each, in the
