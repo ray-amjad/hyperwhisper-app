@@ -131,6 +131,47 @@ struct SingleInstanceLockTests {
         #expect(!lock.isHeld)
     }
 
+    /// The lock file is truncated and rewritten on acquire. A lock path that
+    /// is a symlink to the store must not empty the store: refuse, fail open.
+    @Test func aSymlinkedLockPathIsRefusedAndItsTargetKept() throws {
+        let directory = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let store = directory.appendingPathComponent("HyperWhisper.sqlite")
+        let content = Data("SQLite format 3\u{0}store bytes".utf8)
+        try content.write(to: store)
+        let url = directory.appendingPathComponent(StoreInstanceLock.fileName)
+        try FileManager.default.createSymbolicLink(at: url, withDestinationURL: store)
+
+        let lock = StoreInstanceLock(directory: directory)
+        guard case .unavailable = lock.acquire(pid: 4_242) else {
+            Issue.record("a symlinked lock path must be .unavailable")
+            return
+        }
+        #expect(!lock.isHeld)
+        #expect(try Data(contentsOf: store) == content)
+    }
+
+    /// The same for a hard link: one inode, two names.
+    @Test func aHardLinkedLockPathIsRefusedAndItsTargetKept() throws {
+        let directory = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let store = directory.appendingPathComponent("HyperWhisper.sqlite")
+        let content = Data("SQLite format 3\u{0}store bytes".utf8)
+        try content.write(to: store)
+        let url = directory.appendingPathComponent(StoreInstanceLock.fileName)
+        try FileManager.default.linkItem(at: store, to: url)
+
+        let lock = StoreInstanceLock(directory: directory)
+        guard case .unavailable = lock.acquire(pid: 4_242) else {
+            Issue.record("a hard-linked lock path must be .unavailable")
+            return
+        }
+        #expect(!lock.isHeld)
+        #expect(try Data(contentsOf: store) == content)
+    }
+
     @Test func anEmptyOrGarbledLockFileHasNoOwner() throws {
         let directory = try Self.makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

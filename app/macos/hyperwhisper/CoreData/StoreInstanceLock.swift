@@ -70,8 +70,27 @@ final class StoreInstanceLock {
 
         // O_CLOEXEC: a helper the app spawns must not inherit the lock and keep
         // the store "owned" after the app itself has gone.
-        let fd = open(url.path, O_RDWR | O_CREAT | O_CLOEXEC, 0o644)
+        // O_NOFOLLOW + the fstat below: the lock file is truncated and written,
+        // so it must be our own plain file. A symlink or hard link to the store
+        // (`HyperWhisper.sqlite`) would otherwise be emptied. Refuse before the
+        // flock and the truncate; the guard then fails open, writing nothing.
+        let fd = open(url.path, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0o644)
         guard fd >= 0 else { return .unavailable(code: errno) }
+
+        var info = stat()
+        guard fstat(fd, &info) == 0 else {
+            let failure = errno
+            close(fd)
+            return .unavailable(code: failure)
+        }
+        guard (info.st_mode & S_IFMT) == S_IFREG else {
+            close(fd)
+            return .unavailable(code: EFTYPE)
+        }
+        guard info.st_nlink == 1 else {
+            close(fd)
+            return .unavailable(code: EMLINK)
+        }
 
         guard flock(fd, LOCK_EX | LOCK_NB) == 0 else {
             let failure = errno
