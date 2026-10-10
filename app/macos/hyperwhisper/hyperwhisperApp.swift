@@ -139,8 +139,12 @@ struct HyperWhisperApp: App {
     /// Aggregates cloud + local models into a single Library list
     @StateObject private var modelLibraryManager = ModelLibraryManager()
     
-    /// Core Data persistence controller
-    let persistenceController = PersistenceController.shared
+    /// Core Data persistence controller.
+    ///
+    /// Computed, not a stored `let`: a stored property's initial value runs
+    /// before `init()`'s body, which would open the store ahead of the
+    /// single-instance guard there (issue #1483).
+    var persistenceController: PersistenceController { PersistenceController.shared }
 
     /// Auto-delete cleanup service for automatic deletion of old recordings
     /// This service runs on app launch and periodically to clean up old transcripts
@@ -149,6 +153,11 @@ struct HyperWhisperApp: App {
     // MARK: - Initialization
     
     init() {
+        // ONE COPY PER DATA STORE (issue #1483): first, before anything opens
+        // the Core Data store or starts the Local API. A second launch on the
+        // same store brings the running copy forward and exits here.
+        SingleInstanceGuard.claimStoreOrHandOff()
+
         let sharedLicenseManager = LicenseManager()
         _licenseManager = StateObject(wrappedValue: sharedLicenseManager)
         _hyperWhisperCloudManager = StateObject(wrappedValue: HyperWhisperCloudManager(licenseManager: sharedLicenseManager))

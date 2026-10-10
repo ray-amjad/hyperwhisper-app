@@ -838,7 +838,11 @@ final class LocalAPIServer: ObservableObject {
             return
         }
 
-        deletePortFile()
+        // The same liveness rule as `deletePortFile()` (#1483): a stale file
+        // naming this process or a dead one goes; one naming another LIVE copy
+        // stays. The store lock fails open, so "no other copy runs" is not a
+        // given here.
+        Self.deletePortFileIfOwned(at: url, ownerPID: ProcessInfo.processInfo.processIdentifier)
         if FileManager.default.fileExists(atPath: url.path) {
             AppLogger.network.error("LocalAPI portfile: stale discovery file remains after cleanup attempt")
         }
@@ -864,14 +868,67 @@ final class LocalAPIServer: ObservableObject {
     }
 
     private func deletePortFile() {
-        let url = Self.portFileURL
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        Self.deletePortFileIfOwned(at: Self.portFileURL, ownerPID: ProcessInfo.processInfo.processIdentifier)
+    }
+
+    /// Delete the discovery file unless it names another LIVE process (issue #1483).
+    ///
+    /// The file may go when it names `ownerPID` (this process) or a pid that is
+    /// no longer alive — a copy that crashed or was SIGKILLed left it behind, and
+    /// leaving that dead port and token published is #655. It stays when it
+    /// names a different process that is still running: before this check, a
+    /// clean quit of either of two copies deleted the file even when it named
+    /// the other one, and no client could find the survivor.
+    ///
+    /// A file that is not valid discovery JSON names no process and no client
+    /// can use it, so it goes too (as it did before #1483). A file that exists
+    /// but cannot be READ (permissions, I/O) is left alone: whose it is is
+    /// unknown.
+    ///
+    /// - Returns: true when the file was removed.
+    @discardableResult
+    static func deletePortFileIfOwned(at url: URL, ownerPID: Int32) -> Bool {
+        guard FileManager.default.fileExists(atPath: url.path) else { return false }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            AppLogger.network.warning("LocalAPI portfile: not deleting a discovery file this process cannot read · \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+        guard let namedPID = try? LocalAPIResponder.decoder.decode(LocalAPIPortFile.self, from: data).pid else {
+            AppLogger.network.warning("LocalAPI portfile: deleting a discovery file that is not valid JSON")
+            return removePortFile(at: url)
+        }
+        guard namedPID == ownerPID || !isProcessAlive(namedPID) else {
+            AppLogger.network.info("LocalAPI portfile: leaving the discovery file in place — it names live pid \(namedPID, privacy: .public), not this process")
+            return false
+        }
+        return removePortFile(at: url)
+    }
+
+    /// True when `pid` names a running process. `kill(pid, 0)` sends nothing;
+    /// EPERM means the process exists but belongs to someone else, so it counts
+    /// as alive. A pid of 0 or below is no process (and `kill(0, …)` would
+    /// address this process group), so it counts as dead.
+    nonisolated static func isProcessAlive(_ pid: Int32) -> Bool {
+        guard pid > 0 else { return false }
+        if kill(pid, 0) == 0 { return true }
+        return errno != ESRCH
+    }
+
+    /// Unconditionally remove the discovery file. Callers decide whose it is.
+    @discardableResult
+    private static func removePortFile(at url: URL) -> Bool {
+        guard FileManager.default.fileExists(atPath: url.path) else { return false }
         // Clear `uchg` first — removeItem can't unlink an immutable file.
-        _ = Self.clearImmutableFlag(at: url)
+        _ = clearImmutableFlag(at: url)
         do {
             try FileManager.default.removeItem(at: url)
+            return true
         } catch {
             AppLogger.network.error("LocalAPI portfile: failed to delete · \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 }
