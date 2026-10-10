@@ -260,6 +260,16 @@ public sealed class ModesViewModel : ViewModelBase
     /// reverse a cloud tier such as `scribe_v2` survived a switch to On-device and sat in the
     /// local model field, where it is not a catalog entry and silently blocks CanSave. Windows
     /// cannot show that state at all because its combo only lists entries for the engine.
+    ///
+    /// ORDER MATTERS, for the reason <see cref="NormalizeCloudModel"/> spells out (issue #1629).
+    /// An engine change swaps the model combo's ItemsSource for the other engine's list. Avalonia
+    /// clears a SelectedItem the new list lacks, the <see cref="LocalTranscriptionModel"/> proxy
+    /// refuses the null write-back, and the binding re-reads the property and records what it
+    /// finds as already delivered. If the incoming id is assigned first, that re-read records the
+    /// INCOMING id, the notification that follows is deduplicated, and the combo stays blank over
+    /// a correct field (Whisper -> Parakeet showed nothing while parakeet-v2 was saved). Handing
+    /// the combo the new list while the field still holds the OUTGOING id makes the incoming one a
+    /// change the binding delivers.
     /// </summary>
     private void NormalizeLocalModel()
     {
@@ -267,6 +277,10 @@ public sealed class ModesViewModel : ViewModelBase
         var kind = LocalModelKind;
         if (PortableModelCatalog.All.Any(model => model.Kind == kind
             && string.Equals(model.Id, _transcriptionModel, StringComparison.Ordinal))) return;
+        // The list BEFORE the selection — see the order note above. The getter rebuilds the cache
+        // for the new engine here; the LocalModels notification NotifyEditorReveals raises a moment
+        // later finds the same instance and is a no-op at the control.
+        Notify(nameof(LocalModels));
         TranscriptionModel = PortableModelCatalog.All.First(model => model.Kind == kind).Id;
     }
 
