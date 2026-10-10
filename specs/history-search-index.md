@@ -1,6 +1,6 @@
 # Spec: FTS5 trigram index for Local API `/recordings/search`
 
-Status: DRAFT — interview not started. Repo `ray-amjad/hyperwhisper-app`, base `main` at `8b105134`.
+Status: DRAFT — interview in progress (1 of 4 answered). Repo `ray-amjad/hyperwhisper-app`, base `main` at `8b105134`.
 Issues: [#1202](https://github.com/ray-amjad/hyperwhisper-app/issues/1202) (Windows), [#1197](https://github.com/ray-amjad/hyperwhisper-app/issues/1197) (Linux).
 
 ## Problem
@@ -19,7 +19,7 @@ The Local API search endpoint scans every transcript row with `LIKE '%term%'`. A
 
 ## The decision
 
-Add an FTS5 trigram index to both heads (schema change, migration, sync on write), or accept the current cost. See "Options".
+Decided 2026-10-10: option A. Add an FTS5 trigram index to both heads (schema change, migration, sync on write).
 
 ## Code on main (checked 2026-10-10)
 
@@ -35,9 +35,9 @@ Add an FTS5 trigram index to both heads (schema change, migration, sync on write
 
 ## Options
 
-- **A. FTS5 trigram external-content table + triggers (recommended).** One raw-SQL migration makes `TranscriptsFts` with `content='Transcripts'` and `tokenize='trigram case_sensitive 0'` over the 3 text columns, adds INSERT, UPDATE and DELETE triggers, and runs `'rebuild'` to fill it. `Down` drops all of it. Cost: the DB grows by about 2-3x the text size.
+- **A. FTS5 trigram external-content table + triggers (CHOSEN).** One raw-SQL migration makes `TranscriptsFts` with `content='Transcripts'` and `tokenize='trigram case_sensitive 0'` over the 3 text columns, adds INSERT, UPDATE and DELETE triggers, and runs `'rebuild'` to fill it. `Down` drops all of it. Cost: the DB grows by about 2-3x the text size.
 - **B. Lower-cased shadow column + LIKE.** Still a full scan. LIKE measured 10.6-25.8 ms. Rejected.
-- **C. Accept the cost and close both issues.** Windows stays at about 33 ms, Linux at about 16-22 ms.
+- **C. Accept the cost and close both issues.** Not chosen. Windows stays at about 33 ms, Linux at about 16-22 ms.
 
 ## Design (option A)
 
@@ -77,7 +77,8 @@ Add an FTS5 trigram index to both heads (schema change, migration, sync on write
 
 ## Open questions
 
-1. Option A, B or C? (asked in the main thread)
+1. ~~Option A, B or C?~~ Answered: A.
+2. Where the index is made: in the migration only, or by a startup step that also repairs it? (asked in the main thread)
 
 ## Out of scope
 
@@ -86,4 +87,4 @@ Add an FTS5 trigram index to both heads (schema change, migration, sync on write
 
 ## Decisions
 
-(none yet)
+- Q1 (2026-10-10, Ray): option A, the FTS5 trigram index with triggers on both heads. B and C are rejected.
