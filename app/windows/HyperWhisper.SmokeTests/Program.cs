@@ -14315,6 +14315,10 @@ internal static class Program
                 {
                     var odd = new Mode { ProviderType = stored, LocalEngine = "whisper", ModelType = "base", Model = "base" };
                     Assert(!LocalModeModel.IsCloud(odd), $"stored \"{stored}\" must read as on-device");
+                    Assert(!TranscriptionProviderFactory.IsHyperWhisperCloudActive(odd),
+                        $"stored \"{stored}\" must not pre-warm HyperWhisper Cloud");
+                    Assert(TranscribeEndpoints.ModelLabel(odd) == "base",
+                        $"/transcribe must report base for stored \"{stored}\", got \"{TranscribeEndpoints.ModelLabel(odd)}\"");
                     Assert(ModesEndpoints.ToDto(odd).Model == "base",
                         $"GET /modes must report base for stored \"{stored}\", got \"{ModesEndpoints.ToDto(odd).Model}\"");
                 }

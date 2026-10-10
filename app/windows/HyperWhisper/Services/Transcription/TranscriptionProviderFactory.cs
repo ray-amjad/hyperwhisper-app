@@ -203,7 +203,8 @@ public class TranscriptionProviderFactory : IDisposable
     /// </summary>
     public static bool IsHyperWhisperCloudActive(Mode? mode)
     {
-        if (mode?.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) != true) return false;
+        // Exactly "cloud", like the orchestrator (#1548): a legacy "Cloud" row runs on-device.
+        if (mode == null || !LocalModeModel.IsCloud(mode)) return false;
         return CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider)
             == CloudTranscriptionProvider.HyperWhisperCloud;
     }
