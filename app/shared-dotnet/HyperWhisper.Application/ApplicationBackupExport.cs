@@ -307,12 +307,40 @@ public sealed partial class ApplicationBackupService(
             CloudPostProcessingModel = String(normalized, "cloudPostProcessingModel") ?? ModeDefaults.CloudPostProcessingModel,
             LocalEngine = String(linux, "localEngine") ?? "whisper", LocalParakeetModel = String(linux, "localParakeetModel"),
             ProviderType = String(linux, "providerType") ?? (String(value, "cloudProvider") is null ? "local" : "cloud"),
-            EnableScreenOCR = Bool(linux, "enableScreenOCR"), CustomVocabulary = StringList(linux, "customVocabulary"),
+            EnableScreenOCR = ScreenOcr(linux, extensions), CustomVocabulary = StringList(linux, "customVocabulary"),
             IsSystemProvided = Bool(linux, "isSystemProvided"),
             ForeignPlatformExtensions = preservedExtensions is null || preservedExtensions.Count == 0 ? null : preservedExtensions.ToJsonString(),
             CreatedDate = Date(linux, "createdDate") ?? DateTime.UtcNow,
             ModifiedDate = Date(linux, "modifiedDate") ?? DateTime.UtcNow,
         };
+    }
+
+    /// <summary>
+    /// The FOREIGN per-mode slices, in lookup order, for a field every head writes
+    /// under the same name in its own slice (today only <c>enableScreenOCR</c>).
+    /// Linux reads its own slice first, then these: the remaining heads in the
+    /// fixed order macos, windows, linux — the rule in <c>shared-backup/AGENTS.md</c>.
+    /// </summary>
+    private static readonly string[] ForeignModeSliceOrder = ["macos", "windows"];
+
+    /// <summary>
+    /// A mode's screen OCR flag (#1498): the <c>linux</c> slice's value when it
+    /// carries one (an explicit <c>false</c> wins too), else the first foreign
+    /// slice that carries it as a JSON Bool, else <c>false</c>. Mirrors macOS
+    /// <c>UniversalModeDTO.platformExtensionBool</c>.
+    /// </summary>
+    private static bool ScreenOcr(JsonObject? linux, JsonObject? extensions)
+    {
+        const string key = "enableScreenOCR";
+        if (linux?[key] is not null) return Bool(linux, key);
+        foreach (var platform in ForeignModeSliceOrder)
+        {
+            if (extensions?[platform] is JsonObject slice
+                && slice[key] is JsonValue value
+                && value.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
+                return value.GetValue<bool>();
+        }
+        return false;
     }
 
     private static List<string>? StringList(JsonObject? value, string key)

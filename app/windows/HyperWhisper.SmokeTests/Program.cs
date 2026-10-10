@@ -2315,6 +2315,56 @@ internal static class Program
                 }
             });
 
+            // #1498: screen OCR is per-mode on every head, but each head writes it in
+            // its OWN platformExtensions slice. A macOS v2 backup restored on Windows
+            // must keep OCR on, and an explicit windows value (true OR false) must win
+            // over a foreign one.
+            Run("backup import (#1498): screen OCR falls back to the macos / linux mode slice", () =>
+            {
+                const string macosBackupJson = """
+                {
+                  "schemaVersion": 2,
+                  "exportDate": "2026-10-10T00:00:00Z",
+                  "appVersion": "3.0.0",
+                  "platform": "macos",
+                  "modes": [
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1498", "name": "Mac OCR on", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": true, "sortOrder": 0,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "macos": { "enableScreenOCR": true, "useStreamingTranscription": false } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1499", "name": "Windows says off", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": false, "sortOrder": 1,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "enableScreenOCR": false }, "macos": { "enableScreenOCR": true } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e149a", "name": "Windows slice without OCR", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": false, "sortOrder": 2,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "localEngine": "whisper" }, "macos": { "enableScreenOCR": true } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e149b", "name": "Linux OCR on", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": false, "sortOrder": 3,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "linux": { "enableScreenOCR": true } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e149c", "name": "No slice", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": false, "sortOrder": 4,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0 }
+                  ]
+                }
+                """;
+                var backup = JsonSerializer.Deserialize<UniversalBackup>(macosBackupJson)
+                    ?? throw new InvalidOperationException("the macOS OCR backup did not deserialize");
+                var restored = backup.Modes!.Select(UniversalBackupMapper.MapToMode).ToDictionary(mode => mode.Name);
+
+                Assert(restored["Mac OCR on"].EnableScreenOCR,
+                    "a macOS backup with platformExtensions.macos.enableScreenOCR: true restored with OCR OFF on Windows");
+                Assert(!restored["Windows says off"].EnableScreenOCR,
+                    "an explicit platformExtensions.windows.enableScreenOCR: false lost to the macos slice's true");
+                Assert(restored["Windows slice without OCR"].EnableScreenOCR,
+                    "a windows slice with no enableScreenOCR hid the macos slice's true");
+                Assert(restored["Linux OCR on"].EnableScreenOCR,
+                    "a Linux backup with platformExtensions.linux.enableScreenOCR: true restored with OCR OFF on Windows");
+                Assert(!restored["No slice"].EnableScreenOCR, "a mode with no slice at all restored with OCR ON");
+            });
+
             // NATIVE CAPTURE (issue #277, phase 2a). Drives every
             // shared-conformance/backup-vectors.json windowsSettings row through the
             // SHIPPING Windows settings adapters — UniversalBackupMapper.MapSettings and

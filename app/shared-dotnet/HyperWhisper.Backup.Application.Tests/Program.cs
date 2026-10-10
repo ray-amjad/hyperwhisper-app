@@ -742,7 +742,73 @@ try
     }
     Console.WriteLine($"Backup macos-settings vectors: {macosRows.Count}/{macosRows.Count} rows matched the shared core.");
 
-    Console.WriteLine("Backup application tests passed (42/42).");
+    // Issue #1498: screen OCR is per-mode on every head, but each head writes it in
+    // its OWN platformExtensions slice. A macOS backup restored on Linux must keep
+    // OCR on, and an explicit linux value (true OR false) must win over a foreign one.
+    var ocrRoot = Path.Combine(root, "foreign-slice-screen-ocr");
+    Directory.CreateDirectory(ocrRoot);
+    var ocrPaths = new TestPaths(ocrRoot);
+    var ocrSettings = new PortableSettingsService(new MemoryPrivateFileService(), ocrPaths);
+    Assert(ocrSettings.Load().IsSuccess, "OCR settings did not initialize");
+    var ocrDatabase = new ApplicationDb(ocrPaths);
+    await ocrDatabase.MigrateAsync();
+    var ocrService = new ApplicationBackupService(ocrDatabase, ocrSettings);
+    var macOnlyId = Guid.NewGuid();
+    var linuxFalseId = Guid.NewGuid();
+    var linuxSliceWithoutOcrId = Guid.NewGuid();
+    var windowsOnlyId = Guid.NewGuid();
+    var noSliceId = Guid.NewGuid();
+    JsonObject OcrMode(Guid id, string name, int sortOrder, JsonObject? extensions)
+    {
+        var mode = new JsonObject
+        {
+            ["id"] = id.ToString("D"), ["name"] = name, ["preset"] = "custom", ["language"] = "en",
+            ["model"] = "base", ["isDefault"] = sortOrder == 0, ["sortOrder"] = sortOrder,
+        };
+        if (extensions is not null) mode["platformExtensions"] = extensions;
+        return mode;
+    }
+    var macosOcrBackup = new JsonObject
+    {
+        ["schemaVersion"] = 2,
+        ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+        ["appVersion"] = "1.0.0",
+        ["platform"] = "macos",
+        ["modes"] = new JsonArray(
+            OcrMode(macOnlyId, "Mac OCR on", 0, new JsonObject
+            {
+                ["macos"] = new JsonObject { ["enableScreenOCR"] = true, ["useStreamingTranscription"] = false },
+            }),
+            OcrMode(linuxFalseId, "Linux says off", 1, new JsonObject
+            {
+                ["linux"] = new JsonObject { ["enableScreenOCR"] = false },
+                ["macos"] = new JsonObject { ["enableScreenOCR"] = true },
+            }),
+            OcrMode(linuxSliceWithoutOcrId, "Linux slice without OCR", 2, new JsonObject
+            {
+                ["linux"] = new JsonObject { ["localEngine"] = "whisper" },
+                ["macos"] = new JsonObject { ["enableScreenOCR"] = true },
+            }),
+            OcrMode(windowsOnlyId, "Windows OCR on", 3, new JsonObject
+            {
+                ["windows"] = new JsonObject { ["enableScreenOCR"] = true },
+            }),
+            OcrMode(noSliceId, "No slice", 4, null)),
+    };
+    var ocrImport = await ocrService.ImportAsync(macosOcrBackup.ToJsonString());
+    Assert(ocrImport.IsSuccess, $"macOS OCR backup failed to import: {ocrImport.Error?.Message}");
+    var ocrModes = (await new ModeRepository(ocrDatabase).ListAsync()).ToDictionary(item => item.Id);
+    Assert(ocrModes[macOnlyId].EnableScreenOCR,
+        "a macOS backup with platformExtensions.macos.enableScreenOCR: true restored with OCR OFF on Linux (#1498)");
+    Assert(!ocrModes[linuxFalseId].EnableScreenOCR,
+        "an explicit platformExtensions.linux.enableScreenOCR: false lost to the macos slice's true (#1498)");
+    Assert(ocrModes[linuxSliceWithoutOcrId].EnableScreenOCR,
+        "a linux slice with no enableScreenOCR hid the macos slice's true (#1498)");
+    Assert(ocrModes[windowsOnlyId].EnableScreenOCR,
+        "a Windows backup with platformExtensions.windows.enableScreenOCR: true restored with OCR OFF on Linux (#1498)");
+    Assert(!ocrModes[noSliceId].EnableScreenOCR, "a mode with no slice at all restored with OCR ON");
+
+    Console.WriteLine("Backup application tests passed (43/43).");
 }
 finally
 {

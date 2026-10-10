@@ -884,6 +884,35 @@ public static class UniversalBackupMapper
         return mergedEndpoints;
     }
 
+    private const string EnableScreenOcrKey = "enableScreenOCR";
+
+    /// <summary>
+    /// The FOREIGN per-mode slices, in lookup order, for a field every head writes
+    /// under the same name in its own slice (today only <c>enableScreenOCR</c>).
+    /// Windows reads its own slice first, then these: the remaining heads in the
+    /// fixed order macos, windows, linux — the rule in <c>shared-backup/AGENTS.md</c>.
+    /// </summary>
+    private static readonly string[] ForeignModeSliceOrder = ["macos", "linux"];
+
+    /// <summary>
+    /// The first JSON Bool <paramref name="key"/> found in a foreign per-mode slice,
+    /// in <see cref="ForeignModeSliceOrder"/>; <c>null</c> when none carries it as a
+    /// Bool. Mirrors macOS <c>UniversalModeDTO.platformExtensionBool</c>.
+    /// </summary>
+    internal static bool? ForeignModeExtensionBool(
+        Dictionary<string, JsonElement>? platformExtensions, string key)
+    {
+        if (platformExtensions == null) return null;
+        foreach (var platform in ForeignModeSliceOrder)
+        {
+            if (!platformExtensions.TryGetValue(platform, out var slice)) continue;
+            if (slice.ValueKind != JsonValueKind.Object) continue;
+            if (!slice.TryGetProperty(key, out var value)) continue;
+            if (value.ValueKind is JsonValueKind.True or JsonValueKind.False) return value.GetBoolean();
+        }
+        return null;
+    }
+
     /// <summary>
     /// Maps a universal mode to a Windows Mode entity.
     /// Extracts platformExtensions.windows if present, otherwise applies defaults.
@@ -956,7 +985,11 @@ public static class UniversalBackupMapper
             // Windows-extension value wins over the universal one, an absent one keeps
             // whatever the universal section and the provider fold produced).
             mode.LocalPostProcessingModel = winExt.LocalPostProcessingModel ?? mode.LocalPostProcessingModel;
-            mode.EnableScreenOCR = winExt.EnableScreenOCR ?? false;
+            // Own slice first (an explicit true OR false wins); absent falls back to
+            // the foreign slices (#1498).
+            mode.EnableScreenOCR = winExt.EnableScreenOCR
+                ?? ForeignModeExtensionBool(universal.PlatformExtensions, EnableScreenOcrKey)
+                ?? false;
             mode.CustomVocabulary = winExt.CustomVocabulary;
             mode.IsSystemProvided = winExt.IsSystemProvided ?? false;
             mode.CreatedDate = winExt.CreatedDate ?? DateTime.UtcNow;
@@ -970,7 +1003,9 @@ public static class UniversalBackupMapper
             mode.LocalParakeetModel = null;
             mode.ProviderType = !string.IsNullOrEmpty(universal.CloudProvider) ? "cloud" : "local";
             // Tier / post-processing model already resolved by the core above.
-            mode.EnableScreenOCR = false;
+            // A macOS or Linux backup carries screen OCR in ITS slice (#1498).
+            mode.EnableScreenOCR =
+                ForeignModeExtensionBool(universal.PlatformExtensions, EnableScreenOcrKey) ?? false;
             mode.CustomVocabulary = null;
             mode.IsSystemProvided = false;
             mode.CreatedDate = DateTime.UtcNow;
