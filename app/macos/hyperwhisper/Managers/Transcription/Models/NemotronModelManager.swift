@@ -679,12 +679,14 @@ final class NemotronModelManager: ObservableObject {
             )
         }
 
-        if cancelled() {
-            logger.info("Nemotron \(variant.rawValue, privacy: .public) download cancelled")
-        } else if succeeded {
+        // A cancel that lands after the last file finished is too late: the files are
+        // complete and kept, so report the install rather than the cancel.
+        if succeeded {
             logger.info("Nemotron \(variant.rawValue, privacy: .public) downloaded successfully")
             // Fresh files on disk — any prior "broken" flag is stale now.
             brokenVariants.remove(modelId)
+        } else if cancelled() {
+            logger.info("Nemotron \(variant.rawValue, privacy: .public) download cancelled")
         } else {
             let message = lastError?.localizedDescription ?? "Download failed — check your connection and try again."
             logger.error("Nemotron \(variant.rawValue, privacy: .public) download failed after \(Constants.maxDownloadAttempts) attempts: \(message, privacy: .public)")
