@@ -911,7 +911,7 @@ final class LocalAPIServer: ObservableObject {
     /// EPERM means the process exists but belongs to someone else, so it counts
     /// as alive. A pid of 0 or below is no process (and `kill(0, …)` would
     /// address this process group), so it counts as dead.
-    static func isProcessAlive(_ pid: Int32) -> Bool {
+    nonisolated static func isProcessAlive(_ pid: Int32) -> Bool {
         guard pid > 0 else { return false }
         if kill(pid, 0) == 0 { return true }
         return errno != ESRCH
