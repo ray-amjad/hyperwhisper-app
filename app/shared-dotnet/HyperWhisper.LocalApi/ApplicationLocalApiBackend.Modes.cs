@@ -280,6 +280,13 @@ public sealed partial class ApplicationLocalApiBackend
         long? sortOrder = null;
         long? postProcessingMode = null;
         string? inferredAccuracyTier = null;
+        // `model` and `localParakeetModel` are held and applied after the walk
+        // (issue #1687), because `model` is routed by the engine and the engine
+        // may come later in the same body.
+        var hasModel = false;
+        string? model = null;
+        var hasLocalParakeetModel = false;
+        string? localParakeetModel = null;
         foreach (var property in document.EnumerateObject())
         {
             presentKeys.Add(property.Name);
@@ -290,9 +297,9 @@ public sealed partial class ApplicationLocalApiBackend
                 case "name": mode.Name = RequiredString(property); break;
                 case "preset": mode.Preset = RequiredString(property); break;
                 case "language": mode.Language = RequiredString(property); break;
-                case "model": mode.Model = OptionalString(property); mode.ModelType = mode.Model; break;
+                case "model": hasModel = true; model = OptionalString(property); break;
                 case "localEngine": mode.LocalEngine = RequiredString(property); break;
-                case "localParakeetModel": mode.LocalParakeetModel = OptionalString(property); break;
+                case "localParakeetModel": hasLocalParakeetModel = true; localParakeetModel = OptionalString(property); break;
                 // FOLDED, LIKE THE `engine` FIELD (issue #575). Windows
                 // (`ModesEndpoints.cs:114`, `:485`) and macOS
                 // (`ModesEndpoint.swift:129`, `:516`) both run a caller-supplied
@@ -376,7 +383,39 @@ public sealed partial class ApplicationLocalApiBackend
                     break;
             }
         }
+        if (hasModel) ApplyModel(mode, model);
+        // An explicit `localParakeetModel` still wins over `model`, as on Windows.
+        if (hasLocalParakeetModel) mode.LocalParakeetModel = localParakeetModel;
         return new ModeDocumentFacts(presentKeys, sortOrder, postProcessingMode, inferredAccuracyTier);
+    }
+
+    /// <summary>
+    /// Write a body's <c>model</c> into the field of the engine the mode has
+    /// once the whole body is applied (issue #1687).
+    /// </summary>
+    /// <remarks>
+    /// This head wrote <c>model</c> into <c>Model</c> and <c>ModelType</c> (the
+    /// Whisper field) for every engine. On a Parakeet mode, <see cref="NormalizeMode"/>
+    /// then put the stored <c>LocalParakeetModel</c> back into <c>Model</c>, so
+    /// <c>PATCH {"model":"parakeet-v2"}</c> answered <c>ok</c>, kept the old
+    /// Parakeet model and overwrote the Whisper one. The rule is the one Windows
+    /// uses (<c>ModesEndpoints.ApplyPatch</c>, issue #1542): <c>cloud</c> is the
+    /// cloud sentinel, a Parakeet engine takes the id into
+    /// <c>LocalParakeetModel</c> and leaves <c>ModelType</c> alone, and any other
+    /// engine takes it into <c>ModelType</c>. A null <c>model</c> on a Parakeet
+    /// mode leaves the Parakeet model as it is.
+    /// </remarks>
+    private static void ApplyModel(Mode mode, string? model)
+    {
+        var parakeet = string.Equals(mode.LocalEngine?.Trim(), "parakeet", StringComparison.OrdinalIgnoreCase);
+        if (parakeet && !string.Equals(model, "cloud", StringComparison.OrdinalIgnoreCase))
+        {
+            mode.Model = model;
+            if (model is not null) mode.LocalParakeetModel = model;
+            return;
+        }
+        mode.Model = model;
+        mode.ModelType = model;
     }
 
     /// <summary>
