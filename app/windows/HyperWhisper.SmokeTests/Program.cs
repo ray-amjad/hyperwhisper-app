@@ -1882,6 +1882,50 @@ internal static class Program
                 }
             });
 
+            // #1544 review round 2: a caller-cancel drain holds the transcription lock with
+            // nobody counted in. A mode write in that window must still unload the daemon
+            // once the lock is free, not drop the unload for good.
+            RunAsync("Parakeet housekeeping unload during a lock held with nobody counted in runs once the lock is free (#1544)", async () =>
+            {
+                var service = new ParakeetTranscriptionService();
+                using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out _);
+                var daemonPid = daemon.Id;
+                var transcriptionLock = ParakeetTranscriptionLock(service);
+                var released = false;
+                try
+                {
+                    await transcriptionLock.WaitAsync();   // stands in for the drain's lock
+                    Assert(PendingParakeetRequests(service) == 0, "the test expected nobody counted in");
+
+                    var clock = Stopwatch.StartNew();
+                    Assert(!service.TryDisposeModelIfIdle(() => true), "the housekeeping unload took a lock it does not hold");
+                    Assert(clock.Elapsed < TimeSpan.FromSeconds(1), $"the housekeeping unload waited {clock.Elapsed.TotalSeconds:F1}s for the lock (#1544)");
+                    await Task.Delay(300);
+                    Assert(service.IsInitialized, "the deferred unload ran while the lock was held");
+
+                    transcriptionLock.Release();
+                    released = true;
+
+                    var drained = Stopwatch.StartNew();
+                    while (service.IsInitialized && drained.Elapsed < TimeSpan.FromSeconds(10))
+                    {
+                        await Task.Delay(50);
+                    }
+
+                    Assert(!service.IsInitialized, "the unload asked for while the lock was held never ran (#1544)");
+                    Assert(FakeParakeetDaemonExited(daemonPid), "the deferred unload did not stop the daemon");
+                }
+                finally
+                {
+                    if (!released)
+                    {
+                        transcriptionLock.Release();
+                    }
+
+                    StopFakeParakeetDaemon(service, daemon);
+                }
+            });
+
             // #1608 review: an idle reload holds the lock through the old daemon's exit and
             // the new one's READY wait. A GUI DisposeModel / InitializeAsync (the user's own
             // mode switch, on the UI thread) must cancel it at once instead of blocking for
@@ -20639,6 +20683,11 @@ internal static class Program
     }
 
     /// <summary>The service's count of pending requests and leases (#1608 tests).</summary>
+    private static SemaphoreSlim ParakeetTranscriptionLock(ParakeetTranscriptionService service) =>
+        (SemaphoreSlim)(typeof(ParakeetTranscriptionService).GetField("_transcriptionLock", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("ParakeetTranscriptionService._transcriptionLock is gone; update this test"))
+        .GetValue(service)!;
+
     private static int PendingParakeetRequests(ParakeetTranscriptionService service) =>
         (int)(typeof(ParakeetTranscriptionService).GetField("_pendingRequests", BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("ParakeetTranscriptionService._pendingRequests is gone; update this test"))

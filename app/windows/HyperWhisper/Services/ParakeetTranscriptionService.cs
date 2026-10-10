@@ -315,6 +315,12 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     /// </summary>
     private Func<bool>? _unloadWhenDrainedStillWanted;
 
+    /// <summary>
+    /// Counts every arm of <see cref="_unloadWhenDrained"/>, so a deferred unload that decided
+    /// to keep the daemon does not clear an arm made after it asked. Guarded by <see cref="_drainSync"/>.
+    /// </summary>
+    private int _unloadArmCount;
+
     /// <summary>How often <see cref="ReloadWhenIdleAsync"/> re-checks a busy daemon.</summary>
     private static readonly TimeSpan IdleReloadPollInterval = TimeSpan.FromMilliseconds(100);
 
@@ -721,19 +727,33 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
 
     /// <summary>
     /// A housekeeping unload found the daemon busy (#1544): unload it once the last request
-    /// or lease counted in has left. Only while one is counted in; a lock held with nobody
-    /// counted in is a deliberate teardown or mode switch, which wins.
+    /// or lease counted in has left. With nobody counted in, the lock holder is a caller-cancel
+    /// drain, a teardown or a mode switch; the unload then waits for that lock instead. A
+    /// deliberate teardown or switch clears the arm, and <paramref name="stillWanted"/> keeps
+    /// a daemon the selected mode uses again.
     /// </summary>
     private void ArmUnloadWhenDrained(Func<bool>? stillWanted)
     {
+        bool waitForLock;
         lock (_drainSync)
         {
-            if (_pendingRequests > 0)
-            {
-                _unloadWhenDrained = true;
-                _unloadWhenDrainedStillWanted = stillWanted;
-            }
+            ArmUnloadWhenDrainedLocked(stillWanted);
+            waitForLock = _pendingRequests == 0;
         }
+
+        if (waitForLock)
+        {
+            // ast-grep-ignore: no-discarded-task-run -- the caller is a mode write on the UI or Local API request thread, and the lock it could not take may be held for minutes; UnloadWhenDrainedAsync catches and logs its own failures
+            _ = Task.Run(UnloadWhenDrainedAsync);
+        }
+    }
+
+    /// <summary>Arms the deferred unload. The caller holds <see cref="_drainSync"/>.</summary>
+    private void ArmUnloadWhenDrainedLocked(Func<bool>? stillWanted)
+    {
+        _unloadWhenDrained = true;
+        _unloadWhenDrainedStillWanted = stillWanted;
+        _unloadArmCount++;
     }
 
     /// <summary>
@@ -755,6 +775,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
         try
         {
             Func<bool>? stillWanted;
+            int armCount;
             lock (_drainSync)
             {
                 if (!_unloadWhenDrained || _pendingRequests > 0)
@@ -762,7 +783,16 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
                     return;
                 }
 
+                if (!IsInitialized)
+                {
+                    // A teardown that held the lock already stopped the daemon.
+                    _unloadWhenDrained = false;
+                    _unloadWhenDrainedStillWanted = null;
+                    return;
+                }
+
                 stillWanted = _unloadWhenDrainedStillWanted;
+                armCount = _unloadArmCount;
             }
 
             // Outside _drainSync: the check reads app state, and must not run under a lock
@@ -773,8 +803,13 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
                 LoggingService.Info("ParakeetTranscriptionService: Keeping the daemon after its transcriptions finished; the selected mode uses it again");
                 lock (_drainSync)
                 {
-                    _unloadWhenDrained = false;
-                    _unloadWhenDrainedStillWanted = null;
+                    // A mode write that armed again while the app was asked has queued its own
+                    // unload, which waits for this lock and asks again.
+                    if (_unloadArmCount == armCount)
+                    {
+                        _unloadWhenDrained = false;
+                        _unloadWhenDrainedStillWanted = null;
+                    }
                 }
                 return;
             }
@@ -2188,8 +2223,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             {
                 if (_pendingRequests > 0)
                 {
-                    _unloadWhenDrained = true;
-                    _unloadWhenDrainedStillWanted = stillWanted;
+                    ArmUnloadWhenDrainedLocked(stillWanted);
                     return false;
                 }
 
