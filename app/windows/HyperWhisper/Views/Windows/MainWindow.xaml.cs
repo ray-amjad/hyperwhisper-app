@@ -56,6 +56,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        // 1000 x 680 does not fit a 1080p work area at 150% or 175%; the window is
+        // shrunk to fit and the page scrolls (issue #1500).
+        WindowWorkAreaFit.Attach(this);
+
         _viewModel = (MainViewModel)DataContext;
         _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(MainViewModel.CurrentPage)) NavigateToPage(_viewModel.CurrentPage); };
 
