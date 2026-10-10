@@ -301,6 +301,13 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     /// </summary>
     private int _pendingRequests;
 
+    /// <summary>
+    /// Set when <see cref="TryDisposeModelIfIdle"/> found the daemon busy, so the last
+    /// request or lease to leave unloads it (#1544). Cleared by a deliberate teardown or
+    /// mode switch. Guarded by <see cref="_drainSync"/>.
+    /// </summary>
+    private bool _unloadWhenDrained;
+
     /// <summary>How often <see cref="ReloadWhenIdleAsync"/> re-checks a busy daemon.</summary>
     private static readonly TimeSpan IdleReloadPollInterval = TimeSpan.FromMilliseconds(100);
 
@@ -689,9 +696,77 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
 
     private void ExitRequest()
     {
+        bool unloadNow;
         lock (_drainSync)
         {
             _pendingRequests--;
+            unloadNow = _pendingRequests == 0 && _unloadWhenDrained;
+        }
+
+        if (unloadNow)
+        {
+            // Off this thread: the last caller out may still hold the transcription lock
+            // (TranscribeAsync), or be a lease disposed on the Local API request thread.
+            _ = Task.Run(UnloadWhenDrainedAsync);
+        }
+    }
+
+    /// <summary>
+    /// A housekeeping unload found the daemon busy (#1544): unload it once the last request
+    /// or lease counted in has left. Only while one is counted in; a lock held with nobody
+    /// counted in is a deliberate teardown or mode switch, which wins.
+    /// </summary>
+    private void ArmUnloadWhenDrained()
+    {
+        lock (_drainSync)
+        {
+            if (_pendingRequests > 0)
+            {
+                _unloadWhenDrained = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The deferred half of <see cref="TryDisposeModelIfIdle"/>. Re-checked under the lock:
+    /// a request that counted in meanwhile keeps the daemon (and re-triggers this when it
+    /// leaves), and a deliberate DisposeModel / InitializeAsync in between cleared the flag.
+    /// </summary>
+    private async Task UnloadWhenDrainedAsync()
+    {
+        try
+        {
+            await _transcriptionLock.WaitAsync().ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+
+        try
+        {
+            lock (_drainSync)
+            {
+                if (!_unloadWhenDrained || _pendingRequests > 0)
+                {
+                    return;
+                }
+
+                _unloadWhenDrained = false;
+                Interlocked.Increment(ref _teardownGeneration);
+            }
+
+            LoggingService.Info("ParakeetTranscriptionService: Unloading the daemon now that the transcriptions using it have finished");
+            DisposeModelCore(advanceTeardownGeneration: false, transcriptionLockHeld: true);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"ParakeetTranscriptionService: Deferred daemon unload failed: {ex.Message}");
+        }
+        finally
+        {
+            try { _transcriptionLock.Release(); }
+            catch (ObjectDisposedException) { }
         }
     }
 
@@ -2059,11 +2134,12 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     /// lock, and finds the daemon gone (a lease-less request then auto-restarts it).
     /// </para>
     /// </summary>
-    /// <returns>False when the daemon is busy and was left running.</returns>
+    /// <returns>False when the daemon is busy: it is left running, and unloaded once the last request or lease on it has left.</returns>
     public bool TryDisposeModelIfIdle()
     {
         if (!_transcriptionLock.Wait(0))
         {
+            ArmUnloadWhenDrained();
             return false;
         }
 
@@ -2073,9 +2149,11 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             {
                 if (_pendingRequests > 0)
                 {
+                    _unloadWhenDrained = true;
                     return false;
                 }
 
+                _unloadWhenDrained = false;
                 Interlocked.Increment(ref _teardownGeneration);
             }
 
@@ -2108,6 +2186,13 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
         if (advanceTeardownGeneration)
         {
             Interlocked.Increment(ref _teardownGeneration);
+
+            // The user's own unload or mode switch supersedes a deferred housekeeping one:
+            // a switch to a Parakeet mode must keep the daemon it is about to load.
+            lock (_drainSync)
+            {
+                _unloadWhenDrained = false;
+            }
         }
 
         // Mark the provider unavailable BEFORE waiting on the lock. IsAvailable keys off

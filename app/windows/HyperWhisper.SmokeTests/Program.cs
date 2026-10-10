@@ -1824,9 +1824,17 @@ internal static class Program
                     }
 
                     Assert(PendingParakeetRequests(service) == 0, "a request or lease was left counted in");
-                    Assert(service.TryDisposeModelIfIdle(), "the housekeeping unload kept an idle daemon");
-                    Assert(!service.IsInitialized, "the idle unload left the service marked ready");
-                    Assert(FakeParakeetDaemonExited(daemonPid), "the idle unload did not stop the daemon");
+
+                    // The deferred half: once the job and the lease have left, the daemon the
+                    // housekeeping unload kept is unloaded with no further mode write.
+                    var drained = Stopwatch.StartNew();
+                    while (service.IsInitialized && drained.Elapsed < TimeSpan.FromSeconds(10))
+                    {
+                        await Task.Delay(50);
+                    }
+
+                    Assert(!service.IsInitialized, "the daemon kept by the housekeeping unload stayed loaded after the job and lease drained (#1544)");
+                    Assert(FakeParakeetDaemonExited(daemonPid), "the deferred unload did not stop the daemon");
                 }
                 finally
                 {

@@ -1014,10 +1014,11 @@ public partial class MainViewModel : ViewModelBase
         // Housekeeping only (#1544): every mode write re-selects the current mode and
         // lands here, on the Local API request thread or the UI thread. A Local API job
         // may be on the daemon even though the GUI is idle; waiting it out held that
-        // thread for the whole job, then forced a cold start. Leave a busy daemon alone.
+        // thread for the whole job, then forced a cold start. A busy daemon is unloaded
+        // by the service once that job and its lease have left.
         if (!_parakeetTranscriptionService.TryDisposeModelIfIdle())
         {
-            LoggingService.Info("MainViewModel: Keeping Parakeet daemon; another transcription is using it");
+            LoggingService.Info("MainViewModel: Keeping Parakeet daemon until the transcription using it finishes");
             return;
         }
 
