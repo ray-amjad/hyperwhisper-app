@@ -65,7 +65,29 @@ private struct HistoryItemSnapshot: Identifiable, Hashable {
     let audioFilePath: String?
     let trimmedAudioFilePath: String?
 
-    var id: NSManagedObjectID { objectID }
+    /// The row's ForEach identity. A value type wrapping `objectID`, NOT the
+    /// `NSManagedObjectID` itself — see `HistoryRowID` for why (#1459).
+    var id: HistoryRowID { HistoryRowID(objectID: objectID) }
+}
+
+/// ForEach identity of one History list row.
+///
+/// The row's selection `.tag` is the bare `NSManagedObjectID` (the type of the
+/// List's selection set). When the ForEach identity was that same class, an
+/// in-place removal of any row except the newest one (detail-pane Delete,
+/// context-menu Delete, multi-select Delete) made the sidebar List re-bind
+/// the surviving row views off by one: the NSTableView removed the right
+/// row, but the row after the deleted one vanished from the screen and the
+/// last row drew twice until the List was rebuilt (#1459). The data was
+/// right; only the rendering was wrong. Wrapping the same object ID in a
+/// struct keeps identity and equality exactly as before, and the diff then
+/// re-binds every surviving row to its own snapshot. Measured on macOS 26
+/// against the real HistoryView: a boxed ID, a URI string or the transcript
+/// UUID all render correctly; the bare class ID fails every time.
+///
+/// Keep it a value type. Do not switch the ForEach back to `objectID`.
+struct HistoryRowID: Hashable {
+    let objectID: NSManagedObjectID
 }
 
 private struct HistorySectionSnapshot: Identifiable, Hashable {
@@ -573,7 +595,9 @@ private struct HistoryScreen: View, Equatable {
             List(selection: $selectedTranscriptIDs) {
                 ForEach(viewModel.sections) { section in
                     Section(header: Text(formatSectionDate(section.date))) {
-                        ForEach(section.items) { item in
+                        // Value-type identity (HistoryRowID), not the bare
+                        // NSManagedObjectID the .tag uses — see #1459.
+                        ForEach(section.items, id: \.id) { item in
                             TranscriptRow(
                                 item: item,
                                 isRetrying: isRetrying(item),
