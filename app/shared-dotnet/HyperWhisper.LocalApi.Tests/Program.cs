@@ -59,6 +59,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("/transcribe never runs another vendor's cloud model", ApplicationBackendForeignCloudModel)
     ,("legacy engine aliases fold onto a HyperWhisper Cloud tier", ApplicationBackendLegacyEngineAliases)
     ,("a written cloudProvider folds on create and on patch", ApplicationBackendModeWriteFoldsLegacyProvider)
+    ,("a mode body's model lands in the field of its engine", ApplicationBackendModelRoutesByEngine)
+    ,("a local mode matches the catalog's capability keys", ApplicationBackendLocalModeMatchesCatalogKeys)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
@@ -2677,6 +2679,119 @@ static async Task ApplicationBackendModeWriteFoldsLegacyProvider()
         "an explicit null cloudProvider was not cleared");
 }
 
+// Issue #1687. `model` was written into `Model` and `ModelType` (the Whisper
+// field) for every engine, and `NormalizeMode` then put the stored Parakeet
+// model back into `Model`. So a PATCH that changed a Parakeet mode's model
+// answered ok, kept the old model, and overwrote the Whisper model.
+static async Task ApplicationBackendModelRoutesByEngine()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var modes = new ModeRepository(database);
+    var history = new HistoryRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0");
+
+    HyperWhisper.Data.Entities.Mode LocalMode(string name, int sortOrder, string engine, string? parakeet, string whisper) => new()
+    {
+        Id = Guid.NewGuid(), Name = name, SortOrder = sortOrder, Language = "en", Preset = "hyper",
+        ProviderType = "local", LocalEngine = engine, LocalParakeetModel = parakeet,
+        Model = engine == "parakeet" ? parakeet : whisper, ModelType = whisper,
+        IsDefault = sortOrder == 0, CloudAccuracyTier = "elevenLabsScribeV2",
+        CloudPostProcessingModel = "anthropic:claude-haiku-5-5",
+    };
+    async Task<HyperWhisper.Data.Entities.Mode> Stored(Guid id) => (await modes.ListAsync()).Single(item => item.Id == id);
+
+    // 1. The issue's case: a Parakeet mode on v3 (its Whisper model is `small`).
+    var parakeet = LocalMode("Parakeet", 0, "parakeet", "parakeet-v3", "small");
+    await modes.UpsertAsync(parakeet);
+    var patched = (await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"model":"parakeet-v2"} """), CancellationToken.None))!.Value;
+    var row = await Stored(parakeet.Id);
+    Assert(row.LocalParakeetModel == "parakeet-v2",
+        $"PATCH model on a Parakeet mode left localParakeetModel '{row.LocalParakeetModel}' (issue #1687)");
+    Assert(row.Model == "parakeet-v2", $"PATCH model on a Parakeet mode left Model '{row.Model}'");
+    Assert(row.ModelType == "small", $"PATCH model on a Parakeet mode overwrote the Whisper model with '{row.ModelType}'");
+    Assert(patched.GetProperty("localParakeetModel").GetString() == "parakeet-v2",
+        "the PATCH answer does not report the Parakeet model the mode now uses");
+
+    // 2. Engine and model in one PATCH on a Whisper Small mode: the model goes
+    //    to the engine the same PATCH asks for, and the Whisper model stays.
+    var whisper = LocalMode("Whisper", 1, "whisper", null, "small");
+    await modes.UpsertAsync(whisper);
+    _ = await backend.PatchModeAsync(whisper.Id.ToString(), Json(""" {"model":"parakeet-v2","localEngine":"parakeet"} """), CancellationToken.None);
+    row = await Stored(whisper.Id);
+    Assert(row.LocalEngine == "parakeet" && row.LocalParakeetModel == "parakeet-v2",
+        $"PATCH localEngine+model stored '{row.LocalEngine}'/'{row.LocalParakeetModel}' (issue #1687)");
+    Assert(row.ModelType == "small", $"PATCH localEngine+model overwrote the Whisper model with '{row.ModelType}'");
+
+    // 3. An explicit localParakeetModel wins over model, whatever the key order.
+    _ = await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"localParakeetModel":"parakeet-v3","model":"qwen3-asr-0.6b"} """), CancellationToken.None);
+    row = await Stored(parakeet.Id);
+    Assert(row.LocalParakeetModel == "parakeet-v3", $"model beat an explicit localParakeetModel: '{row.LocalParakeetModel}'");
+
+    // 4. A null model on a Parakeet mode keeps its Parakeet model.
+    _ = await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"model":null} """), CancellationToken.None);
+    row = await Stored(parakeet.Id);
+    Assert(row.LocalParakeetModel == "parakeet-v3" && row.Model == "parakeet-v3",
+        $"a null model changed the Parakeet mode to '{row.LocalParakeetModel}'/'{row.Model}'");
+
+    // 5. A Whisper id on a Parakeet mode is refused, not silently dropped.
+    await AssertThrowsAsync<ArgumentException>(() =>
+        backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"model":"medium"} """), CancellationToken.None).AsTask());
+    row = await Stored(parakeet.Id);
+    Assert(row.LocalParakeetModel == "parakeet-v3" && row.ModelType == "small", "a refused PATCH changed the stored mode");
+
+    // 6. Unchanged: a Whisper mode's model still goes to the Whisper field.
+    var other = LocalMode("Whisper two", 2, "whisper", null, "base");
+    await modes.UpsertAsync(other);
+    _ = await backend.PatchModeAsync(other.Id.ToString(), Json(""" {"model":"medium"} """), CancellationToken.None);
+    row = await Stored(other.Id);
+    Assert(row.ModelType == "medium" && row.Model == "medium", $"PATCH model on a Whisper mode stored '{row.ModelType}'/'{row.Model}'");
+
+    // 7. Create routes the same way: a Parakeet body's model is its Parakeet model.
+    var created = await backend.CreateModeAsync(Json(ModeBody("Created parakeet", model: "parakeet-v2",
+        extra: """ "providerType":"local","localEngine":"parakeet" """)), CancellationToken.None);
+    row = await Stored(Guid.Parse(created.GetProperty("id").GetString()!));
+    Assert(row.LocalParakeetModel == "parakeet-v2" && row.Model == "parakeet-v2",
+        $"POST a Parakeet mode with model stored '{row.LocalParakeetModel}'/'{row.Model}'");
+}
+
+// The Linux catalog advertises capability keys (`local/parakeet/parakeet-v3`),
+// and the catalog check compared them with the bare id a mode stores. So the
+// real app refused every local mode write, even a rename (found while proving
+// issue #1687).
+static async Task ApplicationBackendLocalModeMatchesCatalogKeys()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var modes = new ModeRepository(database);
+    var history = new HistoryRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new KeyedCatalog(), new DiskPrivateFiles(), paths, "1.0");
+
+    var parakeet = new HyperWhisper.Data.Entities.Mode
+    {
+        Id = Guid.NewGuid(), Name = "Parakeet", SortOrder = 0, IsDefault = false, Language = "en", Preset = "hyper",
+        ProviderType = "local", LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3", Model = "parakeet-v3",
+        ModelType = "small", CloudAccuracyTier = "elevenLabsScribeV2", CloudPostProcessingModel = "anthropic:claude-haiku-5-5",
+    };
+    await modes.UpsertAsync(parakeet);
+    var renamed = (await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"name":"Parakeet renamed"} """), CancellationToken.None))!.Value;
+    Assert(renamed.GetProperty("name").GetString() == "Parakeet renamed", "a rename of a local mode was refused");
+    var patched = (await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"model":"parakeet-v2"} """), CancellationToken.None))!.Value;
+    Assert(patched.GetProperty("localParakeetModel").GetString() == "parakeet-v2",
+        "PATCH model on a Parakeet mode did not land against the keyed catalog (issue #1687)");
+
+    _ = await backend.CreateModeAsync(Json(ModeBody("Whisper small", model: "small",
+        extra: """ "providerType":"local","localEngine":"whisper" """)), CancellationToken.None);
+    // The check still bites: `large-v3` is a known Whisper id the catalog does
+    // not advertise, and a cloud key ending in `-large-v3` is no match.
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json(ModeBody("Whisper large", model: "large-v3",
+        extra: """ "providerType":"local","localEngine":"whisper" """)), CancellationToken.None).AsTask());
+}
+
 static async Task ApplicationBackendModeValidation()
 {
     using var paths = new TempPaths();
@@ -3124,6 +3239,23 @@ sealed class FirstUploadDeleteFails : DiskPrivateFiles
 sealed class EmptyCatalog : ILocalApiCapabilityCatalog
 {
     public IReadOnlyList<ModelEntry> Models => [];
+    public IReadOnlyList<ProviderStatus> TranscriptionProviders => [];
+    public IReadOnlyList<ProviderStatus> PostProcessingProviders => [];
+    public object LocalModels { get; } = new { };
+}
+
+// The ids the Linux head's `LinuxLocalApiCatalog` really advertises: capability
+// keys, not bare model ids. `large-v3` is left out on purpose.
+sealed class KeyedCatalog : ILocalApiCapabilityCatalog
+{
+    public IReadOnlyList<ModelEntry> Models { get; } =
+    [
+        new("local/localWhisper/small", "voice", "local", "Small", true),
+        new("local/parakeet/parakeet-v2", "voice", "local", "Parakeet v2", true),
+        new("local/streaming/parakeetLocal/parakeet-v2", "voice", "local", "Parakeet v2", true),
+        new("local/parakeet/parakeet-v3", "voice", "local", "Parakeet v3", true),
+        new("cloud/stt/groqWhisper/whisper-large-v3", "voice", "groq", "Whisper Large v3", true),
+    ];
     public IReadOnlyList<ProviderStatus> TranscriptionProviders => [];
     public IReadOnlyList<ProviderStatus> PostProcessingProviders => [];
     public object LocalModels { get; } = new { };
