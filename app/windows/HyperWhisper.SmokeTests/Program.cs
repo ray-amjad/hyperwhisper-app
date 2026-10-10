@@ -17002,6 +17002,45 @@ internal static class Program
                 }
             });
 
+            // Issue #1614: Import and ImportSelective apply the backup's settings to
+            // settings.json BEFORE the one-transaction DB step (#1605). A DB failure
+            // rolled the modes back and left the backup's settings applied. The same
+            // real SQLite refusal as above fails the DB step; the settings, in memory
+            // and on disk, must be what they were before the import.
+            Run("backup: Import Selected whose DB step fails leaves settings.json as it was — issue #1614", () =>
+                AssertFailedImportKeepsSettings("selective", backupPath =>
+                    BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+                    {
+                        IncludeSettings = true,
+                        IncludeModes = true
+                    }).IsSuccess));
+
+            // Import Selected writes modes and vocabulary in ONE transaction: a
+            // vocabulary write the database refuses must roll the modes back too,
+            // and then the settings, so "Import failed" means nothing changed.
+            Run("backup: Import Selected whose vocabulary write fails leaves modes, vocabulary and settings.json as they were — issue #1614", () =>
+                AssertFailedImportKeepsSettings("selective-vocab", backupPath =>
+                    BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+                    {
+                        IncludeSettings = true,
+                        IncludeModes = true,
+                        IncludeVocabulary = true,
+                        VocabularyConflict = VocabConflict.Replace
+                    }).IsSuccess, poisonVocabulary: true));
+
+            Run("backup: a merge Import whose DB step fails leaves settings.json as it was — issue #1614", () =>
+                AssertFailedImportKeepsSettings("merge", backupPath =>
+                    BackupService.Instance.Import(backupPath, replaceExisting: false).IsSuccess));
+
+            Run("backup: a replace Import whose DB step fails leaves settings.json as it was — issue #1614", () =>
+                AssertFailedImportKeepsSettings("replace", backupPath =>
+                    BackupService.Instance.Import(backupPath, replaceExisting: true).IsSuccess));
+
+            // A settings-only Import Selected has no database step, so it must not
+            // enter one: no context, no _dbLock, no transaction (#1614 round 2).
+            Run("backup: a settings-only Import Selected never enters the database step — issue #1614", () =>
+                AssertSettingsOnlyImportSkipsTheDatabaseStep());
+
             Run("settings: an info notice is given the whole column, so it wraps — issues #503, #508", () =>
             {
                 // A horizontal StackPanel measures its children with infinite available
@@ -19908,6 +19947,337 @@ internal static class Program
 
     private static void RunAsync(string name, Func<Task> check)
         => Run(name, () => check().GetAwaiter().GetResult());
+
+    /// <summary>
+    /// Issue #1614: runs <paramref name="runImport"/> on a backup whose settings
+    /// differ from every live value it touches and whose modes carry one row a
+    /// SQLite BEFORE INSERT trigger refuses, so the DB step fails AFTER step 1 has
+    /// applied the settings. Asserts the import failed and that the settings — the
+    /// property values and the settings.json bytes — are what they were before it.
+    /// With <paramref name="poisonVocabulary"/> every mode is valid and the refused
+    /// row is a vocabulary word instead (the backup also replaces an existing word),
+    /// and the modes and vocabulary must be exactly as they were too.
+    /// </summary>
+    private static void AssertFailedImportKeepsSettings(
+        string label, Func<string, bool> runImport, bool poisonVocabulary = false)
+    {
+        DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+        var settings = SettingsService.Instance;
+
+        // Plant the failure in the suite's own scratch profile only.
+        string dbPath;
+        using (var probe = new HyperWhisperDbContext())
+        {
+            dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                probe.Database.GetConnectionString()).DataSource);
+        }
+        Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+            $"the database {dbPath} is not under the suite's temp profile; refusing to add a trigger to it");
+
+        var settingsFile = Path.Combine(AppPaths.AppDataRoot, "settings.json");
+        Assert(settingsFile.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+            $"settings.json {settingsFile} is not under the suite's temp profile");
+
+        // Make settings.json exactly what Save() writes for the live settings, so the
+        // byte comparison below measures the import and nothing an earlier case did.
+        var wpm = settings.TypingSpeedWPM;
+        settings.TypingSpeedWPM = wpm + 1;
+        settings.TypingSpeedWPM = wpm;
+        Assert(File.Exists(settingsFile), $"no settings.json at {settingsFile}");
+
+        JsonObject ReadState()
+        {
+            var state = ReadWindowsSettings(settings);
+            state["BackupUnknownSettings"] = settings.BackupUnknownSettings;
+            state["BackupForeignPlatformExtensions"] = settings.BackupForeignPlatformExtensions;
+            state["BackupUnknownRootKeys"] = settings.BackupUnknownRootKeys;
+            state["CustomEndpoints"] = JsonSerializer.Serialize(settings.CustomEndpoints);
+            return state;
+        }
+
+        var memoryBefore = ReadState();
+        var memoryBeforeJson = memoryBefore.ToJsonString();
+        var fileBefore = File.ReadAllText(settingsFile);
+
+        var token = Guid.NewGuid().ToString("N")[..8];
+        var prefix = $"percy1614-{label}-{token}-";
+        var poisonName = prefix + "poison";
+        var trigger = $"percy1614_poison_{token}";
+        var poisonTable = poisonVocabulary ? "VocabularyItems" : "Modes";
+        var poisonColumn = poisonVocabulary ? "Word" : "Name";
+        var existingWord = $"percy1614-{token}-existing";
+
+        string ReadModes()
+        {
+            using var ctx = new HyperWhisperDbContext();
+            return string.Join("\n", ctx.Modes.AsNoTracking().OrderBy(m => m.Id).ToList()
+                .Select(m => $"{m.Id}|{m.Name}|{m.IsDefault}|{m.SortOrder}"));
+        }
+
+        string ReadVocabulary()
+        {
+            using var ctx = new HyperWhisperDbContext();
+            return string.Join("\n", ctx.VocabularyItems.AsNoTracking().OrderBy(v => v.Id).ToList()
+                .Select(v => $"{v.Id}|{v.Word}|{v.Replacement}|{v.SortOrder}|{v.Source}"));
+        }
+
+        if (poisonVocabulary)
+        {
+            // An existing word the backup REPLACES, so a vocabulary UPDATE that
+            // survived the failed import would show as a changed row too.
+            Assert(VocabularyService.Instance.TryAdd(existingWord, "before", out var addError),
+                $"could not seed the existing word: {addError}");
+        }
+        var modesBefore = ReadModes();
+        var vocabularyBefore = ReadVocabulary();
+
+        // Every value below is the OPPOSITE of the live one, so a backup whose
+        // settings stayed applied cannot read as unchanged.
+        var otherWpm = wpm == 61 ? 62 : 61;
+        var otherTheme = ((int)settings.ThemeMode + 1) % 3;
+        var otherTray = (!settings.MinimizeToTray).ToString().ToLowerInvariant();
+        var windowsSlice = JsonDocument.Parse(
+            $"{{\"settings\":{{\"minimizeToTray\":{otherTray},\"themeMode\":{otherTheme}}}}}").RootElement.Clone();
+        var linuxSlice = JsonDocument.Parse(
+            $"{{\"percy1614\":\"{token}\"}}").RootElement.Clone();
+        var unknownRoot = JsonDocument.Parse($"\"{token}\"").RootElement.Clone();
+
+        var backupPath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests",
+            $"issue1614-{label}-{token}.hwbackup.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+        File.WriteAllText(backupPath, JsonSerializer.Serialize(new UniversalBackup
+        {
+            SchemaVersion = 2,
+            ExportDate = DateTime.UtcNow,
+            AppVersion = "smoke-1614",
+            Platform = "windows",
+            Settings = new UniversalSettings
+            {
+                General = new UniversalGeneralSettings
+                {
+                    LaunchMinimized = !settings.LaunchMinimized,
+                    EnableSoundEffects = !settings.EnableSoundEffects
+                },
+                TextOutput = new UniversalTextOutputSettings
+                {
+                    RemoveFillerWords = !settings.RemoveFillerWords
+                },
+                Advanced = new UniversalAdvancedSettings { TypingSpeedWPM = otherWpm }
+            },
+            PlatformExtensions = new Dictionary<string, JsonElement>
+            {
+                ["windows"] = windowsSlice,
+                ["linux"] = linuxSlice
+            },
+            Modes =
+            [
+                UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = prefix + "0", SortOrder = 20_000 }),
+                UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = poisonVocabulary ? prefix + "1" : poisonName, SortOrder = 20_001 }),
+                UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = prefix + "2", SortOrder = 20_002 })
+            ],
+            Vocabulary = poisonVocabulary
+                ?
+                [
+                    new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = prefix + "word", Replacement = "after", SortOrder = 1 },
+                    new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = existingWord.ToUpperInvariant(), Replacement = "after", SortOrder = 2 },
+                    new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = poisonName, SortOrder = 3 }
+                ]
+                : null,
+            Additional = new Dictionary<string, JsonElement> { ["percy1614Probe"] = unknownRoot }
+        }, UniversalCaptureOptions));
+
+        void Exec(string sql)
+        {
+            using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.ExecuteNonQuery();
+        }
+
+        Exec($"CREATE TRIGGER IF NOT EXISTS {trigger} BEFORE INSERT ON {poisonTable} " +
+             $"WHEN NEW.{poisonColumn} = '{poisonName}' BEGIN SELECT RAISE(ABORT, 'percy1614 poison row'); END;");
+        try
+        {
+            var succeeded = runImport(backupPath);
+            Assert(!succeeded,
+                $"the {label} import succeeded although the poison row was refused, so this case proves nothing");
+
+            var memoryAfter = ReadState();
+            var changed = memoryBefore
+                .Where(entry => !JsonNode.DeepEquals(entry.Value, memoryAfter[entry.Key]))
+                .Select(entry => $"{entry.Key}: {entry.Value?.ToJsonString() ?? "null"} -> {memoryAfter[entry.Key]?.ToJsonString() ?? "null"}")
+                .ToList();
+            Assert(changed.Count == 0,
+                $"the failed {label} import left the backup's settings applied in memory: {string.Join("; ", changed)}");
+
+            var fileAfter = File.ReadAllText(settingsFile);
+            Assert(fileAfter == fileBefore,
+                $"the failed {label} import left settings.json changed on disk " +
+                $"({fileBefore.Length} chars before, {fileAfter.Length} after)");
+
+            Assert(ReadModes() == modesBefore,
+                $"the failed {label} import left the modes changed (the backup's modes were committed)");
+            Assert(ReadVocabulary() == vocabularyBefore,
+                $"the failed {label} import left the vocabulary changed");
+        }
+        finally
+        {
+            Exec($"DROP TRIGGER IF EXISTS {trigger};");
+            Exec($"DELETE FROM Modes WHERE Name LIKE '{prefix}%';");
+            Exec($"DELETE FROM VocabularyItems WHERE Word LIKE '{prefix}%' OR Word LIKE 'percy1614-{token}-%';");
+            try { File.Delete(backupPath); } catch { }
+
+            // On a build without the fix the backup's settings stay applied; put the
+            // old values back so the cases after this one start from the same state.
+            if (ReadState().ToJsonString() != memoryBeforeJson)
+            {
+                SeedWindowsSettings(settings, StripBookkeeping(memoryBefore), $"issue1614-{label}-cleanup");
+                settings.BackupUnknownSettings = memoryBefore["BackupUnknownSettings"]?.GetValue<string>();
+                settings.BackupForeignPlatformExtensions = memoryBefore["BackupForeignPlatformExtensions"]?.GetValue<string>();
+                settings.BackupUnknownRootKeys = memoryBefore["BackupUnknownRootKeys"]?.GetValue<string>();
+            }
+        }
+
+        static JsonObject StripBookkeeping(JsonObject state)
+        {
+            var native = state.DeepClone().AsObject();
+            native.Remove("BackupUnknownSettings");
+            native.Remove("BackupForeignPlatformExtensions");
+            native.Remove("BackupUnknownRootKeys");
+            native.Remove("CustomEndpoints");
+            return native;
+        }
+    }
+
+    /// <summary>
+    /// Issue #1614 round 2: a settings-only Import Selected (the backup also carries
+    /// modes and vocabulary, not selected) has no database step, so it must not enter
+    /// one. Another thread holds BackupService's _dbLock, the lock every DB step takes
+    /// first, for up to 5 s: the import must finish well inside that, apply the
+    /// backup's settings and write no rows. A SQLite-level lock cannot tell the two
+    /// apart here: EF's BeginTransaction is deferred, so an empty BEGIN/COMMIT takes
+    /// no file lock and succeeds even under another connection's BEGIN EXCLUSIVE
+    /// (measured on the PC); _dbLock is the wait the unneeded DB step really adds.
+    /// </summary>
+    private static void AssertSettingsOnlyImportSkipsTheDatabaseStep()
+    {
+        DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+        var settings = SettingsService.Instance;
+
+        string dbPath;
+        using (var probe = new HyperWhisperDbContext())
+        {
+            dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                probe.Database.GetConnectionString()).DataSource);
+        }
+        Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+            $"the database {dbPath} is not under the suite's temp profile; refusing to clean rows from it");
+
+        var stateBefore = ReadWindowsSettings(settings);
+        var unknownSettingsBefore = settings.BackupUnknownSettings;
+        var foreignBefore = settings.BackupForeignPlatformExtensions;
+        var unknownRootBefore = settings.BackupUnknownRootKeys;
+
+        var wpm = settings.TypingSpeedWPM;
+        var otherWpm = wpm == 61 ? 62 : 61;
+        var otherFiller = !settings.RemoveFillerWords;
+        var token = Guid.NewGuid().ToString("N")[..8];
+        var prefix = $"percy1614-locked-{token}-";
+
+        var backupPath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests",
+            $"issue1614-locked-{token}.hwbackup.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+        File.WriteAllText(backupPath, JsonSerializer.Serialize(new UniversalBackup
+        {
+            SchemaVersion = 2,
+            ExportDate = DateTime.UtcNow,
+            AppVersion = "smoke-1614",
+            Platform = "windows",
+            Settings = new UniversalSettings
+            {
+                TextOutput = new UniversalTextOutputSettings { RemoveFillerWords = otherFiller },
+                Advanced = new UniversalAdvancedSettings { TypingSpeedWPM = otherWpm }
+            },
+            Modes =
+            [
+                UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = prefix + "mode", SortOrder = 20_100 })
+            ],
+            Vocabulary =
+            [
+                new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = prefix + "word", SortOrder = 1 }
+            ]
+        }, UniversalCaptureOptions));
+
+        void Exec(string sql)
+        {
+            using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.ExecuteNonQuery();
+        }
+
+        var dbLock = typeof(BackupService).GetField("_dbLock", BindingFlags.NonPublic | BindingFlags.Static)?.GetValue(null)
+            ?? throw new InvalidOperationException("BackupService._dbLock not found");
+
+        // The holder lets go after 5 s at most, so a build that does enter the DB
+        // step fails this case in about 5 s instead of hanging the suite. The import
+        // runs on this thread (ApplyImport may marshal to it), the holder on its own.
+        using var held = new ManualResetEventSlim(false);
+        using var release = new ManualResetEventSlim(false);
+        var holder = new Thread(() =>
+        {
+            lock (dbLock)
+            {
+                held.Set();
+                release.Wait(TimeSpan.FromSeconds(5));
+            }
+        }) { IsBackground = true, Name = "issue1614-dblock-holder" };
+        try
+        {
+            holder.Start();
+            Assert(held.Wait(TimeSpan.FromSeconds(10)), "the holder thread never took _dbLock");
+
+            var watch = Stopwatch.StartNew();
+            var result = BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+            {
+                IncludeSettings = true
+            });
+            watch.Stop();
+            release.Set();
+            holder.Join(TimeSpan.FromSeconds(10));
+
+            Assert(result.IsSuccess,
+                $"the settings-only import failed ({watch.ElapsedMilliseconds} ms): {result.Error}");
+            Assert(watch.Elapsed < TimeSpan.FromSeconds(2.5),
+                $"the settings-only import took {watch.ElapsedMilliseconds} ms: it waited on _dbLock, so it entered the DB step");
+            Assert(result.Value!.SettingsImported, "the summary says the settings were not imported");
+            Assert(result.Value.ModesImported == 0 && result.Value.VocabularyAdded == 0 && result.Value.VocabularyConflicts == 0,
+                $"the settings-only import reported DB work: {result.Value.ToLogString()}");
+            Assert(settings.TypingSpeedWPM == otherWpm,
+                $"TypingSpeedWPM is {settings.TypingSpeedWPM}, not the backup's {otherWpm}");
+            Assert(settings.RemoveFillerWords == otherFiller,
+                $"RemoveFillerWords is {settings.RemoveFillerWords}, not the backup's {otherFiller}");
+
+            using var ctx = new HyperWhisperDbContext();
+            Assert(!ctx.Modes.Any(m => m.Name.StartsWith(prefix)), "the unselected modes were written");
+            Assert(!ctx.VocabularyItems.Any(v => v.Word.StartsWith(prefix)), "the unselected vocabulary was written");
+        }
+        finally
+        {
+            release.Set();
+            holder.Join(TimeSpan.FromSeconds(10));
+            Exec($"DELETE FROM Modes WHERE Name LIKE '{prefix}%';");
+            Exec($"DELETE FROM VocabularyItems WHERE Word LIKE '{prefix}%';");
+            try { File.Delete(backupPath); } catch { }
+
+            SeedWindowsSettings(settings, stateBefore, "issue1614-locked-cleanup");
+            settings.BackupUnknownSettings = unknownSettingsBefore;
+            settings.BackupForeignPlatformExtensions = foreignBefore;
+            settings.BackupUnknownRootKeys = unknownRootBefore;
+        }
+    }
 
     /// <summary>
     /// Writes a file that starts with the GGML magic and is exactly
