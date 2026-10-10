@@ -1076,6 +1076,7 @@
 "settings.backup.import.error.storeVocabulary" = "לא ניתן היה לשמור את אוצר המילים, ולכן הוא נשאר כפי שהיה.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "המצבים יובאו, אך לא ניתן היה לשמור את אוצר המילים, ולכן הוא נשאר כפי שהיה.";
 "settings.backup.import.error.storeLicense" = "לא ניתן היה לייבא את מפתח הרישיון באופן מאובטח.";
+"settings.backup.import.error.storeSettingsRestored" = "ההגדרות נשארו כפי שהיו.";
 "settings.backup.import.error.storeOtherSections" = "שאר המקטעים שנבחרו הוחלו.";
 "settings.backup.import.apiKeysFailed" = "לא ניתן היה לשמור את מפתחות ה-API האלה במחזיק המפתחות והם לא שוחזרו: %@. הזן אותם שוב בהגדרות.";
 "settings.backup.import.confirm.title" = "לייבא הגדרות?";

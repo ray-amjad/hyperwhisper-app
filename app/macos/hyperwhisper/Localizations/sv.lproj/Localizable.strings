@@ -1076,6 +1076,7 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "settings.backup.import.error.storeVocabulary" = "Ordförrådet kunde inte sparas, så det lämnades oförändrat.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Lägena importerades, men ordförrådet kunde inte sparas, så det lämnades oförändrat.";
 "settings.backup.import.error.storeLicense" = "Licensnyckeln kunde inte importeras säkert.";
+"settings.backup.import.error.storeSettingsRestored" = "Inställningarna lämnades oförändrade.";
 "settings.backup.import.error.storeOtherSections" = "De andra valda delarna tillämpades.";
 "settings.backup.import.apiKeysFailed" = "De här API-nycklarna kunde inte sparas i nyckelringen och återställdes inte: %@. Ange dem igen i Inställningar.";
 "settings.backup.import.confirm.title" = "Importera inställningar?";

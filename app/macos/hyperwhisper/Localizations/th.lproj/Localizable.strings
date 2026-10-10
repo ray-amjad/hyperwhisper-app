@@ -1076,6 +1076,7 @@
 "settings.backup.import.error.storeVocabulary" = "ไม่สามารถบันทึกศัพท์เฉพาะได้ จึงคงไว้ตามเดิม";
 "settings.backup.import.error.storeVocabularyAfterModes" = "นำเข้าโหมดแล้ว แต่ไม่สามารถบันทึกศัพท์เฉพาะได้ จึงคงศัพท์เฉพาะไว้ตามเดิม";
 "settings.backup.import.error.storeLicense" = "ไม่สามารถนำเข้าคีย์ใบอนุญาตอย่างปลอดภัยได้";
+"settings.backup.import.error.storeSettingsRestored" = "การตั้งค่ายังคงเหมือนเดิม";
 "settings.backup.import.error.storeOtherSections" = "นำส่วนอื่นที่เลือกไปใช้แล้ว";
 "settings.backup.import.apiKeysFailed" = "ไม่สามารถบันทึกคีย์ API เหล่านี้ลงในพวงกุญแจได้และไม่ได้กู้คืน: %@ โปรดป้อนอีกครั้งในการตั้งค่า";
 "settings.backup.import.confirm.title" = "นำเข้าการตั้งค่า?";

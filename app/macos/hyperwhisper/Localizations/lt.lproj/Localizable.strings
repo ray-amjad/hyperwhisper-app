@@ -1076,6 +1076,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.import.error.storeVocabulary" = "Žodyno nepavyko išsaugoti, todėl jis liko nepakeistas.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Režimai importuoti, bet žodyno nepavyko išsaugoti, todėl jis liko nepakeistas.";
 "settings.backup.import.error.storeLicense" = "Licencijos rakto nepavyko saugiai importuoti.";
+"settings.backup.import.error.storeSettingsRestored" = "Nustatymai liko nepakeisti.";
 "settings.backup.import.error.storeOtherSections" = "Kitos pasirinktos dalys pritaikytos.";
 "settings.backup.import.apiKeysFailed" = "Šių API raktų nepavyko įrašyti į raktinę, todėl jie nebuvo atkurti: %@. Įveskite juos dar kartą nustatymuose.";
 "settings.backup.import.confirm.title" = "Importuoti nustatymai?";

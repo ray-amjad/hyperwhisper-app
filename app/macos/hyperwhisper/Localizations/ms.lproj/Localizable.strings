@@ -1076,6 +1076,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "settings.backup.import.error.storeVocabulary" = "Perbendaharaan kata tidak dapat disimpan, jadi ia dibiarkan seperti asal.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Mod telah diimport, tetapi perbendaharaan kata tidak dapat disimpan, jadi ia dibiarkan seperti asal.";
 "settings.backup.import.error.storeLicense" = "Kunci lesen tidak dapat diimport dengan selamat.";
+"settings.backup.import.error.storeSettingsRestored" = "Tetapan dibiarkan seperti asal.";
 "settings.backup.import.error.storeOtherSections" = "Bahagian lain yang dipilih telah digunakan.";
 "settings.backup.import.apiKeysFailed" = "Kunci API ini tidak dapat disimpan ke Rantai Kunci dan tidak dipulihkan: %@. Masukkannya semula dalam Tetapan.";
 "settings.backup.import.confirm.title" = "Import Tetapan?";

@@ -1076,6 +1076,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "settings.backup.import.error.storeVocabulary" = "Nie udało się zapisać słownictwa, więc pozostało bez zmian.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Tryby zostały zaimportowane, ale nie udało się zapisać słownictwa, więc pozostało bez zmian.";
 "settings.backup.import.error.storeLicense" = "Nie udało się bezpiecznie zaimportować klucza licencyjnego.";
+"settings.backup.import.error.storeSettingsRestored" = "Ustawienia pozostały bez zmian.";
 "settings.backup.import.error.storeOtherSections" = "Pozostałe wybrane sekcje zostały zastosowane.";
 "settings.backup.import.apiKeysFailed" = "Tych kluczy API nie udało się zapisać w pęku kluczy i nie zostały przywrócone: %@. Wprowadź je ponownie w Ustawieniach.";
 "settings.backup.import.confirm.title" = "Importować ustawienia?";

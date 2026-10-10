@@ -1076,6 +1076,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "settings.backup.import.error.storeVocabulary" = "Vārdu krājumu neizdevās saglabāt, tāpēc tas palika nemainīts.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Režīmi tika importēti, bet vārdu krājumu neizdevās saglabāt, tāpēc tas palika nemainīts.";
 "settings.backup.import.error.storeLicense" = "Licences atslēgu neizdevās droši importēt.";
+"settings.backup.import.error.storeSettingsRestored" = "Iestatījumi palika nemainīti.";
 "settings.backup.import.error.storeOtherSections" = "Pārējās atlasītās sadaļas tika lietotas.";
 "settings.backup.import.apiKeysFailed" = "Šīs API atslēgas neizdevās saglabāt atslēgu saišķī, un tās netika atjaunotas: %@. Ievadiet tās vēlreiz iestatījumos.";
 "settings.backup.import.confirm.title" = "Importēt iestatījumus?";

@@ -1076,6 +1076,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "settings.backup.import.error.storeVocabulary" = "No s'ha pogut desar el vocabulari, de manera que s'ha deixat com estava.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "S'han importat els modes, però no s'ha pogut desar el vocabulari, de manera que s'ha deixat com estava.";
 "settings.backup.import.error.storeLicense" = "No s'ha pogut importar la clau de llicència de manera segura.";
+"settings.backup.import.error.storeSettingsRestored" = "La configuració s'ha deixat com estava.";
 "settings.backup.import.error.storeOtherSections" = "S'han aplicat les altres seccions seleccionades.";
 "settings.backup.import.apiKeysFailed" = "Aquestes claus d'API no s'han pogut desar al clauer i no s'han restaurat: %@. Torna-les a introduir a Configuració.";
 "settings.backup.import.confirm.title" = "Importar configuració?";

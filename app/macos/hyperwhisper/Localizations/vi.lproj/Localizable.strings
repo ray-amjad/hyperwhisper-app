@@ -1076,6 +1076,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "settings.backup.import.error.storeVocabulary" = "Không thể lưu từ vựng, nên từ vựng được giữ nguyên.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Các chế độ đã được nhập, nhưng không thể lưu từ vựng, nên từ vựng được giữ nguyên.";
 "settings.backup.import.error.storeLicense" = "Không thể nhập khóa bản quyền một cách an toàn.";
+"settings.backup.import.error.storeSettingsRestored" = "Cài đặt được giữ nguyên.";
 "settings.backup.import.error.storeOtherSections" = "Các phần đã chọn khác đã được áp dụng.";
 "settings.backup.import.apiKeysFailed" = "Không thể lưu các khóa API này vào Chuỗi khóa nên chúng chưa được khôi phục: %@. Hãy nhập lại trong Cài đặt.";
 "settings.backup.import.confirm.title" = "Nhập Cài đặt?";

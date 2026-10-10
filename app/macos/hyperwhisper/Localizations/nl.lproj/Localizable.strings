@@ -1076,6 +1076,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "settings.backup.import.error.storeVocabulary" = "De woordenlijst kon niet worden opgeslagen en is daarom ongewijzigd gebleven.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "De modi zijn geïmporteerd, maar de woordenlijst kon niet worden opgeslagen en is daarom ongewijzigd gebleven.";
 "settings.backup.import.error.storeLicense" = "De licentiesleutel kon niet veilig worden geïmporteerd.";
+"settings.backup.import.error.storeSettingsRestored" = "De instellingen zijn ongewijzigd gebleven.";
 "settings.backup.import.error.storeOtherSections" = "De andere geselecteerde onderdelen zijn toegepast.";
 "settings.backup.import.apiKeysFailed" = "Deze API-sleutels konden niet in de sleutelhanger worden bewaard en zijn niet hersteld: %@. Voer ze opnieuw in bij Instellingen.";
 "settings.backup.import.confirm.title" = "Instellingen importeren?";

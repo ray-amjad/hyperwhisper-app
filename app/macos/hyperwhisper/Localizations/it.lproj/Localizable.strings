@@ -1076,6 +1076,7 @@ Aggiorna queste modalità per usare un modello diverso prima di eliminarlo.";
 "settings.backup.import.error.storeVocabulary" = "Non è stato possibile salvare il vocabolario, quindi è rimasto invariato.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Le modalità sono state importate, ma non è stato possibile salvare il vocabolario, quindi è rimasto invariato.";
 "settings.backup.import.error.storeLicense" = "Non è stato possibile importare la chiave di licenza in modo sicuro.";
+"settings.backup.import.error.storeSettingsRestored" = "Le impostazioni sono rimaste invariate.";
 "settings.backup.import.error.storeOtherSections" = "Le altre sezioni selezionate sono state applicate.";
 "settings.backup.import.apiKeysFailed" = "Queste chiavi API non sono state salvate nel portachiavi e non sono state ripristinate: %@. Inseriscile di nuovo nelle Impostazioni.";
 "settings.backup.import.confirm.title" = "Importare Impostazioni?";

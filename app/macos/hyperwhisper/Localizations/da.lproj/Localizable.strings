@@ -1076,6 +1076,7 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "settings.backup.import.error.storeVocabulary" = "Ordforrådet kunne ikke gemmes, så det blev ikke ændret.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Tilstandene blev importeret, men ordforrådet kunne ikke gemmes, så det blev ikke ændret.";
 "settings.backup.import.error.storeLicense" = "Licensnøglen kunne ikke importeres sikkert.";
+"settings.backup.import.error.storeSettingsRestored" = "Indstillingerne blev ikke ændret.";
 "settings.backup.import.error.storeOtherSections" = "De andre valgte sektioner blev anvendt.";
 "settings.backup.import.apiKeysFailed" = "Disse API-nøgler kunne ikke gemmes i nøgleringen og blev ikke gendannet: %@. Indtast dem igen under Indstillinger.";
 "settings.backup.import.confirm.title" = "Importer indstillinger?";

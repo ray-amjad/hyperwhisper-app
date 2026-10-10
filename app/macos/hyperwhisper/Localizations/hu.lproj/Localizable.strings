@@ -1076,6 +1076,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.import.error.storeVocabulary" = "A szókincset nem sikerült menteni, ezért változatlan maradt.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "A módok importálása megtörtént, de a szókincset nem sikerült menteni, ezért változatlan maradt.";
 "settings.backup.import.error.storeLicense" = "A licenckulcsot nem sikerült biztonságosan importálni.";
+"settings.backup.import.error.storeSettingsRestored" = "A beállítások változatlanok maradtak.";
 "settings.backup.import.error.storeOtherSections" = "A többi kiválasztott szakasz alkalmazva lett.";
 "settings.backup.import.apiKeysFailed" = "Ezeket az API-kulcsokat nem sikerült a kulcskarikába menteni, ezért nem lettek visszaállítva: %@. Add meg őket újra a Beállításokban.";
 "settings.backup.import.confirm.title" = "Beállítások importálása?";

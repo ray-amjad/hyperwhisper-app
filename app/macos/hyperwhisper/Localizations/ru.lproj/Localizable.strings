@@ -1076,6 +1076,7 @@
 "settings.backup.import.error.storeVocabulary" = "Не удалось сохранить словарь, поэтому он остался без изменений.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Режимы импортированы, но не удалось сохранить словарь, поэтому он остался без изменений.";
 "settings.backup.import.error.storeLicense" = "Не удалось безопасно импортировать лицензионный ключ.";
+"settings.backup.import.error.storeSettingsRestored" = "Настройки остались без изменений.";
 "settings.backup.import.error.storeOtherSections" = "Остальные выбранные разделы применены.";
 "settings.backup.import.apiKeysFailed" = "Эти API-ключи не удалось сохранить в связку ключей, и они не были восстановлены: %@. Введите их снова в настройках.";
 "settings.backup.import.confirm.title" = "Импортировать параметры?";

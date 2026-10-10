@@ -1076,6 +1076,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.backup.import.error.storeVocabulary" = "Ekki tókst að vista orðaforðann, svo hann er óbreyttur.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Hamirnir voru fluttir inn, en ekki tókst að vista orðaforðann, svo hann er óbreyttur.";
 "settings.backup.import.error.storeLicense" = "Ekki tókst að flytja leyfislykilinn inn á öruggan hátt.";
+"settings.backup.import.error.storeSettingsRestored" = "Stillingunum var ekki breytt.";
 "settings.backup.import.error.storeOtherSections" = "Hinir valdu hlutarnir voru notaðir.";
 "settings.backup.import.apiKeysFailed" = "Ekki tókst að vista þessa API-lykla í lyklakippuna og þeir voru ekki endurheimtir: %@. Sláðu þá inn aftur í Stillingum.";
 "settings.backup.import.confirm.title" = "Flytja inn stillingar?";

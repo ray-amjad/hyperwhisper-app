@@ -1076,6 +1076,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "settings.backup.import.error.storeVocabulary" = "Kelime hazinesi kaydedilemedi, bu yüzden olduğu gibi bırakıldı.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Modlar içe aktarıldı, ancak kelime hazinesi kaydedilemedi, bu yüzden olduğu gibi bırakıldı.";
 "settings.backup.import.error.storeLicense" = "Lisans anahtarı güvenli bir şekilde içe aktarılamadı.";
+"settings.backup.import.error.storeSettingsRestored" = "Ayarlar olduğu gibi bırakıldı.";
 "settings.backup.import.error.storeOtherSections" = "Seçilen diğer bölümler uygulandı.";
 "settings.backup.import.apiKeysFailed" = "Bu API anahtarları Anahtar Zinciri'ne kaydedilemedi ve geri yüklenmedi: %@. Bunları Ayarlar'da yeniden girin.";
 "settings.backup.import.confirm.title" = "Ayarları İçe Aktar?";

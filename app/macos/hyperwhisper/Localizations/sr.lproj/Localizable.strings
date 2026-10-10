@@ -1076,6 +1076,7 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "settings.backup.import.error.storeVocabulary" = "Речник није могао да се сачува, па је остао непромењен.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Режими су увезени, али речник није могао да се сачува, па је остао непромењен.";
 "settings.backup.import.error.storeLicense" = "Лиценцни кључ није могао безбедно да се увезе.";
+"settings.backup.import.error.storeSettingsRestored" = "Подешавања су остала непромењена.";
 "settings.backup.import.error.storeOtherSections" = "Остали изабрани одељци су примењени.";
 "settings.backup.import.apiKeysFailed" = "Ови API кључеви нису могли да се сачувају у привезак кључева и нису враћени: %@. Поново их унесите у Подешавањима.";
 "settings.backup.import.confirm.title" = "Импортуј Поставке?";

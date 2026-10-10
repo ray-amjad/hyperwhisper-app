@@ -1076,6 +1076,7 @@
 "settings.backup.import.error.storeVocabulary" = "Речникът не можа да бъде запазен, затова остана непроменен.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Режимите бяха импортирани, но речникът не можа да бъде запазен, затова остана непроменен.";
 "settings.backup.import.error.storeLicense" = "Лицензният ключ не можа да бъде импортиран сигурно.";
+"settings.backup.import.error.storeSettingsRestored" = "Настройките останаха непроменени.";
 "settings.backup.import.error.storeOtherSections" = "Другите избрани раздели бяха приложени.";
 "settings.backup.import.apiKeysFailed" = "Тези API ключове не можаха да бъдат запазени в Keychain и не бяха възстановени: %@. Въведете ги отново в Настройки.";
 "settings.backup.import.confirm.title" = "Импортиране на настройки?";
