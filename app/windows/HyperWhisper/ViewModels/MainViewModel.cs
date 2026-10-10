@@ -1011,8 +1011,17 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        LoggingService.Info("MainViewModel: Disposing Parakeet daemon because selected mode does not use it");
-        _parakeetTranscriptionService.DisposeModel();
+        // Housekeeping only (#1544): every mode write re-selects the current mode and
+        // lands here, on the Local API request thread or the UI thread. A Local API job
+        // may be on the daemon even though the GUI is idle; waiting it out held that
+        // thread for the whole job, then forced a cold start. Leave a busy daemon alone.
+        if (!_parakeetTranscriptionService.TryDisposeModelIfIdle())
+        {
+            LoggingService.Info("MainViewModel: Keeping Parakeet daemon; another transcription is using it");
+            return;
+        }
+
+        LoggingService.Info("MainViewModel: Disposed Parakeet daemon because selected mode does not use it");
         UpdateModelStatus();
     }
 

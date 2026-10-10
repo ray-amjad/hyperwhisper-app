@@ -1792,6 +1792,48 @@ internal static class Program
                 }
             });
 
+            // #1544: a mode write re-selects the current mode, and when that mode is not
+            // Parakeet the view model unloads the daemon. With a Local API job on it, that
+            // unload must return at once and leave the job and the daemon alone; once the
+            // daemon is idle it unloads as before.
+            RunAsync("Parakeet housekeeping unload leaves a busy daemon alone and does not wait (#1544)", async () =>
+            {
+                var dir = Path.Combine(tempRoot, "parakeet-1544-idle-unload");
+                var audio = WriteSilentParakeetWav(dir, seconds: 60);
+                var service = new ParakeetTranscriptionService();
+                using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out var daemonStdout);
+                var daemonPid = daemon.Id;
+                try
+                {
+                    var job = service.TranscribeAsync(audio);   // the Local API's job, in flight
+                    await Task.Delay(200);
+
+                    var clock = Stopwatch.StartNew();
+                    var disposed = await Task.Run(() => service.TryDisposeModelIfIdle()).WaitAsync(TimeSpan.FromSeconds(5));
+                    Assert(!disposed, "the housekeeping unload stopped a daemon with a job on it (#1544)");
+                    Assert(clock.Elapsed < TimeSpan.FromSeconds(1), $"the housekeeping unload waited {clock.Elapsed.TotalSeconds:F1}s for the job (#1544)");
+                    Assert(service.IsAvailable, "the housekeeping unload marked a busy daemon unavailable");
+
+                    // A lease (Local API between its reload and its transcription) counts too.
+                    using (var lease = await service.ReloadWhenIdleAsync("fake-parakeet", Path.Combine(dir, "no-such-model"), null, CancellationToken.None)
+                            .WaitAsync(TimeSpan.FromSeconds(5)))
+                    {
+                        await daemonStdout.WriteLineAsync("{\"text\":\"one\",\"duration_ms\":1}");
+                        Assert(await job.WaitAsync(TimeSpan.FromSeconds(10)) == "one", "the job lost its result to the housekeeping unload");
+                        Assert(!service.TryDisposeModelIfIdle(), "the housekeeping unload ignored a held lease");
+                    }
+
+                    Assert(PendingParakeetRequests(service) == 0, "a request or lease was left counted in");
+                    Assert(service.TryDisposeModelIfIdle(), "the housekeeping unload kept an idle daemon");
+                    Assert(!service.IsInitialized, "the idle unload left the service marked ready");
+                    Assert(FakeParakeetDaemonExited(daemonPid), "the idle unload did not stop the daemon");
+                }
+                finally
+                {
+                    StopFakeParakeetDaemon(service, daemon);
+                }
+            });
+
             // #1608 review: an idle reload holds the lock through the old daemon's exit and
             // the new one's READY wait. A GUI DisposeModel / InitializeAsync (the user's own
             // mode switch, on the UI thread) must cancel it at once instead of blocking for

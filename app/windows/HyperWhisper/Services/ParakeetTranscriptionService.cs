@@ -2044,6 +2044,50 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     /// </summary>
     public void DisposeModel() => DisposeModelCore(advanceTeardownGeneration: true);
 
+    /// <summary>
+    /// The housekeeping unload (#1544): stops the daemon only when nobody is using it,
+    /// and never waits for or cancels a job. <see cref="DisposeModel"/> is the user's own
+    /// teardown; this is for "the selected mode no longer needs Parakeet", which a mode
+    /// write by the Local API or the GUI re-runs while a Local API job may be on the
+    /// daemon. That caller must not block its thread for the job (seconds to minutes),
+    /// and must not end someone else's transcription to free memory.
+    /// <para>
+    /// The lock is tried without waiting and the pending count checked under
+    /// <see cref="_drainSync"/> in the same step as the generation advance, exactly as
+    /// <see cref="TryReserveIdleReload"/> does: a request or lease counted in before this
+    /// keeps the daemon; one counted in after belongs to the new generation, waits on the
+    /// lock, and finds the daemon gone (a lease-less request then auto-restarts it).
+    /// </para>
+    /// </summary>
+    /// <returns>False when the daemon is busy and was left running.</returns>
+    public bool TryDisposeModelIfIdle()
+    {
+        if (!_transcriptionLock.Wait(0))
+        {
+            return false;
+        }
+
+        try
+        {
+            lock (_drainSync)
+            {
+                if (_pendingRequests > 0)
+                {
+                    return false;
+                }
+
+                Interlocked.Increment(ref _teardownGeneration);
+            }
+
+            DisposeModelCore(advanceTeardownGeneration: false, transcriptionLockHeld: true);
+            return true;
+        }
+        finally
+        {
+            _transcriptionLock.Release();
+        }
+    }
+
     /// <param name="transcriptionLockHeld">
     /// The caller (<see cref="ReloadWhenIdleAsync"/>) already holds the lock with no request
     /// pending, so there is nothing to cancel or wait for, and the lock stays the caller's.
