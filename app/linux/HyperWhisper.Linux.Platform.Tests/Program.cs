@@ -40,6 +40,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("true Xorg selects XGrabKey instead of evdev", XorgSelectsXGrabKey),
     ("X11 XGrabKey host integration", X11GrabIntegration),
     ("X11 Display mutation is serialized with reader", X11ConcurrentMutationIntegration),
+    ("X11 Ctrl+Alt toggle ignores Ctrl+Alt+Left on a real server", X11ModifierChordIntegration),
     ("StatusNotifierItem action protocol is bounded", StatusNotifierProtocol),
     ("StatusNotifierItem accepts every allowlisted action", StatusNotifierAllowlist),
     ("StatusNotifierItem rejects payload and casing variants", StatusNotifierRejectsPayloads),
@@ -858,6 +859,40 @@ static async Task X11ConcurrentMutationIntegration()
             if (index % 5 == 0) service.ResetKeyboardState();
         }
     });
+}
+
+// Issue #1511 on a real X server: the grab Ctrl+Alt activates must route the
+// joining key to this client, or the chord could not be spoiled.
+static async Task X11ModifierChordIntegration()
+{
+    if (Environment.GetEnvironmentVariable("HW_RUN_X11_GRAB_TEST") != "1") return;
+    using var service = new X11GlobalShortcutService();
+    var fired = 0;
+    service.ShortcutPressed += (_, args) => { if (args.Name == "chord") Interlocked.Increment(ref fired); };
+    var registered = service.RegisterShortcuts([new NamedShortcut("chord",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))]);
+    Assert.Success(registered["chord"]); Assert.Success(service.Start());
+    try
+    {
+        async Task Xdotool(string arguments)
+        {
+            using var process = Process.Start(new ProcessStartInfo("xdotool", arguments) { UseShellExecute = false });
+            if (process is null) throw new InvalidOperationException("xdotool failed to start");
+            await process.WaitForExitAsync(); Assert.Equal(0, process.ExitCode);
+            await Task.Delay(150);
+        }
+        await Xdotool("keydown ctrl keydown alt keydown Left keyup Left keyup alt keyup ctrl");
+        await Xdotool("keydown ctrl keydown alt keydown Left keyup alt keyup Left keyup ctrl");
+        await Xdotool("keydown ctrl keydown alt keydown shift keyup shift keyup alt keyup ctrl");
+        Assert.Equal(0, Volatile.Read(ref fired));
+        await Xdotool("keydown ctrl keydown alt keyup alt keyup ctrl");
+        Assert.Equal(1, Volatile.Read(ref fired));
+    }
+    finally
+    {
+        service.Dispose();
+        await Task.Delay(100);
+    }
 }
 
 static async Task PulseRecorderWritesWave()
