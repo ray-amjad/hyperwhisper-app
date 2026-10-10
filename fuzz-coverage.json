@@ -370,6 +370,22 @@
       ],
       "licensed": false,
       "note": "unlicensed. 1629 = #474 regression (Parakeet blanks model picker, saves parakeet-v2); commented #632 (stale 'Mode saved' in Create dialog). local-api: busy/80/65536/abc ports fall back to a free port and the page shows the real one; clipboard copy fails only because the box has no xclip/wl-copy (not a defect). sandbox-up.sh apt gate skips install on this image (command -v with many names returns 0 if any exists) — install the package list by hand, incl. 'time'."
+    },
+    {
+      "at": "2026-10-10T01:57:03Z",
+      "platform": "mac",
+      "commit": "20fc240f",
+      "routes": [
+        "onboarding",
+        "home-and-tray",
+        "history-and-backup"
+      ],
+      "status": "1-commented",
+      "issues": [
+        1429
+      ],
+      "licensed": false,
+      "note": "Unlicensed (Debug=staging). Built on the user's MacBook, Xcode 27, core cross-built here. Fresh profile = move ~/Library/Application Support/HyperWhisper aside + defaults export/delete, restore after (hasCompletedOnboarding=false alone does NOT show the wizard when modes exist). Codex's only defect = History Retry with Apple Speech on silence leaves a blank completed row -> comment on #1429. Not filed: Backup import says '1 modes imported' (no stringsdict in the project; cosmetic). Onboarding wizard was walked only to the model step + Set Up Later; no model download."
     }
   ]
 }
