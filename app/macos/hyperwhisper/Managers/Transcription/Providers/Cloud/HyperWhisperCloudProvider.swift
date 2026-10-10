@@ -165,7 +165,9 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 let nsError = error as NSError
                 // Failed attempt shouldn't burn the debounce window — clear so the next hotkey retries.
                 Task { @MainActor in self?.lastWarmupAt = nil }
-                AppLogger.network.debug("Cloud warmup failed · \(error.localizedDescription, privacy: .public)")
+                // A transport error (no server body), but an error description is
+                // free text: its domain and code are public, the description private (#1679).
+                AppLogger.network.debug("Cloud warmup failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
                 if Self.isDnsError(nsError) {
                     Task { @MainActor in self?.performDnsRecoveryReset() }
                 }
@@ -645,7 +647,16 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 throw CancellationError()
             } catch {
                 // Post-processing failed, but we still have the raw transcription
-                AppLogger.network.warning("HyperWhisper Cloud post-processing failed · error=\(error.localizedDescription, privacy: .public)")
+                // A Cloud error is thrown as `serverError(message:)` holding the
+                // Cloud's `message`, which can carry an upstream provider's error
+                // body that echoes the transcript (#1679). The error's identity and
+                // status are public; its description is private.
+                let nsError = error as NSError
+                var serverStatus = "none"
+                if case .serverError(let statusCode, _)? = error as? TranscriptionError {
+                    serverStatus = String(statusCode)
+                }
+                AppLogger.network.warning("HyperWhisper Cloud post-processing failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · serverStatus=\(serverStatus, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
 
                 // Log to Sentry so we get alerted about real post-processing failures
                 SentryService.capture(
@@ -1138,7 +1149,12 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
 
             let serverContext = errorJson["context"] as? [String: Any]
             let contextDump = serverContext?.map { "\($0.key): \($0.value)" }.joined(separator: ", ") ?? "none"
-            AppLogger.network.error("HyperWhisper Cloud API error · status=\(statusCode, privacy: .public) · message=\(errorMessage, privacy: .public) · context=\(contextDump, privacy: .public)")
+            let contextKeys = serverContext?.keys.sorted().joined(separator: ",") ?? "none"
+            // A failed upstream call's `message` can carry that provider's error
+            // body, which can echo the transcript or the vocabulary prompt (#1679).
+            // `context` values are free-form server JSON, so they are private too;
+            // the status, the message length and the context key names stay public.
+            AppLogger.network.error("HyperWhisper Cloud API error · status=\(statusCode, privacy: .public) · messageLen=\(errorMessage.count, privacy: .public) · message=\(errorMessage, privacy: .private) · contextKeys=\(contextKeys, privacy: .public) · context=\(contextDump, privacy: .private)")
 
             switch statusCode {
             case 402:
