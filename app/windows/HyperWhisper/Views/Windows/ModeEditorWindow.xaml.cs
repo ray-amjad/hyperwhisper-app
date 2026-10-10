@@ -23,6 +23,8 @@ public partial class ModeEditorWindow : Window
     public ModeEditorWindow(Mode mode)
     {
         InitializeComponent();
+        // 700 DIP is taller than a 1080p work area at 175%; the body scrolls (issue #1500).
+        WindowWorkAreaFit.Attach(this);
         _mode = mode;
         _isCreateMode = false;
 
@@ -48,6 +50,8 @@ public partial class ModeEditorWindow : Window
     public ModeEditorWindow(bool isCreateMode)
     {
         InitializeComponent();
+        // 700 DIP is taller than a 1080p work area at 175%; the body scrolls (issue #1500).
+        WindowWorkAreaFit.Attach(this);
         _isCreateMode = isCreateMode;
 
         // Create a new mode with sensible defaults
@@ -1759,6 +1763,8 @@ public partial class ModeEditorWindow : Window
             Content = new ModelsSettingsPage()
         };
 
+        // 760 DIP is taller than a 1080p work area at 175% (issue #1500).
+        WindowWorkAreaFit.Attach(settingsWindow);
         settingsWindow.ShowDialog();
 
         LoadPostProcessingModels(PostProcessingProvider.LocalLlm);
