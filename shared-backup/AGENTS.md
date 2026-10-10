@@ -15,9 +15,22 @@ Both platforms export to the same universal JSON format. On import, each platfor
 1. Detects the format (ZIP = legacy Windows `.hwbackup`, JSON with `version` = legacy macOS, JSON with `schemaVersion` = universal)
 2. Reads shared fields (modes, vocabulary, settings, API keys)
 3. Reads `platformExtensions.<thisPlatform>` for platform-specific fields
-4. Ignores unknown `platformExtensions` from the other platform but **preserves them** for round-trip fidelity
+4. Reads a foreign slice only under the rule below, and **preserves** every foreign slice for round-trip fidelity
 
-**Shared fields** live at the top level of each object (mode, vocabulary, settings) and are portable between platforms. **Platform-specific fields** go into `platformExtensions.<platform>` at each level. When one platform imports the other's backup, it reads the shared fields, ignores the other platform's extension slice, and writes that slice back out unchanged on the next export. See `examples/` for exact shapes.
+**Shared fields** live at the top level of each object (mode, vocabulary, settings) and are portable between platforms. **Platform-specific fields** go into `platformExtensions.<platform>` at each level. When one platform imports another's backup, it reads the shared fields and its own slice, and writes every other platform's slice back out unchanged on the next export. See `examples/` for exact shapes.
+
+**The one rule for reading a foreign slice.** A head reads a field from another platform's slice
+only when that field means the same thing there, and only as a FALLBACK: its own slice is read
+first, and an explicit own-slice value — `false` and `0` included — always wins. When its own slice
+has no value, the head reads the foreign slices in the fixed order `macos`, `windows`, `linux`
+(skipping its own) and takes the first value of the right type. A foreign slice is never written
+into, and every field not listed here is carried, not read. The fields read this way today:
+
+| Field | Read by | Foreign source |
+|---|---|---|
+| per-mode `enableScreenOCR` | macOS, Windows, Linux | every other head's per-mode slice, same name (#1481, #1498) |
+| `soundEffectsVolume` (settings) | Linux | `platformExtensions.macos.settings.audio.soundEffectsVolume` |
+| `customEndpoints` (settings) | Linux | `platformExtensions.windows.settings.customEndpoints`, only when the file has no `linux.settings` object at all |
 
 > **Current cross-platform reality (as of 2026-06).** BOTH platforms now read/write the **full**
 > universal v2 format — settings, modes, and vocabulary. The mapping tables below describe a live
@@ -241,7 +254,7 @@ Windows-only mode fields (go into `platformExtensions.windows`):
 | `localParakeetModel` | `Mode.LocalParakeetModel` | `null` |
 | `providerType` | `Mode.ProviderType` | Infer from `cloudProvider` |
 | `cloudAccuracyTier` | `Mode.CloudAccuracyTier` | `"High"` |
-| `enableScreenOCR` | `Mode.EnableScreenOCR` | `false` |
+| `enableScreenOCR` | `Mode.EnableScreenOCR` | the `macos`, then the `linux`, slice's `enableScreenOCR`, else `false` |
 | `customVocabulary` | `Mode.CustomVocabulary` | `null` |
 | `isSystemProvided` | `Mode.IsSystemProvided` | `false` |
 | `createdDate` | `Mode.CreatedDate` | Current UTC time |
@@ -249,9 +262,12 @@ Windows-only mode fields (go into `platformExtensions.windows`):
 
 `enableScreenOCR` is per-mode on all three heads, but the shared `Mode` object has no property for
 it, so each head writes it in its OWN slice: Windows `platformExtensions.windows`, Linux
-`platformExtensions.linux`, macOS `platformExtensions.macos` (below). macOS reads its own slice
-first and then falls back to the `windows`, then the `linux`, slice, so a Windows or Linux backup
-restores screen OCR on macOS. Windows and Linux do not yet read the `macos` slice.
+`platformExtensions.linux`, macOS `platformExtensions.macos` (below). Every head reads it under
+the foreign-slice rule in "How It Works": its own slice first, then the others in the order
+`macos`, `windows`, `linux`. So macOS falls back to `windows` then `linux`, Windows
+(`UniversalBackupMapper.MapToMode`) to `macos` then `linux`, and Linux
+(`ApplicationBackupExport.ParseMode`) to `macos` then `windows`, and screen OCR survives a restore
+on any head. Only a JSON Bool counts; an own-slice `false` beats a foreign `true`.
 
 macOS-only mode fields (go into `platformExtensions.macos`; added by #1481 — before it a macOS
 restore turned both OFF on every mode):
