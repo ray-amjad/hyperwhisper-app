@@ -22,6 +22,13 @@ using System.Diagnostics;
 
 [assembly: SupportedOSPlatform("linux")]
 
+// A real Avalonia window needs a real windowing platform, and Avalonia allows one per process, so
+// the #1629 render test re-runs this harness under xvfb-run in this mode.
+if (args is [ModeEditorEngineSwitchRenderTests.ProbeArgument])
+{
+    Environment.Exit(await ModeEditorEngineSwitchRenderTests.RunProbeAsync());
+}
+
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("toggle owns safe injection lifecycle", ToggleOwnsSafeInjectionLifecycle),
@@ -77,6 +84,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("streaming language picker offers the selected provider's catalog set", StreamingLanguagePickerFollowsProvider),
     ("a real Avalonia ComboBox shows Automatic after a provider or tier change resets the language", StreamingLanguageComboShowsResetToAutomatic),
     ("a finished batch dictation leaves the status bar reading Ready (#958)", RecordingStatusAfterStopTests.BatchStopLeavesReady),
+    ("the mode editor's local model combo shows the engine's model after an engine change (#1629)", ModeEditorEngineSwitchRenderTests.RunAsync),
 };
 
 foreach (var test in tests)
