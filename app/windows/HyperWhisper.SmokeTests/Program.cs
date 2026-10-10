@@ -17015,6 +17015,19 @@ internal static class Program
                         IncludeModes = true
                     }).IsSuccess));
 
+            // Import Selected writes modes and vocabulary in ONE transaction: a
+            // vocabulary write the database refuses must roll the modes back too,
+            // and then the settings, so "Import failed" means nothing changed.
+            Run("backup: Import Selected whose vocabulary write fails leaves modes, vocabulary and settings.json as they were — issue #1614", () =>
+                AssertFailedImportKeepsSettings("selective-vocab", backupPath =>
+                    BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+                    {
+                        IncludeSettings = true,
+                        IncludeModes = true,
+                        IncludeVocabulary = true,
+                        VocabularyConflict = VocabConflict.Replace
+                    }).IsSuccess, poisonVocabulary: true));
+
             Run("backup: a merge Import whose DB step fails leaves settings.json as it was — issue #1614", () =>
                 AssertFailedImportKeepsSettings("merge", backupPath =>
                     BackupService.Instance.Import(backupPath, replaceExisting: false).IsSuccess));
@@ -19936,8 +19949,12 @@ internal static class Program
     /// SQLite BEFORE INSERT trigger refuses, so the DB step fails AFTER step 1 has
     /// applied the settings. Asserts the import failed and that the settings — the
     /// property values and the settings.json bytes — are what they were before it.
+    /// With <paramref name="poisonVocabulary"/> every mode is valid and the refused
+    /// row is a vocabulary word instead (the backup also replaces an existing word),
+    /// and the modes and vocabulary must be exactly as they were too.
     /// </summary>
-    private static void AssertFailedImportKeepsSettings(string label, Func<string, bool> runImport)
+    private static void AssertFailedImportKeepsSettings(
+        string label, Func<string, bool> runImport, bool poisonVocabulary = false)
     {
         DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
         var settings = SettingsService.Instance;
@@ -19981,6 +19998,33 @@ internal static class Program
         var prefix = $"percy1614-{label}-{token}-";
         var poisonName = prefix + "poison";
         var trigger = $"percy1614_poison_{token}";
+        var poisonTable = poisonVocabulary ? "VocabularyItems" : "Modes";
+        var poisonColumn = poisonVocabulary ? "Word" : "Name";
+        var existingWord = $"percy1614-{token}-existing";
+
+        string ReadModes()
+        {
+            using var ctx = new HyperWhisperDbContext();
+            return string.Join("\n", ctx.Modes.AsNoTracking().OrderBy(m => m.Id).ToList()
+                .Select(m => $"{m.Id}|{m.Name}|{m.IsDefault}|{m.SortOrder}"));
+        }
+
+        string ReadVocabulary()
+        {
+            using var ctx = new HyperWhisperDbContext();
+            return string.Join("\n", ctx.VocabularyItems.AsNoTracking().OrderBy(v => v.Id).ToList()
+                .Select(v => $"{v.Id}|{v.Word}|{v.Replacement}|{v.SortOrder}|{v.Source}"));
+        }
+
+        if (poisonVocabulary)
+        {
+            // An existing word the backup REPLACES, so a vocabulary UPDATE that
+            // survived the failed import would show as a changed row too.
+            Assert(VocabularyService.Instance.TryAdd(existingWord, "before", out var addError),
+                $"could not seed the existing word: {addError}");
+        }
+        var modesBefore = ReadModes();
+        var vocabularyBefore = ReadVocabulary();
 
         // Every value below is the OPPOSITE of the live one, so a backup whose
         // settings stayed applied cannot read as unchanged.
@@ -20023,9 +20067,17 @@ internal static class Program
             Modes =
             [
                 UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = prefix + "0", SortOrder = 20_000 }),
-                UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = poisonName, SortOrder = 20_001 }),
+                UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = poisonVocabulary ? prefix + "1" : poisonName, SortOrder = 20_001 }),
                 UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = prefix + "2", SortOrder = 20_002 })
             ],
+            Vocabulary = poisonVocabulary
+                ?
+                [
+                    new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = prefix + "word", Replacement = "after", SortOrder = 1 },
+                    new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = existingWord.ToUpperInvariant(), Replacement = "after", SortOrder = 2 },
+                    new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = poisonName, SortOrder = 3 }
+                ]
+                : null,
             Additional = new Dictionary<string, JsonElement> { ["percy1614Probe"] = unknownRoot }
         }, UniversalCaptureOptions));
 
@@ -20038,8 +20090,8 @@ internal static class Program
             cmd.ExecuteNonQuery();
         }
 
-        Exec($"CREATE TRIGGER IF NOT EXISTS {trigger} BEFORE INSERT ON Modes " +
-             $"WHEN NEW.Name = '{poisonName}' BEGIN SELECT RAISE(ABORT, 'percy1614 poison row'); END;");
+        Exec($"CREATE TRIGGER IF NOT EXISTS {trigger} BEFORE INSERT ON {poisonTable} " +
+             $"WHEN NEW.{poisonColumn} = '{poisonName}' BEGIN SELECT RAISE(ABORT, 'percy1614 poison row'); END;");
         try
         {
             var succeeded = runImport(backupPath);
@@ -20058,11 +20110,17 @@ internal static class Program
             Assert(fileAfter == fileBefore,
                 $"the failed {label} import left settings.json changed on disk " +
                 $"({fileBefore.Length} chars before, {fileAfter.Length} after)");
+
+            Assert(ReadModes() == modesBefore,
+                $"the failed {label} import left the modes changed (the backup's modes were committed)");
+            Assert(ReadVocabulary() == vocabularyBefore,
+                $"the failed {label} import left the vocabulary changed");
         }
         finally
         {
             Exec($"DROP TRIGGER IF EXISTS {trigger};");
             Exec($"DELETE FROM Modes WHERE Name LIKE '{prefix}%';");
+            Exec($"DELETE FROM VocabularyItems WHERE Word LIKE '{prefix}%' OR Word LIKE 'percy1614-{token}-%';");
             try { File.Delete(backupPath); } catch { }
 
             // On a build without the fix the backup's settings stay applied; put the

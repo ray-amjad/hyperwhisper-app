@@ -412,36 +412,55 @@ public class BackupService
                 }
             }
 
-            // Steps 2 and 3 are the database step. Either one throwing fails the whole
-            // import, so the backup's settings must not stay applied (issue #1614).
+            // Steps 2 and 3 are the database step, written in ONE transaction: a
+            // failure anywhere in it rolls back the modes AND the vocabulary, and
+            // then the backup's settings are put back too (issues #1605, #1614).
+            // "Import failed" therefore means nothing changed.
+            var importModes = selection.IncludeModes && backup.Modes is { Count: > 0 };
+            var importVocabulary = selection.IncludeVocabulary && backup.Vocabulary is { Count: > 0 };
             try
             {
                 // 2. Modes — merge by Id (existing upsert semantics).
-                if (selection.IncludeModes && backup.Modes is { Count: > 0 })
-                {
-                    var modes = backup.Modes.Select(UniversalBackupMapper.MapToMode).ToList();
-                    // All or nothing (issue #1605): one transaction across every batch,
-                    // so a crash or a failed batch leaves the old modes, never a part.
-                    summary.ModesImported = MergeDatabaseEntities(modes, null).modesImported;
-                    // A backup carries whatever `isDefault` its own machine held, and
-                    // a merge can therefore land a second default beside the local
-                    // one, or none at all (issue #536). The imports above go straight
-                    // into the DbSet, so nothing else on this path would notice.
-                    ModeService.Instance.EnforceDefaultModeInvariant();
-                }
-
                 // 3. Vocabulary — merge by Word (case-insensitive, trimmed).
-                if (selection.IncludeVocabulary && backup.Vocabulary is { Count: > 0 })
-                {
-                    var (added, conflicts) = MergeVocabulary(backup.Vocabulary, selection.VocabularyConflict);
-                    summary.VocabularyAdded = added;
-                    summary.VocabularyConflicts = conflicts;
-                }
+                // Mapping is inside the guarded step: a row that cannot be mapped
+                // fails the import exactly like a row the database refuses.
+                var modes = importModes
+                    ? backup.Modes!.Select(UniversalBackupMapper.MapToMode).ToList()
+                    : null;
+                var (modesImported, added, conflicts) = MergeModesAndVocabulary(
+                    modes,
+                    importVocabulary ? backup.Vocabulary : null,
+                    selection.VocabularyConflict);
+                summary.ModesImported = modesImported;
+                summary.VocabularyAdded = added;
+                summary.VocabularyConflicts = conflicts;
             }
             catch
             {
                 RestoreSettingsAfterFailedImport(SettingsService.Instance, settingsBefore, "selective import");
                 throw;
+            }
+
+            if (importModes)
+            {
+                // A backup carries whatever `isDefault` its own machine held, and
+                // a merge can therefore land a second default beside the local
+                // one, or none at all (issue #536). The merge above goes straight
+                // into the DbSet, so this runs after the commit, on committed data.
+                ModeService.Instance.EnforceDefaultModeInvariant();
+            }
+
+            if (importVocabulary)
+            {
+                // Notify listeners (after the commit) so the vocab UI refreshes.
+                try
+                {
+                    VocabularyService.Instance.NotifyVocabularyChanged();
+                }
+                catch (Exception ex)
+                {
+                    LoggingService.Warn($"BackupService: Failed to raise VocabularyChanged after merge: {ex.Message}");
+                }
             }
 
             // 4. API keys — merge (only non-empty keys written).
@@ -548,93 +567,120 @@ public class BackupService
     }
 
     /// <summary>
-    /// Merges incoming vocabulary items into the database by Word (case-insensitive,
-    /// trimmed). Existing words are never deleted. On a Word match the conflict policy
-    /// decides whether to Skip (leave existing) or Replace (update Replacement/SortOrder/
-    /// Source on the existing row, keeping its Id). Unmatched words are inserted with a
-    /// fresh Guid and CreatedDate=UtcNow. Returns (added, conflicts).
+    /// Import Selected's database step: merges <paramref name="modes"/> (upsert by Id,
+    /// batched) and <paramref name="vocabulary"/> (by Word, see MergeVocabulary) in ONE
+    /// transaction, committed once at the end. A throw anywhere rolls back both, so the
+    /// database holds the old modes and vocabulary or all of the backup's, never a part
+    /// (issues #1605, #1614). Either list may be null to skip that section.
+    /// Returns (modesImported, vocabularyAdded, vocabularyConflicts).
     /// </summary>
-    private static (int added, int conflicts) MergeVocabulary(
-        List<UniversalVocabularyItem> items,
+    private static (int modesImported, int added, int conflicts) MergeModesAndVocabulary(
+        List<Mode>? modes,
+        List<UniversalVocabularyItem>? vocabulary,
         VocabConflict conflict)
     {
+        int modesImported = 0;
         int added = 0;
         int conflicts = 0;
 
         lock (_dbLock)
         {
             using var context = new HyperWhisperDbContext();
+            using var transaction = context.Database.BeginTransaction();
 
-            // Snapshot existing words once, keyed by trimmed lowercase Word.
-            // Last-writer-wins if the DB already contains case-variant duplicates.
-            var existingByWord = new Dictionary<string, VocabularyItem>();
-            foreach (var existing in context.VocabularyItems)
+            if (modes != null && modes.Count > 0)
             {
-                var key = (existing.Word ?? string.Empty).Trim().ToLowerInvariant();
-                if (key.Length == 0)
-                    continue;
-                existingByWord[key] = existing;
+                modesImported = MergeEntitySet(context, context.Modes, modes);
             }
 
-            var nextSortOrder = context.VocabularyItems.Any()
-                ? context.VocabularyItems.Max(v => v.SortOrder) + 1
-                : 0;
-
-            foreach (var incoming in items)
+            if (vocabulary != null && vocabulary.Count > 0)
             {
-                var trimmedWord = (incoming.Word ?? string.Empty).Trim();
-                if (trimmedWord.Length == 0)
-                    continue;
+                (added, conflicts) = MergeVocabulary(context, vocabulary, conflict);
+            }
 
-                var key = trimmedWord.ToLowerInvariant();
+            // Disposing an uncommitted transaction rolls it back, so any throw
+            // above undoes the modes and the vocabulary alike.
+            transaction.Commit();
+        }
 
-                if (existingByWord.TryGetValue(key, out var match))
+        return (modesImported, added, conflicts);
+    }
+
+    /// <summary>
+    /// Merges incoming vocabulary items by Word (case-insensitive, trimmed) inside the
+    /// caller's context and transaction; the caller commits. Existing words are never
+    /// deleted. On a Word match the conflict policy decides whether to Skip (leave
+    /// existing) or Replace (update Replacement/SortOrder/Source on the existing row,
+    /// keeping its Id). Unmatched words are inserted with a fresh Guid and
+    /// CreatedDate=UtcNow. Returns (added, conflicts).
+    /// </summary>
+    private static (int added, int conflicts) MergeVocabulary(
+        HyperWhisperDbContext context,
+        List<UniversalVocabularyItem> items,
+        VocabConflict conflict)
+    {
+        int added = 0;
+        int conflicts = 0;
+
+        // Snapshot existing words once, keyed by trimmed lowercase Word.
+        // Last-writer-wins if the DB already contains case-variant duplicates.
+        var existingByWord = new Dictionary<string, VocabularyItem>();
+        foreach (var existing in context.VocabularyItems)
+        {
+            var key = (existing.Word ?? string.Empty).Trim().ToLowerInvariant();
+            if (key.Length == 0)
+                continue;
+            existingByWord[key] = existing;
+        }
+
+        var nextSortOrder = context.VocabularyItems.Any()
+            ? context.VocabularyItems.Max(v => v.SortOrder) + 1
+            : 0;
+
+        foreach (var incoming in items)
+        {
+            var trimmedWord = (incoming.Word ?? string.Empty).Trim();
+            if (trimmedWord.Length == 0)
+                continue;
+
+            var key = trimmedWord.ToLowerInvariant();
+
+            if (existingByWord.TryGetValue(key, out var match))
+            {
+                // Word already present (either pre-existing or inserted earlier this pass).
+                conflicts++;
+
+                if (conflict == VocabConflict.Replace)
                 {
-                    // Word already present (either pre-existing or inserted earlier this pass).
-                    conflicts++;
-
-                    if (conflict == VocabConflict.Replace)
-                    {
-                        match.Replacement = string.IsNullOrWhiteSpace(incoming.Replacement)
-                            ? null
-                            : incoming.Replacement.Trim();
-                        match.SortOrder = incoming.SortOrder;
-                        match.Source = incoming.Source;
-                        // Keep existing Id and CreatedDate.
-                    }
-                    // Skip: leave the existing row untouched.
-                    continue;
-                }
-
-                // New word — insert with a fresh identity.
-                var item = new VocabularyItem
-                {
-                    Id = Guid.NewGuid(),
-                    Word = trimmedWord,
-                    Replacement = string.IsNullOrWhiteSpace(incoming.Replacement)
+                    match.Replacement = string.IsNullOrWhiteSpace(incoming.Replacement)
                         ? null
-                        : incoming.Replacement.Trim(),
-                    SortOrder = nextSortOrder++,
-                    Source = incoming.Source,
-                    CreatedDate = DateTime.UtcNow
-                };
-                context.VocabularyItems.Add(item);
-                existingByWord[key] = item;
-                added++;
+                        : incoming.Replacement.Trim();
+                    match.SortOrder = incoming.SortOrder;
+                    match.Source = incoming.Source;
+                    // Keep existing Id and CreatedDate.
+                }
+                // Skip: leave the existing row untouched.
+                continue;
             }
 
-            context.SaveChanges();
+            // New word — insert with a fresh identity.
+            var item = new VocabularyItem
+            {
+                Id = Guid.NewGuid(),
+                Word = trimmedWord,
+                Replacement = string.IsNullOrWhiteSpace(incoming.Replacement)
+                    ? null
+                    : incoming.Replacement.Trim(),
+                SortOrder = nextSortOrder++,
+                Source = incoming.Source,
+                CreatedDate = DateTime.UtcNow
+            };
+            context.VocabularyItems.Add(item);
+            existingByWord[key] = item;
+            added++;
         }
 
-        // Notify listeners (outside the DB write) so vocab UI refreshes.
-        try
-        {
-            VocabularyService.Instance.NotifyVocabularyChanged();
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Warn($"BackupService: Failed to raise VocabularyChanged after merge: {ex.Message}");
-        }
+        context.SaveChanges();
 
         return (added, conflicts);
     }
