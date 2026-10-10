@@ -170,6 +170,8 @@ public partial class ApiKeysSettingsPage : Page
             Content = new ModelsSettingsPage()
         };
 
+        // 760 DIP is taller than a 1080p work area at 175% (issue #1500).
+        WindowWorkAreaFit.Attach(settingsWindow);
         settingsWindow.ShowDialog();
     }
 

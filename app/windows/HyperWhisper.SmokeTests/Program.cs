@@ -15187,6 +15187,176 @@ internal static class Program
                     "the window off a 1366x768 laptop instead of protecting it");
             });
 
+            Run("main window: 1000x680 is shrunk into a 1080p work area at 150% and 175% (#1500)", () =>
+            {
+                // The main window is a fixed 1000 x 680 DIP with no resize and no
+                // maximise. On 1920 x 1080 with a 48 DIP taskbar the work area is
+                // 1280 x 672 DIP at 150% and 1097 x 569 DIP at 175%, and CenterScreen
+                // put the 680 DIP window's top at -97 physical pixels at 175%: the close
+                // button above the screen, the status bar under the taskbar.
+                static Rect WorkArea(double scale) =>
+                    new(0, 0, 1920 / scale, (1080 - 48 * scale) / scale);
+
+                bool Inside(WindowWorkAreaFit.Placement p, Rect area) =>
+                    p.Left >= area.Left - 0.001 && p.Top >= area.Top - 0.001 &&
+                    p.Left + p.Width <= area.Right + 0.001 && p.Top + p.Height <= area.Bottom + 0.001;
+
+                // 100%: the design is kept, and so is a position that already fits.
+                var at100 = WindowWorkAreaFit.Fit(1000, 680, WorkArea(1.0), 460, 176);
+                Assert(at100 == new WindowWorkAreaFit.Placement(460, 176, 1000, 680),
+                    $"100% must keep 1000x680 where it was, got {at100}");
+
+                // 150%: the width fits, the height is capped to 672.
+                var area150 = WorkArea(1.5);
+                var at150 = WindowWorkAreaFit.Fit(1000, 680, area150, (area150.Width - 1000) / 2, (area150.Height - 680) / 2);
+                Assert(at150.Width == 1000, $"150% has room for the designed width, got {at150.Width}");
+                Assert(Math.Abs(at150.Height - area150.Height) < 0.001,
+                    $"150% must cap the height to the {area150.Height:F1} DIP work area, got {at150.Height}");
+                Assert(Inside(at150, area150), $"150% placement {at150} is not inside {area150}");
+
+                // 175%: the old CenterScreen position (top -55 DIP, i.e. -97 px) is
+                // pulled down to the top of the work area, and the window ends at its
+                // bottom, so both the caption row and the status bar are on screen.
+                var area175 = WorkArea(1.75);
+                var centredTop = (area175.Height - 680) / 2;
+                Assert(centredTop * 1.75 < -96, $"the 175% case no longer reproduces the issue: top {centredTop * 1.75:F0} px");
+                var at175 = WindowWorkAreaFit.Fit(1000, 680, area175, (area175.Width - 1000) / 2, centredTop);
+                Assert(at175.Top == 0 && Math.Abs(at175.Height - area175.Height) < 0.001,
+                    $"175% must fill the work area's height from its top, got {at175}");
+                Assert(Math.Abs(at175.Left - (area175.Width - 1000) / 2) < 0.001,
+                    $"175% must keep the horizontal centring, got {at175.Left}");
+                Assert(Inside(at175, area175), $"175% placement {at175} is not inside {area175}");
+
+                // No position yet: the size is capped and WPF's CenterScreen places it.
+                var unplaced = WindowWorkAreaFit.Fit(1000, 680, area175, double.NaN, double.NaN);
+                Assert(double.IsNaN(unplaced.Left) && double.IsNaN(unplaced.Top) && unplaced.Height < 680,
+                    $"an unplaced window must keep a NaN position and still be capped, got {unplaced}");
+
+                // A second monitor left of and above the primary: the clamp works in
+                // that monitor's own coordinates, from either side.
+                var secondary = new Rect(-1280, -200, 1280, 672);
+                var overRight = WindowWorkAreaFit.Fit(1000, 680, secondary, -100, 300);
+                Assert(Inside(overRight, secondary) && overRight.Left == -1000 && overRight.Top == -200,
+                    $"a window hanging off the secondary's right and bottom edges was placed at {overRight}");
+                var overLeft = WindowWorkAreaFit.Fit(1000, 680, secondary, -2000, -900);
+                Assert(Inside(overLeft, secondary) && overLeft.Left == -1280 && overLeft.Top == -200,
+                    $"a window hanging off the secondary's left and top edges was placed at {overLeft}");
+
+                // The mode editor (550 x 700) is the sibling that also overflows at 175%.
+                var editor = WindowWorkAreaFit.Fit(550, 700, area175, 200, -60);
+                Assert(editor.Width == 550 && Inside(editor, area175),
+                    $"the 550x700 mode editor at 175% was placed at {editor}");
+
+                // A window with no design size is a programmer error, not a no-op.
+                var threw = false;
+                try { WindowWorkAreaFit.Attach(new Window()); }
+                catch (ArgumentException) { threw = true; }
+                Assert(threw, "Attach accepted a window with no Width/Height to fit");
+            });
+
+            Run("work-area fit: first placement, refit of a resized window, and the restore refit (#1500)", () =>
+            {
+                static Rect WorkArea(double scale) =>
+                    new(0, 0, 1920 / scale, (1080 - 48 * scale) / scale);
+                bool Inside(WindowWorkAreaFit.Placement p, Rect area) =>
+                    p.Left >= area.Left - 0.001 && p.Top >= area.Top - 0.001 &&
+                    p.Left + p.Width <= area.Right + 0.001 && p.Top + p.Height <= area.Bottom + 0.001;
+
+                // First placement. WPF's SetupInitialState has already centred the
+                // design 1000x680 in the work area before SourceInitialized, so at
+                // 175% the HWND rectangle starts at top -55.5 DIP. The first
+                // placement caps it and keeps its centre: centred in the work area,
+                // top 0, before the window is shown.
+                var area175 = WorkArea(1.75);
+                var wpfCentred = new Rect((area175.Width - 1000) / 2, (area175.Height - 680) / 2, 1000, 680);
+                Assert(wpfCentred.Top < -55, $"the 175% start no longer reproduces the issue: top {wpfCentred.Top:F1}");
+                var first175 = WindowWorkAreaFit.FirstPlacement(1000, 680, area175, wpfCentred, keepCentre: true);
+                Assert(Math.Abs(first175.Top) < 0.001 && Math.Abs(first175.Height - area175.Height) < 0.001,
+                    $"175% first placement must fill the work area's height from its top, got {first175}");
+                Assert(Math.Abs(first175.Left - wpfCentred.Left) < 0.001 && first175.Width == 1000,
+                    $"175% first placement must keep the width and the horizontal centre, got {first175}");
+
+                // 150%: 680 into 672, still centred (top 0, not -4).
+                var area150 = WorkArea(1.5);
+                var first150 = WindowWorkAreaFit.FirstPlacement(1000, 680, area150,
+                    new Rect((area150.Width - 1000) / 2, (area150.Height - 680) / 2, 1000, 680), keepCentre: true);
+                Assert(Inside(first150, area150) && Math.Abs(first150.Height - area150.Height) < 0.001,
+                    $"150% first placement {first150} is not the capped window inside {area150}");
+
+                // 100%: nothing moves.
+                var area100 = WorkArea(1.0);
+                var centred100 = new Rect(460, (area100.Height - 680) / 2, 1000, 680);
+                var first100 = WindowWorkAreaFit.FirstPlacement(1000, 680, area100, centred100, keepCentre: true);
+                Assert(first100 == new WindowWorkAreaFit.Placement(460, centred100.Top, 1000, 680),
+                    $"100% first placement must be WPF's own centring, got {first100}");
+
+                // CenterOwner on an owner near the bottom: re-centred on the owner,
+                // then pulled up into the work area.
+                var nearBottom = new Rect(100, 200, 720, 760);
+                var owned = WindowWorkAreaFit.FirstPlacement(720, 760, area175, nearBottom, keepCentre: true);
+                Assert(Inside(owned, area175) && owned.Left == 100,
+                    $"a CenterOwner window near the bottom edge was placed at {owned}");
+
+                // A Manual window keeps its corner, clamped.
+                var manual = WindowWorkAreaFit.FirstPlacement(550, 700, area175, new Rect(30, 40, 550, 700), keepCentre: false);
+                Assert(manual.Left == 30 && manual.Top == 0 && Inside(manual, area175),
+                    $"a Manual window must keep its left edge and be clamped, got {manual}");
+
+                // Refit of a window the user cannot resize: always from the design,
+                // so it grows back to 680 once the work area has room.
+                Assert(WindowWorkAreaFit.WantedLength(680, 569, 569, userCanResize: false) == 680,
+                    "a fixed-size window must refit from its design height");
+                Assert(WindowWorkAreaFit.WantedLength(680, 500, 569, userCanResize: false) == 680,
+                    "a fixed-size window must ignore its current height");
+
+                // A resizable window the user has not resized also refits from the
+                // design (a cap at open is undone when the work area grows).
+                Assert(WindowWorkAreaFit.WantedLength(760, 569, 569, userCanResize: true) == 760,
+                    "an unresized resizable window must refit from its design height");
+
+                // A resizable window the user resized keeps that size where it fits:
+                // a taskbar auto-hide toggle no longer snaps 900x500 back to 720x760.
+                var keptW = WindowWorkAreaFit.WantedLength(720, 900, 720, userCanResize: true);
+                var keptH = WindowWorkAreaFit.WantedLength(760, 500, 569, userCanResize: true);
+                Assert(keptW == 900 && keptH == 500, $"a user-resized window must keep its size, got {keptW}x{keptH}");
+                var area100Wide = WorkArea(1.0);
+                var refit = WindowWorkAreaFit.Fit(keptW, keptH, area100Wide, 50, 50);
+                Assert(refit.Width == 900 && refit.Height == 500,
+                    $"a user size that fits must not change on a refit, got {refit}");
+
+                // ...and only the axis that exceeds the work area is shrunk.
+                var tooTall = WindowWorkAreaFit.Fit(
+                    WindowWorkAreaFit.WantedLength(720, 650, 720, userCanResize: true),
+                    WindowWorkAreaFit.WantedLength(760, 900, 760, userCanResize: true),
+                    area175, 10, 10);
+                Assert(tooTall.Width == 650 && Math.Abs(tooTall.Height - area175.Height) < 0.001 && Inside(tooTall, area175),
+                    $"only the overflowing axis may shrink, got {tooTall}");
+
+                // No fit yet (NaN) means the design.
+                Assert(WindowWorkAreaFit.WantedLength(760, 600, double.NaN, userCanResize: true) == 760,
+                    "before the first fit a refit must start from the design");
+            });
+
+            Run("work-area fit: a refit while minimised runs on restore (#1500)", () =>
+            {
+                // A display change while the window sits minimised in the taskbar
+                // (or hidden after a minimise) must not be lost: it runs on restore.
+                var gate = new WindowWorkAreaFit.RestoreRefit();
+                Assert(gate.Request(WindowState.Normal) && !gate.IsPending,
+                    "a refit on a Normal window must run at once");
+                Assert(!gate.StateChanged(WindowState.Normal),
+                    "a restore with nothing held must not refit");
+
+                Assert(!gate.Request(WindowState.Minimized) && gate.IsPending,
+                    "a refit on a minimised window must be held, not dropped");
+                Assert(!gate.Request(WindowState.Minimized), "a second change while minimised is held too");
+                Assert(!gate.StateChanged(WindowState.Maximized) && gate.IsPending,
+                    "minimised to maximised must keep the refit held");
+                Assert(gate.StateChanged(WindowState.Normal) && !gate.IsPending,
+                    "the restore to Normal must run the held refit");
+                Assert(!gate.StateChanged(WindowState.Normal), "the held refit must run only once");
+            });
+
             Run("onboarding: the microphone step stops asking for speech when there is no device", () =>
             {
                 // Found in a recording of the real flow on a box with no capture
