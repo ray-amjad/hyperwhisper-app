@@ -101,12 +101,15 @@ var tests = new (string Name, Func<Task> Run)[]
     ("uinput exception preserves clipboard fallback", UInputExceptionFallsBack),
     ("Wayland fallback advertises partial multi-MIME restore", CommandClipboardCapability),
     ("Wayland capture reads with --no-newline", CommandClipboardReadArguments),
+    ("clipboard write returns when the helper forks a selection server", CommandClipboardWriteForkingHelper),
+    ("real wl-copy and xclip writes return at once", CommandClipboardRealWriteReturnsPromptly),
     ("Wayland native owner receives every MIME format", NativeWaylandRestore),
     ("clipboard restore rejects snapshots above 32 MiB", ClipboardSnapshotBound),
     ("native X11 owner receives every MIME format", NativeX11Restore),
     ("native X11 owner serves every MIME format", NativeX11RoundTrip),
     ("XWayland owner bridges text HTML and PNG", XWaylandRoundTrip),
     ("external desktop helpers have a hard timeout", ExternalHelperTimeout),
+    ("a helper with discarded output keeps the hard timeout", ExternalHelperDiscardedOutputTimeout),
     ("external desktop helper output is bounded promptly", ExternalHelperOutputBound),
     ("X11 application context parses active window safely", X11ApplicationContext),
     ("Wayland application context uses AT-SPI", WaylandApplicationContext),
@@ -1798,6 +1801,95 @@ static async Task CommandClipboardReadArguments()
         Assert.SequenceEqual("no newline"u8.ToArray(), value);
 }
 
+// wl-copy and xclip -in fork a child that keeps serving the selection and inherits the helper's
+// stdout and stderr. This fake does the same: it records what it was given, leaves a child holding
+// every inherited descriptor, and exits. A write must return on the helper's exit (#1528).
+static async Task CommandClipboardWriteForkingHelper()
+{
+    var directory = Directory.CreateTempSubdirectory("hyperwhisper-clipboard-fork-");
+    try
+    {
+        var record = Path.Combine(directory.FullName, "record");
+        var helper = Path.Combine(directory.FullName, "copy");
+        await File.WriteAllTextAsync(helper,
+            "#!/bin/sh\nprintf '%s|' \"$@\" > '" + record + "'\ncat >> '" + record + "'\nsleep 10 &\nexit 0\n");
+        File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        async Task AssertPromptAsync(Func<Task<PlatformResult>> write, string expected)
+        {
+            File.Delete(record);
+            var started = Stopwatch.StartNew();
+            Assert.Success(await write());
+            Assert.True(started.Elapsed < TimeSpan.FromSeconds(1), $"The write took {started.Elapsed}.");
+            Assert.Equal(expected, await File.ReadAllTextAsync(record));
+        }
+
+        using (var wayland = new CommandClipboardBackend(helper, "/bin/true", true, null))
+        {
+            await AssertPromptAsync(async () => await wayland.SetTextAsync("transcript",
+                ClipboardHistoryPrivacyPolicy.Disabled, CancellationToken.None), "|transcript");
+            await AssertPromptAsync(async () => await wayland.RestoreAsync(new ClipboardSnapshot(
+                new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["text/html"] = "<b>x</b>"u8.ToArray() }),
+                CancellationToken.None), "--type|text/html|<b>x</b>");
+        }
+        using (var x11 = new CommandClipboardBackend(helper, "/bin/true", false, null))
+        {
+            await AssertPromptAsync(async () => await x11.SetTextAsync("transcript",
+                ClipboardHistoryPrivacyPolicy.Disabled, CancellationToken.None), "-selection|clipboard|-in|transcript");
+            await AssertPromptAsync(async () => await x11.RestoreAsync(new ClipboardSnapshot(
+                new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["image/png"] = "PNG"u8.ToArray() }),
+                CancellationToken.None), "-selection|clipboard|-target|image/png|-in|PNG");
+        }
+
+        // The helper's own exit code still decides the result.
+        using var failing = new CommandClipboardBackend("/bin/false", "/bin/true", true, null);
+        var failed = await failing.SetTextAsync("transcript", ClipboardHistoryPrivacyPolicy.Disabled, CancellationToken.None);
+        Assert.True(failed.IsFailure && failed.Error!.Code == "clipboard_command_failed");
+    }
+    finally { directory.Delete(true); }
+}
+
+// With a real compositor (or X server) and its helper, a transcript write returns as soon as the
+// helper has taken the selection, and the text is on the clipboard (#1528).
+static async Task CommandClipboardRealWriteReturnsPromptly()
+{
+    var wlCopy = CommandClipboardBackend.FindExecutable("wl-copy");
+    var wlPaste = CommandClipboardBackend.FindExecutable("wl-paste");
+    if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")) && wlCopy is not null && wlPaste is not null)
+    {
+        using var wayland = new CommandClipboardBackend(wlCopy, wlPaste, true, null);
+        var started = Stopwatch.StartNew();
+        Assert.Success(await wayland.SetTextAsync("wayland transcript", ClipboardHistoryPrivacyPolicy.Disabled,
+            CancellationToken.None));
+        Assert.True(started.Elapsed < TimeSpan.FromSeconds(1), $"wl-copy took {started.Elapsed}.");
+        var pasted = await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "\"$0\" -n 2>/dev/null", wlPaste], null,
+            CancellationToken.None);
+        Assert.Equal(0, pasted.ExitCode);
+        Assert.Equal("wayland transcript", System.Text.Encoding.UTF8.GetString(pasted.Output));
+
+        started.Restart();
+        Assert.Success(await wayland.RestoreAsync(new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+            { ["text/html"] = "<p>restored</p>"u8.ToArray() }), CancellationToken.None));
+        Assert.True(started.Elapsed < TimeSpan.FromSeconds(1), $"wl-copy --type took {started.Elapsed}.");
+        pasted = await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "\"$0\" -n --type text/html 2>/dev/null", wlPaste],
+            null, CancellationToken.None);
+        Assert.Equal("<p>restored</p>", System.Text.Encoding.UTF8.GetString(pasted.Output));
+    }
+
+    var xclip = CommandClipboardBackend.FindExecutable("xclip");
+    if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY")) && xclip is not null)
+    {
+        using var x11 = new CommandClipboardBackend(xclip, xclip, false, null);
+        var started = Stopwatch.StartNew();
+        Assert.Success(await x11.SetTextAsync("x11 transcript", ClipboardHistoryPrivacyPolicy.Disabled,
+            CancellationToken.None));
+        Assert.True(started.Elapsed < TimeSpan.FromSeconds(1), $"xclip took {started.Elapsed}.");
+        var pasted = await ExternalProcessRunner.RunAsync(xclip, ["-selection", "clipboard", "-out"], null,
+            CancellationToken.None);
+        Assert.Equal("x11 transcript", System.Text.Encoding.UTF8.GetString(pasted.Output));
+    }
+}
+
 static async Task NativeWaylandRestore()
 {
     var owner = new FakeNativeClipboardOwner();
@@ -1939,6 +2031,15 @@ static async Task ExternalHelperTimeout()
     await Assert.ThrowsAsync<TimeoutException>(async () =>
         await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "sleep 30"], null,
             CancellationToken.None, TimeSpan.FromMilliseconds(50)));
+}
+
+static async Task ExternalHelperDiscardedOutputTimeout()
+{
+    var started = Stopwatch.StartNew();
+    await Assert.ThrowsAsync<TimeoutException>(async () =>
+        await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "sleep 30"], "input"u8.ToArray(),
+            CancellationToken.None, TimeSpan.FromMilliseconds(50), discardOutput: true));
+    Assert.True(started.Elapsed < TimeSpan.FromSeconds(2));
 }
 
 static async Task ExternalHelperOutputBound()
@@ -4275,9 +4376,9 @@ sealed class ThrowingUInput : IUInputPasteBackend
 
 static class Assert
 {
-    public static void True(bool condition)
+    public static void True(bool condition, string? message = null)
     {
-        if (!condition) throw new InvalidOperationException("Expected true.");
+        if (!condition) throw new InvalidOperationException(message ?? "Expected true.");
     }
     public static void Equal<T>(T expected, T actual)
     {
