@@ -24,11 +24,16 @@ only when that field means the same thing there, and only as a FALLBACK: its own
 first, and an explicit own-slice value — `false` and `0` included — always wins. When its own slice
 has no value, the head reads the foreign slices in the fixed order `macos`, `windows`, `linux`
 (skipping its own) and takes the first value of the right type. A foreign slice is never written
-into, and every field not listed here is carried, not read. The fields read this way today:
+into, and every field not listed here is carried, not read. Where the table says "whole slice", the
+head treats its own slice, when present, as the complete record of those fields and reads the foreign
+slice only when its own slice is absent: Windows omits a null field on export, so a missing key in a
+present own slice means "none", and reading through it would bring a stale preserved value back.
+The fields read this way today:
 
 | Field | Read by | Foreign source |
 |---|---|---|
 | per-mode `enableScreenOCR` | macOS, Windows, Linux | every other head's per-mode slice, same name (#1481, #1498) |
+| per-mode `customVocabulary`, `localEngine`, `localParakeetModel`, `providerType`, `modelType`, `isSystemProvided`, `createdDate`, `modifiedDate` | Windows, Linux | the other .NET head's per-mode slice (`linux` for Windows, `windows` for Linux), same names; whole slice, only when the mode has no own slice. macOS writes none of them (#1712) |
 | `soundEffectsVolume` (settings) | Linux | `platformExtensions.macos.settings.audio.soundEffectsVolume` |
 | `customEndpoints` (settings) | Linux | `platformExtensions.windows.settings.customEndpoints`, only when the file has no `linux.settings` object at all |
 
@@ -249,16 +254,23 @@ Windows-only mode fields (go into `platformExtensions.windows`):
 
 | Field | Windows Property | Default on Import |
 |---|---|---|
-| `modelType` | `Mode.ModelType` | Same as `model` |
-| `localEngine` | `Mode.LocalEngine` | `"whisper"` |
-| `localParakeetModel` | `Mode.LocalParakeetModel` | `null` |
-| `providerType` | `Mode.ProviderType` | Infer from `cloudProvider` |
+| `modelType` | `Mode.ModelType` | the `linux` slice's (no `windows` slice), else same as `model` |
+| `localEngine` | `Mode.LocalEngine` | the `linux` slice's (no `windows` slice), else `"whisper"` |
+| `localParakeetModel` | `Mode.LocalParakeetModel` | the `linux` slice's (no `windows` slice), else `null` |
+| `providerType` | `Mode.ProviderType` | the `linux` slice's (no `windows` slice), else infer from `cloudProvider` |
 | `cloudAccuracyTier` | `Mode.CloudAccuracyTier` | `"High"` |
 | `enableScreenOCR` | `Mode.EnableScreenOCR` | the `macos`, then the `linux`, slice's `enableScreenOCR`, else `false` |
-| `customVocabulary` | `Mode.CustomVocabulary` | `null` |
-| `isSystemProvided` | `Mode.IsSystemProvided` | `false` |
-| `createdDate` | `Mode.CreatedDate` | Current UTC time |
-| `modifiedDate` | `Mode.ModifiedDate` | Current UTC time |
+| `customVocabulary` | `Mode.CustomVocabulary` | the `linux` slice's (no `windows` slice), else `null` |
+| `isSystemProvided` | `Mode.IsSystemProvided` | the `linux` slice's (no `windows` slice), else `false` |
+| `createdDate` | `Mode.CreatedDate` | the `linux` slice's (no `windows` slice), else current UTC time |
+| `modifiedDate` | `Mode.ModifiedDate` | the `linux` slice's (no `windows` slice), else current UTC time |
+
+Linux writes the same eight per-mode fields (and `enableScreenOCR`, above) under the same names in
+`platformExtensions.linux`, and always writes every key
+(`null` included). Each .NET head reads them from its own slice when the mode has one, else from
+the other .NET head's slice (#1712): Windows `UniversalBackupMapper.ReadPeerModeExtensions`, Linux
+`ApplicationBackupExport.ParseMode` (`PeerModeSlice`). So a mode's per-mode vocabulary and
+local engine survive a Windows → Linux or Linux → Windows restore.
 
 `enableScreenOCR` is per-mode on all three heads, but the shared `Mode` object has no property for
 it, so each head writes it in its OWN slice: Windows `platformExtensions.windows`, Linux
