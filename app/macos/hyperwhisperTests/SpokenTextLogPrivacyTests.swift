@@ -14,6 +14,9 @@
 //  #1669 adds two server error bodies that can echo the transcript: a custom
 //  post-processing endpoint's, and the Cloud post-process error message.
 //
+//  #1679 adds the same Cloud error message where HyperWhisperCloudProvider logs
+//  it: its HTTP error handler, its post-processing catch, and the warmup failure.
+//
 //  #1680 adds the screen OCR text, which a DEBUG build logged as public.
 //
 //  A log line cannot be observed from a unit test, so these read the source
@@ -108,5 +111,50 @@ struct SpokenTextLogPrivacyTests {
         #expect(!body.contains("(text, privacy: .public)"), "the OCR text is the user's screen")
         #expect(body.contains("(text, privacy: .private)"))
         #expect(body.contains("text.count, privacy: .public"), "the character count stays")
+    }
+
+    // #1679: the same Cloud error `message` reaches HyperWhisperCloudProvider's
+    // HTTP error handler, where it can carry an upstream provider's error body
+    // that echoes the transcript or the vocabulary prompt.
+    @Test func theCloudProviderAPIErrorMessageIsNotPublic() throws {
+        let body = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/Providers/Cloud/HyperWhisperCloudProvider.swift",
+            from: "private func handleHTTPError(statusCode: Int, data: Data, httpResponse: HTTPURLResponse) throws {",
+            to: "let preview = responseString.prefix(200)"
+        )
+        #expect(body.contains("HyperWhisper Cloud API error"))
+        #expect(!body.contains("errorMessage, privacy: .public"), "the message can carry an upstream error body")
+        #expect(body.contains("errorMessage, privacy: .private"))
+        #expect(!body.contains("contextDump, privacy: .public"), "context values are free-form server JSON")
+        #expect(body.contains("status=\\(statusCode, privacy: .public)"), "the status code stays")
+        #expect(body.contains("errorMessage.count, privacy: .public"), "the message length stays")
+    }
+
+    // #1679: that message is thrown as `serverError(message:)`, and the Cloud
+    // provider's post-processing catch logs the error's description, which holds it.
+    @Test func theCloudProviderPostProcessFailureDescriptionIsNotPublic() throws {
+        let body = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/Providers/Cloud/HyperWhisperCloudProvider.swift",
+            from: "AppLogger.network.info(\"HyperWhisper Cloud post-processing cancelled\")",
+            to: "fingerprint: [\"post-process-failure\""
+        )
+        #expect(body.contains("HyperWhisper Cloud post-processing failed"))
+        #expect(!body.contains("localizedDescription, privacy: .public"), "a serverError description carries the server message")
+        #expect(body.contains("localizedDescription, privacy: .private"))
+        #expect(body.contains("serverStatus, privacy: .public"), "the status code stays")
+    }
+
+    // #1679: the warmup failure is a transport error with no server body, but
+    // its description is free text; it stays private like the lines above.
+    @Test func theCloudWarmupFailureDescriptionIsNotPublic() throws {
+        let body = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/Providers/Cloud/HyperWhisperCloudProvider.swift",
+            from: "private func sendWarmup() {",
+            to: "private var lastDnsResetAt"
+        )
+        #expect(body.contains("Cloud warmup failed"))
+        #expect(!body.contains("localizedDescription, privacy: .public"))
+        #expect(body.contains("localizedDescription, privacy: .private"))
+        #expect(body.contains("nsError.code, privacy: .public"), "the error code stays")
     }
 }
