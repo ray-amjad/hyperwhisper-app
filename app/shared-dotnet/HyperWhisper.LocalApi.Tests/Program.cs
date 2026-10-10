@@ -60,6 +60,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("legacy engine aliases fold onto a HyperWhisper Cloud tier", ApplicationBackendLegacyEngineAliases)
     ,("a written cloudProvider folds on create and on patch", ApplicationBackendModeWriteFoldsLegacyProvider)
     ,("a mode body's model lands in the field of its engine", ApplicationBackendModelRoutesByEngine)
+    ,("a local mode matches the catalog's capability keys", ApplicationBackendLocalModeMatchesCatalogKeys)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
@@ -2756,6 +2757,41 @@ static async Task ApplicationBackendModelRoutesByEngine()
         $"POST a Parakeet mode with model stored '{row.LocalParakeetModel}'/'{row.Model}'");
 }
 
+// The Linux catalog advertises capability keys (`local/parakeet/parakeet-v3`),
+// and the catalog check compared them with the bare id a mode stores. So the
+// real app refused every local mode write, even a rename (found while proving
+// issue #1687).
+static async Task ApplicationBackendLocalModeMatchesCatalogKeys()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var modes = new ModeRepository(database);
+    var history = new HistoryRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new KeyedCatalog(), new DiskPrivateFiles(), paths, "1.0");
+
+    var parakeet = new HyperWhisper.Data.Entities.Mode
+    {
+        Id = Guid.NewGuid(), Name = "Parakeet", SortOrder = 0, IsDefault = false, Language = "en", Preset = "hyper",
+        ProviderType = "local", LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3", Model = "parakeet-v3",
+        ModelType = "small", CloudAccuracyTier = "elevenLabsScribeV2", CloudPostProcessingModel = "anthropic:claude-haiku-5-5",
+    };
+    await modes.UpsertAsync(parakeet);
+    var renamed = (await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"name":"Parakeet renamed"} """), CancellationToken.None))!.Value;
+    Assert(renamed.GetProperty("name").GetString() == "Parakeet renamed", "a rename of a local mode was refused");
+    var patched = (await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"model":"parakeet-v2"} """), CancellationToken.None))!.Value;
+    Assert(patched.GetProperty("localParakeetModel").GetString() == "parakeet-v2",
+        "PATCH model on a Parakeet mode did not land against the keyed catalog (issue #1687)");
+
+    _ = await backend.CreateModeAsync(Json(ModeBody("Whisper small", model: "small",
+        extra: """ "providerType":"local","localEngine":"whisper" """)), CancellationToken.None);
+    // The check still bites: `large-v3` is a known Whisper id the catalog does
+    // not advertise, and a cloud key ending in `-large-v3` is no match.
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json(ModeBody("Whisper large", model: "large-v3",
+        extra: """ "providerType":"local","localEngine":"whisper" """)), CancellationToken.None).AsTask());
+}
+
 static async Task ApplicationBackendModeValidation()
 {
     using var paths = new TempPaths();
@@ -3203,6 +3239,23 @@ sealed class FirstUploadDeleteFails : DiskPrivateFiles
 sealed class EmptyCatalog : ILocalApiCapabilityCatalog
 {
     public IReadOnlyList<ModelEntry> Models => [];
+    public IReadOnlyList<ProviderStatus> TranscriptionProviders => [];
+    public IReadOnlyList<ProviderStatus> PostProcessingProviders => [];
+    public object LocalModels { get; } = new { };
+}
+
+// The ids the Linux head's `LinuxLocalApiCatalog` really advertises: capability
+// keys, not bare model ids. `large-v3` is left out on purpose.
+sealed class KeyedCatalog : ILocalApiCapabilityCatalog
+{
+    public IReadOnlyList<ModelEntry> Models { get; } =
+    [
+        new("local/localWhisper/small", "voice", "local", "Small", true),
+        new("local/parakeet/parakeet-v2", "voice", "local", "Parakeet v2", true),
+        new("local/streaming/parakeetLocal/parakeet-v2", "voice", "local", "Parakeet v2", true),
+        new("local/parakeet/parakeet-v3", "voice", "local", "Parakeet v3", true),
+        new("cloud/stt/groqWhisper/whisper-large-v3", "voice", "groq", "Whisper Large v3", true),
+    ];
     public IReadOnlyList<ProviderStatus> TranscriptionProviders => [];
     public IReadOnlyList<ProviderStatus> PostProcessingProviders => [];
     public object LocalModels { get; } = new { };

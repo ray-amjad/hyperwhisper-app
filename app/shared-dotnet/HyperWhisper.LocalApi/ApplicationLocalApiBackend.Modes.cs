@@ -241,8 +241,16 @@ public sealed partial class ApplicationLocalApiBackend
             var known = mode.LocalEngine == "parakeet" ? ParakeetModels : WhisperModels;
             if (string.IsNullOrWhiteSpace(model) || !known.Contains(model))
                 throw new ArgumentException("Local transcription model is invalid.");
+            // The Linux catalog's ids are capability keys
+            // (`local/localWhisper/small`, `local/parakeet/parakeet-v3`), and a
+            // mode stores the bare id, so an exact match refused every local
+            // mode on the real app, even a PATCH that only renamed one (found
+            // while proving issue #1687). Match the key's last segment too.
             var advertisedVoiceModels = _catalog.Models.Where(item => string.Equals(item.Kind, "voice", StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (advertisedVoiceModels.Length != 0 && !advertisedVoiceModels.Any(item => string.Equals(item.Id, model, StringComparison.OrdinalIgnoreCase)))
+            if (advertisedVoiceModels.Length != 0 && !advertisedVoiceModels.Any(item =>
+                    string.Equals(item.Id, model, StringComparison.OrdinalIgnoreCase)
+                    || (string.Equals(item.Provider, "local", StringComparison.OrdinalIgnoreCase)
+                        && item.Id.EndsWith("/" + model, StringComparison.OrdinalIgnoreCase))))
                 throw new ArgumentException("Local transcription model is not present in the capability catalog.");
         }
     }
