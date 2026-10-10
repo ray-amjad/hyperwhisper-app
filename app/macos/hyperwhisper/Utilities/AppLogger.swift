@@ -457,10 +457,11 @@ final class AppLogger {
         // HOW LONG THIS BLOCKS IS ITSELF A DIAGNOSTIC (Sentry HYPERWHISPER-F7).
         // `log show` is a subprocess and reading it to the end blocks the CALLING
         // thread. 55 of the 56 `SentryService.capture` sites leave
-        // `includeRecentLogs` at its default of `true`, so any of them reached
-        // from the main thread parks it here for as long as the subprocess
-        // takes. Nothing measured that until now, so a hang report could not
-        // say whether the app was stalled inside its own error reporting.
+        // `includeRecentLogs` at its default of `true`; a capture reached from
+        // the main thread used to park it here for as long as the subprocess
+        // took. `SentryService.withRecentLogs` now moves that fetch off the
+        // main thread (#991), so `diagnostic_logs_on_main_thread` should stay
+        // false; a true means some new caller reached this directly.
         //
         // The `running` state is published BEFORE the subprocess starts, so an
         // AppHang raised while the fetch is in flight carries it.

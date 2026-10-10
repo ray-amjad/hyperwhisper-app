@@ -594,18 +594,6 @@ enum SentryService {
             event.extra?[k] = v
         }
 
-        // DIAGNOSTIC LOGS ATTACHMENT
-        // Attach recent sanitized logs for debugging context.
-        // Logs are fetched from os.log and sanitized to remove PII before sending.
-        // The beforeSend hook provides additional sanitization as a safety net.
-        if includeRecentLogs {
-            // Fetch last 5 minutes of logs, max 100 lines
-            // This runs synchronously but is fast (< 100ms typically)
-            if let recentLogs = AppLogger.getRecentLogs(minutes: 5, maxLines: 100) {
-                event.extra?["recent_logs"] = recentLogs
-            }
-        }
-
         // Set custom fingerprint for proper grouping
         // Without this, Sentry groups by stack trace which can merge unrelated errors
         if let fingerprint {
@@ -616,7 +604,20 @@ enum SentryService {
             event.fingerprint = ["{{ default }}", message, errorType]
         }
 
-        SentrySDK.capture(event: event)
+        // DIAGNOSTIC LOGS ATTACHMENT
+        // Attach recent sanitized logs for debugging context.
+        // Logs are fetched from os.log and sanitized to remove PII before sending.
+        // The beforeSend hook provides additional sanitization as a safety net.
+        // Off the main thread this is synchronous; on it, see `withRecentLogs`.
+        withRecentLogs(includeRecentLogs) { recentLogs, deferredFromMainThread in
+            if let recentLogs {
+                event.extra?["recent_logs"] = recentLogs
+            }
+            if deferredFromMainThread {
+                event.extra?["captured_from_main_thread"] = true
+            }
+            SentrySDK.capture(event: event)
+        }
         #else
         // No-op when Sentry SDK is not linked
         _ = (error, message, extras, tags, fingerprint, includeRecentLogs)
@@ -813,12 +814,50 @@ enum SentryService {
             event.extra?[k] = v
         }
 
-        if includeRecentLogs, let recentLogs = AppLogger.getRecentLogs(minutes: 5, maxLines: 100) {
-            event.extra?["recent_logs"] = recentLogs
+        withRecentLogs(includeRecentLogs) { recentLogs, deferredFromMainThread in
+            if let recentLogs {
+                event.extra?["recent_logs"] = recentLogs
+            }
+            if deferredFromMainThread {
+                event.extra?["captured_from_main_thread"] = true
+            }
+            SentrySDK.capture(event: event)
         }
-
-        SentrySDK.capture(event: event)
         #endif
+    }
+
+    // MARK: - Recent logs, never on the main thread
+
+    /// Where the `log show` fetch for an Event runs (#991).
+    ///
+    /// The fetch shells out to `log show` and blocks until it exits, which can
+    /// take seconds on a busy log. Off the main thread it runs inline, so the
+    /// event is sent before the capture call returns, as it always was. On the
+    /// main thread it hops to a utility queue and the capture goes out from
+    /// there, so error reporting can never park the UI. The cost of the hop:
+    /// the event's stack is the utility queue's, not the call site's, so the
+    /// event carries `captured_from_main_thread` to say where it came from.
+    /// Grouping is unaffected; every call site groups by message or fingerprint.
+    ///
+    /// With `include` false nothing is fetched and `send` runs inline.
+    static func withRecentLogs(
+        _ include: Bool,
+        isMainThread: Bool = Thread.isMainThread,
+        fetch: @escaping () -> String? = { AppLogger.getRecentLogs(minutes: 5, maxLines: 100) },
+        background: (@escaping () -> Void) -> Void = { DispatchQueue.global(qos: .utility).async(execute: $0) },
+        send: @escaping (_ recentLogs: String?, _ deferredFromMainThread: Bool) -> Void
+    ) {
+        guard include else {
+            send(nil, false)
+            return
+        }
+        guard isMainThread else {
+            send(fetch(), false)
+            return
+        }
+        background {
+            send(fetch(), true)
+        }
     }
 
     // MARK: - Tags
