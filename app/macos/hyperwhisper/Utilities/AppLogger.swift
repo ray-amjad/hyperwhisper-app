@@ -353,11 +353,16 @@ final class AppLogger {
                 
                 let outputPipe = Pipe()
                 process.standardOutput = outputPipe
+                // Unread stderr would fill its pipe the same way stdout can.
+                process.standardError = FileHandle.nullDevice
                 
                 try process.run()
+                // Drain BEFORE waiting (#991). 24 h of JSON is far past the
+                // ~64 KB pipe buffer: waiting first leaves `log show` blocked
+                // on write, so it never exits and `completion` never runs.
+                let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
                 process.waitUntilExit()
                 
-                let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
                 try data.write(to: logFile)
                 
                 // COPY UPDATE LOGS
@@ -450,7 +455,7 @@ final class AppLogger {
     /// - Returns: Sanitized log text, or nil if retrieval failed
     static func getRecentLogs(minutes: Int = 5, maxLines: Int = 100) -> String? {
         // HOW LONG THIS BLOCKS IS ITSELF A DIAGNOSTIC (Sentry HYPERWHISPER-F7).
-        // `log show` is a subprocess and `waitUntilExit()` blocks the CALLING
+        // `log show` is a subprocess and reading it to the end blocks the CALLING
         // thread. 55 of the 56 `SentryService.capture` sites leave
         // `includeRecentLogs` at its default of `true`, so any of them reached
         // from the main thread parks it here for as long as the subprocess
@@ -476,15 +481,19 @@ final class AppLogger {
         ]
 
         let outputPipe = Pipe()
-        let errorPipe = Pipe()
         process.standardOutput = outputPipe
-        process.standardError = errorPipe
+        // stderr was a pipe nobody read, so a chatty `log show` could fill it
+        // and block. Nothing here uses it.
+        process.standardError = FileHandle.nullDevice
 
         do {
             try process.run()
-            process.waitUntilExit()
-
+            // Drain BEFORE waiting (#991). A pipe holds about 64 KB; a busy
+            // five minutes of logs is more, and waiting first leaves `log show`
+            // blocked on write, so `waitUntilExit()` would never return.
+            // `readDataToEndOfFile()` returns at EOF, when the child exits.
             let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
             let fetchMs = Int((Date().timeIntervalSince(fetchStart) * 1_000).rounded())
 
             guard let output = String(data: data, encoding: .utf8), !output.isEmpty else {
