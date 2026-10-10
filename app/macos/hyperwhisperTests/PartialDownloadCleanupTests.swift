@@ -78,6 +78,34 @@ struct PartialDownloadCleanupTests {
         #expect(url == tmp.appendingPathComponent("CFNetworkDownload_Keyed.tmp"))
     }
 
+    /// The shape CFNetwork really writes (macOS 26, 2026-10-10): a keyed archive whose
+    /// root sits under the literal key "NSKeyedArchiveRootObjectKey", not under "root".
+    @Test func cfNetworkKeyedArchiveResumeDataResolvesTheTempFileName() throws {
+        let tmp = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let info: NSDictionary = [
+            "NSURLSessionResumeInfoVersion": 6,
+            "NSURLSessionResumeInfoTempFileName": "CFNetworkDownload_9pgW3C.tmp",
+            "NSURLSessionResumeBytesReceived": 27_407_183
+        ]
+        let archiver = NSKeyedArchiver(requiringSecureCoding: false)
+        archiver.encode(info, forKey: "NSKeyedArchiveRootObjectKey")
+        archiver.finishEncoding()
+
+        let url = PartialDownloadCleanup.resumeTempFile(fromResumeData: archiver.encodedData,
+                                                        temporaryDirectory: tmp)
+        #expect(url == tmp.appendingPathComponent("CFNetworkDownload_9pgW3C.tmp"))
+    }
+
+    /// The Nemotron cancel touches only the cancelled variant's requests in
+    /// FluidAudio's shared session.
+    @Test func nemotronTransferPathMatchesOnlyItsOwnVariant() throws {
+        let url = try #require(URL(string:
+            "https://huggingface.co/FluidInference/Nemotron-3.5-ASR-Streaming-Multilingual-0.6b-CoreML/resolve/main/multilingual/2240ms/encoder.mlmodelc/weights/weight.bin"))
+        #expect(url.path.contains(NemotronModelManager.transferPathFragment(for: .multilingual)))
+        #expect(!url.path.contains(NemotronModelManager.transferPathFragment(for: .latin)))
+    }
+
     /// A transport error wrapped by a library still resolves through `NSUnderlyingErrorKey`.
     @Test func wrappedErrorResolvesThroughTheUnderlyingError() throws {
         let tmp = try Self.makeDirectory()

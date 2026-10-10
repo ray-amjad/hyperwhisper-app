@@ -231,6 +231,11 @@ final class NemotronModelManager: ObservableObject {
     /// in-flight transfer.
     private var downloadTasks: [String: Task<Void, Never>] = [:]
 
+    /// Model ids the user (or a quit) asked to cancel. Set before the transfer is
+    /// cancelled, because the transfer is cancelled first (to keep its resume data,
+    /// see `cancelTransfers(for:)`) and throws before the `Task` is cancelled.
+    private var cancelRequested: Set<String> = []
+
     /// FIFO of model ids requested while another variant was already downloading. Drained
     /// one at a time so the two variants don't split bandwidth (and double the stall surface).
     private var downloadQueue: [String] = []
@@ -341,10 +346,19 @@ final class NemotronModelManager: ObservableObject {
         }
         guard !downloadTasks.isEmpty else { return }
         logger.info("App is quitting mid-download; cancelling \(self.downloadTasks.count) Nemotron download(s)")
-        for modelId in Array(downloadTasks.keys) {
-            cancelDownload(modelId)
-        }
         let deadline = Date().addingTimeInterval(Constants.terminationCleanupTimeout)
+        for (modelId, task) in downloadTasks {
+            cancelRequested.insert(modelId)
+            if let variant = Self.variant(forModelId: modelId) {
+                // Blocks (bounded): a quit cannot await, and the tmp must go before exit.
+                PartialDownloadCleanup.cancelDownloadTasksBlocking(
+                    in: DownloadUtils.sharedSession,
+                    whereOriginalPathContains: Self.transferPathFragment(for: variant),
+                    timeout: max(deadline.timeIntervalSinceNow, 0.1)
+                )
+            }
+            task.cancel()
+        }
         while !downloadTasks.isEmpty, Date() < deadline {
             _ = RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.05))
         }
@@ -539,12 +553,38 @@ final class NemotronModelManager: ObservableObject {
             logger.info("Removed queued Nemotron download \(modelId, privacy: .public)")
             return
         }
-        // Active: cancel the retained task. `download(_:)` unwinds silently (cancellation
-        // is not surfaced as an error) and `downloadFinished` then drains the queue.
-        if let task = downloadTasks[modelId] {
+        // Active: cancel the transfer (keeping its resume data, so its tmp file can be
+        // removed — #1445), then the retained task. `download(_:)` unwinds silently
+        // (cancellation is not surfaced as an error) and `downloadFinished` then drains
+        // the queue.
+        if let task = downloadTasks[modelId], !cancelRequested.contains(modelId) {
             logger.info("Cancelling Nemotron download \(modelId, privacy: .public)")
-            task.cancel()
+            cancelRequested.insert(modelId)
+            Task { @MainActor in
+                if let variant = Self.variant(forModelId: modelId) {
+                    await Self.cancelTransfers(for: variant)
+                }
+                task.cancel()
+            }
         }
+    }
+
+    /// The path every FluidAudio request for this variant's files carries:
+    /// `/<repo>/resolve/main/<variant>/<chunkMs>ms/<file>` (`downloadSubdirectory`).
+    nonisolated static func transferPathFragment(for variant: Variant) -> String {
+        "/\(Repo.nemotronMultilingual.remotePath)/resolve/main/\(variant.folderName)/\(Constants.chunkMs)ms/"
+    }
+
+    /// Cancel this variant's in-flight transfer in FluidAudio's shared session with
+    /// `cancel(byProducingResumeData:)` and remove the `CFNetworkDownload_*.tmp` its
+    /// resume data names (#1445). A `Task` cancel alone does a plain cancel, which
+    /// leaves that tmp file with nothing naming it. Only this variant's requests are
+    /// touched; other FluidAudio downloads in the same session are left running.
+    private static func cancelTransfers(for variant: Variant) async {
+        await PartialDownloadCleanup.cancelDownloadTasks(
+            in: DownloadUtils.sharedSession,
+            whereOriginalPathContains: transferPathFragment(for: variant)
+        )
     }
 
     @MainActor
@@ -561,6 +601,7 @@ final class NemotronModelManager: ObservableObject {
     @MainActor
     private func downloadFinished(_ modelId: String) {
         downloadTasks.removeValue(forKey: modelId)
+        cancelRequested.remove(modelId)
         guard !downloadQueue.isEmpty else { return }
         let next = downloadQueue.removeFirst()
         beginDownload(next)
@@ -597,8 +638,12 @@ final class NemotronModelManager: ObservableObject {
         var succeeded = false
         var lastError: Error?
 
+        // The transfer is cancelled before the `Task` (see `cancelDownload(_:)`), so a
+        // cancel shows up in `cancelRequested` first.
+        func cancelled() -> Bool { Task.isCancelled || cancelRequested.contains(modelId) }
+
         for attempt in 0..<Constants.maxDownloadAttempts {
-            if Task.isCancelled { break }
+            if cancelled() { break }
             do {
                 try await runDownloadAttempt(modelId: modelId, variant: variant)
                 succeeded = true
@@ -606,14 +651,14 @@ final class NemotronModelManager: ObservableObject {
             } catch is CancellationError {
                 break   // user cancelled → silent
             } catch let urlError as URLError where urlError.code == .cancelled {
-                // FluidAudio's `session.download(for:)` keeps the cancelled file's
-                // `CFNetworkDownload_*.tmp` for a resume we never do (#1445).
+                // `cancelTransfers(for:)` has already removed the tmp file its resume
+                // data names; this is a second try for the same file (#1445).
                 PartialDownloadCleanup.removeResumeTempFile(for: urlError)
                 break   // user cancelled → silent
             } catch {
                 // A transport failure can carry resume data too; a retry starts a new tmp.
                 PartialDownloadCleanup.removeResumeTempFile(for: error)
-                if Task.isCancelled { break }
+                if cancelled() { break }
                 lastError = error
                 logger.warning("Nemotron \(variant.rawValue, privacy: .public) attempt \(attempt + 1)/\(Constants.maxDownloadAttempts) failed: \(error.localizedDescription, privacy: .public)")
                 // Retire this attempt's callbacks so a straggler can't reinsert stale progress.
@@ -630,11 +675,11 @@ final class NemotronModelManager: ObservableObject {
             // the disk matches the "not downloaded" row (#1445). No resume by design.
             PartialDownloadCleanup.removeOwnedDirectory(
                 Self.cacheDirectory(for: variant),
-                reason: Task.isCancelled ? "Nemotron download cancelled" : "Nemotron download failed"
+                reason: cancelled() ? "Nemotron download cancelled" : "Nemotron download failed"
             )
         }
 
-        if Task.isCancelled {
+        if cancelled() {
             logger.info("Nemotron \(variant.rawValue, privacy: .public) download cancelled")
         } else if succeeded {
             logger.info("Nemotron \(variant.rawValue, privacy: .public) downloaded successfully")

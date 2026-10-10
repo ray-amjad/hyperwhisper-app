@@ -10,10 +10,12 @@
 //  The two kinds of proof used here:
 //  - A path inside a directory only our code writes to (the Whisper `.partial` file in
 //    our models directory, a Nemotron variant directory we computed).
-//  - The resume data of a download WE started. A cancelled `URLSession.download(for:)`
-//    (what FluidAudio uses) keeps its `CFNetworkDownload_*.tmp` for a resume and names
-//    it inside the resume data carried by the thrown error; nobody resumes it, so it
-//    leaks. That name came from our own task, so removing it touches nothing else.
+//  - The resume data of a download task in our own process. A cancelled
+//    `URLSession.download(for:)` (what FluidAudio uses) keeps its
+//    `CFNetworkDownload_*.tmp`, and nobody resumes it, so it leaks. Its name is only
+//    handed back when the task is cancelled with `cancel(byProducingResumeData:)` (or
+//    a transport failure carries resume data); that name came from our own task, so
+//    removing it touches nothing else.
 //
 
 import Foundation
@@ -70,17 +72,23 @@ enum PartialDownloadCleanup {
         for error: Error,
         temporaryDirectory: URL = FileManager.default.temporaryDirectory
     ) -> URL? {
-        guard let url = resumeTempFile(for: error, temporaryDirectory: temporaryDirectory) else { return nil }
+        guard let url = resumeTempFile(for: error, temporaryDirectory: temporaryDirectory),
+              removeFile(url) else { return nil }
+        return url
+    }
+
+    /// Remove one abandoned tmp file (never a directory). `false` when it is not there.
+    private static func removeFile(_ url: URL) -> Bool {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-              !isDirectory.boolValue else { return nil }
+              !isDirectory.boolValue else { return false }
         do {
             try FileManager.default.removeItem(at: url)
             logger.info("Removed the abandoned download tmp file \(url.lastPathComponent, privacy: .public)")
-            return url
+            return true
         } catch {
             logger.error("Could not remove the abandoned download tmp file \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            return nil
+            return false
         }
     }
 
@@ -91,12 +99,105 @@ enum PartialDownloadCleanup {
         if let dict = plist as? [String: Any], dict["$archiver"] == nil {
             return dict
         }
-        // Keyed archive: unarchive the root object (a dictionary of plist types and an
-        // NSURLRequest). Secure coding is off because the archive came from our own task.
+        // Keyed archive: unarchive the root object (a dictionary of plist types and
+        // NSData). Secure coding is off because the archive came from our own task.
+        // CFNetwork files the root under the literal key "NSKeyedArchiveRootObjectKey"
+        // (measured on macOS 26, 2026-10-10), not under `NSKeyedArchiveRootObjectKey`,
+        // whose value is "root"; read both.
         guard let unarchiver = try? NSKeyedUnarchiver(forReadingFrom: data) else { return nil }
         unarchiver.requiresSecureCoding = false
         defer { unarchiver.finishDecoding() }
-        return unarchiver.decodeObject(forKey: NSKeyedArchiveRootObjectKey) as? [String: Any]
+        for key in [archivedRootKey, NSKeyedArchiveRootObjectKey] {
+            if let info = unarchiver.decodeObject(forKey: key) as? [String: Any] {
+                return info
+            }
+        }
+        return nil
+    }
+
+    private static let archivedRootKey = "NSKeyedArchiveRootObjectKey"
+
+    // MARK: - Cancelling a download we did not start the task for
+
+    /// Cancel every download task in `session` whose ORIGINAL request path contains
+    /// `pathFragment`, asking each for resume data, and remove the tmp file that data
+    /// names. `completion` runs once every matching task has answered, on no
+    /// particular queue, with the files removed.
+    ///
+    /// Why not a plain cancel: a plain `cancel()` — and a Swift `Task` cancel of an
+    /// async `download(for:)`, which is how FluidAudio downloads — throws a bare
+    /// `URLError.cancelled` with NO resume data and leaves the tmp file behind with
+    /// nothing naming it (measured on macOS 26, 2026-10-10). Only
+    /// `cancel(byProducingResumeData:)` hands the tmp file's name back.
+    static func cancelDownloadTasks(
+        in session: URLSession,
+        whereOriginalPathContains pathFragment: String,
+        temporaryDirectory: URL = FileManager.default.temporaryDirectory,
+        completion: @escaping @Sendable ([URL]) -> Void
+    ) {
+        session.getAllTasks { tasks in
+            let matching = tasks.compactMap { $0 as? URLSessionDownloadTask }.filter {
+                $0.originalRequest?.url?.path.contains(pathFragment) == true
+            }
+            guard !matching.isEmpty else {
+                completion([])
+                return
+            }
+            let group = DispatchGroup()
+            let removed = RemovedFiles()
+            for task in matching {
+                group.enter()
+                task.cancel(byProducingResumeData: { data in
+                    if let data,
+                       let url = resumeTempFile(fromResumeData: data, temporaryDirectory: temporaryDirectory),
+                       removeFile(url) {
+                        removed.append(url)
+                    }
+                    group.leave()
+                })
+            }
+            group.notify(queue: .global(qos: .utility)) {
+                completion(removed.all)
+            }
+        }
+    }
+
+    /// The files removed by concurrent resume-data callbacks.
+    private final class RemovedFiles: @unchecked Sendable {
+        private let lock = NSLock()
+        private var urls: [URL] = []
+        func append(_ url: URL) { lock.lock(); urls.append(url); lock.unlock() }
+        var all: [URL] { lock.lock(); defer { lock.unlock() }; return urls }
+    }
+
+    /// `cancelDownloadTasks(in:whereOriginalPathContains:completion:)`, awaited.
+    @discardableResult
+    static func cancelDownloadTasks(
+        in session: URLSession,
+        whereOriginalPathContains pathFragment: String
+    ) async -> [URL] {
+        await withCheckedContinuation { continuation in
+            cancelDownloadTasks(in: session, whereOriginalPathContains: pathFragment) {
+                continuation.resume(returning: $0)
+            }
+        }
+    }
+
+    /// `cancelDownloadTasks(in:whereOriginalPathContains:completion:)`, blocking the
+    /// caller for at most `timeout`. For the quit path, which cannot await. Safe on
+    /// the main thread: URLSession answers on its own delegate queue.
+    static func cancelDownloadTasksBlocking(
+        in session: URLSession,
+        whereOriginalPathContains pathFragment: String,
+        timeout: TimeInterval
+    ) {
+        let done = DispatchSemaphore(value: 0)
+        cancelDownloadTasks(in: session, whereOriginalPathContains: pathFragment) { _ in
+            done.signal()
+        }
+        if done.wait(timeout: .now() + timeout) == .timedOut {
+            logger.warning("Timed out cancelling downloads under \(pathFragment, privacy: .public); their tmp files may remain")
+        }
     }
 
     /// A bare file name: no separators, no `..`. Keeps a malformed value from
