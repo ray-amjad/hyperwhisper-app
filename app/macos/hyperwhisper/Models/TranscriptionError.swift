@@ -232,4 +232,13 @@ enum TranscriptionError: LocalizedError {
         }
     }
 
+    /// The HTTP status of a `serverError`, as a log/Sentry-safe string, or
+    /// `"none"` for any other error. Carries no part of the server message.
+    static func serverStatus(of error: Error) -> String {
+        if case .serverError(let statusCode, _)? = error as? TranscriptionError {
+            return String(statusCode)
+        }
+        return "none"
+    }
+
 }

@@ -1245,10 +1245,7 @@ class AIPostProcessor: ObservableObject {
             // upstream provider's error body that echoes the transcript (#1669).
             // The error's identity and status are public; its description is private.
             let nsError = error as NSError
-            var serverStatus = "none"
-            if case .serverError(let statusCode, _)? = error as? TranscriptionError {
-                serverStatus = String(statusCode)
-            }
+            let serverStatus = TranscriptionError.serverStatus(of: error)
             AppLogger.transcription.error("HyperWhisper Cloud post-processing failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · serverStatus=\(serverStatus, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
 
             // NOTIFY USER of actionable credential errors (can be fixed in Settings)
