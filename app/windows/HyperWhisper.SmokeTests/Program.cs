@@ -17002,6 +17002,27 @@ internal static class Program
                 }
             });
 
+            // Issue #1614: Import and ImportSelective apply the backup's settings to
+            // settings.json BEFORE the one-transaction DB step (#1605). A DB failure
+            // rolled the modes back and left the backup's settings applied. The same
+            // real SQLite refusal as above fails the DB step; the settings, in memory
+            // and on disk, must be what they were before the import.
+            Run("backup: Import Selected whose DB step fails leaves settings.json as it was — issue #1614", () =>
+                AssertFailedImportKeepsSettings("selective", backupPath =>
+                    BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+                    {
+                        IncludeSettings = true,
+                        IncludeModes = true
+                    }).IsSuccess));
+
+            Run("backup: a merge Import whose DB step fails leaves settings.json as it was — issue #1614", () =>
+                AssertFailedImportKeepsSettings("merge", backupPath =>
+                    BackupService.Instance.Import(backupPath, replaceExisting: false).IsSuccess));
+
+            Run("backup: a replace Import whose DB step fails leaves settings.json as it was — issue #1614", () =>
+                AssertFailedImportKeepsSettings("replace", backupPath =>
+                    BackupService.Instance.Import(backupPath, replaceExisting: true).IsSuccess));
+
             Run("settings: an info notice is given the whole column, so it wraps — issues #503, #508", () =>
             {
                 // A horizontal StackPanel measures its children with infinite available
@@ -19908,6 +19929,163 @@ internal static class Program
 
     private static void RunAsync(string name, Func<Task> check)
         => Run(name, () => check().GetAwaiter().GetResult());
+
+    /// <summary>
+    /// Issue #1614: runs <paramref name="runImport"/> on a backup whose settings
+    /// differ from every live value it touches and whose modes carry one row a
+    /// SQLite BEFORE INSERT trigger refuses, so the DB step fails AFTER step 1 has
+    /// applied the settings. Asserts the import failed and that the settings — the
+    /// property values and the settings.json bytes — are what they were before it.
+    /// </summary>
+    private static void AssertFailedImportKeepsSettings(string label, Func<string, bool> runImport)
+    {
+        DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+        var settings = SettingsService.Instance;
+
+        // Plant the failure in the suite's own scratch profile only.
+        string dbPath;
+        using (var probe = new HyperWhisperDbContext())
+        {
+            dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                probe.Database.GetConnectionString()).DataSource);
+        }
+        Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+            $"the database {dbPath} is not under the suite's temp profile; refusing to add a trigger to it");
+
+        var settingsFile = Path.Combine(AppPaths.AppDataRoot, "settings.json");
+        Assert(settingsFile.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+            $"settings.json {settingsFile} is not under the suite's temp profile");
+
+        // Make settings.json exactly what Save() writes for the live settings, so the
+        // byte comparison below measures the import and nothing an earlier case did.
+        var wpm = settings.TypingSpeedWPM;
+        settings.TypingSpeedWPM = wpm + 1;
+        settings.TypingSpeedWPM = wpm;
+        Assert(File.Exists(settingsFile), $"no settings.json at {settingsFile}");
+
+        JsonObject ReadState()
+        {
+            var state = ReadWindowsSettings(settings);
+            state["BackupUnknownSettings"] = settings.BackupUnknownSettings;
+            state["BackupForeignPlatformExtensions"] = settings.BackupForeignPlatformExtensions;
+            state["BackupUnknownRootKeys"] = settings.BackupUnknownRootKeys;
+            state["CustomEndpoints"] = JsonSerializer.Serialize(settings.CustomEndpoints);
+            return state;
+        }
+
+        var memoryBefore = ReadState();
+        var memoryBeforeJson = memoryBefore.ToJsonString();
+        var fileBefore = File.ReadAllText(settingsFile);
+
+        var token = Guid.NewGuid().ToString("N")[..8];
+        var prefix = $"percy1614-{label}-{token}-";
+        var poisonName = prefix + "poison";
+        var trigger = $"percy1614_poison_{token}";
+
+        // Every value below is the OPPOSITE of the live one, so a backup whose
+        // settings stayed applied cannot read as unchanged.
+        var otherWpm = wpm == 61 ? 62 : 61;
+        var otherTheme = ((int)settings.ThemeMode + 1) % 3;
+        var otherTray = (!settings.MinimizeToTray).ToString().ToLowerInvariant();
+        var windowsSlice = JsonDocument.Parse(
+            $"{{\"settings\":{{\"minimizeToTray\":{otherTray},\"themeMode\":{otherTheme}}}}}").RootElement.Clone();
+        var linuxSlice = JsonDocument.Parse(
+            $"{{\"percy1614\":\"{token}\"}}").RootElement.Clone();
+        var unknownRoot = JsonDocument.Parse($"\"{token}\"").RootElement.Clone();
+
+        var backupPath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests",
+            $"issue1614-{label}-{token}.hwbackup.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+        File.WriteAllText(backupPath, JsonSerializer.Serialize(new UniversalBackup
+        {
+            SchemaVersion = 2,
+            ExportDate = DateTime.UtcNow,
+            AppVersion = "smoke-1614",
+            Platform = "windows",
+            Settings = new UniversalSettings
+            {
+                General = new UniversalGeneralSettings
+                {
+                    LaunchMinimized = !settings.LaunchMinimized,
+                    EnableSoundEffects = !settings.EnableSoundEffects
+                },
+                TextOutput = new UniversalTextOutputSettings
+                {
+                    RemoveFillerWords = !settings.RemoveFillerWords
+                },
+                Advanced = new UniversalAdvancedSettings { TypingSpeedWPM = otherWpm }
+            },
+            PlatformExtensions = new Dictionary<string, JsonElement>
+            {
+                ["windows"] = windowsSlice,
+                ["linux"] = linuxSlice
+            },
+            Modes =
+            [
+                UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = prefix + "0", SortOrder = 20_000 }),
+                UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = poisonName, SortOrder = 20_001 }),
+                UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = prefix + "2", SortOrder = 20_002 })
+            ],
+            Additional = new Dictionary<string, JsonElement> { ["percy1614Probe"] = unknownRoot }
+        }, UniversalCaptureOptions));
+
+        void Exec(string sql)
+        {
+            using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.ExecuteNonQuery();
+        }
+
+        Exec($"CREATE TRIGGER IF NOT EXISTS {trigger} BEFORE INSERT ON Modes " +
+             $"WHEN NEW.Name = '{poisonName}' BEGIN SELECT RAISE(ABORT, 'percy1614 poison row'); END;");
+        try
+        {
+            var succeeded = runImport(backupPath);
+            Assert(!succeeded,
+                $"the {label} import succeeded although the poison row was refused, so this case proves nothing");
+
+            var memoryAfter = ReadState();
+            var changed = memoryBefore
+                .Where(entry => !JsonNode.DeepEquals(entry.Value, memoryAfter[entry.Key]))
+                .Select(entry => $"{entry.Key}: {entry.Value?.ToJsonString() ?? "null"} -> {memoryAfter[entry.Key]?.ToJsonString() ?? "null"}")
+                .ToList();
+            Assert(changed.Count == 0,
+                $"the failed {label} import left the backup's settings applied in memory: {string.Join("; ", changed)}");
+
+            var fileAfter = File.ReadAllText(settingsFile);
+            Assert(fileAfter == fileBefore,
+                $"the failed {label} import left settings.json changed on disk " +
+                $"({fileBefore.Length} chars before, {fileAfter.Length} after)");
+        }
+        finally
+        {
+            Exec($"DROP TRIGGER IF EXISTS {trigger};");
+            Exec($"DELETE FROM Modes WHERE Name LIKE '{prefix}%';");
+            try { File.Delete(backupPath); } catch { }
+
+            // On a build without the fix the backup's settings stay applied; put the
+            // old values back so the cases after this one start from the same state.
+            if (ReadState().ToJsonString() != memoryBeforeJson)
+            {
+                SeedWindowsSettings(settings, StripBookkeeping(memoryBefore), $"issue1614-{label}-cleanup");
+                settings.BackupUnknownSettings = memoryBefore["BackupUnknownSettings"]?.GetValue<string>();
+                settings.BackupForeignPlatformExtensions = memoryBefore["BackupForeignPlatformExtensions"]?.GetValue<string>();
+                settings.BackupUnknownRootKeys = memoryBefore["BackupUnknownRootKeys"]?.GetValue<string>();
+            }
+        }
+
+        static JsonObject StripBookkeeping(JsonObject state)
+        {
+            var native = state.DeepClone().AsObject();
+            native.Remove("BackupUnknownSettings");
+            native.Remove("BackupForeignPlatformExtensions");
+            native.Remove("BackupUnknownRootKeys");
+            native.Remove("CustomEndpoints");
+            return native;
+        }
+    }
 
     /// <summary>
     /// Writes a file that starts with the GGML magic and is exactly
