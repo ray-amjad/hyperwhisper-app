@@ -114,7 +114,9 @@ public partial class MainViewModel
         }
 
         var requiresMuseNormalization = mode.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) == true
-            && ((string.Equals(mode.CloudProvider, "hyperwhisper", StringComparison.OrdinalIgnoreCase)
+            // A blank CloudProvider is HyperWhisper Cloud (issue #1521).
+            && ((CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider)
+                    == CloudTranscriptionProvider.HyperWhisperCloud
                  && string.Equals(mode.CloudAccuracyTier, "metaMuse", StringComparison.OrdinalIgnoreCase))
                 || string.Equals(mode.CloudProvider, "meta", StringComparison.OrdinalIgnoreCase));
 
@@ -482,7 +484,7 @@ public partial class MainViewModel
 
         if (mode.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) == true)
         {
-            var provider = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+            var provider = CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider);
             return provider != CloudTranscriptionProvider.None
                 ? provider.GetMaxFileSizeBytes()
                 : 25L * 1024 * 1024;
