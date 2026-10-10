@@ -526,10 +526,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         lock (_liveDeliveryGate) return _liveFinalText.ToString();
     }
 
-    private static LinuxRecordingOverlayCompletion MapCompletion(TextInjectionOutcome? outcome) => outcome switch
+    // A failed write must not read as "Copied!" while the diagnostics log says Clipboard Failed (#1703).
+    internal static LinuxRecordingOverlayCompletion MapCompletion(TextInjectionOutcome? outcome) => outcome switch
     {
         TextInjectionOutcome.Pasted => LinuxRecordingOverlayCompletion.Pasted,
         TextInjectionOutcome.SecureFieldSkipped => LinuxRecordingOverlayCompletion.SecureField,
+        TextInjectionOutcome.Failed => LinuxRecordingOverlayCompletion.CopyFailed,
         _ => LinuxRecordingOverlayCompletion.Copied,
     };
 
