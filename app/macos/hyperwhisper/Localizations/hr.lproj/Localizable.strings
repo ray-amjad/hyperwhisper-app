@@ -1076,6 +1076,7 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "settings.backup.import.error.storeVocabulary" = "Rječnik se nije mogao spremiti pa je ostao nepromijenjen.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Načini su uvezeni, ali rječnik se nije mogao spremiti pa je ostao nepromijenjen.";
 "settings.backup.import.error.storeLicense" = "Ključ licence nije se mogao sigurno uvesti.";
+"settings.backup.import.error.storeSettingsRestored" = "Postavke su ostale nepromijenjene.";
 "settings.backup.import.error.storeOtherSections" = "Ostali odabrani odjeljci su primijenjeni.";
 "settings.backup.import.apiKeysFailed" = "Ovi API ključevi nisu se mogli spremiti u Privjesak ključeva i nisu vraćeni: %@. Ponovno ih unesite u Postavkama.";
 "settings.backup.import.confirm.title" = "Uvesti postavke?";

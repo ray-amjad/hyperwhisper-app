@@ -1076,6 +1076,7 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "settings.backup.import.error.storeVocabulary" = "Slovník sa nepodarilo uložiť, preto zostal bez zmeny.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Režimy boli importované, ale slovník sa nepodarilo uložiť, preto zostal bez zmeny.";
 "settings.backup.import.error.storeLicense" = "Licenčný kľúč sa nepodarilo bezpečne importovať.";
+"settings.backup.import.error.storeSettingsRestored" = "Nastavenia zostali bez zmeny.";
 "settings.backup.import.error.storeOtherSections" = "Ostatné vybrané časti boli použité.";
 "settings.backup.import.apiKeysFailed" = "Tieto kľúče API sa nepodarilo uložiť do Kľúčenky a neboli obnovené: %@. Zadajte ich znova v Nastaveniach.";
 "settings.backup.import.confirm.title" = "Importovať nastavenia?";

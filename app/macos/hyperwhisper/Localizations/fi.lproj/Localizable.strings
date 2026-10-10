@@ -1076,6 +1076,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "settings.backup.import.error.storeVocabulary" = "Sanastoa ei voitu tallentaa, joten se jätettiin ennalleen.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Tilat tuotiin, mutta sanastoa ei voitu tallentaa, joten se jätettiin ennalleen.";
 "settings.backup.import.error.storeLicense" = "Lisenssiavainta ei voitu tuoda turvallisesti.";
+"settings.backup.import.error.storeSettingsRestored" = "Asetukset jätettiin ennalleen.";
 "settings.backup.import.error.storeOtherSections" = "Muut valitut osiot otettiin käyttöön.";
 "settings.backup.import.apiKeysFailed" = "Näitä API-avaimia ei voitu tallentaa avainnippuun, eikä niitä palautettu: %@. Syötä ne uudelleen asetuksissa.";
 "settings.backup.import.confirm.title" = "Tuo asetukset?";

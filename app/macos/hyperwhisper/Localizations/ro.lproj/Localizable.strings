@@ -1076,6 +1076,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "settings.backup.import.error.storeVocabulary" = "Vocabularul nu a putut fi salvat, așa că a rămas neschimbat.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Modurile au fost importate, dar vocabularul nu a putut fi salvat, așa că a rămas neschimbat.";
 "settings.backup.import.error.storeLicense" = "Cheia de licență nu a putut fi importată în siguranță.";
+"settings.backup.import.error.storeSettingsRestored" = "Setările au rămas neschimbate.";
 "settings.backup.import.error.storeOtherSections" = "Celelalte secțiuni selectate au fost aplicate.";
 "settings.backup.import.apiKeysFailed" = "Aceste chei API nu au putut fi salvate în portchei și nu au fost restaurate: %@. Introdu-le din nou în Setări.";
 "settings.backup.import.confirm.title" = "Importați setări?";

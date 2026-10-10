@@ -1076,6 +1076,7 @@
 "settings.backup.import.error.storeVocabulary" = "Δεν ήταν δυνατή η αποθήκευση του λεξιλογίου, οπότε παρέμεινε όπως ήταν.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Οι λειτουργίες εισήχθησαν, αλλά δεν ήταν δυνατή η αποθήκευση του λεξιλογίου, οπότε παρέμεινε όπως ήταν.";
 "settings.backup.import.error.storeLicense" = "Δεν ήταν δυνατή η ασφαλής εισαγωγή του κλειδιού άδειας.";
+"settings.backup.import.error.storeSettingsRestored" = "Οι ρυθμίσεις παρέμειναν όπως ήταν.";
 "settings.backup.import.error.storeOtherSections" = "Οι υπόλοιπες επιλεγμένες ενότητες εφαρμόστηκαν.";
 "settings.backup.import.apiKeysFailed" = "Αυτά τα κλειδιά API δεν ήταν δυνατό να αποθηκευτούν στην Κλειδοθήκη και δεν επαναφέρθηκαν: %@. Εισαγάγετέ τα ξανά στις Ρυθμίσεις.";
 "settings.backup.import.confirm.title" = "Εισαγωγή Ρυθμίσεων;";

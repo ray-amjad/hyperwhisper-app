@@ -1076,6 +1076,7 @@
 "settings.backup.import.error.storeVocabulary" = "無法儲存詞彙，因此詞彙維持不變。";
 "settings.backup.import.error.storeVocabularyAfterModes" = "模式已匯入，但無法儲存詞彙，因此詞彙維持不變。";
 "settings.backup.import.error.storeLicense" = "無法安全匯入授權金鑰。";
+"settings.backup.import.error.storeSettingsRestored" = "設定維持不變。";
 "settings.backup.import.error.storeOtherSections" = "其他所選部分已套用。";
 "settings.backup.import.apiKeysFailed" = "以下 API 金鑰無法儲存到鑰匙圈，因此未能還原：%@。請在設定中重新輸入。";
 "settings.backup.import.confirm.title" = "匯入設定？";

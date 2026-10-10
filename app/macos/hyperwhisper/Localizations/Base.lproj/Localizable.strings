@@ -1121,6 +1121,7 @@
 "settings.backup.import.error.storeVocabulary" = "The vocabulary could not be saved, so it was left as it was.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "The modes were imported, but the vocabulary could not be saved, so it was left as it was.";
 "settings.backup.import.error.storeLicense" = "The license key could not be securely imported.";
+"settings.backup.import.error.storeSettingsRestored" = "The settings were left as they were.";
 "settings.backup.import.error.storeOtherSections" = "The other selected sections were applied.";
 "settings.backup.import.apiKeysFailed" = "These API keys could not be saved to the Keychain and were not restored: %@. Enter them again in Settings.";
 "settings.backup.import.confirm.title" = "Import Settings?";

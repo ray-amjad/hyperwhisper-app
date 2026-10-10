@@ -1076,6 +1076,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "settings.backup.import.error.storeVocabulary" = "Besednjaka ni bilo mogoče shraniti, zato je ostal nespremenjen.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Načini so bili uvoženi, besednjaka pa ni bilo mogoče shraniti, zato je ostal nespremenjen.";
 "settings.backup.import.error.storeLicense" = "Licenčnega ključa ni bilo mogoče varno uvoziti.";
+"settings.backup.import.error.storeSettingsRestored" = "Nastavitve so ostale nespremenjene.";
 "settings.backup.import.error.storeOtherSections" = "Drugi izbrani razdelki so bili uporabljeni.";
 "settings.backup.import.apiKeysFailed" = "Teh ključev API ni bilo mogoče shraniti v obesek za ključe in niso bili obnovljeni: %@. Znova jih vnesite v Nastavitvah.";
 "settings.backup.import.confirm.title" = "Uvozi nastavitve?";

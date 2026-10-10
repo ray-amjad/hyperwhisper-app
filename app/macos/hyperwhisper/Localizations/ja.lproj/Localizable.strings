@@ -1077,6 +1077,7 @@
 "settings.backup.import.error.storeVocabulary" = "語彙を保存できなかったため、変更されていません。";
 "settings.backup.import.error.storeVocabularyAfterModes" = "モードはインポートされましたが、語彙を保存できなかったため、語彙は変更されていません。";
 "settings.backup.import.error.storeLicense" = "ライセンスキーを安全にインポートできませんでした。";
+"settings.backup.import.error.storeSettingsRestored" = "設定は変更されていません。";
 "settings.backup.import.error.storeOtherSections" = "選択したその他の項目は適用されました。";
 "settings.backup.import.apiKeysFailed" = "次の API キーはキーチェーンに保存できず、復元されませんでした: %@。設定でもう一度入力してください。";
 "settings.backup.import.confirm.title" = "設定をインポートしますか？";

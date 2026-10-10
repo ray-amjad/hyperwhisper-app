@@ -1077,6 +1077,7 @@
 "settings.backup.import.error.storeVocabulary" = "无法保存词汇，因此词汇保持不变。";
 "settings.backup.import.error.storeVocabularyAfterModes" = "模式已导入，但无法保存词汇，因此词汇保持不变。";
 "settings.backup.import.error.storeLicense" = "无法安全导入许可证密钥。";
+"settings.backup.import.error.storeSettingsRestored" = "设置保持不变。";
 "settings.backup.import.error.storeOtherSections" = "其他所选部分已应用。";
 "settings.backup.import.apiKeysFailed" = "以下 API 密钥无法保存到钥匙串，因此未能恢复：%@。请在设置中重新输入。";
 "settings.backup.import.confirm.title" = "导入设置？";

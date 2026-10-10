@@ -35,6 +35,71 @@ protocol BackupAPIKeyWriting {
 
 extension KeychainManager: BackupAPIKeyWriting {}
 
+// MARK: - Import Settings Store
+
+/// The live settings a backup import writes BEFORE its modes/vocabulary store
+/// step (#1627). A protocol so a test can watch the writes without touching
+/// the running app's settings; production uses `LiveBackupImportSettingsStore`.
+///
+/// Secure storage (BYOK keys, the licence) is NOT here: those are written
+/// after the store step, so a failed store step never leaves them changed.
+@MainActor
+protocol BackupImportSettingsStore: AnyObject {
+    /// The live settings, in the shape `apply` writes (the same values a
+    /// settings export carries). Re-reads launch-at-login first.
+    func current() async -> BackupSettings
+    /// Writes a backup's settings section, as an import does.
+    func apply(_ settings: BackupSettings) async
+    /// Puts back a `current()` snapshot exactly, including the values `apply`
+    /// deliberately leaves alone for an old backup, and the per-mode default
+    /// models.
+    func restore(_ settings: BackupSettings) async
+    /// `SettingsManager.defaultModelByMode`.
+    var defaultModelByMode: [String: String] { get set }
+    /// The stored foreign top-level `platformExtensions` (#288).
+    var foreignTopLevelExtensions: String? { get set }
+}
+
+/// The running app's settings: `SettingsManager.shared` and `UserDefaults`.
+@MainActor
+final class LiveBackupImportSettingsStore: BackupImportSettingsStore {
+
+    /// Holds no state, so it can be built from a property default value.
+    nonisolated init() {}
+
+    func current() async -> BackupSettings {
+        // Launch-at-login is a cached value, so re-read it (off the main
+        // thread, #853) — otherwise a restore could write a stale one.
+        await SettingsManager.shared.refreshLaunchAtLogin()
+        return BackupManager.liveBackupSettings()
+    }
+
+    func apply(_ settings: BackupSettings) async {
+        await BackupManager.applySettings(settings)
+    }
+
+    func restore(_ settings: BackupSettings) async {
+        await BackupManager.applySettings(settings)
+        let settingsManager = SettingsManager.shared
+        // `applySettings` skips 300 as a legacy placeholder; a snapshot's
+        // 300 is the user's real value.
+        settingsManager.maxRecordingDurationSeconds = settings.advanced.maxRecordingDuration
+        // An import writes these only after a saved modes step, but put them
+        // back too so a restore never depends on that ordering.
+        settingsManager.defaultModelByMode = settings.aiModel.defaultModelByMode
+    }
+
+    var defaultModelByMode: [String: String] {
+        get { SettingsManager.shared.defaultModelByMode }
+        set { SettingsManager.shared.defaultModelByMode = newValue }
+    }
+
+    var foreignTopLevelExtensions: String? {
+        get { UserDefaults.standard.string(forKey: BackupManager.foreignTopLevelExtensionsDefaultsKey) }
+        set { UserDefaults.standard.set(newValue, forKey: BackupManager.foreignTopLevelExtensionsDefaultsKey) }
+    }
+}
+
 // MARK: - Backup Manager
 
 /// Manages export and import of app settings
@@ -63,6 +128,14 @@ class BackupManager: ObservableObject {
 
     /// Where a restore writes BYOK API keys. Only a test replaces this.
     var apiKeyWriter: any BackupAPIKeyWriting = KeychainManager.shared
+
+    /// The settings an import writes, snapshots and restores (#1627). Only a
+    /// test replaces this.
+    var settingsStore: any BackupImportSettingsStore = LiveBackupImportSettingsStore()
+
+    /// The store an import writes its modes and vocabulary to, and repairs
+    /// afterwards. Only a test replaces this (with an in-memory controller).
+    var importPersistence: PersistenceController = PersistenceController.shared
 
     /// What a BYOK key restore actually did, read off the Keychain writes
     /// rather than off the backup file.
@@ -194,18 +267,13 @@ class BackupManager: ObservableObject {
         }
     }
 
-    /// Creates the BackupData structure from current app state
-    /// - Parameter options: Export options
-    /// - Returns: BackupData or nil on failure
-    private func createBackupData(options: ExportOptions) -> BackupData? {
+    /// The live settings as a backup's settings section: what an export writes,
+    /// what `applySettings` writes back, and the snapshot a failed import
+    /// restores (#1627). `launchAtLogin` is the cached value; call
+    /// `refreshLaunchAtLogin()` first when it must be current.
+    static func liveBackupSettings() -> BackupSettings {
         let settingsManager = SettingsManager.shared
-        let persistence = PersistenceController.shared
-        let keychainManager = KeychainManager.shared
-
-        // Collect settings from all managers (only when the section is selected).
-        // Deselected sections are left nil so the JSON key is omitted entirely
-        // (key-presence is the source of truth for what a file contains).
-        let settings: BackupSettings? = options.includeSettings ? BackupSettings(
+        return BackupSettings(
             general: BackupGeneralSettings(
                 launchAtLogin: settingsManager.launchAtLogin,
                 showInDock: settingsManager.showInDock,
@@ -258,7 +326,20 @@ class BackupManager: ObservableObject {
                 keepAudioFiles: settingsManager.keepAudioFiles,
                 historyRetentionDays: settingsManager.historyRetentionDays
             )
-        ) : nil
+        )
+    }
+
+    /// Creates the BackupData structure from current app state
+    /// - Parameter options: Export options
+    /// - Returns: BackupData or nil on failure
+    private func createBackupData(options: ExportOptions) -> BackupData? {
+        let persistence = PersistenceController.shared
+        let keychainManager = KeychainManager.shared
+
+        // Collect settings from all managers (only when the section is selected).
+        // Deselected sections are left nil so the JSON key is omitted entirely
+        // (key-presence is the source of truth for what a file contains).
+        let settings: BackupSettings? = options.includeSettings ? Self.liveBackupSettings() : nil
 
         // Collect API keys if requested
         var apiKeys: BackupAPIKeys?
@@ -395,7 +476,7 @@ class BackupManager: ObservableObject {
     /// top-level slice died on a macOS round-trip (#288).
     ///
     /// This is separate state from the settings blob and must NOT go through
-    /// `currentSettingsBaseline()` / `deepMerged(over:)` — that is a whole-blob
+    /// `settingsBaseline(_:)` / `deepMerged(over:)` — that is a whole-blob
     /// apply of the 7 macOS settings categories and knows nothing about this.
     static let foreignTopLevelExtensionsDefaultsKey = "backup.foreignPlatformExtensions"
 
@@ -630,10 +711,18 @@ class BackupManager: ObservableObject {
         var vocabImported = 0
         var vocabSkipped = 0
 
-        // Apply settings (only when selected AND present in the file)
+        // Apply settings (only when selected AND present in the file). Snapshot the
+        // live settings first: a failed store step below puts them back (#1627).
         var settingsApplied = false
+        var settingsBefore: ImportSettingsSnapshot?
         if options.importSettings, let settings = backupData.settings {
-            await applySettings(settings)
+            let liveSettings = await settingsStore.current()
+            settingsBefore = ImportSettingsSnapshot(
+                settings: liveSettings,
+                writesForeignTopLevelExtensions: false,
+                foreignTopLevelExtensions: nil
+            )
+            await settingsStore.apply(settings)
             settingsApplied = true
         }
 
@@ -648,7 +737,7 @@ class BackupManager: ObservableObject {
         if modesToImport != nil || vocabToImport != nil {
             let storeResult: PersistenceController.BackupStoreImportResult
             do {
-                storeResult = try PersistenceController.shared.importBackupStore(
+                storeResult = try importPersistence.importBackupStore(
                     modes: modesToImport,
                     modeResolution: options.modeConflict,
                     vocabulary: vocabToImport,
@@ -666,9 +755,18 @@ class BackupManager: ObservableObject {
             // Per-mode default model selections live in settings.aiModel — only apply them when
             // the user actually chose to import Settings (and the section is present). Otherwise a
             // modes-only import would silently mutate a settings value the user deselected.
-            if storeFailure?.failedSection != .modes, modesToImport != nil, options.importSettings, let aiMap = backupData.settings?.aiModel.defaultModelByMode {
+            // A failed store step applies no settings (#1627), so not these either.
+            if storeFailure == nil, modesToImport != nil, options.importSettings, let aiMap = backupData.settings?.aiModel.defaultModelByMode {
                 applyDefaultModelByMode(aiMap, idRemap: storeResult.modeIdRemap)
             }
+        }
+
+        // A failed store step puts the settings back as they were before the import
+        // (#1627, the same choice as Windows #1614 and Linux).
+        var settingsRestored = false
+        if storeFailure != nil, let settingsBefore {
+            settingsRestored = await restoreSettingsAfterFailedStoreImport(settingsBefore, settingsApplied: settingsApplied)
+            settingsApplied = false
         }
 
         // Import API keys if present and requested. Success is read off the
@@ -696,6 +794,7 @@ class BackupManager: ObservableObject {
                         modesSelected: modesToImport != nil,
                         vocabularySelected: vocabToImport != nil,
                         settingsApplied: settingsApplied,
+                        settingsRestored: settingsRestored,
                         apiKeysImported: apiKeysImported,
                         licenseKeyImported: false,
                         licenseImportFailed: true,
@@ -735,6 +834,7 @@ class BackupManager: ObservableObject {
                 modesSelected: modesToImport != nil,
                 vocabularySelected: vocabToImport != nil,
                 settingsApplied: settingsApplied,
+                settingsRestored: settingsRestored,
                 apiKeysImported: apiKeysImported,
                 licenseKeyImported: licenseKeyImported,
                 repairImportedModes: options.importModes,
@@ -765,7 +865,7 @@ class BackupManager: ObservableObject {
     /// download), so the banner is never shown there.
     private func repairRestoredLocalModes() -> Set<String> {
         let capability = SystemCapability.current
-        let repair = PersistenceController.shared.repairBrokenLocalModes(
+        let repair = importPersistence.repairBrokenLocalModes(
             capability: capability,
             isCataloged: { LocalModelManager.catalogModelIds.contains($0) },
             isDownloaded: { PersistenceController.localModelFileExists($0) },
@@ -817,7 +917,7 @@ class BackupManager: ObservableObject {
         // One store transaction (#1613): all of the vocabulary or none of it.
         let vocabResult: PersistenceController.BackupStoreImportResult
         do {
-            vocabResult = try PersistenceController.shared.importBackupStore(
+            vocabResult = try importPersistence.importBackupStore(
                 modes: nil,
                 modeResolution: options.modeConflict,
                 vocabulary: items,
@@ -896,13 +996,25 @@ class BackupManager: ObservableObject {
         // importSettings for symmetry with the export, which only writes the
         // top-level map when settings are included — and so a vocabulary-only
         // interchange file cannot wipe the store.
+        //
+        // Snapshot both first: a failed store step below puts them back (#1627).
+        // Launch-at-login is a cached value, so `current()` re-reads it (off the
+        // main thread, #853) — the snapshot is also the baseline the settings
+        // merge below fills missing fields from.
+        var settingsBefore: ImportSettingsSnapshot?
         if options.importSettings {
+            let liveSettings = await settingsStore.current()
+            settingsBefore = ImportSettingsSnapshot(
+                settings: liveSettings,
+                writesForeignTopLevelExtensions: true,
+                foreignTopLevelExtensions: settingsStore.foreignTopLevelExtensions
+            )
             let foreign = Self.foreignTopLevelExtensions(from: dto.platformExtensions)
             // REPLACE, not merge: the store describes the LAST IMPORTED file.
-            UserDefaults.standard.set(foreign, forKey: Self.foreignTopLevelExtensionsDefaultsKey)
+            settingsStore.foreignTopLevelExtensions = foreign
         }
 
-        if options.importSettings, let settingsValue = dto.settings {
+        if options.importSettings, let settingsBefore, let settingsValue = dto.settings {
             do {
                 // Reconstruct the SettingsRecord JSON: the 5 universal categories from the top-level
                 // `settings`, plus the backup TOP-LEVEL `platformExtensions` RE-INJECTED as the
@@ -930,11 +1042,9 @@ class BackupManager: ObservableObject {
 
                 // Build the CURRENT macOS settings JSON as a baseline (the same BackupSettings the v1
                 // path would produce from the live settings), so any macOS-only field the backup
-                // lacks decodes successfully with the user's current value.
-                // Launch-at-login is a cached value, so re-read it (off the main thread,
-                // #853) — otherwise a backup without the field would apply a stale one.
-                await SettingsManager.shared.refreshLaunchAtLogin()
-                let baselineValue = try currentSettingsBaseline()
+                // lacks decodes successfully with the user's current value. The snapshot above
+                // re-read launch-at-login, so a backup without the field never applies a stale one.
+                let baselineValue = try Self.settingsBaseline(settingsBefore.settings)
 
                 // DEEP-MERGE imported OVER baseline: imported values win where present; baseline fills
                 // every field the backup didn't carry.
@@ -945,7 +1055,7 @@ class BackupManager: ObservableObject {
                 }
                 // Decode the MERGED 7-category macOS settings into BackupSettings and apply UNCHANGED.
                 let backupSettings = try JSONDecoder().decode(BackupSettings.self, from: mergedData)
-                await applySettings(backupSettings)
+                await settingsStore.apply(backupSettings)
                 settingsApplied = true
             } catch {
                 // Never abort the import for a settings problem — log and continue.
@@ -1010,7 +1120,7 @@ class BackupManager: ObservableObject {
         if modesToImport != nil || vocabToImport != nil {
             let storeResult: PersistenceController.BackupStoreImportResult
             do {
-                storeResult = try PersistenceController.shared.importBackupStore(
+                storeResult = try importPersistence.importBackupStore(
                     modes: modesToImport,
                     modeResolution: options.modeConflict,
                     vocabulary: vocabToImport,
@@ -1029,9 +1139,18 @@ class BackupManager: ObservableObject {
             // Per-mode default model selections are parked under
             // platformExtensions.macos.settings.defaultModelByMode in v2 (NOT top-level settings).
             // Only apply when Settings import was chosen (mirrors the v1 guard).
-            if storeFailure?.failedSection != .modes, modesToImport != nil, options.importSettings, let map = Self.defaultModelByModeFromExtensions(dto.platformExtensions) {
+            // A failed store step applies no settings (#1627), so not these either.
+            if storeFailure == nil, modesToImport != nil, options.importSettings, let map = Self.defaultModelByModeFromExtensions(dto.platformExtensions) {
                 applyDefaultModelByMode(map, idRemap: storeResult.modeIdRemap)
             }
+        }
+
+        // A failed store step puts the settings (and the foreign extensions) back as
+        // they were before the import — see the v1 path.
+        var settingsRestored = false
+        if storeFailure != nil, let settingsBefore {
+            settingsRestored = await restoreSettingsAfterFailedStoreImport(settingsBefore, settingsApplied: settingsApplied)
+            settingsApplied = false
         }
 
         // 5. API keys + license (reuse the existing flat-lowercase logic + license write).
@@ -1057,6 +1176,7 @@ class BackupManager: ObservableObject {
                         modesSelected: modesToImport != nil,
                         vocabularySelected: vocabToImport != nil,
                         settingsApplied: settingsApplied,
+                        settingsRestored: settingsRestored,
                         apiKeysImported: apiKeysImported,
                         licenseKeyImported: false,
                         licenseImportFailed: true,
@@ -1094,6 +1214,7 @@ class BackupManager: ObservableObject {
                 modesSelected: modesToImport != nil,
                 vocabularySelected: vocabToImport != nil,
                 settingsApplied: settingsApplied,
+                settingsRestored: settingsRestored,
                 apiKeysImported: apiKeysImported,
                 licenseKeyImported: licenseKeyImported,
                 repairImportedModes: options.importModes,
@@ -1171,15 +1292,18 @@ class BackupManager: ObservableObject {
     /// (the vocabulary is not attempted). A failed vocabulary save leaves the
     /// vocabulary as it was; the modes, when selected, were saved before it,
     /// so their counts are reported and the post-restore mode repair runs for
-    /// them as it does after a full import. The other sections ran as they
-    /// always did (settings before the store step; API keys and the licence
-    /// after it). When anything changed the result is a partial failure,
-    /// otherwise a plain failure; the message names only what happened.
+    /// them as it does after a full import. Settings applied before the store
+    /// step were put back by the caller (#1627): `settingsApplied` is then
+    /// false and `settingsRestored` true. API keys and the licence ran after
+    /// the store step, as they always did. When anything changed the result
+    /// is a partial failure, otherwise a plain failure; the message names
+    /// only what happened.
     private func storeImportFailureResult(
         _ failure: PersistenceController.BackupStoreImportError,
         modesSelected: Bool,
         vocabularySelected: Bool,
         settingsApplied: Bool,
+        settingsRestored: Bool = false,
         apiKeysImported: Bool,
         licenseKeyImported: Bool,
         licenseImportFailed: Bool = false,
@@ -1193,6 +1317,7 @@ class BackupManager: ObservableObject {
             failedSection: failure.failedSection,
             modesSaved: modesSaved && modesSelected,
             vocabularySelected: vocabularySelected,
+            settingsRestored: settingsRestored,
             otherSectionsApplied: otherSectionsApplied,
             licenseImportFailed: licenseImportFailed
         )
@@ -1233,13 +1358,15 @@ class BackupManager: ObservableObject {
 
     /// The message for a failed store section (#1613): which section failed,
     /// what that left unchanged, whether the modes were saved before a
-    /// failed vocabulary save, then whether the licence import failed too and
-    /// whether a section outside the store (settings, API keys, licence)
-    /// changed something. Each part is its own sentence and its own key.
+    /// failed vocabulary save, whether the settings were put back (#1627),
+    /// then whether the licence import failed too and whether a section
+    /// outside the store (settings, API keys, licence) changed something.
+    /// Each part is its own sentence and its own key.
     nonisolated static func storeImportFailureMessage(
         failedSection: PersistenceController.BackupStoreImportError.Section,
         modesSaved: Bool,
         vocabularySelected: Bool,
+        settingsRestored: Bool = false,
         otherSectionsApplied: Bool,
         licenseImportFailed: Bool
     ) -> String {
@@ -1268,6 +1395,13 @@ class BackupManager: ObservableObject {
                 "settings.backup.import.error.storeVocabulary",
                 value: "The vocabulary could not be saved, so it was left as it was.",
                 comment: "Backup import: the vocabulary save failed and was rolled back"
+            ))
+        }
+        if settingsRestored {
+            sentences.append(NSLocalizedString(
+                "settings.backup.import.error.storeSettingsRestored",
+                value: "The settings were left as they were.",
+                comment: "Backup import: added after a failed modes/vocabulary save when the settings applied before it were put back as they were"
             ))
         }
         if licenseImportFailed {
@@ -1305,18 +1439,46 @@ class BackupManager: ObservableObject {
         case settingsDecodeFailed
     }
 
-    /// Builds the CURRENT live macOS settings as a 7-category `JSONValue`, to serve as the baseline
-    /// the v2 settings import merges OVER. Produced from the SAME `BackupSettings` the v1 export path
-    /// builds (via `createBackupData`), so the baseline is always a complete, decodable object —
-    /// guaranteeing a Windows backup (missing macOS-only fields) still decodes after the merge.
-    private func currentSettingsBaseline() throws -> JSONValue {
-        var opts = ExportOptions()
-        opts.includeSettings = true
-        guard let backupData = createBackupData(options: opts), let settings = backupData.settings else {
-            throw BackupV2Error.settingsEncodeFailed
-        }
+    /// The CURRENT live macOS settings as a 7-category `JSONValue`, to serve as the baseline
+    /// the v2 settings import merges OVER. Built from the SAME `BackupSettings` the v1 export path
+    /// builds (`liveBackupSettings`, via the import's snapshot), so the baseline is always a
+    /// complete, decodable object — guaranteeing a Windows backup (missing macOS-only fields) still
+    /// decodes after the merge.
+    private static func settingsBaseline(_ settings: BackupSettings) throws -> JSONValue {
         let data = try JSONEncoder().encode(settings)
         return try JSONDecoder().decode(JSONValue.self, from: data)
+    }
+
+    /// The settings an import is about to change, taken before it changes them (#1627).
+    struct ImportSettingsSnapshot {
+        /// The live settings section (`BackupImportSettingsStore.current()`).
+        let settings: BackupSettings
+        /// Whether this import writes the foreign top-level `platformExtensions`
+        /// (a v2 import with Settings selected); only then are they put back.
+        let writesForeignTopLevelExtensions: Bool
+        /// Their stored value before the import.
+        let foreignTopLevelExtensions: String?
+    }
+
+    /// Puts back what an import changed before its modes/vocabulary store step
+    /// failed (#1627): the foreign top-level extensions, when this import wrote
+    /// them, and the settings section, when it was applied. Returns whether the
+    /// settings section was put back.
+    ///
+    /// The whole snapshot is written back, so a setting the user changed in the
+    /// app during the import is put back too. A hard kill between the settings
+    /// step and this restore is out of scope (as on Windows and Linux).
+    private func restoreSettingsAfterFailedStoreImport(
+        _ snapshot: ImportSettingsSnapshot,
+        settingsApplied: Bool
+    ) async -> Bool {
+        if snapshot.writesForeignTopLevelExtensions {
+            settingsStore.foreignTopLevelExtensions = snapshot.foreignTopLevelExtensions
+        }
+        guard settingsApplied else { return false }
+        await settingsStore.restore(snapshot.settings)
+        AppLogger.settings.info("Backup import: the modes/vocabulary save failed, so the settings were put back as they were")
+        return true
     }
 
     /// Projects a `UniversalModeDTO` into the internal `BackupMode`, running the present-only cloud
@@ -1612,9 +1774,10 @@ class BackupManager: ObservableObject {
 
     // MARK: - Private Helpers
 
-    /// Applies settings from backup to the app
+    /// Applies settings from backup to the app. Reached through
+    /// `settingsStore` (see `LiveBackupImportSettingsStore`).
     /// - Parameter settings: BackupSettings to apply
-    private func applySettings(_ settings: BackupSettings) async {
+    static func applySettings(_ settings: BackupSettings) async {
         let settingsManager = SettingsManager.shared
 
         // General settings
@@ -1702,14 +1865,13 @@ class BackupManager: ObservableObject {
     }
 
     private func applyDefaultModelByMode(_ importedMap: [String: String], idRemap: [UUID: UUID]) {
-        let settingsManager = SettingsManager.shared
         let resolvedImportedMap = Self.remapDefaultModelByMode(
             importedMap.mapValues { CloudTranscriptionModels.resolveModelAlias($0, provider: nil) },
             using: idRemap
         )
 
-        settingsManager.defaultModelByMode = Self.mergeDefaultModelByMode(
-            current: settingsManager.defaultModelByMode,
+        settingsStore.defaultModelByMode = Self.mergeDefaultModelByMode(
+            current: settingsStore.defaultModelByMode,
             imported: resolvedImportedMap
         )
     }

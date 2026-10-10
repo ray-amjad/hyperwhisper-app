@@ -1076,6 +1076,7 @@
 "settings.backup.import.error.storeVocabulary" = "Не вдалося зберегти словник, тому він залишився без змін.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Режими імпортовано, але не вдалося зберегти словник, тому він залишився без змін.";
 "settings.backup.import.error.storeLicense" = "Не вдалося безпечно імпортувати ліцензійний ключ.";
+"settings.backup.import.error.storeSettingsRestored" = "Налаштування залишилися без змін.";
 "settings.backup.import.error.storeOtherSections" = "Інші вибрані розділи застосовано.";
 "settings.backup.import.apiKeysFailed" = "Ці API-ключі не вдалося зберегти у в'язку ключів, тому їх не відновлено: %@. Введіть їх знову в налаштуваннях.";
 "settings.backup.import.confirm.title" = "Імпортувати параметри?";

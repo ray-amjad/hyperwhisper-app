@@ -1076,6 +1076,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "settings.backup.import.error.storeVocabulary" = "Sõnavara ei õnnestunud salvestada, seega jäi see muutmata.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Režiimid imporditi, kuid sõnavara ei õnnestunud salvestada, seega jäi see muutmata.";
 "settings.backup.import.error.storeLicense" = "Litsentsivõtit ei õnnestunud turvaliselt importida.";
+"settings.backup.import.error.storeSettingsRestored" = "Seaded jäid muutmata.";
 "settings.backup.import.error.storeOtherSections" = "Teised valitud jaotised rakendati.";
 "settings.backup.import.apiKeysFailed" = "Neid API-võtmeid ei saanud võtmehoidjasse salvestada ja neid ei taastatud: %@. Sisesta need uuesti seadetes.";
 "settings.backup.import.confirm.title" = "Impordi seaded?";

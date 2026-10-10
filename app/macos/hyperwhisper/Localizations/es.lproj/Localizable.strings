@@ -1077,6 +1077,7 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "settings.backup.import.error.storeVocabulary" = "No se pudo guardar el vocabulario, así que se dejó como estaba.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Se importaron los modos, pero no se pudo guardar el vocabulario, así que se dejó como estaba.";
 "settings.backup.import.error.storeLicense" = "No se pudo importar la clave de licencia de forma segura.";
+"settings.backup.import.error.storeSettingsRestored" = "La configuración se dejó como estaba.";
 "settings.backup.import.error.storeOtherSections" = "Se aplicaron las demás secciones seleccionadas.";
 "settings.backup.import.apiKeysFailed" = "No se pudieron guardar estas claves de API en el llavero y no se restauraron: %@. Vuelve a introducirlas en Ajustes.";
 "settings.backup.import.confirm.title" = "¿Importar ajustes?";

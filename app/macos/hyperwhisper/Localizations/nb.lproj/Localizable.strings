@@ -1076,6 +1076,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "settings.backup.import.error.storeVocabulary" = "Ordforrådet kunne ikke lagres, så det ble ikke endret.";
 "settings.backup.import.error.storeVocabularyAfterModes" = "Modusene ble importert, men ordforrådet kunne ikke lagres, så det ble ikke endret.";
 "settings.backup.import.error.storeLicense" = "Lisensnøkkelen kunne ikke importeres sikkert.";
+"settings.backup.import.error.storeSettingsRestored" = "Innstillingene ble ikke endret.";
 "settings.backup.import.error.storeOtherSections" = "De andre valgte delene ble tatt i bruk.";
 "settings.backup.import.apiKeysFailed" = "Disse API-nøklene kunne ikke lagres i nøkkelringen og ble ikke gjenopprettet: %@. Skriv dem inn på nytt i Innstillinger.";
 "settings.backup.import.confirm.title" = "Importer innstillinger?";
