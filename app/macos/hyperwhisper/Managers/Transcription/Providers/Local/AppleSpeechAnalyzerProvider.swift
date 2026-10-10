@@ -73,6 +73,11 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             )
         }
 
+        // STEP 1.5: Open the audio file, and refuse one with no audio frames.
+        // `analyzeSequence` never finishes on a 0-frame file (#1515), so this
+        // runs before any asset download or analyzer work.
+        let audioFile = try AppleSpeechAudioInput.openForAnalysis(audioURL, logger: logger)
+
         // STEP 2: Resolve locale from language parameter
         let effectiveLanguage = mode?.language ?? language
         let locale = await resolveLocale(language: effectiveLanguage)
@@ -97,17 +102,7 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             logger.info("Added \(contextualWords.count) contextual strings for recognition")
         }
 
-        // STEP 5: Open audio file
-        let audioFile: AVAudioFile
-        do {
-            audioFile = try AVAudioFile(forReading: audioURL)
-        } catch {
-            let nsError = error as NSError
-            logger.error("Failed to open SpeechAnalyzer audio file; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
-            throw TranscriptionError.invalidAudioFormat
-        }
-
-        // STEP 6: Concurrently feed audio and collect results
+        // STEP 5: Concurrently feed audio and collect results
         // Tracks the self-inflicted teardown route: when `analyzeSequence` returns
         // no last sample time we cancel the analyzer while `collectTranscriptionResults`
         // is still consuming `transcriber.results`, which terminates that stream with
