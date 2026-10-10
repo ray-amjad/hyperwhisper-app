@@ -114,8 +114,14 @@ struct HistoryRowIdentityTests {
             from: "List(selection: $selectedTranscriptIDs)",
             to: ".listStyle(.sidebar)"
         )
-        #expect(list.contains("ForEach(section.items, id: \\.id)"), "\(list)")
-        #expect(!list.contains("id: \\.objectID"), "\(list)")
+        // The row ForEach may use the Identifiable overload or an explicit
+        // key path; either way it must not key by the bare objectID, in any
+        // spelling (`id: \.objectID`, `id:\.objectID`,
+        // `id: \HistoryItemSnapshot.objectID`).
+        #expect(list.contains("ForEach(section.items"), "\(list)")
+        let compact = list.filter { !$0.isWhitespace }
+        #expect(!compact.contains("id:\\.objectID"), "\(list)")
+        #expect(!compact.contains("id:\\HistoryItemSnapshot.objectID"), "\(list)")
         #expect(list.contains(".tag(item.objectID)"), "selection must stay keyed by objectID: \(list)")
     }
 }

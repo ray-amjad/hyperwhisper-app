@@ -595,9 +595,10 @@ private struct HistoryScreen: View, Equatable {
             List(selection: $selectedTranscriptIDs) {
                 ForEach(viewModel.sections) { section in
                     Section(header: Text(formatSectionDate(section.date))) {
-                        // Value-type identity (HistoryRowID), not the bare
-                        // NSManagedObjectID the .tag uses — see #1459.
-                        ForEach(section.items, id: \.id) { item in
+                        // Identifiable: rows key off HistoryItemSnapshot.id
+                        // (HistoryRowID), never the bare NSManagedObjectID
+                        // the .tag uses — see #1459.
+                        ForEach(section.items) { item in
                             TranscriptRow(
                                 item: item,
                                 isRetrying: isRetrying(item),
