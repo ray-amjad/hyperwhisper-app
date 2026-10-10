@@ -144,6 +144,26 @@ struct SpokenTextLogPrivacyTests {
         #expect(body.contains("serverStatus, privacy: .public"), "the status code stays")
     }
 
+    // #1679: the same catch reports to Sentry, whose `beforeSend` does not touch
+    // a fingerprint. A description in it sent the server message in clear and
+    // opened a new Sentry issue for each distinct message. The call now sends
+    // identifiers only: the error rebuilt without its description, and a
+    // fingerprint of domain + code + server status.
+    @Test func theCloudProviderPostProcessSentryFingerprintIsNotFreeText() throws {
+        let catchBody = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/Providers/Cloud/HyperWhisperCloudProvider.swift",
+            from: "AppLogger.network.info(\"HyperWhisper Cloud post-processing cancelled\")",
+            to: "try throwIfCancelled()"
+        )
+        let captureStart = try #require(catchBody.range(of: "SentryService.capture("))
+        let call = String(catchBody[captureStart.upperBound...])
+        #expect(call.contains("message: \"HyperWhisper Cloud post-processing failed\""))
+        #expect(!call.contains("localizedDescription"), "a serverError description carries the server message")
+        #expect(!call.contains("error: error,"), "the raw error carries the description")
+        #expect(call.contains("error: SentryService.identifierOnlyError(error)"))
+        #expect(call.contains("fingerprint: [\"post-process-failure\", nsError.domain, String(nsError.code), serverStatus]"))
+    }
+
     // #1679: the warmup failure is a transport error with no server body, but
     // its description is free text; it stays private like the lines above.
     @Test func theCloudWarmupFailureDescriptionIsNotPublic() throws {

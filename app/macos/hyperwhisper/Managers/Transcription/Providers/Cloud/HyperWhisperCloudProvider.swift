@@ -658,12 +658,21 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 }
                 AppLogger.network.warning("HyperWhisper Cloud post-processing failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · serverStatus=\(serverStatus, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
 
-                // Log to Sentry so we get alerted about real post-processing failures
+                // Log to Sentry so we get alerted about real post-processing failures.
+                // Same rule as the log line above: send identifiers only. The
+                // error is rebuilt without its description or userInfo, and the
+                // fingerprint is domain + code + server status, so a Cloud
+                // message that echoes the transcript never reaches Sentry and
+                // each distinct message does not open a new issue (#1679).
                 SentryService.capture(
-                    error: error,
+                    error: SentryService.identifierOnlyError(error),
                     message: "HyperWhisper Cloud post-processing failed",
-                    tags: ["component": "post_process", "provider": "hyperwhisper_cloud"],
-                    fingerprint: ["post-process-failure", error.localizedDescription]
+                    tags: [
+                        "component": "post_process",
+                        "provider": "hyperwhisper_cloud",
+                        "server_status": serverStatus
+                    ],
+                    fingerprint: ["post-process-failure", nsError.domain, String(nsError.code), serverStatus]
                 )
 
                 // Continue without AI enhancement
