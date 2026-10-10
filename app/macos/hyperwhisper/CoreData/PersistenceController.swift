@@ -2506,13 +2506,17 @@ class PersistenceController: ObservableObject {
         foreignPlatformExtensions: String? = nil,
         persist: Bool = true,
         restoringFromBackup: Bool = false,
+        updating existingMode: Mode? = nil,
         in suppliedContext: NSManagedObjectContext? = nil
     ) -> Mode {
         let context = suppliedContext ?? container.viewContext
-        
-        // Check if mode exists (for update)
-        var mode: Mode?
-        if let id = id {
+
+        // Check if mode exists (for update). A caller that already holds the
+        // row (the backup restore's in-place `.replace`, issue #1479) passes it
+        // in, so the update never depends on a predicate fetch matching an
+        // unsaved `id` change.
+        var mode: Mode? = existingMode
+        if mode == nil, let id = id {
             let request: NSFetchRequest<Mode> = Mode.fetchRequest()
             request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             request.fetchLimit = 1
@@ -2638,7 +2642,14 @@ class PersistenceController: ObservableObject {
         // Preserve a foreign (non-macOS) per-mode platformExtensions blob captured
         // on a v2 import (H4). Only assign when explicitly provided so an unrelated
         // GUI/API mode edit (which passes nil) never wipes a stored foreign slice.
-        if let foreignPlatformExtensions {
+        //
+        // A restore is the exception: it writes the backup row's slice even
+        // when that is nil. `.replace` updates the local row in place (issue
+        // #1479), and the row must end up exactly as a fresh create from the
+        // backup row would leave it — so a stale slice from an earlier foreign
+        // import must not survive a restore of a backup that has none, or
+        // `BackupMode(from:)` would re-emit it into every later export.
+        if restoringFromBackup || foreignPlatformExtensions != nil {
             mode?.foreignPlatformExtensions = foreignPlatformExtensions
         }
         let trimmedGeminiPrompt = geminiCustomPrompt?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -3178,7 +3189,8 @@ class PersistenceController: ObservableObject {
     ///
     /// CONFLICT RESOLUTION:
     /// - .skip: Don't import if mode with same name exists (case-insensitive)
-    /// - .replace: Delete existing mode, import new one
+    /// - .replace: Update the local counterpart in place (same id, else the
+    ///   first same-name row; issue #1479) and delete any other same-name row
     /// - .keepBoth: Import as "Mode Name (imported)"
     ///
     /// - Parameters:
@@ -3210,9 +3222,10 @@ class PersistenceController: ObservableObject {
             // #1481: a backup without enableScreenOCR / useStreamingTranscription
             // (one written before they were exported) keeps the value of the
             // local mode this row replaces or updates: the same id first, then
-            // the same-name row `.replace` deletes below. Read it BEFORE that
-            // delete. With no such row (a new mode, or `.keepBoth`'s copy) the
-            // value is `false`, which is what every restore wrote before.
+            // the first same-name row. That row is updated in place (issue
+            // #1479); `.replace` deletes any other same-name row below. With no
+            // such row (a new mode, or `.keepBoth`'s copy) the value is
+            // `false`, which is what every restore wrote before.
             let localCounterpart: Mode? = (hasConflict && resolution == .keepBoth)
                 ? nil
                 : (fetchAllModes().first { $0.id == backupMode.id } ?? conflicts.first)
@@ -3228,17 +3241,56 @@ class PersistenceController: ObservableObject {
                     continue
 
                 case .replace:
-                    // Replace every row whose stored canonical name conflicts.
-                    // Re-fetch on the next iteration so duplicate backup rows use
-                    // last-one-wins semantics without retaining deleted objects.
-                    for existingMode in conflicts where !existingMode.isDeleted {
+                    // Issue #1479: the local counterpart is updated in place
+                    // below. Every OTHER same-name row is still deleted.
+                    // Re-fetch on the next iteration so duplicate backup rows
+                    // use last-one-wins semantics without retaining deleted
+                    // objects.
+                    for existingMode in conflicts where !existingMode.isDeleted && existingMode !== localCounterpart {
                         deleteModeWithoutSaving(existingMode)
                     }
-                    // Fall through to create new mode
 
                 case .keepBoth:
                     // Will create with modified name below
                     break
+                }
+            }
+
+            // Issue #1479: ONE in-place path for every row that has a local
+            // counterpart (same id first, else — `.replace` only — the first
+            // same-name row; `.keepBoth` with a name conflict has none and
+            // makes a copy). The counterpart object is handed to
+            // `createOrUpdateMode` as `updating:`, so the update never depends
+            // on an `id ==` predicate fetch matching an id changed earlier in
+            // this same unsaved import. The row keeps its object (Z_PK),
+            // `sortOrder` and `createdDate`, so importing your own backup again
+            // changes nothing; every other column ends as a fresh create from
+            // this backup row would (`createOrUpdateMode` writes them all,
+            // including a nil `foreignPlatformExtensions`), bar the #1481
+            // fallbacks above.
+            let inPlaceTarget: Mode? = (localCounterpart?.isDeleted == false) ? localCounterpart : nil
+            if let keeper = inPlaceTarget {
+                if keeper.id != backupMode.id {
+                    // A same-name row with ANOTHER id is a different mode that
+                    // happens to share the name, so it takes what a create
+                    // gives: the backup's id (as the re-created row had) and
+                    // `isSystemProvided == false`. Only a row whose id IS the
+                    // backup row's keeps the seeded flag; otherwise a user mode
+                    // named like the seeded one would inherit it.
+                    keeper.id = backupMode.id
+                    keeper.isSystemProvided = false
+                }
+                if resolution == .replace {
+                    // A create starts with `isDefault == false` and is promoted
+                    // only by the `DefaultModePolicy.apply` below when the
+                    // backup row is the default, or by the final repair. The
+                    // flag is cleared the same way whether the counterpart was
+                    // found by id or by name, so which local row ends as the
+                    // default never depends on a row's name. `.skip` and
+                    // `.keepBoth` keep the local flag, as before #1479: they
+                    // only reach here for a same-id row with no name conflict,
+                    // and they never promised to restore the backup's default.
+                    keeper.isDefault = false
                 }
             }
 
@@ -3306,7 +3358,8 @@ class PersistenceController: ObservableObject {
                 foreignPlatformExtensions: backupMode.foreignPlatformExtensions,
                 // One save for the whole import (issue #1613).
                 persist: false,
-                restoringFromBackup: true
+                restoringFromBackup: true,
+                updating: inPlaceTarget
             )
 
             // Update isDefault flag if this mode should be default
