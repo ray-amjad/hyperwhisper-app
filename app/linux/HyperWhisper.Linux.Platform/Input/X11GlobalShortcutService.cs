@@ -214,7 +214,7 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
 
     /// <summary>
     /// Steps every release-fired chord on one key event. A press with the exact
-    /// modifiers on one of the chord's own keys arms it; any other press spoils an
+    /// modifiers on one of the chord's own keys arms it; a press of any other key spoils an
     /// armed chord. A release of one of its keys ends it, and fires it when still
     /// armed. Called under <see cref="_gate"/>.
     /// </summary>
@@ -232,7 +232,8 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
             {
                 if (ownKey.Any(candidate => candidate.Modifiers == state))
                 { if (chord == ChordState.Idle) _chords[name] = ChordState.Armed; }
-                else if (chord == ChordState.Armed) _chords[name] = ChordState.Spoiled;
+                // A held chord key that auto-repeats arrives with its own bit set; it is not another key.
+                else if (chord == ChordState.Armed && ownKey.Length == 0) _chords[name] = ChordState.Spoiled;
             }
             else if (ownKey.Length > 0)
             {

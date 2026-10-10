@@ -537,6 +537,10 @@ static async Task X11ModifierChordAloneFiresOnRelease()
     Assert.Equal("down:toggle,up:toggle,down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
         new X11HotkeyEvent(37, 8, true), new X11HotkeyEvent(37, 12, false),
         new X11HotkeyEvent(37, 8, true), new X11HotkeyEvent(64, 12, false)));
+    // A held Alt that auto-repeats (its own bit now set) is not another key joining the chord.
+    Assert.Equal("down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(64, 12, true), new X11HotkeyEvent(64, 12, true),
+        new X11HotkeyEvent(64, 12, false), new X11HotkeyEvent(37, 4, false)));
 }
 
 static async Task X11ModifierChordWithKeyDoesNotFire()
