@@ -925,7 +925,8 @@ public static class UniversalBackupMapper
     /// <summary>
     /// The <see cref="PeerModeSlice"/> slice read through the Windows shape, or
     /// <c>null</c> when the mode has none or it does not deserialize. Read only when
-    /// the mode has no <c>windows</c> slice: a present own slice is the whole
+    /// the mode has no readable <c>windows</c> slice (absent, or it does not
+    /// deserialize, as <see cref="MapToMode"/> decides): a readable own slice is the whole
     /// record of these fields, because Windows omits a null field on export, so an
     /// absent key there means "none" and must not let a stale preserved Linux
     /// value back in.

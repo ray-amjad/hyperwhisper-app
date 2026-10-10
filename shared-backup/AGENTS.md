@@ -26,14 +26,16 @@ has no value, the head reads the foreign slices in the fixed order `macos`, `win
 (skipping its own) and takes the first value of the right type. A foreign slice is never written
 into, and every field not listed here is carried, not read. Where the table says "whole slice", the
 head treats its own slice, when present, as the complete record of those fields and reads the foreign
-slice only when its own slice is absent: Windows omits a null field on export, so a missing key in a
-present own slice means "none", and reading through it would bring a stale preserved value back.
+slice only when its own slice is absent or unreadable (not a JSON object, or it does not deserialize):
+Windows omits a null field on export, so a missing key in a readable own slice means "none", and
+reading through it would bring a stale preserved value back. An unreadable own slice holds no record,
+so the peer's values beat the defaults.
 The fields read this way today:
 
 | Field | Read by | Foreign source |
 |---|---|---|
 | per-mode `enableScreenOCR` | macOS, Windows, Linux | every other head's per-mode slice, same name (#1481, #1498) |
-| per-mode `customVocabulary`, `localEngine`, `localParakeetModel`, `providerType`, `modelType`, `isSystemProvided`, `createdDate`, `modifiedDate` | Windows, Linux | the other .NET head's per-mode slice (`linux` for Windows, `windows` for Linux), same names; whole slice, only when the mode has no own slice. macOS writes none of them (#1712) |
+| per-mode `customVocabulary`, `localEngine`, `localParakeetModel`, `providerType`, `modelType`, `isSystemProvided`, `createdDate`, `modifiedDate` | Windows, Linux | the other .NET head's per-mode slice (`linux` for Windows, `windows` for Linux), same names; whole slice, only when the mode has no readable own slice. macOS writes none of them (#1712) |
 | `soundEffectsVolume` (settings) | Linux | `platformExtensions.macos.settings.audio.soundEffectsVolume` |
 | `customEndpoints` (settings) | Linux | `platformExtensions.windows.settings.customEndpoints`, only when the file has no `linux.settings` object at all |
 
@@ -267,7 +269,7 @@ Windows-only mode fields (go into `platformExtensions.windows`):
 
 Linux writes the same eight per-mode fields (and `enableScreenOCR`, above) under the same names in
 `platformExtensions.linux`, and always writes every key
-(`null` included). Each .NET head reads them from its own slice when the mode has one, else from
+(`null` included). Each .NET head reads them from its own slice when the mode has a readable one, else from
 the other .NET head's slice (#1712): Windows `UniversalBackupMapper.ReadPeerModeExtensions`, Linux
 `ApplicationBackupExport.ParseMode` (`PeerModeSlice`). So a mode's per-mode vocabulary and
 local engine survive a Windows → Linux or Linux → Windows restore.

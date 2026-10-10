@@ -289,7 +289,8 @@ public sealed partial class ApplicationBackupService(
         var extensions = value["platformExtensions"] as JsonObject;
         var linux = extensions?["linux"] as JsonObject;
         // The per-mode fields both .NET heads write under the same names (#1712):
-        // the linux slice when there is one, else the Windows head's slice.
+        // the linux slice when there is a readable one (a JSON object), else the
+        // Windows head's slice.
         var own = linux ?? extensions?[PeerModeSlice] as JsonObject;
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
         return new Mode
@@ -324,7 +325,8 @@ public sealed partial class ApplicationBackupService(
     /// (<c>customVocabulary</c>, <c>localEngine</c>, <c>localParakeetModel</c>,
     /// <c>providerType</c>, <c>modelType</c>, <c>isSystemProvided</c>,
     /// <c>createdDate</c>, <c>modifiedDate</c>); macOS writes none of them. Read
-    /// only when the mode has no <c>linux</c> slice: a present own slice is the
+    /// only when the mode has no readable <c>linux</c> slice (absent, or not a JSON
+    /// object): a readable own slice is the
     /// whole record of these fields, so a stale preserved Windows value never
     /// overrides it. Mirrors Windows <c>UniversalBackupMapper.ReadPeerModeExtensions</c>.
     /// </summary>
