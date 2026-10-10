@@ -128,7 +128,8 @@ enum SingleInstanceGuard {
 
     /// Return when this process may open the data store. When another copy
     /// already owns it, bring that copy forward and exit without touching the
-    /// store or starting the Local API.
+    /// store or starting the Local API — unless that copy exits during the
+    /// hand-off, in which case this launch takes the store and carries on.
     ///
     /// Must run before anything touches `PersistenceController.shared`.
     static func claimStoreOrHandOff() {
@@ -141,18 +142,40 @@ enum SingleInstanceGuard {
         let lock = StoreInstanceLock(directory: NSPersistentContainer.defaultDirectoryURL())
         switch lock.acquire() {
         case .acquired:
-            heldLock = lock
-            listenForActivationRequests(storeKey: lock.url.path)
+            own(lock)
         case .unavailable(let code):
-            // Fail open: a launch that cannot test the lock runs as before.
-            AppLogger.coreData.error("Single-instance lock unavailable · code=\(code, privacy: .public) — continuing without it")
+            failOpen(code: code)
         case .heldByAnotherProcess(let ownerPID):
             let pid = ownerPID ?? waitForOwnerPID(at: lock.url)
             let pidText = pid.map { String($0) } ?? "unknown"
-            AppLogger.coreData.notice("Another HyperWhisper owns this data store · pid=\(pidText, privacy: .public) — handing off and exiting")
+            AppLogger.coreData.notice("Another HyperWhisper owns this data store · pid=\(pidText, privacy: .public) — handing off")
             requestOwnerActivation(storeKey: lock.url.path, ownerPID: pid)
-            exit(0)
+
+            // The owner may have been quitting while we asked: then nobody
+            // answered, and exiting too would leave no copy running. Test the
+            // lock once more after the hand-off's wait; a free lock means this
+            // launch is now the owner and carries on.
+            switch lock.acquire() {
+            case .acquired:
+                AppLogger.coreData.notice("The previous owner of this data store has exited — this launch takes over")
+                own(lock)
+            case .unavailable(let code):
+                failOpen(code: code)
+            case .heldByAnotherProcess:
+                AppLogger.coreData.notice("Handed off to the running HyperWhisper · pid=\(pidText, privacy: .public) — exiting")
+                exit(0)
+            }
         }
+    }
+
+    private static func own(_ lock: StoreInstanceLock) {
+        heldLock = lock
+        listenForActivationRequests(storeKey: lock.url.path)
+    }
+
+    /// Fail open: a launch that cannot test the lock runs as before.
+    private static func failOpen(code: Int32) {
+        AppLogger.coreData.error("Single-instance lock unavailable · code=\(code, privacy: .public) — continuing without it")
     }
 
     /// True inside an XCTest / Swift Testing host process.
@@ -191,7 +214,8 @@ enum SingleInstanceGuard {
     }
 
     /// Owner: answer a second launch's request by coming to the front with the
-    /// main window, as a click on the Dock icon would.
+    /// main window, as a click on the Dock icon would — including when there
+    /// is no main window to show.
     private static func listenForActivationRequests(storeKey: String) {
         activationObserver = DistributedNotificationCenter.default().addObserver(
             forName: activationRequest,
@@ -209,8 +233,33 @@ enum SingleInstanceGuard {
         // A deliberate open: `launchMinimized` must not hide this window.
         HyperWhisperApp.suppressLaunchMinimizedHide()
         NSApp.activate(ignoringOtherApps: true)
-        let mainWindow = MainWindowStore.window
-            ?? NSApp.windows.first(where: { $0.identifier == .hyperwhisperMainWindow })
-        mainWindow?.makeKeyAndOrderFront(nil)
+        // An existing main window, even ordered out by `launchMinimized`:
+        // bring it forward, as MainAppView.openMainWindow() does.
+        if let mainWindow = MainWindowStore.window
+            ?? NSApp.windows.first(where: { $0.identifier == .hyperwhisperMainWindow }) {
+            mainWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+        // No main window: it was closed, or this is a login-item launch whose
+        // WindowGroup was never built. `openWindow(id:)` needs a SwiftUI view,
+        // so take the Dock-click path instead: a reopen Apple Event to this
+        // process runs AppDelegate.applicationShouldHandleReopen, and SwiftUI's
+        // WindowGroup answers a reopen with no visible window by opening one.
+        sendReopenToSelf()
+    }
+
+    private static func sendReopenToSelf() {
+        let event = NSAppleEventDescriptor.appleEvent(
+            withEventClass: AEEventClass(kCoreEventClass),
+            eventID: AEEventID(kAEReopenApplication),
+            targetDescriptor: NSAppleEventDescriptor.currentProcess(),
+            returnID: AEReturnID(kAutoGenerateReturnID),
+            transactionID: AETransactionID(kAnyTransactionID)
+        )
+        do {
+            try event.sendEvent(options: [.noReply], timeout: 5)
+        } catch {
+            AppLogger.ui.error("Could not reopen the main window for a second launch · \(error.localizedDescription, privacy: .public)")
+        }
     }
 }

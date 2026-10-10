@@ -211,6 +211,45 @@ struct SingleInstanceLockTests {
         )
     }
 
+    // MARK: - The hand-off
+
+    private static let lockPath = "app/macos/hyperwhisper/CoreData/StoreInstanceLock.swift"
+
+    /// If the owner quits while a second launch hands off, nobody answers;
+    /// the second launch must test the lock again before it exits, so one
+    /// copy still runs.
+    @Test func aSecondLaunchRetriesTheLockBeforeItExits() throws {
+        let arm = try ProductionSource.slice(
+            of: Self.lockPath,
+            from: "case .heldByAnotherProcess(let ownerPID):",
+            to: "private static func own("
+        )
+        let handOff = try #require(arm.range(of: "requestOwnerActivation("))
+        let retry = try #require(arm.range(of: "lock.acquire()", range: handOff.upperBound..<arm.endIndex))
+        let exitCall = try #require(arm.range(of: "exit(0)"))
+        #expect(retry.lowerBound < exitCall.lowerBound, "the lock retry must come before exit(0)")
+        #expect(arm.contains("own(lock)"), "a free lock on retry must be taken and the launch go on")
+    }
+
+    /// With no main window (closed, or a login-item launch that never built
+    /// one) the owner still shows one, through the Dock-click reopen path.
+    @Test func theOwnerReopensAWindowWhenItHasNone() throws {
+        let body = try ProductionSource.slice(
+            of: Self.lockPath,
+            from: "private static func bringToFront() {",
+            to: "private static func sendReopenToSelf() {"
+        )
+        #expect(body.contains("makeKeyAndOrderFront"))
+        #expect(body.contains("sendReopenToSelf()"))
+        let send = try ProductionSource.slice(
+            of: Self.lockPath,
+            from: "private static func sendReopenToSelf() {",
+            to: "\n}"
+        )
+        #expect(send.contains("kAEReopenApplication"))
+        #expect(send.contains("NSAppleEventDescriptor.currentProcess()"))
+    }
+
     // MARK: - The discovery file is only withdrawn by its owner
 
     private static func writePortFile(pid: Int32, to url: URL) throws {
