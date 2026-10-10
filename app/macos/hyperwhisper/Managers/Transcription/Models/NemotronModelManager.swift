@@ -79,6 +79,9 @@ final class NemotronModelManager: ObservableObject {
         static let maxDownloadAttempts = 3
         static let retryBackoffSeconds: [UInt64] = [2, 5, 10]
 
+        /// How long a quit waits for a cancelled download to unwind and clean up.
+        static let terminationCleanupTimeout: TimeInterval = 2
+
         // FluidAudio HuggingFace repo folder name + per-variant subdirectory.
         // Source of truth: `Repo.nemotronMultilingual.folderName` and
         // `StreamingNemotronMultilingualAsrManager.downloadVariant(...)`.
@@ -264,9 +267,16 @@ final class NemotronModelManager: ObservableObject {
     var onVariantInvalidated: ((Variant) async -> Void)?
 
     private var observation: NSObjectProtocol?
+    private var terminateObservation: NSObjectProtocol?
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "NemotronModelManager")
 
+    /// Issue #1445: the launch sweep runs once per process. A second manager (a
+    /// preview, a future second owner) must not delete a variant directory that the
+    /// first one is downloading into right now.
+    private static var didSweepLeftoverPartials = false
+
     init() {
+        Self.sweepLeftoverPartialsOnce()
         refreshState()
 
         observation = NotificationCenter.default.addObserver(
@@ -278,11 +288,68 @@ final class NemotronModelManager: ObservableObject {
                 self?.refreshState()
             }
         }
+
+        // A quit mid-download: cancel it and give the cancel a moment to unwind, so the
+        // download's own cleanup (tmp file + partial variant directory) runs before exit.
+        terminateObservation = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.cancelDownloadsForTermination()
+            }
+        }
     }
 
     deinit {
         if let observation {
             NotificationCenter.default.removeObserver(observation)
+        }
+        if let terminateObservation {
+            NotificationCenter.default.removeObserver(terminateObservation)
+        }
+    }
+
+    // PARTIAL DOWNLOAD CLEANUP (issue #1445):
+    // A variant directory without `metadata.json` is a download that never finished —
+    // a cancel, a failure, a quit or a kill. Nothing resumes it (Ray, 2026-10-09:
+    // clean up, no resume), so at launch, before any download can start, remove it.
+    // The path is the one FluidAudio writes for this app's own downloads, so it is
+    // ours to delete. A directory WITH `metadata.json` is left alone: that is an
+    // install, and a broken one is surfaced through `markVariantBroken(_:)`.
+    private static func sweepLeftoverPartialsOnce() {
+        guard !didSweepLeftoverPartials else { return }
+        didSweepLeftoverPartials = true
+        for variant in Variant.allCases where !variantIsDownloaded(variant) {
+            PartialDownloadCleanup.removeOwnedDirectory(
+                cacheDirectory(for: variant),
+                reason: "unfinished Nemotron \(variant.rawValue) download left from an earlier run"
+            )
+        }
+    }
+
+    /// Called on `willTerminateNotification`. Cancels every active and queued download,
+    /// then runs the main run loop until the downloads unwind (bounded), so the cancel
+    /// branch of `download(_:)` gets to remove its tmp file and variant directory.
+    /// A kill skips all of this; the launch sweep removes the variant directory then,
+    /// but FluidAudio's in-flight tmp file is not reachable from the app after a kill.
+    @MainActor
+    private func cancelDownloadsForTermination() {
+        for modelId in Array(queuedModels) {
+            cancelDownload(modelId)
+        }
+        guard !downloadTasks.isEmpty else { return }
+        logger.info("App is quitting mid-download; cancelling \(self.downloadTasks.count) Nemotron download(s)")
+        for modelId in Array(downloadTasks.keys) {
+            cancelDownload(modelId)
+        }
+        let deadline = Date().addingTimeInterval(Constants.terminationCleanupTimeout)
+        while !downloadTasks.isEmpty, Date() < deadline {
+            _ = RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+        if !downloadTasks.isEmpty {
+            logger.warning("Nemotron download did not unwind before quit; the launch sweep removes its partial files")
         }
     }
 
@@ -524,6 +591,9 @@ final class NemotronModelManager: ObservableObject {
 
         logger.info("Starting download for Nemotron \(variant.rawValue, privacy: .public) (\(Constants.chunkMs)ms)")
 
+        // Only a variant that was not installed when we started may be removed if the
+        // download does not finish: everything in its directory is then ours and partial.
+        let wasInstalled = Self.variantIsDownloaded(variant)
         var succeeded = false
         var lastError: Error?
 
@@ -536,8 +606,13 @@ final class NemotronModelManager: ObservableObject {
             } catch is CancellationError {
                 break   // user cancelled → silent
             } catch let urlError as URLError where urlError.code == .cancelled {
+                // FluidAudio's `session.download(for:)` keeps the cancelled file's
+                // `CFNetworkDownload_*.tmp` for a resume we never do (#1445).
+                PartialDownloadCleanup.removeResumeTempFile(for: urlError)
                 break   // user cancelled → silent
             } catch {
+                // A transport failure can carry resume data too; a retry starts a new tmp.
+                PartialDownloadCleanup.removeResumeTempFile(for: error)
                 if Task.isCancelled { break }
                 lastError = error
                 logger.warning("Nemotron \(variant.rawValue, privacy: .public) attempt \(attempt + 1)/\(Constants.maxDownloadAttempts) failed: \(error.localizedDescription, privacy: .public)")
@@ -548,6 +623,15 @@ final class NemotronModelManager: ObservableObject {
                     try? await Task.sleep(nanoseconds: backoff * 1_000_000_000)
                 }
             }
+        }
+
+        if !succeeded && !wasInstalled {
+            // Cancelled or failed for good: drop the partly written variant directory so
+            // the disk matches the "not downloaded" row (#1445). No resume by design.
+            PartialDownloadCleanup.removeOwnedDirectory(
+                Self.cacheDirectory(for: variant),
+                reason: Task.isCancelled ? "Nemotron download cancelled" : "Nemotron download failed"
+            )
         }
 
         if Task.isCancelled {
