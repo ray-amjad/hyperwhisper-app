@@ -3222,19 +3222,16 @@ class PersistenceController: ObservableObject {
             // #1481: a backup without enableScreenOCR / useStreamingTranscription
             // (one written before they were exported) keeps the value of the
             // local mode this row replaces or updates: the same id first, then
-            // the first same-name row. `.replace` updates that row in place
-            // (issue #1479) and deletes any other same-name row below. With no such row (a new mode, or `.keepBoth`'s copy) the
-            // value is `false`, which is what every restore wrote before.
+            // the first same-name row. That row is updated in place (issue
+            // #1479); `.replace` deletes any other same-name row below. With no
+            // such row (a new mode, or `.keepBoth`'s copy) the value is
+            // `false`, which is what every restore wrote before.
             let localCounterpart: Mode? = (hasConflict && resolution == .keepBoth)
                 ? nil
                 : (fetchAllModes().first { $0.id == backupMode.id } ?? conflicts.first)
             let restoredScreenOCR = backupMode.enableScreenOCR ?? localCounterpart?.enableScreenOCR ?? false
             let restoredStreaming = backupMode.useStreamingTranscription
                 ?? localCounterpart?.useStreamingTranscription ?? false
-
-            // The row `.replace` updates in place (issue #1479); nil means
-            // `createOrUpdateMode` looks the id up, or creates a new row.
-            var inPlaceTarget: Mode?
 
             if hasConflict {
                 switch resolution {
@@ -3244,38 +3241,56 @@ class PersistenceController: ObservableObject {
                     continue
 
                 case .replace:
-                    // Issue #1479: the local counterpart (the row with the
-                    // backup's id, else the first same-name row) is updated IN
-                    // PLACE, not deleted and re-created. It keeps its object
-                    // (Z_PK), its `isSystemProvided` flag and its `sortOrder`,
-                    // so importing your own backup again changes nothing. It
-                    // takes the backup's id, as the re-created row did.
-                    // Every OTHER same-name row is still deleted. Re-fetch on
-                    // the next iteration so duplicate backup rows use
-                    // last-one-wins semantics without retaining deleted objects.
+                    // Issue #1479: the local counterpart is updated in place
+                    // below. Every OTHER same-name row is still deleted.
+                    // Re-fetch on the next iteration so duplicate backup rows
+                    // use last-one-wins semantics without retaining deleted
+                    // objects.
                     for existingMode in conflicts where !existingMode.isDeleted && existingMode !== localCounterpart {
                         deleteModeWithoutSaving(existingMode)
-                    }
-                    if let keeper = localCounterpart, !keeper.isDeleted {
-                        if keeper.id != backupMode.id {
-                            keeper.id = backupMode.id
-                        }
-                        // The kept row must end as a fresh create from this
-                        // backup row would, bar `isSystemProvided`, `sortOrder`,
-                        // `createdDate` and the #1481 fallbacks above. A create
-                        // starts with `isDefault == false` and is promoted only
-                        // by the `DefaultModePolicy.apply` below when the backup
-                        // row is the default, or by the final repair. So the
-                        // flag is cleared here and re-earned the same way.
-                        // `createOrUpdateMode` writes every other column,
-                        // including a nil `foreignPlatformExtensions`.
-                        keeper.isDefault = false
-                        inPlaceTarget = keeper
                     }
 
                 case .keepBoth:
                     // Will create with modified name below
                     break
+                }
+            }
+
+            // Issue #1479: ONE in-place path for every row that has a local
+            // counterpart (same id first, else — `.replace` only — the first
+            // same-name row; `.keepBoth` with a name conflict has none and
+            // makes a copy). The counterpart object is handed to
+            // `createOrUpdateMode` as `updating:`, so the update never depends
+            // on an `id ==` predicate fetch matching an id changed earlier in
+            // this same unsaved import. The row keeps its object (Z_PK),
+            // `sortOrder` and `createdDate`, so importing your own backup again
+            // changes nothing; every other column ends as a fresh create from
+            // this backup row would (`createOrUpdateMode` writes them all,
+            // including a nil `foreignPlatformExtensions`), bar the #1481
+            // fallbacks above.
+            let inPlaceTarget: Mode? = (localCounterpart?.isDeleted == false) ? localCounterpart : nil
+            if let keeper = inPlaceTarget {
+                if keeper.id != backupMode.id {
+                    // A same-name row with ANOTHER id is a different mode that
+                    // happens to share the name, so it takes what a create
+                    // gives: the backup's id (as the re-created row had) and
+                    // `isSystemProvided == false`. Only a row whose id IS the
+                    // backup row's keeps the seeded flag; otherwise a user mode
+                    // named like the seeded one would inherit it.
+                    keeper.id = backupMode.id
+                    keeper.isSystemProvided = false
+                }
+                if resolution == .replace {
+                    // A create starts with `isDefault == false` and is promoted
+                    // only by the `DefaultModePolicy.apply` below when the
+                    // backup row is the default, or by the final repair. The
+                    // flag is cleared the same way whether the counterpart was
+                    // found by id or by name, so which local row ends as the
+                    // default never depends on a row's name. `.skip` and
+                    // `.keepBoth` keep the local flag, as before #1479: they
+                    // only reach here for a same-id row with no name conflict,
+                    // and they never promised to restore the backup's default.
+                    keeper.isDefault = false
                 }
             }
 

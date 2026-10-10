@@ -56,11 +56,13 @@ struct BackupImportInPlaceTests {
     }
 
     /// A v1 backup mode object with only the required keys.
-    private static func backupMode(id: UUID, name: String, model: String = "base", sortOrder: Int = 0) throws -> BackupMode {
+    private static func backupMode(
+        id: UUID, name: String, model: String = "base", sortOrder: Int = 0, isDefault: Bool = false
+    ) throws -> BackupMode {
         let json = """
             {"id":"\(id.uuidString)","name":"\(name)","preset":"custom","language":"en",
              "model":"\(model)","punctuation":true,"capitalization":true,"profanityFilter":false,
-             "postProcessingMode":0,"isDefault":false,"sortOrder":\(sortOrder)}
+             "postProcessingMode":0,"isDefault":\(isDefault),"sortOrder":\(sortOrder)}
             """
         return try JSONDecoder().decode(BackupMode.self, from: Data(json.utf8))
     }
@@ -299,6 +301,149 @@ struct BackupImportInPlaceTests {
         #expect(kept.model == "medium")
         #expect(kept.objectID == notesObject)
         #expect(persistence.fetchAllModes().count == 3)
+    }
+
+    // MARK: - One in-place rule, however the counterpart was found
+
+    /// The seeded flag belongs to the seeded id. A backup from an install
+    /// where the seeded mode was renamed "Work" and a user mode "Hyper" (id U)
+    /// was made: the local seeded "Hyper" is a same-name row with ANOTHER id
+    /// when backup "Hyper" comes first, so it takes U and must drop
+    /// `isSystemProvided`, as a create would. In either order no row but the
+    /// seeded id may carry the flag.
+    @MainActor
+    @Test(arguments: [true, false])
+    func theSeededFlagNeverLandsOnAUserModeThatSharesItsName(userHyperFirst: Bool) throws {
+        let persistence = PersistenceController(inMemory: true)
+        try seedLocalStore(persistence)
+        let seededObject = try #require(
+            persistence.fetchAllModes().first { $0.id == SeededModeValues.seededID }
+        ).objectID
+
+        let userHyperId = UUID()
+        let work = try Self.backupMode(id: SeededModeValues.seededID, name: "Work", isDefault: true)
+        let userHyper = try Self.backupMode(id: userHyperId, name: "Hyper", sortOrder: 3)
+        let result = try persistence.importBackupStore(
+            modes: userHyperFirst ? [userHyper, work] : [work, userHyper], modeResolution: .replace,
+            vocabulary: nil, vocabularyResolution: .skip
+        )
+
+        #expect(result.modesImported == 2)
+        let modes = persistence.fetchAllModes()
+        let hyper = try #require(modes.first { $0.id == userHyperId })
+        #expect(hyper.name == "Hyper")
+        #expect(hyper.isSystemProvided == false)
+        for mode in modes where mode.isSystemProvided {
+            #expect(mode.id == SeededModeValues.seededID)
+        }
+        let workRow = try #require(modes.first { $0.id == SeededModeValues.seededID })
+        #expect(workRow.name == "Work")
+        #expect(workRow.isDefault)
+        #expect(modes.filter(\.isDefault).count == 1)
+        if userHyperFirst {
+            // The local seeded row was the same-name counterpart of user Hyper.
+            #expect(hyper.objectID == seededObject)
+        } else {
+            // The seeded row matched "Work" by id and keeps its flag.
+            #expect(workRow.objectID == seededObject)
+            #expect(workRow.isSystemProvided)
+        }
+    }
+
+    /// Two backup rows share id X: "Notes" (a name match for local Notes, id
+    /// Y, which takes X in place) then "Brand". The second row must update
+    /// that same object — found in Swift, not by an `id ==` predicate fetch
+    /// that may miss the unsaved id change — and not create a second row with
+    /// id X.
+    @MainActor
+    @Test func aSecondBackupRowWithTheSameIdUpdatesTheRowAnEarlierRowReIded() throws {
+        let persistence = PersistenceController(inMemory: true)
+        try seedLocalStore(persistence)
+        let notes = try #require(persistence.fetchAllModes().first { $0.name == "Notes" })
+        let notesObject = notes.objectID
+
+        let sharedId = UUID()
+        let result = try persistence.importBackupStore(
+            modes: [
+                try Self.backupMode(id: sharedId, name: "Notes", model: "small"),
+                try Self.backupMode(id: sharedId, name: "Brand", model: "medium"),
+            ],
+            modeResolution: .replace,
+            vocabulary: nil, vocabularyResolution: .skip
+        )
+
+        #expect(result.modesImported == 2)
+        let modes = persistence.fetchAllModes()
+        #expect(modes.count == 3)
+        let withId = modes.filter { $0.id == sharedId }
+        #expect(withId.count == 1)
+        let kept = try #require(withId.first)
+        #expect(kept.objectID == notesObject)
+        #expect(kept.name == "Brand")
+        #expect(kept.model == "medium")
+        #expect(modes.contains { $0.name == "Notes" } == false)
+    }
+
+    /// The local default Notes, renamed in the backup and not its default:
+    /// a plain id match (no name conflict) drops the local flag exactly as the
+    /// same-name case (`aLocalDefaultFlagIsNotKeptWhenTheBackupRowIsNotTheDefault`)
+    /// does, so the restored default does not depend on the row's name.
+    @MainActor
+    @Test func aLocalDefaultFlagIsNotKeptOnARowTheBackupRenamed() throws {
+        let persistence = PersistenceController(inMemory: true)
+        try seedLocalStore(persistence)
+        let notes = try #require(persistence.fetchAllModes().first { $0.name == "Notes" })
+        let notesId = try #require(notes.id)
+        let notesObject = notes.objectID
+        DefaultModePolicy.apply(to: persistence.fetchAllModes(), preferred: notesId)
+        try persistence.container.viewContext.save()
+        #expect(notes.isDefault)
+
+        _ = try persistence.importBackupStore(
+            modes: [try Self.backupMode(id: notesId, name: "Meeting Notes")], modeResolution: .replace,
+            vocabulary: nil, vocabularyResolution: .skip
+        )
+
+        let modes = persistence.fetchAllModes()
+        let kept = try #require(modes.first { $0.id == notesId })
+        #expect(kept.objectID == notesObject)
+        #expect(kept.name == "Meeting Notes")
+        #expect(kept.isDefault == false)
+        #expect(modes.filter(\.isDefault).count == 1)
+        let hyper = try #require(modes.first { $0.id == SeededModeValues.seededID })
+        #expect(hyper.isDefault)
+    }
+
+    /// `.skip` keeps its pre-#1479 behaviour for a same-id row with no name
+    /// conflict: the row is updated in place (it is not a conflict) and keeps
+    /// the local default flag — `.skip` never promised to restore the
+    /// backup's default.
+    @MainActor
+    @Test func skipStillUpdatesARenamedSameIdRowAndKeepsTheLocalDefault() throws {
+        let persistence = PersistenceController(inMemory: true)
+        try seedLocalStore(persistence)
+        let notes = try #require(persistence.fetchAllModes().first { $0.name == "Notes" })
+        let notesId = try #require(notes.id)
+        let notesObject = notes.objectID
+        DefaultModePolicy.apply(to: persistence.fetchAllModes(), preferred: notesId)
+        try persistence.container.viewContext.save()
+
+        let result = try persistence.importBackupStore(
+            modes: [try Self.backupMode(id: notesId, name: "Meeting Notes", model: "small")],
+            modeResolution: .skip,
+            vocabulary: nil, vocabularyResolution: .skip
+        )
+
+        #expect(result.modesImported == 1)
+        #expect(result.modesSkipped == 0)
+        let modes = persistence.fetchAllModes()
+        #expect(modes.count == 3)
+        let kept = try #require(modes.first { $0.id == notesId })
+        #expect(kept.objectID == notesObject)
+        #expect(kept.name == "Meeting Notes")
+        #expect(kept.model == "small")
+        #expect(kept.isDefault)
+        #expect(modes.filter(\.isDefault).count == 1)
     }
 
     // MARK: - New modes and the other resolutions
