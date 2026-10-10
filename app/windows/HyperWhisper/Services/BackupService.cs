@@ -418,27 +418,33 @@ public class BackupService
             // "Import failed" therefore means nothing changed.
             var importModes = selection.IncludeModes && backup.Modes is { Count: > 0 };
             var importVocabulary = selection.IncludeVocabulary && backup.Vocabulary is { Count: > 0 };
-            try
+            // With neither section selected there is no database step at all: a
+            // settings-only or API-keys-only import opens no context and no
+            // transaction, so a locked or busy database cannot fail it (counts stay 0).
+            if (importModes || importVocabulary)
             {
-                // 2. Modes — merge by Id (existing upsert semantics).
-                // 3. Vocabulary — merge by Word (case-insensitive, trimmed).
-                // Mapping is inside the guarded step: a row that cannot be mapped
-                // fails the import exactly like a row the database refuses.
-                var modes = importModes
-                    ? backup.Modes!.Select(UniversalBackupMapper.MapToMode).ToList()
-                    : null;
-                var (modesImported, added, conflicts) = MergeModesAndVocabulary(
-                    modes,
-                    importVocabulary ? backup.Vocabulary : null,
-                    selection.VocabularyConflict);
-                summary.ModesImported = modesImported;
-                summary.VocabularyAdded = added;
-                summary.VocabularyConflicts = conflicts;
-            }
-            catch
-            {
-                RestoreSettingsAfterFailedImport(SettingsService.Instance, settingsBefore, "selective import");
-                throw;
+                try
+                {
+                    // 2. Modes — merge by Id (existing upsert semantics).
+                    // 3. Vocabulary — merge by Word (case-insensitive, trimmed).
+                    // Mapping is inside the guarded step: a row that cannot be mapped
+                    // fails the import exactly like a row the database refuses.
+                    var modes = importModes
+                        ? backup.Modes!.Select(UniversalBackupMapper.MapToMode).ToList()
+                        : null;
+                    var (modesImported, added, conflicts) = MergeModesAndVocabulary(
+                        modes,
+                        importVocabulary ? backup.Vocabulary : null,
+                        selection.VocabularyConflict);
+                    summary.ModesImported = modesImported;
+                    summary.VocabularyAdded = added;
+                    summary.VocabularyConflicts = conflicts;
+                }
+                catch
+                {
+                    RestoreSettingsAfterFailedImport(SettingsService.Instance, settingsBefore, "selective import");
+                    throw;
+                }
             }
 
             if (importModes)

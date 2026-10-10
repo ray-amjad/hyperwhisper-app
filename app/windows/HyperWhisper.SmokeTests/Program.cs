@@ -17036,6 +17036,11 @@ internal static class Program
                 AssertFailedImportKeepsSettings("replace", backupPath =>
                     BackupService.Instance.Import(backupPath, replaceExisting: true).IsSuccess));
 
+            // A settings-only Import Selected has no database step, so it must not
+            // enter one: no context, no _dbLock, no transaction (#1614 round 2).
+            Run("backup: a settings-only Import Selected never enters the database step — issue #1614", () =>
+                AssertSettingsOnlyImportSkipsTheDatabaseStep());
+
             Run("settings: an info notice is given the whole column, so it wraps — issues #503, #508", () =>
             {
                 // A horizontal StackPanel measures its children with infinite available
@@ -20142,6 +20147,135 @@ internal static class Program
             native.Remove("BackupUnknownRootKeys");
             native.Remove("CustomEndpoints");
             return native;
+        }
+    }
+
+    /// <summary>
+    /// Issue #1614 round 2: a settings-only Import Selected (the backup also carries
+    /// modes and vocabulary, not selected) has no database step, so it must not enter
+    /// one. Another thread holds BackupService's _dbLock, the lock every DB step takes
+    /// first, for up to 5 s: the import must finish well inside that, apply the
+    /// backup's settings and write no rows. A SQLite-level lock cannot tell the two
+    /// apart here: EF's BeginTransaction is deferred, so an empty BEGIN/COMMIT takes
+    /// no file lock and succeeds even under another connection's BEGIN EXCLUSIVE
+    /// (measured on the PC); _dbLock is the wait the unneeded DB step really adds.
+    /// </summary>
+    private static void AssertSettingsOnlyImportSkipsTheDatabaseStep()
+    {
+        DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+        var settings = SettingsService.Instance;
+
+        string dbPath;
+        using (var probe = new HyperWhisperDbContext())
+        {
+            dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                probe.Database.GetConnectionString()).DataSource);
+        }
+        Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+            $"the database {dbPath} is not under the suite's temp profile; refusing to clean rows from it");
+
+        var stateBefore = ReadWindowsSettings(settings);
+        var unknownSettingsBefore = settings.BackupUnknownSettings;
+        var foreignBefore = settings.BackupForeignPlatformExtensions;
+        var unknownRootBefore = settings.BackupUnknownRootKeys;
+
+        var wpm = settings.TypingSpeedWPM;
+        var otherWpm = wpm == 61 ? 62 : 61;
+        var otherFiller = !settings.RemoveFillerWords;
+        var token = Guid.NewGuid().ToString("N")[..8];
+        var prefix = $"percy1614-locked-{token}-";
+
+        var backupPath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests",
+            $"issue1614-locked-{token}.hwbackup.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+        File.WriteAllText(backupPath, JsonSerializer.Serialize(new UniversalBackup
+        {
+            SchemaVersion = 2,
+            ExportDate = DateTime.UtcNow,
+            AppVersion = "smoke-1614",
+            Platform = "windows",
+            Settings = new UniversalSettings
+            {
+                TextOutput = new UniversalTextOutputSettings { RemoveFillerWords = otherFiller },
+                Advanced = new UniversalAdvancedSettings { TypingSpeedWPM = otherWpm }
+            },
+            Modes =
+            [
+                UniversalBackupMapper.MapMode(new Mode { Id = Guid.NewGuid(), Name = prefix + "mode", SortOrder = 20_100 })
+            ],
+            Vocabulary =
+            [
+                new UniversalVocabularyItem { Id = Guid.NewGuid(), Word = prefix + "word", SortOrder = 1 }
+            ]
+        }, UniversalCaptureOptions));
+
+        void Exec(string sql)
+        {
+            using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.ExecuteNonQuery();
+        }
+
+        var dbLock = typeof(BackupService).GetField("_dbLock", BindingFlags.NonPublic | BindingFlags.Static)?.GetValue(null)
+            ?? throw new InvalidOperationException("BackupService._dbLock not found");
+
+        // The holder lets go after 5 s at most, so a build that does enter the DB
+        // step fails this case in about 5 s instead of hanging the suite. The import
+        // runs on this thread (ApplyImport may marshal to it), the holder on its own.
+        using var held = new ManualResetEventSlim(false);
+        using var release = new ManualResetEventSlim(false);
+        var holder = new Thread(() =>
+        {
+            lock (dbLock)
+            {
+                held.Set();
+                release.Wait(TimeSpan.FromSeconds(5));
+            }
+        }) { IsBackground = true, Name = "issue1614-dblock-holder" };
+        try
+        {
+            holder.Start();
+            Assert(held.Wait(TimeSpan.FromSeconds(10)), "the holder thread never took _dbLock");
+
+            var watch = Stopwatch.StartNew();
+            var result = BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+            {
+                IncludeSettings = true
+            });
+            watch.Stop();
+            release.Set();
+            holder.Join(TimeSpan.FromSeconds(10));
+
+            Assert(result.IsSuccess,
+                $"the settings-only import failed ({watch.ElapsedMilliseconds} ms): {result.Error}");
+            Assert(watch.Elapsed < TimeSpan.FromSeconds(2.5),
+                $"the settings-only import took {watch.ElapsedMilliseconds} ms: it waited on _dbLock, so it entered the DB step");
+            Assert(result.Value!.SettingsImported, "the summary says the settings were not imported");
+            Assert(result.Value.ModesImported == 0 && result.Value.VocabularyAdded == 0 && result.Value.VocabularyConflicts == 0,
+                $"the settings-only import reported DB work: {result.Value.ToLogString()}");
+            Assert(settings.TypingSpeedWPM == otherWpm,
+                $"TypingSpeedWPM is {settings.TypingSpeedWPM}, not the backup's {otherWpm}");
+            Assert(settings.RemoveFillerWords == otherFiller,
+                $"RemoveFillerWords is {settings.RemoveFillerWords}, not the backup's {otherFiller}");
+
+            using var ctx = new HyperWhisperDbContext();
+            Assert(!ctx.Modes.Any(m => m.Name.StartsWith(prefix)), "the unselected modes were written");
+            Assert(!ctx.VocabularyItems.Any(v => v.Word.StartsWith(prefix)), "the unselected vocabulary was written");
+        }
+        finally
+        {
+            release.Set();
+            holder.Join(TimeSpan.FromSeconds(10));
+            Exec($"DELETE FROM Modes WHERE Name LIKE '{prefix}%';");
+            Exec($"DELETE FROM VocabularyItems WHERE Word LIKE '{prefix}%';");
+            try { File.Delete(backupPath); } catch { }
+
+            SeedWindowsSettings(settings, stateBefore, "issue1614-locked-cleanup");
+            settings.BackupUnknownSettings = unknownSettingsBefore;
+            settings.BackupForeignPlatformExtensions = foreignBefore;
+            settings.BackupUnknownRootKeys = unknownRootBefore;
         }
     }
 
