@@ -97,7 +97,7 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
             return PlatformResult.Failure("clipboard_restore_partial",
                 "No multi-format clipboard owner is available; the clipboard was left unchanged.");
         var preferred = SelectPreferred(snapshot.Formats);
-        var restored = await RunAsync(_copy, WriteArguments(preferred.Key), preferred.Value, token).ConfigureAwait(false);
+        var restored = await WriteAsync(preferred.Key, preferred.Value, token).ConfigureAwait(false);
         if (restored.IsFailure) return PlatformResult.Failure(restored.Error!.Code, restored.Error.Message);
         return PlatformResult.Success();
     }
@@ -125,7 +125,7 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
         // UTF8_STRING -- which is most GTK and Qt apps, and every terminal -- got nothing back, so
         // paste did nothing after a transcription. One helper can only own one target set at a
         // time, so a second run would replace the first rather than add to it.
-        var result = await RunAsync(_copy, WriteArguments(null), textBytes, token).ConfigureAwait(false);
+        var result = await WriteAsync(null, textBytes, token).ConfigureAwait(false);
         return result.IsSuccess ? PlatformResult.Success() : PlatformResult.Failure(result.Error!.Code, result.Error.Message);
     }
 
@@ -171,13 +171,22 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
         return formats.First();
     }
 
+    /// <summary>
+    /// wl-copy and xclip -in both fork a child that keeps serving the selection after the helper
+    /// exits, and that child inherits the helper's stdout and stderr. Their output is never read, so
+    /// a write discards it: the runner then waits for the helper's own exit, not for pipes the child
+    /// holds open, which made every write wait out the 5 s timeout and fail (#1528).
+    /// </summary>
+    private Task<PlatformResult<byte[]>> WriteAsync(string? format, byte[] input, CancellationToken token) =>
+        RunAsync(_copy!, WriteArguments(format), input, token, discardOutput: true);
+
     private static async Task<PlatformResult<byte[]>> RunAsync(string executable, IReadOnlyList<string> arguments,
-        byte[]? input, CancellationToken token, int maximumOutputBytes = int.MaxValue)
+        byte[]? input, CancellationToken token, int maximumOutputBytes = int.MaxValue, bool discardOutput = false)
     {
         try
         {
             var result = await ExternalProcessRunner.RunAsync(executable, arguments, input, token,
-                maximumOutputBytes: maximumOutputBytes).ConfigureAwait(false);
+                maximumOutputBytes: maximumOutputBytes, discardOutput: discardOutput).ConfigureAwait(false);
             return result.ExitCode == 0 ? PlatformResult<byte[]>.Success(result.Output)
                 : PlatformResult<byte[]>.Failure("clipboard_command_failed", "The clipboard helper reported an error.");
         }
