@@ -1183,9 +1183,9 @@ public sealed class ModesViewModel : ViewModelBase
             Status.Failure("modes.local_llm_model_required", "Enter a GGUF model filename from the local LLM models directory.");
             return;
         }
-        if (UserSystemPrompt.Length > 2000)
+        if (UserSystemPrompt.Length > 8000)
         {
-            Status.Failure("modes.prompt_too_long", "The system prompt cannot exceed 2000 characters.");
+            Status.Failure("modes.prompt_too_long", "The system prompt cannot exceed 8000 characters.");
             return;
         }
         if (CustomInstructions.Length > 4000)

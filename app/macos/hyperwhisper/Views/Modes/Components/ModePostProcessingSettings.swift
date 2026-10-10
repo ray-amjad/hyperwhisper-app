@@ -868,6 +868,15 @@ struct LanguageProcessingSettingsView: View {
                                     RoundedRectangle(cornerRadius: 8)
                                         .stroke(Color.secondary.opacity(0.25))
                                 )
+
+                                // Live "n / limit" counter (#1488): the box cuts at the limit,
+                                // so the count is how the user sees that a paste was cut.
+                                HStack {
+                                    Spacer()
+                                    Text(verbatim: "\(userSystemPrompt.count.formatted()) / \(userSystemPromptCharacterLimit.formatted())")
+                                        .font(.caption.monospacedDigit())
+                                        .foregroundColor(userSystemPrompt.count >= userSystemPromptCharacterLimit ? .orange : .secondary)
+                                }
                             }
                         }
                     }

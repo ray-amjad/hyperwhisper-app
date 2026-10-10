@@ -357,7 +357,7 @@
                           Content="{ReflectionBinding [settings.license.clearInput], Source={StaticResource Localization}}"/>
                 </Grid>
                 <TextBox x:Name="ModeUserSystemPrompt" Text="{Binding UserSystemPrompt}" Margin="0,4,0,0"
-                         AcceptsReturn="True" TextWrapping="Wrap" Height="100" MaxLength="2000"/>
+                         AcceptsReturn="True" TextWrapping="Wrap" Height="100" MaxLength="8000"/>
               </StackPanel>
             </StackPanel>
           </StackPanel>

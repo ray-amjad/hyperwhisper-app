@@ -175,7 +175,7 @@ func isEnglishOnlyModel(provider: ProviderType, model: String) -> Bool {
 }
 
 // Maximum number of characters allowed for user-supplied system prompts
-let userSystemPromptCharacterLimit = 2000
+let userSystemPromptCharacterLimit = 8000
 
 // Maximum number of characters allowed for Gemini custom transcription prompts
 let geminiCustomPromptCharacterLimit = 2000

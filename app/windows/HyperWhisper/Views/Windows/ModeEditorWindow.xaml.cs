@@ -1439,7 +1439,7 @@ public partial class ModeEditorWindow : Window
 
     private void UserPromptBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        UserPromptCharCount.Text = $"{UserPromptBox.Text.Length}/2000";
+        UserPromptCharCount.Text = $"{UserPromptBox.Text.Length}/8000";
     }
 
     private void GeminiCustomPromptBox_TextChanged(object sender, TextChangedEventArgs e)
