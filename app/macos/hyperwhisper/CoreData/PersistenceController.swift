@@ -2642,7 +2642,14 @@ class PersistenceController: ObservableObject {
         // Preserve a foreign (non-macOS) per-mode platformExtensions blob captured
         // on a v2 import (H4). Only assign when explicitly provided so an unrelated
         // GUI/API mode edit (which passes nil) never wipes a stored foreign slice.
-        if let foreignPlatformExtensions {
+        //
+        // A restore is the exception: it writes the backup row's slice even
+        // when that is nil. `.replace` updates the local row in place (issue
+        // #1479), and the row must end up exactly as a fresh create from the
+        // backup row would leave it — so a stale slice from an earlier foreign
+        // import must not survive a restore of a backup that has none, or
+        // `BackupMode(from:)` would re-emit it into every later export.
+        if restoringFromBackup || foreignPlatformExtensions != nil {
             mode?.foreignPlatformExtensions = foreignPlatformExtensions
         }
         let trimmedGeminiPrompt = geminiCustomPrompt?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -3253,6 +3260,16 @@ class PersistenceController: ObservableObject {
                         if keeper.id != backupMode.id {
                             keeper.id = backupMode.id
                         }
+                        // The kept row must end as a fresh create from this
+                        // backup row would, bar `isSystemProvided`, `sortOrder`,
+                        // `createdDate` and the #1481 fallbacks above. A create
+                        // starts with `isDefault == false` and is promoted only
+                        // by the `DefaultModePolicy.apply` below when the backup
+                        // row is the default, or by the final repair. So the
+                        // flag is cleared here and re-earned the same way.
+                        // `createOrUpdateMode` writes every other column,
+                        // including a nil `foreignPlatformExtensions`.
+                        keeper.isDefault = false
                         inPlaceTarget = keeper
                     }
 

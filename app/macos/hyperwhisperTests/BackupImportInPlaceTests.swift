@@ -144,6 +144,108 @@ struct BackupImportInPlaceTests {
         #expect(persistence.fetchAllModes().count == 3)
     }
 
+    // MARK: - The kept row ends as a fresh create would
+
+    /// A local Notes holds a Windows slice from an earlier Windows backup
+    /// import. Restoring a backup whose Notes has no foreign slices (an older
+    /// macOS or a Linux one) must clear it, as the delete-and-re-create did,
+    /// or `BackupMode(from:)` writes the stale slice into every later export.
+    @MainActor
+    @Test func aStaleForeignSliceIsClearedWhenTheBackupRowHasNone() throws {
+        let persistence = PersistenceController(inMemory: true)
+        try seedLocalStore(persistence)
+        let notes = try #require(persistence.fetchAllModes().first { $0.name == "Notes" })
+        let notesId = try #require(notes.id)
+        let notesObject = notes.objectID
+        notes.foreignPlatformExtensions = #"{"windows":{"hotkey":"Ctrl+Alt+N"}}"#
+        try persistence.container.viewContext.save()
+
+        let backup = try Self.backupMode(id: notesId, name: "Notes")
+        #expect(backup.foreignPlatformExtensions == nil)
+        _ = try persistence.importBackupStore(
+            modes: [backup], modeResolution: .replace,
+            vocabulary: nil, vocabularyResolution: .skip
+        )
+
+        let kept = try #require(persistence.fetchAllModes().first { $0.id == notesId })
+        #expect(kept.objectID == notesObject)
+        #expect(kept.foreignPlatformExtensions == nil)
+        // The v2 export of the kept row carries no `windows` slice.
+        let exported = UniversalModeDTO(from: BackupMode(from: kept))
+        let slices = try #require(exported.platformExtensions?.objectValue)
+        #expect(slices["windows"] == nil)
+    }
+
+    /// The same clear for a same-name row with ANOTHER id (no id match, so
+    /// only the in-place target reaches `createOrUpdateMode`).
+    @MainActor
+    @Test func aStaleForeignSliceIsClearedOnASameNameRowWithAnotherId() throws {
+        let persistence = PersistenceController(inMemory: true)
+        try seedLocalStore(persistence)
+        let notes = try #require(persistence.fetchAllModes().first { $0.name == "Notes" })
+        notes.foreignPlatformExtensions = #"{"linux":{"x":1}}"#
+        try persistence.container.viewContext.save()
+
+        let backupId = UUID()
+        _ = try persistence.importBackupStore(
+            modes: [try Self.backupMode(id: backupId, name: "Notes")], modeResolution: .replace,
+            vocabulary: nil, vocabularyResolution: .skip
+        )
+
+        let kept = try #require(persistence.fetchAllModes().first { $0.id == backupId })
+        #expect(kept.foreignPlatformExtensions == nil)
+    }
+
+    /// A backup row that DOES carry a foreign slice still writes it onto the
+    /// kept row, replacing the local one.
+    @MainActor
+    @Test func aBackupRowsForeignSliceReplacesTheLocalOne() throws {
+        let persistence = PersistenceController(inMemory: true)
+        try seedLocalStore(persistence)
+        let notes = try #require(persistence.fetchAllModes().first { $0.name == "Notes" })
+        let notesId = try #require(notes.id)
+        notes.foreignPlatformExtensions = #"{"windows":{"old":true}}"#
+        try persistence.container.viewContext.save()
+
+        var backup = try Self.backupMode(id: notesId, name: "Notes")
+        backup.foreignPlatformExtensions = #"{"linux":{"new":true}}"#
+        _ = try persistence.importBackupStore(
+            modes: [backup], modeResolution: .replace,
+            vocabulary: nil, vocabularyResolution: .skip
+        )
+
+        let kept = try #require(persistence.fetchAllModes().first { $0.id == notesId })
+        #expect(kept.foreignPlatformExtensions == #"{"linux":{"new":true}}"#)
+    }
+
+    /// A fresh create starts with `isDefault == false`; the kept row must not
+    /// carry a local default flag the backup row does not have. Here the local
+    /// default is Notes, the backup's Notes is not the default and the backup
+    /// names no default, so the repair promotes the first mode in order
+    /// (Hyper, sortOrder 0) exactly as it did for the re-created row.
+    @MainActor
+    @Test func aLocalDefaultFlagIsNotKeptWhenTheBackupRowIsNotTheDefault() throws {
+        let persistence = PersistenceController(inMemory: true)
+        try seedLocalStore(persistence)
+        let notes = try #require(persistence.fetchAllModes().first { $0.name == "Notes" })
+        let notesId = try #require(notes.id)
+        DefaultModePolicy.apply(to: persistence.fetchAllModes(), preferred: notesId)
+        try persistence.container.viewContext.save()
+        #expect(notes.isDefault)
+
+        _ = try persistence.importBackupStore(
+            modes: [try Self.backupMode(id: notesId, name: "Notes")], modeResolution: .replace,
+            vocabulary: nil, vocabularyResolution: .skip
+        )
+
+        let modes = persistence.fetchAllModes()
+        let kept = try #require(modes.first { $0.id == notesId })
+        #expect(kept.isDefault == false)
+        #expect(modes.filter(\.isDefault).count == 1)
+        let hyper = try #require(modes.first { $0.id == SeededModeValues.seededID })
+        #expect(hyper.isDefault)
+    }
+
     // MARK: - A same-name row with another id
 
     @MainActor
