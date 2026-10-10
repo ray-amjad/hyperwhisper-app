@@ -54,8 +54,13 @@ class TranscriptionProviderRouter {
     /// HyperWhisper Cloud provider (built-in, credit-based)
     private var hyperwhisperCloudProvider: HyperWhisperCloudProvider?
 
-    /// Cloud Whisper provider (OpenAI/Groq)
-    private let cloudProvider = CloudWhisperProvider()
+    /// Cloud Whisper providers, ONE PER VENDOR (issue #1338). They used to be
+    /// one shared instance that each request re-pointed at its vendor, so a
+    /// Groq request suspended at `ensureHealthy` could resume on OpenAI with the
+    /// OpenAI key after an overlapping OpenAI request configured it. Route
+    /// `.openai` and `.groq` only through `whisperProvider(for:)`.
+    private let openAIProvider: CloudWhisperProvider
+    private let groqProvider: CloudWhisperProvider
 
     /// Additional cloud providers
     private let deepgramProvider = DeepgramProvider()
@@ -99,8 +104,17 @@ class TranscriptionProviderRouter {
 
     // MARK: - Initialization
 
-    init() {
+    /// - Parameter cloudWhisperExecute: transport for the OpenAI/Groq Whisper
+    ///   requests. Tests inject one to see where each request went; every
+    ///   production call site takes the default.
+    init(
+        cloudWhisperExecute: @escaping RustRetry.Executor = { request, session in
+            try await RustHTTPExecutor.execute(request, session: session)
+        }
+    ) {
         // Providers will be configured as needed
+        openAIProvider = CloudWhisperProvider(provider: .openai, execute: cloudWhisperExecute)
+        groqProvider = CloudWhisperProvider(provider: .groq, execute: cloudWhisperExecute)
     }
 
     // MARK: - Dependency Injection
@@ -152,16 +166,23 @@ class TranscriptionProviderRouter {
     /// - Parameter apiKey: OpenAI API key
     func setupCloudProvider(with apiKey: String) {
         if !apiKey.isEmpty {
-            cloudProvider.configure(apiKey: apiKey)
+            openAIProvider.configure(apiKey: apiKey)
         }
     }
 
     /// Refresh API configuration when settings change
     func refreshConfiguration(openAIAPIKey: String) {
         if !openAIAPIKey.isEmpty {
-            cloudProvider.configure(apiKey: openAIAPIKey)
+            openAIProvider.configure(apiKey: openAIAPIKey)
             AppLogger.network.debug("Refreshed OpenAI configuration")
         }
+    }
+
+    /// The OpenAI-compatible Whisper instance for `vendor`. Only `.openai` and
+    /// `.groq` reach it; each has its own instance, so configuring one vendor
+    /// can never re-point a request already resolved to the other (issue #1338).
+    private func whisperProvider(for vendor: CloudProvider) -> CloudWhisperProvider {
+        vendor == .groq ? groqProvider : openAIProvider
     }
 
     // MARK: - Provider Selection
@@ -244,7 +265,7 @@ class TranscriptionProviderRouter {
                 // regression where the outer guard is loosened.
                 assertionFailure("BYOK-free providers should not enter the API-key configuration switch")
             case .openai, .groq:
-                cloudProvider.configure(apiKey: apiKey, provider: cloudProviderType)
+                whisperProvider(for: cloudProviderType).configure(apiKey: apiKey)
             case .deepgram:
                 deepgramProvider.configure(apiKey: apiKey)
             case .assemblyAI:
@@ -296,7 +317,7 @@ class TranscriptionProviderRouter {
             }
             provider = hwProvider
         case .openai, .groq:
-            provider = cloudProvider
+            provider = whisperProvider(for: cloudProviderType)
         case .deepgram:
             provider = deepgramProvider
         case .assemblyAI:
@@ -570,7 +591,7 @@ class TranscriptionProviderRouter {
                 // Mirrors the same dead-arm pattern in `selectProvider(for:vocabulary:)`.
                 assertionFailure("BYOK-free providers should not enter the API-key configuration switch")
             case .openai, .groq:
-                cloudProvider.configure(apiKey: apiKey, provider: cloudProviderType)
+                whisperProvider(for: cloudProviderType).configure(apiKey: apiKey)
             case .deepgram:
                 deepgramProvider.configure(apiKey: apiKey)
             case .assemblyAI:
@@ -601,7 +622,7 @@ class TranscriptionProviderRouter {
             }
             provider = hw
         case .openai, .groq:
-            provider = cloudProvider
+            provider = whisperProvider(for: cloudProviderType)
         case .deepgram:
             provider = deepgramProvider
         case .assemblyAI:
