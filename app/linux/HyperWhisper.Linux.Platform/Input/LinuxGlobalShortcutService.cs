@@ -30,8 +30,11 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
     private bool _disposed;
     private volatile bool _interferenceArmed;
 
-    public LinuxGlobalShortcutService() : this(new LinuxKeyboardSourceFactory(), null,
-        IsTrueXorgSession() ? new X11GlobalShortcutService() : null) { }
+    public LinuxGlobalShortcutService() : this(X11ModifierOnlyTrigger.OnCleanRelease) { }
+
+    /// <param name="modifierOnly">When a modifier-only shortcut fires on X11 (#1511).</param>
+    internal LinuxGlobalShortcutService(X11ModifierOnlyTrigger modifierOnly) : this(new LinuxKeyboardSourceFactory(), null,
+        IsTrueXorgSession() ? new X11GlobalShortcutService(modifierOnly) : null) { }
 
     internal LinuxGlobalShortcutService(
         IEvdevSourceFactory sourceFactory,

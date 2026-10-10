@@ -33,6 +33,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("X11 modifier-only shortcuts emit press and release", X11ModifierShortcut),
     ("X11 shortcut released modifier-first fires again", X11ModifierFirstRelease),
     ("X11 maps multi-modifier-only shortcuts in either order", X11MultiModifierShortcut),
+    ("X11 Ctrl+Alt alone toggles on its release, either order", X11ModifierChordAloneFiresOnRelease),
+    ("X11 Ctrl+Alt+Left never toggles, either release order", X11ModifierChordWithKeyDoesNotFire),
+    ("X11 Ctrl+Alt+Shift never toggles", X11ModifierChordWithModifierDoesNotFire),
+    ("X11 push-to-talk modifier chord still fires on press", X11PushToTalkChordFiresOnPress),
     ("true Xorg selects XGrabKey instead of evdev", XorgSelectsXGrabKey),
     ("X11 XGrabKey host integration", X11GrabIntegration),
     ("X11 Display mutation is serialized with reader", X11ConcurrentMutationIntegration),
@@ -464,7 +468,7 @@ static async Task X11ShortcutPrivacy()
 static async Task X11ModifierShortcut()
 {
     var connection = new FakeX11Connection(new X11HotkeyEvent(37, 0, true), new X11HotkeyEvent(37, 4, false));
-    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection));
+    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection), X11ModifierOnlyTrigger.OnPress);
     var events = 0;
     service.ShortcutPressed += (_, _) => events++;
     service.ShortcutReleased += (_, _) => events++;
@@ -500,6 +504,75 @@ static Task X11MultiModifierShortcut()
     Assert.True(mapped.Value.Triggers.Count(trigger => trigger.Modifiers == 4) == 2);
     Assert.True(mapped.Value.Triggers.Count(trigger => trigger.Modifiers == 8) == 2);
     return Task.CompletedTask;
+}
+
+// Issue #1511. Keycodes in FakeX11Connection: Ctrl_L 37, Alt_L 64, Shift_L 50,
+// Left 113 (unregistered, so it only arrives while the chord's grab is active).
+// X state bits: Shift 1, Control 4, Alt 8.
+static async Task<string> RunX11Toggle(X11ModifierOnlyTrigger trigger, params X11HotkeyEvent[] input)
+{
+    var connection = new FakeX11Connection(input);
+    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection), trigger);
+    var events = new List<string>();
+    service.ShortcutPressed += (_, args) => events.Add("down:" + args.Name);
+    service.ShortcutReleased += (_, args) => events.Add("up:" + args.Name);
+    var registered = service.RegisterShortcuts([new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))]);
+    Assert.Success(registered["toggle"]);
+    Assert.Success(service.Start());
+    await connection.Drained.Task.WaitAsync(TimeSpan.FromSeconds(2)); await Task.Delay(30);
+    return string.Join(',', events);
+}
+
+static async Task X11ModifierChordAloneFiresOnRelease()
+{
+    // Ctrl down, Alt down (arms: the grab on Alt with Control held), then nothing fires
+    // until a chord key comes up. Alt released first, then Ctrl first.
+    Assert.Equal("down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(64, 12, false), new X11HotkeyEvent(37, 4, false)));
+    Assert.Equal("down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(37, 12, false), new X11HotkeyEvent(64, 8, false)));
+    // Alt down first, then Ctrl arms through the grab on Ctrl with Alt held. Twice: it re-arms.
+    Assert.Equal("down:toggle,up:toggle,down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(37, 8, true), new X11HotkeyEvent(37, 12, false),
+        new X11HotkeyEvent(37, 8, true), new X11HotkeyEvent(64, 12, false)));
+}
+
+static async Task X11ModifierChordWithKeyDoesNotFire()
+{
+    // Ctrl+Alt+Left, Left released first.
+    Assert.Equal("", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(113, 12, true),
+        new X11HotkeyEvent(113, 12, false), new X11HotkeyEvent(64, 12, false), new X11HotkeyEvent(37, 4, false)));
+    // Ctrl+Alt+Left, a modifier released before Left.
+    Assert.Equal("", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(113, 12, true),
+        new X11HotkeyEvent(64, 12, false), new X11HotkeyEvent(113, 4, false), new X11HotkeyEvent(37, 4, false)));
+    Assert.Equal("", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(113, 12, true),
+        new X11HotkeyEvent(37, 12, false), new X11HotkeyEvent(64, 8, false)));
+    // A spoiled chord does not leak into the next one: Ctrl+Alt+Left, then Ctrl+Alt alone.
+    Assert.Equal("down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(113, 12, true),
+        new X11HotkeyEvent(113, 12, false), new X11HotkeyEvent(64, 12, false),
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(64, 12, false)));
+}
+
+static async Task X11ModifierChordWithModifierDoesNotFire()
+{
+    Assert.Equal("", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(50, 12, true),
+        new X11HotkeyEvent(50, 13, false), new X11HotkeyEvent(64, 12, false), new X11HotkeyEvent(37, 4, false)));
+    Assert.Equal("", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(50, 12, true),
+        new X11HotkeyEvent(37, 13, false), new X11HotkeyEvent(64, 9, false), new X11HotkeyEvent(50, 1, false)));
+}
+
+static async Task X11PushToTalkChordFiresOnPress()
+{
+    // Push-to-talk holds, so its service keeps the press, even when another key joins.
+    Assert.Equal("down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnPress,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(113, 12, true), new X11HotkeyEvent(64, 12, false)));
 }
 
 static Task XorgSelectsXGrabKey()
@@ -3728,7 +3801,8 @@ sealed class FakeX11Connection(params X11HotkeyEvent[] events) : IX11HotkeyConne
     {
         0x20 => 65, 0x2e => 60, 0x41 => 38, 0xff1b => 9,
         0xffc5 => 74, 0xffc6 => 75, 0xffc7 => 76,
-        0xffe3 => 37, 0xffe4 => 105, _ => 0,
+        0xffe3 => 37, 0xffe4 => 105, 0xffe9 => 64, 0xffea => 108,
+        0xffe1 => 50, 0xffe2 => 62, 0xffeb => 133, 0xffec => 134, _ => 0,
     };
     public bool Grab(byte keycode, uint modifiers)
     {
