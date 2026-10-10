@@ -15187,6 +15187,73 @@ internal static class Program
                     "the window off a 1366x768 laptop instead of protecting it");
             });
 
+            Run("main window: 1000x680 is shrunk into a 1080p work area at 150% and 175% (#1500)", () =>
+            {
+                // The main window is a fixed 1000 x 680 DIP with no resize and no
+                // maximise. On 1920 x 1080 with a 48 DIP taskbar the work area is
+                // 1280 x 672 DIP at 150% and 1097 x 569 DIP at 175%, and CenterScreen
+                // put the 680 DIP window's top at -97 physical pixels at 175%: the close
+                // button above the screen, the status bar under the taskbar.
+                static Rect WorkArea(double scale) =>
+                    new(0, 0, 1920 / scale, (1080 - 48 * scale) / scale);
+
+                bool Inside(WindowWorkAreaFit.Placement p, Rect area) =>
+                    p.Left >= area.Left - 0.001 && p.Top >= area.Top - 0.001 &&
+                    p.Left + p.Width <= area.Right + 0.001 && p.Top + p.Height <= area.Bottom + 0.001;
+
+                // 100%: the design is kept, and so is a position that already fits.
+                var at100 = WindowWorkAreaFit.Fit(1000, 680, WorkArea(1.0), 460, 176);
+                Assert(at100 == new WindowWorkAreaFit.Placement(460, 176, 1000, 680),
+                    $"100% must keep 1000x680 where it was, got {at100}");
+
+                // 150%: the width fits, the height is capped to 672.
+                var area150 = WorkArea(1.5);
+                var at150 = WindowWorkAreaFit.Fit(1000, 680, area150, (area150.Width - 1000) / 2, (area150.Height - 680) / 2);
+                Assert(at150.Width == 1000, $"150% has room for the designed width, got {at150.Width}");
+                Assert(Math.Abs(at150.Height - area150.Height) < 0.001,
+                    $"150% must cap the height to the {area150.Height:F1} DIP work area, got {at150.Height}");
+                Assert(Inside(at150, area150), $"150% placement {at150} is not inside {area150}");
+
+                // 175%: the old CenterScreen position (top -55 DIP, i.e. -97 px) is
+                // pulled down to the top of the work area, and the window ends at its
+                // bottom, so both the caption row and the status bar are on screen.
+                var area175 = WorkArea(1.75);
+                var centredTop = (area175.Height - 680) / 2;
+                Assert(centredTop * 1.75 < -96, $"the 175% case no longer reproduces the issue: top {centredTop * 1.75:F0} px");
+                var at175 = WindowWorkAreaFit.Fit(1000, 680, area175, (area175.Width - 1000) / 2, centredTop);
+                Assert(at175.Top == 0 && Math.Abs(at175.Height - area175.Height) < 0.001,
+                    $"175% must fill the work area's height from its top, got {at175}");
+                Assert(Math.Abs(at175.Left - (area175.Width - 1000) / 2) < 0.001,
+                    $"175% must keep the horizontal centring, got {at175.Left}");
+                Assert(Inside(at175, area175), $"175% placement {at175} is not inside {area175}");
+
+                // No position yet: the size is capped and WPF's CenterScreen places it.
+                var unplaced = WindowWorkAreaFit.Fit(1000, 680, area175, double.NaN, double.NaN);
+                Assert(double.IsNaN(unplaced.Left) && double.IsNaN(unplaced.Top) && unplaced.Height < 680,
+                    $"an unplaced window must keep a NaN position and still be capped, got {unplaced}");
+
+                // A second monitor left of and above the primary: the clamp works in
+                // that monitor's own coordinates, from either side.
+                var secondary = new Rect(-1280, -200, 1280, 672);
+                var overRight = WindowWorkAreaFit.Fit(1000, 680, secondary, -100, 300);
+                Assert(Inside(overRight, secondary) && overRight.Left == -1000 && overRight.Top == -200,
+                    $"a window hanging off the secondary's right and bottom edges was placed at {overRight}");
+                var overLeft = WindowWorkAreaFit.Fit(1000, 680, secondary, -2000, -900);
+                Assert(Inside(overLeft, secondary) && overLeft.Left == -1280 && overLeft.Top == -200,
+                    $"a window hanging off the secondary's left and top edges was placed at {overLeft}");
+
+                // The mode editor (550 x 700) is the sibling that also overflows at 175%.
+                var editor = WindowWorkAreaFit.Fit(550, 700, area175, 200, -60);
+                Assert(editor.Width == 550 && Inside(editor, area175),
+                    $"the 550x700 mode editor at 175% was placed at {editor}");
+
+                // A window with no design size is a programmer error, not a no-op.
+                var threw = false;
+                try { WindowWorkAreaFit.Attach(new Window()); }
+                catch (ArgumentException) { threw = true; }
+                Assert(threw, "Attach accepted a window with no Width/Height to fit");
+            });
+
             Run("onboarding: the microphone step stops asking for speech when there is no device", () =>
             {
                 // Found in a recording of the real flow on a box with no capture
