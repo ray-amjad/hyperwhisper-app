@@ -10,7 +10,8 @@
 //  locks belong to an open file description, so two locks in this one process
 //  contend exactly as two app processes do; one test also uses a real second
 //  process and kills it with SIGKILL. The port-file tests drive
-//  `LocalAPIServer.deletePortFileIfOwned(at:ownerPID:)` on a temporary file.
+//  `LocalAPIServer.deletePortFileIfOwned(at:ownerPID:)` on a temporary file:
+//  it may remove a file naming this pid or a dead one, never a live other.
 //
 
 import Darwin
@@ -235,30 +236,84 @@ struct SingleInstanceLockTests {
         #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 
+    /// The pid of a process that has exited and been reaped: no process has it.
+    private static func deadPID() throws -> Int32 {
+        let helper = Process()
+        helper.executableURL = URL(fileURLWithPath: "/usr/bin/true")
+        try helper.run()
+        helper.waitUntilExit()
+        return helper.processIdentifier
+    }
+
     /// The bug: a clean quit of either of two copies deleted the file even
-    /// when it named the other, live copy.
+    /// when it named the other, live copy. launchd (pid 1) stands in for that
+    /// copy: it is always alive, and `kill(1, 0)` answers EPERM, not ESRCH.
     @MainActor
-    @Test func quittingLeavesAnotherProcesssDiscoveryFileAlone() throws {
+    @Test func quittingLeavesAnotherLiveProcesssDiscoveryFileAlone() throws {
         let directory = try Self.makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appendingPathComponent("local-api.json")
-        try Self.writePortFile(pid: 5_353, to: url)
+        try Self.writePortFile(pid: 1, to: url)
 
+        #expect(LocalAPIServer.isProcessAlive(1))
         #expect(!LocalAPIServer.deletePortFileIfOwned(at: url, ownerPID: 4_242))
         #expect(FileManager.default.fileExists(atPath: url.path))
         let kept = try LocalAPIResponder.decoder.decode(LocalAPIPortFile.self, from: Data(contentsOf: url))
-        #expect(kept.pid == 5_353)
+        #expect(kept.pid == 1)
     }
 
+    /// A real second process, alive and owned by this user, names the file.
     @MainActor
-    @Test func aDiscoveryFileThatNamesNoProcessIsLeftAlone() throws {
+    @Test func quittingLeavesASiblingProcesssDiscoveryFileAlone() throws {
+        let sibling = Process()
+        sibling.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        sibling.arguments = ["30"]
+        try sibling.run()
+        defer {
+            sibling.terminate()
+            sibling.waitUntilExit()
+        }
+
+        let directory = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("local-api.json")
+        try Self.writePortFile(pid: sibling.processIdentifier, to: url)
+
+        #expect(!LocalAPIServer.deletePortFileIfOwned(at: url, ownerPID: ProcessInfo.processInfo.processIdentifier))
+        #expect(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    /// #655 must stay fixed: a file left by a copy that crashed or was
+    /// SIGKILLed names a dead pid, and `stop()` / a failed write remove it.
+    @MainActor
+    @Test func aDiscoveryFileThatNamesADeadProcessIsDeleted() throws {
+        let directory = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("local-api.json")
+        let dead = try Self.deadPID()
+        #expect(!LocalAPIServer.isProcessAlive(dead))
+        try Self.writePortFile(pid: dead, to: url)
+
+        #expect(LocalAPIServer.deletePortFileIfOwned(at: url, ownerPID: ProcessInfo.processInfo.processIdentifier))
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+    }
+
+    /// A file no client can parse names no process; it goes, as before #1483.
+    @MainActor
+    @Test func aGarbledDiscoveryFileIsDeleted() throws {
         let directory = try Self.makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appendingPathComponent("local-api.json")
         try Data("{ not json".utf8).write(to: url)
 
-        #expect(!LocalAPIServer.deletePortFileIfOwned(at: url, ownerPID: 4_242))
-        #expect(FileManager.default.fileExists(atPath: url.path))
+        #expect(LocalAPIServer.deletePortFileIfOwned(at: url, ownerPID: 4_242))
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+    }
+
+    @Test func aPidOfZeroOrBelowIsNotALiveProcess() {
+        #expect(!LocalAPIServer.isProcessAlive(0))
+        #expect(!LocalAPIServer.isProcessAlive(-1))
+        #expect(LocalAPIServer.isProcessAlive(ProcessInfo.processInfo.processIdentifier))
     }
 
     @MainActor
@@ -270,7 +325,8 @@ struct SingleInstanceLockTests {
         #expect(!LocalAPIServer.deletePortFileIfOwned(at: url, ownerPID: 4_242))
     }
 
-    /// `stop()` and the run-failure path reach the owner-checked delete.
+    /// `stop()`, the run-failure path and the failed-write cleanup all reach
+    /// the liveness-checked delete; none removes the file unconditionally.
     @Test func theServerDeletesThroughTheOwnerCheck() throws {
         let body = try ProductionSource.slice(
             of: "app/macos/hyperwhisper/Managers/LocalAPI/LocalAPIServer.swift",
@@ -282,5 +338,16 @@ struct SingleInstanceLockTests {
             "deletePortFile() must only remove local-api.json when it names this process (issue #1483)"
         )
         #expect(!body.contains("removeItem"), "deletePortFile() must not delete the file unconditionally")
+
+        let cleanup = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/LocalAPI/LocalAPIServer.swift",
+            from: "private func deleteExistingPortFileIfStale(",
+            to: "private static func existingPortFileIsStale("
+        )
+        #expect(
+            cleanup.contains("Self.deletePortFileIfOwned(at: url, ownerPID: ProcessInfo.processInfo.processIdentifier)"),
+            "the failed-write cleanup must not remove a file naming another live copy (issue #1483)"
+        )
+        #expect(!cleanup.contains("removePortFile"), "the failed-write cleanup must not delete the file unconditionally")
     }
 }
