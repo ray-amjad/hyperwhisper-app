@@ -109,7 +109,7 @@ internal static class TranscribeEndpoints
                     : server.LocalTranscriptionProvider;
                 var applicationContext = req.ApplicationContext?.ToApplicationContext();
 
-                if (string.Equals(effectiveMode.ProviderType, "local", StringComparison.OrdinalIgnoreCase))
+                if (!LocalModeModel.IsCloud(effectiveMode))
                 {
                     try
                     {
@@ -906,7 +906,7 @@ internal static class TranscribeEndpoints
         else if (!string.IsNullOrEmpty(model))
         {
             // Engine implied by baseline — patch the right model field.
-            if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
+            if (LocalModeModel.IsCloud(mode))
             {
                 mode.CloudTranscriptionModel = model;
             }
@@ -1101,7 +1101,7 @@ internal static class TranscribeEndpoints
     /// </remarks>
     private static string EngineLabel(Mode mode)
     {
-        if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
+        if (LocalModeModel.IsCloud(mode))
         {
             return mode.CloudProvider ?? "cloud";
         }
@@ -1141,7 +1141,7 @@ internal static class TranscribeEndpoints
     /// </remarks>
     internal static string ModelLabel(Mode mode)
     {
-        if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
+        if (LocalModeModel.IsCloud(mode))
         {
             var provider = CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider);
             if (provider == CloudTranscriptionProvider.HyperWhisperCloud)

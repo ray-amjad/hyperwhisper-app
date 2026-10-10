@@ -86,7 +86,10 @@ public partial class ModeEditorWindow
 
             // Determine the 3-way transcription source from the resolved provider.
             // On-device → local; HyperWhisper Cloud → hwcloud; anything else → BYOK.
-            var transcriptionSource = mode.ProviderType == "local"
+            // On-device is everything the orchestrator runs locally, not only an
+            // exact "local" (#1548): a stored "zzz" or "Cloud" runs on this
+            // machine, and showing it as Cloud made a plain Save start uploads.
+            var transcriptionSource = !LocalModeModel.IsCloud(mode)
                 ? "ondevice"
                 : (cloudProvider == CloudTranscriptionProvider.HyperWhisperCloud ? "hwcloud" : "yourprovider");
 

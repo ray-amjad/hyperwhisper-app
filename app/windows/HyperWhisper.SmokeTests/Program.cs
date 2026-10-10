@@ -14290,6 +14290,36 @@ internal static class Program
                     $"an explicit localParakeetModel must win, got \"{explicitParakeet.LocalParakeetModel}\"");
             });
 
+            Run("Local API providerType (#1548): local/cloud in any casing, everything else refused; odd stored values read as on-device", () =>
+            {
+                // Accepted values fold to lowercase; an absent key stays absent.
+                foreach (var (raw, want) in new (string?, string?)[]
+                {
+                    (null, null), ("local", "local"), ("Local", "local"), ("LOCAL", "local"),
+                    ("cloud", "cloud"), ("Cloud", "cloud"), ("cLoUd", "cloud"),
+                })
+                {
+                    Assert(ModesEndpoints.TryNormalizeProviderType(raw, out var got) && got == want,
+                        $"providerType \"{raw}\" must be accepted as \"{want}\", got \"{got}\"");
+                }
+                // Every other value is refused with INVALID_REQUEST.
+                foreach (var raw in new[] { "zzz", "on-device", "", " local", "cloud ", "ondevice", "hwcloud" })
+                {
+                    Assert(!ModesEndpoints.TryNormalizeProviderType(raw, out _),
+                        $"providerType \"{raw}\" must be refused");
+                }
+
+                // A row stored before the rule runs on-device in the orchestrator,
+                // so every reader agrees: not Cloud, and GET /modes reports its model.
+                foreach (var stored in new[] { "zzz", "Cloud", "on-device" })
+                {
+                    var odd = new Mode { ProviderType = stored, LocalEngine = "whisper", ModelType = "base", Model = "base" };
+                    Assert(!LocalModeModel.IsCloud(odd), $"stored \"{stored}\" must read as on-device");
+                    Assert(ModesEndpoints.ToDto(odd).Model == "base",
+                        $"GET /modes must report base for stored \"{stored}\", got \"{ModesEndpoints.ToDto(odd).Model}\"");
+                }
+            });
+
             Run("Local API Cloud mode with no cloudProvider (#1521): runs and shows as HyperWhisper Cloud", () =>
             {
                 // The parse itself. Blank means HyperWhisper Cloud, as macOS
