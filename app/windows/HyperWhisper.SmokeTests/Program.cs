@@ -1842,6 +1842,46 @@ internal static class Program
                 }
             });
 
+            // #1544 review: the deferred unload asks the app again when the job ends. The
+            // user may have switched back to a Parakeet mode meanwhile; that daemon stays.
+            RunAsync("Parakeet deferred unload keeps the daemon when the selected mode uses it again (#1544)", async () =>
+            {
+                var dir = Path.Combine(tempRoot, "parakeet-1544-deferred-recheck");
+                var audio = WriteSilentParakeetWav(dir, seconds: 60);
+                var service = new ParakeetTranscriptionService();
+                using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out var daemonStdout);
+                var daemonPid = daemon.Id;
+                try
+                {
+                    var stillWanted = true;
+                    var asked = 0;
+                    var job = service.TranscribeAsync(audio);
+                    await Task.Delay(200);
+
+                    Assert(!service.TryDisposeModelIfIdle(() => { Interlocked.Increment(ref asked); return Volatile.Read(ref stillWanted); }),
+                        "the housekeeping unload stopped a daemon with a job on it (#1544)");
+
+                    Volatile.Write(ref stillWanted, false);   // the user switched back to a Parakeet mode
+                    await daemonStdout.WriteLineAsync("{\"text\":\"one\",\"duration_ms\":1}");
+                    Assert(await job.WaitAsync(TimeSpan.FromSeconds(10)) == "one", "the job lost its result");
+
+                    var drained = Stopwatch.StartNew();
+                    while (Volatile.Read(ref asked) == 0 && drained.Elapsed < TimeSpan.FromSeconds(10))
+                    {
+                        await Task.Delay(50);
+                    }
+
+                    await Task.Delay(300);
+                    Assert(Volatile.Read(ref asked) == 1, $"the deferred unload asked the app {asked} time(s), expected 1");
+                    Assert(service.IsInitialized, "the deferred unload stopped a daemon the selected mode uses again (#1544)");
+                    Assert(!FakeParakeetDaemonExited(daemonPid), "the deferred unload killed the daemon process");
+                }
+                finally
+                {
+                    StopFakeParakeetDaemon(service, daemon);
+                }
+            });
+
             // #1608 review: an idle reload holds the lock through the old daemon's exit and
             // the new one's READY wait. A GUI DisposeModel / InitializeAsync (the user's own
             // mode switch, on the UI thread) must cancel it at once instead of blocking for

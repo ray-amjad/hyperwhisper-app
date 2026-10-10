@@ -1002,11 +1002,7 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        var modeUsesParakeet = SelectedMode != null
-            && SelectedMode.ProviderType != "cloud"
-            && SelectedMode.LocalEngine == "parakeet";
-
-        if (modeUsesParakeet)
+        if (SelectedModeUsesParakeet())
         {
             return;
         }
@@ -1016,7 +1012,9 @@ public partial class MainViewModel : ViewModelBase
         // may be on the daemon even though the GUI is idle; waiting it out held that
         // thread for the whole job, then forced a cold start. A busy daemon is unloaded
         // by the service once that job and its lease have left.
-        if (!_parakeetTranscriptionService.TryDisposeModelIfIdle())
+        // The deferred unload asks again when the job ends: the user may have switched
+        // back to a Parakeet mode meanwhile, and that daemon must stay.
+        if (!_parakeetTranscriptionService.TryDisposeModelIfIdle(() => !SelectedModeUsesParakeet()))
         {
             LoggingService.Info("MainViewModel: Keeping Parakeet daemon until the transcription using it finishes");
             return;
@@ -1024,6 +1022,14 @@ public partial class MainViewModel : ViewModelBase
 
         LoggingService.Info("MainViewModel: Disposed Parakeet daemon because selected mode does not use it");
         UpdateModelStatus();
+    }
+
+    private bool SelectedModeUsesParakeet()
+    {
+        var mode = SelectedMode;
+        return mode != null
+            && mode.ProviderType != "cloud"
+            && mode.LocalEngine == "parakeet";
     }
 
     private bool CycleMode()
