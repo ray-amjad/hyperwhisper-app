@@ -85,7 +85,46 @@ class WhisperModelManager: NSObject, ObservableObject {
     private let stateQueue = DispatchQueue(label: "com.hyperwhisper.WhisperModelManager.state")
 
     /// Active download tasks
-    private var downloadTasks: [String: URLSessionDownloadTask] = [:]
+    private var downloadTasks: [String: URLSessionDataTask] = [:]
+
+    /// Suffix of an in-flight download's file in `modelsDirectory` (issue #1445).
+    ///
+    /// Downloads stream into `<filename>.<uuid>.partial` in our own models directory
+    /// instead of URLSession's `CFNetworkDownload_*.tmp`. That tmp file lives in the
+    /// per-user `$TMPDIR`, shared with every other app (this app is not sandboxed),
+    /// and URLSession never tells us its path — so a quit or a kill mid-download left
+    /// it behind with nothing able to prove it was ours. A file in our own directory
+    /// with our own suffix is provably ours: cancel and failure delete it, and the
+    /// launch sweep deletes whatever a quit or a kill left.
+    static let partialFileSuffix = ".partial"
+
+    /// One in-flight download's file. The dictionary entry is guarded by `stateQueue`;
+    /// the fields are touched only on the session's serial delegate queue.
+    private final class PartialFile {
+        let url: URL
+        let handle: FileHandle
+        var bytesWritten: Int64 = 0
+        var expectedBytes: Int64 = NSURLSessionTransferSizeUnknown
+        /// Set when we abort the task ourselves (bad HTTP status, disk write error),
+        /// so completion reports that instead of a bare "cancelled".
+        var failure: Error?
+
+        init(url: URL, handle: FileHandle) {
+            self.url = url
+            self.handle = handle
+        }
+    }
+
+    /// In-flight download files by task identifier. Unlike `taskModelNames`, an entry
+    /// is NOT removed by `cancelDownload`: `didCompleteWithError` always runs after a
+    /// cancel and is what closes and deletes the file.
+    private var partialFiles: [Int: PartialFile] = [:]
+
+    /// Issue #1445: sweep once per process, before any download can start, so a
+    /// second manager instance can never delete a file the first is writing.
+    private static let sweepLeftoverPartialsOnce: Void = {
+        _ = PartialDownloadCleanup.removeFiles(withSuffix: partialFileSuffix, in: modelsDirectory)
+    }()
 
     /// Download completions by task identifier
     private var downloadCompletions: [Int: (URL?, Error?) -> Void] = [:]
@@ -179,6 +218,9 @@ class WhisperModelManager: NSObject, ObservableObject {
     override init() {
         super.init()
         createModelsDirectoryIfNeeded()
+        // A quit or a kill mid-download leaves a `.partial` file; nothing resumes it
+        // (Ray, 2026-10-09: clean up, no resume), so remove it now.
+        _ = Self.sweepLeftoverPartialsOnce
         loadAvailableModels()
         
         // Scan models once on startup
@@ -380,9 +422,26 @@ class WhisperModelManager: NSObject, ObservableObject {
     /// Download file with progress tracking
     /// - Returns: The local URL where the file was downloaded
     private func downloadFile(from url: URL, to destinationURL: URL, modelName: String) async throws -> URL {
+        // Open the app-owned file the bytes stream into (see `partialFileSuffix`). The
+        // UUID keeps a cancelled task's late cleanup off a re-download's file.
+        let partialURL = Self.modelsDirectory.appendingPathComponent(
+            "\(destinationURL.lastPathComponent).\(UUID().uuidString)\(Self.partialFileSuffix)"
+        )
+        guard FileManager.default.createFile(atPath: partialURL.path, contents: nil) else {
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: partialURL.path])
+        }
+        let handle: FileHandle
+        do {
+            handle = try FileHandle(forWritingTo: partialURL)
+        } catch {
+            try? FileManager.default.removeItem(at: partialURL)
+            throw error
+        }
+        let partial = PartialFile(url: partialURL, handle: handle)
+
         return try await withCheckedThrowingContinuation { continuation in
-            // Create download task WITHOUT completion handler to enable delegate callbacks
-            let task = session.downloadTask(with: url)
+            // Create a data task WITHOUT completion handler so the delegate gets the bytes
+            let task = session.dataTask(with: url)
 
             // ATOMIC GUARD FOR CONTINUATION SAFETY:
             // Provides defense-in-depth against double-resume. While the URLSession delegate
@@ -410,6 +469,7 @@ class WhisperModelManager: NSObject, ObservableObject {
                 downloadCompletions[taskIdentifier] = completion
                 taskModelNames[taskIdentifier] = modelName
                 downloadTasks[modelName] = task
+                partialFiles[taskIdentifier] = partial
             }
 
             // Start the download
@@ -428,7 +488,7 @@ class WhisperModelManager: NSObject, ObservableObject {
         // didCompleteWithError, the completion is resumed HERE instead (it is
         // atomically guarded against double-resume, so a racing delegate
         // callback stays safe).
-        let (task, completion) = stateQueue.sync { () -> (URLSessionDownloadTask?, ((URL?, Error?) -> Void)?) in
+        let (task, completion) = stateQueue.sync { () -> (URLSessionDataTask?, ((URL?, Error?) -> Void)?) in
             let task = downloadTasks.removeValue(forKey: modelName)
             guard let taskIdentifier = task?.taskIdentifier else { return (task, nil) }
             taskModelNames.removeValue(forKey: taskIdentifier)
@@ -494,16 +554,55 @@ class WhisperModelManager: NSObject, ObservableObject {
     }
 }
 
-// MARK: - URLSessionDownloadDelegate
+// MARK: - URLSessionDataDelegate
 
-extension WhisperModelManager: URLSessionDownloadDelegate {
-    
-    /// Called periodically to report download progress
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, 
-                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64, 
-                    totalBytesExpectedToWrite: Int64) {
-        
-        let taskIdentifier = downloadTask.taskIdentifier
+extension WhisperModelManager: URLSessionDataDelegate {
+
+    /// Called once the server answers. A non-2xx answer (an HTML error page, a 404)
+    /// aborts the transfer here instead of writing the page into the model file.
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
+                    didReceive response: URLResponse,
+                    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        let taskIdentifier = dataTask.taskIdentifier
+        guard let partial = stateQueue.sync(execute: { partialFiles[taskIdentifier] }) else {
+            completionHandler(.cancel)
+            return
+        }
+
+        if let httpResponse = response as? HTTPURLResponse,
+           !(200..<300).contains(httpResponse.statusCode) {
+            partial.failure = NSError(domain: "WhisperModelManager",
+                                      code: httpResponse.statusCode,
+                                      userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"])
+            completionHandler(.cancel)
+            return
+        }
+
+        partial.expectedBytes = response.expectedContentLength
+        completionHandler(.allow)
+    }
+
+    /// Called for each chunk: append it to the partial file and report progress.
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        let taskIdentifier = dataTask.taskIdentifier
+        guard let partial = stateQueue.sync(execute: { partialFiles[taskIdentifier] }),
+              partial.failure == nil else { return }
+
+        do {
+            try partial.handle.write(contentsOf: data)
+        } catch {
+            partial.failure = error
+            dataTask.cancel()
+            return
+        }
+        partial.bytesWritten += Int64(data.count)
+
+        reportProgress(taskIdentifier: taskIdentifier,
+                       totalBytesWritten: partial.bytesWritten,
+                       totalBytesExpectedToWrite: partial.expectedBytes)
+    }
+
+    private func reportProgress(taskIdentifier: Int, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         guard let modelName = stateQueue.sync(execute: { taskModelNames[taskIdentifier] }) else { return }
 
         // DOWNLOAD PROGRESS SAFETY: Handle unknown/zero content length
@@ -519,7 +618,7 @@ extension WhisperModelManager: URLSessionDownloadDelegate {
             progress = -Double(totalBytesWritten) // Negative indicates indeterminate
             logger.debug("📥 Download progress for \(modelName): \(totalBytesWritten) bytes (size unknown)")
         }
-        
+
         // Throttle UI updates: only update when integer percentage changes
         let currentPercentage = progress >= 0 ? Int(progress * 100) : Int(progress)
         Task { @MainActor in
@@ -535,20 +634,50 @@ extension WhisperModelManager: URLSessionDownloadDelegate {
             self.lastReportedProgress[modelName] = currentPercentage
         }
     }
-    
-    /// Called when download completes
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didFinishDownloadingTo location: URL) {
 
-        let taskIdentifier = downloadTask.taskIdentifier
-        // Read tracking state under stateQueue. The checksum/move below must stay
-        // synchronous because URLSession deletes `location` as soon as this returns.
-        let (modelName, completion) = stateQueue.sync {
-            (taskModelNames[taskIdentifier], downloadCompletions[taskIdentifier])
+    /// Called when the task ends, whatever the outcome. Always closes the partial
+    /// file; a finished download is verified and moved into place, anything else
+    /// (cancel, network error, bad status) deletes it — even after `cancelDownload`
+    /// has already dropped the model-name tracking.
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        let taskIdentifier = task.taskIdentifier
+        let (modelName, completion, partial) = stateQueue.sync {
+            (taskModelNames[taskIdentifier], downloadCompletions[taskIdentifier], partialFiles.removeValue(forKey: taskIdentifier))
         }
-        guard let modelName,
-              let model = Self.allModels.first(where: { $0.name == modelName }) else {
-            logger.error("❌ No model name found for task \(taskIdentifier)")
+        guard let partial else { return }
+        try? partial.handle.close()
+
+        var failure = partial.failure ?? error
+        if failure == nil, partial.expectedBytes > 0, partial.bytesWritten != partial.expectedBytes {
+            failure = URLError(.networkConnectionLost)
+        }
+
+        guard let modelName else {
+            // Cancelled: the caller has already been told. Only the file is left to drop.
+            try? FileManager.default.removeItem(at: partial.url)
+            return
+        }
+
+        if let failure {
+            try? FileManager.default.removeItem(at: partial.url)
+            logger.error("❌ Download failed for \(modelName): \(failure)")
+            completion?(nil, failure)
+        } else {
+            finishDownload(from: partial.url, modelName: modelName, taskIdentifier: taskIdentifier, completion: completion)
+        }
+
+        // Clean up
+        removeTracking(forTaskIdentifier: taskIdentifier, modelName: modelName)
+    }
+
+    /// Verify the finished partial file and move it to the model's final path. The
+    /// partial file is removed on every failure path.
+    private func finishDownload(from location: URL, modelName: String, taskIdentifier: Int,
+                                completion: ((URL?, Error?) -> Void)?) {
+        guard let model = Self.allModels.first(where: { $0.name == modelName }) else {
+            logger.error("❌ No model definition found for \(modelName)")
+            try? FileManager.default.removeItem(at: location)
+            completion?(nil, URLError(.badServerResponse))
             return
         }
 
@@ -575,9 +704,6 @@ extension WhisperModelManager: URLSessionDownloadDelegate {
                                           code: 1001,
                                           userInfo: [NSLocalizedDescriptionKey: "models.error.checksumFailed".localized])
                         completion?(nil, error)
-
-                        // Clean up and return early
-                        removeTracking(forTaskIdentifier: taskIdentifier, modelName: modelName)
                         return
                     }
                 } else {
@@ -601,31 +727,9 @@ extension WhisperModelManager: URLSessionDownloadDelegate {
 
         } catch {
             logger.error("❌ Failed to move downloaded file: \(error)")
+            try? FileManager.default.removeItem(at: location)
             // Call completion handler with error
             completion?(nil, error)
         }
-
-        // Clean up tracking dictionaries
-        removeTracking(forTaskIdentifier: taskIdentifier, modelName: modelName)
-    }
-    
-    /// Called when task completes (with or without error)
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard let downloadTask = task as? URLSessionDownloadTask else { return }
-        let taskIdentifier = downloadTask.taskIdentifier
-        let (modelName, completion) = stateQueue.sync {
-            (taskModelNames[taskIdentifier], downloadCompletions[taskIdentifier])
-        }
-        guard let modelName else { return }
-
-        if let error = error {
-            logger.error("❌ Download failed for \(modelName): \(error)")
-
-            // Call completion handler with error
-            completion?(nil, error)
-        }
-
-        // Clean up
-        removeTracking(forTaskIdentifier: taskIdentifier, modelName: modelName)
     }
 }
