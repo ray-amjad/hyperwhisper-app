@@ -7,6 +7,7 @@ using HyperWhisper.Linux;
 using HyperWhisper.ModelManagement;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.ViewModels;
+using Microsoft.Data.Sqlite;
 
 // Issue #1629: in the mode editor, On-device, switching the engine from Whisper to Parakeet left the
 // model combo BLANK while the view model held parakeet-v2, and Save wrote that unseen model. The
@@ -64,11 +65,11 @@ static class ModeEditorEngineSwitchRenderTests
     /// <summary>The child half: runs on the X server xvfb-run started. Exit 0 only if every step showed.</summary>
     public static async Task<int> RunProbeAsync()
     {
+        var root = Path.Combine(Path.GetTempPath(), $"hw-1629-probe-{Guid.NewGuid():N}");
         try
         {
             // Finish every await BEFORE Avalonia installs its synchronization context: nothing pumps
             // the dispatcher here except this method, so a continuation posted to it would never run.
-            var root = Path.Combine(Path.GetTempPath(), $"hw-1629-probe-{Guid.NewGuid():N}");
             Directory.CreateDirectory(root);
             var database = new ApplicationDb(new StaticPaths(root));
             await database.MigrateAsync();
@@ -125,6 +126,15 @@ static class ModeEditorEngineSwitchRenderTests
         {
             Console.Error.WriteLine(exception);
             return 2;
+        }
+        finally
+        {
+            // ApplicationDb disposes each context it opens, but the SQLite pool keeps the file
+            // handle open; drain it first so the delete never races a live handle on the database.
+            // Cleanup must never mask the exit code that ended the probe.
+            SqliteConnection.ClearAllPools();
+            try { Directory.Delete(root, recursive: true); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { Console.Error.WriteLine($"could not delete {root}: {exception.Message}"); }
         }
     }
 
