@@ -237,13 +237,18 @@ public class BackupService
             // Marshal onto the UI thread (see ApplyImport): the setters mutate an
             // in-memory object graph Save() serializes unguarded and fire UI-affine
             // SettingsChanged handlers, neither of which is safe off a Task.
+            var settings = SettingsService.Instance;
+            // What settings.json held before step 1, put back if the DB step fails
+            // (issue #1614). Null until the batch below actually starts.
+            SettingsService.ImportSnapshot? settingsBefore = null;
             {
-                var settings = SettingsService.Instance;
                 var universalSettings = backup.Settings;
                 var platformExtensions = backup.PlatformExtensions;
                 var importedBackup = backup;
                 settings.ApplyImport(() =>
                 {
+                    settingsBefore = settings.CaptureImportSnapshot();
+
                     if (universalSettings != null)
                     {
                         try
@@ -269,18 +274,30 @@ public class BackupService
                 });
             }
 
-            var modes = backup.Modes?.Select(UniversalBackupMapper.MapToMode).ToList();
-            var vocabulary = backup.Vocabulary?.Select(UniversalBackupMapper.MapToVocabularyItem).ToList();
+            try
+            {
+                // Mapping is inside the guarded step too: a row that cannot be
+                // mapped fails the import exactly like a row the database refuses.
+                var modes = backup.Modes?.Select(UniversalBackupMapper.MapToMode).ToList();
+                var vocabulary = backup.Vocabulary?.Select(UniversalBackupMapper.MapToVocabularyItem).ToList();
 
-            if (replaceExisting)
-            {
-                (modesImported, vocabImported) = ReplaceDatabaseEntities(modes, vocabulary);
+                if (replaceExisting)
+                {
+                    (modesImported, vocabImported) = ReplaceDatabaseEntities(modes, vocabulary);
+                }
+                else
+                {
+                    // 3 + 4. Merge modes and vocabulary in ONE transaction, the same
+                    // all-or-nothing shape as the replace branch (issue #1605).
+                    (modesImported, vocabImported) = MergeDatabaseEntities(modes, vocabulary);
+                }
             }
-            else
+            catch
             {
-                // 3 + 4. Merge modes and vocabulary in ONE transaction, the same
-                // all-or-nothing shape as the replace branch (issue #1605).
-                (modesImported, vocabImported) = MergeDatabaseEntities(modes, vocabulary);
+                // The transaction rolled the modes and vocabulary back, so the
+                // backup's settings must not stay applied on their own (issue #1614).
+                RestoreSettingsAfterFailedImport(settings, settingsBefore, "import");
+                throw;
             }
 
             // A backup carries whatever `isDefault` its own machine held, so a
@@ -355,6 +372,9 @@ public class BackupService
                 return Result<ImportSummary>.Failure(loadError!);
 
             var summary = new ImportSummary();
+            // What settings.json held before step 1, put back if a DB step fails
+            // (issue #1614). Null when step 1 did not run.
+            SettingsService.ImportSnapshot? settingsBefore = null;
 
             // 1. Settings (cross-platform + Windows platform settings) — merge.
             if (selection.IncludeSettings && backup.Settings != null)
@@ -373,6 +393,7 @@ public class BackupService
                     var importedBackup = backup;
                     settings.ApplyImport(() =>
                     {
+                        settingsBefore = settings.CaptureImportSnapshot();
                         UniversalBackupMapper.ApplySettings(universalSettings, settings);
                         UniversalBackupMapper.ApplyWindowsPlatformSettings(
                             platformExtensions, settings);
@@ -391,26 +412,36 @@ public class BackupService
                 }
             }
 
-            // 2. Modes — merge by Id (existing upsert semantics).
-            if (selection.IncludeModes && backup.Modes is { Count: > 0 })
+            // Steps 2 and 3 are the database step. Either one throwing fails the whole
+            // import, so the backup's settings must not stay applied (issue #1614).
+            try
             {
-                var modes = backup.Modes.Select(UniversalBackupMapper.MapToMode).ToList();
-                // All or nothing (issue #1605): one transaction across every batch,
-                // so a crash or a failed batch leaves the old modes, never a part.
-                summary.ModesImported = MergeDatabaseEntities(modes, null).modesImported;
-                // A backup carries whatever `isDefault` its own machine held, and
-                // a merge can therefore land a second default beside the local
-                // one, or none at all (issue #536). The imports above go straight
-                // into the DbSet, so nothing else on this path would notice.
-                ModeService.Instance.EnforceDefaultModeInvariant();
-            }
+                // 2. Modes — merge by Id (existing upsert semantics).
+                if (selection.IncludeModes && backup.Modes is { Count: > 0 })
+                {
+                    var modes = backup.Modes.Select(UniversalBackupMapper.MapToMode).ToList();
+                    // All or nothing (issue #1605): one transaction across every batch,
+                    // so a crash or a failed batch leaves the old modes, never a part.
+                    summary.ModesImported = MergeDatabaseEntities(modes, null).modesImported;
+                    // A backup carries whatever `isDefault` its own machine held, and
+                    // a merge can therefore land a second default beside the local
+                    // one, or none at all (issue #536). The imports above go straight
+                    // into the DbSet, so nothing else on this path would notice.
+                    ModeService.Instance.EnforceDefaultModeInvariant();
+                }
 
-            // 3. Vocabulary — merge by Word (case-insensitive, trimmed).
-            if (selection.IncludeVocabulary && backup.Vocabulary is { Count: > 0 })
+                // 3. Vocabulary — merge by Word (case-insensitive, trimmed).
+                if (selection.IncludeVocabulary && backup.Vocabulary is { Count: > 0 })
+                {
+                    var (added, conflicts) = MergeVocabulary(backup.Vocabulary, selection.VocabularyConflict);
+                    summary.VocabularyAdded = added;
+                    summary.VocabularyConflicts = conflicts;
+                }
+            }
+            catch
             {
-                var (added, conflicts) = MergeVocabulary(backup.Vocabulary, selection.VocabularyConflict);
-                summary.VocabularyAdded = added;
-                summary.VocabularyConflicts = conflicts;
+                RestoreSettingsAfterFailedImport(SettingsService.Instance, settingsBefore, "selective import");
+                throw;
             }
 
             // 4. API keys — merge (only non-empty keys written).
@@ -606,6 +637,33 @@ public class BackupService
         }
 
         return (added, conflicts);
+    }
+
+    /// <summary>
+    /// Puts settings.json back to <paramref name="before"/> after an import's database
+    /// step failed (issue #1614). Never throws: the caller is already failing with the
+    /// database error, and that is the message the user must see, so a restore that
+    /// itself fails is only logged.
+    /// </summary>
+    private static void RestoreSettingsAfterFailedImport(
+        SettingsService settings,
+        SettingsService.ImportSnapshot? before,
+        string operation)
+    {
+        // Step 1 never ran (settings not selected, or the batch was refused).
+        if (before == null)
+            return;
+
+        try
+        {
+            if (settings.RestoreImportSnapshot(before))
+                LoggingService.Info($"BackupService: the {operation} failed in the database step; restored the settings it had applied");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error(
+                $"BackupService: the {operation} failed in the database step and the settings it applied could not be restored", ex);
+        }
     }
 
     // =========================================================================
