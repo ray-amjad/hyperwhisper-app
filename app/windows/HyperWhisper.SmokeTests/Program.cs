@@ -3895,6 +3895,174 @@ internal static class Program
                 }
             });
 
+            // #983: the success/copied overlay hides on a deferred, generation-
+            // guarded timer, so the dictation flows can unblock the hotkey right
+            // after the paste. The fake delay lets each case decide when the hold
+            // ends; the context is detached because an await posted to a leftover
+            // WPF context would never run in this console harness.
+            Run("DeferredOverlayHide keeps the success and copied holds main used (#983)", () =>
+            {
+                Assert(DeferredOverlayHide.HoldFor(SmartPasteResult.Pasted) == TimeSpan.FromMilliseconds(400),
+                    "a paste no longer holds the success tick for 400 ms");
+                Assert(DeferredOverlayHide.HoldFor(SmartPasteResult.CopiedToClipboard) == TimeSpan.FromMilliseconds(500),
+                    "a clipboard copy no longer holds the copied state for 500 ms");
+                Assert(DeferredOverlayHide.HoldFor(SmartPasteResult.SecureFieldSkipped) == TimeSpan.FromMilliseconds(500),
+                    "a secure-field skip no longer holds the copied state for 500 ms");
+                Assert(DeferredOverlayHide.HoldFor(SmartPasteResult.Failed) == null,
+                    "a failed delivery shows no end state, so the overlay must hide at once");
+            });
+
+            RunAsync("DeferredOverlayHide hides after the hold when no recording has started (#983)", async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    var hold = new TaskCompletionSource();
+                    TimeSpan? askedFor = null;
+                    var hides = 0;
+                    var scheduler = new DeferredOverlayHide(
+                        delay: d => { askedFor = d; return hold.Task; },
+                        runOnUi: a => a());
+
+                    var pending = scheduler.Schedule(DeferredOverlayHide.SuccessHold, () => hides++);
+                    Assert(hides == 0 && !pending.IsCompleted, "the hide ran before the hold ended");
+                    Assert(askedFor == DeferredOverlayHide.SuccessHold, $"the hold asked for {askedFor}, not 400 ms");
+
+                    hold.SetResult();
+                    Assert(await pending, "an unsuperseded hide reported that it did not run");
+                    Assert(hides == 1, $"the overlay was hidden {hides} times, expected once");
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+
+            RunAsync("DeferredOverlayHide never hides a newer recording's overlay (#983)", async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    // The quick second dictation: the success tick is up, the hotkey
+                    // is already free, and the next press shows its recording overlay
+                    // (Supersede, then the show) before the 400 ms run out.
+                    var hold = new TaskCompletionSource();
+                    var hides = 0;
+                    var scheduler = new DeferredOverlayHide(delay: _ => hold.Task, runOnUi: a => a());
+
+                    var pending = scheduler.Schedule(DeferredOverlayHide.SuccessHold, () => hides++);
+                    scheduler.Supersede();
+                    hold.SetResult();
+
+                    Assert(!await pending, "a superseded hide reported that it ran");
+                    Assert(hides == 0, "the late success hide hid the new recording's overlay");
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+
+            RunAsync("DeferredOverlayHide lets only the latest scheduled hide fire (#983)", async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    // Two dictations end inside one hold: the first one's timer must
+                    // not cut the second one's success state short.
+                    var holds = new List<TaskCompletionSource>();
+                    var hidden = new List<string>();
+                    var scheduler = new DeferredOverlayHide(
+                        delay: _ => { var t = new TaskCompletionSource(); holds.Add(t); return t.Task; },
+                        runOnUi: a => a());
+
+                    var first = scheduler.Schedule(DeferredOverlayHide.SuccessHold, () => hidden.Add("first"));
+                    var second = scheduler.Schedule(DeferredOverlayHide.CopiedHold, () => hidden.Add("second"));
+                    holds[0].SetResult();
+                    Assert(!await first, "the older hide ran after a newer one was scheduled");
+                    Assert(hidden.Count == 0, "the older hide cut the newer success state short");
+                    holds[1].SetResult();
+                    Assert(await second, "the newest hide did not run");
+                    Assert(hidden.SequenceEqual(new[] { "second" }), $"hides ran: {string.Join(",", hidden)}");
+
+                    // A supersede before a schedule must not cancel that later hide.
+                    scheduler.Supersede();
+                    var third = scheduler.Schedule(DeferredOverlayHide.SuccessHold, () => hidden.Add("third"));
+                    holds[2].SetResult();
+                    Assert(await third, "a supersede made BEFORE the schedule cancelled its hide");
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+
+            RunAsync("DeferredOverlayHide checks the generation on the UI hop and swallows a failed hide (#983)", async () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    // The generation is read INSIDE the UI step: a recording that
+                    // starts while the hide waits for the dispatcher still wins.
+                    var hides = 0;
+                    DeferredOverlayHide? scheduler = null;
+                    scheduler = new DeferredOverlayHide(
+                        delay: _ => Task.CompletedTask,
+                        runOnUi: a => { scheduler!.Supersede(); a(); });
+                    Assert(!await scheduler.Schedule(DeferredOverlayHide.SuccessHold, () => hides++),
+                        "the generation was checked before the UI hop, not inside it");
+                    Assert(hides == 0, "a recording that started during the UI hop was hidden");
+
+                    // Discarded by the flow, so the task must never fault.
+                    var throwing = new DeferredOverlayHide(delay: _ => Task.CompletedTask, runOnUi: a => a());
+                    var result = throwing.Schedule(DeferredOverlayHide.SuccessHold,
+                        () => throw new InvalidOperationException("dispatcher gone"));
+                    Assert(!await result && !result.IsFaulted, "a failing hide faulted the discarded task");
+
+                    // The default delay is a real timer: the hide lands after the hold.
+                    var real = new DeferredOverlayHide(runOnUi: a => a());
+                    var clock = Stopwatch.StartNew();
+                    Assert(await real.Schedule(TimeSpan.FromMilliseconds(50), () => { }), "the real-timer hide did not run");
+                    Assert(clock.ElapsedMilliseconds >= 40, $"the real-timer hide ran after {clock.ElapsedMilliseconds} ms");
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+
+            Run("neither dictation flow awaits the success animation before its teardown (#983)", () =>
+            {
+                // The flows ran the success/copied wait as `await Task.Delay(400/500)`
+                // inside the try, so their finally (teardown + `_hotkeyBlocked = false`)
+                // waited for the animation and a quick second press was dropped.
+                // Read each flow's async state machine IL: no Task.Delay call may be
+                // left in it, and the deferred hide must be what it uses instead.
+                foreach (var flowName in new[] { "StopRecordingAndTranscribeAsync", "StopStreamingRecordingAsync" })
+                {
+                    var flow = typeof(MainViewModel).GetMethod(flowName,
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    Assert(flow != null, $"MainViewModel.{flowName} is gone; update this check");
+                    var stateMachine = flow!.GetCustomAttribute<System.Runtime.CompilerServices.AsyncStateMachineAttribute>()?.StateMachineType;
+                    Assert(stateMachine != null, $"MainViewModel.{flowName} is no longer async; update this check");
+                    var moveNext = stateMachine!.GetMethod("MoveNext", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)!;
+                    var called = CalledMethods(moveNext);
+
+                    Assert(called.Any(m => m.Name == "EnsureTranscriptTerminalStatus"),
+                        $"the IL scan of {flowName} found no call it is known to make; the scan is blind");
+                    var delays = called.Where(m => m.DeclaringType == typeof(Task) && m.Name == nameof(Task.Delay)).ToList();
+                    Assert(delays.Count == 0,
+                        $"{flowName} still awaits Task.Delay ({delays.Count} call(s)) before its finally, " +
+                        "so the hotkey stays blocked through the success animation");
+                    Assert(called.Any(m => m.DeclaringType == typeof(DeferredOverlayHide) && m.Name == nameof(DeferredOverlayHide.HoldFor)),
+                        $"{flowName} no longer hands its success/copied hold to DeferredOverlayHide");
+                }
+            });
+
             Run("MainViewModel.EmptyCaptureMessage names the device, not the user's silence (#750)", () =>
             {
                 var message = MainViewModel.EmptyCaptureMessage;
@@ -20163,6 +20331,39 @@ internal static class Program
             Console.Error.WriteLine($"  FAIL {name}");
             Console.Error.WriteLine($"       {ex}");
         }
+    }
+
+    /// <summary>
+    /// Every method a method body calls (call/callvirt/newobj), read from its IL.
+    /// A byte that only looks like a call opcode resolves to nothing and is skipped.
+    /// </summary>
+    private static List<MethodBase> CalledMethods(MethodInfo method)
+    {
+        var il = method.GetMethodBody()?.GetILAsByteArray() ?? Array.Empty<byte>();
+        var found = new List<MethodBase>();
+        for (var i = 0; i + 4 < il.Length; i++)
+        {
+            if (il[i] is not (0x28 or 0x6F or 0x73))
+                continue;
+
+            var token = BitConverter.ToInt32(il, i + 1);
+            if ((token >> 24) is not (0x06 or 0x0A or 0x2B))
+                continue;
+
+            try
+            {
+                var target = method.Module.ResolveMethod(token,
+                    method.DeclaringType?.GetGenericArguments(), method.GetGenericArguments());
+                if (target != null)
+                    found.Add(target);
+            }
+            catch (Exception)
+            {
+                // Not a method token at this offset (or one this process cannot load).
+            }
+        }
+
+        return found;
     }
 
     private static void RunAsync(string name, Func<Task> check)
