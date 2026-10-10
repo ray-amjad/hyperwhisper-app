@@ -1,6 +1,6 @@
 # Spec: FTS5 trigram index for Local API `/recordings/search`
 
-Status: DRAFT — interview in progress (1 of 4 answered). Repo `ray-amjad/hyperwhisper-app`, base `main` at `8b105134`.
+Status: CLOSED 2026-10-10 by Ray, unfinished (Q1 answered: option A; Q2-Q4 not asked or answered). Nothing built. Repo `ray-amjad/hyperwhisper-app`, base `main` at `8b105134`.
 Issues: [#1202](https://github.com/ray-amjad/hyperwhisper-app/issues/1202) (Windows), [#1197](https://github.com/ray-amjad/hyperwhisper-app/issues/1197) (Linux).
 
 ## Problem
