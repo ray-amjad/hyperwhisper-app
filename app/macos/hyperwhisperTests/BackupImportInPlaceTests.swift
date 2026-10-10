@@ -466,7 +466,8 @@ struct BackupImportInPlaceTests {
 
         #expect(result.modesImported == 4)
         var after = shape(persistence)
-        let fresh = try #require(after.removeValue(forKey: newId))
+        let removed = after.removeValue(forKey: newId)
+        let fresh = try #require(removed)
         #expect(fresh.sortOrder == maxBefore + 1)
         #expect(fresh.isSystemProvided == false)
         #expect(after == before)
