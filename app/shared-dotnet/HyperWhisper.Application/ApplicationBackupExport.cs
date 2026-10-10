@@ -288,12 +288,15 @@ public sealed partial class ApplicationBackupService(
         var normalized = NormalizeCloudRouting(value);
         var extensions = value["platformExtensions"] as JsonObject;
         var linux = extensions?["linux"] as JsonObject;
+        // The per-mode fields both .NET heads write under the same names (#1712):
+        // the linux slice when there is one, else the Windows head's slice.
+        var own = linux ?? extensions?[PeerModeSlice] as JsonObject;
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
         return new Mode
         {
             Id = Guid.Parse(value["id"]!.GetValue<string>()), Name = normalized["name"]!.GetValue<string>(),
             Preset = String(value, "preset") ?? "hyper", Language = String(value, "language") ?? "en",
-            Model = String(value, "model") ?? "base", ModelType = String(linux, "modelType") ?? String(value, "model") ?? "base",
+            Model = String(value, "model") ?? "base", ModelType = String(own, "modelType") ?? String(value, "model") ?? "base",
             IsDefault = Bool(value, "isDefault"), SortOrder = Int(value, "sortOrder"),
             Punctuation = Bool(value, "punctuation", true), Capitalization = Bool(value, "capitalization", true),
             ProfanityFilter = Bool(value, "profanityFilter"), RemoveTrailingPeriod = Bool(value, "removeTrailingPeriod"),
@@ -305,15 +308,27 @@ public sealed partial class ApplicationBackupService(
             GeminiCustomPrompt = String(value, "geminiCustomPrompt"),
             CloudAccuracyTier = String(normalized, "cloudAccuracyTier") ?? ModeDefaults.CloudAccuracyTier,
             CloudPostProcessingModel = String(normalized, "cloudPostProcessingModel") ?? ModeDefaults.CloudPostProcessingModel,
-            LocalEngine = String(linux, "localEngine") ?? "whisper", LocalParakeetModel = String(linux, "localParakeetModel"),
-            ProviderType = String(linux, "providerType") ?? (String(value, "cloudProvider") is null ? "local" : "cloud"),
-            EnableScreenOCR = ScreenOcr(linux, extensions), CustomVocabulary = StringList(linux, "customVocabulary"),
-            IsSystemProvided = Bool(linux, "isSystemProvided"),
+            LocalEngine = String(own, "localEngine") ?? "whisper", LocalParakeetModel = String(own, "localParakeetModel"),
+            ProviderType = String(own, "providerType") ?? (String(value, "cloudProvider") is null ? "local" : "cloud"),
+            EnableScreenOCR = ScreenOcr(linux, extensions), CustomVocabulary = StringList(own, "customVocabulary"),
+            IsSystemProvided = Bool(own, "isSystemProvided"),
             ForeignPlatformExtensions = preservedExtensions is null || preservedExtensions.Count == 0 ? null : preservedExtensions.ToJsonString(),
-            CreatedDate = Date(linux, "createdDate") ?? DateTime.UtcNow,
-            ModifiedDate = Date(linux, "modifiedDate") ?? DateTime.UtcNow,
+            CreatedDate = Date(own, "createdDate") ?? DateTime.UtcNow,
+            ModifiedDate = Date(own, "modifiedDate") ?? DateTime.UtcNow,
         };
     }
+
+    /// <summary>
+    /// The other .NET head's per-mode slice (#1712). Windows writes the same
+    /// per-mode fields as Linux under the same names and JSON types
+    /// (<c>customVocabulary</c>, <c>localEngine</c>, <c>localParakeetModel</c>,
+    /// <c>providerType</c>, <c>modelType</c>, <c>isSystemProvided</c>,
+    /// <c>createdDate</c>, <c>modifiedDate</c>); macOS writes none of them. Read
+    /// only when the mode has no <c>linux</c> slice: a present own slice is the
+    /// whole record of these fields, so a stale preserved Windows value never
+    /// overrides it. Mirrors Windows <c>UniversalBackupMapper.ReadPeerModeExtensions</c>.
+    /// </summary>
+    private const string PeerModeSlice = "windows";
 
     /// <summary>
     /// The FOREIGN per-mode slices, in lookup order, for a field every head writes

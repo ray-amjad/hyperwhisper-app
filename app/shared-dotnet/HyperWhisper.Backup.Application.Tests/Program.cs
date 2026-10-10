@@ -808,7 +808,64 @@ try
         "a Windows backup with platformExtensions.windows.enableScreenOCR: true restored with OCR OFF on Linux (#1498)");
     Assert(!ocrModes[noSliceId].EnableScreenOCR, "a mode with no slice at all restored with OCR ON");
 
-    Console.WriteLine("Backup application tests passed (43/43).");
+    // Issue #1712: both .NET heads write a mode's vocabulary and local-engine fields
+    // in their OWN slice under the same names. A Windows backup restored on Linux
+    // must keep them; a present linux slice stays the whole record of them.
+    var peerRoot = Path.Combine(root, "foreign-slice-windows-mode");
+    Directory.CreateDirectory(peerRoot);
+    var peerPaths = new TestPaths(peerRoot);
+    var peerSettings = new PortableSettingsService(new MemoryPrivateFileService(), peerPaths);
+    Assert(peerSettings.Load().IsSuccess, "peer-slice settings did not initialize");
+    var peerDatabase = new ApplicationDb(peerPaths);
+    await peerDatabase.MigrateAsync();
+    var peerService = new ApplicationBackupService(peerDatabase, peerSettings);
+    var windowsModeId = Guid.NewGuid();
+    var bothSlicesId = Guid.NewGuid();
+    var windowsBackup = new JsonObject
+    {
+        ["schemaVersion"] = 2,
+        ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+        ["appVersion"] = "1.0.0",
+        ["platform"] = "windows",
+        ["modes"] = new JsonArray(
+            OcrMode(windowsModeId, "Windows vocabulary", 0, new JsonObject
+            {
+                ["windows"] = new JsonObject
+                {
+                    ["customVocabulary"] = new JsonArray("Øresund"), ["localEngine"] = "parakeet",
+                    ["localParakeetModel"] = "parakeet-tdt-0.6b-v3", ["providerType"] = "local",
+                    ["modelType"] = "large-v3", ["isSystemProvided"] = true,
+                    ["createdDate"] = "2025-01-02T03:04:05Z", ["modifiedDate"] = "2025-06-07T08:09:10Z",
+                },
+            }),
+            OcrMode(bothSlicesId, "Linux slice wins", 1, new JsonObject
+            {
+                ["linux"] = new JsonObject { ["customVocabulary"] = null, ["localEngine"] = "whisper" },
+                ["windows"] = new JsonObject
+                {
+                    ["customVocabulary"] = new JsonArray("Stale"), ["localEngine"] = "parakeet",
+                    ["localParakeetModel"] = "parakeet-tdt-0.6b-v3",
+                },
+            })),
+    };
+    var peerImport = await peerService.ImportAsync(windowsBackup.ToJsonString());
+    Assert(peerImport.IsSuccess, $"Windows mode backup failed to import: {peerImport.Error?.Message}");
+    var peerModes = (await new ModeRepository(peerDatabase).ListAsync()).ToDictionary(item => item.Id);
+    var fromWindows = peerModes[windowsModeId];
+    Assert(fromWindows.CustomVocabulary is ["Øresund"],
+        "a Windows backup's platformExtensions.windows.customVocabulary was lost on a Linux restore (#1712)");
+    Assert(fromWindows.LocalEngine == "parakeet" && fromWindows.LocalParakeetModel == "parakeet-tdt-0.6b-v3",
+        "a Windows backup's local engine / Parakeet model was lost on a Linux restore (#1712)");
+    Assert(fromWindows.ProviderType == "local" && fromWindows.ModelType == "large-v3" && fromWindows.IsSystemProvided,
+        "a Windows backup's providerType / modelType / isSystemProvided was lost on a Linux restore (#1712)");
+    Assert(fromWindows.CreatedDate == new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Utc)
+        && fromWindows.ModifiedDate == new DateTime(2025, 6, 7, 8, 9, 10, DateTimeKind.Utc),
+        "a Windows backup's createdDate / modifiedDate was lost on a Linux restore (#1712)");
+    var linuxWins = peerModes[bothSlicesId];
+    Assert(linuxWins.CustomVocabulary is null && linuxWins.LocalEngine == "whisper" && linuxWins.LocalParakeetModel is null,
+        "a stale preserved windows slice overrode the mode's own linux slice (#1712)");
+
+    Console.WriteLine("Backup application tests passed (44/44).");
 }
 finally
 {

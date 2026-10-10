@@ -914,6 +914,40 @@ public static class UniversalBackupMapper
     }
 
     /// <summary>
+    /// The other .NET head's per-mode slice (#1712). Linux writes the same per-mode
+    /// fields as Windows under the same names and JSON types (<c>customVocabulary</c>,
+    /// <c>localEngine</c>, <c>localParakeetModel</c>, <c>providerType</c>,
+    /// <c>modelType</c>, <c>isSystemProvided</c>, <c>createdDate</c>,
+    /// <c>modifiedDate</c>); macOS writes none of them.
+    /// </summary>
+    private const string PeerModeSlice = "linux";
+
+    /// <summary>
+    /// The <see cref="PeerModeSlice"/> slice read through the Windows shape, or
+    /// <c>null</c> when the mode has none or it does not deserialize. Read only when
+    /// the mode has no <c>windows</c> slice: a present own slice is the whole
+    /// record of these fields, because Windows omits a null field on export, so an
+    /// absent key there means "none" and must not let a stale preserved Linux
+    /// value back in.
+    /// </summary>
+    private static WindowsModeExtensions? ReadPeerModeExtensions(UniversalMode universal)
+    {
+        if (universal.PlatformExtensions == null ||
+            !universal.PlatformExtensions.TryGetValue(PeerModeSlice, out var slice) ||
+            slice.ValueKind != JsonValueKind.Object)
+            return null;
+        try
+        {
+            return JsonSerializer.Deserialize<WindowsModeExtensions>(slice.GetRawText(), CamelCaseOptions);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"UniversalBackupMapper: Failed to read the {PeerModeSlice} mode slice for '{universal.Name}': {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Maps a universal mode to a Windows Mode entity.
     /// Extracts platformExtensions.windows if present, otherwise applies defaults.
     /// </summary>
@@ -997,19 +1031,22 @@ public static class UniversalBackupMapper
         }
         else
         {
-            // macOS or other platform export — apply sensible defaults
-            mode.ModelType = universal.Model;
-            mode.LocalEngine = "whisper";
-            mode.LocalParakeetModel = null;
-            mode.ProviderType = !string.IsNullOrEmpty(universal.CloudProvider) ? "cloud" : "local";
+            // macOS or Linux export. A Linux backup carries the same per-mode fields
+            // in ITS slice (#1712); anything it lacks gets the defaults.
+            var peerExt = ReadPeerModeExtensions(universal);
+            mode.ModelType = peerExt?.ModelType ?? universal.Model;
+            mode.LocalEngine = peerExt?.LocalEngine ?? "whisper";
+            mode.LocalParakeetModel = peerExt?.LocalParakeetModel;
+            mode.ProviderType = peerExt?.ProviderType
+                ?? (!string.IsNullOrEmpty(universal.CloudProvider) ? "cloud" : "local");
             // Tier / post-processing model already resolved by the core above.
             // A macOS or Linux backup carries screen OCR in ITS slice (#1498).
             mode.EnableScreenOCR =
                 ForeignModeExtensionBool(universal.PlatformExtensions, EnableScreenOcrKey) ?? false;
-            mode.CustomVocabulary = null;
-            mode.IsSystemProvided = false;
-            mode.CreatedDate = DateTime.UtcNow;
-            mode.ModifiedDate = DateTime.UtcNow;
+            mode.CustomVocabulary = peerExt?.CustomVocabulary;
+            mode.IsSystemProvided = peerExt?.IsSystemProvided ?? false;
+            mode.CreatedDate = peerExt?.CreatedDate ?? DateTime.UtcNow;
+            mode.ModifiedDate = peerExt?.ModifiedDate ?? DateTime.UtcNow;
         }
 
         // Preserve every NON-Windows per-mode platformExtensions slice (e.g. the
