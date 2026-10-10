@@ -838,7 +838,11 @@ final class LocalAPIServer: ObservableObject {
             return
         }
 
-        deletePortFile()
+        // Not `deletePortFile()`: that one keeps a file naming another pid, and
+        // a stale file naming the previous launch's (dead) pid is exactly what
+        // this cleanup is for. With the store lock held (#1483) no other live
+        // copy can own this file.
+        Self.removePortFile(at: url)
         if FileManager.default.fileExists(atPath: url.path) {
             AppLogger.network.error("LocalAPI portfile: stale discovery file remains after cleanup attempt")
         }
@@ -864,14 +868,48 @@ final class LocalAPIServer: ObservableObject {
     }
 
     private func deletePortFile() {
-        let url = Self.portFileURL
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        Self.deletePortFileIfOwned(at: Self.portFileURL, ownerPID: ProcessInfo.processInfo.processIdentifier)
+    }
+
+    /// Delete the discovery file only when it names `ownerPID` (issue #1483).
+    ///
+    /// A copy that quits must not withdraw another live copy's entry: before
+    /// this check, a clean quit of either of two copies deleted the file even
+    /// when it named the other one, and no client could find the survivor. A
+    /// file that cannot be read or decoded names no process, so it stays too;
+    /// the next `writePortFile(port:)` replaces it.
+    ///
+    /// - Returns: true when the file was removed.
+    @discardableResult
+    static func deletePortFileIfOwned(at url: URL, ownerPID: Int32) -> Bool {
+        guard FileManager.default.fileExists(atPath: url.path) else { return false }
+        let namedPID: Int32
+        do {
+            let data = try Data(contentsOf: url)
+            namedPID = try LocalAPIResponder.decoder.decode(LocalAPIPortFile.self, from: data).pid
+        } catch {
+            AppLogger.network.warning("LocalAPI portfile: not deleting a discovery file this process cannot read · \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+        guard namedPID == ownerPID else {
+            AppLogger.network.info("LocalAPI portfile: leaving the discovery file in place — it names pid \(namedPID, privacy: .public), not this process")
+            return false
+        }
+        return removePortFile(at: url)
+    }
+
+    /// Unconditionally remove the discovery file. Callers decide whose it is.
+    @discardableResult
+    private static func removePortFile(at url: URL) -> Bool {
+        guard FileManager.default.fileExists(atPath: url.path) else { return false }
         // Clear `uchg` first — removeItem can't unlink an immutable file.
-        _ = Self.clearImmutableFlag(at: url)
+        _ = clearImmutableFlag(at: url)
         do {
             try FileManager.default.removeItem(at: url)
+            return true
         } catch {
             AppLogger.network.error("LocalAPI portfile: failed to delete · \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 }
