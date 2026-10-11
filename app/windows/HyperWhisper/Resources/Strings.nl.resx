@@ -1696,6 +1696,9 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Naamloos</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Meer…</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Bestand transcriberen</value>
   </data>

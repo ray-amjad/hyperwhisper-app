@@ -1696,6 +1696,9 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Sans nom</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Plus…</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcrire un fichier</value>
   </data>

@@ -93,7 +93,7 @@ Assert-Contains $refreshRecording "_viewModel.SelectedMode != null" "Recording m
 Assert-Contains $refreshMode "_modeMenu.DropDownItems.Clear();" "Mode submenu must rebuild from current modes."
 Assert-Contains $refreshMode 'Loc.S("menu.mode.none")' "Mode submenu must show a disabled empty state."
 Assert-Contains $refreshMode "modes.Count == 0" "Mode submenu must handle no modes."
-Assert-Contains $refreshMode "foreach (var mode in modes)" "Mode submenu must enumerate all modes."
+Assert-Contains $refreshMode "foreach (var mode in modes.Take(TrayModeMenuLimit))" "Mode submenu must list at most TrayModeMenuLimit modes (#1593)."
 Assert-Contains $refreshMode "selectedMode != null && selectedMode.Id == mode.Id" "Mode submenu must check the selected mode."
 Assert-Contains $refreshMode 'Loc.S("menu.mode.unnamed")' "Mode submenu must use unnamed-mode fallback."
 Assert-Contains $refreshMode "Checked = isSelected" "Mode submenu must display selected checkmark."
@@ -102,7 +102,7 @@ Assert-Contains $refreshMode "_viewModel.SelectedMode = m;" "Mode submenu click 
 
 Assert-Contains $refreshFileTranscription "_fileTranscriptionMenu.DropDownItems.Clear();" "File transcription submenu must rebuild from current modes."
 Assert-Contains $refreshFileTranscription 'Loc.S("menu.mode.none")' "File transcription submenu must show a disabled empty state."
-Assert-Contains $refreshFileTranscription "foreach (var mode in modes)" "File transcription submenu must enumerate all modes."
+Assert-Contains $refreshFileTranscription "foreach (var mode in modes.Take(TrayModeMenuLimit))" "File transcription submenu must list at most TrayModeMenuLimit modes (#1593)."
 Assert-Contains $refreshFileTranscription 'Loc.S("menu.mode.unnamed")' "File transcription submenu must use unnamed-mode fallback."
 Assert-Contains $refreshFileTranscription "Enabled = !_viewModel.IsRecording && !_viewModel.IsTranscribing && !_viewModel.IsModelLoading" "File transcription submenu items must disable during recording, transcribing, and model loading."
 Assert-Contains $refreshFileTranscription "Tag = mode" "File transcription submenu items must carry the mode."

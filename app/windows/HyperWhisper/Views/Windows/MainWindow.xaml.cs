@@ -899,6 +899,14 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// How many modes each tray submenu lists before it ends in "More…" (issue #1593).
+    /// A backup import has no mode cap, and both submenus are rebuilt on every
+    /// Opening: 10,000 items hung the UI thread for minutes, and a menu that long
+    /// cannot be used anyway. The Modes page lists every mode.
+    /// </summary>
+    internal const int TrayModeMenuLimit = 50;
+
+    /// <summary>
     /// Refreshes the mode submenu with current available modes.
     /// Shows a checkmark next to the currently selected mode.
     /// </summary>
@@ -921,7 +929,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        foreach (var mode in modes)
+        foreach (var mode in modes.Take(TrayModeMenuLimit))
         {
             bool isSelected = selectedMode != null && selectedMode.Id == mode.Id;
 
@@ -955,6 +963,8 @@ public partial class MainWindow : Window
 
             _modeMenu.DropDownItems.Add(modeItem);
         }
+
+        AddMoreModesItem(_modeMenu, modes.Count);
     }
 
     /// <summary>
@@ -977,7 +987,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        foreach (var mode in modes)
+        foreach (var mode in modes.Take(TrayModeMenuLimit))
         {
             var modeName = string.IsNullOrWhiteSpace(mode.Name) ? Loc.S("menu.mode.unnamed") : mode.Name;
 
@@ -999,5 +1009,22 @@ public partial class MainWindow : Window
 
             _fileTranscriptionMenu.DropDownItems.Add(modeItem);
         }
+
+        AddMoreModesItem(_fileTranscriptionMenu, modes.Count);
+    }
+
+    /// <summary>
+    /// Past <see cref="TrayModeMenuLimit"/> modes, ends a submenu with "More…",
+    /// which opens the Modes page where every mode is listed.
+    /// </summary>
+    private void AddMoreModesItem(System.Windows.Forms.ToolStripMenuItem menu, int modeCount)
+    {
+        if (modeCount <= TrayModeMenuLimit) return;
+
+        menu.DropDownItems.Add(new System.Windows.Forms.ToolStripSeparator());
+
+        var moreItem = new System.Windows.Forms.ToolStripMenuItem(Loc.S("menu.mode.more"));
+        moreItem.Click += (s, e) => Dispatcher.Invoke(() => ShowMainWindow(MainViewModel.NavigationPage.Modes));
+        menu.DropDownItems.Add(moreItem);
     }
 }
