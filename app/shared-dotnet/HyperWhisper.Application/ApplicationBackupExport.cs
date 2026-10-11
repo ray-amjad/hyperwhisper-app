@@ -267,6 +267,12 @@ public sealed partial class ApplicationBackupService(
     /// cloudTranscriptionDomain gate. Absent fields stay absent — the caller
     /// applies <see cref="ModeDefaults"/>.
     ///
+    /// <paramref name="withoutPeerSlice"/> hands the core the mode WITHOUT its
+    /// <c>platformExtensions.windows</c> slice, so that slice's tier and
+    /// post-processing model do not override the top-level ones. Set when the linux
+    /// slice won (#1747): Linux keeps those two fields only at the top level, so a
+    /// windows slice preserved from an older Windows import holds a stale copy.
+    ///
     /// A backup file is the one input that is arbitrarily old: it can be written
     /// by any past version, on any platform, and restored years later, and it
     /// bypasses the one-shot EF migration entirely, because that migration is
@@ -277,15 +283,21 @@ public sealed partial class ApplicationBackupService(
     /// changes the user's vendor, credits and <c>X-STT-Provider</c> without
     /// telling them.
     /// </summary>
-    private static JsonObject NormalizeCloudRouting(JsonObject mode)
-        => JsonNode.Parse(SharedCoreBridge.NormalizeUniversalMode(mode.ToJsonString()))
+    private static JsonObject NormalizeCloudRouting(JsonObject mode, bool withoutPeerSlice = false)
+    {
+        if (withoutPeerSlice && mode["platformExtensions"] is JsonObject extensions && extensions.ContainsKey(PeerModeSlice))
+        {
+            mode = mode.DeepClone().AsObject();
+            mode["platformExtensions"]!.AsObject().Remove(PeerModeSlice);
+        }
+        return JsonNode.Parse(SharedCoreBridge.NormalizeUniversalMode(mode.ToJsonString()))
             as JsonObject
             ?? throw new JsonException("Mode normalization did not return an object.");
+    }
 
     private static Mode ParseMode(JsonNode? node)
     {
         var value = node as JsonObject ?? throw new JsonException("Mode must be an object.");
-        var normalized = NormalizeCloudRouting(value);
         var extensions = value["platformExtensions"] as JsonObject;
         var linux = extensions?["linux"] as JsonObject;
         // The per-mode fields both .NET heads write under the same names (#1712):
@@ -295,6 +307,10 @@ public sealed partial class ApplicationBackupService(
         // preserved there (#1716).
         var peer = ReadablePeerSlice(extensions?[PeerModeSlice] as JsonObject);
         var own = linux is null || PeerSliceIsNewer(linux, peer) ? peer : linux;
+        // The cloud tier and post-processing model come from the core fold, where a
+        // windows slice's value beats the top-level one. That is right only when the
+        // windows slice won: a linux record keeps them at the top level (#1747).
+        var normalized = NormalizeCloudRouting(value, withoutPeerSlice: linux is not null && own == linux);
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
         return new Mode
         {
