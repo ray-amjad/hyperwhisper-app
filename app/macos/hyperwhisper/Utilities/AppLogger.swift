@@ -442,8 +442,8 @@ final class AppLogger {
         // Drain BEFORE waiting (#991). 24 h of JSON is far past the
         // ~64 KB pipe buffer: waiting first leaves `log show` blocked
         // on write, so it never exits and the export never finishes.
-        let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
+        let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
         
         try data.write(to: logFile)
     }
@@ -516,8 +516,8 @@ final class AppLogger {
             // five minutes of logs is more, and waiting first leaves `log show`
             // blocked on write, so `waitUntilExit()` would never return.
             // `readDataToEndOfFile()` returns at EOF, when the child exits.
-            let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
+            let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
             let fetchMs = Int((Date().timeIntervalSince(fetchStart) * 1_000).rounded())
 
             guard let output = String(data: data, encoding: .utf8), !output.isEmpty else {
