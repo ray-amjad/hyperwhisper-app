@@ -48,7 +48,7 @@ test("credit amounts and their words sit in one isolate", () => {
   );
 });
 
-test("a device name is isolated and the id gap is logical", () => {
+test("a device name is isolated and the id gap sits on the parent", () => {
   const src = source(
     "../app/[locale]/user/(authenticated)/devices/DevicesClient.tsx",
   );
@@ -58,7 +58,7 @@ test("a device name is isolated and the id gap is logical", () => {
   );
   assert.match(
     src,
-    /<bdi className="text-gray-500 text-xs ms-2">\s*\{device\.deviceId\}\s*<\/bdi>/,
+    /<div className="flex flex-wrap items-baseline gap-x-2">\s*<bdi className="text-white text-sm">[\s\S]*?<bdi className="text-gray-500 text-xs">\s*\{device\.deviceId\}\s*<\/bdi>/,
   );
   assert.doesNotMatch(src, /text-xs ml-2/);
 });

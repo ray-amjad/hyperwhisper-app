@@ -292,13 +292,15 @@ function DeviceRow({
                         />
                       </svg>
                       {/* <bdi> isolates a user-typed name, so an Arabic name or a
-                          bracket never reorders the id beside it on an RTL page (#1659). */}
-                      <div>
+                          bracket never reorders the id beside it on an RTL page (#1659).
+                          The gap sits on the parent: a margin on the <bdi> follows the
+                          id's own LTR direction and lands on the wrong side in RTL. */}
+                      <div className="flex flex-wrap items-baseline gap-x-2">
                         <bdi className="text-white text-sm">
                           {device.deviceName || device.deviceId}
                         </bdi>
                         {device.deviceName && (
-                          <bdi className="text-gray-500 text-xs ms-2">
+                          <bdi className="text-gray-500 text-xs">
                             {device.deviceId}
                           </bdi>
                         )}
