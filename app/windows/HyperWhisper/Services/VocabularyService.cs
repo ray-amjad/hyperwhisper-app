@@ -132,12 +132,17 @@ public class VocabularyService
             {
                 using var context = new HyperWhisperDbContext();
 
-                // Case-insensitive duplicate check (exclude item being edited)
-                var lowerWord = trimmedWord.ToLower();
-                var query = context.VocabularyItems.Where(v => v.Word.ToLower() == lowerWord);
+                // Case-insensitive duplicate check (exclude item being edited).
+                // Compared in memory: SQLite lower() folds ASCII only, so "Øresund"
+                // would never match itself. Same key as BackupService's merge.
+                var key = trimmedWord.ToLowerInvariant();
+                var query = context.VocabularyItems.AsQueryable();
                 if (excludeId.HasValue)
                     query = query.Where(v => v.Id != excludeId.Value);
-                var exists = query.Any();
+                var exists = query
+                    .Select(v => v.Word)
+                    .AsEnumerable()
+                    .Any(w => (w ?? string.Empty).Trim().ToLowerInvariant() == key);
 
                 if (exists)
                 {

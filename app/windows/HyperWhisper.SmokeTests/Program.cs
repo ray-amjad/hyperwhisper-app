@@ -10462,6 +10462,55 @@ internal static class Program
                 }
             });
 
+            Run("VocabularyService.TryAdd refuses a non-ASCII word twice — issue #1597", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                // SQLite lower() folds ASCII only, so a check pushed down to the
+                // database never matched a word that holds Ø, É or Cyrillic.
+                var vocabulary = VocabularyService.Instance;
+                var token = Guid.NewGuid().ToString("N")[..8];
+                var words = new[] { $"Øresund{token}", $"Élan{token}", $"Москва{token}" };
+                var added = new List<Guid>();
+                try
+                {
+                    foreach (var word in words)
+                    {
+                        Assert(vocabulary.TryAdd(word, null, out var addError),
+                            $"could not add '{word}': {addError}");
+                        var row = vocabulary.GetAll().FirstOrDefault(v => v.Word == word);
+                        Assert(row != null, $"'{word}' did not come back from VocabularyService");
+                        added.Add(row!.Id);
+
+                        Assert(!vocabulary.TryAdd(word, null, out var sameError)
+                            && sameError == "That word already exists.",
+                            $"'{word}' typed twice was accepted (error '{sameError}')");
+                        var lower = word.ToLowerInvariant();
+                        Assert(!vocabulary.TryAdd(lower, null, out var lowerError)
+                            && lowerError == "That word already exists.",
+                            $"'{lower}' was accepted beside '{word}' (error '{lowerError}')");
+                        var copies = vocabulary.GetAll()
+                            .Count(v => string.Equals(v.Word, word, StringComparison.OrdinalIgnoreCase));
+                        Assert(copies == 1, $"'{word}' is stored {copies} times");
+
+                        // The Vocabulary page saves an edit as add-then-delete with
+                        // the edited row excluded, so the same word is not a duplicate.
+                        Assert(vocabulary.TryAdd(word, null, out var editError, excludeId: row.Id),
+                            $"editing '{word}' onto itself was refused: {editError}");
+                        vocabulary.Delete(row.Id);
+                        added.Remove(row.Id);
+                        var editedRow = vocabulary.GetAll().FirstOrDefault(v => v.Word == word);
+                        Assert(editedRow != null, $"the edited '{word}' row was not stored");
+                        added.Add(editedRow!.Id);
+                    }
+                }
+                finally
+                {
+                    foreach (var id in added)
+                        vocabulary.Delete(id);
+                }
+            });
+
             Run("an auto-language Mode keeps vocabulary and break commands but not filler removal — issues #495, #498, #278", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
