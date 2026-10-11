@@ -1,11 +1,12 @@
 using System.IO;
+using HyperWhisper.Models;
 
 namespace HyperWhisper.Services;
 
 /// <summary>
 /// The partial data a model download writes before it finishes:
 /// <c>Models\ggml-*.bin.download</c> (Whisper), <c>Models\Parakeet\&lt;id&gt;.temp\</c>
-/// (Parakeet / Qwen3 folder downloads) and <c>Models\LLM\*.download</c> (local LLMs).
+/// (Parakeet / Qwen3 folder downloads) and <c>Models\LLM\&lt;file&gt;.download</c> (local LLMs).
 /// <para>
 /// A Cancel or a failed download deletes its own partial, but a kill, a crash or
 /// a power loss mid-download never reaches that code, so the partial stayed on
@@ -15,17 +16,28 @@ namespace HyperWhisper.Services;
 /// hard exit left behind.
 /// </para>
 /// <para>
-/// Only the three names the download services write are touched, and only at the
-/// top of each app-owned models folder. A download that started at or after the
+/// Only the exact partial names the download services write for a catalog model
+/// are touched (<c>ggml-&lt;type&gt;.bin.download</c>, <c>&lt;id&gt;.temp</c>,
+/// <c>&lt;file&gt;.download</c>), and only at the top of each models folder. Any other
+/// file or folder there, such as a user's own <c>notes.gguf.download</c>, is never
+/// deleted: cleanup removes only files the app can prove are its own (#1445). A download that started at or after the
 /// sweep's cutoff is skipped, and so is a file a running download still holds open
 /// (the delete fails).
 /// </para>
 /// </summary>
 internal static class ModelDownloadLeftovers
 {
-    internal const string WhisperPattern = "ggml-*.bin.download";
-    internal const string ParakeetPattern = "*.temp";
-    internal const string LocalLlmPattern = "*.download";
+    /// <summary>The partial file name of each catalog Whisper model (WhisperModelService.DownloadModelAsync).</summary>
+    internal static IEnumerable<string> WhisperPartialNames =>
+        WhisperModelInfo.AllModels.Select(m => $"ggml-{m.Type}.bin.download");
+
+    /// <summary>The partial folder name of each catalog Parakeet-family model (ParakeetModelService.DownloadModelAsync).</summary>
+    internal static IEnumerable<string> ParakeetPartialNames =>
+        ParakeetModelInfo.AllModels.Select(m => $"{m.Id}.temp");
+
+    /// <summary>The partial file name of each catalog local LLM (LocalLlmModelService.DownloadModelAsync).</summary>
+    internal static IEnumerable<string> LocalLlmPartialNames =>
+        LocalLlmModelInfo.AllModels.Select(m => $"{m.FileName}.download");
 
     /// <summary>Remove the partial downloads an earlier run left under the models folder.</summary>
     internal static int SweepLeftovers(DateTime writtenBeforeUtc) =>
@@ -45,9 +57,9 @@ internal static class ModelDownloadLeftovers
         string localLlmDirectory,
         DateTime writtenBeforeUtc)
     {
-        var deleted = SweepFiles(whisperDirectory, WhisperPattern, writtenBeforeUtc)
-            + SweepDirectories(parakeetDirectory, ParakeetPattern, writtenBeforeUtc)
-            + SweepFiles(localLlmDirectory, LocalLlmPattern, writtenBeforeUtc);
+        var deleted = SweepFiles(whisperDirectory, WhisperPartialNames, writtenBeforeUtc)
+            + SweepDirectories(parakeetDirectory, ParakeetPartialNames, writtenBeforeUtc)
+            + SweepFiles(localLlmDirectory, LocalLlmPartialNames, writtenBeforeUtc);
         if (deleted > 0)
         {
             LoggingService.Info($"ModelDownloadLeftovers: removed {deleted} partial model download(s) an earlier run left behind");
@@ -56,10 +68,10 @@ internal static class ModelDownloadLeftovers
         return deleted;
     }
 
-    private static int SweepFiles(string directory, string pattern, DateTime writtenBeforeUtc)
+    private static int SweepFiles(string directory, IEnumerable<string> names, DateTime writtenBeforeUtc)
     {
         var deleted = 0;
-        foreach (var path in List(directory, pattern, directories: false))
+        foreach (var path in List(directory, names, directories: false))
         {
             try
             {
@@ -83,10 +95,10 @@ internal static class ModelDownloadLeftovers
         return deleted;
     }
 
-    private static int SweepDirectories(string directory, string pattern, DateTime writtenBeforeUtc)
+    private static int SweepDirectories(string directory, IEnumerable<string> names, DateTime writtenBeforeUtc)
     {
         var deleted = 0;
-        foreach (var path in List(directory, pattern, directories: true))
+        foreach (var path in List(directory, names, directories: true))
         {
             try
             {
@@ -113,7 +125,7 @@ internal static class ModelDownloadLeftovers
         return deleted;
     }
 
-    private static string[] List(string directory, string pattern, bool directories)
+    private static string[] List(string directory, IEnumerable<string> names, bool directories)
     {
         try
         {
@@ -122,9 +134,11 @@ internal static class ModelDownloadLeftovers
                 return [];
             }
 
-            return directories
-                ? Directory.GetDirectories(directory, pattern, SearchOption.TopDirectoryOnly)
-                : Directory.GetFiles(directory, pattern, SearchOption.TopDirectoryOnly);
+            return names
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(name => Path.Combine(directory, name))
+                .Where(path => directories ? Directory.Exists(path) : File.Exists(path))
+                .ToArray();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

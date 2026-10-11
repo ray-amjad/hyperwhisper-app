@@ -10713,18 +10713,31 @@ internal static class Program
                     return path;
                 }
 
+                // Real catalog names, so a partial the sweep must keep is kept for
+                // its age or its lock, not because the name is unknown.
+                var whisperType = WhisperModelInfo.AllModels[0].Type;
+                var freshWhisperType = WhisperModelInfo.AllModels[1].Type;
+                var parakeetId = ParakeetModelInfo.AllModels[0].Id;
+                var freshParakeetId = ParakeetModelInfo.AllModels[1].Id;
+                var llmFile = LocalLlmModelInfo.AllModels[0].FileName;
+                var lockedLlmFile = LocalLlmModelInfo.AllModels[1].FileName;
+
                 var cutoff = DateTime.UtcNow;
                 var old = cutoff.AddMinutes(-35);
-                var whisperPartial = WriteFile(whisperDir, "ggml-medium.bin.download", old);
-                var parakeetPartial = MakeFolder(parakeetDir, "nemotron-3.5-ml-560ms.temp", old);
-                var llmPartial = WriteFile(llmDir, "model.gguf.download", old);
-                var installedWhisper = WriteFile(whisperDir, "ggml-medium.bin", old);
-                var installedParakeet = MakeFolder(parakeetDir, "nemotron-3.5-ml-560ms", old);
-                var installedLlm = WriteFile(llmDir, "model.gguf", old);
+                var whisperPartial = WriteFile(whisperDir, $"ggml-{whisperType}.bin.download", old);
+                var parakeetPartial = MakeFolder(parakeetDir, $"{parakeetId}.temp", old);
+                var llmPartial = WriteFile(llmDir, $"{llmFile}.download", old);
+                var installedWhisper = WriteFile(whisperDir, $"ggml-{whisperType}.bin", old);
+                var installedParakeet = MakeFolder(parakeetDir, parakeetId, old);
+                var installedLlm = WriteFile(llmDir, llmFile, old);
+                // Same suffixes, but no download of this app writes these names (#1445).
                 var stranger = WriteFile(whisperDir, "notes.download", old);
-                var freshWhisper = WriteFile(whisperDir, "ggml-small.bin.download", cutoff.AddSeconds(1));
-                var freshParakeet = MakeFolder(parakeetDir, "parakeet-tdt.temp", cutoff.AddSeconds(1));
-                var lockedLlm = WriteFile(llmDir, "busy.gguf.download", old);
+                var strangerGgml = WriteFile(whisperDir, "ggml-my-finetune.bin.download", old);
+                var strangerFolder = MakeFolder(parakeetDir, "my-backup.temp", old);
+                var strangerLlm = WriteFile(llmDir, "my-own-model.gguf.download", old);
+                var freshWhisper = WriteFile(whisperDir, $"ggml-{freshWhisperType}.bin.download", cutoff.AddSeconds(1));
+                var freshParakeet = MakeFolder(parakeetDir, $"{freshParakeetId}.temp", cutoff.AddSeconds(1));
+                var lockedLlm = WriteFile(llmDir, $"{lockedLlmFile}.download", old);
 
                 // A running download holds its partial like this (File.Create).
                 using (new FileStream(lockedLlm, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
@@ -10740,6 +10753,9 @@ internal static class Program
                 Assert(Directory.Exists(installedParakeet), "the sweep deleted an installed Parakeet model");
                 Assert(File.Exists(installedLlm), "the sweep deleted an installed local LLM");
                 Assert(File.Exists(stranger), "the sweep deleted a Models file no download writes");
+                Assert(File.Exists(strangerGgml), "the sweep deleted a ggml-*.bin.download no catalog model writes");
+                Assert(Directory.Exists(strangerFolder), "the sweep deleted a Parakeet *.temp folder no catalog model writes");
+                Assert(File.Exists(strangerLlm), "the sweep deleted an LLM *.download no catalog model writes");
                 Assert(File.Exists(freshWhisper), "the sweep deleted a Whisper download started after its cutoff");
                 Assert(Directory.Exists(freshParakeet), "the sweep deleted a Parakeet download started after its cutoff");
                 Assert(File.Exists(lockedLlm), "the sweep deleted a partial a running download holds");
