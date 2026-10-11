@@ -1792,6 +1792,140 @@ internal static class Program
                 }
             });
 
+            // #1544: a mode write re-selects the current mode, and when that mode is not
+            // Parakeet the view model unloads the daemon. With a Local API job on it, that
+            // unload must return at once and leave the job and the daemon alone; once the
+            // daemon is idle it unloads as before.
+            RunAsync("Parakeet housekeeping unload leaves a busy daemon alone and does not wait (#1544)", async () =>
+            {
+                var dir = Path.Combine(tempRoot, "parakeet-1544-idle-unload");
+                var audio = WriteSilentParakeetWav(dir, seconds: 60);
+                var service = new ParakeetTranscriptionService();
+                using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out var daemonStdout);
+                var daemonPid = daemon.Id;
+                try
+                {
+                    var job = service.TranscribeAsync(audio);   // the Local API's job, in flight
+                    await Task.Delay(200);
+
+                    var clock = Stopwatch.StartNew();
+                    var disposed = await Task.Run(() => service.TryDisposeModelIfIdle()).WaitAsync(TimeSpan.FromSeconds(5));
+                    Assert(!disposed, "the housekeeping unload stopped a daemon with a job on it (#1544)");
+                    Assert(clock.Elapsed < TimeSpan.FromSeconds(1), $"the housekeeping unload waited {clock.Elapsed.TotalSeconds:F1}s for the job (#1544)");
+                    Assert(service.IsAvailable, "the housekeeping unload marked a busy daemon unavailable");
+
+                    // A lease (Local API between its reload and its transcription) counts too.
+                    using (var lease = await service.ReloadWhenIdleAsync("fake-parakeet", Path.Combine(dir, "no-such-model"), null, CancellationToken.None)
+                            .WaitAsync(TimeSpan.FromSeconds(5)))
+                    {
+                        await daemonStdout.WriteLineAsync("{\"text\":\"one\",\"duration_ms\":1}");
+                        Assert(await job.WaitAsync(TimeSpan.FromSeconds(10)) == "one", "the job lost its result to the housekeeping unload");
+                        Assert(!service.TryDisposeModelIfIdle(), "the housekeeping unload ignored a held lease");
+                    }
+
+                    Assert(PendingParakeetRequests(service) == 0, "a request or lease was left counted in");
+
+                    // The deferred half: once the job and the lease have left, the daemon the
+                    // housekeeping unload kept is unloaded with no further mode write.
+                    var drained = Stopwatch.StartNew();
+                    while (service.IsInitialized && drained.Elapsed < TimeSpan.FromSeconds(10))
+                    {
+                        await Task.Delay(50);
+                    }
+
+                    Assert(!service.IsInitialized, "the daemon kept by the housekeeping unload stayed loaded after the job and lease drained (#1544)");
+                    Assert(FakeParakeetDaemonExited(daemonPid), "the deferred unload did not stop the daemon");
+                }
+                finally
+                {
+                    StopFakeParakeetDaemon(service, daemon);
+                }
+            });
+
+            // #1544 review: the deferred unload asks the app again when the job ends. The
+            // user may have switched back to a Parakeet mode meanwhile; that daemon stays.
+            RunAsync("Parakeet deferred unload keeps the daemon when the selected mode uses it again (#1544)", async () =>
+            {
+                var dir = Path.Combine(tempRoot, "parakeet-1544-deferred-recheck");
+                var audio = WriteSilentParakeetWav(dir, seconds: 60);
+                var service = new ParakeetTranscriptionService();
+                using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out var daemonStdout);
+                var daemonPid = daemon.Id;
+                try
+                {
+                    var stillWanted = true;
+                    var asked = 0;
+                    var job = service.TranscribeAsync(audio);
+                    await Task.Delay(200);
+
+                    Assert(!service.TryDisposeModelIfIdle(() => { Interlocked.Increment(ref asked); return Volatile.Read(ref stillWanted); }),
+                        "the housekeeping unload stopped a daemon with a job on it (#1544)");
+
+                    Volatile.Write(ref stillWanted, false);   // the user switched back to a Parakeet mode
+                    await daemonStdout.WriteLineAsync("{\"text\":\"one\",\"duration_ms\":1}");
+                    Assert(await job.WaitAsync(TimeSpan.FromSeconds(10)) == "one", "the job lost its result");
+
+                    var drained = Stopwatch.StartNew();
+                    while (Volatile.Read(ref asked) == 0 && drained.Elapsed < TimeSpan.FromSeconds(10))
+                    {
+                        await Task.Delay(50);
+                    }
+
+                    await Task.Delay(300);
+                    Assert(Volatile.Read(ref asked) == 1, $"the deferred unload asked the app {asked} time(s), expected 1");
+                    Assert(service.IsInitialized, "the deferred unload stopped a daemon the selected mode uses again (#1544)");
+                    Assert(!FakeParakeetDaemonExited(daemonPid), "the deferred unload killed the daemon process");
+                }
+                finally
+                {
+                    StopFakeParakeetDaemon(service, daemon);
+                }
+            });
+
+            // #1544 review round 2: a caller-cancel drain holds the transcription lock with
+            // nobody counted in. A mode write in that window must still unload the daemon
+            // once the lock is free, not drop the unload for good.
+            RunAsync("Parakeet housekeeping unload during a lock held with nobody counted in runs once the lock is free (#1544)", async () =>
+            {
+                var service = new ParakeetTranscriptionService();
+                using var daemon = AttachFakeParakeetDaemon(service, "fake-parakeet", out _);
+                var daemonPid = daemon.Id;
+                var transcriptionLock = ParakeetTranscriptionLock(service);
+                var released = false;
+                try
+                {
+                    await transcriptionLock.WaitAsync();   // stands in for the drain's lock
+                    Assert(PendingParakeetRequests(service) == 0, "the test expected nobody counted in");
+
+                    var clock = Stopwatch.StartNew();
+                    Assert(!service.TryDisposeModelIfIdle(() => true), "the housekeeping unload took a lock it does not hold");
+                    Assert(clock.Elapsed < TimeSpan.FromSeconds(1), $"the housekeeping unload waited {clock.Elapsed.TotalSeconds:F1}s for the lock (#1544)");
+                    await Task.Delay(300);
+                    Assert(service.IsInitialized, "the deferred unload ran while the lock was held");
+
+                    transcriptionLock.Release();
+                    released = true;
+
+                    var drained = Stopwatch.StartNew();
+                    while (service.IsInitialized && drained.Elapsed < TimeSpan.FromSeconds(10))
+                    {
+                        await Task.Delay(50);
+                    }
+
+                    Assert(!service.IsInitialized, "the unload asked for while the lock was held never ran (#1544)");
+                    Assert(FakeParakeetDaemonExited(daemonPid), "the deferred unload did not stop the daemon");
+                }
+                finally
+                {
+                    if (!released)
+                    {
+                        transcriptionLock.Release();
+                    }
+
+                    StopFakeParakeetDaemon(service, daemon);
+                }
+            });
+
             // #1608 review: an idle reload holds the lock through the old daemon's exit and
             // the new one's READY wait. A GUI DisposeModel / InitializeAsync (the user's own
             // mode switch, on the UI thread) must cancel it at once instead of blocking for
@@ -14290,6 +14424,40 @@ internal static class Program
                     $"an explicit localParakeetModel must win, got \"{explicitParakeet.LocalParakeetModel}\"");
             });
 
+            Run("Local API providerType (#1548): local/cloud in any casing, everything else refused; odd stored values read as on-device", () =>
+            {
+                // Accepted values fold to lowercase; an absent key stays absent.
+                foreach (var (raw, want) in new (string?, string?)[]
+                {
+                    (null, null), ("local", "local"), ("Local", "local"), ("LOCAL", "local"),
+                    ("cloud", "cloud"), ("Cloud", "cloud"), ("cLoUd", "cloud"),
+                })
+                {
+                    Assert(ModesEndpoints.TryNormalizeProviderType(raw, out var got) && got == want,
+                        $"providerType \"{raw}\" must be accepted as \"{want}\", got \"{got}\"");
+                }
+                // Every other value is refused with INVALID_REQUEST.
+                foreach (var raw in new[] { "zzz", "on-device", "", " local", "cloud ", "ondevice", "hwcloud" })
+                {
+                    Assert(!ModesEndpoints.TryNormalizeProviderType(raw, out _),
+                        $"providerType \"{raw}\" must be refused");
+                }
+
+                // A row stored before the rule runs on-device in the orchestrator,
+                // so every reader agrees: not Cloud, and GET /modes reports its model.
+                foreach (var stored in new[] { "zzz", "Cloud", "on-device" })
+                {
+                    var odd = new Mode { ProviderType = stored, LocalEngine = "whisper", ModelType = "base", Model = "base" };
+                    Assert(!LocalModeModel.IsCloud(odd), $"stored \"{stored}\" must read as on-device");
+                    Assert(!TranscriptionProviderFactory.IsHyperWhisperCloudActive(odd),
+                        $"stored \"{stored}\" must not pre-warm HyperWhisper Cloud");
+                    Assert(TranscribeEndpoints.ModelLabel(odd) == "base",
+                        $"/transcribe must report base for stored \"{stored}\", got \"{TranscribeEndpoints.ModelLabel(odd)}\"");
+                    Assert(ModesEndpoints.ToDto(odd).Model == "base",
+                        $"GET /modes must report base for stored \"{stored}\", got \"{ModesEndpoints.ToDto(odd).Model}\"");
+                }
+            });
+
             Run("Local API Cloud mode with no cloudProvider (#1521): runs and shows as HyperWhisper Cloud", () =>
             {
                 // The parse itself. Blank means HyperWhisper Cloud, as macOS
@@ -20549,6 +20717,11 @@ internal static class Program
     }
 
     /// <summary>The service's count of pending requests and leases (#1608 tests).</summary>
+    private static SemaphoreSlim ParakeetTranscriptionLock(ParakeetTranscriptionService service) =>
+        (SemaphoreSlim)(typeof(ParakeetTranscriptionService).GetField("_transcriptionLock", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("ParakeetTranscriptionService._transcriptionLock is gone; update this test"))
+        .GetValue(service)!;
+
     private static int PendingParakeetRequests(ParakeetTranscriptionService service) =>
         (int)(typeof(ParakeetTranscriptionService).GetField("_pendingRequests", BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("ParakeetTranscriptionService._pendingRequests is gone; update this test"))

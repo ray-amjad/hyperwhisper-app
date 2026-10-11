@@ -15,7 +15,43 @@ using HyperWhisper.PortableApplication.ViewModels;
 // reaches this StopAsync through LinuxInteractionCoordinator.StopCoreAsync.
 static class RecordingStatusAfterStopTests
 {
-    public static async Task BatchStopLeavesReady()
+    public static Task BatchStopLeavesReady() => RunAsync(new FakeTextInjection(), async (shell, session, overlay) =>
+    {
+        var started = await session.StartAsync(InteractionRecordingKind.Batch);
+        Check(started.IsSuccess, $"the batch recording did not start: {started.Error?.Code} {started.Error?.Message}");
+        Check(shell.Status.Message == "Recording…", $"start wrote '{shell.Status.Message}', not 'Recording…'");
+
+        var stopped = await session.StopAsync();
+        Check(stopped.Result.IsSuccess, $"the batch stop failed: {stopped.Result.Error?.Code} {stopped.Result.Error?.Message}");
+        Check(overlay.Completed, "the overlay never showed the completed dictation");
+        Check(shell.Status.Message == "Ready" && !shell.Status.HasError,
+            $"after a completed dictation the status bar read '{shell.Status.Message}', not 'Ready' (#958)");
+
+        // A cancel that follows a second start keeps its own line, and is not reset to Ready.
+        Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the second start failed");
+        await session.CancelAsync();
+        Check(shell.Status.Message == "Recording cancelled",
+            $"a cancel read '{shell.Status.Message}', not 'Recording cancelled'");
+    });
+
+    // Issue #1703: a transcript whose paste and clipboard write both failed showed "Copied!" on the overlay.
+    public static Task FailedCopyShowsCopyFailed() => RunAsync(new FailingTextInjection(), async (_, session, overlay) =>
+    {
+        Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the batch recording did not start");
+        var stopped = await session.StopAsync();
+        Check(stopped.Result.IsSuccess, $"the batch stop failed: {stopped.Result.Error?.Code} {stopped.Result.Error?.Message}");
+        Check(overlay.Completion == LinuxRecordingOverlayCompletion.CopyFailed,
+            $"a failed clipboard write showed {overlay.Completion?.ToString() ?? "nothing"} on the overlay, not CopyFailed (#1703)");
+
+        Check(LinuxInteractionRecordingSession.MapCompletion(TextInjectionOutcome.Failed) == LinuxRecordingOverlayCompletion.CopyFailed
+            && LinuxInteractionRecordingSession.MapCompletion(TextInjectionOutcome.CopiedToClipboard) == LinuxRecordingOverlayCompletion.Copied
+            && LinuxInteractionRecordingSession.MapCompletion(TextInjectionOutcome.Pasted) == LinuxRecordingOverlayCompletion.Pasted
+            && LinuxInteractionRecordingSession.MapCompletion(TextInjectionOutcome.SecureFieldSkipped) == LinuxRecordingOverlayCompletion.SecureField,
+            "the overlay completion mapping changed");
+    });
+
+    private static async Task RunAsync(ITextInjectionService textInjection,
+        Func<ApplicationShellViewModel, LinuxInteractionRecordingSession, StatusTestOverlay, Task> body)
     {
         var root = Path.Combine(Path.GetTempPath(), $"hw-958-status-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
@@ -34,7 +70,7 @@ static class RecordingStatusAfterStopTests
             using var recorder = new StatusTestRecorder(root);
             using var devices = new StatusTestDevices();
             using var workflow = new TranscriptionWorkflow(
-                recorder, devices, new StatusTestTranscriber(), history, textInjection: new FakeTextInjection());
+                recorder, devices, new StatusTestTranscriber(), history, textInjection: textInjection);
             var settings = new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json"));
             using var shell = new ApplicationShellViewModel(database, settings, workflow, paths: paths);
             await shell.InitializeAsync();
@@ -46,22 +82,7 @@ static class RecordingStatusAfterStopTests
                 shell, workflow, services,
                 new LinuxContextCaptureCoordinator(new FakeContextProvider(), new FakeOcr()),
                 new CapturingPostProcessor(), history, overlay);
-
-            var started = await session.StartAsync(InteractionRecordingKind.Batch);
-            Check(started.IsSuccess, $"the batch recording did not start: {started.Error?.Code} {started.Error?.Message}");
-            Check(shell.Status.Message == "Recording…", $"start wrote '{shell.Status.Message}', not 'Recording…'");
-
-            var stopped = await session.StopAsync();
-            Check(stopped.Result.IsSuccess, $"the batch stop failed: {stopped.Result.Error?.Code} {stopped.Result.Error?.Message}");
-            Check(overlay.Completed, "the overlay never showed the completed dictation");
-            Check(shell.Status.Message == "Ready" && !shell.Status.HasError,
-                $"after a completed dictation the status bar read '{shell.Status.Message}', not 'Ready' (#958)");
-
-            // A cancel that follows a second start keeps its own line, and is not reset to Ready.
-            Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the second start failed");
-            await session.CancelAsync();
-            Check(shell.Status.Message == "Recording cancelled",
-                $"a cancel read '{shell.Status.Message}', not 'Recording cancelled'");
+            await body(shell, session, overlay);
         }
         finally
         {
@@ -125,17 +146,36 @@ sealed class StatusTestTranscriber : IRecordedAudioTranscriber
 
 sealed class StatusTestOverlay : ILinuxRecordingOverlayFeedback
 {
-    public bool Completed { get; private set; }
+    public bool Completed => Completion is not null;
+    public LinuxRecordingOverlayCompletion? Completion { get; private set; }
     public void RecordingStarted(LinuxOverlayModeLabel mode) { }
     public void StreamingStarted(LinuxOverlayModeLabel mode) { }
     public void StreamingConnectionChanged(LinuxStreamingOverlayConnectionState state) { }
     public void AudioLevelChanged(float level) { }
     public void Transcribing() { }
-    void ILinuxRecordingOverlayFeedback.Completed(LinuxRecordingOverlayCompletion completion) => Completed = true;
+    void ILinuxRecordingOverlayFeedback.Completed(LinuxRecordingOverlayCompletion completion) => Completion = completion;
     public void CancelConfirmationRequested() { }
     public void CancelConfirmationDismissed() { }
     public void Cancelled() { }
     public void Failed(LinuxRecordingOverlayError error) { }
     public void ModeChanged(LinuxOverlayModeLabel mode) { }
+    public void Dispose() { }
+}
+
+/// <summary>The clipboard helper is missing or times out: neither the paste nor the copy lands.</summary>
+sealed class FailingTextInjection : ITextInjectionService
+{
+    public bool IsCapturedTargetAvailable => true;
+    public void CaptureTarget() { }
+    public void StartSession() { }
+    public void EndSession() { }
+    public void CancelPendingClipboardRestore() { }
+    public void ScheduleClipboardRestore(TimeSpan delay) { }
+    public ValueTask<PlatformResult> RestoreClipboardImmediatelyAsync(CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(PlatformResult.Success());
+    public ValueTask<PlatformResult> CopyToClipboardAsync(string text, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(PlatformResult.Failure("clipboard.write_failed", "The clipboard helper failed."));
+    public ValueTask<TextInjectionOutcome> InjectTranscriptAsync(string text, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(TextInjectionOutcome.Failed);
     public void Dispose() { }
 }

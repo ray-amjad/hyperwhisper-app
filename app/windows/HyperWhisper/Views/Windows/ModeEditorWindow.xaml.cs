@@ -128,13 +128,13 @@ public partial class ModeEditorWindow : Window
             SourceOnDeviceSegment.Visibility = Visibility.Collapsed;
 
             // If the current mode uses an unavailable local engine, switch to cloud.
-            if (_mode.ProviderType == "local" && !IsLocalEngineSupported(_mode.LocalEngine))
+            if (!LocalModeModel.IsCloud(_mode) && !IsLocalEngineSupported(_mode.LocalEngine))
             {
                 LocalModeModel.ApplyCloud(_mode);
                 _mode.CloudProvider = "hyperwhisper"; // Default to HyperWhisper Cloud (no API key needed)
             }
         }
-        else if (_mode.ProviderType == "local" && !IsLocalEngineSupported(_mode.LocalEngine))
+        else if (!LocalModeModel.IsCloud(_mode) && !IsLocalEngineSupported(_mode.LocalEngine))
         {
             LocalModeModel.ApplyCloud(_mode);
             _mode.CloudProvider = "hyperwhisper";
@@ -1439,7 +1439,7 @@ public partial class ModeEditorWindow : Window
 
     private void UserPromptBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        UserPromptCharCount.Text = $"{UserPromptBox.Text.Length}/2000";
+        UserPromptCharCount.Text = $"{UserPromptBox.Text.Length}/8000";
     }
 
     private void GeminiCustomPromptBox_TextChanged(object sender, TextChangedEventArgs e)

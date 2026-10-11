@@ -84,6 +84,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("streaming language picker offers the selected provider's catalog set", StreamingLanguagePickerFollowsProvider),
     ("a real Avalonia ComboBox shows Automatic after a provider or tier change resets the language", StreamingLanguageComboShowsResetToAutomatic),
     ("a finished batch dictation leaves the status bar reading Ready (#958)", RecordingStatusAfterStopTests.BatchStopLeavesReady),
+    ("a failed clipboard write shows Copy failed on the overlay, not Copied! (#1703)", RecordingStatusAfterStopTests.FailedCopyShowsCopyFailed),
     ("the mode editor's local model combo shows the engine's model after an engine change (#1629)", ModeEditorEngineSwitchRenderTests.RunAsync),
 };
 

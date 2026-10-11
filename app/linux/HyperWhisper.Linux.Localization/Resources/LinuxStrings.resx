@@ -333,6 +333,7 @@
   <data name="linux.overlay.error.no_speech" xml:space="preserve"><value>No speech detected</value></data>
   <data name="linux.overlay.error.provider" xml:space="preserve"><value>Speech provider unavailable</value></data>
   <data name="linux.overlay.error.permission" xml:space="preserve"><value>Permission required</value></data>
+  <data name="linux.overlay.error.copy" xml:space="preserve"><value>Copy failed</value></data>
   <data name="linux.overlay.error.unknown" xml:space="preserve"><value>Something went wrong</value></data>
   <data name="linux.overlay.mode_changed" xml:space="preserve"><value>Mode changed</value></data>
   <data name="linux.overlay.secure_field" xml:space="preserve"><value>Copied — secure field protected</value></data>
