@@ -608,13 +608,10 @@ enum SentryService {
         // Attach recent sanitized logs for debugging context.
         // Logs are fetched from os.log and sanitized to remove PII before sending.
         // The beforeSend hook provides additional sanitization as a safety net.
-        // Off the main thread this is synchronous; on it, see `withRecentLogs`.
-        withRecentLogs(includeRecentLogs) { recentLogs, deferredFromMainThread in
-            if let recentLogs {
-                event.extra?["recent_logs"] = recentLogs
-            }
-            if deferredFromMainThread {
-                event.extra?["captured_from_main_thread"] = true
+        // Never fetched on the main thread; see `withRecentLogs`.
+        withRecentLogs(includeRecentLogs) { recentLogExtras in
+            for (k, v) in recentLogExtras {
+                event.extra?[k] = v
             }
             SentrySDK.capture(event: event)
         }
@@ -814,12 +811,9 @@ enum SentryService {
             event.extra?[k] = v
         }
 
-        withRecentLogs(includeRecentLogs) { recentLogs, deferredFromMainThread in
-            if let recentLogs {
-                event.extra?["recent_logs"] = recentLogs
-            }
-            if deferredFromMainThread {
-                event.extra?["captured_from_main_thread"] = true
+        withRecentLogs(includeRecentLogs) { recentLogExtras in
+            for (k, v) in recentLogExtras {
+                event.extra?[k] = v
             }
             SentrySDK.capture(event: event)
         }
@@ -828,35 +822,36 @@ enum SentryService {
 
     // MARK: - Recent logs, never on the main thread
 
-    /// Where the `log show` fetch for an Event runs (#991).
+    /// The recent-log extras for an Event, handed to `send` (#991).
+    ///
+    /// `send` always runs inline, on the CALLER's thread, before this returns,
+    /// so `SentrySDK.capture` inside it keeps the call site's stack.
     ///
     /// The fetch shells out to `log show` and blocks until it exits, which can
-    /// take seconds on a busy log. Off the main thread it runs inline, so the
-    /// event is sent before the capture call returns, as it always was. On the
-    /// main thread it hops to a utility queue and the capture goes out from
-    /// there, so error reporting can never park the UI. The cost of the hop:
-    /// the event's stack is the utility queue's, not the call site's, so the
-    /// event carries `captured_from_main_thread` to say where it came from.
-    /// Grouping is unaffected; every call site groups by message or fingerprint.
+    /// take seconds on a busy log. Off the main thread it runs inline, as it
+    /// always did, and `send` gets `recent_logs`. On the main thread it never
+    /// runs, so error reporting cannot park the UI: `send` gets
+    /// `recent_logs_skipped = "main_thread"` instead, so the gap is visible on
+    /// the event.
     ///
-    /// With `include` false nothing is fetched and `send` runs inline.
+    /// With `include` false nothing is fetched and `send` gets no extras.
     static func withRecentLogs(
         _ include: Bool,
-        isMainThread: Bool = Thread.isMainThread,
-        fetch: @escaping () -> String? = { AppLogger.getRecentLogs(minutes: 5, maxLines: 100) },
-        background: (@escaping () -> Void) -> Void = { DispatchQueue.global(qos: .utility).async(execute: $0) },
-        send: @escaping (_ recentLogs: String?, _ deferredFromMainThread: Bool) -> Void
+        fetch: () -> String? = { AppLogger.getRecentLogs(minutes: 5, maxLines: 100) },
+        send: (_ recentLogExtras: [String: Any]) -> Void
     ) {
         guard include else {
-            send(nil, false)
+            send([:])
             return
         }
-        guard isMainThread else {
-            send(fetch(), false)
+        guard !Thread.isMainThread else {
+            send(["recent_logs_skipped": "main_thread"])
             return
         }
-        background {
-            send(fetch(), true)
+        if let recentLogs = fetch() {
+            send(["recent_logs": recentLogs])
+        } else {
+            send([:])
         }
     }
 
