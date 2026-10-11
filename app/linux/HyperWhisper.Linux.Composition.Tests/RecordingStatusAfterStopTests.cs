@@ -35,13 +35,16 @@ static class RecordingStatusAfterStopTests
     });
 
     // Issue #1703: a transcript whose paste and clipboard write both failed showed "Copied!" on the overlay.
-    public static Task FailedCopyShowsCopyFailed() => RunAsync(new FailingTextInjection(), async (_, session, overlay) =>
+    public static Task FailedCopyShowsCopyFailed() => RunAsync(new FailingTextInjection(), async (shell, session, overlay) =>
     {
         Check((await session.StartAsync(InteractionRecordingKind.Batch)).IsSuccess, "the batch recording did not start");
         var stopped = await session.StopAsync();
         Check(stopped.Result.IsSuccess, $"the batch stop failed: {stopped.Result.Error?.Code} {stopped.Result.Error?.Message}");
         Check(overlay.Completion == LinuxRecordingOverlayCompletion.CopyFailed,
             $"a failed clipboard write showed {overlay.Completion?.ToString() ?? "nothing"} on the overlay, not CopyFailed (#1703)");
+        // Issue #1402: the status bar read "Ready" with no word about the failed paste.
+        Check(shell.Status.Message == LinuxInteractionRecordingSession.BatchInjectionFailedStatus,
+            $"after a batch dictation whose paste failed the status bar read '{shell.Status.Message}', not the paste-failed line (#1402)");
 
         Check(LinuxInteractionRecordingSession.MapCompletion(TextInjectionOutcome.Failed) == LinuxRecordingOverlayCompletion.CopyFailed
             && LinuxInteractionRecordingSession.MapCompletion(TextInjectionOutcome.CopiedToClipboard) == LinuxRecordingOverlayCompletion.Copied

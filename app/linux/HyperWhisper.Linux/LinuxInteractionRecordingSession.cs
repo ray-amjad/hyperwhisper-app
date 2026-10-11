@@ -51,6 +51,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private const string RecordingStatus = "Recording…";
     private const string LiveRecordingStatus = "Live transcription recording…";
     private const string LiveReceivingStatus = "Live transcription receiving speech…";
+    internal const string BatchInjectionFailedStatus = "Transcription saved, but text injection failed";
 
     public LinuxInteractionRecordingSession(
         ApplicationShellViewModel viewModel,
@@ -279,7 +280,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
                     status, result.InjectionOutcome, _viewModel.Settings.RestoreClipboardAfterPaste);
                 _lastInjectionOutcome = result.InjectionOutcome;
                 if (result.IsSuccess && result.InjectionOutcome is { } injectionOutcome)
+                {
+                    // #1402: the live path names a failed paste in the status bar; the batch path said nothing.
+                    if (injectionOutcome == TextInjectionOutcome.Failed)
+                        _viewModel.Status.Success(BatchInjectionFailedStatus);
                     await ReportInjectionAsync(injectionOutcome);
+                }
             }
             if (outcome.Result.IsSuccess)
             {
