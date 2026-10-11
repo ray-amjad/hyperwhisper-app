@@ -664,8 +664,12 @@ struct MenuBarIconView: View {
         // or not the server is on, since an earlier run may have left them.
         // Off the main actor; it never removes this process's own folders,
         // so it cannot race a request the server below starts meanwhile.
+        // CLOUD TEMP AUDIO SWEEP (issue #1581): the same rule for the temp
+        // copies of the user's audio a cloud request writes (multipart and
+        // base64 bodies, re-encoded and Dictation WAVs).
         Task.detached(priority: .utility) {
             LocalAPIStagingSweep.sweep()
+            CloudTempAudioSweep.sweep()
         }
 
         // LOCAL API SERVER: wire dependencies, then start the server if the

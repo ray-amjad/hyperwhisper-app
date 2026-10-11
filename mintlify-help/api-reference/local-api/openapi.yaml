@@ -454,7 +454,7 @@ components:
         capitalization: { type: boolean }
         profanityFilter: { type: boolean }
         customInstructions: { type: string, nullable: true }
-        userSystemPrompt: { type: string, nullable: true, maxLength: 2000 }
+        userSystemPrompt: { type: string, nullable: true, maxLength: 8000 }
         isDefault: { type: boolean, nullable: true }
         isSystemProvided: { type: boolean, nullable: true }
         sortOrder:
@@ -528,7 +528,7 @@ components:
           maxItems: 1000
           items: { type: string, maxLength: 200 }
           description: "Windows only. macOS ignores this key and never returns it."
-        providerType: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it." }
+        providerType: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it. Windows accepts `local` or `cloud` in any casing, stores it lowercase, and refuses any other value with INVALID_REQUEST. A mode written before that rule may still return another value; Windows runs it on-device." }
 
     ModePatch:
       description: >-
@@ -567,7 +567,7 @@ components:
         capitalization: { type: boolean }
         profanityFilter: { type: boolean }
         customInstructions: { type: string, nullable: true }
-        userSystemPrompt: { type: string, nullable: true, maxLength: 2000 }
+        userSystemPrompt: { type: string, nullable: true, maxLength: 8000 }
         isDefault: { type: boolean, nullable: true }
         sortOrder:
           type: integer
@@ -621,7 +621,7 @@ components:
           maxItems: 1000
           items: { type: string, maxLength: 200 }
           description: "Windows only. macOS ignores this key."
-        providerType: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
+        providerType: { type: string, nullable: true, description: "Windows only. macOS ignores this key. Windows accepts `local` or `cloud` in any casing, stores it lowercase, and refuses any other value with INVALID_REQUEST. A mode written before that rule may still return another value; Windows runs it on-device." }
 
     ModeResponse:
       type: object

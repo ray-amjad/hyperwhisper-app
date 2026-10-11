@@ -2572,7 +2572,7 @@ class PersistenceController: ObservableObject {
         if trimmedUserPrompt.isEmpty {
             mode?.userSystemPrompt = nil
         } else {
-            mode?.userSystemPrompt = String(trimmedUserPrompt.prefix(2000))
+            mode?.userSystemPrompt = String(trimmedUserPrompt.prefix(userSystemPromptCharacterLimit))
         }
 
         let modeEnum = PostProcessingMode(rawValue: postProcessingMode) ?? .cloud

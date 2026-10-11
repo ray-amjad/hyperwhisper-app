@@ -84,7 +84,13 @@ enum LocalAPIStagingSweep {
     /// `directoryName` and the pre-#1484 builds produced is `.notOurs`.
     static func owner(ofEntryNamed name: String) -> Owner {
         guard name.hasPrefix(prefix) else { return .notOurs }
-        let rest = String(name.dropFirst(prefix.count))
+        return owner(ofTag: String(name.dropFirst(prefix.count)))
+    }
+
+    /// Parses the tag a name carries between its fixed prefix and suffix:
+    /// `<pid>-<UUID>` is `.process(pid)`, a bare `<UUID>` is `.legacy`, and
+    /// anything else is `.notOurs`. Shared with `CloudTempAudioSweep` (#1581).
+    static func owner(ofTag rest: String) -> Owner {
         if isCanonicalUUID(rest) {
             return .legacy
         }
@@ -185,6 +191,38 @@ enum LocalAPIStagingSweep {
         anotherCopyIsRunning: () -> Bool = LocalAPIStagingSweep.anotherCopyIsRunning,
         fileManager: FileManager = .default
     ) -> [URL] {
+        removeStaleEntries(
+            in: directory,
+            ofType: .typeDirectory,
+            ownerOf: owner(ofEntryNamed:),
+            label: "LocalAPI staging sweep",
+            now: now,
+            currentPID: currentPID,
+            currentUID: currentUID,
+            isProcessAlive: isProcessAlive,
+            processStartTime: processStartTime,
+            anotherCopyIsRunning: anotherCopyIsRunning,
+            fileManager: fileManager
+        )
+    }
+
+    /// The sweep loop, shared with `CloudTempAudioSweep` (#1581). Removes each
+    /// entry directly inside `directory` whose name `ownerOf` claims, whose
+    /// type (by lstat, so never a symlink) is exactly `type`, that this user
+    /// owns, and that `shouldRemove` calls stale.
+    static func removeStaleEntries(
+        in directory: URL,
+        ofType type: FileAttributeType,
+        ownerOf: (String) -> Owner,
+        label: String,
+        now: Date,
+        currentPID: pid_t,
+        currentUID: uid_t,
+        isProcessAlive: (pid_t) -> Bool,
+        processStartTime: (pid_t) -> Date?,
+        anotherCopyIsRunning: () -> Bool,
+        fileManager: FileManager
+    ) -> [URL] {
         let names: [String]
         do {
             names = try fileManager.contentsOfDirectory(atPath: directory.path)
@@ -192,7 +230,7 @@ enum LocalAPIStagingSweep {
             return []
         }
 
-        // Asked at most once per sweep, and only if a pre-#1484 folder exists.
+        // Asked at most once per sweep, and only if a pre-fix entry exists.
         var anotherCopy: Bool?
         func anotherCopyOnce() -> Bool {
             if let anotherCopy { return anotherCopy }
@@ -203,14 +241,14 @@ enum LocalAPIStagingSweep {
 
         var removed: [URL] = []
         for name in names {
-            let entryOwner = Self.owner(ofEntryNamed: name)
+            let entryOwner = ownerOf(name)
             guard entryOwner != .notOurs else { continue }
 
-            let entry = directory.appendingPathComponent(name, isDirectory: true)
+            let entry = directory.appendingPathComponent(name, isDirectory: type == .typeDirectory)
             // `attributesOfItem` is an lstat: a symlink reports
             // `.typeSymbolicLink`, never its target's type.
             guard let attributes = try? fileManager.attributesOfItem(atPath: entry.path),
-                  (attributes[.type] as? FileAttributeType) == .typeDirectory
+                  (attributes[.type] as? FileAttributeType) == type
             else { continue }
             if let ownerID = (attributes[.ownerAccountID] as? NSNumber)?.uint32Value,
                ownerID != currentUID {
@@ -231,12 +269,12 @@ enum LocalAPIStagingSweep {
                 try fileManager.removeItem(at: entry)
                 removed.append(entry)
             } catch {
-                AppLogger.settings.error("LocalAPI staging sweep: could not remove a stale folder · \(error.localizedDescription, privacy: .public)")
+                AppLogger.settings.error("\(label, privacy: .public): could not remove a stale entry · \(error.localizedDescription, privacy: .public)")
             }
         }
 
         if !removed.isEmpty {
-            AppLogger.settings.info("LocalAPI staging sweep: removed \(removed.count, privacy: .public) stale request folder(s)")
+            AppLogger.settings.info("\(label, privacy: .public): removed \(removed.count, privacy: .public) stale entr(ies)")
         }
         return removed
     }

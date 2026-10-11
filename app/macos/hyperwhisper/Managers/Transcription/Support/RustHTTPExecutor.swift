@@ -87,9 +87,9 @@ enum RustHTTPExecutor {
                 //
                 // Reserve the temp URL and register cleanup BEFORE writing, so a
                 // mid-write throw (e.g. a missing fileRef.path) does not leak the
-                // partial temp file.
-                let bodyFileURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("hw-multipart-\(UUID().uuidString).tmp")
+                // partial temp file. The name carries this pid so a launch
+                // after a crash sweeps it (issue #1581).
+                let bodyFileURL = CloudTempAudioSweep.temporaryURL(.multipartBody)
                 defer { try? FileManager.default.removeItem(at: bodyFileURL) }
                 try writeMultipartBody(to: bodyFileURL, boundary: boundary, parts: parts)
                 urlRequest.setValue(
@@ -107,8 +107,7 @@ enum RustHTTPExecutor {
             // multipart path: reserve the URL and register cleanup BEFORE
             // writing, and encode in chunks so a 14 MB file is never held twice
             // in memory. Content-Type is applied in `buildURLRequest`.
-            let bodyFileURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("hw-jsonb64-\(UUID().uuidString).tmp")
+            let bodyFileURL = CloudTempAudioSweep.temporaryURL(.jsonBase64Body)
             defer { try? FileManager.default.removeItem(at: bodyFileURL) }
             try writeJSONWithBase64Body(to: bodyFileURL, prefix: prefix, path: path, suffix: suffix)
             (data, response) = try await session.upload(for: urlRequest, fromFile: bodyFileURL)

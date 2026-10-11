@@ -301,6 +301,26 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     /// </summary>
     private int _pendingRequests;
 
+    /// <summary>
+    /// Set when <see cref="TryDisposeModelIfIdle"/> found the daemon busy, so the last
+    /// request or lease to leave unloads it (#1544). Cleared by a deliberate teardown or
+    /// mode switch. Guarded by <see cref="_drainSync"/>.
+    /// </summary>
+    private bool _unloadWhenDrained;
+
+    /// <summary>
+    /// Asked again when a deferred unload runs: does the app still not need the daemon?
+    /// The selected mode can change back to Parakeet while the job runs, and that daemon
+    /// must then stay. Null means "still not needed". Guarded by <see cref="_drainSync"/>.
+    /// </summary>
+    private Func<bool>? _unloadWhenDrainedStillWanted;
+
+    /// <summary>
+    /// Counts every arm of <see cref="_unloadWhenDrained"/>, so a deferred unload that decided
+    /// to keep the daemon does not clear an arm made after it asked. Guarded by <see cref="_drainSync"/>.
+    /// </summary>
+    private int _unloadArmCount;
+
     /// <summary>How often <see cref="ReloadWhenIdleAsync"/> re-checks a busy daemon.</summary>
     private static readonly TimeSpan IdleReloadPollInterval = TimeSpan.FromMilliseconds(100);
 
@@ -689,9 +709,134 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
 
     private void ExitRequest()
     {
+        bool unloadNow;
         lock (_drainSync)
         {
             _pendingRequests--;
+            unloadNow = _pendingRequests == 0 && _unloadWhenDrained;
+        }
+
+        if (unloadNow)
+        {
+            // Off this thread: the last caller out may still hold the transcription lock
+            // (TranscribeAsync), or be a lease disposed on the Local API request thread.
+            // ast-grep-ignore: no-discarded-task-run -- the last request or lease out may hold the transcription lock the unload needs, so it cannot run inline; UnloadWhenDrainedAsync catches and logs its own failures
+            _ = Task.Run(UnloadWhenDrainedAsync);
+        }
+    }
+
+    /// <summary>
+    /// A housekeeping unload found the daemon busy (#1544): unload it once the last request
+    /// or lease counted in has left. With nobody counted in, the lock holder is a caller-cancel
+    /// drain, a teardown or a mode switch; the unload then waits for that lock instead. A
+    /// deliberate teardown or switch clears the arm, and <paramref name="stillWanted"/> keeps
+    /// a daemon the selected mode uses again.
+    /// </summary>
+    private void ArmUnloadWhenDrained(Func<bool>? stillWanted)
+    {
+        bool waitForLock;
+        lock (_drainSync)
+        {
+            ArmUnloadWhenDrainedLocked(stillWanted);
+            waitForLock = _pendingRequests == 0;
+        }
+
+        if (waitForLock)
+        {
+            // ast-grep-ignore: no-discarded-task-run -- the caller is a mode write on the UI or Local API request thread, and the lock it could not take may be held for minutes; UnloadWhenDrainedAsync catches and logs its own failures
+            _ = Task.Run(UnloadWhenDrainedAsync);
+        }
+    }
+
+    /// <summary>Arms the deferred unload. The caller holds <see cref="_drainSync"/>.</summary>
+    private void ArmUnloadWhenDrainedLocked(Func<bool>? stillWanted)
+    {
+        _unloadWhenDrained = true;
+        _unloadWhenDrainedStillWanted = stillWanted;
+        _unloadArmCount++;
+    }
+
+    /// <summary>
+    /// The deferred half of <see cref="TryDisposeModelIfIdle"/>. Re-checked under the lock:
+    /// a request that counted in meanwhile keeps the daemon (and re-triggers this when it
+    /// leaves), and a deliberate DisposeModel / InitializeAsync in between cleared the flag.
+    /// </summary>
+    private async Task UnloadWhenDrainedAsync()
+    {
+        try
+        {
+            await _transcriptionLock.WaitAsync().ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+
+        try
+        {
+            Func<bool>? stillWanted;
+            int armCount;
+            lock (_drainSync)
+            {
+                if (!_unloadWhenDrained || _pendingRequests > 0)
+                {
+                    return;
+                }
+
+                if (!IsInitialized)
+                {
+                    // A teardown that held the lock already stopped the daemon.
+                    _unloadWhenDrained = false;
+                    _unloadWhenDrainedStillWanted = null;
+                    return;
+                }
+
+                stillWanted = _unloadWhenDrainedStillWanted;
+                armCount = _unloadArmCount;
+            }
+
+            // Outside _drainSync: the check reads app state, and must not run under a lock
+            // ExitRequest takes. The transcription lock held here keeps a new job off the
+            // daemon meanwhile, and the re-check below catches a request counted in since.
+            if (stillWanted != null && !stillWanted())
+            {
+                LoggingService.Info("ParakeetTranscriptionService: Keeping the daemon after its transcriptions finished; the selected mode uses it again");
+                lock (_drainSync)
+                {
+                    // A mode write that armed again while the app was asked has queued its own
+                    // unload, which waits for this lock and asks again.
+                    if (_unloadArmCount == armCount)
+                    {
+                        _unloadWhenDrained = false;
+                        _unloadWhenDrainedStillWanted = null;
+                    }
+                }
+                return;
+            }
+
+            lock (_drainSync)
+            {
+                if (!_unloadWhenDrained || _pendingRequests > 0)
+                {
+                    return;
+                }
+
+                _unloadWhenDrained = false;
+                _unloadWhenDrainedStillWanted = null;
+                Interlocked.Increment(ref _teardownGeneration);
+            }
+
+            LoggingService.Info("ParakeetTranscriptionService: Unloading the daemon now that the transcriptions using it have finished");
+            DisposeModelCore(advanceTeardownGeneration: false, transcriptionLockHeld: true);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"ParakeetTranscriptionService: Deferred daemon unload failed: {ex.Message}");
+        }
+        finally
+        {
+            try { _transcriptionLock.Release(); }
+            catch (ObjectDisposedException) { }
         }
     }
 
@@ -2044,6 +2189,58 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     /// </summary>
     public void DisposeModel() => DisposeModelCore(advanceTeardownGeneration: true);
 
+    /// <summary>
+    /// The housekeeping unload (#1544): stops the daemon only when nobody is using it,
+    /// and never waits for or cancels a job. <see cref="DisposeModel"/> is the user's own
+    /// teardown; this is for "the selected mode no longer needs Parakeet", which a mode
+    /// write by the Local API or the GUI re-runs while a Local API job may be on the
+    /// daemon. That caller must not block its thread for the job (seconds to minutes),
+    /// and must not end someone else's transcription to free memory.
+    /// <para>
+    /// The lock is tried without waiting and the pending count checked under
+    /// <see cref="_drainSync"/> in the same step as the generation advance, exactly as
+    /// <see cref="TryReserveIdleReload"/> does: a request or lease counted in before this
+    /// keeps the daemon; one counted in after belongs to the new generation, waits on the
+    /// lock, and finds the daemon gone (a lease-less request then auto-restarts it).
+    /// </para>
+    /// </summary>
+    /// <param name="stillWanted">
+    /// Asked again when a deferred unload runs, off the UI thread: true when the app still does
+    /// not need the daemon. Null unloads it whatever the app needs by then.
+    /// </param>
+    /// <returns>False when the daemon is busy: it is left running, and unloaded once the last request or lease on it has left, if <paramref name="stillWanted"/> still says so.</returns>
+    public bool TryDisposeModelIfIdle(Func<bool>? stillWanted = null)
+    {
+        if (!_transcriptionLock.Wait(0))
+        {
+            ArmUnloadWhenDrained(stillWanted);
+            return false;
+        }
+
+        try
+        {
+            lock (_drainSync)
+            {
+                if (_pendingRequests > 0)
+                {
+                    ArmUnloadWhenDrainedLocked(stillWanted);
+                    return false;
+                }
+
+                _unloadWhenDrained = false;
+                _unloadWhenDrainedStillWanted = null;
+                Interlocked.Increment(ref _teardownGeneration);
+            }
+
+            DisposeModelCore(advanceTeardownGeneration: false, transcriptionLockHeld: true);
+            return true;
+        }
+        finally
+        {
+            _transcriptionLock.Release();
+        }
+    }
+
     /// <param name="transcriptionLockHeld">
     /// The caller (<see cref="ReloadWhenIdleAsync"/>) already holds the lock with no request
     /// pending, so there is nothing to cancel or wait for, and the lock stays the caller's.
@@ -2064,6 +2261,14 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
         if (advanceTeardownGeneration)
         {
             Interlocked.Increment(ref _teardownGeneration);
+
+            // The user's own unload or mode switch supersedes a deferred housekeeping one:
+            // a switch to a Parakeet mode must keep the daemon it is about to load.
+            lock (_drainSync)
+            {
+                _unloadWhenDrained = false;
+                _unloadWhenDrainedStillWanted = null;
+            }
         }
 
         // Mark the provider unavailable BEFORE waiting on the lock. IsAvailable keys off

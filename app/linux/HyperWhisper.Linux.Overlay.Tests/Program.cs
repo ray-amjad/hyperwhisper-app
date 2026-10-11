@@ -112,6 +112,12 @@ static async Task CompletionOutcomesAreDistinct()
     Assert(fixture.ViewModel.IsSecureField
         && fixture.ViewModel.StatusText == TestText.Get("linux.overlay.secure_field"),
         "secure-field protection was not distinguished");
+    // #1703: a failed clipboard write shows an error, never "Copied!".
+    fixture.Controller.ShowCompletion(LinuxRecordingOverlayCompletion.CopyFailed);
+    Assert(fixture.ViewModel.IsError && !fixture.ViewModel.IsCopied
+        && fixture.ViewModel.StatusText == TestText.Get("linux.overlay.error.copy"),
+        "a failed copy was not shown as an error");
+    Assert(fixture.Delay.LatestDuration == TimeSpan.FromSeconds(8), "a failed copy did not stay up as long as an error");
     fixture.Delay.CompleteLatest();
     await WaitUntil(() => fixture.ViewModel.State == LinuxRecordingOverlayState.Hidden);
 }
@@ -637,12 +643,17 @@ sealed class FakeDelay : ILinuxOverlayDelay
     {
         get { lock (_gate) return _pending.LastOrDefault(); }
     }
+    public TimeSpan? LatestDuration { get; private set; }
 
     public Task WaitAsync(TimeSpan delay, CancellationToken cancellationToken)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
-        lock (_gate) _pending.Add(completion);
+        lock (_gate)
+        {
+            _pending.Add(completion);
+            LatestDuration = delay;
+        }
         return completion.Task;
     }
 

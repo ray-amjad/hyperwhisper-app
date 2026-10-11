@@ -519,7 +519,7 @@ extension TranscriptionPipeline {
         currentTask = task
 
         do {
-            let result = try await task.value
+            let result = try await Self.value(of: task)
             await MainActor.run { state = .idle }
 
             let now = Date()
@@ -960,6 +960,20 @@ extension TranscriptionPipeline {
             "recordingSessionID": recordingSessionID
         ]
         return data
+    }
+
+    /// Awaits `task`, cancelling it when the awaiting task is cancelled.
+    ///
+    /// The pipeline's transcription task is unstructured, so it does not
+    /// inherit the caller's cancellation. Without this, cancelling the caller
+    /// (the Transcribe File HUD's Cancel) stopped only the wait: the provider
+    /// ran on through the whole file (issue #1507).
+    nonisolated static func value<T: Sendable>(of task: Task<T, Error>) async throws -> T {
+        try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
     }
 
     private static func elapsedMilliseconds(_ duration: Duration) -> Int {

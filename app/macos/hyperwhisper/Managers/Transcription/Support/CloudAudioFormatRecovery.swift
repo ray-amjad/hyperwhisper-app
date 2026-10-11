@@ -263,11 +263,10 @@ enum CloudAudioFormatRecovery {
         _ = try await AudioFileConverter().convertAudioToWAV(from: source, to: destination)
     }
 
-    /// Temp destination for the re-encode. Follows the `hw-…-<uuid>` convention
-    /// used by `RustHTTPExecutor` for its multipart envelope.
+    /// Temp destination for the re-encode: `hw-reencode-<pid>-<uuid>.wav`,
+    /// which a launch after a crash sweeps (issue #1581).
     static func makeTemporaryWAVURL() -> URL {
-        FileManager.default.temporaryDirectory
-            .appendingPathComponent("hw-reencode-\(UUID().uuidString).wav")
+        CloudTempAudioSweep.temporaryURL(.reencodedWAV)
     }
 
     /// Size in bytes, or `nil` when the file is missing/unreadable.
