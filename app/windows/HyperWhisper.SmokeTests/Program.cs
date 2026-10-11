@@ -1502,6 +1502,96 @@ internal static class Program
                     "another language is a different load (NeedsReload owns whether it respawns)");
             });
 
+            // #1609. While UnloadModelAsync waits out a running job, IsInitialized
+            // stays true, so a dictation or a second Whisper file saw a ready model,
+            // queued behind the unload, and failed once it disposed the factory.
+            // IsUnloadPending covers the whole wait, and a cancelled wait ends it
+            // without disposing anything.
+            Run("A pending Whisper unload reads as pending and can be cancelled (#1609)", () =>
+            {
+                var service = new TranscriptionService();
+                var inFlight = typeof(TranscriptionService).GetField("_inFlight", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?? throw new InvalidOperationException("TranscriptionService._inFlight is gone; update this test");
+                Assert(!service.IsUnloadPending, "a fresh service reports a pending unload");
+                inFlight.SetValue(service, 1);
+
+                using var cts = new CancellationTokenSource();
+                var unload = service.UnloadModelAsync(cts.Token);
+                Assert(!unload.Wait(TimeSpan.FromMilliseconds(200)), "UnloadModelAsync completed while a transcription was still in flight");
+                Assert(service.IsUnloadPending, "IsUnloadPending is false while the unload waits for a job");
+                Assert(!service.IsLoadedAndStaying(), "IsLoadedAndStaying is true while an unload is pending");
+
+                cts.Cancel();
+                try { unload.Wait(TimeSpan.FromSeconds(5)); } catch (AggregateException) { }
+                Assert(unload.IsCanceled, $"a cancelled unload ended {unload.Status}, not Canceled");
+                Assert(!service.IsUnloadPending, "IsUnloadPending stayed true after the unload was cancelled");
+
+                // The lock is free again: a second unload runs once the job drains.
+                var second = service.UnloadModelAsync();
+                inFlight.SetValue(service, 0);
+                Assert(second.Wait(TimeSpan.FromSeconds(5)), "an unload after a cancelled one did not complete");
+                Assert(!service.IsUnloadPending, "IsUnloadPending stayed true after the unload completed");
+                service.Dispose();
+            });
+
+            // #1609. Pin the wiring the PC Done-when exercises: a mode switch cancels
+            // the unload a Parakeet load waits on; the Whisper readiness checks skip a
+            // model with an unload pending; a dictation start re-checks its engine
+            // after the load instead of recording into a missing daemon.
+            Run("A dictation started during the Whisper unload waits for or reloads its model (#1609)", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                MethodInfo Vm(string name, params Type[] types) => (types.Length == 0
+                        ? typeof(MainViewModel).GetMethod(name, all)
+                        : typeof(MainViewModel).GetMethod(name, all, types))
+                    ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test");
+                var loadedAndStaying = typeof(TranscriptionService).GetMethod("IsLoadedAndStaying", all)
+                    ?? throw new InvalidOperationException("TranscriptionService.IsLoadedAndStaying is gone; update this test");
+                var cancelUnload = Vm("CancelWhisperUnloadIfNoLongerWanted");
+
+                Assert(AsyncBodyCalls(Vm("OnSelectedModeChanged"), cancelUnload),
+                    "a mode switch no longer cancels the Whisper unload it made unnecessary");
+                Assert(AsyncBodyCalls(cancelUnload, Vm("IsParakeetLoadStillWanted")),
+                    "CancelWhisperUnloadIfNoLongerWanted no longer asks whether the new selection still wants the daemon");
+                Assert(AsyncBodyCalls(Vm("LoadParakeetModelUnderLockAsync"), typeof(CancellationTokenSource).GetMethod("get_Token")!),
+                    "the Parakeet load no longer hands its unload a cancellable token");
+
+                foreach (var method in new[] { Vm("IsLocalProviderReady", typeof(Mode)), Vm("LoadWhisperModelAsync"), Vm("EnsureLocalProviderReadyForFileAsync") })
+                {
+                    Assert(AsyncBodyCalls(method, loadedAndStaying),
+                        $"MainViewModel.{method.Name} treats a Whisper model with an unload pending as ready again");
+                }
+
+                var loadForRecording = Vm("LoadModelForRecordingAsync");
+                Assert(AsyncBodyCalls(Vm("StartRecordingAsync"), loadForRecording),
+                    "StartRecordingAsync no longer loads through LoadModelForRecordingAsync");
+                Assert(AsyncBodyCalls(loadForRecording, Vm("LoadModelAsync"))
+                       && AsyncBodyCalls(loadForRecording, Vm("IsLocalProviderReady", typeof(Mode))),
+                    "LoadModelForRecordingAsync no longer re-checks the engine after the load");
+
+                // The recording can move to another mode during the load: the screen
+                // OCR captured for an OCR mode must not reach a mode without it.
+                var dropOcr = Vm("DropScreenOcrTheModeDoesNotWant");
+                Assert(AsyncBodyCalls(Vm("StartRecordingAsync"), dropOcr),
+                    "StartRecordingAsync no longer drops the screen OCR a mode switch during the load leaves behind");
+                var contextField = typeof(MainViewModel).GetField("_capturedApplicationContext", all)
+                    ?? throw new InvalidOperationException("MainViewModel._capturedApplicationContext is gone; update this test");
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+                string? OcrAfterSwitchTo(Mode mode)
+                {
+                    var context = new Services.ApplicationContext { ScreenOCRText = "secret on screen" };
+                    contextField.SetValue(vm, context);
+                    dropOcr.Invoke(vm, new object[] { mode });
+                    return context.ScreenOCRText;
+                }
+                Assert(OcrAfterSwitchTo(new Mode { EnableScreenOCR = false, PostProcessingMode = 1 }) == null,
+                    "a mode without screen OCR kept the previous mode's OCR text");
+                Assert(OcrAfterSwitchTo(new Mode { EnableScreenOCR = true, PostProcessingMode = 0 }) == null,
+                    "a mode with no post-processing kept the previous mode's OCR text");
+                Assert(OcrAfterSwitchTo(new Mode { EnableScreenOCR = true, PostProcessingMode = 1 }) == "secret on screen",
+                    "a mode that uses screen OCR lost the text captured at the hotkey");
+            });
+
             Run("IsNoSpaceLanguage / NormalizeLanguage truth tables", () =>
             {
                 foreach (var code in new[] { "ja", "zh", "ko", "yue" })

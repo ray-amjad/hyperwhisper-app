@@ -581,7 +581,7 @@ public partial class MainViewModel
         }
 
         var modelPath = _modelService.GetModelPath(whisperModel);
-        if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath)
+        if (_transcriptionService.IsLoadedAndStaying(modelPath))
         {
             return true;
         }
@@ -589,7 +589,7 @@ public partial class MainViewModel
         await _modelLoadLock.WaitAsync();
         try
         {
-            if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath)
+            if (_transcriptionService.IsLoadedAndStaying(modelPath))
             {
                 return true;
             }
