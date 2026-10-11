@@ -78,6 +78,12 @@ class LibWhisperProvider: TranscriptionProvider {
     
     /// Pending model to load (set by setModel, loaded on transcribe)
     private var pendingModel: WhisperModel?
+
+    /// The model the app last chose through `setModel`. A Local API pass loads
+    /// its own model without touching this, so the next in-app pass can see
+    /// that the resident model is no longer the one the app chose, and load it
+    /// back (issue #1465).
+    private var inAppModel: WhisperModel?
     
     /// Track if model is ready
     private var isModelReady: Bool = false
@@ -349,6 +355,11 @@ class LibWhisperProvider: TranscriptionProvider {
             logger.info("🔄 Loading pending model before transcription: \(pending.rawValue)")
             try await loadModel(named: pending.rawValue)
             pendingModel = nil
+        } else if let inAppModel, let resident = currentModel?.name, resident != inAppModel.rawValue {
+            // A Local API pass swapped the model after `setModel` had found the
+            // app's choice already resident and staged nothing.
+            logger.info("🔄 Restoring the app's model after a Local API pass: \(inAppModel.rawValue)")
+            try await loadModel(named: inAppModel.rawValue)
         }
 
         // Claim residency, THEN read the context under that claim. See
@@ -616,6 +627,7 @@ class LibWhisperProvider: TranscriptionProvider {
     /// Set model (compatibility method for TranscriptionPipeline)
     /// This defers actual loading until transcription time for efficiency
     func setModel(_ model: WhisperModel) {
+        inAppModel = model
         if currentModel?.name == model.rawValue, whisperContext != nil, isModelReady {
             if pendingModel != nil {
                 logger.debug("🎯 Clearing pending model reload because \(model.rawValue) is already active")

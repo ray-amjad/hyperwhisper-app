@@ -137,6 +137,26 @@ private actor EventLog {
         #expect(resolve.contains("stageWhisperModel: false)"))
     }
 
+    /// An API pass that swaps the resident model does not leave the next
+    /// dictation on it: `setModel` records the app's choice, and an in-app pass
+    /// loads it back when the resident model differs.
+    @Test func anInAppPassRestoresTheAppsModelAfterAnAPIPass() throws {
+        let setModel = try ProductionSource.slice(
+            of: Self.providerSource,
+            from: "func setModel(_ model: WhisperModel) {",
+            to: "if currentModel?.name == model.rawValue"
+        )
+        #expect(setModel.contains("inAppModel = model"))
+
+        let pass = try ProductionSource.slice(
+            of: Self.providerSource,
+            from: "if let requiredModel {",
+            to: "let acquisition: ResidentRuntimeClaim.Acquisition"
+        )
+        #expect(pass.contains("resident != inAppModel.rawValue"))
+        #expect(pass.contains("try await loadModel(named: inAppModel.rawValue)"))
+    }
+
     // MARK: - The error
 
     /// A cancelled call keeps the closed-enum code, with a message that names
