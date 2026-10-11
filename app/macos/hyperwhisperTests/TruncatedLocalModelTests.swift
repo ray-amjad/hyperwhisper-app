@@ -62,4 +62,27 @@ struct TruncatedLocalModelTests {
         manager.markModelBroken("parakeet-tdt-0.6b-v9")
         #expect(manager.brokenModels.isEmpty)
     }
+
+    private static func row(installed: Bool, status: LibraryModelStatus) -> LibraryModel {
+        LibraryModel(
+            id: "parakeet-parakeet-tdt-0.6b-v2",
+            displayName: "Parakeet V2",
+            providerKey: .parakeet,
+            kind: .voice,
+            location: .offline(sizeDescription: nil, installed: installed, downloadProgress: nil),
+            speed: 5,
+            accuracy: 3,
+            tag: nil,
+            status: status,
+            supportsCustomVocabulary: false,
+            availableViaHyperWhisperCloud: false
+        )
+    }
+
+    /// The Library row of a broken install offers Re-download, not Remove (#1632 verify).
+    @Test func onlyAnInstalledBrokenRowNeedsRedownload() {
+        #expect(Self.row(installed: true, status: .downloadable(progress: nil)).needsRedownload)
+        #expect(!Self.row(installed: true, status: .enabled).needsRedownload)
+        #expect(!Self.row(installed: false, status: .downloadable(progress: nil)).needsRedownload)
+    }
 }

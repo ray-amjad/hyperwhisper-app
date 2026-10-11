@@ -384,6 +384,10 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
 
     public const string AllProviders = "All providers";
 
+    /// <summary>A local row was installed or removed (a download landed, a delete ran), so the
+    /// shell can re-read whether the selected mode's model is there (#1632).</summary>
+    public event EventHandler? InstalledModelsChanged;
+
     public ModelLibraryViewModel(
         PortableModelManager manager,
         ModelReadinessService? readiness = null,
@@ -834,7 +838,9 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
 
     private void OnRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ManagedModelViewModel.Installed)) UpdateSummaries();
+        if (e.PropertyName != nameof(ManagedModelViewModel.Installed)) return;
+        UpdateSummaries();
+        InstalledModelsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnReadinessChanged(object? sender, ModelReadinessChangedEventArgs e)

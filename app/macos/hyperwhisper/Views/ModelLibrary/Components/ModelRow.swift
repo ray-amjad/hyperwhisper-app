@@ -171,6 +171,14 @@ struct ModelRow: View {
                     } else {
                         ring
                     }
+                } else if model.needsRedownload {
+                    Button(action: onCloudTap) {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.orange)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Re-download model")
                 } else if installed && model.allowsOfflineRemoval {
                     Button(action: onCloudTap) {
                         Image(systemName: "trash")

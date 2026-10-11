@@ -21,6 +21,7 @@ using System.IO.Compression;
 using HyperWhisper.PortableApplication.Audio;
 using HyperWhisper.Platform.Abstractions.Audio;
 using HyperWhisper.TranscriptionRouting;
+using HyperWhisper.ModelManagement;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -70,6 +71,7 @@ try
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
+    await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
 
     var history = new HistoryRepository(database);
@@ -1384,6 +1386,44 @@ static async Task RunLocalEngineVocabularyOnceTestsAsync(string root)
         Assert(hint.Saved.TranscribedText == "hyper wisper",
             $"{mode.Name}: History's raw transcript held a phonetic correction");
     }
+}
+
+// #1632: the status bar must not say Ready while the selected mode's local model is missing or
+// truncated, and a download that lands makes it Ready again.
+static async Task RunShellMissingLocalModelStatusTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    var database = new ApplicationDb(paths);
+    await database.InitializeAsync();
+    var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "settings.json"));
+    using var http = new HttpClient();
+    var manager = new PortableModelManager(paths, http);
+    var baseModel = PortableModelCatalog.Whisper.Single(model => model.Id == "base");
+    var file = manager.GetInstalledPath(baseModel);
+    Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+    // The #1598 repro: Base cut to 96%.
+    using (var stream = File.Create(file)) { stream.Write("lmgg"u8); stream.SetLength(142_033_406); }
+    var mode = new Mode { Name = "Local Base", ProviderType = "local", Model = "base", Language = "en", PostProcessingMode = 0 };
+    await new ModeRepository(database).UpsertAsync(mode);
+    using var shell = new ApplicationShellViewModel(database, settings, modelManager: manager);
+    await shell.InitializeAsync();
+    shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
+    Assert(shell.Status.Message == "Model 'Base' not downloaded",
+        $"a truncated selected model left the status bar on '{shell.Status.Message}'");
+    shell.Navigate("home");
+    Assert(shell.Status.Message == "Model 'Base' not downloaded", "a page change said Ready over a truncated model");
+
+    using (var stream = File.OpenWrite(file)) stream.SetLength(baseModel.ApproximateSizeBytes);
+    var row = shell.Models!.Items.Single(item => item.Model?.Id == "base");
+    row.Installed = true;
+    Assert(shell.Status.Message == "Ready", $"a finished download left the status bar on '{shell.Status.Message}'");
+
+    shell.Modes.Selected = shell.Modes.Items.First(item => item.Id != mode.Id);
+    var other = shell.Status.Message;
+    shell.Status.Failure("test.error", "Something failed");
+    shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
+    Assert(shell.Status.Message == "Something failed", $"a mode change overwrote an error with '{shell.Status.Message}' (was '{other}')");
 }
 
 static async Task RunShellLanguageRoutingTestsAsync(string root)

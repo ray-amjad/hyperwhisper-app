@@ -321,6 +321,21 @@ struct MenuBarIconView: View {
                     // Update transcription manager when models change
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
+                // A finished Whisper download prepares the selected mode again, so a
+                // mode that launched on a missing or truncated file returns to Ready
+                // (#1632). Fires after the rescan above: same publisher, registered later.
+                .onReceive(
+                    whisperModelManager.$downloadedModels
+                        .dropFirst()
+                        .map { models in models.map(\.name) }
+                        .removeDuplicates()
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
+                }
                 .onReceive(parakeetModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
