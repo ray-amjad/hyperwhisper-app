@@ -97,6 +97,10 @@ internal static class ModesEndpoints
             {
                 return LocalApiResponder.Shared(validation);
             }
+            if (!TryNormalizeProviderType(dto.ProviderType, out var providerType))
+            {
+                return InvalidProviderType(dto.ProviderType);
+            }
 
             // Name uniqueness — `ModeService` does not enforce, so we mirror the
             // macOS endpoint check inline. The comparison key and the failure
@@ -149,7 +153,7 @@ internal static class ModesEndpoints
                 LocalParakeetModel = dto.LocalParakeetModel,
                 LocalPostProcessingModel = dto.LocalPostProcessingModel,
                 CustomVocabulary = dto.CustomVocabulary,
-                ProviderType = dto.ProviderType
+                ProviderType = providerType
             };
 
             // Dispatch the incoming `model` field onto the right entity column.
@@ -250,6 +254,11 @@ internal static class ModesEndpoints
             {
                 return LocalApiResponder.Shared(patchValidation);
             }
+            if (!TryNormalizeProviderType(patch.ProviderType, out var patchProviderType))
+            {
+                return InvalidProviderType(patch.ProviderType);
+            }
+            patch.ProviderType = patchProviderType;
 
             // Name uniqueness check — ONLY WHEN THE CALLER IS ACTUALLY RENAMING.
             // The head still filters out the record it is writing, because only
@@ -382,7 +391,7 @@ internal static class ModesEndpoints
     /// </summary>
     internal static ModeDto ToDto(Mode mode)
     {
-        var isCloud = string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase);
+        var isCloud = LocalModeModel.IsCloud(mode);
         // For non-cloud modes the GUI keys off ModelType, so emit ModelType
         // (falling back to legacy Model). Cloud modes ignore both.
         var modelOut = isCloud
@@ -510,6 +519,29 @@ internal static class ModesEndpoints
         if (patch.CustomVocabulary is { } v22) mode.CustomVocabulary = v22;
         if (patch.ProviderType is { } v23) mode.ProviderType = v23;
     }
+
+    /// <summary>
+    /// Fold a caller's <c>providerType</c> onto the two values this head routes
+    /// on (#1548). <c>local</c> and <c>cloud</c> are accepted in any casing and
+    /// stored lowercase; <c>null</c> (key absent) stays <c>null</c>. Every other
+    /// value is refused, because readers disagreed on it: the orchestrator ran
+    /// it on-device, while the editor showed it as Cloud and saved it as Cloud.
+    /// </summary>
+    internal static bool TryNormalizeProviderType(string? raw, out string? normalized)
+    {
+        normalized = null;
+        if (raw == null) return true;
+        if (string.Equals(raw, "local", StringComparison.OrdinalIgnoreCase)) normalized = "local";
+        else if (string.Equals(raw, "cloud", StringComparison.OrdinalIgnoreCase)) normalized = "cloud";
+        else return false;
+        return true;
+    }
+
+    private static IResult InvalidProviderType(string? raw)
+        => LocalApiResponder.Failure(
+            LocalApiErrorCode.InvalidRequest,
+            $"providerType must be 'local' or 'cloud', got '{raw}'",
+            "Send 'local' for on-device transcription or 'cloud' for a cloud provider, or omit the key.");
 
     /// <summary>
     /// Log the keys of a mode body this head does not store, classified by the
