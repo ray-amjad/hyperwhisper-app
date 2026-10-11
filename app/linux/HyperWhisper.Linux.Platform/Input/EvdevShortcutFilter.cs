@@ -9,12 +9,37 @@ internal sealed record EvdevBinding(
     IReadOnlySet<ushort> NonInterferingCodes);
 internal sealed record EvdevFilterOutput(IReadOnlyList<(NamedShortcut Shortcut, bool Pressed)> Signals, bool Interfered);
 
+/// <summary>
+/// Matches evdev key events against the registered bindings. A modifier-only chord
+/// (Ctrl+Alt) is the prefix of every shortcut that starts with the same modifiers
+/// (Ctrl+Alt+Left), so by default it does not fire on press (#1725, the evdev
+/// sibling of #1511). Its press arms it, but only when no other key is down; any other
+/// key-down while it is held spoils it. The filter keeps which codes are down, never
+/// what they spell. The release that breaks a still-clean chord emits Pressed and
+/// Released back to back.
+/// </summary>
 internal sealed class EvdevShortcutFilter
 {
     private readonly object _gate = new();
+    private readonly X11ModifierOnlyTrigger _modifierOnly;
     private IReadOnlyList<EvdevBinding> _bindings = [];
     private HashSet<ushort> _relevantCodes = [];
     private readonly Dictionary<string, DeviceState> _states = new(StringComparer.Ordinal);
+
+    public EvdevShortcutFilter(X11ModifierOnlyTrigger modifierOnly = X11ModifierOnlyTrigger.OnCleanRelease)
+        => _modifierOnly = modifierOnly;
+
+    private enum ChordState
+    {
+        /// <summary>The chord is down and nothing else joined it. Its release fires.</summary>
+        Armed,
+        /// <summary>Another key went down with the chord. Its release does nothing.</summary>
+        Spoiled,
+    }
+
+    private bool FiresOnRelease(EvdevBinding binding) =>
+        _modifierOnly == X11ModifierOnlyTrigger.OnCleanRelease
+        && !binding.Primary.HasValue && binding.ModifierGroups.Count > 0;
 
     public void ReplaceBindings(IReadOnlyList<EvdevBinding> bindings)
     {
@@ -32,6 +57,8 @@ internal sealed class EvdevShortcutFilter
             {
                 state.Down.IntersectWith(_relevantCodes);
                 state.Active.IntersectWith(names);
+                foreach (var name in state.Chords.Keys.Where(name => !names.Contains(name)).ToArray())
+                    state.Chords.Remove(name);
             }
         }
     }
@@ -51,8 +78,18 @@ internal sealed class EvdevShortcutFilter
                 _states.Add(deviceId, state);
             }
 
+            // Every code, relevant or not, so a chord completed over a key pressed before it
+            // (Shift, then Ctrl+Alt) arms spoiled. A repeat of a key whose press was missed counts too.
+            var pressed = false;
+            if (input.Value == 0) state.Held.Remove(input.Code);
+            else pressed = state.Held.Add(input.Code) || input.Value == 1;
             if (!_relevantCodes.Contains(input.Code))
+            {
+                if (pressed) SpoilChords(state, input.Code);
                 return new([], input.Value == 1 && (interferenceArmed || state.Active.Count > 0));
+            }
+
+            if (pressed) SpoilChords(state, input.Code);
 
             if (input.Value == 0)
             {
@@ -68,6 +105,12 @@ internal sealed class EvdevShortcutFilter
             {
                 var matches = (!binding.Primary.HasValue || state.Down.Contains(binding.Primary.Value))
                     && binding.ModifierGroups.Values.All(group => group.Any(state.Down.Contains));
+                if (FiresOnRelease(binding))
+                {
+                    StepChord(state, binding, matches, output);
+                    continue;
+                }
+
                 var active = state.Active.Contains(binding.NamedShortcut.Name);
                 if (matches && !active)
                 {
@@ -85,6 +128,43 @@ internal sealed class EvdevShortcutFilter
         }
     }
 
+    /// <summary>
+    /// A press of a key outside an armed chord spoils it. A key from the chord's own
+    /// groups (the other Ctrl, or a held one that repeats) does not.
+    /// </summary>
+    private void SpoilChords(DeviceState state, ushort code)
+    {
+        foreach (var binding in _bindings)
+        {
+            var name = binding.NamedShortcut.Name;
+            if (state.Chords.GetValueOrDefault(name) != ChordState.Armed) continue;
+            if (binding.ModifierGroups.Values.Any(group => group.Contains(code))) continue;
+            state.Chords[name] = ChordState.Spoiled;
+        }
+    }
+
+    private static void StepChord(DeviceState state, EvdevBinding binding, bool matches,
+        List<(NamedShortcut, bool)> output)
+    {
+        var name = binding.NamedShortcut.Name;
+        var held = state.Chords.TryGetValue(name, out var chord);
+        if (matches)
+        {
+            // Exact, like the X11 sibling: a key outside the chord already down spoils it at once.
+            if (!held)
+                state.Chords[name] = state.Held.All(code => binding.ModifierGroups.Values.Any(group => group.Contains(code)))
+                    ? ChordState.Armed
+                    : ChordState.Spoiled;
+            return;
+        }
+
+        if (!held) return;
+        state.Chords.Remove(name);
+        if (chord != ChordState.Armed) return;
+        output.Add((binding.NamedShortcut, true));
+        output.Add((binding.NamedShortcut, false));
+    }
+
     public void Reset()
     {
         lock (_gate)
@@ -96,7 +176,11 @@ internal sealed class EvdevShortcutFilter
     private sealed class DeviceState
     {
         public HashSet<ushort> Down { get; } = [];
+        /// <summary>Every code down on the device, relevant or not.</summary>
+        public HashSet<ushort> Held { get; } = [];
         public HashSet<string> Active { get; } = new(StringComparer.Ordinal);
+        /// <summary>The release-fired chords that are down, by name. Absent means not down.</summary>
+        public Dictionary<string, ChordState> Chords { get; } = new(StringComparer.Ordinal);
     }
 }
 
