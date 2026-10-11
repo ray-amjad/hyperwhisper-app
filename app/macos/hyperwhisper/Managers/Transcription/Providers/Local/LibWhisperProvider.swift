@@ -48,6 +48,17 @@ class LibWhisperProvider: TranscriptionProvider {
     /// and leaves the newer context alone.
     private var contextGeneration: UInt64 = 0
 
+    /// Serialises Local API passes among themselves, FIFO (issue #1465). The
+    /// router hands every request the same provider, and a new pass supersedes
+    /// the running one, so overlapping `/transcribe` calls used to cancel each
+    /// other. Held across the whole request: arming, the pass, and the reads of
+    /// per-pass state afterwards.
+    private let localAPIQueue = AsyncSerialLock()
+
+    /// Counts the passes running on this provider, so a queued Local API pass
+    /// can wait for an in-app dictation to finish instead of superseding it.
+    private let passGate = LibWhisperPassGate()
+
     /// Bumped by every `cancelTranscription()` and by every new pass. A pass
     /// compares it after its claim/reload, because that reload can take seconds
     /// and the unstructured `Task` it creates afterwards inherits no
@@ -240,6 +251,65 @@ class LibWhisperProvider: TranscriptionProvider {
     ///   - vocabulary: Custom vocabulary list
     /// - Returns: Transcribed text
     func transcribe(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> String {
+        // An in-app pass starts at once and supersedes whatever is running,
+        // Local API passes included: the latest in-app request wins (#1425).
+        await passGate.begin()
+        do {
+            let text = try await performTranscribe(audioURL: audioURL, language: language, vocabulary: vocabulary, requiredModel: nil)
+            await passGate.end()
+            return text
+        } catch {
+            await passGate.end()
+            throw error
+        }
+    }
+
+    /// What one Local API pass produced, read before the queue moves on.
+    struct LocalAPIPassResult {
+        let text: String
+        let timestamps: TranscriptionTimestamps?
+        let detectedLanguage: String?
+    }
+
+    /// One Local API `/transcribe` pass, queued behind every earlier Local API
+    /// pass on this provider (issue #1465, Ray 2026-10-08: queue on the one
+    /// shared provider, no per-request provider).
+    ///
+    /// - Waits its turn among Local API calls, FIFO.
+    /// - Then waits for any in-app pass already running, rather than
+    ///   superseding it: an in-app dictation wins over the API.
+    /// - Can itself still be superseded by an in-app pass that starts while it
+    ///   runs. It then throws `streamingInterrupted`, which the endpoint words
+    ///   as a cancellation.
+    ///
+    /// `model` is loaded for THIS pass only. It never goes through
+    /// `pendingModel`, so a request that resolves while another pass runs can
+    /// no longer change the model under it.
+    func transcribeQueuedForLocalAPI(
+        model: WhisperModel?,
+        audioURL: URL,
+        language: String?,
+        vocabulary: [Vocabulary],
+        granularities: TimestampGranularities
+    ) async throws -> LocalAPIPassResult {
+        try await localAPIQueue.withLock { () async throws -> LocalAPIPassResult in
+            await self.passGate.beginWhenIdle()
+            do {
+                self.requestedGranularities = granularities
+                let text = try await self.performTranscribe(audioURL: audioURL, language: language, vocabulary: vocabulary, requiredModel: model)
+                let result = LocalAPIPassResult(text: text, timestamps: self.lastTimestamps, detectedLanguage: self.detectedLanguage)
+                await self.passGate.end()
+                return result
+            } catch {
+                await self.passGate.end()
+                throw error
+            }
+        }
+    }
+
+    /// The body of a pass. `requiredModel` is set only by the Local API, which
+    /// loads its own model instead of the one `setModel` staged.
+    private func performTranscribe(audioURL: URL, language: String?, vocabulary: [Vocabulary], requiredModel: WhisperModel?) async throws -> String {
         // Reset any timestamps from a previous run; only the kept run below sets them.
         lastTimestamps = nil
         // Snapshot the requested granularities for this run, then clear so they
@@ -270,8 +340,12 @@ class LibWhisperProvider: TranscriptionProvider {
         cancellationEpoch &+= 1
         let epoch = cancellationEpoch
 
-        // If we have a pending model but haven't loaded it yet, load it now
-        if let pending = pendingModel {
+        // If we have a pending model but haven't loaded it yet, load it now.
+        // A Local API pass loads the model it asked for instead, and leaves the
+        // staged one for the next in-app pass.
+        if let requiredModel {
+            try await loadModel(named: requiredModel.rawValue)
+        } else if let pending = pendingModel {
             logger.info("🔄 Loading pending model before transcription: \(pending.rawValue)")
             try await loadModel(named: pending.rawValue)
             pendingModel = nil
@@ -706,5 +780,41 @@ class LibWhisperProvider: TranscriptionProvider {
     /// Get total size of downloaded models
     func getModelsSize() -> Int64 {
         return modelManager.downloadedModels.reduce(0) { $0 + $1.sizeInBytes }
+    }
+}
+
+/// How many passes are running on one `LibWhisperProvider`, and a way to wait
+/// until none is (issue #1465).
+///
+/// An actor so the "is anything running?" check and the "I am running now"
+/// mark happen in one turn: a dictation that starts between the two would
+/// otherwise be superseded by the Local API pass that had just seen it idle.
+actor LibWhisperPassGate {
+    private var running = 0
+    private var idleWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// An in-app pass: starts at once, whatever is running.
+    func begin() {
+        running += 1
+    }
+
+    /// A Local API pass: waits until no pass is running, then starts. Loops,
+    /// because a dictation can start between the wake-up and this turn.
+    func beginWhenIdle() async {
+        while running > 0 {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                idleWaiters.append(continuation)
+            }
+        }
+        running += 1
+    }
+
+    /// Every `begin`/`beginWhenIdle` is balanced by exactly one `end`.
+    func end() {
+        running = max(0, running - 1)
+        guard running == 0 else { return }
+        let waiters = idleWaiters
+        idleWaiters.removeAll()
+        waiters.forEach { $0.resume() }
     }
 }

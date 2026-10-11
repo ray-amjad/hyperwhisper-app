@@ -75,9 +75,12 @@ enum TranscribeEndpoint {
         let language = effectiveLanguage(for: resolution, request: req)
 
         // Opt-in timestamps: parse granularities and arm the provider. Providers
-        // that can't produce timestamps ignore this (default no-op).
+        // that can't produce timestamps ignore this (default no-op). Local
+        // Whisper is armed inside its queued pass instead, so a request waiting
+        // in the queue cannot arm the pass ahead of it (issue #1465).
         let granularities = TimestampGranularities(wire: req.timestamp_granularities)
-        if !granularities.isEmpty {
+        let whisper = resolution.provider as? LibWhisperProvider
+        if !granularities.isEmpty, whisper == nil {
             resolution.provider.setTimestampGranularities(granularities)
         }
 
@@ -101,15 +104,34 @@ enum TranscribeEndpoint {
         // Closing it properly means returning per-call metadata from
         // `TranscriptionProvider.transcribe`, across all eighteen conformers;
         // that is a protocol change and is not made here.
+        //
+        // Local Whisper is the exception (issue #1465). Its passes supersede
+        // each other, so overlapping requests cancelled one another; they now
+        // queue on the one shared provider, and the queued pass returns its
+        // own text, timestamps and language.
         let detectedLanguage: String?
+        var whisperTimestamps: TranscriptionTimestamps?
         do {
-            text = try await resolution.provider.transcribe(
-                audioURL: fileURL,
-                language: language,
-                mode: resolution.mode,
-                vocabulary: resolution.vocabulary
-            )
-            detectedLanguage = resolution.provider.detectedLanguage
+            if let whisper {
+                let pass = try await whisper.transcribeQueuedForLocalAPI(
+                    model: resolution.whisperModel,
+                    audioURL: fileURL,
+                    language: language,
+                    vocabulary: resolution.vocabulary,
+                    granularities: granularities
+                )
+                text = pass.text
+                detectedLanguage = pass.detectedLanguage
+                whisperTimestamps = pass.timestamps
+            } else {
+                text = try await resolution.provider.transcribe(
+                    audioURL: fileURL,
+                    language: language,
+                    mode: resolution.mode,
+                    vocabulary: resolution.vocabulary
+                )
+                detectedLanguage = resolution.provider.detectedLanguage
+            }
             if let cloudProviderType {
                 if let credentialGeneration {
                     healthManager?.recordTranscriptionOutcome(
@@ -128,6 +150,10 @@ enum TranscribeEndpoint {
                         error: error
                     )
                 }
+            }
+            if whisper != nil, let te = error as? TranscriptionError, case .streamingInterrupted = te {
+                let cancelled = Self.whisperPassCancelled
+                return LocalAPIResponder.failure(code: cancelled.code, message: cancelled.message, hint: cancelled.hint)
             }
             let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(error)
             return LocalAPIResponder.failure(code: code, message: message, hint: hint)
@@ -159,7 +185,9 @@ enum TranscribeEndpoint {
 
         // Read timestamps produced by the run (nil unless requested AND the
         // engine could produce them → graceful omission for cloud/other engines).
-        let timestamps = granularities.isEmpty ? nil : resolution.provider.lastTimestamps
+        let timestamps = granularities.isEmpty
+            ? nil
+            : (whisper != nil ? whisperTimestamps : resolution.provider.lastTimestamps)
         let segments = timestamps.map { ts in
             ts.segments.map { TranscribeSegment(id: $0.id, start: $0.start, end: $0.end, text: $0.text) }
         }
@@ -181,6 +209,20 @@ enum TranscribeEndpoint {
         )
         return LocalAPIResponder.ok(response)
     }
+
+    /// The answer for a local Whisper pass that something newer cancelled —
+    /// after the queue, that is an in-app dictation (#1425: it wins) or a
+    /// cancel of the app's own transcription.
+    ///
+    /// The provider throws `streamingInterrupted` for it, whose text ("Streaming
+    /// interrupted; partial text shown") describes dictation, not an API call:
+    /// there is no stream and no partial text. Same closed-enum code the
+    /// generic row gave it, honest message (Ray, 2026-10-08, issue #1465).
+    static let whisperPassCancelled = APIInputError(
+        code: .transcriptionFailed,
+        message: "Cancelled by a newer transcription request.",
+        hint: "An in-app dictation on Local Whisper takes priority over Local API calls. Send the request again."
+    )
 
     // MARK: - Deterministic text passes
 
@@ -851,6 +893,10 @@ enum TranscribeEndpoint {
         /// `mode` is the `mode` above. The caller MUST `end()` it once the
         /// request finishes; `handle` does so in a `defer`.
         let transientMode: LocalAPITransientMode?
+        /// The local Whisper model this request asked for, nil for every other
+        /// engine. Loaded by the queued pass itself; resolution never stages it
+        /// on the shared provider (issue #1465).
+        let whisperModel: WhisperModel?
         /// The cloud provider this request resolved to, straight out of the
         /// router's own resolution (never re-derived here). nil for local
         /// engines. Used to report the transcription outcome back to
@@ -887,7 +933,7 @@ enum TranscribeEndpoint {
 
             // Pure mode_id call → use saved Mode untouched.
             if !hasOverride {
-                let selection = try await router.selectProvider(for: stored, vocabulary: vocabulary)
+                let selection = try await router.selectProvider(for: stored, vocabulary: vocabulary, stageWhisperModel: false)
                 return ProviderResolution(
                     provider: selection.provider,
                     mode: stored,
@@ -895,7 +941,8 @@ enum TranscribeEndpoint {
                     engineLabel: engineLabel(forMode: stored),
                     modelLabel: modelLabel(forMode: stored),
                     transientMode: nil,
-                    cloudProviderType: selection.cloudProviderType
+                    cloudProviderType: selection.cloudProviderType,
+                    whisperModel: selection.whisperModel
                 )
             }
 
@@ -911,7 +958,7 @@ enum TranscribeEndpoint {
             let transient = makeTransientMode(baseline: stored, engine: trimmedEngine, model: trimmedModel, language: trimmedLanguage)
             let selection: TranscriptionProviderRouter.ProviderSelection
             do {
-                selection = try await router.selectProvider(for: transient.mode, vocabulary: vocabulary)
+                selection = try await router.selectProvider(for: transient.mode, vocabulary: vocabulary, stageWhisperModel: false)
             } catch {
                 // `handle` never gets a resolution to end, so end it here.
                 transient.end()
@@ -924,7 +971,8 @@ enum TranscribeEndpoint {
                 engineLabel: engineLabel(forMode: transient.mode),
                 modelLabel: modelLabel(forMode: transient.mode),
                 transientMode: transient,
-                cloudProviderType: selection.cloudProviderType
+                cloudProviderType: selection.cloudProviderType,
+                whisperModel: selection.whisperModel
             )
         }
 
@@ -954,7 +1002,8 @@ enum TranscribeEndpoint {
             engineLabel: engineLabel(forMode: transient.mode),
             modelLabel: modelLabel(forMode: transient.mode),
             transientMode: transient,
-            cloudProviderType: selection.cloudProviderType
+            cloudProviderType: selection.cloudProviderType,
+            whisperModel: selection.whisperModel
         )
     }
 
