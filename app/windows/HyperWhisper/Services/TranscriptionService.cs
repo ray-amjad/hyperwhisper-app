@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using Whisper.net;
@@ -718,7 +719,11 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 LoggingService.Warn($"  WARNING: Inference took {inferenceTimeMs}ms (>30s) - potential performance issue");
             }
 
-            var rawText = text.ToString().Trim();
+            // Whisper writes its own non-speech markers ([BLANK_AUDIO] and kin) as
+            // segment text. A silent file or mic must come back empty, so the
+            // orchestrator raises NoSpeechDetected instead of saving or pasting the
+            // marker as a transcript (issue #1449).
+            var rawText = StripNonSpeechMarkers(text.ToString());
 
             // Belt-and-braces: collapse whisper.cpp repetition loops that leak through
             // the decoder-level entropy/temperature gating. Requires repeated phrases
@@ -1093,6 +1098,34 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     {
         var characters = segmentText?.Trim().Length ?? 0;
         return $"  Segment: [{start:mm\\:ss} - {end:mm\\:ss}] {characters} chars";
+    }
+
+    /// <summary>
+    /// Whisper's non-speech annotations: a bracketed or parenthesised marker it
+    /// emits in place of words when it hears none. Only these fixed names match, so
+    /// a bracket the speaker dictated survives.
+    /// </summary>
+    private static readonly Regex NonSpeechMarker = new(
+        @"[\[(]\s*(?:BLANK[_ ]AUDIO|silence|no speech|inaudible|music)\s*[\])]",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex WhitespaceRun = new(@"\s{2,}", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Removes Whisper's non-speech markers from a transcript and trims it. A
+    /// transcript made only of markers comes back empty (issue #1449).
+    /// </summary>
+    internal static string StripNonSpeechMarkers(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+
+        var trimmed = text.Trim();
+        if (!NonSpeechMarker.IsMatch(trimmed)) return trimmed;
+
+        var stripped = WhitespaceRun.Replace(NonSpeechMarker.Replace(trimmed, " "), " ").Trim();
+        LoggingService.Info(
+            $"  Removed Whisper non-speech markers ({trimmed.Length} → {stripped.Length} chars)");
+        return stripped;
     }
 
     /// <summary>
