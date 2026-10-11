@@ -1661,9 +1661,8 @@ class PersistenceController: ObservableObject {
             if let transcriptionProvider {
                 transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
             }
-            if let postProcessingProvider {
-                transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
-            }
+            // Always overwrite with `postProcessedText` — see the @MainActor variant.
+            transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
             // Always overwrite (including clearing to nil) — see the @MainActor variant.
             transcript.setValue(wordTimestampsJSON, forKey: "wordTimestampsJSON")
 
@@ -1911,10 +1910,12 @@ class PersistenceController: ObservableObject {
             transcript.setValue(provider, forKey: "transcriptionProvider")
         }
 
-        // Store the post-processing provider if available
-        if let provider = postProcessingProvider {
-            transcript.setValue(provider, forKey: "postProcessingProvider")
-        }
+        // Store the post-processing provider. Always overwrite, including
+        // clearing to nil, in step with `postProcessedText`: a Retry with AI
+        // off (or an AI step that left the text unchanged) has no provider,
+        // and keeping the old run's one would badge non-AI text as AI in
+        // History and in `GET /recordings/{id}`.
+        transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
 
         // Store segment/word timestamps JSON blob (basis: raw_text). Always
         // overwrite — including clearing to nil when the caller supplies none.

@@ -13,8 +13,9 @@
 //
 //  The fix: every save passes `TranscriptionResult.historyPostProcessedText`,
 //  the delivered text whenever it differs from the raw text, and both row
-//  writers overwrite `postProcessedText` (clearing it to nil), so a Retry
-//  never keeps an older run's text.
+//  writers overwrite `postProcessedText` and `postProcessingProvider`
+//  (clearing them to nil), so a Retry never keeps an older run's text or
+//  its AI provider badge.
 //
 
 import CoreData
@@ -54,6 +55,7 @@ struct HistorySavesDeliveredTextTests {
         let text: String?
         let transcribedText: String?
         let postProcessedText: String?
+        let postProcessingProvider: String?
     }
 
     private func row(_ id: NSManagedObjectID, in persistence: PersistenceController) async throws -> Row {
@@ -63,7 +65,8 @@ struct HistorySavesDeliveredTextTests {
             return Row(
                 text: transcript.text,
                 transcribedText: transcript.value(forKey: "transcribedText") as? String,
-                postProcessedText: transcript.value(forKey: "postProcessedText") as? String
+                postProcessedText: transcript.value(forKey: "postProcessedText") as? String,
+                postProcessingProvider: transcript.value(forKey: "postProcessingProvider") as? String
             )
         }
         return try #require(row)
@@ -191,6 +194,51 @@ struct HistorySavesDeliveredTextTests {
         let saved = try await row(id, in: persistence)
         #expect(saved.postProcessedText == nil, "the earlier run's text survived the second save")
         #expect(displayed(saved) == "a different take")
+    }
+
+    /// A Retry with AI off after an AI run: the old run's provider must go
+    /// with its text, or History badges non-AI text as AI.
+    @MainActor
+    @Test func aRetryWithAIOffClearsTheEarlierRunsProvider() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let transcript = persistence.createProcessingTranscript(
+            duration: 3,
+            mode: "Nemotron",
+            audioFilePath: "/tmp/hw-1638-retry-provider.wav"
+        )
+        for result in [makeResult(postProcessed: true), makeResult()] {
+            persistence.updateTranscriptWithTranscription(
+                transcript,
+                transcribedText: result.rawText,
+                postProcessedText: result.historyPostProcessedText,
+                transcriptionProvider: result.provider,
+                postProcessingProvider: result.postProcessingProvider
+            )
+        }
+
+        let saved = try await row(transcript.objectID, in: persistence)
+        #expect(saved.postProcessingProvider == nil, "the earlier run's AI provider survived the Retry")
+        #expect(displayed(saved) == Self.pasted)
+    }
+
+    /// Same for the serial writer.
+    @MainActor
+    @Test func theBackgroundWriterClearsTheEarlierRunsProvider() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let created = await persistence.createProcessingTranscriptInBackground(
+            duration: 3,
+            mode: "Nemotron",
+            audioFilePath: "/tmp/hw-1638-background-provider.wav",
+            trimmedAudioPath: nil
+        )
+        let id = try #require(created)
+        await RecordingTranscriptionFlow.saveBatchTranscript(makeResult(postProcessed: true), to: id, persistence: persistence)
+        #expect(try await row(id, in: persistence).postProcessingProvider == "openai")
+        await RecordingTranscriptionFlow.saveBatchTranscript(makeResult(), to: id, persistence: persistence)
+
+        let saved = try await row(id, in: persistence)
+        #expect(saved.postProcessingProvider == nil, "the earlier run's AI provider survived the second save")
+        #expect(displayed(saved) == Self.pasted)
     }
 
     // MARK: - The four save sites, read from the production source
