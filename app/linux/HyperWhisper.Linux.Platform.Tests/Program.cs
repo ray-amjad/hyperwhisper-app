@@ -485,6 +485,32 @@ static Task EvdevModifierChordWithModifierDoesNotFire()
         (29, 1), (56, 1), (42, 1), (42, 0), (56, 0), (29, 0)));
     Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
         (29, 1), (56, 1), (42, 1), (29, 0), (56, 0), (42, 0)));
+    // A key pressed before the chord is complete spoils it too: Shift (or Left, which
+    // then only auto-repeats) first, then Ctrl+Alt, then T.
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (42, 1), (29, 1), (56, 1), (20, 1), (20, 0), (56, 0), (29, 0), (42, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (42, 1), (29, 1), (56, 1), (56, 0), (29, 0), (42, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (105, 1), (29, 1), (56, 1), (105, 2), (105, 2), (105, 0), (56, 0), (29, 0)));
+    // ...and only that chord: once the key is up, a fresh Ctrl+Alt fires again.
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (42, 1), (29, 1), (56, 1), (42, 0), (56, 0), (29, 0),
+        (29, 1), (56, 1), (56, 0), (29, 0)));
+
+    // ChangeMode = Ctrl+Alt+Shift with Shift pressed first: Shift is relevant here, and only
+    // change-mode, whose own key it is, fires.
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var changeMode = EvdevShortcutMapper.Map(new NamedShortcut("change",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt | ShortcutModifiers.Shift))).Value!;
+    var filter = new EvdevShortcutFilter();
+    filter.ReplaceBindings([toggle, changeMode]);
+    var names = new List<string>();
+    foreach (var (code, value) in new (ushort, int)[] { (42, 1), (29, 1), (56, 1), (56, 0), (29, 0), (42, 0) })
+        names.AddRange(filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals
+            .Select(signal => signal.Shortcut.Name));
+    Assert.Equal("change,change", string.Join(',', names));
     return Task.CompletedTask;
 }
 
