@@ -63,6 +63,38 @@ struct TruncatedLocalModelTests {
         #expect(manager.brokenModels.isEmpty)
     }
 
+    /// The #1632 verify: a broken install whose folders were read-only survived
+    /// Re-download, which then fetched nothing and showed Installed.
+    @Test func aReadOnlyBrokenInstallIsStillRemoved() throws {
+        let fileManager = FileManager.default
+        let root: URL = fileManager.temporaryDirectory
+            .appendingPathComponent("parakeet-broken-\(UUID().uuidString)", isDirectory: true)
+        let encoder: URL = root.appendingPathComponent("Encoder.mlmodelc", isDirectory: true)
+        let weights: URL = encoder.appendingPathComponent("weights", isDirectory: true)
+        try fileManager.createDirectory(at: weights, withIntermediateDirectories: true)
+        let weight: URL = weights.appendingPathComponent("weight.bin")
+        try Data(repeating: 1, count: 64).write(to: weight)
+        let folders: [URL] = [weights, encoder, root]
+        try fileManager.setAttributes([.posixPermissions: 0o400], ofItemAtPath: weight.path)
+        for folder in folders {
+            try fileManager.setAttributes([.posixPermissions: 0o555], ofItemAtPath: folder.path)
+        }
+        defer {
+            for folder in folders.reversed() {
+                try? fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
+            }
+            try? fileManager.removeItem(at: root)
+        }
+        let plainRemoveFailed: Bool = (try? fileManager.removeItem(at: root)) == nil
+        #expect(plainRemoveFailed)
+
+        try ParakeetModelManager.removeDamagedInstall(at: root)
+        let stillThere: Bool = fileManager.fileExists(atPath: root.path)
+        #expect(!stillThere)
+        // A folder that is already gone is not an error.
+        try ParakeetModelManager.removeDamagedInstall(at: root)
+    }
+
     private static func row(installed: Bool, status: LibraryModelStatus) -> LibraryModel {
         LibraryModel(
             id: "parakeet-parakeet-tdt-0.6b-v2",
