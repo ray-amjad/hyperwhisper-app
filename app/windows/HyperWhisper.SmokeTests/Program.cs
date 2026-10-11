@@ -2499,6 +2499,56 @@ internal static class Program
                 Assert(!restored["No slice"].EnableScreenOCR, "a mode with no slice at all restored with OCR ON");
             });
 
+            // #1712: both .NET heads write a mode's vocabulary and local-engine fields
+            // in their OWN slice under the same names. A Linux v2 backup restored on
+            // Windows must keep them; a present windows slice stays the whole record.
+            Run("backup import (#1712): vocabulary and local-engine fields fall back to the linux mode slice", () =>
+            {
+                const string linuxBackupJson = """
+                {
+                  "schemaVersion": 2,
+                  "exportDate": "2026-10-10T00:00:00Z",
+                  "appVersion": "1.0.0",
+                  "platform": "linux",
+                  "modes": [
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1712", "name": "Linux vocabulary", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": true, "sortOrder": 0,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "linux": {
+                        "customVocabulary": ["Øresund"], "localEngine": "parakeet",
+                        "localParakeetModel": "parakeet-tdt-0.6b-v3", "providerType": "local",
+                        "modelType": "large-v3", "enableScreenOCR": false, "isSystemProvided": true,
+                        "createdDate": "2025-01-02T03:04:05.0000000Z", "modifiedDate": "2025-06-07T08:09:10.0000000Z" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1713", "name": "Windows slice wins", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": false, "sortOrder": 1,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": {
+                        "windows": { "localEngine": "whisper" },
+                        "linux": { "customVocabulary": ["Stale"], "localEngine": "parakeet",
+                                   "localParakeetModel": "parakeet-tdt-0.6b-v3" } } }
+                  ]
+                }
+                """;
+                var backup = JsonSerializer.Deserialize<UniversalBackup>(linuxBackupJson)
+                    ?? throw new InvalidOperationException("the Linux mode backup did not deserialize");
+                var restored = backup.Modes!.Select(UniversalBackupMapper.MapToMode).ToDictionary(mode => mode.Name);
+
+                var fromLinux = restored["Linux vocabulary"];
+                Assert(fromLinux.CustomVocabulary is ["Øresund"],
+                    "a Linux backup's platformExtensions.linux.customVocabulary was lost on a Windows restore");
+                Assert(fromLinux.LocalEngine == "parakeet" && fromLinux.LocalParakeetModel == "parakeet-tdt-0.6b-v3",
+                    "a Linux backup's local engine / Parakeet model was lost on a Windows restore");
+                Assert(fromLinux.ProviderType == "local" && fromLinux.ModelType == "large-v3" && fromLinux.IsSystemProvided,
+                    "a Linux backup's providerType / modelType / isSystemProvided was lost on a Windows restore");
+                Assert(fromLinux.CreatedDate.ToUniversalTime() == new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Utc)
+                    && fromLinux.ModifiedDate.ToUniversalTime() == new DateTime(2025, 6, 7, 8, 9, 10, DateTimeKind.Utc),
+                    "a Linux backup's createdDate / modifiedDate was lost on a Windows restore");
+                var windowsWins = restored["Windows slice wins"];
+                Assert(windowsWins.CustomVocabulary is null && windowsWins.LocalEngine == "whisper"
+                    && windowsWins.LocalParakeetModel is null,
+                    "a stale preserved linux slice overrode the mode's own windows slice");
+            });
+
             // NATIVE CAPTURE (issue #277, phase 2a). Drives every
             // shared-conformance/backup-vectors.json windowsSettings row through the
             // SHIPPING Windows settings adapters — UniversalBackupMapper.MapSettings and
