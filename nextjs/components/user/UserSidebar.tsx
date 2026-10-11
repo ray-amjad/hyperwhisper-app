@@ -40,12 +40,18 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
   const pathname = usePathname();
   const { isAdmin } = useUser();
   const [pending, setPending] = useState<PendingNav | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  // The path the phone menu was opened on, or null when it is closed.
+  const [menuOpenOn, setMenuOpenOn] = useState<string | null>(null);
 
   // Drop a click once its navigation commits, so a later Back to the old
   // path cannot light the old click again.
   if (pending && pending.from !== pathname) setPending(null);
   const activeHref = activeNavHref(pathname, pending);
+  // Close the phone menu on any navigation, not just a nav-item tap: the
+  // logo, Back/Forward and in-page links all move the path while this
+  // layout stays mounted.
+  if (menuOpenOn !== null && menuOpenOn !== pathname) setMenuOpenOn(null);
+  const menuOpen = menuOpenOn !== null;
 
   const navItems = [
     {
@@ -119,6 +125,8 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
     <Link
       href={`/${locale}/user/dashboard`}
       className="flex items-center gap-3"
+      // A tap on the logo while already on the dashboard moves no path.
+      onNavigate={() => setMenuOpenOn(null)}
     >
       <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
         <span className="text-white font-bold text-lg">H</span>
@@ -149,7 +157,7 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
               // modifier, middle or new-tab click.
               onNavigate={() => {
                 setPending({ href: item.href, from: pathname });
-                setMenuOpen(false);
+                setMenuOpenOn(null);
               }}
             >
               {item.icon}
@@ -170,7 +178,7 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
           {logo}
           <button
             type="button"
-            onClick={() => setMenuOpen((open) => !open)}
+            onClick={() => setMenuOpenOn(menuOpen ? null : pathname)}
             aria-expanded={menuOpen}
             aria-controls="user-sidebar-menu"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
