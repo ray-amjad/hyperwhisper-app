@@ -167,7 +167,7 @@ class TranscriptActionHandler: ObservableObject {
                 await persistenceController.updateTranscriptWithTranscription(
                     newTranscript,
                     transcribedText: result.rawText,
-                    postProcessedText: result.wasPostProcessed ? result.text : nil,
+                    postProcessedText: result.historyPostProcessedText,
                     transcriptionProvider: result.provider,
                     postProcessingProvider: result.postProcessingProvider
                 )

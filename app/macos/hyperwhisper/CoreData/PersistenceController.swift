@@ -1656,9 +1656,8 @@ class PersistenceController: ObservableObject {
                 transcript.setValue(Date(), forKey: "lastRetryDate")
             }
             transcript.setValue(transcribedText, forKey: "transcribedText")
-            if let postProcessedText {
-                transcript.setValue(postProcessedText, forKey: "postProcessedText")
-            }
+            // Always overwrite (including clearing to nil) — see the @MainActor variant.
+            transcript.setValue(postProcessedText, forKey: "postProcessedText")
             if let transcriptionProvider {
                 transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
             }
@@ -1877,7 +1876,9 @@ class PersistenceController: ObservableObject {
     /// - Parameters:
     ///   - transcript: The transcript to update (currently in "processing" state)
     ///   - transcribedText: The transcribed text (or error message if transcription failed)
-    ///   - postProcessedText: Optional AI-enhanced version of the text
+    ///   - postProcessedText: The delivered text when it differs from the raw text (AI
+    ///     post-processing, or with it off, filler removal, voice commands and
+    ///     Vocabulary swaps); nil clears the field. See `TranscriptionResult.historyPostProcessedText`.
     ///
     /// Auto-refresh mechanism:
     /// 1. Updates the transcript's text and status from "processing" to "completed"
@@ -1898,10 +1899,12 @@ class PersistenceController: ObservableObject {
         // Store the raw transcribed text
         transcript.setValue(transcribedText, forKey: "transcribedText")
 
-        // Store the post-processed text if available
-        if let postProcessedText = postProcessedText {
-            transcript.setValue(postProcessedText, forKey: "postProcessedText")
-        }
+        // Store the delivered text. Always overwrite, including clearing to
+        // nil: History, the Recording dialog and `GET /recordings/{id}` all
+        // read `postProcessedText` before `text`, so a Retry whose new text
+        // equals its raw text would otherwise keep showing the old run's
+        // text (issue #1638).
+        transcript.setValue(postProcessedText, forKey: "postProcessedText")
 
         // Store the transcription provider (e.g., "LibWhisper", "HyperWhisper Cloud", "OpenAI Whisper")
         if let provider = transcriptionProvider {
