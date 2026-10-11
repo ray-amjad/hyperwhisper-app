@@ -3,14 +3,14 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy | HyperWhisper",
   description:
-    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts.",
+    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief audio storage on the HyperWhisper Cloud Chirp route.",
 };
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 6, 2026
+        Last Updated: October 11, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -20,7 +20,10 @@ export default function PrivacyPolicyPage() {
         transcribe entirely offline using local AI models, or choose from a
         range of cloud providers — including HyperWhisper Cloud, our built-in
         cloud service. Whichever option you choose, we never store your audio
-        recordings or transcripts.
+        recordings or transcripts, with one exception for HyperWhisper Cloud
+        audio. On the Chirp route, Cloud audio sits briefly in our own Google
+        Cloud Storage bucket, is deleted after the request, and at most 1 day
+        after a failure.
       </p>
       <p>
         Ray Amjad LTD (
@@ -170,7 +173,10 @@ export default function PrivacyPolicyPage() {
       </ul>
 
       <p className="font-semibold">
-        We do not store your audio recordings or transcripts.
+        We do not store your audio recordings or transcripts, with one
+        exception. On the Chirp route, Cloud audio sits briefly in our own
+        Google Cloud Storage bucket, is deleted after the request, and at most 1
+        day after a failure.
       </p>
 
       <h2>What Stays On Your Device</h2>
@@ -207,7 +213,10 @@ export default function PrivacyPolicyPage() {
       <p>
         When using cloud transcription, your audio is sent directly from your
         device to the cloud provider you choose. HyperWhisper does not proxy,
-        store, or retain your audio or transcripts on our servers. The cloud
+        store, or retain your audio or transcripts on our servers. HyperWhisper
+        Cloud, below, has one exception. On the Chirp route, Cloud audio sits
+        briefly in our own Google Cloud Storage bucket, is deleted after the
+        request, and at most 1 day after a failure. The cloud
         provider you select may store or process your data according to their
         own privacy policies. You are responsible for reviewing those policies
         before use.
@@ -353,7 +362,9 @@ export default function PrivacyPolicyPage() {
         <strong>HyperWhisper Cloud</strong> is our built-in cloud transcription
         service. It routes your audio through our edge servers to one of the
         providers listed below. We do not store your audio or transcripts — we
-        only track credit usage.
+        only track credit usage — with one exception. On the Chirp route, Cloud
+        audio sits briefly in our own Google Cloud Storage bucket, is deleted
+        after the request, and at most 1 day after a failure.
       </p>
       <p>
         <strong>Transcription (speech-to-text) providers:</strong>
@@ -732,7 +743,10 @@ export default function PrivacyPolicyPage() {
       <h2>Your Rights</h2>
       <p>
         Because we do not store your audio or transcripts, requests to access or
-        delete that data should be carried out on your device by you. For email,
+        delete that data should be carried out on your device by you. The one
+        exception is HyperWhisper Cloud audio. On the Chirp route, Cloud audio
+        sits briefly in our own Google Cloud Storage bucket, is deleted after
+        the request, and at most 1 day after a failure. For email,
         order, or license information we maintain, you may request access or
         deletion by contacting support. Some information must be retained for
         legal/accounting purposes.
