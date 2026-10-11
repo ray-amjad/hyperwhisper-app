@@ -444,8 +444,6 @@
 "onboarding.a11y.notSelectedDetail" = "Not selected, %@";
 "onboarding.a11y.selectedInput" = "Selected input";
 
-// Errors surfaced by the flow model
-
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Launch on login";
 "settings.general.launchAtLogin.info" = "Start HyperWhisper automatically when you log in.";
