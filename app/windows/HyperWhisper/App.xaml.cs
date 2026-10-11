@@ -271,13 +271,9 @@ public partial class App : WpfApplication
         // MODEL DOWNLOAD LEFTOVERS
         // A kill, crash or power loss mid-download left that model's partial
         // file or folder in Models for good; remove it now (#1599).
-        var modelSweepCutoffUtc = DateTime.UtcNow;
-        // ast-grep-ignore: no-discarded-task-run -- start-up runs on the UI thread and a leftover can be gigabytes; the sweep catches its own IO errors and the catch inside the lambda logs anything else
-        _ = Task.Run(() =>
-        {
-            try { ModelDownloadLeftovers.SweepLeftovers(modelSweepCutoffUtc); }
-            catch (Exception ex) { LoggingService.Warn($"Model download leftover sweep failed: {ex.Message}"); }
-        });
+        // A download awaits ModelDownloadLeftovers.WhenSwept, so it never races the
+        // sweep. StartSweep runs off the UI thread and logs every exception.
+        _ = ModelDownloadLeftovers.StartSweep(DateTime.UtcNow);
 
         // LOCAL API SERVER
         // Off by default. When the user has enabled it via Settings → Local API,

@@ -39,6 +39,30 @@ internal static class ModelDownloadLeftovers
     internal static IEnumerable<string> LocalLlmPartialNames =>
         LocalLlmModelInfo.AllModels.Select(m => $"{m.FileName}.download");
 
+    private static Task _sweep = Task.CompletedTask;
+
+    /// <summary>
+    /// Completes when the start-up sweep has finished. A download awaits it before
+    /// it touches its partial path, so the sweep can never delete a partial that a
+    /// download just recreated. It never faults.
+    /// </summary>
+    internal static Task WhenSwept => Volatile.Read(ref _sweep);
+
+    /// <summary>
+    /// Start the start-up sweep on a worker thread: a leftover can be gigabytes.
+    /// Call it once, before any download can start.
+    /// </summary>
+    internal static Task StartSweep(DateTime writtenBeforeUtc)
+    {
+        var sweep = Task.Run(() =>
+        {
+            try { SweepLeftovers(writtenBeforeUtc); }
+            catch (Exception ex) { LoggingService.Warn($"Model download leftover sweep failed: {ex.Message}"); }
+        });
+        Volatile.Write(ref _sweep, sweep);
+        return sweep;
+    }
+
     /// <summary>Remove the partial downloads an earlier run left under the models folder.</summary>
     internal static int SweepLeftovers(DateTime writtenBeforeUtc) =>
         SweepLeftovers(

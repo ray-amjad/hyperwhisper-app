@@ -169,6 +169,9 @@ public sealed class ModelDownloadService
         var cancelRequested = false;
         try
         {
+            // A download clicked right after launch must not recreate a partial
+            // the start-up sweep is about to delete (#1599).
+            await ModelDownloadLeftovers.WhenSwept.ConfigureAwait(false);
             result = download.Model.Payload switch
             {
                 WhisperModelInfo whisper => await _whisperService.DownloadModelAsync(
