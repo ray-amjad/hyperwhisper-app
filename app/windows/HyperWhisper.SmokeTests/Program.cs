@@ -10609,6 +10609,66 @@ internal static class Program
                     "ParakeetTranscriptionService must hand its phonetic pass to the orchestrator");
             });
 
+            Run("the /transcribe scratch sweep removes leftovers, and Quit removes in-flight files — issue #1476", () =>
+            {
+                var root = Path.Combine(tempRoot, "scratch-sweep-1476");
+                var snapshotDir = LocalApiScratchFiles.SnapshotDirectory(root);
+                Directory.CreateDirectory(snapshotDir);
+
+                string Write(string directory, string name, DateTime writtenUtc)
+                {
+                    var path = Path.Combine(directory, name);
+                    File.WriteAllBytes(path, new byte[] { 1, 2, 3 });
+                    File.SetLastWriteTimeUtc(path, writtenUtc);
+                    return path;
+                }
+
+                var cutoff = DateTime.UtcNow;
+                var old = cutoff.AddMinutes(-5);
+                var leftUpload = Write(root, LocalApiScratchFiles.UploadPrefix + "a.wav", old);
+                var leftSnapshot = Write(snapshotDir, LocalApiScratchFiles.SnapshotPrefix + "b.wav", old);
+                var stranger = Write(root, "not-hyperwhisper.wav", old);
+                var nested = Path.Combine(root, "nested");
+                Directory.CreateDirectory(nested);
+                var nestedUpload = Write(nested, LocalApiScratchFiles.UploadPrefix + "c.wav", old);
+                var fresh = Write(root, LocalApiScratchFiles.UploadPrefix + "fresh.wav", cutoff.AddSeconds(1));
+                var locked = Write(root, LocalApiScratchFiles.UploadPrefix + "locked.wav", old);
+                var tracked = Write(snapshotDir, LocalApiScratchFiles.SnapshotPrefix + "tracked.wav", old);
+
+                // A live request in another process holds its file like this.
+                using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    LocalApiScratchFiles.Track(tracked, readLock: null);
+                    try
+                    {
+                        var deleted = LocalApiScratchFiles.SweepLeftovers(root, cutoff);
+                        Assert(deleted == 2, $"the sweep must remove exactly the two leftovers, removed {deleted}");
+                    }
+                    finally
+                    {
+                        LocalApiScratchFiles.Untrack(tracked);
+                    }
+                }
+
+                Assert(!File.Exists(leftUpload), "a leftover hyperwhisper-localapi-* upload survived the sweep");
+                Assert(!File.Exists(leftSnapshot), "a leftover snapshot-* survived the sweep");
+                Assert(File.Exists(stranger), "the sweep deleted a %TEMP% file this app never wrote");
+                Assert(File.Exists(nestedUpload), "the sweep reached below the top of %TEMP%");
+                Assert(File.Exists(fresh), "the sweep deleted a file written after its cutoff");
+                Assert(File.Exists(locked), "the sweep deleted a file a live request still holds");
+                Assert(File.Exists(tracked), "the sweep deleted a file this process's request is using");
+
+                // Quit: a request that never reached its finally still holds its
+                // read lock; DeleteInFlight releases it and deletes the file.
+                var inFlightLock = new FileStream(tracked, FileMode.Open, FileAccess.Read, FileShare.Read);
+                LocalApiScratchFiles.Track(tracked, inFlightLock);
+                var quitDeleted = LocalApiScratchFiles.DeleteInFlight();
+                Assert(quitDeleted == 1 && !File.Exists(tracked),
+                    $"Quit must delete the in-flight scratch file, deleted {quitDeleted}");
+                Assert(LocalApiScratchFiles.InFlightCount == 0, "a deleted in-flight file is still tracked");
+                inFlightLock.Dispose();
+            });
+
             Run("the /transcribe response projects FinalText, not RawText — issues #495, #498", () =>
             {
                 var mode = new Mode

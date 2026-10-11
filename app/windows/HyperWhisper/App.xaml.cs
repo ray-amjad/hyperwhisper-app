@@ -284,6 +284,16 @@ public partial class App : WpfApplication
                 ApiKeyService.Instance,
                 CloudProviderHealthService.Instance);
 
+            // A Quit that outran a request, or a hard kill, left that request's
+            // decoded upload or snapshot in %TEMP%; remove it now (#1476).
+            var scratchSweepCutoffUtc = DateTime.UtcNow;
+            // ast-grep-ignore: no-discarded-task-run -- start-up runs on the UI thread and %TEMP% can hold many files; the sweep catches its own IO errors and the catch inside the lambda logs anything else
+            _ = Task.Run(() =>
+            {
+                try { LocalApiScratchFiles.SweepLeftovers(scratchSweepCutoffUtc); }
+                catch (Exception ex) { LoggingService.Warn($"LocalAPI scratch sweep failed: {ex.Message}"); }
+            });
+
             // Phase 3: hand the API server the same orchestrator + local
             // provider that `MainViewModel` consumes via
             // <see cref="TranscriptionRuntime"/>. The shared local provider
