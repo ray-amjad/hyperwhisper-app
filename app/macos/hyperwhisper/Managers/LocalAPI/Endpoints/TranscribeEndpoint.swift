@@ -893,15 +893,15 @@ enum TranscribeEndpoint {
         /// `mode` is the `mode` above. The caller MUST `end()` it once the
         /// request finishes; `handle` does so in a `defer`.
         let transientMode: LocalAPITransientMode?
-        /// The local Whisper model this request asked for, nil for every other
-        /// engine. Loaded by the queued pass itself; resolution never stages it
-        /// on the shared provider (issue #1465).
-        let whisperModel: WhisperModel?
         /// The cloud provider this request resolved to, straight out of the
         /// router's own resolution (never re-derived here). nil for local
         /// engines. Used to report the transcription outcome back to
         /// `CloudProviderHealthManager` (issue #379).
         let cloudProviderType: CloudProvider?
+        /// The local Whisper model this request asked for, nil for every other
+        /// engine. Loaded by the queued pass itself; resolution never stages it
+        /// on the shared provider (issue #1465).
+        let whisperModel: WhisperModel?
     }
 
     @MainActor
