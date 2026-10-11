@@ -3,20 +3,24 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy | HyperWhisper",
   description:
-    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over 9.5 MB on the HyperWhisper Cloud Chirp route.",
+    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route.",
 };
 
 // The one storage exception, written once and rendered after every
 // no-storage claim below. The first sentence is Ray's approved wording
 // (#1033); the second scopes it to google-chirp.ts, which uploads to the
-// bucket only above INLINE_AUDIO_MAX_BYTES (9.5 MB).
+// bucket when audio is over INLINE_AUDIO_MAX_BYTES (9.5 MB) OR its
+// estimateAudioSeconds() guess is over INLINE_AUDIO_MAX_SECONDS (55 s). The
+// guess comes from file size, so the copy says "estimate", not a hard length.
 const CHIRP_BUCKET_EXCEPTION = (
   <>
     On the Chirp route, Cloud audio sits briefly in our own Google Cloud
     Storage bucket, is deleted after the request, and at most 1 day after a
-    failure. The Chirp route is HyperWhisper Cloud&apos;s Google Chirp 3 model,
-    and only recordings over 9.5 MB go into the bucket; shorter Chirp
-    recordings are sent to Google without being written to it.
+    failure. The Chirp route is HyperWhisper Cloud&apos;s Google Chirp 3 model.
+    A Chirp recording goes into the bucket when it is over 9.5 MB or when our
+    server, estimating from its file size, judges it longer than about 55
+    seconds; other Chirp recordings are sent to Google without being written
+    to it.
   </>
 );
 
@@ -420,8 +424,9 @@ export default function PrivacyPolicyPage() {
           >
             Google
           </a>{" "}
-          (Chirp 3) — the Chirp route. Recordings over 9.5 MB pass through our
-          own Google Cloud Storage bucket first, as described above.
+          (Chirp 3) — the Chirp route. Recordings over about 55 seconds or 9.5 MB
+          pass through our own Google Cloud Storage bucket first, as described
+          above.
         </li>
       </ul>
       <p>
