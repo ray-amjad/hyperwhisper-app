@@ -306,13 +306,20 @@ final class NemotronModelManager: ObservableObject {
     @MainActor
     func markVariantBroken(_ modelId: String) {
         guard Self.variant(forModelId: modelId) != nil else { return }
+        // Publish only on a change; see refreshState() (issue #1510).
+        guard !brokenVariants.contains(modelId) else { return }
         brokenVariants.insert(modelId)
     }
 
     /// Clear a variant from the broken set — called when the file census flips
     /// (download finished, files removed).
+    ///
+    /// Every successful `prepareIfNeeded` calls this, so it runs once per
+    /// Nemotron transcription. Removing an absent member still mutates the
+    /// `@Published` set and publishes; see refreshState() (issue #1510).
     @MainActor
     func clearVariantBroken(_ modelId: String) {
+        guard brokenVariants.contains(modelId) else { return }
         brokenVariants.remove(modelId)
     }
 
@@ -420,7 +427,19 @@ final class NemotronModelManager: ObservableObject {
             localURL: multilingualDownloaded ? multilingualDir : nil
         ))
 
-        availableModels = models
+        // PUBLISH ONLY ON AN ACTUAL CHANGE (issue #1510):
+        // `@Published` fires on every assignment, equal value or not, and the
+        // router calls this before every Nemotron transcription, a Local API
+        // `/transcribe` included. hyperwhisperApp holds this manager as a
+        // `@StateObject`, so each publish re-evaluates the whole Scene body,
+        // and the `.menu`-style MenuBarExtra rebuilds its NSMenu. A rebuild
+        // while the menu is open drops the highlight and closes the submenu,
+        // so a Local API loop every ~2 s left the menu bar menu dead. The
+        // Parakeet manager guards the same way (#231).
+        // See NemotronRefreshStateRepublishTests.
+        if availableModels != models {
+            availableModels = models
+        }
 
         // Drop broken flags whose on-disk install is no longer detected: either
         // the user deleted the model (so there's nothing to re-download from) or
@@ -429,7 +448,10 @@ final class NemotronModelManager: ObservableObject {
         // variant is still broken — only a successful load (or an explicit
         // delete + redownload, which lands here via isDownloaded toggling) clears it.
         let installedIds = Set(models.filter { $0.isDownloaded }.map { $0.id })
-        brokenVariants = brokenVariants.intersection(installedIds)
+        let keptBroken = brokenVariants.intersection(installedIds)
+        if brokenVariants != keptBroken {
+            brokenVariants = keptBroken
+        }
     }
 
     /// Start (or queue) a variant download. Non-async so the View can call it directly
