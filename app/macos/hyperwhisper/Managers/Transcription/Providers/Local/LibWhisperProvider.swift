@@ -557,6 +557,15 @@ class LibWhisperProvider: TranscriptionProvider {
         do {
             let output = try await task.value
             await ModelResidencyRegistry.shared.markIdle(claimToken)
+            // `fullTranscribe` never polls for cancellation, so a pass cancelled
+            // mid-decode still finishes and hands back its text. Drop it: the
+            // caller was cancelled or superseded, and a Local API request must
+            // answer with the cancellation, not a transcript (issue #1465).
+            if task.isCancelled || cancellationEpoch != epoch {
+                logger.info("Transcription cancelled during decode; result discarded")
+                lastTimestamps = nil
+                throw TranscriptionError.streamingInterrupted
+            }
             return output
         } catch {
             await ModelResidencyRegistry.shared.markIdle(claimToken)
