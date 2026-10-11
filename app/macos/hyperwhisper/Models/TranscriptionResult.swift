@@ -50,7 +50,8 @@ struct TranscriptionResult: Identifiable {
     }
 
     /// The `postProcessedText` a History row saves: the delivered `text`
-    /// whenever it is not the engine's `rawText`, or nil when they match.
+    /// after an AI post-processing run, or whenever it is not the engine's
+    /// `rawText`. Nil only when AI did not run and the two match.
     ///
     /// Not gated on `wasPostProcessed` (issue #1638): with AI post-processing
     /// off, the pipeline still removes filler words, applies dictated "new line"

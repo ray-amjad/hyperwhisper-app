@@ -1661,7 +1661,7 @@ class PersistenceController: ObservableObject {
             if let transcriptionProvider {
                 transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
             }
-            // Always overwrite with `postProcessedText` — see the @MainActor variant.
+            // Always overwrite, in step with `postProcessedText` — see the @MainActor variant.
             transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
             // Always overwrite (including clearing to nil) — see the @MainActor variant.
             transcript.setValue(wordTimestampsJSON, forKey: "wordTimestampsJSON")
