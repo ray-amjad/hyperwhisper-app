@@ -432,6 +432,14 @@ try
         Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
             "modes accepted a local LLM path outside the models directory");
         shell.Modes.LocalPostProcessingModel = "local-test.gguf";
+        shell.Modes.UserSystemPrompt = new string('p', 8001);
+        await shell.Modes.SaveAsync();
+        Assert(shell.Modes.Status.ErrorCode == "modes.prompt_too_long",
+            "modes accepted a system prompt over the 8,000-character limit");
+        shell.Modes.UserSystemPrompt = new string('p', 8000);
+        await shell.Modes.SaveAsync();
+        Assert((await new ModeRepository(database).ListAsync()).Single().UserSystemPrompt?.Length == 8000,
+            "mode editor refused or cut a system prompt at the 8,000-character limit (#1488)");
         shell.Modes.UserSystemPrompt = "Keep the dictated wording.";
         await shell.Modes.SaveAsync();
         var localMode = (await new ModeRepository(database).ListAsync()).Single();

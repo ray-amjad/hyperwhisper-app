@@ -124,7 +124,7 @@ public class Mode
     /// <summary>Local GGUF model for on-device post-processing.</summary>
     public string? LocalPostProcessingModel { get; set; }
 
-    /// <summary>User-supplied system prompt for post-processing (max 2000 chars).</summary>
+    /// <summary>User-supplied system prompt for post-processing (max 8000 chars).</summary>
     public string? UserSystemPrompt { get; set; }
 
     /// <summary>Custom instructions for "custom" preset type.</summary>

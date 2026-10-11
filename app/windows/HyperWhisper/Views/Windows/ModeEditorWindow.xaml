@@ -547,11 +547,11 @@
                                          TextWrapping="Wrap"
                                          AcceptsReturn="True"
                                          VerticalScrollBarVisibility="Auto"
-                                         MaxLength="2000"
+                                         MaxLength="8000"
                                          Height="100"
                                          Margin="0,4,0,0"
                                          TextChanged="UserPromptBox_TextChanged"/>
-                                <TextBlock x:Name="UserPromptCharCount" Text="0/2000" FontSize="11"
+                                <TextBlock x:Name="UserPromptCharCount" Text="0/8000" FontSize="11"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            HorizontalAlignment="Right" Margin="0,4,0,0"/>
                             </StackPanel>

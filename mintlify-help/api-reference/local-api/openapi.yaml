@@ -454,7 +454,7 @@ components:
         capitalization: { type: boolean }
         profanityFilter: { type: boolean }
         customInstructions: { type: string, nullable: true }
-        userSystemPrompt: { type: string, nullable: true, maxLength: 2000 }
+        userSystemPrompt: { type: string, nullable: true, maxLength: 8000 }
         isDefault: { type: boolean, nullable: true }
         isSystemProvided: { type: boolean, nullable: true }
         sortOrder:
@@ -567,7 +567,7 @@ components:
         capitalization: { type: boolean }
         profanityFilter: { type: boolean }
         customInstructions: { type: string, nullable: true }
-        userSystemPrompt: { type: string, nullable: true, maxLength: 2000 }
+        userSystemPrompt: { type: string, nullable: true, maxLength: 8000 }
         isDefault: { type: boolean, nullable: true }
         sortOrder:
           type: integer

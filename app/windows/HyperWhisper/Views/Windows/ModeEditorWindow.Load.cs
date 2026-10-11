@@ -348,7 +348,7 @@ public partial class ModeEditorWindow
                 UserPromptCheck.IsChecked = hasUserPrompt;
                 UserPromptPanel.Visibility = hasUserPrompt ? Visibility.Visible : Visibility.Collapsed;
                 UserPromptBox.Text = userPrompt;
-                UserPromptCharCount.Text = $"{userPrompt.Length}/2000";
+                UserPromptCharCount.Text = $"{userPrompt.Length}/8000";
 
             }
             else
