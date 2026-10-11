@@ -10686,6 +10686,65 @@ internal static class Program
                     "ParakeetTranscriptionService must hand its phonetic pass to the orchestrator");
             });
 
+            Run("the start-up sweep removes partial model downloads an earlier run left — issue #1599", () =>
+            {
+                var root = Path.Combine(tempRoot, "model-leftovers-1599");
+                var whisperDir = Path.Combine(root, "Models");
+                var parakeetDir = Path.Combine(whisperDir, "Parakeet");
+                var llmDir = Path.Combine(whisperDir, "LLM");
+                Directory.CreateDirectory(parakeetDir);
+                Directory.CreateDirectory(llmDir);
+
+                string WriteFile(string directory, string name, DateTime writtenUtc)
+                {
+                    var path = Path.Combine(directory, name);
+                    File.WriteAllBytes(path, new byte[] { 1, 2, 3 });
+                    File.SetLastWriteTimeUtc(path, writtenUtc);
+                    return path;
+                }
+
+                string MakeFolder(string directory, string name, DateTime writtenUtc)
+                {
+                    var path = Path.Combine(directory, name);
+                    Directory.CreateDirectory(path);
+                    WriteFile(path, "encoder.int8.onnx", writtenUtc);
+                    Directory.SetCreationTimeUtc(path, writtenUtc);
+                    Directory.SetLastWriteTimeUtc(path, writtenUtc);
+                    return path;
+                }
+
+                var cutoff = DateTime.UtcNow;
+                var old = cutoff.AddMinutes(-35);
+                var whisperPartial = WriteFile(whisperDir, "ggml-medium.bin.download", old);
+                var parakeetPartial = MakeFolder(parakeetDir, "nemotron-3.5-ml-560ms.temp", old);
+                var llmPartial = WriteFile(llmDir, "model.gguf.download", old);
+                var installedWhisper = WriteFile(whisperDir, "ggml-medium.bin", old);
+                var installedParakeet = MakeFolder(parakeetDir, "nemotron-3.5-ml-560ms", old);
+                var installedLlm = WriteFile(llmDir, "model.gguf", old);
+                var stranger = WriteFile(whisperDir, "notes.download", old);
+                var freshWhisper = WriteFile(whisperDir, "ggml-small.bin.download", cutoff.AddSeconds(1));
+                var freshParakeet = MakeFolder(parakeetDir, "parakeet-tdt.temp", cutoff.AddSeconds(1));
+                var lockedLlm = WriteFile(llmDir, "busy.gguf.download", old);
+
+                // A running download holds its partial like this (File.Create).
+                using (new FileStream(lockedLlm, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    var deleted = ModelDownloadLeftovers.SweepLeftovers(whisperDir, parakeetDir, llmDir, cutoff);
+                    Assert(deleted == 3, $"the sweep must remove exactly the three leftovers, removed {deleted}");
+                }
+
+                Assert(!File.Exists(whisperPartial), "a leftover ggml-*.bin.download survived the sweep");
+                Assert(!Directory.Exists(parakeetPartial), "a leftover Parakeet <id>.temp folder survived the sweep");
+                Assert(!File.Exists(llmPartial), "a leftover local LLM *.download survived the sweep");
+                Assert(File.Exists(installedWhisper), "the sweep deleted an installed Whisper model");
+                Assert(Directory.Exists(installedParakeet), "the sweep deleted an installed Parakeet model");
+                Assert(File.Exists(installedLlm), "the sweep deleted an installed local LLM");
+                Assert(File.Exists(stranger), "the sweep deleted a Models file no download writes");
+                Assert(File.Exists(freshWhisper), "the sweep deleted a Whisper download started after its cutoff");
+                Assert(Directory.Exists(freshParakeet), "the sweep deleted a Parakeet download started after its cutoff");
+                Assert(File.Exists(lockedLlm), "the sweep deleted a partial a running download holds");
+            });
+
             Run("the /transcribe scratch sweep removes leftovers, and Quit removes in-flight files — issue #1476", () =>
             {
                 var root = Path.Combine(tempRoot, "scratch-sweep-1476");

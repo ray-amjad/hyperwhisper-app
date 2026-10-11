@@ -258,6 +258,9 @@ public partial class MainWindow : Window
 
         try
         {
+            // A model download the app exits under never deletes its partial
+            // file (#1599): cancel it and give it a moment to clean up.
+            await ModelDownloadService.Instance.CancelAllAsync(TimeSpan.FromSeconds(3));
             await _viewModel.CleanupAsync();
             _recordingOverlay?.Close();
             _fileProgressWindow?.Close();
