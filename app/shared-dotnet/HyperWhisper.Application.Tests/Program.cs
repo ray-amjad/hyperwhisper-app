@@ -2821,6 +2821,30 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         Assert(File.Exists(failureAudio), "owned audio was deleted after a non-cancel failure");
     }
 
+    // A backend that answers with no text (Whisper's [BLANK_AUDIO]-only silence,
+    // once stripped) is no speech, not a generic failure, and nothing is delivered (#1742).
+    var silentStore = await CreateStoreAsync(root, "workflow-no-speech");
+    var silentAudio = Path.Combine(root, "silent.wav");
+    await File.WriteAllBytesAsync(silentAudio, [1]);
+    using (var recorder = new FakeRecorder(silentAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("", "Test Whisper"))),
+        silentStore.History))
+    {
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var result = await workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest());
+        Assert(!result.IsSuccess && result.InjectionOutcome is null
+            && workflow.Snapshot.ErrorCode == "workflow.no_speech",
+            $"an empty transcript was not reported as no speech: {workflow.Snapshot.ErrorCode}");
+        var failed = (await silentStore.History.ListAsync()).Single();
+        Assert(failed.Status == TranscriptStatus.Failed && failed.FailedReason == "No speech was detected.",
+            "an empty transcript did not leave a no-speech history row");
+    }
+
     var exceptionStore = await CreateStoreAsync(root, "workflow-exception");
     var exceptionAudio = Path.Combine(root, "exception.wav");
     await File.WriteAllBytesAsync(exceptionAudio, [1]);

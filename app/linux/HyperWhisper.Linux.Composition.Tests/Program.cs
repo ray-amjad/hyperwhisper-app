@@ -53,6 +53,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
     ("recording refuses every kind when no input device is selected", RecordingRefusesWithoutInputDevice),
+    ("a silent recording reads No speech detected, not Transcription failed", SilentRecordingReadsNoSpeech),
     ("live models are provider-specific", LiveModelsAreProviderSpecific),
     ("local and cloud live sessions select isolated engines", LiveEngineRoutingIsIsolated),
     ("production Whisper backend selection reaches inference", WhisperBackendSelectionReachesInference),
@@ -1260,6 +1261,21 @@ static Task RecordingRefusesWithoutInputDevice()
     var selected = LinuxRecordingInputDeviceGate.Check("alsa_input.pci-0000_00_1f.3.analog-stereo");
     Assert(selected.IsSuccess && selected.Error is null,
         "the input device gate refused a real enumerated microphone");
+    return Task.CompletedTask;
+}
+
+// Issue #1742: the workflow reports a transcript that is empty after Whisper's
+// [BLANK_AUDIO] markers are stripped as workflow.no_speech. The batch stop path
+// must hand that code to the overlay; every other failure stays one code.
+static Task SilentRecordingReadsNoSpeech()
+{
+    Assert(LinuxRecordingOverlayErrorMapper.FromCode(
+            LinuxInteractionRecordingSession.FailureCodeFor("workflow.no_speech"), transcription: true)
+        == LinuxRecordingOverlayError.NoSpeechDetected,
+        "a silent recording did not reach the no-speech overlay");
+    foreach (var other in new string?[] { null, "workflow.transcriptionfailed", "workflow.backend_failed", "workflow.persistence_failed" })
+        Assert(LinuxInteractionRecordingSession.FailureCodeFor(other) == "workflow.transcription_failed",
+            $"a workflow failure ({other ?? "null"}) changed its overlay code");
     return Task.CompletedTask;
 }
 
