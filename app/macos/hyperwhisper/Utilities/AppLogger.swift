@@ -330,6 +330,19 @@ final class AppLogger {
     
     // MARK: - Log Export
     
+    /// The program a `log show` site runs. Production always runs
+    /// `/usr/bin/log` with the site's own arguments; a test passes a fake
+    /// child that writes more than a pipe holds, which the real log store
+    /// cannot be made to do on demand (#991).
+    struct LogShowCommand {
+        var executableURL: URL
+        var arguments: [String]
+    }
+    
+    private static func logShow(_ arguments: [String]) -> LogShowCommand {
+        LogShowCommand(executableURL: URL(fileURLWithPath: "/usr/bin/log"), arguments: arguments)
+    }
+    
     /// Exports system logs for diagnostic purposes
     /// Combines os.log entries with UpdateLogger files
     static func exportDiagnostics(completion: @escaping (URL?) -> Void) {
@@ -340,30 +353,8 @@ final class AppLogger {
                 try FileManager.default.createDirectory(at: exportDir, withIntermediateDirectories: true)
                 
                 // EXPORT OS.LOG ENTRIES
-                // Use log show command to export last 24 hours of our app's logs
                 let logFile = exportDir.appendingPathComponent("system-logs.txt")
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/usr/bin/log")
-                process.arguments = [
-                    "show",
-                    "--predicate", "subsystem == '\(subsystem)'",
-                    "--last", "24h",
-                    "--style", "json"
-                ]
-                
-                let outputPipe = Pipe()
-                process.standardOutput = outputPipe
-                // Unread stderr would fill its pipe the same way stdout can.
-                process.standardError = FileHandle.nullDevice
-                
-                try process.run()
-                // Drain BEFORE waiting (#991). 24 h of JSON is far past the
-                // ~64 KB pipe buffer: waiting first leaves `log show` blocked
-                // on write, so it never exits and `completion` never runs.
-                let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                process.waitUntilExit()
-                
-                try data.write(to: logFile)
+                try writeSystemLogs(to: logFile)
                 
                 // COPY UPDATE LOGS
                 let updateLogPath = UpdateLogger.shared.currentLogPath
@@ -428,6 +419,35 @@ final class AppLogger {
         }
     }
     
+    /// Writes the last 24 hours of our app's logs, as JSON, to `logFile`.
+    /// The `log show` reader behind `exportDiagnostics`; `command` is the
+    /// test seam (#991), nil in production.
+    static func writeSystemLogs(to logFile: URL, command: LogShowCommand? = nil) throws {
+        let command = command ?? logShow([
+            "show",
+            "--predicate", "subsystem == '\(subsystem)'",
+            "--last", "24h",
+            "--style", "json"
+        ])
+        let process = Process()
+        process.executableURL = command.executableURL
+        process.arguments = command.arguments
+        
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        // Unread stderr would fill its pipe the same way stdout can.
+        process.standardError = FileHandle.nullDevice
+        
+        try process.run()
+        // Drain BEFORE waiting (#991). 24 h of JSON is far past the
+        // ~64 KB pipe buffer: waiting first leaves `log show` blocked
+        // on write, so it never exits and the export never finishes.
+        let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        
+        try data.write(to: logFile)
+    }
+    
     /// Gets device information for diagnostics
     private static func getDeviceInfo() -> String {
         var size = 0
@@ -452,14 +472,16 @@ final class AppLogger {
     /// - Parameters:
     ///   - minutes: How many minutes of logs to retrieve (default: 5)
     ///   - maxLines: Maximum number of log lines to return (default: 100)
+    ///   - command: Test seam (#991): the program to run instead of
+    ///     `log show`. nil in production.
     /// - Returns: Sanitized log text, or nil if retrieval failed
-    static func getRecentLogs(minutes: Int = 5, maxLines: Int = 100) -> String? {
+    static func getRecentLogs(minutes: Int = 5, maxLines: Int = 100, command: LogShowCommand? = nil) -> String? {
         // HOW LONG THIS BLOCKS IS ITSELF A DIAGNOSTIC (Sentry HYPERWHISPER-F7).
         // `log show` is a subprocess and reading it to the end blocks the CALLING
         // thread. 55 of the 56 `SentryService.capture` sites leave
         // `includeRecentLogs` at its default of `true`; a capture reached from
         // the main thread used to park it here for as long as the subprocess
-        // took. `SentryService.withRecentLogs` now moves that fetch off the
+        // took. `SentryService.withRecentLogs` now skips the fetch on the
         // main thread (#991), so `diagnostic_logs_on_main_thread` should stay
         // false; a true means some new caller reached this directly.
         //
@@ -472,14 +494,15 @@ final class AppLogger {
             "diagnostic_logs_on_main_thread": onMainThread
         ])
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/log")
-        process.arguments = [
+        let command = command ?? logShow([
             "show",
             "--predicate", "subsystem == '\(subsystem)'",
             "--last", "\(minutes)m",
             "--style", "compact"
-        ]
+        ])
+        let process = Process()
+        process.executableURL = command.executableURL
+        process.arguments = command.arguments
 
         let outputPipe = Pipe()
         process.standardOutput = outputPipe
