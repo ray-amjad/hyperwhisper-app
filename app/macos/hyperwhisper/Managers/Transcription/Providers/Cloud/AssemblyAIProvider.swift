@@ -429,7 +429,8 @@ enum AssemblyAIDictationAudio {
             return source
         }
         // macOS recordings are CAF/M4A. Use the existing PCM16 converter.
-        let destination = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-\(UUID().uuidString).wav")
+        // Pid-tagged so a launch after a crash sweeps it (issue #1581).
+        let destination = CloudTempAudioSweep.temporaryURL(.dictationWAV)
         do {
             _ = try await AudioFileConverter().convertAudioToWAV(from: source, to: destination)
             try Task.checkCancellation()
