@@ -821,6 +821,7 @@ try
     var peerService = new ApplicationBackupService(peerDatabase, peerSettings);
     var windowsModeId = Guid.NewGuid();
     var bothSlicesId = Guid.NewGuid();
+    var badPeerId = Guid.NewGuid();
     var windowsBackup = new JsonObject
     {
         ["schemaVersion"] = 2,
@@ -846,6 +847,16 @@ try
                     ["customVocabulary"] = new JsonArray("Stale"), ["localEngine"] = "parakeet",
                     ["localParakeetModel"] = "parakeet-tdt-0.6b-v3",
                 },
+            }),
+            // A wrong-typed value in the peer slice: Linux drops that slice and keeps
+            // the defaults, as Windows does, instead of rejecting the whole backup.
+            OcrMode(badPeerId, "Bad windows slice", 2, new JsonObject
+            {
+                ["windows"] = new JsonObject
+                {
+                    ["customVocabulary"] = new JsonArray("Dropped"), ["localEngine"] = "parakeet",
+                    ["isSystemProvided"] = "true",
+                },
             })),
     };
     var peerImport = await peerService.ImportAsync(windowsBackup.ToJsonString());
@@ -864,8 +875,11 @@ try
     var linuxWins = peerModes[bothSlicesId];
     Assert(linuxWins.CustomVocabulary is null && linuxWins.LocalEngine == "whisper" && linuxWins.LocalParakeetModel is null,
         "a stale preserved windows slice overrode the mode's own linux slice (#1712)");
+    var badPeer = peerModes[badPeerId];
+    Assert(badPeer.CustomVocabulary is null && badPeer.LocalEngine == "whisper" && !badPeer.IsSystemProvided,
+        "an unreadable windows slice was used instead of the defaults (#1712)");
 
-    Console.WriteLine("Backup application tests passed (44/44).");
+    Console.WriteLine("Backup application tests passed (45/45).");
 }
 finally
 {

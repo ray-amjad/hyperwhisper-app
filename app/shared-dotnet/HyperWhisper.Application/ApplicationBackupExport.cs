@@ -291,7 +291,7 @@ public sealed partial class ApplicationBackupService(
         // The per-mode fields both .NET heads write under the same names (#1712):
         // the linux slice when there is a readable one (a JSON object), else the
         // Windows head's slice.
-        var own = linux ?? extensions?[PeerModeSlice] as JsonObject;
+        var own = linux ?? ReadablePeerSlice(extensions?[PeerModeSlice] as JsonObject);
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
         return new Mode
         {
@@ -331,6 +331,30 @@ public sealed partial class ApplicationBackupService(
     /// overrides it. Mirrors Windows <c>UniversalBackupMapper.ReadPeerModeExtensions</c>.
     /// </summary>
     private const string PeerModeSlice = "windows";
+
+    /// <summary>
+    /// The peer slice, or null when one of the shared fields in it cannot be read
+    /// (a wrong JSON type, a date that does not parse). A bad peer value must not
+    /// reject the whole backup: Linux never read this slice before #1712, and
+    /// Windows <c>ReadPeerModeExtensions</c> also drops an unreadable peer slice
+    /// and keeps the defaults.
+    /// </summary>
+    private static JsonObject? ReadablePeerSlice(JsonObject? peer)
+    {
+        if (peer is null) return null;
+        try
+        {
+            _ = String(peer, "modelType"); _ = String(peer, "localEngine");
+            _ = String(peer, "localParakeetModel"); _ = String(peer, "providerType");
+            _ = StringList(peer, "customVocabulary"); _ = Bool(peer, "isSystemProvided");
+            _ = Date(peer, "createdDate"); _ = Date(peer, "modifiedDate");
+            return peer;
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// The FOREIGN per-mode slices, in lookup order, for a field every head writes
