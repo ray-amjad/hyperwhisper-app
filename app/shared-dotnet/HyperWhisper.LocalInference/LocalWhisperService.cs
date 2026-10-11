@@ -128,6 +128,9 @@ public sealed class LocalWhisperService : ILocalWhisperService
                 {
                     text.Append(segment.Text);
                     if (!request.IncludeWordTimestamps) return;
+                    // A segment of only non-speech markers is not speech, so it
+                    // gets no segment or word timestamps (issue #1742).
+                    if (WhisperNonSpeechMarkers.Strip(segment.Text).Length == 0) return;
                     segments.Add(new(
                         segments.Count,
                         segment.Start.TotalSeconds,
@@ -176,8 +179,13 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     .ConfigureAwait(false))
                 {
                 }
-                var rawText = text.ToString().Trim();
-                var timestamps = request.IncludeWordTimestamps && (segments.Count > 0 || words.Count > 0)
+                // Whisper writes its own non-speech markers ([BLANK_AUDIO] and kin)
+                // as segment text. A silent file or mic must come back empty, so
+                // the workflow reports no speech instead of saving or pasting the
+                // marker as a transcript (issue #1742, the Linux sibling of #1449).
+                var rawText = WhisperNonSpeechMarkers.Strip(text.ToString());
+                var timestamps = request.IncludeWordTimestamps && rawText.Length > 0
+                    && (segments.Count > 0 || words.Count > 0)
                     ? new LocalWhisperTimestamps(segments, words, rawText)
                     : null;
                 return LocalWhisperResult.Success(rawText, _runtime, timestamps);
