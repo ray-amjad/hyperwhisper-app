@@ -1697,7 +1697,7 @@ You can re-download it later.</value>
     <value>Unnamed</value>
   </data>
   <data name="menu.mode.more" xml:space="preserve">
-    <value>Továbbiak…</value>
+    <value>Továbbiak...</value>
   </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>

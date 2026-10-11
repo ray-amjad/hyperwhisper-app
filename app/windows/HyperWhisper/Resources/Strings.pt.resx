@@ -1697,7 +1697,7 @@ Pode voltar a descarregá-lo mais tarde.</value>
     <value>Sem nome</value>
   </data>
   <data name="menu.mode.more" xml:space="preserve">
-    <value>Mais…</value>
+    <value>Mais...</value>
   </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcrever ficheiro</value>

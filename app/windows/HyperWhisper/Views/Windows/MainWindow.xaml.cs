@@ -899,7 +899,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// How many modes each tray submenu lists before it ends in "More…" (issue #1593).
+    /// How many modes each tray submenu lists before it ends in "More..." (issue #1593).
     /// A backup import has no mode cap, and both submenus are rebuilt on every
     /// Opening: 10,000 items hung the UI thread for minutes, and a menu that long
     /// cannot be used anyway. The Modes page lists every mode.
@@ -1014,7 +1014,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Past <see cref="TrayModeMenuLimit"/> modes, ends a submenu with "More…",
+    /// Past <see cref="TrayModeMenuLimit"/> modes, ends a submenu with "More...",
     /// which opens the Modes page where every mode is listed.
     /// </summary>
     private void AddMoreModesItem(System.Windows.Forms.ToolStripMenuItem menu, int modeCount)

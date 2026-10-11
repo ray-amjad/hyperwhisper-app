@@ -1697,7 +1697,7 @@
     <value>Без названия</value>
   </data>
   <data name="menu.mode.more" xml:space="preserve">
-    <value>Ещё…</value>
+    <value>Ещё...</value>
   </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Транскрибировать файл</value>
