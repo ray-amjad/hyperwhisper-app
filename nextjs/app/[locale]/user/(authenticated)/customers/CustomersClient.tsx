@@ -254,8 +254,9 @@ export default function CustomersClient() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
+      {/* Page Header. Wraps on a phone, so the buttons never push the page
+          wider than the viewport (#1330). */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">Customers</h1>
           <p className="text-gray-400 text-sm mt-1">
@@ -364,7 +365,10 @@ export default function CustomersClient() {
         }`}
       >
         <div className="overflow-x-auto">
-          <table className="w-full">
+          {/* min-w (#1330): the email wraps anywhere, so without a floor a
+              phone-width column squeezes it to a letter or two per line. This
+              keeps the columns readable and lets the wrapper scroll instead. */}
+          <table className="w-full min-w-[48rem]">
             <thead>
               <tr className="border-b border-white/10">
                 {/* Fixed width (#914): the inline email editor fits inside it, so
