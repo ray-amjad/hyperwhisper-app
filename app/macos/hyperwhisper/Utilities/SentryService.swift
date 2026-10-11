@@ -594,18 +594,6 @@ enum SentryService {
             event.extra?[k] = v
         }
 
-        // DIAGNOSTIC LOGS ATTACHMENT
-        // Attach recent sanitized logs for debugging context.
-        // Logs are fetched from os.log and sanitized to remove PII before sending.
-        // The beforeSend hook provides additional sanitization as a safety net.
-        if includeRecentLogs {
-            // Fetch last 5 minutes of logs, max 100 lines
-            // This runs synchronously but is fast (< 100ms typically)
-            if let recentLogs = AppLogger.getRecentLogs(minutes: 5, maxLines: 100) {
-                event.extra?["recent_logs"] = recentLogs
-            }
-        }
-
         // Set custom fingerprint for proper grouping
         // Without this, Sentry groups by stack trace which can merge unrelated errors
         if let fingerprint {
@@ -616,7 +604,17 @@ enum SentryService {
             event.fingerprint = ["{{ default }}", message, errorType]
         }
 
-        SentrySDK.capture(event: event)
+        // DIAGNOSTIC LOGS ATTACHMENT
+        // Attach recent sanitized logs for debugging context.
+        // Logs are fetched from os.log and sanitized to remove PII before sending.
+        // The beforeSend hook provides additional sanitization as a safety net.
+        // Never fetched on the main thread; see `withRecentLogs`.
+        withRecentLogs(includeRecentLogs) { recentLogExtras in
+            for (k, v) in recentLogExtras {
+                event.extra?[k] = v
+            }
+            SentrySDK.capture(event: event)
+        }
         #else
         // No-op when Sentry SDK is not linked
         _ = (error, message, extras, tags, fingerprint, includeRecentLogs)
@@ -813,12 +811,48 @@ enum SentryService {
             event.extra?[k] = v
         }
 
-        if includeRecentLogs, let recentLogs = AppLogger.getRecentLogs(minutes: 5, maxLines: 100) {
-            event.extra?["recent_logs"] = recentLogs
+        withRecentLogs(includeRecentLogs) { recentLogExtras in
+            for (k, v) in recentLogExtras {
+                event.extra?[k] = v
+            }
+            SentrySDK.capture(event: event)
         }
-
-        SentrySDK.capture(event: event)
         #endif
+    }
+
+    // MARK: - Recent logs, never on the main thread
+
+    /// The recent-log extras for an Event, handed to `send` (#991).
+    ///
+    /// `send` always runs inline, on the CALLER's thread, before this returns,
+    /// so `SentrySDK.capture` inside it keeps the call site's stack.
+    ///
+    /// The fetch shells out to `log show` and blocks until it exits, which can
+    /// take seconds on a busy log. Off the main thread it runs inline, as it
+    /// always did, and `send` gets `recent_logs`. On the main thread it never
+    /// runs, so error reporting cannot park the UI: `send` gets
+    /// `recent_logs_skipped = "main_thread"` instead, so the gap is visible on
+    /// the event.
+    ///
+    /// With `include` false nothing is fetched and `send` gets no extras.
+    static func withRecentLogs(
+        _ include: Bool,
+        fetch: () -> String? = { AppLogger.getRecentLogs(minutes: 5, maxLines: 100) },
+        send: (_ recentLogExtras: [String: Any]) -> Void
+    ) {
+        guard include else {
+            send([:])
+            return
+        }
+        guard !Thread.isMainThread else {
+            send(["recent_logs_skipped": "main_thread"])
+            return
+        }
+        if let recentLogs = fetch() {
+            send(["recent_logs": recentLogs])
+        } else {
+            send([:])
+        }
     }
 
     // MARK: - Tags
