@@ -510,17 +510,13 @@ internal static class Program
                     "a malformed translation threw or dropped the file name");
 
                 // Every shipped catalog carries the key and the {0} placeholder.
-                var catalogs = Directory.GetDirectories(AppContext.BaseDirectory)
-                    .Select(Path.GetFileName)
-                    .Where(name => File.Exists(Path.Combine(AppContext.BaseDirectory, name!, "HyperWhisper.resources.dll")))
-                    .ToList();
-                Assert(catalogs.Count >= 39, $"expected 39 satellite catalogs, found {catalogs.Count}");
+                var catalogs = ShippedSatelliteCultures();
                 var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(
                     ApplicationControlDiagnostics.BlockedNoticeKey, CultureInfo.InvariantCulture);
                 foreach (var name in catalogs)
                 {
                     var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(
-                        ApplicationControlDiagnostics.BlockedNoticeKey, new CultureInfo(name!));
+                        ApplicationControlDiagnostics.BlockedNoticeKey, new CultureInfo(name));
                     Assert(text != null && text.Contains("{0}", StringComparison.Ordinal),
                         $"Strings.{name}.resx has no {{0}} in {ApplicationControlDiagnostics.BlockedNoticeKey}");
                     Assert(text != neutral, $"Strings.{name}.resx carries the English notice");
@@ -535,14 +531,10 @@ internal static class Program
                 var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(
                     busyKey, CultureInfo.InvariantCulture);
                 Assert(!string.IsNullOrWhiteSpace(neutral), $"{busyKey} is missing from Strings.resx");
-                var catalogs = Directory.GetDirectories(AppContext.BaseDirectory)
-                    .Select(Path.GetFileName)
-                    .Where(name => File.Exists(Path.Combine(AppContext.BaseDirectory, name!, "HyperWhisper.resources.dll")))
-                    .ToList();
-                Assert(catalogs.Count >= 39, $"expected 39 satellite catalogs, found {catalogs.Count}");
+                var catalogs = ShippedSatelliteCultures();
                 foreach (var name in catalogs)
                 {
-                    var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(busyKey, new CultureInfo(name!));
+                    var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(busyKey, new CultureInfo(name));
                     Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
                         $"Strings.{name}.resx does not translate {busyKey}");
                 }
@@ -18910,14 +18902,10 @@ internal static class Program
                 var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, CultureInfo.InvariantCulture);
                 Assert(neutral != null && neutral.Contains("Retry With...", StringComparison.Ordinal),
                     $"the English refusal does not name the \"Retry With...\" menu item: '{neutral}'");
-                var catalogs = Directory.GetDirectories(AppContext.BaseDirectory)
-                    .Select(Path.GetFileName)
-                    .Where(name => File.Exists(Path.Combine(AppContext.BaseDirectory, name!, "HyperWhisper.resources.dll")))
-                    .ToList();
-                Assert(catalogs.Count >= 39, $"expected 39 satellite catalogs, found {catalogs.Count}");
+                var catalogs = ShippedSatelliteCultures();
                 foreach (var name in catalogs)
                 {
-                    var culture = new CultureInfo(name!);
+                    var culture = new CultureInfo(name);
                     var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, culture);
                     Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
                         $"Strings.{name}.resx has no translated {key}");
@@ -22786,6 +22774,18 @@ internal static class Program
             .OrderBy(name => name, StringComparer.Ordinal));
 
         return cultures;
+    }
+
+    /// <summary>
+    /// The translated catalogues only - <see cref="ShippedUiCultures"/> without the
+    /// English base - asserting the one floor every "each catalog translates X"
+    /// case shares, so a run that found no satellites cannot pass vacuously.
+    /// </summary>
+    private static List<string> ShippedSatelliteCultures()
+    {
+        var satellites = ShippedUiCultures().Where(name => name != BaseCatalogue).ToList();
+        Assert(satellites.Count >= 39, $"expected 39 satellite catalogs, found {satellites.Count}");
+        return satellites;
     }
 
     /// <summary>
