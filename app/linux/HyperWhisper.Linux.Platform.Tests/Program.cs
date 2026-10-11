@@ -4025,7 +4025,11 @@ sealed class FakeClipboard : ILinuxClipboardBackend
         ? System.Text.Encoding.UTF8.GetString(value) : string.Empty;
     public bool FailWrites { get; init; }
     public bool BlockWrites { get; init; }
-    public int RestoreCalls { get; private set; }
+    // #1582: counted only after the restored formats are written, with a full fence. A test polls
+    // RestoreCalls on another thread and then reads Formats; counting first let it read the
+    // transcript the restore was about to replace.
+    public int RestoreCalls => Volatile.Read(ref _restoreCalls);
+    private int _restoreCalls;
     public ClipboardHistoryPrivacyPolicy LastPrivacyPolicy { get; private set; }
     /// <summary>Another app (the user) puts new content on the clipboard.</summary>
     public void UserCopy(IReadOnlyDictionary<string, byte[]> formats) => Formats = Clone(formats);
@@ -4054,8 +4058,8 @@ sealed class FakeClipboard : ILinuxClipboardBackend
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (RestoreGate is { } gate) return GatedRestoreAsync(snapshot, gate);
-        RestoreCalls++;
         Formats = Clone(snapshot.Formats);
+        Interlocked.Increment(ref _restoreCalls);
         return ValueTask.FromResult(PlatformResult.Success());
     }
     public async ValueTask<PlatformResult> SetTextAsync(string text, ClipboardHistoryPrivacyPolicy privacyPolicy,
@@ -4075,8 +4079,8 @@ sealed class FakeClipboard : ILinuxClipboardBackend
     {
         RestoreEntered.TrySetResult();
         await gate.Task;
-        RestoreCalls++;
         Formats = Clone(snapshot.Formats);
+        Interlocked.Increment(ref _restoreCalls);
         return PlatformResult.Success();
     }
     private static Dictionary<string, byte[]> Clone(IReadOnlyDictionary<string, byte[]> source) =>
