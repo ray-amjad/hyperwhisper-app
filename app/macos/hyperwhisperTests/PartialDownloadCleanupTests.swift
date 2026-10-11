@@ -185,4 +185,38 @@ struct PartialDownloadCleanupTests {
         #expect(FileManager.default.fileExists(atPath: sibling.path))
         #expect(PartialDownloadCleanup.removeOwnedDirectory(variant, reason: "test") == false)
     }
+
+    // MARK: Nemotron in-progress marker
+
+    /// `metadata.json` beside the marker is a download that never finished; without the
+    /// marker it is an install, as every pre-#1445 install is.
+    @Test func theInProgressMarkerOverridesMetadata() throws {
+        let variant = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: variant) }
+        let metadata = variant.appendingPathComponent(NemotronModelManager.Constants.metadataFileName)
+        let marker = variant.appendingPathComponent(NemotronModelManager.Constants.inProgressMarkerFileName)
+
+        #expect(!NemotronModelManager.variantDirectoryIsInstalled(variant))
+        Self.touch(metadata)
+        #expect(NemotronModelManager.variantDirectoryIsInstalled(variant))
+        Self.touch(marker)
+        #expect(!NemotronModelManager.variantDirectoryIsInstalled(variant))
+        NemotronModelManager.clearInProgressMarker(in: variant)
+        #expect(!FileManager.default.fileExists(atPath: marker.path))
+        #expect(NemotronModelManager.variantDirectoryIsInstalled(variant))
+    }
+
+    /// A new download drops what an unfinished run left, then writes only the marker.
+    @Test func beginningADownloadReplacesLeftoversWithTheMarker() throws {
+        let repo = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: repo) }
+        let variant = repo.appendingPathComponent("multilingual/2240ms", isDirectory: true)
+        try FileManager.default.createDirectory(at: variant, withIntermediateDirectories: true)
+        Self.touch(variant.appendingPathComponent(NemotronModelManager.Constants.metadataFileName))
+
+        #expect(NemotronModelManager.beginInProgressMarker(in: variant))
+        let contents = try FileManager.default.contentsOfDirectory(atPath: variant.path)
+        #expect(contents == [NemotronModelManager.Constants.inProgressMarkerFileName])
+        #expect(!NemotronModelManager.variantDirectoryIsInstalled(variant))
+    }
 }

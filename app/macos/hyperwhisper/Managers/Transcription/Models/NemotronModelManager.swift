@@ -20,7 +20,8 @@ import FluidAudio
 //
 // Chunk size: 2240ms — FluidAudio's recommended default (highest RTFx, lowest overhead).
 // Downloaded check: existence of `metadata.json` at `<variantDir>/`. Matches FluidAudio's
-// own cache-reuse probe in `StreamingNemotronMultilingualAsrManager+Shared.downloadVariant`.
+// own cache-reuse probe in `StreamingNemotronMultilingualAsrManager+Shared.downloadVariant`,
+// plus the absence of the app's own in-progress marker (#1445).
 
 @available(macOS 14.0, *)
 struct NemotronModel: Identifiable, Equatable {
@@ -95,6 +96,11 @@ final class NemotronModelManager: ObservableObject {
         // Required file inside a downloaded variant — matches FluidAudio's own
         // cache-reuse probe in downloadVariant.
         static let metadataFileName = "metadata.json"
+
+        /// App-owned marker written into the variant directory before a download starts and
+        /// removed only after it succeeds (#1445). FluidAudio writes files one by one, so
+        /// `metadata.json` alone can sit beside a half-written install after a quit or kill.
+        static let inProgressMarkerFileName = ".hyperwhisper-download-in-progress"
 
         /// Engine spellings the Local API accepts for `engine=`. Both call
         /// sites lowercase the caller's string first, so every entry here is
@@ -317,12 +323,12 @@ final class NemotronModelManager: ObservableObject {
     }
 
     // PARTIAL DOWNLOAD CLEANUP (issue #1445):
-    // A variant directory without `metadata.json` is a download that never finished —
-    // a cancel, a failure, a quit or a kill. Nothing resumes it (Ray, 2026-10-09:
+    // A variant directory without `metadata.json`, or with the in-progress marker, is a
+    // download that never finished — a cancel, a failure, a quit or a kill. Nothing resumes it (Ray, 2026-10-09:
     // clean up, no resume), so at launch, before any download can start, remove it.
     // The path is the one FluidAudio writes for this app's own downloads, so it is
-    // ours to delete. A directory WITH `metadata.json` is left alone: that is an
-    // install, and a broken one is surfaced through `markVariantBroken(_:)`.
+    // ours to delete. A directory with `metadata.json` and no marker is left alone: that
+    // is an install, and a broken one is surfaced through `markVariantBroken(_:)`.
     private static func sweepLeftoverPartialsOnce() {
         guard !didSweepLeftoverPartials else { return }
         didSweepLeftoverPartials = true
@@ -451,10 +457,40 @@ final class NemotronModelManager: ObservableObject {
     // `markVariantBroken(_:)` flip on the first failed load (see
     // `NemotronProvider.prepareIfNeeded`). The user gets a clear "Re-download"
     // row instead of being silently locked out by a file census drift.
+    //
+    // The in-progress marker overrides `metadata.json` (#1445): a directory that holds
+    // it is a download that never finished. No marker keeps every pre-#1445 install.
     nonisolated static func variantIsDownloaded(_ variant: Variant) -> Bool {
-        let dir = cacheDirectory(for: variant)
+        variantDirectoryIsInstalled(cacheDirectory(for: variant))
+    }
+
+    nonisolated static func variantDirectoryIsInstalled(_ dir: URL) -> Bool {
         let fm = FileManager.default
         return fm.fileExists(atPath: dir.appendingPathComponent(Constants.metadataFileName).path)
+            && !fm.fileExists(atPath: dir.appendingPathComponent(Constants.inProgressMarkerFileName).path)
+    }
+
+    /// Start a fresh download in `dir`: drop whatever an unfinished run left (FluidAudio
+    /// would otherwise reuse it on a stale `metadata.json`), then write the marker.
+    @discardableResult
+    nonisolated static func beginInProgressMarker(in dir: URL) -> Bool {
+        let fm = FileManager.default
+        PartialDownloadCleanup.removeOwnedDirectory(dir, reason: "unfinished Nemotron download before a new one")
+        do {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            try Data().write(to: dir.appendingPathComponent(Constants.inProgressMarkerFileName))
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Clear the marker after a download fully succeeded.
+    nonisolated static func clearInProgressMarker(in dir: URL) {
+        let marker = dir.appendingPathComponent(Constants.inProgressMarkerFileName)
+        if FileManager.default.fileExists(atPath: marker.path) {
+            try? FileManager.default.removeItem(at: marker)
+        }
     }
 
     /// Public façade — same liveness rules as the (nonisolated) `variantIsDownloaded`
@@ -635,6 +671,11 @@ final class NemotronModelManager: ObservableObject {
         // Only a variant that was not installed when we started may be removed if the
         // download does not finish: everything in its directory is then ours and partial.
         let wasInstalled = Self.variantIsDownloaded(variant)
+        // Until the marker is cleared, the launch sweep and `variantIsDownloaded` treat
+        // this directory as unfinished, even once `metadata.json` lands (#1445).
+        if !wasInstalled, !Self.beginInProgressMarker(in: Self.cacheDirectory(for: variant)) {
+            logger.error("Could not write the Nemotron \(variant.rawValue, privacy: .public) in-progress marker")
+        }
         var succeeded = false
         var lastError: Error?
 
@@ -644,6 +685,11 @@ final class NemotronModelManager: ObservableObject {
 
         for attempt in 0..<Constants.maxDownloadAttempts {
             if cancelled() { break }
+            // A failed attempt can leave `metadata.json` behind, and FluidAudio would then
+            // reuse the half-written directory; a retry starts from a fresh, marked one.
+            if attempt > 0, !wasInstalled {
+                Self.beginInProgressMarker(in: Self.cacheDirectory(for: variant))
+            }
             do {
                 try await runDownloadAttempt(modelId: modelId, variant: variant)
                 succeeded = true
@@ -682,6 +728,7 @@ final class NemotronModelManager: ObservableObject {
         // A cancel that lands after the last file finished is too late: the files are
         // complete and kept, so report the install rather than the cancel.
         if succeeded {
+            Self.clearInProgressMarker(in: Self.cacheDirectory(for: variant))
             logger.info("Nemotron \(variant.rawValue, privacy: .public) downloaded successfully")
             // Fresh files on disk — any prior "broken" flag is stale now.
             brokenVariants.remove(modelId)
