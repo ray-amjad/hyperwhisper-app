@@ -1568,6 +1568,28 @@ internal static class Program
                 Assert(AsyncBodyCalls(loadForRecording, Vm("LoadModelAsync"))
                        && AsyncBodyCalls(loadForRecording, Vm("IsLocalProviderReady", typeof(Mode))),
                     "LoadModelForRecordingAsync no longer re-checks the engine after the load");
+
+                // The recording can move to another mode during the load: the screen
+                // OCR captured for an OCR mode must not reach a mode without it.
+                var dropOcr = Vm("DropScreenOcrTheModeDoesNotWant");
+                Assert(AsyncBodyCalls(Vm("StartRecordingAsync"), dropOcr),
+                    "StartRecordingAsync no longer drops the screen OCR a mode switch during the load leaves behind");
+                var contextField = typeof(MainViewModel).GetField("_capturedApplicationContext", all)
+                    ?? throw new InvalidOperationException("MainViewModel._capturedApplicationContext is gone; update this test");
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+                string? OcrAfterSwitchTo(Mode mode)
+                {
+                    var context = new Services.ApplicationContext { ScreenOCRText = "secret on screen" };
+                    contextField.SetValue(vm, context);
+                    dropOcr.Invoke(vm, new object[] { mode });
+                    return context.ScreenOCRText;
+                }
+                Assert(OcrAfterSwitchTo(new Mode { EnableScreenOCR = false, PostProcessingMode = 1 }) == null,
+                    "a mode without screen OCR kept the previous mode's OCR text");
+                Assert(OcrAfterSwitchTo(new Mode { EnableScreenOCR = true, PostProcessingMode = 0 }) == null,
+                    "a mode with no post-processing kept the previous mode's OCR text");
+                Assert(OcrAfterSwitchTo(new Mode { EnableScreenOCR = true, PostProcessingMode = 1 }) == "secret on screen",
+                    "a mode that uses screen OCR lost the text captured at the hotkey");
             });
 
             Run("IsNoSpaceLanguage / NormalizeLanguage truth tables", () =>

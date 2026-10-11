@@ -1769,6 +1769,11 @@ public partial class MainViewModel : ViewModelBase
                 return;
             }
 
+            if (!ReferenceEquals(readyMode, recordingMode))
+            {
+                DropScreenOcrTheModeDoesNotWant(readyMode);
+            }
+
             recordingMode = readyMode;
             _activeRecordingMode = readyMode;
         }
@@ -1976,6 +1981,22 @@ public partial class MainViewModel : ViewModelBase
                 LoggingService.Info($"Screen OCR captured: {_capturedApplicationContext.ScreenOCRText.Length} characters");
             }
         }
+    }
+
+    /// <summary>
+    /// The context was captured for the mode selected at the hotkey, and the
+    /// recording can move to another mode while its model loads (#1609). Screen
+    /// OCR is the one part a mode gates, so a mode that did not ask for it must
+    /// not send it in its prompt. A mode that asks for it and had none gets none:
+    /// a capture now would read the window the user switched mode in.
+    /// </summary>
+    private void DropScreenOcrTheModeDoesNotWant(Mode recordingMode)
+    {
+        if (recordingMode.EnableScreenOCR && recordingMode.PostProcessingMode != 0) return;
+        if (_capturedApplicationContext?.ScreenOCRText == null) return;
+
+        LoggingService.Info("StartRecordingAsync: The selected mode does not use screen OCR; dropped the text captured for the previous mode");
+        _capturedApplicationContext.ScreenOCRText = null;
     }
 
     private void CleanupFailedRecordingStart()
