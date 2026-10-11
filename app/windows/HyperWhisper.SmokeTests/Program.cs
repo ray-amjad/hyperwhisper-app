@@ -1093,6 +1093,27 @@ internal static class Program
                 Assert(!described.Contains("quarterly", StringComparison.OrdinalIgnoreCase), "path description leaked the file name");
             });
 
+            Run("Whisper non-speech markers never become a transcript — issue #1449", () =>
+            {
+                // The issue's silent file and silent dictation: only markers come back,
+                // so the text is empty and the orchestrator raises NoSpeechDetected.
+                Assert(TranscriptionService.StripNonSpeechMarkers(" [BLANK_AUDIO] [BLANK_AUDIO]") == "",
+                    "a transcript of only [BLANK_AUDIO] markers must strip to empty");
+                Assert(TranscriptionService.StripNonSpeechMarkers("[BLANK_AUDIO] ") == "",
+                    "the dictation case ('[BLANK_AUDIO] ') must strip to empty");
+                Assert(TranscriptionService.StripNonSpeechMarkers("[ Silence ] (music) [no speech]") == "",
+                    "Whisper's other non-speech annotations must strip too");
+                Assert(TranscriptionService.StripNonSpeechMarkers(null) == "", "null must strip to empty");
+
+                // Real speech around a marker survives, with one space where it was.
+                var mixed = TranscriptionService.StripNonSpeechMarkers(" Hello there. [BLANK_AUDIO] See you soon.");
+                Assert(mixed == "Hello there. See you soon.", $"speech around a marker was damaged: '{mixed}'");
+
+                // A bracket the speaker dictated is not a marker.
+                var dictated = TranscriptionService.StripNonSpeechMarkers(" Call the function [user id] (optional). ");
+                Assert(dictated == "Call the function [user id] (optional).", $"dictated brackets were removed: '{dictated}'");
+            });
+
             Run("On-device transcript log lines carry metadata, never the words — issue #1645", () =>
             {
                 const string spoken = "Hello, this is a short 5 second test of the transcription.";
