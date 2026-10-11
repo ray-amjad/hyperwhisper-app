@@ -27,6 +27,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("evdev drops unrelated keys at boundary", DropsUnrelatedKeys),
     ("evdev emits configured logical shortcut", EmitsConfiguredShortcut),
     ("evdev session binding replacement preserves held actions", EvdevSessionBindingReplacement),
+    ("evdev Ctrl+Alt alone toggles on its release, either order", EvdevModifierChordAloneFiresOnRelease),
+    ("evdev Ctrl+Alt+Left never toggles, either release order", EvdevModifierChordWithKeyDoesNotFire),
+    ("evdev Ctrl+Alt+Shift never toggles", EvdevModifierChordWithModifierDoesNotFire),
+    ("evdev push-to-talk modifier-only chord fires on press", EvdevPushToTalkChordFiresOnPress),
+    ("evdev service toggles a modifier-only chord on its release", EvdevServiceModifierChordFiresOnRelease),
     ("evdev disposal is bounded for uncooperative devices", EvdevDisposalBounded),
     ("global shortcut capability probe is content-free and closes sources", ShortcutCapabilityProbe),
     ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
@@ -409,6 +414,103 @@ static Task EvdevSessionBindingReplacement()
     var unrelatedRelease = filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, 29, 0));
     Assert.True(unrelatedRelease.Signals.All(signal => signal.Shortcut.Name != LinuxInteractionCoordinator.SessionCancelActionName));
     return Task.CompletedTask;
+}
+
+// Issue #1725. evdev codes: Ctrl_L 29, Alt_L 56, Shift_L 42, Left 105. Value 1 is a
+// press, 0 a release, 2 an auto-repeat. Only the toggle is registered, so Shift and
+// Left are irrelevant codes the filter drops after noting that they spoiled the chord.
+static string RunEvdevToggle(X11ModifierOnlyTrigger trigger, params (ushort Code, int Value)[] input)
+{
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var filter = new EvdevShortcutFilter(trigger);
+    filter.ReplaceBindings([toggle]);
+    var events = new List<string>();
+    foreach (var (code, value) in input)
+        foreach (var signal in filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals)
+            events.Add((signal.Pressed ? "down:" : "up:") + signal.Shortcut.Name);
+    return string.Join(',', events);
+}
+
+static Task EvdevModifierChordAloneFiresOnRelease()
+{
+    // Nothing fires while the chord is held; it fires on the release that breaks it.
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease, (29, 1), (56, 1)));
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (56, 0), (29, 0)));
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (56, 1), (29, 1), (56, 0), (29, 0)));
+    // A held Alt that auto-repeats is not another key joining the chord. It re-arms.
+    Assert.Equal("down:toggle,up:toggle,down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (56, 2), (56, 2), (29, 0), (56, 0),
+        (29, 1), (56, 1), (29, 0), (56, 0)));
+    // The other Ctrl joining the chord is still the chord.
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (97, 1), (97, 0), (29, 0), (56, 0)));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordWithKeyDoesNotFire()
+{
+    // Ctrl+Alt+Left, Left released first.
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (105, 0), (56, 0), (29, 0)));
+    // Ctrl+Alt+Left, a modifier released before Left (either one).
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (56, 0), (105, 0), (29, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (29, 0), (105, 0), (56, 0)));
+    // A spoiled chord does not leak into the next one: Ctrl+Alt+Left, then Ctrl+Alt alone.
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (105, 0), (56, 0),
+        (56, 1), (56, 0), (29, 0)));
+    // A registered key binding joining the chord spoils it the same way.
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var left = EvdevShortcutMapper.Map(new NamedShortcut("left",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("ArrowLeft")))).Value!;
+    var filter = new EvdevShortcutFilter();
+    filter.ReplaceBindings([toggle, left]);
+    var names = new List<string>();
+    foreach (var (code, value) in new (ushort, int)[] { (29, 1), (56, 1), (105, 1), (105, 0), (56, 0), (29, 0) })
+        names.AddRange(filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals
+            .Select(signal => signal.Shortcut.Name));
+    Assert.Equal("left,left", string.Join(',', names));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordWithModifierDoesNotFire()
+{
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (42, 1), (42, 0), (56, 0), (29, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (42, 1), (29, 0), (56, 0), (42, 0)));
+    return Task.CompletedTask;
+}
+
+static Task EvdevPushToTalkChordFiresOnPress()
+{
+    // Push-to-talk holds, so its filter keeps the press, even when another key joins.
+    Assert.Equal("down:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnPress, (29, 1), (56, 1)));
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnPress,
+        (29, 1), (56, 1), (105, 1), (56, 0), (105, 0), (29, 0)));
+    return Task.CompletedTask;
+}
+
+static async Task EvdevServiceModifierChordFiresOnRelease()
+{
+    // The interaction service defaults to release; Ctrl+Alt+Left then Ctrl+Alt fires once.
+    var source = new FakeSource("keyboard", Frame(29, 1), Frame(56, 1), Frame(105, 1), Frame(105, 0),
+        Frame(56, 0), Frame(56, 1), Frame(56, 0), Frame(29, 0));
+    using var service = new LinuxGlobalShortcutService(new FakeSourceFactory(source), null);
+    service.RegisterShortcuts([new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))]);
+    var events = new List<string>();
+    service.ShortcutPressed += (_, args) => events.Add($"down:{args.Name}");
+    service.ShortcutReleased += (_, args) => events.Add($"up:{args.Name}");
+    Assert.Success(service.Start());
+    await source.Completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.Equal("down:toggle,up:toggle", string.Join(',', events));
 }
 
 static Task EvdevDisposalBounded()
