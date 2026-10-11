@@ -307,6 +307,7 @@ public class BackupService
             if (modesImported > 0)
             {
                 ModeService.Instance.EnforceDefaultModeInvariant();
+                NotifyModesChanged("import");
             }
 
             // 5. Apply API keys
@@ -454,6 +455,7 @@ public class BackupService
                 // one, or none at all (issue #536). The merge above goes straight
                 // into the DbSet, so this runs after the commit, on committed data.
                 ModeService.Instance.EnforceDefaultModeInvariant();
+                NotifyModesChanged("selective import");
             }
 
             if (importVocabulary)
@@ -689,6 +691,24 @@ public class BackupService
         context.SaveChanges();
 
         return (added, conflicts);
+    }
+
+    /// <summary>
+    /// Tells the rest of the app the mode rows changed (issue #1592). The import
+    /// wrote them straight into the DbSet, which raises nothing, so the tray menus
+    /// and the status bar kept the list they had before. Never throws: the rows are
+    /// committed, and a subscriber's fault must not turn the import into a failure.
+    /// </summary>
+    private static void NotifyModesChanged(string operation)
+    {
+        try
+        {
+            ModeService.Instance.NotifyModesChanged();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"BackupService: Failed to raise ModeChanged after {operation}: {ex.Message}");
+        }
     }
 
     /// <summary>

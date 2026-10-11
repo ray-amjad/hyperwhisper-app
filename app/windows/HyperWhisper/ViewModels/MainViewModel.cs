@@ -282,7 +282,7 @@ public partial class MainViewModel : ViewModelBase
             AudioLevel = level;
             AudioLevelChanged?.Invoke(this, level);
         };
-        _modeChangedHandler = (s, e) => RefreshModes();
+        _modeChangedHandler = (s, e) => OnModesChanged();
         _modeSelectedHandler = (s, mode) =>
         {
             SelectedMode = Modes.FirstOrDefault(m => m.Id == mode.Id) ?? mode;
@@ -711,6 +711,32 @@ public partial class MainViewModel : ViewModelBase
         {
             ApplyAudioDeviceSelection(null, AudioDeviceSelectionReason.StartupNoDevices);
         }
+    }
+
+    // A backup import raises ModeChanged from its Task.Run thread (#1592), and a
+    // SelectedMode change preloads a model and refreshes the status bar, so the
+    // reload runs on the UI thread. A raise that is already on it stays inline.
+    private void OnModesChanged()
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            RefreshModes();
+            return;
+        }
+        if (dispatcher.HasShutdownStarted) return;
+
+        dispatcher.BeginInvoke(() =>
+        {
+            try
+            {
+                RefreshModes();
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error("MainViewModel: Failed to reload modes after a change", ex);
+            }
+        });
     }
 
     private void RefreshModes()

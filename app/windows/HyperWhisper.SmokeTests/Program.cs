@@ -17492,6 +17492,70 @@ internal static class Program
                 }
             });
 
+            Run("backup: a mode import raises ModeChanged, so the tray and status bar reload — issue #1592", () =>
+            {
+                // ImportSelective wrote modes straight into the DbSet and raised
+                // nothing, so MainViewModel.Modes (the tray Select Mode and Transcribe
+                // File menus, the status bar) kept the startup list until a restart.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                const string Prefix = "percy1592-";
+                var modes = Enumerable.Range(0, 3).Select(i => UniversalBackupMapper.MapMode(new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = $"{Prefix}{i}",
+                    IsDefault = false,
+                    SortOrder = 20_000 + i
+                })).ToList();
+
+                var backupPath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests",
+                    $"issue1592-{Guid.NewGuid():N}.hwbackup.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+                File.WriteAllText(backupPath, JsonSerializer.Serialize(new UniversalBackup
+                {
+                    SchemaVersion = 2,
+                    ExportDate = DateTime.UtcNow,
+                    AppVersion = "smoke-1592",
+                    Platform = "windows",
+                    Modes = modes
+                }, UniversalCaptureOptions));
+
+                var raised = 0;
+                var importedSeen = false;
+                EventHandler<Mode> handler = (_, _) =>
+                {
+                    raised++;
+                    // What MainViewModel.RefreshModes reads when the event arrives.
+                    importedSeen = ModeService.Instance.GetAllModes().Count(m => m.Name.StartsWith(Prefix)) == modes.Count;
+                };
+                ModeService.Instance.ModeChanged += handler;
+                try
+                {
+                    var result = BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+                    {
+                        IncludeModes = true
+                    });
+
+                    Assert(result.IsSuccess, $"the mode import failed: {result.Error}");
+                    Assert(result.Value!.ModesImported == modes.Count,
+                        $"the import reported {result.Value.ModesImported} modes, not {modes.Count}");
+                    Assert(raised > 0,
+                        "the mode import raised no ModeChanged, so the tray menus and the status bar keep the old list");
+                    Assert(importedSeen,
+                        "ModeChanged was raised before the imported modes could be read back");
+                }
+                finally
+                {
+                    ModeService.Instance.ModeChanged -= handler;
+                    using (var ctx = new HyperWhisperDbContext())
+                    {
+                        ctx.Modes.RemoveRange(ctx.Modes.Where(m => m.Name.StartsWith(Prefix)));
+                        ctx.SaveChanges();
+                    }
+                    try { File.Delete(backupPath); } catch { }
+                }
+            });
+
             // Issue #1614: Import and ImportSelective apply the backup's settings to
             // settings.json BEFORE the one-transaction DB step (#1605). A DB failure
             // rolled the modes back and left the backup's settings applied. The same
