@@ -103,6 +103,13 @@ final class ParakeetModelManager: ObservableObject {
 
     @Published var errorMessage: String?
 
+    /// Installed versions whose load failed this session (#1632, the macOS side of
+    /// #1598). FluidAudio's `modelsExist` only checks that the bundle files are
+    /// present, so a damaged install still reads as downloaded; the Library row
+    /// shows Re-download for these instead of a green check. Mirrors
+    /// `NemotronModelManager.brokenVariants`.
+    @Published private(set) var brokenModels: Set<String> = []
+
     /// Optional hook called when a downloaded version is deleted so the
     /// `ParakeetProvider`'s in-memory `Runtime` cache can be invalidated for
     /// that version. Without this hook, a transcribe after delete +
@@ -146,6 +153,28 @@ final class ParakeetModelManager: ObservableObject {
             return false
         }
         return downloads.isDownloading(canonicalModelId)
+    }
+
+    func isModelBroken(_ modelId: String) -> Bool {
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelId) else { return false }
+        return brokenModels.contains(canonicalModelId)
+    }
+
+    /// Flag a version as broken — called by `ParakeetProvider` when loading an
+    /// install that `modelsExist` accepted fails.
+    func markModelBroken(_ modelId: String) {
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelId),
+              !brokenModels.contains(canonicalModelId) else { return }
+        logger.error("Parakeet \(canonicalModelId, privacy: .public) failed to load; offering Re-download")
+        brokenModels.insert(canonicalModelId)
+    }
+
+    /// Clear the flag after a successful load. Publishes only on a change, so the
+    /// per-transcription call does not re-render the menu bar (see refreshState()).
+    func clearModelBroken(_ modelId: String) {
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelId),
+              brokenModels.contains(canonicalModelId) else { return }
+        brokenModels.remove(canonicalModelId)
     }
 
     // VERSION DETECTION HELPER:
@@ -215,6 +244,14 @@ final class ParakeetModelManager: ObservableObject {
         if availableModels != models {
             availableModels = models
         }
+
+        // A broken flag only means something while the files are there: once
+        // they are gone (deleted, or removed for a re-download) drop it.
+        let installedIds = Set(models.filter { $0.isDownloaded }.map { $0.id })
+        let keptBroken = brokenModels.intersection(installedIds)
+        if brokenModels != keptBroken {
+            brokenModels = keptBroken
+        }
     }
 
     // START DOWNLOAD:
@@ -268,6 +305,25 @@ final class ParakeetModelManager: ObservableObject {
         }
         logger.info("Starting download for Parakeet \(String(describing: modelVersion))")
 
+        // RE-DOWNLOAD OF A BROKEN INSTALL (#1632): remove the damaged files first.
+        // `AsrModels.download` reuses a cache whose files are present, so without
+        // this a Re-download could finish without fetching anything.
+        if brokenModels.contains(modelId) {
+            let directory = cacheDirectory(for: modelVersion)
+            do {
+                if FileManager.default.fileExists(atPath: directory.path) {
+                    try FileManager.default.removeItem(at: directory)
+                }
+            } catch {
+                let nsError = error as NSError
+                logger.error("Failed to remove broken Parakeet \(String(describing: modelVersion)); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
+            }
+            refreshState()
+            if let hook = onVersionInvalidated {
+                await hook(modelVersion)
+            }
+        }
+
         // FluidAudio reports one repository-wide, byte-weighted fraction for the whole
         // transfer and then a compile tick per component; the aggregator maps that onto
         // a single monotonic 0→1 fraction plus a coarse stage.
@@ -287,6 +343,8 @@ final class ParakeetModelManager: ObservableObject {
                 }
             )
             logger.info("Parakeet \(String(describing: modelVersion)) downloaded successfully")
+            // Fresh files on disk: any broken flag is stale now.
+            clearModelBroken(modelId)
         } catch is CancellationError {
             logger.info("Parakeet \(String(describing: modelVersion)) download cancelled")
         } catch let urlError as URLError where urlError.code == .cancelled {

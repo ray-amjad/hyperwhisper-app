@@ -287,6 +287,14 @@ class WhisperModelManager: NSObject, ObservableObject {
         notificationObservers.append(observer)
     }
 
+    /// Whether a model file on disk is the whole catalog file. Every catalog model
+    /// has an exact byte size (pinned to Hugging Face by `ModelSizeLabelTests`), so
+    /// anything else, shorter or longer, is a damaged file (#1632, after #1598).
+    static func isCompleteModelFile(byteCount: Int64?, for model: WhisperCppModel) -> Bool {
+        guard let byteCount, model.sizeInBytes > 0 else { return false }
+        return byteCount == model.sizeInBytes
+    }
+
     /// Track last scan time for debouncing
     private var lastScanTime: Date?
     
@@ -311,6 +319,15 @@ class WhisperModelManager: NSObject, ObservableObject {
                 
                 // Find matching model definition
                 if let model = Self.allModels.first(where: { $0.filename == filename }) {
+                    // #1632: a file cut short (an interrupted copy, a damaged disk) is not
+                    // installed. Every local transcription would fail on it, so the row
+                    // offers Download again instead of saying Installed.
+                    let byteCount = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize.map(Int64.init)
+                    guard Self.isCompleteModelFile(byteCount: byteCount, for: model) else {
+                        let found = byteCount.map(String.init) ?? "unknown"
+                        logger.warning("⚠️ \(filename) is \(found) bytes, expected \(model.sizeInBytes); not installed")
+                        continue
+                    }
                     logger.debug("✅ Matched \(filename) to model: \(model.name)")
                     
                     // Create model with local URL

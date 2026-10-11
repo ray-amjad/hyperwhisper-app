@@ -692,7 +692,10 @@ final class NemotronModelManager: ObservableObject {
 
         // Only a variant that was not installed when we started may be removed if the
         // download does not finish: everything in its directory is then ours and partial.
-        let wasInstalled = Self.variantIsDownloaded(variant)
+        // A broken variant (its load failed) counts as not installed (#1632): the marker
+        // below then removes the damaged files, or FluidAudio would reuse them on their
+        // `metadata.json` and the Re-download would fetch nothing.
+        let wasInstalled = Self.variantIsDownloaded(variant) && !brokenVariants.contains(modelId)
         // Until the marker is cleared, the launch sweep and `variantIsDownloaded` treat
         // this directory as unfinished, even once `metadata.json` lands (#1445).
         if !wasInstalled, !Self.beginInProgressMarker(in: Self.cacheDirectory(for: variant)) {
