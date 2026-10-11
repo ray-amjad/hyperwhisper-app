@@ -1312,6 +1312,9 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Rakaman atau transkripsi fail sedang berjalan. Cuba fail itu sekali lagi apabila ia selesai.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
   </data>

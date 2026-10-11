@@ -1312,6 +1312,9 @@
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>Файл не найден</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Уже идёт запись или расшифровка файла. Попробуйте файл снова, когда она завершится.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Файл слишком большой для этого провайдера. Максимальный размер: {0}</value>
   </data>

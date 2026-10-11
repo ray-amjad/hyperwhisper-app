@@ -1,5 +1,6 @@
 using System.IO;
 using System.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.FileTranscription;
@@ -16,6 +17,12 @@ public partial class MainViewModel
     // =========================================================================
     // FILE TRANSCRIPTION
     // =========================================================================
+
+    /// <summary>
+    /// True while the Transcribe File dialog is on screen. The tray disables its
+    /// Transcribe File items on it, as it does while a job runs.
+    /// </summary>
+    [ObservableProperty] private bool _isFileDialogOpen;
 
     /// <summary>
     /// Opens a file dialog and transcribes the selected audio file.
@@ -38,6 +45,15 @@ public partial class MainViewModel
 
     public async Task TranscribeFileWithModeAsync(Mode mode)
     {
+        // The dialog has no owner window, so the tray keeps pumping while it is
+        // open. One dialog at a time: a second would let a pick land on top of
+        // the job the first one started (issue #1535).
+        if (IsFileDialogOpen)
+        {
+            LoggingService.Info("TranscribeFileWithModeAsync: A file dialog is already open; ignoring request");
+            return;
+        }
+
         if (!CanStartFileTranscription())
         {
             return;
@@ -51,10 +67,32 @@ public partial class MainViewModel
             Multiselect = false
         };
 
-        if (dialog.ShowDialog() == true)
+        bool picked;
+        IsFileDialogOpen = true;
+        try
         {
-            await TranscribeFileAsync(dialog.FileName, mode);
+            picked = dialog.ShowDialog() == true;
         }
+        finally
+        {
+            IsFileDialogOpen = false;
+        }
+
+        if (!picked)
+        {
+            return;
+        }
+
+        // A dictation can still start from its shortcut while the dialog is
+        // open. Say so rather than drop the pick with only a log line.
+        if (!CanStartFileTranscription())
+        {
+            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                Loc.S("errors.fileTranscriptionBusy"), showSettingsButton: false));
+            return;
+        }
+
+        await TranscribeFileAsync(dialog.FileName, mode);
     }
 
     /// <summary>

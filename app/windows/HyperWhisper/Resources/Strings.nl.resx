@@ -1312,6 +1312,9 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>Bestand niet gevonden</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Er loopt al een opname of bestandstranscriptie. Probeer het bestand opnieuw wanneer die klaar is.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Het bestand is te groot voor deze provider. Maximale grootte: {0}</value>
   </data>

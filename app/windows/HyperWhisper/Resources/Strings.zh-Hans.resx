@@ -1396,6 +1396,9 @@
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>文件未找到</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>已有录音或文件转录正在进行。完成后请重新尝试该文件。</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>文件对于此提供商来说太大了。最大大小: {0}</value>
   </data>

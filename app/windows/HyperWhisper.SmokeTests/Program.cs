@@ -527,6 +527,30 @@ internal static class Program
                 }
             });
 
+            // #1535. A tray file pick that finds a dictation already running gets
+            // a toast instead of only a WARN line; every catalog must carry it.
+            Run("Every catalog translates the busy file-pick toast (#1535)", () =>
+            {
+                const string busyKey = "errors.fileTranscriptionBusy";
+                var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(
+                    busyKey, CultureInfo.InvariantCulture);
+                Assert(!string.IsNullOrWhiteSpace(neutral), $"{busyKey} is missing from Strings.resx");
+                var catalogs = Directory.GetDirectories(AppContext.BaseDirectory)
+                    .Select(Path.GetFileName)
+                    .Where(name => File.Exists(Path.Combine(AppContext.BaseDirectory, name!, "HyperWhisper.resources.dll")))
+                    .ToList();
+                Assert(catalogs.Count >= 39, $"expected 39 satellite catalogs, found {catalogs.Count}");
+                foreach (var name in catalogs)
+                {
+                    var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(busyKey, new CultureInfo(name!));
+                    Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
+                        $"Strings.{name}.resx does not translate {busyKey}");
+                }
+
+                Assert(typeof(MainViewModel).GetProperty(nameof(MainViewModel.IsFileDialogOpen)) != null,
+                    "MainViewModel has no IsFileDialogOpen for the tray to read");
+            });
+
             // #960. A field typed from HyperWhisper.AppClassification puts that
             // assembly into its class's LAYOUT, and the CLR loads the layout for
             // every method that stores, passes or tests an instance — even a null

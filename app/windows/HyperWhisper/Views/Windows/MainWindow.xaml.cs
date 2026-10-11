@@ -646,6 +646,7 @@ public partial class MainWindow : Window
                 if (e.PropertyName == nameof(MainViewModel.IsRecording) ||
                     e.PropertyName == nameof(MainViewModel.IsTranscribing) ||
                     e.PropertyName == nameof(MainViewModel.IsModelLoading) ||
+                    e.PropertyName == nameof(MainViewModel.IsFileDialogOpen) ||
                     e.PropertyName == nameof(MainViewModel.SelectedAudioDevice) ||
                     e.PropertyName == nameof(MainViewModel.SelectedMode))
                 {
@@ -985,7 +986,8 @@ public partial class MainWindow : Window
             var modeItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(modeName))
             {
                 ToolTipText = MenuItemText.Tooltip(modeName),
-                Enabled = !_viewModel.IsRecording && !_viewModel.IsTranscribing && !_viewModel.IsModelLoading && !IsOnboardingOpen,
+                Enabled = !_viewModel.IsRecording && !_viewModel.IsTranscribing && !_viewModel.IsModelLoading
+                    && !_viewModel.IsFileDialogOpen && !IsOnboardingOpen,
                 Tag = mode
             };
 

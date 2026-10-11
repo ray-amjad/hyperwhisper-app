@@ -1312,6 +1312,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File non trovato</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>È già in corso una registrazione o una trascrizione di file. Riprova con il file quando è terminata.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Il file è troppo grande per questo provider. Dimensione massima: {0}</value>
   </data>

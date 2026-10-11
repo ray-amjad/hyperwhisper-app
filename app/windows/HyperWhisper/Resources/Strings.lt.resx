@@ -1312,6 +1312,9 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Jau vyksta įrašymas arba failo transkribavimas. Bandykite failą dar kartą, kai baigsis.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
   </data>

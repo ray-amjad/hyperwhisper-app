@@ -1396,6 +1396,9 @@ Puede volver a descargarlo más tarde.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>Archivo no encontrado</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Ya hay una grabación o una transcripción de archivo en curso. Vuelve a intentarlo con el archivo cuando termine.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>El archivo es demasiado grande para este proveedor. Tamaño máximo: {0}</value>
   </data>

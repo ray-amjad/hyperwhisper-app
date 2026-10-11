@@ -1312,6 +1312,9 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>Fichier introuvable</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Un enregistrement ou une transcription de fichier est déjà en cours. Réessayez avec le fichier une fois terminé.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Le fichier est trop volumineux pour ce fournisseur. Taille maximale : {0}</value>
   </data>

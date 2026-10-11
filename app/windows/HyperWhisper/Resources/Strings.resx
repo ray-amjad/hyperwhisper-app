@@ -1785,6 +1785,9 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>A recording or file transcription is already running. Try the file again when it finishes.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
   </data>
