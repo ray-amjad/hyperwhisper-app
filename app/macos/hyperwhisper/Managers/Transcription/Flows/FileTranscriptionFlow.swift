@@ -587,8 +587,8 @@ class FileTranscriptionFlow {
             progressState.reset()
             cleanupImportArtifacts(reason: "unexpected error")
             currentTranscriptionTask = nil
-            // Before the alert: it is modal, and History should already show
-            // the failed row with Retry behind it.
+            // Before the alert, so History already shows the failed row with
+            // Retry behind it.
             await markProcessingTranscriptFailed(after: error)
             AppLogger.transcription.error("❌ File transcription failed: \(error.localizedDescription)")
             showErrorAlert(
@@ -912,6 +912,11 @@ class FileTranscriptionFlow {
 
     /// Shows an error alert to the user
     ///
+    /// **Why ModelessAlert instead of runModal (issue #1539):** `runModal()` held the
+    /// main actor until OK, and the Local API (`@MainActor`) answered nothing — not even
+    /// `/health` — for as long as the alert stayed open. Same hazard as the open panel
+    /// above (HYPERWHISPER-SZ).
+    ///
     /// - Parameters:
     ///   - title: Alert title
     ///   - message: Alert message
@@ -921,7 +926,7 @@ class FileTranscriptionFlow {
         alert.informativeText = message
         alert.alertStyle = .warning
         alert.addButton(withTitle: "common.ok".localized)
-        alert.runModal()
+        ModelessAlert.show(alert)
     }
 
     /// Opens the main window and navigates to History view
