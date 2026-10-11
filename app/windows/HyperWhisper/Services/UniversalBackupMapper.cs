@@ -924,12 +924,13 @@ public static class UniversalBackupMapper
 
     /// <summary>
     /// The <see cref="PeerModeSlice"/> slice read through the Windows shape, or
-    /// <c>null</c> when the mode has none or it does not deserialize. Read only when
+    /// <c>null</c> when the mode has none or it does not deserialize. Read when
     /// the mode has no readable <c>windows</c> slice (absent, or it does not
-    /// deserialize, as <see cref="MapToMode"/> decides): a readable own slice is the whole
-    /// record of these fields, because Windows omits a null field on export, so an
-    /// absent key there means "none" and must not let a stale preserved Linux
-    /// value back in.
+    /// deserialize, as <see cref="MapToMode"/> decides), or when it carries a newer
+    /// <c>modifiedDate</c> than the readable own slice (<see cref="PeerSliceIsNewer"/>).
+    /// Either way the winning slice is read WHOLE, never key by key: Windows omits a
+    /// null field on export, so an absent key in the own slice means "none" and must
+    /// not let a stale preserved Linux value back in.
     /// </summary>
     private static WindowsModeExtensions? ReadPeerModeExtensions(UniversalMode universal)
     {
@@ -947,6 +948,29 @@ public static class UniversalBackupMapper
             return null;
         }
     }
+
+    /// <summary>
+    /// True when the peer .NET slice carries a strictly newer <c>modifiedDate</c> than
+    /// the own slice (#1716). A Windows → Linux (edit) → Windows trip brings the
+    /// Linux edit back in the linux slice and the OLD values in the preserved
+    /// windows slice; the newer one is the user's latest edit. A tie, or a missing
+    /// date on either side, keeps the own slice, so an unedited trip restores the
+    /// same values it did before.
+    /// </summary>
+    internal static bool PeerSliceIsNewer(WindowsModeExtensions own, WindowsModeExtensions? peer)
+    {
+        if (own.ModifiedDate is not { } ownDate || peer?.ModifiedDate is not { } peerDate) return false;
+        return AsUtc(peerDate) > AsUtc(ownDate);
+    }
+
+    // A Windows export writes the EF value, which has no kind and is stored as UTC
+    // (ModeService sets DateTime.UtcNow), so an unspecified kind is read as UTC.
+    private static DateTime AsUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Local => value.ToUniversalTime(),
+        DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+        _ => value,
+    };
 
     /// <summary>
     /// Maps a universal mode to a Windows Mode entity.
@@ -1010,25 +1034,32 @@ public static class UniversalBackupMapper
 
         if (winExt != null)
         {
-            // Windows export — use stored values
-            mode.ModelType = winExt.ModelType;
-            mode.LocalEngine = winExt.LocalEngine ?? "whisper";
-            mode.LocalParakeetModel = winExt.LocalParakeetModel;
-            mode.ProviderType = winExt.ProviderType;
+            // Windows export — use stored values. When the mode also carries a
+            // readable linux slice with a NEWER modifiedDate, the mode was edited on
+            // Linux after this windows slice was preserved there, so the linux slice
+            // is the record of the fields both .NET heads share (#1716).
+            var peerExt = ReadPeerModeExtensions(universal);
+            var shared = PeerSliceIsNewer(winExt, peerExt) ? peerExt! : winExt;
+            mode.ModelType = shared.ModelType;
+            mode.LocalEngine = shared.LocalEngine ?? "whisper";
+            mode.LocalParakeetModel = shared.LocalParakeetModel;
+            mode.ProviderType = shared.ProviderType;
             // winExt.CloudAccuracyTier / .CloudPostProcessingModel are NOT read here:
             // the core already folded them in with the right precedence (a present
             // Windows-extension value wins over the universal one, an absent one keeps
             // whatever the universal section and the provider fold produced).
+            // localPostProcessingModel is Windows-only, so it stays own-slice only.
             mode.LocalPostProcessingModel = winExt.LocalPostProcessingModel ?? mode.LocalPostProcessingModel;
-            // Own slice first (an explicit true OR false wins); absent falls back to
-            // the foreign slices (#1498).
-            mode.EnableScreenOCR = winExt.EnableScreenOCR
+            // Own slice first (an explicit true OR false wins), or the newer linux
+            // slice; absent falls back to the foreign slices (#1498).
+            mode.EnableScreenOCR = shared.EnableScreenOCR
+                ?? winExt.EnableScreenOCR
                 ?? ForeignModeExtensionBool(universal.PlatformExtensions, EnableScreenOcrKey)
                 ?? false;
-            mode.CustomVocabulary = winExt.CustomVocabulary;
-            mode.IsSystemProvided = winExt.IsSystemProvided ?? false;
-            mode.CreatedDate = winExt.CreatedDate ?? DateTime.UtcNow;
-            mode.ModifiedDate = winExt.ModifiedDate ?? DateTime.UtcNow;
+            mode.CustomVocabulary = shared.CustomVocabulary;
+            mode.IsSystemProvided = shared.IsSystemProvided ?? false;
+            mode.CreatedDate = shared.CreatedDate ?? DateTime.UtcNow;
+            mode.ModifiedDate = shared.ModifiedDate ?? DateTime.UtcNow;
         }
         else
         {

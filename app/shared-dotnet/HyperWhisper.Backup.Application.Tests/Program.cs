@@ -879,7 +879,87 @@ try
     Assert(badPeer.CustomVocabulary is null && badPeer.LocalEngine == "whisper" && !badPeer.IsSystemProvided,
         "an unreadable windows slice was used instead of the defaults (#1712)");
 
-    Console.WriteLine("Backup application tests passed (45/45).");
+    // Issue #1716: a mode edited on the other .NET head must survive a round trip.
+    // When a mode holds both a windows and a linux slice, the one with the NEWER
+    // modifiedDate is the record of the fields both heads share.
+    // Windows → Linux (edit) → Windows: the Linux edit lands in the linux slice with
+    // a newer date than the preserved windows slice, which is what Windows reads
+    // (the Windows half is HyperWhisper.SmokeTests "backup import (#1716)").
+    var linuxEdited = fromWindows;
+    linuxEdited.CustomVocabulary = ["Kattegat"];
+    linuxEdited.LocalEngine = "whisper";
+    linuxEdited.ModifiedDate = new DateTime(2026, 10, 11, 9, 0, 0, DateTimeKind.Utc);
+    await new ModeRepository(peerDatabase).UpsertAsync(linuxEdited);
+    var tripExport = JsonNode.Parse(await peerService.ExportAsync())!.AsObject();
+    var trippedMode = tripExport["modes"]!.AsArray()
+        .Single(node => node!["id"]!.GetValue<string>() == windowsModeId.ToString("D"))!.AsObject();
+    var trippedLinux = trippedMode["platformExtensions"]!["linux"]!.AsObject();
+    var trippedWindows = trippedMode["platformExtensions"]!["windows"]!.AsObject();
+    Assert(trippedLinux["customVocabulary"]!.AsArray().Select(term => term!.GetValue<string>()).SequenceEqual(["Kattegat"])
+        && trippedLinux["modifiedDate"]!.GetValue<string>() == "2026-10-11T09:00:00.0000000Z",
+        "a Linux export did not write the Linux-edited vocabulary and its modifiedDate in the linux slice (#1716)");
+    Assert(trippedWindows["modifiedDate"]!.GetValue<string>() == "2025-06-07T08:09:10Z",
+        "a Linux export rewrote the preserved windows slice instead of carrying it (#1716)");
+
+    // Linux → Windows (edit) → Linux: the Windows edit lands in the windows slice
+    // with a newer date than the preserved linux slice. A tie keeps the linux slice.
+    var windowsEditedBackup = tripExport.DeepClone().AsObject();
+    var windowsEditedModes = windowsEditedBackup["modes"]!.AsArray();
+    var newerWindowsId = Guid.NewGuid();
+    var tiedSlicesId = Guid.NewGuid();
+    windowsEditedModes.Clear();
+    windowsEditedModes.Add(OcrMode(windowsModeId, "Windows vocabulary", 0, new JsonObject
+    {
+        ["linux"] = trippedLinux.DeepClone(),
+        ["windows"] = new JsonObject
+        {
+            ["customVocabulary"] = new JsonArray("Skagerrak"), ["localEngine"] = "parakeet",
+            ["localParakeetModel"] = "parakeet-tdt-0.6b-v3", ["providerType"] = "local",
+            ["modelType"] = "large-v3", ["isSystemProvided"] = true, ["enableScreenOCR"] = true,
+            ["createdDate"] = "2025-01-02T03:04:05", ["modifiedDate"] = "2026-10-11T10:30:00",
+        },
+    }));
+    windowsEditedModes.Add(OcrMode(newerWindowsId, "Older Windows slice", 1, new JsonObject
+    {
+        ["linux"] = new JsonObject
+        {
+            ["customVocabulary"] = new JsonArray("Linux newer"), ["localEngine"] = "whisper",
+            ["enableScreenOCR"] = false, ["modifiedDate"] = "2026-10-11T10:30:00.0000000Z",
+        },
+        ["windows"] = new JsonObject
+        {
+            ["customVocabulary"] = new JsonArray("Windows older"), ["localEngine"] = "parakeet",
+            ["enableScreenOCR"] = true, ["modifiedDate"] = "2026-10-11T09:00:00",
+        },
+    }));
+    windowsEditedModes.Add(OcrMode(tiedSlicesId, "Tied slices", 2, new JsonObject
+    {
+        ["linux"] = new JsonObject { ["customVocabulary"] = new JsonArray("Linux tie"), ["modifiedDate"] = "2026-10-11T09:00:00Z" },
+        ["windows"] = new JsonObject { ["customVocabulary"] = new JsonArray("Windows tie"), ["modifiedDate"] = "2026-10-11T09:00:00" },
+    }));
+    var tripRoot = Path.Combine(root, "foreign-slice-round-trip");
+    Directory.CreateDirectory(tripRoot);
+    var tripPaths = new TestPaths(tripRoot);
+    var tripSettings = new PortableSettingsService(new MemoryPrivateFileService(), tripPaths);
+    Assert(tripSettings.Load().IsSuccess, "round-trip settings did not initialize");
+    var tripDatabase = new ApplicationDb(tripPaths);
+    await tripDatabase.MigrateAsync();
+    var tripImport = await new ApplicationBackupService(tripDatabase, tripSettings).ImportAsync(windowsEditedBackup.ToJsonString());
+    Assert(tripImport.IsSuccess, $"Windows-edited backup failed to import: {tripImport.Error?.Message}");
+    var tripModes = (await new ModeRepository(tripDatabase).ListAsync()).ToDictionary(item => item.Id);
+    var windowsEdit = tripModes[windowsModeId];
+    Assert(windowsEdit.CustomVocabulary is ["Skagerrak"] && windowsEdit.LocalEngine == "parakeet"
+        && windowsEdit.LocalParakeetModel == "parakeet-tdt-0.6b-v3" && windowsEdit.EnableScreenOCR,
+        "a newer windows slice lost to the stale preserved linux slice on a Linux restore (#1716)");
+    Assert(windowsEdit.ModifiedDate == new DateTime(2026, 10, 11, 10, 30, 0, DateTimeKind.Utc),
+        "a newer windows slice's modifiedDate was not restored on Linux (#1716)");
+    var linuxNewer = tripModes[newerWindowsId];
+    Assert(linuxNewer.CustomVocabulary is ["Linux newer"] && linuxNewer.LocalEngine == "whisper" && !linuxNewer.EnableScreenOCR,
+        "an older windows slice overrode a newer linux slice (#1716)");
+    Assert(tripModes[tiedSlicesId].CustomVocabulary is ["Linux tie"],
+        "a windows slice with the SAME modifiedDate overrode the linux slice (#1716)");
+
+    Console.WriteLine("Backup application tests passed (47/47).");
 }
 finally
 {
