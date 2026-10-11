@@ -115,10 +115,12 @@ public class ModeService
     /// backup goes straight into the DbSet, so without this the tray menus and the
     /// status bar keep the mode list they loaded at startup (issue #1592). Every
     /// subscriber reloads the whole list, so the payload is only the selected mode.
+    /// GetSelectedMode already falls back to the default and then the first mode,
+    /// so null means the table is empty and there is nothing to show.
     /// </summary>
     public void NotifyModesChanged()
     {
-        var payload = GetSelectedMode() ?? GetAllModes().FirstOrDefault();
+        var payload = GetSelectedMode();
         if (payload == null) return;
         ModeChanged?.Invoke(this, payload);
     }
