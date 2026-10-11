@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Onboarding'i Tamamla";
 
 "onboarding.setupLater.button" = "Daha Sonra Ayarla";
-"onboarding.error.microphone.denied" = "Mikrofon izni reddedildi. Lütfen Sistem Ayarları'nda izin verin.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Giriş sırasında başlat";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Krediler ön ödemelidir ve bu anahtarla oturum açan her Mac arasında paylaşılır. Boşta geçen süre hiçbir şeye mal olmaz.";
 "onboarding.source.note" = "Fikrinizi daha sonra değiştirirseniz yalnızca bu adım yeniden çalışır. Ayarladığınız başka hiçbir şey kaybolmaz.";
 "onboarding.permissions.note" = "Erişilebilirliği atlarsanız transkriptler yapıştırmaya hazır şekilde panoya gider. Daha sonra açmak tek tıkla olur.";
+"onboarding.permissions.microphone.denied" = "İzin verilmedi. Sistem Ayarları'nda HyperWhisper'ı açın, ardından buraya dönün.";
+"onboarding.permissions.continueNeedsMicrophone" = "Devam etmek için mikrofon gerekir. Yukarıdan izin verin veya Daha Sonra Ayarla'yı seçin.";
 "onboarding.welcome.task1.title" = "Transkripsiyonun nasıl çalışacağını seçin";
 "onboarding.welcome.task1.caption" = "Bulutumuzda, bu Mac'te veya zaten ödediğiniz bir sağlayıcı hesabı üzerinden.";
 "onboarding.welcome.task2.title" = "Mikrofonunuzu kontrol edin";

@@ -289,7 +289,6 @@
 "onboarding.done.button" = "เสร็จสิ้นการเข้าสู่ระบบ";
 
 "onboarding.setupLater.button" = "ตั้งค่าภายหลัง";
-"onboarding.error.microphone.denied" = "ปฏิเสธการอนุญาตไมโครโฟน โปรดให้สิทธิ์ในการตั้งค่าระบบ";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "เปิดตัวเมื่อเข้าสู่ระบบ";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "เครดิตเป็นแบบเติมเงินล่วงหน้าและใช้ร่วมกันในทุกเครื่อง Mac ที่เข้าสู่ระบบด้วยคีย์นี้ เวลาที่ไม่ได้ใช้งานไม่เสียค่าใช้จ่าย";
 "onboarding.source.note" = "หากเปลี่ยนใจภายหลัง ระบบจะรันซ้ำแค่ขั้นตอนนี้ขั้นตอนเดียว สิ่งอื่นที่คุณตั้งค่าไว้จะไม่หายไป";
 "onboarding.permissions.note" = "ข้ามการช่วยการเข้าถึงไปได้ ข้อความที่ถอดเสียงจะไปอยู่ในคลิปบอร์ด พร้อมวางได้ทันที เปิดใช้งานภายหลังได้ในคลิกเดียว";
+"onboarding.permissions.microphone.denied" = "ไม่ได้รับอนุญาต เปิด HyperWhisper ในการตั้งค่าระบบ แล้วกลับมาที่นี่";
+"onboarding.permissions.continueNeedsMicrophone" = "การดำเนินการต่อต้องใช้ไมโครโฟน อนุญาตด้านบน หรือเลือกตั้งค่าภายหลัง";
 "onboarding.welcome.task1.title" = "เลือกวิธีการถอดเสียง";
 "onboarding.welcome.task1.caption" = "ในคลาวด์ของเรา บน Mac เครื่องนี้ หรือผ่านบัญชีผู้ให้บริการที่คุณจ่ายเงินอยู่แล้ว";
 "onboarding.welcome.task2.title" = "ตรวจสอบไมโครโฟนของคุณ";

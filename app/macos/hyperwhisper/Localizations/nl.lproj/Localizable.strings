@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Onboarding voltooid";
 
 "onboarding.setupLater.button" = "Later instellen";
-"onboarding.error.microphone.denied" = "Microfoontoestemming geweigerd. Verleen toestemming in Systeeminstellingen.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Starten bij aanmelden";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Credits zijn vooruitbetaald en gedeeld tussen elke Mac die met deze sleutel is aangemeld. Inactieve tijd kost niets.";
 "onboarding.source.note" = "Als je later van gedachten verandert, doorloop je alleen deze ene stap opnieuw. Al het andere blijft behouden.";
 "onboarding.permissions.note" = "Sla Toegankelijkheid over en transcripties gaan naar het klembord, klaar om te plakken. Later inschakelen kost één klik.";
+"onboarding.permissions.microphone.denied" = "Niet toegestaan. Zet HyperWhisper aan in Systeeminstellingen en kom dan hier terug.";
+"onboarding.permissions.continueNeedsMicrophone" = "Doorgaan vereist de microfoon. Sta hem hierboven toe, of kies Later instellen.";
 "onboarding.welcome.task1.title" = "Kies hoe transcriptie werkt";
 "onboarding.welcome.task1.caption" = "In onze cloud, op deze Mac, of via een provideraccount waar je al voor betaalt.";
 "onboarding.welcome.task2.title" = "Controleer je microfoon";

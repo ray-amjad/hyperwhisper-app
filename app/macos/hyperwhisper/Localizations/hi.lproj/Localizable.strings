@@ -289,7 +289,6 @@
 "onboarding.done.button" = "ऑनबोर्डिंग पूर्ण करें";
 
 "onboarding.setupLater.button" = "बाद में सेट अप करें";
-"onboarding.error.microphone.denied" = "माइक्रोफ़ोन अनुमति अस्वीकृत। कृपया सिस्टम सेटिंग्स में अनुमति दें।";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "लॉगिन पर लॉन्च करें";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "क्रेडिट पहले से भुगतान किए गए हैं और इस कुंजी से साइन-इन हर Mac के बीच साझा होते हैं। खाली समय का कोई शुल्क नहीं लगता।";
 "onboarding.source.note" = "बाद में मन बदलने पर सिर्फ यही एक स्टेप दोबारा चलता है। आपकी बाकी सेटअप की गई कोई भी चीज़ नहीं खोती।";
 "onboarding.permissions.note" = "एक्सेसिबिलिटी को छोड़ें और ट्रांसक्रिप्ट क्लिपबोर्ड में जाएंगे, पेस्ट के लिए तैयार। इसे बाद में ऑन करने में एक क्लिक लगता है।";
+"onboarding.permissions.microphone.denied" = "अनुमति नहीं है। सिस्टम सेटिंग्स में HyperWhisper चालू करें, फिर यहाँ वापस आएँ।";
+"onboarding.permissions.continueNeedsMicrophone" = "जारी रखने के लिए माइक्रोफ़ोन चाहिए। ऊपर इसकी अनुमति दें, या बाद में सेट अप करें चुनें।";
 "onboarding.welcome.task1.title" = "चुनें कि ट्रांसक्रिप्शन कैसे चलेगा";
 "onboarding.welcome.task1.caption" = "हमारे क्लाउड में, इस Mac पर, या किसी ऐसे प्रोवाइडर खाते से जिसके लिए आप पहले से भुगतान करते हैं।";
 "onboarding.welcome.task2.title" = "अपना माइक्रोफ़ोन जांचें";

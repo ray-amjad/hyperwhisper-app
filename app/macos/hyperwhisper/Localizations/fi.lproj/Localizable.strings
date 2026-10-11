@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Käyttöönotto valmis";
 
 "onboarding.setupLater.button" = "Määritä myöhemmin";
-"onboarding.error.microphone.denied" = "Mikrofonilupa evätty. Myönnä lupa järjestelmäasetuksissa.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Käynnistä sisäänkirjautumisen yhteydessä";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Krediitit on maksettu etukäteen ja jaettu kaikkien tällä avaimella kirjautuneiden Macien kesken. Jouten olo ei maksa mitään.";
 "onboarding.source.note" = "Jos muutat mielesi myöhemmin, vain tämä yksi vaihe toistetaan. Mikään muu asetuksesi ei katoa.";
 "onboarding.permissions.note" = "Ohita Esteettömyys ja litteroinnit menevät leikepöydälle, valmiina liitettäväksi. Sen käyttöönotto myöhemmin vie yhden klikkauksen.";
+"onboarding.permissions.microphone.denied" = "Ei sallittu. Ota HyperWhisper käyttöön Järjestelmäasetuksissa ja palaa sitten tänne.";
+"onboarding.permissions.continueNeedsMicrophone" = "Jatkaminen vaatii mikrofonin. Salli se yllä tai valitse Määritä myöhemmin.";
 "onboarding.welcome.task1.title" = "Valitse, miten litterointi tapahtuu";
 "onboarding.welcome.task1.caption" = "Pilvipalvelussamme, tällä Macilla tai jo maksamasi palveluntarjoajan tilin kautta.";
 "onboarding.welcome.task2.title" = "Tarkista mikrofonisi";

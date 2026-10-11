@@ -289,7 +289,6 @@
 "onboarding.done.button" = "סיים הכנה ראשונית";
 
 "onboarding.setupLater.button" = "הגדרה מאוחר יותר";
-"onboarding.error.microphone.denied" = "הרשאת מיקרופון נדחתה. אנא תן הרשאה בהגדרות המערכת.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "הפעל בהתחברות";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "הקרדיטים משולמים מראש ומשותפים לכל Mac שמחובר עם המפתח הזה. זמן חוסר פעילות לא עולה כלום.";
 "onboarding.source.note" = "שינוי דעה בהמשך יריץ מחדש רק את השלב הזה. שום דבר אחר שהגדרתם לא הולך לאיבוד.";
 "onboarding.permissions.note" = "דלגו על נגישות והתמלולים יעברו ללוח, מוכנים להדבקה. הפעלה מאוחר יותר לוקחת קליק אחד.";
+"onboarding.permissions.microphone.denied" = "לא מורשה. הפעילו את HyperWhisper בהגדרות המערכת וחזרו לכאן.";
+"onboarding.permissions.continueNeedsMicrophone" = "כדי להמשיך נדרש המיקרופון. אשרו אותו למעלה, או בחרו ״הגדרה מאוחר יותר״.";
 "onboarding.welcome.task1.title" = "בחרו איך התמלול פועל";
 "onboarding.welcome.task1.caption" = "בענן שלנו, במחשב ה-Mac הזה, או דרך חשבון ספק שאתם כבר משלמים עליו.";
 "onboarding.welcome.task2.title" = "בדקו את המיקרופון שלכם";

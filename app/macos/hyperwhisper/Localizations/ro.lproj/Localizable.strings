@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Onboarding complet";
 
 "onboarding.setupLater.button" = "Configurează mai târziu";
-"onboarding.error.microphone.denied" = "Permisiunea de microfon refuzată. Vă rugăm acordați permisiunea în Setări de sistem.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Porniți la autentificare";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Creditele sunt preplătite și partajate între toate Mac-urile conectate cu această cheie. Timpul inactiv nu costă nimic.";
 "onboarding.source.note" = "Dacă te răzgândești mai târziu, reiei doar acest pas. Nimic altceva din ce ai configurat nu se pierde.";
 "onboarding.permissions.note" = "Omite Accesibilitatea și transcrierile ajung în clipboard, gata de lipit. Activarea ei mai târziu durează un click.";
+"onboarding.permissions.microphone.denied" = "Nepermis. Activează HyperWhisper în Configurări sistem, apoi revino aici.";
+"onboarding.permissions.continueNeedsMicrophone" = "Pentru a continua este nevoie de microfon. Permite-l mai sus sau alege Configurează mai târziu.";
 "onboarding.welcome.task1.title" = "Alege cum rulează transcrierea";
 "onboarding.welcome.task1.caption" = "În cloud-ul nostru, pe acest Mac, sau printr-un cont de furnizor pentru care plătești deja.";
 "onboarding.welcome.task2.title" = "Verifică-ți microfonul";

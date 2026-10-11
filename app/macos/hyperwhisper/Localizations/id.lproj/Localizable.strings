@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Selesai Onboarding";
 
 "onboarding.setupLater.button" = "Siapkan nanti";
-"onboarding.error.microphone.denied" = "Izin mikrofon ditolak. Silakan berikan izin di Pengaturan Sistem.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Luncurkan saat login";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Kredit dibayar di muka dan dibagikan di semua Mac yang masuk dengan kunci ini. Waktu idle tidak dikenakan biaya.";
 "onboarding.source.note" = "Mengubah pilihan nanti hanya mengulang langkah ini saja. Semua yang sudah Anda atur lainnya tidak akan hilang.";
 "onboarding.permissions.note" = "Lewati Aksesibilitas dan transkrip akan masuk ke clipboard, siap ditempel. Mengaktifkannya nanti hanya perlu satu klik.";
+"onboarding.permissions.microphone.denied" = "Tidak diizinkan. Aktifkan HyperWhisper di Pengaturan Sistem, lalu kembali ke sini.";
+"onboarding.permissions.continueNeedsMicrophone" = "Lanjutkan memerlukan mikrofon. Izinkan di atas, atau pilih Atur Nanti.";
 "onboarding.welcome.task1.title" = "Pilih cara transkripsi berjalan";
 "onboarding.welcome.task1.caption" = "Di cloud kami, di Mac ini, atau melalui akun penyedia yang sudah Anda bayar.";
 "onboarding.welcome.task2.title" = "Periksa mikrofon Anda";

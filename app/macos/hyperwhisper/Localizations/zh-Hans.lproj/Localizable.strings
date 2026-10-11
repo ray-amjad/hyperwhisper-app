@@ -289,7 +289,6 @@
 "onboarding.done.button" = "完成引导";
 
 "onboarding.setupLater.button" = "稍后设置";
-"onboarding.error.microphone.denied" = "麦克风权限被拒绝。请在系统设置中授予权限。";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "开机启动";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "额度为预付制，由使用此密钥登录的每台 Mac 共享。空闲时间不消耗额度。";
 "onboarding.source.note" = "之后改变主意只会重新执行这一步。您设置的其他内容都不会丢失。";
 "onboarding.permissions.note" = "跳过辅助功能，转写结果会进入剪贴板，随时可粘贴。之后开启只需一次点击。";
+"onboarding.permissions.microphone.denied" = "未允许。请在“系统设置”中打开 HyperWhisper，然后回到这里。";
+"onboarding.permissions.continueNeedsMicrophone" = "继续需要麦克风。请在上方允许，或选择“稍后设置”。";
 "onboarding.welcome.task1.title" = "选择转录的运行方式";
 "onboarding.welcome.task1.caption" = "在我们的云端、这台 Mac 上，或通过您已付费的服务商账户。";
 "onboarding.welcome.task2.title" = "检查您的麦克风";

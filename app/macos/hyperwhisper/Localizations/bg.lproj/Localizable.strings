@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Въвеждането завършено";
 
 "onboarding.setupLater.button" = "Настрой по-късно";
-"onboarding.error.microphone.denied" = "Разрешението за микрофон е отказано. Моля, предоставете разрешение в Системни настройки.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Стартиране при вход";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Кредитите са предплатени и се споделят между всички Mac устройства, влезли с този ключ. Времето на изчакване не струва нищо.";
 "onboarding.source.note" = "Ако промениш решението си по-късно, само тази стъпка се повтаря. Нищо друго от настройките ти не се губи.";
 "onboarding.permissions.note" = "Пропусни Достъпност и транскрипциите отиват в клипборда, готови за поставяне. Включването по-късно отнема едно кликване.";
+"onboarding.permissions.microphone.denied" = "Не е разрешено. Включете HyperWhisper в Системни настройки и се върнете тук.";
+"onboarding.permissions.continueNeedsMicrophone" = "За „Продължи“ е нужен микрофонът. Разрешете го по-горе или изберете „Настройване по-късно“.";
 "onboarding.welcome.task1.title" = "Избери как ще работи транскрипцията";
 "onboarding.welcome.task1.caption" = "В нашия облак, на този Mac или чрез акаунт на доставчик, за който вече плащаш.";
 "onboarding.welcome.task2.title" = "Провери микрофона си";

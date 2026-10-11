@@ -289,7 +289,6 @@
 "onboarding.done.button" = "オンボーディングを完了";
 
 "onboarding.setupLater.button" = "あとで設定";
-"onboarding.error.microphone.denied" = "マイクの許可が拒否されました。システム設定で許可してください。";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "ログイン時に起動";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "クレジットは前払い制で、このキーでサインインしたすべてのMacで共有されます。何もしていない時間には料金がかかりません。";
 "onboarding.source.note" = "後で気が変わっても、やり直すのはこの1ステップだけです。他に設定した内容は失われません。";
 "onboarding.permissions.note" = "アクセシビリティをスキップすると、文字起こし結果はクリップボードに送られ、すぐに貼り付けられる状態になります。後から有効にするのはワンクリックです。";
+"onboarding.permissions.microphone.denied" = "許可されていません。システム設定で HyperWhisper をオンにしてから、ここに戻ってください。";
+"onboarding.permissions.continueNeedsMicrophone" = "続けるにはマイクが必要です。上で許可するか、「後で設定」を選んでください。";
 "onboarding.welcome.task1.title" = "文字起こしの実行方法を選ぶ";
 "onboarding.welcome.task1.caption" = "当社のクラウド、このMac上、またはすでに契約しているプロバイダーのアカウント経由のいずれかです。";
 "onboarding.welcome.task2.title" = "マイクを確認する";

@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Zakończ wprowadzenie";
 
 "onboarding.setupLater.button" = "Skonfiguruj później";
-"onboarding.error.microphone.denied" = "Dostęp do mikrofonu odmówiony. Przyznaj uprawnienie w Ustawieniach systemowych.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Uruchom przy logowaniu";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Kredyty są przedpłacone i współdzielone przez każdego Maca zalogowanego tym kluczem. Czas bezczynności nic nie kosztuje.";
 "onboarding.source.note" = "Jeśli zmienisz zdanie później, powtórzysz tylko ten jeden krok. Nic innego, co skonfigurujesz, nie zostanie utracone.";
 "onboarding.permissions.note" = "Pomiń Dostępność, a transkrypcje trafią do schowka, gotowe do wklejenia. Włączenie tego później to jedno kliknięcie.";
+"onboarding.permissions.microphone.denied" = "Brak zgody. Włącz HyperWhisper w Ustawieniach systemowych, a potem wróć tutaj.";
+"onboarding.permissions.continueNeedsMicrophone" = "Aby kontynuować, potrzebny jest mikrofon. Zezwól na niego powyżej lub wybierz Skonfiguruj później.";
 "onboarding.welcome.task1.title" = "Wybierz sposób transkrypcji";
 "onboarding.welcome.task1.caption" = "W naszej chmurze, na tym Macu lub przez konto dostawcy, za które już płacisz.";
 "onboarding.welcome.task2.title" = "Sprawdź swój mikrofon";

@@ -289,7 +289,6 @@
 "onboarding.done.button" = "온보딩 완료";
 
 "onboarding.setupLater.button" = "나중에 설정";
-"onboarding.error.microphone.denied" = "마이크 권한이 거부되었습니다. 시스템 설정에서 권한을 부여하세요.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "로그인 시 실행";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "크레딧은 선불이며 이 키로 로그인한 모든 Mac에서 공유돼요. 아무것도 하지 않는 시간에는 비용이 들지 않아요.";
 "onboarding.source.note" = "나중에 마음이 바뀌어도 다시 하는 건 이 단계 하나뿐이에요. 다른 설정은 그대로 남아요.";
 "onboarding.permissions.note" = "손쉬운 사용을 건너뛰면 필사 결과는 클립보드로 보내져 바로 붙여넣을 수 있어요. 나중에 켜는 건 클릭 한 번이면 돼요.";
+"onboarding.permissions.microphone.denied" = "허용되지 않음. 시스템 설정에서 HyperWhisper를 켠 다음 여기로 돌아오세요.";
+"onboarding.permissions.continueNeedsMicrophone" = "계속하려면 마이크가 필요합니다. 위에서 허용하거나 나중에 설정을 선택하세요.";
 "onboarding.welcome.task1.title" = "필사가 어떻게 실행될지 선택하세요";
 "onboarding.welcome.task1.caption" = "저희 클라우드, 이 Mac, 또는 이미 이용 중인 제공업체 계정 중에서 선택할 수 있어요.";
 "onboarding.welcome.task2.title" = "마이크를 확인하세요";

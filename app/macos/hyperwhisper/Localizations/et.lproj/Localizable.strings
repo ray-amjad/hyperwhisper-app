@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Lõpeta sisseelamine";
 
 "onboarding.setupLater.button" = "Seadista hiljem";
-"onboarding.error.microphone.denied" = "Mikrofoni luba keelduti. Palun andke luba süsteemiseadetes.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Käivita sisselogimisel";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Krediidid on ette makstud ja jagatud kõigi Macide vahel, mis on selle võtmega sisse logitud. Jõudeaeg ei maksa midagi.";
 "onboarding.source.note" = "Kui muudad hiljem meelt, korratakse ainult seda üht sammu. Muu, mille oled seadistanud, ei kao.";
 "onboarding.permissions.note" = "Jäta Ligipääsetavus vahele ja transkriptsioonid lähevad lõikelauale, valmis kleepimiseks. Hilisem sisselülitamine võtab ühe klõpsu.";
+"onboarding.permissions.microphone.denied" = "Pole lubatud. Lülita HyperWhisper süsteemiseadetes sisse ja tule siia tagasi.";
+"onboarding.permissions.continueNeedsMicrophone" = "Jätkamiseks on vaja mikrofoni. Luba see ülal või vali Seadista hiljem.";
 "onboarding.welcome.task1.title" = "Vali, kuidas transkribeerimine toimub";
 "onboarding.welcome.task1.caption" = "Meie pilves, selles Macis või juba makstud teenusepakkuja konto kaudu.";
 "onboarding.welcome.task2.title" = "Kontrolli oma mikrofoni";

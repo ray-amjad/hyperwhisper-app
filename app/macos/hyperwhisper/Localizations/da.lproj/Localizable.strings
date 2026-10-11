@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Afslut onboarding";
 
 "onboarding.setupLater.button" = "Indstil senere";
-"onboarding.error.microphone.denied" = "Mikrofontilladelse afvist. Giv venligst tilladelse i Systemindstillinger.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Start ved login";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Kredit er forudbetalt og deles på tværs af alle Mac'er, der er logget ind med denne nøgle. Inaktiv tid koster ingenting.";
 "onboarding.source.note" = "Ombestemmer du dig senere, gentages kun dette ene trin. Alt andet, du har sat op, bevares.";
 "onboarding.permissions.note" = "Springer du Tilgængelighed over, går transskriptioner til udklipsholderen, klar til indsættelse. Du kan altid slå det til senere med ét klik.";
+"onboarding.permissions.microphone.denied" = "Ikke tilladt. Slå HyperWhisper til i Systemindstillinger, og kom så tilbage hertil.";
+"onboarding.permissions.continueNeedsMicrophone" = "Fortsæt kræver mikrofonen. Tillad den ovenfor, eller vælg Konfigurer senere.";
 "onboarding.welcome.task1.title" = "Vælg, hvordan transskription kører";
 "onboarding.welcome.task1.caption" = "I vores cloud, på denne Mac, eller via en udbyderkonto, du allerede betaler for.";
 "onboarding.welcome.task2.title" = "Tjek din mikrofon";

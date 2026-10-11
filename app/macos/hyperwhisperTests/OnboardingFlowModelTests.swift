@@ -357,7 +357,7 @@ struct OnboardingPermissionTests {
         h.flow.requestMicrophonePermission()
         await h.flow.lastAsyncTaskForTesting?.value
         #expect(!h.flow.hasMicrophonePermission)
-        #expect(h.flow.permissionErrorMessage != nil)
+        #expect(h.flow.microphoneAuthorization == .denied)
         #expect(!h.flow.canContinue)
 
         // User grants it in System Settings; the flow re-reads on reactivation.
@@ -365,6 +365,23 @@ struct OnboardingPermissionTests {
         h.flow.refreshPermissions()
         #expect(h.flow.hasMicrophonePermission)
         #expect(h.flow.canContinue)
+    }
+
+    /// #1508: onboarding reaches the real prompt through
+    /// `MicrophonePermissionManager.requestMicrophonePermission()`. If that sets
+    /// the shared `showPermissionDeniedAlert` flag, a deny in onboarding leaves
+    /// MainAppView's "Microphone Access Required" alert pending, and it fires the
+    /// moment Set Up Later closes the sheet. The recording paths raise the alert
+    /// themselves, so the manager never may.
+    @Test func thePermissionManagerNeverRaisesTheSharedDeniedAlert() throws {
+        let manager = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()  // hyperwhisperTests
+            .deletingLastPathComponent()  // app/macos
+            .appendingPathComponent("hyperwhisper/Managers/AudioRecording/Permissions")
+            .appendingPathComponent("MicrophonePermissionManager.swift")
+        let source = try String(contentsOf: manager, encoding: .utf8)
+        #expect(source.contains("func requestMicrophonePermission()"))
+        #expect(!source.contains("showPermissionDeniedAlert = true"))
     }
 
     @Test func aDeniedMicrophoneDeepLinksSettingsInsteadOfRePrompting() {
@@ -2010,8 +2027,8 @@ private func entryGuardsDeclaredInTheModel() throws -> Int {
 ///
 /// The honest limit of "whole mutating surface": these two halves cover every
 /// mutating METHOD. They do not cover the publicly settable `@Published`
-/// properties with `didSet` side effects — `licenseKeyInput`, `apiKeyInput`,
-/// `permissionErrorMessage` — which are bound straight to text fields and are
+/// properties with `didSet` side effects — `licenseKeyInput`, `apiKeyInput` —
+/// which are bound straight to text fields and are
 /// deliberately left unguarded because their writes never leave this model.
 @MainActor
 struct OnboardingPostFinishInvariantTests {

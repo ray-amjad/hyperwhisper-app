@@ -122,21 +122,6 @@ struct OnboardingFlowContainer: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             flow.refreshPermissions()
         }
-        .alert(
-            "common.error".localized,
-            isPresented: Binding(
-                get: { flow.permissionErrorMessage != nil },
-                set: { if !$0 { flow.permissionErrorMessage = nil } }
-            )
-        ) {
-            Button {
-                flow.permissionErrorMessage = nil
-            } label: {
-                Text(localized: "common.ok")
-            }
-        } message: {
-            Text(flow.permissionErrorMessage ?? "app.unknown.error".localized)
-        }
     }
 
     // MARK: - Stage
@@ -214,7 +199,11 @@ struct OnboardingFlowContainer: View {
                 permissionRow(
                     symbol: "mic",
                     title: "onboarding.permissions.microphone.title".localized,
-                    caption: "onboarding.permissions.microphone.subtitle".localized,
+                    // #1508: after a denial the row says so inline, next to
+                    // the Open Settings button, instead of raising an alert.
+                    caption: (flow.microphoneAuthorization == .denied
+                              ? "onboarding.permissions.microphone.denied"
+                              : "onboarding.permissions.microphone.subtitle").localized,
                     granted: flow.hasMicrophonePermission,
                     // After a denial the OS will not re-prompt, so the action
                     // switches to deep linking System Settings.
@@ -235,6 +224,14 @@ struct OnboardingFlowContainer: View {
                                   ? "onboarding.accessibility.waiting"
                                   : "onboarding.permissions.open").localized,
                     action: flow.handleAccessibilityAction
+                )
+            }
+
+            // #1508: Continue is gated on the microphone, so say so while it is.
+            if !flow.hasMicrophonePermission {
+                OnboardingQuietNote(
+                    text: "onboarding.permissions.continueNeedsMicrophone".localized,
+                    symbol: "mic"
                 )
             }
 
