@@ -25,6 +25,26 @@ public partial class MainViewModel
     [ObservableProperty] private bool _isFileDialogOpen;
 
     /// <summary>
+    /// The properties <see cref="CanOfferTrayFileTranscription"/> reads. The tray
+    /// rebuilds its Transcribe File items when any of them changes.
+    /// </summary>
+    internal static readonly string[] TrayFileTranscriptionInputs =
+    {
+        nameof(IsRecording), nameof(IsTranscribing), nameof(IsModelLoading), nameof(IsFileDialogOpen)
+    };
+
+    /// <summary>
+    /// Whether the tray's Transcribe File items are enabled (onboarding aside).
+    /// </summary>
+    internal bool CanOfferTrayFileTranscription =>
+        !IsRecording && !IsTranscribing && !IsModelLoading && !IsFileDialogOpen;
+
+    /// <summary>
+    /// Test seam: shows the Transcribe File dialog. Null shows the real dialog.
+    /// </summary>
+    internal Func<Microsoft.Win32.OpenFileDialog, bool?>? ShowFileDialogOverride { get; set; }
+
+    /// <summary>
     /// Opens a file dialog and transcribes the selected audio file.
     /// Implements file transcription with the same provider routing as live recording.
     /// </summary>
@@ -71,7 +91,7 @@ public partial class MainViewModel
         IsFileDialogOpen = true;
         try
         {
-            picked = dialog.ShowDialog() == true;
+            picked = (ShowFileDialogOverride?.Invoke(dialog) ?? dialog.ShowDialog()) == true;
         }
         finally
         {

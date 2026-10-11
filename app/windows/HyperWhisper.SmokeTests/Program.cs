@@ -546,9 +546,70 @@ internal static class Program
                     Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
                         $"Strings.{name}.resx does not translate {busyKey}");
                 }
+            });
 
-                Assert(typeof(MainViewModel).GetProperty(nameof(MainViewModel.IsFileDialogOpen)) != null,
-                    "MainViewModel has no IsFileDialogOpen for the tray to read");
+            // #1535. The Transcribe File dialog has no owner, so the tray stays live
+            // while it is open. Drive the real TranscribeFileWithModeAsync on a bare
+            // view model, with the dialog seam standing in for the dialog: the tray
+            // items go off while it is open, a second request opens no second dialog,
+            // and a pick that finds a dictation running gets the busy toast.
+            Run("Tray Transcribe File is off while its dialog is open, and a second request opens none (#1535)", () =>
+            {
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                var mode = new Mode { Name = "Smoke" };
+                Assert(vm.CanOfferTrayFileTranscription, "an idle view model disables Transcribe File");
+                Assert(MainViewModel.TrayFileTranscriptionInputs.Contains(nameof(MainViewModel.IsFileDialogOpen)),
+                    "the tray does not rebuild its Transcribe File items when the dialog opens or closes");
+
+                var dialogStates = new List<bool>();
+                vm.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MainViewModel.IsFileDialogOpen))
+                    {
+                        dialogStates.Add(vm.IsFileDialogOpen);
+                    }
+                };
+
+                var shown = 0;
+                var offeredWhileOpen = true;
+                var secondCompleted = false;
+                vm.ShowFileDialogOverride = _ =>
+                {
+                    // A guard that lets the second request through would re-enter
+                    // here; stop it rather than recurse.
+                    if (++shown > 1)
+                    {
+                        return false;
+                    }
+
+                    offeredWhileOpen = vm.CanOfferTrayFileTranscription;
+                    // The tray click that would have opened a second dialog.
+                    secondCompleted = vm.TranscribeFileWithModeAsync(mode).IsCompletedSuccessfully;
+                    return false;
+                };
+                vm.TranscribeFileWithModeAsync(mode).GetAwaiter().GetResult();
+
+                Assert(shown == 1, $"a request made while the dialog was open showed a dialog too ({shown} shown)");
+                Assert(secondCompleted, "the request made while the dialog was open did not return at once");
+                Assert(!offeredWhileOpen, "the tray offers Transcribe File while its dialog is open");
+                Assert(!vm.IsFileDialogOpen && vm.CanOfferTrayFileTranscription,
+                    "Transcribe File stays off after the dialog closed");
+                Assert(dialogStates.SequenceEqual(new[] { true, false }),
+                    $"IsFileDialogOpen raised [{string.Join(", ", dialogStates)}], expected [True, False]");
+
+                string? toast = null;
+                vm.ShowErrorToastRequested += (_, e) => toast = e.Message;
+                vm.ShowFileDialogOverride = _ =>
+                {
+                    // A dictation started from its shortcut while the dialog was open.
+                    vm.IsRecording = true;
+                    return true;
+                };
+                vm.TranscribeFileWithModeAsync(mode).GetAwaiter().GetResult();
+                Assert(toast == HyperWhisper.Localization.Loc.S("errors.fileTranscriptionBusy"),
+                    $"a pick that found a dictation running toasted '{toast ?? "nothing"}'");
+                Assert(!vm.CanOfferTrayFileTranscription, "the tray offers Transcribe File during a dictation");
             });
 
             // #960. A field typed from HyperWhisper.AppClassification puts that
