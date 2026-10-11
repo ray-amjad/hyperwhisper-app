@@ -2549,6 +2549,58 @@ internal static class Program
                     "a stale preserved linux slice overrode the mode's own windows slice");
             });
 
+            // #1716: Windows → Linux (edit) → Windows. Windows exports a mode, Linux
+            // imports it, keeps the windows slice as a preserved foreign slice, and the
+            // user edits the vocabulary there: the Linux export holds the NEW values in
+            // linux (newer modifiedDate) and the OLD ones in windows. The slice with the
+            // newer modifiedDate wins for the fields both .NET heads share; a tie or an
+            // older linux slice keeps the windows slice.
+            Run("backup import (#1716): a newer linux slice wins over the preserved windows slice", () =>
+            {
+                var original = new Mode
+                {
+                    Id = Guid.Parse("6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1716"), Name = "Round trip", Preset = "custom",
+                    Language = "en", Model = "base", ModelType = "base", LocalEngine = "parakeet",
+                    LocalParakeetModel = "parakeet-tdt-0.6b-v3", ProviderType = "local",
+                    CustomVocabulary = ["Øresund"],
+                    CreatedDate = new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Unspecified),
+                    ModifiedDate = new DateTime(2025, 6, 7, 8, 9, 10, DateTimeKind.Unspecified),
+                };
+                var exported = JsonNode.Parse(JsonSerializer.Serialize(UniversalBackupMapper.MapMode(original)))!.AsObject();
+                var extensions = exported["platformExtensions"]!.AsObject();
+                Assert(extensions["windows"] is JsonObject, "a Windows mode export carried no windows slice");
+
+                // What Linux writes after the user edits the vocabulary there: every key,
+                // ISO-8601 UTC dates, and the windows slice carried unchanged.
+                extensions["linux"] = new JsonObject
+                {
+                    ["customVocabulary"] = new JsonArray("Kattegat"), ["localEngine"] = "whisper",
+                    ["localParakeetModel"] = null, ["providerType"] = "local", ["modelType"] = "small",
+                    ["enableScreenOCR"] = true, ["isSystemProvided"] = false,
+                    ["createdDate"] = "2025-01-02T03:04:05.0000000Z", ["modifiedDate"] = "2026-10-11T09:00:00.0000000Z",
+                };
+                var edited = JsonSerializer.Deserialize<UniversalMode>(exported.ToJsonString())
+                    ?? throw new InvalidOperationException("the round-tripped mode did not deserialize");
+                var restored = UniversalBackupMapper.MapToMode(edited);
+                Assert(restored.CustomVocabulary is ["Kattegat"],
+                    "a Linux-edited vocabulary was lost to the stale preserved windows slice on a Windows restore");
+                Assert(restored.LocalEngine == "whisper" && restored.LocalParakeetModel is null
+                    && restored.ModelType == "small" && restored.EnableScreenOCR,
+                    "the Linux-edited local engine / model / screen OCR lost to the stale windows slice");
+                Assert(restored.ModifiedDate.ToUniversalTime() == new DateTime(2026, 10, 11, 9, 0, 0, DateTimeKind.Utc),
+                    "the newer linux slice's modifiedDate was not restored on Windows");
+
+                // A tie (an unedited trip) and an older linux slice keep the windows slice.
+                foreach (var linuxDate in new[] { "2025-06-07T08:09:10.0000000Z", "2025-01-01T00:00:00.0000000Z" })
+                {
+                    extensions["linux"]!["modifiedDate"] = linuxDate;
+                    var kept = UniversalBackupMapper.MapToMode(JsonSerializer.Deserialize<UniversalMode>(exported.ToJsonString())!);
+                    Assert(kept.CustomVocabulary is ["Øresund"] && kept.LocalEngine == "parakeet"
+                        && kept.LocalParakeetModel == "parakeet-tdt-0.6b-v3",
+                        $"a linux slice dated {linuxDate} (not newer) overrode the mode's own windows slice");
+                }
+            });
+
             // NATIVE CAPTURE (issue #277, phase 2a). Drives every
             // shared-conformance/backup-vectors.json windowsSettings row through the
             // SHIPPING Windows settings adapters — UniversalBackupMapper.MapSettings and

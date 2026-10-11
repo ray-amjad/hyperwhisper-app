@@ -231,8 +231,8 @@ public sealed partial class ApplicationBackupService(
             ? null
             : new JsonArray(mode.CustomVocabulary.Select(term => (JsonNode?)JsonValue.Create(term)).ToArray());
         linux["isSystemProvided"] = mode.IsSystemProvided;
-        linux["createdDate"] = mode.CreatedDate.ToUniversalTime().ToString("O");
-        linux["modifiedDate"] = mode.ModifiedDate.ToUniversalTime().ToString("O");
+        linux["createdDate"] = AsUtc(mode.CreatedDate).ToString("O");
+        linux["modifiedDate"] = AsUtc(mode.ModifiedDate).ToString("O");
         extensions["linux"] = linux;
         return new JsonObject
         {
@@ -290,8 +290,11 @@ public sealed partial class ApplicationBackupService(
         var linux = extensions?["linux"] as JsonObject;
         // The per-mode fields both .NET heads write under the same names (#1712):
         // the linux slice when there is a readable one (a JSON object), else the
-        // Windows head's slice.
-        var own = linux ?? ReadablePeerSlice(extensions?[PeerModeSlice] as JsonObject);
+        // Windows head's slice. A readable Windows slice with a NEWER modifiedDate
+        // also wins: the mode was edited on Windows after this linux slice was
+        // preserved there (#1716).
+        var peer = ReadablePeerSlice(extensions?[PeerModeSlice] as JsonObject);
+        var own = linux is null || PeerSliceIsNewer(linux, peer) ? peer : linux;
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
         return new Mode
         {
@@ -311,7 +314,7 @@ public sealed partial class ApplicationBackupService(
             CloudPostProcessingModel = String(normalized, "cloudPostProcessingModel") ?? ModeDefaults.CloudPostProcessingModel,
             LocalEngine = String(own, "localEngine") ?? "whisper", LocalParakeetModel = String(own, "localParakeetModel"),
             ProviderType = String(own, "providerType") ?? (String(value, "cloudProvider") is null ? "local" : "cloud"),
-            EnableScreenOCR = ScreenOcr(linux, extensions), CustomVocabulary = StringList(own, "customVocabulary"),
+            EnableScreenOCR = ScreenOcr(linux is null ? null : own, linux, extensions), CustomVocabulary = StringList(own, "customVocabulary"),
             IsSystemProvided = Bool(own, "isSystemProvided"),
             ForeignPlatformExtensions = preservedExtensions is null || preservedExtensions.Count == 0 ? null : preservedExtensions.ToJsonString(),
             CreatedDate = Date(own, "createdDate") ?? DateTime.UtcNow,
@@ -325,12 +328,36 @@ public sealed partial class ApplicationBackupService(
     /// (<c>customVocabulary</c>, <c>localEngine</c>, <c>localParakeetModel</c>,
     /// <c>providerType</c>, <c>modelType</c>, <c>isSystemProvided</c>,
     /// <c>createdDate</c>, <c>modifiedDate</c>); macOS writes none of them. Read
-    /// only when the mode has no readable <c>linux</c> slice (absent, or not a JSON
-    /// object): a readable own slice is the
-    /// whole record of these fields, so a stale preserved Windows value never
-    /// overrides it. Mirrors Windows <c>UniversalBackupMapper.ReadPeerModeExtensions</c>.
+    /// when the mode has no readable <c>linux</c> slice (absent, or not a JSON
+    /// object), or when it carries a newer <c>modifiedDate</c> than the linux slice
+    /// (<see cref="PeerSliceIsNewer"/>). The winning slice is read whole, so a stale
+    /// preserved Windows value never mixes into a newer linux record. Mirrors
+    /// Windows <c>UniversalBackupMapper.ReadPeerModeExtensions</c>.
     /// </summary>
     private const string PeerModeSlice = "windows";
+
+    /// <summary>
+    /// True when the readable Windows slice carries a strictly newer
+    /// <c>modifiedDate</c> than the linux slice (#1716). A Linux → Windows (edit) →
+    /// Linux trip brings the Windows edit back in the windows slice and the OLD
+    /// values in the preserved linux slice; the newer one is the user's latest
+    /// edit. A tie, or a missing date on either side, keeps the linux slice, so an
+    /// unedited trip restores the same values it did before. Mirrors Windows
+    /// <c>UniversalBackupMapper.PeerSliceIsNewer</c>.
+    /// </summary>
+    private static bool PeerSliceIsNewer(JsonObject linux, JsonObject? peer)
+        => Date(linux, "modifiedDate") is { } ownDate
+            && Date(peer, "modifiedDate") is { } peerDate
+            && peerDate > ownDate;
+
+    // EF hands back a stored date with no kind; every writer stores UTC
+    // (DateTime.UtcNow), so an unspecified kind is UTC, not local time.
+    private static DateTime AsUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Local => value.ToUniversalTime(),
+        DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+        _ => value,
+    };
 
     /// <summary>
     /// The peer slice, or null when one of the shared fields in it cannot be read
@@ -368,11 +395,17 @@ public sealed partial class ApplicationBackupService(
     /// A mode's screen OCR flag (#1498): the <c>linux</c> slice's value when it
     /// carries one (an explicit <c>false</c> wins too), else the first foreign
     /// slice that carries it as a JSON Bool, else <c>false</c>. Mirrors macOS
-    /// <c>UniversalModeDTO.platformExtensionBool</c>.
+    /// <c>UniversalModeDTO.platformExtensionBool</c>. <paramref name="newer"/> is the
+    /// Windows slice when it beat the linux slice on <c>modifiedDate</c> (#1716); its
+    /// JSON Bool comes first.
     /// </summary>
-    private static bool ScreenOcr(JsonObject? linux, JsonObject? extensions)
+    private static bool ScreenOcr(JsonObject? newer, JsonObject? linux, JsonObject? extensions)
     {
         const string key = "enableScreenOCR";
+        if (newer != linux
+            && newer?[key] is JsonValue newerValue
+            && newerValue.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
+            return newerValue.GetValue<bool>();
         if (linux?[key] is not null) return Bool(linux, key);
         foreach (var platform in ForeignModeSliceOrder)
         {
