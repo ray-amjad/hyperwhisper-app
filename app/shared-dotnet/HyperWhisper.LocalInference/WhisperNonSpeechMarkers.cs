@@ -6,7 +6,9 @@ namespace HyperWhisper.LocalInference;
 /// Whisper's non-speech annotations: a bracketed or parenthesised marker it
 /// emits in place of words when it hears none ([BLANK_AUDIO] and kin). Only
 /// these fixed names match, so a bracket the speaker dictated survives. The
-/// same list as the Windows head's TranscriptionService (issues #1449, #1742).
+/// Windows head does not reference this assembly and, on main, strips no markers;
+/// PR #1740 (open at the time of writing) adds its own copy of this list to the
+/// Windows TranscriptionService, so keep the two in step if it lands (issue #1742).
 /// </summary>
 internal static class WhisperNonSpeechMarkers
 {
