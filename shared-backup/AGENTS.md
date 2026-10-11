@@ -47,7 +47,9 @@ The same rule covers `cloudAccuracyTier`, `cloudPostProcessingModel` and `localP
 `normalize_universal_mode_value`, for the first two). When the `linux` slice wins — a newer
 `modifiedDate` on Windows; any readable `linux` slice the `windows` slice does not beat on Linux —
 each head reads these three from the top level and ignores the `windows` slice's copies (it hands
-the core the mode without that slice). When the `windows` slice wins, its copies still override.
+the core the mode without that slice). When the `windows` slice wins — or is the only readable
+slice — its copies still override, on both heads: the core fold reads the first two, and each head
+reads `localPostProcessingModel` from that slice itself, else from the top level.
 The fields read this way today:
 
 | Field | Read by | Foreign source |

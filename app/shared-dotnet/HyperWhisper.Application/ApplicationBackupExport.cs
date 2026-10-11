@@ -307,9 +307,12 @@ public sealed partial class ApplicationBackupService(
         // preserved there (#1716).
         var peer = ReadablePeerSlice(extensions?[PeerModeSlice] as JsonObject);
         var own = linux is null || PeerSliceIsNewer(linux, peer) ? peer : linux;
-        // The cloud tier and post-processing model come from the core fold, where a
-        // windows slice's value beats the top-level one. That is right only when the
-        // windows slice won: a linux record keeps them at the top level (#1747).
+        // The cloud tier and post-processing models: a windows slice's copy beats the
+        // top-level one only when that slice won. A linux record keeps all three at the
+        // top level, so a preserved windows slice holds stale copies (#1747). The core
+        // fold reads the tier and cloud model; the local model is read here, as Windows
+        // UniversalBackupMapper does.
+        var peerWon = peer is not null && own == peer;
         var normalized = NormalizeCloudRouting(value, withoutPeerSlice: linux is not null && own == linux);
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
         return new Mode
@@ -323,7 +326,7 @@ public sealed partial class ApplicationBackupService(
             EnglishSpelling = String(value, "englishSpelling"), CloudProvider = String(normalized, "cloudProvider"),
             CloudTranscriptionModel = String(normalized, "cloudTranscriptionModel"), CloudTranscriptionDomain = String(normalized, "cloudTranscriptionDomain"),
             PostProcessingMode = Int(value, "postProcessingMode"), PostProcessingProvider = String(value, "postProcessingProvider"),
-            LanguageModel = String(value, "languageModel"), LocalPostProcessingModel = String(value, "localPostProcessingModel"),
+            LanguageModel = String(value, "languageModel"), LocalPostProcessingModel = (peerWon ? String(peer, "localPostProcessingModel") : null) ?? String(value, "localPostProcessingModel"),
             UserSystemPrompt = String(value, "userSystemPrompt"), CustomInstructions = String(value, "customInstructions"),
             GeminiCustomPrompt = String(value, "geminiCustomPrompt"),
             CloudAccuracyTier = String(normalized, "cloudAccuracyTier") ?? ModeDefaults.CloudAccuracyTier,
@@ -391,6 +394,7 @@ public sealed partial class ApplicationBackupService(
             _ = String(peer, "localParakeetModel"); _ = String(peer, "providerType");
             _ = StringList(peer, "customVocabulary"); _ = Bool(peer, "isSystemProvided");
             _ = Date(peer, "createdDate"); _ = Date(peer, "modifiedDate");
+            _ = String(peer, "localPostProcessingModel");
             return peer;
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)

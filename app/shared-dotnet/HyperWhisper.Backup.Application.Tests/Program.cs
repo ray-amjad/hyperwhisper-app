@@ -924,8 +924,9 @@ try
     var selfRestored = (await new ModeRepository(selfDatabase).ListAsync()).Single(item => item.Id == windowsModeId);
     Assert(selfRestored.CloudAccuracyTier == "groqWhisper" && selfRestored.CloudPostProcessingModel == "cerebras:gpt-oss-120b",
         $"a Linux-edited cloud tier / post-processing model lost to the stale preserved windows slice: {selfRestored.CloudAccuracyTier} / {selfRestored.CloudPostProcessingModel} (#1747)");
-    Assert(selfRestored.LocalPostProcessingModel == "linux-local-pp",
-        "a Linux-edited local post-processing model was not restored (#1747)");
+    Assert(trippedWindows["localPostProcessingModel"]!.GetValue<string>() == "windows-local-pp"
+        && selfRestored.LocalPostProcessingModel == "linux-local-pp",
+        $"a Linux-edited local post-processing model lost to the stale preserved windows slice: {selfRestored.LocalPostProcessingModel} (#1747)");
 
     // Linux → Windows (edit) → Linux: the Windows edit lands in the windows slice
     // with a newer date than the preserved linux slice. A tie keeps the linux slice.
@@ -944,6 +945,7 @@ try
             ["modelType"] = "large-v3", ["isSystemProvided"] = true, ["enableScreenOCR"] = true,
             ["createdDate"] = "2025-01-02T03:04:05", ["modifiedDate"] = "2026-10-11T10:30:00",
             ["cloudAccuracyTier"] = "soniox", ["cloudPostProcessingModel"] = "groq:openai/gpt-oss-120b",
+            ["localPostProcessingModel"] = "windows-edit-local-pp",
         },
     }));
     windowsEditedModes.Add(OcrMode(newerWindowsId, "Older Windows slice", 1, new JsonObject
@@ -982,13 +984,15 @@ try
         "a newer windows slice's modifiedDate was not restored on Linux (#1716)");
     Assert(windowsEdit.CloudAccuracyTier == "soniox" && windowsEdit.CloudPostProcessingModel == "groq:openai/gpt-oss-120b",
         "a newer windows slice's cloud tier / post-processing model was not restored on Linux (#1747)");
+    Assert(windowsEdit.LocalPostProcessingModel == "windows-edit-local-pp",
+        $"a newer windows slice's local post-processing model lost to the top-level one on Linux: {windowsEdit.LocalPostProcessingModel} (#1747)");
     var linuxNewer = tripModes[newerWindowsId];
     Assert(linuxNewer.CustomVocabulary is ["Linux newer"] && linuxNewer.LocalEngine == "whisper" && !linuxNewer.EnableScreenOCR,
         "an older windows slice overrode a newer linux slice (#1716)");
     Assert(tripModes[tiedSlicesId].CustomVocabulary is ["Linux tie"],
         "a windows slice with the SAME modifiedDate overrode the linux slice (#1716)");
 
-    Console.WriteLine("Backup application tests passed (51/51).");
+    Console.WriteLine("Backup application tests passed (52/52).");
 }
 finally
 {
