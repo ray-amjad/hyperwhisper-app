@@ -1159,6 +1159,12 @@ Je kunt het later opnieuw downloaden.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model in gebruik</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} wordt gebruikt door de modus "{1}". Zet die modus op een ander model voordat je het verwijdert.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Licentie deactiveren</value>

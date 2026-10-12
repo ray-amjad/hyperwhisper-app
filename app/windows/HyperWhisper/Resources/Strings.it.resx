@@ -1159,6 +1159,12 @@ Potrai scaricarlo di nuovo in seguito.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modello in uso</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} è usato dalla modalità "{1}". Passa quella modalità a un altro modello prima di eliminarlo.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Disattiva licenza</value>

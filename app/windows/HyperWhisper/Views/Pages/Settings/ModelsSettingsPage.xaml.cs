@@ -855,7 +855,7 @@ public partial class ModelsSettingsPage : Page
     private static void ShowModelInUse(string modelName, string modeName)
     {
         WpfMessageBox.Show(
-            $"{modelName} is used by the \"{modeName}\" mode. Switch that mode to another model before deleting it.",
+            Loc.S("settings.models.alert.cannotDelete.message", modelName, modeName),
             Loc.S("settings.models.alert.cannotDelete.title"),
             MessageBoxButton.OK,
             MessageBoxImage.Warning);

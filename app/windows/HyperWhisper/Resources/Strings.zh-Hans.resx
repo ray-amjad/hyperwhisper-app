@@ -1247,6 +1247,12 @@
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>模型正在使用</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>“{1}”模式正在使用 {0}。请先将该模式切换到其他模型，然后再删除。</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>停用许可证</value>

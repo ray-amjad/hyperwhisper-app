@@ -1159,6 +1159,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Το μοντέλο χρησιμοποιείται</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>Το {0} χρησιμοποιείται από τη λειτουργία «{1}». Αλλάξτε αυτή τη λειτουργία σε άλλο μοντέλο πριν το διαγράψετε.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>

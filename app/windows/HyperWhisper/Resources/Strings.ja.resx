@@ -1247,6 +1247,12 @@
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>使用中のモデル</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} はモード「{1}」で使用されています。削除する前に、そのモードを別のモデルに切り替えてください。</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>ライセンスを無効化</value>
