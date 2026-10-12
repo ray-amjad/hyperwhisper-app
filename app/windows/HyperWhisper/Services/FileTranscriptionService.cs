@@ -2,6 +2,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using HyperWhisper.Localization;
 using HyperWhisper.Models;
 
 namespace HyperWhisper.Services;
@@ -50,14 +51,14 @@ public static class FileTranscriptionService
     /// <summary>
     /// Shown for a 0-byte file. NAudio says "Unable to read beyond the end of the stream" (#1452).
     /// </summary>
-    internal const string EmptyFileMessage = "This file is empty, so there is no audio to transcribe.";
+    internal static string EmptyFileMessage => Loc.S("errors.fileEmpty");
 
     /// <summary>
     /// Shown for a file the decoders reject: a truncated or corrupt WAV, or a non-audio file
     /// with an audio extension. NAudio and Media Foundation word it as "Not a WAVE file - no
     /// RIFF header" or "The byte stream type of the given URL is unsupported" (#1452).
     /// </summary>
-    internal const string UnreadableAudioMessage = "This file is damaged or is not an audio file HyperWhisper can read.";
+    internal static string UnreadableAudioMessage => Loc.S("errors.fileUnreadable");
 
     /// <summary>
     /// FACILITY_MF: every Media Foundation error HRESULT is 0xC00Dxxxx.

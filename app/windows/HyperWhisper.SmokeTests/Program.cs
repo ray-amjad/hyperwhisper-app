@@ -540,6 +540,24 @@ internal static class Program
                 }
             });
 
+            // #1452. Transcribe File says a file is empty, or damaged or not audio,
+            // instead of NAudio's or Media Foundation's text; every catalog must carry both.
+            Run("Every catalog translates the empty and unreadable file toasts (#1452)", () =>
+            {
+                foreach (var key in new[] { "errors.fileEmpty", "errors.fileUnreadable" })
+                {
+                    var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(
+                        key, CultureInfo.InvariantCulture);
+                    Assert(!string.IsNullOrWhiteSpace(neutral), $"{key} is missing from Strings.resx");
+                    foreach (var name in ShippedSatelliteCultures())
+                    {
+                        var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, new CultureInfo(name));
+                        Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
+                            $"Strings.{name}.resx does not translate {key}");
+                    }
+                }
+            });
+
             // #1535. The Transcribe File dialog has no owner, so the tray stays live
             // while it is open. Drive the real TranscribeFileWithModeAsync on a bare
             // view model, with the dialog seam standing in for the dialog: the tray
@@ -602,6 +620,36 @@ internal static class Program
                 Assert(toast == HyperWhisper.Localization.Loc.S("errors.fileTranscriptionBusy"),
                     $"a pick that found a dictation running toasted '{toast ?? "nothing"}'");
                 Assert(!vm.CanOfferTrayFileTranscription, "the tray offers Transcribe File during a dictation");
+            });
+
+            // #1452. A cloud Mode skips the WAV conversion and sent a 0-byte file to the
+            // provider, so the toast showed the provider's error. The pick is turned away first.
+            Run("Transcribe File turns away a 0-byte file before a cloud Mode uploads it (#1452)", () =>
+            {
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                var mode = new Mode { Name = "Smoke", ProviderType = "cloud", CloudProvider = "openai" };
+                var emptyPath = TempWav("EmptyCloudPick");
+                try
+                {
+                    File.WriteAllBytes(emptyPath, Array.Empty<byte>());
+                    string? toast = null;
+                    vm.ShowErrorToastRequested += (_, e) => toast = e.Message;
+                    vm.ShowFileDialogOverride = dialog =>
+                    {
+                        dialog.FileName = emptyPath;
+                        return true;
+                    };
+                    vm.TranscribeFileWithModeAsync(mode).GetAwaiter().GetResult();
+                    Assert(toast == FileTranscriptionService.EmptyFileMessage,
+                        $"a 0-byte pick on a cloud Mode toasted '{toast ?? "nothing"}'");
+                    Assert(toast != "errors.fileEmpty", "errors.fileEmpty is missing from Strings.resx");
+                    Assert(!vm.IsTranscribing, "a 0-byte pick started a transcription");
+                }
+                finally
+                {
+                    TryDelete(emptyPath);
+                }
             });
 
             // #960. A field typed from HyperWhisper.AppClassification puts that

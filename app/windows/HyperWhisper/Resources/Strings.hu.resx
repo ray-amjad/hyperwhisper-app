@@ -1318,6 +1318,12 @@ You can re-download it later.</value>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Ez a fájl üres, így nincs átírható hang.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Ez a fájl sérült, vagy nem olyan hangfájl, amelyet a HyperWhisper be tud olvasni.</value>
+  </data>
 
 
   <!-- Mode Change Toast -->

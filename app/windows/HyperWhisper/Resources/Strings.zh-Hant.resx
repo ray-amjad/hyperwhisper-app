@@ -1318,6 +1318,12 @@ You can re-download it later.</value>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>此檔案是空的，沒有可轉錄的音訊。</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>此檔案已損毀，或不是 HyperWhisper 能讀取的音訊檔案。</value>
+  </data>
 
   <!-- Mode Change Toast -->
   <data name="mode.change.toast" xml:space="preserve">

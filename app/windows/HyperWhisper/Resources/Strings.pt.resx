@@ -1318,6 +1318,12 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>O ficheiro é demasiado grande para este fornecedor. Tamanho máximo: {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Este ficheiro está vazio, por isso não há áudio para transcrever.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Este ficheiro está danificado ou não é um ficheiro de áudio que o HyperWhisper consiga ler.</value>
+  </data>
 
   <!-- Mode Change Toast -->
   <data name="mode.change.toast" xml:space="preserve">

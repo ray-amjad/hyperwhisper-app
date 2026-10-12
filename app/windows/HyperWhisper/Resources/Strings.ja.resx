@@ -1402,6 +1402,12 @@
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>このプロバイダーにはファイルが大きすぎます。最大サイズ: {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>このファイルは空のため、文字起こしする音声がありません。</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>このファイルは破損しているか、HyperWhisper が読み込めるオーディオファイルではありません。</value>
+  </data>
 
   <!-- Update UI -->
   <data name="update.available.title" xml:space="preserve">

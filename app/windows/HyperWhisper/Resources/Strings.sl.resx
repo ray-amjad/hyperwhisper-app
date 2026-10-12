@@ -1318,6 +1318,12 @@ You can re-download it later.</value>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Ta datoteka je prazna, zato ni zvoka za prepis.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Ta datoteka je poškodovana ali ni zvočna datoteka, ki jo HyperWhisper lahko prebere.</value>
+  </data>
 
 
   <!-- Mode Change Toast -->

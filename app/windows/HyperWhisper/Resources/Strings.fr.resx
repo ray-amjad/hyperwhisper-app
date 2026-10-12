@@ -1318,6 +1318,12 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Le fichier est trop volumineux pour ce fournisseur. Taille maximale : {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Ce fichier est vide : il n'y a aucun audio à transcrire.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Ce fichier est endommagé ou n'est pas un fichier audio que HyperWhisper peut lire.</value>
+  </data>
 
 
   <!-- Mode Change Toast -->

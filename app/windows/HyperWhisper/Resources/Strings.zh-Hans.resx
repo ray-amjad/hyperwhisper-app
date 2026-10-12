@@ -1402,6 +1402,12 @@
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>文件对于此提供商来说太大了。最大大小: {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>此文件为空，没有可转写的音频。</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>此文件已损坏，或不是 HyperWhisper 可以读取的音频文件。</value>
+  </data>
 
   <!-- Update UI -->
   <data name="update.available.title" xml:space="preserve">

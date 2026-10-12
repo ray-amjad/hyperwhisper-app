@@ -1318,6 +1318,12 @@ You can re-download it later.</value>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Aquest fitxer és buit, així que no hi ha àudio per transcriure.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Aquest fitxer està malmès o no és un fitxer d'àudio que HyperWhisper pugui llegir.</value>
+  </data>
 
 
   <!-- Mode Change Toast -->

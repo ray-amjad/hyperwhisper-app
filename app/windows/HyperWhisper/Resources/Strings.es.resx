@@ -1402,6 +1402,12 @@ Puede volver a descargarlo más tarde.</value>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>El archivo es demasiado grande para este proveedor. Tamaño máximo: {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Este archivo está vacío, así que no hay audio que transcribir.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Este archivo está dañado o no es un archivo de audio que HyperWhisper pueda leer.</value>
+  </data>
 
   <!-- Update UI -->
   <data name="update.available.title" xml:space="preserve">

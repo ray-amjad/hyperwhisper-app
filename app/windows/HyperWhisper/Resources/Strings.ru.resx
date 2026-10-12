@@ -1318,6 +1318,12 @@
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Файл слишком большой для этого провайдера. Максимальный размер: {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Этот файл пуст, поэтому в нём нет аудио для расшифровки.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Этот файл повреждён или не является аудиофайлом, который может прочитать HyperWhisper.</value>
+  </data>
 
 
   <!-- Mode Change Toast -->

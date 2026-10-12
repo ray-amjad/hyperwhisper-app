@@ -171,6 +171,16 @@ public partial class MainViewModel
             return;
         }
 
+        // A 0-byte file holds no audio. Checked here, not only in the WAV conversion,
+        // so a cloud Mode does not upload it and show the provider's error (#1452).
+        if (new FileInfo(filePath).Length == 0)
+        {
+            LoggingService.Warn($"TranscribeFileAsync: File is empty - {filePath}");
+            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                FileTranscriptionService.EmptyFileMessage, showSettingsButton: false));
+            return;
+        }
+
         var requiresMuseNormalization = mode.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) == true
             // A blank CloudProvider is HyperWhisper Cloud (issue #1521).
             && ((CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider)

@@ -1318,6 +1318,12 @@ You can re-download it later.</value>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
   </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Šis fails ir tukšs, tāpēc nav audio, ko transkribēt.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Šis fails ir bojāts vai nav audio fails, ko HyperWhisper var nolasīt.</value>
+  </data>
 
   <!-- Mode Change Toast -->
   <data name="mode.change.toast" xml:space="preserve">
