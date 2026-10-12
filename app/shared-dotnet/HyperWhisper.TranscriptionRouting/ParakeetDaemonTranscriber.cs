@@ -190,8 +190,9 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
     /// language the head would send (it wins over the mode's own, as in
     /// <see cref="TranscribeAsync(string, TranscriptionWorkflowRequest, CancellationToken)"/>).
     /// A request that arrives meanwhile waits on the same gate and reuses the loaded daemon.
-    /// Returns true when the daemon for this mode is loaded; a model that is not downloaded,
-    /// a missing daemon or a failed start gives false and leaves nothing running.
+    /// Returns true when the daemon for this mode is loaded and has run one warm-up decode;
+    /// a model that is not downloaded, a missing daemon, a failed start or a daemon that
+    /// dies during the warm-up gives false and leaves nothing running.
     /// </summary>
     public async Task<bool> PrewarmAsync(
         Mode mode,
@@ -212,8 +213,11 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
             try
             {
                 await StopDaemonAsync(CancellationToken.None).ConfigureAwait(false);
-                return await StartDaemonAsync(model, modelDirectory!, resolvedLanguage, linked.Token)
-                    .ConfigureAwait(false) is null;
+                if (await StartDaemonAsync(model, modelDirectory!, resolvedLanguage, linked.Token)
+                    .ConfigureAwait(false) is not null) return false;
+                if (await WarmUpAsync(linked.Token).ConfigureAwait(false)) return true;
+                await StopDaemonAsync(CancellationToken.None).ConfigureAwait(false);
+                return false;
             }
             catch (Exception exception) when (exception is OperationCanceledException or TimeoutException
                 or JsonException or IOException or InvalidOperationException or ObjectDisposedException)
@@ -297,6 +301,53 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
         _loadedModel = model.Id;
         _loadedLanguage = language;
         return null;
+    }
+
+    /// <summary>The length of the silent clip <see cref="WarmUpAsync"/> decodes.</summary>
+    internal const int WarmUpSeconds = 3;
+
+    /// <summary>
+    /// Runs one throwaway decode of a silent clip on the just-loaded daemon (#1791). The
+    /// ready line only means the model is loaded; ONNX Runtime still pays its one-time
+    /// first-inference setup on the first real request, which kept the first dictation
+    /// ~25-40% slower than the second. Any reply (text, empty or an error) means the
+    /// decode ran; no reply means the daemon died and the prewarm failed.
+    /// </summary>
+    private async Task<bool> WarmUpAsync(CancellationToken cancellationToken)
+    {
+        var clip = Path.Combine(Path.GetTempPath(), $"hyperwhisper-parakeet-warmup-{Guid.NewGuid():N}.wav");
+        try
+        {
+            await File.WriteAllBytesAsync(clip, SilentWave(WarmUpSeconds), cancellationToken).ConfigureAwait(false);
+            var payload = JsonSerializer.Serialize(new { audio_path = clip });
+            await _stdin!.WriteLineAsync(payload).ConfigureAwait(false);
+            await _stdin.FlushAsync(cancellationToken).ConfigureAwait(false);
+            return await ReadLineAsync(_stdout!, _timeouts.Transcription, cancellationToken)
+                .ConfigureAwait(false) is not null;
+        }
+        finally { try { File.Delete(clip); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+    }
+
+    /// <summary>A 16 kHz mono PCM16 WAV of <paramref name="seconds"/> of silence.</summary>
+    internal static byte[] SilentWave(int seconds)
+    {
+        const int sampleRate = 16_000;
+        var dataBytes = sampleRate * 2 * seconds;
+        var wave = new byte[44 + dataBytes];
+        using var writer = new BinaryWriter(new MemoryStream(wave));
+        writer.Write("RIFF"u8);
+        writer.Write(36 + dataBytes);
+        writer.Write("WAVEfmt "u8);
+        writer.Write(16);
+        writer.Write((short)1);
+        writer.Write((short)1);
+        writer.Write(sampleRate);
+        writer.Write(sampleRate * 2);
+        writer.Write((short)2);
+        writer.Write((short)16);
+        writer.Write("data"u8);
+        writer.Write(dataBytes);
+        return wave;
     }
 
     /// <summary>

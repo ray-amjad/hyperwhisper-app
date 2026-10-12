@@ -652,13 +652,26 @@ static async Task TestParakeetPrewarmAsync(string root)
     var mode = new Mode { LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3", Language = "en" };
     const string ready = "{\"status\":\"ready\",\"provider\":\"cpu\"}\n";
     const string words = "{\"text\":\"warm words\"}\n";
+    // The daemon's reply to the prewarm's silent warm-up decode.
+    const string warm = "{\"text\":\"\"}\n";
 
     // Prewarm, then dictate: the dictation starts no process of its own.
-    var launcher = new CountingLauncher(() => new FakeProcess(ready + words));
+    FakeProcess? first = null;
+    var launcher = new CountingLauncher(() => first = new FakeProcess(ready + warm + words));
     using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), launcher, models, timeouts: timeouts))
     {
         Assert(await service.PrewarmAsync(mode), "a prewarm of a downloaded Parakeet mode did not load the daemon");
         Assert(launcher.Starts == 1, $"a prewarm started {launcher.Starts} daemons, not 1");
+        // The prewarm also ran one decode, so the first dictation does not pay ONNX's first-inference setup.
+        var sent = Encoding.UTF8.GetString(first!.Input.ToArray()).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var clip = sent.Length == 1 ? JsonDocument.Parse(sent[0]).RootElement.GetProperty("audio_path").GetString() : null;
+        Assert(clip is not null && clip.EndsWith(".wav", StringComparison.Ordinal),
+            $"the prewarm did not send one warm-up decode: {string.Join(" | ", sent)}");
+        Assert(!File.Exists(clip), "the prewarm left its warm-up clip behind");
+        var header = ParakeetDaemonTranscriber.SilentWave(ParakeetDaemonTranscriber.WarmUpSeconds);
+        Assert(header.Length == 44 + 16_000 * 2 * ParakeetDaemonTranscriber.WarmUpSeconds
+            && Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && Encoding.ASCII.GetString(header, 36, 4) == "data",
+            "the warm-up clip is not a 16 kHz mono PCM16 WAV");
         var result = await service.TranscribeAsync(audio, new TranscriptionWorkflowRequest(Language: "en", SelectedMode: mode));
         Assert(result.IsSuccess && result.Text == "warm words", $"the request after a prewarm failed: {result.Failure?.Message}");
         Assert(launcher.Starts == 1, $"the request after a prewarm started a daemon ({launcher.Starts} in total)");
@@ -667,7 +680,7 @@ static async Task TestParakeetPrewarmAsync(string root)
 
     // A dictation during the prewarm's model load waits for it: exactly 1 process in total.
     var slow = new CountingLauncher(() => new FakeProcess("",
-        delayedReply: (ready + words, TimeSpan.FromMilliseconds(300))));
+        delayedReply: (ready + warm + words, TimeSpan.FromMilliseconds(300))));
     using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), slow, models, timeouts: timeouts))
     {
         var prewarm = service.PrewarmAsync(mode);
@@ -681,7 +694,7 @@ static async Task TestParakeetPrewarmAsync(string root)
     }
 
     // Same resolution as a request: a different request language is a different daemon.
-    var relaunch = new CountingLauncher(() => new FakeProcess(ready + words));
+    var relaunch = new CountingLauncher(() => new FakeProcess(ready + warm + words));
     using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), relaunch, models, timeouts: timeouts))
     {
         Assert(await service.PrewarmAsync(mode, "en"), "the prewarm with a request language failed");
@@ -715,6 +728,16 @@ static async Task TestParakeetPrewarmAsync(string root)
         Assert(!await service.PrewarmAsync(mode), "a daemon that failed to initialize was reported loaded");
         var result = await service.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: mode));
         Assert(result.IsSuccess && failing.Starts == 2, "the request after a failed prewarm did not start its own daemon");
+    }
+
+    // A daemon that dies during the warm-up decode is not reported loaded, and nothing stays running.
+    var warmLaunches = 0;
+    var dies = new CountingLauncher(() => new FakeProcess(++warmLaunches == 1 ? ready : ready + words));
+    using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), dies, models, timeouts: timeouts))
+    {
+        Assert(!await service.PrewarmAsync(mode), "a daemon that died during the warm-up was reported loaded");
+        var result = await service.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: mode));
+        Assert(result.IsSuccess && dies.Starts == 2, "the request after a failed warm-up did not start its own daemon");
     }
 
     // A cancelled prewarm kills the half-loaded daemon.
