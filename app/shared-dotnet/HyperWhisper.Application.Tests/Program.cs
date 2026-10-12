@@ -462,6 +462,15 @@ try
         shell.Modes.BeginEditorSession();
         Assert(shell.Modes.Status.Message.Length == 0 && !shell.Modes.Status.HasError,
             $"a freshly opened editor shows '{shell.Modes.Status.Message}' (#632)");
+        // The gear click sets Selected before the editor opens, and the footer is the only place a
+        // failure to remember that selection shows: opening the editor must keep it.
+        shell.Modes.Status.Failure("settings.write_failed", "The selected mode could not be remembered on this device.");
+        shell.Modes.BeginEditorSession();
+        Assert(shell.Modes.Status.ErrorCode == "settings.write_failed",
+            "opening the editor hid the error from persisting the selected mode");
+        shell.Modes.EndEditorSession();
+        Assert(shell.Modes.Status.Message.Length == 0 && !shell.Modes.Status.HasError,
+            $"a discarded editor left '{shell.Modes.Status.Message}' for the next dialog");
         var localMode = (await new ModeRepository(database).ListAsync()).Single();
         Assert(localMode.PostProcessingMode == 2
             && localMode.PostProcessingProvider == "local_llm"

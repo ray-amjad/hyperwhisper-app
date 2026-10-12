@@ -130,11 +130,24 @@ public sealed class ModesViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Called when the mode editor opens, on both the edit and the create path. Whatever the
-    /// status says belongs to an earlier dialog or to the page — a fresh Create New Mode form used
-    /// to open on the last edit's `Mode saved` (issue #632) — so the footer starts empty.
+    /// Called when the mode editor opens, on both the edit and the create path. A success line
+    /// belongs to an earlier dialog — a fresh Create New Mode form used to open on the last edit's
+    /// `Mode saved` (issue #632) — so it goes. An error stays: the footer is the only place this
+    /// status shows, and the gear click that opens the editor sets <see cref="Selected"/>, whose
+    /// failure to persist is reported here. An earlier dialog's own errors are cleared by
+    /// <see cref="EndEditorSession"/> when that dialog is discarded.
     /// </summary>
-    public void BeginEditorSession() => Status.Clear();
+    public void BeginEditorSession()
+    {
+        if (!Status.HasError) Status.Clear();
+    }
+
+    /// <summary>
+    /// Called when the mode editor is discarded (Cancel, Esc or the title bar), BEFORE the
+    /// pre-dialog state is restored. A validation error names a field of the form being thrown
+    /// away, so it must not greet the next dialog; a failure the restore itself raises still shows.
+    /// </summary>
+    public void EndEditorSession() => Status.Clear();
     public ObservableCollection<Mode> Items { get; } = new();
     public Mode? Selected
     {

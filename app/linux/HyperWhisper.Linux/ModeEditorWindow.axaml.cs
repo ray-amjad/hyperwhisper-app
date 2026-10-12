@@ -169,6 +169,7 @@ public partial class ModeEditorWindow : Window
     {
         if (_committed || _modes is null) return;
         _committed = true;
+        _modes.EndEditorSession();
         if (_snapshot is { } state) _modes.RestoreEditorState(state);
         else _modes.ReloadSelected();
         _snapshot = null;
