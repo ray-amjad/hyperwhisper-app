@@ -899,6 +899,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "audio.error.microphonePermission" = "Mikrofontillatelse ikke gitt";
 "audio.error.microphoneInUse" = "HyperWhisper får ikke tilgang til mikrofonen fordi en annen app for øyeblikket bruker den. Pause den andre appen eller bytt inngangskilder, og prøv deretter igjen.";
 "audio.error.audioSystemNotResponding" = "Lyden i macOS svarer ikke, så mikrofonen kunne ikke starte. Prøv igjen om litt. Hvis dette fortsetter, start Mac-en på nytt.";
+"audio.error.recorderStopTimedOut" = "Lyden i macOS sluttet å svare mens opptaket ble lagret, så det ble ikke transkribert. Lyden er tatt vare på: HyperWhisper prøver å gjenopprette den neste gang appen starter.";
 "audio.error.createEngine" = "Kunne ikke opprette lydmotor";
 "audio.error.noInput" = "Ingen lydinngang tilgjengelig";
 "audio.error.createFile" = "Kunne ikke opprette lydfil";

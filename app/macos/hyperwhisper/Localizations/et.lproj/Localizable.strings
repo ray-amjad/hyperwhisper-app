@@ -899,6 +899,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "audio.error.microphonePermission" = "Mikrofoni luba pole antud";
 "audio.error.microphoneInUse" = "HyperWhisper ei pääse mikrofonile juurde, kuna teine rakendus kasutab seda praegu. Peatage teine rakendus või vahetage sisendeid, seejärel proovige uuesti.";
 "audio.error.audioSystemNotResponding" = "macOS-i heli ei reageeri, seega mikrofoni ei õnnestunud käivitada. Proovi hetke pärast uuesti. Kui see kordub, taaskäivita oma Mac.";
+"audio.error.recorderStopTimedOut" = "macOS-i heli lakkas salvestise salvestamise ajal reageerimast, seega seda ei transkribeeritud. Heli jäi alles: HyperWhisper proovib selle järgmisel käivitamisel taastada.";
 "audio.error.createEngine" = "Helimootorit loomine ebaõnnestus";
 "audio.error.noInput" = "Heli sisend pole saadaval";
 "audio.error.createFile" = "Helifaili loomine ebaõnnestus";

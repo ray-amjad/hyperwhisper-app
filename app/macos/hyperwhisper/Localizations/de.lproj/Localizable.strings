@@ -899,6 +899,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "audio.error.microphonePermission" = "Mikrofonberechtigung nicht erteilt";
 "audio.error.microphoneInUse" = "HyperWhisper kann nicht auf das Mikrofon zugreifen, da es derzeit von einer anderen App verwendet wird. Halten Sie die andere App an oder wechseln Sie die Eingaben und versuchen Sie es dann erneut.";
 "audio.error.audioSystemNotResponding" = "Die Audiofunktion von macOS reagiert nicht, daher konnte das Mikrofon nicht gestartet werden. Versuchen Sie es gleich noch einmal. Wenn das weiterhin passiert, starten Sie Ihren Mac neu.";
+"audio.error.recorderStopTimedOut" = "Die Audiowiedergabe von macOS hat beim Speichern der Aufnahme nicht mehr reagiert, deshalb wurde sie nicht transkribiert. Die Audiodaten wurden behalten: HyperWhisper versucht beim nächsten Start, sie wiederherzustellen.";
 "audio.error.createEngine" = "Audio-Engine konnte nicht erstellt werden";
 "audio.error.noInput" = "Kein Audioeingang verfügbar";
 "audio.error.createFile" = "Audio konnte nicht erstellt werden Datei";

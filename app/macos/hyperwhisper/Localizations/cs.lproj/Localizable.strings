@@ -899,6 +899,7 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "audio.error.microphonePermission" = "Povoleni k mikrofonu nebylo udeleno";
 "audio.error.microphoneInUse" = "HyperWhisper nemuze pristoupit k mikrofonu, protoze ho aktualne pouziva jina aplikace. Pozastavte druhou aplikaci nebo prepnete vstupy a zkuste to znovu.";
 "audio.error.audioSystemNotResponding" = "Zvuk v macOS nereaguje, takže mikrofon se nepodařilo spustit. Zkuste to za chvíli znovu. Pokud se to opakuje, restartujte Mac.";
+"audio.error.recorderStopTimedOut" = "Zvukový systém macOS přestal odpovídat během ukládání nahrávky, takže nebyla přepsána. Zvuk zůstal zachován: HyperWhisper se ho pokusí obnovit při příštím spuštění.";
 "audio.error.createEngine" = "Nepodarilo se vytvorit zvukovy engine";
 "audio.error.noInput" = "Zadny zvukovy vstup neni k dispozici";
 "audio.error.createFile" = "Nepodarilo se vytvorit zvukovy soubor";

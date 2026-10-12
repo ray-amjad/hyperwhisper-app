@@ -899,6 +899,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "audio.error.microphonePermission" = "Mikrofonilupaa ei myönnetty";
 "audio.error.microphoneInUse" = "HyperWhisper ei voi käyttää mikrofonia, koska toinen sovellus käyttää sitä tällä hetkellä. Keskeytä toinen sovellus tai vaihda tuloa ja yritä uudelleen.";
 "audio.error.audioSystemNotResponding" = "macOS:n ääni ei vastaa, joten mikrofonia ei voitu käynnistää. Yritä hetken kuluttua uudelleen. Jos tämä toistuu, käynnistä Mac uudelleen.";
+"audio.error.recorderStopTimedOut" = "macOS:n ääni lakkasi vastaamasta tallenteen tallennuksen aikana, joten sitä ei litteroitu. Ääni säilytettiin: HyperWhisper yrittää palauttaa sen seuraavan käynnistyksen yhteydessä.";
 "audio.error.createEngine" = "Äänimoottorin luominen epäonnistui";
 "audio.error.noInput" = "Äänituloa ei ole saatavilla";
 "audio.error.createFile" = "Äänitiedoston luominen epäonnistui";

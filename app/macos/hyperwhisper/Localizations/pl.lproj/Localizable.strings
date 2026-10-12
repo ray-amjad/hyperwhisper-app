@@ -899,6 +899,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "audio.error.microphonePermission" = "Uprawnienie mikrofonu nie przyznane";
 "audio.error.microphoneInUse" = "HyperWhisper nie może uzyskać dostępu do mikrofonu, ponieważ inną aplikacja go aktualnie używa. Wstrzymaj inną aplikację lub przełącz dane wejściowe, a następnie spróbuj ponownie.";
 "audio.error.audioSystemNotResponding" = "Dźwięk w macOS nie odpowiada, więc nie udało się uruchomić mikrofonu. Spróbuj ponownie za chwilę. Jeśli to się powtarza, uruchom ponownie Maca.";
+"audio.error.recorderStopTimedOut" = "Dźwięk systemu macOS przestał odpowiadać podczas zapisywania nagrania, więc nie zostało ono przepisane. Dźwięk został zachowany: HyperWhisper spróbuje go odzyskać przy następnym uruchomieniu.";
 "audio.error.createEngine" = "Nie udało się utworzyć silnika audio";
 "audio.error.noInput" = "Brak dostępnego wejścia audio";
 "audio.error.createFile" = "Nie udało się utworzyć pliku audio";

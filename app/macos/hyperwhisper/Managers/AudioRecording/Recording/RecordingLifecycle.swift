@@ -122,6 +122,13 @@ class RecordingLifecycle {
     /// boost the mic". Reset at the start of every recording.
     private(set) var lastMicBoostFailed = false
 
+    /// #1359: true when the last `stopRecording()` returned nil because
+    /// `SimpleRecorder.stopRecording()` timed out, so the WAV was never
+    /// finalised. The caller shows the recording-failed error and does not
+    /// transcribe. The WAV and its session row are left for `CrashRecoveryManager`.
+    /// Reset at the start of every `stopRecording()`.
+    private(set) var lastStopTimedOut = false
+
     /// Recordings directory URL from the shared resolver.
     private var recordingsDirectory: URL {
         RecordingsDirectory.resolve(configuredPath: settingsManager?.recordingsFolder)
@@ -700,6 +707,8 @@ class RecordingLifecycle {
     /// - `recordingSession`: Core Data session updated for this stop, if available
     /// Returns nil if not currently recording
     func stopRecording(cancelled: Bool = false) async -> (url: URL?, duration: TimeInterval, conversionWarning: String?, recordingSession: RecordingSession?)? {
+        lastStopTimedOut = false
+
         guard isRecording else {
             // NOT NECESSARILY "nothing to stop". `isRecording` is set only after the
             // recorder comes up, so a start suspended inside CoreAudio — the
@@ -729,9 +738,13 @@ class RecordingLifecycle {
         // Track any conversion warning to surface to the user
         var conversionWarning: String?
 
-        // STEP 1: Stop SimpleRecorder
-        simpleRecorder.stopRecording()
+        // STEP 1: Stop SimpleRecorder. Since #1359 its `stop()` runs on the meter
+        // queue behind any meter read in flight, and this waits for it off the main
+        // thread, for at most 5 s. `isRecording` goes false before the wait, so a
+        // second stop that lands during it cannot run a second finalisation of the
+        // same file.
         self.isRecording = false
+        let recorderStopOutcome = await simpleRecorder.stopRecording()
 
         // STEP 3: Stop duration timer
         recordingTimer?.invalidate()
@@ -774,6 +787,32 @@ class RecordingLifecycle {
             self.finalURL = nil
             rawURL = nil
             return (url: nil, duration: duration, conversionWarning: nil, recordingSession: nil)
+        }
+
+        // STEP 4 (#1359): the stop timed out, so `stop()` never finalised the WAV and
+        // its header may be wrong. Do not read, rename or convert it, and do not
+        // transcribe (Ray, 2026-10-07). Leave the file where it is and leave its
+        // session row open (no endTime): `CrashRecoveryManager` claims both on the
+        // next launch, which is the path built for an unfinalised WAV.
+        if recorderStopOutcome == .timedOut {
+            if let session = await sessionManager.resolveCurrentSession() {
+                AppLogger.audio.notice("Recording stop timed out - left session \(session.id?.uuidString ?? "nil", privacy: .public) open for crash recovery")
+            }
+            sessionManager.clearCurrentSession()
+
+            AppLogger.logAudioError(
+                "Recording stop timed out",
+                error: AudioError.recorderStopTimedOut,
+                metadata: [
+                    "phase": "recorder_stop_timed_out",
+                    "recordingDurationMs": Int(duration * 1000)
+                ]
+            )
+
+            lastStopTimedOut = true
+            self.finalURL = nil
+            rawURL = nil
+            return nil
         }
 
         // SimpleRecorder already recorded directly to WAV at 16kHz mono

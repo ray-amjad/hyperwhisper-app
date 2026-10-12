@@ -939,6 +939,7 @@
 "audio.error.microphonePermission" = "Microphone permission not granted";
 "audio.error.microphoneInUse" = "HyperWhisper can't access the microphone because another app is currently using it. Pause the other app or switch inputs, then try again.";
 "audio.error.audioSystemNotResponding" = "macOS audio isn't responding, so the microphone couldn't start. Try again in a moment. If this keeps happening, restart your Mac.";
+"audio.error.recorderStopTimedOut" = "macOS audio stopped responding while the recording was being saved, so it wasn't transcribed. The audio was kept: HyperWhisper will try to recover it the next time it starts.";
 "audio.error.createEngine" = "Failed to create audio engine";
 "audio.error.noInput" = "No audio input available";
 "audio.error.createFile" = "Failed to create audio file";

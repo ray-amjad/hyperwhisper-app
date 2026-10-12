@@ -899,6 +899,7 @@
 "audio.error.microphonePermission" = "הרשאת מיקרופון לא ניתנה";
 "audio.error.microphoneInUse" = "HyperWhisper לא יכול לגשת למיקרופון מכיוון שאפליקציה אחרת משתמשת בו כרגע. השהה את האפליקציה האחרת או החלף קלטים, ואז נסה שוב.";
 "audio.error.audioSystemNotResponding" = "מערכת השמע של macOS לא מגיבה, ולכן לא ניתן היה להפעיל את המיקרופון. נסו שוב בעוד רגע. אם זה ממשיך לקרות, הפעילו מחדש את ה-Mac.";
+"audio.error.recorderStopTimedOut" = "מערכת השמע של macOS הפסיקה להגיב בזמן שמירת ההקלטה, ולכן היא לא תומללה. השמע נשמר: HyperWhisper ינסה לשחזר אותו בפעם הבאה שיופעל.";
 "audio.error.createEngine" = "כשל ביצירת מנוע אודיו";
 "audio.error.noInput" = "אין קלט אודיו זמין";
 "audio.error.createFile" = "כשל ביצירת קובץ אודיו";
