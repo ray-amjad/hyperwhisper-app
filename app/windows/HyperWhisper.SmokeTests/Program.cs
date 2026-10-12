@@ -6480,6 +6480,74 @@ internal static class Program
                 }
             });
 
+            Run("FileTranscriptionService says an empty, corrupt or non-audio file is that, not NAudio's text (#1452)", () =>
+            {
+                // The toast showed "Failed to convert audio file: Unable to read beyond the end of
+                // the stream" (empty or truncated WAV) and "Not a WAVE file - no RIFF header".
+                var validPath = TempWav("Unreadable.Valid");
+                var emptyPath = TempWav("Unreadable.Empty");
+                var truncatedPath = TempWav("Unreadable.TruncatedHeader");
+                var randomPath = TempWav("Unreadable.Random");
+                try
+                {
+                    using (var writer = new NAudio.Wave.WaveFileWriter(validPath, new NAudio.Wave.WaveFormat(44100, 16, 2)))
+                    {
+                        var silence = new byte[44100 * 4];
+                        writer.Write(silence, 0, silence.Length);
+                    }
+
+                    File.WriteAllBytes(emptyPath, Array.Empty<byte>());
+                    File.WriteAllBytes(truncatedPath, File.ReadAllBytes(validPath).AsSpan(0, 22).ToArray());
+                    var noise = new byte[200 * 1024];
+                    new Random(1452).NextBytes(noise);
+                    noise[0] = (byte)'X'; // never "RIFF" by chance
+                    File.WriteAllBytes(randomPath, noise);
+
+                    var empty = FileTranscriptionService.ConvertToWhisperFormatAsync(emptyPath).GetAwaiter().GetResult();
+                    Assert(empty.IsFailure && empty.Error == FileTranscriptionService.EmptyFileMessage,
+                        $"a 0-byte WAV should say it is empty, got '{(empty.IsSuccess ? empty.Value : empty.Error)}'");
+
+                    foreach (var (label, path) in new[] { ("truncated-header", truncatedPath), ("random-bytes", randomPath) })
+                    {
+                        var result = FileTranscriptionService.ConvertToWhisperFormatAsync(path).GetAwaiter().GetResult();
+                        Assert(result.IsFailure && result.Error == FileTranscriptionService.UnreadableAudioMessage,
+                            $"a {label} WAV should say it is damaged or not audio, got '{(result.IsSuccess ? result.Value : result.Error)}'");
+                    }
+
+                    // A text file named .mp3 goes to Media Foundation, which fails with
+                    // MF_E_UNSUPPORTED_BYTESTREAM_TYPE (0xC00D36C4). The fixture needs Media
+                    // Foundation, which a Windows Server runner may lack, so the classifier is
+                    // checked directly with that HRESULT.
+                    Assert(FileTranscriptionService.IsUnreadableAudio(
+                            new System.Runtime.InteropServices.COMException("unsupported", unchecked((int)0xC00D36C4))),
+                        "MF_E_UNSUPPORTED_BYTESTREAM_TYPE should read as a file that is not audio");
+                    Assert(FileTranscriptionService.IsUnreadableAudio(
+                            new InvalidDataException("Invalid MP3 file - no MP3 Frames Detected")),
+                        "Mp3FileReader's no-frames error should read as a file that is not audio");
+
+                    // A fault of the machine, not the file, keeps its own message.
+                    Assert(!FileTranscriptionService.IsUnreadableAudio(new IOException("The process cannot access the file")),
+                        "a locked file is not a damaged file");
+                    Assert(!FileTranscriptionService.IsUnreadableAudio(new UnauthorizedAccessException("Access denied")),
+                        "an access-denied file is not a damaged file");
+                    Assert(!FileTranscriptionService.IsUnreadableAudio(
+                            new System.Runtime.InteropServices.COMException("E_FAIL", unchecked((int)0x80004005))),
+                        "a COM error outside Media Foundation is not a damaged file");
+
+                    // A readable file still converts.
+                    var valid = FileTranscriptionService.ConvertToWhisperFormatAsync(validPath).GetAwaiter().GetResult();
+                    Assert(valid.IsSuccess, $"a valid 44.1 kHz stereo WAV should convert, got '{valid.Error}'");
+                    TryDelete(valid.Value!);
+                }
+                finally
+                {
+                    TryDelete(validPath);
+                    TryDelete(emptyPath);
+                    TryDelete(truncatedPath);
+                    TryDelete(randomPath);
+                }
+            });
+
             Run("Deepgram's SessionStartsOnWebSocketOpen is true, and only Deepgram's (regression for #100)", () =>
             {
                 // Deepgram never sends its only session-shaped message (Metadata) until
