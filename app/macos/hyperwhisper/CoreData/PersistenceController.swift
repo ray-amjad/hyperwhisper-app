@@ -17,6 +17,7 @@
 
 import CoreData
 import Foundation
+import SQLite3
 
 // MARK: - Mode Name Policy
 
@@ -3101,7 +3102,7 @@ class PersistenceController: ObservableObject {
         // whatever was pending before it starts.
         if context.hasChanges {
             do {
-                try context.save()
+                try saveBackupImportChanges(context: context)
             } catch {
                 AppLogger.logCoreData(
                     .save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
@@ -3155,7 +3156,7 @@ class PersistenceController: ObservableObject {
     private func saveBackupImportSection(context: NSManagedObjectContext, saveSite: String) throws {
         do {
             if context.hasChanges {
-                try context.save()
+                try saveBackupImportChanges(context: context)
             }
             AppLogger.logCoreData(.save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey))
         } catch {
@@ -3168,6 +3169,117 @@ class PersistenceController: ObservableObject {
                 metadata: shape
             )
             throw error
+        }
+    }
+
+    /// How long a backup import save waits for another process's write lock
+    /// on a store file before it fails (issue #1626; Ray chose 10 s).
+    nonisolated static let backupImportWriteLockTimeout: TimeInterval = 10
+
+    /// A backup import save that never started: another process held a
+    /// store's write lock for longer than `backupImportWriteLockTimeout`.
+    struct BackupImportStoreLockedError: Error {
+        /// The store file's name (not its path: the path holds the account name).
+        let storeFileName: String
+        /// The SQLite result code (`SQLITE_BUSY` or `SQLITE_LOCKED`).
+        let sqliteCode: Int32
+    }
+
+    /// Saves a backup import's changes in a bounded time, or throws (#1626).
+    ///
+    /// A plain `context.save()` has two ways to never come back when SQLite
+    /// itself refuses the write:
+    /// - Busy lock: Core Data waits for another process's write lock with no
+    ///   limit. Neither `NSPersistentStoreTimeoutOption` nor a `busy_timeout`
+    ///   pragma bounds that wait (measured on macOS 26). So first take the
+    ///   write lock on each store the save writes, on our own connection with
+    ///   a 10 s busy timeout, and let it go at once. A lock taken in the few
+    ///   milliseconds between that check and the save still waits.
+    /// - Constraint: a refused statement (`SQLITE_CONSTRAINT`, e.g. a trigger)
+    ///   reads to Core Data as an optimistic-locking failure. With a merging
+    ///   policy it retries, then ends the process ("Unable to recover from
+    ///   optimistic locking failure"). So save under `NSErrorMergePolicy`,
+    ///   which throws the conflicts instead. Real conflicts (a row another
+    ///   context changed since the import read it) are resolved ONCE with the
+    ///   context's own policy and the save is tried again; a failure with no
+    ///   conflict to resolve, or a second failure, is thrown.
+    @MainActor
+    private func saveBackupImportChanges(context: NSManagedObjectContext) throws {
+        for storeURL in Self.storeFileURLsWritten(by: context) {
+            try Self.waitForStoreWriteLock(at: storeURL, timeout: Self.backupImportWriteLockTimeout)
+        }
+        try Self.saveWithoutRetryLoop(context: context)
+    }
+
+    /// The on-disk SQLite files the context's pending changes are written to.
+    /// An in-memory (`/dev/null`) store has no file and no other writer.
+    @MainActor
+    private static func storeFileURLsWritten(by context: NSManagedObjectContext) -> [URL] {
+        guard let coordinator = context.persistentStoreCoordinator else { return [] }
+        let pending = context.insertedObjects.union(context.updatedObjects).union(context.deletedObjects)
+        let entityNames = Set(pending.compactMap { $0.entity.name })
+        return coordinator.persistentStores.compactMap { store in
+            guard store.type == NSSQLiteStoreType,
+                  let url = store.url,
+                  url.isFileURL,
+                  url.path != "/dev/null" else { return nil }
+            // A store with no named configuration holds every entity.
+            guard let entities = coordinator.managedObjectModel.entities(forConfigurationName: store.configurationName) else {
+                return url
+            }
+            return entities.contains { entityNames.contains($0.name ?? "") } ? url : nil
+        }
+    }
+
+    /// Waits up to `timeout` for the write lock on the SQLite file at `url`,
+    /// then releases it. Throws `BackupImportStoreLockedError` when another
+    /// connection still holds it. Any other SQLite failure is left to the
+    /// Core Data save, which reports it.
+    nonisolated static func waitForStoreWriteLock(at url: URL, timeout: TimeInterval) throws {
+        var db: OpaquePointer?
+        defer { sqlite3_close_v2(db) }
+        guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK else { return }
+        sqlite3_busy_timeout(db, Int32(timeout * 1000))
+        let code = sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil)
+        if code == SQLITE_OK {
+            sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+            return
+        }
+        let primaryCode = code & 0xFF
+        if primaryCode == SQLITE_BUSY || primaryCode == SQLITE_LOCKED {
+            AppLogger.coreData.error("Backup import: \(url.lastPathComponent, privacy: .public) stayed write-locked by another connection for \(Int(timeout))s · not saving")
+            throw BackupImportStoreLockedError(storeFileName: url.lastPathComponent, sqliteCode: code)
+        }
+    }
+
+    /// Saves under `NSErrorMergePolicy`, resolving real conflicts once with the
+    /// context's own policy (see `saveBackupImportChanges`). The context's
+    /// policy is put back afterwards.
+    @MainActor
+    static func saveWithoutRetryLoop(context: NSManagedObjectContext) throws {
+        let policy = context.mergePolicy
+        context.mergePolicy = NSErrorMergePolicy
+        defer { context.mergePolicy = policy }
+        do {
+            try context.save()
+        } catch let error as NSError where error.domain == NSCocoaErrorDomain
+            && (error.code == NSManagedObjectMergeError || error.code == NSManagedObjectConstraintMergeError) {
+            let conflicts = error.userInfo[NSPersistentStoreSaveConflictsErrorKey] as? [Any] ?? []
+            let mergeConflicts = conflicts.compactMap { $0 as? NSMergeConflict }
+            let constraintConflicts = conflicts.compactMap { $0 as? NSConstraintConflict }
+            // No conflict to resolve: SQLite refused the statement itself.
+            guard let resolver = policy as? NSMergePolicy,
+                  resolver.mergeType != .errorMergePolicyType,
+                  !(mergeConflicts.isEmpty && constraintConflicts.isEmpty) else {
+                throw error
+            }
+            if !mergeConflicts.isEmpty {
+                try resolver.resolve(optimisticLockingConflicts: mergeConflicts)
+            }
+            if !constraintConflicts.isEmpty {
+                try resolver.resolve(constraintConflicts: constraintConflicts)
+            }
+            try context.save()
         }
     }
 
