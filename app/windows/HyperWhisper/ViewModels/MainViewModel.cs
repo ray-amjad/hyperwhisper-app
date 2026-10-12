@@ -956,6 +956,9 @@ public partial class MainViewModel : ViewModelBase
     /// </remarks>
     public void OpenSettingsSection(string sectionTag)
     {
+        if (string.IsNullOrWhiteSpace(sectionTag))
+            throw new ArgumentException("A Settings section tag is required.", nameof(sectionTag));
+
         _pendingSettingsSection = sectionTag;
         if (CurrentPage == NavigationPage.Settings)
             OnPropertyChanged(nameof(CurrentPage));
