@@ -10511,6 +10511,119 @@ internal static class Program
                 }
             });
 
+            Run("vocabulary: a pasted multi-line text is one word per line — issue #1777", () =>
+            {
+                // Pasting "a\nb\nc" into the add field saved only "a": a single-line WPF
+                // TextBox keeps the first line of a paste and drops the rest silently.
+                // The fix is AcceptsReturn on both boxes plus a per-line add, and the
+                // store refuses a word with a line break inside it.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var vocabulary = VocabularyService.Instance;
+                var token = Guid.NewGuid().ToString("N")[..8];
+                var words = new[] { $"alpha{token}", $"beta{token}", $"gamma{token}" };
+                var snippet = $"sig{token}";
+                try
+                {
+                    Assert(!vocabulary.TryAdd($"line1{token}\nline2{token}", null, out var lineError)
+                        && lineError == "A word must be one line.",
+                        $"the store accepted a word with a line break inside it (error '{lineError}')");
+
+                    var page = new HyperWhisper.Views.Pages.VocabularyPage();
+                    // WPF's paste filter keeps only the first line of a box whose
+                    // AcceptsReturn is false, so this is what lets the paste through.
+                    Assert(page.WordBox.AcceptsReturn, "the add field cuts a pasted list to its first line");
+                    Assert(page.ReplacementBox.AcceptsReturn, "the replacement field cannot keep a line break");
+
+                    var add = typeof(HyperWhisper.Views.Pages.VocabularyPage)
+                        .GetMethod("AddVocabularyItem", BindingFlags.NonPublic | BindingFlags.Instance)
+                        ?? throw new InvalidOperationException("VocabularyPage.AddVocabularyItem not found");
+
+                    page.WordBox.Text = $"{words[0]}\r\n{words[1]}\n\n  {words[2]} ";
+                    add.Invoke(page, null);
+                    var rows = vocabulary.GetAll().Where(v => v.Word.EndsWith(token, StringComparison.Ordinal)).ToList();
+                    Assert(rows.Select(v => v.Word).OrderBy(w => w, StringComparer.Ordinal).SequenceEqual(words),
+                        $"the paste saved [{string.Join(" | ", rows.Select(v => v.Word))}], not one row per line");
+                    Assert(page.WordBox.Text.Length == 0, "the add field kept its text after every line was added");
+
+                    page.WordBox.Text = snippet;
+                    page.ReplacementBox.Text = "Best,\r\nRay";
+                    add.Invoke(page, null);
+                    var sig = vocabulary.GetAll().FirstOrDefault(v => v.Word == snippet);
+                    Assert(sig?.Replacement == "Best,\r\nRay",
+                        $"the snippet replacement was saved as '{sig?.Replacement}', not with its line break");
+
+                    // One line of a paste a duplicate: the others are still added, and
+                    // the error names only the refused line.
+                    var delta = $"delta{token}";
+                    page.WordBox.Text = $"{words[0]}\n{delta}";
+                    add.Invoke(page, null);
+                    Assert(vocabulary.GetAll().Any(v => v.Word == delta), "a new line beside a duplicate was not added");
+                    Assert(page.ErrorText.Visibility == Visibility.Visible
+                        && page.ErrorText.Text.Contains(words[0], StringComparison.Ordinal)
+                        && !page.ErrorText.Text.Contains(delta, StringComparison.Ordinal),
+                        $"the duplicate line was not named alone (error '{page.ErrorText.Text}')");
+                }
+                finally
+                {
+                    foreach (var row in vocabulary.GetAll().Where(v => v.Word.EndsWith(token, StringComparison.Ordinal)))
+                        vocabulary.Delete(row.Id);
+                }
+            });
+
+            Run("backup: a vocabulary word with line breaks imports one word per line — issue #1777", () =>
+            {
+                // A backup made before #1475 can carry "x\ny" as ONE word. The import
+                // saved it as is; it now splits it the way the add field does.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var vocabulary = VocabularyService.Instance;
+                var token = Guid.NewGuid().ToString("N")[..8];
+                var backupPath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests",
+                    $"issue1777-{token}.hwbackup.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+                File.WriteAllText(backupPath, JsonSerializer.Serialize(new UniversalBackup
+                {
+                    SchemaVersion = 2,
+                    ExportDate = DateTime.UtcNow,
+                    AppVersion = "smoke-1777",
+                    Platform = "macos",
+                    Vocabulary =
+                    [
+                        new UniversalVocabularyItem
+                        {
+                            Id = Guid.NewGuid(), Word = $" x{token} \ny{token}\n\n", Replacement = "Best,\nRay", SortOrder = 1
+                        }
+                    ]
+                }, UniversalCaptureOptions));
+                try
+                {
+                    var preview = BackupService.Instance.PreviewVocabularyMerge(backupPath);
+                    Assert(preview.IsSuccess && preview.Value!.NewCount == 2 && preview.Value.ConflictCount == 0,
+                        $"the preview counted {preview.Value?.NewCount} new words, not one per line");
+
+                    var result = BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+                    {
+                        IncludeVocabulary = true
+                    });
+                    Assert(result.IsSuccess && result.Value!.VocabularyAdded == 2,
+                        $"the import added {result.Value?.VocabularyAdded} words, not one per line: {result.Error}");
+
+                    var rows = vocabulary.GetAll().Where(v => v.Word.EndsWith(token, StringComparison.Ordinal)).ToList();
+                    Assert(rows.Select(v => v.Word).OrderBy(w => w, StringComparer.Ordinal).SequenceEqual([$"x{token}", $"y{token}"]),
+                        $"the import saved [{string.Join(" | ", rows.Select(v => v.Word))}], not one word per line");
+                    Assert(rows.All(v => v.Replacement == "Best,\nRay"),
+                        "a split word lost the snippet replacement and its line break");
+                }
+                finally
+                {
+                    foreach (var row in vocabulary.GetAll().Where(v => v.Word.Contains(token, StringComparison.Ordinal)))
+                        vocabulary.Delete(row.Id);
+                    try { File.Delete(backupPath); } catch { }
+                }
+            });
+
             Run("an auto-language Mode keeps vocabulary and break commands but not filler removal — issues #495, #498, #278", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
