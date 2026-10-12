@@ -2779,7 +2779,17 @@ class PersistenceController: ObservableObject {
     // viewContext insert/save for RecordingSession here.
 
     // MARK: - Vocabulary Operations
-    
+
+    /// Splits a vocabulary add-field value into one word per non-empty line,
+    /// each trimmed (issue #1475). A pasted list becomes one word per line
+    /// instead of one word with newlines inside it. Single-line input comes
+    /// back as one trimmed word; blank input comes back empty.
+    nonisolated static func vocabularyWordLines(from text: String) -> [String] {
+        text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     /// Adds a new vocabulary item to Core Data
     /// - Parameters:
     ///   - word: The word/phrase to recognize
@@ -2801,6 +2811,13 @@ class PersistenceController: ObservableObject {
         // to the regex "\b\b" in VocabularyProcessor, matching every word
         // boundary and corrupting the entire transcript.
         guard !normalizedWord.isEmpty else {
+            return false
+        }
+
+        // A word is one line (issue #1475). Callers split a multi-line value
+        // with `vocabularyWordLines(from:)` first. The replacement may keep
+        // its line breaks: a multi-line snippet is allowed.
+        guard normalizedWord.rangeOfCharacter(from: .newlines) == nil else {
             return false
         }
 
