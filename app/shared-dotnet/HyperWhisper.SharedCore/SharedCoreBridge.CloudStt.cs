@@ -239,11 +239,9 @@ public static partial class SharedCoreBridge
     ///
     /// It rescues an alias only when the alias TARGET is still catalogued.
     /// <c>universal</c> resolves to <c>universal-2</c>, which the
-    /// <c>assemblyAI</c> entry carries. Two of Gemini's aliases resolve to
-    /// <c>gemini-3.6-flash</c> and <c>gemini-3.1-flash-lite</c>, which the
-    /// <c>gemini</c> entry does not carry, so those ids are still judged foreign
-    /// — the alias table and the catalog disagree, which is a data question and
-    /// not this method's to answer.
+    /// <c>assemblyAI</c> entry carries. Keeping every alias target catalogued is
+    /// the alias table's job, not this method's: <c>hw-catalog</c>'s
+    /// <c>alias_targets_are_catalogued</c> test pins it (issue #796).
     ///
     /// The comparison is case-insensitive to match Windows
     /// <c>CloudTranscriptionModels.GetById</c>, whose final compare is

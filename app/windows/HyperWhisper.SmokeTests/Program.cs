@@ -2411,8 +2411,9 @@ internal static class Program
                     ("universal-3-pro", CloudTranscriptionProvider.AssemblyAI, "universal-3-5-pro"),
                     ("universal-3-pro-medical", CloudTranscriptionProvider.AssemblyAI, "universal-3-5-pro-medical"),
                     ("stt-async-v4", CloudTranscriptionProvider.Soniox, "stt-async-v5"),
-                    ("gemini-3.1-flash-lite-preview", CloudTranscriptionProvider.Gemini, "gemini-3.1-flash-lite"),
-                    ("gemini-2.0-flash", CloudTranscriptionProvider.Gemini, "gemini-3.6-flash"),
+                    // #796: targets the Cloud catalog sells, not 3.1 Flash Lite / 3.6 Flash.
+                    ("gemini-3.1-flash-lite-preview", CloudTranscriptionProvider.Gemini, "gemini-2.5-flash-lite"),
+                    ("gemini-2.0-flash", CloudTranscriptionProvider.Gemini, "gemini-3.8-flash"),
                 };
 
                 foreach (var (oldId, provider, replacement) in cases)
