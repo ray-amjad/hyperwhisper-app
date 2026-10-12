@@ -21,12 +21,17 @@ public sealed class VocabularyViewModel : ViewModelBase
         ExportCommand = new AsyncCommand(_ => ExportAsync());
     }
     public ObservableCollection<VocabularyItem> Items { get; } = new();
-    public string Word { get => _word; set => Set(ref _word, value); }
-    public string Replacement { get => _replacement; set => Set(ref _replacement, value); }
+    public string Word { get => _word; set { if (Set(ref _word, value)) ClearSubmitError(); } }
+    public string Replacement { get => _replacement; set { if (Set(ref _replacement, value)) ClearSubmitError(); } }
     public VocabularyItem? Selected
     {
         get => _selected;
-        set { if (Set(ref _selected, value) && value is not null) { Word = value.Word; Replacement = value.Replacement ?? string.Empty; } }
+        set
+        {
+            if (!Set(ref _selected, value)) return;
+            ClearSubmitError();
+            if (value is not null) { Word = value.Word; Replacement = value.Replacement ?? string.Empty; }
+        }
     }
     public string TransferPath { get => _transferPath; set => Set(ref _transferPath, value); }
 
@@ -63,6 +68,17 @@ public sealed class VocabularyViewModel : ViewModelBase
         Notify(nameof(KeywordLimitMessage));
         Notify(nameof(InputError));
         Notify(nameof(HasInputError));
+    }
+    /// <summary>
+    /// Issue #634: a submit error describes the text that was submitted, so it goes once that
+    /// text is edited or another row is loaded into the pill — what Windows does
+    /// (VocabularyPage.xaml.cs ClearError). Load, delete and transfer errors stay.
+    /// </summary>
+    private void ClearSubmitError()
+    {
+        if (Status.ErrorCode is not ("vocabulary.word_required" or "vocabulary.add_failed")) return;
+        Status.Clear();
+        NotifyDerived();
     }
     public Task AddAsync(CancellationToken cancellationToken = default) => SaveAsync(cancellationToken);
     public async Task SaveAsync(CancellationToken cancellationToken = default)
