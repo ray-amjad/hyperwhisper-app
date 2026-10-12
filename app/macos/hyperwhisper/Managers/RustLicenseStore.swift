@@ -52,15 +52,36 @@ final class RustLicenseStore: KeyValueStore {
 
     private let defaults: UserDefaults
     private let licenseStore: LicenseKeychainStore
+
+    /// Serializes every license WRITE (transactions, import, clear, single
+    /// field updates). It is held across the blocking Keychain write, so a
+    /// check-then-commit stays atomic against other writers. Readers outside a
+    /// transaction never wait on it (#1424): they read `cachedLicenseRecord`.
     private let transactionLock = NSRecursiveLock()
     private var transactionRecord: LicenseKeychainRecord?
     private var isLicenseTransactionActive = false
+
+    /// Guards the committed in-memory snapshot below. Never held across
+    /// Keychain I/O, so a main-actor read (`getTranscriptionIdentifier()`,
+    /// `storedLicenseKeyReadForSeeding()`) returns while a slow
+    /// `SecItemUpdate` is still in flight (HYPERWHISPER-10B). Writers update
+    /// the snapshot only after their Keychain write succeeds, so a reader sees
+    /// the previous committed record until then.
+    private let snapshotLock = NSLock()
     private var cachedLicenseRecord: LicenseKeychainRecord?
     private var licenseRecordCacheState: LicenseRecordCacheState = .unloaded
+    /// Bumped on every writer commit, so a Keychain read that started before
+    /// the commit cannot install its older record over it.
+    private var licenseRecordGeneration: UInt64 = 0
 
     private enum LicenseRecordCacheState: Equatable {
         case unloaded
         case available
+        case unavailable
+    }
+
+    private enum CommittedLicenseRecord {
+        case available(LicenseKeychainRecord?)
         case unavailable
     }
 
@@ -193,13 +214,18 @@ final class RustLicenseStore: KeyValueStore {
 
     func get(key: String) -> String? {
         if let field = licenseField(for: key) {
-            return withTransactionLock {
+            // The Rust core reads staged fields back inside a transaction, on
+            // the thread that holds the recursive lock. `try()` succeeds for
+            // that owner (or when no writer is active) and fails, without
+            // waiting, for any other thread while a write is in flight.
+            if transactionLock.try() {
+                defer { transactionLock.unlock() }
                 if isLicenseTransactionActive {
                     return field.value(in: transactionRecord)
                 }
-                guard loadLicenseRecordIfNeeded() else { return nil }
-                return field.value(in: cachedLicenseRecord)
             }
+            guard case .available(let record) = committedLicenseRecord() else { return nil }
+            return field.value(in: record)
         }
 
         // Resolve a config-key alias to the legacy un-prefixed name only when the
@@ -242,8 +268,9 @@ final class RustLicenseStore: KeyValueStore {
                 return true
             }
 
-            guard loadLicenseRecordIfNeeded() else { return false }
-            let previousRecord = cachedLicenseRecord
+            guard case .available(let previousRecord) = committedLicenseRecord() else {
+                return false
+            }
             transactionRecord = previousRecord
 
             isLicenseTransactionActive = true
@@ -262,8 +289,7 @@ final class RustLicenseStore: KeyValueStore {
 
             do {
                 try licenseStore.replaceRecord(with: transactionRecord)
-                cachedLicenseRecord = transactionRecord
-                licenseRecordCacheState = .available
+                commitLicenseRecordSnapshot(transactionRecord)
                 return true
             } catch {
                 AppLogger.network.error(
@@ -285,8 +311,7 @@ final class RustLicenseStore: KeyValueStore {
             do {
                 let replacement = LicenseKeychainRecord(key: trimmed)
                 try licenseStore.replaceRecord(with: replacement)
-                cachedLicenseRecord = replacement
-                licenseRecordCacheState = .available
+                commitLicenseRecordSnapshot(replacement)
                 return true
             } catch {
                 AppLogger.network.error(
@@ -305,8 +330,7 @@ final class RustLicenseStore: KeyValueStore {
         withTransactionLock {
             do {
                 try licenseStore.replaceRecord(with: nil)
-                cachedLicenseRecord = nil
-                licenseRecordCacheState = .available
+                commitLicenseRecordSnapshot(nil)
                 return true
             } catch {
                 AppLogger.network.error(
@@ -324,8 +348,7 @@ final class RustLicenseStore: KeyValueStore {
                 return
             }
 
-            guard loadLicenseRecordIfNeeded() else { return }
-            var replacement = cachedLicenseRecord
+            guard case .available(var replacement) = committedLicenseRecord() else { return }
             field.set(value, in: &replacement)
             if replacement?.isEmpty == true {
                 replacement = nil
@@ -333,8 +356,7 @@ final class RustLicenseStore: KeyValueStore {
 
             do {
                 try licenseStore.replaceRecord(with: replacement)
-                cachedLicenseRecord = replacement
-                licenseRecordCacheState = .available
+                commitLicenseRecordSnapshot(replacement)
             } catch {
                 AppLogger.network.error(
                     "License Keychain update failed: \(error.localizedDescription, privacy: .public)"
@@ -346,39 +368,75 @@ final class RustLicenseStore: KeyValueStore {
     /// Returns a secure key read without collapsing a Keychain error into
     /// ordinary missing state. A caller can request a fresh read after an
     /// earlier failure, while successful reads stay cached for the session.
+    /// Reads the committed snapshot, so it never waits on an in-flight write.
     func readStoredLicenseKey(retryAfterFailure: Bool = false) -> StoredLicenseKeyRead {
-        withTransactionLock {
+        guard case .available(let record) = committedLicenseRecord(
+            retryAfterFailure: retryAfterFailure
+        ) else {
+            return .unavailable
+        }
+        guard let key = record?.key?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !key.isEmpty else {
+            return .missing
+        }
+        return .present(key)
+    }
+
+    /// The last committed record, loading it from the Keychain on first use.
+    /// The Keychain read runs outside `snapshotLock` and outside
+    /// `transactionLock`; if a writer commits while it runs, the writer's
+    /// record wins and the older read is discarded.
+    private func committedLicenseRecord(retryAfterFailure: Bool = false) -> CommittedLicenseRecord {
+        let (generation, decided): (UInt64, CommittedLicenseRecord?) = snapshotLock.withLock {
             if retryAfterFailure, licenseRecordCacheState == .unavailable {
                 licenseRecordCacheState = .unloaded
             }
-            guard loadLicenseRecordIfNeeded() else { return .unavailable }
-            guard let key = cachedLicenseRecord?.key?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-                  !key.isEmpty else {
-                return .missing
+            switch licenseRecordCacheState {
+            case .available: return (licenseRecordGeneration, .available(cachedLicenseRecord))
+            case .unavailable: return (licenseRecordGeneration, .unavailable)
+            case .unloaded: return (licenseRecordGeneration, nil)
             }
-            return .present(key)
+        }
+        if let decided {
+            return decided
+        }
+
+        let loaded: LicenseKeychainRecord??
+        do {
+            loaded = .some(try licenseStore.readRecord())
+        } catch {
+            loaded = .none
+            AppLogger.network.error(
+                "License Keychain read failed: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+
+        return snapshotLock.withLock {
+            if licenseRecordGeneration == generation,
+               licenseRecordCacheState == .unloaded {
+                if let loaded {
+                    cachedLicenseRecord = loaded
+                    licenseRecordCacheState = .available
+                } else {
+                    licenseRecordCacheState = .unavailable
+                }
+            }
+            switch licenseRecordCacheState {
+            case .available:
+                return .available(cachedLicenseRecord)
+            case .unavailable, .unloaded:
+                return .unavailable
+            }
         }
     }
 
-    private func loadLicenseRecordIfNeeded() -> Bool {
-        switch licenseRecordCacheState {
-        case .available:
-            return true
-        case .unavailable:
-            return false
-        case .unloaded:
-            do {
-                cachedLicenseRecord = try licenseStore.readRecord()
-                licenseRecordCacheState = .available
-                return true
-            } catch {
-                licenseRecordCacheState = .unavailable
-                AppLogger.network.error(
-                    "License Keychain read failed: \(error.localizedDescription, privacy: .public)"
-                )
-                return false
-            }
+    /// Publishes a record the Keychain has already accepted.
+    private func commitLicenseRecordSnapshot(_ record: LicenseKeychainRecord?) {
+        snapshotLock.withLock {
+            cachedLicenseRecord = record
+            licenseRecordCacheState = .available
+            licenseRecordGeneration &+= 1
         }
     }
 
