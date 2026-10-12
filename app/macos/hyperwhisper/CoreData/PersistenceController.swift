@@ -3197,7 +3197,10 @@ class PersistenceController: ObservableObject {
     ///   the line before the save, and let them go together (Core Data's own
     ///   connection cannot take a lock ours hold, so they cannot be held
     ///   through it). A lock another process takes in the short gap between
-    ///   that release and Core Data's own BEGIN still waits.
+    ///   that release and Core Data's own BEGIN still waits. The gap cannot be
+    ///   handed over either: on macOS 26 a raw `fcntl` lock this process takes
+    ///   on the WAL-index write byte blocks Core Data's own save too, because
+    ///   SQLite's locks there belong to its open file, not to the process.
     /// - Constraint: a refused statement (`SQLITE_CONSTRAINT`, e.g. a trigger)
     ///   reads to Core Data as an optimistic-locking failure. With a merging
     ///   policy it retries, then ends the process ("Unable to recover from
