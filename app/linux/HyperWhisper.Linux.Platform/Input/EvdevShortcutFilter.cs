@@ -45,6 +45,7 @@ internal sealed class EvdevShortcutFilter
     {
         lock (_gate)
         {
+            var previous = _bindings.ToDictionary(binding => binding.NamedShortcut.Name, StringComparer.Ordinal);
             _bindings = bindings.ToArray();
             _relevantCodes = bindings
                 .SelectMany(binding =>
@@ -53,11 +54,17 @@ internal sealed class EvdevShortcutFilter
                 .Concat(bindings.SelectMany(binding => binding.NonInterferingCodes))
                 .ToHashSet();
             var names = bindings.Select(binding => binding.NamedShortcut.Name).ToHashSet(StringComparer.Ordinal);
+            // A chord held under a name that now spells other keys is not the new chord: drop it,
+            // so releasing the old keys fires nothing.
+            var kept = bindings
+                .Where(binding => previous.TryGetValue(binding.NamedShortcut.Name, out var old) && SameKeys(old, binding))
+                .Select(binding => binding.NamedShortcut.Name)
+                .ToHashSet(StringComparer.Ordinal);
             foreach (var state in _states.Values)
             {
                 state.Down.IntersectWith(_relevantCodes);
                 state.Active.IntersectWith(names);
-                foreach (var name in state.Chords.Keys.Where(name => !names.Contains(name)).ToArray())
+                foreach (var name in state.Chords.Keys.Where(name => !kept.Contains(name)).ToArray())
                     state.Chords.Remove(name);
             }
         }
@@ -85,11 +92,11 @@ internal sealed class EvdevShortcutFilter
             else pressed = state.Held.Add(input.Code) || input.Value == 1;
             if (!_relevantCodes.Contains(input.Code))
             {
-                if (pressed) SpoilChords(state, input.Code);
+                if (pressed) SpoilChords(input.Code);
                 return new([], input.Value == 1 && (interferenceArmed || state.Active.Count > 0));
             }
 
-            if (pressed) SpoilChords(state, input.Code);
+            if (pressed) SpoilChords(input.Code);
 
             if (input.Value == 0)
             {
@@ -128,31 +135,40 @@ internal sealed class EvdevShortcutFilter
         }
     }
 
+    private static bool SameKeys(EvdevBinding a, EvdevBinding b) =>
+        a.Primary == b.Primary && a.ModifierGroups.Keys.ToHashSet().SetEquals(b.ModifierGroups.Keys);
+
     /// <summary>
-    /// A press of a key outside an armed chord spoils it. A key from the chord's own
-    /// groups (the other Ctrl, or a held one that repeats) does not.
+    /// A press of a key outside an armed chord spoils it, on any device: a second keyboard
+    /// joins the chord as much as the first. A key from the chord's own groups (the other
+    /// Ctrl, or a held one that repeats) does not.
     /// </summary>
-    private void SpoilChords(DeviceState state, ushort code)
+    private void SpoilChords(ushort code)
     {
         foreach (var binding in _bindings)
         {
-            var name = binding.NamedShortcut.Name;
-            if (state.Chords.GetValueOrDefault(name) != ChordState.Armed) continue;
             if (binding.ModifierGroups.Values.Any(group => group.Contains(code))) continue;
-            state.Chords[name] = ChordState.Spoiled;
+            var name = binding.NamedShortcut.Name;
+            foreach (var state in _states.Values)
+            {
+                if (state.Chords.GetValueOrDefault(name) == ChordState.Armed)
+                    state.Chords[name] = ChordState.Spoiled;
+            }
         }
     }
 
-    private static void StepChord(DeviceState state, EvdevBinding binding, bool matches,
+    private void StepChord(DeviceState state, EvdevBinding binding, bool matches,
         List<(NamedShortcut, bool)> output)
     {
         var name = binding.NamedShortcut.Name;
         var held = state.Chords.TryGetValue(name, out var chord);
         if (matches)
         {
-            // Exact, like the X11 sibling: a key outside the chord already down spoils it at once.
+            // Exact, like the X11 sibling: a key outside the chord already down, on any device,
+            // spoils it at once.
             if (!held)
-                state.Chords[name] = state.Held.All(code => binding.ModifierGroups.Values.Any(group => group.Contains(code)))
+                state.Chords[name] = _states.Values.SelectMany(device => device.Held)
+                    .All(code => binding.ModifierGroups.Values.Any(group => group.Contains(code)))
                     ? ChordState.Armed
                     : ChordState.Spoiled;
             return;

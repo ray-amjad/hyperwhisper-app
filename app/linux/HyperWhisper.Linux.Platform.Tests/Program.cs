@@ -30,6 +30,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("evdev Ctrl+Alt alone toggles on its release, either order", EvdevModifierChordAloneFiresOnRelease),
     ("evdev Ctrl+Alt+Left never toggles, either release order", EvdevModifierChordWithKeyDoesNotFire),
     ("evdev Ctrl+Alt+Shift never toggles", EvdevModifierChordWithModifierDoesNotFire),
+    ("evdev a key on another device spoils a held Ctrl+Alt", EvdevModifierChordSpoiledAcrossDevices),
+    ("evdev a same-name rebind drops a held Ctrl+Alt", EvdevModifierChordDroppedOnRebind),
     ("evdev push-to-talk modifier-only chord fires on press", EvdevPushToTalkChordFiresOnPress),
     ("evdev service toggles a modifier-only chord on its release", EvdevServiceModifierChordFiresOnRelease),
     ("evdev disposal is bounded for uncooperative devices", EvdevDisposalBounded),
@@ -511,6 +513,58 @@ static Task EvdevModifierChordWithModifierDoesNotFire()
         names.AddRange(filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals
             .Select(signal => signal.Shortcut.Name));
     Assert.Equal("change,change", string.Join(',', names));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordSpoiledAcrossDevices()
+{
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    string Run(params (string Device, ushort Code, int Value)[] input)
+    {
+        var filter = new EvdevShortcutFilter();
+        filter.ReplaceBindings([toggle]);
+        var names = new List<string>();
+        foreach (var (device, code, value) in input)
+            names.AddRange(filter.Process(device, new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals
+                .Select(signal => (signal.Pressed ? "down:" : "up:") + signal.Shortcut.Name));
+        return string.Join(',', names);
+    }
+
+    // Ctrl+Alt on keyboard A, Left on keyboard B while it is held.
+    Assert.Equal("", Run(("a", 29, 1), ("a", 56, 1), ("b", 105, 1), ("a", 56, 0), ("a", 29, 0), ("b", 105, 0)));
+    // Left held on keyboard B before the chord completes on keyboard A.
+    Assert.Equal("", Run(("b", 105, 1), ("a", 29, 1), ("a", 56, 1), ("a", 56, 0), ("a", 29, 0), ("b", 105, 0)));
+    // A clean chord on A still fires with a second keyboard idle.
+    Assert.Equal("down:toggle,up:toggle", Run(("b", 105, 1), ("b", 105, 0), ("a", 29, 1), ("a", 56, 1), ("a", 56, 0), ("a", 29, 0)));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordDroppedOnRebind()
+{
+    var ctrlAlt = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var ctrlShift = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift))).Value!;
+    string Run(EvdevBinding rebound)
+    {
+        var filter = new EvdevShortcutFilter();
+        filter.ReplaceBindings([ctrlAlt]);
+        var names = new List<string>();
+        void Feed(ushort code, int value) => names.AddRange(filter.Process("keyboard",
+            new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals.Select(signal => (signal.Pressed ? "down:" : "up:") + signal.Shortcut.Name));
+        Feed(29, 1);
+        Feed(56, 1);
+        filter.ReplaceBindings([rebound]);
+        Feed(29, 0);
+        Feed(56, 0);
+        return string.Join(',', names);
+    }
+
+    // Rebound to Ctrl+Shift under the same name: the old Ctrl+Alt release fires nothing.
+    Assert.Equal("", Run(ctrlShift));
+    // Re-registered with the same keys: the held chord still fires on its release.
+    Assert.Equal("down:toggle,up:toggle", Run(ctrlAlt));
     return Task.CompletedTask;
 }
 
