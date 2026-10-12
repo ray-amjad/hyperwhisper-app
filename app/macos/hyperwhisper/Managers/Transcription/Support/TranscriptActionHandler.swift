@@ -150,7 +150,7 @@ class TranscriptActionHandler: ObservableObject {
             retryingTranscripts.remove(transcriptId)
 
             // A delete cancelled this retry (#1743): the row is gone, so no alert.
-            if retryTask.isCancelled || transcript.isDeleted || transcript.managedObjectContext == nil {
+            if transcript.retryWasStoppedByDelete(taskCancelled: retryTask.isCancelled) {
                 AppLogger.ui.info("Retry stopped: its transcript was deleted")
                 return false
             }
@@ -228,7 +228,7 @@ class TranscriptActionHandler: ObservableObject {
                 )
 
                 // The row was deleted while the engine finished: nothing to write to.
-                guard !Task.isCancelled, !newTranscript.isDeleted, newTranscript.managedObjectContext != nil else {
+                guard !newTranscript.retryWasStoppedByDelete() else {
                     return
                 }
 
@@ -245,7 +245,7 @@ class TranscriptActionHandler: ObservableObject {
                 
             } catch {
                 // A delete cancelled this job (#1458): the row is gone, so leave it be.
-                if Task.isCancelled || newTranscript.isDeleted || newTranscript.managedObjectContext == nil {
+                if newTranscript.retryWasStoppedByDelete() {
                     AppLogger.ui.info("Retry with new mode stopped: its transcript was deleted")
                     return
                 }

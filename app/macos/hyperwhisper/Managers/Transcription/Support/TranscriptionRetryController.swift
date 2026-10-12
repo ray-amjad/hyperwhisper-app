@@ -206,7 +206,7 @@ class TranscriptionRetryController {
             )
 
             // The row was deleted while the engine finished: nothing to write to.
-            if Self.rowWasDeleted(transcript) {
+            if transcript.retryWasStoppedByDelete() {
                 throw CancellationError()
             }
 
@@ -234,7 +234,7 @@ class TranscriptionRetryController {
             return result
         } catch {
             // A delete cancelled this retry (#1743): the row is gone, so leave it be.
-            if Self.rowWasDeleted(transcript) {
+            if transcript.retryWasStoppedByDelete() {
                 AppLogger.transcription.info("Retry stopped: its transcript was deleted")
                 throw error
             }
@@ -255,12 +255,6 @@ class TranscriptionRetryController {
         }
     }
 
-    /// True once deleting the row cancelled this retry (`TranscriptActionHandler.cancelRetryTask`).
-    /// A newer dictation that took the pipeline over (#1425) cancels only the
-    /// engine run, not this task, so its row still records the failure.
-    private static func rowWasDeleted(_ transcript: Transcript) -> Bool {
-        Task.isCancelled || transcript.isDeleted || transcript.managedObjectContext == nil
-    }
 
     /// Check if a transcript can be retried
     /// ELIGIBILITY CRITERIA:
@@ -276,5 +270,19 @@ class TranscriptionRetryController {
         }
 
         return FileManager.default.fileExists(atPath: audioPath)
+    }
+}
+
+extension Transcript {
+    /// True once deleting this row stopped its retry: the delete cancelled the
+    /// retry's task (`TranscriptActionHandler.cancelRetryTask`) or already
+    /// removed the row. The one rule for both kinds of retry (#1458, #1743).
+    ///
+    /// `taskCancelled` defaults to the calling task. A caller that awaits the
+    /// retry from outside its task passes that task's `isCancelled`. A newer
+    /// dictation that took the pipeline over (#1425) cancels only the engine
+    /// run, not the retry task, so its row still records the failure.
+    func retryWasStoppedByDelete(taskCancelled: Bool = Task.isCancelled) -> Bool {
+        taskCancelled || isDeleted || managedObjectContext == nil
     }
 }
