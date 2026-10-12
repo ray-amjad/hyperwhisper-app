@@ -210,6 +210,7 @@ public partial class MainWindow : Window
             L);
         InitializeComponent();
         ComboWheelGuard.Attach(this);
+        AttachVocabularyKeyHandlers();
         DataContext = _viewModel;
         // The library count under the title moves with the filters, so it follows the view.
         if (_viewModel.Models is { } models)
@@ -2952,6 +2953,25 @@ public partial class MainWindow : Window
         HideVocabularyReplacement();
     }
 
+    /// <summary>
+    /// Both vocabulary boxes accept returns, so a pasted list keeps all its lines and a snippet
+    /// keeps its line breaks (#1777). A multi-line TextBox turns Enter into a line break in its
+    /// own key handler, which runs before a bubbling KeyDown handler; the tunnel route runs first,
+    /// as WPF's PreviewKeyDown does on Windows. The handler sits on the window because the
+    /// vocabulary page is not in the logical tree yet when the constructor runs.
+    /// </summary>
+    private void AttachVocabularyKeyHandlers() =>
+        AddHandler(KeyDownEvent, OnVocabularyTunnelKeyDown, RoutingStrategies.Tunnel);
+
+    private void OnVocabularyTunnelKeyDown(object? sender, KeyEventArgs e)
+    {
+        switch (e.Source)
+        {
+            case TextBox { Name: "VocabularyWordInput" } word: OnVocabularyWordKeyDown(word, e); break;
+            case TextBox { Name: "VocabularyReplacementInput" } replacement: OnVocabularyReplacementKeyDown(replacement, e); break;
+        }
+    }
+
     private void OnVocabularyWordKeyDown(object? sender, KeyEventArgs e)
     {
         // Windows closes the replacement field on Esc from either box
@@ -3344,6 +3364,56 @@ public partial class MainWindow : Window
     private T? FindNamed<T>(string name) where T : Control
         => this.GetLogicalDescendants().OfType<T>().FirstOrDefault(control => control.Name == name);
 
+    /// <summary>
+    /// Issue #1777, on the real page: a multi-line text entered into the word box (the text-input
+    /// path a paste takes) keeps all its lines, Enter adds one word per line, and Enter in the
+    /// replacement box is a line break, not a submit. The rows it adds are removed again.
+    /// </summary>
+    private async Task<bool> SmokeVocabularyPasteIsOneWordPerLineAsync()
+    {
+        _viewModel.Navigate("vocabulary");
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        if (FindNamed<TextBox>("VocabularyWordInput") is not { } word
+            || FindNamed<TextBox>("VocabularyReplacementInput") is not { } replacement) return false;
+        var vocabulary = _viewModel.Vocabulary;
+        string[] words = ["smoke1777alpha", "smoke1777beta", "smoke1777gamma"];
+        bool Fail(string reason) { Console.Error.WriteLine($"Smoke: vocabulary paste (#1777): {reason}"); return false; }
+
+        word.Focus();
+        word.RaiseEvent(new TextInputEventArgs { RoutedEvent = TextInputEvent, Text = string.Join("\n", words) });
+        if (vocabulary.Word != string.Join("\n", words))
+            return Fail($"the word box kept '{vocabulary.Word.ReplaceLineEndings("\\n")}' of a three-line paste");
+        word.RaiseEvent(new KeyEventArgs { RoutedEvent = KeyDownEvent, Key = Key.Enter });
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        for (var attempt = 0; attempt < 50 && vocabulary.Word.Length > 0; attempt++)
+            await Task.Delay(20);
+        var added = vocabulary.Items.Where(item => item.Word.StartsWith("smoke1777", StringComparison.Ordinal)).ToList();
+        try
+        {
+            if (vocabulary.Word.Length > 0) return Fail($"Enter did not add the pasted words (the box holds '{vocabulary.Word.ReplaceLineEndings("\\n")}')");
+            if (!added.Select(item => item.Word).Order(StringComparer.Ordinal).SequenceEqual(words))
+                return Fail($"Enter saved [{string.Join(" | ", added.Select(item => item.Word.ReplaceLineEndings("\\n")))}]");
+
+            ShowVocabularyReplacement();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            replacement.Focus();
+            replacement.RaiseEvent(new TextInputEventArgs { RoutedEvent = TextInputEvent, Text = "Best," });
+            replacement.RaiseEvent(new KeyEventArgs { RoutedEvent = KeyDownEvent, Key = Key.Enter });
+            replacement.RaiseEvent(new TextInputEventArgs { RoutedEvent = TextInputEvent, Text = "Ray" });
+            if (FindNamed<Border>("VocabularyReplacementPanel")?.IsVisible != true
+                || vocabulary.Replacement.ReplaceLineEndings("\n") != "Best,\nRay")
+                return Fail($"Enter in the replacement box gave '{vocabulary.Replacement.ReplaceLineEndings("\\n")}', not a line break");
+            return true;
+        }
+        finally
+        {
+            foreach (var item in added) await vocabulary.DeleteAsync(item);
+            OnVocabularyCancelEdit(this, new RoutedEventArgs());
+            _viewModel.Navigate("home");
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+    }
+
     internal async Task<int> RunSmokeTestAsync()
     {
         try
@@ -3410,6 +3480,8 @@ public partial class MainWindow : Window
             _viewModel.Navigate("home");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (!HasVisibleControl("HomeTypingSpeed")) return 17;
+
+            if (!await SmokeVocabularyPasteIsOneWordPerLineAsync()) return 18;
 
             // The recording and file-import controls have no Windows equivalent anywhere, so they
             // live at the END of Home, below Recent Updates. They were on the Modes page, which
