@@ -521,8 +521,10 @@ public sealed class TranscriptionWorkflow : IDisposable
         if (!result.IsSuccess)
             return await CompleteTerminalFailureAsync(
                 transcript,
-                $"workflow.{result.Failure?.Code.ToString().ToLowerInvariant() ?? "empty_result"}",
-                result.Failure?.Message ?? "The transcription backend returned no text.",
+                // A backend that answers with no text heard no speech: a silent
+                // recording, or one Whisper only marked [BLANK_AUDIO] (issue #1742).
+                $"workflow.{result.Failure?.Code.ToString().ToLowerInvariant() ?? "no_speech"}",
+                result.Failure?.Message ?? "No speech was detected.",
                 result.Failure?.Code ?? PortableTranscriptionErrorCode.TranscriptionFailed,
                 operation,
                 result.Provider,

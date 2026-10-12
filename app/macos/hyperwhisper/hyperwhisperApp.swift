@@ -321,6 +321,21 @@ struct MenuBarIconView: View {
                     // Update transcription manager when models change
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
+                // A finished Whisper download prepares the selected mode again, so a
+                // mode that launched on a missing or truncated file returns to Ready
+                // (#1632). Fires after the rescan above: same publisher, registered later.
+                .onReceive(
+                    whisperModelManager.$downloadedModels
+                        .dropFirst()
+                        .map { models in models.map(\.name) }
+                        .removeDuplicates()
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
+                }
                 .onReceive(parakeetModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
@@ -340,6 +355,26 @@ struct MenuBarIconView: View {
                 }
                 .onReceive(nemotronModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
+                }
+                // Prepare the selected Nemotron mode again once its install changes,
+                // or once a Re-download clears a broken flag: that leaves
+                // availableModels equal, so watch the flag too (#1632). A flag being
+                // set is skipped, or each failed load would retry the load.
+                .onReceive(
+                    nemotronModelManager.$availableModels
+                        .dropFirst()
+                        .removeDuplicates()
+                        .map { _ in () }
+                        .merge(with: nemotronModelManager.$brokenVariants
+                            .scan((Set<String>(), Set<String>())) { pair, next in (pair.1, next) }
+                            .filter { pair in !pair.0.isSubset(of: pair.1) }
+                            .map { _ in () })
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
                 }
                 .onReceive(localModelManager.$downloadedModels) { _ in
                     cloudProviderHealthManager.refreshAllPostProcessing(force: true)

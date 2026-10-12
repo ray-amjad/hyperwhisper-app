@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Завершити онбординг";
 
 "onboarding.setupLater.button" = "Налаштувати пізніше";
-"onboarding.error.microphone.denied" = "Дозвіл на мікрофон відхилено. Будь ласка, надайте дозвіл у параметрах системи.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Запускати при вході";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Кредити передплачені та спільні для всіх Mac, авторизованих з цим ключем. Час простою нічого не коштує.";
 "onboarding.source.note" = "Якщо ви передумаєте пізніше, повториться лише цей крок. Все інше, що ви налаштували, збережеться.";
 "onboarding.permissions.note" = "Пропустіть Доступність, і транскрипти потраплятимуть у буфер обміну, готові до вставлення. Увімкнути пізніше можна одним кліком.";
+"onboarding.permissions.microphone.denied" = "Не дозволено. Увімкніть HyperWhisper у Системних параметрах і поверніться сюди.";
+"onboarding.permissions.continueNeedsMicrophone" = "Щоб продовжити, потрібен мікрофон. Дозвольте його вище або виберіть «Налаштувати пізніше».";
 "onboarding.welcome.task1.title" = "Виберіть, як працюватиме транскрипція";
 "onboarding.welcome.task1.caption" = "У нашій хмарі, на цьому Mac або через обліковий запис провайдера, за який ви вже платите.";
 "onboarding.welcome.task2.title" = "Перевірте свій мікрофон";

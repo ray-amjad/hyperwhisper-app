@@ -683,7 +683,10 @@ struct ModelLibraryView: View {
         case .cloud:
             break
         case .offline(_, let installed, _):
-            if installed {
+            if model.needsRedownload {
+                // A broken install (#1632): its manager wipes the damaged files first.
+                triggerDownload(for: model)
+            } else if installed {
                 triggerDelete(for: model)
             } else {
                 // Local model downloads are unlimited (open source) — no gate.

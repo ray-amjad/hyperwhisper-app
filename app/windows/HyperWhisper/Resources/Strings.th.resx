@@ -1312,8 +1312,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>มีการบันทึกเสียงหรือการถอดความไฟล์กำลังทำงานอยู่แล้ว ลองไฟล์อีกครั้งเมื่อเสร็จสิ้น</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>ไฟล์นี้ว่างเปล่า จึงไม่มีเสียงให้ถอดความ</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>ไฟล์นี้เสียหายหรือไม่ใช่ไฟล์เสียงที่ HyperWhisper อ่านได้</value>
   </data>
 
 

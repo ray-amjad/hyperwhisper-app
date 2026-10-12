@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Ljúka byrjunarferli";
 
 "onboarding.setupLater.button" = "Setja upp síðar";
-"onboarding.error.microphone.denied" = "Hljóðnemaleyfi hafnað. Vinsamlegast veittu leyfi í kerfisstillingum.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Ræsa við innskráningu";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Inneign er fyrirframgreidd og deilt á milli allra Mac-tölva sem eru innskráðar með þessum lykli. Aðgerðarlaus tími kostar ekkert.";
 "onboarding.source.note" = "Skiptir þú um skoðun síðar er þetta eina skrefið endurtekið. Ekkert annað sem þú settir upp týnist.";
 "onboarding.permissions.note" = "Sleppir þú Aðgengi fara umskriftir á klippiborðið, tilbúnar til að líma. Að kveikja á því síðar tekur eitt smell.";
+"onboarding.permissions.microphone.denied" = "Ekki leyft. Kveiktu á HyperWhisper í kerfisstillingum og komdu svo aftur hingað.";
+"onboarding.permissions.continueNeedsMicrophone" = "Til að halda áfram þarf hljóðnemann. Leyfðu hann hér að ofan eða veldu Setja upp síðar.";
 "onboarding.welcome.task1.title" = "Veldu hvernig umritun keyrir";
 "onboarding.welcome.task1.caption" = "Í skýinu okkar, á þessari Mac-tölvu, eða í gegnum veitureikning sem þú borgar nú þegar fyrir.";
 "onboarding.welcome.task2.title" = "Athugaðu hljóðnemann þinn";

@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Bevezetés befejezése";
 
 "onboarding.setupLater.button" = "Beállítás később";
-"onboarding.error.microphone.denied" = "Mikrofon engedély megtagadva. Kérlek add meg az engedélyt a Rendszerbeállításokban.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Indítás bejelentkezéskor";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "A kreditek előre fizetettek, és minden, ezzel a kulccsal bejelentkezett Mac között megoszlanak. A tétlen idő semmibe nem kerül.";
 "onboarding.source.note" = "Ha később meggondolod magad, csak ez az egy lépés fut újra. Semmi más, amit beállítottál, nem vész el.";
 "onboarding.permissions.note" = "Hagyd ki a Kisegítő lehetőségeket, és az átiratok a vágólapra kerülnek, beillesztésre készen. A későbbi bekapcsolás egy kattintás.";
+"onboarding.permissions.microphone.denied" = "Nincs engedélyezve. Kapcsolja be a HyperWhispert a Rendszerbeállításokban, majd térjen vissza ide.";
+"onboarding.permissions.continueNeedsMicrophone" = "A folytatáshoz mikrofon kell. Engedélyezze fent, vagy válassza a Beállítás később lehetőséget.";
 "onboarding.welcome.task1.title" = "Válaszd ki, hogyan fusson az átírás";
 "onboarding.welcome.task1.caption" = "A felhőnkben, ezen a Macen, vagy egy már fizetett szolgáltatói fiókon keresztül.";
 "onboarding.welcome.task2.title" = "Ellenőrizd a mikrofonodat";

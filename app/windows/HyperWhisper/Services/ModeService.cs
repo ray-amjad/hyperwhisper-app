@@ -111,6 +111,21 @@ public class ModeService
     }
 
     /// <summary>
+    /// Raises <see cref="ModeChanged"/> for rows nothing here wrote: a restored
+    /// backup goes straight into the DbSet, so without this the tray menus and the
+    /// status bar keep the mode list they loaded at startup (issue #1592). Every
+    /// subscriber reloads the whole list, so the payload is only the selected mode.
+    /// GetSelectedMode already falls back to the default and then the first mode,
+    /// so null means the table is empty and there is nothing to show.
+    /// </summary>
+    public void NotifyModesChanged()
+    {
+        var payload = GetSelectedMode();
+        if (payload == null) return;
+        ModeChanged?.Invoke(this, payload);
+    }
+
+    /// <summary>
     /// Apply the shared decision (<c>hw-modes</c>, through
     /// <see cref="DefaultModePolicy"/>) to a context the caller is about to save.
     /// Returns whether anything changed.

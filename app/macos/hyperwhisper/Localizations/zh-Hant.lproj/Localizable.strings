@@ -289,7 +289,6 @@
 "onboarding.done.button" = "完成入門";
 
 "onboarding.setupLater.button" = "稍後設定";
-"onboarding.error.microphone.denied" = "麥克風許可被拒絕。請在系統設定中授予許可。";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "登入時啟動";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "額度為預付制，由使用此金鑰登入的每台 Mac 共用。閒置時間不會消耗額度。";
 "onboarding.source.note" = "之後改變主意只會重新執行這一步。您設定的其他內容都不會遺失。";
 "onboarding.permissions.note" = "略過輔助使用，轉錄結果會進入剪貼板，隨時可貼上。之後開啟只需點一下。";
+"onboarding.permissions.microphone.denied" = "未允許。請在「系統設定」中開啟 HyperWhisper，然後回到這裡。";
+"onboarding.permissions.continueNeedsMicrophone" = "繼續需要麥克風。請在上方允許，或選擇「稍後設定」。";
 "onboarding.welcome.task1.title" = "選擇轉錄的執行方式";
 "onboarding.welcome.task1.caption" = "在我們的雲端、這台 Mac 上，或透過您已付費的服務商帳戶。";
 "onboarding.welcome.task2.title" = "檢查您的麥克風";

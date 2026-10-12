@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Sākotnējā iestatīšana pabeigta";
 
 "onboarding.setupLater.button" = "Iestatīt vēlāk";
-"onboarding.error.microphone.denied" = "Mikrofona atļauja noraidīta. Lūdzu piešķiriet atļauju sistēmas iestatījumos.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Palaist piesakoties";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Kredīti ir iepriekš apmaksāti un koplietoti visos Mac datoros, kas pieteikušies ar šo atslēgu. Dīkstāves laiks nemaksā neko.";
 "onboarding.source.note" = "Ja vēlāk pārdomāsiet, atkārtot vajadzēs tikai šo vienu soli. Viss pārējais, ko iestatījāt, saglabāsies.";
 "onboarding.permissions.note" = "Izlaidiet Pieejamību, un transkripcijas nonāks starpliktuvē, gatavas ielīmēšanai. To ieslēgt vēlāk aizņem vienu klikšķi.";
+"onboarding.permissions.microphone.denied" = "Nav atļauts. Ieslēdziet HyperWhisper sistēmas iestatījumos un atgriezieties šeit.";
+"onboarding.permissions.continueNeedsMicrophone" = "Lai turpinātu, vajadzīgs mikrofons. Atļaujiet to augstāk vai izvēlieties Iestatīt vēlāk.";
 "onboarding.welcome.task1.title" = "Izvēlieties, kā darbosies transkripcija";
 "onboarding.welcome.task1.caption" = "Mūsu mākonī, šajā Mac datorā vai izmantojot sniedzēja kontu, par kuru jau maksājat.";
 "onboarding.welcome.task2.title" = "Pārbaudiet mikrofonu";

@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Atlikti registraciją";
 
 "onboarding.setupLater.button" = "Nustatyti vėliau";
-"onboarding.error.microphone.denied" = "Mikrofo leidimas atmestas. Suteikite leidimą Sistemos nustatymuose.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Paleisti prisijungus";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Kreditai yra iš anksto apmokėti ir bendri visiems Mac, prisijungusiems su šiuo raktu. Prastovos laikas nieko nekainuoja.";
 "onboarding.source.note" = "Jei vėliau apsigalvosite, teks pakartoti tik šį vieną žingsnį. Visa kita, ką sukonfigūravote, išlieka.";
 "onboarding.permissions.note" = "Praleiskite Pritaikymą neįgaliesiems ir transkripcijos pateks į iškarpinę, paruoštos įklijuoti. Įjungti vėliau užtrunka vieną spustelėjimą.";
+"onboarding.permissions.microphone.denied" = "Neleidžiama. Įjunkite HyperWhisper sistemos nustatymuose ir grįžkite čia.";
+"onboarding.permissions.continueNeedsMicrophone" = "Norint tęsti, reikia mikrofono. Leiskite jį aukščiau arba pasirinkite Nustatyti vėliau.";
 "onboarding.welcome.task1.title" = "Pasirinkite, kaip veiks transkripcija";
 "onboarding.welcome.task1.caption" = "Mūsų debesyje, šiame Mac, arba per teikėjo paskyrą, už kurią jau mokate.";
 "onboarding.welcome.task2.title" = "Patikrinkite mikrofoną";

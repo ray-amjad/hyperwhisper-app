@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Slutför introduktion";
 
 "onboarding.setupLater.button" = "Ställ in senare";
-"onboarding.error.microphone.denied" = "Mikrofonåtkomst nekad. Bevilja tillåtelse i Systeminställningar.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Starta vid inloggning";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Krediterna är förbetalda och delas mellan alla Mac-datorer inloggade med den här nyckeln. Inaktiv tid kostar ingenting.";
 "onboarding.source.note" = "Ändrar du dig senare körs bara det här steget om. Inget annat du har ställt in går förlorat.";
 "onboarding.permissions.note" = "Hoppa över Tillgänglighet och transkriptioner går till urklipp, redo att klistras in. Att slå på det senare tar ett klick.";
+"onboarding.permissions.microphone.denied" = "Inte tillåtet. Slå på HyperWhisper i Systeminställningar och kom sedan tillbaka hit.";
+"onboarding.permissions.continueNeedsMicrophone" = "Fortsätt kräver mikrofonen. Tillåt den ovan, eller välj Konfigurera senare.";
 "onboarding.welcome.task1.title" = "Välj hur transkriptionen körs";
 "onboarding.welcome.task1.caption" = "I vårt moln, på den här Mac:en, eller via ett leverantörskonto du redan betalar för.";
 "onboarding.welcome.task2.title" = "Kontrollera din mikrofon";

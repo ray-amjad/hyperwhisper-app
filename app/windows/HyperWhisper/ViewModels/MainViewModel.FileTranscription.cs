@@ -1,5 +1,6 @@
 using System.IO;
 using System.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.FileTranscription;
@@ -16,6 +17,32 @@ public partial class MainViewModel
     // =========================================================================
     // FILE TRANSCRIPTION
     // =========================================================================
+
+    /// <summary>
+    /// True while the Transcribe File dialog is on screen. The tray disables its
+    /// Transcribe File items on it, as it does while a job runs.
+    /// </summary>
+    [ObservableProperty] private bool _isFileDialogOpen;
+
+    /// <summary>
+    /// The properties <see cref="CanOfferTrayFileTranscription"/> reads. The tray
+    /// rebuilds its Transcribe File items when any of them changes.
+    /// </summary>
+    internal static readonly string[] TrayFileTranscriptionInputs =
+    {
+        nameof(IsRecording), nameof(IsTranscribing), nameof(IsModelLoading), nameof(IsFileDialogOpen)
+    };
+
+    /// <summary>
+    /// Whether the tray's Transcribe File items are enabled (onboarding aside).
+    /// </summary>
+    internal bool CanOfferTrayFileTranscription =>
+        !IsRecording && !IsTranscribing && !IsModelLoading && !IsFileDialogOpen;
+
+    /// <summary>
+    /// Test seam: shows the Transcribe File dialog. Null shows the real dialog.
+    /// </summary>
+    internal Func<Microsoft.Win32.OpenFileDialog, bool?>? ShowFileDialogOverride { get; set; }
 
     /// <summary>
     /// Opens a file dialog and transcribes the selected audio file.
@@ -38,6 +65,15 @@ public partial class MainViewModel
 
     public async Task TranscribeFileWithModeAsync(Mode mode)
     {
+        // The dialog has no owner window, so the tray keeps pumping while it is
+        // open. One dialog at a time: a second would let a pick land on top of
+        // the job the first one started (issue #1535).
+        if (IsFileDialogOpen)
+        {
+            LoggingService.Info("TranscribeFileWithModeAsync: A file dialog is already open; ignoring request");
+            return;
+        }
+
         if (!CanStartFileTranscription())
         {
             return;
@@ -51,10 +87,32 @@ public partial class MainViewModel
             Multiselect = false
         };
 
-        if (dialog.ShowDialog() == true)
+        bool picked;
+        IsFileDialogOpen = true;
+        try
         {
-            await TranscribeFileAsync(dialog.FileName, mode);
+            picked = (ShowFileDialogOverride?.Invoke(dialog) ?? dialog.ShowDialog()) == true;
         }
+        finally
+        {
+            IsFileDialogOpen = false;
+        }
+
+        if (!picked)
+        {
+            return;
+        }
+
+        // A dictation can still start from its shortcut while the dialog is
+        // open. Say so rather than drop the pick with only a log line.
+        if (!CanStartFileTranscription())
+        {
+            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                Loc.S("errors.fileTranscriptionBusy"), showSettingsButton: false));
+            return;
+        }
+
+        await TranscribeFileAsync(dialog.FileName, mode);
     }
 
     /// <summary>
@@ -110,6 +168,16 @@ public partial class MainViewModel
         {
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                 Loc.S("errors.fileNotFound"), showSettingsButton: false));
+            return;
+        }
+
+        // A 0-byte file holds no audio. Checked here, not only in the WAV conversion,
+        // so a cloud Mode does not upload it and show the provider's error (#1452).
+        if (new FileInfo(filePath).Length == 0)
+        {
+            LoggingService.Warn($"TranscribeFileAsync: File is empty - {filePath}");
+            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                FileTranscriptionService.EmptyFileMessage, showSettingsButton: false));
             return;
         }
 

@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
+using VocabularyWords = HyperWhisper.PortableApplication.Persistence.VocabularyWords;
 
 namespace HyperWhisper.Services;
 
@@ -119,6 +120,16 @@ public class VocabularyService
         }
 
         var trimmedWord = word.Trim();
+
+        // A word is one line (issue #1777). Callers split a multi-line value with
+        // VocabularyWords.SplitLines first. The replacement may keep its line breaks:
+        // a multi-line snippet is allowed.
+        if (VocabularyWords.HasLineBreak(trimmedWord))
+        {
+            error = "A word must be one line.";
+            return false;
+        }
+
         var trimmedReplacement = string.IsNullOrWhiteSpace(replacement)
             ? null
             : replacement!.Trim();
@@ -132,12 +143,17 @@ public class VocabularyService
             {
                 using var context = new HyperWhisperDbContext();
 
-                // Case-insensitive duplicate check (exclude item being edited)
-                var lowerWord = trimmedWord.ToLower();
-                var query = context.VocabularyItems.Where(v => v.Word.ToLower() == lowerWord);
+                // Case-insensitive duplicate check (exclude item being edited).
+                // Compared in memory: SQLite lower() folds ASCII only, so "Øresund"
+                // would never match itself. Same key as BackupService's merge.
+                var key = trimmedWord.ToLowerInvariant();
+                var query = context.VocabularyItems.AsQueryable();
                 if (excludeId.HasValue)
                     query = query.Where(v => v.Id != excludeId.Value);
-                var exists = query.Any();
+                var exists = query
+                    .Select(v => v.Word)
+                    .AsEnumerable()
+                    .Any(w => (w ?? string.Empty).Trim().ToLowerInvariant() == key);
 
                 if (exists)
                 {

@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Ολοκληρώθηκε το Onboarding";
 
 "onboarding.setupLater.button" = "Ρύθμιση αργότερα";
-"onboarding.error.microphone.denied" = "Άδεια μικροφώνου αρνήθηκε. Παρακαλώ δώστε άδεια στις Ρυθμίσεις Συστήματος.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Εκκίνηση κατά τη σύνδεση";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Οι πιστώσεις είναι προπληρωμένες και κοινές για κάθε Mac συνδεδεμένο με αυτό το κλειδί. Ο χρόνος αδράνειας δεν κοστίζει τίποτα.";
 "onboarding.source.note" = "Αν αλλάξεις γνώμη αργότερα, θα επαναλάβεις μόνο αυτό το βήμα. Τίποτα άλλο από όσα έχεις ρυθμίσει δεν χάνεται.";
 "onboarding.permissions.note" = "Παράλειψε την Προσβασιμότητα και οι μεταγραφές θα πηγαίνουν στο πρόχειρο, έτοιμες για επικόλληση. Η ενεργοποίησή της αργότερα παίρνει ένα κλικ.";
+"onboarding.permissions.microphone.denied" = "Δεν επιτρέπεται. Ενεργοποιήστε το HyperWhisper στις Ρυθμίσεις συστήματος και επιστρέψτε εδώ.";
+"onboarding.permissions.continueNeedsMicrophone" = "Η Συνέχεια χρειάζεται το μικρόφωνο. Επιτρέψτε το παραπάνω ή επιλέξτε Ρύθμιση αργότερα.";
 "onboarding.welcome.task1.title" = "Επίλεξε πώς θα γίνεται η μεταγραφή";
 "onboarding.welcome.task1.caption" = "Στο cloud μας, σε αυτό το Mac, ή μέσω λογαριασμού παρόχου που ήδη πληρώνεις.";
 "onboarding.welcome.task2.title" = "Έλεγξε το μικρόφωνό σου";

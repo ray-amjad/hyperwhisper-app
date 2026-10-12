@@ -610,8 +610,11 @@
         <StackPanel x:Name="VocabularyInputSection" Margin="0,0,0,16">
           <Border Classes="inputPill">
             <Grid ColumnDefinitions="*,Auto">
+              <!-- AcceptsReturn keeps every line of a pasted list; a single-line box keeps only
+                   one (#1777). Enter itself still adds: MainWindow catches it on the tunnel, before
+                   the box turns it into a line break. -->
               <TextBox x:Name="VocabularyWordInput" Classes="bare" FontSize="14" Text="{Binding Word}"
-                       KeyDown="OnVocabularyWordKeyDown"
+                       AcceptsReturn="True" MaxHeight="120"
                        PlaceholderText="{ReflectionBinding [vocabulary.input.placeholder], Source={StaticResource Localization}}"/>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
                 <Button x:Name="VocabularyAddButton" Classes="actionChip" Margin="0,0,16,0" Click="OnVocabularyAdd">
@@ -660,9 +663,8 @@
                   CornerRadius="10" Padding="16,12" Margin="0,10,0,0">
             <Grid RowDefinitions="*,Auto">
               <TextBox x:Name="VocabularyReplacementInput" Classes="bare" FontSize="14" MinHeight="64"
-                       AcceptsReturn="False" TextWrapping="Wrap" VerticalAlignment="Top"
+                       AcceptsReturn="True" TextWrapping="Wrap" VerticalAlignment="Top"
                        VerticalContentAlignment="Top" Text="{Binding Replacement}"
-                       KeyDown="OnVocabularyReplacementKeyDown"
                        PlaceholderText="{ReflectionBinding [vocabulary.replacement.field.placeholder], Source={StaticResource Localization}}"/>
               <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
                 <Button x:Name="VocabularyReplaceButton" Classes="actionChip" Click="OnVocabularyAdd">
@@ -1397,8 +1399,10 @@
         <!-- Windows' ActionStatusText: one shared line between the status card and the tab strip,
              so it stays visible whichever tab is showing. It reports what a Copy or Regenerate
              actually did; Linux used to report only failures, and only into the page's own status
-             line at the very bottom. It never auto-hides on Windows either; the next action
-             replaces it. The negative top margin closes the gap the card below already leaves. -->
+             line at the very bottom. It never auto-hides on a timer; the next action replaces it,
+             and turning the server off or on clears it (#653), since that hides or redraws the
+             buttons it reports on. The negative top margin closes the gap the card below already
+             leaves. -->
         <TextBlock x:Name="LocalApiActionStatus" FontSize="11" TextWrapping="Wrap"
                    Margin="0,-8,0,14" IsVisible="False"/>
 

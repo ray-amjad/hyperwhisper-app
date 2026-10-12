@@ -92,7 +92,13 @@ public sealed class LocalApiServer : INotifyPropertyChanged
 
     private WebApplication? _app;
     private Task? _runTask;
+    private Task? _stopTask;
     private readonly object _lifecycleLock = new();
+
+    // Kestrel's own wait for in-flight requests is 2 s (Stop below). Quit
+    // waits a little past it so a cancelled request can reach its finally
+    // and delete its scratch file before the process exits (#1476).
+    private static readonly TimeSpan ShutdownStopWait = TimeSpan.FromSeconds(3);
 
     private LocalApiServer() { }
 
@@ -224,8 +230,10 @@ public sealed class LocalApiServer : INotifyPropertyChanged
             if (_app == null) return;
             var app = _app;
             _app = null;
-            // ast-grep-ignore: no-discarded-task-run -- this runs inside lock (_lifecycleLock); awaiting shutdown while holding the lock would block every other lifecycle call
-            _ = Task.Run(async () =>
+            // Not awaited: this runs inside lock (_lifecycleLock), and awaiting
+            // shutdown while holding the lock would block every other lifecycle
+            // call. Shutdown waits on the stored task, bounded, at Quit.
+            _stopTask = Task.Run(async () =>
             {
                 try { await app.StopAsync(TimeSpan.FromSeconds(2)); } catch { /* shutting down */ }
                 try { await app.DisposeAsync(); } catch { /* shutting down */ }
@@ -247,6 +255,25 @@ public sealed class LocalApiServer : INotifyPropertyChanged
     public void Shutdown()
     {
         Stop();
+
+        // Stop only starts the host's shutdown, and the process used to exit
+        // 8 ms later, so a request still running never reached the finally
+        // that deletes its decoded upload or snapshot (#1476). Wait, bounded,
+        // only when a request holds a scratch file; then delete what is left.
+        if (LocalApiScratchFiles.InFlightCount == 0)
+        {
+            return;
+        }
+
+        Task? stopTask;
+        lock (_lifecycleLock) { stopTask = _stopTask; }
+        try { stopTask?.Wait(ShutdownStopWait); } catch { /* shutting down */ }
+
+        var deleted = LocalApiScratchFiles.DeleteInFlight();
+        if (deleted > 0)
+        {
+            LoggingService.Info($"LocalApiServer: deleted {deleted} scratch file(s) of interrupted /transcribe requests");
+        }
     }
 
     /// <summary>Restart so dependency changes take effect.</summary>

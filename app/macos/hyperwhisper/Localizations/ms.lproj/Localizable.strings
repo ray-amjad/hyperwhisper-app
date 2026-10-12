@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Selesai Penyediaan Awal";
 
 "onboarding.setupLater.button" = "Sediakan kemudian";
-"onboarding.error.microphone.denied" = "Kebenaran mikrofon ditolak. Sila berikan kebenaran dalam Tetapan Sistem.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Lancarkan semasa log masuk";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Kredit adalah prabayar dan dikongsi di semua Mac yang log masuk dengan kunci ini. Masa terbiar tidak dikenakan sebarang kos.";
 "onboarding.source.note" = "Menukar fikiran kemudian hanya mengulang langkah ini sahaja. Tetapan lain yang anda buat kekal.";
 "onboarding.permissions.note" = "Langkau Kebolehcapaian dan transkrip akan pergi ke papan keratan, sedia untuk ditampal. Menghidupkannya kemudian cuma perlukan satu klik.";
+"onboarding.permissions.microphone.denied" = "Tidak dibenarkan. Hidupkan HyperWhisper dalam Tetapan Sistem, kemudian kembali ke sini.";
+"onboarding.permissions.continueNeedsMicrophone" = "Teruskan memerlukan mikrofon. Benarkannya di atas, atau pilih Sediakan Kemudian.";
 "onboarding.welcome.task1.title" = "Pilih cara transkripsi berjalan";
 "onboarding.welcome.task1.caption" = "Dalam awan kami, pada Mac ini, atau melalui akaun pembekal yang anda sudah bayar.";
 "onboarding.welcome.task2.title" = "Semak mikrofon anda";

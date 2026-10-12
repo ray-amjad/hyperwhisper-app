@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Готово са Упознавањем";
 
 "onboarding.setupLater.button" = "Подеси касније";
-"onboarding.error.microphone.denied" = "Дозвола за микрофон одбијена. Молимо дозволи у Системским Поставкама.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Покрени при пријави";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Кредити су унапред плаћени и дељени између сваког Mac-а пријављеног овим кључем. Неактивно време ништа не кошта.";
 "onboarding.source.note" = "Ако се предомислиш касније, понавља се само овај корак. Ништа друго што си подесио се не губи.";
 "onboarding.permissions.note" = "Прескочи Приступачност и преписи иду у клипборд, спремни за лепљење. Укључивање касније траје један клик.";
+"onboarding.permissions.microphone.denied" = "Није дозвољено. Укључите HyperWhisper у Системским подешавањима, па се вратите овде.";
+"onboarding.permissions.continueNeedsMicrophone" = "За наставак је потребан микрофон. Дозволите га изнад или изаберите Подеси касније.";
 "onboarding.welcome.task1.title" = "Изабери како транскрипција ради";
 "onboarding.welcome.task1.caption" = "У нашем облаку, на овом Mac-у, или преко налога провајдера који већ плаћаш.";
 "onboarding.welcome.task2.title" = "Провери свој микрофон";

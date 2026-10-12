@@ -289,7 +289,6 @@
 "onboarding.done.button" = "اكتمال الإعداد الأولي";
 
 "onboarding.setupLater.button" = "الإعداد لاحقًا";
-"onboarding.error.microphone.denied" = "تم رفض إذن الميكروفون. يرجى منح الإذن في إعدادات النظام.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "إطلاق عند تسجيل الدخول";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "الرصيد مدفوع مسبقًا ومشترك بين كل أجهزة Mac المسجّلة بهذا المفتاح. وقت الخمول لا يكلّف شيئًا.";
 "onboarding.source.note" = "تغيير رأيك لاحقًا يعيد هذه الخطوة فقط. لا يُفقد أي شيء آخر أعددته.";
 "onboarding.permissions.note" = "تخطَّ إمكانية الوصول وستذهب النصوص إلى الحافظة، جاهزة للصق. تفعيلها لاحقًا يتطلب نقرة واحدة فقط.";
+"onboarding.permissions.microphone.denied" = "غير مسموح. فعّل HyperWhisper في إعدادات النظام، ثم عد إلى هنا.";
+"onboarding.permissions.continueNeedsMicrophone" = "يتطلب «متابعة» الميكروفون. اسمح به أعلاه، أو اختر «الإعداد لاحقًا».";
 "onboarding.welcome.task1.title" = "اختر كيفية تشغيل التفريغ";
 "onboarding.welcome.task1.caption" = "على سحابتنا، على جهاز Mac هذا، أو عبر حساب مزوّد تدفع له بالفعل.";
 "onboarding.welcome.task2.title" = "تحقق من ميكروفونك";

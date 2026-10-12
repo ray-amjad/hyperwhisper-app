@@ -73,6 +73,12 @@ internal static class TranscribeEndpoints
             try
             {
                 (audioPath, tempFileCreated, audioPathReadLock) = ResolveAudioSource(req);
+                if (tempFileCreated)
+                {
+                    // Quit and the start-up sweep reach this file through the
+                    // registry when this request never gets to its finally (#1476).
+                    LocalApiScratchFiles.Track(audioPath, audioPathReadLock);
+                }
             }
             catch (ApiInputException aiex)
             {
@@ -188,6 +194,7 @@ internal static class TranscribeEndpoints
                     {
                         LoggingService.Debug($"LocalAPI /transcribe: failed to delete temp file {audioPath}: {ex.Message}");
                     }
+                    LocalApiScratchFiles.Untrack(audioPath);
                 }
             }
         });
@@ -651,19 +658,38 @@ internal static class TranscribeEndpoints
 
         var ext = ExtensionForMime(req.MimeType);
         var tempPath = Path.Combine(
-            Path.GetTempPath(),
-            $"hyperwhisper-localapi-{Guid.NewGuid():N}.{ext}");
+            LocalApiScratchFiles.UploadDirectory(Path.GetTempPath()),
+            $"{LocalApiScratchFiles.UploadPrefix}{Guid.NewGuid():N}.{ext}");
         try
         {
             File.WriteAllBytes(tempPath, data);
+
+            // Held like the snapshot's lock: readers can still open the file,
+            // but another HyperWhisper process's start-up sweep cannot delete
+            // it while this request is live (#1476).
+            var readLock = new FileStream(
+                tempPath,
+                new FileStreamOptions
+                {
+                    Mode = FileMode.Open,
+                    Access = FileAccess.Read,
+                    Share = FileShare.Read,
+                    Options = FileOptions.SequentialScan
+                });
+            return (tempPath, true, readLock);
         }
         catch (Exception ex)
         {
+            try { File.Delete(tempPath); }
+            catch (Exception cleanupEx)
+            {
+                LoggingService.Debug($"LocalAPI /transcribe: failed to delete temp file {tempPath}: {cleanupEx.Message}");
+            }
+
             throw new ApiInputException(
                 LocalApiErrorCode.AudioDecodeFailed,
                 $"Failed to write decoded audio to temp file: {ex.Message}");
         }
-        return (tempPath, true, null);
     }
 
     /// <summary>
@@ -728,9 +754,9 @@ internal static class TranscribeEndpoints
             extension = ".wav";
         }
 
-        var snapshotDirectory = Path.Combine(Path.GetTempPath(), "HyperWhisper", "local-api-transcribe");
+        var snapshotDirectory = LocalApiScratchFiles.SnapshotDirectory(Path.GetTempPath());
         Directory.CreateDirectory(snapshotDirectory);
-        return Path.Combine(snapshotDirectory, $"snapshot-{Guid.NewGuid():N}{extension}");
+        return Path.Combine(snapshotDirectory, $"{LocalApiScratchFiles.SnapshotPrefix}{Guid.NewGuid():N}{extension}");
     }
 
     private static string GetFinalDosPath(SafeFileHandle handle)

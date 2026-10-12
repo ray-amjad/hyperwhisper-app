@@ -641,10 +641,12 @@ class LicenseNetworkService: LicenseNetworkServing {
     /// Persists a server verdict only while the caller's validation is still
     /// current. For a `RustLicenseStore`, the expected-key check and the
     /// side-effecting Rust FFI call run inside `performLicenseTransaction`,
-    /// under the store's `transactionLock` — the same lock its `get`/`set`/
-    /// `delete`, `clearLicenseRecord` and `replaceLicenseKeyForImport` take —
-    /// so they are one serialized unit relative to LicenseManager
-    /// activation/deactivation without any actor isolation.
+    /// under the store's `transactionLock` — the same lock its `set`/`delete`,
+    /// `clearLicenseRecord` and `replaceLicenseKeyForImport` take — so they
+    /// are one serialized unit relative to LicenseManager
+    /// activation/deactivation without any actor isolation. Reads outside the
+    /// transaction do not take that lock: they see the last committed record
+    /// and never wait on the Keychain write (#1424).
     ///
     /// Deliberately NOT `@MainActor`: the commit ends in a blocking Keychain
     /// write, so it must run off the main thread (#1408). It touches no

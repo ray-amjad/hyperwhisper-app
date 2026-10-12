@@ -3,14 +3,32 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy | HyperWhisper",
   description:
-    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts.",
+    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route.",
 };
+
+// The one storage exception, written once and rendered after every
+// no-storage claim below. The first sentence is Ray's approved wording
+// (#1033); the second scopes it to google-chirp.ts, which uploads to the
+// bucket when audio is over INLINE_AUDIO_MAX_BYTES (9.5 MB) OR its
+// estimateAudioSeconds() guess is over INLINE_AUDIO_MAX_SECONDS (55 s). The
+// guess comes from file size, so the copy says "estimate", not a hard length.
+const CHIRP_BUCKET_EXCEPTION = (
+  <>
+    On the Chirp route, Cloud audio sits briefly in our own Google Cloud
+    Storage bucket, is deleted after the request, and at most 1 day after a
+    failure. The Chirp route is HyperWhisper Cloud&apos;s Google Chirp 3 model.
+    A Chirp recording goes into the bucket when it is over 9.5 MB or when our
+    server, estimating from its file size, judges it longer than about 55
+    seconds; other Chirp recordings are sent to Google without being written
+    to it.
+  </>
+);
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 6, 2026
+        Last Updated: October 11, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -20,7 +38,8 @@ export default function PrivacyPolicyPage() {
         transcribe entirely offline using local AI models, or choose from a
         range of cloud providers — including HyperWhisper Cloud, our built-in
         cloud service. Whichever option you choose, we never store your audio
-        recordings or transcripts.
+        recordings or transcripts, with one exception for HyperWhisper Cloud
+        audio. {CHIRP_BUCKET_EXCEPTION}
       </p>
       <p>
         Ray Amjad LTD (
@@ -170,7 +189,8 @@ export default function PrivacyPolicyPage() {
       </ul>
 
       <p className="font-semibold">
-        We do not store your audio recordings or transcripts.
+        We do not store your audio recordings or transcripts, with one
+        exception. {CHIRP_BUCKET_EXCEPTION}
       </p>
 
       <h2>What Stays On Your Device</h2>
@@ -207,7 +227,8 @@ export default function PrivacyPolicyPage() {
       <p>
         When using cloud transcription, your audio is sent directly from your
         device to the cloud provider you choose. HyperWhisper does not proxy,
-        store, or retain your audio or transcripts on our servers. The cloud
+        store, or retain your audio or transcripts on our servers. HyperWhisper
+        Cloud, below, has one exception. {CHIRP_BUCKET_EXCEPTION} The cloud
         provider you select may store or process your data according to their
         own privacy policies. You are responsible for reviewing those policies
         before use.
@@ -353,7 +374,7 @@ export default function PrivacyPolicyPage() {
         <strong>HyperWhisper Cloud</strong> is our built-in cloud transcription
         service. It routes your audio through our edge servers to one of the
         providers listed below. We do not store your audio or transcripts — we
-        only track credit usage.
+        only track credit usage — with one exception. {CHIRP_BUCKET_EXCEPTION}
       </p>
       <p>
         <strong>Transcription (speech-to-text) providers:</strong>
@@ -393,6 +414,19 @@ export default function PrivacyPolicyPage() {
             ElevenLabs
           </a>{" "}
           (Scribe v2) — highest accuracy option.
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://cloud.google.com/terms/cloud-privacy-notice"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google
+          </a>{" "}
+          (Chirp 3) — the Chirp route. Recordings over about 55 seconds or 9.5 MB
+          pass through our own Google Cloud Storage bucket first, as described
+          above.
         </li>
       </ul>
       <p>
@@ -732,7 +766,8 @@ export default function PrivacyPolicyPage() {
       <h2>Your Rights</h2>
       <p>
         Because we do not store your audio or transcripts, requests to access or
-        delete that data should be carried out on your device by you. For email,
+        delete that data should be carried out on your device by you. The one
+        exception is HyperWhisper Cloud audio. {CHIRP_BUCKET_EXCEPTION} For email,
         order, or license information we maintain, you may request access or
         deletion by contacting support. Some information must be retained for
         legal/accounting purposes.

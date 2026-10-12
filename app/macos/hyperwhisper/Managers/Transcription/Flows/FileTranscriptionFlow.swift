@@ -533,7 +533,7 @@ class FileTranscriptionFlow {
             persistence.updateTranscriptWithTranscription(
                 processingTranscript,
                 transcribedText: result.rawText,
-                postProcessedText: result.wasPostProcessed ? result.text : nil,
+                postProcessedText: result.historyPostProcessedText,
                 transcriptionProvider: result.provider,
                 postProcessingProvider: result.postProcessingProvider
             )

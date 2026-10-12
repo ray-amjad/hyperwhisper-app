@@ -1312,8 +1312,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Đang có một bản ghi âm hoặc phiên chép lời tệp chạy. Hãy thử lại tệp khi hoàn tất.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Tệp này trống nên không có âm thanh để chép lời.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Tệp này bị hỏng hoặc không phải là tệp âm thanh mà HyperWhisper có thể đọc.</value>
   </data>
 
   <!-- Mode Change Toast -->

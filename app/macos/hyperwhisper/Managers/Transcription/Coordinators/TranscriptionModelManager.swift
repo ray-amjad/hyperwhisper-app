@@ -402,8 +402,13 @@ class TranscriptionModelManager: ObservableObject {
             do {
                 try await provider.prepareIfNeeded(language: extractLanguage(from: mode), modelId: modelId)
                 modelReadyState = .ready(name: displayName)
+            } catch is CancellationError {
+                AppLogger.models.info("Nemotron preparation cancelled")
             } catch {
                 AppLogger.models.error("Failed to prepare Nemotron: \(error.localizedDescription, privacy: .public)")
+                // A failed load (a broken variant, #1632) must not leave the status
+                // bar on Loading; the Library row offers Re-download.
+                modelReadyState = .none
             }
             return
         }

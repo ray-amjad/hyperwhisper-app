@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Zaključi vpeljevanje";
 
 "onboarding.setupLater.button" = "Nastavi pozneje";
-"onboarding.error.microphone.denied" = "Dostop do mikrofonskega vhoda je zavrnjen. Odobri dostop v Sistemskih nastavitvah.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Zaženi ob prijavi";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Dobropisi so vnaprej plačani in deljeni med vsemi Maci, prijavljenimi s tem ključem. Neaktivni čas ne stane nič.";
 "onboarding.source.note" = "Če si pozneje premisliš, se ponovi samo ta korak. Nič drugega, kar si nastavil, se ne izgubi.";
 "onboarding.permissions.note" = "Preskoči Dostopnost in prepisi gredo v odložišče, pripravljeni za lepljenje. Vklop pozneje traja en klik.";
+"onboarding.permissions.microphone.denied" = "Ni dovoljeno. Vklopite HyperWhisper v Sistemskih nastavitvah in se vrnite sem.";
+"onboarding.permissions.continueNeedsMicrophone" = "Za nadaljevanje je potreben mikrofon. Dovolite ga zgoraj ali izberite Nastavi pozneje.";
 "onboarding.welcome.task1.title" = "Izberi, kako naj poteka prepisovanje";
 "onboarding.welcome.task1.caption" = "V našem oblaku, na tem Macu ali prek računa ponudnika, ki ga že plačuješ.";
 "onboarding.welcome.task2.title" = "Preveri svoj mikrofon";

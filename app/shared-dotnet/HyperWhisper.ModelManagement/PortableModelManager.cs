@@ -324,8 +324,13 @@ public sealed class PortableModelManager
 
     private static bool ValidateSingleFile(ManagedModel model, string path)
     {
-        if (!File.Exists(path) || new FileInfo(path).Length < (long)(model.ApproximateSizeBytes * 0.95)) return false;
-        if (!ValidateArtifactFile(model.Artifacts.Single(), path)) return false;
+        var artifact = model.Artifacts.Single();
+        // A catalog byte size (every Whisper file) is checked exactly in ValidateArtifactFile, so a
+        // file cut short at any length is not installed (#1632). Only a model with no pinned size
+        // (local LLMs) falls back to the 95% floor of its approximate size.
+        if (!File.Exists(path)) return false;
+        if (artifact.ExactSizeBytes is null && new FileInfo(path).Length < (long)(model.ApproximateSizeBytes * 0.95)) return false;
+        if (!ValidateArtifactFile(artifact, path)) return false;
         Span<byte> header = stackalloc byte[4];
         using var input = File.OpenRead(path);
         return input.Read(header) == 4 && header.SequenceEqual(model.Kind == ManagedModelKind.Whisper ? GgmlMagic : GgufMagic);

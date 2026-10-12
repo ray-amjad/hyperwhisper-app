@@ -431,13 +431,25 @@ Text("vocabulary.duplicate.message".localized(arguments: duplicateWord))
     private func addWord() {
         guard hasValidWord else { return }
 
-        let wasAdded = PersistenceController.shared.addVocabularyItem(
-            word: newWord,
-            replacement: replacement.isEmpty ? nil : replacement,
-            excludingId: editingId
-        )
+        // Issue #1475: a pasted multi-line text becomes one word per non-empty
+        // line. Each line gets the usual empty and duplicate checks, and the
+        // replacement (which may span lines) goes with every line.
+        var addedCount = 0
+        var duplicates: [String] = []
+        for line in PersistenceController.vocabularyWordLines(from: newWord) {
+            let wasAdded = PersistenceController.shared.addVocabularyItem(
+                word: line,
+                replacement: replacement.isEmpty ? nil : replacement,
+                excludingId: editingId
+            )
+            if wasAdded {
+                addedCount += 1
+            } else {
+                duplicates.append(line)
+            }
+        }
 
-        if wasAdded {
+        if addedCount > 0 {
             // Delete old item only after new item is successfully saved
             if let deleteId = pendingDeleteId {
                 PersistenceController.shared.deleteVocabularyItem(byId: deleteId)
@@ -449,8 +461,12 @@ Text("vocabulary.duplicate.message".localized(arguments: duplicateWord))
             replacement = ""
             showingReplacementField = false
             focusedField = .newWord
-        } else {
-            duplicateWord = newWord
+        }
+
+        // Some lines of a paste can be duplicates while others are added; name
+        // only the refused ones. When nothing was added the field keeps its text.
+        if !duplicates.isEmpty {
+            duplicateWord = duplicates.joined(separator: ", ")
             showDuplicateAlert = true
         }
     }

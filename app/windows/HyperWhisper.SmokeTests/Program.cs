@@ -510,20 +510,145 @@ internal static class Program
                     "a malformed translation threw or dropped the file name");
 
                 // Every shipped catalog carries the key and the {0} placeholder.
-                var catalogs = Directory.GetDirectories(AppContext.BaseDirectory)
-                    .Select(Path.GetFileName)
-                    .Where(name => File.Exists(Path.Combine(AppContext.BaseDirectory, name!, "HyperWhisper.resources.dll")))
-                    .ToList();
-                Assert(catalogs.Count >= 39, $"expected 39 satellite catalogs, found {catalogs.Count}");
+                var catalogs = ShippedSatelliteCultures();
                 var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(
                     ApplicationControlDiagnostics.BlockedNoticeKey, CultureInfo.InvariantCulture);
                 foreach (var name in catalogs)
                 {
                     var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(
-                        ApplicationControlDiagnostics.BlockedNoticeKey, new CultureInfo(name!));
+                        ApplicationControlDiagnostics.BlockedNoticeKey, new CultureInfo(name));
                     Assert(text != null && text.Contains("{0}", StringComparison.Ordinal),
                         $"Strings.{name}.resx has no {{0}} in {ApplicationControlDiagnostics.BlockedNoticeKey}");
                     Assert(text != neutral, $"Strings.{name}.resx carries the English notice");
+                }
+            });
+
+            // #1535. A tray file pick that finds a dictation already running gets
+            // a toast instead of only a WARN line; every catalog must carry it.
+            Run("Every catalog translates the busy file-pick toast (#1535)", () =>
+            {
+                const string busyKey = "errors.fileTranscriptionBusy";
+                var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(
+                    busyKey, CultureInfo.InvariantCulture);
+                Assert(!string.IsNullOrWhiteSpace(neutral), $"{busyKey} is missing from Strings.resx");
+                var catalogs = ShippedSatelliteCultures();
+                foreach (var name in catalogs)
+                {
+                    var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(busyKey, new CultureInfo(name));
+                    Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
+                        $"Strings.{name}.resx does not translate {busyKey}");
+                }
+            });
+
+            // #1452. Transcribe File says a file is empty, or damaged or not audio,
+            // instead of NAudio's or Media Foundation's text; every catalog must carry both.
+            Run("Every catalog translates the empty and unreadable file toasts (#1452)", () =>
+            {
+                foreach (var key in new[] { "errors.fileEmpty", "errors.fileUnreadable" })
+                {
+                    var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(
+                        key, CultureInfo.InvariantCulture);
+                    Assert(!string.IsNullOrWhiteSpace(neutral), $"{key} is missing from Strings.resx");
+                    foreach (var name in ShippedSatelliteCultures())
+                    {
+                        var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, new CultureInfo(name));
+                        Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
+                            $"Strings.{name}.resx does not translate {key}");
+                    }
+                }
+            });
+
+            // #1535. The Transcribe File dialog has no owner, so the tray stays live
+            // while it is open. Drive the real TranscribeFileWithModeAsync on a bare
+            // view model, with the dialog seam standing in for the dialog: the tray
+            // items go off while it is open, a second request opens no second dialog,
+            // and a pick that finds a dictation running gets the busy toast.
+            Run("Tray Transcribe File is off while its dialog is open, and a second request opens none (#1535)", () =>
+            {
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                var mode = new Mode { Name = "Smoke" };
+                Assert(vm.CanOfferTrayFileTranscription, "an idle view model disables Transcribe File");
+                Assert(MainViewModel.TrayFileTranscriptionInputs.Contains(nameof(MainViewModel.IsFileDialogOpen)),
+                    "the tray does not rebuild its Transcribe File items when the dialog opens or closes");
+
+                var dialogStates = new List<bool>();
+                vm.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MainViewModel.IsFileDialogOpen))
+                    {
+                        dialogStates.Add(vm.IsFileDialogOpen);
+                    }
+                };
+
+                var shown = 0;
+                var offeredWhileOpen = true;
+                var secondCompleted = false;
+                vm.ShowFileDialogOverride = _ =>
+                {
+                    // A guard that lets the second request through would re-enter
+                    // here; stop it rather than recurse.
+                    if (++shown > 1)
+                    {
+                        return false;
+                    }
+
+                    offeredWhileOpen = vm.CanOfferTrayFileTranscription;
+                    // The tray click that would have opened a second dialog.
+                    secondCompleted = vm.TranscribeFileWithModeAsync(mode).IsCompletedSuccessfully;
+                    return false;
+                };
+                vm.TranscribeFileWithModeAsync(mode).GetAwaiter().GetResult();
+
+                Assert(shown == 1, $"a request made while the dialog was open showed a dialog too ({shown} shown)");
+                Assert(secondCompleted, "the request made while the dialog was open did not return at once");
+                Assert(!offeredWhileOpen, "the tray offers Transcribe File while its dialog is open");
+                Assert(!vm.IsFileDialogOpen && vm.CanOfferTrayFileTranscription,
+                    "Transcribe File stays off after the dialog closed");
+                Assert(dialogStates.SequenceEqual(new[] { true, false }),
+                    $"IsFileDialogOpen raised [{string.Join(", ", dialogStates)}], expected [True, False]");
+
+                string? toast = null;
+                vm.ShowErrorToastRequested += (_, e) => toast = e.Message;
+                vm.ShowFileDialogOverride = _ =>
+                {
+                    // A dictation started from its shortcut while the dialog was open.
+                    vm.IsRecording = true;
+                    return true;
+                };
+                vm.TranscribeFileWithModeAsync(mode).GetAwaiter().GetResult();
+                Assert(toast == HyperWhisper.Localization.Loc.S("errors.fileTranscriptionBusy"),
+                    $"a pick that found a dictation running toasted '{toast ?? "nothing"}'");
+                Assert(!vm.CanOfferTrayFileTranscription, "the tray offers Transcribe File during a dictation");
+            });
+
+            // #1452. A cloud Mode skips the WAV conversion and sent a 0-byte file to the
+            // provider, so the toast showed the provider's error. The pick is turned away first.
+            Run("Transcribe File turns away a 0-byte file before a cloud Mode uploads it (#1452)", () =>
+            {
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                var mode = new Mode { Name = "Smoke", ProviderType = "cloud", CloudProvider = "openai" };
+                var emptyPath = TempWav("EmptyCloudPick");
+                try
+                {
+                    File.WriteAllBytes(emptyPath, Array.Empty<byte>());
+                    string? toast = null;
+                    vm.ShowErrorToastRequested += (_, e) => toast = e.Message;
+                    vm.ShowFileDialogOverride = dialog =>
+                    {
+                        dialog.FileName = emptyPath;
+                        return true;
+                    };
+                    vm.TranscribeFileWithModeAsync(mode).GetAwaiter().GetResult();
+                    Assert(toast == FileTranscriptionService.EmptyFileMessage,
+                        $"a 0-byte pick on a cloud Mode toasted '{toast ?? "nothing"}'");
+                    Assert(toast != "errors.fileEmpty", "errors.fileEmpty is missing from Strings.resx");
+                    Assert(!vm.IsTranscribing, "a 0-byte pick started a transcription");
+                }
+                finally
+                {
+                    TryDelete(emptyPath);
                 }
             });
 
@@ -2497,6 +2622,167 @@ internal static class Program
                 Assert(restored["Linux OCR on"].EnableScreenOCR,
                     "a Linux backup with platformExtensions.linux.enableScreenOCR: true restored with OCR OFF on Windows");
                 Assert(!restored["No slice"].EnableScreenOCR, "a mode with no slice at all restored with OCR ON");
+            });
+
+            // #1712: both .NET heads write a mode's vocabulary and local-engine fields
+            // in their OWN slice under the same names. A Linux v2 backup restored on
+            // Windows must keep them; a present windows slice stays the whole record.
+            Run("backup import (#1712): vocabulary and local-engine fields fall back to the linux mode slice", () =>
+            {
+                const string linuxBackupJson = """
+                {
+                  "schemaVersion": 2,
+                  "exportDate": "2026-10-10T00:00:00Z",
+                  "appVersion": "1.0.0",
+                  "platform": "linux",
+                  "modes": [
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1712", "name": "Linux vocabulary", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": true, "sortOrder": 0,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "linux": {
+                        "customVocabulary": ["Øresund"], "localEngine": "parakeet",
+                        "localParakeetModel": "parakeet-tdt-0.6b-v3", "providerType": "local",
+                        "modelType": "large-v3", "enableScreenOCR": false, "isSystemProvided": true,
+                        "createdDate": "2025-01-02T03:04:05.0000000Z", "modifiedDate": "2025-06-07T08:09:10.0000000Z" } } },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1713", "name": "Windows slice wins", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": false, "sortOrder": 1,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": {
+                        "windows": { "localEngine": "whisper" },
+                        "linux": { "customVocabulary": ["Stale"], "localEngine": "parakeet",
+                                   "localParakeetModel": "parakeet-tdt-0.6b-v3" } } }
+                  ]
+                }
+                """;
+                var backup = JsonSerializer.Deserialize<UniversalBackup>(linuxBackupJson)
+                    ?? throw new InvalidOperationException("the Linux mode backup did not deserialize");
+                var restored = backup.Modes!.Select(UniversalBackupMapper.MapToMode).ToDictionary(mode => mode.Name);
+
+                var fromLinux = restored["Linux vocabulary"];
+                Assert(fromLinux.CustomVocabulary is ["Øresund"],
+                    "a Linux backup's platformExtensions.linux.customVocabulary was lost on a Windows restore");
+                Assert(fromLinux.LocalEngine == "parakeet" && fromLinux.LocalParakeetModel == "parakeet-tdt-0.6b-v3",
+                    "a Linux backup's local engine / Parakeet model was lost on a Windows restore");
+                Assert(fromLinux.ProviderType == "local" && fromLinux.ModelType == "large-v3" && fromLinux.IsSystemProvided,
+                    "a Linux backup's providerType / modelType / isSystemProvided was lost on a Windows restore");
+                Assert(fromLinux.CreatedDate.ToUniversalTime() == new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Utc)
+                    && fromLinux.ModifiedDate.ToUniversalTime() == new DateTime(2025, 6, 7, 8, 9, 10, DateTimeKind.Utc),
+                    "a Linux backup's createdDate / modifiedDate was lost on a Windows restore");
+                var windowsWins = restored["Windows slice wins"];
+                Assert(windowsWins.CustomVocabulary is null && windowsWins.LocalEngine == "whisper"
+                    && windowsWins.LocalParakeetModel is null,
+                    "a stale preserved linux slice overrode the mode's own windows slice");
+            });
+
+            // #1716: Windows → Linux (edit) → Windows. Windows exports a mode, Linux
+            // imports it, keeps the windows slice as a preserved foreign slice, and the
+            // user edits the vocabulary there: the Linux export holds the NEW values in
+            // linux (newer modifiedDate) and the OLD ones in windows. The slice with the
+            // newer modifiedDate wins for the fields both .NET heads share; a tie or an
+            // older linux slice keeps the windows slice.
+            Run("backup import (#1716): a newer linux slice wins over the preserved windows slice", () =>
+            {
+                var original = new Mode
+                {
+                    Id = Guid.Parse("6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1716"), Name = "Round trip", Preset = "custom",
+                    Language = "en", Model = "base", ModelType = "base", LocalEngine = "parakeet",
+                    LocalParakeetModel = "parakeet-tdt-0.6b-v3", ProviderType = "local",
+                    CustomVocabulary = ["Øresund"],
+                    CreatedDate = new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Unspecified),
+                    ModifiedDate = new DateTime(2025, 6, 7, 8, 9, 10, DateTimeKind.Unspecified),
+                };
+                var exported = JsonNode.Parse(JsonSerializer.Serialize(UniversalBackupMapper.MapMode(original)))!.AsObject();
+                var extensions = exported["platformExtensions"]!.AsObject();
+                Assert(extensions["windows"] is JsonObject, "a Windows mode export carried no windows slice");
+
+                // What Linux writes after the user edits the vocabulary there: every key,
+                // ISO-8601 UTC dates, and the windows slice carried unchanged.
+                extensions["linux"] = new JsonObject
+                {
+                    ["customVocabulary"] = new JsonArray("Kattegat"), ["localEngine"] = "whisper",
+                    ["localParakeetModel"] = null, ["providerType"] = "local", ["modelType"] = "small",
+                    ["enableScreenOCR"] = true, ["isSystemProvided"] = false,
+                    ["createdDate"] = "2025-01-02T03:04:05.0000000Z", ["modifiedDate"] = "2026-10-11T09:00:00.0000000Z",
+                };
+                var edited = JsonSerializer.Deserialize<UniversalMode>(exported.ToJsonString())
+                    ?? throw new InvalidOperationException("the round-tripped mode did not deserialize");
+                var restored = UniversalBackupMapper.MapToMode(edited);
+                Assert(restored.CustomVocabulary is ["Kattegat"],
+                    "a Linux-edited vocabulary was lost to the stale preserved windows slice on a Windows restore");
+                Assert(restored.LocalEngine == "whisper" && restored.LocalParakeetModel is null
+                    && restored.ModelType == "small" && restored.EnableScreenOCR,
+                    "the Linux-edited local engine / model / screen OCR lost to the stale windows slice");
+                Assert(restored.ModifiedDate.ToUniversalTime() == new DateTime(2026, 10, 11, 9, 0, 0, DateTimeKind.Utc),
+                    "the newer linux slice's modifiedDate was not restored on Windows");
+
+                // A tie (an unedited trip) and an older linux slice keep the windows slice.
+                foreach (var linuxDate in new[] { "2025-06-07T08:09:10.0000000Z", "2025-01-01T00:00:00.0000000Z" })
+                {
+                    extensions["linux"]!["modifiedDate"] = linuxDate;
+                    var kept = UniversalBackupMapper.MapToMode(JsonSerializer.Deserialize<UniversalMode>(exported.ToJsonString())!);
+                    Assert(kept.CustomVocabulary is ["Øresund"] && kept.LocalEngine == "parakeet"
+                        && kept.LocalParakeetModel == "parakeet-tdt-0.6b-v3",
+                        $"a linux slice dated {linuxDate} (not newer) overrode the mode's own windows slice");
+                }
+            });
+
+            // #1747: the same trip for the cloud tier and the cloud / local
+            // post-processing models. Linux writes those three only at the TOP level,
+            // so its export holds the edit there and the OLD values in the preserved
+            // windows slice. A newer linux slice wins, so the top-level values restore,
+            // and the next Windows export carries them in its own slice too.
+            Run("backup import (#1747): a newer linux slice keeps its cloud tier and post-processing models", () =>
+            {
+                var original = new Mode
+                {
+                    Id = Guid.Parse("6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1747"), Name = "Cloud round trip", Preset = "custom",
+                    Language = "en", Model = "cloud", ModelType = "cloud", ProviderType = "cloud",
+                    CloudProvider = "hyperwhisper", CloudAccuracyTier = "deepgramNova3",
+                    CloudPostProcessingModel = "grok:grok-4.3", LocalPostProcessingModel = "windows-local-pp",
+                    CreatedDate = new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Unspecified),
+                    ModifiedDate = new DateTime(2025, 6, 7, 8, 9, 10, DateTimeKind.Unspecified),
+                };
+                var exported = JsonNode.Parse(JsonSerializer.Serialize(UniversalBackupMapper.MapMode(original)))!.AsObject();
+                var extensions = exported["platformExtensions"]!.AsObject();
+                Assert(extensions["windows"]?["cloudAccuracyTier"]?.GetValue<string>() == "deepgramNova3",
+                    "a Windows mode export carried no cloud tier in its windows slice");
+
+                // What Linux writes after the user edits the three fields there.
+                exported["cloudAccuracyTier"] = "groqWhisper";
+                exported["cloudPostProcessingModel"] = "cerebras:gpt-oss-120b";
+                exported["localPostProcessingModel"] = "linux-local-pp";
+                extensions["linux"] = new JsonObject
+                {
+                    ["customVocabulary"] = null, ["localEngine"] = "whisper", ["localParakeetModel"] = null,
+                    ["providerType"] = "cloud", ["modelType"] = "cloud", ["enableScreenOCR"] = false,
+                    ["isSystemProvided"] = false,
+                    ["createdDate"] = "2025-01-02T03:04:05.0000000Z", ["modifiedDate"] = "2026-10-11T09:00:00.0000000Z",
+                };
+                var restored = UniversalBackupMapper.MapToMode(JsonSerializer.Deserialize<UniversalMode>(exported.ToJsonString())!);
+                Assert(restored.CloudAccuracyTier == "groqWhisper" && restored.CloudPostProcessingModel == "cerebras:gpt-oss-120b",
+                    $"a Linux-edited cloud tier / post-processing model lost to the stale windows slice: {restored.CloudAccuracyTier} / {restored.CloudPostProcessingModel}");
+                Assert(restored.LocalPostProcessingModel == "linux-local-pp",
+                    $"a Linux-edited local post-processing model lost to the stale windows slice: {restored.LocalPostProcessingModel}");
+
+                // Exported again from Windows: the edit is in the top level AND the
+                // windows slice, so the restore back on Linux reads it either way.
+                var reexported = JsonNode.Parse(JsonSerializer.Serialize(UniversalBackupMapper.MapMode(restored)))!.AsObject();
+                var reWindows = reexported["platformExtensions"]!["windows"]!;
+                Assert(reexported["cloudAccuracyTier"]!.GetValue<string>() == "groqWhisper"
+                    && reWindows["cloudAccuracyTier"]!.GetValue<string>() == "groqWhisper"
+                    && reWindows["cloudPostProcessingModel"]!.GetValue<string>() == "cerebras:gpt-oss-120b"
+                    && reWindows["localPostProcessingModel"]!.GetValue<string>() == "linux-local-pp",
+                    "the Windows re-export did not carry the Linux-edited cloud tier / post-processing models");
+
+                // A tie (an unedited trip) and an older linux slice keep the windows slice.
+                foreach (var linuxDate in new[] { "2025-06-07T08:09:10.0000000Z", "2025-01-01T00:00:00.0000000Z" })
+                {
+                    extensions["linux"]!["modifiedDate"] = linuxDate;
+                    var kept = UniversalBackupMapper.MapToMode(JsonSerializer.Deserialize<UniversalMode>(exported.ToJsonString())!);
+                    Assert(kept.CloudAccuracyTier == "deepgramNova3" && kept.CloudPostProcessingModel == "grok:grok-4.3"
+                        && kept.LocalPostProcessingModel == "windows-local-pp",
+                        $"a linux slice dated {linuxDate} (not newer) overrode the windows slice's cloud tier / post-processing models");
+                }
             });
 
             // NATIVE CAPTURE (issue #277, phase 2a). Drives every
@@ -6239,6 +6525,74 @@ internal static class Program
                     {
                         TryDelete(converted);
                     }
+                }
+            });
+
+            Run("FileTranscriptionService says an empty, corrupt or non-audio file is that, not NAudio's text (#1452)", () =>
+            {
+                // The toast showed "Failed to convert audio file: Unable to read beyond the end of
+                // the stream" (empty or truncated WAV) and "Not a WAVE file - no RIFF header".
+                var validPath = TempWav("Unreadable.Valid");
+                var emptyPath = TempWav("Unreadable.Empty");
+                var truncatedPath = TempWav("Unreadable.TruncatedHeader");
+                var randomPath = TempWav("Unreadable.Random");
+                try
+                {
+                    using (var writer = new NAudio.Wave.WaveFileWriter(validPath, new NAudio.Wave.WaveFormat(44100, 16, 2)))
+                    {
+                        var silence = new byte[44100 * 4];
+                        writer.Write(silence, 0, silence.Length);
+                    }
+
+                    File.WriteAllBytes(emptyPath, Array.Empty<byte>());
+                    File.WriteAllBytes(truncatedPath, File.ReadAllBytes(validPath).AsSpan(0, 22).ToArray());
+                    var noise = new byte[200 * 1024];
+                    new Random(1452).NextBytes(noise);
+                    noise[0] = (byte)'X'; // never "RIFF" by chance
+                    File.WriteAllBytes(randomPath, noise);
+
+                    var empty = FileTranscriptionService.ConvertToWhisperFormatAsync(emptyPath).GetAwaiter().GetResult();
+                    Assert(empty.IsFailure && empty.Error == FileTranscriptionService.EmptyFileMessage,
+                        $"a 0-byte WAV should say it is empty, got '{(empty.IsSuccess ? empty.Value : empty.Error)}'");
+
+                    foreach (var (label, path) in new[] { ("truncated-header", truncatedPath), ("random-bytes", randomPath) })
+                    {
+                        var result = FileTranscriptionService.ConvertToWhisperFormatAsync(path).GetAwaiter().GetResult();
+                        Assert(result.IsFailure && result.Error == FileTranscriptionService.UnreadableAudioMessage,
+                            $"a {label} WAV should say it is damaged or not audio, got '{(result.IsSuccess ? result.Value : result.Error)}'");
+                    }
+
+                    // A text file named .mp3 goes to Media Foundation, which fails with
+                    // MF_E_UNSUPPORTED_BYTESTREAM_TYPE (0xC00D36C4). The fixture needs Media
+                    // Foundation, which a Windows Server runner may lack, so the classifier is
+                    // checked directly with that HRESULT.
+                    Assert(FileTranscriptionService.IsUnreadableAudio(
+                            new System.Runtime.InteropServices.COMException("unsupported", unchecked((int)0xC00D36C4))),
+                        "MF_E_UNSUPPORTED_BYTESTREAM_TYPE should read as a file that is not audio");
+                    Assert(FileTranscriptionService.IsUnreadableAudio(
+                            new InvalidDataException("Invalid MP3 file - no MP3 Frames Detected")),
+                        "Mp3FileReader's no-frames error should read as a file that is not audio");
+
+                    // A fault of the machine, not the file, keeps its own message.
+                    Assert(!FileTranscriptionService.IsUnreadableAudio(new IOException("The process cannot access the file")),
+                        "a locked file is not a damaged file");
+                    Assert(!FileTranscriptionService.IsUnreadableAudio(new UnauthorizedAccessException("Access denied")),
+                        "an access-denied file is not a damaged file");
+                    Assert(!FileTranscriptionService.IsUnreadableAudio(
+                            new System.Runtime.InteropServices.COMException("E_FAIL", unchecked((int)0x80004005))),
+                        "a COM error outside Media Foundation is not a damaged file");
+
+                    // A readable file still converts.
+                    var valid = FileTranscriptionService.ConvertToWhisperFormatAsync(validPath).GetAwaiter().GetResult();
+                    Assert(valid.IsSuccess, $"a valid 44.1 kHz stereo WAV should convert, got '{valid.Error}'");
+                    TryDelete(valid.Value!);
+                }
+                finally
+                {
+                    TryDelete(validPath);
+                    TryDelete(emptyPath);
+                    TryDelete(truncatedPath);
+                    TryDelete(randomPath);
                 }
             });
 
@@ -10283,6 +10637,168 @@ internal static class Program
                 }
             });
 
+            Run("VocabularyService.TryAdd refuses a non-ASCII word twice — issue #1597", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                // SQLite lower() folds ASCII only, so a check pushed down to the
+                // database never matched a word that holds Ø, É or Cyrillic.
+                var vocabulary = VocabularyService.Instance;
+                var token = Guid.NewGuid().ToString("N")[..8];
+                var words = new[] { $"Øresund{token}", $"Élan{token}", $"Москва{token}" };
+                var added = new List<Guid>();
+                try
+                {
+                    foreach (var word in words)
+                    {
+                        Assert(vocabulary.TryAdd(word, null, out var addError),
+                            $"could not add '{word}': {addError}");
+                        var row = vocabulary.GetAll().FirstOrDefault(v => v.Word == word);
+                        Assert(row != null, $"'{word}' did not come back from VocabularyService");
+                        added.Add(row!.Id);
+
+                        Assert(!vocabulary.TryAdd(word, null, out var sameError)
+                            && sameError == "That word already exists.",
+                            $"'{word}' typed twice was accepted (error '{sameError}')");
+                        var lower = word.ToLowerInvariant();
+                        Assert(!vocabulary.TryAdd(lower, null, out var lowerError)
+                            && lowerError == "That word already exists.",
+                            $"'{lower}' was accepted beside '{word}' (error '{lowerError}')");
+                        var copies = vocabulary.GetAll()
+                            .Count(v => string.Equals(v.Word, word, StringComparison.OrdinalIgnoreCase));
+                        Assert(copies == 1, $"'{word}' is stored {copies} times");
+
+                        // The Vocabulary page saves an edit as add-then-delete with
+                        // the edited row excluded, so the same word is not a duplicate.
+                        Assert(vocabulary.TryAdd(word, null, out var editError, excludeId: row.Id),
+                            $"editing '{word}' onto itself was refused: {editError}");
+                        vocabulary.Delete(row.Id);
+                        added.Remove(row.Id);
+                        var editedRow = vocabulary.GetAll().FirstOrDefault(v => v.Word == word);
+                        Assert(editedRow != null, $"the edited '{word}' row was not stored");
+                        added.Add(editedRow!.Id);
+                    }
+                }
+                finally
+                {
+                    foreach (var id in added)
+                        vocabulary.Delete(id);
+                }
+            });
+
+            Run("vocabulary: a pasted multi-line text is one word per line — issue #1777", () =>
+            {
+                // Pasting "a\nb\nc" into the add field saved only "a": a single-line WPF
+                // TextBox keeps the first line of a paste and drops the rest silently.
+                // The fix is AcceptsReturn on both boxes plus a per-line add, and the
+                // store refuses a word with a line break inside it.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var vocabulary = VocabularyService.Instance;
+                var token = Guid.NewGuid().ToString("N")[..8];
+                var words = new[] { $"alpha{token}", $"beta{token}", $"gamma{token}" };
+                var snippet = $"sig{token}";
+                try
+                {
+                    Assert(!vocabulary.TryAdd($"line1{token}\nline2{token}", null, out var lineError)
+                        && lineError == "A word must be one line.",
+                        $"the store accepted a word with a line break inside it (error '{lineError}')");
+
+                    var page = new HyperWhisper.Views.Pages.VocabularyPage();
+                    // WPF's paste filter keeps only the first line of a box whose
+                    // AcceptsReturn is false, so this is what lets the paste through.
+                    Assert(page.WordBox.AcceptsReturn, "the add field cuts a pasted list to its first line");
+                    Assert(page.ReplacementBox.AcceptsReturn, "the replacement field cannot keep a line break");
+
+                    var add = typeof(HyperWhisper.Views.Pages.VocabularyPage)
+                        .GetMethod("AddVocabularyItem", BindingFlags.NonPublic | BindingFlags.Instance)
+                        ?? throw new InvalidOperationException("VocabularyPage.AddVocabularyItem not found");
+
+                    page.WordBox.Text = $"{words[0]}\r\n{words[1]}\n\n  {words[2]} ";
+                    add.Invoke(page, null);
+                    var rows = vocabulary.GetAll().Where(v => v.Word.EndsWith(token, StringComparison.Ordinal)).ToList();
+                    Assert(rows.Select(v => v.Word).OrderBy(w => w, StringComparer.Ordinal).SequenceEqual(words),
+                        $"the paste saved [{string.Join(" | ", rows.Select(v => v.Word))}], not one row per line");
+                    Assert(page.WordBox.Text.Length == 0, "the add field kept its text after every line was added");
+
+                    page.WordBox.Text = snippet;
+                    page.ReplacementBox.Text = "Best,\r\nRay";
+                    add.Invoke(page, null);
+                    var sig = vocabulary.GetAll().FirstOrDefault(v => v.Word == snippet);
+                    Assert(sig?.Replacement == "Best,\r\nRay",
+                        $"the snippet replacement was saved as '{sig?.Replacement}', not with its line break");
+
+                    // One line of a paste a duplicate: the others are still added, and
+                    // the error names only the refused line.
+                    var delta = $"delta{token}";
+                    page.WordBox.Text = $"{words[0]}\n{delta}";
+                    add.Invoke(page, null);
+                    Assert(vocabulary.GetAll().Any(v => v.Word == delta), "a new line beside a duplicate was not added");
+                    Assert(page.ErrorText.Visibility == Visibility.Visible
+                        && page.ErrorText.Text.Contains(words[0], StringComparison.Ordinal)
+                        && !page.ErrorText.Text.Contains(delta, StringComparison.Ordinal),
+                        $"the duplicate line was not named alone (error '{page.ErrorText.Text}')");
+                }
+                finally
+                {
+                    foreach (var row in vocabulary.GetAll().Where(v => v.Word.EndsWith(token, StringComparison.Ordinal)))
+                        vocabulary.Delete(row.Id);
+                }
+            });
+
+            Run("backup: a vocabulary word with line breaks imports one word per line — issue #1777", () =>
+            {
+                // A backup made before #1475 can carry "x\ny" as ONE word. The import
+                // saved it as is; it now splits it the way the add field does.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var vocabulary = VocabularyService.Instance;
+                var token = Guid.NewGuid().ToString("N")[..8];
+                var backupPath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests",
+                    $"issue1777-{token}.hwbackup.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+                File.WriteAllText(backupPath, JsonSerializer.Serialize(new UniversalBackup
+                {
+                    SchemaVersion = 2,
+                    ExportDate = DateTime.UtcNow,
+                    AppVersion = "smoke-1777",
+                    Platform = "macos",
+                    Vocabulary =
+                    [
+                        new UniversalVocabularyItem
+                        {
+                            Id = Guid.NewGuid(), Word = $" x{token} \ny{token}\n\n", Replacement = "Best,\nRay", SortOrder = 1
+                        }
+                    ]
+                }, UniversalCaptureOptions));
+                try
+                {
+                    var preview = BackupService.Instance.PreviewVocabularyMerge(backupPath);
+                    Assert(preview.IsSuccess && preview.Value!.NewCount == 2 && preview.Value.ConflictCount == 0,
+                        $"the preview counted {preview.Value?.NewCount} new words, not one per line");
+
+                    var result = BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+                    {
+                        IncludeVocabulary = true
+                    });
+                    Assert(result.IsSuccess && result.Value!.VocabularyAdded == 2,
+                        $"the import added {result.Value?.VocabularyAdded} words, not one per line: {result.Error}");
+
+                    var rows = vocabulary.GetAll().Where(v => v.Word.EndsWith(token, StringComparison.Ordinal)).ToList();
+                    Assert(rows.Select(v => v.Word).OrderBy(w => w, StringComparer.Ordinal).SequenceEqual([$"x{token}", $"y{token}"]),
+                        $"the import saved [{string.Join(" | ", rows.Select(v => v.Word))}], not one word per line");
+                    Assert(rows.All(v => v.Replacement == "Best,\nRay"),
+                        "a split word lost the snippet replacement and its line break");
+                }
+                finally
+                {
+                    foreach (var row in vocabulary.GetAll().Where(v => v.Word.Contains(token, StringComparison.Ordinal)))
+                        vocabulary.Delete(row.Id);
+                    try { File.Delete(backupPath); } catch { }
+                }
+            });
+
             Run("an auto-language Mode keeps vocabulary and break commands but not filler removal — issues #495, #498, #278", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
@@ -10505,6 +11021,141 @@ internal static class Program
 
                 Assert(typeof(ILocalVocabularyCorrection).IsAssignableFrom(typeof(ParakeetTranscriptionService)),
                     "ParakeetTranscriptionService must hand its phonetic pass to the orchestrator");
+            });
+
+            Run("the start-up sweep removes partial model downloads an earlier run left — issue #1599", () =>
+            {
+                var root = Path.Combine(tempRoot, "model-leftovers-1599");
+                var whisperDir = Path.Combine(root, "Models");
+                var parakeetDir = Path.Combine(whisperDir, "Parakeet");
+                var llmDir = Path.Combine(whisperDir, "LLM");
+                Directory.CreateDirectory(parakeetDir);
+                Directory.CreateDirectory(llmDir);
+
+                string WriteFile(string directory, string name, DateTime writtenUtc)
+                {
+                    var path = Path.Combine(directory, name);
+                    File.WriteAllBytes(path, new byte[] { 1, 2, 3 });
+                    File.SetLastWriteTimeUtc(path, writtenUtc);
+                    return path;
+                }
+
+                string MakeFolder(string directory, string name, DateTime writtenUtc)
+                {
+                    var path = Path.Combine(directory, name);
+                    Directory.CreateDirectory(path);
+                    WriteFile(path, "encoder.int8.onnx", writtenUtc);
+                    Directory.SetCreationTimeUtc(path, writtenUtc);
+                    Directory.SetLastWriteTimeUtc(path, writtenUtc);
+                    return path;
+                }
+
+                // Real catalog names, so a partial the sweep must keep is kept for
+                // its age or its lock, not because the name is unknown.
+                var whisperType = WhisperModelInfo.AllModels[0].Type;
+                var freshWhisperType = WhisperModelInfo.AllModels[1].Type;
+                var parakeetId = ParakeetModelInfo.AllModels[0].Id;
+                var freshParakeetId = ParakeetModelInfo.AllModels[1].Id;
+                var llmFile = LocalLlmModelInfo.AllModels[0].FileName;
+                var lockedLlmFile = LocalLlmModelInfo.AllModels[1].FileName;
+
+                var cutoff = DateTime.UtcNow;
+                var old = cutoff.AddMinutes(-35);
+                var whisperPartial = WriteFile(whisperDir, $"ggml-{whisperType}.bin.download", old);
+                var parakeetPartial = MakeFolder(parakeetDir, $"{parakeetId}.temp", old);
+                var llmPartial = WriteFile(llmDir, $"{llmFile}.download", old);
+                var installedWhisper = WriteFile(whisperDir, $"ggml-{whisperType}.bin", old);
+                var installedParakeet = MakeFolder(parakeetDir, parakeetId, old);
+                var installedLlm = WriteFile(llmDir, llmFile, old);
+                // Same suffixes, but no download of this app writes these names (#1445).
+                var stranger = WriteFile(whisperDir, "notes.download", old);
+                var strangerGgml = WriteFile(whisperDir, "ggml-my-finetune.bin.download", old);
+                var strangerFolder = MakeFolder(parakeetDir, "my-backup.temp", old);
+                var strangerLlm = WriteFile(llmDir, "my-own-model.gguf.download", old);
+                var freshWhisper = WriteFile(whisperDir, $"ggml-{freshWhisperType}.bin.download", cutoff.AddSeconds(1));
+                var freshParakeet = MakeFolder(parakeetDir, $"{freshParakeetId}.temp", cutoff.AddSeconds(1));
+                var lockedLlm = WriteFile(llmDir, $"{lockedLlmFile}.download", old);
+
+                // A running download holds its partial like this (File.Create).
+                using (new FileStream(lockedLlm, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    var deleted = ModelDownloadLeftovers.SweepLeftovers(whisperDir, parakeetDir, llmDir, cutoff);
+                    Assert(deleted == 3, $"the sweep must remove exactly the three leftovers, removed {deleted}");
+                }
+
+                Assert(!File.Exists(whisperPartial), "a leftover ggml-*.bin.download survived the sweep");
+                Assert(!Directory.Exists(parakeetPartial), "a leftover Parakeet <id>.temp folder survived the sweep");
+                Assert(!File.Exists(llmPartial), "a leftover local LLM *.download survived the sweep");
+                Assert(File.Exists(installedWhisper), "the sweep deleted an installed Whisper model");
+                Assert(Directory.Exists(installedParakeet), "the sweep deleted an installed Parakeet model");
+                Assert(File.Exists(installedLlm), "the sweep deleted an installed local LLM");
+                Assert(File.Exists(stranger), "the sweep deleted a Models file no download writes");
+                Assert(File.Exists(strangerGgml), "the sweep deleted a ggml-*.bin.download no catalog model writes");
+                Assert(Directory.Exists(strangerFolder), "the sweep deleted a Parakeet *.temp folder no catalog model writes");
+                Assert(File.Exists(strangerLlm), "the sweep deleted an LLM *.download no catalog model writes");
+                Assert(File.Exists(freshWhisper), "the sweep deleted a Whisper download started after its cutoff");
+                Assert(Directory.Exists(freshParakeet), "the sweep deleted a Parakeet download started after its cutoff");
+                Assert(File.Exists(lockedLlm), "the sweep deleted a partial a running download holds");
+            });
+
+            Run("the /transcribe scratch sweep removes leftovers, and Quit removes in-flight files — issue #1476", () =>
+            {
+                var root = Path.Combine(tempRoot, "scratch-sweep-1476");
+                var snapshotDir = LocalApiScratchFiles.SnapshotDirectory(root);
+                Directory.CreateDirectory(snapshotDir);
+
+                string Write(string directory, string name, DateTime writtenUtc)
+                {
+                    var path = Path.Combine(directory, name);
+                    File.WriteAllBytes(path, new byte[] { 1, 2, 3 });
+                    File.SetLastWriteTimeUtc(path, writtenUtc);
+                    return path;
+                }
+
+                var cutoff = DateTime.UtcNow;
+                var old = cutoff.AddMinutes(-5);
+                var leftUpload = Write(root, LocalApiScratchFiles.UploadPrefix + "a.wav", old);
+                var leftSnapshot = Write(snapshotDir, LocalApiScratchFiles.SnapshotPrefix + "b.wav", old);
+                var stranger = Write(root, "not-hyperwhisper.wav", old);
+                var nested = Path.Combine(root, "nested");
+                Directory.CreateDirectory(nested);
+                var nestedUpload = Write(nested, LocalApiScratchFiles.UploadPrefix + "c.wav", old);
+                var fresh = Write(root, LocalApiScratchFiles.UploadPrefix + "fresh.wav", cutoff.AddSeconds(1));
+                var locked = Write(root, LocalApiScratchFiles.UploadPrefix + "locked.wav", old);
+                var tracked = Write(snapshotDir, LocalApiScratchFiles.SnapshotPrefix + "tracked.wav", old);
+
+                // A live request in another process holds its file like this.
+                using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    LocalApiScratchFiles.Track(tracked, readLock: null);
+                    try
+                    {
+                        var deleted = LocalApiScratchFiles.SweepLeftovers(root, cutoff);
+                        Assert(deleted == 2, $"the sweep must remove exactly the two leftovers, removed {deleted}");
+                    }
+                    finally
+                    {
+                        LocalApiScratchFiles.Untrack(tracked);
+                    }
+                }
+
+                Assert(!File.Exists(leftUpload), "a leftover hyperwhisper-localapi-* upload survived the sweep");
+                Assert(!File.Exists(leftSnapshot), "a leftover snapshot-* survived the sweep");
+                Assert(File.Exists(stranger), "the sweep deleted a %TEMP% file this app never wrote");
+                Assert(File.Exists(nestedUpload), "the sweep reached below the top of %TEMP%");
+                Assert(File.Exists(fresh), "the sweep deleted a file written after its cutoff");
+                Assert(File.Exists(locked), "the sweep deleted a file a live request still holds");
+                Assert(File.Exists(tracked), "the sweep deleted a file this process's request is using");
+
+                // Quit: a request that never reached its finally still holds its
+                // read lock; DeleteInFlight releases it and deletes the file.
+                var inFlightLock = new FileStream(tracked, FileMode.Open, FileAccess.Read, FileShare.Read);
+                LocalApiScratchFiles.Track(tracked, inFlightLock);
+                var quitDeleted = LocalApiScratchFiles.DeleteInFlight();
+                Assert(quitDeleted == 1 && !File.Exists(tracked),
+                    $"Quit must delete the in-flight scratch file, deleted {quitDeleted}");
+                Assert(LocalApiScratchFiles.InFlightCount == 0, "a deleted in-flight file is still tracked");
+                inFlightLock.Dispose();
             });
 
             Run("the /transcribe response projects FinalText, not RawText — issues #495, #498", () =>
@@ -17390,6 +18041,70 @@ internal static class Program
                 }
             });
 
+            Run("backup: a mode import raises ModeChanged, so the tray and status bar reload — issue #1592", () =>
+            {
+                // ImportSelective wrote modes straight into the DbSet and raised
+                // nothing, so MainViewModel.Modes (the tray Select Mode and Transcribe
+                // File menus, the status bar) kept the startup list until a restart.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                const string Prefix = "percy1592-";
+                var modes = Enumerable.Range(0, 3).Select(i => UniversalBackupMapper.MapMode(new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = $"{Prefix}{i}",
+                    IsDefault = false,
+                    SortOrder = 20_000 + i
+                })).ToList();
+
+                var backupPath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests",
+                    $"issue1592-{Guid.NewGuid():N}.hwbackup.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+                File.WriteAllText(backupPath, JsonSerializer.Serialize(new UniversalBackup
+                {
+                    SchemaVersion = 2,
+                    ExportDate = DateTime.UtcNow,
+                    AppVersion = "smoke-1592",
+                    Platform = "windows",
+                    Modes = modes
+                }, UniversalCaptureOptions));
+
+                var raised = 0;
+                var importedSeen = false;
+                EventHandler<Mode> handler = (_, _) =>
+                {
+                    raised++;
+                    // What MainViewModel.RefreshModes reads when the event arrives.
+                    importedSeen = ModeService.Instance.GetAllModes().Count(m => m.Name.StartsWith(Prefix)) == modes.Count;
+                };
+                ModeService.Instance.ModeChanged += handler;
+                try
+                {
+                    var result = BackupService.Instance.ImportSelective(backupPath, new ImportSelection
+                    {
+                        IncludeModes = true
+                    });
+
+                    Assert(result.IsSuccess, $"the mode import failed: {result.Error}");
+                    Assert(result.Value!.ModesImported == modes.Count,
+                        $"the import reported {result.Value.ModesImported} modes, not {modes.Count}");
+                    Assert(raised > 0,
+                        "the mode import raised no ModeChanged, so the tray menus and the status bar keep the old list");
+                    Assert(importedSeen,
+                        "ModeChanged was raised before the imported modes could be read back");
+                }
+                finally
+                {
+                    ModeService.Instance.ModeChanged -= handler;
+                    using (var ctx = new HyperWhisperDbContext())
+                    {
+                        ctx.Modes.RemoveRange(ctx.Modes.Where(m => m.Name.StartsWith(Prefix)));
+                        ctx.SaveChanges();
+                    }
+                    try { File.Delete(backupPath); } catch { }
+                }
+            });
+
             // Issue #1614: Import and ImportSelective apply the backup's settings to
             // settings.json BEFORE the one-transaction DB step (#1605). A DB failure
             // rolled the modes back and left the backup's settings applied. The same
@@ -18599,14 +19314,10 @@ internal static class Program
                 var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, CultureInfo.InvariantCulture);
                 Assert(neutral != null && neutral.Contains("Retry With...", StringComparison.Ordinal),
                     $"the English refusal does not name the \"Retry With...\" menu item: '{neutral}'");
-                var catalogs = Directory.GetDirectories(AppContext.BaseDirectory)
-                    .Select(Path.GetFileName)
-                    .Where(name => File.Exists(Path.Combine(AppContext.BaseDirectory, name!, "HyperWhisper.resources.dll")))
-                    .ToList();
-                Assert(catalogs.Count >= 39, $"expected 39 satellite catalogs, found {catalogs.Count}");
+                var catalogs = ShippedSatelliteCultures();
                 foreach (var name in catalogs)
                 {
-                    var culture = new CultureInfo(name!);
+                    var culture = new CultureInfo(name);
                     var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, culture);
                     Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
                         $"Strings.{name}.resx has no translated {key}");
@@ -19224,7 +19935,7 @@ internal static class Program
             // writes the transcript and returns CopiedToClipboard without typing.
             Run("clipboard restore (#1496): a chain of quick dictations restores the user's own clipboard", () =>
             {
-                static string Clip() => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                static string Clip() => ReadClipboardText();
                 // The operator's whole clipboard (every format: an image, a file
                 // list, an empty clipboard), put back in the finally below.
                 var operatorClipboard = SnapshotWholeClipboard();
@@ -19400,7 +20111,7 @@ internal static class Program
             // one, as the #1496 case does, so no dispatcher has to be pumped.
             Run("clipboard restore (#1583): a copy made after the dictation survives the restore", () =>
             {
-                static string Clip() => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                static string Clip() => ReadClipboardText();
                 var operatorClipboard = SnapshotWholeClipboard();
                 var previousGate = TextDeliveryGate.IsSuppressed;
                 var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
@@ -20026,6 +20737,59 @@ internal static class Program
                     "a later pass rebinds both badges");
                 Assert(changed.Contains(nameof(GettingStartedItem.ShortcutText)),
                     "and it raises PropertyChanged, or the Home badge keeps painting the old chord");
+            });
+
+            Run("home: Customize Shortcuts opens Settings on Shortcuts, in one navigation (#637)", () =>
+            {
+                // #637. The row set CurrentPage = Settings with no section, so
+                // Settings opened on General. And NavigateToSettingsSection set
+                // CurrentPage (one section-less navigation, via MainWindow's
+                // subscription) and then navigated again with the section; from a
+                // page inside the Frame the section-less one won. The section now
+                // rides on the one navigation. This stands in for MainWindow's
+                // subscription, which is the only reader of the pending section.
+                var settings = SettingsService.Instance;
+                var savedSteps = settings.GettingStartedCompletedSteps;
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                typeof(MainViewModel).GetField("_settingsService", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(vm, settings);
+                vm.GettingStartedItems = new System.Collections.ObjectModel.ObservableCollection<GettingStartedItem>
+                {
+                    new() { Id = "shortcuts" },
+                };
+                vm.CurrentPage = MainViewModel.NavigationPage.Home;
+
+                var navigations = new List<(MainViewModel.NavigationPage Page, string? Section)>();
+                vm.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MainViewModel.CurrentPage))
+                        navigations.Add((vm.CurrentPage, vm.TakePendingSettingsSection()));
+                };
+
+                try
+                {
+                    settings.GettingStartedCompletedSteps = "";
+                    vm.ToggleGettingStartedStepCommand.Execute("shortcuts");
+                    Assert(navigations.Count == 1, $"the row makes one navigation, not {navigations.Count}");
+                    Assert(navigations[0] == (MainViewModel.NavigationPage.Settings, "Shortcuts"),
+                        $"the Customize Shortcuts row lands on Settings > Shortcuts, not {navigations[0]}");
+
+                    navigations.Clear();
+                    vm.OpenSettingsSection("License");
+                    Assert(navigations.Count == 1 && navigations[0] == (MainViewModel.NavigationPage.Settings, "License"),
+                        "already on Settings, a section request still navigates to that section");
+
+                    navigations.Clear();
+                    vm.CurrentPage = MainViewModel.NavigationPage.Home;
+                    vm.CurrentPage = MainViewModel.NavigationPage.Settings;
+                    Assert(navigations.Count == 2 && navigations.All(n => n.Section is null),
+                        "a plain navigation carries no stale section from an earlier request");
+                }
+                finally
+                {
+                    settings.GettingStartedCompletedSteps = savedSteps;
+                }
             });
 
             // ------------------------------------------------------------------
@@ -20801,6 +21565,33 @@ internal static class Program
             triggers += ChordKey(gate, pressed, vk, down);
         }
         return triggers;
+    }
+
+    /// <summary>
+    /// The clipboard's text, read the way the clipboard-restore cases need it on
+    /// a shared runner (#1756). Another process holding the clipboard open makes
+    /// a single read throw CLIPBRD_E_CANT_OPEN or come back empty, so a read that
+    /// fails or finds no text is tried again for up to about a second. No case
+    /// expects an empty clipboard, so retrying an empty read hides nothing. A
+    /// wrong but readable text is returned at once, and still fails the case.
+    /// </summary>
+    private static string ReadClipboardText()
+    {
+        const int attempts = 40;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                var text = Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                if (text.Length > 0 || attempt == attempts)
+                    return text;
+            }
+            catch (Exception) when (attempt < attempts)
+            {
+            }
+
+            Thread.Sleep(25);
+        }
     }
 
     /// <summary>
@@ -22475,6 +23266,18 @@ internal static class Program
             .OrderBy(name => name, StringComparer.Ordinal));
 
         return cultures;
+    }
+
+    /// <summary>
+    /// The translated catalogues only - <see cref="ShippedUiCultures"/> without the
+    /// English base - asserting the one floor every "each catalog translates X"
+    /// case shares, so a run that found no satellites cannot pass vacuously.
+    /// </summary>
+    private static List<string> ShippedSatelliteCultures()
+    {
+        var satellites = ShippedUiCultures().Where(name => name != BaseCatalogue).ToList();
+        Assert(satellites.Count >= 39, $"expected 39 satellite catalogs, found {satellites.Count}");
+        return satellites;
     }
 
     /// <summary>

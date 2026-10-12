@@ -272,6 +272,8 @@
 "onboarding.permissions.granted" = "Granted";
 "onboarding.permissions.open" = "Open Settings";
 "onboarding.permissions.note" = "Skip Accessibility and transcripts go to the clipboard, ready to paste. Turning it on later takes one click.";
+"onboarding.permissions.microphone.denied" = "Not allowed. Turn on HyperWhisper in System Settings, then come back here.";
+"onboarding.permissions.continueNeedsMicrophone" = "Continue needs the microphone. Allow it above, or choose Set Up Later.";
 "onboarding.accessibility.waiting" = "Waiting for permission...";
 
 // Step 3 · Choose a source
@@ -441,9 +443,6 @@
 "onboarding.a11y.selectedDetail" = "Selected, %@";
 "onboarding.a11y.notSelectedDetail" = "Not selected, %@";
 "onboarding.a11y.selectedInput" = "Selected input";
-
-// Errors surfaced by the flow model
-"onboarding.error.microphone.denied" = "Microphone permission denied. Please grant permission in System Settings.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Launch on login";

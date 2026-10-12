@@ -23,6 +23,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     private bool _disposed;
     private readonly Func<string, string>? _localize;
     private readonly Func<bool>? _isRecordingActive;
+    private readonly PortableModelManager? _modelManager;
+    private string? _restingStatus;
 
     public ApplicationShellViewModel(
         ApplicationDb database,
@@ -49,6 +51,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         _database = database;
         _localize = localize;
         _isRecordingActive = isRecordingActive;
+        _modelManager = modelManager;
         var historyRepository = new HistoryRepository(database, paths);
         var vocabularyRepository = new VocabularyRepository(database);
         var modeRepository = new ModeRepository(database);
@@ -106,6 +109,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             Recording);
         if (Recording is not null) Recording.TranscriptionSaved += OnTranscriptionSaved;
         Backup.Imported += OnBackupImported;
+        if (Models is not null) Models.InstalledModelsChanged += OnInstalledModelsChanged;
         Modes.PropertyChanged += OnModesPropertyChanged;
         _currentPage = Home;
         PageTitle = Text("sidebar.home", "Home");
@@ -153,7 +157,42 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
 
     private void OnModesPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
     {
-        if (args.PropertyName is nameof(ModesViewModel.Selected) or null) UpdateLocalPostProcessingStatus();
+        if (args.PropertyName is not (nameof(ModesViewModel.Selected) or null)) return;
+        UpdateLocalPostProcessingStatus();
+        RefreshRestingStatus();
+    }
+
+    private void OnInstalledModelsChanged(object? sender, EventArgs args) => RefreshRestingStatus();
+
+    /// <summary>
+    /// Rewrites the resting line when the selected mode or the installed models change, so a
+    /// download that lands turns "Model '…' not downloaded" back into "Ready" (#1632). Only the
+    /// line ShowReadyStatus wrote is replaced: a toast-worthy message or a live recording keeps it.
+    /// </summary>
+    private void RefreshRestingStatus()
+    {
+        if (!_initialized || _restingStatus is null || Status.IsBusy || Status.HasError) return;
+        if (!string.Equals(Status.Message, _restingStatus, StringComparison.Ordinal)) return;
+        if (_isRecordingActive?.Invoke() == true) return;
+        ShowReadyStatus();
+    }
+
+    /// <summary>
+    /// The display name of the selected mode's local voice model when it is not installed, or null.
+    /// A missing or truncated file is not installed (exact catalog sizes, #1632), and the status
+    /// bar must not say Ready over it, as Windows does since #1598.
+    /// </summary>
+    private string? MissingLocalModelName()
+    {
+        var mode = Modes.Selected;
+        if (_modelManager is null || mode is null
+            || string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)) return null;
+        var id = mode.Model?.Trim();
+        var model = PortableModelCatalog.All.FirstOrDefault(item =>
+            item.Kind is ManagedModelKind.Whisper or ManagedModelKind.Parakeet
+            && string.Equals(item.Id, id, StringComparison.Ordinal));
+        if (model is null || _modelManager.IsInstalled(model)) return null;
+        return model.DisplayName;
     }
 
     private void UpdateLocalPostProcessingStatus()
@@ -212,7 +251,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
                 return;
             }
             _initialized = true;
-            Status.Success("Ready");
+            ShowReadyStatus();
         }
         catch (OperationCanceledException) { Status.Failure("app.cancelled", "Startup cancelled"); }
         catch (Exception) { Status.Failure("app.startup_failed", "Could not prepare local application data."); }
@@ -255,8 +294,21 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>The resting status line, "Ready", worded exactly as a page change writes it. A finished
-    /// dictation writes it too, so "Recording…" does not outlive the recording (#958).</summary>
-    public void ShowReadyStatus() => Status.Success(Text("linux.status.ready", "Ready"));
+    /// dictation writes it too, so "Recording…" does not outlive the recording (#958).
+    /// A selected local model that is not installed says so instead (#1632).</summary>
+    public void ShowReadyStatus()
+    {
+        _restingStatus = MissingLocalModelName() is { } missing
+            ? FormatText("errors.modelNotDownloaded", "Model '{0}' not downloaded", missing)
+            : Text("linux.status.ready", "Ready");
+        Status.Success(_restingStatus);
+    }
+
+    private string FormatText(string key, string fallback, string argument)
+    {
+        try { return string.Format(System.Globalization.CultureInfo.CurrentCulture, Text(key, fallback), argument); }
+        catch (FormatException) { return string.Format(System.Globalization.CultureInfo.InvariantCulture, fallback, argument); }
+    }
 
     private string Text(string key, string fallback) => _localize?.Invoke(key) ?? fallback;
 
@@ -268,6 +320,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         if (Recording is not null) Recording.TranscriptionSaved -= OnTranscriptionSaved;
         Backup.Imported -= OnBackupImported;
         Modes.PropertyChanged -= OnModesPropertyChanged;
+        if (Models is not null) Models.InstalledModelsChanged -= OnInstalledModelsChanged;
         Models?.Dispose();
         History.Dispose();
         Recording?.Dispose();

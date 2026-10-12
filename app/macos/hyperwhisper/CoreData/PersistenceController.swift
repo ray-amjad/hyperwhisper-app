@@ -1656,15 +1656,13 @@ class PersistenceController: ObservableObject {
                 transcript.setValue(Date(), forKey: "lastRetryDate")
             }
             transcript.setValue(transcribedText, forKey: "transcribedText")
-            if let postProcessedText {
-                transcript.setValue(postProcessedText, forKey: "postProcessedText")
-            }
+            // Always overwrite (including clearing to nil) — see the @MainActor variant.
+            transcript.setValue(postProcessedText, forKey: "postProcessedText")
             if let transcriptionProvider {
                 transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
             }
-            if let postProcessingProvider {
-                transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
-            }
+            // Always overwrite, in step with `postProcessedText` — see the @MainActor variant.
+            transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
             // Always overwrite (including clearing to nil) — see the @MainActor variant.
             transcript.setValue(wordTimestampsJSON, forKey: "wordTimestampsJSON")
 
@@ -1877,7 +1875,9 @@ class PersistenceController: ObservableObject {
     /// - Parameters:
     ///   - transcript: The transcript to update (currently in "processing" state)
     ///   - transcribedText: The transcribed text (or error message if transcription failed)
-    ///   - postProcessedText: Optional AI-enhanced version of the text
+    ///   - postProcessedText: The delivered text when it differs from the raw text (AI
+    ///     post-processing, or with it off, filler removal, voice commands and
+    ///     Vocabulary swaps); nil clears the field. See `TranscriptionResult.historyPostProcessedText`.
     ///
     /// Auto-refresh mechanism:
     /// 1. Updates the transcript's text and status from "processing" to "completed"
@@ -1898,20 +1898,24 @@ class PersistenceController: ObservableObject {
         // Store the raw transcribed text
         transcript.setValue(transcribedText, forKey: "transcribedText")
 
-        // Store the post-processed text if available
-        if let postProcessedText = postProcessedText {
-            transcript.setValue(postProcessedText, forKey: "postProcessedText")
-        }
+        // Store the delivered text. Always overwrite, including clearing to
+        // nil: History, the Recording dialog and `GET /recordings/{id}` all
+        // read `postProcessedText` before `text`, so a Retry whose new text
+        // equals its raw text would otherwise keep showing the old run's
+        // text (issue #1638).
+        transcript.setValue(postProcessedText, forKey: "postProcessedText")
 
         // Store the transcription provider (e.g., "LibWhisper", "HyperWhisper Cloud", "OpenAI Whisper")
         if let provider = transcriptionProvider {
             transcript.setValue(provider, forKey: "transcriptionProvider")
         }
 
-        // Store the post-processing provider if available
-        if let provider = postProcessingProvider {
-            transcript.setValue(provider, forKey: "postProcessingProvider")
-        }
+        // Store the post-processing provider. Always overwrite, including
+        // clearing to nil, in step with `postProcessedText`: a Retry with AI
+        // off (or an AI step that left the text unchanged) has no provider,
+        // and keeping the old run's one would badge non-AI text as AI in
+        // History and in `GET /recordings/{id}`.
+        transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
 
         // Store segment/word timestamps JSON blob (basis: raw_text). Always
         // overwrite — including clearing to nil when the caller supplies none.
@@ -2775,7 +2779,17 @@ class PersistenceController: ObservableObject {
     // viewContext insert/save for RecordingSession here.
 
     // MARK: - Vocabulary Operations
-    
+
+    /// Splits a vocabulary add-field value into one word per non-empty line,
+    /// each trimmed (issue #1475). A pasted list becomes one word per line
+    /// instead of one word with newlines inside it. Single-line input comes
+    /// back as one trimmed word; blank input comes back empty.
+    nonisolated static func vocabularyWordLines(from text: String) -> [String] {
+        text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     /// Adds a new vocabulary item to Core Data
     /// - Parameters:
     ///   - word: The word/phrase to recognize
@@ -2797,6 +2811,13 @@ class PersistenceController: ObservableObject {
         // to the regex "\b\b" in VocabularyProcessor, matching every word
         // boundary and corrupting the entire transcript.
         guard !normalizedWord.isEmpty else {
+            return false
+        }
+
+        // A word is one line (issue #1475). Callers split a multi-line value
+        // with `vocabularyWordLines(from:)` first. The replacement may keep
+        // its line breaks: a multi-line snippet is allowed.
+        guard normalizedWord.rangeOfCharacter(from: .newlines) == nil else {
             return false
         }
 
@@ -3418,9 +3439,16 @@ class PersistenceController: ObservableObject {
         // the same "add to end" order `addVocabularyItem` gives each row.
         var maxSortOrder: Int16?
 
-        for item in backupItems {
-            let normalizedWord = item.word.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A backup made before #1475 can carry a word with line breaks inside it. It
+        // imports as one word per non-empty line, the way the add field saves a paste
+        // (#1777); each line carries the item's replacement and source. A blank word
+        // stays one empty entry, so it is still counted as skipped below.
+        let entries = backupItems.flatMap { item -> [(String, BackupVocabularyItem)] in
+            let lines = Self.vocabularyWordLines(from: item.word)
+            return lines.isEmpty ? [("", item)] : lines.map { ($0, item) }
+        }
 
+        for (normalizedWord, item) in entries {
             // Skip empty/whitespace-only words. An empty word would later compile
             // to the regex "\b\b" in VocabularyProcessor, matching every word
             // boundary and corrupting the entire transcript.

@@ -103,6 +103,13 @@ final class ParakeetModelManager: ObservableObject {
 
     @Published var errorMessage: String?
 
+    /// Installed versions whose load failed this session (#1632, the macOS side of
+    /// #1598). FluidAudio's `modelsExist` only checks that the bundle files are
+    /// present, so a damaged install still reads as downloaded; the Library row
+    /// shows Re-download for these instead of a green check. Mirrors
+    /// `NemotronModelManager.brokenVariants`.
+    @Published private(set) var brokenModels: Set<String> = []
+
     /// Optional hook called when a downloaded version is deleted so the
     /// `ParakeetProvider`'s in-memory `Runtime` cache can be invalidated for
     /// that version. Without this hook, a transcribe after delete +
@@ -146,6 +153,28 @@ final class ParakeetModelManager: ObservableObject {
             return false
         }
         return downloads.isDownloading(canonicalModelId)
+    }
+
+    func isModelBroken(_ modelId: String) -> Bool {
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelId) else { return false }
+        return brokenModels.contains(canonicalModelId)
+    }
+
+    /// Flag a version as broken — called by `ParakeetProvider` when loading an
+    /// install that `modelsExist` accepted fails.
+    func markModelBroken(_ modelId: String) {
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelId),
+              !brokenModels.contains(canonicalModelId) else { return }
+        logger.error("Parakeet \(canonicalModelId, privacy: .public) failed to load; offering Re-download")
+        brokenModels.insert(canonicalModelId)
+    }
+
+    /// Clear the flag after a successful load. Publishes only on a change, so the
+    /// per-transcription call does not re-render the menu bar (see refreshState()).
+    func clearModelBroken(_ modelId: String) {
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelId),
+              brokenModels.contains(canonicalModelId) else { return }
+        brokenModels.remove(canonicalModelId)
     }
 
     // VERSION DETECTION HELPER:
@@ -215,6 +244,14 @@ final class ParakeetModelManager: ObservableObject {
         if availableModels != models {
             availableModels = models
         }
+
+        // A broken flag only means something while the files are there: once
+        // they are gone (deleted, or removed for a re-download) drop it.
+        let installedIds = Set(models.filter { $0.isDownloaded }.map { $0.id })
+        let keptBroken = brokenModels.intersection(installedIds)
+        if brokenModels != keptBroken {
+            brokenModels = keptBroken
+        }
     }
 
     // START DOWNLOAD:
@@ -232,8 +269,12 @@ final class ParakeetModelManager: ObservableObject {
         // there it would print "Downloading... 1%" over a determinate bar until
         // FluidAudio's first callback lands — the reported symptom, on every
         // download's first frame.
+        //
+        // A Re-download is decided here, on the tap, not when the task first runs:
+        // by then a concurrent load may have changed the flag (#1632).
+        let replacesBrokenInstall = brokenModels.contains(canonicalModelId)
         downloads.start(canonicalModelId, initialStage: .preparing) { [weak self] controller in
-            await self?.runDownload(canonicalModelId, controller)
+            await self?.runDownload(canonicalModelId, controller, replacingBrokenInstall: replacesBrokenInstall)
         }
     }
 
@@ -259,7 +300,11 @@ final class ParakeetModelManager: ObservableObject {
     // lazy-loads (and compiles) at first transcribe, gated by on-disk
     // `AsrModels.modelsExist`, so that download-time compile is verify-only.
     @MainActor
-    private func runDownload(_ modelId: String, _ controller: DownloadController<String>) async {
+    private func runDownload(
+        _ modelId: String,
+        _ controller: DownloadController<String>,
+        replacingBrokenInstall: Bool = false
+    ) async {
         errorMessage = nil
         guard let modelVersion = version(for: modelId) else {
             logger.error("Refusing to run download for unknown Parakeet model \(modelId, privacy: .public)")
@@ -267,6 +312,32 @@ final class ParakeetModelManager: ObservableObject {
             return
         }
         logger.info("Starting download for Parakeet \(String(describing: modelVersion))")
+
+        // RE-DOWNLOAD OF A BROKEN INSTALL (#1632): remove the damaged files first.
+        // `AsrModels.download` returns at once for a cache whose files are present,
+        // so a Re-download that left them there would fetch nothing, clear the
+        // broken flag and show Installed over the same damaged files.
+        if replacingBrokenInstall {
+            let directory = cacheDirectory(for: modelVersion)
+            do {
+                try Self.removeDamagedInstall(at: directory)
+            } catch {
+                let nsError = error as NSError
+                logger.error("Failed to remove broken Parakeet \(String(describing: modelVersion)); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
+            }
+            if let hook = onVersionInvalidated {
+                await hook(modelVersion)
+            }
+            // The damaged files must be gone before anything is fetched. If they
+            // are not, stop here: the row keeps offering Re-download with an error,
+            // instead of a download that reuses them.
+            guard !AsrModels.modelsExist(at: directory) else {
+                logger.error("Broken Parakeet \(String(describing: modelVersion)) is still on disk; not re-downloading")
+                errorMessage = "Could not remove the damaged Parakeet model files. Delete them and try again."
+                return
+            }
+            refreshState()
+        }
 
         // FluidAudio reports one repository-wide, byte-weighted fraction for the whole
         // transfer and then a compile tick per component; the aggregator maps that onto
@@ -276,6 +347,9 @@ final class ParakeetModelManager: ObservableObject {
 
         do {
             _ = try await AsrModels.download(
+                // A Re-download always fetches: FluidAudio removes the cache
+                // itself and throws if it cannot.
+                force: replacingBrokenInstall,
                 version: modelVersion,
                 progressHandler: { update in
                     // FluidAudio calls this on an unspecified queue — hop to the main
@@ -287,6 +361,8 @@ final class ParakeetModelManager: ObservableObject {
                 }
             )
             logger.info("Parakeet \(String(describing: modelVersion)) downloaded successfully")
+            // Fresh files on disk: any broken flag is stale now.
+            clearModelBroken(modelId)
         } catch is CancellationError {
             logger.info("Parakeet \(String(describing: modelVersion)) download cancelled")
         } catch let urlError as URLError where urlError.code == .cancelled {
@@ -298,6 +374,30 @@ final class ParakeetModelManager: ObservableObject {
         }
 
         refreshState()
+    }
+
+    /// Remove a damaged install's directory. A folder without owner write
+    /// permission (read-only folders inside the bundle) makes `removeItem` fail,
+    /// and FluidAudio's own repair fails the same way, so on a failure give the
+    /// owner write access back throughout the tree and try once more (#1632).
+    static func removeDamagedInstall(at directory: URL) throws {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: directory.path) else { return }
+        do {
+            try fileManager.removeItem(at: directory)
+        } catch {
+            // Top down, so each folder is readable before its children are listed.
+            var pending = [directory]
+            while let url = pending.popLast() {
+                guard let attributes = try? fileManager.attributesOfItem(atPath: url.path),
+                      let mode = (attributes[.posixPermissions] as? NSNumber)?.intValue else { continue }
+                try? fileManager.setAttributes([.posixPermissions: mode | 0o700], ofItemAtPath: url.path)
+                guard (attributes[.type] as? FileAttributeType) == .typeDirectory,
+                      let children = try? fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: nil) else { continue }
+                pending.append(contentsOf: children)
+            }
+            try fileManager.removeItem(at: directory)
+        }
     }
 
     // BACKWARD COMPATIBLE DOWNLOAD:

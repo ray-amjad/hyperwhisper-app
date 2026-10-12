@@ -1396,8 +1396,17 @@
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>ファイルが見つかりません</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>録音またはファイルの文字起こしが既に実行中です。完了してからもう一度ファイルをお試しください。</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>このプロバイダーにはファイルが大きすぎます。最大サイズ: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>このファイルは空のため、文字起こしする音声がありません。</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>このファイルは破損しているか、HyperWhisper が読み込めるオーディオファイルではありません。</value>
   </data>
 
   <!-- Update UI -->

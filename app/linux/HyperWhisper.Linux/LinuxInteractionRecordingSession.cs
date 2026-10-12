@@ -51,6 +51,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private const string RecordingStatus = "Recording…";
     private const string LiveRecordingStatus = "Live transcription recording…";
     private const string LiveReceivingStatus = "Live transcription receiving speech…";
+    internal const string BatchInjectionFailedStatus = "Transcription saved, but text injection failed";
 
     public LinuxInteractionRecordingSession(
         ApplicationShellViewModel viewModel,
@@ -274,12 +275,17 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             {
                 var result = await _workflow.StopAndTranscribeAsync(BuildRequest(), cancellationToken);
                 var status = result.IsSuccess ? PlatformResult.Success()
-                    : PlatformResult.Failure("workflow.transcription_failed", result.Failure?.Message ?? "Transcription failed.");
+                    : PlatformResult.Failure(FailureCodeFor(_workflow.Snapshot.ErrorCode), result.Failure?.Message ?? "Transcription failed.");
                 outcome = InteractionStopOutcome.FromInjection(
                     status, result.InjectionOutcome, _viewModel.Settings.RestoreClipboardAfterPaste);
                 _lastInjectionOutcome = result.InjectionOutcome;
                 if (result.IsSuccess && result.InjectionOutcome is { } injectionOutcome)
+                {
+                    // #1402: the live path names a failed paste in the status bar; the batch path said nothing.
+                    if (injectionOutcome == TextInjectionOutcome.Failed)
+                        _viewModel.Status.Success(BatchInjectionFailedStatus);
                     await ReportInjectionAsync(injectionOutcome);
+                }
             }
             if (outcome.Result.IsSuccess)
             {
@@ -534,6 +540,11 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         TextInjectionOutcome.Failed => LinuxRecordingOverlayCompletion.CopyFailed,
         _ => LinuxRecordingOverlayCompletion.Copied,
     };
+
+    // A silent recording reads "No speech detected", not "Transcription failed" (#1742).
+    // Every other workflow failure keeps the one transcription-failed code.
+    internal static string FailureCodeFor(string? workflowErrorCode) =>
+        workflowErrorCode == "workflow.no_speech" ? workflowErrorCode : "workflow.transcription_failed";
 
     private Task ReportAsync(DiagnosticComponent component, DiagnosticOutcome outcome) =>
         _diagnostics?.ReportAsync(component, outcome) ?? Task.CompletedTask;

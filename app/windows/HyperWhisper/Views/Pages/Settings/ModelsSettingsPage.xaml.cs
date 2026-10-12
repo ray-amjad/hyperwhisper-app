@@ -993,7 +993,9 @@ public partial class ModelsSettingsPage : Page
         {
             if (e.IsCompleted)
             {
-                if (!e.IsSuccess && !string.IsNullOrWhiteSpace(e.Error)
+                // IsCancelled covers the non-English cancel text: Quit cancels
+                // running downloads, and must not raise a failure box (#1599).
+                if (!e.IsSuccess && !e.IsCancelled && !string.IsNullOrWhiteSpace(e.Error)
                     && !e.Error.Contains("cancelled", StringComparison.OrdinalIgnoreCase))
                 {
                     WpfMessageBox.Show(

@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Hoàn tất Onboarding";
 
 "onboarding.setupLater.button" = "Thiết lập sau";
-"onboarding.error.microphone.denied" = "Quyền micrô bị từ chối. Vui lòng cấp quyền trong Cài đặt Hệ thống.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Chạy khi đăng nhập";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Tín dụng được trả trước và dùng chung cho mọi Mac đăng nhập bằng key này. Thời gian không dùng không tốn phí.";
 "onboarding.source.note" = "Nếu bạn đổi ý sau này, chỉ bước này sẽ chạy lại. Mọi thứ khác bạn đã thiết lập vẫn được giữ nguyên.";
 "onboarding.permissions.note" = "Bỏ qua Trợ năng thì bản ghi sẽ vào bảng nhớ tạm, sẵn sàng để dán. Bật lại sau chỉ mất một cú nhấp.";
+"onboarding.permissions.microphone.denied" = "Chưa được phép. Bật HyperWhisper trong Cài đặt hệ thống rồi quay lại đây.";
+"onboarding.permissions.continueNeedsMicrophone" = "Cần micrô để tiếp tục. Cho phép ở trên, hoặc chọn Thiết lập sau.";
 "onboarding.welcome.task1.title" = "Chọn cách chuyển giọng nói thành văn bản";
 "onboarding.welcome.task1.caption" = "Trên cloud của chúng tôi, trên Mac này, hoặc qua tài khoản nhà cung cấp bạn đã trả phí.";
 "onboarding.welcome.task2.title" = "Kiểm tra micrô của bạn";

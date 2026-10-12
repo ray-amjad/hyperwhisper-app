@@ -1312,8 +1312,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>En optagelse eller filtransskription kører allerede. Prøv filen igen, når den er færdig.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Denne fil er tom, så der er ingen lyd at transskribere.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Denne fil er beskadiget eller er ikke en lydfil, som HyperWhisper kan læse.</value>
   </data>
 
 

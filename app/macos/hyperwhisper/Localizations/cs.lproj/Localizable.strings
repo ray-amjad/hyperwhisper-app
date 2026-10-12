@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Dokoncit uvodni pruvodce";
 
 "onboarding.setupLater.button" = "Nastavit později";
-"onboarding.error.microphone.denied" = "Povoleni k mikrofonu zamitceno. Udelete povoleni v Nastaveni systemu.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Spustit pri prihlaseni";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "Kredity jsou předplacené a sdílené mezi všemi Macy přihlášenými tímto klíčem. Nečinnost nic nestojí.";
 "onboarding.source.note" = "Pozdější změna názoru zopakuje jen tento jeden krok. Nic dalšího, co jsi nastavil, se neztratí.";
 "onboarding.permissions.note" = "Přeskoč Zpřístupnění a přepisy půjdou do schránky, připravené ke vložení. Zapnutí později stačí jedno kliknutí.";
+"onboarding.permissions.microphone.denied" = "Nepovoleno. Zapněte HyperWhisper v Nastavení systému a vraťte se sem.";
+"onboarding.permissions.continueNeedsMicrophone" = "Pokračovat lze jen s mikrofonem. Povolte ho výše, nebo zvolte Nastavit později.";
 "onboarding.welcome.task1.title" = "Zvol, jak bude probíhat přepis";
 "onboarding.welcome.task1.caption" = "V našem cloudu, na tomto Macu, nebo přes účet u poskytovatele, který už platíš.";
 "onboarding.welcome.task2.title" = "Zkontroluj svůj mikrofon";

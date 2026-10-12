@@ -21,6 +21,7 @@ using System.IO.Compression;
 using HyperWhisper.PortableApplication.Audio;
 using HyperWhisper.Platform.Abstractions.Audio;
 using HyperWhisper.TranscriptionRouting;
+using HyperWhisper.ModelManagement;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -70,6 +71,7 @@ try
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
+    await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
 
     var history = new HistoryRepository(database);
@@ -421,6 +423,57 @@ try
         shell.Vocabulary.Word = " ";
         await shell.Vocabulary.AddAsync();
         Assert(shell.Vocabulary.Status.ErrorCode == "vocabulary.word_required", "vocabulary accepted an empty term");
+        // #634: loading a row into the pill clears the empty-term error, and so does typing.
+        shell.Vocabulary.Selected = (await vocabulary.ListAsync()).First();
+        Assert(!shell.Vocabulary.HasInputError && shell.Vocabulary.InputError.Length == 0,
+            "the empty-term error survived editing a row (#634)");
+        shell.Vocabulary.Selected = null;
+        shell.Vocabulary.Word = string.Empty;
+        shell.Vocabulary.Replacement = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        shell.Vocabulary.Word = "a";
+        Assert(!shell.Vocabulary.HasInputError, "the empty-term error survived typing a word (#634)");
+        shell.Vocabulary.Word = string.Empty;
+        // #634: a failed save of an edited row leaves it selected; loading that same row again
+        // still clears the error and reloads its word.
+        var editedRow = (await vocabulary.ListAsync()).First();
+        shell.Vocabulary.Selected = editedRow;
+        shell.Vocabulary.Word = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        Assert(shell.Vocabulary.Status.ErrorCode == "vocabulary.word_required", "an emptied row was saved (#634)");
+        // The Linux page stays in edit mode on a refused save because the row stays selected:
+        // the next save is that row's update, never a silent rename from an "Add word" chip.
+        Assert(ReferenceEquals(shell.Vocabulary.Selected, editedRow), "a refused save dropped the edited row (#634)");
+        shell.Vocabulary.Selected = editedRow;
+        Assert(!shell.Vocabulary.HasInputError && shell.Vocabulary.Word == editedRow.Word,
+            "re-editing the same row kept the error or an empty pill (#634)");
+        shell.Vocabulary.Selected = null;
+        shell.Vocabulary.Word = string.Empty;
+        shell.Vocabulary.Replacement = string.Empty;
+
+        // #1777: a pasted multi-line text is one word per non-empty line, and a snippet's
+        // replacement keeps its line break. Read back from the database, then removed so the
+        // vocabulary checks below see the list they expect.
+        var pastedBefore = (await vocabulary.ListAsync()).Select(item => item.Id).ToHashSet();
+        shell.Vocabulary.Word = "alpha\nbeta\r\n\n  gamma ";
+        shell.Vocabulary.Replacement = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        shell.Vocabulary.Word = "sig";
+        shell.Vocabulary.Replacement = "Best,\nRay";
+        await shell.Vocabulary.AddAsync();
+        var pasted = (await vocabulary.ListAsync()).Where(item => !pastedBefore.Contains(item.Id)).ToList();
+        Assert(!shell.Vocabulary.Status.HasError
+            && pasted.Select(item => item.Word).Order(StringComparer.Ordinal).SequenceEqual(["alpha", "beta", "gamma", "sig"])
+            && pasted.All(item => !VocabularyWords.HasLineBreak(item.Word)),
+            $"a pasted multi-line vocabulary text was not saved one word per line (#1777): {string.Join(" | ", pasted.Select(item => item.Word))}");
+        Assert(pasted.Single(item => item.Word == "sig").Replacement == "Best,\nRay",
+            "a snippet replacement lost its line break (#1777)");
+        var multiLineRefused = false;
+        try { _ = await vocabulary.UpsertAsync(new VocabularyItem { Word = "line1\nline2" }); }
+        catch (ArgumentException) { multiLineRefused = true; }
+        Assert(multiLineRefused, "the vocabulary store accepted a word with a line break inside it (#1777)");
+        foreach (var item in pasted) Assert(await vocabulary.DeleteAsync(item.Id), $"could not remove the pasted test word {item.Word}");
+        await shell.Vocabulary.RefreshAsync();
         shell.Modes.Selected = null;
         shell.Modes.Name = "";
         await shell.Modes.SaveAsync();
@@ -432,6 +485,8 @@ try
         Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
             "modes accepted a local LLM path outside the models directory");
         shell.Modes.LocalPostProcessingModel = "local-test.gguf";
+        Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
+            "editing a field cleared the error the user is fixing");
         shell.Modes.UserSystemPrompt = new string('p', 8001);
         await shell.Modes.SaveAsync();
         Assert(shell.Modes.Status.ErrorCode == "modes.prompt_too_long",
@@ -442,6 +497,31 @@ try
             "mode editor refused or cut a system prompt at the 8,000-character limit (#1488)");
         shell.Modes.UserSystemPrompt = "Keep the dictated wording.";
         await shell.Modes.SaveAsync();
+        // #632: the editor footer binds Modes.Status. A `Mode saved` must not sit beside a
+        // pending rename, nor greet the next dialog the editor opens.
+        Assert(shell.Modes.Status.Message == "Mode saved" && !shell.Modes.Status.HasError,
+            $"a valid save reported '{shell.Modes.Status.Message}'");
+        var savedName = shell.Modes.Name;
+        shell.Modes.Name = "Renamed Mode";
+        Assert(shell.Modes.Status.Message.Length == 0,
+            $"an unsaved rename still shows '{shell.Modes.Status.Message}' (#632)");
+        shell.Modes.Name = savedName;
+        await shell.Modes.SaveAsync();
+        Assert(shell.Modes.Status.Message == "Mode saved", "the re-save did not report Mode saved");
+        shell.Modes.ReloadSelected();
+        Assert(shell.Modes.Status.Message == "Mode saved", "reloading the saved mode counted as an edit");
+        shell.Modes.BeginEditorSession();
+        Assert(shell.Modes.Status.Message.Length == 0 && !shell.Modes.Status.HasError,
+            $"a freshly opened editor shows '{shell.Modes.Status.Message}' (#632)");
+        // The gear click sets Selected before the editor opens, and the footer is the only place a
+        // failure to remember that selection shows: opening the editor must keep it.
+        shell.Modes.Status.Failure("settings.write_failed", "The selected mode could not be remembered on this device.");
+        shell.Modes.BeginEditorSession();
+        Assert(shell.Modes.Status.ErrorCode == "settings.write_failed",
+            "opening the editor hid the error from persisting the selected mode");
+        shell.Modes.EndEditorSession();
+        Assert(shell.Modes.Status.Message.Length == 0 && !shell.Modes.Status.HasError,
+            $"a discarded editor left '{shell.Modes.Status.Message}' for the next dialog");
         var localMode = (await new ModeRepository(database).ListAsync()).Single();
         Assert(localMode.PostProcessingMode == 2
             && localMode.PostProcessingProvider == "local_llm"
@@ -1384,6 +1464,44 @@ static async Task RunLocalEngineVocabularyOnceTestsAsync(string root)
         Assert(hint.Saved.TranscribedText == "hyper wisper",
             $"{mode.Name}: History's raw transcript held a phonetic correction");
     }
+}
+
+// #1632: the status bar must not say Ready while the selected mode's local model is missing or
+// truncated, and a download that lands makes it Ready again.
+static async Task RunShellMissingLocalModelStatusTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    var database = new ApplicationDb(paths);
+    await database.InitializeAsync();
+    var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "settings.json"));
+    using var http = new HttpClient();
+    var manager = new PortableModelManager(paths, http);
+    var baseModel = PortableModelCatalog.Whisper.Single(model => model.Id == "base");
+    var file = manager.GetInstalledPath(baseModel);
+    Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+    // The #1598 repro: Base cut to 96%.
+    using (var stream = File.Create(file)) { stream.Write("lmgg"u8); stream.SetLength(142_033_406); }
+    var mode = new Mode { Name = "Local Base", ProviderType = "local", Model = "base", Language = "en", PostProcessingMode = 0 };
+    await new ModeRepository(database).UpsertAsync(mode);
+    using var shell = new ApplicationShellViewModel(database, settings, modelManager: manager);
+    await shell.InitializeAsync();
+    shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
+    Assert(shell.Status.Message == "Model 'Base' not downloaded",
+        $"a truncated selected model left the status bar on '{shell.Status.Message}'");
+    shell.Navigate("home");
+    Assert(shell.Status.Message == "Model 'Base' not downloaded", "a page change said Ready over a truncated model");
+
+    using (var stream = File.OpenWrite(file)) stream.SetLength(baseModel.ApproximateSizeBytes);
+    var row = shell.Models!.Items.Single(item => item.Model?.Id == "base");
+    row.Installed = true;
+    Assert(shell.Status.Message == "Ready", $"a finished download left the status bar on '{shell.Status.Message}'");
+
+    shell.Modes.Selected = shell.Modes.Items.First(item => item.Id != mode.Id);
+    var other = shell.Status.Message;
+    shell.Status.Failure("test.error", "Something failed");
+    shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
+    Assert(shell.Status.Message == "Something failed", $"a mode change overwrote an error with '{shell.Status.Message}' (was '{other}')");
 }
 
 static async Task RunShellLanguageRoutingTestsAsync(string root)
@@ -2819,6 +2937,30 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
             && failed.AudioFilePath == failureAudio,
             "backend failure did not persist a terminal retryable history row");
         Assert(File.Exists(failureAudio), "owned audio was deleted after a non-cancel failure");
+    }
+
+    // A backend that answers with no text (Whisper's [BLANK_AUDIO]-only silence,
+    // once stripped) is no speech, not a generic failure, and nothing is delivered (#1742).
+    var silentStore = await CreateStoreAsync(root, "workflow-no-speech");
+    var silentAudio = Path.Combine(root, "silent.wav");
+    await File.WriteAllBytesAsync(silentAudio, [1]);
+    using (var recorder = new FakeRecorder(silentAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("", "Test Whisper"))),
+        silentStore.History))
+    {
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var result = await workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest());
+        Assert(!result.IsSuccess && result.InjectionOutcome is null
+            && workflow.Snapshot.ErrorCode == "workflow.no_speech",
+            $"an empty transcript was not reported as no speech: {workflow.Snapshot.ErrorCode}");
+        var failed = (await silentStore.History.ListAsync()).Single();
+        Assert(failed.Status == TranscriptStatus.Failed && failed.FailedReason == "No speech was detected.",
+            "an empty transcript did not leave a no-speech history row");
     }
 
     var exceptionStore = await CreateStoreAsync(root, "workflow-exception");

@@ -2,6 +2,7 @@ using HyperWhisper.LocalInference;
 using Whisper.net.LibraryLoader;
 
 var failures = 0;
+var checks = 0;
 await CheckAsync("missing model returns a structured failure", async () =>
 {
     await using var service = new LocalWhisperService();
@@ -57,8 +58,28 @@ await CheckAsync("runtime order preserves GPU fallback policy", () =>
         "CUDA 12 CPU fallback order changed");
     return Task.CompletedTask;
 });
+await CheckAsync("Whisper non-speech markers never become a transcript (issue #1742)", () =>
+{
+    // The silent file Whisper answers with only markers strips to empty, so the
+    // workflow reports no speech instead of pasting "[BLANK_AUDIO]".
+    Assert(WhisperNonSpeechMarkers.Strip(" [BLANK_AUDIO] [BLANK_AUDIO]") == "",
+        "a transcript of only [BLANK_AUDIO] markers must strip to empty");
+    Assert(WhisperNonSpeechMarkers.Strip("[BLANK_AUDIO] ") == "", "a trailing space kept the marker");
+    Assert(WhisperNonSpeechMarkers.Strip("[ Silence ] (music) [no speech] (inaudible) [blank audio]") == "",
+        "Whisper's other non-speech annotations must strip too");
+    Assert(WhisperNonSpeechMarkers.Strip(null) == "", "null must strip to empty");
 
-if (args.Length == 2)
+    // Real speech around a marker survives, with one space where it was.
+    var mixed = WhisperNonSpeechMarkers.Strip(" Hello there. [BLANK_AUDIO] See you soon.");
+    Assert(mixed == "Hello there. See you soon.", $"speech around a marker was damaged: '{mixed}'");
+
+    // A bracket the speaker dictated is not a marker.
+    var dictated = WhisperNonSpeechMarkers.Strip(" Call the function [user id] (optional). ");
+    Assert(dictated == "Call the function [user id] (optional).", $"dictated brackets were removed: '{dictated}'");
+    return Task.CompletedTask;
+});
+
+if (args.Length is 2 or 3)
 {
     await CheckAsync("real Linux Whisper model loads and transcribes", async () =>
     {
@@ -80,11 +101,28 @@ if (args.Length == 2)
     });
 }
 
-Console.WriteLine($"{(args.Length == 2 ? 5 : 4) - failures}/{(args.Length == 2 ? 5 : 4)} tests passed");
+if (args.Length == 3)
+{
+    // Optional third argument: a silent WAV, e.g.
+    // ffmpeg -f lavfi -i anullsrc=r=16000:cl=mono -t 60 -c:a pcm_s16le silence60.wav
+    await CheckAsync("real Linux Whisper model returns no text for silence (issue #1742)", async () =>
+    {
+        await using var service = new LocalWhisperService();
+        var loaded = await service.LoadAsync(new LocalWhisperLoadOptions(args[0], LocalWhisperBackend.Cpu));
+        Assert(loaded.IsSuccess, loaded.Failure?.Message ?? "model load failed");
+        var result = await service.TranscribeAsync(new LocalWhisperRequest(args[2], "en", IncludeWordTimestamps: true));
+        Assert(result.IsSuccess, result.Failure?.Message ?? "transcription failed");
+        Assert(result.Text == "", $"silence came back as a transcript: '{result.Text}'");
+        Assert(result.Timestamps is null, "silence came back with timestamps");
+    });
+}
+
+Console.WriteLine($"{checks - failures}/{checks} tests passed");
 return failures == 0 ? 0 : 1;
 
 async Task CheckAsync(string name, Func<Task> run)
 {
+    checks++;
     try
     {
         await run();

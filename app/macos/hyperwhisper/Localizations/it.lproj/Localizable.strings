@@ -289,7 +289,6 @@
 "onboarding.done.button" = "Completato Onboarding";
 
 "onboarding.setupLater.button" = "Configura più tardi";
-"onboarding.error.microphone.denied" = "Permesso microfono negato. Concedi il permesso nelle Impostazioni di Sistema.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Avvia al login";
@@ -576,6 +575,8 @@
 "onboarding.configure.cloud.note" = "I crediti sono prepagati e condivisi tra tutti i Mac connessi con questa chiave. Il tempo di inattività non costa nulla.";
 "onboarding.source.note" = "Se cambi idea più tardi, verrà rifatto solo questo passaggio. Tutto il resto che hai configurato resta intatto.";
 "onboarding.permissions.note" = "Se salti Accessibilità, le trascrizioni vanno negli Appunti, pronte da incollare. Attivarla più tardi richiede un clic.";
+"onboarding.permissions.microphone.denied" = "Non consentito. Attiva HyperWhisper in Impostazioni di Sistema, poi torna qui.";
+"onboarding.permissions.continueNeedsMicrophone" = "Per continuare serve il microfono. Consentilo qui sopra o scegli Configura più tardi.";
 "onboarding.welcome.task1.title" = "Scegli come funziona la trascrizione";
 "onboarding.welcome.task1.caption" = "Nel nostro cloud, su questo Mac, oppure tramite un account provider che già paghi.";
 "onboarding.welcome.task2.title" = "Controlla il microfono";

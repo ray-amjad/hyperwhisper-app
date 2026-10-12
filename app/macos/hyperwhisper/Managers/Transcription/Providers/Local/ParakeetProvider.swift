@@ -279,6 +279,11 @@ final class ParakeetProvider: TranscriptionProvider {
     private let runtime = Runtime()
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "ParakeetProvider")
 
+    /// Weak back-reference so a failed load of an installed version marks it
+    /// broken (Library row offers Re-download, #1632). Set by
+    /// `TranscriptionPipeline.setParakeetModelManager(_:)`.
+    weak var modelManager: ParakeetModelManager?
+
     init() {}
 
     // VERSION DETECTION HELPER:
@@ -340,6 +345,31 @@ final class ParakeetProvider: TranscriptionProvider {
         return AsrModels.modelsExist(at: AsrModels.defaultCacheDirectory(for: targetVersion))
     }
 
+    /// A load that failed for any reason but cancellation means the installed
+    /// bundle could not be loaded: FluidAudio's `downloadAndLoad` already tried
+    /// to repair it by re-fetching, so the files are damaged or unreachable.
+    private func flagBrokenIfLoadFailed(_ error: Error, version: AsrModelVersion) async {
+        let nsError = error as NSError
+        let isCancellation = error is CancellationError
+            || (nsError.domain == NSURLErrorDomain && nsError.code == URLError.cancelled.rawValue)
+        guard !isCancellation else { return }
+        let modelId = Self.modelId(for: version)
+        await MainActor.run { [weak modelManager] in
+            modelManager?.markModelBroken(modelId)
+        }
+    }
+
+    private func clearBrokenFlag(for version: AsrModelVersion) async {
+        let modelId = Self.modelId(for: version)
+        await MainActor.run { [weak modelManager] in
+            modelManager?.clearModelBroken(modelId)
+        }
+    }
+
+    private static func modelId(for version: AsrModelVersion) -> String {
+        version == .v2 ? ParakeetModelManager.Constants.v2ModelId : ParakeetModelManager.Constants.v3ModelId
+    }
+
     /// Drop a version from the Runtime cache. Call after the on-disk install
     /// changes (delete, redownload) so the next transcription re-reads from
     /// disk instead of serving a stale in-memory `AsrManager`.
@@ -377,10 +407,12 @@ final class ParakeetProvider: TranscriptionProvider {
         do {
             _ = try await runtime.currentManager(for: targetVersion)
             logger.info("Parakeet \(String(describing: targetVersion)) runtime ready")
+            await clearBrokenFlag(for: targetVersion)
         } catch {
             let nsError = error as NSError
             logger.error("Failed to initialize Parakeet \(String(describing: targetVersion)); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await runtime.reset()
+            await flagBrokenIfLoadFailed(error, version: targetVersion)
             throw TranscriptionError.providerNotAvailable(
                 provider: "Parakeet",
                 reason: Self.ReportedFailureReason.initializeRuntime
@@ -454,6 +486,7 @@ final class ParakeetProvider: TranscriptionProvider {
             let nsError = error as NSError
             logger.error("Failed to initialize Parakeet \(String(describing: targetVersion)) runtime; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await runtime.reset()
+            await flagBrokenIfLoadFailed(error, version: targetVersion)
             throw TranscriptionError.providerNotAvailable(
                 provider: "Parakeet",
                 reason: Self.ReportedFailureReason.loadRuntime

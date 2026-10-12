@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
+using VocabularyWords = HyperWhisper.PortableApplication.Persistence.VocabularyWords;
 using HyperWhisper.Models;
 // TODO-verify (Windows/CI): Rust shared-core swap — backup validate/normalize/migrate.
 using uniffi.hyperwhisper_core;
@@ -307,6 +308,7 @@ public class BackupService
             if (modesImported > 0)
             {
                 ModeService.Instance.EnforceDefaultModeInvariant();
+                NotifyModesChanged("import");
             }
 
             // 5. Apply API keys
@@ -454,6 +456,7 @@ public class BackupService
                 // one, or none at all (issue #536). The merge above goes straight
                 // into the DbSet, so this runs after the commit, on committed data.
                 ModeService.Instance.EnforceDefaultModeInvariant();
+                NotifyModesChanged("selective import");
             }
 
             if (importVocabulary)
@@ -540,11 +543,9 @@ public class BackupService
 
             // Mirror MergeVocabulary exactly: a word inserted earlier in the file
             // counts as a conflict if it recurs later (same as the real merge).
-            foreach (var item in incoming)
+            foreach (var (word, _) in VocabularyWordLines(incoming))
             {
-                var key = (item.Word ?? string.Empty).Trim().ToLowerInvariant();
-                if (key.Length == 0)
-                    continue;
+                var key = word.ToLowerInvariant();
 
                 if (existingWords.Contains(key))
                 {
@@ -613,6 +614,16 @@ public class BackupService
     }
 
     /// <summary>
+    /// One entry per word line of the incoming items, trimmed, blank lines dropped (issue
+    /// #1777). A backup made before #1475 can carry a word with line breaks inside it; it
+    /// imports as one word per line, the way the add field saves a paste, and each line
+    /// carries the item's replacement, sort order and source.
+    /// </summary>
+    private static IEnumerable<(string Word, UniversalVocabularyItem Item)> VocabularyWordLines(
+        IEnumerable<UniversalVocabularyItem> items) =>
+        items.SelectMany(item => VocabularyWords.SplitLines(item.Word).Select(line => (line, item)));
+
+    /// <summary>
     /// Merges incoming vocabulary items by Word (case-insensitive, trimmed) inside the
     /// caller's context and transaction; the caller commits. Existing words are never
     /// deleted. On a Word match the conflict policy decides whether to Skip (leave
@@ -643,12 +654,8 @@ public class BackupService
             ? context.VocabularyItems.Max(v => v.SortOrder) + 1
             : 0;
 
-        foreach (var incoming in items)
+        foreach (var (trimmedWord, incoming) in VocabularyWordLines(items))
         {
-            var trimmedWord = (incoming.Word ?? string.Empty).Trim();
-            if (trimmedWord.Length == 0)
-                continue;
-
             var key = trimmedWord.ToLowerInvariant();
 
             if (existingByWord.TryGetValue(key, out var match))
@@ -689,6 +696,24 @@ public class BackupService
         context.SaveChanges();
 
         return (added, conflicts);
+    }
+
+    /// <summary>
+    /// Tells the rest of the app the mode rows changed (issue #1592). The import
+    /// wrote them straight into the DbSet, which raises nothing, so the tray menus
+    /// and the status bar kept the list they had before. Never throws: the rows are
+    /// committed, and a subscriber's fault must not turn the import into a failure.
+    /// </summary>
+    private static void NotifyModesChanged(string operation)
+    {
+        try
+        {
+            ModeService.Instance.NotifyModesChanged();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"BackupService: Failed to raise ModeChanged after {operation}: {ex.Message}");
+        }
     }
 
     /// <summary>

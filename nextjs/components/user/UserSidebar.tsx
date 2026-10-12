@@ -40,11 +40,18 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
   const pathname = usePathname();
   const { isAdmin } = useUser();
   const [pending, setPending] = useState<PendingNav | null>(null);
+  // The path the phone menu was opened on, or null when it is closed.
+  const [menuOpenOn, setMenuOpenOn] = useState<string | null>(null);
 
   // Drop a click once its navigation commits, so a later Back to the old
   // path cannot light the old click again.
   if (pending && pending.from !== pathname) setPending(null);
   const activeHref = activeNavHref(pathname, pending);
+  // Close the phone menu on any navigation, not just a nav-item tap: the
+  // logo, Back/Forward and in-page links all move the path while this
+  // layout stays mounted.
+  if (menuOpenOn !== null && menuOpenOn !== pathname) setMenuOpenOn(null);
+  const menuOpen = menuOpenOn !== null;
 
   const navItems = [
     {
@@ -114,54 +121,100 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
     (item) => item.showFor === "all" || (item.showFor === "admin" && isAdmin)
   );
 
+  const logo = (
+    <Link
+      href={`/${locale}/user/dashboard`}
+      className="flex items-center gap-3"
+      // A tap on the logo while already on the dashboard moves no path.
+      onNavigate={() => setMenuOpenOn(null)}
+    >
+      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+        <span className="text-white font-bold text-lg">H</span>
+      </div>
+      <div>
+        <h1 className="text-white font-semibold">HyperWhisper</h1>
+        <p className="text-gray-500 text-xs">
+          {isAdmin ? "Admin Dashboard" : "Dashboard"}
+        </p>
+      </div>
+    </Link>
+  );
+
+  const navList = (
+    <ul className="space-y-2">
+      {visibleItems.map((item) => {
+        const isActive = activeHref === item.href;
+        return (
+          <li key={item.name}>
+            <Link
+              href={item.href}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 motion-reduce:transition-none ${
+                isActive
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                  : "text-gray-400 hover:bg-white/5 hover:text-white"
+              }`}
+              // Fires only for an in-app navigation, never for a
+              // modifier, middle or new-tab click.
+              onNavigate={() => {
+                setPending({ href: item.href, from: pathname });
+                setMenuOpenOn(null);
+              }}
+            >
+              {item.icon}
+              <span className="font-medium">{item.name}</span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   return (
-    <aside className="w-64 bg-slate-900/50 border-r border-white/10 min-h-screen">
-      {/* Logo */}
-      <div className="p-6 border-b border-white/10">
-        <Link
-          href={`/${locale}/user/dashboard`}
-          className="flex items-center gap-3"
-        >
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-            <span className="text-white font-bold text-lg">H</span>
-          </div>
-          <div>
-            <h1 className="text-white font-semibold">HyperWhisper</h1>
-            <p className="text-gray-500 text-xs">
-              {isAdmin ? "Admin Dashboard" : "Dashboard"}
-            </p>
-          </div>
-        </Link>
+    <>
+      {/* Phone bar (#1330): below md the sidebar folds behind a menu button,
+          so the main column gets the full viewport width. */}
+      <div className="md:hidden bg-slate-900/50 border-b border-white/10">
+        <div className="flex items-center justify-between px-4 py-3">
+          {logo}
+          <button
+            type="button"
+            onClick={() => setMenuOpenOn(menuOpen ? null : pathname)}
+            aria-expanded={menuOpen}
+            aria-controls="user-sidebar-menu"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            className="p-2 rounded-lg text-gray-300 hover:bg-white/5 hover:text-white"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={
+                  menuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"
+                }
+              />
+            </svg>
+          </button>
+        </div>
+        {menuOpen && (
+          <nav id="user-sidebar-menu" className="px-4 pb-4">
+            {navList}
+          </nav>
+        )}
       </div>
 
-      {/* Navigation */}
-      <nav className="p-4">
-        <ul className="space-y-2">
-          {visibleItems.map((item) => {
-            const isActive = activeHref === item.href;
-            return (
-              <li key={item.name}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 motion-reduce:transition-none ${
-                    isActive
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                      : "text-gray-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                  // Fires only for an in-app navigation, never for a
-                  // modifier, middle or new-tab click.
-                  onNavigate={() =>
-                    setPending({ href: item.href, from: pathname })
-                  }
-                >
-                  {item.icon}
-                  <span className="font-medium">{item.name}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </aside>
+      <aside className="hidden md:block w-64 shrink-0 bg-slate-900/50 border-r border-white/10 min-h-screen">
+        {/* Logo */}
+        <div className="p-6 border-b border-white/10">{logo}</div>
+
+        {/* Navigation */}
+        <nav className="p-4">{navList}</nav>
+      </aside>
+    </>
   );
 }

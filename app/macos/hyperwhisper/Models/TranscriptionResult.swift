@@ -48,5 +48,18 @@ struct TranscriptionResult: Identifiable {
         self.postProcessingSkipped = postProcessingSkipped
         self.timestamps = timestamps
     }
+
+    /// The `postProcessedText` a History row saves: the delivered `text`
+    /// after an AI post-processing run, or whenever it is not the engine's
+    /// `rawText`. Nil only when AI did not run and the two match.
+    ///
+    /// Not gated on `wasPostProcessed` (issue #1638): with AI post-processing
+    /// off, the pipeline still removes filler words, applies dictated "new line"
+    /// commands and Vocabulary swaps, so the pasted text differs from the raw
+    /// text. Gating on the AI flag saved only the raw text, and History and
+    /// `GET /recordings/{id}` showed text the user never received.
+    var historyPostProcessedText: String? {
+        wasPostProcessed || text != rawText ? text : nil
+    }
 }
 
