@@ -110,6 +110,17 @@ internal sealed class LinuxDesktopServices : IDisposable
     public TranscriptionBackendCapability LocalWhisperCapability => _localWhisper.Capability;
     public TranscriptionBackendCapability LocalParakeetCapability => _localParakeet.Capability;
 
+    /// <summary>
+    /// Loads the batch Parakeet daemon for a mode before its first dictation (#1791). The
+    /// daemon is the one <see cref="AudioTranscriber"/> routes to, so dictation and the
+    /// Local API both reuse it.
+    /// </summary>
+    public Task<bool> PrewarmLocalParakeetAsync(
+        HyperWhisper.Data.Entities.Mode mode, string? language, CancellationToken cancellationToken) =>
+        _localParakeet is ParakeetDaemonTranscriber daemon
+            ? daemon.PrewarmAsync(mode, language, cancellationToken)
+            : Task.FromResult(false);
+
     public bool ProbeSharedCore() =>
         !SharedCoreBridge.ContainsCjk("HyperWhisper")
         && SharedCoreBridge.ContainsCjk("音声")
