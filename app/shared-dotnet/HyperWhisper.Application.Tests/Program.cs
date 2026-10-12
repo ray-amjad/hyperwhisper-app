@@ -434,6 +434,19 @@ try
         shell.Vocabulary.Word = "a";
         Assert(!shell.Vocabulary.HasInputError, "the empty-term error survived typing a word (#634)");
         shell.Vocabulary.Word = string.Empty;
+        // #634: a failed save of an edited row leaves it selected; loading that same row again
+        // still clears the error and reloads its word.
+        var editedRow = (await vocabulary.ListAsync()).First();
+        shell.Vocabulary.Selected = editedRow;
+        shell.Vocabulary.Word = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        Assert(shell.Vocabulary.Status.ErrorCode == "vocabulary.word_required", "an emptied row was saved (#634)");
+        shell.Vocabulary.Selected = editedRow;
+        Assert(!shell.Vocabulary.HasInputError && shell.Vocabulary.Word == editedRow.Word,
+            "re-editing the same row kept the error or an empty pill (#634)");
+        shell.Vocabulary.Selected = null;
+        shell.Vocabulary.Word = string.Empty;
+        shell.Vocabulary.Replacement = string.Empty;
 
         // #1777: a pasted multi-line text is one word per non-empty line, and a snippet's
         // replacement keeps its line break. Read back from the database, then removed so the
