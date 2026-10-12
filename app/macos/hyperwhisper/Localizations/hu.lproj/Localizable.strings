@@ -1114,6 +1114,8 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcribe.file.error.format.title" = "Nem támogatott formátum";
 "transcribe.file.error.format.message" = ".%@ fájlok nem támogatottak %@ által. Támogatott formátumok: %@";
 "transcribe.file.error.read" = "Nem lehet olvasni a kiválasztott fájlt.";
+"transcribe.file.error.webm" = "A WebM nem támogatott. Alakítsa át a fájlt MP3, M4A vagy WAV formátumba, majd próbálja újra.";
+"transcribe.file.error.unreadableAudio" = "A HyperWhisper nem tudja beolvasni a fájl hangját. Lehet, hogy sérült, vagy olyan formátumú, amelyet a macOS nem tud dekódolni.";
 "transcribe.file.error.copy" = "Nem sikerült a fájl másolása a felvételek mappába.";
 "transcribe.file.error.video.title" = "Nincs audio a videóban";
 "transcribe.file.error.video.noAudio" = "Ez a videó fájl nem tartalmaz audio sávot. Kérlek válassz audio sávval rendelkező videót vagy audio fájlt.";

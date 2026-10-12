@@ -1114,6 +1114,8 @@
 "transcribe.file.error.format.title" = "Неподдерживаемый формат";
 "transcribe.file.error.format.message" = "Файлы .%@ не поддерживаются %@. Поддерживаемые форматы: %@";
 "transcribe.file.error.read" = "Невозможно прочитать выбранный файл.";
+"transcribe.file.error.webm" = "Формат WebM не поддерживается. Преобразуйте файл в MP3, M4A или WAV и попробуйте снова.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper не может прочитать звук в этом файле. Возможно, файл повреждён или имеет формат, который macOS не умеет декодировать.";
 "transcribe.file.error.copy" = "Ошибка копирования файла в папку записей.";
 "transcribe.file.error.video.title" = "Нет звука в видео";
 "transcribe.file.error.video.noAudio" = "Этот видеофайл не содержит аудиодорожку. Пожалуйста, выберите видео со звуком или аудиофайл.";

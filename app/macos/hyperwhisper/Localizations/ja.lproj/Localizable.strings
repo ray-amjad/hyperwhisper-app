@@ -1115,6 +1115,8 @@
 "transcribe.file.error.format.title" = "サポートされていない形式";
 "transcribe.file.error.format.message" = ".%@ファイルは%@でサポートされていません。対応形式: %@";
 "transcribe.file.error.read" = "選択したファイルを読み込めません。";
+"transcribe.file.error.webm" = "WebM には対応していません。ファイルを MP3、M4A、WAV のいずれかに変換してから、もう一度お試しください。";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper はこのファイルの音声を読み込めません。ファイルが破損しているか、macOS がデコードできない形式の可能性があります。";
 "transcribe.file.error.copy" = "録音フォルダへのファイルコピーに失敗しました。";
 "transcribe.file.error.video.title" = "動画に音声がありません";
 "transcribe.file.error.video.noAudio" = "この動画ファイルには音声トラックが含まれていません。音声付きの動画または音声ファイルを選択してください。";

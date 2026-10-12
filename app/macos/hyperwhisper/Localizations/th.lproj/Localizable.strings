@@ -1114,6 +1114,8 @@
 "transcribe.file.error.format.title" = "รูปแบบไม่รองรับ";
 "transcribe.file.error.format.message" = "ไฟล์ .%@ ไม่ได้รับการสนับสนุนโดย %@ รูปแบบที่รองรับ: %@";
 "transcribe.file.error.read" = "ไม่สามารถอ่านไฟล์ที่เลือก";
+"transcribe.file.error.webm" = "ไม่รองรับ WebM แปลงไฟล์เป็น MP3, M4A หรือ WAV แล้วลองอีกครั้ง";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper อ่านเสียงในไฟล์นี้ไม่ได้ ไฟล์อาจเสียหาย หรืออยู่ในรูปแบบที่ macOS ถอดรหัสไม่ได้";
 "transcribe.file.error.copy" = "ไม่สามารถคัดลอกไฟล์ไปยังโฟลเดอร์การบันทึก";
 "transcribe.file.error.video.title" = "ไม่มีเสียงในวิดีโอ";
 "transcribe.file.error.video.noAudio" = "ไฟล์วิดีโอนี้ไม่มีเทร็กเสียง โปรดเลือกวิดีโอที่มีเสียงหรือไฟล์เสียง";

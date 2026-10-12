@@ -1114,6 +1114,8 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcribe.file.error.format.title" = "Toetamata vorming";
 "transcribe.file.error.format.message" = ".%@ failid ei ole %@ poolt toetatud. Toetatud vormingud: %@";
 "transcribe.file.error.read" = "Valitud faili ei saa lugeda.";
+"transcribe.file.error.webm" = "WebM-i ei toetata. Teisenda fail MP3-, M4A- või WAV-vormingusse ja proovi uuesti.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper ei saa selle faili heli lugeda. Fail võib olla kahjustatud või vormingus, mida macOS ei suuda dekodeerida.";
 "transcribe.file.error.copy" = "Faili kopeerimine salvestuste kausta ebaõnnestus.";
 "transcribe.file.error.video.title" = "Heli puudub videos";
 "transcribe.file.error.video.noAudio" = "See videofail ei sisalda heliriba. Palun valige video heliga või helifail.";

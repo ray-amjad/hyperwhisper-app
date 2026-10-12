@@ -1114,6 +1114,8 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "transcribe.file.error.format.title" = "Formato Não Suportado";
 "transcribe.file.error.format.message" = "Arquivos .%@ não são suportados por %@. Formatos suportados: %@";
 "transcribe.file.error.read" = "Não é possível ler o arquivo selecionado.";
+"transcribe.file.error.webm" = "O formato WebM não é suportado. Converta o arquivo para MP3, M4A ou WAV e tente novamente.";
+"transcribe.file.error.unreadableAudio" = "O HyperWhisper não consegue ler o áudio deste arquivo. Ele pode estar danificado ou em um formato que o macOS não consegue decodificar.";
 "transcribe.file.error.copy" = "Falha ao copiar arquivo para pasta de gravações.";
 "transcribe.file.error.video.title" = "Sem Áudio no Vídeo";
 "transcribe.file.error.video.noAudio" = "Este arquivo de vídeo não contém uma trilha de áudio. Selecione um vídeo com áudio ou um arquivo de áudio.";

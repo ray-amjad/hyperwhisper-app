@@ -1114,6 +1114,8 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "transcribe.file.error.format.title" = "Nieobsługiwany format";
 "transcribe.file.error.format.message" = "Pliki .%@ nie są obsługiwane przez %@. Obsługiwane formaty: %@";
 "transcribe.file.error.read" = "Nie można przeczytać wybranego pliku.";
+"transcribe.file.error.webm" = "Format WebM nie jest obsługiwany. Przekonwertuj plik do MP3, M4A lub WAV i spróbuj ponownie.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper nie może odczytać dźwięku z tego pliku. Plik może być uszkodzony lub w formacie, którego macOS nie potrafi zdekodować.";
 "transcribe.file.error.copy" = "Nie udało się skopiować pliku do folderu nagrań.";
 "transcribe.file.error.video.title" = "Brak audio w wideo";
 "transcribe.file.error.video.noAudio" = "Ten plik wideo nie zawiera ścieżki audio. Wybierz wideo z audio lub plik audio.";

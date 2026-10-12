@@ -1114,6 +1114,8 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcribe.file.error.format.title" = "Format Tidak Didukung";
 "transcribe.file.error.format.message" = "File .%@ tidak didukung oleh %@. Format yang didukung: %@";
 "transcribe.file.error.read" = "Tidak dapat membaca file yang dipilih.";
+"transcribe.file.error.webm" = "WebM tidak didukung. Ubah file ke MP3, M4A, atau WAV, lalu coba lagi.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper tidak dapat membaca audio dalam file ini. File mungkin rusak, atau dalam format yang tidak dapat didekode macOS.";
 "transcribe.file.error.copy" = "Gagal menyalin file ke folder rekaman.";
 "transcribe.file.error.video.title" = "Tidak Ada Audio dalam Video";
 "transcribe.file.error.video.noAudio" = "File video ini tidak berisi trek audio. Silakan pilih video dengan audio atau file audio.";

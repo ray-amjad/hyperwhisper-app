@@ -1114,6 +1114,8 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "transcribe.file.error.format.title" = "Format no compatible";
 "transcribe.file.error.format.message" = "Els fitxers .%@ no són compatibles amb %@. Formats admesos: %@";
 "transcribe.file.error.read" = "No es pot llegir el fitxer seleccionat.";
+"transcribe.file.error.webm" = "WebM no és compatible. Converteix el fitxer a MP3, M4A o WAV i torna-ho a provar.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper no pot llegir l'àudio d'aquest fitxer. Pot estar malmès o en un format que macOS no pot descodificar.";
 "transcribe.file.error.copy" = "No s'ha pogut copiar el fitxer a la carpeta de gravacions.";
 "transcribe.file.error.video.title" = "Sense àudio al vídeo";
 "transcribe.file.error.video.noAudio" = "Aquest fitxer de vídeo no conté una pista d'àudio. Seleccioneu un vídeo amb àudio o un fitxer d'àudio.";

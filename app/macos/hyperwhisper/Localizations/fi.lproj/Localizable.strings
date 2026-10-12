@@ -1114,6 +1114,8 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "transcribe.file.error.format.title" = "Ei-tuettu muoto";
 "transcribe.file.error.format.message" = ".%@ tiedostoja ei tueta palvelussa %@. Tuetut muodot: %@";
 "transcribe.file.error.read" = "Valittua tiedostoa ei voi lukea.";
+"transcribe.file.error.webm" = "WebM-muotoa ei tueta. Muunna tiedosto MP3-, M4A- tai WAV-muotoon ja yritä uudelleen.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper ei pysty lukemaan tämän tiedoston ääntä. Tiedosto voi olla vioittunut tai muodossa, jota macOS ei osaa purkaa.";
 "transcribe.file.error.copy" = "Tiedoston kopiointi nauhoituskansioon epäonnistui.";
 "transcribe.file.error.video.title" = "Ei ääntä videossa";
 "transcribe.file.error.video.noAudio" = "Tämä videotiedosto ei sisällä äänitä. Valitse video, jossa on ääni tai äänitiedosto.";

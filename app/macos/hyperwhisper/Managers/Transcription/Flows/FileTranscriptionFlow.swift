@@ -130,8 +130,12 @@ class FileTranscriptionFlow {
     /// Supported audio and video file types for import
     ///
     /// **Audio Files:**
-    /// Most transcription providers accept: mp3, mp4, mpeg, mpga, m4a, wav, webm
+    /// Most transcription providers accept: mp3, mp4, mpeg, mpga, m4a, wav
     /// Audio files are sent directly to transcription providers.
+    ///
+    /// **Not WebM (issue #1426):** AVFoundation cannot open WebM/Opus, so the
+    /// duration read fails before any provider sees the file. A WebM picked anyway
+    /// (Cmd+Shift+G) is refused with `FileTranscriptionError.webmNotSupported`.
     ///
     /// **Video Files (MP4, MOV):**
     /// Video files are supported by extracting the audio track locally before
@@ -144,7 +148,6 @@ class FileTranscriptionFlow {
         .mp3,             // MPEG Audio Layer III
         .mpeg4Audio,      // M4A / AAC
         .aiff,            // Audio Interchange File Format
-        UTType(filenameExtension: "webm") ?? .audio,  // WebM audio
         UTType(filenameExtension: "ogg") ?? .audio,   // Ogg Vorbis
         UTType(filenameExtension: "flac") ?? .audio,  // Free Lossless Audio Codec
         // Video formats (audio will be extracted)
@@ -364,14 +367,26 @@ class FileTranscriptionFlow {
             // This catches unsupported formats early with a helpful error message
             // rather than letting the API return a cryptic error after upload
             progressState.animateProgress(to: 0.05, duration: 0.2)
-            try validateFileFormat(fileURL, for: mode)
+            // The header, not the name, says what the file is: AVFoundation picks
+            // its parser by extension, so a WAV named .mp3 or with no extension
+            // fails to open. The copy below is named after the real format.
+            let detectedFormat = AudioContainerSniffer.detect(url: fileURL)
+            if detectedFormat == .webm
+                || (detectedFormat == nil && fileURL.pathExtension.lowercased() == "webm") {
+                throw FileTranscriptionError.webmNotSupported
+            }
+            let fileExtension = AudioContainerSniffer.effectiveExtension(for: fileURL, detected: detectedFormat)
+            if fileExtension != fileURL.pathExtension {
+                AppLogger.transcription.info("📄 Extension .\(fileURL.pathExtension.lowercased(), privacy: .public) does not match contents; reading as .\(fileExtension, privacy: .public)")
+            }
+            try validateFileFormat(fileExtension: fileExtension, for: mode)
 
             // Check for cancellation
             guard !progressState.isCancelled else { throw CancellationError() }
 
             // STEP 3: Copy file to recordings folder (5-8%)
             progressState.animateProgress(to: 0.08, duration: 0.3)
-            let copiedURL = try copyFileToRecordingsFolder(fileURL)
+            let copiedURL = try copyFileToRecordingsFolder(fileURL, fileExtension: fileExtension)
             currentCopiedFilePath = copiedURL.path
 
             // Check for cancellation
@@ -669,11 +684,12 @@ class FileTranscriptionFlow {
     /// - If no provider is specified, validation is skipped
     ///
     /// - Parameters:
-    ///   - fileURL: URL of the file to validate
+    ///   - fileExtension: The file's extension as read from its header
+    ///     (`AudioContainerSniffer.effectiveExtension`), not its name
     ///   - mode: The transcription mode (determines provider)
     /// - Throws: FileTranscriptionError.unsupportedFormat if format not supported
-    private func validateFileFormat(_ fileURL: URL, for mode: Mode) throws {
-        let fileExtension = fileURL.pathExtension.lowercased()
+    private func validateFileFormat(fileExtension rawExtension: String, for mode: Mode) throws {
+        let fileExtension = rawExtension.lowercased()
 
         // STEP 1: Check if this is a cloud mode
         // Local providers (LibWhisper, Parakeet) support any format AVFoundation can decode
@@ -707,10 +723,12 @@ class FileTranscriptionFlow {
 
     /// Copies the selected file to the recordings folder with a unique name
     ///
-    /// - Parameter sourceURL: URL of the source file
+    /// - Parameters:
+    ///   - sourceURL: URL of the source file
+    ///   - fileExtension: Extension for the copy, matching the file's contents
     /// - Returns: URL of the copied file in the recordings folder
     /// - Throws: FileTranscriptionError if copy fails
-    private func copyFileToRecordingsFolder(_ sourceURL: URL) throws -> URL {
+    private func copyFileToRecordingsFolder(_ sourceURL: URL, fileExtension ext: String) throws -> URL {
         let recordingsDirectory = getRecordingsDirectory()
 
         // Ensure recordings directory exists
@@ -723,8 +741,11 @@ class FileTranscriptionFlow {
         // Generate unique filename: imported_<timestamp>_<original_name>.<ext>
         let timestamp = Int(Date().timeIntervalSince1970)
         let originalName = sourceURL.deletingPathExtension().lastPathComponent
-        let ext = sourceURL.pathExtension
-        let newFileName = "imported_\(timestamp)_\(originalName).\(ext)"
+        // A file with no extension and an unknown header keeps no extension,
+        // rather than gaining a trailing dot.
+        let newFileName = ext.isEmpty
+            ? "imported_\(timestamp)_\(originalName)"
+            : "imported_\(timestamp)_\(originalName).\(ext)"
         let destinationURL = recordingsDirectory.appendingPathComponent(newFileName)
 
         // Copy file
@@ -768,7 +789,17 @@ class FileTranscriptionFlow {
     /// - Throws: Error if duration cannot be determined
     private func getAudioDuration(_ url: URL) async throws -> TimeInterval {
         let asset = AVURLAsset(url: url)
-        let duration = try await asset.load(.duration)
+        let duration: CMTime
+        do {
+            duration = try await asset.load(.duration)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // AVFoundation's own text here is a bare "Cannot Open" (issue #1426).
+            let nsError = error as NSError
+            AppLogger.transcription.error("❌ Cannot open audio: errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
+            throw FileTranscriptionError.unreadableAudio
+        }
 
         // Reject invalid/indefinite durations so a non-finite value never escapes
         // this helper. For some files (fragmented/streamable MP4s, indefinite tracks)
@@ -883,6 +914,18 @@ class FileTranscriptionFlow {
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
                 message: "transcribe.file.error.copy".localized
+            )
+
+        case .webmNotSupported:
+            showErrorAlert(
+                title: "transcribe.file.error.format.title".localized,
+                message: "transcribe.file.error.webm".localized
+            )
+
+        case .unreadableAudio:
+            showErrorAlert(
+                title: "transcribe.file.error.title".localized,
+                message: "transcribe.file.error.unreadableAudio".localized
             )
 
         case .videoHasNoAudio:
@@ -1059,6 +1102,13 @@ enum FileTranscriptionError: Error, LocalizedError {
     /// such as a screen recording without microphone input.
     case videoHasNoAudio
 
+    /// The file is WebM (by header or, failing that, by name). AVFoundation has
+    /// no WebM/Opus decoder, and none is added (issue #1426).
+    case webmNotSupported
+
+    /// AVFoundation could not open the audio, whatever the file is called.
+    case unreadableAudio
+
     var errorDescription: String? {
         switch self {
         case .fileTooLarge(_, _, let providerName):
@@ -1073,6 +1123,10 @@ enum FileTranscriptionError: Error, LocalizedError {
             return "Failed to copy file"
         case .videoHasNoAudio:
             return "Video has no audio track"
+        case .webmNotSupported:
+            return "transcribe.file.error.webm".localized
+        case .unreadableAudio:
+            return "transcribe.file.error.unreadableAudio".localized
         }
     }
 }

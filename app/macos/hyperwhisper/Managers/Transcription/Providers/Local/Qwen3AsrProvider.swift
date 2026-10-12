@@ -380,10 +380,16 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         let audioSamples: [Float]
         do {
             audioSamples = try LocalAudioSampleLoader.loadMono16kSamples(from: audioURL, providerName: "Qwen3 ASR", logger: logger)
+        } catch let error as TranscriptionError {
+            // The loader's own faults already name the provider; do not wrap twice.
+            throw error
         } catch {
+            // `AVAudioFile(forReading:)` could not open the file. That is the
+            // file's fault, not the model's: say so, without AVFoundation's raw
+            // code (issue #1426).
             let nsError = error as NSError
             logger.error("Qwen3 ASR audio conversion failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
-            throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Audio conversion failed: \(error.localizedDescription)")
+            throw TranscriptionError.invalidAudioFormat
         }
 
         let effectiveLanguage = mode?.language ?? language

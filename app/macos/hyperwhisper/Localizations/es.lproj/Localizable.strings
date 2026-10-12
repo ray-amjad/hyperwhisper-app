@@ -1115,6 +1115,8 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "transcribe.file.error.format.title" = "Formato no compatible";
 "transcribe.file.error.format.message" = "Los archivos .%@ no son compatibles con %@. Formatos compatibles: %@";
 "transcribe.file.error.read" = "No se puede leer el archivo seleccionado.";
+"transcribe.file.error.webm" = "WebM no es compatible. Convierte el archivo a MP3, M4A o WAV y vuelve a intentarlo.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper no puede leer el audio de este archivo. Puede estar dañado o en un formato que macOS no puede descodificar.";
 "transcribe.file.error.copy" = "No se pudo copiar el archivo a la carpeta de grabaciones.";
 "transcribe.file.error.video.title" = "Sin audio en el video";
 "transcribe.file.error.video.noAudio" = "Este archivo de video no contiene pista de audio. Selecciona un video con audio o un archivo de audio.";

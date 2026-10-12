@@ -1114,6 +1114,8 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "transcribe.file.error.format.title" = "Nepodporovany format";
 "transcribe.file.error.format.message" = "Soubory .%@ nejsou podporovany %@. Podporovane formaty: %@";
 "transcribe.file.error.read" = "Nelze precist vybrany soubor.";
+"transcribe.file.error.webm" = "Formát WebM není podporován. Převeďte soubor do MP3, M4A nebo WAV a zkuste to znovu.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper nemůže přečíst zvuk v tomto souboru. Soubor může být poškozený nebo ve formátu, který macOS neumí dekódovat.";
 "transcribe.file.error.copy" = "Nepodarilo se zkopirovat soubor do slozky nahravek.";
 "transcribe.file.error.video.title" = "Video bez zvuku";
 "transcribe.file.error.video.noAudio" = "Tento video soubor neobsahuje zvukovou stopu. Vyberte video se zvukem nebo zvukovy soubor.";

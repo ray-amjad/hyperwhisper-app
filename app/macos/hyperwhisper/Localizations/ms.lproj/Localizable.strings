@@ -1114,6 +1114,8 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "transcribe.file.error.format.title" = "Format Tidak Disokong";
 "transcribe.file.error.format.message" = "Fail .%@ tidak disokong oleh %@. Format yang disokong: %@";
 "transcribe.file.error.read" = "Tidak dapat membaca fail yang dipilih.";
+"transcribe.file.error.webm" = "WebM tidak disokong. Tukar fail kepada MP3, M4A atau WAV, kemudian cuba lagi.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper tidak dapat membaca audio dalam fail ini. Fail mungkin rosak, atau dalam format yang tidak dapat dinyahkod oleh macOS.";
 "transcribe.file.error.copy" = "Gagal menyalin fail ke folder rakaman.";
 "transcribe.file.error.video.title" = "Tiada Audio dalam Video";
 "transcribe.file.error.video.noAudio" = "Fail video ini tidak mengandungi trek audio. Sila pilih video dengan audio atau fail audio.";

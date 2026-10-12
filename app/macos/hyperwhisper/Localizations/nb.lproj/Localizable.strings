@@ -1114,6 +1114,8 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcribe.file.error.format.title" = "Ustøttet format";
 "transcribe.file.error.format.message" = ".%@ filer støttes ikke av %@. Støttede formater: %@";
 "transcribe.file.error.read" = "Kan ikke lese den valgte filen.";
+"transcribe.file.error.webm" = "WebM støttes ikke. Konverter filen til MP3, M4A eller WAV, og prøv igjen.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper kan ikke lese lyden i denne filen. Den kan være skadet eller i et format macOS ikke kan dekode.";
 "transcribe.file.error.copy" = "Kunne ikke kopiere fil til opptaksmappe.";
 "transcribe.file.error.video.title" = "Ingen lyd i video";
 "transcribe.file.error.video.noAudio" = "Denne videofilen inneholder ikke et lydspor. Vennligst velg en video med lyd eller en lydfil.";

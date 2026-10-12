@@ -1114,6 +1114,8 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "transcribe.file.error.format.title" = "Format som inte stöds";
 "transcribe.file.error.format.message" = ".%@ filer stöds inte av %@. Stödda format: %@";
 "transcribe.file.error.read" = "Kan inte läsa den valda filen.";
+"transcribe.file.error.webm" = "WebM stöds inte. Konvertera filen till MP3, M4A eller WAV och försök igen.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper kan inte läsa ljudet i den här filen. Den kan vara skadad eller i ett format som macOS inte kan avkoda.";
 "transcribe.file.error.copy" = "Det gick inte att kopiera filen till inspelningsmappen.";
 "transcribe.file.error.video.title" = "Inget ljud i video";
 "transcribe.file.error.video.noAudio" = "Denna videofil innehåller inget ljudspår. Välj en video med ljud eller en ljudfil.";

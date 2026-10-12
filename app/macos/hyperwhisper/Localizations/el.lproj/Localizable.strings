@@ -1114,6 +1114,8 @@
 "transcribe.file.error.format.title" = "Μη Υποστηριζόμενη Μορφή";
 "transcribe.file.error.format.message" = "Τα αρχεία .%@ δεν υποστηρίζονται από %@. Υποστηριζόμενες μορφές: %@";
 "transcribe.file.error.read" = "Δεν είναι δυνατή η ανάγνωση του επιλεγμένου αρχείου.";
+"transcribe.file.error.webm" = "Το WebM δεν υποστηρίζεται. Μετατρέψτε το αρχείο σε MP3, M4A ή WAV και δοκιμάστε ξανά.";
+"transcribe.file.error.unreadableAudio" = "Το HyperWhisper δεν μπορεί να διαβάσει τον ήχο αυτού του αρχείου. Μπορεί να είναι κατεστραμμένο ή σε μορφή που το macOS δεν μπορεί να αποκωδικοποιήσει.";
 "transcribe.file.error.copy" = "Αποτυχία αντιγραφής αρχείου στο φάκελο εγγραφών.";
 "transcribe.file.error.video.title" = "Δεν υπάρχει Ήχος στο Βίντεο";
 "transcribe.file.error.video.noAudio" = "Αυτό το αρχείο βίντεο δεν περιέχει κομμάτι ήχου. Παρακαλώ επιλέξτε ένα βίντεο με ήχο ή ένα αρχείο ήχου.";

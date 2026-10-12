@@ -1114,6 +1114,8 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcribe.file.error.format.title" = "Format nesuportat";
 "transcribe.file.error.format.message" = "Fișierele .%@ nu sunt acceptate de %@. Formate acceptate: %@";
 "transcribe.file.error.read" = "Nu se poate citi fișierul selectat.";
+"transcribe.file.error.webm" = "WebM nu este acceptat. Convertiți fișierul în MP3, M4A sau WAV, apoi încercați din nou.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper nu poate citi sunetul din acest fișier. Poate fi deteriorat sau într-un format pe care macOS nu îl poate decoda.";
 "transcribe.file.error.copy" = "Nu s-a putut copia fișier în folderul înregistrări.";
 "transcribe.file.error.video.title" = "Nicio audio în video";
 "transcribe.file.error.video.noAudio" = "Acest fișier video nu conține o pistă audio. Vă rugăm selectați un video cu audio sau un fișier audio.";
