@@ -105,6 +105,11 @@ private final class BlockingWriteCredentialStore: LicenseCredentialStore, @unche
     private var blocksLicenseStateWrites = false
     private var writeInFlight = false
     private let writeRelease = DispatchSemaphore(value: 0)
+    /// How long a held write waits for `releaseBlockedWrite()` before it lands
+    /// anyway. Long, so the in-flight window outlasts a loaded runner holding
+    /// the main actor; it only bounds a regression that blocks a read on the
+    /// write, which then fails instead of hanging.
+    static let writeHoldSafetyBound: Double = 60
     /// Signalled when a held write starts.
     let writeStarted = DispatchSemaphore(value: 0)
 
@@ -132,7 +137,7 @@ private final class BlockingWriteCredentialStore: LicenseCredentialStore, @unche
         if blocks {
             lock.withLock { writeInFlight = true }
             writeStarted.signal()
-            _ = writeRelease.wait(timeout: .now() + 5)
+            _ = writeRelease.wait(timeout: .now() + Self.writeHoldSafetyBound)
             lock.withLock { writeInFlight = false }
         }
         lock.withLock { storage[item] = data }
@@ -576,13 +581,17 @@ struct RustLicenseStoreSecurityTests {
             )
             commitDone.signal()
         }
-        #expect(await waitOffThePool(for: credentials.writeStarted, seconds: 5))
+        // Generous bounds: on a loaded runner the main actor can resume late.
+        // The held write cannot land meanwhile; only the release below lets it.
+        #expect(await waitOffThePool(for: credentials.writeStarted, seconds: 30))
 
         let identifier = manager.getTranscriptionIdentifier()
         let seeding = manager.storedLicenseKeyReadForSeeding()
         let stored = service.getStoredLicenseKey()
         let lastValidation = store.get(key: RustLicenseStore.kLicenseLastValidation)
-        // Every read above returned while the write was still held.
+        // Every read above returned while the write was still held. A read that
+        // waited on the write returns only once the safety bound lets it land,
+        // so this fails rather than hangs.
         #expect(credentials.isWriteInFlight)
         #expect(identifier.identifier == "current-key")
         #expect(identifier.isLicensed)
@@ -592,7 +601,7 @@ struct RustLicenseStoreSecurityTests {
         #expect(lastValidation == "100")
 
         credentials.releaseBlockedWrite()
-        #expect(await waitOffThePool(for: commitDone, seconds: 5))
+        #expect(await waitOffThePool(for: commitDone, seconds: 30))
         #expect(commitResult.value == .persisted)
         #expect(store.get(key: RustLicenseStore.kLicenseLastValidation) == "200")
         #expect(try keychain.readRecord()?.lastValidation == "200")
