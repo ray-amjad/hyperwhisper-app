@@ -443,12 +443,12 @@ class SettingsManager: ObservableObject {
         storage.fallbackToBestAvailableLocation()
     }
 
-    func offerManualFolderSelection() -> Bool {
-        storage.offerManualFolderSelection()
+    func offerManualFolderSelection() async -> Bool {
+        await storage.offerManualFolderSelection()
     }
 
-    func presentStorageRecoveryPrompt() -> Bool {
-        storage.presentStorageRecoveryPrompt()
+    func presentStorageRecoveryPrompt() async -> Bool {
+        await storage.presentStorageRecoveryPrompt()
     }
 
     // MARK: - Forwarding Properties - API Keys

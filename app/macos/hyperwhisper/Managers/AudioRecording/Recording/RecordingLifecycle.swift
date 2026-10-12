@@ -237,7 +237,7 @@ class RecordingLifecycle {
             SentryService.finishSpan(storageSpan, status: ready ? .ok : .internalError)
             if !ready {
                 // Try recovery prompt with manual selection as fallback
-                let chose = await MainActor.run { settings.presentStorageRecoveryPrompt() }
+                let chose = await settings.presentStorageRecoveryPrompt()
                 if !chose {
                     throw AudioError.permissionDenied(reason: "recording.error.documentsAccess".localized)
                 }

@@ -606,7 +606,7 @@ extension RecordingTranscriptionFlow {
         guard let settings = settingsManager else { return nil }
         let ready = await settings.prepareRecordingsFolderIfNeededAsync()
         if !ready {
-            let chose = await MainActor.run { settings.presentStorageRecoveryPrompt() }
+            let chose = await settings.presentStorageRecoveryPrompt()
             if !chose {
                 return "recording.error.documentsAccess".localized
             }
