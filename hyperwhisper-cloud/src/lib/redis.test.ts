@@ -107,9 +107,7 @@ describe('lib/redis against an Upstash REST server', () => {
   });
 
   test('isIPBlocked reads ip_blocked:<ip> with the CLOUD token', async () => {
-    // Stored as the client itself writes the string 'true': JSON-encoded. The
-    // client JSON-parses every read, so a bare `true` would come back as a
-    // boolean, which core does not treat as blocked.
+    // Stored with literal quotes, so the client's JSON parse gives the string.
     store.set('ip_blocked:203.0.113.7', JSON.stringify('true'));
 
     expect(await redis.isIPBlocked('203.0.113.7')).toBe(true);
@@ -120,6 +118,15 @@ describe('lib/redis against an Upstash REST server', () => {
       ['get', 'ip_blocked:198.51.100.9'],
     ]);
     expect(authHeaders).toEqual([`Bearer ${CLOUD_TOKEN}`, `Bearer ${CLOUD_TOKEN}`]);
+  });
+
+  test('isIPBlocked blocks an entry stored as bare true', async () => {
+    // `SET ip_blocked:<ip> true` from redis-cli, the Upstash console, or this
+    // client's own `set(key, 'true')` (a string goes out raw) stores bare
+    // `true`. The client JSON-parses it on read into the boolean `true`.
+    store.set('ip_blocked:203.0.113.7', 'true');
+
+    expect(await redis.isIPBlocked('203.0.113.7')).toBe(true);
   });
 
   test('cacheLicense writes license:<key> for one hour, and getCachedLicense reads it back', async () => {
