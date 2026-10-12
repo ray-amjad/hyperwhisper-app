@@ -115,7 +115,7 @@ struct BackupImportSQLiteRefusalTests {
 
     /// Holds the write lock on `url` until `release()`, like
     /// `BEGIN IMMEDIATE;` in a `sqlite3` shell.
-    private final class WriteLockHolder {
+    private final class WriteLockHolder: @unchecked Sendable {
         private var db: OpaquePointer?
 
         init(url: URL) throws {
