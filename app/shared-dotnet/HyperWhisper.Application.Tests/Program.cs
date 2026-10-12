@@ -434,6 +434,8 @@ try
         Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
             "modes accepted a local LLM path outside the models directory");
         shell.Modes.LocalPostProcessingModel = "local-test.gguf";
+        Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
+            "editing a field cleared the error the user is fixing");
         shell.Modes.UserSystemPrompt = new string('p', 8001);
         await shell.Modes.SaveAsync();
         Assert(shell.Modes.Status.ErrorCode == "modes.prompt_too_long",
@@ -444,6 +446,22 @@ try
             "mode editor refused or cut a system prompt at the 8,000-character limit (#1488)");
         shell.Modes.UserSystemPrompt = "Keep the dictated wording.";
         await shell.Modes.SaveAsync();
+        // #632: the editor footer binds Modes.Status. A `Mode saved` must not sit beside a
+        // pending rename, nor greet the next dialog the editor opens.
+        Assert(shell.Modes.Status.Message == "Mode saved" && !shell.Modes.Status.HasError,
+            $"a valid save reported '{shell.Modes.Status.Message}'");
+        var savedName = shell.Modes.Name;
+        shell.Modes.Name = "Renamed Mode";
+        Assert(shell.Modes.Status.Message.Length == 0,
+            $"an unsaved rename still shows '{shell.Modes.Status.Message}' (#632)");
+        shell.Modes.Name = savedName;
+        await shell.Modes.SaveAsync();
+        Assert(shell.Modes.Status.Message == "Mode saved", "the re-save did not report Mode saved");
+        shell.Modes.ReloadSelected();
+        Assert(shell.Modes.Status.Message == "Mode saved", "reloading the saved mode counted as an edit");
+        shell.Modes.BeginEditorSession();
+        Assert(shell.Modes.Status.Message.Length == 0 && !shell.Modes.Status.HasError,
+            $"a freshly opened editor shows '{shell.Modes.Status.Message}' (#632)");
         var localMode = (await new ModeRepository(database).ListAsync()).Single();
         Assert(localMode.PostProcessingMode == 2
             && localMode.PostProcessingProvider == "local_llm"

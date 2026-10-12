@@ -42,6 +42,7 @@ public partial class ModeEditorWindow : Window
         _isCreate = isCreate;
         _snapshot = snapshot;
         DataContext = modes;
+        modes.BeginEditorSession();
 
         // Windows reassigns the title and the Save label for the create dialog and collapses
         // Delete (ModeEditorWindow.xaml.cs:81-85); Delete hides through IsEditing in the XAML.

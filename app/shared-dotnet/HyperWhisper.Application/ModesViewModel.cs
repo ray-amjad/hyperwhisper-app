@@ -96,7 +96,45 @@ public sealed class ModesViewModel : ViewModelBase
             return Task.CompletedTask;
         });
         DeleteCommand = new AsyncCommand(_ => DeleteAsync());
+        PropertyChanged += (_, e) =>
+        {
+            if (!_loadingEditor && e.PropertyName is { } name && EditorFieldNames.Contains(name))
+                ClearStaleSuccessStatus();
+        };
     }
+
+    // The persisted editor fields — the same set ModeEditorSnapshot carries. A user edit to any of
+    // them makes the form dirty.
+    private static readonly HashSet<string> EditorFieldNames =
+    [
+        nameof(Name), nameof(Language), nameof(Preset), nameof(LocalPostProcessingEnabled),
+        nameof(LocalPostProcessingModel), nameof(UserSystemPrompt), nameof(UserPromptEnabled),
+        nameof(ProviderType), nameof(LocalEngine), nameof(TranscriptionModel), nameof(CloudProvider),
+        nameof(CloudAccuracyTier), nameof(CloudDomain), nameof(GeminiPrompt), nameof(CustomVocabulary),
+        nameof(EnableScreenOcr), nameof(PostProcessingMode), nameof(PostProcessingProvider),
+        nameof(PostProcessingModel), nameof(HyperWhisperCloudModel), nameof(CustomInstructions),
+        nameof(Punctuation), nameof(Capitalization), nameof(ProfanityFilter), nameof(RemoveTrailingPeriod),
+        nameof(EnglishSpelling), nameof(CustomEndpointName), nameof(CustomEndpointUrl),
+        nameof(CustomEndpointModel), nameof(CustomEndpointApiKey),
+    ];
+
+    /// <summary>
+    /// Issue #632: the editor footer binds <see cref="Status"/>, which is shared with the page and
+    /// outlives the dialog. A `Mode saved` left by the previous save read as confirmation of an
+    /// edit that is still pending. A success line describes state the form no longer shows once a
+    /// field changes, so it goes; an error stays, because it names what the user is fixing.
+    /// </summary>
+    private void ClearStaleSuccessStatus()
+    {
+        if (!Status.HasError && !Status.IsBusy && Status.Message.Length > 0) Status.Clear();
+    }
+
+    /// <summary>
+    /// Called when the mode editor opens, on both the edit and the create path. Whatever the
+    /// status says belongs to an earlier dialog or to the page — a fresh Create New Mode form used
+    /// to open on the last edit's `Mode saved` (issue #632) — so the footer starts empty.
+    /// </summary>
+    public void BeginEditorSession() => Status.Clear();
     public ObservableCollection<Mode> Items { get; } = new();
     public Mode? Selected
     {
