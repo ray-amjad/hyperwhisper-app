@@ -20510,6 +20510,59 @@ internal static class Program
                     "and it raises PropertyChanged, or the Home badge keeps painting the old chord");
             });
 
+            Run("home: Customize Shortcuts opens Settings on Shortcuts, in one navigation (#637)", () =>
+            {
+                // #637. The row set CurrentPage = Settings with no section, so
+                // Settings opened on General. And NavigateToSettingsSection set
+                // CurrentPage (one section-less navigation, via MainWindow's
+                // subscription) and then navigated again with the section; from a
+                // page inside the Frame the section-less one won. The section now
+                // rides on the one navigation. This stands in for MainWindow's
+                // subscription, which is the only reader of the pending section.
+                var settings = SettingsService.Instance;
+                var savedSteps = settings.GettingStartedCompletedSteps;
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                typeof(MainViewModel).GetField("_settingsService", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(vm, settings);
+                vm.GettingStartedItems = new System.Collections.ObjectModel.ObservableCollection<GettingStartedItem>
+                {
+                    new() { Id = "shortcuts" },
+                };
+                vm.CurrentPage = MainViewModel.NavigationPage.Home;
+
+                var navigations = new List<(MainViewModel.NavigationPage Page, string? Section)>();
+                vm.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MainViewModel.CurrentPage))
+                        navigations.Add((vm.CurrentPage, vm.TakePendingSettingsSection()));
+                };
+
+                try
+                {
+                    settings.GettingStartedCompletedSteps = "";
+                    vm.ToggleGettingStartedStepCommand.Execute("shortcuts");
+                    Assert(navigations.Count == 1, $"the row makes one navigation, not {navigations.Count}");
+                    Assert(navigations[0] == (MainViewModel.NavigationPage.Settings, "Shortcuts"),
+                        $"the Customize Shortcuts row lands on Settings > Shortcuts, not {navigations[0]}");
+
+                    navigations.Clear();
+                    vm.OpenSettingsSection("License");
+                    Assert(navigations.Count == 1 && navigations[0] == (MainViewModel.NavigationPage.Settings, "License"),
+                        "already on Settings, a section request still navigates to that section");
+
+                    navigations.Clear();
+                    vm.CurrentPage = MainViewModel.NavigationPage.Home;
+                    vm.CurrentPage = MainViewModel.NavigationPage.Settings;
+                    Assert(navigations.Count == 2 && navigations.All(n => n.Section is null),
+                        "a plain navigation carries no stale section from an earlier request");
+                }
+                finally
+                {
+                    settings.GettingStartedCompletedSteps = savedSteps;
+                }
+            });
+
             // ------------------------------------------------------------------
             // UiaProbeHost — issue #672
             //

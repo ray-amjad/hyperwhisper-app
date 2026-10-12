@@ -62,7 +62,7 @@ public partial class MainWindow : Window
         WindowWorkAreaFit.Attach(this);
 
         _viewModel = (MainViewModel)DataContext;
-        _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(MainViewModel.CurrentPage)) NavigateToPage(_viewModel.CurrentPage); };
+        _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(MainViewModel.CurrentPage)) NavigateToPage(_viewModel.CurrentPage, _viewModel.TakePendingSettingsSection()); };
 
         // The nav rail is its own control now (issue #570); it reports the credits
         // call to action rather than navigating, because navigation lives here.
@@ -364,15 +364,11 @@ public partial class MainWindow : Window
     private void CloudCreditsSidebar_Click(object? sender, EventArgs e)
     {
         // Open the combined Cloud account / credits + license activation panel.
-        _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
-        NavigateToPage(MainViewModel.NavigationPage.Settings, "License");
+        NavigateToSettingsSection("License");
     }
 
-    public void NavigateToSettingsSection(string sectionTag)
-    {
-        _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
-        NavigateToPage(MainViewModel.NavigationPage.Settings, sectionTag);
-    }
+    // One navigation, not two: the CurrentPage change carries the section (#637).
+    public void NavigateToSettingsSection(string sectionTag) => _viewModel.OpenSettingsSection(sectionTag);
 
     /// <summary>
     /// Creates the recording overlay window if it doesn't exist and wires up all events.
@@ -452,8 +448,7 @@ public partial class MainWindow : Window
             }
 
             // Show main window and navigate to settings
-            _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
-            NavigateToPage(MainViewModel.NavigationPage.Settings, args.SettingsSection ?? "General");
+            NavigateToSettingsSection(args.SettingsSection ?? "General");
         };
         _errorToast.Dismissed += (s, e) =>
         {

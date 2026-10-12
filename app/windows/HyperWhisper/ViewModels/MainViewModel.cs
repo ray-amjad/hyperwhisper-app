@@ -940,6 +940,39 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand] private void NavigateToHistory() => CurrentPage = NavigationPage.History;
     [RelayCommand] private void NavigateToSettings() => CurrentPage = NavigationPage.Settings;
 
+    private string? _pendingSettingsSection;
+
+    /// <summary>
+    /// Opens Settings on one section, in a single navigation.
+    /// </summary>
+    /// <remarks>
+    /// #637. MainWindow navigates whenever CurrentPage changes, with no section, so
+    /// setting CurrentPage and then navigating again with the section made two
+    /// navigations, and from a page inside the Frame the section-less one won:
+    /// Settings opened on General. The section now rides along with the one
+    /// navigation the CurrentPage change raises; MainWindow takes it with
+    /// TakePendingSettingsSection. Already on Settings, the setter would raise
+    /// nothing, so the change is raised by hand to move to the section.
+    /// </remarks>
+    public void OpenSettingsSection(string sectionTag)
+    {
+        _pendingSettingsSection = sectionTag;
+        if (CurrentPage == NavigationPage.Settings)
+            OnPropertyChanged(nameof(CurrentPage));
+        else
+            CurrentPage = NavigationPage.Settings;
+    }
+
+    /// <summary>
+    /// The section OpenSettingsSection asked for, once; null for any other navigation.
+    /// </summary>
+    internal string? TakePendingSettingsSection()
+    {
+        var section = _pendingSettingsSection;
+        _pendingSettingsSection = null;
+        return CurrentPage == NavigationPage.Settings ? section : null;
+    }
+
     // =========================================================================
     // RECENT RELEASES
     // =========================================================================
