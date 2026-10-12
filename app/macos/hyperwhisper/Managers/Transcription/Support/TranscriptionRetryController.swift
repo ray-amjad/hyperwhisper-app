@@ -159,6 +159,10 @@ class TranscriptionRetryController {
             throw TranscriptionRetryError.originalModeDeleted
         }
 
+        // The row's delete cancelled this retry before it began (#1743): leave
+        // the row as it was, not flipped to "processing".
+        try Task.checkCancellation()
+
         // UPDATE STEP 1: Mark transcript as processing
         // This immediately shows the user that we're retrying the transcription
         transcript.setValue("processing", forKey: "status")

@@ -25,6 +25,7 @@ import Testing
 struct DeleteCancelsPlainRetryTests {
 
     private static let originalText = "Transcription failed: the engine could not decode the audio"
+    private static let originalReason = "the engine could not decode the audio"
 
     // MARK: - Fixtures
 
@@ -47,6 +48,7 @@ struct DeleteCancelsPlainRetryTests {
         transcript.modeRelationship = mode
         transcript.text = Self.originalText
         transcript.setValue("failed", forKey: "status")
+        transcript.setValue(Self.originalReason, forKey: "failedReason")
         persistence.save()
         return transcript
     }
@@ -61,8 +63,8 @@ struct DeleteCancelsPlainRetryTests {
     // MARK: - Cancelled retry
 
     /// The delete cancels the retry task before it removes the row. The
-    /// controller then stops before the engine and writes no "Retry failed"
-    /// onto the row the user is deleting.
+    /// controller then stops before the engine and leaves the row exactly as it
+    /// was: no "processing" flip, no retryCount bump, no "Retry failed" text.
     @MainActor
     @Test func aCancelledRetryStopsBeforeTheEngineAndWritesNoFailure() async throws {
         let audio = try makeAudioFile()
@@ -86,8 +88,11 @@ struct DeleteCancelsPlainRetryTests {
             Issue.record("Expected CancellationError, got \(error)")
         }
 
+        #expect(transcript.value(forKey: "status") as? String == "failed")
+        #expect(transcript.value(forKey: "failedReason") as? String == Self.originalReason)
         #expect(transcript.text == Self.originalText)
-        #expect(transcript.value(forKey: "failedReason") == nil)
+        #expect((transcript.value(forKey: "retryCount") as? Int16 ?? 0) == 0)
+        #expect(transcript.value(forKey: "lastRetryDate") == nil)
     }
 
     // MARK: - Control (#1425)
