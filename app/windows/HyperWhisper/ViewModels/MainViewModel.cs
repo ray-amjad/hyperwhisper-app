@@ -1008,6 +1008,14 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
+        // A Transcribe File job on Parakeet is loading or using this daemon
+        // (#1609). IsTranscribing is not set yet while it loads, so a mode
+        // switch then would dispose the daemon the job just started.
+        if (_parakeetFileJobOwnsDaemon)
+        {
+            return;
+        }
+
         // Housekeeping only (#1544): every mode write re-selects the current mode and
         // lands here, on the Local API request thread or the UI thread. A Local API job
         // may be on the daemon even though the GUI is idle; waiting it out held that
@@ -1195,15 +1203,36 @@ public partial class MainViewModel : ViewModelBase
     /// pending must not queue behind it and then dispose the daemon the job
     /// just started.
     /// </summary>
-    private bool _parakeetFileJobOwnsDaemon;
+    private volatile bool _parakeetFileJobOwnsDaemon;
+
+    /// <summary>Set when a Whisper load was held out by that file job, so it runs once the job ends.</summary>
+    private volatile bool _whisperLoadHeldForParakeetFileJob;
 
     private bool ParakeetFileJobKeepsWhisperOut()
     {
         if (!_parakeetFileJobOwnsDaemon) return false;
 
         LoggingService.Info("LoadWhisperModelAsync: A Parakeet file transcription owns the engine; not loading Whisper");
+        _whisperLoadHeldForParakeetFileJob = true;
         UpdateModelStatus();
         return true;
+    }
+
+    /// <summary>
+    /// Call once the Parakeet file job no longer needs its daemon (it ended, or
+    /// its load failed). Clear <see cref="_parakeetFileJobOwnsDaemon"/> first, so
+    /// the idle housekeeping can dispose the daemon again.
+    /// </summary>
+    private void LoadWhisperHeldOutByParakeetFileJob()
+    {
+        if (!_whisperLoadHeldForParakeetFileJob) return;
+        _whisperLoadHeldForParakeetFileJob = false;
+
+        var mode = SelectedMode;
+        if (mode == null || mode.ProviderType == "cloud" || mode.LocalEngine == "parakeet") return;
+
+        LoggingService.Info("MainViewModel: Parakeet file transcription ended; loading the Whisper model it held out");
+        LoadModelInBackground(mode);
     }
 
     private async Task LoadParakeetModelAsync()

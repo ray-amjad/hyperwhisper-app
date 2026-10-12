@@ -1583,6 +1583,18 @@ internal static class Program
                     "LoadWhisperModelAsync can dispose the daemon a Parakeet file transcription started");
                 Assert(typeof(MainViewModel).GetField("_parakeetFileJobOwnsDaemon", all) != null,
                     "MainViewModel._parakeetFileJobOwnsDaemon is gone; update this test");
+                // A mode switch while that job loads (before IsTranscribing) must not
+                // dispose its daemon either, and the Whisper load it held out runs
+                // once the job ends or its load fails (review R2).
+                Assert(typeof(MainViewModel).GetField("_whisperLoadHeldForParakeetFileJob", all) != null,
+                    "MainViewModel._whisperLoadHeldForParakeetFileJob is gone; update this test");
+                var heldWhisperLoad = Vm("LoadWhisperHeldOutByParakeetFileJob");
+                Assert(AsyncBodyCalls(heldWhisperLoad, Vm("LoadModelInBackground")),
+                    "LoadWhisperHeldOutByParakeetFileJob no longer loads the held-out Whisper model");
+                Assert(AsyncBodyCalls(Vm("TranscribeFileAsync", typeof(string), typeof(Mode)), heldWhisperLoad),
+                    "TranscribeFileAsync no longer loads the Whisper model a Parakeet file job held out");
+                Assert(AsyncBodyCalls(Vm("EnsureLocalProviderReadyForFileAsync"), heldWhisperLoad),
+                    "A failed Parakeet file load no longer loads the Whisper model it held out");
 
                 var loadForRecording = Vm("LoadModelForRecordingAsync");
                 Assert(AsyncBodyCalls(Vm("StartRecordingAsync"), loadForRecording),

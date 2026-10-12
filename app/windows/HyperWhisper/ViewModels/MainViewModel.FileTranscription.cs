@@ -433,9 +433,11 @@ public partial class MainViewModel
                 }
             }
 
+            // Before IsTranscribing: its idle housekeeping may dispose the daemon now.
+            _parakeetFileJobOwnsDaemon = false;
             IsTranscribing = false;
             _fileTranscriptionActive = false;
-            _parakeetFileJobOwnsDaemon = false;
+            LoadWhisperHeldOutByParakeetFileJob();
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
                 _activeTranscriptionCts = null;
@@ -553,6 +555,7 @@ public partial class MainViewModel
             catch (Exception ex)
             {
                 _parakeetFileJobOwnsDaemon = false;
+                LoadWhisperHeldOutByParakeetFileJob();
                 ModelStatus = Loc.S("status.model.loadFailed");
                 StatusText = Loc.S("status.failed", ex.Message);
                 LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Parakeet model load failed - {ex.Message}", ex);
