@@ -229,9 +229,7 @@ class TranscriptActionHandler: ObservableObject {
 
                 // Update transcript to failed state
                 await MainActor.run {
-                    newTranscript.setValue("failed", forKey: "status")
-                    newTranscript.setValue(error.localizedDescription, forKey: "failedReason")
-                    persistenceController.save()
+                    Self.markRetryWithFailed(newTranscript, after: error, persistence: persistenceController)
                 }
             }
         }
@@ -240,6 +238,17 @@ class TranscriptActionHandler: ObservableObject {
         }
 
         return true
+    }
+
+    /// Marks a failed "Retry with" row failed, and replaces its "Processing
+    /// transcription..." placeholder with the same text a failed file import
+    /// writes (#1457), so the list and detail pane stop reading as running.
+    static func markRetryWithFailed(_ transcript: Transcript, after error: Error, persistence: PersistenceController) {
+        let outcome = FileTranscriptionFlow.failureOutcome(for: error)
+        transcript.setValue("failed", forKey: "status")
+        transcript.setValue(outcome.failedReason, forKey: "failedReason")
+        transcript.text = outcome.errorText
+        persistence.save()
     }
     
     // MARK: - Delete Actions
