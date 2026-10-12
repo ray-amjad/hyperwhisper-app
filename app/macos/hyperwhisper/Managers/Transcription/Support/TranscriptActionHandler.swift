@@ -53,7 +53,7 @@ class TranscriptActionHandler: ObservableObject {
 
     /// Remember the running retry transcription for this row. `token` names
     /// this run, so a later run of the same row is not untracked by this one.
-    static func trackRetryTask<Success, Failure>(_ task: Task<Success, Failure>, for transcriptId: UUID, token: UUID) {
+    static func trackRetryTask<Success: Sendable, Failure: Error>(_ task: Task<Success, Failure>, for transcriptId: UUID, token: UUID) {
         retryTasks[transcriptId] = RunningRetry(token: token, cancel: { task.cancel() })
     }
 
