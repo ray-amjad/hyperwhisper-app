@@ -342,9 +342,13 @@ class StorageSettingsManager: ObservableObject {
     /// Offer manual folder selection when all automatic options fail
     /// Presents NSOpenPanel for user to choose a writable location
     ///
+    /// Uses `begin` and awaits it rather than `runModal()` (issue #1734): runModal
+    /// held the main actor until the user chose, and the Local API (@MainActor)
+    /// answered nothing meanwhile.
+    ///
     /// - Returns: True if user selected a folder, false if cancelled
     @MainActor
-    func offerManualFolderSelection() -> Bool {
+    func offerManualFolderSelection() async -> Bool {
         let panel = NSOpenPanel()
         panel.title = "storage.folder.choose.title".localized
         panel.message = "storage.folder.choose.message".localized
@@ -353,7 +357,11 @@ class StorageSettingsManager: ObservableObject {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
-        let response = panel.runModal()
+        // Reached from a recording start, often while another app is frontmost.
+        NSApp.activate(ignoringOtherApps: true)
+        let response = await withCheckedContinuation { continuation in
+            panel.begin { continuation.resume(returning: $0) }
+        }
         if response == .OK, let url = panel.url {
             changeRecordingsFolder(to: url)
             return true
@@ -364,18 +372,21 @@ class StorageSettingsManager: ObservableObject {
     /// Present a recovery alert and offer manual folder selection
     /// Called when all automatic fallbacks have failed
     ///
+    /// Modeless (issue #1734): the caller needs the answer, so it awaits it, which
+    /// leaves the main actor — and the Local API — free while the alert is open.
+    ///
     /// - Returns: True if user selected a folder, false otherwise
     @MainActor
-    func presentStorageRecoveryPrompt() -> Bool {
+    func presentStorageRecoveryPrompt() async -> Bool {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "storage.recovery.title".localized
         alert.informativeText = "storage.recovery.message".localized
         alert.addButton(withTitle: "storage.recovery.choose".localized)
         alert.addButton(withTitle: "common.cancel".localized)
-        let result = alert.runModal()
+        let result = await ModelessAlert.response(for: alert)
         if result == .alertFirstButtonReturn {
-            return offerManualFolderSelection()
+            return await offerManualFolderSelection()
         }
         return false
     }
