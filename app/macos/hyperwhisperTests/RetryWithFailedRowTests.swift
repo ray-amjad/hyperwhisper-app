@@ -22,7 +22,7 @@ struct RetryWithFailedRowTests {
         return try #require(try context.existingObject(with: id) as? Transcript)
     }
 
-    @Test func failedRetryReplacesProcessingText() throws {
+    @Test func failedRetryReplacesProcessingText() async throws {
         struct ConversionFailed: LocalizedError {
             var errorDescription: String? { "Nemotron is not available: Audio conversion failed" }
         }
@@ -30,7 +30,7 @@ struct RetryWithFailedRowTests {
         let row = persistence.createProcessingTranscript(duration: 3, mode: "LocNemo", audioFilePath: "/test/retry.mp3")
         let placeholder = row.text
 
-        TranscriptActionHandler.markRetryWithFailed(row, after: ConversionFailed(), persistence: persistence)
+        await TranscriptActionHandler.markRetryWithFailed(row.objectID, after: ConversionFailed(), persistence: persistence)
 
         let saved = try reload(row.objectID, in: persistence)
         #expect(saved.value(forKey: "status") as? String == "failed")
@@ -40,11 +40,11 @@ struct RetryWithFailedRowTests {
         #expect(saved.audioFilePath == "/test/retry.mp3")
     }
 
-    @Test func cancelledRetryReadsCancelled() throws {
+    @Test func cancelledRetryReadsCancelled() async throws {
         let persistence = PersistenceController(inMemory: true)
         let row = persistence.createProcessingTranscript(duration: 3, mode: "LocQwen", audioFilePath: "/test/retry2.mp3")
 
-        TranscriptActionHandler.markRetryWithFailed(row, after: CancellationError(), persistence: persistence)
+        await TranscriptActionHandler.markRetryWithFailed(row.objectID, after: CancellationError(), persistence: persistence)
 
         let saved = try reload(row.objectID, in: persistence)
         #expect(saved.value(forKey: "status") as? String == "failed")
