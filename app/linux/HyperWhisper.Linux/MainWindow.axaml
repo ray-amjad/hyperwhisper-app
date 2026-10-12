@@ -1397,8 +1397,10 @@
         <!-- Windows' ActionStatusText: one shared line between the status card and the tab strip,
              so it stays visible whichever tab is showing. It reports what a Copy or Regenerate
              actually did; Linux used to report only failures, and only into the page's own status
-             line at the very bottom. It never auto-hides on Windows either; the next action
-             replaces it. The negative top margin closes the gap the card below already leaves. -->
+             line at the very bottom. It never auto-hides on a timer; the next action replaces it,
+             and turning the server off or on clears it (#653), since that hides or redraws the
+             buttons it reports on. The negative top margin closes the gap the card below already
+             leaves. -->
         <TextBlock x:Name="LocalApiActionStatus" FontSize="11" TextWrapping="Wrap"
                    Margin="0,-8,0,14" IsVisible="False"/>
 

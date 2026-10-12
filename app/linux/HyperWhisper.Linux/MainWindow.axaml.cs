@@ -222,6 +222,7 @@ public partial class MainWindow : Window
         Closed += OnClosed;
         PropertyChanged += OnWindowPropertyChanged;
         _viewModel.Settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
+        _viewModel.Settings.PropertyChanged += OnLocalApiEnabledChanged;
         _viewModel.Settings.DesktopSettingsChanged += OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged += OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged += OnStorageSettingsChanged;
@@ -363,6 +364,7 @@ public partial class MainWindow : Window
         _lifetime.Cancel();
         if (_viewModel.Recording is { } recording) recording.DevicesChanged -= OnRecordingDevicesChanged;
         _viewModel.Settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
+        _viewModel.Settings.PropertyChanged -= OnLocalApiEnabledChanged;
         _viewModel.Settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged -= OnStorageSettingsChanged;
@@ -1910,8 +1912,9 @@ public partial class MainWindow : Window
             : null, "settings.localApi.action.portUnavailable");
 
     /// <summary>
-    /// Windows' ShowActionStatus: the message stays until the next action replaces it, and an
-    /// error is orange-red where a normal report is secondary text.
+    /// Windows' ShowActionStatus: the message stays until the next action replaces it or the
+    /// server is turned off or on (OnLocalApiEnabledChanged), and an error is orange-red where a
+    /// normal report is secondary text.
     /// </summary>
     private void ShowLocalApiActionStatus(string message, bool isError)
     {
@@ -1922,6 +1925,19 @@ public partial class MainWindow : Window
             : this.FindResource("HwTextSecondaryBrush") as IBrush
               ?? new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80));
         line.IsVisible = true;
+    }
+
+    /// <summary>
+    /// Issue #653: the line reports what one of the panel's own buttons did, and turning the server
+    /// off hides every one of those buttons. So an enabled-state change, either way, starts the page
+    /// on a clean line; the next Copy or Regenerate shows its report again.
+    /// </summary>
+    private void OnLocalApiEnabledChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(SettingsViewModel.LocalApiEnabled)) return;
+        if (FindNamed<TextBlock>("LocalApiActionStatus") is not { } line) return;
+        line.Text = string.Empty;
+        line.IsVisible = false;
     }
 
     private async void OnCopyLocalApiMcpSnippet(object? sender, RoutedEventArgs e) =>
