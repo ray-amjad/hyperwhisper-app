@@ -738,13 +738,13 @@ class RecordingLifecycle {
         // Track any conversion warning to surface to the user
         var conversionWarning: String?
 
-        // STEP 1: Stop SimpleRecorder. Since #1359 its `stop()` runs on the meter
-        // queue behind any meter read in flight, and this waits for it off the main
-        // thread, for at most 5 s. `isRecording` goes false before the wait, so a
-        // second stop that lands during it cannot run a second finalisation of the
-        // same file.
+        // `isRecording` goes false before the recorder-stop wait below, so a second
+        // stop that lands during it cannot run a second finalisation of the same file.
         self.isRecording = false
-        let recorderStopOutcome = await simpleRecorder.stopRecording()
+
+        // STEP 3 to 3.6 run BEFORE the recorder-stop wait (#1359): that wait can last
+        // 5 s when a meter read is stuck, and the user's system audio, mic volume and
+        // duration counter must not stay in their recording state for it.
 
         // STEP 3: Stop duration timer
         recordingTimer?.invalidate()
@@ -766,11 +766,16 @@ class RecordingLifecycle {
             originalMicVolumeDeviceID = nil
         }
 
-        // Update UI state immediately
-        await MainActor.run {
-            self.audioLevel = 0
-            self.recordingDuration = 0
-        }
+        // Update UI state immediately. Synchronous (this class is @MainActor), so no
+        // suspension point sits between `isRecording = false` and the recorder stop
+        // below, where a new start could install a recorder this stop would retire.
+        self.audioLevel = 0
+        self.recordingDuration = 0
+
+        // STEP 1: Stop SimpleRecorder. Since #1359 its `stop()` runs on the meter
+        // queue behind any meter read in flight, and this waits for it off the main
+        // thread, for at most 5 s.
+        let recorderStopOutcome = await simpleRecorder.stopRecording()
 
         AppLogger.audio.info("Stopped recording - Duration: \(duration, privacy: .public)s")
 
