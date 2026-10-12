@@ -137,7 +137,8 @@ static void AllCatalogsLoad()
     // 855 -> 855 (#1644): `errors.retryModeDeleted` is new (Windows History Retry refuses
     // a row whose mode was deleted instead of running the default mode), and
     // `errors.noModeForRetry` is gone, its only use removed by the same change.
-    Equal(855, PortableLocalizer.BaseKeyCount, "base key count");
+    // 855 -> 856 (#1574): `errors.fileTranscriptionBusy` is new (PR #1760, Windows only).
+    Equal(856, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");
