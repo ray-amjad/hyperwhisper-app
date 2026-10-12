@@ -68,4 +68,31 @@ struct VocabularyMultiLineWordTests {
         #expect(item?.word == "sig")
         #expect(item?.replacement == "Best,\nRay")
     }
+
+    // MARK: - Backup import (#1777)
+
+    /// A backup made before #1475 can carry a word with line breaks inside it.
+    /// It imports as one word per non-empty line, like the add field.
+    @MainActor
+    @Test func aBackupWordWithLineBreaksImportsAsOneWordPerLine() throws {
+        let persistence = PersistenceController(inMemory: true)
+        #expect(persistence.addVocabularyItem(word: "y", replacement: nil))
+
+        let result = try persistence.importBackupStore(
+            modes: nil,
+            modeResolution: .skip,
+            vocabulary: [
+                BackupVocabularyItem(id: UUID(), word: " x \ny\n\nz", replacement: "Best,\nRay", sortOrder: 0, source: "manual"),
+            ],
+            vocabularyResolution: .skip
+        )
+
+        #expect(result.vocabularyImported == 2)
+        #expect(result.vocabularySkipped == 1)
+        let items = persistence.fetchAllVocabularyItems()
+        #expect(items.compactMap(\.word).sorted() == ["x", "y", "z"])
+        #expect(items.allSatisfy { ($0.word ?? "").rangeOfCharacter(from: .newlines) == nil })
+        #expect(items.first { $0.word == "x" }?.replacement == "Best,\nRay")
+        #expect(items.first { $0.word == "y" }?.replacement == nil)
+    }
 }

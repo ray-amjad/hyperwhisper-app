@@ -3439,9 +3439,16 @@ class PersistenceController: ObservableObject {
         // the same "add to end" order `addVocabularyItem` gives each row.
         var maxSortOrder: Int16?
 
-        for item in backupItems {
-            let normalizedWord = item.word.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A backup made before #1475 can carry a word with line breaks inside it. It
+        // imports as one word per non-empty line, the way the add field saves a paste
+        // (#1777); each line carries the item's replacement and source. A blank word
+        // stays one empty entry, so it is still counted as skipped below.
+        let entries = backupItems.flatMap { item -> [(String, BackupVocabularyItem)] in
+            let lines = Self.vocabularyWordLines(from: item.word)
+            return lines.isEmpty ? [("", item)] : lines.map { ($0, item) }
+        }
 
+        for (normalizedWord, item) in entries {
             // Skip empty/whitespace-only words. An empty word would later compile
             // to the regex "\b\b" in VocabularyProcessor, matching every word
             // boundary and corrupting the entire transcript.
