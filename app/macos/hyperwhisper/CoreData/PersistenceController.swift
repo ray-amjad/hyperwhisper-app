@@ -3191,10 +3191,13 @@ class PersistenceController: ObservableObject {
     /// itself refuses the write:
     /// - Busy lock: Core Data waits for another process's write lock with no
     ///   limit. Neither `NSPersistentStoreTimeoutOption` nor a `busy_timeout`
-    ///   pragma bounds that wait (measured on macOS 26). So first take the
-    ///   write lock on each store the save writes, on our own connection with
-    ///   a 10 s busy timeout, and let it go at once. A lock taken in the few
-    ///   milliseconds between that check and the save still waits.
+    ///   pragma bounds that wait (measured on macOS 26). So before each
+    ///   `context.save()` take the write lock on every store the save writes,
+    ///   on our own connections within one 10 s deadline, hold them all until
+    ///   the line before the save, and let them go together (Core Data's own
+    ///   connection cannot take a lock ours hold, so they cannot be held
+    ///   through it). A lock another process takes in the short gap between
+    ///   that release and Core Data's own BEGIN still waits.
     /// - Constraint: a refused statement (`SQLITE_CONSTRAINT`, e.g. a trigger)
     ///   reads to Core Data as an optimistic-locking failure. With a merging
     ///   policy it retries, then ends the process ("Unable to recover from
@@ -3205,10 +3208,11 @@ class PersistenceController: ObservableObject {
     ///   conflict to resolve, or a second failure, is thrown.
     @MainActor
     private func saveBackupImportChanges(context: NSManagedObjectContext) throws {
-        for storeURL in Self.storeFileURLsWritten(by: context) {
-            try Self.waitForStoreWriteLock(at: storeURL, timeout: Self.backupImportWriteLockTimeout)
-        }
-        try Self.saveWithoutRetryLoop(context: context)
+        try Self.saveWithoutRetryLoop(
+            context: context,
+            lockingStoresAt: Self.storeFileURLsWritten(by: context),
+            lockTimeout: Self.backupImportWriteLockTimeout
+        )
     }
 
     /// The on-disk SQLite files the context's pending changes are written to.
@@ -3231,37 +3235,86 @@ class PersistenceController: ObservableObject {
         }
     }
 
+    /// Write locks taken by `acquireStoreWriteLocks` on our own connections,
+    /// held until `release()`.
+    final class StoreWriteLocks {
+        private var connections: [OpaquePointer]
+
+        fileprivate init(connections: [OpaquePointer]) {
+            self.connections = connections
+        }
+
+        func release() {
+            for db in connections {
+                sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+                sqlite3_close_v2(db)
+            }
+            connections = []
+        }
+
+        deinit { release() }
+    }
+
+    /// Takes the write lock on every SQLite file in `urls`, all within one
+    /// `timeout`, and holds them until the result is released. Throws
+    /// `BackupImportStoreLockedError` (with every lock already taken let go)
+    /// when another connection still holds one at the deadline. Any other
+    /// SQLite failure skips that file and is left to the Core Data save,
+    /// which reports it.
+    nonisolated static func acquireStoreWriteLocks(at urls: [URL], timeout: TimeInterval) throws -> StoreWriteLocks {
+        var held: [OpaquePointer] = []
+        let deadline = Date().addingTimeInterval(timeout)
+        for url in urls {
+            var db: OpaquePointer?
+            guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK, let db else {
+                sqlite3_close_v2(db)
+                continue
+            }
+            let remaining = max(0, deadline.timeIntervalSinceNow)
+            sqlite3_busy_timeout(db, Int32(remaining * 1000))
+            let code = sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil)
+            if code == SQLITE_OK {
+                held.append(db)
+                continue
+            }
+            sqlite3_close_v2(db)
+            let primaryCode = code & 0xFF
+            if primaryCode == SQLITE_BUSY || primaryCode == SQLITE_LOCKED {
+                StoreWriteLocks(connections: held).release()
+                AppLogger.coreData.error("Backup import: \(url.lastPathComponent, privacy: .public) stayed write-locked by another connection for \(Int(timeout))s · not saving")
+                throw BackupImportStoreLockedError(storeFileName: url.lastPathComponent, sqliteCode: code)
+            }
+        }
+        return StoreWriteLocks(connections: held)
+    }
+
     /// Waits up to `timeout` for the write lock on the SQLite file at `url`,
-    /// then releases it. Throws `BackupImportStoreLockedError` when another
-    /// connection still holds it. Any other SQLite failure is left to the
-    /// Core Data save, which reports it.
+    /// then releases it (see `acquireStoreWriteLocks`).
     nonisolated static func waitForStoreWriteLock(at url: URL, timeout: TimeInterval) throws {
-        var db: OpaquePointer?
-        defer { sqlite3_close_v2(db) }
-        guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK else { return }
-        sqlite3_busy_timeout(db, Int32(timeout * 1000))
-        let code = sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil)
-        if code == SQLITE_OK {
-            sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
-            return
-        }
-        let primaryCode = code & 0xFF
-        if primaryCode == SQLITE_BUSY || primaryCode == SQLITE_LOCKED {
-            AppLogger.coreData.error("Backup import: \(url.lastPathComponent, privacy: .public) stayed write-locked by another connection for \(Int(timeout))s · not saving")
-            throw BackupImportStoreLockedError(storeFileName: url.lastPathComponent, sqliteCode: code)
-        }
+        try acquireStoreWriteLocks(at: [url], timeout: timeout).release()
     }
 
     /// Saves under `NSErrorMergePolicy`, resolving real conflicts once with the
     /// context's own policy (see `saveBackupImportChanges`). The context's
-    /// policy is put back afterwards.
+    /// policy is put back afterwards. Each save, the retry included, first
+    /// takes and holds the write locks on `storeURLs` and lets them go on the
+    /// line before it.
     @MainActor
-    static func saveWithoutRetryLoop(context: NSManagedObjectContext) throws {
+    static func saveWithoutRetryLoop(
+        context: NSManagedObjectContext,
+        lockingStoresAt storeURLs: [URL] = [],
+        lockTimeout: TimeInterval = backupImportWriteLockTimeout
+    ) throws {
         let policy = context.mergePolicy
         context.mergePolicy = NSErrorMergePolicy
         defer { context.mergePolicy = policy }
-        do {
+        func save() throws {
+            let locks = try acquireStoreWriteLocks(at: storeURLs, timeout: lockTimeout)
+            locks.release()
             try context.save()
+        }
+        do {
+            try save()
         } catch let error as NSError where error.domain == NSCocoaErrorDomain
             && (error.code == NSManagedObjectMergeError || error.code == NSManagedObjectConstraintMergeError) {
             let conflicts = error.userInfo[NSPersistentStoreSaveConflictsErrorKey] as? [Any] ?? []
@@ -3279,7 +3332,7 @@ class PersistenceController: ObservableObject {
             if !constraintConflicts.isEmpty {
                 try resolver.resolve(constraintConflicts: constraintConflicts)
             }
-            try context.save()
+            try save()
         }
     }
 

@@ -122,6 +122,7 @@ struct BackupImportSQLiteRefusalTests {
             guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK,
                   sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil) == SQLITE_OK else {
                 sqlite3_close_v2(db)
+                db = nil
                 throw NSError(domain: "Percy1626", code: 2)
             }
         }
@@ -219,5 +220,58 @@ struct BackupImportSQLiteRefusalTests {
         try PersistenceController.waitForStoreWriteLock(at: store.url, timeout: 10)
         #expect(Date().timeIntervalSince(started) < 1)
         #expect(PersistenceController.backupImportWriteLockTimeout == 10)
+    }
+
+    @Test("Every store's write lock is held together until released")
+    func locksAreHeldUntilRelease() async throws {
+        let first = try await MainActor.run { try Self.makeStore() }
+        let second = try await MainActor.run { try Self.makeStore() }
+        defer {
+            first.remove()
+            second.remove()
+        }
+
+        let locks = try PersistenceController.acquireStoreWriteLocks(at: [first.url, second.url], timeout: 1)
+        // Another connection cannot take either lock while ours hold them.
+        #expect(throws: (any Error).self) { _ = try WriteLockHolder(url: first.url) }
+        #expect(throws: (any Error).self) { _ = try WriteLockHolder(url: second.url) }
+        locks.release()
+        try WriteLockHolder(url: first.url).release()
+        try WriteLockHolder(url: second.url).release()
+    }
+
+    @Test("One deadline covers every store, and a timeout lets the taken locks go")
+    func sharedDeadlineReleasesTakenLocks() async throws {
+        let first = try await MainActor.run { try Self.makeStore() }
+        let second = try await MainActor.run { try Self.makeStore() }
+        defer {
+            first.remove()
+            second.remove()
+        }
+        let holder = try WriteLockHolder(url: second.url)
+        defer { holder.release() }
+
+        let started = Date()
+        #expect(throws: PersistenceController.BackupImportStoreLockedError.self) {
+            _ = try PersistenceController.acquireStoreWriteLocks(at: [first.url, second.url], timeout: 0.5)
+        }
+        #expect(Date().timeIntervalSince(started) < 5)
+        // The first store's lock was let go when the second timed out.
+        try WriteLockHolder(url: first.url).release()
+    }
+
+    @Test("A save waits for a lock let go during the wait, and writes")
+    @MainActor
+    func saveTakesLocksBeforeWriting() async throws {
+        let store = try Self.makeStore()
+        defer { store.remove() }
+        let holder = try WriteLockHolder(url: store.url)
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.3) { holder.release() }
+        let context = store.container.viewContext
+        Self.insertRow(named: "imported", into: context)
+
+        try PersistenceController.saveWithoutRetryLoop(context: context, lockingStoresAt: [store.url], lockTimeout: 10)
+
+        #expect(Self.storedNames(at: store.url) == ["seed", "imported"])
     }
 }
