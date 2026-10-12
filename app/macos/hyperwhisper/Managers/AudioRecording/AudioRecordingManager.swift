@@ -1100,11 +1100,7 @@ class AudioRecordingManager: NSObject, ObservableObject {
             inputLevelPreviewRecorder = nil
             let queue = inputLevelPreviewMeterQueue
             queue.async {
-                SimpleRecorder.defaultRecorderStopper(recorder)
-                // Same 300 ms AudioQueue-drain retention as `SimpleRecorder`.
-                queue.asyncAfter(deadline: .now() + .milliseconds(300)) {
-                    withExtendedLifetime(recorder) {}
-                }
+                SimpleRecorder.stopAndReleaseLater(recorder, on: queue, using: SimpleRecorder.defaultRecorderStopper)
             }
         }
         idleInputLevel = 0

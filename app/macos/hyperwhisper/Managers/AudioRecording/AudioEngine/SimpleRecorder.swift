@@ -575,8 +575,9 @@ class SimpleRecorder: NSObject, ObservableObject {
     ///
     /// Dropping the last strong reference to an `AVAudioRecorder` right after
     /// `stop()` can race AudioQueue callbacks that are still draining. Same
-    /// discipline as `discardSupersededRecorder(_:)`.
-    nonisolated private static func stopAndReleaseLater(
+    /// discipline as `discardSupersededRecorder(_:)`. Also used by
+    /// `AudioRecordingManager.stopInputLevelPreview()` on its own meter queue.
+    nonisolated static func stopAndReleaseLater(
         _ recorder: AVAudioRecorder,
         on queue: DispatchQueue,
         using stopper: RecorderStopper
