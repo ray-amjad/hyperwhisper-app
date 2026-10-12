@@ -386,6 +386,22 @@
       ],
       "licensed": false,
       "note": "Unlicensed (Debug=staging). Built on the user's MacBook, Xcode 27, core cross-built here. Fresh profile = move ~/Library/Application Support/HyperWhisper aside + defaults export/delete, restore after (hasCompletedOnboarding=false alone does NOT show the wizard when modes exist). Codex's only defect = History Retry with Apple Speech on silence leaves a blank completed row -> comment on #1429. Not filed: Backup import says '1 modes imported' (no stringsdict in the project; cosmetic). Onboarding wizard was walked only to the model step + Set Up Later; no model download."
+    },
+    {
+      "at": "2026-10-12T01:53:45Z",
+      "platform": "win",
+      "commit": "1772bf7e",
+      "routes": [
+        "local-api",
+        "streaming",
+        "home-and-tray"
+      ],
+      "status": "1-commented",
+      "issues": [
+        649
+      ],
+      "licensed": false,
+      "note": "Unlicensed. local-api: UI drive clean + 22-request curl probe clean (HTTP 200 ok:false is by design, LocalApiErrors.cs); streaming: provider/language switches clean; home-and-tray: Codex 'status bar Mode/Model links dead' is FAKE (plain TextBlocks in StatusBarView.xaml); #649 re-hit and commented. Scratch profile sees the Windows user's PasswordVault keys (OpenAI key 'configured')."
     }
   ]
 }
