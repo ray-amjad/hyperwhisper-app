@@ -1562,6 +1562,28 @@ internal static class Program
                         $"MainViewModel.{method.Name} treats a Whisper model with an unload pending as ready again");
                 }
 
+                // The loaders outside MainViewModel share the model (review R2).
+                MethodInfo Other(string type, string name) =>
+                    typeof(MainViewModel).Assembly.GetType(type)?.GetMethod(name, all)
+                    ?? throw new InvalidOperationException($"{type}.{name} is gone; update this test");
+                foreach (var method in new[]
+                {
+                    Other("HyperWhisper.Services.Transcription.TranscriptionRetryHandler", "EnsureWhisperModelLoadedAsync"),
+                    Other("HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints", "EnsureWhisperModelLoadedAsync"),
+                    Other("HyperWhisper.Services.Onboarding.LiveOnboardingAudioGateway", "EnsureLocalEngineReadyAsync"),
+                })
+                {
+                    Assert(AsyncBodyCalls(method, loadedAndStaying),
+                        $"{method.DeclaringType!.Name}.{method.Name} treats a Whisper model with an unload pending as ready again");
+                }
+
+                // Transcribe File's Parakeet unload cannot be cancelled: a Whisper
+                // load that sees it pending must not dispose that job's daemon.
+                Assert(AsyncBodyCalls(Vm("LoadWhisperModelAsync"), Vm("ParakeetFileJobKeepsWhisperOut")),
+                    "LoadWhisperModelAsync can dispose the daemon a Parakeet file transcription started");
+                Assert(typeof(MainViewModel).GetField("_parakeetFileJobOwnsDaemon", all) != null,
+                    "MainViewModel._parakeetFileJobOwnsDaemon is gone; update this test");
+
                 var loadForRecording = Vm("LoadModelForRecordingAsync");
                 Assert(AsyncBodyCalls(Vm("StartRecordingAsync"), loadForRecording),
                     "StartRecordingAsync no longer loads through LoadModelForRecordingAsync");

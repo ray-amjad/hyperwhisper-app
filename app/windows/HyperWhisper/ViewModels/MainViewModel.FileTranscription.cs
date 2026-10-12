@@ -435,6 +435,7 @@ public partial class MainViewModel
 
             IsTranscribing = false;
             _fileTranscriptionActive = false;
+            _parakeetFileJobOwnsDaemon = false;
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
                 _activeTranscriptionCts = null;
@@ -537,6 +538,10 @@ public partial class MainViewModel
 
                 IsModelLoading = true;
                 StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
+                // Set before the unload: it reads as pending to a Whisper load,
+                // which must not queue behind it and then dispose this job's
+                // daemon (#1609). Cleared when the file job ends.
+                _parakeetFileJobOwnsDaemon = true;
                 await UnloadWhisperForParakeetIfLowMemoryAsync("EnsureLocalProviderReadyForFileAsync");
                 await _parakeetTranscriptionService.InitializeAsync(
                     _parakeetModelService.GetModelDirectory(model),
@@ -547,6 +552,7 @@ public partial class MainViewModel
             }
             catch (Exception ex)
             {
+                _parakeetFileJobOwnsDaemon = false;
                 ModelStatus = Loc.S("status.model.loadFailed");
                 StatusText = Loc.S("status.failed", ex.Message);
                 LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Parakeet model load failed - {ex.Message}", ex);

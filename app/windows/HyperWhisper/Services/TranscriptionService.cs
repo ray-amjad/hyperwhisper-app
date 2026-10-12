@@ -220,6 +220,18 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         await _modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // A caller that saw an unload pending queues here behind it (#1609).
+            // If that unload was cancelled, the model it would have disposed is
+            // still loaded: keep it instead of waiting out the running job to
+            // load the same file again. Every caller checks this before it calls,
+            // so this only fires after a wait on the lock.
+            if (IsInitialized
+                && string.Equals(LoadedModelPath, modelPath, StringComparison.OrdinalIgnoreCase))
+            {
+                LoggingService.Info("  Model already loaded while this load waited; keeping it");
+                return;
+            }
+
             // Wait for in-flight transcriptions to drain before disposing the old
             // factory. They were started before we acquired the lock and the still
             // running native processor is bound to the current WhisperFactory;

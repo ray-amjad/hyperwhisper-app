@@ -1146,6 +1146,7 @@ public partial class MainViewModel : ViewModelBase
         // Not while an unload is pending (#1609): the model is about to go, so
         // queue on the lock behind the unload and load it again.
         if (_transcriptionService.IsLoadedAndStaying(modelPath)) return;
+        if (ParakeetFileJobKeepsWhisperOut()) return;
 
         // Serialize model loads — concurrent WhisperFactory.FromPath calls cause
         // native access violations (0xC0000005) in the whisper.cpp library.
@@ -1154,6 +1155,7 @@ public partial class MainViewModel : ViewModelBase
         {
             // Re-check after acquiring lock (another caller may have loaded it)
             if (_transcriptionService.IsLoadedAndStaying(modelPath)) return;
+            if (ParakeetFileJobKeepsWhisperOut()) return;
 
             // Inside the lock (#1534): a Parakeet load can hold the lock while it
             // waits out a running Whisper job, and a Whisper load queued behind it
@@ -1184,6 +1186,24 @@ public partial class MainViewModel : ViewModelBase
             IsModelLoading = false;
             _modelLoadLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Set while a Transcribe File job on a Parakeet mode loads its daemon and
+    /// runs on it (#1609). The Whisper unload that load starts cannot be
+    /// cancelled (the job asked for its mode), so a Whisper load that sees it
+    /// pending must not queue behind it and then dispose the daemon the job
+    /// just started.
+    /// </summary>
+    private bool _parakeetFileJobOwnsDaemon;
+
+    private bool ParakeetFileJobKeepsWhisperOut()
+    {
+        if (!_parakeetFileJobOwnsDaemon) return false;
+
+        LoggingService.Info("LoadWhisperModelAsync: A Parakeet file transcription owns the engine; not loading Whisper");
+        UpdateModelStatus();
+        return true;
     }
 
     private async Task LoadParakeetModelAsync()
