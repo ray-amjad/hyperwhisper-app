@@ -2951,9 +2951,18 @@ public partial class MainWindow : Window
     // One field, two inline chip actions, and a replacement panel that only appears once the
     // user asks for it — the shape the Windows page has.
 
-    private void OnVocabularyAdd(object? sender, RoutedEventArgs e)
+    private bool _vocabularySaving;
+
+    private async void OnVocabularyAdd(object? sender, RoutedEventArgs e)
     {
-        if (_viewModel.Vocabulary.AddCommand.CanExecute(null)) _viewModel.Vocabulary.AddCommand.Execute(null);
+        if (_vocabularySaving) return;
+        _vocabularySaving = true;
+        try { await _viewModel.Vocabulary.SaveAsync(); }
+        finally { _vocabularySaving = false; }
+        // A refused save keeps the pill as it was, edit mode included, as Windows does
+        // (VocabularyPage.xaml.cs AddVocabularyItem). Leaving edit mode here while the row stayed
+        // selected made the next "Add word" overwrite that row (#634).
+        if (_viewModel.Vocabulary.Status.HasError) return;
         SetVocabularyEditingItem(null);
         HideVocabularyReplacement();
     }

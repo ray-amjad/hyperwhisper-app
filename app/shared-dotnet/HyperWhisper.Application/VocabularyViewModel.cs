@@ -29,7 +29,7 @@ public sealed class VocabularyViewModel : ViewModelBase
         set
         {
             // Loading a row always reloads the pill, even the row already selected: a failed
-            // save leaves Selected on it while the page has left edit mode (#634).
+            // save leaves Selected on it, and editing it again restores its word (#634).
             if (!Set(ref _selected, value) && value is null) return;
             ClearSubmitError();
             if (value is not null) { Word = value.Word; Replacement = value.Replacement ?? string.Empty; }

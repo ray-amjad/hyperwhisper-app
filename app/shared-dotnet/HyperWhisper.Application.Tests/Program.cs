@@ -441,6 +441,9 @@ try
         shell.Vocabulary.Word = string.Empty;
         await shell.Vocabulary.AddAsync();
         Assert(shell.Vocabulary.Status.ErrorCode == "vocabulary.word_required", "an emptied row was saved (#634)");
+        // The Linux page stays in edit mode on a refused save because the row stays selected:
+        // the next save is that row's update, never a silent rename from an "Add word" chip.
+        Assert(ReferenceEquals(shell.Vocabulary.Selected, editedRow), "a refused save dropped the edited row (#634)");
         shell.Vocabulary.Selected = editedRow;
         Assert(!shell.Vocabulary.HasInputError && shell.Vocabulary.Word == editedRow.Word,
             "re-editing the same row kept the error or an empty pill (#634)");
