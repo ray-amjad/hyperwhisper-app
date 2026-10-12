@@ -402,6 +402,22 @@
       ],
       "licensed": false,
       "note": "Unlicensed. local-api: UI drive clean + 22-request curl probe clean (HTTP 200 ok:false is by design, LocalApiErrors.cs); streaming: provider/language switches clean; home-and-tray: Codex 'status bar Mode/Model links dead' is FAKE (plain TextBlocks in StatusBarView.xaml); #649 re-hit and commented. Scratch profile sees the Windows user's PasswordVault keys (OpenAI key 'configured')."
+    },
+    {
+      "at": "2026-10-12T04:28:53Z",
+      "platform": "linux",
+      "commit": "f950165b",
+      "routes": [
+        "streaming",
+        "history-and-backup",
+        "updates"
+      ],
+      "status": "1-commented",
+      "issues": [
+        1348
+      ],
+      "licensed": false,
+      "note": "unlicensed; Codex 0 defects on all 3 routes; my own read of the Streaming shot found Nova 3 Medical + Japanese saved (#1348, comment). history-and-backup first drive died at step 1 on codex ETIMEDOUT, the rerun was clean."
     }
   ]
 }
