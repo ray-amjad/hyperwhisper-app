@@ -30,15 +30,15 @@ struct DeleteCancelsRetryWithTests {
     @Test func cancellingARowStopsItsRetryTask() async {
         let rowId = UUID()
         let task = makeRunningTask()
-        TranscriptActionHandler.trackRetryWithTask(task, for: rowId)
-        #expect(TranscriptActionHandler.hasRetryWithTask(for: rowId))
+        TranscriptActionHandler.trackRetryTask(task, for: rowId, token: UUID())
+        #expect(TranscriptActionHandler.hasRetryTask(for: rowId))
 
-        TranscriptActionHandler.cancelRetryWithTask(for: rowId)
+        TranscriptActionHandler.cancelRetryTask(for: rowId)
 
         // Before the fix nothing held the task, so it would run until the engine finished.
         await task.value
         #expect(task.isCancelled)
-        #expect(!TranscriptActionHandler.hasRetryWithTask(for: rowId))
+        #expect(!TranscriptActionHandler.hasRetryTask(for: rowId))
     }
 
     @Test func cancellingOneRowLeavesAnotherRowsRetryRunning() async {
@@ -46,24 +46,24 @@ struct DeleteCancelsRetryWithTests {
         let keptRow = UUID()
         let deletedTask = makeRunningTask()
         let keptTask = makeRunningTask()
-        TranscriptActionHandler.trackRetryWithTask(deletedTask, for: deletedRow)
-        TranscriptActionHandler.trackRetryWithTask(keptTask, for: keptRow)
+        TranscriptActionHandler.trackRetryTask(deletedTask, for: deletedRow, token: UUID())
+        TranscriptActionHandler.trackRetryTask(keptTask, for: keptRow, token: UUID())
 
-        TranscriptActionHandler.cancelRetryWithTask(for: deletedRow)
+        TranscriptActionHandler.cancelRetryTask(for: deletedRow)
         await deletedTask.value
 
         #expect(deletedTask.isCancelled)
         #expect(!keptTask.isCancelled)
-        #expect(TranscriptActionHandler.hasRetryWithTask(for: keptRow))
+        #expect(TranscriptActionHandler.hasRetryTask(for: keptRow))
 
-        TranscriptActionHandler.cancelRetryWithTask(for: keptRow)
+        TranscriptActionHandler.cancelRetryTask(for: keptRow)
         await keptTask.value
     }
 
     @Test func cancellingARowWithNoRetryIsANoOp() {
         let rowId = UUID()
-        TranscriptActionHandler.cancelRetryWithTask(for: rowId)
-        #expect(!TranscriptActionHandler.hasRetryWithTask(for: rowId))
+        TranscriptActionHandler.cancelRetryTask(for: rowId)
+        #expect(!TranscriptActionHandler.hasRetryTask(for: rowId))
     }
 
     // MARK: - Both delete paths cancel
@@ -83,7 +83,7 @@ struct DeleteCancelsRetryWithTests {
             ("func deleteTranscripts(", "// MARK: - Copy Action"),
         ] {
             let body = try #require(slice(source, from: start, to: end))
-            let cancel = try #require(body.range(of: "Self.cancelRetryWithTask(for:"))
+            let cancel = try #require(body.range(of: "Self.cancelRetryTask(for:"))
             let delete = try #require(body.range(of: "persistenceController.deleteTranscript("))
             #expect(cancel.lowerBound < delete.lowerBound, "\(start) must cancel the retry before it deletes the row")
         }

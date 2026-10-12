@@ -188,6 +188,9 @@ class TranscriptionRetryController {
         let trimResult = vadResult.trimResult
 
         do {
+            // The row was deleted while VAD ran (#1743): do not start the engine.
+            try Task.checkCancellation()
+
             // TRANSCRIPTION STEP: Execute the actual transcription
             // Guard against nil manager (should never happen, but defensive)
             guard let manager = transcriptionPipeline else {
@@ -201,6 +204,11 @@ class TranscriptionRetryController {
                 mode: mode,
                 recordingSession: transcript.recordingSession
             )
+
+            // The row was deleted while the engine finished: nothing to write to.
+            if Self.rowWasDeleted(transcript) {
+                throw CancellationError()
+            }
 
             // SAVE TRIMMED AUDIO PATH:
             // If VAD created a valid trimmed file, store the path in Core Data.
@@ -225,6 +233,12 @@ class TranscriptionRetryController {
 
             return result
         } catch {
+            // A delete cancelled this retry (#1743): the row is gone, so leave it be.
+            if Self.rowWasDeleted(transcript) {
+                AppLogger.transcription.info("Retry stopped: its transcript was deleted")
+                throw error
+            }
+
             // FAILURE HANDLING: Update transcript with error information
             // This helps users understand why the retry failed
             transcript.setValue("failed", forKey: "status")
@@ -239,6 +253,13 @@ class TranscriptionRetryController {
             // Re-throw so caller can handle the error
             throw error
         }
+    }
+
+    /// True once deleting the row cancelled this retry (`TranscriptActionHandler.cancelRetryTask`).
+    /// A newer dictation that took the pipeline over (#1425) cancels only the
+    /// engine run, not this task, so its row still records the failure.
+    private static func rowWasDeleted(_ transcript: Transcript) -> Bool {
+        Task.isCancelled || transcript.isDeleted || transcript.managedObjectContext == nil
     }
 
     /// Check if a transcript can be retried
