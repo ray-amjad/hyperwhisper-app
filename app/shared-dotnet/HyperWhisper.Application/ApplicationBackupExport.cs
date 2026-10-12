@@ -451,6 +451,35 @@ public sealed partial class ApplicationBackupService(
             throw new InvalidOperationException("Duplicate or invalid modes.");
     }
 
+    /// <summary>
+    /// A backup made before #1475/#1777 can carry a word with line breaks inside it. It imports as
+    /// one word per non-empty line, the way the add field saves a paste: the first line keeps the
+    /// item's id, each further line gets a fresh id and the same replacement. A split line that
+    /// repeats a word already in the backup is dropped, so the split alone never fails the import
+    /// with a duplicate.
+    /// </summary>
+    private static List<VocabularyItem> SplitMultiLineWords(List<VocabularyItem> vocabulary)
+    {
+        if (!vocabulary.Any(item => VocabularyWords.HasLineBreak(item.Word))) return vocabulary;
+        var singleLineWords = vocabulary.Where(item => !VocabularyWords.HasLineBreak(item.Word))
+            .Select(item => item.Word.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var splitWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<VocabularyItem>(vocabulary.Count);
+        foreach (var item in vocabulary)
+        {
+            // A blank word stays as is, so ValidateVocabulary still refuses it.
+            if (!VocabularyWords.HasLineBreak(item.Word) || VocabularyWords.SplitLines(item.Word).Count == 0) { result.Add(item); continue; }
+            var first = true;
+            foreach (var line in VocabularyWords.SplitLines(item.Word))
+            {
+                if (singleLineWords.Contains(line) || !splitWords.Add(line)) continue;
+                result.Add(new VocabularyItem { Id = first ? item.Id : Guid.NewGuid(), Word = line, Replacement = item.Replacement, SortOrder = item.SortOrder });
+                first = false;
+            }
+        }
+        return result;
+    }
+
     private static void ValidateVocabulary(IReadOnlyList<VocabularyItem> vocabulary)
     {
         if (vocabulary.Select(item => item.Id).Distinct().Count() != vocabulary.Count

@@ -68,9 +68,21 @@ public sealed class VocabularyViewModel : ViewModelBase
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(Word)) { Status.Failure("vocabulary.word_required", "Enter a word or phrase."); NotifyDerived(); return; }
-        var item = Selected ?? new VocabularyItem { SortOrder = Items.Count };
-        item.Word = Word.Trim(); item.Replacement = string.IsNullOrWhiteSpace(Replacement) ? null : Replacement.Trim();
-        try { _ = await _repository.UpsertAsync(item, cancellationToken); await RefreshAsync(cancellationToken); Selected = null; Word = string.Empty; Replacement = string.Empty; Status.Success("Vocabulary saved"); }
+        // Issue #1777: a pasted multi-line text is one word per non-empty line. The first line
+        // takes the row being edited (if any); every line carries the same replacement, which
+        // may itself span lines.
+        var lines = VocabularyWords.SplitLines(Word);
+        var replacement = string.IsNullOrWhiteSpace(Replacement) ? null : Replacement.Trim();
+        try
+        {
+            for (var index = 0; index < lines.Count; index++)
+            {
+                var item = index == 0 && Selected is { } selected ? selected : new VocabularyItem { SortOrder = Items.Count + index };
+                item.Word = lines[index]; item.Replacement = replacement;
+                _ = await _repository.UpsertAsync(item, cancellationToken);
+            }
+            await RefreshAsync(cancellationToken); Selected = null; Word = string.Empty; Replacement = string.Empty; Status.Success("Vocabulary saved");
+        }
         catch (Exception) { Status.Failure("vocabulary.add_failed", "Could not add the vocabulary item."); }
         NotifyDerived();
     }

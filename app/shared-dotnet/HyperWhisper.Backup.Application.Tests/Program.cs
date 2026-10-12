@@ -959,7 +959,37 @@ try
     Assert(tripModes[tiedSlicesId].CustomVocabulary is ["Linux tie"],
         "a windows slice with the SAME modifiedDate overrode the linux slice (#1716)");
 
-    Console.WriteLine("Backup application tests passed (47/47).");
+    // #1777: a backup made before #1475 can carry a word with line breaks inside it. It imports
+    // as one word per non-empty line, like the add field: no stored word holds a line break, a
+    // split line that repeats another backup word is dropped rather than failing the import, and
+    // the snippet replacement keeps its own line break.
+    var splitRoot = Path.Combine(root, "multi-line-vocabulary-word");
+    Directory.CreateDirectory(splitRoot);
+    var splitPaths = new TestPaths(splitRoot);
+    var splitSettings = new PortableSettingsService(new MemoryPrivateFileService(), splitPaths);
+    Assert(splitSettings.Load().IsSuccess, "multi-line vocabulary settings did not initialize");
+    var splitDatabase = new ApplicationDb(splitPaths);
+    await splitDatabase.MigrateAsync();
+    var splitBackup = JsonNode.Parse(await new ApplicationBackupService(splitDatabase, splitSettings).ExportAsync())!.AsObject();
+    var splitWordId = Guid.NewGuid();
+    splitBackup["vocabulary"] = new JsonArray(
+        new JsonObject { ["id"] = splitWordId.ToString("D"), ["word"] = " x \r\ny\n\nZ", ["replacement"] = "Best,\nRay", ["sortOrder"] = 0, ["source"] = "manual" },
+        new JsonObject { ["id"] = Guid.NewGuid().ToString("D"), ["word"] = "z", ["sortOrder"] = 1, ["source"] = "manual" });
+    var splitSelection = new BackupImportSelection(
+        ImportSettings: false, ImportModes: false, ImportVocabulary: true,
+        VocabularyConflictPolicy: VocabularyConflictPolicy.Skip);
+    var splitImport = await new ApplicationBackupService(splitDatabase, splitSettings).ImportAsync(splitBackup.ToJsonString(), splitSelection);
+    Assert(splitImport.IsSuccess && splitImport.Value is { VocabularyAdded: 3, VocabularySkipped: 0 },
+        $"a multi-line backup word did not import as one word per line (#1777): {splitImport.Error?.Message}");
+    var splitWords = await new VocabularyRepository(splitDatabase).ListAsync();
+    Assert(splitWords.Select(item => item.Word).Order(StringComparer.Ordinal).SequenceEqual(["x", "y", "z"])
+        && splitWords.All(item => !VocabularyWords.HasLineBreak(item.Word)),
+        $"a backup import saved a word with a line break inside it (#1777): {string.Join(" | ", splitWords.Select(item => item.Word))}");
+    Assert(splitWords.Single(item => item.Word == "x") is { Replacement: "Best,\nRay" } splitFirst && splitFirst.Id == splitWordId
+        && splitWords.Single(item => item.Word == "y").Replacement == "Best,\nRay",
+        "a split backup word lost its id or its multi-line replacement (#1777)");
+
+    Console.WriteLine("Backup application tests passed (48/48).");
 }
 finally
 {

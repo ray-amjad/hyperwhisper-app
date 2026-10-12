@@ -423,6 +423,30 @@ try
         shell.Vocabulary.Word = " ";
         await shell.Vocabulary.AddAsync();
         Assert(shell.Vocabulary.Status.ErrorCode == "vocabulary.word_required", "vocabulary accepted an empty term");
+
+        // #1777: a pasted multi-line text is one word per non-empty line, and a snippet's
+        // replacement keeps its line break. Read back from the database, then removed so the
+        // vocabulary checks below see the list they expect.
+        var pastedBefore = (await vocabulary.ListAsync()).Select(item => item.Id).ToHashSet();
+        shell.Vocabulary.Word = "alpha\nbeta\r\n\n  gamma ";
+        shell.Vocabulary.Replacement = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        shell.Vocabulary.Word = "sig";
+        shell.Vocabulary.Replacement = "Best,\nRay";
+        await shell.Vocabulary.AddAsync();
+        var pasted = (await vocabulary.ListAsync()).Where(item => !pastedBefore.Contains(item.Id)).ToList();
+        Assert(!shell.Vocabulary.Status.HasError
+            && pasted.Select(item => item.Word).Order(StringComparer.Ordinal).SequenceEqual(["alpha", "beta", "gamma", "sig"])
+            && pasted.All(item => !VocabularyWords.HasLineBreak(item.Word)),
+            $"a pasted multi-line vocabulary text was not saved one word per line (#1777): {string.Join(" | ", pasted.Select(item => item.Word))}");
+        Assert(pasted.Single(item => item.Word == "sig").Replacement == "Best,\nRay",
+            "a snippet replacement lost its line break (#1777)");
+        var multiLineRefused = false;
+        try { _ = await vocabulary.UpsertAsync(new VocabularyItem { Word = "line1\nline2" }); }
+        catch (ArgumentException) { multiLineRefused = true; }
+        Assert(multiLineRefused, "the vocabulary store accepted a word with a line break inside it (#1777)");
+        foreach (var item in pasted) Assert(await vocabulary.DeleteAsync(item.Id), $"could not remove the pasted test word {item.Word}");
+        await shell.Vocabulary.RefreshAsync();
         shell.Modes.Selected = null;
         shell.Modes.Name = "";
         await shell.Modes.SaveAsync();
