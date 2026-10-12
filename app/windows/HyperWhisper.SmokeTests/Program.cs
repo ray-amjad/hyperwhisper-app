@@ -19647,7 +19647,7 @@ internal static class Program
             // writes the transcript and returns CopiedToClipboard without typing.
             Run("clipboard restore (#1496): a chain of quick dictations restores the user's own clipboard", () =>
             {
-                static string Clip() => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                static string Clip() => ReadClipboardText();
                 // The operator's whole clipboard (every format: an image, a file
                 // list, an empty clipboard), put back in the finally below.
                 var operatorClipboard = SnapshotWholeClipboard();
@@ -19823,7 +19823,7 @@ internal static class Program
             // one, as the #1496 case does, so no dispatcher has to be pumped.
             Run("clipboard restore (#1583): a copy made after the dictation survives the restore", () =>
             {
-                static string Clip() => Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                static string Clip() => ReadClipboardText();
                 var operatorClipboard = SnapshotWholeClipboard();
                 var previousGate = TextDeliveryGate.IsSuppressed;
                 var previousRestore = SettingsService.Instance.RestoreClipboardAfterPaste;
@@ -21224,6 +21224,33 @@ internal static class Program
             triggers += ChordKey(gate, pressed, vk, down);
         }
         return triggers;
+    }
+
+    /// <summary>
+    /// The clipboard's text, read the way the clipboard-restore cases need it on
+    /// a shared runner (#1756). Another process holding the clipboard open makes
+    /// a single read throw CLIPBRD_E_CANT_OPEN or come back empty, so a read that
+    /// fails or finds no text is tried again for up to about a second. No case
+    /// expects an empty clipboard, so retrying an empty read hides nothing. A
+    /// wrong but readable text is returned at once, and still fails the case.
+    /// </summary>
+    private static string ReadClipboardText()
+    {
+        const int attempts = 40;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                var text = Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                if (text.Length > 0 || attempt == attempts)
+                    return text;
+            }
+            catch (Exception) when (attempt < attempts)
+            {
+            }
+
+            Thread.Sleep(25);
+        }
     }
 
     /// <summary>

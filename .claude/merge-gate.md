@@ -91,6 +91,13 @@ Read the tier from the built diff BEFORE the first review round, because the tie
 of rounds. A cosmetic diff gets one round. If that round's fixes add logic or leave the cosmetic
 paths, the PR is logic now: it gets the second round and the verify run.
 
+A round ends clean when it leaves no blocking finding: 0 CONFIRMED from Reviewer Claude and no [P1]
+from Reviewer Codex. A clean round runs no fixer, so the diff does not change, and the review loop
+stops there. A Logic PR whose round 1 ended clean has finished its review: it needs no second round
+on the same diff. A second round is needed only when round 1 left a blocking finding and a fixer
+changed the diff. Ray chose this on 2026-10-12, after PR #1774 and other Logic PRs were held at
+§5 condition 2 for a round 2 that had nothing new to review.
+
 Cosmetic proof: capture on the cheapest matching head. Linux: a Namespace box (`namespace` + `hyperwhisper-desktop` skills). Windows: Ray's dev box (`windows-dev-box` skill). macOS: a rented Namespace Mac. Build `main` and the branch, launch each, capture the changed screen, and destroy a rented machine in the same turn. Web: a local boot and Playwright at 1280×800. Docs: no screenshot; run lychee and markdownlint on the diff instead. Publish each pair with `publish-media` and put the links in the
 PR's `## Verified` section, one line per page. Upload the same files to the thread with
 `slack-upload`. A cosmetic PR with no screenshot pair is not proved.
@@ -109,7 +116,8 @@ saw and left out is a follow-up issue, filed and named in the reply.
 Check them in order. Stop at the first failure. Merge only when all six are true.
 
 1. The diff touches nothing §2 holds for Ray. Read it from the PR head.
-2. Every review round the tier needs (§4) finished. No CONFIRMED finding from Reviewer Claude and no [P1] from Reviewer
+2. Every review round the tier needs (§4) finished. A Logic PR whose round 1 ended clean (§4) has
+   finished its review. No CONFIRMED finding from Reviewer Claude and no [P1] from Reviewer
    Codex about lines this diff changed is left unfixed. A PLAUSIBLE finding, a [P2], or a CONFIRMED
    finding declined as out of scope with the reason written in the PR body does not block. Each one
    goes in the Slack reply.

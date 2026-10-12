@@ -228,11 +228,7 @@ class TranscriptActionHandler: ObservableObject {
                 AppLogger.ui.error("Retry with new mode failed: \(error.localizedDescription)")
 
                 // Update transcript to failed state
-                await MainActor.run {
-                    newTranscript.setValue("failed", forKey: "status")
-                    newTranscript.setValue(error.localizedDescription, forKey: "failedReason")
-                    persistenceController.save()
-                }
+                await Self.markRetryWithFailed(newTranscript.objectID, after: error, persistence: persistenceController)
             }
         }
         if let newTranscriptId {
@@ -240,6 +236,19 @@ class TranscriptActionHandler: ObservableObject {
         }
 
         return true
+    }
+
+    /// Marks a failed "Retry with" row failed, and replaces its "Processing
+    /// transcription..." placeholder with the same text a failed file import
+    /// writes (#1457), through the same serial-writer helper, so the list and
+    /// detail pane stop reading as running.
+    static func markRetryWithFailed(_ transcriptID: NSManagedObjectID, after error: Error, persistence: PersistenceController) async {
+        let outcome = FileTranscriptionFlow.failureOutcome(for: error)
+        await persistence.markTranscriptFailedInBackground(
+            transcriptID: transcriptID,
+            failedReason: outcome.failedReason,
+            errorText: outcome.errorText
+        )
     }
     
     // MARK: - Delete Actions
