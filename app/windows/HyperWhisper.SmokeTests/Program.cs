@@ -2678,6 +2678,65 @@ internal static class Program
                 }
             });
 
+            // #1747: the same trip for the cloud tier and the cloud / local
+            // post-processing models. Linux writes those three only at the TOP level,
+            // so its export holds the edit there and the OLD values in the preserved
+            // windows slice. A newer linux slice wins, so the top-level values restore,
+            // and the next Windows export carries them in its own slice too.
+            Run("backup import (#1747): a newer linux slice keeps its cloud tier and post-processing models", () =>
+            {
+                var original = new Mode
+                {
+                    Id = Guid.Parse("6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1747"), Name = "Cloud round trip", Preset = "custom",
+                    Language = "en", Model = "cloud", ModelType = "cloud", ProviderType = "cloud",
+                    CloudProvider = "hyperwhisper", CloudAccuracyTier = "deepgramNova3",
+                    CloudPostProcessingModel = "grok:grok-4.3", LocalPostProcessingModel = "windows-local-pp",
+                    CreatedDate = new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Unspecified),
+                    ModifiedDate = new DateTime(2025, 6, 7, 8, 9, 10, DateTimeKind.Unspecified),
+                };
+                var exported = JsonNode.Parse(JsonSerializer.Serialize(UniversalBackupMapper.MapMode(original)))!.AsObject();
+                var extensions = exported["platformExtensions"]!.AsObject();
+                Assert(extensions["windows"]?["cloudAccuracyTier"]?.GetValue<string>() == "deepgramNova3",
+                    "a Windows mode export carried no cloud tier in its windows slice");
+
+                // What Linux writes after the user edits the three fields there.
+                exported["cloudAccuracyTier"] = "groqWhisper";
+                exported["cloudPostProcessingModel"] = "cerebras:gpt-oss-120b";
+                exported["localPostProcessingModel"] = "linux-local-pp";
+                extensions["linux"] = new JsonObject
+                {
+                    ["customVocabulary"] = null, ["localEngine"] = "whisper", ["localParakeetModel"] = null,
+                    ["providerType"] = "cloud", ["modelType"] = "cloud", ["enableScreenOCR"] = false,
+                    ["isSystemProvided"] = false,
+                    ["createdDate"] = "2025-01-02T03:04:05.0000000Z", ["modifiedDate"] = "2026-10-11T09:00:00.0000000Z",
+                };
+                var restored = UniversalBackupMapper.MapToMode(JsonSerializer.Deserialize<UniversalMode>(exported.ToJsonString())!);
+                Assert(restored.CloudAccuracyTier == "groqWhisper" && restored.CloudPostProcessingModel == "cerebras:gpt-oss-120b",
+                    $"a Linux-edited cloud tier / post-processing model lost to the stale windows slice: {restored.CloudAccuracyTier} / {restored.CloudPostProcessingModel}");
+                Assert(restored.LocalPostProcessingModel == "linux-local-pp",
+                    $"a Linux-edited local post-processing model lost to the stale windows slice: {restored.LocalPostProcessingModel}");
+
+                // Exported again from Windows: the edit is in the top level AND the
+                // windows slice, so the restore back on Linux reads it either way.
+                var reexported = JsonNode.Parse(JsonSerializer.Serialize(UniversalBackupMapper.MapMode(restored)))!.AsObject();
+                var reWindows = reexported["platformExtensions"]!["windows"]!;
+                Assert(reexported["cloudAccuracyTier"]!.GetValue<string>() == "groqWhisper"
+                    && reWindows["cloudAccuracyTier"]!.GetValue<string>() == "groqWhisper"
+                    && reWindows["cloudPostProcessingModel"]!.GetValue<string>() == "cerebras:gpt-oss-120b"
+                    && reWindows["localPostProcessingModel"]!.GetValue<string>() == "linux-local-pp",
+                    "the Windows re-export did not carry the Linux-edited cloud tier / post-processing models");
+
+                // A tie (an unedited trip) and an older linux slice keep the windows slice.
+                foreach (var linuxDate in new[] { "2025-06-07T08:09:10.0000000Z", "2025-01-01T00:00:00.0000000Z" })
+                {
+                    extensions["linux"]!["modifiedDate"] = linuxDate;
+                    var kept = UniversalBackupMapper.MapToMode(JsonSerializer.Deserialize<UniversalMode>(exported.ToJsonString())!);
+                    Assert(kept.CloudAccuracyTier == "deepgramNova3" && kept.CloudPostProcessingModel == "grok:grok-4.3"
+                        && kept.LocalPostProcessingModel == "windows-local-pp",
+                        $"a linux slice dated {linuxDate} (not newer) overrode the windows slice's cloud tier / post-processing models");
+                }
+            });
+
             // NATIVE CAPTURE (issue #277, phase 2a). Drives every
             // shared-conformance/backup-vectors.json windowsSettings row through the
             // SHIPPING Windows settings adapters — UniversalBackupMapper.MapSettings and

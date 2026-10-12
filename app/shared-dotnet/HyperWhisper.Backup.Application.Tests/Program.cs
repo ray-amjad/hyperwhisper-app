@@ -837,6 +837,8 @@ try
                     ["localParakeetModel"] = "parakeet-tdt-0.6b-v3", ["providerType"] = "local",
                     ["modelType"] = "large-v3", ["isSystemProvided"] = true,
                     ["createdDate"] = "2025-01-02T03:04:05Z", ["modifiedDate"] = "2025-06-07T08:09:10Z",
+                    ["cloudAccuracyTier"] = "deepgramNova3", ["cloudPostProcessingModel"] = "grok:grok-4.3",
+                    ["localPostProcessingModel"] = "windows-local-pp",
                 },
             }),
             OcrMode(bothSlicesId, "Linux slice wins", 1, new JsonObject
@@ -888,6 +890,9 @@ try
     var linuxEdited = fromWindows;
     linuxEdited.CustomVocabulary = ["Kattegat"];
     linuxEdited.LocalEngine = "whisper";
+    linuxEdited.CloudAccuracyTier = "groqWhisper";
+    linuxEdited.CloudPostProcessingModel = "cerebras:gpt-oss-120b";
+    linuxEdited.LocalPostProcessingModel = "linux-local-pp";
     linuxEdited.ModifiedDate = new DateTime(2026, 10, 11, 9, 0, 0, DateTimeKind.Utc);
     await new ModeRepository(peerDatabase).UpsertAsync(linuxEdited);
     var tripExport = JsonNode.Parse(await peerService.ExportAsync())!.AsObject();
@@ -900,6 +905,28 @@ try
         "a Linux export did not write the Linux-edited vocabulary and its modifiedDate in the linux slice (#1716)");
     Assert(trippedWindows["modifiedDate"]!.GetValue<string>() == "2025-06-07T08:09:10Z",
         "a Linux export rewrote the preserved windows slice instead of carrying it (#1716)");
+
+    // Issue #1747: Linux writes the cloud tier and the cloud / local post-processing
+    // models only at the top level, so the preserved windows slice still holds the
+    // OLD ones. The newer linux slice wins, so the top-level values must restore.
+    Assert(trippedMode["cloudAccuracyTier"]!.GetValue<string>() == "groqWhisper"
+        && trippedWindows["cloudAccuracyTier"]!.GetValue<string>() == "deepgramNova3",
+        "a Linux export did not write the edited cloud tier at the top level beside the preserved windows slice (#1747)");
+    var selfRoot = Path.Combine(root, "linux-edit-self-restore");
+    Directory.CreateDirectory(selfRoot);
+    var selfPaths = new TestPaths(selfRoot);
+    var selfSettings = new PortableSettingsService(new MemoryPrivateFileService(), selfPaths);
+    Assert(selfSettings.Load().IsSuccess, "self-restore settings did not initialize");
+    var selfDatabase = new ApplicationDb(selfPaths);
+    await selfDatabase.MigrateAsync();
+    var selfImport = await new ApplicationBackupService(selfDatabase, selfSettings).ImportAsync(tripExport.ToJsonString());
+    Assert(selfImport.IsSuccess, $"Linux-edited backup failed to import: {selfImport.Error?.Message}");
+    var selfRestored = (await new ModeRepository(selfDatabase).ListAsync()).Single(item => item.Id == windowsModeId);
+    Assert(selfRestored.CloudAccuracyTier == "groqWhisper" && selfRestored.CloudPostProcessingModel == "cerebras:gpt-oss-120b",
+        $"a Linux-edited cloud tier / post-processing model lost to the stale preserved windows slice: {selfRestored.CloudAccuracyTier} / {selfRestored.CloudPostProcessingModel} (#1747)");
+    Assert(trippedWindows["localPostProcessingModel"]!.GetValue<string>() == "windows-local-pp"
+        && selfRestored.LocalPostProcessingModel == "linux-local-pp",
+        $"a Linux-edited local post-processing model lost to the stale preserved windows slice: {selfRestored.LocalPostProcessingModel} (#1747)");
 
     // Linux → Windows (edit) → Linux: the Windows edit lands in the windows slice
     // with a newer date than the preserved linux slice. A tie keeps the linux slice.
@@ -917,6 +944,8 @@ try
             ["localParakeetModel"] = "parakeet-tdt-0.6b-v3", ["providerType"] = "local",
             ["modelType"] = "large-v3", ["isSystemProvided"] = true, ["enableScreenOCR"] = true,
             ["createdDate"] = "2025-01-02T03:04:05", ["modifiedDate"] = "2026-10-11T10:30:00",
+            ["cloudAccuracyTier"] = "soniox", ["cloudPostProcessingModel"] = "groq:openai/gpt-oss-120b",
+            ["localPostProcessingModel"] = "windows-edit-local-pp",
         },
     }));
     windowsEditedModes.Add(OcrMode(newerWindowsId, "Older Windows slice", 1, new JsonObject
@@ -953,6 +982,10 @@ try
         "a newer windows slice lost to the stale preserved linux slice on a Linux restore (#1716)");
     Assert(windowsEdit.ModifiedDate == new DateTime(2026, 10, 11, 10, 30, 0, DateTimeKind.Utc),
         "a newer windows slice's modifiedDate was not restored on Linux (#1716)");
+    Assert(windowsEdit.CloudAccuracyTier == "soniox" && windowsEdit.CloudPostProcessingModel == "groq:openai/gpt-oss-120b",
+        "a newer windows slice's cloud tier / post-processing model was not restored on Linux (#1747)");
+    Assert(windowsEdit.LocalPostProcessingModel == "windows-edit-local-pp",
+        $"a newer windows slice's local post-processing model lost to the top-level one on Linux: {windowsEdit.LocalPostProcessingModel} (#1747)");
     var linuxNewer = tripModes[newerWindowsId];
     Assert(linuxNewer.CustomVocabulary is ["Linux newer"] && linuxNewer.LocalEngine == "whisper" && !linuxNewer.EnableScreenOCR,
         "an older windows slice overrode a newer linux slice (#1716)");
@@ -989,7 +1022,7 @@ try
         && splitWords.Single(item => item.Word == "y").Replacement == "Best,\nRay",
         "a split backup word lost its id or its multi-line replacement (#1777)");
 
-    Console.WriteLine("Backup application tests passed (48/48).");
+    Console.WriteLine("Backup application tests passed (53/53).");
 }
 finally
 {

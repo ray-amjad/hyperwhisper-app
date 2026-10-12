@@ -223,6 +223,7 @@ public partial class MainWindow : Window
         Closed += OnClosed;
         PropertyChanged += OnWindowPropertyChanged;
         _viewModel.Settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
+        _viewModel.Settings.PropertyChanged += OnLocalApiEnabledChanged;
         _viewModel.Settings.DesktopSettingsChanged += OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged += OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged += OnStorageSettingsChanged;
@@ -364,6 +365,7 @@ public partial class MainWindow : Window
         _lifetime.Cancel();
         if (_viewModel.Recording is { } recording) recording.DevicesChanged -= OnRecordingDevicesChanged;
         _viewModel.Settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
+        _viewModel.Settings.PropertyChanged -= OnLocalApiEnabledChanged;
         _viewModel.Settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged -= OnStorageSettingsChanged;
@@ -1911,8 +1913,9 @@ public partial class MainWindow : Window
             : null, "settings.localApi.action.portUnavailable");
 
     /// <summary>
-    /// Windows' ShowActionStatus: the message stays until the next action replaces it, and an
-    /// error is orange-red where a normal report is secondary text.
+    /// Windows' ShowActionStatus: the message stays until the next action replaces it or the
+    /// server is turned off or on (OnLocalApiEnabledChanged), and an error is orange-red where a
+    /// normal report is secondary text.
     /// </summary>
     private void ShowLocalApiActionStatus(string message, bool isError)
     {
@@ -1923,6 +1926,19 @@ public partial class MainWindow : Window
             : this.FindResource("HwTextSecondaryBrush") as IBrush
               ?? new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80));
         line.IsVisible = true;
+    }
+
+    /// <summary>
+    /// Issue #653: the line reports what one of the panel's own buttons did, and turning the server
+    /// off hides every one of those buttons. So an enabled-state change, either way, starts the page
+    /// on a clean line; the next Copy or Regenerate shows its report again.
+    /// </summary>
+    private void OnLocalApiEnabledChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(SettingsViewModel.LocalApiEnabled)) return;
+        if (FindNamed<TextBlock>("LocalApiActionStatus") is not { } line) return;
+        line.Text = string.Empty;
+        line.IsVisible = false;
     }
 
     private async void OnCopyLocalApiMcpSnippet(object? sender, RoutedEventArgs e) =>
@@ -3704,6 +3720,9 @@ public partial class MainWindow : Window
             // regression; 27 says the probe could not be set up, which is an environment fault and
             // not evidence that #692 is back.
             if (await LocalApiPortCommitFailureAsync() is var portCode && portCode != 0) return portCode;
+            // #653: a Copy or Regenerate report on the shared action line must not outlive a
+            // change of server state. 28 is the regression, 29 a probe that could not be set up.
+            if (await LocalApiActionStatusClearFailureAsync() is var statusCode && statusCode != 0) return statusCode;
 
             _viewModel.Navigate("account");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
@@ -4771,6 +4790,103 @@ public partial class MainWindow : Window
             settings.PropertyChanged += OnSettingsPropertyChanged;
             // Give back the save this probe interrupted. Its own writes are not saved: the
             // listener was detached while they happened and the original port is back.
+            _settingsAutoSave?.Stop();
+            if (saveWasArmed) _settingsAutoSave?.Start();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+    }
+
+    /// <summary>
+    /// Issue #653: a failed Copy left its red line under the status card after the server was
+    /// turned off, which hides every button that line can report on, and again after it was turned
+    /// back on. This puts a real failure report on the line through the Copy path, flips the
+    /// page's own checkbox off and on, and reads the line after each. 28 is the regression; 29
+    /// says the probe could not be set up.
+    /// </summary>
+    private async Task<int> LocalApiActionStatusClearFailureAsync()
+    {
+        const int regression = 28;
+        const int cannotRun = 29;
+
+        _viewModel.Navigate("localapi");
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        if (FindNamed<TextBlock>("LocalApiActionStatus") is not { } line
+            || FindNamed<CheckBox>("SettingsLocalApiEnabled") is not { } toggle)
+        {
+            Console.Error.WriteLine("Smoke: the Local API action line or the server checkbox is "
+                + "missing from the page. Setup failure, not the #653 regression.");
+            return cannotRun;
+        }
+
+        var settings = _viewModel.Settings;
+        var enabled = settings.LocalApiEnabled;
+        var saveWasArmed = _settingsAutoSave is { IsEnabled: true };
+        // A flip of the checkbox is a settings change, and an armed auto-save would answer it with
+        // a real save that starts or stops the live host. Only the line is under test here.
+        _settingsAutoSave?.Stop();
+        settings.PropertyChanged -= OnSettingsPropertyChanged;
+        settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
+        try
+        {
+            // The Copy path's own failure report: no port to copy is the one failure that does not
+            // depend on which clipboard helper this box has.
+            async Task<bool> ShowFailureAsync()
+            {
+                await CopyLocalApiTextAsync(null, "settings.localApi.action.portUnavailable");
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+                return line.IsVisible && !string.IsNullOrEmpty(line.Text);
+            }
+            async Task<bool> FlipAsync(bool value)
+            {
+                toggle.SetCurrentValue(ToggleButton.IsCheckedProperty, value);
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+                return settings.LocalApiEnabled == value;
+            }
+
+            if (!await ShowFailureAsync())
+            {
+                Console.Error.WriteLine("Smoke: a Copy with nothing to copy put no report on the Local "
+                    + "API action line. Setup failure, not the #653 regression.");
+                return cannotRun;
+            }
+            foreach (var value in new[] { !enabled, enabled })
+            {
+                if (!await FlipAsync(value))
+                {
+                    Console.Error.WriteLine("Smoke: setting the server checkbox did not reach "
+                        + "Settings.LocalApiEnabled. Setup failure, not the #653 regression.");
+                    return cannotRun;
+                }
+                if (line.IsVisible || !string.IsNullOrEmpty(line.Text))
+                {
+                    Console.Error.WriteLine($"Smoke: after the server was turned {(value ? "on" : "off")} "
+                        + $"the Local API action line still read '{line.Text}' (visible: {line.IsVisible}). "
+                        + "A change of server state must start on a clean line (#653).");
+                    return regression;
+                }
+            }
+            if (!await ShowFailureAsync())
+            {
+                Console.Error.WriteLine("Smoke: after the server was turned off and on, a Copy put "
+                    + "no report on the Local API action line — the clear must not silence the next "
+                    + "action (#653).");
+                return regression;
+            }
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"Smoke: the Local API action line check could not finish: {exception} "
+                + "Setup failure, not the #653 regression.");
+            return cannotRun;
+        }
+        finally
+        {
+            if (settings.LocalApiEnabled != enabled) settings.LocalApiEnabled = enabled;
+            line.Text = string.Empty;
+            line.IsVisible = false;
+            settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
+            settings.PropertyChanged += OnSettingsPropertyChanged;
             _settingsAutoSave?.Stop();
             if (saveWasArmed) _settingsAutoSave?.Start();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
