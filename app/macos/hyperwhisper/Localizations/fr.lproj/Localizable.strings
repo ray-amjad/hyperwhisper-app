@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostics exportés";
 "alerts.export.diagnostics.success.message" = "Tous les journaux de diagnostic ont été exportés avec succès.";
 "alerts.export.diagnostics.saveFailed.message" = "Impossible d’enregistrer les diagnostics à l’emplacement sélectionné : %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostics exportés sans journaux système";
+"alerts.export.diagnostics.noSystemLogs.message" = "Le fichier de diagnostics a été enregistré, mais les journaux système de l'app n'ont pas pu être lus : system-logs.txt contient seulement la raison. Raison : %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exporter les journaux de mise à jour pour le support";

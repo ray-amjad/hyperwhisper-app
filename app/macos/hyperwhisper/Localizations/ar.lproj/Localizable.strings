@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "تم تصدير التشخيصات";
 "alerts.export.diagnostics.success.message" = "تم تصدير جميع سجلات التشخيص بنجاح.";
 "alerts.export.diagnostics.saveFailed.message" = "تعذر حفظ التشخيصات في الموقع المحدد: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "تم تصدير التشخيصات بدون سجلات النظام";
+"alerts.export.diagnostics.noSystemLogs.message" = "تم حفظ ملف التشخيصات، لكن تعذرت قراءة سجلات النظام الخاصة بالتطبيق، لذا يحتوي system-logs.txt على السبب فقط. السبب: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "تصدير سجلات التحديث للدعم";

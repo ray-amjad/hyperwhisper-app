@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnósticos Exportados";
 "alerts.export.diagnostics.success.message" = "Todos os registros de diagnóstico foram exportados com sucesso.";
 "alerts.export.diagnostics.saveFailed.message" = "Não foi possível salvar diagnósticos no local selecionado: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnósticos exportados sem registos do sistema";
+"alerts.export.diagnostics.noSystemLogs.message" = "O ficheiro de diagnósticos foi guardado, mas não foi possível ler os registos do sistema da app, por isso system-logs.txt contém apenas o motivo. Motivo: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportar registros de atualização para suporte";

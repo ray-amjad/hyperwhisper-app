@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostiikka viety";
 "alerts.export.diagnostics.success.message" = "Kaikki diagnostiikkalokit on viety onnistuneesti.";
 "alerts.export.diagnostics.saveFailed.message" = "Diagnostiikan tallennus valittuun sijaintiin epäonnistui: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostiikka viety ilman järjestelmälokeja";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostiikkatiedosto tallennettiin, mutta sovelluksen järjestelmälokeja ei voitu lukea, joten system-logs.txt sisältää vain syyn. Syy: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Vie päivityslokit tukea varten";

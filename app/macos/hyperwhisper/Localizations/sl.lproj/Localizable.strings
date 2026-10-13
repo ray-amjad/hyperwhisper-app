@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika izvožena";
 "alerts.export.diagnostics.success.message" = "Vsi diagnostični dnevniki so bili uspešno izvoženi.";
 "alerts.export.diagnostics.saveFailed.message" = "Ni bilo mogoče shraniti diagnostike na izbrano lokacijo: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika izvožena brez sistemskih dnevnikov";
+"alerts.export.diagnostics.noSystemLogs.message" = "Datoteka z diagnostiko je bila shranjena, vendar sistemskih dnevnikov aplikacije ni bilo mogoče prebrati, zato system-logs.txt vsebuje le razlog. Razlog: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Izvozi dnevnike posodobitev za podporo";

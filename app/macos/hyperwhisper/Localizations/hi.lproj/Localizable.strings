@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "निदान निर्यात किए गए";
 "alerts.export.diagnostics.success.message" = "सभी निदान लॉग सफलतापूर्वक निर्यात कर दिए गए हैं।";
 "alerts.export.diagnostics.saveFailed.message" = "निदान को चयनित स्थान पर सहेज नहीं सके: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "सिस्टम लॉग के बिना डायग्नोस्टिक्स निर्यात किए गए";
+"alerts.export.diagnostics.noSystemLogs.message" = "डायग्नोस्टिक्स फ़ाइल सहेजी गई, लेकिन ऐप के सिस्टम लॉग पढ़े नहीं जा सके, इसलिए system-logs.txt में केवल कारण है। कारण: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "समर्थन के लिए अपडेट लॉग निर्यात करें";

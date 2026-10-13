@@ -1347,8 +1347,8 @@ struct MenuBarIconView: View {
     
     /// Exports all diagnostics (combines update logs and system logs)
     private func exportAllDiagnostics() {
-        AppLogger.exportDiagnostics { exportURL in
-            guard let exportURL = exportURL else {
+        AppLogger.exportDiagnostics { export in
+            guard let export else {
                 // Show error alert if export failed
                 let alert = NSAlert()
                 alert.messageText = "alerts.export.failed.title".localized
@@ -1357,6 +1357,8 @@ struct MenuBarIconView: View {
                 alert.runModal()
                 return
             }
+            
+            let exportURL = export.url
             
             // Open save panel for user to choose destination
             let savePanel = NSSavePanel()
@@ -1373,11 +1375,20 @@ struct MenuBarIconView: View {
                         }
                         try FileManager.default.moveItem(at: exportURL, to: destination)
                         
-                        // Show success alert
+                        // Only claim every log made it when system-logs.txt
+                        // holds real log lines (#1480). Otherwise the zip is
+                        // still worth sending, and the alert gives the reason.
                         let successAlert = NSAlert()
-                        successAlert.messageText = "alerts.export.diagnostics.success.title".localized
-                        successAlert.informativeText = "alerts.export.diagnostics.success.message".localized
-                        successAlert.alertStyle = .informational
+                        switch export.systemLogs {
+                        case .written:
+                            successAlert.messageText = "alerts.export.diagnostics.success.title".localized
+                            successAlert.informativeText = "alerts.export.diagnostics.success.message".localized
+                            successAlert.alertStyle = .informational
+                        case .unavailable(let reason):
+                            successAlert.messageText = "alerts.export.diagnostics.noSystemLogs.title".localized
+                            successAlert.informativeText = "alerts.export.diagnostics.noSystemLogs.message".localized(arguments: reason)
+                            successAlert.alertStyle = .warning
+                        }
                         successAlert.runModal()
                     } catch {
                         // Show error alert

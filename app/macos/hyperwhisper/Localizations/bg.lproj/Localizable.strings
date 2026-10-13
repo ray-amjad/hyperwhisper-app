@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Диагностиката е експортирана";
 "alerts.export.diagnostics.success.message" = "Всички диагностични дневници бяха експортирани успешно.";
 "alerts.export.diagnostics.saveFailed.message" = "Не можа да се запази диагностиката на избраното местоположение: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Диагностиката е експортирана без системни дневници";
+"alerts.export.diagnostics.noSystemLogs.message" = "Файлът с диагностика е запазен, но системните дневници на приложението не можаха да бъдат прочетени, затова system-logs.txt съдържа само причината. Причина: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Експортиране на дневници за актуализации за поддръжка";

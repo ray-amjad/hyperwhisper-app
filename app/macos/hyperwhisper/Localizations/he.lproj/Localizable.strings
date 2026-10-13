@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "האבחון יוצא";
 "alerts.export.diagnostics.success.message" = "כל יומני האבחון יוצאו בהצלחה.";
 "alerts.export.diagnostics.saveFailed.message" = "לא ניתן לשמור אבחון למיקום שנבחר: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "האבחון יוצא ללא יומני מערכת";
+"alerts.export.diagnostics.noSystemLogs.message" = "קובץ האבחון נשמר, אך לא ניתן היה לקרוא את יומני המערכת של האפליקציה, ולכן system-logs.txt מכיל רק את הסיבה. סיבה: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "ייצא יומני עדכון לתמיכה";

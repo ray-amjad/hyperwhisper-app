@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Tanılar Dışa Aktarıldı";
 "alerts.export.diagnostics.success.message" = "Tüm tanı günlükleri başarıyla dışa aktarıldı.";
 "alerts.export.diagnostics.saveFailed.message" = "Tanılar seçilen konuma kaydedilemedi: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Tanılama Sistem Günlükleri Olmadan Dışa Aktarıldı";
+"alerts.export.diagnostics.noSystemLogs.message" = "Tanılama dosyası kaydedildi, ancak uygulamanın sistem günlükleri okunamadı; bu yüzden system-logs.txt yalnızca nedeni içeriyor. Neden: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Destek için güncellemeler günlüğünü dışa aktarın";

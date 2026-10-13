@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Chẩn đoán Được xuất";
 "alerts.export.diagnostics.success.message" = "Tất cả nhật ký chẩn đoán đã được xuất thành công.";
 "alerts.export.diagnostics.saveFailed.message" = "Không thể lưu chẩn đoán vào vị trí được chọn: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Đã xuất chẩn đoán nhưng thiếu nhật ký hệ thống";
+"alerts.export.diagnostics.noSystemLogs.message" = "Tệp chẩn đoán đã được lưu, nhưng không thể đọc nhật ký hệ thống của ứng dụng, nên system-logs.txt chỉ chứa lý do. Lý do: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Xuất nhật ký cập nhật để hỗ trợ";

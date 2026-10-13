@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika eksporditud";
 "alerts.export.diagnostics.success.message" = "Kõik diagnostika logid on edukalt eksporditud.";
 "alerts.export.diagnostics.saveFailed.message" = "Diagnostika salvestamine valitud asukohta ebaõnnestus: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika eksporditi ilma süsteemilogideta";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikafail salvestati, kuid rakenduse süsteemilogisid ei õnnestunud lugeda, seega sisaldab system-logs.txt ainult põhjust. Põhjus: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Ekspordi uuenduste logid toe jaoks";

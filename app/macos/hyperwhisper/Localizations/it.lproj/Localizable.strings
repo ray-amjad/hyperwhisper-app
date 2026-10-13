@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostici Esportati";
 "alerts.export.diagnostics.success.message" = "Tutti i log diagnostici sono stati esportati con successo.";
 "alerts.export.diagnostics.saveFailed.message" = "Impossibile salvare i diagnostici nella posizione selezionata: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostica esportata senza log di sistema";
+"alerts.export.diagnostics.noSystemLogs.message" = "Il file di diagnostica è stato salvato, ma non è stato possibile leggere i log di sistema dell'app, quindi system-logs.txt contiene solo il motivo. Motivo: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Esporta i log degli aggiornamenti per il supporto";

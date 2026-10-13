@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Greiningarskrár fluttar út";
 "alerts.export.diagnostics.success.message" = "Allar greiningarskrár hafa verið fluttar út með góðum árangri.";
 "alerts.export.diagnostics.saveFailed.message" = "Gat ekki vistað greiningarskrár á valda staðsetningu: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Greiningargögn flutt út án kerfisannála";
+"alerts.export.diagnostics.noSystemLogs.message" = "Greiningarskráin var vistuð, en ekki tókst að lesa kerfisannála forritsins, svo system-logs.txt inniheldur aðeins ástæðuna. Ástæða: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Flytja út uppfærsluskrár fyrir aðstoð";

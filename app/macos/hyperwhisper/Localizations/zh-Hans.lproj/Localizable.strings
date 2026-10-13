@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "诊断已导出";
 "alerts.export.diagnostics.success.message" = "所有诊断日志已成功导出。";
 "alerts.export.diagnostics.saveFailed.message" = "无法将诊断信息保存到所选位置：%@";
+"alerts.export.diagnostics.noSystemLogs.title" = "已导出诊断信息，但不含系统日志";
+"alerts.export.diagnostics.noSystemLogs.message" = "诊断文件已保存，但无法读取应用的系统日志，因此 system-logs.txt 中只有原因。原因：%@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "导出更新日志以供支持";

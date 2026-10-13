@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Діагностика експортована";
 "alerts.export.diagnostics.success.message" = "Усі журнали діагностики успішно експортовано.";
 "alerts.export.diagnostics.saveFailed.message" = "Не вдалося зберегти діагностику у вибраному місцезнаходженні: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Діагностику експортовано без системних журналів";
+"alerts.export.diagnostics.noSystemLogs.message" = "Файл діагностики збережено, але системні журнали застосунку не вдалося прочитати, тому system-logs.txt містить лише причину. Причина: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Експортувати журнали оновлень для підтримки";

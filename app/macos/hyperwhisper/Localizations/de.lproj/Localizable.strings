@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnose exportiert";
 "alerts.export.diagnostics.success.message" = "Alle Diagnoseprotokolle wurden erfolgreich exportiert.";
 "alerts.export.diagnostics.saveFailed.message" = "Die Diagnose konnte nicht am ausgewählten Speicherort gespeichert werden: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnose ohne Systemprotokolle exportiert";
+"alerts.export.diagnostics.noSystemLogs.message" = "Die Diagnosedatei wurde gespeichert, aber die Systemprotokolle der App konnten nicht gelesen werden. system-logs.txt enthält daher nur den Grund. Grund: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportieren Sie Update-Protokolle für den Support";

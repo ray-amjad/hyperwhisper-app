@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "진단 내보내기 완료";
 "alerts.export.diagnostics.success.message" = "모든 진단 로그를 성공적으로 내보냈습니다.";
 "alerts.export.diagnostics.saveFailed.message" = "선택한 위치에 진단을 저장할 수 없습니다: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "시스템 로그 없이 진단 정보를 내보냈습니다";
+"alerts.export.diagnostics.noSystemLogs.message" = "진단 파일은 저장되었지만 앱의 시스템 로그를 읽을 수 없어 system-logs.txt에는 이유만 들어 있습니다. 이유: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "지원을 위한 업데이트 로그 내보내기";

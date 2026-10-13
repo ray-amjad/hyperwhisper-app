@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika eksportuota";
 "alerts.export.diagnostics.success.message" = "Visi diagnostikos žurnalai sėkmingai eksportuoti.";
 "alerts.export.diagnostics.saveFailed.message" = "Nepavyko išsaugoti diagnostikos pasirinktoje vietoje: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika eksportuota be sistemos žurnalų";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikos failas išsaugotas, bet programos sistemos žurnalų nepavyko perskaityti, todėl system-logs.txt yra tik priežastis. Priežastis: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksportuoti atnaujinimo žurnalus pagalbai";

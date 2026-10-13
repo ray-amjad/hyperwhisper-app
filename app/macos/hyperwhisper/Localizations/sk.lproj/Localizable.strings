@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika vyvezená";
 "alerts.export.diagnostics.success.message" = "Všetky diagnostické záznamy boli úspešne vyvezené.";
 "alerts.export.diagnostics.saveFailed.message" = "Nepodarilo sa uložiť diagnostiku na zvolené miesto: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika exportovaná bez systémových záznamov";
+"alerts.export.diagnostics.noSystemLogs.message" = "Súbor s diagnostikou bol uložený, ale systémové záznamy aplikácie sa nepodarilo prečítať, takže system-logs.txt obsahuje iba dôvod. Dôvod: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Vyviezť záznamy aktualizácií pre podporu";

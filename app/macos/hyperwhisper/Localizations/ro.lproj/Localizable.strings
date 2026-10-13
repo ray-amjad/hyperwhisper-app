@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostice exportate";
 "alerts.export.diagnostics.success.message" = "Toate jurnalele de diagnosticare au fost exportate cu succes.";
 "alerts.export.diagnostics.saveFailed.message" = "Nu s-au putut salva diagnosticele în locația selectată: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnosticare exportată fără jurnale de sistem";
+"alerts.export.diagnostics.noSystemLogs.message" = "Fișierul de diagnosticare a fost salvat, dar jurnalele de sistem ale aplicației nu au putut fi citite, așa că system-logs.txt conține doar motivul. Motiv: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportați jurnalele de actualizare pentru suport";

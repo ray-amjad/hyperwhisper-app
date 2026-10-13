@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "ส่งออกการวินิจฉัยแล้ว";
 "alerts.export.diagnostics.success.message" = "บันทึกการวินิจฉัยทั้งหมดส่งออกสำเร็จ";
 "alerts.export.diagnostics.saveFailed.message" = "ไม่สามารถบันทึกการวินิจฉัยลงในตำแหน่งที่เลือก: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "ส่งออกข้อมูลวินิจฉัยโดยไม่มีบันทึกระบบ";
+"alerts.export.diagnostics.noSystemLogs.message" = "บันทึกไฟล์ข้อมูลวินิจฉัยแล้ว แต่ไม่สามารถอ่านบันทึกระบบของแอปได้ ดังนั้น system-logs.txt จึงมีเพียงสาเหตุเท่านั้น สาเหตุ: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "ส่งออกบันทึกการอัปเดตเพื่อการสนับสนุน";

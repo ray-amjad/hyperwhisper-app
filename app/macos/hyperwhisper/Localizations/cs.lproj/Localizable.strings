@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika exportovana";
 "alerts.export.diagnostics.success.message" = "Vsechny diagnosticke logy byly uspesne exportovany.";
 "alerts.export.diagnostics.saveFailed.message" = "Nepodarilo se ulozit diagnostiku do vybraneho umisteni: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika exportována bez systémových logů";
+"alerts.export.diagnostics.noSystemLogs.message" = "Soubor s diagnostikou byl uložen, ale systémové logy aplikace nebylo možné přečíst, takže system-logs.txt obsahuje jen důvod. Důvod: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportovat logy aktualizaci pro podporu";

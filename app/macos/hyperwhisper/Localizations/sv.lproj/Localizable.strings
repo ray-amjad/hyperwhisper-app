@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostik exporterad";
 "alerts.export.diagnostics.success.message" = "Alla diagnostikloggar har exporterats framgångsrikt.";
 "alerts.export.diagnostics.saveFailed.message" = "Det gick inte att spara diagnostik till vald plats: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostik exporterad utan systemloggar";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikfilen sparades, men appens systemloggar kunde inte läsas, så system-logs.txt innehåller bara orsaken. Orsak: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportera uppdateringsloggar för support";

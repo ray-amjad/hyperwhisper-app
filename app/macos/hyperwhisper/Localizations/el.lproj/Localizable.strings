@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Διαγνωστικά Εξαγωγή";
 "alerts.export.diagnostics.success.message" = "Όλα τα διαγνωστικά κούπη εξαγόμενη με επιτυχία.";
 "alerts.export.diagnostics.saveFailed.message" = "Δεν ήταν δυνατή η αποθήκευση διαγνωστικών στη θέση που επιλέχθηκε: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Τα διαγνωστικά εξήχθησαν χωρίς αρχεία καταγραφής συστήματος";
+"alerts.export.diagnostics.noSystemLogs.message" = "Το αρχείο διαγνωστικών αποθηκεύτηκε, αλλά δεν ήταν δυνατή η ανάγνωση των αρχείων καταγραφής συστήματος της εφαρμογής, οπότε το system-logs.txt περιέχει μόνο την αιτία. Αιτία: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Εξαγωγή καταλόγου ενημερώσεων για υποστήριξη";

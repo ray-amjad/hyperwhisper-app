@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostik Dieksport";
 "alerts.export.diagnostics.success.message" = "Semua log diagnostik telah berjaya dieksport.";
 "alerts.export.diagnostics.saveFailed.message" = "Tidak dapat menyimpan diagnostik ke lokasi yang dipilih: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostik Dieksport Tanpa Log Sistem";
+"alerts.export.diagnostics.noSystemLogs.message" = "Fail diagnostik telah disimpan, tetapi log sistem aplikasi tidak dapat dibaca, jadi system-logs.txt hanya mengandungi sebabnya. Sebab: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksport log kemas kini untuk sokongan";

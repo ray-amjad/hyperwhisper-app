@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Dijagnostika izvezena";
 "alerts.export.diagnostics.success.message" = "Svi dijagnostički zapisi uspješno su izvezeni.";
 "alerts.export.diagnostics.saveFailed.message" = "Nije moguće spremiti dijagnostiku na odabranu lokaciju: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Dijagnostika izvezena bez sistemskih zapisa";
+"alerts.export.diagnostics.noSystemLogs.message" = "Datoteka dijagnostike je spremljena, ali sistemski zapisi aplikacije nisu se mogli pročitati, pa system-logs.txt sadrži samo razlog. Razlog: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Izvezi zapise ažuriranja za podršku";

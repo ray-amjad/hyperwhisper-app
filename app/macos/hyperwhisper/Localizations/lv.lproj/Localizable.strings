@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika eksportēta";
 "alerts.export.diagnostics.success.message" = "Visi diagnostikas žurnāli ir veiksmīgi eksportēti.";
 "alerts.export.diagnostics.saveFailed.message" = "Neizdevās saglabāt diagnostiku atlasītajā atrašanās vietā: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika eksportēta bez sistēmas žurnāliem";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikas fails tika saglabāts, bet lietotnes sistēmas žurnālus nevarēja nolasīt, tāpēc system-logs.txt satur tikai iemeslu. Iemesls: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksportēt atjauninājuma žurnālus atbalstam";

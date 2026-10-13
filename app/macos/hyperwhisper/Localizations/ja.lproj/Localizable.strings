@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "診断情報を書き出しました";
 "alerts.export.diagnostics.success.message" = "すべての診断ログの書き出しに成功しました。";
 "alerts.export.diagnostics.saveFailed.message" = "選択した場所に診断情報を保存できませんでした: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "システムログなしで診断情報を書き出しました";
+"alerts.export.diagnostics.noSystemLogs.message" = "診断ファイルは保存されましたが、アプリのシステムログを読み取れなかったため、system-logs.txt には理由のみが記録されています。理由: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "サポート用に更新ログを書き出します";

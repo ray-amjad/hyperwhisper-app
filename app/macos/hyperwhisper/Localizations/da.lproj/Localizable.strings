@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostik eksporteret";
 "alerts.export.diagnostics.success.message" = "Alle diagnostiske logfiler er blevet eksporteret.";
 "alerts.export.diagnostics.saveFailed.message" = "Kunne ikke gemme diagnostik til den valgte placering: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostik eksporteret uden systemlogs";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikfilen blev gemt, men appens systemlogs kunne ikke læses, så system-logs.txt indeholder kun årsagen. Årsag: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksporter opdateringslogfiler til support";

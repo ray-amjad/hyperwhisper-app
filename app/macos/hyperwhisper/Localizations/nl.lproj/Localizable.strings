@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostische gegevens geëxporteerd";
 "alerts.export.diagnostics.success.message" = "Alle diagnostische logboeken zijn met succes geëxporteerd.";
 "alerts.export.diagnostics.saveFailed.message" = "Kan diagnostische gegevens niet opslaan op de geselecteerde locatie: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostiek geëxporteerd zonder systeemlogs";
+"alerts.export.diagnostics.noSystemLogs.message" = "Het diagnostiekbestand is opgeslagen, maar de systeemlogs van de app konden niet worden gelezen, dus system-logs.txt bevat alleen de reden. Reden: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Updatelogboeken exporteren voor ondersteuning";

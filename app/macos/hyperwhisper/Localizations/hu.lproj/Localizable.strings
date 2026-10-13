@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnosztika exportálva";
 "alerts.export.diagnostics.success.message" = "Minden diagnosztikai napló sikeresen exportálva lett.";
 "alerts.export.diagnostics.saveFailed.message" = "Nem sikerült a diagnosztika mentése a kiválasztott helyre: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnosztika exportálva rendszernaplók nélkül";
+"alerts.export.diagnostics.noSystemLogs.message" = "A diagnosztikai fájl mentve, de az alkalmazás rendszernaplóit nem sikerült beolvasni, ezért a system-logs.txt csak az okot tartalmazza. Ok: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Frissítési naplók exportálása támogatáshoz";

@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Дијагностика Извезена";
 "alerts.export.diagnostics.success.message" = "Сви дијагностички дневници су успешно извезени.";
 "alerts.export.diagnostics.saveFailed.message" = "Не могу да сачувам дијагностику у изабрану локацију: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Дијагностика извезена без системских записа";
+"alerts.export.diagnostics.noSystemLogs.message" = "Датотека дијагностике је сачувана, али системски записи апликације нису могли да се прочитају, па system-logs.txt садржи само разлог. Разлог: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Извези дневнике ажурирања за подршку";

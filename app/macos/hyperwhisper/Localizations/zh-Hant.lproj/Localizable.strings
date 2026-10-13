@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "診斷已匯出";
 "alerts.export.diagnostics.success.message" = "所有診斷日誌已成功匯出。";
 "alerts.export.diagnostics.saveFailed.message" = "無法將診斷儲存到選定位置：%@";
+"alerts.export.diagnostics.noSystemLogs.title" = "已匯出診斷資訊，但不含系統記錄";
+"alerts.export.diagnostics.noSystemLogs.message" = "診斷檔案已儲存，但無法讀取 App 的系統記錄，因此 system-logs.txt 中只有原因。原因：%@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "匯出更新日誌以取得支援";

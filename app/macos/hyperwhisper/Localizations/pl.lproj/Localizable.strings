@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostyka wyeksportowana";
 "alerts.export.diagnostics.success.message" = "Wszystkie dzienniki diagnostyczne zostały pomyślnie wyeksportowane.";
 "alerts.export.diagnostics.saveFailed.message" = "Nie udało się zapisać diagnostyki w wybranej lokalizacji: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Wyeksportowano diagnostykę bez dzienników systemowych";
+"alerts.export.diagnostics.noSystemLogs.message" = "Plik diagnostyczny został zapisany, ale nie udało się odczytać dzienników systemowych aplikacji, więc system-logs.txt zawiera tylko przyczynę. Przyczyna: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Wyeksportuj dzienniki aktualizacji do wsparcia";

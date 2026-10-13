@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostikk eksportert";
 "alerts.export.diagnostics.success.message" = "Alle diagnostikklogger er eksportert vellykket.";
 "alerts.export.diagnostics.saveFailed.message" = "Kunne ikke lagre diagnostikk til valgt plassering: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostikk eksportert uten systemlogger";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikkfilen ble lagret, men appens systemlogger kunne ikke leses, så system-logs.txt inneholder bare årsaken. Årsak: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksporter oppdateringslogger for støtte";
