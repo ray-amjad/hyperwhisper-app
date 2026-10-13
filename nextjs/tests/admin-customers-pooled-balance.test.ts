@@ -28,3 +28,15 @@ test("the status pill maps the enum to a label", () => {
   assert.match(text, /status === "granted"\) return "Active"/);
   assert.match(text, /status === "revoked"\) return "Revoked"/);
 });
+
+test("Add credits shows once per account, beside Total, not per key", () => {
+  const rows = text.slice(
+    text.indexOf("customer.licenses.map((license) =>"),
+    text.indexOf("{/* Total credits"),
+  );
+  assert.ok(rows.length > 0);
+  assert.doesNotMatch(rows, /openAddCredits\(/);
+  assert.equal(text.match(/openAddCredits\(\{/g)?.length, 1);
+  assert.match(text, /credits: customer\.totalCredits,/);
+  assert.match(text, /grid-cols-\[repeat\(3,max-content\)\]/);
+});

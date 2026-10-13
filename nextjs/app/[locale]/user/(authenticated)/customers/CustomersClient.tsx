@@ -178,12 +178,12 @@ export default function CustomersClient() {
     },
   });
 
-  // Add-credits modal state. Targets a single license key directly, so no
-  // license selector is needed.
+  // Add-credits modal state. Credits are pooled per account, so the target is
+  // the customer: `id` is any one of their license ids, which the server maps
+  // to the owning user's single wallet.
   const [creditTarget, setCreditTarget] = useState<{
     id: string;
     email: string;
-    key: string;
     credits: number;
   } | null>(null);
   const [creditAmount, setCreditAmount] = useState("");
@@ -199,7 +199,6 @@ export default function CustomersClient() {
   function openAddCredits(target: {
     id: string;
     email: string;
-    key: string;
     credits: number;
   }) {
     setCreditTarget(target);
@@ -544,11 +543,11 @@ export default function CustomersClient() {
 
                       {/* License keys (one per license, each copyable + refundable).
                           #1663: one shared grid, each license a `contents` row, so
-                          key / status / Add credits / Refund line up in columns
-                          whether or not a row has a Refund. The balance is pooled
-                          per account, so it shows once, in Total, not per key. */}
+                          key / status / Refund line up in columns whether or not
+                          a row has a Refund. The balance is pooled per account,
+                          so it and Add credits show once, in Total, not per key. */}
                       <td className="px-6 py-4">
-                        <div className="grid grid-cols-[repeat(4,max-content)] items-center gap-x-2 gap-y-2">
+                        <div className="grid grid-cols-[repeat(3,max-content)] items-center gap-x-2 gap-y-2">
                           {customer.licenses.map((license) => (
                             <div key={license.id} className="contents">
                               <button
@@ -617,20 +616,6 @@ export default function CustomersClient() {
                               >
                                 {licenseStatusLabel(license.status)}
                               </span>
-                              <button
-                                onClick={() =>
-                                  openAddCredits({
-                                    id: license.id,
-                                    email: customer.email,
-                                    key: license.key,
-                                    credits: license.credits,
-                                  })
-                                }
-                                disabled={isTransitioning}
-                                className="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/20"
-                              >
-                                Add credits
-                              </button>
                               {license.stripeSessionId &&
                               license.status !== "revoked" ? (
                                 <button
@@ -655,14 +640,33 @@ export default function CustomersClient() {
                         </div>
                       </td>
 
-                      {/* Total credits */}
+                      {/* Total credits. #1663: one Add credits per account, beside
+                          the pooled balance it changes; any license id reaches
+                          the same wallet on the server. */}
                       <td className="px-6 py-4">
-                        <span className="inline-flex flex-wrap items-baseline gap-x-1 text-blue-300 text-sm font-medium">
-                          {formatCredits(customer.totalCredits)}
-                          <span className="text-gray-500 text-xs">
-                            ({Math.floor(customer.totalCredits / CREDITS_PER_MINUTE)} min)
+                        <div className="flex flex-col items-start gap-1.5">
+                          <span className="inline-flex flex-wrap items-baseline gap-x-1 text-blue-300 text-sm font-medium">
+                            {formatCredits(customer.totalCredits)}
+                            <span className="text-gray-500 text-xs">
+                              ({Math.floor(customer.totalCredits / CREDITS_PER_MINUTE)} min)
+                            </span>
                           </span>
-                        </span>
+                          {customer.licenses[0] && (
+                            <button
+                              onClick={() =>
+                                openAddCredits({
+                                  id: customer.licenses[0].id,
+                                  email: customer.email,
+                                  credits: customer.totalCredits,
+                                })
+                              }
+                              disabled={isTransitioning}
+                              className="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/20"
+                            >
+                              Add credits
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Total Spend (net lifetime Stripe spend across all of this
@@ -900,12 +904,9 @@ export default function CustomersClient() {
               </button>
             </div>
 
-            {/* Key Info */}
+            {/* Account Info (the pooled balance) */}
             <div className="p-3 bg-white/5 rounded-lg space-y-1">
               <p className="text-white font-medium">{creditTarget.email}</p>
-              <p className="text-gray-300 font-mono text-sm">
-                {creditTarget.key.slice(0, 16)}...
-              </p>
               <p className="text-gray-400 text-sm">
                 Current balance: {formatCredits(creditTarget.credits)} credits
                 ({Math.floor(creditTarget.credits / CREDITS_PER_MINUTE)} minutes)
