@@ -592,4 +592,43 @@ struct DeleteCancelsPlainRetryTests {
         #expect(await ended(retry), "the expired row's retry must stop")
         #expect(!TranscriptActionHandler.hasRetryTask(for: rowId))
     }
+
+    /// R6-3: the in-app completion's transient-duplicate collapse deletes the
+    /// twin row, so it stops that row's retry too.
+    @MainActor
+    @Test func theCompletionsDuplicateCollapseStopsTheTwinsRetry() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let path = "/tmp/retry-1743/\(UUID().uuidString).wav"
+        let twin = makeFailedRow(in: persistence, audioFilePath: path)
+        twin.setValue("processing", forKey: "status")
+        let anchor = makeFailedRow(in: persistence, audioFilePath: path)
+        let twinId = try #require(twin.id)
+        let retry = spinningTask()
+        TranscriptActionHandler.trackRetryTask(retry, for: twinId, token: UUID())
+        defer { TranscriptActionHandler.cancelRetryTask(for: twinId) }
+
+        persistence.updateTranscriptWithTranscription(anchor, transcribedText: "hello")
+
+        #expect(twin.isDeleted || twin.managedObjectContext == nil, "the collapse must delete the twin")
+        #expect(retry.isCancelled)
+        #expect(!TranscriptActionHandler.hasRetryTask(for: twinId))
+    }
+
+    /// R6-3: every Transcript delete in the store stops the deleted rows'
+    /// retries next to it. Auto-delete's loop is the one exception: it stops
+    /// them after its write commits (pinned for real above).
+    @Test func everyTranscriptDeleteInTheStoreStopsItsRetries() throws {
+        let lines = try ProductionSource.code(of: "app/macos/hyperwhisper/CoreData/PersistenceController.swift")
+            .components(separatedBy: "\n")
+        let notTranscripts = ["delete(mode)", "delete(session)", "delete(item)", "delete(entity:"]
+        var checked = 0
+        for (index, line) in lines.enumerated() where line.contains(".delete(") {
+            guard !notTranscripts.contains(where: { line.contains($0) }) else { continue }
+            if index > 0, lines[index - 1].contains("for transcript in batch") { continue }
+            let window = lines[max(0, index - 1)...min(lines.count - 1, index + 3)]
+            #expect(window.contains { $0.contains("stopRetries(ofDeleted:") }, "no stopRetries next to: \(line)")
+            checked += 1
+        }
+        #expect(checked >= 6)
+    }
 }

@@ -1964,6 +1964,7 @@ class PersistenceController: ObservableObject {
 
                         if isNearInTime && (isNearInDuration || sameText) {
                             container.viewContext.delete(candidate)
+                            Self.stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
                             AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
                         }
                     }
