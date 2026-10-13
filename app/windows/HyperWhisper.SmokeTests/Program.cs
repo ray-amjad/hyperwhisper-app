@@ -14925,6 +14925,8 @@ internal static class Program
                 {
                     ("parakeet-v2", "parakeet-tdt-0.6b-v2"),
                     ("parakeet-v3", "parakeet-tdt-0.6b-v3"),
+                    // #1625: Windows' multilingual Nemotron build is macOS' multilingual Nemotron.
+                    ("nemotron-3.5-ml-560ms", "nemotron-asr-3.5-multilingual"),
                 })
                 {
                     var u = UniversalBackupMapper.MapMode(StaleLocalMode("parakeet", windowsId, "base"));
