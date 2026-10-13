@@ -53,7 +53,14 @@ function formatCredits(credits: number) {
   });
 }
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
+// #1663: account_keys.status is "granted" or "revoked"; show a word, not the enum.
+function licenseStatusLabel(status: string) {
+  if (status === "granted") return "Active";
+  if (status === "revoked") return "Revoked";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+const currencyFormatter =new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
 });
@@ -481,49 +488,66 @@ export default function CustomersClient() {
                             </form>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-gray-300 wrap-anywhere">{customer.email}</span>
-                            {customer.licenseCount > 1 && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/20 text-blue-300">
-                                {customer.licenseCount} licenses
+                          <div className="flex flex-col items-start gap-1.5">
+                            {/* #1663: the pencil rides in the email's own text run,
+                                glued to its last character, so a wrap never leaves
+                                it alone on a line under the address. */}
+                            <p className="text-gray-300 wrap-anywhere">
+                              {customer.email.slice(0, -1)}
+                              <span className="whitespace-nowrap">
+                                {customer.email.slice(-1)}
+                                <button
+                                  type="button"
+                                  onClick={() => startEdit(customer.userId, customer.email)}
+                                  disabled={isTransitioning}
+                                  title="Edit email"
+                                  aria-label="Edit email"
+                                  className="ml-1.5 inline-flex align-[-2px] text-gray-500 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-500"
+                                >
+                                  <svg
+                                    className="h-3.5 w-3.5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={1.8}
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"
+                                    />
+                                  </svg>
+                                </button>
                               </span>
+                            </p>
+                            {(customer.licenseCount > 1 ||
+                              editedUserIds.has(customer.userId)) && (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {customer.licenseCount > 1 && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/20 text-blue-300">
+                                    {customer.licenseCount} licenses
+                                  </span>
+                                )}
+                                {editedUserIds.has(customer.userId) && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-gray-400">
+                                    Edited
+                                  </span>
+                                )}
+                              </div>
                             )}
-                            {editedUserIds.has(customer.userId) && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-gray-400">
-                                Edited
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => startEdit(customer.userId, customer.email)}
-                              disabled={isTransitioning}
-                              title="Edit email"
-                              aria-label="Edit email"
-                              className="text-gray-500 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-500"
-                            >
-                              <svg
-                                className="h-3.5 w-3.5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth={1.8}
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"
-                                />
-                              </svg>
-                            </button>
                           </div>
                         )}
                       </td>
 
-                      {/* License keys (one per license, each copyable + refundable) */}
+                      {/* License keys (one per license, each copyable + refundable).
+                          #1663: one shared grid, each license a `contents` row, so
+                          key / status / Add credits / Refund line up in columns
+                          whether or not a row has a Refund. The balance is pooled
+                          per account, so it shows once, in Total, not per key. */}
                       <td className="px-6 py-4">
-                        <div className="flex flex-col gap-2">
+                        <div className="grid grid-cols-[repeat(4,max-content)] items-center gap-x-2 gap-y-2">
                           {customer.licenses.map((license) => (
-                            <div key={license.id} className="flex items-center gap-2 flex-wrap">
+                            <div key={license.id} className="contents">
                               <button
                                 type="button"
                                 onClick={() => copyKey(license.key)}
@@ -581,18 +605,12 @@ export default function CustomersClient() {
                                   </m.span>
                                 </AnimatePresence>
                               </button>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                              <span className={`inline-flex items-center justify-self-start px-2 py-0.5 rounded-full text-[11px] font-medium ${
                                 license.status === "revoked"
                                   ? "bg-red-500/20 text-red-300"
                                   : "bg-emerald-500/20 text-emerald-300"
                               }`}>
-                                {license.status}
-                              </span>
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-300">
-                                {formatCredits(license.credits)}
-                                <span className="text-gray-500">
-                                  ({Math.floor(license.credits / CREDITS_PER_MINUTE)} min)
-                                </span>
+                                {licenseStatusLabel(license.status)}
                               </span>
                               <button
                                 onClick={() =>
@@ -608,7 +626,7 @@ export default function CustomersClient() {
                               >
                                 Add credits
                               </button>
-                              {license.stripeSessionId && license.status !== "revoked" && (
+                              {license.stripeSessionId && license.status !== "revoked" ? (
                                 <button
                                   onClick={() =>
                                     setRefundTarget({
@@ -622,6 +640,9 @@ export default function CustomersClient() {
                                 >
                                   Refund
                                 </button>
+                              ) : (
+                                // Holds the Refund cell so the next license starts a new grid row.
+                                <span aria-hidden="true" />
                               )}
                             </div>
                           ))}
@@ -630,8 +651,11 @@ export default function CustomersClient() {
 
                       {/* Total credits */}
                       <td className="px-6 py-4">
-                        <span className="text-blue-300 text-sm font-medium">
-                          {customer.totalCredits.toLocaleString()}
+                        <span className="inline-flex flex-wrap items-baseline gap-x-1 text-blue-300 text-sm font-medium">
+                          {formatCredits(customer.totalCredits)}
+                          <span className="text-gray-500 text-xs">
+                            ({Math.floor(customer.totalCredits / CREDITS_PER_MINUTE)} min)
+                          </span>
                         </span>
                       </td>
 
