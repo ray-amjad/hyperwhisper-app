@@ -659,9 +659,11 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
 
                 // Whisper times each segment from the start of its chunk.
                 var chunkOffset = TimeSpan.Zero;
+                string? detectedLanguage = null;
                 builder.WithSegmentEventHandler((segment) =>
                     {
                         segmentCount++;
+                        detectedLanguage ??= segment.Language;
                         var segmentText = segment.Text ?? "";
                         text.Append(segmentText);
                         LoggingService.Debug(DescribeSegment(segment.Start + chunkOffset, segment.End + chunkOffset, segmentText));
@@ -711,6 +713,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 {
                     LoggingService.Debug($"  Chunks: {chunkEnds.Count} (at most {MaxChunkSamples / WhisperSampleRate / 60.0:F1} min each)");
                 }
+                bool languagePinned = !string.IsNullOrEmpty(language);
                 foreach (var chunk in ReadAudioChunks(audioPath, chunkEnds, cancellationToken))
                 {
                     chunkOffset = TimeSpan.FromSeconds(chunk.StartSample / (double)WhisperSampleRate);
@@ -719,6 +722,19 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                         .WithCancellation(cancellationToken)
                         .ConfigureAwait(false))
                     {
+                    }
+
+                    // Auto-detect used to run once, on the file's first 30 s. Keep it that
+                    // way: the first chunk that yields speech decides the language, and
+                    // every later chunk is decoded in it rather than detecting its own.
+                    if (!languagePinned && !string.IsNullOrEmpty(detectedLanguage))
+                    {
+                        languagePinned = true;
+                        if (chunkEnds.Count > 1)
+                        {
+                            processor.ChangeLanguage(detectedLanguage);
+                            LoggingService.Debug($"  Language: detected {detectedLanguage}, kept for the remaining chunks");
+                        }
                     }
                 }
 
