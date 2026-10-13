@@ -88,9 +88,10 @@ class TranscriptActionHandler: ObservableObject {
         // VALIDATION PHASE:
         // Check if we can retry this transcript
         guard canRetry(transcript) else {
-            await MainActor.run {
-                self.lastError = "transcripts.error.cannotRetry".localized
-            }
+            // Say so: the History context menu has no other place to show it (#1455).
+            let message = "transcripts.error.cannotRetry".localized
+            lastError = message
+            await showRetryErrorAlert(message)
             return false
         }
         
@@ -154,9 +155,11 @@ class TranscriptActionHandler: ObservableObject {
         // Check if audio file exists
         guard let originalAudioPath = transcript.audioFilePath,
               FileManager.default.fileExists(atPath: originalAudioPath) else {
-            await MainActor.run {
-                self.lastError = "transcripts.error.audioNotFound".localized
-            }
+            // Say so: nothing in History reads lastError, so a bare return
+            // swallowed the click (#1455).
+            let message = "transcripts.error.cannotRetry".localized
+            lastError = message
+            await showRetryErrorAlert(message)
             return false
         }
         
@@ -174,9 +177,9 @@ class TranscriptActionHandler: ObservableObject {
             AppLogger.ui.info("Duplicated audio file for retry: \(newAudioURL.lastPathComponent)")
         } catch {
             AppLogger.ui.error("Failed to duplicate audio file: \(error.localizedDescription)")
-            await MainActor.run {
-                self.lastError = "transcripts.error.fileCopyFailed".localized
-            }
+            let message = error.localizedDescription
+            lastError = message
+            await showRetryErrorAlert(message)
             return false
         }
         
