@@ -418,6 +418,22 @@
       ],
       "licensed": false,
       "note": "unlicensed; Codex 0 defects on all 3 routes; my own read of the Streaming shot found Nova 3 Medical + Japanese saved (#1348, comment). history-and-backup first drive died at step 1 on codex ETIMEDOUT, the rerun was clean."
+    },
+    {
+      "at": "2026-10-13T03:23:41Z",
+      "platform": "mac",
+      "commit": "29e94664",
+      "routes": [
+        "updates",
+        "vocabulary",
+        "provider-settings"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY); Codex filed 1 defect (Settings > Vocabulary has no entries) = by design, it holds only the iCloud Sync toggle; Escape does not close the Check for Updates alert (OK only), not filed; vocab list sorts case-sensitively (NSSortDescriptor on word), not filed; 4 test vocab words left in Percy's Mac profile"
     }
   ]
 }
