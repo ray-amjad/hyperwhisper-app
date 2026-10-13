@@ -328,11 +328,53 @@ struct SimpleRecorderMeterReadTests {
         let body = try ProductionSource.slice(
             of: "app/macos/hyperwhisper/Managers/AudioRecording/Recording/RecordingLifecycle.swift",
             from: "func stopRecording(cancelled: Bool = false) async",
-            to: "if let rawURL = rawURL, let dstURL = finalURL {"
+            to: "if let rawURL = ownedRawURL, let dstURL = ownedFinalURL {"
         )
 
         let timeoutCheck = try #require(body.range(of: "if recorderStopOutcome == .timedOut {"))
         let cancelledBranch = try #require(body.range(of: "if cancelled {"))
         #expect(timeoutCheck.lowerBound < cancelledBranch.lowerBound)
+    }
+
+    /// PR #1767 review: a new recording can start while this stop waits up to 5 s
+    /// for the recorder. The stop must take its URLs and session row before that
+    /// wait, and after it touch only what it took, never the shared fields the new
+    /// recording has written by then.
+    @Test func stopTakesItsFilesAndSessionBeforeTheRecorderWait() throws {
+        let body = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/AudioRecording/Recording/RecordingLifecycle.swift",
+            from: "func stopRecording(cancelled: Bool = false) async",
+            to: "// MARK: - Conversion Helpers"
+        )
+
+        let detach = try #require(body.range(of: "sessionManager.detachCurrentSession()"))
+        let wait = try #require(body.range(of: "await simpleRecorder.stopRecording()"))
+        #expect(detach.lowerBound < wait.lowerBound)
+
+        let afterWait = String(body[wait.upperBound...])
+        for shared in ["self.finalURL", "self.rawURL", " rawURL = nil", "resolveCurrentSession()",
+                       "clearCurrentSession()", "deleteCurrentSession()", "currentRecordingSession"] {
+            #expect(!afterWait.contains(shared), "stop reads or clears shared state after its wait: \(shared)")
+        }
+    }
+
+    /// PR #1767 review: the validation-cancel path also shows the timeout error, and
+    /// no cancel caller deletes "the current session", which may be a newer recording's.
+    @Test func cancelCallersShowTheTimeoutAndLeaveTheCurrentSessionAlone() throws {
+        let cancel = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/RecordingTranscriptionFlow+StartRecording.swift",
+            from: "func cancelRecordingWithError(",
+            to: "private func armRecordingMaxDurationTimer("
+        )
+        #expect(cancel.contains("recordingLifecycle.lastStopTimedOut"))
+        #expect(cancel.contains("AudioError.recorderStopTimedOut.localizedDescription"))
+        #expect(!cancel.contains("deleteCurrentSession()"))
+
+        let userCancel = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/RecordingTranscriptionFlow+StopRecording.swift",
+            from: "// USER CANCEL: Clean up fully and return immediately.",
+            to: "let audioURL = result.url!"
+        )
+        #expect(!userCancel.contains("deleteCurrentSession()"))
     }
 }

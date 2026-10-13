@@ -196,10 +196,11 @@ extension RecordingTranscriptionFlow {
         // Now we match the cleanup done by cancelRecordingWithError() and the streaming
         // cancel path: delete the file, delete the session, reset all UI state.
         if cancelled {
+            // stopRecording(cancelled:) already deleted this recording's session row
+            // (#1359: the current session may belong to a recording started since).
             if let url = result.url {
                 try? FileManager.default.removeItem(at: url)
             }
-            await recordingLifecycle.sessionManager.deleteCurrentSession()
             await MainActor.run {
                 appState?.recordingState = .idle
                 appState?.showRecordingDialog = false
