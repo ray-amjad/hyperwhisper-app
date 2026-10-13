@@ -27,20 +27,36 @@ function readLocaleCookie(cookieHeader: string): string | undefined {
 }
 
 /**
- * #1170: the locale the navbar's home and section links point at.
+ * #1170: the href for a site link (`/`, `/#features`, `/support`) in the
+ * shared navbar and footer.
  *
- * On an English-only page `useLocale()` is "en" whatever the visitor's saved
- * language, so `/en#features` would send a German visitor to an ordinary page
- * that writes NEXT_LOCALE=en. There the links follow NEXT_LOCALE instead. Read
- * in the browser only (document.cookie), so these pages stay static.
+ * On an English-only page `useLocale()` is "en" for every visitor, and
+ * `/en/...` is an ordinary page that writes NEXT_LOCALE=en. So there, once
+ * the browser passes `document.cookie` in (never on the server, so these
+ * pages stay static and their server HTML keeps `/en`), the link follows a
+ * saved NEXT_LOCALE. With none, it stays unprefixed: next-intl then picks the
+ * locale as on a first visit (Accept-Language, else the default), redirects,
+ * and writes no cookie for it. The browser keeps the #hash across the redirect.
+ *
+ * `cookieHeader` is undefined before hydration.
  */
-export function navbarHomeLocale(
+export function siteHref(
   pathname: string,
   pageLocale: string,
-  cookieHeader: string,
+  cookieHeader: string | undefined,
+  path: string,
 ): string {
-  if (!isEnglishOnlyPath(pathname)) return pageLocale;
-  const saved = readLocaleCookie(cookieHeader);
+  let locale: string | undefined = pageLocale;
 
-  return saved && isSupportedLocale(saved) ? saved : pageLocale;
+  if (isEnglishOnlyPath(pathname) && cookieHeader !== undefined) {
+    const saved = readLocaleCookie(cookieHeader);
+
+    locale = saved && isSupportedLocale(saved) ? saved : undefined;
+  }
+
+  if (locale === undefined) return path;
+  if (path === "/") return `/${locale}`;
+  if (path.startsWith("/#")) return `/${locale}${path.slice(1)}`;
+
+  return `/${locale}${path}`;
 }
