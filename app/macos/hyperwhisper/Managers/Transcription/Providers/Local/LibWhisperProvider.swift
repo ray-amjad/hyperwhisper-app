@@ -783,7 +783,11 @@ class LibWhisperProvider: TranscriptionProvider {
             case .conversionFailed:
                 throw TranscriptionError.audioConversionFailed
             }
-            
+
+        } catch is CancellationError {
+            // A cancelled pass stops the decode at its next chunk; keep the
+            // cancel so the pass answers `streamingInterrupted` (#1743).
+            throw CancellationError()
         } catch {
             // Unexpected errors
             logger.error("❌ Unexpected audio conversion error: \(error)")

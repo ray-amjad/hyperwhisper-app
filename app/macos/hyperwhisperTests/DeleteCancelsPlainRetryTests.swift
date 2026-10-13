@@ -324,6 +324,22 @@ struct DeleteCancelsPlainRetryTests {
         #expect(whisper.contains("params.encoder_begin_callback = {"))
     }
 
+    /// A pass cancelled while its file is still being decoded stops at the
+    /// converter's next chunk. That cancel must leave the provider as a cancel
+    /// (`streamingInterrupted`), not as `audioConversionFailed`.
+    @Test func aCancelledConversionStaysACancel() throws {
+        let convert = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/Providers/Local/LibWhisperProvider.swift",
+            from: "} catch let error as AudioConverter.ConversionError {",
+            to: "func preloadExclusively("
+        )
+        let cancel = try #require(convert.range(of: "} catch is CancellationError {"))
+        let rethrow = try #require(convert.range(of: "throw CancellationError()"))
+        let fallback = try #require(convert.range(of: "throw TranscriptionError.audioConversionFailed", options: .backwards))
+        #expect(cancel.lowerBound < rethrow.lowerBound)
+        #expect(rethrow.lowerBound < fallback.lowerBound, "the cancel must be caught before the catch-all maps it")
+    }
+
     @Test func theAbortSignalStaysTrippedOnceTriggered() {
         let signal = WhisperAbortSignal()
         #expect(!signal.isTriggered)
