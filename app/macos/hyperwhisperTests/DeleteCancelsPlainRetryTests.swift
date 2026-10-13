@@ -15,6 +15,7 @@
 //  failure (the control test below).
 //
 
+import AVFoundation
 import CoreData
 import Foundation
 import Testing
@@ -343,5 +344,252 @@ struct DeleteCancelsPlainRetryTests {
         let guardRange = try #require(cancelled.range(of: "if currentTask == task {"))
         let idleRange = try #require(cancelled.range(of: "state = .idle"))
         #expect(guardRange.lowerBound < idleRange.lowerBound, "only the run that still owns the pipeline may idle it")
+    }
+
+    // MARK: - Review round 7 / 6 (inbox #1043)
+
+    /// Writes a mono 16-bit PCM WAV of a 440 Hz tone, and closes it.
+    private func makeToneWAV(seconds: Double) throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("retry-1743-tone-\(UUID().uuidString).wav")
+        let sampleRate = 16_000.0
+        let frames = AVAudioFrameCount(seconds * sampleRate)
+        let settings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: sampleRate,
+            AVNumberOfChannelsKey: 1,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false,
+        ]
+        // The scope releases the writer, which finalises the RIFF header.
+        try autoreleasepool {
+            let file = try AVAudioFile(forWriting: url, settings: settings)
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames))
+            let channel = try #require(buffer.floatChannelData?[0])
+            buffer.frameLength = frames
+            for index in 0..<Int(frames) {
+                channel[index] = 0.25 * sinf(2 * Float.pi * 440 * Float(index) / Float(sampleRate))
+            }
+            try file.write(from: buffer)
+        }
+        return url
+    }
+
+    /// Waits up to two seconds for `task` to end; a cancel ends it.
+    @MainActor
+    private func ended(_ task: Task<Void, Never>) async -> Bool {
+        for _ in 0..<200 {
+            if task.isCancelled { return true }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        return task.isCancelled
+    }
+
+    private func spinningTask() -> Task<Void, Never> {
+        Task<Void, Never> {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000)
+            }
+        }
+    }
+
+    /// R7-3: a delete during VAD stops the audio load: the converter's read
+    /// loop sees the cancel and throws, not a full decode of a long file.
+    @MainActor
+    @Test func aCancelledCallerStopsTheAudioLoad() async throws {
+        let audio = try makeToneWAV(seconds: 30)
+        defer { try? FileManager.default.removeItem(at: audio) }
+
+        let load = Task { try await AudioConverter().convert(from: audio) }
+        load.cancel()
+        await #expect(throws: CancellationError.self) {
+            _ = try await load.value
+        }
+    }
+
+    /// R7-3: the trimmer stops before analysis and writes no trimmed file.
+    @MainActor
+    @Test func aCancelledTrimWritesNoFile() async throws {
+        let audio = try makeToneWAV(seconds: 30)
+        defer { try? FileManager.default.removeItem(at: audio) }
+        let trimmer = SilenceTrimmer()
+        let output = trimmer.generateOutputURL(for: audio)
+        defer { try? FileManager.default.removeItem(at: output) }
+
+        let trim = Task { try await trimmer.trimSilence(from: audio) }
+        trim.cancel()
+        await #expect(throws: CancellationError.self) {
+            _ = try await trim.value
+        }
+        #expect(!FileManager.default.fileExists(atPath: output.path))
+    }
+
+    /// R7-3: VAD hands a cancelled caller the original audio, unprocessed,
+    /// and leaves no trimmed WAV or M4A behind.
+    @MainActor
+    @Test func aCancelledVADReturnsTheOriginalAndWritesNothing() async throws {
+        let audio = try makeToneWAV(seconds: 30)
+        defer { try? FileManager.default.removeItem(at: audio) }
+        let outputs = TranscriptionRetryController.vadOutputPaths(for: audio)
+
+        let service = VADProcessingService()
+        let vad = Task {
+            await service.processAudioForTranscription(audioURL: audio, duration: 30, vadEnabled: true, context: .retry)
+        }
+        vad.cancel()
+        let result = await vad.value
+
+        #expect(!result.wasProcessed)
+        #expect(result.trimResult == nil)
+        #expect(result.finalAudioURL == audio)
+        for path in outputs {
+            #expect(!FileManager.default.fileExists(atPath: path))
+        }
+    }
+
+    /// R7-3: the trimmer checks for the cancel before each costly step, the
+    /// last one right before it writes.
+    @Test func theTrimmerChecksForACancelBeforeEachCostlyStep() throws {
+        let file = "app/macos/hyperwhisper/Managers/AudioRecording/Processing/SilenceTrimmer.swift"
+        let beforeAnalysis = try ProductionSource.slice(of: file, from: "let vad = VoiceActivityDetector.shared", to: "vadResult = try await vad.analyzeAudio(")
+        #expect(beforeAnalysis.contains("try Task.checkCancellation()"))
+        let beforeWrite = try ProductionSource.slice(of: file, from: "let finalOutputURL = outputURL ?? generateOutputURL(for: inputURL)", to: "try await writeAudioFile(")
+        #expect(beforeWrite.contains("try Task.checkCancellation()"))
+    }
+
+    /// R7-1 / R6-2: every retry of a recording writes the same VAD names. A
+    /// cancelled run skips the files another in-flight run still holds.
+    @MainActor
+    @Test func aCancelledRetryKeepsTheVADOutputAnotherRunUses() {
+        let source = URL(fileURLWithPath: "/tmp/retry-1743/shared-\(UUID().uuidString).wav")
+        let outputs = TranscriptionRetryController.vadOutputPaths(for: source)
+        #expect(outputs.count == 2)
+        #expect(outputs[0].hasSuffix("_wav_trimmed.wav"))
+        #expect(outputs[1].hasSuffix("_wav_trimmed.m4a"))
+
+        // Two runs on the same source; the first is cancelled and releases.
+        TranscriptionRetryController.claimVADOutputs(outputs)
+        TranscriptionRetryController.claimVADOutputs(outputs)
+        TranscriptionRetryController.releaseVADOutputs(outputs)
+        #expect(TranscriptionRetryController.vadOutputsNoRunUses(outputs).isEmpty)
+
+        // The second run ends too: now nothing holds them.
+        TranscriptionRetryController.releaseVADOutputs(outputs)
+        #expect(TranscriptionRetryController.vadOutputsNoRunUses(outputs) == outputs)
+    }
+
+    /// R7-1 / R6-2: the run claims the names before VAD writes them, and its
+    /// cleanup releases its own claim before it asks which files are free.
+    @Test func theRetryClaimsItsVADOutputBeforeVADAndReleasesBeforeCleanup() throws {
+        let body = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/Support/TranscriptionRetryController.swift",
+            from: "func retryTranscription(for transcript: Transcript)",
+            to: "func canRetryTranscript("
+        )
+        let claim = try #require(body.range(of: "Self.claimVADOutputs(claimedVADOutputs)"))
+        let vad = try #require(body.range(of: "vadProcessingService.processAudioForTranscription("))
+        #expect(claim.lowerBound < vad.lowerBound)
+
+        let release = try #require(body.range(of: "Self.releaseVADOutputs(claimedVADOutputs)", range: vad.upperBound..<body.endIndex))
+        let filter = try #require(body.range(of: "Self.vadOutputsNoRunUses(Self.filesMadeByRetry(vadResult))"))
+        let cleanup = try #require(body.range(of: "FileDeletion.deleteFiles(at: leftovers)"))
+        #expect(release.lowerBound < filter.lowerBound && filter.lowerBound < cleanup.lowerBound)
+    }
+
+    /// R7-2: a superseded run that still succeeds does not idle the pipeline
+    /// under the newer run either.
+    @Test func aSupersededSuccessDoesNotIdleTheNewerRun() throws {
+        let success = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/Pipeline/TranscriptionPipeline+Transcription.swift",
+            from: "let result = try await Self.value(of: task)",
+            to: "let now = Date()"
+        )
+        let guardRange = try #require(success.range(of: "if currentTask == task {"))
+        let idleRange = try #require(success.range(of: "state = .idle"))
+        #expect(guardRange.lowerBound < idleRange.lowerBound, "only the run that still owns the pipeline may idle it")
+    }
+
+    /// R6-4: a retry the delete stopped is its own outcome, with no error
+    /// text, and the recording dialog closes quietly on it instead of
+    /// showing an empty error.
+    @Test func theRecordingDialogTreatsAStopByDeleteAsAQuietCancel() throws {
+        let handler = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/Support/TranscriptActionHandler.swift",
+            from: "if transcript.retryWasStoppedByDelete(taskCancelled: retryTask.isCancelled) {",
+            to: "await showRetryErrorAlert(errorMessage)"
+        )
+        let stopped = try #require(handler.range(of: "return .stoppedByDelete"))
+        let setsError = try #require(handler.range(of: "lastError = errorMessage"))
+        #expect(stopped.lowerBound < setsError.lowerBound, "a stop by delete returns before any error is set")
+
+        let dialog = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Views/RecordingDialog.swift",
+            from: "let outcome = await handler.retryTranscriptionOutcome(transcript)",
+            to: "VisualEffectBackground"
+        )
+        let quiet = try #require(dialog.range(of: "if outcome == .stoppedByDelete {"))
+        let leave = try #require(dialog.range(of: "return", range: quiet.upperBound..<dialog.endIndex))
+        let error = try #require(dialog.range(of: "hasError = true"))
+        #expect(leave.lowerBound < error.lowerBound, "no error state for a stop by delete")
+        #expect(dialog[quiet.upperBound..<leave.lowerBound].contains("closeDialog()"))
+    }
+
+    /// R6-3: the store's own single delete stops the row's running retry,
+    /// whoever calls it.
+    @MainActor
+    @Test func theStoresDeleteStopsTheRowsRetry() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let row = makeFailedRow(in: persistence, audioFilePath: "/tmp/retry-1743/\(UUID().uuidString).wav")
+        let rowId = try #require(row.id)
+        let retry = spinningTask()
+        TranscriptActionHandler.trackRetryTask(retry, for: rowId, token: UUID())
+
+        persistence.deleteTranscript(row)
+
+        #expect(retry.isCancelled)
+        #expect(!TranscriptActionHandler.hasRetryTask(for: rowId))
+    }
+
+    /// R6-3: the store's bulk delete stops the retries of every deleted row,
+    /// and only theirs.
+    @MainActor
+    @Test func theStoresBulkDeleteStopsEachDeletedRowsRetry() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let deleted = makeFailedRow(in: persistence, audioFilePath: "/tmp/retry-1743/\(UUID().uuidString).wav")
+        let kept = makeFailedRow(in: persistence, audioFilePath: "/tmp/retry-1743/\(UUID().uuidString).wav")
+        let deletedId = try #require(deleted.id)
+        let keptId = try #require(kept.id)
+        let deletedRetry = spinningTask()
+        let keptRetry = spinningTask()
+        TranscriptActionHandler.trackRetryTask(deletedRetry, for: deletedId, token: UUID())
+        TranscriptActionHandler.trackRetryTask(keptRetry, for: keptId, token: UUID())
+        defer { TranscriptActionHandler.cancelRetryTask(for: keptId) }
+
+        persistence.deleteTranscripts([deleted])
+
+        #expect(deletedRetry.isCancelled)
+        #expect(!keptRetry.isCancelled)
+        #expect(TranscriptActionHandler.hasRetryTask(for: keptId))
+    }
+
+    /// R6-3: auto-delete's batch delete on the writer context stops the
+    /// running retry of an expired row once the delete commits.
+    @MainActor
+    @Test func autoDeleteStopsTheRetryOfAnExpiredRow() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let row = makeFailedRow(in: persistence, audioFilePath: "/tmp/retry-1743/\(UUID().uuidString).wav")
+        row.date = Date(timeIntervalSinceNow: -400 * 24 * 3600)
+        persistence.save()
+        let rowId = try #require(row.id)
+        let retry = spinningTask()
+        TranscriptActionHandler.trackRetryTask(retry, for: rowId, token: UUID())
+        defer { TranscriptActionHandler.cancelRetryTask(for: rowId) }
+
+        let snapshot = await persistence.deleteTranscriptsOlderThanInBackground(Date(timeIntervalSinceNow: -30 * 24 * 3600))
+
+        #expect(snapshot?.transcriptIDs == [rowId])
+        #expect(await ended(retry), "the expired row's retry must stop")
+        #expect(!TranscriptActionHandler.hasRetryTask(for: rowId))
     }
 }
