@@ -1857,8 +1857,15 @@ internal static class Program
                        && AsyncBodyCalls(restoreAfterJob, loadSelectedInBackground)
                        && AsyncBodyCalls(loadSelectedInBackground, Vm("LoadWhisperModelAsync")),
                     "TranscribeFileAsync no longer loads the Whisper model a Parakeet file job held out");
-                Assert(AsyncBodyCalls(Vm("EnsureLocalProviderReadyForFileAsync"), heldWhisperLoad),
+                // #1639: a failed file load returns before the job's finally, so its
+                // failure path loads the held-out Whisper model (same mode) or puts the
+                // selected mode's model back (another mode's load took it out).
+                var fileLoadFailed = Vm("ShowFileJobModelLoadFailed");
+                Assert(AsyncBodyCalls(Vm("EnsureLocalProviderReadyForFileAsync"), fileLoadFailed)
+                       && AsyncBodyCalls(fileLoadFailed, heldWhisperLoad),
                     "A failed Parakeet file load no longer loads the Whisper model it held out");
+                Assert(AsyncBodyCalls(fileLoadFailed, restoreAfterJob),
+                    "a failed file load on another mode no longer reloads the selected mode's model (#1639)");
 
                 // #1639: a file job on another mode left the bar on that job's model
                 // (or showed the selected one as only Downloaded) until the next job.

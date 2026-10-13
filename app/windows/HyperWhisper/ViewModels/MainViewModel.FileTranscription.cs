@@ -634,11 +634,8 @@ public partial class MainViewModel
             catch (Exception ex)
             {
                 _parakeetFileJobOwnsDaemon = false;
-                ShowFileJobModelLoadFailed(mode);
                 StatusText = Loc.S("status.failed", ex.Message);
-                // The Whisper load it held out waits on _modelLoadLock, so it runs
-                // after this failure is up; it must not replace it with Ready (#1519).
-                LoadWhisperHeldOutByParakeetFileJob(keepStatusText: true);
+                ShowFileJobModelLoadFailed(mode);
                 LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Parakeet model load failed - {ex.Message}", ex);
                 ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                     Loc.S("errors.modelLoadFailed"),
@@ -696,8 +693,8 @@ public partial class MainViewModel
         }
         catch (Exception ex)
         {
-            ShowFileJobModelLoadFailed(mode);
             StatusText = Loc.S("status.failed", ex.Message);
+            ShowFileJobModelLoadFailed(mode);
             LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Whisper model load failed - {ex.Message}", ex);
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                 Loc.S("errors.modelLoadFailed"),
@@ -712,16 +709,28 @@ public partial class MainViewModel
     }
 
     /// <summary>
-    /// A file job's model failed to load. The model part of the status bar says so
-    /// only when the job ran on the selected mode; another mode's failure is the
-    /// job's own, and its toast and status line say it (#1639).
+    /// A file job's model failed to load, so TranscribeFileAsync returns before the
+    /// finally that restores the selected mode. Set StatusText first. When the job
+    /// ran on the selected mode, the model part of the bar says the load failed, and
+    /// retrying that load would only fail again. Another mode's failure is the job's
+    /// own (its toast and status line say it), but its load may already have taken
+    /// the selected mode's model out: the Whisper load disposes the loaded model or
+    /// the Parakeet daemon first, and the Parakeet load can unload Whisper on a
+    /// low-memory machine. So put the selected mode's model back, as the job's end
+    /// does (#1639). Either way the Whisper load it held out runs now, and waits on
+    /// _modelLoadLock, so it lands after this failure is up and keeps it (#1519).
     /// </summary>
     private void ShowFileJobModelLoadFailed(Mode jobMode)
     {
         if (SelectedMode?.Id == jobMode.Id)
+        {
             ModelStatus = Loc.S("status.model.loadFailed");
+            LoadWhisperHeldOutByParakeetFileJob(keepStatusText: true);
+        }
         else
-            UpdateModelStatus();
+        {
+            RestoreSelectedModeModelAfterFileJob(keepStatusText: true);
+        }
     }
 
     /// <summary>
