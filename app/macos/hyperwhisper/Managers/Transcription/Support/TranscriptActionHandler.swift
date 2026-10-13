@@ -326,9 +326,8 @@ class TranscriptActionHandler: ObservableObject {
         lastError = nil
         
         // DELETION EXECUTION:
-        // Stop a Retry or "Retry with" still transcribing this row (#1458,
-        // #1743), then delete through PersistenceController
-        Self.cancelRetryTask(for: transcriptId)
+        // PersistenceController's delete also stops a Retry or "Retry with"
+        // still transcribing this row (#1458, #1743)
         persistenceController.deleteTranscript(transcript)
         
         // Clean up state
@@ -378,9 +377,6 @@ class TranscriptActionHandler: ObservableObject {
         
         // Delete each transcript
         for transcript in transcriptsToDelete {
-            if let id = transcript.id {
-                Self.cancelRetryTask(for: id)
-            }
             persistenceController.deleteTranscript(transcript)
             deletedCount += 1
             
