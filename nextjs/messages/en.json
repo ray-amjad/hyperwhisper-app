@@ -390,5 +390,12 @@
     "custom": "Custom",
     "customSub": "your amount",
     "topUp": "Top up"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "heading": "This page does not exist",
+    "description": "The link may be broken, or the page may have moved.",
+    "home": "Go to the home page",
+    "download": "Download HyperWhisper"
   }
 }

@@ -390,5 +390,12 @@
     "heading": "Avoin lähdekoodi. Ei mitään salattavaa.",
     "body": "HyperWhisper on täysin avointa lähdekoodia Apache-2.0-lisenssillä — niin työpöytäsovellukset kuin Cloud-taustajärjestelmäkin. Sovelluksen, joka kuuntelee mikrofoniasi, pitäisi olla jotain, jonka voit varmistaa, ei vain luottaa siihen: lue jokainen rivi, tarkista tarkalleen, minne äänesi menee, ja tiedä, ettet jää koskaan lukkoon — koodi on sinun forkattavaksesi ja itse isännöitäväksesi ikuisesti. Rakennettu avoimesti indie-tekijä Ray Amjadin toimesta.",
     "cta": "Katso GitHubissa"
+  },
+  "notFound": {
+    "title": "Sivua ei löytynyt",
+    "heading": "Tätä sivua ei ole olemassa",
+    "description": "Linkki voi olla rikki, tai sivu on ehkä siirretty.",
+    "home": "Siirry etusivulle",
+    "download": "Lataa HyperWhisper"
   }
 }

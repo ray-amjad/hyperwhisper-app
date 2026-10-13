@@ -390,5 +390,12 @@
     "heading": "Atvirasis kodas. Nėra ko slėpti.",
     "body": "HyperWhisper yra visiškai atvirojo kodo pagal Apache-2.0 — tiek darbalaukio programėlės, tiek Cloud vidinė sistema. Programėlė, kuri klausosi jūsų mikrofono, turėtų būti tokia, kurią galite patikrinti, o ne tik ja pasitikėti: perskaitykite kiekvieną eilutę, patikrinkite, kur tiksliai patenka jūsų garsas, ir žinokite, kad niekada nebūsite pririšti — kodas yra jūsų, kad galėtumėte jį šakoti ir talpinti patys amžinai. Sukurta atvirai, ją sukūrė indie kūrėjas Ray Amjad.",
     "cta": "Peržiūrėti svetainėje GitHub"
+  },
+  "notFound": {
+    "title": "Puslapis nerastas",
+    "heading": "Šio puslapio nėra",
+    "description": "Nuoroda gali būti neveikianti arba puslapis perkeltas.",
+    "home": "Eiti į pagrindinį puslapį",
+    "download": "Atsisiųsti HyperWhisper"
   }
 }
