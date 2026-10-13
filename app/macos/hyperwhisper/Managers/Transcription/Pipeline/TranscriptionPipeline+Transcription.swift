@@ -585,7 +585,13 @@ extension TranscriptionPipeline {
             // way out: local Whisper reports its abort as `streamingInterrupted`
             // (#1743), which must not reach Sentry or the error state.
             if error is CancellationError || task.isCancelled {
-                await MainActor.run { state = .idle }
+                // Only the run that still owns the pipeline resets it. A run a
+                // newer dictation took over (#1425) now aborts within a window,
+                // so its cancel lands while the newer run is transcribing, and
+                // `.idle` there would let a third request skip the takeover.
+                if currentTask == task {
+                    await MainActor.run { state = .idle }
+                }
             } else {
                 await MainActor.run { state = .error(message: error.localizedDescription) }
                 if AppLogger.isErrorLoggingEnabled {

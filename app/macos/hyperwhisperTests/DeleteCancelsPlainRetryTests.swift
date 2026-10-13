@@ -330,4 +330,18 @@ struct DeleteCancelsPlainRetryTests {
         #expect(signal.isTriggered)
         #expect(signal.isTriggered)
     }
+
+    /// A run a newer dictation took over (#1425) now aborts within a window, so
+    /// its quiet cancel lands while the newer run is transcribing. It must not
+    /// reset the pipeline to idle under that run.
+    @Test func aTakenOverRunDoesNotIdleTheNewerRun() throws {
+        let cancelled = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/Pipeline/TranscriptionPipeline+Transcription.swift",
+            from: "if error is CancellationError || task.isCancelled {",
+            to: "} else {"
+        )
+        let guardRange = try #require(cancelled.range(of: "if currentTask == task {"))
+        let idleRange = try #require(cancelled.range(of: "state = .idle"))
+        #expect(guardRange.lowerBound < idleRange.lowerBound, "only the run that still owns the pipeline may idle it")
+    }
 }
