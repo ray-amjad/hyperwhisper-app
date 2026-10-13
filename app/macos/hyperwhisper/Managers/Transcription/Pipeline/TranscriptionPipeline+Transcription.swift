@@ -520,7 +520,11 @@ extension TranscriptionPipeline {
 
         do {
             let result = try await Self.value(of: task)
-            await MainActor.run { state = .idle }
+            // As in the cancel branch below: a superseded run that still
+            // finishes must not idle the pipeline under the newer run (#1743).
+            if currentTask == task {
+                await MainActor.run { state = .idle }
+            }
 
             let now = Date()
             let totalElapsedMs = Int(now.timeIntervalSince(transcriptionStart) * 1000)
