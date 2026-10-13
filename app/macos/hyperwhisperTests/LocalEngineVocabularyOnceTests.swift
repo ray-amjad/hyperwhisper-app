@@ -190,7 +190,7 @@ struct LocalEngineVocabularyOnceTests {
         let finalBranches = try ProductionSource.slice(
             of: Self.pipelineSource,
             from: "let finalText: String",
-            to: "markStage(\"finalize\")"
+            to: "markStage(\"cache_result\")"
         )
         #expect(finalBranches.contains("text: correctedText,"))
         #expect(finalBranches.contains("aiProcessedText = correctedText"))

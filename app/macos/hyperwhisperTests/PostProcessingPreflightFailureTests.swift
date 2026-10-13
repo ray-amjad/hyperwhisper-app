@@ -405,7 +405,7 @@ struct PostProcessingPreflightFailureTests {
         let branches = try ProductionSource.slice(
             of: Self.pipelineSource,
             from: "let finalText: String",
-            to: "markStage(\"finalize\")"
+            to: "markStage(\"cache_result\")"
         )
         #expect(branches.contains("} else if runClientPostProcessing {"))
         #expect(!branches.contains("} else if shouldRunPostProcessing {"))

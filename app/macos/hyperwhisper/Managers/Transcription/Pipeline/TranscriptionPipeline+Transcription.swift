@@ -462,6 +462,7 @@ extension TranscriptionPipeline {
                 finalText = vocabularyProcessor.applyVocabularyReplacements(withCommands, mode: mode)
             }
 
+            markStage("cache_result")
             markStage("finalize")
 
             // Determine if post-processing occurred and by which provider.
