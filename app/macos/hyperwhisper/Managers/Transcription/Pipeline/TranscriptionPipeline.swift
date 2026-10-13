@@ -118,9 +118,6 @@ class TranscriptionPipeline: ObservableObject {
     /// Handles custom vocabulary replacements.
     let vocabularyProcessor = VocabularyProcessor()
 
-    /// Manages transcription result caching.
-    let cache = TranscriptionResultCache()
-
     /// Handles retry logic for failed transcriptions.
     var retryHandler: TranscriptionRetryController!
 
