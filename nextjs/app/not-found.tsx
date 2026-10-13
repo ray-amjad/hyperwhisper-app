@@ -20,9 +20,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("notFound");
 
   // No [locale] layout above this file, so no "%s - HyperWhisper" template.
-  // No robots either: there is no layout robots to override here, and Next
-  // already injects noindex on a 404.
-  return { title: `${t("title")} - HyperWhisper` };
+  // Next does not inject noindex on this path: in production an unmatched URL
+  // (/de/zzz) answered 404 with no robots tag at all, so it is set here.
+  return {
+    title: `${t("title")} - HyperWhisper`,
+    robots: { index: false },
+  };
 }
 
 export default async function NotFound() {

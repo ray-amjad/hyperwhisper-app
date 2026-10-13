@@ -8,7 +8,8 @@
  * site, so a 404 is not a dead end (#815).
  *
  * `app/not-found.tsx` serves every unmatched URL (/de/zzz). It must wrap that
- * same content in the [locale] layout, so the page gets the site chrome.
+ * same content in the [locale] layout, so the page gets the site chrome, and
+ * set its own noindex, since Next injects none on that path.
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -217,6 +218,16 @@ test("the root not-found wraps the [locale] 404 in the [locale] layout", async (
   assert.deepEqual(await element.props.params, { locale: "de" });
   assert.equal(element.props.children.type, localeModule.default);
   assert.equal((await generateMetadata()).title, `${de.title} - HyperWhisper`);
+});
+
+test("the root not-found marks an unmatched URL noindex", async () => {
+  // Next injected no noindex on an unmatched URL in production (/de/zzz).
+  request.locale = "de";
+  const { generateMetadata } = (await import(
+    ROOT_NOT_FOUND_PATH
+  )) as RootNotFoundModule;
+
+  assert.deepEqual((await generateMetadata()).robots, { index: false });
 });
 
 test("every locale catalogue has the notFound strings", () => {
