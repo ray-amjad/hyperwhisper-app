@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -19,48 +18,8 @@ static class ModeEditorEngineSwitchRenderTests
 {
     public const string ProbeArgument = "--probe-mode-editor-engine-switch";
 
-    public static async Task RunAsync()
-    {
-        const string xvfbRun = "/usr/bin/xvfb-run";
-        if (!File.Exists(xvfbRun)) throw new InvalidOperationException("xvfb-run is required to render the mode editor");
-        var self = Path.Combine(AppContext.BaseDirectory, "HyperWhisper.Linux.Composition.Tests");
-        if (!File.Exists(self)) throw new InvalidOperationException($"the harness executable is missing: {self}");
-
-        var root = Path.Combine(Path.GetTempPath(), $"hw-1629-mode-editor-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(root);
-        try
-        {
-            var start = new ProcessStartInfo(xvfbRun) { RedirectStandardError = true, RedirectStandardOutput = true };
-            foreach (var argument in (string[])["-a", "-s", "-screen 0 1280x1024x24", self, ProbeArgument])
-                start.ArgumentList.Add(argument);
-            start.Environment["HOME"] = root;
-            start.Environment["XDG_RUNTIME_DIR"] = Path.Combine(root, "run");
-            start.Environment["XDG_SESSION_TYPE"] = "x11";
-            start.Environment["HYPERWHISPER_UI_CULTURE"] = "en";
-            foreach (var name in (string[])["XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY"])
-                start.Environment.Remove(name);
-            Directory.CreateDirectory(Path.Combine(root, "run"));
-
-            using var process = Process.Start(start)!;
-            var error = process.StandardError.ReadToEndAsync();
-            var output = process.StandardOutput.ReadToEndAsync();
-            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            try { await process.WaitForExitAsync(deadline.Token); }
-            catch (OperationCanceledException)
-            {
-                process.Kill(entireProcessTree: true);
-                throw new InvalidOperationException("the mode editor probe did not exit within 60 s");
-            }
-            var text = (await output + await error).Trim();
-            if (process.ExitCode != 0)
-                throw new InvalidOperationException($"the mode editor probe exited {process.ExitCode}:\n{text}");
-            foreach (var line in text.Split('\n')) Console.WriteLine($"  {line}");
-        }
-        finally
-        {
-            try { Directory.Delete(root, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
-        }
-    }
+    public static Task RunAsync() =>
+        XvfbProbe.RunAsync(ProbeArgument, "the mode editor probe", "en", "1280x1024");
 
     /// <summary>The child half: runs on the X server xvfb-run started. Exit 0 only if every step showed.</summary>
     public static async Task<int> RunProbeAsync()
