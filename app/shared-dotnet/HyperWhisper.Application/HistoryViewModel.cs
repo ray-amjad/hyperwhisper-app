@@ -308,6 +308,12 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     internal int GroupRebuildCount { get; private set; }
 
     /// <summary>
+    /// The local clock that decides Today and Yesterday. Tests pin it so a run near local
+    /// midnight, or one that crosses it, groups the same way the test expects (#1354).
+    /// </summary>
+    internal Func<DateTime> LocalNow { get; set; } = () => DateTime.Now;
+
+    /// <summary>
     /// Rebuilds <see cref="GroupedItems"/> from <see cref="Items"/>, inserting one
     /// <see cref="HistoryDateGroup"/> ahead of every new local day. The repository already
     /// returns newest first, so a single pass is enough.
@@ -316,7 +322,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     {
         GroupRebuildCount++;
         GroupedItems.Clear();
-        var today = DateTime.Now.Date;
+        var today = LocalNow().Date;
         var yesterday = today.AddDays(-1);
         DateTime? currentDay = null;
         foreach (var item in Items)
