@@ -645,6 +645,9 @@ internal static class Program
                         $"a 0-byte pick on a cloud Mode toasted '{toast ?? "nothing"}'");
                     Assert(toast != "errors.fileEmpty", "errors.fileEmpty is missing from Strings.resx");
                     Assert(!vm.IsTranscribing, "a 0-byte pick started a transcription");
+                    // #1519: a refused file says it failed, not what the last job left.
+                    Assert(vm.StatusText == HyperWhisper.Localization.Loc.S("status.failed", FileTranscriptionService.EmptyFileMessage),
+                        $"a 0-byte pick left the status bar at '{vm.StatusText}'");
                 }
                 finally
                 {
@@ -19411,6 +19414,34 @@ internal static class Program
                 Assert(file.IndexOf("record", StringComparison.OrdinalIgnoreCase) < 0,
                     $"the file-import status reads '{file}', which still tells the user something " +
                     "was recorded");
+            });
+
+            Run("status bar: a job's busy line ends at Ready, and a result it wrote stays — issue #1519", () =>
+            {
+                // #1519. The status bar said "Ready - Press Ctrl+Alt to record" during a
+                // Transcribe File job and while a dictation recorded, and kept "File
+                // transcription cancelled" / "Recording cancelled" after later jobs that
+                // succeeded or failed. A job now puts a busy line up and, at its end,
+                // StatusTextAfterJob decides what stays.
+                var ready = HyperWhisper.Localization.Loc.S("status.ready.withHotkey", "Ctrl+Alt");
+                var busy = HyperWhisper.Localization.Loc.S("status.fileTranscribing");
+                var failed = HyperWhisper.Localization.Loc.S("status.failed", "boom");
+                var cancelled = MainViewModel.CancelledStatusText(cancelledFileTranscription: true);
+
+                // Loc.S returns the key name for a key that is not in the catalog.
+                Assert(busy != "status.fileTranscribing",
+                    "status.fileTranscribing is not in Strings.resx, so the bar shows a raw key");
+                Assert(busy.IndexOf("record", StringComparison.OrdinalIgnoreCase) < 0,
+                    $"the file-job line reads '{busy}', which tells the user to record");
+
+                Assert(MainViewModel.StatusTextAfterJob(busy, busy, ready) == ready,
+                    "a job that succeeded left its busy line up instead of Ready");
+                Assert(MainViewModel.StatusTextAfterJob(failed, busy, ready) == failed,
+                    "a failed job's 'Failed: ...' line was replaced by Ready");
+                Assert(MainViewModel.StatusTextAfterJob(cancelled, busy, ready) == cancelled,
+                    "a cancelled job's line was replaced by Ready");
+                Assert(MainViewModel.StatusTextAfterJob(cancelled, null, ready) == cancelled,
+                    "with no job running, the bar must not be touched");
             });
 
             Run("privacy: error reports are ON by default, which is what data-privacy.mdx now says — issue #517", () =>

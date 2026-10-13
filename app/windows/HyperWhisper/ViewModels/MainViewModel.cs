@@ -596,6 +596,39 @@ public partial class MainViewModel : ViewModelBase
             ? "status.fileTranscriptionCancelled"
             : "status.recordingCancelled");
 
+    /// <summary>
+    /// The status line a job leaves when it ends (issue #1519). While a job runs the
+    /// bar shows its busy line. If that line is still there at the end, nothing put a
+    /// result up (a failure, a cancel, an undelivered transcript), so the bar goes back
+    /// to Ready. A result stays. Split out so the rule is pinnable without a MainViewModel.
+    /// </summary>
+    internal static string StatusTextAfterJob(string current, string? busy, string ready) =>
+        busy != null && current == busy ? ready : current;
+
+    // The busy line the running dictation or file job put on the status bar, or null.
+    private string? _jobStatusText;
+
+    /// <summary>Shows a job's busy line, over whatever the last job left (#1519).</summary>
+    private void ShowJobStatus(string key)
+    {
+        _jobStatusText = Loc.S(key);
+        StatusText = _jobStatusText;
+    }
+
+    /// <summary>Moves the busy line to the job's next stage, unless a result replaced it.</summary>
+    private void AdvanceJobStatus(string key)
+    {
+        if (_jobStatusText != null && StatusText == _jobStatusText)
+            ShowJobStatus(key);
+    }
+
+    /// <summary>Ends the job's busy line: back to Ready, unless a result replaced it.</summary>
+    private void EndJobStatus()
+    {
+        StatusText = StatusTextAfterJob(StatusText, _jobStatusText, Loc.S("status.ready.withHotkey", HotkeyText));
+        _jobStatusText = null;
+    }
+
     private void ReportUndeliveredTranscript()
     {
         if (!ShouldReportUndeliveredTranscript())
@@ -1917,6 +1950,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         IsRecording = true;
+        ShowJobStatus("recording.state.recording");
         SoundEffectsService.Instance.PlayStartSound();
         _audioEnvironmentState = AudioEnvironmentService.Instance.PrepareForRecording(audioRestoreClaim!);
         ShowOverlayRequested?.Invoke(this, EventArgs.Empty);
@@ -2205,6 +2239,7 @@ public partial class MainViewModel : ViewModelBase
         try
         {
             IsTranscribing = true;
+            AdvanceJobStatus("recording.state.transcribing");
             LoggingService.LogPerformanceMarker("TranscriptionFlow", "Entered transcribing state");
             ShowTranscribingRequested?.Invoke(this, EventArgs.Empty);
 
@@ -2527,6 +2562,7 @@ public partial class MainViewModel : ViewModelBase
 
             _hotkeyBlocked = false;
             LoggingService.LogPerformanceMarker("TranscriptionFlow", "Hotkey unblocked");
+            EndJobStatus();
             IsTranscribing = false;
             LoggingService.LogPerformanceMarker("TranscriptionFlow", $"Exit transcribing state after {hangWatch.ElapsedMilliseconds}ms");
             hangCts.Cancel();

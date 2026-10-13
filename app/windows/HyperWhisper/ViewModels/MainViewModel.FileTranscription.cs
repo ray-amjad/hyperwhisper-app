@@ -166,8 +166,7 @@ public partial class MainViewModel
         // STEP 1: Validate file
         if (!File.Exists(filePath))
         {
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.fileNotFound"), showSettingsButton: false));
+            RejectFile(Loc.S("errors.fileNotFound"));
             return;
         }
 
@@ -176,8 +175,7 @@ public partial class MainViewModel
         if (new FileInfo(filePath).Length == 0)
         {
             LoggingService.Warn($"TranscribeFileAsync: File is empty - {filePath}");
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                FileTranscriptionService.EmptyFileMessage, showSettingsButton: false));
+            RejectFile(FileTranscriptionService.EmptyFileMessage);
             return;
         }
 
@@ -194,9 +192,7 @@ public partial class MainViewModel
         var maxSize = GetMaxFileSizeForProvider(mode);
         if (!requiresMuseNormalization && fileInfo.Length > maxSize)
         {
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(maxSize)),
-                showSettingsButton: false));
+            RejectFile(Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(maxSize)));
             return;
         }
 
@@ -204,16 +200,13 @@ public partial class MainViewModel
         {
             if (ExceedsMuseSourceLimit(fileInfo.Length))
             {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(MetaMuseAudioContract.MaximumSourceBytes)),
-                    showSettingsButton: false));
+                RejectFile(Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(MetaMuseAudioContract.MaximumSourceBytes)));
                 return;
             }
             var sourceDuration = FileTranscriptionService.GetAudioDuration(filePath);
             if (sourceDuration.IsSuccess && sourceDuration.Value > 10 * 60)
             {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    "Meta Muse supports audio up to 10 minutes.", showSettingsButton: false));
+                RejectFile("Meta Muse supports audio up to 10 minutes.");
                 return;
             }
         }
@@ -233,6 +226,9 @@ public partial class MainViewModel
         // STEP 3: Show progress window
         IsTranscribing = true;
         _fileTranscriptionActive = true;
+        // The toggle hotkey is ignored while IsTranscribing, so "Ready - Press ... to
+        // record" would be untrue for the whole job (#1519).
+        ShowJobStatus("status.fileTranscribing");
         ShowFileProgressRequested?.Invoke(this, new FileTranscriptionProgressEventArgs(
             fileName,
             onCancel: () =>
@@ -457,6 +453,7 @@ public partial class MainViewModel
                         ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                             txEx.GetUserMessage(),
                             showSettingsButton: false));
+                        StatusText = Loc.S("status.failed", txEx.GetUserMessage());
                     }
                 }
                 else
@@ -466,6 +463,7 @@ public partial class MainViewModel
                     {
                         ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                             Loc.S("errors.transcriptionFailed", ex.Message), showSettingsButton: false));
+                        StatusText = Loc.S("status.failed", ex.Message);
                     }
                 }
             }
@@ -476,6 +474,8 @@ public partial class MainViewModel
                         ? txEx.GetUserMessage()
                         : Loc.S("errors.transcriptionFailed", ex.Message),
                     showSettingsButton: false));
+                StatusText = Loc.S("status.failed",
+                    ex is TranscriptionException userEx ? userEx.GetUserMessage() : ex.Message);
             }
         }
         finally
@@ -500,6 +500,9 @@ public partial class MainViewModel
                     LoggingService.Warn($"TranscribeFileAsync: Failed to delete temp file: {ex.Message}");
                 }
             }
+
+            // Before the Whisper reload below, which puts its own "Loading..." line up.
+            EndJobStatus();
 
             // Before IsTranscribing: its idle housekeeping may dispose the daemon now.
             _parakeetFileJobOwnsDaemon = false;
@@ -526,6 +529,16 @@ public partial class MainViewModel
 
     internal static bool ExceedsMuseSourceLimit(long sourceBytes) =>
         sourceBytes > MetaMuseAudioContract.MaximumSourceBytes;
+
+    /// <summary>
+    /// A file refused before the job starts: the toast, and the status bar says it
+    /// failed rather than keeping what the last job left (#1519).
+    /// </summary>
+    private void RejectFile(string message)
+    {
+        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(message, showSettingsButton: false));
+        StatusText = Loc.S("status.failed", message);
+    }
 
     private bool CanStartFileTranscription()
     {

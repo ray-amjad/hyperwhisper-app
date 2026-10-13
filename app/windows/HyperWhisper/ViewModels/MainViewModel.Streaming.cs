@@ -180,6 +180,7 @@ public partial class MainViewModel : ViewModelBase
 
         _isStreamingSession = true;
         IsRecording = true;
+        ShowJobStatus("recording.state.recording");
         SoundEffectsService.Instance.PlayStartSound();
         _audioEnvironmentState = AudioEnvironmentService.Instance.PrepareForRecording(audioRestoreClaim!);
         SentryService.AddBreadcrumb(
@@ -216,6 +217,7 @@ public partial class MainViewModel : ViewModelBase
         _durationTimer?.Stop();
         _hotkeyBlocked = true;
         IsTranscribing = true;
+        AdvanceJobStatus("recording.state.transcribing");
         ShowTranscribingRequested?.Invoke(this, EventArgs.Empty);
 
         Transcript? transcript = null;
@@ -407,6 +409,7 @@ public partial class MainViewModel : ViewModelBase
             finally
             {
                 _hotkeyBlocked = false;
+                EndJobStatus();
                 IsTranscribing = false;
                 _toggleShortcutHeld = false;
                 _pushToTalkMonitor.Reset();
