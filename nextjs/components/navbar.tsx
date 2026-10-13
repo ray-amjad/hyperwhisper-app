@@ -15,16 +15,32 @@ import clsx from "clsx";
 import { Link as HeroUILink } from "@heroui/link";
 import { Download, Github } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { navbarHomeLocale } from "@/src/i18n/english-only";
 
 export const Navbar = () => {
   const { openModal } = useDownloadModal();
   const t = useTranslations("navbar");
   const locale = useLocale();
+  const pathname = usePathname();
+  /*
+    #1170: on an English-only page (/en/latency, /en/choosing-a-model,
+    /en/blog) useLocale() is "en" for every visitor, and /en#features is an
+    ordinary page that writes NEXT_LOCALE=en. There the home and section links
+    follow the visitor's saved NEXT_LOCALE instead. The cookie is read in the
+    browser after hydration, never on the server, so those pages stay static
+    and their server HTML still says /en.
+  */
+  const [homeLocale, setHomeLocale] = useState(locale);
+
+  useEffect(() => {
+    setHomeLocale(navbarHomeLocale(pathname, locale, document.cookie));
+  }, [pathname, locale]);
   /*
     The menu is controlled here because nothing else closes it. HeroUI closes it
     only from the toggle and from its own resize observer, so a tap on a menu
@@ -49,19 +65,19 @@ export const Navbar = () => {
   };
 
   const navItems = [
-    { label: t("features"), href: `/${locale}#features` },
-    { label: t("cloud"), href: `/${locale}#cloud` },
+    { label: t("features"), href: `/${homeLocale}#features` },
+    { label: t("cloud"), href: `/${homeLocale}#cloud` },
     chooseModelItem,
     latencyItem,
-    { label: t("faq"), href: `/${locale}#faq` },
+    { label: t("faq"), href: `/${homeLocale}#faq` },
   ];
 
   const navMenuItems = [
-    { label: t("features"), href: `/${locale}#features` },
-    { label: t("cloud"), href: `/${locale}#cloud` },
+    { label: t("features"), href: `/${homeLocale}#features` },
+    { label: t("cloud"), href: `/${homeLocale}#cloud` },
     chooseModelItem,
     latencyItem,
-    { label: t("faq"), href: `/${locale}#faq` },
+    { label: t("faq"), href: `/${homeLocale}#faq` },
     { label: t("support"), href: "/support" },
   ];
 
@@ -100,6 +116,7 @@ export const Navbar = () => {
           <LocaleLink
             className="flex justify-start items-center gap-2"
             href="/"
+            locale={homeLocale}
           >
             <img
               alt="HyperWhisper Logo"

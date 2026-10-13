@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { routing } from "./src/i18n/routing";
 import { defaultLocale, locales } from "./src/i18n/locales";
+// #1135: an English-only page says nothing about the visitor's language and
+// must not rewrite NEXT_LOCALE.
+import { isEnglishOnlyPath } from "./src/i18n/english-only";
 
 const intlMiddleware = createMiddleware(routing);
 const localePattern = locales
@@ -27,7 +30,7 @@ const englishOnlyIntlMiddleware = createMiddleware({
 });
 
 function runIntlMiddleware(request: NextRequest, pathname: string) {
-  const middleware = ENGLISH_ONLY_REGEX.test(pathname)
+  const middleware = isEnglishOnlyPath(pathname)
     ? englishOnlyIntlMiddleware
     : intlMiddleware;
   const response = middleware(request);
