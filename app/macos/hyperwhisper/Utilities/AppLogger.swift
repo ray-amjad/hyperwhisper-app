@@ -466,7 +466,10 @@ final class AppLogger {
         try process.run()
         let errorData = OSAllocatedUnfairLock(initialState: Data())
         let errorDrained = DispatchSemaphore(value: 0)
-        DispatchQueue.global(qos: .utility).async {
+        // A dedicated thread, not a GCD queue: callers block a pool thread
+        // here, and with the pool full a queued drain never starts, so the
+        // wait below never returns (seen on the Mac with parallel tests).
+        Thread.detachNewThread {
             let data = errorPipe.fileHandleForReading.readDataToEndOfFile()
             errorData.withLock { $0 = data }
             errorDrained.signal()
