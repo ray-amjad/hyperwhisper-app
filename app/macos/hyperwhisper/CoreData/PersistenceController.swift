@@ -142,6 +142,8 @@ struct AutoDeleteTransactionSnapshot: Sendable {
     let audioPaths: [String]
     let transcriptsDeleted: Int
     let hasMore: Bool
+    /// The deleted rows, whose running retries must stop (#1743).
+    var transcriptIDs: [UUID] = []
 }
 
 // MARK: - Persistence Controller
@@ -1458,7 +1460,7 @@ class PersistenceController: ObservableObject {
     /// out only after the save commits. A fetch or save failure returns `nil`, so
     /// callers must not unlink any files or record successful cleanup state.
     func deleteTranscriptsOlderThanInBackground(_ cutoffDate: Date) async -> AutoDeleteTransactionSnapshot? {
-        return await performWriteRequiringSave(deleteWinsConflicts: true) { context -> AutoDeleteTransactionSnapshot? in
+        let snapshot = await performWriteRequiringSave(deleteWinsConflicts: true) { context -> AutoDeleteTransactionSnapshot? in
             let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
             request.predicate = NSPredicate(format: "date < %@", cutoffDate as NSDate)
             request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: true)]
@@ -1492,9 +1494,15 @@ class PersistenceController: ObservableObject {
             return AutoDeleteTransactionSnapshot(
                 audioPaths: paths,
                 transcriptsDeleted: batch.count,
-                hasMore: transcripts.count > batch.count
+                hasMore: transcripts.count > batch.count,
+                transcriptIDs: batch.compactMap(\.id)
             )
         }
+        // Only once the delete committed: stop the retries of the expired rows.
+        if let snapshot {
+            Self.stopRetries(ofDeleted: snapshot.transcriptIDs)
+        }
+        return snapshot
     }
 
     /// Debounced (cancel-previous) view-context re-faulting. After ~3s of write
@@ -1545,6 +1553,7 @@ class PersistenceController: ObservableObject {
                         for duplicate in existing.dropFirst() {
                             context.delete(duplicate)
                         }
+                        Self.stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
                         AppLogger.coreData.warning(
                             "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
                         )
@@ -1690,6 +1699,7 @@ class PersistenceController: ObservableObject {
 
                             if isNearInTime && (isNearInDuration || sameText) {
                                 context.delete(candidate)
+                                Self.stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
                                 AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
                             }
                         }
@@ -1827,6 +1837,7 @@ class PersistenceController: ObservableObject {
                         for duplicate in existing.dropFirst() {
                             context.delete(duplicate)
                         }
+                        Self.stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
                         AppLogger.coreData.warning(
                             "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
                         )
@@ -2073,6 +2084,7 @@ class PersistenceController: ObservableObject {
             removeTranscriptAudioFile(atPath: path)
         }
 
+        Self.stopRetries(ofDeleted: [transcript.id].compactMap { $0 })
         context.delete(transcript)
         save()
     }
@@ -2101,8 +2113,27 @@ class PersistenceController: ObservableObject {
         for path in Self.audioFilePathsToDelete(for: transcriptsToDelete, in: context) {
             removeTranscriptAudioFile(atPath: path)
         }
+        Self.stopRetries(ofDeleted: transcriptsToDelete.compactMap(\.id))
         transcriptsToDelete.forEach { context.delete($0) }
         save()
+    }
+
+    /// Stops every running retry (plain Retry or "Retry with") of rows being
+    /// deleted, whichever path deletes them (#1743): History, auto-delete, a
+    /// duplicate collapse. Otherwise the engine runs on for a row that is gone.
+    /// Cancels at once on the main thread; from a background context it hops
+    /// there, and the retry's own deleted-row checks cover the gap.
+    static func stopRetries(ofDeleted transcriptIDs: [UUID]) {
+        guard !transcriptIDs.isEmpty else { return }
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                transcriptIDs.forEach(TranscriptActionHandler.cancelRetryTask(for:))
+            }
+        } else {
+            Task { @MainActor in
+                transcriptIDs.forEach(TranscriptActionHandler.cancelRetryTask(for:))
+            }
+        }
     }
 
     // MARK: - Transcript Audio Files
