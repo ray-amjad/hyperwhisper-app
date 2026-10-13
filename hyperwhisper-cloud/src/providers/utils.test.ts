@@ -459,6 +459,29 @@ describe('splitVocabularyTerms (shared vocabulary-prompt splitter)', () => {
       .toEqual(['a_b']);
   });
 
+  test('sanitize strips <>, collapses whitespace and de-duplicates case-insensitively', () => {
+    expect(splitVocabularyTerms('<HyperWhisper>, hyperwhisper,  spaced   out ', { maxTerms: 100, sanitize: true }))
+      .toEqual(['HyperWhisper', 'spaced out']);
+    // A duplicate does not use up a slot.
+    expect(splitVocabularyTerms('a, A, b', { maxTerms: 2, sanitize: true })).toEqual(['a', 'b']);
+  });
+
+  test('sanitize strips a bullet only when a space follows it (issue #729)', () => {
+    expect(splitVocabularyTerms('-Xmx, *args, - bulleted, * starred', { maxTerms: 100, sanitize: true }))
+      .toEqual(['-Xmx', '*args', 'bulleted', 'starred']);
+  });
+
+  test('overLongTerm truncates by code point, or drops by default', () => {
+    expect(splitVocabularyTerms('x'.repeat(100), { maxTerms: 100, maxTermChars: 80, overLongTerm: 'truncate' }))
+      .toEqual(['x'.repeat(80)]);
+    // Supplementary characters are 2 UTF-16 units each; none is split in half.
+    expect(splitVocabularyTerms('😀'.repeat(81), { maxTerms: 100, maxTermChars: 80, overLongTerm: 'truncate' }))
+      .toEqual(['😀'.repeat(80)]);
+    expect(splitVocabularyTerms(`ok,${'x'.repeat(51)}`, { maxTerms: 100, maxTermChars: 50, overLongTerm: 'drop' }))
+      .toEqual(['ok']);
+    expect(splitVocabularyTerms(`ok,${'x'.repeat(51)}`, { maxTerms: 100, maxTermChars: 50 })).toEqual(['ok']);
+  });
+
   test('an empty prompt yields no terms', () => {
     expect(splitVocabularyTerms('', NO_LIMITS)).toEqual([]);
     expect(splitVocabularyTerms('   ', NO_LIMITS)).toEqual([]);

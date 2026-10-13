@@ -150,6 +150,15 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
     ]);
   });
 
+  test('keeps a leading dash or star that no space follows (issue #729)', async () => {
+    const captured = captureRequest({ text: 'hi', duration: 4 });
+
+    // '-Xmx' used to reach xAI as 'Xmx'. Only a bullet followed by a space is
+    // list markup, as in the canonical `sanitize_vocabulary_word`.
+    await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, '-Xmx, *args, - bulleted');
+    expect(captured.form?.getAll('keyterm')).toEqual(['-Xmx', '*args', 'bulleted']);
+  });
+
   test('pins the model, and honours the one the route resolved', async () => {
     const pinned = captureRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/mp3');

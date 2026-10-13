@@ -129,6 +129,22 @@ export interface VocabularyTermPolicy {
    * `_` rather than dropped. See the call site for the reference.
    */
   joinWordsWith?: string;
+  /**
+   * Reproduce the Rust core's `sanitize_vocabulary_word`, the canonical
+   * sanitizer the BYOK path routes through: strip `<`/`>`, collapse whitespace
+   * runs to one space, and de-duplicate case-insensitively. It also strips a
+   * list bullet ONLY when a space follows it — without that space a leading
+   * `-` or `*` is part of the term (`-Xmx`, `*args`), and stripping it biases
+   * the model toward a different token than the user entered.
+   */
+  sanitize?: boolean;
+  /**
+   * What `maxTermChars` does to a longer term. `'drop'` (the default) is for an
+   * upstream hard limit, measured in UTF-16 units. `'truncate'` is the canonical
+   * sanitizer's rule, and cuts by code POINT so a term of supplementary
+   * characters is not cut early or split mid-pair.
+   */
+  overLongTerm?: 'truncate' | 'drop';
 }
 
 /**
@@ -147,28 +163,41 @@ export interface VocabularyTermPolicy {
  * comma-joined string (that boosts one literal phrase containing commas, which
  * does nothing), so callers append each returned term separately.
  *
- * Deliberately does NOT sanitize beyond the bullet strip: `providers/openai.ts`
- * and `providers/xai-stt.ts` additionally strip `<>`, collapse whitespace runs
- * and de-duplicate case-insensitively to match the Rust core's
- * `sanitize_vocabulary_word`, and keep their own splitters for that reason.
+ * Sanitizing is opt-in through `policy.sanitize`: `providers/openai.ts`,
+ * `providers/gemini-transcribe.ts`, `providers/xai-stt.ts` and
+ * `providers/assemblyai-dictation.ts` turn it on to match the Rust core's
+ * `sanitize_vocabulary_word`. Without it a bullet is stripped whether or not a
+ * space follows, as every other adapter has always done.
  */
 export function splitVocabularyTerms(
   initialPrompt: string,
   policy: VocabularyTermPolicy,
 ): string[] {
   const terms: string[] = [];
+  const seen = new Set<string>();
 
   for (const raw of initialPrompt.split(/[,\n;]+/)) {
     if (terms.length >= policy.maxTerms) break;
 
-    let term = raw.trim().replace(/^[-*]\s*/, '');
+    let term = policy.sanitize
+      ? raw.trim().replace(/^[-*]\s+/, '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim()
+      : raw.trim().replace(/^[-*]\s*/, '');
     if (policy.joinWordsWith !== undefined) {
       term = term.replace(/\s+/g, policy.joinWordsWith);
     }
+    if (policy.maxTermChars !== undefined && policy.overLongTerm === 'truncate') {
+      term = Array.from(term).slice(0, policy.maxTermChars).join('');
+    }
 
     if (term.length === 0) continue;
-    if (policy.maxTermChars !== undefined && term.length > policy.maxTermChars) continue;
+    if (policy.maxTermChars !== undefined && term.length > policy.maxTermChars && policy.overLongTerm !== 'truncate') continue;
     if (policy.maxTermWords !== undefined && term.split(/\s+/).length > policy.maxTermWords) continue;
+
+    if (policy.sanitize) {
+      const key = term.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
 
     terms.push(term);
   }
