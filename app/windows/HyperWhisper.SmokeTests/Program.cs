@@ -1840,8 +1840,15 @@ internal static class Program
                 Assert(typeof(MainViewModel).GetField("_whisperLoadHeldForParakeetFileJob", all) != null,
                     "MainViewModel._whisperLoadHeldForParakeetFileJob is gone; update this test");
                 var heldWhisperLoad = Vm("LoadWhisperHeldOutByParakeetFileJob");
-                Assert(AsyncBodyCalls(heldWhisperLoad, Vm("LoadModelInBackground")),
+                var heldWhisperLoadInBackground = Vm("LoadHeldWhisperModelInBackground");
+                Assert(AsyncBodyCalls(heldWhisperLoad, heldWhisperLoadInBackground)
+                       && AsyncBodyCalls(heldWhisperLoadInBackground, Vm("LoadWhisperModelAsync")),
                     "LoadWhisperHeldOutByParakeetFileJob no longer loads the held-out Whisper model");
+                // #1519: that load runs after the job ended, so it must be able to
+                // leave the job's Failed / cancelled line on the status bar.
+                Assert(heldWhisperLoad.GetParameters().Any(p => p.Name == "keepStatusText")
+                       && Vm("LoadWhisperModelAsync").GetParameters().Any(p => p.Name == "keepStatusText"),
+                    "the held-out Whisper load can no longer keep a file job's result on the status bar");
                 Assert(AsyncBodyCalls(Vm("TranscribeFileAsync", typeof(string), typeof(Mode)), heldWhisperLoad),
                     "TranscribeFileAsync no longer loads the Whisper model a Parakeet file job held out");
                 Assert(AsyncBodyCalls(Vm("EnsureLocalProviderReadyForFileAsync"), heldWhisperLoad),

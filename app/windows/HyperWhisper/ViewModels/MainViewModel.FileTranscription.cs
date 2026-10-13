@@ -501,14 +501,14 @@ public partial class MainViewModel
                 }
             }
 
-            // Before the Whisper reload below, which puts its own "Loading..." line up.
-            EndJobStatus();
+            // Before the Whisper reload below, which must not replace a result the job left.
+            var jobLeftResult = EndJobStatus();
 
             // Before IsTranscribing: its idle housekeeping may dispose the daemon now.
             _parakeetFileJobOwnsDaemon = false;
             IsTranscribing = false;
             _fileTranscriptionActive = false;
-            LoadWhisperHeldOutByParakeetFileJob();
+            LoadWhisperHeldOutByParakeetFileJob(keepStatusText: jobLeftResult);
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
                 _activeTranscriptionCts = null;
@@ -633,9 +633,11 @@ public partial class MainViewModel
             catch (Exception ex)
             {
                 _parakeetFileJobOwnsDaemon = false;
-                LoadWhisperHeldOutByParakeetFileJob();
                 ModelStatus = Loc.S("status.model.loadFailed");
                 StatusText = Loc.S("status.failed", ex.Message);
+                // The Whisper load it held out waits on _modelLoadLock, so it runs
+                // after this failure is up; it must not replace it with Ready (#1519).
+                LoadWhisperHeldOutByParakeetFileJob(keepStatusText: true);
                 LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Parakeet model load failed - {ex.Message}", ex);
                 ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                     Loc.S("errors.modelLoadFailed"),
