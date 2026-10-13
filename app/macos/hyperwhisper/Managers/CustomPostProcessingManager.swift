@@ -272,22 +272,46 @@ class CustomPostProcessingManager: ObservableObject {
 
     // MARK: - Public API - Testing
 
-    /// Test a custom endpoint with a simple "Hello World" request
+    /// Test a saved custom endpoint with its stored Keychain key.
     /// - Parameter id: ID of the endpoint to test
     /// - Returns: Test result with success/failure details
     func testEndpoint(id: UUID) async -> CustomEndpointTestResult {
-        // TEST ENDPOINT - STEP 1: Find the endpoint
-        guard let index = endpoints.firstIndex(where: { $0.id == id }) else {
-            return .failure(error: "Endpoint not found")
-        }
-
-        let endpoint = endpoints[index]
-
-        // STEP 2: Mark as testing
+        guard let endpoint = getEndpoint(id: id) else { return .failure(error: "Endpoint not found") }
         testingEndpoints.insert(id)
         defer { testingEndpoints.remove(id) }
+        return await testEndpoint(endpoint, apiKey: getAPIKey(for: id))
+    }
 
-        // STEP 3: Validate the URL and the model, then build the test request.
+    /// Test a custom endpoint configuration with a simple "Hello World" request.
+    ///
+    /// The Add/Edit sheet calls this with its unsaved form values and the TYPED
+    /// key. The key is passed in, never read from or written to the Keychain
+    /// here: writing a typed key before a save would overwrite a live key the
+    /// user then cancels.
+    ///
+    /// The verdict is recorded on the stored endpoint with the same id, but only
+    /// when the URL and model tested are the ones stored, so a test of unsaved
+    /// edits cannot mark the saved configuration verified.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The configuration to test (saved or not)
+    ///   - apiKey: The key to send; empty sends no Authorization header
+    ///   - session: The session to send the probe on (tests pass a stub)
+    /// - Returns: Test result with success/failure details
+    func testEndpoint(
+        _ endpoint: CustomPostProcessingEndpoint,
+        apiKey: String,
+        session: URLSession = CredentialNetworkCache.session
+    ) async -> CustomEndpointTestResult {
+        let id = endpoint.id
+        let testsStoredConfiguration = getEndpoint(id: id).map {
+            $0.endpointURL == endpoint.endpointURL && $0.modelName == endpoint.modelName
+        } ?? false
+        func recordVerdict(success: Bool) {
+            if testsStoredConfiguration { updateTestStatus(for: id, success: success) }
+        }
+
+        // STEP 1: Validate the URL and the model, then build the test request.
         // The rule, the Bearer header and the minimal "Say hello" body all come
         // from the shared core (issue #282), so the Windows test button sends
         // exactly the same request.
@@ -297,7 +321,7 @@ class CustomPostProcessingManager: ObservableObject {
         let verdict = llmValidateExistingCustomEndpoint(
             raw: endpoint.endpointURL, model: endpoint.modelName)
         guard !verdict.url.isEmpty else {
-            updateTestStatus(for: id, success: false)
+            recordVerdict(success: false)
             let message = verdict.message ?? "Invalid URL"
             if let suggestion = verdict.suggestion {
                 return .failure(error: "\(message) — did you mean \(suggestion)?")
@@ -305,7 +329,6 @@ class CustomPostProcessingManager: ObservableObject {
             return .failure(error: message)
         }
 
-        let apiKey = getAPIKey(for: id)
         var request: URLRequest
         do {
             let built = try llmBuildCustomEndpointTestRequest(
@@ -313,32 +336,38 @@ class CustomPostProcessingManager: ObservableObject {
                 apiKey: apiKey.isEmpty ? nil : apiKey)
             request = try RustHTTPExecutor.buildInlineURLRequest(from: built)
         } catch {
-            updateTestStatus(for: id, success: false)
+            recordVerdict(success: false)
+            // The lenient rule keeps a URL carrying a username or password
+            // callable, but the probe builder applies the strict one and
+            // refuses it. Offer the repair rather than an encoding error.
+            if let suggestion = verdict.suggestion, let message = verdict.message {
+                return .failure(error: "\(message) — did you mean \(suggestion)?")
+            }
             return .failure(error: "Failed to encode request: \(error.localizedDescription)")
         }
         request.timeoutInterval = 30
 
-        // STEP 4: Send the request
+        // STEP 2: Send the request
         logger.info("Testing endpoint: \(endpoint.name, privacy: .public) at \(endpoint.displayURL, privacy: .public)")
 
         do {
-            let (data, response) = try await CredentialNetworkCache.session.data(for: request)
+            let (data, response) = try await session.data(for: request)
 
-            // STEP 5: Check HTTP response
+            // STEP 3: Check HTTP response
             guard let httpResponse = response as? HTTPURLResponse else {
-                updateTestStatus(for: id, success: false)
+                recordVerdict(success: false)
                 return .failure(error: "Invalid response type")
             }
 
-            // STEP 6: Handle error status codes
+            // STEP 4: Handle error status codes
             if httpResponse.statusCode != 200 {
                 let errorBody = String(data: data, encoding: .utf8) ?? "No error details"
                 logger.warning("Endpoint test failed with status \(httpResponse.statusCode, privacy: .public): \(errorBody, privacy: .public)")
-                updateTestStatus(for: id, success: false)
+                recordVerdict(success: false)
                 return .failure(error: "HTTP \(httpResponse.statusCode): \(parseErrorMessage(from: data) ?? "Unknown error")")
             }
 
-            // STEP 7: Parse successful response
+            // STEP 5: Parse successful response
             // RESPONSE PARSING:
             // OpenAI-compatible endpoints return: { "choices": [{ "message": { "content": "..." } }] }
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -346,23 +375,23 @@ class CustomPostProcessingManager: ObservableObject {
                   let firstChoice = choices.first,
                   let message = firstChoice["message"] as? [String: Any],
                   let content = message["content"] as? String else {
-                updateTestStatus(for: id, success: false)
+                recordVerdict(success: false)
                 return .failure(error: "Invalid response format - expected OpenAI-compatible response")
             }
 
-            // STEP 8: Success!
+            // STEP 6: Success!
             let preview = String(content.prefix(50))
             logger.info("Endpoint test succeeded: \(endpoint.name, privacy: .public) - response: \(preview, privacy: .public)")
-            updateTestStatus(for: id, success: true)
+            recordVerdict(success: true)
             return .success(responsePreview: content)
 
         } catch let error as URLError {
             logger.error("Endpoint test network error: \(error.localizedDescription, privacy: .public)")
-            updateTestStatus(for: id, success: false)
+            recordVerdict(success: false)
             return .failure(error: "Network error: \(error.localizedDescription)")
         } catch {
             logger.error("Endpoint test error: \(error.localizedDescription, privacy: .public)")
-            updateTestStatus(for: id, success: false)
+            recordVerdict(success: false)
             return .failure(error: error.localizedDescription)
         }
     }

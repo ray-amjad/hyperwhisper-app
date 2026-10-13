@@ -657,87 +657,21 @@ struct CustomEndpointSheet: View {
             )
         }
 
-        // BUILD TEST REQUEST DIRECTLY
-        // The test uses the in-memory `apiKey` for the Authorization header
-        // (see testEndpointDirectly), so the Keychain is never read here. We
-        // must NOT write the typed key to the Keychain before a save/commit —
-        // doing so for an existing endpoint would overwrite the live stored key
-        // in place even if the user then cancels. Keychain is only written from
-        // saveEndpoint().
-        let result = await testEndpointDirectly(testEndpoint)
+        // RUN THE SHARED PROBE
+        // The test passes the in-memory `apiKey` for the Authorization header,
+        // so the Keychain is never read here. We must NOT write the typed key to
+        // the Keychain before a save/commit — doing so for an existing endpoint
+        // would overwrite the live stored key in place even if the user then
+        // cancels. Keychain is only written from saveEndpoint().
+        let result = await customEndpointManager.testEndpoint(testEndpoint, apiKey: apiKey)
 
         isTesting = false
 
         switch result {
         case .success(let preview):
-            testResult = .success(preview: preview)
+            testResult = .success(preview: preview.trimmingCharacters(in: .whitespacesAndNewlines))
         case .failure(let error):
             testResult = .failure(error: error)
-        }
-    }
-
-    /// Test endpoint directly without going through manager
-    private func testEndpointDirectly(_ endpoint: CustomPostProcessingEndpoint) async -> CustomEndpointTestResult {
-        guard let url = URL(string: endpoint.endpointURL) else {
-            return .failure(error: "Invalid URL")
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 30
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        // Add auth if API key provided
-        if !apiKey.isEmpty {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
-
-        // Minimal test request
-        let requestBody: [String: Any] = [
-            "model": endpoint.modelName,
-            "messages": [
-                ["role": "user", "content": "Say hello in one word."]
-            ],
-            "max_tokens": 10,
-            "temperature": 0.0
-        ]
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        } catch {
-            return .failure(error: "Failed to encode request")
-        }
-
-        do {
-            let (data, response) = try await CredentialNetworkCache.session.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                return .failure(error: "Invalid response")
-            }
-
-            if httpResponse.statusCode != 200 {
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let error = json["error"] as? [String: Any],
-                   let message = error["message"] as? String {
-                    return .failure(error: "HTTP \(httpResponse.statusCode): \(message)")
-                }
-                return .failure(error: "HTTP \(httpResponse.statusCode)")
-            }
-
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let choices = json["choices"] as? [[String: Any]],
-                  let firstChoice = choices.first,
-                  let message = firstChoice["message"] as? [String: Any],
-                  let content = message["content"] as? String else {
-                return .failure(error: "Invalid response format")
-            }
-
-            return .success(responsePreview: content.trimmingCharacters(in: .whitespacesAndNewlines))
-
-        } catch let error as URLError {
-            return .failure(error: "Network error: \(error.localizedDescription)")
-        } catch {
-            return .failure(error: error.localizedDescription)
         }
     }
 
