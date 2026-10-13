@@ -196,6 +196,39 @@ struct PartialDownloadCleanupTests {
         #expect(URL(fileURLWithPath: gguf).pathExtension != "gguf")
     }
 
+    // MARK: Shared partial download file (#1445, #1723)
+
+    /// A body as long as its Content-Length is kept for the caller to move into place;
+    /// `discard` (a cancel that landed after the last byte) still deletes it.
+    @Test func aCompleteDownloadIsKeptUntilDiscarded() throws {
+        let models = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: models) }
+        let entry = try ModelDownloadPartialFiles.open(at: models.appendingPathComponent("m.gguf.x.llmpartial"))
+        try entry.handle.write(contentsOf: Data("model".utf8))
+        entry.bytesWritten = 5
+        entry.expectedBytes = 5
+
+        #expect(entry.finish(transportError: nil) == nil)
+        #expect(FileManager.default.fileExists(atPath: entry.url.path))
+        entry.discard()
+        #expect(!FileManager.default.fileExists(atPath: entry.url.path))
+    }
+
+    /// A short body and a transport error are failures, and the file is gone.
+    @Test func aFailedDownloadDeletesItsFile() throws {
+        let models = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: models) }
+        let short = try ModelDownloadPartialFiles.open(at: models.appendingPathComponent("a.partial"))
+        short.bytesWritten = 3
+        short.expectedBytes = 5
+        let cancelled = try ModelDownloadPartialFiles.open(at: models.appendingPathComponent("b.partial"))
+
+        #expect(short.finish(transportError: nil) != nil)
+        #expect(cancelled.finish(transportError: URLError(.cancelled)) != nil)
+        #expect(!FileManager.default.fileExists(atPath: short.url.path))
+        #expect(!FileManager.default.fileExists(atPath: cancelled.url.path))
+    }
+
     // MARK: Tmp files this process holds open (#1723)
 
     /// Only a `CFNetworkDownload_*.tmp` this process holds open is reported; a closed
