@@ -7310,6 +7310,19 @@ internal static class Program
                          })
                 {
                     using var strategy = LiveStrategy(provider);
+                    if (provider == StreamingTranscriptionProvider.HyperWhisperCloud)
+                    {
+                        // No `ready` frame yet: the relay never started a session, so
+                        // nothing will send session_complete and the stop must not
+                        // wait 10s for it (issue #834).
+                        var unstarted = strategy.GetStopSequence();
+                        Assert(unstarted.Count == 2
+                            && unstarted[0].Action == StreamingStopAction.SendMessage
+                            && unstarted[1].Action == StreamingStopAction.Close,
+                            $"{provider}: expected stop then close before ready, got {unstarted.Count} steps");
+                        strategy.ParseMessage("{\"type\":\"ready\",\"sessionId\":\"s1\"}");
+                    }
+
                     var steps = strategy.GetStopSequence();
                     Assert(steps.Count == 3, $"{provider}: expected 3 stop steps, got {steps.Count}");
                     Assert(steps[0].Action == StreamingStopAction.SendMessage

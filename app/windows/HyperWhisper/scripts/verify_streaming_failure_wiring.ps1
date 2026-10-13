@@ -140,7 +140,7 @@ Assert-Match `
 
 Assert-Match `
     -Content $HyperWhisperCloudSource `
-    -Pattern 'fn stop_sequence\(\).*?StopStep::SendText.*?\{"type":"stop"\}.*?StopStep::WaitForSessionComplete.*?SESSION_COMPLETE_TIMEOUT_MS.*?StopStep::Close' `
+    -Pattern 'fn stop_sequence\(state: &SessionState\).*?StopStep::SendText.*?\{"type":"stop"\}.*?if state\.session_started.*?StopStep::WaitForSessionComplete.*?SESSION_COMPLETE_TIMEOUT_MS.*?StopStep::Close' `
     -Label "HyperWhisper Cloud stop waits for session_complete before closing so final text and credits can arrive"
 
 Assert-Match `
