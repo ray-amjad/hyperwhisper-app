@@ -142,7 +142,9 @@ static void AllCatalogsLoad()
     // Transcribe File names an empty, damaged or non-audio file instead of NAudio's text).
     // 858 -> 860 (#1468): `settings.models.alert.cannotDelete.title` and `.message` are new
     // (Windows Model Library "model in use" delete warning, which showed the raw key).
-    Equal(860, PortableLocalizer.BaseKeyCount, "base key count");
+    // 860 -> 861 (#1519): `status.fileTranscribing` is new (the Windows status bar says a
+    // file is being transcribed instead of "Ready - Press Ctrl+Alt to record").
+    Equal(861, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

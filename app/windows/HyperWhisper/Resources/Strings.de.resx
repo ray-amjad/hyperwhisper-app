@@ -823,6 +823,9 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Dateitranskription abgebrochen</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Datei wird transkribiert...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unbekannt</value>
   </data>

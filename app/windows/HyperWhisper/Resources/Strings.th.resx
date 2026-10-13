@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>ยกเลิกการถอดเสียงไฟล์แล้ว</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>กำลังถอดเสียงไฟล์...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

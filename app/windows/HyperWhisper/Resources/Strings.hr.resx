@@ -823,6 +823,9 @@ Ova radnja se ne može poništiti.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transkripcija datoteke otkazana</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkribiranje datoteke...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

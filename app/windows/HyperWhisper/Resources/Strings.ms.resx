@@ -823,6 +823,9 @@ Tindakan ini tidak boleh dibuat asal.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transkripsi fail dibatalkan</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Mentranskripsi fail...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

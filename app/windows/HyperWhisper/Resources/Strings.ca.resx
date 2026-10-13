@@ -823,6 +823,9 @@ Aquesta acció no es pot desfer.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>S'ha cancel·lat la transcripció del fitxer</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>S’està transcrivint el fitxer...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

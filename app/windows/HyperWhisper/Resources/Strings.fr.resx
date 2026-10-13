@@ -823,6 +823,9 @@ Cette action est irréversible.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcription du fichier annulée</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transcription du fichier...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Inconnu</value>
   </data>

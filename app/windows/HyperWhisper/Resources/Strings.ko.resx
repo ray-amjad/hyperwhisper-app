@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>파일 전사가 취소되었습니다</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>파일 받아쓰는 중...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

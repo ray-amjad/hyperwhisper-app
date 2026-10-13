@@ -823,6 +823,9 @@ Denne handling kan ikke fortrydes.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Filtranskription annulleret</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transskriberer fil...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

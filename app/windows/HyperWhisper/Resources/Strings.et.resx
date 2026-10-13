@@ -823,6 +823,9 @@ Seda toimingut ei saa tagasi võtta.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Faili transkribeerimine tühistatud</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Faili transkribeerimine...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

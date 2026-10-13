@@ -823,6 +823,9 @@ Esta ação não pode ser desfeita.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcrição do ficheiro cancelada</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>A transcrever ficheiro...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Desconhecido</value>
   </data>

@@ -908,6 +908,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcripción del archivo cancelada</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transcribiendo archivo...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Desconocido</value>
   </data>

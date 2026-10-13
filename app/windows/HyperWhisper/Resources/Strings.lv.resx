@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Faila transkripcija atcelta</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkribē failu...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

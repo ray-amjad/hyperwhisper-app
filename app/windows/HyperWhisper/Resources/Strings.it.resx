@@ -823,6 +823,9 @@ Questa azione non può essere annullata.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Trascrizione del file annullata</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Trascrizione del file...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Sconosciuto</value>
   </data>

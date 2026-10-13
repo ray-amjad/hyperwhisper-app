@@ -823,6 +823,9 @@ Dit kan niet ongedaan worden gemaakt.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Bestandstranscriptie geannuleerd</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Bestand transcriberen...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Onbekend</value>
   </data>

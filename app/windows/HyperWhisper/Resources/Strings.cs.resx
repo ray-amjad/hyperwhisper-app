@@ -823,6 +823,9 @@ Tuto akci nelze vrátit zpět.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Přepis souboru byl zrušen</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Přepisuji soubor...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

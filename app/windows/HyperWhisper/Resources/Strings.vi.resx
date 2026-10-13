@@ -823,6 +823,9 @@ Hành động này không thể được hoàn tác.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Đã hủy chuyển tệp thành văn bản</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Đang chép lời tệp...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

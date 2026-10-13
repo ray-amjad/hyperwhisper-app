@@ -908,6 +908,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>ファイルの文字起こしをキャンセルしました</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>ファイルを文字起こし中...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>不明</value>
   </data>

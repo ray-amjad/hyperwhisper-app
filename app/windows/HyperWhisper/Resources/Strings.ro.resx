@@ -823,6 +823,9 @@ Această acțiune nu poate fi anulată.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcrierea fișierului a fost anulată</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Se transcrie fișierul...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
