@@ -423,7 +423,8 @@ class CustomPostProcessingManager: ObservableObject {
             // STEP 5: Parse successful response
             // RESPONSE PARSING:
             // OpenAI-compatible endpoints return: { "choices": [{ "message": { "content": "..." } }] }
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            // A body that is not JSON at all is the same shape failure, not a decode error.
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let choices = json["choices"] as? [[String: Any]],
                   let firstChoice = choices.first,
                   let message = firstChoice["message"] as? [String: Any],
