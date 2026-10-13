@@ -33,7 +33,7 @@ private final class ProbeStubURLProtocol: URLProtocol {
     }
 
     /// Register `reply` for a fresh host and return that host.
-    static func register(_ reply: Reply?) -> String {
+    static func register(_ reply: Reply) -> String {
         let host = "probe-\(UUID().uuidString.lowercased()).example.com"
         lock.withLock { replies[host] = reply }
         return host
@@ -180,7 +180,7 @@ struct CustomEndpointTestProbeTests {
 
     @Test func testingUnsavedEditsLeavesTheStoredVerdictAlone() async throws {
         try await withStoredEndpointsRestored {
-            let savedHost = ProbeStubURLProtocol.register(nil)
+            let savedHost = ProbeStubURLProtocol.register(.init(status: 500, body: ""))
             let editedHost = ProbeStubURLProtocol.register(.init(
                 status: 200, body: #"{"choices":[{"message":{"content":"Hello"}}]}"#))
             let manager = CustomPostProcessingManager()
