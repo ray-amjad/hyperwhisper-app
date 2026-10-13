@@ -589,10 +589,7 @@ public partial class MainViewModel
             var model = ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == mode.LocalParakeetModel);
             if (model == null || !_parakeetModelService.IsModelDownloaded(model))
             {
-                var modelName = mode.LocalParakeetModel ?? "Unknown";
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    Loc.S("errors.modelNotDownloaded", modelName),
-                    showSettingsButton: false));
+                RejectFile(Loc.S("errors.modelNotDownloaded", mode.LocalParakeetModel ?? "Unknown"));
                 return false;
             }
 
@@ -654,19 +651,14 @@ public partial class MainViewModel
 
         if (!PlatformHelper.SupportsWhisperTranscription)
         {
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.modelLoadFailed"),
-                showSettingsButton: false));
+            RejectFile(Loc.S("errors.modelLoadFailed"));
             return false;
         }
 
         var whisperModel = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == mode.ModelType);
         if (whisperModel == null || !_modelService.IsModelDownloaded(whisperModel))
         {
-            var modelName = mode.ModelType ?? "Unknown";
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.modelNotDownloaded", modelName),
-                showSettingsButton: false));
+            RejectFile(Loc.S("errors.modelNotDownloaded", mode.ModelType ?? "Unknown"));
             return false;
         }
 
