@@ -408,12 +408,14 @@ describe('splitVocabularyTerms (shared vocabulary-prompt splitter)', () => {
     expect(splitVocabularyTerms('  a  ,   ,b\t', NO_LIMITS)).toEqual(['a', 'b']);
   });
 
-  test('strips a leading bullet marker, with or without a following space', () => {
-    expect(splitVocabularyTerms('- a\n* b\n-c\n*d', NO_LIMITS)).toEqual(['a', 'b', 'c', 'd']);
+  test('strips a leading bullet marker only when whitespace follows it (issue #729)', () => {
+    expect(splitVocabularyTerms('- a\n* b\n-\tc\n-Xmx\n*args', NO_LIMITS)).toEqual(['a', 'b', 'c', '-Xmx', '*args']);
   });
 
-  test('a term that is only a bullet marker is dropped', () => {
+  test('a term that is only a bullet marker is dropped, sanitizing or not', () => {
     expect(splitVocabularyTerms('-,*,a', NO_LIMITS)).toEqual(['a']);
+    expect(splitVocabularyTerms('foo\n-\n*\n- \nbar', NO_LIMITS)).toEqual(['foo', 'bar']);
+    expect(splitVocabularyTerms('foo\n-\n*\n- \nbar', { maxTerms: 100, sanitize: true })).toEqual(['foo', 'bar']);
   });
 
   test('inner whitespace is preserved by default', () => {

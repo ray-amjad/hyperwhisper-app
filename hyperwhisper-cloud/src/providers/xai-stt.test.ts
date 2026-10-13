@@ -159,6 +159,13 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
     expect(captured.form?.getAll('keyterm')).toEqual(['-Xmx', '*args', 'bulleted']);
   });
 
+  test('drops an empty bullet line rather than sending it as a keyterm', async () => {
+    const captured = captureRequest({ text: 'hi', duration: 4 });
+
+    await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, 'foo\n-\n*\nbar');
+    expect(captured.form?.getAll('keyterm')).toEqual(['foo', 'bar']);
+  });
+
   test('pins the model, and honours the one the route resolved', async () => {
     const pinned = captureRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/mp3');

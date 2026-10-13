@@ -132,10 +132,8 @@ export interface VocabularyTermPolicy {
   /**
    * Reproduce the Rust core's `sanitize_vocabulary_word`, the canonical
    * sanitizer the BYOK path routes through: strip `<`/`>`, collapse whitespace
-   * runs to one space, and de-duplicate case-insensitively. It also strips a
-   * list bullet ONLY when a space follows it — without that space a leading
-   * `-` or `*` is part of the term (`-Xmx`, `*args`), and stripping it biases
-   * the model toward a different token than the user entered.
+   * runs to one space, and de-duplicate case-insensitively. The bullet rule
+   * (see {@link LIST_BULLET}) is the same with or without it.
    */
   sanitize?: boolean;
   /**
@@ -146,6 +144,16 @@ export interface VocabularyTermPolicy {
    */
   overLongTerm?: 'truncate' | 'drop';
 }
+
+/**
+ * A leading list bullet: `-` or `*` followed by whitespace, or standing alone.
+ *
+ * Without the whitespace a leading `-` or `*` is part of the term (`-Xmx`,
+ * `*args`), and stripping it biases the model toward a different token than the
+ * user entered (issue #729). A bare `-` or `*` is an empty bullet, so it
+ * strips to nothing and the term is dropped rather than sent as punctuation.
+ */
+const LIST_BULLET = /^[-*](?:\s+|$)/;
 
 /**
  * Split a user's vocabulary prompt into the individual terms an upstream's
@@ -166,8 +174,8 @@ export interface VocabularyTermPolicy {
  * Sanitizing is opt-in through `policy.sanitize`: `providers/openai.ts`,
  * `providers/gemini-transcribe.ts`, `providers/xai-stt.ts` and
  * `providers/assemblyai-dictation.ts` turn it on to match the Rust core's
- * `sanitize_vocabulary_word`. Without it a bullet is stripped whether or not a
- * space follows, as every other adapter has always done.
+ * `sanitize_vocabulary_word`. Every caller, sanitizing or not, strips a bullet
+ * by the one {@link LIST_BULLET} rule.
  */
 export function splitVocabularyTerms(
   initialPrompt: string,
@@ -179,9 +187,10 @@ export function splitVocabularyTerms(
   for (const raw of initialPrompt.split(/[,\n;]+/)) {
     if (terms.length >= policy.maxTerms) break;
 
-    let term = policy.sanitize
-      ? raw.trim().replace(/^[-*]\s+/, '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim()
-      : raw.trim().replace(/^[-*]\s*/, '');
+    let term = raw.trim().replace(LIST_BULLET, '');
+    if (policy.sanitize) {
+      term = term.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+    }
     if (policy.joinWordsWith !== undefined) {
       term = term.replace(/\s+/g, policy.joinWordsWith);
     }
