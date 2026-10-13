@@ -779,26 +779,14 @@ class RecordingLifecycle {
 
         AppLogger.audio.info("Stopped recording - Duration: \(duration, privacy: .public)s")
 
-        // STEP 4: FILE FINALIZATION
-        // When the recording was cancelled (e.g., validation failure like "offline + cloud mode"),
-        // skip finalization entirely. The raw file contains no useful audio (just a WAV header),
-        // so polling it 40 times and reporting "Audio finalization failed" to Sentry is wasteful.
-        // The caller (cancelRecordingWithError) will delete the file and session anyway.
-        if cancelled {
-            // Clean up the raw file — it has no useful audio data
-            if let rawURL = rawURL {
-                try? FileManager.default.removeItem(at: rawURL)
-            }
-            self.finalURL = nil
-            rawURL = nil
-            return (url: nil, duration: duration, conversionWarning: nil, recordingSession: nil)
-        }
-
         // STEP 4 (#1359): the stop timed out, so `stop()` never finalised the WAV and
         // its header may be wrong. Do not read, rename or convert it, and do not
         // transcribe (Ray, 2026-10-07). Leave the file where it is and leave its
         // session row open (no endTime): `CrashRecoveryManager` claims both on the
         // next launch, which is the path built for an unfinalised WAV.
+        // This check runs BEFORE the cancelled branch below (Ray, 2026-10-13, PR #1767):
+        // a cancelled stop that times out also keeps its WAV and shows the error,
+        // because the recorder may still be writing a file that branch would delete.
         if recorderStopOutcome == .timedOut {
             if let session = await sessionManager.resolveCurrentSession() {
                 AppLogger.audio.notice("Recording stop timed out - left session \(session.id?.uuidString ?? "nil", privacy: .public) open for crash recovery")
@@ -818,6 +806,21 @@ class RecordingLifecycle {
             self.finalURL = nil
             rawURL = nil
             return nil
+        }
+
+        // STEP 4: FILE FINALIZATION
+        // When the recording was cancelled (e.g., validation failure like "offline + cloud mode"),
+        // skip finalization entirely. The raw file contains no useful audio (just a WAV header),
+        // so polling it 40 times and reporting "Audio finalization failed" to Sentry is wasteful.
+        // The caller (cancelRecordingWithError) will delete the file and session anyway.
+        if cancelled {
+            // Clean up the raw file — it has no useful audio data
+            if let rawURL = rawURL {
+                try? FileManager.default.removeItem(at: rawURL)
+            }
+            self.finalURL = nil
+            rawURL = nil
+            return (url: nil, duration: duration, conversionWarning: nil, recordingSession: nil)
         }
 
         // SimpleRecorder already recorded directly to WAV at 16kHz mono

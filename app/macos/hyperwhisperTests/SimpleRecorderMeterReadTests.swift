@@ -319,4 +319,20 @@ struct SimpleRecorderMeterReadTests {
         #expect(await recorder.stopRecording() == .stopped)
         #expect(stopper.stopCount == 0)
     }
+
+    /// PR #1767 (Ray, 2026-10-13): a CANCELLED stop that times out keeps its WAV
+    /// for `CrashRecoveryManager` and shows the error, like any other timeout. The
+    /// cancelled branch deletes the raw file, so the timeout check must run first.
+    /// `RecordingLifecycle` needs a live recorder, so the order is read from source.
+    @Test func timedOutStopIsHandledBeforeTheCancelledBranchDeletesTheFile() throws {
+        let body = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/AudioRecording/Recording/RecordingLifecycle.swift",
+            from: "func stopRecording(cancelled: Bool = false) async",
+            to: "if let rawURL = rawURL, let dstURL = finalURL {"
+        )
+
+        let timeoutCheck = try #require(body.range(of: "if recorderStopOutcome == .timedOut {"))
+        let cancelledBranch = try #require(body.range(of: "if cancelled {"))
+        #expect(timeoutCheck.lowerBound < cancelledBranch.lowerBound)
+    }
 }
