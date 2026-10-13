@@ -68,16 +68,13 @@ struct CustomEndpointTestedConfiguration: Equatable {
 /// - Inject as @EnvironmentObject in SwiftUI views
 /// - Use `endpoints` property to display list of configured endpoints
 /// - Call CRUD methods to add/update/delete endpoints
-/// - Call `testEndpoint(id:)` to verify an endpoint works
+/// - Call `testEndpoint(_:apiKey:)` to probe an endpoint configuration
 @MainActor
 class CustomPostProcessingManager: ObservableObject {
     // MARK: - Published State
 
     /// All configured custom endpoints
     @Published private(set) var endpoints: [CustomPostProcessingEndpoint] = []
-
-    /// Currently testing endpoint IDs
-    @Published private(set) var testingEndpoints: Set<UUID> = []
 
     /// Error message for display (nil if no error)
     @Published var errorMessage: String?
@@ -326,24 +323,6 @@ class CustomPostProcessingManager: ObservableObject {
 
     // MARK: - Public API - Testing
 
-    /// Test a saved custom endpoint with its stored Keychain key, and record
-    /// the verdict on it.
-    /// - Parameters:
-    ///   - id: ID of the endpoint to test
-    ///   - session: The session to send the probe on (tests pass a stub)
-    /// - Returns: Test result with success/failure details
-    func testEndpoint(
-        id: UUID,
-        session: URLSession = CredentialNetworkCache.session
-    ) async -> CustomEndpointTestResult {
-        guard let endpoint = getEndpoint(id: id) else { return .failure(error: "Endpoint not found") }
-        testingEndpoints.insert(id)
-        defer { testingEndpoints.remove(id) }
-        let result = await testEndpoint(endpoint, apiKey: getAPIKey(for: id), session: session)
-        updateTestStatus(for: id, success: result.isSuccess)
-        return result
-    }
-
     /// The failure text for a URL the shared rule refuses, with its repair
     /// when the rule offers one.
     private static func invalidURLMessage(_ message: String, suggestion: String?) -> String {
@@ -446,13 +425,6 @@ class CustomPostProcessingManager: ObservableObject {
         }
     }
 
-    /// Check if an endpoint is currently being tested
-    /// - Parameter id: ID of the endpoint
-    /// - Returns: true if the endpoint is being tested
-    func isTesting(id: UUID) -> Bool {
-        testingEndpoints.contains(id)
-    }
-
     // MARK: - Private Methods
 
     /// Load endpoints from UserDefaults
@@ -490,13 +462,6 @@ class CustomPostProcessingManager: ObservableObject {
             logger.error("Failed to encode custom endpoints: \(error.localizedDescription, privacy: .public)")
             errorMessage = "Failed to save endpoints: \(error.localizedDescription)"
         }
-    }
-
-    /// Update test status for an endpoint
-    private func updateTestStatus(for id: UUID, success: Bool) {
-        guard let index = endpoints.firstIndex(where: { $0.id == id }) else { return }
-        endpoints[index].updateTestStatus(success: success)
-        saveEndpoints()
     }
 
     /// Parse error message from API error response

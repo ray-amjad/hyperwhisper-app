@@ -142,36 +142,28 @@ struct CustomEndpointTestProbeTests {
             endpointURL: endpoint.endpointURL, modelName: endpoint.modelName, apiKey: apiKey, success: success)
     }
 
-    @Test func aSavedEndpointTestSucceedsAndRecordsTheVerdict() async throws {
-        try await withStoredEndpointsRestored {
-            let host = ProbeStubURLProtocol.register(.init(status: 200, body: Self.helloBody))
-            let manager = CustomPostProcessingManager()
-            let endpoint = try manager.addEndpoint(name: "Probe", endpointURL: url(host), modelName: "llama3")
+    @Test func anOpenAIShaped200SucceedsWithTheReplyPreview() async {
+        let host = ProbeStubURLProtocol.register(.init(status: 200, body: Self.helloBody))
+        let endpoint = CustomPostProcessingEndpoint(name: "Probe", endpointURL: url(host), modelName: "llama3")
 
-            let result = await manager.testEndpoint(id: endpoint.id, session: session)
+        let result = await CustomPostProcessingManager()
+            .testEndpoint(endpoint, apiKey: "", session: session)
 
-            guard case let .success(preview) = result else {
-                Issue.record("expected success, got \(result)")
-                return
-            }
-            #expect(preview == "Hello")
-            #expect(manager.getEndpoint(id: endpoint.id)?.lastTestSuccess == true)
-            // Persisted, so the tick survives a relaunch.
-            #expect(CustomPostProcessingManager().getEndpoint(id: endpoint.id)?.lastTestSuccess == true)
+        guard case let .success(preview) = result else {
+            Issue.record("expected success, got \(result)")
+            return
         }
+        #expect(preview == "Hello")
     }
 
-    @Test func aNonJSON200ReportsTheShapeErrorAndRecordsAFailure() async throws {
-        try await withStoredEndpointsRestored {
-            let host = ProbeStubURLProtocol.register(.init(status: 200, body: "<html>not json</html>"))
-            let manager = CustomPostProcessingManager()
-            let endpoint = try manager.addEndpoint(name: "Probe", endpointURL: url(host), modelName: "llama3")
+    @Test func aNonJSON200ReportsTheShapeError() async {
+        let host = ProbeStubURLProtocol.register(.init(status: 200, body: "<html>not json</html>"))
+        let endpoint = CustomPostProcessingEndpoint(name: "Probe", endpointURL: url(host), modelName: "llama3")
 
-            let result = await manager.testEndpoint(id: endpoint.id, session: session)
+        let result = await CustomPostProcessingManager()
+            .testEndpoint(endpoint, apiKey: "", session: session)
 
-            #expect(failureMessage(result) == "Invalid response format - expected OpenAI-compatible response")
-            #expect(manager.getEndpoint(id: endpoint.id)?.lastTestSuccess == false)
-        }
+        #expect(failureMessage(result) == "Invalid response format - expected OpenAI-compatible response")
     }
 
     /// A sheet test the user then cancels must not touch the stored endpoint.
