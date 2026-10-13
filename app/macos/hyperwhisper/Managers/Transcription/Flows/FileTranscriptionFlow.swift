@@ -540,6 +540,10 @@ class FileTranscriptionFlow {
             // cancelled flag is the check that still holds here.
             guard !progressState.isCancelled, !Task.isCancelled else { throw CancellationError() }
 
+            // A file with no speech fails the row with the "no speech" reason and
+            // shows the error alert, instead of a blank completed row (#1429).
+            try result.throwIfNoSpeech()
+
             // STEP 7: Finishing stage (85-100%)
             progressState.updateStage(.finishing)
             progressState.animateProgress(to: 0.95, duration: 0.3)
