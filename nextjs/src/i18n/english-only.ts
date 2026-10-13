@@ -34,9 +34,8 @@ function readLocaleCookie(cookieHeader: string): string | undefined {
  * `/en/...` is an ordinary page that writes NEXT_LOCALE=en. So there, once
  * the browser passes `document.cookie` in (never on the server, so these
  * pages stay static and their server HTML keeps `/en`), the link follows a
- * saved NEXT_LOCALE. With none, it stays unprefixed: next-intl then picks the
- * locale as on a first visit (Accept-Language, else the default), redirects,
- * and writes no cookie for it. The browser keeps the #hash across the redirect.
+ * saved NEXT_LOCALE. With none (or an unsupported one) it keeps the page
+ * locale, so a visitor with no saved choice still gets `/en...`.
  *
  * `cookieHeader` is undefined before hydration.
  */
@@ -46,15 +45,14 @@ export function siteHref(
   cookieHeader: string | undefined,
   path: string,
 ): string {
-  let locale: string | undefined = pageLocale;
+  let locale = pageLocale;
 
   if (isEnglishOnlyPath(pathname) && cookieHeader !== undefined) {
     const saved = readLocaleCookie(cookieHeader);
 
-    locale = saved && isSupportedLocale(saved) ? saved : undefined;
+    if (saved && isSupportedLocale(saved)) locale = saved;
   }
 
-  if (locale === undefined) return path;
   if (path === "/") return `/${locale}`;
   if (path.startsWith("/#")) return `/${locale}${path.slice(1)}`;
 

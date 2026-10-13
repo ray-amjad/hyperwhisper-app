@@ -16,8 +16,8 @@ export default function FooterSection() {
     #1170: on an English-only page (/en/latency, /en/choosing-a-model,
     /en/blog) a locale link would point at /en/..., an ordinary page that
     writes NEXT_LOCALE=en. There, after hydration, every site link is a native
-    <a> that follows the saved NEXT_LOCALE, or is unprefixed so the server
-    picks the visitor's locale (see siteHref).
+    <a> that follows the saved NEXT_LOCALE, and stays /en with none
+    (see siteHref).
   */
   const { nativeLinks, siteHref } = useSiteHref();
 

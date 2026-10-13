@@ -29,8 +29,8 @@ export const Navbar = () => {
     #1170: on an English-only page (/en/latency, /en/choosing-a-model,
     /en/blog) useLocale() is "en" for every visitor, and /en#features is an
     ordinary page that writes NEXT_LOCALE=en. There, after hydration, the home
-    and section links follow the saved NEXT_LOCALE, or are unprefixed so the
-    server picks the visitor's locale (see siteHref).
+    and section links follow the saved NEXT_LOCALE, and stay /en with none
+    (see siteHref).
   */
   const { nativeLinks, siteHref } = useSiteHref();
   /*
