@@ -1531,6 +1531,108 @@ internal static class Program
                 Assert(TranscriptionService.TrailingSilenceTrimPoint(shortWord, rate) == (int)(1.1 * rate), "never shorter than whisper.cpp's 1s minimum");
             });
 
+            // #1451. A 3 h Transcribe File job held the whole decoded file (twice as
+            // floats, once as an in-memory WAV) and the idle app kept 3.1 GB private.
+            // Whisper now gets ~5 min chunks cut in a quiet spot.
+            Run("ChunkEnds cuts long audio into quiet-cut chunks of about five minutes (#1451)", () =>
+            {
+                const int rate = 16000, window = rate / 20;
+                Assert(TranscriptionService.ChunkEnds(new double[20 * 60], 60 * rate).SequenceEqual(new long[] { 60 * rate }),
+                    "a one-minute clip must be one chunk");
+                long notQuiteLong = TranscriptionService.MaxChunkSamples;
+                Assert(TranscriptionService.ChunkEnds(new double[notQuiteLong / window], notQuiteLong).Count == 1,
+                    "5.5 min must stay one chunk, so the last chunk is never a fragment");
+
+                long keep = (3 * 3600 + 3 * 60) * (long)rate;
+                var rms = new double[keep / window];
+                Array.Fill(rms, 0.1);
+                // The only pause near the first target: 296.0 s to 296.05 s.
+                rms[296 * 20] = 0.001;
+                var ends = TranscriptionService.ChunkEnds(rms, keep);
+                Assert(ends[0] == 296 * rate + window / 2, $"first cut at {ends[0] / (double)rate:F3}s, want the 296.025 s pause");
+                Assert(ends[^1] == keep, "the last chunk must end at the trim point");
+                long start = 0;
+                foreach (var end in ends)
+                {
+                    Assert(end > start && end - start <= TranscriptionService.MaxChunkSamples,
+                        $"chunk {start}..{end} is {(end - start) / (double)rate:F1}s");
+                    start = end;
+                }
+                Assert(ends.Count >= 35 && ends.Count <= 38, $"3 h 3 min should be ~37 chunks, got {ends.Count}");
+            });
+
+            Run("ReadAudioChunks streams a long WAV through one reused buffer (#1451)", () =>
+            {
+                const int rate = 16000;
+                var wavPath = TempWav("Chunked.12min");
+                try
+                {
+                    int total = 12 * 60 * rate;
+                    using (var writer = new NAudio.Wave.WaveFileWriter(wavPath, new NAudio.Wave.WaveFormat(rate, 16, 1)))
+                    {
+                        var block = new float[rate];
+                        for (int s = 0; s < total; s += rate)
+                        {
+                            for (int i = 0; i < rate; i++)
+                                block[i] = (float)(0.3 * Math.Sin((s + i) * 2 * Math.PI * 220 / rate));
+                            writer.WriteSamples(block, 0, rate);
+                        }
+                    }
+
+                    var ends = TranscriptionService.PlanAudioChunks(wavPath, CancellationToken.None);
+                    Assert(ends.Count == 3 && ends[^1] == total, $"12 min of tone: want 3 chunks ending at {total}, got [{string.Join(", ", ends)}]");
+
+                    float[]? shared = null;
+                    long expectedStart = 0;
+                    using var direct = new NAudio.Wave.AudioFileReader(wavPath);
+                    var expected = new float[TranscriptionService.MaxChunkSamples];
+                    int index = 0;
+                    foreach (var chunk in TranscriptionService.ReadAudioChunks(wavPath, ends, CancellationToken.None))
+                    {
+                        Assert(chunk.StartSample == expectedStart, $"chunk {index} starts at {chunk.StartSample}, want {expectedStart}");
+                        Assert(System.Runtime.InteropServices.MemoryMarshal.TryGetArray(chunk.Samples, out var segment),
+                            "a chunk must be a view of the reader's buffer");
+                        Assert(shared == null || ReferenceEquals(shared, segment.Array),
+                            "every chunk must reuse one buffer, not allocate the file");
+                        shared = segment.Array;
+                        Assert(shared!.Length <= TranscriptionService.MaxChunkSamples,
+                            $"the buffer holds {shared.Length} samples, more than one chunk");
+
+                        int length = chunk.Samples.Length;
+                        Assert(length == ends[index] - expectedStart, $"chunk {index} has {length} samples");
+                        int got = 0;
+                        while (got < length)
+                            got += direct.Read(expected, got, length - got);
+                        var span = chunk.Samples.Span;
+                        for (int i = 0; i < length; i++)
+                        {
+                            var want = TranscriptionService.ToWhisperInput(expected[i]);
+                            if (span[i] != want)
+                                throw new InvalidOperationException($"chunk {index} sample {i}: {span[i]} != {want}");
+                        }
+                        expectedStart = ends[index];
+                        index++;
+                    }
+                    Assert(index == ends.Count, $"read {index} chunks of {ends.Count}");
+                }
+                finally
+                {
+                    TryDelete(wavPath);
+                }
+            });
+
+            // The chunks must feed Whisper the same values the 16-bit WAV used to.
+            Run("ToWhisperInput matches a 16-bit WAV round trip (#1451)", () =>
+            {
+                foreach (var sample in new[] { 0f, 0.5f, -0.5f, 0.123456f, 1f, -1f, 1.2f, -1.7f })
+                {
+                    var clamped = Math.Clamp(sample, -1f, 1f);
+                    var viaWav = (short)(clamped * short.MaxValue) / 32768f;
+                    Assert(TranscriptionService.ToWhisperInput(sample) == viaWav,
+                        $"{sample}: got {TranscriptionService.ToWhisperInput(sample)}, want {viaWav}");
+                }
+            });
+
             // #1534. Switching to a Parakeet mode during a long Whisper file job
             // froze the main window for 74-92 s: the mode switch called a sync
             // UnloadModel() that blocked the UI thread on UnloadModelAsync, which
@@ -6429,15 +6531,13 @@ internal static class Program
             Run("TranscriptionService decodes a 6-channel WAVE_FORMAT_EXTENSIBLE WAV for Whisper (#1450)", () =>
             {
                 // The Local API hands TranscriptionService the caller's own file, so its
-                // PrepareAudioStream and duration probe see Extensible WAVs directly.
+                // chunk reader and duration probe see Extensible WAVs directly.
                 var wavPath = TempWav("Extensible.6ch.Whisper");
                 try
                 {
                     WriteExtensibleWav(wavPath, 48000, 6, 16, ExtensiblePcmSubFormat, 48000, SpeechLikeChannelSample);
 
                     const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
-                    var prepare = typeof(TranscriptionService).GetMethod("PrepareAudioStream", flags)
-                        ?? throw new InvalidOperationException("TranscriptionService.PrepareAudioStream not found");
                     var probe = typeof(TranscriptionService).GetMethod("GetAudioDurationSeconds", flags)
                         ?? throw new InvalidOperationException("TranscriptionService.GetAudioDurationSeconds not found");
 
@@ -6445,13 +6545,13 @@ internal static class Program
                     // The old fallback guessed from the file size as 16 kHz mono: ~18 s here.
                     Assert(Math.Abs(seconds - 1.0) < 0.001, $"expected a 1.0 s duration probe, got {seconds}");
 
-                    using var stream = (Stream)prepare.Invoke(null, new object[] { wavPath })!;
-                    using var reader = new NAudio.Wave.WaveFileReader(stream);
-                    Assert(reader.WaveFormat.SampleRate == 16000 && reader.WaveFormat.Channels == 1 &&
-                           reader.WaveFormat.BitsPerSample == 16,
-                        $"expected 16 kHz mono 16-bit, got {reader.WaveFormat}");
-                    Assert(Math.Abs(reader.TotalTime.TotalSeconds - 1.0) < 0.05,
-                        $"expected ~1.0 s of audio, got {reader.TotalTime.TotalSeconds}");
+                    var ends = TranscriptionService.PlanAudioChunks(wavPath, CancellationToken.None);
+                    Assert(ends.Count == 1, $"a 1 s file must be one chunk, got {ends.Count}");
+                    var samples = TranscriptionService.ReadAudioChunks(wavPath, ends, CancellationToken.None)
+                        .Sum(chunk => (long)chunk.Samples.Length);
+                    // 16 kHz mono: one second is 16,000 samples.
+                    Assert(Math.Abs(samples - 16000) < 800,
+                        $"expected ~1.0 s of 16 kHz mono audio, got {samples} samples");
                 }
                 finally
                 {
