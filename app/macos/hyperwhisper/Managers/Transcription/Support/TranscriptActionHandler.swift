@@ -94,32 +94,48 @@ class TranscriptActionHandler: ObservableObject {
     }
     
     // MARK: - Retry Action
-    
+
+    /// How a plain Retry ended.
+    enum RetryOutcome: Equatable {
+        case succeeded
+        /// It failed or could not start; `lastError` says why.
+        case failed
+        /// Deleting the row stopped it (#1743): a quiet cancel, not an error,
+        /// and `lastError` stays nil.
+        case stoppedByDelete
+    }
+
     /// Retry a failed transcription
     /// - Parameter transcript: The transcript to retry
     /// - Returns: Success status
     @discardableResult
     func retryTranscription(_ transcript: Transcript) async -> Bool {
+        await retryTranscriptionOutcome(transcript) == .succeeded
+    }
+
+    /// Retry a failed transcription, telling a failure apart from a stop by
+    /// the row's delete (the recording dialog shows no error for the latter).
+    func retryTranscriptionOutcome(_ transcript: Transcript) async -> RetryOutcome {
         // VALIDATION PHASE:
         // Check if we can retry this transcript
         guard canRetry(transcript) else {
             await MainActor.run {
                 self.lastError = "transcripts.error.cannotRetry".localized
             }
-            return false
+            return .failed
         }
         
         // Check if already retrying
         guard let transcriptId = transcript.id,
               !retryingTranscripts.contains(transcriptId) else {
-            return false
+            return .failed
         }
         
         // UI STATE UPDATE:
         // Mark as retrying to show progress indicator
         guard let transcriptId = transcript.id else {
             lastError = "transcripts.error.invalidId".localized
-            return false
+            return .failed
         }
         retryingTranscripts.insert(transcriptId)
         lastError = nil
@@ -145,7 +161,7 @@ class TranscriptActionHandler: ObservableObject {
             // Show success feedback (optional)
             AppLogger.ui.info("Successfully retried transcription")
             
-            return true
+            return .succeeded
         } catch {
             // ERROR HANDLING:
             // Remove from retrying set and show error
@@ -154,7 +170,7 @@ class TranscriptActionHandler: ObservableObject {
             // A delete cancelled this retry (#1743): the row is gone, so no alert.
             if transcript.retryWasStoppedByDelete(taskCancelled: retryTask.isCancelled) {
                 AppLogger.ui.info("Retry stopped: its transcript was deleted")
-                return false
+                return .stoppedByDelete
             }
 
             let errorMessage = error.localizedDescription
@@ -165,7 +181,7 @@ class TranscriptActionHandler: ObservableObject {
             
             AppLogger.ui.error("Retry failed: \(errorMessage, privacy: .public)")
             
-            return false
+            return .failed
         }
     }
     

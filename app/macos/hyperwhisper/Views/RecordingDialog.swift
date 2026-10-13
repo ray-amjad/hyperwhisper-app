@@ -917,8 +917,19 @@ struct RecordingDialog: View {
         appState.lastTranscription = ""
 
         Task { @MainActor in
-            let success = await handler.retryTranscription(transcript)
-            
+            let outcome = await handler.retryTranscriptionOutcome(transcript)
+
+            // The row was deleted while it retried (#1743): a quiet cancel.
+            // Nothing to show, so close, unless a new recording has since
+            // taken the dialog over (it clears `isRetrying`).
+            if outcome == .stoppedByDelete {
+                if isRetrying {
+                    closeDialog()
+                }
+                return
+            }
+
+            let success = outcome == .succeeded
             if !success {
                 isRetrying = false
                 showTranscription = true
