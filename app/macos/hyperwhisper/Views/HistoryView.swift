@@ -687,22 +687,27 @@ private struct HistoryScreen: View, Equatable {
             }
 
             if item.hasAudioPath {
-                Menu {
-                    ForEach(viewModel.availableModes, id: \.objectID) { mode in
-                        Button {
-                            retryTranscript(item.objectID, with: mode)
-                        } label: {
-                            Text(mode.name ?? "Unknown")
+                if audioOnDisk {
+                    Menu {
+                        ForEach(viewModel.availableModes, id: \.objectID) { mode in
+                            Button {
+                                retryTranscript(item.objectID, with: mode)
+                            } label: {
+                                Text(mode.name ?? "Unknown")
+                            }
                         }
+                    } label: {
+                        retryWithLabel
                     }
-                } label: {
-                    Label {
-                        Text(localized: "history.context.retryWith")
-                    } icon: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
+                } else {
+                    // .disabled on a context-menu Menu only grays its items; the
+                    // submenu header stays live and still opens. A disabled Button
+                    // with the same label is the item that actually greys out.
+                    Button(action: {}) {
+                        retryWithLabel
                     }
+                    .disabled(true)
                 }
-                .disabled(!audioOnDisk)
 
                 Divider()
             }
@@ -856,6 +861,14 @@ private struct HistoryScreen: View, Equatable {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    private var retryWithLabel: some View {
+        Label {
+            Text(localized: "history.context.retryWith")
+        } icon: {
+            Image(systemName: "arrow.triangle.2.circlepath")
+        }
     }
 
     /// True when the row's original audio file is on disk right now.

@@ -31,10 +31,21 @@ struct HistoryRetryMissingAudioTests {
         )
         #expect(menu.contains("let audioOnDisk = audioFileIsOnDisk(item)"), "\(menu)")
 
-        let retryWith = try #require(menu.range(of: "history.context.retryWith"))
+        // .disabled on a Menu leaves its submenu header live on macOS, so the
+        // Menu must only be built when the file is there; otherwise a disabled
+        // Button stands in for it.
+        let retryWith = try #require(menu.range(of: "if audioOnDisk {"))
         let afterRetryWith = menu[retryWith.upperBound...]
         let copy = try #require(afterRetryWith.range(of: "history.context.copy"))
-        #expect(afterRetryWith[..<copy.lowerBound].contains(".disabled(!audioOnDisk)"), "\(menu)")
+        let retryWithBlock = afterRetryWith[..<copy.lowerBound]
+        let menuStart = try #require(retryWithBlock.range(of: "Menu {"))
+        let elseBranch = try #require(retryWithBlock.range(of: "} else {"))
+        #expect(menuStart.lowerBound < elseBranch.lowerBound, "\(menu)")
+        let fallback = retryWithBlock[elseBranch.upperBound...]
+        #expect(fallback.contains("retryWithLabel"), "\(menu)")
+        #expect(fallback.contains(".disabled(true)"), "\(menu)")
+        #expect(!fallback.contains("Menu {"), "\(menu)")
+        #expect(!retryWithBlock.contains(".disabled(!audioOnDisk)"), "\(menu)")
 
         let retry = try #require(menu.range(of: "history.context.retry\""))
         #expect(menu[retry.upperBound..<retryWith.lowerBound].contains("!audioOnDisk"), "\(menu)")
