@@ -12,7 +12,16 @@ const TITLE = "Choosing a speech-to-text model";
 const DESCRIPTION =
   "Tell us what matters — accuracy, speed, cost or privacy — and see which of the speech-to-text models HyperWhisper ships actually fits, cloud and on-device ranked side by side.";
 
-export async function generateMetadata() {
+// #815: the English-only check runs here too. A notFound() thrown only from the
+// page left this English metadata (and the layout's "index, follow") in the RSC
+// payload, which is what the browser shows on /de/choosing-a-model. Thrown here, Next
+// resolves the [locale] 404's metadata instead.
+export async function generateMetadata({ params }: Props) {
+  const { locale } = await params;
+  if (locale !== "en") {
+    notFound();
+  }
+
   return englishStaticPageMetadata({
     path: "/choosing-a-model",
     title: TITLE,

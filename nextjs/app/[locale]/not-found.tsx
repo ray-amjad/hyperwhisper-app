@@ -2,16 +2,21 @@ import type { Metadata } from "next";
 
 import { getLocale, getTranslations } from "next-intl/server";
 
-import { isSupportedLocale } from "@/src/i18n/locales";
-import { Link } from "@/src/i18n/navigation";
+import NotFoundContent, {
+  type NotFoundCopy,
+} from "@/components/layout/NotFoundContent";
+import { isSupportedLocale, locales } from "@/src/i18n/locales";
+import { loadMessages } from "@/src/i18n/messages";
 
-// The 404 content for every locale (#815). A notFound() thrown under [locale]
-// renders it inside the [locale] layout; an unmatched URL renders it through
+// The 404 content for every locale (#815). A notFound() under [locale] renders
+// it inside the [locale] layout; an unmatched URL renders it through
 // app/not-found.tsx, which wraps it in the same layout.
 //
 // robots: the [locale] layout's robots is "index, follow", and Next also
 // injects its own noindex on a 404, so without this the page carried both
 // (#1133). This boundary's robots replaces the layout's, leaving only noindex.
+// The pages that throw notFound() also throw it from their generateMetadata,
+// or the browser keeps the page's metadata instead of this.
 //
 // The locale comes from the segment params when Next passes them (a notFound()
 // under [locale]): there the request locale is not set yet when metadata
@@ -33,30 +38,31 @@ export async function generateMetadata(props?: {
   };
 }
 
+// This component gets no params, and on the force-static English-only pages
+// the request locale is the default, not the URL's. So every locale's copy goes
+// to the client, which picks the URL's (five short strings per locale).
+async function loadNotFoundCopy(): Promise<Record<string, NotFoundCopy>> {
+  const entries = await Promise.all(
+    locales.map(async (locale) => {
+      const messages = await loadMessages(locale);
+
+      return [locale, messages.notFound as NotFoundCopy] as const;
+    }),
+  );
+
+  return Object.fromEntries(entries);
+}
+
 export default async function LocaleNotFound() {
-  const t = await getTranslations("notFound");
+  const [copyByLocale, fallbackLocale] = await Promise.all([
+    loadNotFoundCopy(),
+    getLocale(),
+  ]);
 
   return (
-    <section className="flex flex-col items-center justify-center gap-6 px-6 py-32 text-center">
-      <p className="text-6xl font-extrabold tracking-tight text-gray-500">
-        404
-      </p>
-      <h1 className="text-3xl font-bold text-white">{t("heading")}</h1>
-      <p className="max-w-md text-base text-gray-400">{t("description")}</p>
-      <div className="flex flex-wrap items-center justify-center gap-4">
-        <Link
-          className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-3 font-semibold text-white"
-          href="/"
-        >
-          {t("home")}
-        </Link>
-        <Link
-          className="rounded-xl border border-white/20 px-6 py-3 font-semibold text-white"
-          href="/download"
-        >
-          {t("download")}
-        </Link>
-      </div>
-    </section>
+    <NotFoundContent
+      copyByLocale={copyByLocale}
+      fallbackLocale={fallbackLocale}
+    />
   );
 }

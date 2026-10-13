@@ -22,10 +22,12 @@ function toAbsoluteUrl(url: string) {
 
 export async function generateMetadata({ params }: Props) {
   const { locale, slug } = await params;
-  if (locale !== "en") return {};
+  // #815: throw the page's notFound() here too. Returning {} left the layout's
+  // home-page title and "index, follow" in the RSC payload the browser renders.
+  if (locale !== "en") notFound();
   const post = await getBlogPost(slug);
 
-  if (!post) return {};
+  if (!post) notFound();
 
   const title = post.frontMatter.title;
   const description = post.frontMatter.description;

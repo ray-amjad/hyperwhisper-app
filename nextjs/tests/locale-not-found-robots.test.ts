@@ -39,6 +39,7 @@ function readCatalogue(file: string): { notFound?: Record<string, string> } {
 
 const en = readCatalogue("en.json").notFound!;
 const de = readCatalogue("de.json").notFound!;
+const ja = readCatalogue("ja.json").notFound!;
 
 /** What the request locale (the proxy header) resolves to. Each case sets it. */
 const request = { locale: "en" };
@@ -62,13 +63,23 @@ moduleMock.module("next-intl/server", {
   },
 });
 
-// The real next-intl Link needs the request context. A plain anchor keeps the
-// href, which is what is asserted.
-moduleMock.module("@/src/i18n/navigation", {
-  namedExports: {
-    Link: ({ href, children }: { href: string; children: React.ReactNode }) =>
-      createElement("a", { href }, children),
-  },
+/** The browser's path, which the 404 content reads its locale from. */
+const browser: { pathname: string | null } = { pathname: null };
+
+moduleMock.module("next/navigation", {
+  namedExports: { usePathname: () => browser.pathname },
+});
+
+// The real next/link needs the router context. A plain anchor keeps the href,
+// which is what is asserted.
+moduleMock.module("next/link", {
+  defaultExport: ({
+    href,
+    children,
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => createElement("a", { href }, children),
 });
 
 // The real [locale] layout imports CSS and next/font, which node cannot load.
@@ -132,14 +143,65 @@ test("[locale] not-found titles a thrown 404 in the segment's locale", async () 
 
 test("[locale] not-found links to the home page and the download page", async () => {
   request.locale = "en";
+  browser.pathname = "/en/zzz";
   const { default: LocaleNotFound } = (await import(
     LOCALE_NOT_FOUND_PATH
   )) as LocaleNotFoundModule;
   const markup = renderToStaticMarkup(await LocaleNotFound());
 
   assert.match(markup, new RegExp(`<h1[^>]*>${en.heading}</h1>`));
-  assert.match(markup, /<a href="\/">/);
-  assert.match(markup, /<a href="\/download">/);
+  assert.match(markup, /<a href="\/en">/);
+  assert.match(markup, /<a href="\/en\/download">/);
+});
+
+test("[locale] not-found speaks the URL's locale when the request locale is the default", async () => {
+  // A notFound() thrown on a force-static page (/ja/blog/<missing>) renders
+  // with no proxy locale header, so next-intl resolves "en". The copy and the
+  // links must still follow the URL (#815).
+  request.locale = "en";
+  browser.pathname = "/ja/blog/missing-post";
+  const { default: LocaleNotFound } = (await import(
+    LOCALE_NOT_FOUND_PATH
+  )) as LocaleNotFoundModule;
+  const markup = renderToStaticMarkup(await LocaleNotFound());
+
+  assert.match(markup, new RegExp(`<h1[^>]*>${ja.heading}</h1>`));
+  assert.match(markup, new RegExp(`<a href="/ja">${ja.home}</a>`));
+  assert.match(markup, new RegExp(`<a href="/ja/download">${ja.download}</a>`));
+});
+
+test("[locale] not-found falls back to the request locale off a locale path", async () => {
+  request.locale = "de";
+  browser.pathname = null;
+  const { default: LocaleNotFound } = (await import(
+    LOCALE_NOT_FOUND_PATH
+  )) as LocaleNotFoundModule;
+  const markup = renderToStaticMarkup(await LocaleNotFound());
+
+  assert.match(markup, new RegExp(`<h1[^>]*>${de.heading}</h1>`));
+  assert.match(markup, /<a href="\/de">/);
+});
+
+test("the English-only pages throw their 404 from generateMetadata too", () => {
+  // Thrown only from the page, the browser kept the page's (or the layout's
+  // home-page) title and "index, follow" on /ja/blog/<missing> (#815).
+  for (const page of [
+    "blog/page.tsx",
+    "blog/[slug]/page.tsx",
+    "latency/page.tsx",
+    "choosing-a-model/page.tsx",
+  ]) {
+    const source = readFileSync(
+      path.join(__dirname, "..", "app", "[locale]", page),
+      "utf8",
+    );
+    const metadata = source.slice(
+      source.indexOf("export async function generateMetadata"),
+      source.indexOf("\n}\n", source.indexOf("export async function generateMetadata")),
+    );
+
+    assert.match(metadata, /if \(locale !== "en"\)[\s{]*notFound\(\)/, page);
+  }
 });
 
 test("the root not-found wraps the [locale] 404 in the [locale] layout", async () => {
