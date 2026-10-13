@@ -3,15 +3,23 @@
 import { Link as HeroUILink } from "@heroui/link";
 import { Divider } from "@heroui/divider";
 import { Github, Linkedin, Twitter } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { Link } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
+import { useSiteHref } from "@/src/i18n/use-site-href";
 
 export default function FooterSection() {
   const { openModal } = useDownloadModal();
   const t = useTranslations("footer");
-  const locale = useLocale();
+  /*
+    #1170: on an English-only page (/en/latency, /en/choosing-a-model,
+    /en/blog) a locale link would point at /en/..., an ordinary page that
+    writes NEXT_LOCALE=en. There, after hydration, every site link is a native
+    <a> that follows the saved NEXT_LOCALE, and stays /en with none
+    (see siteHref).
+  */
+  const { nativeLinks, siteHref } = useSiteHref();
 
   const footerLinks = {
     [t("product")]: [
@@ -84,12 +92,12 @@ export default function FooterSection() {
                       >
                         {link.label}
                       </button>
-                    ) : link.href.includes("#") || "raw" in link ? (
+                    ) : link.href.includes("#") ||
+                      "raw" in link ||
+                      (nativeLinks && link.href.startsWith("/")) ? (
                       <a
                         className="text-sm text-gray-400 hover:text-white transition-colors"
-                        href={link.href.startsWith("/#")
-                          ? `/${locale}${link.href.slice(1)}`
-                          : link.href}
+                        href={"raw" in link ? link.href : siteHref(link.href)}
                       >
                         {link.label}
                       </a>

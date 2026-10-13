@@ -390,5 +390,12 @@
     "heading": "Opinn hugbúnaður. Ekkert að fela.",
     "body": "HyperWhisper er algjörlega opinn hugbúnaður undir Apache-2.0 — bæði skjáborðsforritin og Cloud-bakendinn. Forrit sem hlustar á hljóðnemann þinn ætti að vera eitthvað sem þú getur sannreynt, ekki bara treyst: lestu hverja línu, kannaðu nákvæmlega hvert hljóðið þitt fer, og vittu að þú verður aldrei innilokuð — kóðinn er þinn til að forka og hýsa sjálf(ur) að eilífu. Byggt fyrir opnum tjöldum af indie-höfundinum Ray Amjad.",
     "cta": "Skoða á GitHub"
+  },
+  "notFound": {
+    "title": "Síða fannst ekki",
+    "heading": "Þessi síða er ekki til",
+    "description": "Tengillinn gæti verið bilaður eða síðan hefur verið færð.",
+    "home": "Fara á forsíðuna",
+    "download": "Sækja HyperWhisper"
   }
 }

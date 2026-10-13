@@ -900,6 +900,7 @@
 "audio.error.microphonePermission" = "Дозвіл на мікрофон не надано";
 "audio.error.microphoneInUse" = "HyperWhisper не може отримати доступ до мікрофона, оскільки його використовує інший застосунок. Призупиніть інший застосунок або перемкніть входи, а потім спробуйте ще раз.";
 "audio.error.audioSystemNotResponding" = "Звукова система macOS не відповідає, тому не вдалося увімкнути мікрофон. Спробуйте ще раз за мить. Якщо це повторюється, перезавантажте Mac.";
+"audio.error.recorderStopTimedOut" = "Аудіосистема macOS перестала відповідати під час збереження запису, тому його не було розшифровано. Аудіо збережено: HyperWhisper спробує відновити його під час наступного запуску.";
 "audio.error.createEngine" = "Не вдалося створити аудіо рушій";
 "audio.error.noInput" = "Нема доступного аудіо входу";
 "audio.error.createFile" = "Не вдалося створити аудіо файл";
@@ -1115,6 +1116,8 @@
 "transcribe.file.error.format.title" = "Непідтримуваний формат";
 "transcribe.file.error.format.message" = "Файли .%@ не підтримуються %@. Підтримувані формати: %@";
 "transcribe.file.error.read" = "Не вдалось прочитати вибраний файл.";
+"transcribe.file.error.webm" = "Формат WebM не підтримується. Перетворіть файл у MP3, M4A або WAV і спробуйте ще раз.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper не може прочитати звук у цьому файлі. Можливо, файл пошкоджено або він має формат, який macOS не вміє декодувати.";
 "transcribe.file.error.copy" = "Не вдалось скопіювати файл у папку записів.";
 "transcribe.file.error.video.title" = "Нема звуку у відео";
 "transcribe.file.error.video.noAudio" = "Цей відеофайл не містить аудіо доріжки. Виберіть відео зі звуком або аудіо файл.";

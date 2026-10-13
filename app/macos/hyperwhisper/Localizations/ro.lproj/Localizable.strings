@@ -900,6 +900,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "audio.error.microphonePermission" = "Permisiune microfon nu a fost acordată";
 "audio.error.microphoneInUse" = "HyperWhisper nu poate accesa microfonul pentru că o altă aplicație o folosește în prezent. Pauzați cealaltă aplicație sau comutați intrări, apoi încercați din nou.";
 "audio.error.audioSystemNotResponding" = "Sistemul audio macOS nu răspunde, așa că microfonul nu a putut porni. Încearcă din nou peste câteva momente. Dacă problema persistă, repornește Mac-ul.";
+"audio.error.recorderStopTimedOut" = "Sistemul audio macOS a încetat să răspundă în timp ce înregistrarea era salvată, așa că nu a fost transcrisă. Sunetul a fost păstrat: HyperWhisper va încerca să îl recupereze la următoarea pornire.";
 "audio.error.createEngine" = "Nu s-a putut crea motor audio";
 "audio.error.noInput" = "Nicio intrare audio disponibilă";
 "audio.error.createFile" = "Nu s-a putut crea fișier audio";
@@ -1115,6 +1116,8 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcribe.file.error.format.title" = "Format nesuportat";
 "transcribe.file.error.format.message" = "Fișierele .%@ nu sunt acceptate de %@. Formate acceptate: %@";
 "transcribe.file.error.read" = "Nu se poate citi fișierul selectat.";
+"transcribe.file.error.webm" = "WebM nu este acceptat. Convertiți fișierul în MP3, M4A sau WAV, apoi încercați din nou.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper nu poate citi sunetul din acest fișier. Poate fi deteriorat sau într-un format pe care macOS nu îl poate decoda.";
 "transcribe.file.error.copy" = "Nu s-a putut copia fișier în folderul înregistrări.";
 "transcribe.file.error.video.title" = "Nicio audio în video";
 "transcribe.file.error.video.noAudio" = "Acest fișier video nu conține o pistă audio. Vă rugăm selectați un video cu audio sau un fișier audio.";

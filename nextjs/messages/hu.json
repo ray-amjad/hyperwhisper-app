@@ -390,5 +390,12 @@
     "heading": "Nyilt forraskod. Nincs mit rejtegetni.",
     "body": "A HyperWhisper teljesen nyilt forraskodu az Apache-2.0 alatt — az asztali alkalmazasok es a Cloud hatter egyarant. Egy alkalmazas, amely a mikrofonjat hallgatja, olyan legyen, amelyet ellenorizni tud, nem csupan megbizni benne: olvasson el minden sort, ellenorizze pontosan, hova kerul a hangja, es tudja, hogy soha nem lesz bezarva — a kod az One, hogy orokre forkolja es sajat maga uzemeltesse. Nyiltan keszitette a fuggetlen fejleszto, Ray Amjad.",
     "cta": "Megtekintes a GitHubon"
+  },
+  "notFound": {
+    "title": "Az oldal nem található",
+    "heading": "Ez az oldal nem létezik",
+    "description": "Lehet, hogy a hivatkozás hibás, vagy az oldal máshová került.",
+    "home": "Ugrás a kezdőlapra",
+    "download": "A HyperWhisper letöltése"
   }
 }

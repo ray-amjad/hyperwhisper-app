@@ -390,5 +390,12 @@
     "heading": "Open source. Niets te verbergen.",
     "body": "HyperWhisper is volledig open source onder Apache-2.0 — zowel de desktop-apps als de Cloud-backend. Een app die naar je microfoon luistert, moet iets zijn dat je kunt verifiëren, niet alleen vertrouwen: lees elke regel, controleer precies waar je audio naartoe gaat en weet zeker dat je nooit vastzit — de code is van jou om voor altijd te forken en zelf te hosten. Gemaakt in de openbaarheid door indie maker Ray Amjad.",
     "cta": "Bekijk op GitHub"
+  },
+  "notFound": {
+    "title": "Pagina niet gevonden",
+    "heading": "Deze pagina bestaat niet",
+    "description": "De link is mogelijk defect of de pagina is verplaatst.",
+    "home": "Naar de startpagina",
+    "download": "HyperWhisper downloaden"
   }
 }

@@ -813,7 +813,8 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
                 }
 
                 var modelPath = _whisperModels.GetModelPath(info);
-                if (whisper.IsInitialized
+                // Not while an unload is pending (#1609): queue behind it and reload.
+                if (whisper.IsLoadedAndStaying()
                     && string.Equals(whisper.LoadedModelPath, modelPath, StringComparison.OrdinalIgnoreCase))
                 {
                     return (true, null);

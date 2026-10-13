@@ -900,6 +900,7 @@
 "audio.error.microphonePermission" = "未授予麥克風許可";
 "audio.error.microphoneInUse" = "HyperWhisper 無法存取麥克風，因為另一個應用程式目前正在使用它。暫停另一個應用程式或切換輸入，然後再試一次。";
 "audio.error.audioSystemNotResponding" = "macOS 音訊沒有回應，因此無法啟動麥克風。請稍後再試。如果問題持續發生，請重新啟動 Mac。";
+"audio.error.recorderStopTimedOut" = "儲存錄音時 macOS 音訊停止回應，因此未進行轉寫。音訊已保留：HyperWhisper 會在下次啟動時嘗試復原。";
 "audio.error.createEngine" = "無法建立音頻引擎";
 "audio.error.noInput" = "沒有可用的音頻輸入";
 "audio.error.createFile" = "無法建立音頻檔案";
@@ -1115,6 +1116,8 @@
 "transcribe.file.error.format.title" = "不支援的格式";
 "transcribe.file.error.format.message" = ".%@ 檔案不被 %@ 支援。支援的格式：%@";
 "transcribe.file.error.read" = "無法讀取選定的檔案。";
+"transcribe.file.error.webm" = "不支援 WebM。請將檔案轉換為 MP3、M4A 或 WAV 後再試一次。";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper 無法讀取此檔案中的音訊。檔案可能已損毀，或是 macOS 無法解碼的格式。";
 "transcribe.file.error.copy" = "無法將檔案複製到錄音資料夾。";
 "transcribe.file.error.video.title" = "影片中沒有音頻";
 "transcribe.file.error.video.noAudio" = "此影片檔案不包含音頻軌道。請選擇有音頻的影片或音頻檔案。";

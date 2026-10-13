@@ -70,9 +70,14 @@ const DEEPGRAM_ALIASES: &[(&str, &str)] = &[
 
 const SONIOX_ALIASES: &[(&str, &str)] = &[("stt-async-v4", "stt-async-v5")];
 
+/// Every target must be a model the `gemini` catalog entry sells: a mapping onto
+/// an id the catalog lacks is judged foreign by the membership guard, which then
+/// swaps in a different model (#796). `alias_targets_are_catalogued` pins it.
 const GEMINI_ALIASES: &[(&str, &str)] = &[
-    ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
-    ("gemini-2.0-flash", "gemini-3.6-flash"),
+    // The sold lite model. #1580 moves this to 3.5 Flash Lite once that is sold.
+    ("gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"),
+    // The Gemini default since #1430; Google now limits 2.5 Flash to past users.
+    ("gemini-2.0-flash", "gemini-3.8-flash"),
     // The preview left the pickers in 2026-10. ONE target on every route:
     // HyperWhisper Cloud serves 3.8 Flash but not 3.6 (an unknown model there is a
     // 400), and a head that resolves with no provider lands here too. 3.8 Flash is
@@ -234,7 +239,11 @@ mod tests {
         );
         assert_eq!(
             resolve_model_alias("gemini-2.0-flash", Some("gemini")),
-            "gemini-3.6-flash"
+            "gemini-3.8-flash"
+        );
+        assert_eq!(
+            resolve_model_alias("gemini-3.1-flash-lite-preview", Some("gemini")),
+            "gemini-2.5-flash-lite"
         );
         assert_eq!(
             resolve_model_alias("gemini-3-flash-preview", Some("gemini")),
@@ -301,6 +310,81 @@ mod tests {
                     assert_ne!(target, other_key, "{target} is another table's key");
                 }
             }
+        }
+    }
+
+    /// Every alias target, keyed by the catalog entry that sells that
+    /// provider's models. An alias onto an id the entry lacks is a dead end: the
+    /// membership guard judges the migrated mode foreign and swaps its model
+    /// (#796).
+    fn tables_by_catalog_entry() -> Vec<(&'static str, &'static [(&'static str, &'static str)])> {
+        vec![
+            ("assemblyAI", ASSEMBLYAI_ALIASES),
+            ("elevenLabsScribeV2", ELEVENLABS_ALIASES),
+            ("deepgramNova3", DEEPGRAM_ALIASES),
+            ("soniox", SONIOX_ALIASES),
+            ("gemini", GEMINI_ALIASES),
+            ("openaiWhisper", OPENAI_ALIASES),
+        ]
+    }
+
+    /// BYOK-only targets with no catalog row. The Cloud tier sells AssemblyAI
+    /// medical as an add-on on `universal-3-5-pro`, not as its own model, while
+    /// both BYOK pickers carry `universal-3-5-pro-medical` as a row.
+    const BYOK_ONLY_TARGETS: &[&str] = &["universal-3-5-pro-medical"];
+
+    fn uncatalogued_targets(catalog: &crate::cloud_stt::CloudSttCatalog) -> Vec<String> {
+        let mut missing = Vec::new();
+        for (entry_id, table) in tables_by_catalog_entry() {
+            let models = catalog.models(entry_id);
+            assert!(!models.is_empty(), "catalog entry {entry_id} has no models");
+            for (alias, target) in table {
+                if BYOK_ONLY_TARGETS.contains(target) {
+                    continue;
+                }
+                if !models.iter().any(|m| m.id == *target) {
+                    missing.push(format!("{entry_id}: {alias} -> {target}"));
+                }
+            }
+        }
+        missing
+    }
+
+    #[test]
+    fn alias_targets_are_catalogued() {
+        let catalog = crate::cloud_stt::CloudSttCatalog::embedded()
+            .expect("embedded cloud-stt-catalog.json must parse");
+        let missing = uncatalogued_targets(&catalog);
+        assert!(
+            missing.is_empty(),
+            "alias targets missing from cloud-stt-catalog.json: {missing:?}"
+        );
+    }
+
+    #[test]
+    fn alias_target_guard_fails_when_a_target_leaves_the_catalog() {
+        // Prove the guard is not vacuous: drop each Gemini target from the
+        // catalog JSON and the guard must name it.
+        for (_, target) in GEMINI_ALIASES {
+            let mut json: serde_json::Value =
+                serde_json::from_str(crate::CLOUD_STT_CATALOG).expect("catalog JSON");
+            let gemini = json["providers"]
+                .as_array_mut()
+                .expect("providers")
+                .iter_mut()
+                .find(|p| p["id"] == "gemini")
+                .expect("gemini entry");
+            gemini["models"]
+                .as_array_mut()
+                .expect("models")
+                .retain(|m| m["id"] != *target);
+            let catalog = crate::cloud_stt::CloudSttCatalog::parse(&json.to_string())
+                .expect("trimmed catalog must parse");
+            let missing = uncatalogued_targets(&catalog);
+            assert!(
+                missing.iter().any(|m| m.ends_with(&format!("-> {target}"))),
+                "removing {target} went unnoticed: {missing:?}"
+            );
         }
     }
 

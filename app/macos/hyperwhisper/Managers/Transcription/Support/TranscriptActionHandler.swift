@@ -207,6 +207,9 @@ class TranscriptActionHandler: ObservableObject {
                     return
                 }
 
+                // No speech fails the row with that reason, not blank (#1429).
+                try result.throwIfNoSpeech()
+
                 // Update the transcript with the result
                 await persistenceController.updateTranscriptWithTranscription(
                     newTranscript,

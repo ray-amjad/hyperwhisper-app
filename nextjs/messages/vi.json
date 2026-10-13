@@ -390,5 +390,12 @@
     "heading": "Mã nguồn mở. Không có gì để giấu.",
     "body": "HyperWhisper hoàn toàn mã nguồn mở theo giấy phép Apache-2.0 — cả ứng dụng máy tính lẫn backend Cloud. Một ứng dụng lắng nghe micro của bạn nên là thứ bạn có thể kiểm chứng, chứ không chỉ tin tưởng: hãy đọc từng dòng, kiểm tra chính xác âm thanh của bạn đi đâu, và biết rằng bạn sẽ không bao giờ bị khóa chân — mã nguồn là của bạn để fork và tự lưu trữ mãi mãi. Được xây dựng công khai bởi nhà phát triển độc lập Ray Amjad.",
     "cta": "Xem trên GitHub"
+  },
+  "notFound": {
+    "title": "Không tìm thấy trang",
+    "heading": "Trang này không tồn tại",
+    "description": "Liên kết có thể bị hỏng, hoặc trang có thể đã được chuyển đi.",
+    "home": "Về trang chủ",
+    "download": "Tải xuống HyperWhisper"
   }
 }

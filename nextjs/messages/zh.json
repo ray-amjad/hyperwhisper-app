@@ -390,5 +390,12 @@
     "heading": "开源，无所隐藏。",
     "body": "HyperWhisper 完全开源，采用 Apache-2.0 许可——桌面应用和 Cloud 后端皆是如此。一个会聆听你麦克风的应用，应该是你能够验证的，而不只是去信任：阅读每一行代码、审核你的音频究竟流向何处，并确信自己永远不会被锁定——代码归你所有，可以永远 fork 并自行托管。由独立开发者 Ray Amjad 公开打造。",
     "cta": "在 GitHub 上查看"
+  },
+  "notFound": {
+    "title": "页面未找到",
+    "heading": "此页面不存在",
+    "description": "链接可能已失效，或页面可能已移动。",
+    "home": "前往首页",
+    "download": "下载 HyperWhisper"
   }
 }

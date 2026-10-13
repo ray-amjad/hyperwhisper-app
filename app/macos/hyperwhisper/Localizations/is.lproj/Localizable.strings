@@ -900,6 +900,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "audio.error.microphonePermission" = "Hljóðnemaleyfi ekki veitt";
 "audio.error.microphoneInUse" = "HyperWhisper getur ekki nálgast hljóðnemannm vegna þess að annað forrit er núna að nota hann. Gerðu hlé á hinu forritinu eða skiptu um inntak, reyndu síðan aftur.";
 "audio.error.audioSystemNotResponding" = "Hljóðkerfi macOS svarar ekki, svo ekki tókst að ræsa hljóðnemann. Reyndu aftur eftir smástund. Ef þetta heldur áfram skaltu endurræsa Mac-tölvuna.";
+"audio.error.recorderStopTimedOut" = "Hljóðkerfi macOS hætti að svara á meðan upptakan var vistuð, svo hún var ekki umrituð. Hljóðið var geymt: HyperWhisper reynir að endurheimta það næst þegar forritið ræsist.";
 "audio.error.createEngine" = "Mistókst að búa til hljóðvél";
 "audio.error.noInput" = "Ekkert hljóðinntak tiltækt";
 "audio.error.createFile" = "Mistókst að búa til hljóðskrá";
@@ -1115,6 +1116,8 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcribe.file.error.format.title" = "Óstutt form";
 "transcribe.file.error.format.message" = ".%@ skrár eru ekki studdar af %@. Studd form: %@";
 "transcribe.file.error.read" = "Get ekki lesið valda skrá.";
+"transcribe.file.error.webm" = "WebM er ekki stutt. Umbreyttu skránni í MP3, M4A eða WAV og reyndu aftur.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper getur ekki lesið hljóðið í þessari skrá. Hún gæti verið skemmd eða á sniði sem macOS getur ekki afkóðað.";
 "transcribe.file.error.copy" = "Mistókst að afrita skrá í upptökumöppu.";
 "transcribe.file.error.video.title" = "Ekkert hljóð í myndskrá";
 "transcribe.file.error.video.noAudio" = "Þessi myndbandskrá inniheldur ekki hljóðlag. Vinsamlegast veldu myndband með hljóði eða hljóðskrá.";

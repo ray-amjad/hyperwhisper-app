@@ -51,6 +51,7 @@ import {
   logProviderEvent,
   providerHttpError,
   readErrorBodyPreview,
+  splitVocabularyTerms,
 } from './utils';
 
 const INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
@@ -148,30 +149,12 @@ export function buildTranscriptionConfig(
  * de-duplicate case-insensitively.
  */
 export function toVocabularyTerms(initialPrompt: string): string[] {
-  const seen = new Set<string>();
-  const terms: string[] = [];
-
-  for (const raw of initialPrompt.split(/[,\n;]+/)) {
-    const term = raw
-      .trim()
-      // Only strip a bullet when a space follows it: without the space a leading
-      // '-' or '*' is part of the term ('-Xmx', '*args'), and the BYOK path
-      // keeps it.
-      .replace(/^[-*]\s+/, '')
-      .replace(/[<>]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, MAX_VOCABULARY_TERM_CHARS);
-    if (term.length === 0) continue;
-
-    const key = term.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    terms.push(term);
-    if (terms.length === MAX_VOCABULARY_TERMS) break;
-  }
-
-  return terms;
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_VOCABULARY_TERMS,
+    maxTermChars: MAX_VOCABULARY_TERM_CHARS,
+    sanitize: true,
+    overLongTerm: 'truncate',
+  });
 }
 
 interface InteractionsUsage {

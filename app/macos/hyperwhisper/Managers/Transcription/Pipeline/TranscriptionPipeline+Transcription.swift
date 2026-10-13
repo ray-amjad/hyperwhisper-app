@@ -463,7 +463,6 @@ extension TranscriptionPipeline {
             }
 
             markStage("cache_result")
-            cache.cacheTranscription(finalText, for: audioURL)
             markStage("finalize")
 
             // Determine if post-processing occurred and by which provider.

@@ -71,7 +71,9 @@ type PageMetadata = {
 
 type PageModule = {
   dynamic: string;
-  generateMetadata: () => Promise<PageMetadata>;
+  generateMetadata: (props: {
+    params: Promise<{ locale: string }>;
+  }) => Promise<PageMetadata>;
 };
 
 const ROUTES = [
@@ -90,7 +92,9 @@ for (const { route, title } of ROUTES) {
     // A VARIABLE specifier: a literal `.tsx` specifier is a TS5097 error here.
     const pagePath = `../app/[locale]/${route}/page.tsx`;
     const page = (await import(pagePath)) as PageModule;
-    const metadata = await page.generateMetadata();
+    const metadata = await page.generateMetadata({
+      params: Promise.resolve({ locale: "en" }),
+    });
     const expectedUrl = `${HOME}/${route}`;
 
     // #843: these are the only cached routes; the fix must not undo that.

@@ -390,5 +390,12 @@
     "heading": "Atvērtais kods. Nav ko slēpt.",
     "body": "HyperWhisper ir pilnībā atvērtā koda risinājums saskaņā ar Apache-2.0 — gan darbvirsmas lietotnes, gan Cloud aizmugursistēma. Lietotnei, kas klausās jūsu mikrofonu, vajadzētu būt kaut kam, ko varat pārbaudīt, nevis tikai uzticēties: izlasiet katru rindu, pārbaudiet tieši to, kurp nonāk jūsu audio, un esiet drošs, ka nekad netiksiet piesaistīts — kods pieder jums, lai to dakšotu un mitinātu pašam mūžīgi. Veidots atklāti, to radījis indie izstrādātājs Ray Amjad.",
     "cta": "Skatīt vietnē GitHub"
+  },
+  "notFound": {
+    "title": "Lapa nav atrasta",
+    "heading": "Šī lapa neeksistē",
+    "description": "Iespējams, saite ir bojāta vai lapa ir pārvietota.",
+    "home": "Doties uz sākumlapu",
+    "download": "Lejupielādēt HyperWhisper"
   }
 }

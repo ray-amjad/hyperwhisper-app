@@ -122,6 +122,13 @@ class RecordingLifecycle {
     /// boost the mic". Reset at the start of every recording.
     private(set) var lastMicBoostFailed = false
 
+    /// #1359: true when the last `stopRecording()` returned nil because
+    /// `SimpleRecorder.stopRecording()` timed out, so the WAV was never
+    /// finalised. The caller shows the recording-failed error and does not
+    /// transcribe. The WAV and its session row are left for `CrashRecoveryManager`.
+    /// Reset at the start of every `stopRecording()`.
+    private(set) var lastStopTimedOut = false
+
     /// Recordings directory URL from the shared resolver.
     private var recordingsDirectory: URL {
         RecordingsDirectory.resolve(configuredPath: settingsManager?.recordingsFolder)
@@ -700,6 +707,8 @@ class RecordingLifecycle {
     /// - `recordingSession`: Core Data session updated for this stop, if available
     /// Returns nil if not currently recording
     func stopRecording(cancelled: Bool = false) async -> (url: URL?, duration: TimeInterval, conversionWarning: String?, recordingSession: RecordingSession?)? {
+        lastStopTimedOut = false
+
         guard isRecording else {
             // NOT NECESSARILY "nothing to stop". `isRecording` is set only after the
             // recorder comes up, so a start suspended inside CoreAudio — the
@@ -729,9 +738,13 @@ class RecordingLifecycle {
         // Track any conversion warning to surface to the user
         var conversionWarning: String?
 
-        // STEP 1: Stop SimpleRecorder
-        simpleRecorder.stopRecording()
+        // `isRecording` goes false before the recorder-stop wait below, so a second
+        // stop that lands during it cannot run a second finalisation of the same file.
         self.isRecording = false
+
+        // STEP 3 to 3.6 run BEFORE the recorder-stop wait (#1359): that wait can last
+        // 5 s when a meter read is stuck, and the user's system audio, mic volume and
+        // duration counter must not stay in their recording state for it.
 
         // STEP 3: Stop duration timer
         recordingTimer?.invalidate()
@@ -753,28 +766,75 @@ class RecordingLifecycle {
             originalMicVolumeDeviceID = nil
         }
 
-        // Update UI state immediately
-        await MainActor.run {
-            self.audioLevel = 0
-            self.recordingDuration = 0
-        }
+        // Update UI state immediately. Synchronous (this class is @MainActor), so no
+        // suspension point sits between `isRecording = false` and the recorder stop
+        // below, where a new start could install a recorder this stop would retire.
+        self.audioLevel = 0
+        self.recordingDuration = 0
+
+        // STEP 0.5 (#1359): take ownership of this recording's file URLs and session
+        // row before the first suspension. A new recording can start during the waits
+        // below and writes its own `rawURL` / `finalURL` / session; from here on this
+        // stop reads and clears only what it owns, never the shared fields.
+        let ownedRawURL = self.rawURL
+        let ownedFinalURL = self.finalURL
+        self.rawURL = nil
+        self.finalURL = nil
+        let ownedSession = sessionManager.detachCurrentSession()
+
+        // STEP 1: Stop SimpleRecorder. Since #1359 its `stop()` runs on the meter
+        // queue behind any meter read in flight, and this waits for it off the main
+        // thread, for at most 5 s.
+        let recorderStopOutcome = await simpleRecorder.stopRecording()
 
         AppLogger.audio.info("Stopped recording - Duration: \(duration, privacy: .public)s")
+
+        // STEP 4 (#1359): the stop timed out, so `stop()` never finalised the WAV and
+        // its header may be wrong. Do not read, rename or convert it, and do not
+        // transcribe (Ray, 2026-10-07). Leave the file where it is and leave its
+        // session row open (no endTime): `CrashRecoveryManager` claims both on the
+        // next launch, which is the path built for an unfinalised WAV.
+        // This check runs BEFORE the cancelled branch below (Ray, 2026-10-13, PR #1767):
+        // a cancelled stop that times out also keeps its WAV and shows the error,
+        // because the recorder may still be writing a file that branch would delete.
+        if recorderStopOutcome == .timedOut {
+            if let session = await ownedSession.resolve() {
+                AppLogger.audio.notice("Recording stop timed out - left session \(session.id?.uuidString ?? "nil", privacy: .public) open for crash recovery")
+            }
+
+            AppLogger.logAudioError(
+                "Recording stop timed out",
+                error: AudioError.recorderStopTimedOut,
+                metadata: [
+                    "phase": "recorder_stop_timed_out",
+                    "recordingDurationMs": Int(duration * 1000)
+                ]
+            )
+
+            lastStopTimedOut = true
+            return nil
+        }
 
         // STEP 4: FILE FINALIZATION
         // When the recording was cancelled (e.g., validation failure like "offline + cloud mode"),
         // skip finalization entirely. The raw file contains no useful audio (just a WAV header),
         // so polling it 40 times and reporting "Audio finalization failed" to Sentry is wasteful.
-        // The caller (cancelRecordingWithError) will delete the file and session anyway.
+        // The session row is deleted here, not by the caller: since STEP 0.5 the
+        // manager's current session may belong to a recording that started meanwhile.
         if cancelled {
             // Clean up the raw file — it has no useful audio data
-            if let rawURL = rawURL {
-                try? FileManager.default.removeItem(at: rawURL)
+            if let ownedRawURL {
+                try? FileManager.default.removeItem(at: ownedRawURL)
             }
-            self.finalURL = nil
-            rawURL = nil
+            if let session = await ownedSession.resolve() {
+                await sessionManager.deleteSession(session)
+            }
             return (url: nil, duration: duration, conversionWarning: nil, recordingSession: nil)
         }
+
+        // Resolved before finalisation so diagnostics name this recording's row.
+        let stoppingSession = await ownedSession.resolve()
+        var stoppedFileURL: URL?
 
         // SimpleRecorder already recorded directly to WAV at 16kHz mono
         // Check file size to decide: keep as WAV or convert to M4A
@@ -785,7 +845,7 @@ class RecordingLifecycle {
         //    - >= 25 MB: Convert WAV → M4A (retry up to 5 times)
         // 2. Background M4A conversion happens AFTER transcription (in RecordingTranscriptionFlow)
         //    if user has storeAsM4A setting enabled
-        if let rawURL = rawURL, let dstURL = finalURL {
+        if let rawURL = ownedRawURL, let dstURL = ownedFinalURL {
             do {
                 // Wait for WAV file to be ready (SimpleRecorder just stopped)
                 // RECORDING TOO SHORT FIX:
@@ -812,7 +872,7 @@ class RecordingLifecycle {
                                 "fileSizeBytes": fileSize,
                                 "minimumSizeBytes": 5000,
                                 "recordingDurationMs": Int(duration * 1000),
-                                "sessionId": sessionManager.currentRecordingSession?.id?.uuidString ?? "nil"
+                                "sessionId": stoppingSession?.id?.uuidString ?? "nil"
                             ]
                         )
                     }
@@ -828,7 +888,7 @@ class RecordingLifecycle {
                         "destPath": dstURL.path,
                         "recordingDurationMs": Int(duration * 1_000)
                     ]
-                    if let sessionId = sessionManager.currentRecordingSession?.id?.uuidString {
+                    if let sessionId = stoppingSession?.id?.uuidString {
                         breadcrumbData["sessionId"] = sessionId
                     }
                     SentryService.addBreadcrumb(
@@ -847,7 +907,7 @@ class RecordingLifecycle {
                     // Background M4A conversion will happen after transcription if storeAsM4A is enabled
                     let finalWavURL = dstURL.deletingPathExtension().appendingPathExtension("wav")
                     try FileManager.default.moveItem(at: rawURL, to: finalWavURL)
-                    self.finalURL = finalWavURL
+                    stoppedFileURL = finalWavURL
                     AppLogger.audio.info("WAV file size (\(wavSize / 1024)KB) is under 25MB - using WAV: \(finalWavURL.lastPathComponent, privacy: .public)")
 
                     if AppLogger.isErrorLoggingEnabled {
@@ -874,7 +934,7 @@ class RecordingLifecycle {
                     let m4aResult = await performM4AConversionWithRetries(from: rawURL, to: m4aURL)
 
                     if m4aResult.success {
-                        self.finalURL = m4aURL
+                        stoppedFileURL = m4aURL
                         // Delete WAV since M4A was created successfully
                         try? FileManager.default.removeItem(at: rawURL)
 
@@ -905,7 +965,7 @@ class RecordingLifecycle {
 
                         if exportSessionResult.success {
                             // AVAssetExportSession succeeded!
-                            self.finalURL = m4aURL
+                            stoppedFileURL = m4aURL
                             try? FileManager.default.removeItem(at: rawURL)
 
                             AppLogger.audio.info("AVAssetExportSession fallback succeeded: \(m4aURL.lastPathComponent, privacy: .public)")
@@ -931,7 +991,7 @@ class RecordingLifecycle {
                             let finalWavURL = dstURL.deletingPathExtension().appendingPathExtension("wav")
                             try? FileManager.default.removeItem(at: finalWavURL)
                             try? FileManager.default.moveItem(at: rawURL, to: finalWavURL)
-                            self.finalURL = finalWavURL
+                            stoppedFileURL = finalWavURL
 
                             // Set warning to surface to user - the file is oversized and may cause issues
                             let sizeMB = wavSize / (1024 * 1024)
@@ -959,9 +1019,9 @@ class RecordingLifecycle {
                 // Clear finalURL first — only re-set if a fallback file actually exists.
                 // Without this, stopRecording() returns a stale URL pointing to a non-existent file,
                 // causing downstream "Audio file missing" errors.
-                self.finalURL = nil
+                stoppedFileURL = nil
 
-                var metadata = collectDiagnostics(rawURL: rawURL, dstURL: dstURL, duration: duration)
+                var metadata = collectDiagnostics(rawURL: rawURL, dstURL: dstURL, duration: duration, sessionID: stoppingSession?.id?.uuidString)
                 metadata["phase"] = "wav_finalization_error"
                 metadata["errorType"] = String(describing: type(of: error))
                 metadata["errorCode"] = (error as NSError).code
@@ -1025,26 +1085,23 @@ class RecordingLifecycle {
                             try? FileManager.default.removeItem(at: finalWavURL)
                             try FileManager.default.moveItem(at: rawURL, to: finalWavURL)
                             AppLogger.audio.warning("Using raw WAV as last resort: \(finalWavURL.lastPathComponent, privacy: .public)")
-                            self.finalURL = finalWavURL
+                            stoppedFileURL = finalWavURL
                         } else {
-                            self.finalURL = rawURL
+                            stoppedFileURL = rawURL
                         }
                     } catch {
                         AppLogger.audio.error("Failed to move WAV fallback file: \(error.localizedDescription)")
-                        self.finalURL = rawURL
+                        stoppedFileURL = rawURL
                     }
                 }
             }
         }
 
-        // STEP 5: Clear references
-        rawURL = nil
-
         // STEP 6: Resolve the session even when finalization failed. Otherwise
         // a deferred create can leave an orphaned row pointing at an incomplete file.
         var stoppedRecordingSession: RecordingSession?
-        if let session = await sessionManager.resolveCurrentSession() {
-            if let fileURL = finalURL {
+        if let session = stoppingSession {
+            if let fileURL = stoppedFileURL {
                 stoppedRecordingSession = session
 
                 // Compute the human-readable audio format label for the final output.
@@ -1075,27 +1132,21 @@ class RecordingLifecycle {
                     duration: duration,
                     audioFormat: formatLabel
                 )
-                sessionManager.clearCurrentSession()
                 AppLogger.audio.info("✅ Updated recording session: duration=\(String(format: "%.1f", duration))s, path=\(fileURL.path)")
             } else {
                 await sessionManager.deleteSession(session)
             }
         }
 
-        // STEP 7: Store for retry functionality and return
-        // DEFENSIVE FIX: Capture return value before clearing state
+        // STEP 7: Store for retry functionality and return. The shared URLs were
+        // already cleared in STEP 0.5, so stale paths cannot reach the next recording.
         let result: (url: URL?, duration: TimeInterval, conversionWarning: String?)?
-        if let fileURL = finalURL {
+        if let fileURL = stoppedFileURL {
             lastRecordingURL = fileURL
             result = (url: fileURL, duration: duration, conversionWarning: conversionWarning)
         } else {
             result = nil
         }
-
-        // STEP 8: Clear state to prevent stale URLs on next recording
-        // This fixes the bug where 2nd/3rd recordings would return old M4A paths
-        self.finalURL = nil
-        // rawURL already cleared at line 445
 
         guard let result else {
             return nil
@@ -1140,7 +1191,7 @@ class RecordingLifecycle {
     }
 
     /// Collect filesystem diagnostics for telemetry logging.
-    private func collectDiagnostics(rawURL: URL, dstURL: URL, duration: TimeInterval) -> [String: Any] {
+    private func collectDiagnostics(rawURL: URL, dstURL: URL, duration: TimeInterval, sessionID: String?) -> [String: Any] {
         let fm = FileManager.default
         let rawExists = fm.fileExists(atPath: rawURL.path)
         let rawReadable = fm.isReadableFile(atPath: rawURL.path)
@@ -1164,7 +1215,7 @@ class RecordingLifecycle {
             "rawSizeBytes": rawSize,
             "volumeFreeBytes": freeBytes,
             "recordingDurationMs": Int(duration * 1_000),
-            "sessionId": sessionManager.currentRecordingSession?.id?.uuidString ?? "nil"
+            "sessionId": sessionID ?? "nil"
         ]
 
         for (key, value) in Self.pathDiagnostics(
@@ -1217,7 +1268,7 @@ class RecordingLifecycle {
     /// STILL SYNCHRONOUS ON PURPOSE. When `availableDevices` is supplied — which is
     /// what the retry-exhausted branch of `startRecording()` does — this makes no HAL
     /// calls at all beyond the transport-type lookups. The zero-argument call from
-    /// `collectDiagnostics(rawURL:dstURL:duration:)` does re-enumerate, but that is a
+    /// `collectDiagnostics(rawURL:dstURL:duration:sessionID:)` does re-enumerate, but that is a
     /// post-failure telemetry path, not the recording-start path HYPERWHISPER-F7 is
     /// about, and its caller is a sync private helper whose own blocking filesystem
     /// reads would have to move in the same change. Left for a follow-up.

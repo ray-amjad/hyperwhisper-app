@@ -900,6 +900,7 @@
 "audio.error.microphonePermission" = "لم يتم منح إذن الميكروفون";
 "audio.error.microphoneInUse" = "لا يمكن لـ HyperWhisper الوصول إلى الميكروفون لأن تطبيقاً آخر يستخدمه حالياً. أوقف التطبيق الآخر أو بدّل المدخلات، ثم حاول مرة أخرى.";
 "audio.error.audioSystemNotResponding" = "نظام الصوت في macOS لا يستجيب، لذا تعذّر تشغيل الميكروفون. حاول مرة أخرى بعد لحظات. إذا تكرر ذلك، فأعد تشغيل جهاز Mac.";
+"audio.error.recorderStopTimedOut" = "توقف نظام الصوت في macOS عن الاستجابة أثناء حفظ التسجيل، لذلك لم يتم تحويله إلى نص. تم الاحتفاظ بالصوت: سيحاول HyperWhisper استعادته في المرة القادمة التي يبدأ فيها.";
 "audio.error.createEngine" = "فشل إنشاء محرك الصوت";
 "audio.error.noInput" = "لا يوجد إدخال صوت متاح";
 "audio.error.createFile" = "فشل إنشاء ملف الصوت";
@@ -1115,6 +1116,8 @@
 "transcribe.file.error.format.title" = "تنسيق غير مدعوم";
 "transcribe.file.error.format.message" = "لا يتم دعم ملفات .%@ بواسطة %@. التنسيقات المدعومة: %@";
 "transcribe.file.error.read" = "لا يمكن قراءة الملف المحدد.";
+"transcribe.file.error.webm" = "تنسيق WebM غير مدعوم. حوّل الملف إلى MP3 أو M4A أو WAV، ثم حاول مرة أخرى.";
+"transcribe.file.error.unreadableAudio" = "لا يستطيع HyperWhisper قراءة الصوت في هذا الملف. قد يكون تالفًا، أو بتنسيق لا يستطيع macOS فك ترميزه.";
 "transcribe.file.error.copy" = "فشل في نسخ الملف إلى مجلد التسجيلات.";
 "transcribe.file.error.video.title" = "لا توجد صوت في الفيديو";
 "transcribe.file.error.video.noAudio" = "لا يحتوي ملف الفيديو هذا على مسار صوتي. يرجى تحديد فيديو مع صوت أو ملف صوتي.";

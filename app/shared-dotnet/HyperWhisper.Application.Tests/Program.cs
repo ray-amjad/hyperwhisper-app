@@ -2466,9 +2466,13 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     var repository = new HistoryRepository(database, paths);
 
     // A mixed dataset: today, yesterday, rows either side of a local midnight, and older days in
-    // two months, added out of order so the repository's sort is what orders them.
-    var now = DateTime.UtcNow;
-    var localMidnight = DateTime.Now.Date.AddDays(-3);
+    // two months, added out of order so the repository's sort is what orders them. One local clock
+    // reading seeds the rows and pins the view model's Today, so a run just after local midnight
+    // (where now - 5 min is Yesterday) or one that crosses it expects what the view model shows (#1354).
+    var localNow = DateTime.Now;
+    var today = localNow.Date;
+    var now = localNow.ToUniversalTime();
+    var localMidnight = today.AddDays(-3);
     var dates = new List<DateTime>
     {
         localMidnight.AddMinutes(-1).ToUniversalTime(), localMidnight.AddMinutes(1).ToUniversalTime(),
@@ -2484,7 +2488,7 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
             Date = DateTime.SpecifyKind(dates[(index * 7) % dates.Count], DateTimeKind.Utc),
         });
 
-    using var viewModel = new HistoryViewModel(repository);
+    using var viewModel = new HistoryViewModel(repository) { LocalNow = () => localNow };
     var before = viewModel.GroupRebuildCount;
     await viewModel.RefreshAsync();
     var expected = await repository.ListAsync();
@@ -2493,9 +2497,9 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     // dates.Count + 1, and a clear outside the region made it 2.
     var rebuilds = viewModel.GroupRebuildCount - before;
     Assert(rebuilds == 1, $"a {dates.Count}-row history load rebuilt the day groups {rebuilds} times, not once");
-    AssertHistoryGroups(viewModel, expected, "history load");
+    AssertHistoryGroups(viewModel, expected, today, "history load");
     var headers = viewModel.GroupedItems.OfType<HistoryDateGroup>().ToList();
-    Assert(headers.Count > 20 && headers[0].LocalizationKey == "history.section.today"
+    Assert(headers.Count > 20 && Equals(headers[0], ExpectedHistoryGroup(expected[0].Date.ToLocalTime().Date, today))
         && headers.Any(header => header.LocalizationKey == "history.section.yesterday"),
         $"the history dataset spans {headers.Count} days, too few for the grouping check to prove anything");
     Assert(viewModel.Selected?.Id == expected[0].Id && viewModel.SelectedItems.Count == 1,
@@ -2507,7 +2511,7 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     await viewModel.RefreshAsync();
     rebuilds = viewModel.GroupRebuildCount - before;
     Assert(rebuilds == 1, $"a reload of a full history list rebuilt the day groups {rebuilds} times, not once");
-    AssertHistoryGroups(viewModel, expected, "history reload");
+    AssertHistoryGroups(viewModel, expected, today, "history reload");
 
     viewModel.SearchText = term;
     before = viewModel.GroupRebuildCount;
@@ -2516,26 +2520,27 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     rebuilds = viewModel.GroupRebuildCount - before;
     Assert(matches.Count > 10 && rebuilds == 1,
         $"a {matches.Count}-row history search rebuilt the day groups {rebuilds} times, not once");
-    AssertHistoryGroups(viewModel, matches, "history search");
+    AssertHistoryGroups(viewModel, matches, today, "history search");
     Assert(viewModel.Selected?.Id == matches[0].Id, "history search did not select the newest match");
 
     // A save: ApplicationShellViewModel.OnTranscriptionSaved runs RefreshAsync, which drops the
-    // filter and shows the new row on top, under Today, with one rebuild.
-    var saved = new Transcript { Text = "just saved", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow.AddSeconds(1) };
+    // filter and shows the new row on top, under its own day's header, with one rebuild.
+    var saved = new Transcript { Text = "just saved", Status = TranscriptStatus.Completed, Date = now.AddSeconds(1) };
     await repository.AddAsync(saved);
     before = viewModel.GroupRebuildCount;
     await viewModel.RefreshAsync();
     expected = await repository.ListAsync();
     Assert(viewModel.GroupRebuildCount - before == 1, $"a save rebuilt the day groups {viewModel.GroupRebuildCount - before} times");
-    AssertHistoryGroups(viewModel, expected, "save");
-    Assert(viewModel.Items[0].Id == saved.Id && viewModel.GroupedItems[0] is HistoryDateGroup { LocalizationKey: "history.section.today" }
+    AssertHistoryGroups(viewModel, expected, today, "save");
+    Assert(viewModel.Items[0].Id == saved.Id
+        && Equals(viewModel.GroupedItems[0], ExpectedHistoryGroup(saved.Date.ToLocalTime().Date, today))
         && viewModel.GroupedItems[1] is Transcript { Id: var firstId } && firstId == saved.Id,
-        "a save did not show the new row first, under Today");
+        "a save did not show the new row first, under its day's header");
     Assert(viewModel.Selected?.Id == saved.Id && !viewModel.IsFilteredEmpty && !viewModel.Status.HasError,
         "a save did not reload the way RefreshAsync does");
 
     // A row changed in place (a retry, the Local API) shows its new state after the next save reload.
-    var processing = new Transcript { Text = "in progress", Status = TranscriptStatus.Processing, Date = DateTime.UtcNow.AddSeconds(4) };
+    var processing = new Transcript { Text = "in progress", Status = TranscriptStatus.Processing, Date = now.AddSeconds(4) };
     await repository.AddAsync(processing);
     await viewModel.RefreshAsync();
     processing.Status = TranscriptStatus.Completed;
@@ -2571,18 +2576,18 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
         Assert(false, "the throwing history result did not throw");
     }
     catch (InvalidOperationException exception) when (exception.Message == "history result failed") { }
-    AssertHistoryGroups(viewModel, expected.Take(3).ToList(), "history result that threw");
+    AssertHistoryGroups(viewModel, expected.Take(3).ToList(), today, "history result that threw");
     viewModel.Items.Add(expected[3]);
-    AssertHistoryGroups(viewModel, expected.Take(4).ToList(), "history edit after a result that threw");
+    AssertHistoryGroups(viewModel, expected.Take(4).ToList(), today, "history edit after a result that threw");
     await viewModel.RefreshAsync();
 
     // A single edit still rebuilds: deleting a row takes it and an emptied day header away.
-    var lonely = new Transcript { Text = "lonely day", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow.AddDays(-400) };
+    var lonely = new Transcript { Text = "lonely day", Status = TranscriptStatus.Completed, Date = now.AddDays(-400) };
     await repository.AddAsync(lonely);
     await viewModel.RefreshAsync();
     viewModel.UpdateSelection([viewModel.Items.Single(item => item.Id == lonely.Id)]);
     await viewModel.DeleteSelectedAsync();
-    AssertHistoryGroups(viewModel, await repository.ListAsync(), "history delete");
+    AssertHistoryGroups(viewModel, await repository.ListAsync(), today, "history delete");
 }
 
 static IEnumerable<Transcript> ThrowAfter(IEnumerable<Transcript> rows, int count)
@@ -2592,11 +2597,10 @@ static IEnumerable<Transcript> ThrowAfter(IEnumerable<Transcript> rows, int coun
 }
 
 /// <summary>The grouping the per-row rebuild produced, written out independently of the view model.</summary>
-static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transcript> rows, string what)
+static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transcript> rows, DateTime today, string what)
 {
     Assert(viewModel.Items.Select(item => item.Id).SequenceEqual(rows.Select(item => item.Id)),
         $"{what}: rows are not in repository order");
-    var today = DateTime.Now.Date;
     var expected = new List<object>();
     DateTime? currentDay = null;
     foreach (var row in rows)
@@ -2605,9 +2609,7 @@ static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transc
         if (currentDay != day)
         {
             currentDay = day;
-            expected.Add(day == today ? new HistoryDateGroup("history.section.today", "Today")
-                : day == today.AddDays(-1) ? new HistoryDateGroup("history.section.yesterday", "Yesterday")
-                : new HistoryDateGroup(null, day.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture)));
+            expected.Add(ExpectedHistoryGroup(day, today));
         }
         expected.Add(row.Id);
     }
@@ -2615,6 +2617,12 @@ static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transc
     Assert(actual.Count == expected.Count && actual.Zip(expected).All(pair => Equals(pair.First, pair.Second)),
         $"{what}: day groups differ ({actual.Count} entries, expected {expected.Count})");
 }
+
+/// <summary>The header a row's local day sits under, with <paramref name="today"/> as the view model's Today.</summary>
+static HistoryDateGroup ExpectedHistoryGroup(DateTime day, DateTime today) =>
+    day == today ? new HistoryDateGroup("history.section.today", "Today")
+    : day == today.AddDays(-1) ? new HistoryDateGroup("history.section.yesterday", "Yesterday")
+    : new HistoryDateGroup(null, day.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture));
 
 static void Assert(bool condition, string message)
 {

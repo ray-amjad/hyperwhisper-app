@@ -900,6 +900,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "audio.error.microphonePermission" = "Quyền micrô không được cấp";
 "audio.error.microphoneInUse" = "HyperWhisper không thể truy cập micrô vì một ứng dụng khác hiện đang sử dụng nó. Tạm dừng ứng dụng khác hoặc chuyển đầu vào, sau đó thử lại.";
 "audio.error.audioSystemNotResponding" = "Âm thanh của macOS không phản hồi nên không thể bật micrô. Hãy thử lại sau giây lát. Nếu tình trạng này tiếp diễn, hãy khởi động lại máy Mac.";
+"audio.error.recorderStopTimedOut" = "Âm thanh của macOS ngừng phản hồi khi đang lưu bản ghi, nên bản ghi chưa được chuyển thành văn bản. Âm thanh vẫn được giữ lại: HyperWhisper sẽ thử khôi phục vào lần khởi động tiếp theo.";
 "audio.error.createEngine" = "Không thể tạo động cơ âm thanh";
 "audio.error.noInput" = "Không có đầu vào âm thanh nào có sẵn";
 "audio.error.createFile" = "Không thể tạo tệp âm thanh";
@@ -1115,6 +1116,8 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcribe.file.error.format.title" = "Định dạng Không được hỗ trợ";
 "transcribe.file.error.format.message" = "Tệp .%@ không được %@ hỗ trợ. Định dạng được hỗ trợ: %@";
 "transcribe.file.error.read" = "Không thể đọc tệp được chọn.";
+"transcribe.file.error.webm" = "Không hỗ trợ WebM. Hãy chuyển tệp sang MP3, M4A hoặc WAV rồi thử lại.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper không đọc được âm thanh trong tệp này. Tệp có thể bị hỏng hoặc ở định dạng mà macOS không giải mã được.";
 "transcribe.file.error.copy" = "Không thể sao chép tệp vào thư mục bản ghi âm.";
 "transcribe.file.error.video.title" = "Không có Âm thanh trong Video";
 "transcribe.file.error.video.noAudio" = "Tệp video này không chứa bản nhạc âm thanh. Vui lòng chọn video có âm thanh hoặc tệp âm thanh.";

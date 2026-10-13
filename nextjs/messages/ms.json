@@ -390,5 +390,12 @@
     "heading": "Sumber terbuka. Tiada apa-apa untuk disembunyikan.",
     "body": "HyperWhisper sepenuhnya sumber terbuka di bawah Apache-2.0 — kedua-dua aplikasi desktop dan backend Cloud. Aplikasi yang mendengar mikrofon anda sepatutnya sesuatu yang boleh anda sahkan, bukan sekadar percaya: baca setiap baris, audit dengan tepat ke mana audio anda pergi, dan ketahui yang anda tidak akan sekali-kali terkurung — kod itu milik anda untuk difork dan dihos sendiri selamanya. Dibina secara terbuka oleh pereka indie Ray Amjad.",
     "cta": "Lihat di GitHub"
+  },
+  "notFound": {
+    "title": "Halaman tidak ditemui",
+    "heading": "Halaman ini tidak wujud",
+    "description": "Pautan mungkin rosak, atau halaman mungkin telah dipindahkan.",
+    "home": "Pergi ke halaman utama",
+    "download": "Muat turun HyperWhisper"
   }
 }

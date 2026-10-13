@@ -900,6 +900,7 @@
 "audio.error.microphonePermission" = "הרשאת מיקרופון לא ניתנה";
 "audio.error.microphoneInUse" = "HyperWhisper לא יכול לגשת למיקרופון מכיוון שאפליקציה אחרת משתמשת בו כרגע. השהה את האפליקציה האחרת או החלף קלטים, ואז נסה שוב.";
 "audio.error.audioSystemNotResponding" = "מערכת השמע של macOS לא מגיבה, ולכן לא ניתן היה להפעיל את המיקרופון. נסו שוב בעוד רגע. אם זה ממשיך לקרות, הפעילו מחדש את ה-Mac.";
+"audio.error.recorderStopTimedOut" = "מערכת השמע של macOS הפסיקה להגיב בזמן שמירת ההקלטה, ולכן היא לא תומללה. השמע נשמר: HyperWhisper ינסה לשחזר אותו בפעם הבאה שיופעל.";
 "audio.error.createEngine" = "כשל ביצירת מנוע אודיו";
 "audio.error.noInput" = "אין קלט אודיו זמין";
 "audio.error.createFile" = "כשל ביצירת קובץ אודיו";
@@ -1115,6 +1116,8 @@
 "transcribe.file.error.format.title" = "פורמט לא נתמך";
 "transcribe.file.error.format.message" = "קבצי .%@ אינם נתמכים על ידי %@. פורמטים נתמכים: %@";
 "transcribe.file.error.read" = "לא ניתן לקרוא את הקובץ שנבחר.";
+"transcribe.file.error.webm" = "פורמט WebM אינו נתמך. המירו את הקובץ ל-MP3, M4A או WAV ונסו שוב.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper לא יכול לקרוא את השמע בקובץ הזה. ייתכן שהוא פגום, או בפורמט ש-macOS לא יכול לפענח.";
 "transcribe.file.error.copy" = "כשל בהעתקת קובץ לתיקיית הקלטות.";
 "transcribe.file.error.video.title" = "אין אודיו בוידאו";
 "transcribe.file.error.video.noAudio" = "קובץ הוידאו הזה לא מכיל רצועת אודיו. אנא בחר וידאו עם אודיו או קובץ אודיו.";

@@ -501,8 +501,11 @@ public partial class MainViewModel
                 }
             }
 
+            // Before IsTranscribing: its idle housekeeping may dispose the daemon now.
+            _parakeetFileJobOwnsDaemon = false;
             IsTranscribing = false;
             _fileTranscriptionActive = false;
+            LoadWhisperHeldOutByParakeetFileJob();
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
                 _activeTranscriptionCts = null;
@@ -605,6 +608,10 @@ public partial class MainViewModel
 
                 IsModelLoading = true;
                 StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
+                // Set before the unload: it reads as pending to a Whisper load,
+                // which must not queue behind it and then dispose this job's
+                // daemon (#1609). Cleared when the file job ends.
+                _parakeetFileJobOwnsDaemon = true;
                 await UnloadWhisperForParakeetIfLowMemoryAsync("EnsureLocalProviderReadyForFileAsync");
                 await _parakeetTranscriptionService.InitializeAsync(
                     _parakeetModelService.GetModelDirectory(model),
@@ -615,6 +622,8 @@ public partial class MainViewModel
             }
             catch (Exception ex)
             {
+                _parakeetFileJobOwnsDaemon = false;
+                LoadWhisperHeldOutByParakeetFileJob();
                 ModelStatus = Loc.S("status.model.loadFailed");
                 StatusText = Loc.S("status.failed", ex.Message);
                 LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Parakeet model load failed - {ex.Message}", ex);
@@ -649,7 +658,7 @@ public partial class MainViewModel
         }
 
         var modelPath = _modelService.GetModelPath(whisperModel);
-        if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath)
+        if (_transcriptionService.IsLoadedAndStaying(modelPath))
         {
             return true;
         }
@@ -657,7 +666,7 @@ public partial class MainViewModel
         await _modelLoadLock.WaitAsync();
         try
         {
-            if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath)
+            if (_transcriptionService.IsLoadedAndStaying(modelPath))
             {
                 return true;
             }

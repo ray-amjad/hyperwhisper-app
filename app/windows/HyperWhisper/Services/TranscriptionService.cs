@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using Whisper.net;
@@ -220,6 +221,18 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         await _modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // A caller that saw an unload pending queues here behind it (#1609).
+            // If that unload was cancelled, the model it would have disposed is
+            // still loaded: keep it instead of waiting out the running job to
+            // load the same file again. Every caller checks this before it calls,
+            // so this only fires after a wait on the lock.
+            if (IsInitialized
+                && string.Equals(LoadedModelPath, modelPath, StringComparison.OrdinalIgnoreCase))
+            {
+                LoggingService.Info("  Model already loaded while this load waited; keeping it");
+                return;
+            }
+
             // Wait for in-flight transcriptions to drain before disposing the old
             // factory. They were started before we acquired the lock and the still
             // running native processor is bound to the current WhisperFactory;
@@ -370,23 +383,56 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     public async Task UnloadModelAsync(CancellationToken cancellationToken = default)
     {
-        await _modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        // Counted before the lock wait, so the model reads as going away for the
+        // whole wait (#1609). A cancelled unload keeps the model.
+        Interlocked.Increment(ref _pendingUnloads);
         try
         {
-            // Wait for in-flight transcriptions to drain. They were started
-            // before we acquired the lock, but we still need to ensure the
-            // native processor is gone before we dispose the factory.
-            while (Volatile.Read(ref _inFlight) > 0)
+            await _modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                await Task.Delay(25, cancellationToken).ConfigureAwait(false);
+                // Wait for in-flight transcriptions to drain. They were started
+                // before we acquired the lock, but we still need to ensure the
+                // native processor is gone before we dispose the factory.
+                while (Volatile.Read(ref _inFlight) > 0)
+                {
+                    await Task.Delay(25, cancellationToken).ConfigureAwait(false);
+                }
+                DisposeModel();
             }
-            DisposeModel();
+            finally
+            {
+                _modelLock.Release();
+            }
         }
         finally
         {
-            _modelLock.Release();
+            Interlocked.Decrement(ref _pendingUnloads);
         }
     }
+
+    /// <summary>
+    /// Number of <see cref="UnloadModelAsync"/> calls that have not returned.
+    /// </summary>
+    private int _pendingUnloads;
+
+    /// <summary>
+    /// True while an <see cref="UnloadModelAsync"/> call is waiting or running
+    /// (#1609). The wait can last a whole file job, and <see cref="IsInitialized"/>
+    /// stays true through it, so a caller that saw only IsInitialized started new
+    /// work on a model about to be disposed: the work queued on the model lock
+    /// behind the unload, then failed EnsureInitialized.
+    /// </summary>
+    public bool IsUnloadPending => Volatile.Read(ref _pendingUnloads) > 0;
+
+    /// <summary>
+    /// True when <paramref name="modelPath"/> is loaded (any model when null)
+    /// and no unload is pending: new work can rely on it (#1609).
+    /// </summary>
+    public bool IsLoadedAndStaying(string? modelPath = null) =>
+        IsInitialized
+        && !IsUnloadPending
+        && (modelPath == null || LoadedModelPath == modelPath);
 
     // =========================================================================
     // FILE TRANSCRIPTION
@@ -718,7 +764,11 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 LoggingService.Warn($"  WARNING: Inference took {inferenceTimeMs}ms (>30s) - potential performance issue");
             }
 
-            var rawText = text.ToString().Trim();
+            // Whisper writes its own non-speech markers ([BLANK_AUDIO] and kin) as
+            // segment text. A silent file or mic must come back empty, so the
+            // orchestrator raises NoSpeechDetected instead of saving or pasting the
+            // marker as a transcript (issue #1449).
+            var rawText = StripNonSpeechMarkers(text.ToString());
 
             // Belt-and-braces: collapse whisper.cpp repetition loops that leak through
             // the decoder-level entropy/temperature gating. Requires repeated phrases
@@ -1093,6 +1143,34 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     {
         var characters = segmentText?.Trim().Length ?? 0;
         return $"  Segment: [{start:mm\\:ss} - {end:mm\\:ss}] {characters} chars";
+    }
+
+    /// <summary>
+    /// Whisper's non-speech annotations: a bracketed or parenthesised marker it
+    /// emits in place of words when it hears none. Only these fixed names match, so
+    /// a bracket the speaker dictated survives.
+    /// </summary>
+    private static readonly Regex NonSpeechMarker = new(
+        @"[\[(]\s*(?:BLANK[_ ]AUDIO|silence|no speech|inaudible|music)\s*[\])]",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex WhitespaceRun = new(@"\s{2,}", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Removes Whisper's non-speech markers from a transcript and trims it. A
+    /// transcript made only of markers comes back empty (issue #1449).
+    /// </summary>
+    internal static string StripNonSpeechMarkers(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+
+        var trimmed = text.Trim();
+        if (!NonSpeechMarker.IsMatch(trimmed)) return trimmed;
+
+        var stripped = WhitespaceRun.Replace(NonSpeechMarker.Replace(trimmed, " "), " ").Trim();
+        LoggingService.Info(
+            $"  Removed Whisper non-speech markers ({trimmed.Length} → {stripped.Length} chars)");
+        return stripped;
     }
 
     /// <summary>

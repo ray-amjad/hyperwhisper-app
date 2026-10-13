@@ -409,7 +409,7 @@ export const customersRouter = createTRPCRouter({
     }),
 
   /**
-   * Add credits to a specific license key.
+   * Add credits to the account that owns a license key (credits are pooled).
    * Adds the specified amount to the existing balance.
    */
   addCredits: adminProcedure

@@ -900,6 +900,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "audio.error.microphonePermission" = "Mikrofonberechtigung nicht erteilt";
 "audio.error.microphoneInUse" = "HyperWhisper kann nicht auf das Mikrofon zugreifen, da es derzeit von einer anderen App verwendet wird. Halten Sie die andere App an oder wechseln Sie die Eingaben und versuchen Sie es dann erneut.";
 "audio.error.audioSystemNotResponding" = "Die Audiofunktion von macOS reagiert nicht, daher konnte das Mikrofon nicht gestartet werden. Versuchen Sie es gleich noch einmal. Wenn das weiterhin passiert, starten Sie Ihren Mac neu.";
+"audio.error.recorderStopTimedOut" = "Die Audiofunktion von macOS hat beim Speichern der Aufnahme nicht mehr reagiert, deshalb wurde sie nicht transkribiert. Die Audiodaten wurden behalten: HyperWhisper versucht beim nächsten Start, sie wiederherzustellen.";
 "audio.error.createEngine" = "Audio-Engine konnte nicht erstellt werden";
 "audio.error.noInput" = "Kein Audioeingang verfügbar";
 "audio.error.createFile" = "Audio konnte nicht erstellt werden Datei";
@@ -1115,6 +1116,8 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcribe.file.error.format.title" = "Nicht unterstütztes Format";
 "transcribe.file.error.format.message" = ".%@-Dateien werden von %@ nicht unterstützt. Unterstützte Formate: %@";
 "transcribe.file.error.read" = "Die ausgewählte Datei kann nicht gelesen werden.";
+"transcribe.file.error.webm" = "WebM wird nicht unterstützt. Konvertiere die Datei in MP3, M4A oder WAV und versuche es erneut.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper kann den Ton in dieser Datei nicht lesen. Sie ist möglicherweise beschädigt oder in einem Format, das macOS nicht dekodieren kann.";
 "transcribe.file.error.copy" = "Die Datei konnte nicht in den Aufnahmeordner kopiert werden.";
 "transcribe.file.error.video.title" = "Kein Ton im Video";
 "transcribe.file.error.video.noAudio" = "Diese Videodatei enthält keine Audiospur. Bitte wählen Sie ein Video mit Audio oder eine Audiodatei aus.";

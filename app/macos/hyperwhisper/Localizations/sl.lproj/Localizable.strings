@@ -900,6 +900,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "audio.error.microphonePermission" = "Dozvoljenje za mikrofon ni odobreno";
 "audio.error.microphoneInUse" = "HyperWhisper ne more dostopati do mikrofonskega vhoda, ker ga trenutno uporabljam druga aplikacija. Prekini drugo aplikacijo ali zamenjaj vhode in poskusi znova.";
 "audio.error.audioSystemNotResponding" = "Zvok v macOS se ne odziva, zato mikrofona ni bilo mogoče zagnati. Poskusite znova čez trenutek. Če se to ponavlja, znova zaženite Mac.";
+"audio.error.recorderStopTimedOut" = "Zvok sistema macOS se je med shranjevanjem posnetka prenehal odzivati, zato posnetek ni bil prepisan. Zvok je ohranjen: HyperWhisper ga bo poskušal obnoviti ob naslednjem zagonu.";
 "audio.error.createEngine" = "Napaka pri ustvarjanju audio motorja";
 "audio.error.noInput" = "Ni dostopnega zvočnega vhoda";
 "audio.error.createFile" = "Napaka pri ustvarjanju zvočne datoteke";
@@ -1115,6 +1116,8 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcribe.file.error.format.title" = "Nepodporan oblika";
 "transcribe.file.error.format.message" = "Datoteke .%@ niso podprte s strani %@. Podprte oblike: %@";
 "transcribe.file.error.read" = "Izbrane datoteke ni mogoče prebrati.";
+"transcribe.file.error.webm" = "WebM ni podprt. Pretvorite datoteko v MP3, M4A ali WAV in poskusite znova.";
+"transcribe.file.error.unreadableAudio" = "HyperWhisper ne more prebrati zvoka v tej datoteki. Morda je poškodovana ali v obliki, ki je macOS ne zna dekodirati.";
 "transcribe.file.error.copy" = "Napaka pri kopiranju datoteke v mapo posnetkov.";
 "transcribe.file.error.video.title" = "Brez zvoka v videu";
 "transcribe.file.error.video.noAudio" = "Ta video datoteka ne vsebuje avdio steze. Prosimo, izberi video s povkom ali zvočno datoteko.";
