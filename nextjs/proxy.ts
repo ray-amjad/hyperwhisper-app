@@ -17,7 +17,8 @@ const USER_AUTH_SIGN_OUT_REGEX = new RegExp(
 );
 // #1135: on an English-only page (isEnglishOnlyPath) a visit says nothing
 // about the visitor's language and must not rewrite NEXT_LOCALE.
-// Same routing, but next-intl never writes NEXT_LOCALE. The regex only matches
+// Same routing, but next-intl never writes NEXT_LOCALE. ENGLISH_ONLY_REGEX
+// (src/i18n/english-only.ts) only matches
 // /en/-prefixed paths, and next-intl resolves the locale from the prefix before
 // it looks at the cookie, so routing, rewrites and redirects are unchanged.
 const englishOnlyIntlMiddleware = createMiddleware({

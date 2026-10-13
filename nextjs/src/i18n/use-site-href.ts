@@ -17,9 +17,10 @@ export function useSiteHref() {
   const englishOnly = isEnglishOnlyPath(pathname);
   const [cookieHeader, setCookieHeader] = useState<string | undefined>();
 
+  // Re-read on every English-only navigation; elsewhere the cookie is unused.
   useEffect(() => {
-    setCookieHeader(englishOnly ? document.cookie : undefined);
-  }, [englishOnly, pathname]);
+    if (isEnglishOnlyPath(pathname)) setCookieHeader(document.cookie);
+  }, [pathname]);
 
   return {
     nativeLinks: englishOnly && cookieHeader !== undefined,
