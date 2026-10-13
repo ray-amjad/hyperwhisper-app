@@ -31,7 +31,7 @@ struct SmartSpacing {
         HyperWhisper.isContinuousScript(text: text)
     }
 
-    /// Append a language-aware trailing space (no-op for CJK / already-spaced / empty).
+    /// Append a language-aware trailing space (no-op for CJK / Thai / already-spaced / empty).
     static func appendTrailingSpace(_ text: String, modeLanguage: String) -> String {
         HyperWhisper.appendTrailingSpace(text: text, modeLanguage: modeLanguage)
     }
