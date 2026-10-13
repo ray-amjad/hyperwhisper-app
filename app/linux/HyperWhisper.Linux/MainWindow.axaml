@@ -960,9 +960,13 @@
                     <TextBlock FontSize="12" Margin="0,2,20,0" TextWrapping="Wrap" Foreground="{DynamicResource HwTextSecondaryBrush}"
                                Text="{ReflectionBinding [settings.streaming.cloudTier.subtitle], Source={StaticResource Localization}}"/>
                   </StackPanel>
+                  <!-- A tier name is catalog text with no length cap, and "Google Gemini 3.5 Transcribe"
+                       already overruns the 220 column, so the closed box cut it mid-word (#654).
+                       The name ends in an ellipsis instead, and the tooltip carries all of it. -->
                   <ComboBox Grid.Column="2" x:Name="StreamingCloudTierChoice" HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                            ItemsSource="{Binding Settings.StreamingCloudTiers}" SelectedItem="{Binding Settings.StreamingCloudTier}">
-                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource CloudSttTierLabelConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
+                            ItemsSource="{Binding Settings.StreamingCloudTiers}" SelectedItem="{Binding Settings.StreamingCloudTier}"
+                            ToolTip.Tip="{Binding Settings.StreamingCloudTier, Converter={StaticResource CloudSttTierLabelConverter}}">
+                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource CloudSttTierLabelConverter}}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate>
                   </ComboBox>
                 </Grid>
               </StackPanel>
