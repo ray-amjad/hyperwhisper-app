@@ -124,6 +124,29 @@ struct FileTranscriptionCancelStopsEngineTests {
         #expect(wait.contains("task.cancel()"))
     }
 
+    /// The HUD's Cancel must stay a quiet cancel, not a "Streaming
+    /// interrupted" alert and a Sentry event; a pass something else stopped
+    /// keeps the error the Local API maps.
+    @Test func aCallersCancelIsACancellationErrorAndASupersedeIsNot() {
+        #expect(LibWhisperProvider.stoppedPassError(callerCancelled: true) is CancellationError)
+        let superseded = LibWhisperProvider.stoppedPassError(callerCancelled: false)
+        #expect(!(superseded is CancellationError))
+        if let te = superseded as? TranscriptionError, case .streamingInterrupted = te {} else {
+            Issue.record("expected streamingInterrupted, got \(superseded)")
+        }
+    }
+
+    @Test func bothStoppedPassExitsAskWhetherTheCallerCancelled() throws {
+        let finish = try ProductionSource.slice(
+            of: Self.whisperProviderSource,
+            from: "let output = try await withTaskCancellationHandler {",
+            to: "static func stoppedPassError("
+        )
+        let asks = finish.components(separatedBy: "throw Self.stoppedPassError(callerCancelled: Task.isCancelled)").count - 1
+        #expect(asks == 2)
+        #expect(!finish.contains("throw TranscriptionError.streamingInterrupted"))
+    }
+
     @Test func cancellingTheWhisperTaskTripsTheAbortFlag() throws {
         let task = try ProductionSource.slice(
             of: Self.whisperProviderSource,

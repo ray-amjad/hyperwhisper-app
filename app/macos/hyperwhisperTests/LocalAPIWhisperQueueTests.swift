@@ -186,6 +186,6 @@ private actor EventLog {
             to: "return output"
         )
         #expect(finish.contains("if task.isCancelled || cancellationEpoch != epoch {"))
-        #expect(finish.contains("throw TranscriptionError.streamingInterrupted"))
+        #expect(finish.contains("throw Self.stoppedPassError(callerCancelled: Task.isCancelled)"))
     }
 }

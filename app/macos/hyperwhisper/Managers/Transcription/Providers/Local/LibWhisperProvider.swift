@@ -589,7 +589,7 @@ class LibWhisperProvider: TranscriptionProvider {
             if task.isCancelled || cancellationEpoch != epoch {
                 logger.info("Transcription cancelled during decode; result discarded")
                 lastTimestamps = nil
-                throw TranscriptionError.streamingInterrupted
+                throw Self.stoppedPassError(callerCancelled: Task.isCancelled)
             }
             return output
         } catch {
@@ -599,10 +599,27 @@ class LibWhisperProvider: TranscriptionProvider {
             if error is CancellationError || task.isCancelled || cancellationEpoch != epoch {
                 lastTimestamps = nil
                 logger.info("Transcription cancelled")
-                throw TranscriptionError.streamingInterrupted
+                throw Self.stoppedPassError(callerCancelled: Task.isCancelled)
             }
             throw error
         }
+    }
+
+    /// What a pass that was stopped before its end throws.
+    ///
+    /// A cancel of the awaiting caller (the Transcribe File HUD's Cancel,
+    /// forwarded by `TranscriptionPipeline.value(of:)`) is a
+    /// `CancellationError`, as the other local providers throw through
+    /// `TranscriptionCancellationPolicy`: the pipeline and the File and Retry
+    /// flows treat it as a quiet cancel, with no alert and no Sentry event.
+    /// A pass stopped by anything else (`cancelTranscription()` or a
+    /// superseding pass) keeps `streamingInterrupted`, which the Local API
+    /// answers with `TranscribeEndpoint.whisperPassCancelled` (issue #1730).
+    ///
+    /// - Parameter callerCancelled: `Task.isCancelled`, read by the caller in
+    ///   the awaiting task, because it is task-local.
+    static func stoppedPassError(callerCancelled: Bool) -> Error {
+        callerCancelled ? CancellationError() : TranscriptionError.streamingInterrupted
     }
     
     /// Cancel current transcription
