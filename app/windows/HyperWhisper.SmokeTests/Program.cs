@@ -1849,10 +1849,30 @@ internal static class Program
                 Assert(heldWhisperLoad.GetParameters().Any(p => p.Name == "keepStatusText")
                        && Vm("LoadWhisperModelAsync").GetParameters().Any(p => p.Name == "keepStatusText"),
                     "the held-out Whisper load can no longer keep a file job's result on the status bar");
-                Assert(AsyncBodyCalls(Vm("TranscribeFileAsync", typeof(string), typeof(Mode)), heldWhisperLoad),
+                // #1639: the job's end now reloads whatever the selected mode uses,
+                // which covers the Whisper load the job held out.
+                var restoreAfterJob = Vm("RestoreSelectedModeModelAfterFileJob");
+                var loadSelectedInBackground = Vm("LoadSelectedModeModelInBackground");
+                Assert(AsyncBodyCalls(Vm("TranscribeFileAsync", typeof(string), typeof(Mode)), restoreAfterJob)
+                       && AsyncBodyCalls(restoreAfterJob, loadSelectedInBackground)
+                       && AsyncBodyCalls(loadSelectedInBackground, Vm("LoadWhisperModelAsync")),
                     "TranscribeFileAsync no longer loads the Whisper model a Parakeet file job held out");
                 Assert(AsyncBodyCalls(Vm("EnsureLocalProviderReadyForFileAsync"), heldWhisperLoad),
                     "A failed Parakeet file load no longer loads the Whisper model it held out");
+
+                // #1639: a file job on another mode left the bar on that job's model
+                // (or showed the selected one as only Downloaded) until the next job.
+                // The job's loads describe the selected mode, and its end puts the
+                // selected mode's model back, keeping a result the job left.
+                Assert(AsyncBodyCalls(Vm("EnsureLocalProviderReadyForFileAsync"), Vm("UpdateModelStatus"))
+                       && AsyncBodyCalls(restoreAfterJob, Vm("UpdateModelStatus")),
+                    "a file job's model status no longer describes the selected mode (#1639)");
+                Assert(AsyncBodyCalls(loadSelectedInBackground, Vm("LoadParakeetModelAsync")),
+                    "the end of a file job no longer reloads a Parakeet selected mode's daemon (#1639)");
+                Assert(restoreAfterJob.GetParameters().Any(p => p.Name == "keepStatusText")
+                       && Vm("LoadParakeetModelAsync").GetParameters().Any(p => p.Name == "keepStatusText")
+                       && Vm("LoadParakeetModelUnderLockAsync").GetParameters().Any(p => p.Name == "keepStatusText"),
+                    "the reload after a file job can no longer keep the job's result on the status bar (#1639)");
 
                 var loadForRecording = Vm("LoadModelForRecordingAsync");
                 Assert(AsyncBodyCalls(Vm("StartRecordingAsync"), loadForRecording),

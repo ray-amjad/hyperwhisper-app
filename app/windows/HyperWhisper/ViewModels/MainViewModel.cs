@@ -1349,7 +1349,8 @@ public partial class MainViewModel : ViewModelBase
         catch (Exception ex) { ReportBackgroundModelLoadFailure("mode_switch", mode, ex); }
     }
 
-    private async Task LoadParakeetModelAsync()
+    /// <param name="keepStatusText">As for <see cref="LoadWhisperModelAsync"/>.</param>
+    private async Task LoadParakeetModelAsync(bool keepStatusText = false)
     {
         var mode = SelectedMode;
         if (mode == null) return;
@@ -1370,7 +1371,7 @@ public partial class MainViewModel : ViewModelBase
         // #1534: the work under the model lock lives in its own method, so a
         // `return` inside its try cannot skip the follow-up below. (It did: the
         // superseded reload sat after the finally and never ran.)
-        var outcome = await LoadParakeetModelUnderLockAsync(mode, model, language);
+        var outcome = await LoadParakeetModelUnderLockAsync(mode, model, language, keepStatusText);
         if (outcome != ParakeetLoadOutcome.SupersededAfterWhisperUnload)
         {
             return;
@@ -1386,7 +1387,7 @@ public partial class MainViewModel : ViewModelBase
         LoggingService.Info("LoadParakeetModelAsync: Mode changed during the Whisper unload; skipped the Parakeet daemon, reloading for the current mode");
         IsModelLoaded = false;
         UpdateModelStatus();
-        StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+        if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
         var current = SelectedMode;
         if (current != null && current.ProviderType != "cloud" && IsLocalModelDownloaded(current))
         {
@@ -1416,7 +1417,8 @@ public partial class MainViewModel : ViewModelBase
     /// Keep any follow-up work in the caller: a `return` here leaves through the
     /// finally only.
     /// </summary>
-    private async Task<ParakeetLoadOutcome> LoadParakeetModelUnderLockAsync(Mode mode, ParakeetModelInfo model, string? language)
+    private async Task<ParakeetLoadOutcome> LoadParakeetModelUnderLockAsync(
+        Mode mode, ParakeetModelInfo model, string? language, bool keepStatusText = false)
     {
         await _modelLoadLock.WaitAsync();
         try
@@ -1437,7 +1439,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             IsModelLoading = true;
-            StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
+            if (!keepStatusText) StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
 
             // #1609: a switch away from this mode cancels the unload while it
             // waits, so the Whisper model the new mode may use stays loaded and a
@@ -1454,7 +1456,7 @@ public partial class MainViewModel : ViewModelBase
             {
                 LoggingService.Info("LoadParakeetModelAsync: Mode changed while the Whisper unload waited; kept Whisper loaded and skipped the Parakeet daemon");
                 UpdateModelStatus();
-                StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+                if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
                 return ParakeetLoadOutcome.SupersededBeforeUnload;
             }
             finally
@@ -1474,7 +1476,7 @@ public partial class MainViewModel : ViewModelBase
             await _parakeetTranscriptionService.InitializeAsync(_parakeetModelService.GetModelDirectory(model), language);
             IsModelLoaded = true;
             ModelStatus = Loc.S("status.model.parakeet.ready", model.DisplayName, _parakeetTranscriptionService.ActiveProvider ?? "CPU");
-            StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+            if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
             return ParakeetLoadOutcome.Ready;
         }
         catch (Exception ex)

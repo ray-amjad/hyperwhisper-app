@@ -508,7 +508,7 @@ public partial class MainViewModel
             _parakeetFileJobOwnsDaemon = false;
             IsTranscribing = false;
             _fileTranscriptionActive = false;
-            LoadWhisperHeldOutByParakeetFileJob(keepStatusText: jobLeftResult);
+            RestoreSelectedModeModelAfterFileJob(keepStatusText: jobLeftResult);
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
                 _activeTranscriptionCts = null;
@@ -627,13 +627,14 @@ public partial class MainViewModel
                     _parakeetModelService.GetModelDirectory(model),
                     language);
                 IsModelLoaded = true;
-                ModelStatus = Loc.S("status.model.parakeet.ready", model.DisplayName, _parakeetTranscriptionService.ActiveProvider ?? "CPU");
+                // The bar describes the selected mode, not this job's (#1639).
+                UpdateModelStatus();
                 return true;
             }
             catch (Exception ex)
             {
                 _parakeetFileJobOwnsDaemon = false;
-                ModelStatus = Loc.S("status.model.loadFailed");
+                ShowFileJobModelLoadFailed(mode);
                 StatusText = Loc.S("status.failed", ex.Message);
                 // The Whisper load it held out waits on _modelLoadLock, so it runs
                 // after this failure is up; it must not replace it with Ready (#1519).
@@ -690,12 +691,12 @@ public partial class MainViewModel
             StatusText = Loc.S("status.model.loading", whisperModel.DisplayName);
             await _transcriptionService.InitializeAsync(modelPath, p => { }, CancellationToken.None);
             IsModelLoaded = true;
-            ModelStatus = Loc.S("status.model.ready", whisperModel.DisplayName);
+            UpdateModelStatus();
             return true;
         }
         catch (Exception ex)
         {
-            ModelStatus = Loc.S("status.model.loadFailed");
+            ShowFileJobModelLoadFailed(mode);
             StatusText = Loc.S("status.failed", ex.Message);
             LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Whisper model load failed - {ex.Message}", ex);
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
@@ -708,6 +709,53 @@ public partial class MainViewModel
             IsModelLoading = false;
             _modelLoadLock.Release();
         }
+    }
+
+    /// <summary>
+    /// A file job's model failed to load. The model part of the status bar says so
+    /// only when the job ran on the selected mode; another mode's failure is the
+    /// job's own, and its toast and status line say it (#1639).
+    /// </summary>
+    private void ShowFileJobModelLoadFailed(Mode jobMode)
+    {
+        if (SelectedMode?.Id == jobMode.Id)
+            ModelStatus = Loc.S("status.model.loadFailed");
+        else
+            UpdateModelStatus();
+    }
+
+    /// <summary>
+    /// Puts the model part of the status bar back on the selected mode once a file
+    /// job ends, and loads that mode's model again if the job took it out (#1639).
+    /// A job on another mode replaces the loaded Whisper model, or starts a Parakeet
+    /// daemon that unloads Whisper on a low-memory machine and is disposed at the
+    /// end; the bar then kept naming the job's model, or showed the selected one as
+    /// only Downloaded. The load is the same one a mode switch does, and a no-op when
+    /// the model is still up. Covers the Whisper load the job held out (#1609).
+    /// </summary>
+    private void RestoreSelectedModeModelAfterFileJob(bool keepStatusText)
+    {
+        _whisperLoadHeldForParakeetFileJob = false;
+        UpdateModelStatus();
+
+        var mode = SelectedMode;
+        if (mode == null || mode.ProviderType == "cloud" || !PlatformHelper.SupportsLocalTranscription) return;
+        if (!IsLocalModelDownloaded(mode)) return;
+
+        LoadSelectedModeModelInBackground(mode, keepStatusText);
+    }
+
+    // async void for the reason LoadModelInBackground gives.
+    private async void LoadSelectedModeModelInBackground(Mode mode, bool keepStatusText)
+    {
+        try
+        {
+            if (mode.LocalEngine == "parakeet")
+                await LoadParakeetModelAsync(keepStatusText);
+            else
+                await LoadWhisperModelAsync(keepStatusText);
+        }
+        catch (Exception ex) { ReportBackgroundModelLoadFailure("file_job_end", mode, ex); }
     }
 
 }
