@@ -344,7 +344,7 @@ struct SimpleRecorderMeterReadTests {
         let body = try ProductionSource.slice(
             of: "app/macos/hyperwhisper/Managers/AudioRecording/Recording/RecordingLifecycle.swift",
             from: "func stopRecording(cancelled: Bool = false) async",
-            to: "// MARK: - Conversion Helpers"
+            to: "private struct ConversionRetryResult {"
         )
 
         let detach = try #require(body.range(of: "sessionManager.detachCurrentSession()"))
@@ -372,7 +372,7 @@ struct SimpleRecorderMeterReadTests {
 
         let userCancel = try ProductionSource.slice(
             of: "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/RecordingTranscriptionFlow+StopRecording.swift",
-            from: "// USER CANCEL: Clean up fully and return immediately.",
+            from: "wavReadyMs = Int(Date().timeIntervalSince(wavReadyStart) * 1000)",
             to: "let audioURL = result.url!"
         )
         #expect(!userCancel.contains("deleteCurrentSession()"))
