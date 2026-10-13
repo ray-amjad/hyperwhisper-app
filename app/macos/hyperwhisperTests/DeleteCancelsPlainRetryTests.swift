@@ -243,6 +243,27 @@ struct DeleteCancelsPlainRetryTests {
         #expect(leftovers == [unowned.path])
     }
 
+    /// The cleanup runs after the delete, so the deleted row itself no longer
+    /// owns the trimmed WAV it recorded: the file is removed. Before the
+    /// delete the same row still owns it, which is why the order matters.
+    @MainActor
+    @Test func theDeletedRowNoLongerOwnsItsTrimmedFile() throws {
+        let audio = try makeAudioFile()
+        defer { try? FileManager.default.removeItem(at: audio) }
+        let trimmed = audio.deletingPathExtension().appendingPathExtension("trimmed.wav")
+
+        let persistence = PersistenceController(inMemory: true)
+        let row = makeFailedRow(in: persistence, audioFilePath: audio.path)
+        row.setValue(trimmed.path, forKey: "trimmedAudioFilePath")
+        persistence.save()
+        let context = persistence.container.viewContext
+
+        #expect(PersistenceController.audioPathsNoTranscriptOwns([trimmed.path], in: context).isEmpty)
+
+        persistence.deleteTranscript(row)
+        #expect(PersistenceController.audioPathsNoTranscriptOwns([trimmed.path], in: context) == [trimmed.path])
+    }
+
     /// The plain Retry runs the pipeline in a task it tracks by the row's ID
     /// before it awaits it, so a delete during the retry finds it. Sliced from
     /// the source, because driving it needs a live `TranscriptionPipeline`.
