@@ -581,7 +581,10 @@ extension TranscriptionPipeline {
 
             return result
         } catch {
-            if error is CancellationError {
+            // A cancelled run is not a failure, whatever the engine threw on the
+            // way out: local Whisper reports its abort as `streamingInterrupted`
+            // (#1743), which must not reach Sentry or the error state.
+            if error is CancellationError || task.isCancelled {
                 await MainActor.run { state = .idle }
             } else {
                 await MainActor.run { state = .error(message: error.localizedDescription) }

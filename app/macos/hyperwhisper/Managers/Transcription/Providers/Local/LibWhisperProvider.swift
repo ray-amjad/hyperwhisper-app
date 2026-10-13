@@ -436,9 +436,7 @@ class LibWhisperProvider: TranscriptionProvider {
                 logger.error("❌ No audio samples after conversion")
             }
 
-            // whisper.cpp does not poll for cancellation once `fullTranscribe`
-            // is under way, so this is the last chance to abandon a cancelled
-            // pass before the expensive part.
+            // Abandon a cancelled pass before the expensive part.
             try Task.checkCancellation()
 
             // Early no-speech guard: avoid hallucinated text on near-silent recordings.
@@ -489,8 +487,21 @@ class LibWhisperProvider: TranscriptionProvider {
                 return timed.cleanedText
             }
 
-            // Perform transcription
-            var success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords)
+            // Perform transcription. A cancel stops whisper.cpp mid-decode
+            // through the abort signal; on its own `fullTranscribe` would run
+            // through the whole file (#1743).
+            let abortSignal = WhisperAbortSignal()
+            func decode(translate: Bool = false) async -> Bool {
+                await withTaskCancellationHandler {
+                    await context.fullTranscribe(samples: samples, translate: translate, wordTimestamps: includeWords, abortSignal: abortSignal)
+                } onCancel: {
+                    abortSignal.trigger()
+                }
+            }
+            var success = await decode()
+
+            // An aborted decode returns false or partial text: report the cancel.
+            try Task.checkCancellation()
 
             guard success else {
                 // The old wording here ("the audio may be corrupted or too
@@ -513,7 +524,7 @@ class LibWhisperProvider: TranscriptionProvider {
                 if let detected = await context.getDetectedLanguage() {
                     logger.warning("⚠️ Empty result. Retrying with detected language forced: \(detected)")
                     await context.setLanguage(detected)
-                    success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords)
+                    success = await decode()
                     if success {
                         text = await readKeptText()
                     }
@@ -521,12 +532,14 @@ class LibWhisperProvider: TranscriptionProvider {
                 // If still empty, try translation to English
                 if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     logger.warning("⚠️ Still empty after forcing language. Retrying with translation → English")
-                    success = await context.fullTranscribe(samples: samples, translate: true, wordTimestamps: includeWords)
+                    success = await decode(translate: true)
                     if success {
                         text = await readKeptText()
                     }
                 }
             }
+
+            try Task.checkCancellation()
 
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 logger.info("🔇 Whisper output remained empty after retries")
@@ -555,10 +568,17 @@ class LibWhisperProvider: TranscriptionProvider {
         // Residency already claimed above (before the task could start). Release
         // it once the pass finishes, on every exit path.
         do {
-            let output = try await task.value
+            // The pass task is unstructured, so it does not inherit the caller's
+            // cancellation: forward it, or a cancelled caller (a deleted row's
+            // Retry, #1743) leaves the decode running to the end of the file.
+            let output = try await withTaskCancellationHandler {
+                try await task.value
+            } onCancel: {
+                task.cancel()
+            }
             await ModelResidencyRegistry.shared.markIdle(claimToken)
-            // `fullTranscribe` never polls for cancellation, so a pass cancelled
-            // mid-decode still finishes and hands back its text. Drop it: the
+            // A pass cancelled in its last window can still finish and hand
+            // back its text. Drop it: the
             // caller was cancelled or superseded, and a Local API request must
             // answer with the cancellation, not a transcript (issue #1465).
             if task.isCancelled || cancellationEpoch != epoch {

@@ -284,4 +284,50 @@ struct DeleteCancelsPlainRetryTests {
         #expect(run.lowerBound < track.lowerBound)
         #expect(track.lowerBound < wait.lowerBound, "the retry must be tracked before it is awaited")
     }
+
+    /// Cancelling the retry reaches whisper.cpp itself: the provider forwards
+    /// its caller's cancel to the pass task, and the pass task trips the abort
+    /// signal `whisper_full` polls. Without both, a deleted row's local Retry
+    /// decoded the rest of the file on the GPU (#1743, verify on the Mac).
+    @Test func aCancelledRetryAbortsTheWhisperDecode() throws {
+        let provider = "app/macos/hyperwhisper/Managers/Transcription/Providers/Local/LibWhisperProvider.swift"
+
+        let decode = try ProductionSource.slice(
+            of: provider,
+            from: "let abortSignal = WhisperAbortSignal()",
+            to: "var success = await decode()"
+        )
+        #expect(decode.contains("abortSignal: abortSignal"))
+        #expect(decode.contains("abortSignal.trigger()"))
+
+        let afterDecode = try ProductionSource.slice(
+            of: provider,
+            from: "var success = await decode()",
+            to: "guard success else {"
+        )
+        #expect(afterDecode.contains("try Task.checkCancellation()"), "an aborted decode must surface as a cancel, not a decode failure")
+
+        let wait = try ProductionSource.slice(
+            of: provider,
+            from: "let output = try await withTaskCancellationHandler {",
+            to: "return output"
+        )
+        #expect(wait.contains("task.cancel()"))
+
+        let whisper = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Whisper/LibWhisper.swift",
+            from: "if let abortSignal {",
+            to: "whisper_reset_timings(context)"
+        )
+        #expect(whisper.contains("params.abort_callback = {"))
+        #expect(whisper.contains("params.encoder_begin_callback = {"))
+    }
+
+    @Test func theAbortSignalStaysTrippedOnceTriggered() {
+        let signal = WhisperAbortSignal()
+        #expect(!signal.isTriggered)
+        signal.trigger()
+        #expect(signal.isTriggered)
+        #expect(signal.isTriggered)
+    }
 }
