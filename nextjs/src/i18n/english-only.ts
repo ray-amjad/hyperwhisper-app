@@ -3,7 +3,8 @@ import { isSupportedLocale } from "./locales";
 // #1135: pages whose page.tsx calls notFound() for every locale but "en".
 // Every locale links to them with a raw /en/... href, so a visit there says
 // nothing about the visitor's language.
-export const ENGLISH_ONLY_REGEX = /^\/en\/(latency|choosing-a-model|blog)(\/|$)/;
+export const ENGLISH_ONLY_REGEX =
+  /^\/en\/(latency|choosing-a-model|blog)(\/|$)/;
 
 export function isEnglishOnlyPath(pathname: string): boolean {
   return ENGLISH_ONLY_REGEX.test(pathname);
@@ -12,6 +13,7 @@ export function isEnglishOnlyPath(pathname: string): boolean {
 function readLocaleCookie(cookieHeader: string): string | undefined {
   for (const part of cookieHeader.split(";")) {
     const [name, ...rest] = part.trim().split("=");
+
     if (name === "NEXT_LOCALE") {
       try {
         return decodeURIComponent(rest.join("="));
@@ -20,6 +22,7 @@ function readLocaleCookie(cookieHeader: string): string | undefined {
       }
     }
   }
+
   return undefined;
 }
 
@@ -38,5 +41,6 @@ export function navbarHomeLocale(
 ): string {
   if (!isEnglishOnlyPath(pathname)) return pageLocale;
   const saved = readLocaleCookie(cookieHeader);
+
   return saved && isSupportedLocale(saved) ? saved : pageLocale;
 }
