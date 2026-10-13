@@ -63,6 +63,9 @@ struct CustomEndpointSheet: View {
 
     @State private var isTesting = false
     @State private var testResult: TestResultState = .none
+    /// What the last Test Connection probed; the save records its verdict when
+    /// the saved URL, model and key are the same (issue #935).
+    @State private var testedConfiguration: CustomEndpointTestedConfiguration?
     @State private var validationError: String?
     @State private var isSaving = false
 
@@ -663,9 +666,18 @@ struct CustomEndpointSheet: View {
         // the Keychain before a save/commit — doing so for an existing endpoint
         // would overwrite the live stored key in place even if the user then
         // cancels. Keychain is only written from saveEndpoint().
-        let result = await customEndpointManager.testEndpoint(testEndpoint, apiKey: apiKey)
+        let testedKey = apiKey
+        let result = await customEndpointManager.testEndpoint(testEndpoint, apiKey: testedKey)
 
         isTesting = false
+        let succeeded: Bool
+        if case .success = result { succeeded = true } else { succeeded = false }
+        testedConfiguration = CustomEndpointTestedConfiguration(
+            endpointURL: testEndpoint.endpointURL,
+            modelName: testEndpoint.modelName,
+            apiKey: testedKey,
+            success: succeeded
+        )
 
         switch result {
         case .success(let preview):
@@ -722,7 +734,8 @@ struct CustomEndpointSheet: View {
                     name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                     endpointURL: finalEndpointURL,
                     modelName: finalModelName,
-                    apiKey: apiKey.isEmpty ? nil : apiKey
+                    apiKey: apiKey.isEmpty ? nil : apiKey,
+                    testedConfiguration: testedConfiguration
                 )
                 savedEndpoint = customEndpointManager.getEndpoint(id: existing.id) ?? existing
             } else {
@@ -731,7 +744,8 @@ struct CustomEndpointSheet: View {
                     name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                     endpointURL: finalEndpointURL,
                     modelName: finalModelName,
-                    apiKey: apiKey.isEmpty ? nil : apiKey
+                    apiKey: apiKey.isEmpty ? nil : apiKey,
+                    testedConfiguration: testedConfiguration
                 )
             }
 

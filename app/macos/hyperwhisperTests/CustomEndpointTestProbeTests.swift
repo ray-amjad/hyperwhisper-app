@@ -6,7 +6,12 @@
 //  the probe that recorded no verdict, so `lastTestSuccess` stayed nil and the
 //  Model Library tick never drew. The sheet now runs
 //  `CustomPostProcessingManager.testEndpoint(_:apiKey:session:)`, and these
-//  tests drive it through a stubbed `URLSession`.
+//  tests drive it through a stubbed `URLSession`. That probe records nothing:
+//  the sheet hands what it tested to the save, which records the verdict only
+//  when the saved URL, model and key are the ones tested.
+//
+//  No test here writes a key: the test host has no Keychain access, so every
+//  saved endpoint is keyless and a typed key is what makes a mismatch.
 //
 
 import Foundation
@@ -127,15 +132,23 @@ struct CustomEndpointTestProbeTests {
             .value(forHTTPHeaderField: "Authorization") == nil)
     }
 
-    @Test func aCompletionSucceedsAndRecordsTheVerdict() async throws {
-        try await withStoredEndpointsRestored {
-            let host = ProbeStubURLProtocol.register(.init(
-                status: 200, body: #"{"choices":[{"message":{"content":"Hello"}}]}"#))
-            let manager = CustomPostProcessingManager()
-            let endpoint = try manager.addEndpoint(
-                name: "Probe", endpointURL: "https://\(host)/v1/chat/completions", modelName: "llama3")
+    private static let helloBody = #"{"choices":[{"message":{"content":"Hello"}}]}"#
 
-            let result = await manager.testEndpoint(endpoint, apiKey: "", session: session)
+    private func url(_ host: String) -> String { "https://\(host)/v1/chat/completions" }
+
+    private func tested(_ endpoint: CustomPostProcessingEndpoint, apiKey: String = "", success: Bool)
+        -> CustomEndpointTestedConfiguration {
+        CustomEndpointTestedConfiguration(
+            endpointURL: endpoint.endpointURL, modelName: endpoint.modelName, apiKey: apiKey, success: success)
+    }
+
+    @Test func aSavedEndpointTestSucceedsAndRecordsTheVerdict() async throws {
+        try await withStoredEndpointsRestored {
+            let host = ProbeStubURLProtocol.register(.init(status: 200, body: Self.helloBody))
+            let manager = CustomPostProcessingManager()
+            let endpoint = try manager.addEndpoint(name: "Probe", endpointURL: url(host), modelName: "llama3")
+
+            let result = await manager.testEndpoint(id: endpoint.id, session: session)
 
             guard case let .success(preview) = result else {
                 Issue.record("expected success, got \(result)")
@@ -152,13 +165,122 @@ struct CustomEndpointTestProbeTests {
         try await withStoredEndpointsRestored {
             let host = ProbeStubURLProtocol.register(.init(status: 200, body: "<html>not json</html>"))
             let manager = CustomPostProcessingManager()
-            let endpoint = try manager.addEndpoint(
-                name: "Probe", endpointURL: "https://\(host)/v1/chat/completions", modelName: "llama3")
+            let endpoint = try manager.addEndpoint(name: "Probe", endpointURL: url(host), modelName: "llama3")
 
-            let result = await manager.testEndpoint(endpoint, apiKey: "", session: session)
+            let result = await manager.testEndpoint(id: endpoint.id, session: session)
 
             #expect(failureMessage(result) == "Invalid response format - expected OpenAI-compatible response")
             #expect(manager.getEndpoint(id: endpoint.id)?.lastTestSuccess == false)
+        }
+    }
+
+    /// A sheet test the user then cancels must not touch the stored endpoint.
+    @Test func theSheetProbeRecordsNothingOnTheStoredEndpoint() async throws {
+        try await withStoredEndpointsRestored {
+            let host = ProbeStubURLProtocol.register(.init(
+                status: 401, body: #"{"error":{"message":"Incorrect API key provided"}}"#))
+            let manager = CustomPostProcessingManager()
+            let stored = try manager.addEndpoint(name: "Probe", endpointURL: url(host), modelName: "llama3")
+            try manager.updateEndpoint(id: stored.id, testedConfiguration: tested(stored, success: true))
+
+            let result = await manager.testEndpoint(stored, apiKey: "sk-mistyped", session: session)
+
+            #expect(failureMessage(result) == "HTTP 401: Incorrect API key provided")
+            #expect(manager.getEndpoint(id: stored.id)?.lastTestSuccess == true)
+        }
+    }
+
+    @Test func addingTheTestedConfigurationRecordsItsVerdict() async throws {
+        try await withStoredEndpointsRestored {
+            let host = ProbeStubURLProtocol.register(.init(status: 200, body: Self.helloBody))
+            let manager = CustomPostProcessingManager()
+            let draft = CustomPostProcessingEndpoint(name: "Probe", endpointURL: url(host), modelName: "llama3")
+            let result = await manager.testEndpoint(draft, apiKey: "", session: session)
+            guard case .success = result else {
+                Issue.record("expected success, got \(result)")
+                return
+            }
+
+            // The sheet's draft has its own UUID; the save makes another.
+            let saved = try manager.addEndpoint(
+                name: "Probe", endpointURL: " \(url(host)) ", modelName: "llama3",
+                testedConfiguration: tested(draft, success: true))
+
+            #expect(saved.id != draft.id)
+            #expect(manager.getEndpoint(id: saved.id)?.lastTestSuccess == true)
+            #expect(CustomPostProcessingManager().getEndpoint(id: saved.id)?.lastTestSuccess == true)
+        }
+    }
+
+    @Test func addingADifferentConfigurationRecordsNoVerdict() async throws {
+        try await withStoredEndpointsRestored {
+            let manager = CustomPostProcessingManager()
+            let draft = CustomPostProcessingEndpoint(
+                name: "Probe", endpointURL: "https://a.example.com/v1/chat/completions", modelName: "llama3")
+
+            let otherModel = try manager.addEndpoint(
+                name: "Probe", endpointURL: draft.endpointURL, modelName: "llama3.2",
+                testedConfiguration: tested(draft, success: true))
+            // Tested with a typed key, saved with none.
+            let otherKey = try manager.addEndpoint(
+                name: "Probe", endpointURL: draft.endpointURL, modelName: "llama3",
+                testedConfiguration: tested(draft, apiKey: "sk-typed", success: true))
+
+            #expect(manager.getEndpoint(id: otherModel.id)?.lastTestSuccess == nil)
+            #expect(manager.getEndpoint(id: otherKey.id)?.lastTestSuccess == nil)
+        }
+    }
+
+    @Test func savingATestedNewURLRecordsItsVerdict() async throws {
+        try await withStoredEndpointsRestored {
+            let manager = CustomPostProcessingManager()
+            let stored = try manager.addEndpoint(
+                name: "Probe", endpointURL: "https://old.example.com/v1/chat/completions", modelName: "llama3")
+            try manager.updateEndpoint(id: stored.id, testedConfiguration: tested(stored, success: false))
+            var edited = stored
+            edited.endpointURL = "https://new.example.com/v1/chat/completions"
+
+            try manager.updateEndpoint(
+                id: stored.id, endpointURL: edited.endpointURL, modelName: edited.modelName,
+                testedConfiguration: tested(edited, success: true))
+
+            #expect(manager.getEndpoint(id: stored.id)?.lastTestSuccess == true)
+        }
+    }
+
+    @Test func savingAnUntestedModelClearsTheOldVerdict() async throws {
+        try await withStoredEndpointsRestored {
+            let manager = CustomPostProcessingManager()
+            let stored = try manager.addEndpoint(
+                name: "Probe", endpointURL: "https://a.example.com/v1/chat/completions", modelName: "llama3")
+            try manager.updateEndpoint(id: stored.id, testedConfiguration: tested(stored, success: true))
+            var edited = stored
+            edited.modelName = "no-such-model"
+
+            // The sheet's last test was of a third model, not the one saved.
+            var other = stored
+            other.modelName = "llama3.2"
+            try manager.updateEndpoint(
+                id: stored.id, endpointURL: edited.endpointURL, modelName: edited.modelName,
+                testedConfiguration: tested(other, success: true))
+
+            #expect(manager.getEndpoint(id: stored.id)?.lastTestSuccess == nil)
+        }
+    }
+
+    @Test func savingWithoutChangesKeepsTheVerdict() async throws {
+        try await withStoredEndpointsRestored {
+            let manager = CustomPostProcessingManager()
+            let stored = try manager.addEndpoint(
+                name: "Probe", endpointURL: "https://a.example.com/v1/chat/completions", modelName: "llama3")
+            try manager.updateEndpoint(id: stored.id, testedConfiguration: tested(stored, success: true))
+
+            // A rename, with a test of a typed key that is not saved.
+            try manager.updateEndpoint(
+                id: stored.id, name: "Renamed", endpointURL: stored.endpointURL, modelName: stored.modelName,
+                testedConfiguration: tested(stored, apiKey: "sk-typed", success: false))
+
+            #expect(manager.getEndpoint(id: stored.id)?.lastTestSuccess == true)
         }
     }
 
@@ -176,26 +298,5 @@ struct CustomEndpointTestProbeTests {
         #expect(failureMessage(result)
             == "the endpoint URL must not contain a username or password — did you mean https://\(host)/v1/chat/completions?")
         #expect(ProbeStubURLProtocol.requests(to: host).isEmpty)
-    }
-
-    @Test func testingUnsavedEditsLeavesTheStoredVerdictAlone() async throws {
-        try await withStoredEndpointsRestored {
-            let savedHost = ProbeStubURLProtocol.register(.init(status: 500, body: ""))
-            let editedHost = ProbeStubURLProtocol.register(.init(
-                status: 200, body: #"{"choices":[{"message":{"content":"Hello"}}]}"#))
-            let manager = CustomPostProcessingManager()
-            let stored = try manager.addEndpoint(
-                name: "Probe", endpointURL: "https://\(savedHost)/v1/chat/completions", modelName: "llama3")
-            var edited = stored
-            edited.endpointURL = "https://\(editedHost)/v1/chat/completions"
-
-            let result = await manager.testEndpoint(edited, apiKey: "", session: session)
-
-            guard case .success = result else {
-                Issue.record("expected success, got \(result)")
-                return
-            }
-            #expect(manager.getEndpoint(id: stored.id)?.lastTestSuccess == nil)
-        }
     }
 }

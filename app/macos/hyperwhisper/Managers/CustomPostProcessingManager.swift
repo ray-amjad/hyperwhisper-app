@@ -30,6 +30,31 @@ enum CustomEndpointTestResult {
     case failure(error: String)
 }
 
+/// The exact configuration an Add/Edit sheet test probed, and its verdict.
+///
+/// The sheet tests unsaved form values with a TYPED key, so the verdict cannot
+/// be written at test time: the user may still cancel, or edit and save other
+/// values. The sheet hands this to `addEndpoint` / `updateEndpoint`, which
+/// record the verdict only when the saved URL, model and key are the ones
+/// tested (issue #935).
+struct CustomEndpointTestedConfiguration: Equatable {
+    let endpointURL: String
+    let modelName: String
+    let apiKey: String
+    let success: Bool
+
+    init(endpointURL: String, modelName: String, apiKey: String, success: Bool) {
+        self.endpointURL = endpointURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.modelName = modelName.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.apiKey = apiKey
+        self.success = success
+    }
+
+    func matches(_ endpoint: CustomPostProcessingEndpoint, apiKey storedKey: String) -> Bool {
+        endpointURL == endpoint.endpointURL && modelName == endpoint.modelName && apiKey == storedKey
+    }
+}
+
 // MARK: - Manager
 
 /// Manages custom OpenAI-compatible endpoints for post-processing
@@ -74,6 +99,8 @@ class CustomPostProcessingManager: ObservableObject {
     ///   - endpointURL: Full URL to the chat completions endpoint
     ///   - modelName: Model identifier to use
     ///   - apiKey: Optional API key (stored in Keychain)
+    ///   - testedConfiguration: The sheet's last test; its verdict is recorded
+    ///     when it tested exactly this URL, model and key
     /// - Returns: The created endpoint
     /// - Throws: Validation error if configuration is invalid
     @discardableResult
@@ -81,7 +108,8 @@ class CustomPostProcessingManager: ObservableObject {
         name: String,
         endpointURL: String,
         modelName: String,
-        apiKey: String? = nil
+        apiKey: String? = nil,
+        testedConfiguration: CustomEndpointTestedConfiguration? = nil
     ) throws -> CustomPostProcessingEndpoint {
         // ADD ENDPOINT - STEP 1: Create the endpoint
         var endpoint = CustomPostProcessingEndpoint(
@@ -96,6 +124,10 @@ class CustomPostProcessingManager: ObservableObject {
         // STEP 3: Save API key to Keychain if provided
         if let apiKey = apiKey, !apiKey.isEmpty {
             try KeychainManager.shared.saveCustomEndpointAPIKey(apiKey, for: endpoint.id)
+        }
+
+        if let tested = testedConfiguration, tested.matches(endpoint, apiKey: apiKey ?? "") {
+            endpoint.updateTestStatus(success: tested.success)
         }
 
         // STEP 4: Add to list and save
@@ -113,13 +145,16 @@ class CustomPostProcessingManager: ObservableObject {
     ///   - endpointURL: New URL (optional)
     ///   - modelName: New model name (optional)
     ///   - apiKey: New API key (optional, pass empty string to clear)
+    ///   - testedConfiguration: The sheet's last test; its verdict is recorded
+    ///     when it tested exactly the URL, model and key saved
     /// - Throws: Error if endpoint not found or validation fails
     func updateEndpoint(
         id: UUID,
         name: String? = nil,
         endpointURL: String? = nil,
         modelName: String? = nil,
-        apiKey: String? = nil
+        apiKey: String? = nil,
+        testedConfiguration: CustomEndpointTestedConfiguration? = nil
     ) throws {
         // UPDATE ENDPOINT - STEP 1: Find the endpoint
         guard let index = endpoints.firstIndex(where: { $0.id == id }) else {
@@ -127,6 +162,13 @@ class CustomPostProcessingManager: ObservableObject {
         }
 
         // STEP 2: Apply updates
+        // A verdict belongs to one URL + model + key, so changing any of them
+        // clears it.
+        let storedKey = getAPIKey(for: id)
+        let savedKey = apiKey ?? storedKey
+        if savedKey != storedKey {
+            endpoints[index].clearTestStatus()
+        }
         if let name = name {
             endpoints[index].name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         }
@@ -134,12 +176,15 @@ class CustomPostProcessingManager: ObservableObject {
             let newURL = endpointURL.trimmingCharacters(in: .whitespacesAndNewlines)
             if newURL != endpoints[index].endpointURL {
                 endpoints[index].endpointURL = newURL
-                // Clear test status when URL changes
                 endpoints[index].clearTestStatus()
             }
         }
         if let modelName = modelName {
-            endpoints[index].modelName = modelName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let newModel = modelName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if newModel != endpoints[index].modelName {
+                endpoints[index].modelName = newModel
+                endpoints[index].clearTestStatus()
+            }
         }
 
         // STEP 3: Validate the updated endpoint
@@ -152,6 +197,10 @@ class CustomPostProcessingManager: ObservableObject {
             } else {
                 try KeychainManager.shared.saveCustomEndpointAPIKey(apiKey, for: id)
             }
+        }
+
+        if let tested = testedConfiguration, tested.matches(endpoints[index], apiKey: savedKey) {
+            endpoints[index].updateTestStatus(success: tested.success)
         }
 
         // STEP 5: Save changes
@@ -272,14 +321,26 @@ class CustomPostProcessingManager: ObservableObject {
 
     // MARK: - Public API - Testing
 
-    /// Test a saved custom endpoint with its stored Keychain key.
-    /// - Parameter id: ID of the endpoint to test
+    /// Test a saved custom endpoint with its stored Keychain key, and record
+    /// the verdict on it.
+    /// - Parameters:
+    ///   - id: ID of the endpoint to test
+    ///   - session: The session to send the probe on (tests pass a stub)
     /// - Returns: Test result with success/failure details
-    func testEndpoint(id: UUID) async -> CustomEndpointTestResult {
+    func testEndpoint(
+        id: UUID,
+        session: URLSession = CredentialNetworkCache.session
+    ) async -> CustomEndpointTestResult {
         guard let endpoint = getEndpoint(id: id) else { return .failure(error: "Endpoint not found") }
         testingEndpoints.insert(id)
         defer { testingEndpoints.remove(id) }
-        return await testEndpoint(endpoint, apiKey: getAPIKey(for: id))
+        let result = await testEndpoint(endpoint, apiKey: getAPIKey(for: id), session: session)
+        if case .success = result {
+            updateTestStatus(for: id, success: true)
+        } else {
+            updateTestStatus(for: id, success: false)
+        }
+        return result
     }
 
     /// Test a custom endpoint configuration with a simple "Hello World" request.
@@ -289,9 +350,8 @@ class CustomPostProcessingManager: ObservableObject {
     /// here: writing a typed key before a save would overwrite a live key the
     /// user then cancels.
     ///
-    /// The verdict is recorded on the stored endpoint with the same id, but only
-    /// when the URL and model tested are the ones stored, so a test of unsaved
-    /// edits cannot mark the saved configuration verified.
+    /// No verdict is recorded here: the configuration may never be saved. The
+    /// sheet passes a `CustomEndpointTestedConfiguration` to its save instead.
     ///
     /// - Parameters:
     ///   - endpoint: The configuration to test (saved or not)
@@ -303,14 +363,6 @@ class CustomPostProcessingManager: ObservableObject {
         apiKey: String,
         session: URLSession = CredentialNetworkCache.session
     ) async -> CustomEndpointTestResult {
-        let id = endpoint.id
-        let testsStoredConfiguration = getEndpoint(id: id).map {
-            $0.endpointURL == endpoint.endpointURL && $0.modelName == endpoint.modelName
-        } ?? false
-        func recordVerdict(success: Bool) {
-            if testsStoredConfiguration { updateTestStatus(for: id, success: success) }
-        }
-
         // STEP 1: Validate the URL and the model, then build the test request.
         // The rule, the Bearer header and the minimal "Say hello" body all come
         // from the shared core (issue #282), so the Windows test button sends
@@ -321,7 +373,6 @@ class CustomPostProcessingManager: ObservableObject {
         let verdict = llmValidateExistingCustomEndpoint(
             raw: endpoint.endpointURL, model: endpoint.modelName)
         guard !verdict.url.isEmpty else {
-            recordVerdict(success: false)
             let message = verdict.message ?? "Invalid URL"
             if let suggestion = verdict.suggestion {
                 return .failure(error: "\(message) — did you mean \(suggestion)?")
@@ -336,7 +387,6 @@ class CustomPostProcessingManager: ObservableObject {
                 apiKey: apiKey.isEmpty ? nil : apiKey)
             request = try RustHTTPExecutor.buildInlineURLRequest(from: built)
         } catch {
-            recordVerdict(success: false)
             // The lenient rule keeps a URL carrying a username or password
             // callable, but the probe builder applies the strict one and
             // refuses it. Offer the repair rather than an encoding error.
@@ -355,7 +405,6 @@ class CustomPostProcessingManager: ObservableObject {
 
             // STEP 3: Check HTTP response
             guard let httpResponse = response as? HTTPURLResponse else {
-                recordVerdict(success: false)
                 return .failure(error: "Invalid response type")
             }
 
@@ -363,7 +412,6 @@ class CustomPostProcessingManager: ObservableObject {
             if httpResponse.statusCode != 200 {
                 let errorBody = String(data: data, encoding: .utf8) ?? "No error details"
                 logger.warning("Endpoint test failed with status \(httpResponse.statusCode, privacy: .public): \(errorBody, privacy: .public)")
-                recordVerdict(success: false)
                 return .failure(error: "HTTP \(httpResponse.statusCode): \(parseErrorMessage(from: data) ?? "Unknown error")")
             }
 
@@ -375,23 +423,19 @@ class CustomPostProcessingManager: ObservableObject {
                   let firstChoice = choices.first,
                   let message = firstChoice["message"] as? [String: Any],
                   let content = message["content"] as? String else {
-                recordVerdict(success: false)
                 return .failure(error: "Invalid response format - expected OpenAI-compatible response")
             }
 
             // STEP 6: Success!
             let preview = String(content.prefix(50))
             logger.info("Endpoint test succeeded: \(endpoint.name, privacy: .public) - response: \(preview, privacy: .public)")
-            recordVerdict(success: true)
             return .success(responsePreview: content)
 
         } catch let error as URLError {
             logger.error("Endpoint test network error: \(error.localizedDescription, privacy: .public)")
-            recordVerdict(success: false)
             return .failure(error: "Network error: \(error.localizedDescription)")
         } catch {
             logger.error("Endpoint test error: \(error.localizedDescription, privacy: .public)")
-            recordVerdict(success: false)
             return .failure(error: error.localizedDescription)
         }
     }
