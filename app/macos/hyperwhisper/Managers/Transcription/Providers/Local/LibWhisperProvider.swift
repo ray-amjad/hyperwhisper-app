@@ -425,8 +425,14 @@ class LibWhisperProvider: TranscriptionProvider {
 
         logger.info("Starting transcription with model: \(self.currentModel?.name ?? "unknown")")
 
-        // Create new transcription task
-        let task = Task<String, Error> {
+        // Tripped when the task below is cancelled, by any of its cancellers:
+        // the awaiting caller, `cancelTranscription()`, a superseding pass, or
+        // a teardown. whisper.cpp polls it, because `fullTranscribe` never
+        // returns to Swift mid-file (issue #1730).
+        let abortFlag = WhisperAbortFlag()
+
+        // The body of the transcription task
+        func decode() async throws -> String {
             try Task.checkCancellation()
 
             // Load and convert audio to required format
@@ -436,9 +442,8 @@ class LibWhisperProvider: TranscriptionProvider {
                 logger.error("❌ No audio samples after conversion")
             }
 
-            // whisper.cpp does not poll for cancellation once `fullTranscribe`
-            // is under way, so this is the last chance to abandon a cancelled
-            // pass before the expensive part.
+            // Abandon a cancelled pass before the expensive part. Once
+            // `fullTranscribe` is under way only `abortFlag` can stop it.
             try Task.checkCancellation()
 
             // Early no-speech guard: avoid hallucinated text on near-silent recordings.
@@ -490,7 +495,11 @@ class LibWhisperProvider: TranscriptionProvider {
             }
 
             // Perform transcription
-            var success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords)
+            var success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords, abortFlag: abortFlag)
+
+            // A cancelled pass stops early with a failure or partial text.
+            // Neither is a decode failure, and neither is worth the retries.
+            try Task.checkCancellation()
 
             guard success else {
                 // The old wording here ("the audio may be corrupted or too
@@ -513,7 +522,7 @@ class LibWhisperProvider: TranscriptionProvider {
                 if let detected = await context.getDetectedLanguage() {
                     logger.warning("⚠️ Empty result. Retrying with detected language forced: \(detected)")
                     await context.setLanguage(detected)
-                    success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords)
+                    success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords, abortFlag: abortFlag)
                     if success {
                         text = await readKeptText()
                     }
@@ -521,7 +530,7 @@ class LibWhisperProvider: TranscriptionProvider {
                 // If still empty, try translation to English
                 if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     logger.warning("⚠️ Still empty after forcing language. Retrying with translation → English")
-                    success = await context.fullTranscribe(samples: samples, translate: true, wordTimestamps: includeWords)
+                    success = await context.fullTranscribe(samples: samples, translate: true, wordTimestamps: includeWords, abortFlag: abortFlag)
                     if success {
                         text = await readKeptText()
                     }
@@ -543,7 +552,15 @@ class LibWhisperProvider: TranscriptionProvider {
 
             return text
         }
-        
+
+        let task = Task<String, Error> {
+            try await withTaskCancellationHandler {
+                try await decode()
+            } onCancel: {
+                abortFlag.abort()
+            }
+        }
+
         transcriptionTask = task
         if cancellationEpoch != epoch {
             // A cancel landed between the check above and this assignment, so it
@@ -555,12 +572,20 @@ class LibWhisperProvider: TranscriptionProvider {
         // Residency already claimed above (before the task could start). Release
         // it once the pass finishes, on every exit path.
         do {
-            let output = try await task.value
+            // The task is unstructured, so a cancel of THIS caller (the
+            // Transcribe File HUD's Cancel, forwarded by
+            // `TranscriptionPipeline.value(of:)`) would otherwise stop only
+            // the wait and leave whisper.cpp decoding the file (issue #1730).
+            let output = try await withTaskCancellationHandler {
+                try await task.value
+            } onCancel: {
+                task.cancel()
+            }
             await ModelResidencyRegistry.shared.markIdle(claimToken)
-            // `fullTranscribe` never polls for cancellation, so a pass cancelled
-            // mid-decode still finishes and hands back its text. Drop it: the
-            // caller was cancelled or superseded, and a Local API request must
-            // answer with the cancellation, not a transcript (issue #1465).
+            // A pass cancelled mid-decode can still hand back partial text.
+            // Drop it: the caller was cancelled or superseded, and a Local API
+            // request must answer with the cancellation, not a transcript
+            // (issue #1465).
             if task.isCancelled || cancellationEpoch != epoch {
                 logger.info("Transcription cancelled during decode; result discarded")
                 lastTimestamps = nil
@@ -569,7 +594,10 @@ class LibWhisperProvider: TranscriptionProvider {
             return output
         } catch {
             await ModelResidencyRegistry.shared.markIdle(claimToken)
-            if error is CancellationError {
+            // An aborted whisper.cpp pass can surface as a decode failure or
+            // as no speech. Report the cancel, not the symptom.
+            if error is CancellationError || task.isCancelled || cancellationEpoch != epoch {
+                lastTimestamps = nil
                 logger.info("Transcription cancelled")
                 throw TranscriptionError.streamingInterrupted
             }

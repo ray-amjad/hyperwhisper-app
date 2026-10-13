@@ -9,12 +9,23 @@
 //  task, and `NemotronProvider` feeds the file in slices with a cancel check
 //  between them, because FluidAudio's `process(samples:)` never checks.
 //
+//  Issue #1730, the Whisper sibling: `LibWhisperProvider` runs its pass in a
+//  second unstructured task, so the forwarded cancel stopped at its plain
+//  `task.value`, and whisper.cpp's `whisper_full` never returns to Swift
+//  mid-file anyway. The provider now forwards the cancel into that task, and
+//  the task trips a `WhisperAbortFlag` that whisper.cpp polls.
+//
 
 import Foundation
 import Testing
 @testable import HyperWhisper
 
 struct FileTranscriptionCancelStopsEngineTests {
+
+    private static let whisperProviderSource =
+        "app/macos/hyperwhisper/Managers/Transcription/Providers/Local/LibWhisperProvider.swift"
+    private static let whisperContextSource =
+        "app/macos/hyperwhisper/Whisper/LibWhisper.swift"
 
     // MARK: - The pipeline forwards the caller's cancel
 
@@ -87,5 +98,64 @@ struct FileTranscriptionCancelStopsEngineTests {
         let slices = NemotronProvider.processSlices(sampleCount: 97 * 60 * 16_000)
 
         #expect(slices.count == 97 * 2)
+    }
+
+    // MARK: - Local Whisper stops whisper.cpp (#1730)
+
+    @Test func aWhisperAbortFlagStartsClearAndStaysSet() {
+        let flag = WhisperAbortFlag()
+        #expect(!flag.isAborted)
+        flag.abort()
+        #expect(flag.isAborted)
+        flag.abort()
+        #expect(flag.isAborted)
+    }
+
+    /// `LibWhisperProvider` needs a real `whisper_context`, so its wiring is
+    /// pinned by reading the production source, as `LocalAPIWhisperQueueTests`
+    /// does.
+    @Test func theWhisperProviderForwardsTheCallersCancelIntoItsTask() throws {
+        let wait = try ProductionSource.slice(
+            of: Self.whisperProviderSource,
+            from: "let output = try await withTaskCancellationHandler {",
+            to: "await ModelResidencyRegistry.shared.markIdle(claimToken)"
+        )
+        #expect(wait.contains("try await task.value"))
+        #expect(wait.contains("task.cancel()"))
+    }
+
+    @Test func cancellingTheWhisperTaskTripsTheAbortFlag() throws {
+        let task = try ProductionSource.slice(
+            of: Self.whisperProviderSource,
+            from: "let task = Task<String, Error> {",
+            to: "transcriptionTask = task"
+        )
+        #expect(task.contains("withTaskCancellationHandler"))
+        #expect(task.contains("try await decode()"))
+        #expect(task.contains("abortFlag.abort()"))
+    }
+
+    @Test func everyWhisperDecodeInThePassCanBeAborted() throws {
+        let decode = try ProductionSource.slice(
+            of: Self.whisperProviderSource,
+            from: "func decode() async throws -> String {",
+            to: "let task = Task<String, Error> {"
+        )
+        let calls = decode.components(separatedBy: "context.fullTranscribe(").count - 1
+        let abortable = decode.components(separatedBy: "abortFlag: abortFlag)").count - 1
+        #expect(calls == 3)
+        #expect(abortable == calls)
+    }
+
+    @Test func whisperCppPollsTheAbortFlag() throws {
+        let transcribe = try ProductionSource.slice(
+            of: Self.whisperContextSource,
+            from: "func fullTranscribe(",
+            to: "func getTranscription() -> String {"
+        )
+        #expect(transcribe.contains("if abortFlag.isAborted { return false }"))
+        #expect(transcribe.contains("params.encoder_begin_callback_user_data = flagPointer"))
+        #expect(transcribe.contains("params.abort_callback_user_data = flagPointer"))
+        #expect(transcribe.contains("withExtendedLifetime(abortFlag)"))
     }
 }

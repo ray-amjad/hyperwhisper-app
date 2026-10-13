@@ -5,6 +5,7 @@
 //  Wrapper around whisper.cpp for thread-safe transcription
 //
 
+import Atomics
 import Foundation
 import os
 
@@ -59,6 +60,20 @@ enum WhisperError: Error, LocalizedError {
             return "Failed to create Whisper context"
         }
     }
+}
+
+/// Asks a running `whisper_full` to stop (issue #1730).
+///
+/// `fullTranscribe` holds the `WhisperContext` actor for the whole decode, so
+/// a cancel cannot reach it through the actor. whisper.cpp polls this flag
+/// instead, from its own threads: before each 30 s window
+/// (`encoder_begin_callback`) and during graph compute (`abort_callback`).
+final class WhisperAbortFlag: @unchecked Sendable {
+    private let aborted = ManagedAtomic<Bool>(false)
+
+    var isAborted: Bool { aborted.load(ordering: .acquiring) }
+
+    func abort() { aborted.store(true, ordering: .releasing) }
 }
 
 /// Actor-based wrapper for whisper.cpp to ensure thread safety
@@ -160,8 +175,10 @@ actor WhisperContext {
     ///                Used as a fallback for empty outputs or when forcing English output.
     ///   - beamSearch: If true, use beam search instead of greedy decoding (slower but more accurate)
     ///   - temperature: Temperature for sampling (0.0 = deterministic/greedy, higher = more random)
+    ///   - abortFlag: When set, whisper.cpp stops the pass early. The result is
+    ///                then partial or a failure; the caller must discard it.
     /// - Returns: true if transcription succeeded
-    func fullTranscribe(samples: [Float], translate: Bool = false, beamSearch: Bool = false, temperature: Float = 0.0, wordTimestamps: Bool = false) -> Bool {
+    func fullTranscribe(samples: [Float], translate: Bool = false, beamSearch: Bool = false, temperature: Float = 0.0, wordTimestamps: Bool = false, abortFlag: WhisperAbortFlag? = nil) -> Bool {
         guard let context = context else { 
             logger.error("No context available for transcription")
             return false 
@@ -218,6 +235,23 @@ actor WhisperContext {
             params.split_on_word = true
         }
 
+        // Let a cancel stop the pass. whisper.cpp otherwise runs every window
+        // of the file to the end, however long it is.
+        if let abortFlag {
+            if abortFlag.isAborted { return false }
+            let flagPointer = Unmanaged.passUnretained(abortFlag).toOpaque()
+            params.encoder_begin_callback = { _, _, userData in
+                guard let userData else { return true }
+                return !Unmanaged<WhisperAbortFlag>.fromOpaque(userData).takeUnretainedValue().isAborted
+            }
+            params.encoder_begin_callback_user_data = flagPointer
+            params.abort_callback = { userData in
+                guard let userData else { return false }
+                return Unmanaged<WhisperAbortFlag>.fromOpaque(userData).takeUnretainedValue().isAborted
+            }
+            params.abort_callback_user_data = flagPointer
+        }
+
         // TEMPERATURE FALLBACK SCHEDULE: Could implement retry with higher temps
         // If output is empty/poor, retry with params.temperature = 0.4, 0.6, 0.8
         // Caller can implement this by calling with different temperatures
@@ -236,10 +270,17 @@ actor WhisperContext {
         // the transcription at the innermost level.
         func runTranscription() -> Bool {
             var ok = true
-            samples.withUnsafeBufferPointer { samplesBuffer in
-                if whisper_full(context, params, samplesBuffer.baseAddress, Int32(samplesBuffer.count)) != 0 {
-                    logger.error("whisper_full failed")
-                    ok = false
+            // Keeps the flag alive while whisper.cpp holds its unretained pointer.
+            withExtendedLifetime(abortFlag) {
+                samples.withUnsafeBufferPointer { samplesBuffer in
+                    if whisper_full(context, params, samplesBuffer.baseAddress, Int32(samplesBuffer.count)) != 0 {
+                        if abortFlag?.isAborted == true {
+                            logger.info("whisper_full stopped: the pass was cancelled")
+                        } else {
+                            logger.error("whisper_full failed")
+                        }
+                        ok = false
+                    }
                 }
             }
             return ok
