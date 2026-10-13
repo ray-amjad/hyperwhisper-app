@@ -4,13 +4,11 @@
  * `app/[locale]/not-found.tsx`: a notFound() under [locale] resolves the
  * [locale] layout's metadata, whose robots is "index, follow", next to Next's
  * injected noindex. This boundary's robots must replace it with a noindex. It
- * must also carry a real title and links back into the site, in every locale,
- * so a 404 is not a dead end (#815).
+ * must also carry a real title, in the URL's locale, and links back into the
+ * site, so a 404 is not a dead end (#815).
  *
- * `app/[locale]/[...rest]/page.tsx` routes an unmatched /<locale>/<path> to
- * that boundary by throwing notFound().
- *
- * `app/not-found.tsx` is the last-resort shell and must still link home.
+ * `app/not-found.tsx` serves every unmatched URL (/de/zzz). It must wrap that
+ * same content in the [locale] layout, so the page gets the site chrome.
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -24,23 +22,42 @@ import { renderToStaticMarkup } from "react-dom/server";
 interface ModuleMocker {
   module(
     specifier: string,
-    options: { namedExports: Record<string, unknown> },
+    options: {
+      defaultExport?: unknown;
+      namedExports?: Record<string, unknown>;
+    },
   ): void;
 }
 
 const moduleMock = mock as unknown as ModuleMocker;
 
 const MESSAGES_DIR = path.join(__dirname, "..", "messages");
-const en = JSON.parse(
-  readFileSync(path.join(MESSAGES_DIR, "en.json"), "utf8"),
-) as { notFound: Record<string, string> };
+
+function readCatalogue(file: string): { notFound?: Record<string, string> } {
+  return JSON.parse(readFileSync(path.join(MESSAGES_DIR, file), "utf8"));
+}
+
+const en = readCatalogue("en.json").notFound!;
+const de = readCatalogue("de.json").notFound!;
+
+/** What the request locale (the proxy header) resolves to. Each case sets it. */
+const request = { locale: "en" };
 
 moduleMock.module("next-intl/server", {
   namedExports: {
-    getTranslations: async (namespace: string) => {
-      assert.equal(namespace, "notFound");
+    getLocale: async () => request.locale,
+    getTranslations: async (
+      arg: string | { locale: string; namespace: string },
+    ) => {
+      const { locale, namespace } =
+        typeof arg === "string"
+          ? { locale: request.locale, namespace: arg }
+          : arg;
 
-      return (key: string) => en.notFound[key];
+      assert.equal(namespace, "notFound");
+      const catalogue = locale === "de" ? de : en;
+
+      return (key: string) => catalogue[key];
     },
   },
 });
@@ -54,78 +71,104 @@ moduleMock.module("@/src/i18n/navigation", {
   },
 });
 
+// The real [locale] layout imports CSS and next/font, which node cannot load.
+// The stand-in is a marker the root not-found test looks for.
+function FakeLocaleLayout() {
+  return null;
+}
+
+moduleMock.module("../app/[locale]/layout.tsx", {
+  defaultExport: FakeLocaleLayout,
+});
+
 // Variable specifiers, imported after the mocks (see root-layout-direction).
 const LOCALE_NOT_FOUND_PATH = "../app/[locale]/not-found.tsx";
-const CATCH_ALL_PATH = "../app/[locale]/[...rest]/page.tsx";
 const ROOT_NOT_FOUND_PATH = "../app/not-found.tsx";
+
+type Metadata = { title: string; robots?: unknown };
 
 type LocaleNotFoundModule = {
   default: () => Promise<React.ReactElement>;
-  generateMetadata: () => Promise<{ title: string; robots: unknown }>;
+  generateMetadata: (props?: {
+    params?: Promise<{ locale?: string }>;
+  }) => Promise<Metadata>;
+};
+
+type RootNotFoundModule = {
+  default: () => Promise<
+    React.ReactElement<{
+      params: Promise<{ locale: string }>;
+      children: React.ReactElement;
+    }>
+  >;
+  generateMetadata: () => Promise<Metadata>;
 };
 
 test("[locale] not-found overrides the layout robots with noindex and sets a title", async () => {
+  request.locale = "en";
   const { generateMetadata } = (await import(
     LOCALE_NOT_FOUND_PATH
   )) as LocaleNotFoundModule;
   const metadata = await generateMetadata();
 
   assert.deepEqual(metadata.robots, { index: false });
-  assert.equal(metadata.title, en.notFound.title);
+  assert.equal(metadata.title, en.title);
+});
+
+test("[locale] not-found titles a thrown 404 in the segment's locale", async () => {
+  // A notFound() under [locale] resolves metadata before the request locale is
+  // set, so the params are the only reliable locale there.
+  request.locale = "en";
+  const { generateMetadata } = (await import(
+    LOCALE_NOT_FOUND_PATH
+  )) as LocaleNotFoundModule;
+
+  const metadata = await generateMetadata({
+    params: Promise.resolve({ locale: "de" }),
+  });
+
+  assert.equal(metadata.title, de.title);
 });
 
 test("[locale] not-found links to the home page and the download page", async () => {
+  request.locale = "en";
   const { default: LocaleNotFound } = (await import(
     LOCALE_NOT_FOUND_PATH
   )) as LocaleNotFoundModule;
   const markup = renderToStaticMarkup(await LocaleNotFound());
 
-  assert.match(markup, /<h1[^>]*>This page does not exist<\/h1>/);
+  assert.match(markup, new RegExp(`<h1[^>]*>${en.heading}</h1>`));
   assert.match(markup, /<a href="\/">/);
   assert.match(markup, /<a href="\/download">/);
 });
 
-test("an unmatched /<locale>/<path> throws notFound()", async () => {
-  const { default: CatchAll } = (await import(CATCH_ALL_PATH)) as {
-    default: () => never;
-  };
+test("the root not-found wraps the [locale] 404 in the [locale] layout", async () => {
+  request.locale = "de";
+  const [{ default: RootNotFound, generateMetadata }, localeModule] =
+    await Promise.all([
+      import(ROOT_NOT_FOUND_PATH) as Promise<RootNotFoundModule>,
+      import(LOCALE_NOT_FOUND_PATH) as Promise<LocaleNotFoundModule>,
+    ]);
+  const element = await RootNotFound();
 
-  assert.throws(
-    () => CatchAll(),
-    (error: unknown) =>
-      (error as { digest?: string }).digest === "NEXT_HTTP_ERROR_FALLBACK;404",
-  );
-});
-
-test("the root not-found shell links home and is noindex", async () => {
-  const { default: RootNotFound, metadata } = (await import(
-    ROOT_NOT_FOUND_PATH
-  )) as {
-    default: () => React.ReactElement;
-    metadata: { title: string; robots: unknown };
-  };
-  const markup = renderToStaticMarkup(RootNotFound());
-
-  assert.match(markup, /<a [^>]*href="\/"/);
-  assert.match(markup, /background:#000/);
-  assert.ok(metadata.title);
-  assert.deepEqual(metadata.robots, { index: false });
+  assert.equal(element.type, FakeLocaleLayout);
+  assert.deepEqual(await element.props.params, { locale: "de" });
+  assert.equal(element.props.children.type, localeModule.default);
+  assert.equal((await generateMetadata()).title, `${de.title} - HyperWhisper`);
 });
 
 test("every locale catalogue has the notFound strings", () => {
-  const keys = Object.keys(en.notFound).sort();
+  const keys = Object.keys(en).sort();
   const files = readdirSync(MESSAGES_DIR).filter((f) => f.endsWith(".json"));
 
   assert.equal(files.length, 40);
   for (const file of files) {
-    const messages = JSON.parse(
-      readFileSync(path.join(MESSAGES_DIR, file), "utf8"),
-    ) as { notFound?: Record<string, string> };
+    const { notFound } = readCatalogue(file);
 
-    assert.ok(messages.notFound, `${file} has no notFound`);
-    assert.deepEqual(Object.keys(messages.notFound).sort(), keys, file);
+    assert.ok(notFound, `${file} has no notFound`);
+    assert.deepEqual(Object.keys(notFound).sort(), keys, file);
     for (const key of keys) {
-      assert.ok(messages.notFound[key]?.trim(), `${file} notFound.${key}`);
+      assert.ok(notFound[key]?.trim(), `${file} notFound.${key}`);
     }
   }
 });

@@ -1,19 +1,31 @@
 import type { Metadata } from "next";
 
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
+import { isSupportedLocale } from "@/src/i18n/locales";
 import { Link } from "@/src/i18n/navigation";
 
-// Renders inside the [locale] layout, so every localized 404 gets the navbar,
-// footer, dark theme and translations (#815). It serves both a notFound()
-// thrown under [locale] and an unmatched /<locale>/<path>, which
-// [...rest]/page.tsx routes here.
+// The 404 content for every locale (#815). A notFound() thrown under [locale]
+// renders it inside the [locale] layout; an unmatched URL renders it through
+// app/not-found.tsx, which wraps it in the same layout.
 //
 // robots: the [locale] layout's robots is "index, follow", and Next also
 // injects its own noindex on a 404, so without this the page carried both
 // (#1133). This boundary's robots replaces the layout's, leaving only noindex.
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("notFound");
+//
+// The locale comes from the segment params when Next passes them (a notFound()
+// under [locale]): there the request locale is not set yet when metadata
+// resolves, and the title came out in English on /de/blog. app/not-found.tsx
+// calls this with no params, and the request locale is right there.
+export async function generateMetadata(props?: {
+  params?: Promise<{ locale?: string }>;
+}): Promise<Metadata> {
+  const paramLocale = (await props?.params)?.locale;
+  const locale =
+    paramLocale && isSupportedLocale(paramLocale)
+      ? paramLocale
+      : await getLocale();
+  const t = await getTranslations({ locale, namespace: "notFound" });
 
   return {
     title: t("title"),
