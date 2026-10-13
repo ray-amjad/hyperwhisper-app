@@ -2153,6 +2153,34 @@ class PersistenceController: ObservableObject {
             return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: [])
         }
 
+        let protectedPaths = pathsOwnedBySurvivors(of: lookupPaths, excluding: transcripts, in: context)
+        return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: protectedPaths)
+    }
+
+    /// Of `paths`, the files no remaining transcript records or derives.
+    /// For files no row records, such as the VAD output of a retry its row's
+    /// delete cancelled (#1743): another row recorded from the same audio
+    /// shares those names and keeps its files.
+    ///
+    /// Must run on `context`'s queue, AFTER the row is deleted from it.
+    static func audioPathsNoTranscriptOwns(
+        _ paths: [String],
+        in context: NSManagedObjectContext
+    ) -> [String] {
+        guard !paths.isEmpty else { return [] }
+        let owned = pathsOwnedBySurvivors(of: paths, excluding: [], in: context)
+        return paths.filter { !owned.contains($0) }
+    }
+
+    /// Every path the transcripts outside `transcripts` that record any of
+    /// `lookupPaths` own or derive. If that fetch fails, every lookup path
+    /// counts as owned: a leaked file is recoverable, a deleted file another
+    /// row plays is not.
+    private static func pathsOwnedBySurvivors(
+        of lookupPaths: [String],
+        excluding transcripts: [Transcript],
+        in context: NSManagedObjectContext
+    ) -> Set<String> {
         let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
         request.predicate = NSPredicate(
             format: "NOT (SELF IN %@) AND (audioFilePath IN %@ OR trimmedAudioFilePath IN %@)",
@@ -2161,16 +2189,13 @@ class PersistenceController: ObservableObject {
             lookupPaths as NSArray
         )
 
-        let protectedPaths: Set<String>
         do {
             let survivors = try context.fetch(request)
-            protectedPaths = TranscriptAudioFiles.protectedPaths(for: survivors.map(Self.recordedAudioPaths(of:)))
+            return TranscriptAudioFiles.protectedPaths(for: survivors.map(Self.recordedAudioPaths(of:)))
         } catch {
             AppLogger.coreData.error("Could not check owners of derived audio files; keeping them: \(error.localizedDescription, privacy: .public)")
-            protectedPaths = Set(lookupPaths)
+            return Set(lookupPaths)
         }
-
-        return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: protectedPaths)
     }
 
     /// Removes one transcript audio file if it exists, logging the outcome.

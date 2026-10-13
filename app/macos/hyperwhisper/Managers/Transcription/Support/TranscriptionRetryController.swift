@@ -244,9 +244,14 @@ class TranscriptionRetryController {
         } catch {
             // A delete cancelled this retry (#1743): the row is gone, so leave it be.
             // The delete swept only the files the row recorded, so remove the
-            // VAD output this run wrote, or it stays on disk (#1513).
+            // VAD output this run wrote, or it stays on disk (#1513), unless
+            // another row recorded from the same audio still owns it.
             if transcript.retryWasStoppedByDelete() {
-                _ = await FileDeletion.deleteFiles(at: Self.filesMadeByRetry(vadResult))
+                let leftovers = PersistenceController.audioPathsNoTranscriptOwns(
+                    Self.filesMadeByRetry(vadResult),
+                    in: persistence.container.viewContext
+                )
+                _ = await FileDeletion.deleteFiles(at: leftovers)
                 AppLogger.transcription.info("Retry stopped: its transcript was deleted")
                 throw error
             }

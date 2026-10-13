@@ -212,9 +212,35 @@ struct DeleteCancelsPlainRetryTests {
         #expect(!body[recheck.upperBound..<write.lowerBound].contains("await "), "no await between the last check and the write")
 
         let catchStart = try #require(body.range(of: "} catch {", range: write.upperBound..<body.endIndex))
-        let cleanup = try #require(body.range(of: "FileDeletion.deleteFiles(at: Self.filesMadeByRetry(vadResult))", range: catchStart.upperBound..<body.endIndex))
+        let owners = try #require(body.range(of: "PersistenceController.audioPathsNoTranscriptOwns(", range: catchStart.upperBound..<body.endIndex))
+        let made = try #require(body.range(of: "Self.filesMadeByRetry(vadResult)", range: owners.upperBound..<body.endIndex))
+        let cleanup = try #require(body.range(of: "FileDeletion.deleteFiles(at: leftovers)", range: made.upperBound..<body.endIndex))
         let rethrow = try #require(body.range(of: "throw error", range: cleanup.upperBound..<body.endIndex))
         #expect(cleanup.lowerBound < rethrow.lowerBound)
+    }
+
+    /// Two rows recorded from the same audio share the VAD output's names. A
+    /// cancelled retry of one keeps the trimmed WAV and its M4A copy the other
+    /// row still records or derives, and removes only what nobody owns.
+    @MainActor
+    @Test func aCancelledRetryKeepsAFileAnotherRowOwns() throws {
+        let audio = try makeAudioFile()
+        defer { try? FileManager.default.removeItem(at: audio) }
+        let folder = audio.deletingLastPathComponent()
+        let sharedTrimmed = folder.appendingPathComponent("shared_wav_trimmed.wav")
+        let sharedUploadCopy = folder.appendingPathComponent("shared_wav_trimmed.m4a")
+        let unowned = folder.appendingPathComponent("unowned_wav_trimmed.wav")
+
+        let persistence = PersistenceController(inMemory: true)
+        let other = makeFailedRow(in: persistence, audioFilePath: audio.path)
+        other.setValue(sharedTrimmed.path, forKey: "trimmedAudioFilePath")
+        persistence.save()
+
+        let leftovers = PersistenceController.audioPathsNoTranscriptOwns(
+            [sharedTrimmed.path, sharedUploadCopy.path, unowned.path, audio.path],
+            in: persistence.container.viewContext
+        )
+        #expect(leftovers == [unowned.path])
     }
 
     /// The plain Retry runs the pipeline in a task it tracks by the row's ID
