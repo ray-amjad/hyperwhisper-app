@@ -2841,8 +2841,11 @@ public partial class MainViewModel : ViewModelBase
         if (!IsLocalModelDownloaded(mode)) return false;
         if (mode.LocalEngine == "parakeet")
             return _parakeetTranscriptionService.IsAvailable;
-        // A model a pending unload is about to dispose is not ready (#1609).
-        return _transcriptionService.IsLoadedAndStaying();
+        // A model a pending unload is about to dispose is not ready (#1609), and
+        // neither is another mode's model (#1809): a load for mode A that ends
+        // after a switch to mode B must not let B record with A's model.
+        var model = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == mode.ModelType);
+        return model != null && _transcriptionService.IsLoadedAndStaying(_modelService.GetModelPath(model));
     }
 
     /// <summary>

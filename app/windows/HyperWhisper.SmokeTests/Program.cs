@@ -1874,6 +1874,69 @@ internal static class Program
                     "a mode that uses screen OCR lost the text captured at the hotkey");
             });
 
+            // #1809. A Whisper load for mode A that ends after a switch to mode B
+            // passed B's readiness check, because IsLocalProviderReady asked only
+            // whether ANY model was loaded, so B recorded with A's model.
+            Run("A loaded Whisper model A is not ready for a mode whose model is B (#1809)", () =>
+            {
+                const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                var isReady = typeof(MainViewModel).GetMethod("IsLocalProviderReady", all, new[] { typeof(Mode) })
+                    ?? throw new InvalidOperationException("MainViewModel.IsLocalProviderReady(Mode) is gone; update this test");
+                var factoryField = typeof(TranscriptionService).GetField("_whisperFactory", all)
+                    ?? throw new InvalidOperationException("TranscriptionService._whisperFactory is gone; update this test");
+                var loadedPath = typeof(TranscriptionService).GetProperty("LoadedModelPath", all)
+                    ?? throw new InvalidOperationException("TranscriptionService.LoadedModelPath is gone; update this test");
+
+                var models = new WhisperModelService();
+                var modelA = WhisperModelInfo.AllModels.Single(m => m.Type == "tiny");
+                var modelB = WhisperModelInfo.AllModels.Single(m => m.Type == "tiny.en");
+                var pathA = models.GetModelPath(modelA);
+                var pathB = models.GetModelPath(modelB);
+                // Install both (the readiness check first asks for the file), but
+                // never overwrite a real model this machine already has.
+                var written = new List<string>();
+                foreach (var (model, path) in new[] { (modelA, pathA), (modelB, pathB) })
+                {
+                    if (models.IsModelDownloaded(model)) continue;
+                    WriteGgmlFile(path, model.SizeInBytes);
+                    written.Add(path);
+                }
+
+                // A model A load that finished: a factory and A's path, no unload pending.
+                var service = new TranscriptionService();
+                var fakeFactory = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(factoryField.FieldType);
+                GC.SuppressFinalize(fakeFactory);
+                factoryField.SetValue(service, fakeFactory);
+                loadedPath.SetValue(service, pathA);
+                try
+                {
+                    var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+                    foreach (var (name, value) in new (string, object)[] { ("_modelService", models), ("_transcriptionService", service) })
+                    {
+                        (typeof(MainViewModel).GetField(name, all)
+                            ?? throw new InvalidOperationException($"MainViewModel.{name} is gone; update this test"))
+                            .SetValue(vm, value);
+                    }
+                    bool Ready(string modelType) => (bool)isReady.Invoke(vm, new object[]
+                    {
+                        new Mode { ProviderType = "local", LocalEngine = "whisper", ModelType = modelType },
+                    })!;
+
+                    Assert(service.IsLoadedAndStaying(), "precondition: the fake model A reads as loaded");
+                    Assert(Ready(modelA.Type), "a mode whose model is the loaded model A is not ready");
+                    Assert(!Ready(modelB.Type), "a mode whose model is B counts as ready while model A is loaded");
+                }
+                finally
+                {
+                    factoryField.SetValue(service, null);
+                    loadedPath.SetValue(service, null);
+                    foreach (var path in written)
+                    {
+                        try { File.Delete(path); } catch { /* best effort */ }
+                    }
+                }
+            });
+
             Run("IsNoSpaceLanguage / NormalizeLanguage truth tables", () =>
             {
                 foreach (var code in new[] { "ja", "zh", "ko", "yue" })
