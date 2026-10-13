@@ -13,8 +13,9 @@ import { loadMessages } from "@/src/i18n/messages";
 // app/not-found.tsx, which wraps it in the same layout.
 //
 // robots: the [locale] layout's robots is "index, follow", and Next also
-// injects its own noindex on a 404, so without this the page carried both
-// (#1133). This boundary's robots replaces the layout's, leaving only noindex.
+// injects its own noindex for a thrown notFound(), so without this the page
+// carried both (#1133). null clears the layout's tag and leaves Next's noindex
+// as the only one; a noindex here would be a second, identical tag (#815).
 // The pages that throw notFound() also throw it from their generateMetadata,
 // or the browser keeps the page's metadata instead of this.
 //
@@ -34,7 +35,7 @@ export async function generateMetadata(props?: {
 
   return {
     title: t("title"),
-    robots: { index: false },
+    robots: null,
   };
 }
 

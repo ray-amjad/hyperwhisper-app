@@ -20,11 +20,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("notFound");
 
   // No [locale] layout above this file, so no "%s - HyperWhisper" template.
-  // Next does not inject noindex on this path: in production an unmatched URL
-  // (/de/zzz) answered 404 with no robots tag at all, so it is set here.
+  // robots: Next injects its own noindex here only when the status is already
+  // 404 at render. next start does that; Vercel does not, and production
+  // answered /de/zzz with no robots tag at all. So the tag is set on Vercel
+  // only: anywhere else it would be a second, identical noindex (#815).
   return {
     title: `${t("title")} - HyperWhisper`,
-    robots: { index: false },
+    ...(process.env.VERCEL ? { robots: { index: false } } : {}),
   };
 }
 

@@ -3,13 +3,14 @@
  *
  * `app/[locale]/not-found.tsx`: a notFound() under [locale] resolves the
  * [locale] layout's metadata, whose robots is "index, follow", next to Next's
- * injected noindex. This boundary's robots must replace it with a noindex. It
- * must also carry a real title, in the URL's locale, and links back into the
+ * injected noindex. This boundary's robots must clear it, so Next's noindex is
+ * the only robots tag (a noindex here would be a second one). It must also carry a real title, in the URL's locale, and links back into the
  * site, so a 404 is not a dead end (#815).
  *
  * `app/not-found.tsx` serves every unmatched URL (/de/zzz). It must wrap that
  * same content in the [locale] layout, so the page gets the site chrome, and
- * set its own noindex, since Next injects none on that path.
+ * set its own noindex on Vercel only: next start injects one there, Vercel
+ * does not.
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -116,14 +117,16 @@ type RootNotFoundModule = {
   generateMetadata: () => Promise<Metadata>;
 };
 
-test("[locale] not-found overrides the layout robots with noindex and sets a title", async () => {
+test("[locale] not-found clears the layout robots and sets a title", async () => {
   request.locale = "en";
   const { generateMetadata } = (await import(
     LOCALE_NOT_FOUND_PATH
   )) as LocaleNotFoundModule;
   const metadata = await generateMetadata();
 
-  assert.deepEqual(metadata.robots, { index: false });
+  // null, not absent: absent would inherit the layout's "index, follow".
+  assert.ok("robots" in metadata);
+  assert.equal(metadata.robots, null);
   assert.equal(metadata.title, en.title);
 });
 
@@ -220,14 +223,25 @@ test("the root not-found wraps the [locale] 404 in the [locale] layout", async (
   assert.equal((await generateMetadata()).title, `${de.title} - HyperWhisper`);
 });
 
-test("the root not-found marks an unmatched URL noindex", async () => {
-  // Next injected no noindex on an unmatched URL in production (/de/zzz).
+test("the root not-found marks an unmatched URL noindex on Vercel only", async () => {
+  // Vercel served no noindex on an unmatched URL (/de/zzz); next start injects
+  // one itself, so a second there would be a duplicate tag.
   request.locale = "de";
   const { generateMetadata } = (await import(
     ROOT_NOT_FOUND_PATH
   )) as RootNotFoundModule;
+  const vercel = process.env.VERCEL;
 
-  assert.deepEqual((await generateMetadata()).robots, { index: false });
+  try {
+    process.env.VERCEL = "1";
+    assert.deepEqual((await generateMetadata()).robots, { index: false });
+
+    delete process.env.VERCEL;
+    assert.equal((await generateMetadata()).robots, undefined);
+  } finally {
+    if (vercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = vercel;
+  }
 });
 
 test("every locale catalogue has the notFound strings", () => {
