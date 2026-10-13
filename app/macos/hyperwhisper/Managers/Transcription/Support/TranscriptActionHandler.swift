@@ -40,27 +40,29 @@ class TranscriptActionHandler: ObservableObject {
         let cancel: () -> Void
     }
 
-    /// The running retry transcription for each row, by the row's ID: the new
+    /// The running retry transcriptions of each row, by the row's ID: the new
     /// row of a "Retry with" (#1458), or the failed row a plain Retry reuses
-    /// (#1743).
+    /// (#1743). A list, because History and the recording dialog each have a
+    /// handler that can retry the same row at once.
     ///
     /// Deleting the row must cancel its transcription, or the job runs on for
     /// minutes with nothing to write to. Static, because History keeps its
     /// handler in `@State` (closing and reopening the window makes a new
     /// handler, and its delete must still find the task), and the recording
     /// dialog's Retry runs on a handler of its own.
-    private static var retryTasks: [UUID: RunningRetry] = [:]
+    private static var retryTasks: [UUID: [RunningRetry]] = [:]
 
-    /// Remember the running retry transcription for this row. `token` names
-    /// this run, so a later run of the same row is not untracked by this one.
+    /// Remember a running retry transcription for this row. `token` names
+    /// this run, so finishing it untracks only this run, not another of the row.
     static func trackRetryTask<Success: Sendable, Failure: Error>(_ task: Task<Success, Failure>, for transcriptId: UUID, token: UUID) {
-        retryTasks[transcriptId] = RunningRetry(token: token, cancel: { task.cancel() })
+        retryTasks[transcriptId, default: []].append(RunningRetry(token: token, cancel: { task.cancel() }))
     }
 
-    /// Forget a finished retry transcription, unless a newer run of the row replaced it.
+    /// Forget a finished retry transcription; other runs of the row stay tracked.
     static func untrackRetryTask(for transcriptId: UUID, token: UUID) {
-        guard retryTasks[transcriptId]?.token == token else { return }
-        retryTasks.removeValue(forKey: transcriptId)
+        guard var running = retryTasks[transcriptId] else { return }
+        running.removeAll { $0.token == token }
+        retryTasks[transcriptId] = running.isEmpty ? nil : running
     }
 
     /// True while a retry transcription for this row is tracked.
@@ -68,13 +70,13 @@ class TranscriptActionHandler: ObservableObject {
         retryTasks[transcriptId] != nil
     }
 
-    /// Cancel the running retry transcription for this row, if any.
+    /// Cancel every running retry transcription of this row, if any.
     /// Cancelling the task stops the engine too (`TranscriptionPipeline.value(of:)`, #1507).
-    /// It cancels only this row's own run: a newer dictation that took the
+    /// It cancels only this row's own runs: a newer dictation that took the
     /// pipeline over runs in a task of its own and is left alone (#1425).
     static func cancelRetryTask(for transcriptId: UUID) {
         guard let running = retryTasks.removeValue(forKey: transcriptId) else { return }
-        running.cancel()
+        running.forEach { $0.cancel() }
         AppLogger.ui.info("Cancelled the retry transcription of a deleted transcript")
     }
 

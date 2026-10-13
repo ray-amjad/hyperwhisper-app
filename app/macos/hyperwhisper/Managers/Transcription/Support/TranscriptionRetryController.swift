@@ -223,6 +223,11 @@ class TranscriptionRetryController {
                 }
             }
 
+            // The row was deleted while that save ran: still nothing to write to.
+            if transcript.retryWasStoppedByDelete() {
+                throw CancellationError()
+            }
+
             // SUCCESS HANDLING: Update transcript with successful result
             // This marks the transcript as completed and stores the text
             persistence.updateTranscriptWithTranscription(
@@ -238,7 +243,10 @@ class TranscriptionRetryController {
             return result
         } catch {
             // A delete cancelled this retry (#1743): the row is gone, so leave it be.
+            // The delete swept only the files the row recorded, so remove the
+            // VAD output this run wrote, or it stays on disk (#1513).
             if transcript.retryWasStoppedByDelete() {
+                _ = await FileDeletion.deleteFiles(at: Self.filesMadeByRetry(vadResult))
                 AppLogger.transcription.info("Retry stopped: its transcript was deleted")
                 throw error
             }
@@ -274,6 +282,18 @@ class TranscriptionRetryController {
         }
 
         return FileManager.default.fileExists(atPath: audioPath)
+    }
+
+    /// The files a retry's VAD step wrote: the trimmed WAV and, for a large
+    /// one, its M4A upload copy. Never the recording the retry started from.
+    static func filesMadeByRetry(_ vadResult: VADProcessingResult) -> [String] {
+        let originalPath = vadResult.originalAudioURL.path
+        var paths: [String] = []
+        for url in [vadResult.trimResult?.outputURL, vadResult.finalAudioURL] {
+            guard let path = url?.path, path != originalPath, !paths.contains(path) else { continue }
+            paths.append(path)
+        }
+        return paths
     }
 }
 

@@ -144,6 +144,79 @@ struct DeleteCancelsPlainRetryTests {
         #expect(!TranscriptActionHandler.hasRetryTask(for: rowId))
     }
 
+    /// Two handlers retrying the same row at once: deleting the row cancels
+    /// both runs, not only the newer one.
+    @MainActor
+    @Test func aDeleteCancelsEveryRunningRetryOfTheRow() async {
+        let rowId = UUID()
+        let spin: @Sendable () async -> Void = {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000)
+            }
+        }
+        let first = Task<Void, Never> { await spin() }
+        let second = Task<Void, Never> { await spin() }
+        TranscriptActionHandler.trackRetryTask(first, for: rowId, token: UUID())
+        TranscriptActionHandler.trackRetryTask(second, for: rowId, token: UUID())
+
+        TranscriptActionHandler.cancelRetryTask(for: rowId)
+        await first.value
+        await second.value
+        #expect(first.isCancelled)
+        #expect(second.isCancelled)
+        #expect(!TranscriptActionHandler.hasRetryTask(for: rowId))
+    }
+
+    // MARK: - Cancelled retry's files and writes
+
+    /// A cancelled retry removes the trimmed WAV and its M4A upload copy that
+    /// its VAD step wrote, and never the recording it started from.
+    @MainActor
+    @Test func aCancelledRetryRemovesOnlyTheFilesItsVADWrote() {
+        let folder = URL(fileURLWithPath: "/tmp/retry-1743", isDirectory: true)
+        let original = folder.appendingPathComponent("rec.wav")
+        let trimmed = folder.appendingPathComponent("rec_wav_trimmed.wav")
+        let uploadCopy = folder.appendingPathComponent("rec_wav_trimmed.m4a")
+        let trim = TrimResult(outputURL: trimmed, originalDuration: 40, trimmedDuration: 30, segmentCount: 2)
+
+        let converted = VADProcessingResult(finalAudioURL: uploadCopy, trimResult: trim, wasProcessed: true, originalAudioURL: original)
+        #expect(TranscriptionRetryController.filesMadeByRetry(converted) == [trimmed.path, uploadCopy.path])
+
+        let trimmedOnly = VADProcessingResult(finalAudioURL: trimmed, trimResult: trim, wasProcessed: true, originalAudioURL: original)
+        #expect(TranscriptionRetryController.filesMadeByRetry(trimmedOnly) == [trimmed.path])
+
+        let skipped = VADProcessingResult(finalAudioURL: original, trimResult: nil, wasProcessed: false, originalAudioURL: original)
+        #expect(TranscriptionRetryController.filesMadeByRetry(skipped).isEmpty)
+    }
+
+    /// The controller slice for the two rules above, sliced from the source
+    /// because driving the engine needs a live `TranscriptionPipeline`: the
+    /// deleted-row check runs again after the trimmed-path save awaits and
+    /// before the result is written, and the cancelled path removes the VAD
+    /// output before it rethrows.
+    @Test func aCancelledRetryRechecksAfterTheTrimmedPathSaveAndCleansUp() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("hyperwhisper/Managers/Transcription/Support/TranscriptionRetryController.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+
+        let start = try #require(source.range(of: "func retryTranscription(for transcript: Transcript)"))
+        let end = try #require(source.range(of: "func canRetryTranscript(", range: start.upperBound..<source.endIndex))
+        let body = source[start.lowerBound..<end.lowerBound]
+
+        let save = try #require(body.range(of: "await persistence.setTrimmedAudioPath("))
+        let write = try #require(body.range(of: "persistence.updateTranscriptWithTranscription("))
+        let recheck = try #require(body.range(of: "transcript.retryWasStoppedByDelete()", range: save.upperBound..<write.lowerBound))
+        #expect(save.lowerBound < recheck.lowerBound && recheck.lowerBound < write.lowerBound)
+        #expect(!body[recheck.upperBound..<write.lowerBound].contains("await "), "no await between the last check and the write")
+
+        let catchStart = try #require(body.range(of: "} catch {", range: write.upperBound..<body.endIndex))
+        let cleanup = try #require(body.range(of: "FileDeletion.deleteFiles(at: Self.filesMadeByRetry(vadResult))", range: catchStart.upperBound..<body.endIndex))
+        let rethrow = try #require(body.range(of: "throw error", range: cleanup.upperBound..<body.endIndex))
+        #expect(cleanup.lowerBound < rethrow.lowerBound)
+    }
+
     /// The plain Retry runs the pipeline in a task it tracks by the row's ID
     /// before it awaits it, so a delete during the retry finds it. Sliced from
     /// the source, because driving it needs a live `TranscriptionPipeline`.
