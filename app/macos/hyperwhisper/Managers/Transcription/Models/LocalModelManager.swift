@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import AppKit
 import Combine
 import os
 
@@ -59,8 +60,31 @@ class LocalModelManager: NSObject, ObservableObject {
         return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
     }()
 
-    private var downloadTasks: [String: URLSessionDownloadTask] = [:]
+    private var downloadTasks: [String: URLSessionDataTask] = [:]
     private var taskModelIds: [Int: String] = [:]
+
+    /// Suffix of an in-flight download's file in `modelsDirectory` (issue #1723, the
+    /// GGUF side of #1445).
+    ///
+    /// Downloads stream into `<filename>.<uuid>.llmpartial` in our own models directory
+    /// instead of URLSession's `CFNetworkDownload_*.tmp` in the shared `$TMPDIR`, which
+    /// a plain cancel and a quit both left behind with nothing naming it (measured on
+    /// macOS 26.6, 2026-10-13). A file in our own directory with our own suffix is
+    /// provably ours: cancel and failure delete it, a quit deletes it, and the launch
+    /// sweep deletes what a kill left. Not `.partial`: Whisper's launch sweep removes
+    /// that suffix in this same directory, and may run while a GGUF download is live.
+    nonisolated static let partialFileSuffix = ".llmpartial"
+
+    /// In-flight download files by task identifier.
+    private let partialFiles = LocalModelPartialFiles()
+
+    /// Sweep once per process, before any download can start, so a second manager
+    /// instance can never delete a file the first is writing.
+    private static let sweepLeftoverPartialsOnce: Void = {
+        _ = PartialDownloadCleanup.removeFiles(withSuffix: partialFileSuffix, in: modelsDirectory)
+    }()
+
+    private var terminateObservation: NSObjectProtocol?
 
     // MARK: Paths
     // `nonisolated` so the non-MainActor mode-repair pass can resolve model file
@@ -154,7 +178,27 @@ class LocalModelManager: NSObject, ObservableObject {
     override init() {
         super.init()
         createModelsDirectoryIfNeeded()
+        // A kill mid-download leaves a partial file; nothing resumes it (Ray,
+        // 2026-10-09: clean up, no resume), so remove it now.
+        _ = Self.sweepLeftoverPartialsOnce
         refreshCatalog()
+
+        // A quit mid-download: the transfer dies with the process, so drop its file now
+        // rather than leave gigabytes on disk until the next launch.
+        let partialFiles = partialFiles
+        terminateObservation = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            partialFiles.removeAllFromDisk()
+        }
+    }
+
+    deinit {
+        if let terminateObservation {
+            NotificationCenter.default.removeObserver(terminateObservation)
+        }
     }
 
     // MARK: Public API
@@ -232,10 +276,10 @@ class LocalModelManager: NSObject, ObservableObject {
             return
         }
 
-        // Pre-flight free-space check: the file is downloaded to a temp area and
-        // then moved into place, so require headroom for both copies plus a small
-        // margin before starting a multi-GB download that would otherwise fill the
-        // boot volume and only surface as a URLSession error after disk exhaustion.
+        // Pre-flight free-space check: the file streams into the models directory and
+        // is then renamed into place, so require its size plus a margin before starting
+        // a multi-GB download that would otherwise fill the boot volume and only
+        // surface as a write error after disk exhaustion.
         let requiredBytes = Int64(Double(model.sizeInBytes) * 1.15)
         if let values = try? Self.modelsDirectory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
            let freeBytes = values.volumeAvailableCapacityForImportantUsage,
@@ -246,7 +290,21 @@ class LocalModelManager: NSObject, ObservableObject {
             return
         }
 
-        let task = session.downloadTask(with: model.downloadURL)
+        // Open the app-owned file the bytes stream into (see `partialFileSuffix`). The
+        // UUID keeps a cancelled task's late cleanup off a re-download's file.
+        let partialURL = Self.modelsDirectory.appendingPathComponent(
+            "\(model.filename).\(UUID().uuidString)\(Self.partialFileSuffix)"
+        )
+        guard FileManager.default.createFile(atPath: partialURL.path, contents: nil),
+              let handle = try? FileHandle(forWritingTo: partialURL) else {
+            try? FileManager.default.removeItem(at: partialURL)
+            logger.error("Could not create the partial download file for \(model.filename, privacy: .public)")
+            errorMessage = "Could not start the download of \(model.displayName)."
+            return
+        }
+
+        let task = session.dataTask(with: model.downloadURL)
+        partialFiles.insert(LocalModelPartialFile(url: partialURL, handle: handle), for: task.taskIdentifier)
         downloadTasks[modelId] = task
         taskModelIds[task.taskIdentifier] = modelId
         downloadingModels.insert(modelId)
@@ -257,7 +315,8 @@ class LocalModelManager: NSObject, ObservableObject {
         task.resume()
     }
 
-    /// Cancel an in-progress download.
+    /// Cancel an in-progress download. `didCompleteWithError` always follows the
+    /// cancel and deletes the partial file.
     func cancelDownload(_ modelId: String) {
         guard let task = downloadTasks[modelId] else { return }
         task.cancel()
@@ -303,6 +362,7 @@ class LocalModelManager: NSObject, ObservableObject {
     private func finishDownload(for modelId: String, tempURL: URL) {
         guard let model = availableModels.first(where: { $0.id == modelId }) else {
             logger.error("Model not found in catalog for ID: \(modelId, privacy: .public)")
+            try? FileManager.default.removeItem(at: tempURL)
             cleanupAfterDownload(modelId: modelId)
             return
         }
@@ -314,6 +374,7 @@ class LocalModelManager: NSObject, ObservableObject {
         } catch {
             logger.error("Failed to create models directory: \(error, privacy: .public)")
             errorMessage = "Could not create models directory: \(error.localizedDescription)"
+            try? FileManager.default.removeItem(at: tempURL)
             cleanupAfterDownload(modelId: modelId)
             return
         }
@@ -324,6 +385,7 @@ class LocalModelManager: NSObject, ObservableObject {
             } catch {
                 logger.error("Failed to remove existing file: \(error, privacy: .public)")
                 errorMessage = "Could not replace existing model: \(error.localizedDescription)"
+                try? FileManager.default.removeItem(at: tempURL)
                 cleanupAfterDownload(modelId: modelId)
                 return
             }
@@ -408,11 +470,105 @@ class LocalModelManager: NSObject, ObservableObject {
     }
 }
 
-// MARK: URLSessionDownloadDelegate
-extension LocalModelManager: URLSessionDownloadDelegate {
-    nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+// MARK: Partial download files
+
+/// One in-flight download's file. The table entry is lock-guarded; the other fields
+/// are touched only on the session's serial delegate queue.
+private final class LocalModelPartialFile: @unchecked Sendable {
+    let url: URL
+    let handle: FileHandle
+    var bytesWritten: Int64 = 0
+    var expectedBytes: Int64 = NSURLSessionTransferSizeUnknown
+    var lastReportedPercent = -1
+    /// Set when we abort the task ourselves (bad HTTP status, disk write error), so
+    /// completion reports that instead of a bare "cancelled".
+    var failure: Error?
+
+    init(url: URL, handle: FileHandle) {
+        self.url = url
+        self.handle = handle
+    }
+}
+
+/// In-flight download files by task identifier. Unlike `taskModelIds`, an entry is
+/// NOT removed by `cancelDownload`: `didCompleteWithError` always runs after a cancel
+/// and is what closes and deletes the file.
+private final class LocalModelPartialFiles: @unchecked Sendable {
+    private let lock = NSLock()
+    private var files: [Int: LocalModelPartialFile] = [:]
+
+    func insert(_ file: LocalModelPartialFile, for taskIdentifier: Int) {
+        lock.lock(); defer { lock.unlock() }
+        files[taskIdentifier] = file
+    }
+
+    func file(for taskIdentifier: Int) -> LocalModelPartialFile? {
+        lock.lock(); defer { lock.unlock() }
+        return files[taskIdentifier]
+    }
+
+    func remove(for taskIdentifier: Int) -> LocalModelPartialFile? {
+        lock.lock(); defer { lock.unlock() }
+        return files.removeValue(forKey: taskIdentifier)
+    }
+
+    /// The quit path: delete every in-flight file. The handles stay open; the process
+    /// is about to exit.
+    func removeAllFromDisk() {
+        let urls: [URL] = { lock.lock(); defer { lock.unlock() }; return files.values.map(\.url) }()
+        for url in urls {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+}
+
+// MARK: URLSessionDataDelegate
+extension LocalModelManager: URLSessionDataDelegate {
+    /// Called once the server answers. A non-2xx answer (an HTML error page, a 404)
+    /// aborts the transfer here instead of writing the page into the model file.
+    nonisolated func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
+                                didReceive response: URLResponse,
+                                completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        guard let partial = partialFiles.file(for: dataTask.taskIdentifier) else {
+            completionHandler(.cancel)
+            return
+        }
+        if let httpResponse = response as? HTTPURLResponse,
+           !(200..<300).contains(httpResponse.statusCode) {
+            partial.failure = NSError(domain: "LocalModelManager",
+                                      code: httpResponse.statusCode,
+                                      userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"])
+            completionHandler(.cancel)
+            return
+        }
+        partial.expectedBytes = response.expectedContentLength
+        completionHandler(.allow)
+    }
+
+    /// Called for each chunk: append it to the partial file and report progress.
+    nonisolated func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        let taskIdentifier = dataTask.taskIdentifier
+        guard let partial = partialFiles.file(for: taskIdentifier), partial.failure == nil else { return }
+        do {
+            try partial.handle.write(contentsOf: data)
+        } catch {
+            partial.failure = error
+            dataTask.cancel()
+            return
+        }
+        partial.bytesWritten += Int64(data.count)
+
+        // Hop to the main actor only when the whole percentage changes.
+        let totalBytesWritten = partial.bytesWritten
+        let totalBytesExpectedToWrite = partial.expectedBytes
+        let percent = totalBytesExpectedToWrite > 0
+            ? Int(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) * 100)
+            : Int(totalBytesWritten / 10_000_000)
+        guard percent != partial.lastReportedPercent else { return }
+        partial.lastReportedPercent = percent
+
         Task { @MainActor in
-            guard let modelId = self.taskModelIds[downloadTask.taskIdentifier] else { return }
+            guard let modelId = self.taskModelIds[taskIdentifier] else { return }
             let denominator: Double
             if totalBytesExpectedToWrite > 0 {
                 denominator = Double(totalBytesExpectedToWrite)
@@ -443,38 +599,34 @@ extension LocalModelManager: URLSessionDownloadDelegate {
         }
     }
 
-    nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        let callbackLogger = Logger(subsystem: "com.hyperwhisper.app", category: "LocalModelManager")
-        let persistentTempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("hyperwhisper_llm_download_\(UUID().uuidString)")
-            .appendingPathExtension("tmp")
-
-        do {
-            try FileManager.default.moveItem(at: location, to: persistentTempURL)
-            callbackLogger.info("Moved download to temp location: \(persistentTempURL.lastPathComponent, privacy: .public)")
-
-            Task { @MainActor in
-                guard let modelId = self.taskModelIds[downloadTask.taskIdentifier] else {
-                    self.logger.error("Model ID not found for completed download task")
-                    try? FileManager.default.removeItem(at: persistentTempURL)
-                    return
-                }
-                self.finishDownload(for: modelId, tempURL: persistentTempURL)
-            }
-        } catch {
-            callbackLogger.error("Failed to move downloaded file: \(error, privacy: .public)")
-            Task { @MainActor in
-                guard let modelId = self.taskModelIds[downloadTask.taskIdentifier] else { return }
-                self.errorMessage = "Failed to save downloaded model: \(error.localizedDescription)"
-                self.cleanupAfterDownload(modelId: modelId)
-            }
-        }
-    }
-
+    /// Called when the task ends, whatever the outcome. Always closes the partial file;
+    /// a finished download is moved into place and verified, anything else (cancel,
+    /// network error, bad status, short body) deletes it — even after `cancelDownload`
+    /// has already dropped the model-id tracking.
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        let taskIdentifier = task.taskIdentifier
+        guard let partial = partialFiles.remove(for: taskIdentifier) else { return }
+        try? partial.handle.close()
+
+        var failure = partial.failure ?? error
+        if failure == nil, partial.expectedBytes > 0, partial.bytesWritten != partial.expectedBytes {
+            failure = URLError(.networkConnectionLost)
+        }
+        if failure != nil {
+            try? FileManager.default.removeItem(at: partial.url)
+        }
+        let partialURL = partial.url
+
         Task { @MainActor in
-            guard let modelId = self.taskModelIds[task.taskIdentifier] else { return }
-            if let error = error as NSError?, error.code != NSURLErrorCancelled {
+            guard let modelId = self.taskModelIds[taskIdentifier] else {
+                // Cancelled: only the file was left to drop, and it is gone.
+                return
+            }
+            guard let error = failure as NSError? else {
+                self.finishDownload(for: modelId, tempURL: partialURL)
+                return
+            }
+            if !(error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled) {
                 self.logger.error("Download failed: \(modelId, privacy: .public) - \(error.localizedDescription, privacy: .public)")
 
                 if error.domain == NSURLErrorDomain {

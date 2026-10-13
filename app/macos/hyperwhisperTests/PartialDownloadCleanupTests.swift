@@ -186,6 +186,115 @@ struct PartialDownloadCleanupTests {
         #expect(PartialDownloadCleanup.removeOwnedDirectory(variant, reason: "test") == false)
     }
 
+    /// The GGUF partial file must not end in Whisper's suffix: Whisper's launch sweep
+    /// runs over the same models directory and could delete a live GGUF download (#1723).
+    @Test func theGGUFPartialSuffixIsNotWhispers() {
+        #expect(LocalModelManager.modelsDirectory == WhisperModelManager.modelsDirectory)
+        #expect(!LocalModelManager.partialFileSuffix.hasSuffix(WhisperModelManager.partialFileSuffix))
+        let gguf = "gemma-4-E2B-it-Q4_K_M.gguf.\(UUID().uuidString)\(LocalModelManager.partialFileSuffix)"
+        #expect(!gguf.hasSuffix(WhisperModelManager.partialFileSuffix))
+        #expect(URL(fileURLWithPath: gguf).pathExtension != "gguf")
+    }
+
+    // MARK: Tmp files this process holds open (#1723)
+
+    /// Only a `CFNetworkDownload_*.tmp` this process holds open is reported; a closed
+    /// one beside it (another app's, as far as we can prove) and an open file with
+    /// another name are not.
+    @Test func openDownloadTempFilesReportsOnlyFilesThisProcessHoldsOpen() throws {
+        let tmp = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let open = tmp.appendingPathComponent("CFNetworkDownload_Open.tmp")
+        let closed = tmp.appendingPathComponent("CFNetworkDownload_Closed.tmp")
+        let otherName = tmp.appendingPathComponent("unrelated.tmp")
+        [open, closed, otherName].forEach(Self.touch)
+        let openHandle = try FileHandle(forWritingTo: open)
+        let otherHandle = try FileHandle(forWritingTo: otherName)
+        defer { try? openHandle.close(); try? otherHandle.close() }
+
+        let found = PartialDownloadCleanup.openDownloadTempFiles(temporaryDirectory: tmp)
+
+        #expect(found.map(\.lastPathComponent) == [open.lastPathComponent])
+    }
+
+    /// A candidate that is still open (a transfer still running) stays; one that was
+    /// closed goes; a file that was never a candidate stays.
+    @Test func removeAbandonedDownloadTempFilesKeepsOpenFiles() throws {
+        let tmp = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let running = tmp.appendingPathComponent("CFNetworkDownload_Running.tmp")
+        let abandoned = tmp.appendingPathComponent("CFNetworkDownload_Abandoned.tmp")
+        let theirs = tmp.appendingPathComponent("CFNetworkDownload_Theirs.tmp")
+        [running, abandoned, theirs].forEach(Self.touch)
+        let runningHandle = try FileHandle(forWritingTo: running)
+        defer { try? runningHandle.close() }
+        let abandonedHandle = try FileHandle(forWritingTo: abandoned)
+        let candidates = PartialDownloadCleanup.openDownloadTempFiles(temporaryDirectory: tmp)
+        #expect(candidates.count == 2)
+        try abandonedHandle.close()
+
+        let removed = PartialDownloadCleanup.removeAbandonedDownloadTempFiles(candidates, temporaryDirectory: tmp)
+
+        #expect(removed.map(\.lastPathComponent) == [abandoned.lastPathComponent])
+        #expect(FileManager.default.fileExists(atPath: running.path))
+        #expect(!FileManager.default.fileExists(atPath: abandoned.path))
+        #expect(FileManager.default.fileExists(atPath: theirs.path))
+    }
+
+    /// The tracker ignores a download file that was already open when it started:
+    /// that one belongs to another download.
+    @MainActor
+    @Test func theTrackerIgnoresFilesOpenBeforeItStarted() throws {
+        let tmp = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let before = tmp.appendingPathComponent("CFNetworkDownload_Before.tmp")
+        let during = tmp.appendingPathComponent("CFNetworkDownload_During.tmp")
+        Self.touch(before)
+        let beforeHandle = try FileHandle(forWritingTo: before)
+        let tracker = DownloadTempFileTracker(temporaryDirectory: tmp)
+        Self.touch(during)
+        let duringHandle = try FileHandle(forWritingTo: during)
+        tracker.sample()
+        try beforeHandle.close()
+        try duringHandle.close()
+
+        let removed = tracker.removeAbandoned()
+
+        #expect(removed.map(\.lastPathComponent) == [during.lastPathComponent])
+        #expect(FileManager.default.fileExists(atPath: before.path))
+    }
+
+    // MARK: Parakeet download marker (#1723)
+
+    /// With the marker, the cache directory is an unfinished download: both go.
+    /// Without it, the directory is left alone.
+    @Test func parakeetMarkerGatesTheRemoval() throws {
+        let root = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = root.appendingPathComponent("parakeet-tdt-0.6b-v3-coreml", isDirectory: true)
+        let marker = root.appendingPathComponent("parakeet-tdt-0.6b-v3-coreml.download-in-progress")
+        try FileManager.default.createDirectory(at: cache.appendingPathComponent("Encoder.mlmodelc"),
+                                                withIntermediateDirectories: true)
+
+        #expect(!ParakeetModelManager.removeUnfinishedDownload(in: cache, marker: marker, reason: "test"))
+        #expect(FileManager.default.fileExists(atPath: cache.path))
+
+        Self.touch(marker)
+        #expect(ParakeetModelManager.removeUnfinishedDownload(in: cache, marker: marker, reason: "test"))
+        #expect(!FileManager.default.fileExists(atPath: cache.path))
+        #expect(!FileManager.default.fileExists(atPath: marker.path))
+    }
+
+    /// The marker lives in our own folder, never inside FluidAudio's cache directory,
+    /// which FluidAudio deletes itself on a forced or retried download.
+    @Test func parakeetMarkerLivesOutsideTheCacheDirectory() {
+        let cache = URL(fileURLWithPath: "/Users/x/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3-coreml")
+        let marker = ParakeetModelManager.downloadMarker(forCacheDirectory: cache)
+        #expect(!marker.path.hasPrefix(cache.path))
+        #expect(marker.deletingLastPathComponent().lastPathComponent == "hyperwhisper")
+        #expect(marker.lastPathComponent == "parakeet-tdt-0.6b-v3-coreml.download-in-progress")
+    }
+
     // MARK: Nemotron in-progress marker
 
     /// `metadata.json` beside the marker is a download that never finished; without the
