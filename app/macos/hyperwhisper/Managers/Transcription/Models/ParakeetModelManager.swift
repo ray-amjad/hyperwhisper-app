@@ -414,6 +414,7 @@ final class ParakeetModelManager: ObservableObject {
         }
         let tempFiles = DownloadTempFileTracker()
         tempFileTrackers[modelId] = tempFiles
+        tempFiles.start()
         var succeeded = false
 
         do {
@@ -426,7 +427,6 @@ final class ParakeetModelManager: ObservableObject {
                     // FluidAudio calls this on an unspecified queue — hop to the main
                     // actor before touching the aggregator or the controller.
                     Task { @MainActor in
-                        tempFiles.sampleIfDue()
                         let published = aggregator.aggregate(update)
                         controller.report(modelId, fraction: published.fraction, stage: published.stage)
                     }

@@ -264,6 +264,25 @@ struct PartialDownloadCleanupTests {
         #expect(FileManager.default.fileExists(atPath: before.path))
     }
 
+    /// Started, the tracker names a file opened later on its own, with no progress
+    /// callback: FluidAudio sends none while a file is in flight.
+    @MainActor
+    @Test func theStartedTrackerSamplesOnItsOwn() async throws {
+        let tmp = try Self.makeDirectory()
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let tracker = DownloadTempFileTracker(temporaryDirectory: tmp, interval: 0.05)
+        tracker.start()
+        let file = tmp.appendingPathComponent("CFNetworkDownload_Later.tmp")
+        Self.touch(file)
+        let handle = try FileHandle(forWritingTo: file)
+        try await Task.sleep(nanoseconds: 500_000_000)
+        try handle.close()
+
+        #expect(tracker.seen.map(\.lastPathComponent) == [file.lastPathComponent])
+        #expect(tracker.removeAbandoned().map(\.lastPathComponent) == [file.lastPathComponent])
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+    }
+
     // MARK: Parakeet download marker (#1723)
 
     /// With the marker, the cache directory is an unfinished download: both go.
@@ -271,8 +290,8 @@ struct PartialDownloadCleanupTests {
     @Test func parakeetMarkerGatesTheRemoval() throws {
         let root = try Self.makeDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
-        let cache = root.appendingPathComponent("parakeet-tdt-0.6b-v3-coreml", isDirectory: true)
-        let marker = root.appendingPathComponent("parakeet-tdt-0.6b-v3-coreml.download-in-progress")
+        let cache = root.appendingPathComponent("parakeet-tdt-0.6b-v3", isDirectory: true)
+        let marker = root.appendingPathComponent("parakeet-tdt-0.6b-v3.download-in-progress")
         try FileManager.default.createDirectory(at: cache.appendingPathComponent("Encoder.mlmodelc"),
                                                 withIntermediateDirectories: true)
 
@@ -288,11 +307,11 @@ struct PartialDownloadCleanupTests {
     /// The marker lives in our own folder, never inside FluidAudio's cache directory,
     /// which FluidAudio deletes itself on a forced or retried download.
     @Test func parakeetMarkerLivesOutsideTheCacheDirectory() {
-        let cache = URL(fileURLWithPath: "/Users/x/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3-coreml")
+        let cache = URL(fileURLWithPath: "/Users/x/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3")
         let marker = ParakeetModelManager.downloadMarker(forCacheDirectory: cache)
         #expect(!marker.path.hasPrefix(cache.path))
         #expect(marker.deletingLastPathComponent().lastPathComponent == "hyperwhisper")
-        #expect(marker.lastPathComponent == "parakeet-tdt-0.6b-v3-coreml.download-in-progress")
+        #expect(marker.lastPathComponent == "parakeet-tdt-0.6b-v3.download-in-progress")
     }
 
     // MARK: Nemotron in-progress marker

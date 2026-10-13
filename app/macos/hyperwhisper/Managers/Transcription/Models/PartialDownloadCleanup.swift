@@ -337,13 +337,16 @@ enum PartialDownloadCleanup {
 /// while the download runs names them; `removeAbandoned()` then drops the ones no
 /// transfer holds any more. Files that were already open when the download began
 /// belong to another download and are never collected.
+///
+/// The sampling runs on its own timer: FluidAudio 0.15.2 calls its progress handler
+/// only between files, when no tmp file is open (measured: 7 calls in 20 s).
 @MainActor
 final class DownloadTempFileTracker {
     private let temporaryDirectory: URL
     private let interval: TimeInterval
     private let preexisting: Set<URL>
     private(set) var seen: Set<URL> = []
-    private var lastSample = Date.distantPast
+    private var sampler: Task<Void, Never>?
 
     init(temporaryDirectory: URL = FileManager.default.temporaryDirectory, interval: TimeInterval = 0.5) {
         self.temporaryDirectory = temporaryDirectory
@@ -351,24 +354,32 @@ final class DownloadTempFileTracker {
         preexisting = PartialDownloadCleanup.openDownloadTempFiles(temporaryDirectory: temporaryDirectory)
     }
 
-    /// Sample unless the last sample was under `interval` ago. Cheap enough for a
-    /// progress callback.
-    func sampleIfDue(now: Date = Date()) {
-        guard now.timeIntervalSince(lastSample) >= interval else { return }
-        sample(now: now)
+    /// Sample every `interval` until `removeAbandoned()`. Each sample is one
+    /// `proc_pidinfo` call plus an `fcntl` per open file.
+    func start() {
+        guard sampler == nil else { return }
+        let nanoseconds = UInt64(interval * 1_000_000_000)
+        sampler = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.sample()
+                try? await Task.sleep(nanoseconds: nanoseconds)
+            }
+        }
     }
 
-    /// Record the download files open right now. Call it just before a cancel.
-    func sample(now: Date = Date()) {
-        lastSample = now
+    /// Record the download files open right now. Call it just before a cancel too,
+    /// so a file opened since the last tick is named while it is still open.
+    func sample() {
         seen.formUnion(PartialDownloadCleanup.openDownloadTempFiles(temporaryDirectory: temporaryDirectory)
             .subtracting(preexisting))
     }
 
-    /// Remove every collected file that is no longer open. Call it once the download
-    /// has returned, whatever the outcome.
+    /// Stop sampling and remove every collected file that is no longer open. Call it
+    /// once the download has returned, whatever the outcome.
     @discardableResult
     func removeAbandoned() -> [URL] {
-        PartialDownloadCleanup.removeAbandonedDownloadTempFiles(seen, temporaryDirectory: temporaryDirectory)
+        sampler?.cancel()
+        sampler = nil
+        return PartialDownloadCleanup.removeAbandonedDownloadTempFiles(seen, temporaryDirectory: temporaryDirectory)
     }
 }
