@@ -24,7 +24,7 @@ private final class ProbeStubURLProtocol: URLProtocol {
 
     private static let lock = NSLock()
     private static var replies: [String: Reply] = [:]
-    private static var requests: [String: [URLRequest]] = [:]
+    private static var sent: [String: [URLRequest]] = [:]
 
     static func makeSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
@@ -40,7 +40,7 @@ private final class ProbeStubURLProtocol: URLProtocol {
     }
 
     static func requests(to host: String) -> [URLRequest] {
-        lock.withLock { requests[host] ?? [] }
+        lock.withLock { sent[host] ?? [] }
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -50,7 +50,7 @@ private final class ProbeStubURLProtocol: URLProtocol {
     override func startLoading() {
         let host = request.url?.host ?? ""
         let reply = Self.lock.withLock { () -> Reply? in
-            Self.requests[host, default: []].append(request)
+            Self.sent[host, default: []].append(request)
             return Self.replies[host]
         }
         guard let url = request.url, let reply,
