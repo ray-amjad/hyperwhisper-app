@@ -28,6 +28,11 @@ import os
 enum CustomEndpointTestResult {
     case success(responsePreview: String)
     case failure(error: String)
+
+    var isSuccess: Bool {
+        if case .success = self { return true }
+        return false
+    }
 }
 
 /// The exact configuration an Add/Edit sheet test probed, and its verdict.
@@ -163,10 +168,9 @@ class CustomPostProcessingManager: ObservableObject {
 
         // STEP 2: Apply updates
         // A verdict belongs to one URL + model + key, so changing any of them
-        // clears it.
-        let storedKey = getAPIKey(for: id)
-        let savedKey = apiKey ?? storedKey
-        if savedKey != storedKey {
+        // clears it. A nil apiKey keeps the stored key, so the Keychain is
+        // read only when a new key could differ from it.
+        if let apiKey = apiKey, apiKey != getAPIKey(for: id) {
             endpoints[index].clearTestStatus()
         }
         if let name = name {
@@ -199,7 +203,8 @@ class CustomPostProcessingManager: ObservableObject {
             }
         }
 
-        if let tested = testedConfiguration, tested.matches(endpoints[index], apiKey: savedKey) {
+        if let tested = testedConfiguration,
+           tested.matches(endpoints[index], apiKey: apiKey ?? getAPIKey(for: id)) {
             endpoints[index].updateTestStatus(success: tested.success)
         }
 
@@ -335,12 +340,15 @@ class CustomPostProcessingManager: ObservableObject {
         testingEndpoints.insert(id)
         defer { testingEndpoints.remove(id) }
         let result = await testEndpoint(endpoint, apiKey: getAPIKey(for: id), session: session)
-        if case .success = result {
-            updateTestStatus(for: id, success: true)
-        } else {
-            updateTestStatus(for: id, success: false)
-        }
+        updateTestStatus(for: id, success: result.isSuccess)
         return result
+    }
+
+    /// The failure text for a URL the shared rule refuses, with its repair
+    /// when the rule offers one.
+    private static func invalidURLMessage(_ message: String, suggestion: String?) -> String {
+        guard let suggestion = suggestion else { return message }
+        return "\(message) — did you mean \(suggestion)?"
     }
 
     /// Test a custom endpoint configuration with a simple "Hello World" request.
@@ -373,11 +381,8 @@ class CustomPostProcessingManager: ObservableObject {
         let verdict = llmValidateExistingCustomEndpoint(
             raw: endpoint.endpointURL, model: endpoint.modelName)
         guard !verdict.url.isEmpty else {
-            let message = verdict.message ?? "Invalid URL"
-            if let suggestion = verdict.suggestion {
-                return .failure(error: "\(message) — did you mean \(suggestion)?")
-            }
-            return .failure(error: message)
+            return .failure(error: Self.invalidURLMessage(
+                verdict.message ?? "Invalid URL", suggestion: verdict.suggestion))
         }
 
         var request: URLRequest
@@ -390,8 +395,8 @@ class CustomPostProcessingManager: ObservableObject {
             // The lenient rule keeps a URL carrying a username or password
             // callable, but the probe builder applies the strict one and
             // refuses it. Offer the repair rather than an encoding error.
-            if let suggestion = verdict.suggestion, let message = verdict.message {
-                return .failure(error: "\(message) — did you mean \(suggestion)?")
+            if verdict.suggestion != nil, let message = verdict.message {
+                return .failure(error: Self.invalidURLMessage(message, suggestion: verdict.suggestion))
             }
             return .failure(error: "Failed to encode request: \(error.localizedDescription)")
         }

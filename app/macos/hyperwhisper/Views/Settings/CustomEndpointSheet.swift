@@ -670,13 +670,11 @@ struct CustomEndpointSheet: View {
         let result = await customEndpointManager.testEndpoint(testEndpoint, apiKey: testedKey)
 
         isTesting = false
-        let succeeded: Bool
-        if case .success = result { succeeded = true } else { succeeded = false }
         testedConfiguration = CustomEndpointTestedConfiguration(
             endpointURL: testEndpoint.endpointURL,
             modelName: testEndpoint.modelName,
             apiKey: testedKey,
-            success: succeeded
+            success: result.isSuccess
         )
 
         switch result {
