@@ -642,6 +642,23 @@ test("a redelivered credit refund does not deduct twice", async () => {
   assert.equal(calls.refundCreditGrant.length, 1);
 });
 
+// #1798: a refund that beats its mint must be retried, not acknowledged.
+test("a credit refund with no grant yet rejects so Stripe retries it", async () => {
+  behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 0, amountTotal: 500 })];
+  behaviour.refundResult = { status: "not_found", refundedAmount: 0, removedAmount: 0 };
+  const from = logLines.length;
+
+  await assert.rejects(
+    handleChargeRefunded(charge({ id: "ch_early", amount: 500, amount_refunded: 500 })),
+    (err: Error) => err.message.includes("ch_early") && err.message.includes("cs_1")
+  );
+  assert.equal(calls.refundCreditGrant.length, 1);
+  assert.deepEqual(
+    logLines.slice(from).filter((line) => line.includes("already processed")),
+    []
+  );
+});
+
 test("a refund worth more than the pack has left logs the shortfall", async () => {
   behaviour.stripeSessions = [creditSession({ credits: 5000, feeCents: 30, amountTotal: 530 })];
   behaviour.refundResult = { status: "processed", refundedAmount: 4500, removedAmount: 1200 };

@@ -85,7 +85,11 @@ export interface CreditGrantRefund {
 }
 
 export interface CreditGrantRefundResult {
-  status: "processed" | "duplicate";
+  /**
+   * "duplicate": the grant already records this refund total. "not_found":
+   * no grant exists for the source yet (e.g. the refund beat the mint, #1798).
+   */
+  status: "processed" | "duplicate" | "not_found";
   /** Credits of value this call newly recorded as refunded. */
   refundedAmount: number;
   /** Credits this call took off the grant's spendable remainder. */
@@ -549,7 +553,9 @@ export async function refundCreditGrant(
 
     const grant = target.rows[0];
     if (!grant) {
-      return { status: "duplicate", refundedAmount: 0, removedAmount: 0 };
+      // Not a duplicate: nothing was refunded. The caller decides whether a
+      // missing grant is normal or must be retried (#1798).
+      return { status: "not_found", refundedAmount: 0, removedAmount: 0 };
     }
 
     const originalAmount = Number(grant.original_amount);
