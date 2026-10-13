@@ -57,10 +57,11 @@ function formatCredits(credits: number) {
 function licenseStatusLabel(status: string) {
   if (status === "granted") return "Active";
   if (status === "revoked") return "Revoked";
+
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-const currencyFormatter =new Intl.NumberFormat("en-US", {
+const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
 });
@@ -498,7 +499,9 @@ export default function CustomersClient() {
                                 {customer.email.slice(-1)}
                                 <button
                                   type="button"
-                                  onClick={() => startEdit(customer.userId, customer.email)}
+                                  onClick={() =>
+                                    startEdit(customer.userId, customer.email)
+                                  }
                                   disabled={isTransitioning}
                                   title="Edit email"
                                   aria-label="Edit email"
@@ -605,11 +608,13 @@ export default function CustomersClient() {
                                   </m.span>
                                 </AnimatePresence>
                               </button>
-                              <span className={`inline-flex items-center justify-self-start px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                                license.status === "revoked"
-                                  ? "bg-red-500/20 text-red-300"
-                                  : "bg-emerald-500/20 text-emerald-300"
-                              }`}>
+                              <span
+                                className={`inline-flex items-center justify-self-start px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                                  license.status === "revoked"
+                                    ? "bg-red-500/20 text-red-300"
+                                    : "bg-emerald-500/20 text-emerald-300"
+                                }`}
+                              >
                                 {licenseStatusLabel(license.status)}
                               </span>
                               <button
@@ -626,7 +631,8 @@ export default function CustomersClient() {
                               >
                                 Add credits
                               </button>
-                              {license.stripeSessionId && license.status !== "revoked" ? (
+                              {license.stripeSessionId &&
+                              license.status !== "revoked" ? (
                                 <button
                                   onClick={() =>
                                     setRefundTarget({
