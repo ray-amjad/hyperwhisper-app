@@ -80,6 +80,13 @@ class TranscriptionRetryController {
     /// VAD processing service for silence trimming and M4A conversion
     private let vadProcessingService = VADProcessingService()
 
+    /// The VAD output paths in-flight retries write or still transcribe, with
+    /// how many runs hold each. Every retry of the same recording writes the
+    /// same names, so a cancelled run's cleanup must skip the files another
+    /// running retry still uses (#1743). Static: History and the recording
+    /// dialog each reach a controller of their own pipeline.
+    private static var vadOutputsInFlight: [String: Int] = [:]
+
     // MARK: - Initialization
 
     /// Initialize retry handler with references to required managers
@@ -182,6 +189,13 @@ class TranscriptionRetryController {
         // Uses VADProcessingService to analyze audio and trim leading/trailing silence.
         // Only applies to recordings >= 30 seconds when VAD is enabled in settings.
         let recordingDuration = transcript.duration
+        // Claimed before VAD writes them, held until this run is over.
+        let claimedVADOutputs = Self.vadOutputPaths(for: audioURL)
+        Self.claimVADOutputs(claimedVADOutputs)
+        var holdsVADOutputs = true
+        defer {
+            if holdsVADOutputs { Self.releaseVADOutputs(claimedVADOutputs) }
+        }
         let vadResult = await vadProcessingService.processAudioForTranscription(
             audioURL: audioURL,
             duration: recordingDuration,
@@ -247,8 +261,10 @@ class TranscriptionRetryController {
             // VAD output this run wrote, or it stays on disk (#1513), unless
             // another row recorded from the same audio still owns it.
             if transcript.retryWasStoppedByDelete() {
+                Self.releaseVADOutputs(claimedVADOutputs)
+                holdsVADOutputs = false
                 let leftovers = PersistenceController.audioPathsNoTranscriptOwns(
-                    Self.filesMadeByRetry(vadResult),
+                    Self.vadOutputsNoRunUses(Self.filesMadeByRetry(vadResult)),
                     in: persistence.container.viewContext
                 )
                 _ = await FileDeletion.deleteFiles(at: leftovers)
@@ -287,6 +303,31 @@ class TranscriptionRetryController {
         }
 
         return FileManager.default.fileExists(atPath: audioPath)
+    }
+
+    /// The names VAD gives its output for this recording: the trimmed WAV and
+    /// its M4A upload copy.
+    static func vadOutputPaths(for audioURL: URL) -> [String] {
+        let trimmed = SilenceTrimmer().generateOutputURL(for: audioURL)
+        return [trimmed.path, TranscriptAudioFiles.uploadCopyURL(forTrimmedWAV: trimmed).path]
+    }
+
+    static func claimVADOutputs(_ paths: [String]) {
+        for path in paths {
+            vadOutputsInFlight[path, default: 0] += 1
+        }
+    }
+
+    static func releaseVADOutputs(_ paths: [String]) {
+        for path in paths {
+            guard let count = vadOutputsInFlight[path] else { continue }
+            vadOutputsInFlight[path] = count > 1 ? count - 1 : nil
+        }
+    }
+
+    /// Of `paths`, the ones no in-flight retry holds.
+    static func vadOutputsNoRunUses(_ paths: [String]) -> [String] {
+        paths.filter { vadOutputsInFlight[$0] == nil }
     }
 
     /// The files a retry's VAD step wrote: the trimmed WAV and, for a large
