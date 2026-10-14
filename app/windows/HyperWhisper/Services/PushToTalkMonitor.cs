@@ -356,18 +356,18 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
             {
                 "leftcontrol" or "leftctrl" => new[] { VK_LCONTROL },
                 "rightcontrol" or "rightctrl" => new[] { VK_RCONTROL },
-                "control" or "ctrl" => new[] { VK_LCONTROL, VK_RCONTROL },
+                "control" or "ctrl" => new[] { VK_CONTROL, VK_LCONTROL, VK_RCONTROL },
                 "leftalt" => new[] { VK_LMENU },
                 "rightalt" => new[] { VK_RMENU },
-                "alt" => new[] { VK_LMENU, VK_RMENU },
+                "alt" => new[] { VK_MENU, VK_LMENU, VK_RMENU },
                 "leftshift" => new[] { VK_LSHIFT },
                 "rightshift" => new[] { VK_RSHIFT },
-                "shift" => new[] { VK_LSHIFT, VK_RSHIFT },
+                "shift" => new[] { VK_SHIFT, VK_LSHIFT, VK_RSHIFT },
                 "leftmeta" or "leftwin" => new[] { VK_LWIN },
                 "rightmeta" or "rightwin" => new[] { VK_RWIN },
                 "meta" => new[] { VK_LWIN, VK_RWIN },
                 "win" => new[] { VK_LWIN, VK_RWIN },
-                _ => new[] { VK_LCONTROL, VK_RCONTROL }
+                _ => new[] { VK_CONTROL, VK_LCONTROL, VK_RCONTROL }
             };
         }
 
@@ -378,9 +378,9 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
                 return new[] { KeyInterop.VirtualKeyFromKey(_settings.CustomShortcut.Key.Value) };
             }
 
-            if (_settings.CustomShortcut.Control) return new[] { VK_LCONTROL, VK_RCONTROL };
-            if (_settings.CustomShortcut.Alt) return new[] { VK_LMENU, VK_RMENU };
-            if (_settings.CustomShortcut.Shift) return new[] { VK_LSHIFT, VK_RSHIFT };
+            if (_settings.CustomShortcut.Control) return new[] { VK_CONTROL, VK_LCONTROL, VK_RCONTROL };
+            if (_settings.CustomShortcut.Alt) return new[] { VK_MENU, VK_LMENU, VK_RMENU };
+            if (_settings.CustomShortcut.Shift) return new[] { VK_SHIFT, VK_LSHIFT, VK_RSHIFT };
             if (_settings.CustomShortcut.Win) return new[] { VK_LWIN, VK_RWIN };
         }
 
@@ -396,15 +396,15 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
             // where .maskAlternate is removed from interference checks for both Option modes.
             if (GetPrimaryKeyCodes().Contains(vkCode)) return true;
 
-            // Check if the key is the opposite side of the same modifier family
+            // Check if the key is the opposite side, or the sideless generic code, of the same modifier family
             return _settings.Modifier.ToLowerInvariant() switch
             {
-                "leftcontrol" or "leftctrl" => vkCode == VK_RCONTROL,
-                "rightcontrol" or "rightctrl" => vkCode == VK_LCONTROL,
-                "leftalt" => vkCode == VK_RMENU,
-                "rightalt" => vkCode == VK_LMENU,
-                "leftshift" => vkCode == VK_RSHIFT,
-                "rightshift" => vkCode == VK_LSHIFT,
+                "leftcontrol" or "leftctrl" => vkCode is VK_RCONTROL or VK_CONTROL,
+                "rightcontrol" or "rightctrl" => vkCode is VK_LCONTROL or VK_CONTROL,
+                "leftalt" => vkCode is VK_RMENU or VK_MENU,
+                "rightalt" => vkCode is VK_LMENU or VK_MENU,
+                "leftshift" => vkCode is VK_RSHIFT or VK_SHIFT,
+                "rightshift" => vkCode is VK_LSHIFT or VK_SHIFT,
                 "leftmeta" or "leftwin" => vkCode == VK_RWIN,
                 "rightmeta" or "rightwin" => vkCode == VK_LWIN,
                 _ => false
@@ -421,9 +421,9 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
 
             return vkCode switch
             {
-                VK_LCONTROL or VK_RCONTROL => _settings.CustomShortcut.Control,
-                VK_LMENU or VK_RMENU => _settings.CustomShortcut.Alt,
-                VK_LSHIFT or VK_RSHIFT => _settings.CustomShortcut.Shift,
+                VK_CONTROL or VK_LCONTROL or VK_RCONTROL => _settings.CustomShortcut.Control,
+                VK_MENU or VK_LMENU or VK_RMENU => _settings.CustomShortcut.Alt,
+                VK_SHIFT or VK_LSHIFT or VK_RSHIFT => _settings.CustomShortcut.Shift,
                 VK_LWIN or VK_RWIN => _settings.CustomShortcut.Win,
                 _ => false
             };
