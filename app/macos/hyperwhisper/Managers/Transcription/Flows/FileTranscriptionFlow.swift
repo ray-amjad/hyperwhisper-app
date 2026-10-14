@@ -441,7 +441,7 @@ class FileTranscriptionFlow {
 
             // STEP 4: Get audio duration (12-13%)
             progressState.animateProgress(to: 0.13, duration: 0.2)
-            let duration = try await getAudioDuration(audioURL)
+            let duration = try await getAudioDuration(audioURL, fileName: fileURL.lastPathComponent)
             importDuration = duration
 
             // STEP 4b: VAD SILENCE TRIMMING (Optional) (13-15%)
@@ -471,7 +471,7 @@ class FileTranscriptionFlow {
             // Validate the artifact that will actually be uploaded. A long
             // source may become valid after VAD, while a stale cloud tier on a
             // BYOK mode must not apply another provider's limits.
-            let uploadDuration = try await getAudioDuration(finalAudioURL)
+            let uploadDuration = try await getAudioDuration(finalAudioURL, fileName: fileURL.lastPathComponent)
             if let constraint = CloudSTTCatalog.shared.uploadDurationConstraint(
                 model: mode.model,
                 cloudProvider: mode.cloudProvider,
@@ -628,12 +628,19 @@ class FileTranscriptionFlow {
     /// - Parameters:
     ///   - fileURL: URL of the file to validate
     ///   - mode: The transcription mode (determines provider)
-    /// - Throws: FileTranscriptionError.fileTooLarge if file exceeds limit
-    private func validateFileSize(_ fileURL: URL, for mode: Mode) throws {
+    /// - Throws: FileTranscriptionError.emptyFile for a 0-byte file,
+    ///   FileTranscriptionError.fileTooLarge if file exceeds limit
+    func validateFileSize(_ fileURL: URL, for mode: Mode) throws {
         // Get file size
         let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
         guard let fileSize = attributes[.size] as? Int64 else {
             throw FileTranscriptionError.cannotReadFile
+        }
+
+        // A 0-byte file has no audio for any engine. Say so here, before
+        // AVFoundation fails on it with a bare "Operation Stopped" (#1428).
+        if fileSize == 0 {
+            throw FileTranscriptionError.emptyFile(fileName: fileURL.lastPathComponent)
         }
 
         // Determine if using cloud provider
@@ -822,10 +829,13 @@ class FileTranscriptionFlow {
 
     /// Gets the duration of an audio file
     ///
-    /// - Parameter url: URL of the audio file
+    /// - Parameters:
+    ///   - url: URL of the audio file
+    ///   - fileName: The name the user picked, for the alert. `url` is the
+    ///     renamed copy, or audio extracted from it.
     /// - Returns: Duration in seconds
     /// - Throws: Error if duration cannot be determined
-    private func getAudioDuration(_ url: URL) async throws -> TimeInterval {
+    func getAudioDuration(_ url: URL, fileName: String) async throws -> TimeInterval {
         let asset = AVURLAsset(url: url)
         let duration: CMTime
         do {
@@ -833,10 +843,11 @@ class FileTranscriptionFlow {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            // AVFoundation's own text here is a bare "Cannot Open" (issue #1426).
+            // AVFoundation's own text here is a bare "Cannot Open" or
+            // "Operation Stopped" (issues #1426, #1428).
             let nsError = error as NSError
             AppLogger.transcription.error("❌ Cannot open audio: errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
-            throw FileTranscriptionError.unreadableAudio
+            throw FileTranscriptionError.unreadableAudio(fileName: fileName)
         }
 
         // Reject invalid/indefinite durations so a non-finite value never escapes
@@ -844,15 +855,17 @@ class FileTranscriptionFlow {
         // AVFoundation cannot resolve the duration and CMTimeGetSeconds returns NaN
         // without throwing. That NaN would later trap at Int(duration.rounded()) and
         // corrupt persisted duration via max(_, NaN), so we surface a clean error here.
+        // Whichever way AVFoundation fails, the user hears the file is not
+        // audio it can read, by name (#1428).
         guard duration.isValid, !duration.flags.contains(.indefinite) else {
             AppLogger.transcription.error("❌ Audio duration is invalid/indefinite: \(url.lastPathComponent)")
-            throw FileTranscriptionError.cannotReadFile
+            throw FileTranscriptionError.unreadableAudio(fileName: fileName)
         }
 
         let seconds = CMTimeGetSeconds(duration)
         guard seconds.isFinite, seconds >= 0 else {
             AppLogger.transcription.error("❌ Audio duration is not finite or is negative: \(url.lastPathComponent)")
-            throw FileTranscriptionError.cannotReadFile
+            throw FileTranscriptionError.unreadableAudio(fileName: fileName)
         }
         return seconds
     }
@@ -985,10 +998,10 @@ class FileTranscriptionFlow {
                 message: "transcribe.file.error.webm".localized
             )
 
-        case .unreadableAudio:
+        case .unreadableAudio, .emptyFile:
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
-                message: "transcribe.file.error.unreadableAudio".localized
+                message: error.localizedDescription
             )
 
         case .videoHasNoAudio:
@@ -1170,7 +1183,11 @@ enum FileTranscriptionError: Error, LocalizedError {
     case webmNotSupported
 
     /// AVFoundation could not open the audio, whatever the file is called.
-    case unreadableAudio
+    /// `fileName` is the name the user picked.
+    case unreadableAudio(fileName: String)
+
+    /// The picked file is 0 bytes (#1428).
+    case emptyFile(fileName: String)
 
     var errorDescription: String? {
         switch self {
@@ -1188,8 +1205,10 @@ enum FileTranscriptionError: Error, LocalizedError {
             return "Video has no audio track"
         case .webmNotSupported:
             return "transcribe.file.error.webm".localized
-        case .unreadableAudio:
-            return "transcribe.file.error.unreadableAudio".localized
+        case .unreadableAudio(let fileName):
+            return "transcribe.file.error.notAudio".localized(arguments: fileName)
+        case .emptyFile(let fileName):
+            return "transcribe.file.error.empty".localized(arguments: fileName)
         }
     }
 }

@@ -1123,7 +1123,8 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcribe.file.error.format.message" = ".%@ skrár eru ekki studdar af %@. Studd form: %@";
 "transcribe.file.error.read" = "Get ekki lesið valda skrá.";
 "transcribe.file.error.webm" = "WebM er ekki stutt. Umbreyttu skránni í MP3, M4A eða WAV og reyndu aftur.";
-"transcribe.file.error.unreadableAudio" = "HyperWhisper getur ekki lesið hljóðið í þessari skrá. Hún gæti verið skemmd eða á sniði sem macOS getur ekki afkóðað.";
+"transcribe.file.error.notAudio" = "Skráin „%@“ er ekki gilt hljóð. Hún gæti verið skemmd eða á sniði sem macOS getur ekki afkóðað.";
+"transcribe.file.error.empty" = "Skráin „%@“ er tóm. Hún inniheldur ekkert hljóð til að umrita.";
 "transcribe.file.error.tooShort" = "Þessi skrá er of stutt til að umrita hana (%@ s).";
 "transcribe.file.error.copy" = "Mistókst að afrita skrá í upptökumöppu.";
 "transcribe.file.error.video.title" = "Ekkert hljóð í myndskrá";

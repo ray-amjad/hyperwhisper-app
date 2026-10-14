@@ -1123,7 +1123,8 @@
 "transcribe.file.error.format.message" = "لا يتم دعم ملفات .%@ بواسطة %@. التنسيقات المدعومة: %@";
 "transcribe.file.error.read" = "لا يمكن قراءة الملف المحدد.";
 "transcribe.file.error.webm" = "تنسيق WebM غير مدعوم. حوّل الملف إلى MP3 أو M4A أو WAV، ثم حاول مرة أخرى.";
-"transcribe.file.error.unreadableAudio" = "لا يستطيع HyperWhisper قراءة الصوت في هذا الملف. قد يكون تالفًا، أو بتنسيق لا يستطيع macOS فك ترميزه.";
+"transcribe.file.error.notAudio" = "الملف «%@» ليس ملفًا صوتيًا صالحًا. قد يكون تالفًا، أو بتنسيق لا يستطيع macOS فك ترميزه.";
+"transcribe.file.error.empty" = "الملف «%@» فارغ. لا يحتوي على صوت لتحويله إلى نص.";
 "transcribe.file.error.tooShort" = "هذا الملف قصير جدًا ولا يمكن تحويله إلى نص (%@ ث).";
 "transcribe.file.error.copy" = "فشل في نسخ الملف إلى مجلد التسجيلات.";
 "transcribe.file.error.video.title" = "لا توجد صوت في الفيديو";

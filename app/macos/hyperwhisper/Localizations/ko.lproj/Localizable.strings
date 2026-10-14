@@ -1123,7 +1123,8 @@
 "transcribe.file.error.format.message" = ".%@ 파일은 %@에서 지원되지 않습니다. 지원되는 형식: %@";
 "transcribe.file.error.read" = "선택한 파일을 읽을 수 없습니다.";
 "transcribe.file.error.webm" = "WebM은 지원되지 않습니다. 파일을 MP3, M4A 또는 WAV로 변환한 후 다시 시도하세요.";
-"transcribe.file.error.unreadableAudio" = "HyperWhisper가 이 파일의 오디오를 읽을 수 없습니다. 파일이 손상되었거나 macOS가 디코딩할 수 없는 형식일 수 있습니다.";
+"transcribe.file.error.notAudio" = "“%@” 파일은 올바른 오디오가 아닙니다. 파일이 손상되었거나 macOS가 디코딩할 수 없는 형식일 수 있습니다.";
+"transcribe.file.error.empty" = "“%@” 파일이 비어 있습니다. 받아쓸 오디오가 없습니다.";
 "transcribe.file.error.tooShort" = "이 파일은 너무 짧아 전사할 수 없습니다(%@초).";
 "transcribe.file.error.copy" = "파일을 녹음 폴더로 복사하지 못했습니다.";
 "transcribe.file.error.video.title" = "비디오에 오디오 없음";
