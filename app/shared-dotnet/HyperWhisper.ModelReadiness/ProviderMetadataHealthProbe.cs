@@ -80,13 +80,14 @@ public sealed class ProviderMetadataHealthProbe(HttpMessageInvoker transport) : 
     }
 
     /// <summary>
-    /// Gemini, Gemini 3.5 Transcribe and xAI answer an invalid key with HTTP 400 on the models
-    /// endpoint. The core folds that 400 into "not healthy" but leaves the reason to the host
-    /// (hw_net::health module note). Remove this once the core's verdict carries the reason
+    /// The Gemini models endpoint and xAI answer an invalid key with HTTP 400. The core folds that
+    /// 400 into "not healthy" but leaves the reason to the host (hw_net::health module note).
+    /// Only the providers <see cref="CoreProvider"/> returns are listed: every Gemini id probes
+    /// as <c>GeminiTranscribe</c>. Remove this once the core's verdict carries the reason
     /// (issue #779) and read it from there.
     /// </summary>
     private static bool RejectsKeyWith400(HwProvider? provider) => provider is
-        HwProvider.Gemini or HwProvider.GeminiTranscribe or HwProvider.GeminiTranscribeLive or HwProvider.Grok;
+        HwProvider.GeminiTranscribe or HwProvider.Grok;
 
     /// <summary>
     /// The core provider for a catalog provider id, or null when the core has no vendor probe
