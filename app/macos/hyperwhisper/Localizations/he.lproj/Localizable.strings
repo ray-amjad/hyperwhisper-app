@@ -1123,7 +1123,8 @@
 "transcribe.file.error.format.message" = "קבצי .%@ אינם נתמכים על ידי %@. פורמטים נתמכים: %@";
 "transcribe.file.error.read" = "לא ניתן לקרוא את הקובץ שנבחר.";
 "transcribe.file.error.webm" = "פורמט WebM אינו נתמך. המירו את הקובץ ל-MP3, M4A או WAV ונסו שוב.";
-"transcribe.file.error.unreadableAudio" = "HyperWhisper לא יכול לקרוא את השמע בקובץ הזה. ייתכן שהוא פגום, או בפורמט ש-macOS לא יכול לפענח.";
+"transcribe.file.error.notAudio" = "הקובץ „%@” אינו שמע תקין. ייתכן שהוא פגום, או בפורמט ש-macOS לא יכול לפענח.";
+"transcribe.file.error.empty" = "הקובץ „%@” ריק. אין בו שמע לתמלול.";
 "transcribe.file.error.tooShort" = "הקובץ הזה קצר מדי לתמלול (%@ שנ׳).";
 "transcribe.file.error.copy" = "כשל בהעתקת קובץ לתיקיית הקלטות.";
 "transcribe.file.error.video.title" = "אין אודיו בוידאו";

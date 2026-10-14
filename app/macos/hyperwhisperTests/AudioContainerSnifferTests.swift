@@ -136,7 +136,12 @@ struct AudioContainerSnifferTests {
     }
 
     @Test func everyLocaleHasTheNewAlertKeys() throws {
-        let keys = ["transcribe.file.error.webm", "transcribe.file.error.unreadableAudio"]
+        // Each key and how many file-name arguments it takes (#1428 named the file).
+        let keys = [
+            "transcribe.file.error.webm": 0,
+            "transcribe.file.error.notAudio": 1,
+            "transcribe.file.error.empty": 1,
+        ]
         let localizations = ProductionSource.url("app/macos/hyperwhisper/Localizations")
         let locales = try FileManager.default.contentsOfDirectory(
             at: localizations,
@@ -147,12 +152,14 @@ struct AudioContainerSnifferTests {
         for locale in locales {
             let lines = try ProductionSource.text(of: locale.appendingPathComponent("Localizable.strings"))
                 .components(separatedBy: .newlines)
-            for key in keys {
+            for (key, arguments) in keys {
                 let matches = lines.filter { $0.hasPrefix("\"\(key)\" = \"") }
                 #expect(matches.count == 1, "\(locale.lastPathComponent) needs exactly one \(key)")
                 guard let line = matches.first else { continue }
                 #expect(line.trimmingCharacters(in: .whitespaces).hasSuffix("\";"), "\(locale.lastPathComponent) \(key)")
-                #expect(!line.contains("%"), "\(locale.lastPathComponent) \(key) takes no format argument")
+                let percents = line.components(separatedBy: "%").count - 1
+                let names = line.components(separatedBy: "%@").count - 1
+                #expect(percents == arguments && names == arguments, "\(locale.lastPathComponent) \(key) takes \(arguments) %@ argument(s)")
             }
         }
     }
