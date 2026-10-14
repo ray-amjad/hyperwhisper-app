@@ -16,6 +16,12 @@
 //  reader that performs the real `AVAudioFile` read for the first chunks and
 //  then throws — the exact shape of a disk fault half way through a recording.
 //
+//  Issue #1516: a WAV that opens with no audio frames (an empty `data` chunk,
+//  or a `fmt ` chunk and no `data` chunk) must be refused with
+//  `TranscriptionError.invalidAudioFormat`, not loaded as an empty array that
+//  Nemotron then reports as an empty, successful transcript. Those fixtures are
+//  written byte by byte, as in AppleSpeechAudioInputTests.
+//
 
 import AVFoundation
 import Foundation
@@ -151,5 +157,76 @@ struct LocalAudioSampleLoaderTests {
         // 1 s of audio at 16 kHz. The resampler may differ by a few frames at
         // the edges; a truncated decode would be thousands of frames short.
         #expect(samples.count >= 15900 && samples.count <= 16100, "got \(samples.count) samples")
+    }
+
+    // MARK: - Files with no audio frames (#1516)
+
+    private func le32(_ value: UInt32) -> [UInt8] {
+        withUnsafeBytes(of: value.littleEndian) { Array($0) }
+    }
+
+    private func le16(_ value: UInt16) -> [UInt8] {
+        withUnsafeBytes(of: value.littleEndian) { Array($0) }
+    }
+
+    /// A RIFF/WAVE file whose `fmt ` chunk says 16 kHz mono 16-bit PCM,
+    /// followed by `chunks`.
+    private func writeRIFF(_ chunks: [UInt8]) throws -> URL {
+        var fmt: [UInt8] = []
+        fmt += le16(1) // PCM
+        fmt += le16(1) // mono
+        fmt += le32(16000)
+        fmt += le32(32000)
+        fmt += le16(2)
+        fmt += le16(16)
+        let payload = Array("WAVE".utf8) + Array("fmt ".utf8) + le32(UInt32(fmt.count)) + fmt + chunks
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalAudioSampleLoaderTests-\(UUID().uuidString).wav")
+        try Data(Array("RIFF".utf8) + le32(UInt32(payload.count)) + payload).write(to: url)
+        return url
+    }
+
+    private func expectRefusedAsInvalidAudioFormat(_ url: URL, providerName: String, _ label: String) {
+        do {
+            let samples = try LocalAudioSampleLoader.loadMono16kSamples(from: url, providerName: providerName, logger: logger)
+            Issue.record("\(label): loaded \(samples.count) samples instead of being refused — \(providerName) would report an empty transcript as a success (#1516).")
+        } catch let error as TranscriptionError {
+            guard case .invalidAudioFormat = error else {
+                Issue.record("\(label): expected invalidAudioFormat, got \(error)")
+                return
+            }
+        } catch {
+            Issue.record("\(label): expected TranscriptionError.invalidAudioFormat, got \(error)")
+        }
+    }
+
+    @Test(arguments: ["Nemotron", "Qwen3 ASR"])
+    func aWAVWithNoDataChunkIsRefused(providerName: String) throws {
+        // The issue's file: `fmt `, a large `LIST` chunk, and no `data` chunk.
+        // It is far past Nemotron's 5,000-byte pre-flight guard.
+        var listBody = Array("INFO".utf8) + Array("ISFT".utf8)
+        let text = Array(String(repeating: "x", count: 8191).utf8) + [0] // even length, NUL-terminated
+        listBody += le32(UInt32(text.count)) + text
+        let url = try writeRIFF(Array("LIST".utf8) + le32(UInt32(listBody.count)) + listBody)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        expectRefusedAsInvalidAudioFormat(url, providerName: providerName, "fmt-only WAV")
+    }
+
+    @Test func aWAVWithAnEmptyDataChunkIsRefused() throws {
+        let url = try writeRIFF(Array("data".utf8) + le32(0))
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        expectRefusedAsInvalidAudioFormat(url, providerName: "Nemotron", "header-only WAV")
+    }
+
+    @Test func aOneChunkWAVStillLoads() throws {
+        // The smallest real input the guard must let through: one 4096-frame chunk.
+        let url = try makeWAV(sampleRate: 16000, frames: 4096)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let samples = try LocalAudioSampleLoader.loadMono16kSamples(from: url, providerName: "Nemotron", logger: logger)
+
+        #expect(samples.count == 4096, "got \(samples.count) samples")
     }
 }
