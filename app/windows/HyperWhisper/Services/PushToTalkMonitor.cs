@@ -1,5 +1,4 @@
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using HyperWhisper.Data.Entities;
@@ -7,6 +6,8 @@ using HyperWhisper.Models;
 using HyperWhisper.Services.Platform;
 using HyperWhisper.SharedCore;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
+using static HyperWhisper.Services.ModifierChordGate;
+using static HyperWhisper.Services.Platform.LowLevelKeyboardHook;
 
 namespace HyperWhisper.Services;
 
@@ -16,8 +17,9 @@ namespace HyperWhisper.Services;
 /// The 5-state machine itself is NOT here. It lives in the shared Rust core
 /// (<see cref="PortablePushToTalkCore"/>, issue #287) and is the same transition
 /// table the macOS and Linux heads run. This class owns what is genuinely
-/// Windows: the WH_KEYBOARD_LL hook, virtual-key mapping, AltGr handling, the
-/// GetAsyncKeyState cross-check, DispatcherTimer and the clock.
+/// Windows: the WH_KEYBOARD_LL hook (through <see cref="LowLevelKeyboardHook"/>),
+/// virtual-key mapping, AltGr handling, the GetAsyncKeyState cross-check,
+/// DispatcherTimer and the clock.
 ///
 /// - 250ms activation delay filters keyboard shortcuts (Ctrl+C, Alt+Tab, etc.)
 /// - Quick taps (release before timer) enter double-tap lock sequence, not interference
@@ -29,60 +31,11 @@ namespace HyperWhisper.Services;
 /// </summary>
 public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTalkMonitor
 {
-    private const int WH_KEYBOARD_LL = 13;
-    private const int WM_KEYDOWN = 0x0100;
-    private const int WM_KEYUP = 0x0101;
-    private const int WM_SYSKEYDOWN = 0x0104;
-    private const int WM_SYSKEYUP = 0x0105;
-
-    private const int VK_LCONTROL = 0xA2;
-    private const int VK_RCONTROL = 0xA3;
-    private const int VK_LMENU = 0xA4;   // Alt
-    private const int VK_RMENU = 0xA5;
-    private const int VK_LSHIFT = 0xA0;
-    private const int VK_RSHIFT = 0xA1;
-    private const int VK_LWIN = 0x5B;
-    private const int VK_RWIN = 0x5C;
+    // The virtual-key constants and the modifier tests live in ModifierChordGate,
+    // shared with KeyboardShortcutService, so both read the generic VK_* codes too.
 
     private readonly PushToTalkSettings _settings = new();
-    private readonly HashSet<int> _pressedKeys = new();
-
-    private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnhookWindowsHookEx(IntPtr hhk);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-    private static extern IntPtr GetModuleHandle(string? lpModuleName);
-
-    // Returns the high-order bit set if the key is physically down at the time of the call.
-    // Reliable when called from the UI thread AFTER the hook callback has returned
-    // (the async state is updated after the hook chain completes, not inside it).
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct KBDLLHOOKSTRUCT
-    {
-        public uint vkCode;
-        public uint scanCode;
-        public uint flags;
-        public uint time;
-        public IntPtr dwExtraInfo;
-    }
-
-    private readonly LowLevelKeyboardProc _hookCallback;
-    private IntPtr _hookId = IntPtr.Zero;
-
-    /// <summary>One line per process, not one per Start/Configure call.</summary>
-    private bool _loggedHookSuppressed;
+    private readonly LowLevelKeyboardHook _hook;
 
     // =========================================================================
     // STATE MACHINE
@@ -143,7 +96,7 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
 
     public PushToTalkMonitor()
     {
-        _hookCallback = HookCallback;
+        _hook = new LowLevelKeyboardHook(nameof(PushToTalkMonitor), OnHookKey);
     }
 
     public void Configure(PushToTalkSettings settings)
@@ -176,7 +129,7 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
 
     public void Start()
     {
-        EnsureHook();
+        _hook.Ensure();
     }
 
     PlatformContracts.PlatformResult PlatformContracts.IPushToTalkMonitor.Start()
@@ -188,8 +141,8 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
                 "The Windows push-to-talk monitor has been disposed.");
         }
 
-        EnsureHook();
-        return _hookId != IntPtr.Zero
+        _hook.Ensure();
+        return _hook.IsInstalled
             ? PlatformContracts.PlatformResult.Success()
             : PlatformContracts.PlatformResult.Failure(
                 "push_to_talk.hook_unavailable",
@@ -199,7 +152,7 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     public void Reset()
     {
         Dispatch(PortablePttEvent.Reset);
-        _pressedKeys.Clear();
+        _hook.ClearPressedKeys();
     }
 
     /// <summary>
@@ -219,73 +172,26 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
         _disposed = true;
 
         Reset(); // cancels every timer the core owns
-        if (_hookId != IntPtr.Zero)
-        {
-            UnhookWindowsHookEx(_hookId);
-            _hookId = IntPtr.Zero;
-        }
+        _hook.Dispose();
     }
 
-    private void EnsureHook()
+    /// <summary>
+    /// The hook's callback: it has already added a key-down to, or removed a
+    /// key-up from, the pressed set. Push-to-talk never swallows a key.
+    /// </summary>
+    private bool OnHookKey(int vkCode, bool isKeyDown)
     {
-        if (_hookId != IntPtr.Zero) return;
+        if (_settings.Mode == PushToTalkMode.Disabled) return false;
 
-        // Same rule as KeyboardShortcutService: the hook is machine-global and
-        // per-process, so only the instance that owns global input installs it.
-        if (!SingleInstanceGuard.OwnsGlobalInput)
+        if (isKeyDown)
         {
-            if (!_loggedHookSuppressed)
-            {
-                _loggedHookSuppressed = true;
-                LoggingService.Info(
-                    "PushToTalkMonitor: low-level keyboard hook suppressed - this is a secondary instance");
-            }
-            return;
-        }
-
-        using var curProcess = System.Diagnostics.Process.GetCurrentProcess();
-        using var curModule = curProcess.MainModule;
-        _hookId = SetWindowsHookEx(
-            WH_KEYBOARD_LL,
-            _hookCallback,
-            GetModuleHandle(curModule?.ModuleName),
-            0);
-        if (_hookId == IntPtr.Zero)
-        {
-            int error = Marshal.GetLastWin32Error();
-            LoggingService.Error($"PushToTalkMonitor: Failed to install hook (error {error})");
+            HandleKeyDown(vkCode);
         }
         else
         {
-            LoggingService.Debug("PushToTalkMonitor: Low-level keyboard hook installed");
+            HandleKeyUp(vkCode);
         }
-    }
-
-    private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-    {
-        if (_settings.Mode == PushToTalkMode.Disabled) return CallNextHookEx(_hookId, nCode, wParam, lParam);
-
-        if (nCode >= 0)
-        {
-            int msg = (int)wParam;
-            var hookStruct = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-            int vkCode = (int)hookStruct.vkCode;
-
-            bool isKeyDown = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
-            bool isKeyUp = msg == WM_KEYUP || msg == WM_SYSKEYUP;
-
-            if (isKeyDown)
-            {
-                _pressedKeys.Add(vkCode);
-                HandleKeyDown(vkCode);
-            }
-            else if (isKeyUp)
-            {
-                _pressedKeys.Remove(vkCode);
-                HandleKeyUp(vkCode);
-            }
-        }
-        return CallNextHookEx(_hookId, nCode, wParam, lParam);
+        return false;
     }
 
     private void HandleKeyDown(int vkCode)
@@ -409,7 +315,7 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     {
         return _settings.Mode switch
         {
-            PushToTalkMode.Modifier => IsModifierPressed(_settings.Modifier),
+            PushToTalkMode.Modifier => IsModifierNameDown(_settings.Modifier, _hook.PressedKeys),
             PushToTalkMode.Custom => IsCustomShortcutPressed(),
             _ => false
         };
@@ -417,17 +323,13 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
 
     private bool IsCustomShortcutPressed()
     {
-        if (_settings.CustomShortcut == null || _settings.CustomShortcut.IsEmpty) return false;
-
-        if (_settings.CustomShortcut.Control && !IsAnyCtrlDown()) return false;
-        if (_settings.CustomShortcut.Alt && !IsAnyAltDown()) return false;
-        if (_settings.CustomShortcut.Shift && !IsAnyShiftDown()) return false;
-        if (_settings.CustomShortcut.Win && !IsAnyWinDown()) return false;
+        if (_settings.CustomShortcut == null) return false;
+        if (!IsSatisfied(_settings.CustomShortcut, _hook.PressedKeys)) return false;
 
         if (_settings.CustomShortcut.Key.HasValue)
         {
             int vk = KeyInterop.VirtualKeyFromKey(_settings.CustomShortcut.Key.Value);
-            if (!_pressedKeys.Contains(vk)) return false;
+            if (!_hook.PressedKeys.Contains(vk)) return false;
         }
 
         return true;
@@ -446,23 +348,7 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     {
         if (_settings.Mode == PushToTalkMode.Modifier)
         {
-            return _settings.Modifier.ToLowerInvariant() switch
-            {
-                "leftcontrol" or "leftctrl" => new[] { VK_LCONTROL },
-                "rightcontrol" or "rightctrl" => new[] { VK_RCONTROL },
-                "control" or "ctrl" => new[] { VK_LCONTROL, VK_RCONTROL },
-                "leftalt" => new[] { VK_LMENU },
-                "rightalt" => new[] { VK_RMENU },
-                "alt" => new[] { VK_LMENU, VK_RMENU },
-                "leftshift" => new[] { VK_LSHIFT },
-                "rightshift" => new[] { VK_RSHIFT },
-                "shift" => new[] { VK_LSHIFT, VK_RSHIFT },
-                "leftmeta" or "leftwin" => new[] { VK_LWIN },
-                "rightmeta" or "rightwin" => new[] { VK_RWIN },
-                "meta" => new[] { VK_LWIN, VK_RWIN },
-                "win" => new[] { VK_LWIN, VK_RWIN },
-                _ => new[] { VK_LCONTROL, VK_RCONTROL }
-            };
+            return VirtualKeysForModifierName(_settings.Modifier);
         }
 
         if (_settings.Mode == PushToTalkMode.Custom && _settings.CustomShortcut != null)
@@ -472,10 +358,10 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
                 return new[] { KeyInterop.VirtualKeyFromKey(_settings.CustomShortcut.Key.Value) };
             }
 
-            if (_settings.CustomShortcut.Control) return new[] { VK_LCONTROL, VK_RCONTROL };
-            if (_settings.CustomShortcut.Alt) return new[] { VK_LMENU, VK_RMENU };
-            if (_settings.CustomShortcut.Shift) return new[] { VK_LSHIFT, VK_RSHIFT };
-            if (_settings.CustomShortcut.Win) return new[] { VK_LWIN, VK_RWIN };
+            if (_settings.CustomShortcut.Control) return CtrlVirtualKeys;
+            if (_settings.CustomShortcut.Alt) return AltVirtualKeys;
+            if (_settings.CustomShortcut.Shift) return ShiftVirtualKeys;
+            if (_settings.CustomShortcut.Win) return WinVirtualKeys;
         }
 
         return Array.Empty<int>();
@@ -490,19 +376,8 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
             // where .maskAlternate is removed from interference checks for both Option modes.
             if (GetPrimaryKeyCodes().Contains(vkCode)) return true;
 
-            // Check if the key is the opposite side of the same modifier family
-            return _settings.Modifier.ToLowerInvariant() switch
-            {
-                "leftcontrol" or "leftctrl" => vkCode == VK_RCONTROL,
-                "rightcontrol" or "rightctrl" => vkCode == VK_LCONTROL,
-                "leftalt" => vkCode == VK_RMENU,
-                "rightalt" => vkCode == VK_LMENU,
-                "leftshift" => vkCode == VK_RSHIFT,
-                "rightshift" => vkCode == VK_LSHIFT,
-                "leftmeta" or "leftwin" => vkCode == VK_RWIN,
-                "rightmeta" or "rightwin" => vkCode == VK_LWIN,
-                _ => false
-            };
+            // Check if the key is the opposite side, or the sideless generic code, of the same modifier family
+            return IsOtherSideOfModifierName(_settings.Modifier, vkCode);
         }
 
         if (_settings.Mode == PushToTalkMode.Custom && _settings.CustomShortcut != null)
@@ -513,64 +388,15 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
                 return true;
             }
 
-            return vkCode switch
-            {
-                VK_LCONTROL or VK_RCONTROL => _settings.CustomShortcut.Control,
-                VK_LMENU or VK_RMENU => _settings.CustomShortcut.Alt,
-                VK_LSHIFT or VK_RSHIFT => _settings.CustomShortcut.Shift,
-                VK_LWIN or VK_RWIN => _settings.CustomShortcut.Win,
-                _ => false
-            };
+            if (IsCtrlVirtualKey(vkCode)) return _settings.CustomShortcut.Control;
+            if (IsAltVirtualKey(vkCode)) return _settings.CustomShortcut.Alt;
+            if (IsShiftVirtualKey(vkCode)) return _settings.CustomShortcut.Shift;
+            if (IsWinVirtualKey(vkCode)) return _settings.CustomShortcut.Win;
+            return false;
         }
 
         return false;
     }
-
-    private bool IsModifierPressed(string modifier) => modifier.ToLowerInvariant() switch
-    {
-        "leftcontrol" or "leftctrl" => _pressedKeys.Contains(VK_LCONTROL),
-        "rightcontrol" or "rightctrl" => _pressedKeys.Contains(VK_RCONTROL),
-        "control" or "ctrl" => IsAnyCtrlDown(),
-        "leftalt" => _pressedKeys.Contains(VK_LMENU),
-        "rightalt" => _pressedKeys.Contains(VK_RMENU),
-        "alt" => IsAnyAltDown(),
-        "leftshift" => _pressedKeys.Contains(VK_LSHIFT),
-        "rightshift" => _pressedKeys.Contains(VK_RSHIFT),
-        "shift" => IsAnyShiftDown(),
-        "leftmeta" or "leftwin" => _pressedKeys.Contains(VK_LWIN),
-        "rightmeta" or "rightwin" => _pressedKeys.Contains(VK_RWIN),
-        "meta" => IsAnyWinDown(),
-        "win" => IsAnyWinDown(),
-        _ => IsAnyCtrlDown()
-    };
-
-    /// <summary>
-    /// Returns true if AltGr is currently active (VK_RMENU is pressed).
-    /// When AltGr is active, VK_LCONTROL is a synthetic press injected by Windows.
-    /// </summary>
-    private bool IsAltGrActive() => _pressedKeys.Contains(VK_RMENU);
-
-    private bool IsAnyCtrlDown()
-    {
-        if (IsAltGrActive())
-        {
-            // AltGr sends synthetic VK_LCONTROL — only count RCtrl as real
-            return _pressedKeys.Contains(VK_RCONTROL);
-        }
-        return _pressedKeys.Contains(VK_LCONTROL) || _pressedKeys.Contains(VK_RCONTROL);
-    }
-
-    private bool IsAnyAltDown()
-    {
-        if (IsAltGrActive())
-        {
-            // AltGr is not a real Alt press — only count LAlt
-            return _pressedKeys.Contains(VK_LMENU);
-        }
-        return _pressedKeys.Contains(VK_LMENU) || _pressedKeys.Contains(VK_RMENU);
-    }
-    private bool IsAnyShiftDown() => _pressedKeys.Contains(VK_LSHIFT) || _pressedKeys.Contains(VK_RSHIFT);
-    private bool IsAnyWinDown() => _pressedKeys.Contains(VK_LWIN) || _pressedKeys.Contains(VK_RWIN);
 
     // =========================================================================
     // INTERFERENCE & TIMERS
@@ -583,28 +409,9 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     /// </summary>
     private bool IsPhysicallyHeld()
     {
-        // GetAsyncKeyState high-order bit = key physically down right now
-        const short down = unchecked((short)0x8000);
-
         if (_settings.Mode == PushToTalkMode.Modifier)
         {
-            return _settings.Modifier.ToLowerInvariant() switch
-            {
-                "leftcontrol" or "leftctrl" => (GetAsyncKeyState(VK_LCONTROL) & down) != 0,
-                "rightcontrol" or "rightctrl" => (GetAsyncKeyState(VK_RCONTROL) & down) != 0,
-                "control" or "ctrl" => (GetAsyncKeyState(VK_LCONTROL) & down) != 0 || (GetAsyncKeyState(VK_RCONTROL) & down) != 0,
-                "leftalt"  => (GetAsyncKeyState(VK_LMENU)    & down) != 0,
-                "rightalt" => (GetAsyncKeyState(VK_RMENU)     & down) != 0,
-                "alt"      => (GetAsyncKeyState(VK_LMENU)     & down) != 0 || (GetAsyncKeyState(VK_RMENU)    & down) != 0,
-                "leftshift" => (GetAsyncKeyState(VK_LSHIFT) & down) != 0,
-                "rightshift" => (GetAsyncKeyState(VK_RSHIFT) & down) != 0,
-                "shift"    => (GetAsyncKeyState(VK_LSHIFT)    & down) != 0 || (GetAsyncKeyState(VK_RSHIFT)   & down) != 0,
-                "leftmeta" or "leftwin" => (GetAsyncKeyState(VK_LWIN) & down) != 0,
-                "rightmeta" or "rightwin" => (GetAsyncKeyState(VK_RWIN) & down) != 0,
-                "meta" => (GetAsyncKeyState(VK_LWIN) & down) != 0 || (GetAsyncKeyState(VK_RWIN) & down) != 0,
-                "win"      => (GetAsyncKeyState(VK_LWIN)      & down) != 0 || (GetAsyncKeyState(VK_RWIN)     & down) != 0,
-                _          => (GetAsyncKeyState(VK_LCONTROL)  & down) != 0 || (GetAsyncKeyState(VK_RCONTROL) & down) != 0,
-            };
+            return VirtualKeysForModifierName(_settings.Modifier).Any(IsKeyPhysicallyDown);
         }
 
         if (_settings.Mode == PushToTalkMode.Custom && _settings.CustomShortcut != null)
@@ -615,22 +422,15 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
             if (!hasAnyKey)
                 return false;
 
-            if (shortcut.Control && (GetAsyncKeyState(VK_LCONTROL) & down) == 0 && (GetAsyncKeyState(VK_RCONTROL) & down) == 0)
-                return false;
-
-            if (shortcut.Alt && (GetAsyncKeyState(VK_LMENU) & down) == 0 && (GetAsyncKeyState(VK_RMENU) & down) == 0)
-                return false;
-
-            if (shortcut.Shift && (GetAsyncKeyState(VK_LSHIFT) & down) == 0 && (GetAsyncKeyState(VK_RSHIFT) & down) == 0)
-                return false;
-
-            if (shortcut.Win && (GetAsyncKeyState(VK_LWIN) & down) == 0 && (GetAsyncKeyState(VK_RWIN) & down) == 0)
-                return false;
+            if (shortcut.Control && !CtrlVirtualKeys.Any(IsKeyPhysicallyDown)) return false;
+            if (shortcut.Alt && !AltVirtualKeys.Any(IsKeyPhysicallyDown)) return false;
+            if (shortcut.Shift && !ShiftVirtualKeys.Any(IsKeyPhysicallyDown)) return false;
+            if (shortcut.Win && !WinVirtualKeys.Any(IsKeyPhysicallyDown)) return false;
 
             if (shortcut.Key.HasValue)
             {
                 int vk = KeyInterop.VirtualKeyFromKey(shortcut.Key.Value);
-                return (GetAsyncKeyState(vk) & down) != 0;
+                return IsKeyPhysicallyDown(vk);
             }
 
             return true;

@@ -42,7 +42,7 @@ namespace HyperWhisper.Services.Onboarding;
 /// Microphone consent plus the "your shortcut works" row.
 ///
 /// Row 2 is the global shortcut rather than macOS's Accessibility grant, because
-/// Windows has no Accessibility analogue: RegisterHotKey, SetWindowsHookEx,
+/// Windows has no Accessibility analogue: RegisterHotKey, a low-level keyboard hook,
 /// SendInput and UI Automation all work here without a user grant. Registering
 /// the shortcut genuinely fails though - Win32 1409 "already registered by
 /// another application" is a daily occurrence - so the row is a real
