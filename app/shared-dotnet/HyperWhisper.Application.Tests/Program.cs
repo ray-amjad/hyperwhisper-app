@@ -286,6 +286,13 @@ try
     Assert(fallbackModeSelection.Selected?.Id == mode.Id
         && reloadedSettings.Get<string>("selectedModeId") == mode.Id.ToString("D"),
         "missing selected mode did not fall back and repair device-local state");
+    // #630: status lines say "1 mode" / "2 modes", not the developer shorthand.
+    Assert(Plural.Count(1, "mode", "modes") == "1 mode"
+        && Plural.Count(2, "mode", "modes") == "2 modes"
+        && Plural.Count(0, "mode", "modes") == "0 modes",
+        "Plural.Count did not pick the singular for exactly one and the plural otherwise");
+    Assert(fallbackModeSelection.Items.Count == 1 && fallbackModeSelection.Status.Message == "1 mode",
+        $"the Modes status after loading one mode read '{fallbackModeSelection.Status.Message}' (#630)");
 
     var backupService = new ApplicationBackupService(database, reloadedSettings);
     var exported = await backupService.ExportAsync();
@@ -2504,7 +2511,7 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
         $"the history dataset spans {headers.Count} days, too few for the grouping check to prove anything");
     Assert(viewModel.Selected?.Id == expected[0].Id && viewModel.SelectedItems.Count == 1,
         "history load did not select the newest transcript");
-    Assert(viewModel.Status.Message == $"{dates.Count} transcript(s)", $"history load status was '{viewModel.Status.Message}'");
+    Assert(viewModel.Status.Message == $"{dates.Count} transcripts", $"history load status was '{viewModel.Status.Message}'");
 
     // A second load over a full list is still one rebuild (the clear is inside the region too).
     before = viewModel.GroupRebuildCount;

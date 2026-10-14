@@ -1204,7 +1204,7 @@ public sealed class ModesViewModel : ViewModelBase
             Selected = Guid.TryParse(selectedId, out var id)
                 ? Items.FirstOrDefault(item => item.Id == id) ?? FallbackSelection()
                 : FallbackSelection();
-            Status.Success($"{Items.Count} mode(s)");
+            Status.Success(Plural.Count(Items.Count, "mode", "modes"));
         }
         catch (Exception) { Status.Failure("modes.load_failed", "Could not load modes."); }
     }
