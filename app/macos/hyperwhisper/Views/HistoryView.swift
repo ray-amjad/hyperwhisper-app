@@ -708,6 +708,7 @@ private struct HistoryScreen: View, Equatable {
                     Image(systemName: "doc.on.doc")
                 }
             }
+            .disabled((item.postProcessedText ?? item.text).isEmpty)
 
             Divider()
 

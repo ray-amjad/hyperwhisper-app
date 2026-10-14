@@ -367,7 +367,14 @@ class TranscriptActionHandler: ObservableObject {
         // COPY LOGIC:
         // Get the appropriate text (processed or raw)
         let textToCopy = getDisplayText(for: transcript)
-        
+
+        // A failed import has no text (#1427); copying "" would only empty the
+        // user's clipboard. Covers the History Cmd+C and context-menu Copy.
+        guard !textToCopy.isEmpty else {
+            AppLogger.ui.info("Skipped copy: transcript has no text")
+            return
+        }
+
         // Copy to clipboard using AccessibilityHelper
         AccessibilityHelper.shared.copyToClipboard(textToCopy)
         
