@@ -768,13 +768,13 @@ class FileTranscriptionFlow {
     /// long source name used to fail the copy (issue #1554). The files derived
     /// from the copy add more: a video's extracted `.m4a`, then VAD's
     /// `_m4a_trimmed.wav` (+17 bytes at most). 200 leaves room for all of them.
-    static let importedCopyNameMaxBytes = 200
+    nonisolated static let importedCopyNameMaxBytes = 200
 
     /// Name for the recordings-folder copy of an imported file:
     /// `imported_<timestamp>_<original name>.<ext>`, with the original name
     /// shortened (on a character boundary) so the whole name fits
     /// `importedCopyNameMaxBytes`.
-    static func importedCopyFileName(originalName: String, fileExtension ext: String, timestamp: Int) -> String {
+    nonisolated static func importedCopyFileName(originalName: String, fileExtension ext: String, timestamp: Int) -> String {
         // A file with no extension and an unknown header keeps no extension,
         // rather than gaining a trailing dot.
         func fileName(_ stem: Substring) -> String {
