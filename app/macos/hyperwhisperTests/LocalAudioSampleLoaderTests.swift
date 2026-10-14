@@ -19,8 +19,8 @@
 //  Issue #1516: a WAV that opens with no audio frames (an empty `data` chunk,
 //  or a `fmt ` chunk and no `data` chunk) must be refused with
 //  `TranscriptionError.invalidAudioFormat`, not loaded as an empty array that
-//  Nemotron then reports as an empty, successful transcript. Those fixtures are
-//  written byte by byte, as in AppleSpeechAudioInputTests.
+//  Nemotron then reports as an empty, successful transcript. Those fixtures
+//  come from `EmptyWAVFixture`, shared with AppleSpeechAudioInputTests.
 //
 
 import AVFoundation
@@ -161,31 +161,6 @@ struct LocalAudioSampleLoaderTests {
 
     // MARK: - Files with no audio frames (#1516)
 
-    private func le32(_ value: UInt32) -> [UInt8] {
-        withUnsafeBytes(of: value.littleEndian) { Array($0) }
-    }
-
-    private func le16(_ value: UInt16) -> [UInt8] {
-        withUnsafeBytes(of: value.littleEndian) { Array($0) }
-    }
-
-    /// A RIFF/WAVE file whose `fmt ` chunk says 16 kHz mono 16-bit PCM,
-    /// followed by `chunks`.
-    private func writeRIFF(_ chunks: [UInt8]) throws -> URL {
-        var fmt: [UInt8] = []
-        fmt += le16(1) // PCM
-        fmt += le16(1) // mono
-        fmt += le32(16000)
-        fmt += le32(32000)
-        fmt += le16(2)
-        fmt += le16(16)
-        let payload = Array("WAVE".utf8) + Array("fmt ".utf8) + le32(UInt32(fmt.count)) + fmt + chunks
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("LocalAudioSampleLoaderTests-\(UUID().uuidString).wav")
-        try Data(Array("RIFF".utf8) + le32(UInt32(payload.count)) + payload).write(to: url)
-        return url
-    }
-
     private func expectRefusedAsInvalidAudioFormat(_ url: URL, providerName: String, _ label: String) {
         do {
             let samples = try LocalAudioSampleLoader.loadMono16kSamples(from: url, providerName: providerName, logger: logger)
@@ -203,18 +178,17 @@ struct LocalAudioSampleLoaderTests {
     @Test(arguments: ["Nemotron", "Qwen3 ASR"])
     func aWAVWithNoDataChunkIsRefused(providerName: String) throws {
         // The issue's file: `fmt `, a large `LIST` chunk, and no `data` chunk.
-        // It is far past Nemotron's 5,000-byte pre-flight guard.
-        var listBody = Array("INFO".utf8) + Array("ISFT".utf8)
-        let text = Array(String(repeating: "x", count: 8191).utf8) + [0] // even length, NUL-terminated
-        listBody += le32(UInt32(text.count)) + text
-        let url = try writeRIFF(Array("LIST".utf8) + le32(UInt32(listBody.count)) + listBody)
+        // It must be past Nemotron's 5,000-byte pre-flight guard, or that guard
+        // and not the loader would be what refuses it.
+        let url = try EmptyWAVFixture.writeFormatOnly(prefix: "LocalAudioSampleLoaderTests")
         defer { try? FileManager.default.removeItem(at: url) }
+        #expect(try Data(contentsOf: url).count > 5000)
 
         expectRefusedAsInvalidAudioFormat(url, providerName: providerName, "fmt-only WAV")
     }
 
     @Test func aWAVWithAnEmptyDataChunkIsRefused() throws {
-        let url = try writeRIFF(Array("data".utf8) + le32(0))
+        let url = try EmptyWAVFixture.writeHeaderOnly(prefix: "LocalAudioSampleLoaderTests")
         defer { try? FileManager.default.removeItem(at: url) }
 
         expectRefusedAsInvalidAudioFormat(url, providerName: "Nemotron", "header-only WAV")
