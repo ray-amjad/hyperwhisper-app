@@ -748,13 +748,11 @@ class FileTranscriptionFlow {
         )
 
         // Generate unique filename: imported_<timestamp>_<original_name>.<ext>
-        let timestamp = Int(Date().timeIntervalSince1970)
-        let originalName = sourceURL.deletingPathExtension().lastPathComponent
-        // A file with no extension and an unknown header keeps no extension,
-        // rather than gaining a trailing dot.
-        let newFileName = ext.isEmpty
-            ? "imported_\(timestamp)_\(originalName)"
-            : "imported_\(timestamp)_\(originalName).\(ext)"
+        let newFileName = Self.importedCopyFileName(
+            originalName: sourceURL.deletingPathExtension().lastPathComponent,
+            fileExtension: ext,
+            timestamp: Int(Date().timeIntervalSince1970)
+        )
         let destinationURL = recordingsDirectory.appendingPathComponent(newFileName)
 
         // Copy file
@@ -762,6 +760,37 @@ class FileTranscriptionFlow {
 
         AppLogger.transcription.info("📁 Copied file to: \(destinationURL.lastPathComponent)")
         return destinationURL
+    }
+
+    /// Longest name, in UTF-8 bytes, given to the copy of an imported file.
+    ///
+    /// APFS allows 255 bytes, and the prefix adds 20 to the source name, so a
+    /// long source name used to fail the copy (issue #1554). The files derived
+    /// from the copy add more: a video's extracted `.m4a`, then VAD's
+    /// `_m4a_trimmed.wav` (+17 bytes at most). 200 leaves room for all of them.
+    nonisolated static let importedCopyNameMaxBytes = 200
+
+    /// Name for the recordings-folder copy of an imported file:
+    /// `imported_<timestamp>_<original name>.<ext>`, with the original name
+    /// shortened (on a character boundary) so the whole name fits
+    /// `importedCopyNameMaxBytes`.
+    nonisolated static func importedCopyFileName(originalName: String, fileExtension ext: String, timestamp: Int) -> String {
+        // A file with no extension and an unknown header keeps no extension,
+        // rather than gaining a trailing dot.
+        func fileName(_ stem: Substring) -> String {
+            ext.isEmpty ? "imported_\(timestamp)_\(stem)" : "imported_\(timestamp)_\(stem).\(ext)"
+        }
+        // The file system stores names decomposed, which can take more bytes
+        // than the precomposed form (é is 2 bytes, e + U+0301 is 3).
+        func byteCount(_ name: String) -> Int {
+            max(name.utf8.count, name.decomposedStringWithCanonicalMapping.utf8.count)
+        }
+
+        var stem = Substring(originalName)
+        while !stem.isEmpty && byteCount(fileName(stem)) > importedCopyNameMaxBytes {
+            stem = stem.dropLast()
+        }
+        return fileName(stem)
     }
 
     /// Gets the configured recordings directory or the legacy fallback location.
