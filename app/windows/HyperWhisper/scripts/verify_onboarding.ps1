@@ -1022,14 +1022,38 @@ if (Test-Path -LiteralPath $GuardPath) {
     Assert-Wired $guardSource "HYPERWHISPER_WINDOWS_GLOBAL_INPUT" `
         "and the opt-in that restores it for a deliberate hotkey test is named"
 
+    # The WH_KEYBOARD_LL hook is installed in one place, LowLevelKeyboardHook,
+    # and that class asks before it calls SetWindowsHookEx.
+    $llHookPath = Join-Path $ProjectRoot "Services\Platform\LowLevelKeyboardHook.cs"
+    if (Test-Path -LiteralPath $llHookPath) {
+        Assert-Wired (Read-Text $llHookPath) "SingleInstanceGuard.OwnsGlobalInput" `
+            "LowLevelKeyboardHook asks before installing the machine-global keyboard hook"
+    } else {
+        Write-Fail "Services\Platform\LowLevelKeyboardHook.cs not found"
+    }
+
+    # Every hook user goes through that class; none calls SetWindowsHookEx itself.
     foreach ($hookFile in @("Services\KeyboardShortcutService.cs", "Services\PushToTalkMonitor.cs")) {
         $hookPath = Join-Path $ProjectRoot $hookFile
         if (Test-Path -LiteralPath $hookPath) {
-            Assert-Wired (Read-Text $hookPath) "SingleInstanceGuard.OwnsGlobalInput" `
-                "$hookFile asks before installing a machine-global keyboard hook"
+            $hookSource = Read-Text $hookPath
+            Assert-Wired $hookSource "new LowLevelKeyboardHook(" `
+                "$hookFile installs its keyboard hook through LowLevelKeyboardHook"
+            if ($hookSource.Contains("SetWindowsHookEx")) {
+                Write-Fail "$hookFile calls SetWindowsHookEx directly, past the OwnsGlobalInput guard"
+            } else {
+                Write-Pass "$hookFile does not call SetWindowsHookEx directly"
+            }
         } else {
             Write-Fail "$hookFile not found"
         }
+    }
+
+    # RegisterHotKey is exclusive per chord, so KeyboardShortcutService guards it too.
+    $kssPath = Join-Path $ProjectRoot "Services\KeyboardShortcutService.cs"
+    if (Test-Path -LiteralPath $kssPath) {
+        Assert-Wired (Read-Text $kssPath) "SingleInstanceGuard.OwnsGlobalInput" `
+            "KeyboardShortcutService asks before RegisterHotKey"
     }
 }
 
