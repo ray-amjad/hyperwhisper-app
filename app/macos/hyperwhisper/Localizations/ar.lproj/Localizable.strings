@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "تغيير الوضع";
 "settings.shortcuts.changeMode.subtitle" = "يعمل فقط أثناء التسجيل";
+"settings.shortcuts.conflict.alert" = "لا يمكن استخدام اختصار لوحة المفاتيح هذا لأنه مستخدم بالفعل لـ “%@”.";
 
 "settings.shortcuts.reset.button" = "إعادة تعيين إلى الافتراضيات";
 "settings.shortcuts.reset.dialog.title" = "إعادة تعيين اختصارات لوحة المفاتيح";

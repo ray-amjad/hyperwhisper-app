@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Cambiar modo";
 "settings.shortcuts.changeMode.subtitle" = "Solo funciona durante la grabación";
+"settings.shortcuts.conflict.alert" = "No se puede usar este atajo de teclado porque ya lo usa «%@».";
 
 "settings.shortcuts.reset.button" = "Restablecer valores predeterminados";
 "settings.shortcuts.reset.dialog.title" = "Restablecer atajos de teclado";

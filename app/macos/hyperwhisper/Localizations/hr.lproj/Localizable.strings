@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Promijeni način";
 "settings.shortcuts.changeMode.subtitle" = "Radi samo tijekom snimanja";
+"settings.shortcuts.conflict.alert" = "Ovaj tipkovnički prečac ne može se koristiti jer ga već koristi „%@”.";
 
 "settings.shortcuts.reset.button" = "Resetiraj na zadano";
 "settings.shortcuts.reset.dialog.title" = "Resetiraj prečace tipkovnice";

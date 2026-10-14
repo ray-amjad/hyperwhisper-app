@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Skift tilstand";
 "settings.shortcuts.changeMode.subtitle" = "Virker kun under optagelse";
+"settings.shortcuts.conflict.alert" = "Denne tastaturgenvej kan ikke bruges, fordi den allerede bruges af “%@”.";
 
 "settings.shortcuts.reset.button" = "Nulstil til standard";
 "settings.shortcuts.reset.dialog.title" = "Nulstil tastaturgenveje";

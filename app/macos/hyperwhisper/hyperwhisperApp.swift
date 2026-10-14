@@ -1239,6 +1239,10 @@ struct MenuBarIconView: View {
         // disabled, and keep OS-level registration in sync with the settings
         // toggles (settings change paths post .shortcutDidChange).
         syncFeatureGatedHotkeys()
+
+        // A recorder refuses a combo another action uses, and says which (#1474).
+        ShortcutConflictGuard.shared.start()
+
         NotificationCenter.default.addObserver(
             forName: .shortcutDidChange,
             object: nil,

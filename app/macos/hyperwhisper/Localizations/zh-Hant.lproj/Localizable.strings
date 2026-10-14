@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "變更模式";
 "settings.shortcuts.changeMode.subtitle" = "僅在錄音時運作";
+"settings.shortcuts.conflict.alert" = "無法使用此鍵盤快速鍵，因為「%@」已在使用它。";
 
 "settings.shortcuts.reset.button" = "重設為預設值";
 "settings.shortcuts.reset.dialog.title" = "重設鍵盤快捷鍵";

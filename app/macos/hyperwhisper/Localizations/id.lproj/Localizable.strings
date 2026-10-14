@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Ubah Mode";
 "settings.shortcuts.changeMode.subtitle" = "Hanya berfungsi saat merekam";
+"settings.shortcuts.conflict.alert" = "Pintasan keyboard ini tidak dapat digunakan karena sudah dipakai oleh “%@”.";
 
 "settings.shortcuts.reset.button" = "Setel Ulang ke Default";
 "settings.shortcuts.reset.dialog.title" = "Setel Ulang Pintasan Keyboard";

@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Смяна на режим";
 "settings.shortcuts.changeMode.subtitle" = "Работи само по време на запис";
+"settings.shortcuts.conflict.alert" = "Тази клавишна комбинация не може да се използва, защото вече се използва от „%@“.";
 
 "settings.shortcuts.reset.button" = "Нулиране по подразбиране";
 "settings.shortcuts.reset.dialog.title" = "Нулиране на клавишните комбинации";

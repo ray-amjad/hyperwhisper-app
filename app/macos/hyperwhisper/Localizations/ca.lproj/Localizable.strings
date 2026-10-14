@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Canviar mode";
 "settings.shortcuts.changeMode.subtitle" = "Només funciona durant la gravació";
+"settings.shortcuts.conflict.alert" = "Aquesta drecera de teclat no es pot utilitzar perquè ja la fa servir «%@».";
 
 "settings.shortcuts.reset.button" = "Restablir als valors predeterminats";
 "settings.shortcuts.reset.dialog.title" = "Restablir dreceres de teclat";

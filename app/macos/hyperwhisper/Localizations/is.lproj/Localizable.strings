@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Breyta ham";
 "settings.shortcuts.changeMode.subtitle" = "Virkar aðeins þegar upptaka er í gangi";
+"settings.shortcuts.conflict.alert" = "Ekki er hægt að nota þessa flýtilykla þar sem „%@“ notar þá nú þegar.";
 
 "settings.shortcuts.reset.button" = "Endurstilla í sjálfgefin gildi";
 "settings.shortcuts.reset.dialog.title" = "Endurstilla lyklaborðsflýtileiðir";

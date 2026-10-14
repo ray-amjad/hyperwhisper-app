@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Spremenj način";
 "settings.shortcuts.changeMode.subtitle" = "Deluje le med snemanjem";
+"settings.shortcuts.conflict.alert" = "Te bližnjice na tipkovnici ni mogoče uporabiti, ker jo že uporablja »%@«.";
 
 "settings.shortcuts.reset.button" = "Ponastavi privzete nastavitve";
 "settings.shortcuts.reset.dialog.title" = "Ponastavi bližnjice na tipkovnici";

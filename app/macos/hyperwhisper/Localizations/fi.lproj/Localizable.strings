@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Vaihda tila";
 "settings.shortcuts.changeMode.subtitle" = "Toimii vain nauhoituksen aikana";
+"settings.shortcuts.conflict.alert" = "Tätä pikanäppäintä ei voi käyttää, koska ”%@” käyttää sitä jo.";
 
 "settings.shortcuts.reset.button" = "Palauta oletusarvot";
 "settings.shortcuts.reset.dialog.title" = "Palauta pikanäppäimet";

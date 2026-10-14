@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Αλλαγή Λειτουργίας";
 "settings.shortcuts.changeMode.subtitle" = "Λειτουργεί μόνο κατά την εγγραφή";
+"settings.shortcuts.conflict.alert" = "Αυτή η συντόμευση πληκτρολογίου δεν μπορεί να χρησιμοποιηθεί, επειδή χρησιμοποιείται ήδη από «%@».";
 
 "settings.shortcuts.reset.button" = "Επαναφορά σε Προεπιλογές";
 "settings.shortcuts.reset.dialog.title" = "Επαναφορά Συντομεύσεων Πληκτρολογίου";

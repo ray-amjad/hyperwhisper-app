@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "切换模式";
 "settings.shortcuts.changeMode.subtitle" = "仅在录音时有效";
+"settings.shortcuts.conflict.alert" = "无法使用此键盘快捷键，因为“%@”已在使用它。";
 
 "settings.shortcuts.reset.button" = "恢复默认";
 "settings.shortcuts.reset.dialog.title" = "重置键盘快捷键";

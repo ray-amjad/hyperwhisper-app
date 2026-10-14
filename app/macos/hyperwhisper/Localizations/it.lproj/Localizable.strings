@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Cambia Modalità";
 "settings.shortcuts.changeMode.subtitle" = "Funziona solo durante la registrazione";
+"settings.shortcuts.conflict.alert" = "Questa scorciatoia da tastiera non può essere usata perché è già usata da “%@”.";
 
 "settings.shortcuts.reset.button" = "Ripristina Predefiniti";
 "settings.shortcuts.reset.dialog.title" = "Ripristina Scorciatoie da Tastiera";

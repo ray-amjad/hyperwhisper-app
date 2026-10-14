@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "मोड बदलें";
 "settings.shortcuts.changeMode.subtitle" = "केवल रिकॉर्डिंग के दौरान काम करता है";
+"settings.shortcuts.conflict.alert" = "यह कीबोर्ड शॉर्टकट उपयोग नहीं किया जा सकता क्योंकि इसे पहले से “%@” उपयोग कर रहा है।";
 
 "settings.shortcuts.reset.button" = "डिफ़ॉल्ट पर रीसेट करें";
 "settings.shortcuts.reset.dialog.title" = "कीबोर्ड शॉर्टकट रीसेट करें";

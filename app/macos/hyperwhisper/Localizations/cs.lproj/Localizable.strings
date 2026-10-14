@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Zmenit rezim";
 "settings.shortcuts.changeMode.subtitle" = "Funguje pouze behem nahravani";
+"settings.shortcuts.conflict.alert" = "Tuto klávesovou zkratku nelze použít, protože ji již používá „%@“.";
 
 "settings.shortcuts.reset.button" = "Obnovit vychozi";
 "settings.shortcuts.reset.dialog.title" = "Obnovit klavesove zkratky";

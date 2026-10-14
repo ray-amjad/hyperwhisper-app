@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Endre modus";
 "settings.shortcuts.changeMode.subtitle" = "Fungerer bare under opptak";
+"settings.shortcuts.conflict.alert" = "Denne hurtigtasten kan ikke brukes fordi den allerede brukes av «%@».";
 
 "settings.shortcuts.reset.button" = "Tilbakestill til standardverdier";
 "settings.shortcuts.reset.dialog.title" = "Tilbakestill tastatursnarveier";

@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Changer de mode";
 "settings.shortcuts.changeMode.subtitle" = "Fonctionne uniquement pendant l’enregistrement";
+"settings.shortcuts.conflict.alert" = "Ce raccourci clavier ne peut pas être utilisé, car il est déjà utilisé par « %@ ».";
 
 "settings.shortcuts.reset.button" = "Réinitialiser par défaut";
 "settings.shortcuts.reset.dialog.title" = "Réinitialiser les raccourcis clavier";

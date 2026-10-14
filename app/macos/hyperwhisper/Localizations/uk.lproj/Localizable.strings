@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Змінити режим";
 "settings.shortcuts.changeMode.subtitle" = "Працює тільки під час запису";
+"settings.shortcuts.conflict.alert" = "Це сполучення клавіш не можна використати, бо воно вже використовується для «%@».";
 
 "settings.shortcuts.reset.button" = "Скинути на значення за замовчуванням";
 "settings.shortcuts.reset.dialog.title" = "Скинути клавіатурні ярлики";

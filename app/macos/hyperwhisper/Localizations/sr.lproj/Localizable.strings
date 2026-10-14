@@ -384,6 +384,7 @@
 
 "settings.shortcuts.changeMode.title" = "Измени Режим";
 "settings.shortcuts.changeMode.subtitle" = "Ради само при снимању";
+"settings.shortcuts.conflict.alert" = "Ова пречица на тастатури не може да се користи јер је већ користи „%@”.";
 
 "settings.shortcuts.reset.button" = "Врати на Подразумеваност";
 "settings.shortcuts.reset.dialog.title" = "Врати Пречице на Подразумеваност";
