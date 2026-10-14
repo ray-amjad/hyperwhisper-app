@@ -23,8 +23,9 @@ internal sealed class LowLevelKeyboardHook : IDisposable
 
     private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+    // Every hook user goes through this class, so the Win32 entry point is named only here.
+    [DllImport("user32.dll", EntryPoint = "SetWindowsHookEx", SetLastError = true)]
+    private static extern IntPtr InstallHook(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -114,7 +115,7 @@ internal sealed class LowLevelKeyboardHook : IDisposable
 
         using var curProcess = Process.GetCurrentProcess();
         using var curModule = curProcess.MainModule;
-        _hookId = SetWindowsHookEx(
+        _hookId = InstallHook(
             WH_KEYBOARD_LL,
             _hookCallback,
             GetModuleHandle(curModule?.ModuleName),
