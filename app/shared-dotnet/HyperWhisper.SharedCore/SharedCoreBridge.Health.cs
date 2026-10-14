@@ -2,13 +2,6 @@ using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.SharedCore;
 
-/// <summary>
-/// The core's verdict on one provider health probe. Mirrors <c>HwProviderHealth</c>:
-/// <c>Healthy</c> is reachable-and-authorized; <c>Status</c> is the raw HTTP status
-/// the host uses to tell the failure causes apart.
-/// </summary>
-public sealed record PortableProviderHealth(bool Healthy, int? Status);
-
 public static partial class SharedCoreBridge
 {
     // -----------------------------------------------------------------------
@@ -25,23 +18,22 @@ public static partial class SharedCoreBridge
     /// <summary>
     /// The core-built health request for <paramref name="provider"/>, materialized
     /// for the caller's own transport. The caller owns and disposes the message.
-    /// <paramref name="baseUrl"/> only matters for the HW-Cloud-routed providers.
+    /// Vendor endpoints only: a HW-Cloud-routed provider is not a key check.
     /// </summary>
-    internal static HttpRequestMessage BuildHealthRequestMessage(
-        HwProvider provider, string apiKey, string? baseUrl = null)
+    internal static HttpRequestMessage BuildHealthRequestMessage(HwProvider provider, string apiKey)
         => RustHttpTransport.BuildRequestMessage(
-            HyperwhisperCoreMethods.BuildHealthRequestWithBase(provider, apiKey, baseUrl));
+            HyperwhisperCoreMethods.BuildHealthRequest(provider, apiKey));
 
     /// <summary>
     /// Grade a health probe's HTTP status with the core. The core reads the status
-    /// only, so the body and headers are not handed across the FFI.
+    /// only, so the body and headers are not handed across the FFI. True means
+    /// reachable and authorized; the caller grades a failure from its own status.
     /// </summary>
-    internal static PortableProviderHealth ParseHealthResponse(HwProvider provider, int status)
+    internal static bool ParseHealthResponse(HwProvider provider, int status)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(status, 0);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(status, ushort.MaxValue);
-        var verdict = HyperwhisperCoreMethods.ParseHealthResponse(
-            provider, new HttpResponse((ushort)status, [], []));
-        return new(verdict.@healthy, verdict.@status);
+        return HyperwhisperCoreMethods.ParseHealthResponse(
+            provider, new HttpResponse((ushort)status, [], [])).@healthy;
     }
 }

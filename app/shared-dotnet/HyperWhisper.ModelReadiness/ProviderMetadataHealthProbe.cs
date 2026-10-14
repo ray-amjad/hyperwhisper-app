@@ -37,7 +37,7 @@ public sealed class ProviderMetadataHealthProbe(HttpMessageInvoker transport) : 
         using var response = await _transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
         var status = (int)response.StatusCode;
         var healthy = coreProvider is { } graded
-            ? SharedCoreBridge.ParseHealthResponse(graded, status).Healthy
+            ? SharedCoreBridge.ParseHealthResponse(graded, status)
             : response.IsSuccessStatusCode;
         if (!healthy) return Failure(coreProvider, status);
 
