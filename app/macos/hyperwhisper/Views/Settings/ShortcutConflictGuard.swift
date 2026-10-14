@@ -38,6 +38,8 @@ final class ShortcutConflictGuard {
     private var hotKeys: [EventHotKeyRef] = []
     /// Index = hotkey id: the combo each held hotkey stands for.
     private var heldCombos: [KeyboardShortcuts.Shortcut] = []
+    /// Live actions whose hotkey the library had registered when guarding began.
+    private var registeredBeforeGuarding: Set<KeyboardShortcuts.Name> = []
     private var isGuarding = false
 
     private init() {}
@@ -83,6 +85,24 @@ final class ShortcutConflictGuard {
         bindings.first { $0.name != recording && $0.shortcut == combo }?.name
     }
 
+    /// Carbon modifier bits a recorder accepts on their own: ⌘, ⌥ and ⌃.
+    /// Shift alone is not enough (the recorder beeps).
+    private nonisolated static let standaloneModifierMask = cmdKey | optionKey | controlKey
+
+    /// F1–F20, the keys a recorder takes with no modifier.
+    private nonisolated static let functionKeyCodes: Set<Int> = [
+        kVK_F1, kVK_F2, kVK_F3, kVK_F4, kVK_F5, kVK_F6, kVK_F7, kVK_F8, kVK_F9, kVK_F10,
+        kVK_F11, kVK_F12, kVK_F13, kVK_F14, kVK_F15, kVK_F16, kVK_F17, kVK_F18, kVK_F19, kVK_F20,
+    ]
+
+    /// True when a recorder would save this combo if it reached it. Any other
+    /// combo is not held: the recorder handles it itself (a bare Esc ends
+    /// recording, Tab moves focus, Delete clears, the rest beep), so holding
+    /// Cancel Recording's default Esc would turn "stop recording" into an alert.
+    nonisolated static func recorderCanSave(carbonKeyCode: Int, carbonModifiers: Int) -> Bool {
+        carbonModifiers & standaloneModifierMask != 0 || functionKeyCodes.contains(carbonKeyCode)
+    }
+
     /// The user-facing name of an action, as its Settings row shows it.
     nonisolated static func displayName(for name: KeyboardShortcuts.Name) -> String {
         switch name {
@@ -117,6 +137,8 @@ final class ShortcutConflictGuard {
     }
 
     private func startGuarding() {
+        registeredBeforeGuarding = Set(liveBindings().map(\.name).filter { KeyboardShortcuts.isEnabled(for: $0) })
+
         // Soft-unregisters the library's hotkeys and keeps its bookkeeping,
         // so `stopGuarding` restores exactly what was registered before.
         KeyboardShortcuts.isEnabled = false
@@ -124,7 +146,9 @@ final class ShortcutConflictGuard {
         installEventHandlerIfNeeded()
 
         var combos: [KeyboardShortcuts.Shortcut] = []
-        for shortcut in liveBindings().compactMap({ $0.shortcut }) where !combos.contains(shortcut) {
+        for shortcut in liveBindings().compactMap({ $0.shortcut })
+        where !combos.contains(shortcut)
+            && Self.recorderCanSave(carbonKeyCode: shortcut.carbonKeyCode, carbonModifiers: shortcut.carbonModifiers) {
             combos.append(shortcut)
         }
 
@@ -155,6 +179,19 @@ final class ShortcutConflictGuard {
         heldCombos = []
         isGuarding = false
         KeyboardShortcuts.isEnabled = true
+
+        // An action enabled while we held its combo (Cancel Recording, when a
+        // dictation starts from Push to Talk or the menu during recording)
+        // failed to register in Carbon, yet the library counts it as
+        // registered and will not retry. Register it again now the combo is free.
+        let enabledDuringGuarding = liveBindings().map(\.name).filter {
+            KeyboardShortcuts.isEnabled(for: $0) && !registeredBeforeGuarding.contains($0)
+        }
+        if !enabledDuringGuarding.isEmpty {
+            KeyboardShortcuts.disable(enabledDuringGuarding)
+            KeyboardShortcuts.enable(enabledDuringGuarding)
+        }
+        registeredBeforeGuarding = []
     }
 
     private func installEventHandlerIfNeeded() {

@@ -54,6 +54,17 @@ struct ShortcutConflictGuardTests {
         ) == nil)
     }
 
+    /// A held combo is swallowed before the recorder sees it, so only combos a
+    /// recorder would save are held. A bare Esc must still end recording.
+    @Test func onlyCombosARecorderWouldSaveAreHeld() {
+        #expect(ShortcutConflictGuard.recorderCanSave(carbonKeyCode: 38, carbonModifiers: 4608))  // ^⇧J
+        #expect(ShortcutConflictGuard.recorderCanSave(carbonKeyCode: 49, carbonModifiers: 2048))  // ⌥Space
+        #expect(ShortcutConflictGuard.recorderCanSave(carbonKeyCode: 96, carbonModifiers: 0))     // F5
+        #expect(!ShortcutConflictGuard.recorderCanSave(carbonKeyCode: 53, carbonModifiers: 0))    // Esc
+        #expect(!ShortcutConflictGuard.recorderCanSave(carbonKeyCode: 48, carbonModifiers: 0))    // Tab
+        #expect(!ShortcutConflictGuard.recorderCanSave(carbonKeyCode: 38, carbonModifiers: 512))  // ⇧J
+    }
+
     @Test func onlyLiveFeaturesBlockACombo() {
         let allOff = ShortcutConflictGuard.liveActions(
             pushToTalkMode: .fn, quickCaptureEnabled: false, streamingEnabled: false
