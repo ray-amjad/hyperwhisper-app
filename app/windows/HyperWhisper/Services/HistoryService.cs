@@ -363,7 +363,14 @@ public class HistoryService
     /// - Store transcription results
     /// - Record retry attempts
     /// </summary>
-    public void UpdateTranscript(Transcript transcript)
+    /// <param name="keepLiveAudioPath">
+    /// When the caller's audio path names a file that is gone and the row's own path names
+    /// one that exists, keep the row's path and copy it onto <paramref name="transcript"/>.
+    /// The terminal-status safety net passes true: its in-memory copy can still hold the
+    /// WAV a background compression already deleted after re-pointing the row at the M4A
+    /// (#1603). Decided under the lock, so it cannot race <see cref="UpdateAudioFilePath"/>.
+    /// </param>
+    public void UpdateTranscript(Transcript transcript, bool keepLiveAudioPath = false)
     {
         lock (_lock)
         {
@@ -376,6 +383,16 @@ public class HistoryService
                 {
                     LoggingService.Warn($"HistoryService: Transcript {transcript.Id} not found for update");
                     return;
+                }
+
+                if (keepLiveAudioPath &&
+                    !string.IsNullOrEmpty(existing.AudioFilePath) &&
+                    existing.AudioFilePath != transcript.AudioFilePath &&
+                    !File.Exists(transcript.AudioFilePath) &&
+                    File.Exists(existing.AudioFilePath))
+                {
+                    LoggingService.Info($"HistoryService: Kept the live audio path of transcript {transcript.Id}; the caller's file is gone");
+                    transcript.AudioFilePath = existing.AudioFilePath;
                 }
 
                 context.Entry(existing).CurrentValues.SetValues(transcript);
