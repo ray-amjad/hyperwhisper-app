@@ -564,11 +564,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
 
     private bool IsShortcutPressed(KeyboardShortcut shortcut, int justPressedVk = -1)
     {
-        if (shortcut.IsEmpty) return false;
-        if (shortcut.Control && !IsAnyCtrlDown(_hook.PressedKeys)) return false;
-        if (shortcut.Alt && !IsAnyAltDown(_hook.PressedKeys)) return false;
-        if (shortcut.Shift && !IsAnyShiftDown(_hook.PressedKeys)) return false;
-        if (shortcut.Win && !IsAnyWinDown(_hook.PressedKeys)) return false;
+        if (!IsSatisfied(shortcut, _hook.PressedKeys)) return false;
 
         if (shortcut.Key.HasValue)
         {
@@ -595,24 +591,13 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     private bool IsShortcutPressedExact(KeyboardShortcut shortcut, int justPressedVk = -1)
     {
         if (!IsShortcutPressed(shortcut, justPressedVk)) return false;
+        int keyVk = shortcut.Key.HasValue ? KeyInterop.VirtualKeyFromKey(shortcut.Key.Value) : -1;
+        if (keyVk < 0 || IsModifierVirtualKey(keyVk)) return IsExact(shortcut, _hook.PressedKeys);
 
-        if (!shortcut.Control && IsAnyCtrlDown(_hook.PressedKeys)) return false;
-        if (!shortcut.Alt && IsAnyAltDown(_hook.PressedKeys)) return false;
-        if (!shortcut.Shift && IsAnyShiftDown(_hook.PressedKeys)) return false;
-        if (!shortcut.Win && IsAnyWinDown(_hook.PressedKeys)) return false;
-
-        var shortcutKeyVk = shortcut.Key.HasValue
-            ? KeyInterop.VirtualKeyFromKey(shortcut.Key.Value)
-            : (int?)null;
-
-        foreach (var pressedVk in _hook.PressedKeys)
-        {
-            if (IsModifierVirtualKey(pressedVk)) continue;
-            if (shortcutKeyVk.HasValue && pressedVk == shortcutKeyVk.Value) continue;
-            return false;
-        }
-
-        return true;
+        // IsExact rejects every non-modifier key, so check the set without the shortcut's own key.
+        var others = new HashSet<int>(_hook.PressedKeys);
+        others.Remove(keyVk);
+        return IsExact(shortcut, others);
     }
 
     private bool ShouldSuppressMatchedWinShortcutKeyDown(int justPressedVk)

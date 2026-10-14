@@ -315,7 +315,7 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     {
         return _settings.Mode switch
         {
-            PushToTalkMode.Modifier => IsModifierPressed(_settings.Modifier),
+            PushToTalkMode.Modifier => IsModifierNameDown(_settings.Modifier, _hook.PressedKeys),
             PushToTalkMode.Custom => IsCustomShortcutPressed(),
             _ => false
         };
@@ -323,12 +323,8 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
 
     private bool IsCustomShortcutPressed()
     {
-        if (_settings.CustomShortcut == null || _settings.CustomShortcut.IsEmpty) return false;
-
-        if (_settings.CustomShortcut.Control && !IsAnyCtrlDown(_hook.PressedKeys)) return false;
-        if (_settings.CustomShortcut.Alt && !IsAnyAltDown(_hook.PressedKeys)) return false;
-        if (_settings.CustomShortcut.Shift && !IsAnyShiftDown(_hook.PressedKeys)) return false;
-        if (_settings.CustomShortcut.Win && !IsAnyWinDown(_hook.PressedKeys)) return false;
+        if (_settings.CustomShortcut == null) return false;
+        if (!IsSatisfied(_settings.CustomShortcut, _hook.PressedKeys)) return false;
 
         if (_settings.CustomShortcut.Key.HasValue)
         {
@@ -402,24 +398,6 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
         return false;
     }
 
-    private bool IsModifierPressed(string modifier) => modifier.ToLowerInvariant() switch
-    {
-        "leftcontrol" or "leftctrl" => _hook.PressedKeys.Contains(VK_LCONTROL),
-        "rightcontrol" or "rightctrl" => _hook.PressedKeys.Contains(VK_RCONTROL),
-        "control" or "ctrl" => IsAnyCtrlDown(_hook.PressedKeys),
-        "leftalt" => _hook.PressedKeys.Contains(VK_LMENU),
-        "rightalt" => _hook.PressedKeys.Contains(VK_RMENU),
-        "alt" => IsAnyAltDown(_hook.PressedKeys),
-        "leftshift" => _hook.PressedKeys.Contains(VK_LSHIFT),
-        "rightshift" => _hook.PressedKeys.Contains(VK_RSHIFT),
-        "shift" => IsAnyShiftDown(_hook.PressedKeys),
-        "leftmeta" or "leftwin" => _hook.PressedKeys.Contains(VK_LWIN),
-        "rightmeta" or "rightwin" => _hook.PressedKeys.Contains(VK_RWIN),
-        "meta" => IsAnyWinDown(_hook.PressedKeys),
-        "win" => IsAnyWinDown(_hook.PressedKeys),
-        _ => IsAnyCtrlDown(_hook.PressedKeys)
-    };
-
     // =========================================================================
     // INTERFERENCE & TIMERS
     // =========================================================================
@@ -433,23 +411,7 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     {
         if (_settings.Mode == PushToTalkMode.Modifier)
         {
-            return _settings.Modifier.ToLowerInvariant() switch
-            {
-                "leftcontrol" or "leftctrl" => IsKeyPhysicallyDown(VK_LCONTROL),
-                "rightcontrol" or "rightctrl" => IsKeyPhysicallyDown(VK_RCONTROL),
-                "control" or "ctrl" => IsKeyPhysicallyDown(VK_LCONTROL) || IsKeyPhysicallyDown(VK_RCONTROL),
-                "leftalt"  => IsKeyPhysicallyDown(VK_LMENU),
-                "rightalt" => IsKeyPhysicallyDown(VK_RMENU),
-                "alt"      => IsKeyPhysicallyDown(VK_LMENU) || IsKeyPhysicallyDown(VK_RMENU),
-                "leftshift" => IsKeyPhysicallyDown(VK_LSHIFT),
-                "rightshift" => IsKeyPhysicallyDown(VK_RSHIFT),
-                "shift"    => IsKeyPhysicallyDown(VK_LSHIFT) || IsKeyPhysicallyDown(VK_RSHIFT),
-                "leftmeta" or "leftwin" => IsKeyPhysicallyDown(VK_LWIN),
-                "rightmeta" or "rightwin" => IsKeyPhysicallyDown(VK_RWIN),
-                "meta" => IsKeyPhysicallyDown(VK_LWIN) || IsKeyPhysicallyDown(VK_RWIN),
-                "win"      => IsKeyPhysicallyDown(VK_LWIN) || IsKeyPhysicallyDown(VK_RWIN),
-                _          => IsKeyPhysicallyDown(VK_LCONTROL) || IsKeyPhysicallyDown(VK_RCONTROL),
-            };
+            return VirtualKeysForModifierName(_settings.Modifier).Any(IsKeyPhysicallyDown);
         }
 
         if (_settings.Mode == PushToTalkMode.Custom && _settings.CustomShortcut != null)
@@ -460,17 +422,10 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
             if (!hasAnyKey)
                 return false;
 
-            if (shortcut.Control && !IsKeyPhysicallyDown(VK_LCONTROL) && !IsKeyPhysicallyDown(VK_RCONTROL))
-                return false;
-
-            if (shortcut.Alt && !IsKeyPhysicallyDown(VK_LMENU) && !IsKeyPhysicallyDown(VK_RMENU))
-                return false;
-
-            if (shortcut.Shift && !IsKeyPhysicallyDown(VK_LSHIFT) && !IsKeyPhysicallyDown(VK_RSHIFT))
-                return false;
-
-            if (shortcut.Win && !IsKeyPhysicallyDown(VK_LWIN) && !IsKeyPhysicallyDown(VK_RWIN))
-                return false;
+            if (shortcut.Control && !CtrlVirtualKeys.Any(IsKeyPhysicallyDown)) return false;
+            if (shortcut.Alt && !AltVirtualKeys.Any(IsKeyPhysicallyDown)) return false;
+            if (shortcut.Shift && !ShiftVirtualKeys.Any(IsKeyPhysicallyDown)) return false;
+            if (shortcut.Win && !WinVirtualKeys.Any(IsKeyPhysicallyDown)) return false;
 
             if (shortcut.Key.HasValue)
             {

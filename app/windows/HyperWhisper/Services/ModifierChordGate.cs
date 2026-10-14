@@ -232,6 +232,20 @@ internal sealed class ModifierChordGate
     };
 
     /// <summary>
+    /// A push-to-talk modifier name is down. A sideless name goes through the family
+    /// check, so AltGr's synthetic LCtrl is not Ctrl and AltGr is not Alt.
+    /// </summary>
+    internal static bool IsModifierNameDown(string modifier, IReadOnlySet<int> pressedKeys)
+    {
+        var keys = VirtualKeysForModifierName(modifier);
+        if (keys == CtrlVirtualKeys) return IsAnyCtrlDown(pressedKeys);
+        if (keys == AltVirtualKeys) return IsAnyAltDown(pressedKeys);
+        if (keys == ShiftVirtualKeys) return IsAnyShiftDown(pressedKeys);
+        if (keys == WinVirtualKeys) return IsAnyWinDown(pressedKeys);
+        return pressedKeys.Contains(keys[0]);
+    }
+
+    /// <summary>
     /// The key is the opposite side, or the sideless generic code, of a side-specific
     /// modifier name's family (RAlt or VK_MENU for "leftalt").
     /// </summary>
