@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "בחר...";
 "settings.storage.dialog.select" = "בחר תיקייה";
 "settings.storage.dialog.message" = "בחר תיקייה לאחסון הקלטות";
+"settings.storage.folderRefused.title" = "לא ניתן להשתמש בתיקייה זו";
+"settings.storage.folderRefused.notWritable" = "אין לך הרשאה לכתוב אל „%@”, ולכן HyperWhisper לא יכול לשמור שם הקלטות. תיקיית ההקלטות לא שונתה.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper לא הצליח ליצור את התיקייה: %@ תיקיית ההקלטות לא שונתה.";
 "settings.storage.storeAsM4A.title" = "דחוס הקלטות ל-M4A";
 "settings.storage.storeAsM4A.subtitle" = "ממיר הקלטות WAV לקבצים קטנים יותר לאחר התמלול. כבה כדי לשמור קבצי WAV מקוריים (גדולים יותר אך ללא אובדן).";
 

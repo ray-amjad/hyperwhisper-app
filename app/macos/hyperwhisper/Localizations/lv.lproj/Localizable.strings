@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Izvēlieties...";
 "settings.storage.dialog.select" = "Atlasīt mapi";
 "settings.storage.dialog.message" = "Izvēlieties mapi, kurā glabāt ierakstus";
+"settings.storage.folderRefused.title" = "Šo mapi nevar izmantot";
+"settings.storage.folderRefused.notWritable" = "Jums nav atļaujas rakstīt mapē “%@”, tāpēc HyperWhisper tur nevar saglabāt ierakstus. Ierakstu mape netika mainīta.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nevarēja izveidot šo mapi: %@ Ierakstu mape netika mainīta.";
 "settings.storage.storeAsM4A.title" = "Saspiest ierakstus uz M4A";
 "settings.storage.storeAsM4A.subtitle" = "Pārvērš WAV ierakstus mazākos failos pēc transkripciijas. Izslēdziet, lai saglabātu sākotnējos WAV failus (lielāki, bet bezstrategi).";
 

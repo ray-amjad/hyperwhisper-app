@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Избери...";
 "settings.storage.dialog.select" = "Избери папка";
 "settings.storage.dialog.message" = "Изберете папка за съхранение на записи";
+"settings.storage.folderRefused.title" = "Тази папка не може да се използва";
+"settings.storage.folderRefused.notWritable" = "Нямате разрешение за запис в „%@“, затова HyperWhisper не може да записва там. Папката за записи не е променена.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper не успя да създаде тази папка: %@ Папката за записи не е променена.";
 "settings.storage.storeAsM4A.title" = "Компресиране на записите в M4A";
 "settings.storage.storeAsM4A.subtitle" = "Конвертира WAV записите в по-малки файлове след транскрипция. Изключете, за да запазите оригиналните WAV файлове (по-големи, но без загуба).";
 

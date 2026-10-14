@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Pasirinkti...";
 "settings.storage.dialog.select" = "Pasirinkti aplanką";
 "settings.storage.dialog.message" = "Pasirinkite aplanką įrašams saugoti";
+"settings.storage.folderRefused.title" = "Šio aplanko naudoti negalima";
+"settings.storage.folderRefused.notWritable" = "Neturite leidimo rašyti į „%@“, todėl HyperWhisper negali ten išsaugoti įrašų. Įrašų aplankas nepakeistas.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nepavyko sukurti šio aplanko: %@ Įrašų aplankas nepakeistas.";
 "settings.storage.storeAsM4A.title" = "Suspausti įrašus į M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konvertuoja WAV įrašus į mažesnius failus po transkriptsiniu. Išjunkite, kad išlaikytumėte originalius WAV failus (didesni, bet be nuostolių).";
 

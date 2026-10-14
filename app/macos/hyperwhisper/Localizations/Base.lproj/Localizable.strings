@@ -493,6 +493,9 @@
 "settings.storage.choose.button" = "Choose...";
 "settings.storage.dialog.select" = "Select Folder";
 "settings.storage.dialog.message" = "Choose a folder to store recordings";
+"settings.storage.folderRefused.title" = "Can't use this folder";
+"settings.storage.folderRefused.notWritable" = "You don't have permission to write to “%@”, so HyperWhisper can't save recordings there. The Recordings Folder was not changed.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper couldn't create this folder: %@ The Recordings Folder was not changed.";
 "settings.storage.storeAsM4A.title" = "Compress recordings to M4A";
 "settings.storage.storeAsM4A.subtitle" = "Converts WAV recordings to smaller files after transcription. Turn off to keep original WAV files (larger but lossless).";
 "settings.storage.maxRecordingDuration.title" = "Max recording duration";

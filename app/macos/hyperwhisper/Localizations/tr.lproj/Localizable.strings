@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Seç...";
 "settings.storage.dialog.select" = "Klasör Seç";
 "settings.storage.dialog.message" = "Kayıtları depolamak için bir klasör seçin";
+"settings.storage.folderRefused.title" = "Bu klasör kullanılamıyor";
+"settings.storage.folderRefused.notWritable" = "“%@” klasörüne yazma izniniz yok, bu yüzden HyperWhisper oraya kayıt kaydedemez. Kayıt Klasörü değiştirilmedi.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper bu klasörü oluşturamadı: %@ Kayıt Klasörü değiştirilmedi.";
 "settings.storage.storeAsM4A.title" = "Kayıtları M4A'ya sıkıştır";
 "settings.storage.storeAsM4A.subtitle" = "WAV kayıtlarını transkripsiyon sonrasında daha küçük dosyalara dönüştürür. Orijinal WAV dosyalarını (daha büyük ancak kayıpsız) tutmak için kapatın.";
 

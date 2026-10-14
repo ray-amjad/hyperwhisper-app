@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "選擇...";
 "settings.storage.dialog.select" = "選擇資料夾";
 "settings.storage.dialog.message" = "選擇用於儲存錄音的資料夾";
+"settings.storage.folderRefused.title" = "無法使用此資料夾";
+"settings.storage.folderRefused.notWritable" = "你沒有寫入「%@」的權限，因此 HyperWhisper 無法在其中儲存錄音。錄音資料夾未變更。";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper 無法建立此資料夾：%@ 錄音資料夾未變更。";
 "settings.storage.storeAsM4A.title" = "將錄音壓縮為 M4A";
 "settings.storage.storeAsM4A.subtitle" = "轉錄後將 WAV 錄音轉換為較小的檔案。關閉以保持原始 WAV 檔案（較大但無損）。";
 

@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "اختر...";
 "settings.storage.dialog.select" = "اختر مجلداً";
 "settings.storage.dialog.message" = "اختر مجلداً لتخزين التسجيلات";
+"settings.storage.folderRefused.title" = "لا يمكن استخدام هذا المجلد";
+"settings.storage.folderRefused.notWritable" = "ليس لديك إذن بالكتابة في «%@»، لذا لا يمكن لـ HyperWhisper حفظ التسجيلات فيه. لم يتم تغيير مجلد التسجيلات.";
+"settings.storage.folderRefused.createFailed" = "تعذّر على HyperWhisper إنشاء هذا المجلد: %@ لم يتم تغيير مجلد التسجيلات.";
 "settings.storage.storeAsM4A.title" = "ضغط التسجيلات إلى M4A";
 "settings.storage.storeAsM4A.subtitle" = "تحويل تسجيلات WAV إلى ملفات أصغر بعد النسخ. أطفئ للاحتفاظ بملفات WAV الأصلية (أكبر لكن بدون فقدان).";
 

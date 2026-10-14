@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Chọn...";
 "settings.storage.dialog.select" = "Chọn Thư mục";
 "settings.storage.dialog.message" = "Chọn một thư mục để lưu trữ bản ghi âm";
+"settings.storage.folderRefused.title" = "Không thể dùng thư mục này";
+"settings.storage.folderRefused.notWritable" = "Bạn không có quyền ghi vào “%@”, nên HyperWhisper không thể lưu bản ghi âm ở đó. Thư mục Ghi âm không thay đổi.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper không thể tạo thư mục này: %@ Thư mục Ghi âm không thay đổi.";
 "settings.storage.storeAsM4A.title" = "Nén bản ghi âm thành M4A";
 "settings.storage.storeAsM4A.subtitle" = "Chuyển đổi các bản ghi âm WAV thành các tệp nhỏ hơn sau khi chuyển đổi. Tắt để giữ các tệp WAV gốc (lớn hơn nhưng không mất dữ liệu).";
 

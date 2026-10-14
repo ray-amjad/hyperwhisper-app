@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Välj...";
 "settings.storage.dialog.select" = "Välj mapp";
 "settings.storage.dialog.message" = "Välj en mapp för att lagra inspelningar";
+"settings.storage.folderRefused.title" = "Den här mappen kan inte användas";
+"settings.storage.folderRefused.notWritable" = "Du har inte behörighet att skriva till ”%@”, så HyperWhisper kan inte spara inspelningar där. Inspelningsmappen ändrades inte.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper kunde inte skapa den här mappen: %@ Inspelningsmappen ändrades inte.";
 "settings.storage.storeAsM4A.title" = "Komprimera inspelningar till M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konverterar WAV-inspelningar till mindre filer efter transkription. Stäng av för att behålla ursprungliga WAV-filer (större men förlustfri).";
 

@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Odaberi...";
 "settings.storage.dialog.select" = "Odaberi mapu";
 "settings.storage.dialog.message" = "Odaberite mapu za pohranu snimki";
+"settings.storage.folderRefused.title" = "Ova se mapa ne može koristiti";
+"settings.storage.folderRefused.notWritable" = "Nemate dopuštenje za pisanje u „%@”, pa HyperWhisper ondje ne može spremati snimke. Mapa snimki nije promijenjena.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nije mogao stvoriti ovu mapu: %@ Mapa snimki nije promijenjena.";
 "settings.storage.storeAsM4A.title" = "Komprimiraj snimke u M4A";
 "settings.storage.storeAsM4A.subtitle" = "Pretvara WAV snimke u manje datoteke nakon transkripcije. Isključite da zadržite izvorne WAV datoteke (veće, ali bez gubitaka).";
 

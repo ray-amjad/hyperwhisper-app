@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Επιλογή...";
 "settings.storage.dialog.select" = "Επιλέξτε Φάκελο";
 "settings.storage.dialog.message" = "Επιλέξτε έναν φάκελο για αποθήκευση εγγραφών";
+"settings.storage.folderRefused.title" = "Δεν είναι δυνατή η χρήση αυτού του φακέλου";
+"settings.storage.folderRefused.notWritable" = "Δεν έχετε άδεια εγγραφής στο «%@», οπότε το HyperWhisper δεν μπορεί να αποθηκεύσει εκεί ηχογραφήσεις. Ο φάκελος ηχογραφήσεων δεν άλλαξε.";
+"settings.storage.folderRefused.createFailed" = "Το HyperWhisper δεν μπόρεσε να δημιουργήσει αυτόν τον φάκελο: %@ Ο φάκελος ηχογραφήσεων δεν άλλαξε.";
 "settings.storage.storeAsM4A.title" = "Συμπίεση εγγραφών σε M4A";
 "settings.storage.storeAsM4A.subtitle" = "Μετατρέπει τις εγγραφές WAV σε μικρότερα αρχεία μετά τη μεταγραφή. Απενεργοποιήστε για να διατηρήσετε τα αρχικά αρχεία WAV (μεγαλύτερα αλλά χωρίς απώλεια).";
 

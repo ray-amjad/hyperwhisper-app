@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Choisir...";
 "settings.storage.dialog.select" = "Sélectionner un dossier";
 "settings.storage.dialog.message" = "Choisissez un dossier pour stocker les enregistrements";
+"settings.storage.folderRefused.title" = "Impossible d'utiliser ce dossier";
+"settings.storage.folderRefused.notWritable" = "Vous n'avez pas l'autorisation d'écrire dans « %@ », HyperWhisper ne peut donc pas y enregistrer. Le dossier des enregistrements n'a pas été modifié.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper n'a pas pu créer ce dossier : %@ Le dossier des enregistrements n'a pas été modifié.";
 "settings.storage.storeAsM4A.title" = "Compresser les enregistrements en M4A";
 "settings.storage.storeAsM4A.subtitle" = "Convertit les enregistrements WAV en fichiers plus petits après transcription. Désactivez pour conserver les WAV d’origine (plus gros mais sans perte).";
 

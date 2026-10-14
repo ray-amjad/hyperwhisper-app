@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Изабери...";
 "settings.storage.dialog.select" = "Изабери Фолдер";
 "settings.storage.dialog.message" = "Изабери фолдер за чување снимања";
+"settings.storage.folderRefused.title" = "Ова фасцикла не може да се користи";
+"settings.storage.folderRefused.notWritable" = "Немате дозволу за упис у „%@“, па HyperWhisper тамо не може да чува снимке. Фасцикла за снимке није промењена.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper није могао да направи ову фасциклу: %@ Фасцикла за снимке није промењена.";
 "settings.storage.storeAsM4A.title" = "Компресуј снимања у M4A";
 "settings.storage.storeAsM4A.subtitle" = "Конвертуј WAV снимања у мање датотеке после транскрипције. Искључи да задржиш оригиналне WAV датотеке (веће али без губитака).";
 

@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Alegeți...";
 "settings.storage.dialog.select" = "Selectați folder";
 "settings.storage.dialog.message" = "Alegeți un folder pentru a stoca înregistrări";
+"settings.storage.folderRefused.title" = "Acest dosar nu poate fi folosit";
+"settings.storage.folderRefused.notWritable" = "Nu aveți permisiunea de a scrie în „%@”, așa că HyperWhisper nu poate salva înregistrări acolo. Dosarul de înregistrări nu a fost schimbat.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nu a putut crea acest dosar: %@ Dosarul de înregistrări nu a fost schimbat.";
 "settings.storage.storeAsM4A.title" = "Comprimați înregistrări la M4A";
 "settings.storage.storeAsM4A.subtitle" = "Convertește înregistrări WAV în fișiere mai mici după transcriere. Opriți pentru a păstra fișierele WAV originale (mai mari dar fără pierderi).";
 

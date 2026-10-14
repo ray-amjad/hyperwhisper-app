@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Választás...";
 "settings.storage.dialog.select" = "Mappa kiválasztása";
 "settings.storage.dialog.message" = "Válassz mappát a felvételek tárolásához";
+"settings.storage.folderRefused.title" = "Ez a mappa nem használható";
+"settings.storage.folderRefused.notWritable" = "Nincs írási jogosultsága a(z) „%@” mappához, ezért a HyperWhisper nem tud oda felvételeket menteni. A felvételek mappája nem változott.";
+"settings.storage.folderRefused.createFailed" = "A HyperWhisper nem tudta létrehozni ezt a mappát: %@ A felvételek mappája nem változott.";
 "settings.storage.storeAsM4A.title" = "Felvételek tömörítése M4A formátumba";
 "settings.storage.storeAsM4A.subtitle" = "WAV felvételeket kisebb fájlokká konvertálja átírás után. Kapcsold ki az eredeti WAV fájlok megtartásához (nagyobb, de veszteségmentes).";
 

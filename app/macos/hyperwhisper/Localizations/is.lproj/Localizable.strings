@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Velja...";
 "settings.storage.dialog.select" = "Velja möppu";
 "settings.storage.dialog.message" = "Veldu möppu til að geyma upptökur";
+"settings.storage.folderRefused.title" = "Ekki er hægt að nota þessa möppu";
+"settings.storage.folderRefused.notWritable" = "Þú hefur ekki heimild til að skrifa í „%@“, svo HyperWhisper getur ekki vistað upptökur þar. Upptökumöppunni var ekki breytt.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper gat ekki búið til þessa möppu: %@ Upptökumöppunni var ekki breytt.";
 "settings.storage.storeAsM4A.title" = "Þjappa upptökum í M4A";
 "settings.storage.storeAsM4A.subtitle" = "Breytir WAV upptökum í minni skrár eftir afritun. Slökktu til að halda upprunalegum WAV skrám (stærri en taplausar).";
 

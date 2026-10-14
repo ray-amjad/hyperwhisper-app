@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Valitse...";
 "settings.storage.dialog.select" = "Valitse kansio";
 "settings.storage.dialog.message" = "Valitse kansio nauhoitusten tallentamiseen";
+"settings.storage.folderRefused.title" = "Tätä kansiota ei voi käyttää";
+"settings.storage.folderRefused.notWritable" = "Sinulla ei ole oikeutta kirjoittaa kansioon ”%@”, joten HyperWhisper ei voi tallentaa sinne äänityksiä. Äänityskansiota ei muutettu.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper ei voinut luoda tätä kansiota: %@ Äänityskansiota ei muutettu.";
 "settings.storage.storeAsM4A.title" = "Pakkaa nauhoitukset M4A-muotoon";
 "settings.storage.storeAsM4A.subtitle" = "Muuntaa WAV-nauhoitukset pienemmiksi tiedostoiksi transkription jälkeen. Poista käytöstä säilyttääksesi alkuperäiset WAV-tiedostot (suuremmat mutta häviöttömät).";
 

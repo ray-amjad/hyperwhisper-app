@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Triar...";
 "settings.storage.dialog.select" = "Seleccionar carpeta";
 "settings.storage.dialog.message" = "Trieu una carpeta per emmagatzemar gravacions";
+"settings.storage.folderRefused.title" = "No es pot fer servir aquesta carpeta";
+"settings.storage.folderRefused.notWritable" = "No tens permís per escriure a «%@», així que HyperWhisper no hi pot desar gravacions. La carpeta de gravacions no s'ha canviat.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper no ha pogut crear aquesta carpeta: %@ La carpeta de gravacions no s'ha canviat.";
 "settings.storage.storeAsM4A.title" = "Comprimir gravacions a M4A";
 "settings.storage.storeAsM4A.subtitle" = "Converteix les gravacions WAV a fitxers més petits després de la transcripció. Desactiveu-ho per conservar els fitxers WAV originals (més grans però sense pèrdua).";
 

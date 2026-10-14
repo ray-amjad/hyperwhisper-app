@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "चुनें...";
 "settings.storage.dialog.select" = "फ़ोल्डर चुनें";
 "settings.storage.dialog.message" = "रिकॉर्डिंग संग्रहीत करने के लिए एक फ़ोल्डर चुनें";
+"settings.storage.folderRefused.title" = "इस फ़ोल्डर का उपयोग नहीं किया जा सकता";
+"settings.storage.folderRefused.notWritable" = "आपको “%@” में लिखने की अनुमति नहीं है, इसलिए HyperWhisper वहाँ रिकॉर्डिंग सहेज नहीं सकता। रिकॉर्डिंग फ़ोल्डर नहीं बदला गया।";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper यह फ़ोल्डर नहीं बना सका: %@ रिकॉर्डिंग फ़ोल्डर नहीं बदला गया।";
 "settings.storage.storeAsM4A.title" = "रिकॉर्डिंग को M4A में संपीड़ित करें";
 "settings.storage.storeAsM4A.subtitle" = "WAV रिकॉर्डिंग को ट्रांसक्रिप्शन के बाद छोटी फ़ाइलों में परिवर्तित करता है। मूल WAV फ़ाइलों को रखने के लिए बंद करें (बड़ी लेकिन नुकसान रहित)।";
 

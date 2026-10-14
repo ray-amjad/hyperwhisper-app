@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "選択...";
 "settings.storage.dialog.select" = "フォルダを選択";
 "settings.storage.dialog.message" = "録音を保存するフォルダを選択してください";
+"settings.storage.folderRefused.title" = "このフォルダは使用できません";
+"settings.storage.folderRefused.notWritable" = "「%@」への書き込み権限がないため、HyperWhisperはそこに録音を保存できません。録音フォルダは変更されていません。";
+"settings.storage.folderRefused.createFailed" = "HyperWhisperはこのフォルダを作成できませんでした: %@ 録音フォルダは変更されていません。";
 "settings.storage.storeAsM4A.title" = "録音をM4Aに圧縮";
 "settings.storage.storeAsM4A.subtitle" = "文字起こし後にWAV録音をより小さいファイルに変換します。オフにすると元のWAVファイルを保持します（容量は大きいがロスレス）。";
 

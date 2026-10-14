@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Kies...";
 "settings.storage.dialog.select" = "Map selecteren";
 "settings.storage.dialog.message" = "Kies een map voor het opslaan van opnamen";
+"settings.storage.folderRefused.title" = "Deze map kan niet worden gebruikt";
+"settings.storage.folderRefused.notWritable" = "Je hebt geen toestemming om naar ‘%@’ te schrijven, dus HyperWhisper kan daar geen opnamen bewaren. De opnamemap is niet gewijzigd.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper kon deze map niet aanmaken: %@ De opnamemap is niet gewijzigd.";
 "settings.storage.storeAsM4A.title" = "Comprimeer opnamen naar M4A";
 "settings.storage.storeAsM4A.subtitle" = "Zet WAV-opnamen na transcriptie om in kleinere bestanden. Uit om originele WAV-bestanden (groter maar verliesvrij) te behouden.";
 

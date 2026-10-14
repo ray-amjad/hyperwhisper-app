@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Vali...";
 "settings.storage.dialog.select" = "Vali kaust";
 "settings.storage.dialog.message" = "Valige salvestuste salvestamiseks kaust";
+"settings.storage.folderRefused.title" = "Seda kausta ei saa kasutada";
+"settings.storage.folderRefused.notWritable" = "Teil pole õigust kirjutada kausta „%@“, seega ei saa HyperWhisper sinna salvestisi salvestada. Salvestiste kausta ei muudetud.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper ei saanud seda kausta luua: %@ Salvestiste kausta ei muudetud.";
 "settings.storage.storeAsM4A.title" = "Tihenda salvestused M4A-sse";
 "settings.storage.storeAsM4A.subtitle" = "Teisendab WAV salvestused väiksemateks failideks pärast transkriptsiooni. Lülitage välja, et hoida algseid WAV faile (suuremad, kuid kadudeta).";
 

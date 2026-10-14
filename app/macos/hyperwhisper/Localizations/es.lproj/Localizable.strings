@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Elegir...";
 "settings.storage.dialog.select" = "Seleccionar carpeta";
 "settings.storage.dialog.message" = "Elige una carpeta para guardar las grabaciones";
+"settings.storage.folderRefused.title" = "No se puede usar esta carpeta";
+"settings.storage.folderRefused.notWritable" = "No tienes permiso para escribir en «%@», así que HyperWhisper no puede guardar grabaciones ahí. La carpeta de grabaciones no se ha cambiado.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper no pudo crear esta carpeta: %@ La carpeta de grabaciones no se ha cambiado.";
 "settings.storage.storeAsM4A.title" = "Comprimir grabaciones a M4A";
 "settings.storage.storeAsM4A.subtitle" = "Convierte grabaciones WAV a archivos más pequeños tras la transcripción. Desactívalo para conservar los WAV originales (más grandes pero sin pérdidas).";
 

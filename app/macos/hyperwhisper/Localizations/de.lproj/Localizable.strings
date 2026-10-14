@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Wählen...";
 "settings.storage.dialog.select" = "Wählen Sie Ordner aus";
 "settings.storage.dialog.message" = "Wählen Sie einen Ordner zum Speichern der Aufnahmen";
+"settings.storage.folderRefused.title" = "Dieser Ordner kann nicht verwendet werden";
+"settings.storage.folderRefused.notWritable" = "Sie haben keine Schreibberechtigung für „%@“, daher kann HyperWhisper dort keine Aufnahmen speichern. Der Aufnahmeordner wurde nicht geändert.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper konnte diesen Ordner nicht erstellen: %@ Der Aufnahmeordner wurde nicht geändert.";
 "settings.storage.storeAsM4A.title" = "Komprimieren Sie Aufnahmen auf M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konvertiert WAV-Aufnahmen nach der Transkription in kleinere Dateien. Deaktivieren Sie diese Option, um die ursprünglichen WAV-Dateien beizubehalten (größer, aber verlustfrei).";
 

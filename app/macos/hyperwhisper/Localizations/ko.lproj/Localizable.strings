@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "선택...";
 "settings.storage.dialog.select" = "폴더 선택";
 "settings.storage.dialog.message" = "녹음을 저장할 폴더를 선택하세요";
+"settings.storage.folderRefused.title" = "이 폴더를 사용할 수 없습니다";
+"settings.storage.folderRefused.notWritable" = "“%@”에 쓸 권한이 없어 HyperWhisper가 그곳에 녹음을 저장할 수 없습니다. 녹음 폴더는 변경되지 않았습니다.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper가 이 폴더를 만들 수 없습니다: %@ 녹음 폴더는 변경되지 않았습니다.";
 "settings.storage.storeAsM4A.title" = "녹음을 M4A로 압축";
 "settings.storage.storeAsM4A.subtitle" = "음성 인식 후 WAV 녹음을 더 작은 파일로 변환합니다. 끄면 원본 WAV 파일을 유지합니다 (더 크지만 무손실).";
 

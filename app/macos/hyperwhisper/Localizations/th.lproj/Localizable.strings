@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "เลือก...";
 "settings.storage.dialog.select" = "เลือกโฟลเดอร์";
 "settings.storage.dialog.message" = "เลือกโฟลเดอร์เพื่อเก็บการบันทึก";
+"settings.storage.folderRefused.title" = "ไม่สามารถใช้โฟลเดอร์นี้ได้";
+"settings.storage.folderRefused.notWritable" = "คุณไม่มีสิทธิ์เขียนลงใน “%@” HyperWhisper จึงบันทึกการบันทึกเสียงไว้ที่นั่นไม่ได้ โฟลเดอร์การบันทึกไม่ได้เปลี่ยนแปลง";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper ไม่สามารถสร้างโฟลเดอร์นี้ได้: %@ โฟลเดอร์การบันทึกไม่ได้เปลี่ยนแปลง";
 "settings.storage.storeAsM4A.title" = "บีบอัดการบันทึกเป็น M4A";
 "settings.storage.storeAsM4A.subtitle" = "แปลงการบันทึก WAV เป็นไฟล์ขนาดเล็กกว่าหลังการสัญลักษณ์ ปิดเพื่อเก็บไฟล์ WAV ดั้งเดิม (ใหญ่กว่า แต่ไม่มีการสูญเสีย)";
 

@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Vybrat...";
 "settings.storage.dialog.select" = "Vybrat slozku";
 "settings.storage.dialog.message" = "Zvolte slozku pro ukladani nahravek";
+"settings.storage.folderRefused.title" = "Tuto složku nelze použít";
+"settings.storage.folderRefused.notWritable" = "Nemáte oprávnění zapisovat do „%@“, takže tam HyperWhisper nemůže ukládat nahrávky. Složka nahrávek nebyla změněna.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nemohl vytvořit tuto složku: %@ Složka nahrávek nebyla změněna.";
 "settings.storage.storeAsM4A.title" = "Komprimovat nahravky do M4A";
 "settings.storage.storeAsM4A.subtitle" = "Prevedete WAV nahravky na mensi soubory po prepisu. Vypnete pro zachovani originalnich WAV souboru (vetsi, ale bezeztrattove).";
 

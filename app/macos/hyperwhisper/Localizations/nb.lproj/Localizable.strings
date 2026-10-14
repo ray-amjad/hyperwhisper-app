@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Velg...";
 "settings.storage.dialog.select" = "Velg mappe";
 "settings.storage.dialog.message" = "Velg en mappe for å lagre opptak";
+"settings.storage.folderRefused.title" = "Denne mappen kan ikke brukes";
+"settings.storage.folderRefused.notWritable" = "Du har ikke tillatelse til å skrive til «%@», så HyperWhisper kan ikke lagre opptak der. Opptaksmappen ble ikke endret.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper kunne ikke opprette denne mappen: %@ Opptaksmappen ble ikke endret.";
 "settings.storage.storeAsM4A.title" = "Komprimer opptak til M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konverterer WAV-opptak til mindre filer etter transkripsjon. Slå av for å beholde originale WAV-filer (større men tapsfrie).";
 

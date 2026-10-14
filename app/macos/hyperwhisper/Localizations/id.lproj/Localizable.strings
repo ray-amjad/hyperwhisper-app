@@ -337,6 +337,9 @@
 "settings.storage.choose.button" = "Pilih...";
 "settings.storage.dialog.select" = "Pilih Folder";
 "settings.storage.dialog.message" = "Pilih folder untuk menyimpan rekaman";
+"settings.storage.folderRefused.title" = "Folder ini tidak dapat digunakan";
+"settings.storage.folderRefused.notWritable" = "Anda tidak memiliki izin untuk menulis ke “%@”, jadi HyperWhisper tidak dapat menyimpan rekaman di sana. Folder Rekaman tidak diubah.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper tidak dapat membuat folder ini: %@ Folder Rekaman tidak diubah.";
 "settings.storage.storeAsM4A.title" = "Kompres rekaman ke M4A";
 "settings.storage.storeAsM4A.subtitle" = "Mengonversi rekaman WAV ke file yang lebih kecil setelah transkripsi. Matikan untuk menyimpan file WAV asli (lebih besar tetapi tanpa kehilangan).";
 
