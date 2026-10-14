@@ -74,7 +74,7 @@ export default function FAQSection() {
   ];
 
   return (
-    <section className="px-6 py-20" id="faq">
+    <section className="py-20" id="faq">
       <m.div
         className="max-w-3xl mx-auto"
         initial={{ opacity: 0, y: 20 }}

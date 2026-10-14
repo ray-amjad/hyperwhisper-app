@@ -220,7 +220,7 @@ export default function DownloadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 px-6 py-20">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 py-20">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6">
