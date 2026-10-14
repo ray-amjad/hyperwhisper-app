@@ -26,6 +26,15 @@ import os
 // succeeds with zero frames is still a silent end. Only a read that starts
 // before the end and throws is a #771 failure.
 //
+// A FILE WITH NO AUDIO FRAMES IS REFUSED (#1516):
+// `AVAudioFile(forReading:)` opens a WAV whose `data` chunk is empty, or that
+// has a `fmt ` chunk and no `data` chunk at all, with `length` 0. Converting
+// it yields an empty array, and Nemotron then decoded nothing and returned ""
+// as a success. A file with no frames cannot hold speech, so the loader throws
+// `TranscriptionError.invalidAudioFormat` (Local API `AUDIO_DECODE_FAILED`) —
+// before any conversion, and again if the conversion produced no samples — the
+// same refusal Apple Speech gives such a file (`AppleSpeechAudioInput`, #1515).
+//
 // This is deliberately NOT `Utilities/AudioConverter.swift`: its chunked,
 // downmixing path can produce different samples. Keep this recipe as it is.
 enum LocalAudioSampleLoader {
@@ -39,12 +48,14 @@ enum LocalAudioSampleLoader {
     /// Load `url` and convert it to 16 kHz mono Float32 samples.
     ///
     /// - Parameters:
-    ///   - providerName: the `provider:` value for every `TranscriptionError` thrown.
+    ///   - providerName: the `provider:` value for every `providerNotAvailable` thrown.
     ///   - logger: the calling provider's logger. A read fault logs one line with
     ///     the error domain/code and the frame count only — never the path or audio.
     ///   - readChunk: the read step. Defaults to `AVAudioFile.read(into:frameCount:)`,
     ///     capped to the frames left in the file. It is only called while the
     ///     file position is before the end.
+    /// - Throws: `TranscriptionError.invalidAudioFormat` when the file opens with
+    ///   no audio frames, or converts to no samples (#1516).
     static func loadMono16kSamples(
         from url: URL,
         providerName: String,
@@ -56,6 +67,10 @@ enum LocalAudioSampleLoader {
         }
     ) throws -> [Float] {
         let file = try AVAudioFile(forReading: url)
+        guard file.length > 0 else {
+            logger.error("\(providerName, privacy: .public) audio file has no audio frames; refusing it before inference; frames=\(file.length, privacy: .public)")
+            throw TranscriptionError.invalidAudioFormat
+        }
         let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: targetSampleRate, channels: 1, interleaved: false)!
 
         guard let converter = AVAudioConverter(from: file.processingFormat, to: targetFormat) else {
@@ -112,6 +127,11 @@ enum LocalAudioSampleLoader {
 
         guard let channelData = outputBuffer.floatChannelData?[0] else {
             throw TranscriptionError.providerNotAvailable(provider: providerName, reason: "No audio data after conversion")
+        }
+
+        guard outputBuffer.frameLength > 0 else {
+            logger.error("\(providerName, privacy: .public) audio conversion produced no samples; refusing it before inference; frames=\(file.length, privacy: .public)")
+            throw TranscriptionError.invalidAudioFormat
         }
 
         return Array(UnsafeBufferPointer(start: channelData, count: Int(outputBuffer.frameLength)))
