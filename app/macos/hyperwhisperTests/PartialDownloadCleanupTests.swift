@@ -189,7 +189,8 @@ struct PartialDownloadCleanupTests {
     /// The GGUF partial file must not end in Whisper's suffix: Whisper's launch sweep
     /// runs over the same models directory and could delete a live GGUF download (#1723).
     @Test func theGGUFPartialSuffixIsNotWhispers() {
-        #expect(LocalModelManager.modelsDirectory == WhisperModelManager.modelsDirectory)
+        // Compare paths: one URL is built with isDirectory: true (a trailing slash), so URL == differs.
+        #expect(LocalModelManager.modelsDirectory.standardizedFileURL.path == WhisperModelManager.modelsDirectory.standardizedFileURL.path)
         #expect(!LocalModelManager.partialFileSuffix.hasSuffix(WhisperModelManager.partialFileSuffix))
         let gguf = "gemma-4-E2B-it-Q4_K_M.gguf.\(UUID().uuidString)\(LocalModelManager.partialFileSuffix)"
         #expect(!gguf.hasSuffix(WhisperModelManager.partialFileSuffix))
