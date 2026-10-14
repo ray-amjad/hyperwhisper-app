@@ -78,7 +78,7 @@ export default function FooterSection() {
           {Object.entries(footerLinks).map(([category, links]) => (
             <div key={category}>
               <h3 className="font-semibold text-white mb-3">{category}</h3>
-              <ul className="space-y-2">
+              <ul className="space-y-2 break-words hyphens-auto">
                 {/*
                   IMPORTANT: Use native <a> for anchor links (/#features, /#pricing).
                   Do NOT use next-intl Link for hash navigation - it breaks anchor scrolling.
