@@ -20154,6 +20154,55 @@ internal static class Program
                     "the plan must never press one of the user's keys (that would replay the chord into both hooks)");
             });
 
+            // #1486: HomePage.OnLoaded awaits RecomputeAsync on the dispatcher, and
+            // Microsoft.Data.Sqlite's async reads complete synchronously, so the
+            // transcript read and the word count must be pushed off that thread by
+            // RecomputeAsync itself. The fake provider completes synchronously too,
+            // like the real one. The frame is pumped, not blocked on, because the
+            // snapshot comes back through Dispatcher.Invoke when an Application exists.
+            Run("Home stats read runs off the dispatcher thread (#1486)", () =>
+            {
+                var previousContext = SynchronizationContext.Current;
+                var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+                SynchronizationContext.SetSynchronizationContext(
+                    new System.Windows.Threading.DispatcherSynchronizationContext(dispatcher));
+                HomeStatsBarViewModel? statsViewModel = null;
+                try
+                {
+                    var provider = new ThreadRecordingStatisticsProvider();
+                    statsViewModel = new HomeStatsBarViewModel(
+                        new HyperWhisper.Statistics.HomeStatisticsService(provider),
+                        SettingsService.Instance);
+                    var dispatcherThread = Environment.CurrentManagedThreadId;
+
+                    var recompute = statsViewModel.RecomputeAsync();
+
+                    var frame = new System.Windows.Threading.DispatcherFrame();
+                    _ = recompute.ContinueWith(
+                        _ => dispatcher.InvokeAsync(() => frame.Continue = false),
+                        TaskScheduler.Default);
+                    var bound = new System.Windows.Threading.DispatcherTimer(
+                        TimeSpan.FromSeconds(10),
+                        System.Windows.Threading.DispatcherPriority.Normal,
+                        (_, _) => frame.Continue = false,
+                        dispatcher);
+                    System.Windows.Threading.Dispatcher.PushFrame(frame);
+                    bound.Stop();
+
+                    Assert(recompute.IsCompleted, "RecomputeAsync did not finish within 10 s");
+                    recompute.GetAwaiter().GetResult();
+                    Assert(provider.ThreadId is not null, "the provider was never read");
+                    Assert(provider.ThreadId != dispatcherThread,
+                        $"the transcript read ran on the dispatcher thread ({dispatcherThread}); " +
+                        "it must run on another thread so a Home visit does not freeze the window");
+                }
+                finally
+                {
+                    statsViewModel?.Detach();
+                    SynchronizationContext.SetSynchronizationContext(previousContext);
+                }
+            });
+
             // RunAsync blocks on GetResult, and an earlier WPF case can leave a
             // DispatcherSynchronizationContext on this thread that nothing pumps.
             // The "yields" case below really suspends, so detach for it, as the
@@ -24018,5 +24067,23 @@ internal static class Program
         var application = new App();
         application.InitializeComponent();
         return application;
+    }
+
+    /// <summary>
+    /// #1486: a Home stats provider that records the thread that read it and,
+    /// like the SQLite-backed one, completes synchronously.
+    /// </summary>
+    private sealed class ThreadRecordingStatisticsProvider
+        : HyperWhisper.Statistics.IStatisticsTranscriptProvider
+    {
+        public int? ThreadId { get; private set; }
+
+        public ValueTask<IReadOnlyList<HyperWhisper.Statistics.StatisticsTranscript>> ReadAllAsync(
+            CancellationToken cancellationToken = default)
+        {
+            ThreadId = Environment.CurrentManagedThreadId;
+            return ValueTask.FromResult<IReadOnlyList<HyperWhisper.Statistics.StatisticsTranscript>>(
+                Array.Empty<HyperWhisper.Statistics.StatisticsTranscript>());
+        }
     }
 }
