@@ -242,15 +242,19 @@ class TranscriptActionHandler: ObservableObject {
     }
 
     /// Marks a failed "Retry with" row failed, and replaces its "Processing
-    /// transcription..." placeholder with the same text a failed file import
-    /// writes (#1457), through the same serial-writer helper, so the list and
-    /// detail pane stop reading as running.
+    /// transcription..." placeholder with a failure text (#1457), through the
+    /// same serial-writer helper, so the list and detail pane stop reading as
+    /// running.
+    ///
+    /// Keeps the "Transcription failed: …" text a file import used to write.
+    /// The empty-text rule of #1427 covers file imports only.
     static func markRetryWithFailed(_ transcriptID: NSManagedObjectID, after error: Error, persistence: PersistenceController) async {
-        let outcome = FileTranscriptionFlow.failureOutcome(for: error)
+        let reason = error is CancellationError ? "cancelled" : error.localizedDescription
+        let text = error is CancellationError ? "Transcription cancelled" : "Transcription failed: \(reason)"
         await persistence.markTranscriptFailedInBackground(
             transcriptID: transcriptID,
-            failedReason: outcome.failedReason,
-            errorText: outcome.errorText
+            failedReason: reason,
+            errorText: text
         )
     }
     

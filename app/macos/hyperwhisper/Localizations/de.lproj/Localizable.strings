@@ -976,6 +976,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcription.guidance.quotaExceeded" = "Fügen Sie Credits zu Ihrem %@-Konto hinzu oder aktualisieren Sie Ihre Abrechnung Details";
 "transcription.guidance.timeout" = "Die Anfrage hat zu lange gedauert. Überprüfen Sie Ihre Internetgeschwindigkeit und versuchen Sie es erneut.";
 "transcription.error.noSpeechDetected" = "Keine Sprache in der Aufnahme erkannt.";
+"transcription.error.audioTooShort" = "Die Aufnahme ist zu kurz zum Transkribieren. Bitte nehmen Sie länger auf.";
 "transcription.guidance.noSpeechDetected" = "Tipps:\n• Sprechen Sie deutlich in das Mikrofon\n• Halten Sie die Taste länger gedrückt, bevor Sie sprechen\n• Überprüfen Sie, ob Ihr Mikrofon funktioniert\n• Stellen Sie sicher, dass das richtige Eingabegerät ausgewählt ist";
 "transcription.guidance.needsNativeRelaunch" = "Beenden Sie HyperWhisper und öffnen Sie es nativ erneut, um die lokale Nachbearbeitung zu verwenden.";
 "transcription.guidance.localRuntimeUnavailable" = "Versuchen Sie es erneut, oder wählen Sie in Ihren Modus-Einstellungen ein kleineres lokales Modell.";
@@ -1120,6 +1121,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcribe.file.error.read" = "Die ausgewählte Datei kann nicht gelesen werden.";
 "transcribe.file.error.webm" = "WebM wird nicht unterstützt. Konvertiere die Datei in MP3, M4A oder WAV und versuche es erneut.";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper kann den Ton in dieser Datei nicht lesen. Sie ist möglicherweise beschädigt oder in einem Format, das macOS nicht dekodieren kann.";
+"transcribe.file.error.tooShort" = "Diese Datei ist zu kurz zum Transkribieren (%@ s).";
 "transcribe.file.error.copy" = "Die Datei konnte nicht in den Aufnahmeordner kopiert werden.";
 "transcribe.file.error.video.title" = "Kein Ton im Video";
 "transcribe.file.error.video.noAudio" = "Diese Videodatei enthält keine Audiospur. Bitte wählen Sie ein Video mit Audio oder eine Audiodatei aus.";

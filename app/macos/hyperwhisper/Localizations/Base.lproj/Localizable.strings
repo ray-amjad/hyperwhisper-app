@@ -1015,6 +1015,7 @@
 "transcription.guidance.quotaExceeded" = "Add credits to your %@ account or update your billing details";
 "transcription.guidance.timeout" = "The request took too long. Check your internet speed and try again.";
 "transcription.error.noSpeechDetected" = "No speech detected in the recording.";
+"transcription.error.audioTooShort" = "The recording is too short to transcribe. Please record for longer.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Speak clearly into the microphone\n• Hold the key longer before speaking\n• Check that your microphone is working\n• Ensure the correct input device is selected";
 "transcription.error.localRuntimeUnavailable" = "Local AI couldn't finish — your raw transcript was kept.";
 "transcription.error.postProcessingPreflight.unauthorized" = "%@ rejected your API key — your raw transcript was kept.";
@@ -1165,6 +1166,7 @@
 "transcribe.file.error.read" = "Cannot read the selected file.";
 "transcribe.file.error.webm" = "WebM is not supported. Convert the file to MP3, M4A or WAV, then try again.";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper cannot read the audio in this file. It may be damaged, or in a format macOS cannot decode.";
+"transcribe.file.error.tooShort" = "This file is too short to transcribe (%@ s).";
 "transcribe.file.error.copy" = "Failed to copy file to recordings folder.";
 "transcribe.file.error.video.title" = "No Audio in Video";
 "transcribe.file.error.video.noAudio" = "This video file doesn't contain an audio track. Please select a video with audio or an audio file.";

@@ -976,6 +976,7 @@
 "transcription.guidance.quotaExceeded" = "Добавьте кредиты на учетную запись %@ или обновите сведения о биллинге";
 "transcription.guidance.timeout" = "Запрос занял слишком много времени. Проверьте скорость интернета и повторите попытку.";
 "transcription.error.noSpeechDetected" = "В записи не обнаружена речь.";
+"transcription.error.audioTooShort" = "Запись слишком короткая для расшифровки. Запишите подольше.";
 "transcription.guidance.noSpeechDetected" = "Советы:\n• Говорите четко в микрофон\n• Держите клавишу дольше перед разговором\n• Проверьте, что микрофон работает\n• Убедитесь, что выбрано правильное устройство ввода";
 "transcription.guidance.needsNativeRelaunch" = "Завершите работу HyperWhisper и откройте программу в нативном режиме, чтобы использовать локальную постобработку.";
 "transcription.guidance.localRuntimeUnavailable" = "Повторите попытку или выберите более компактную локальную модель в настройках режима.";
@@ -1120,6 +1121,7 @@
 "transcribe.file.error.read" = "Невозможно прочитать выбранный файл.";
 "transcribe.file.error.webm" = "Формат WebM не поддерживается. Преобразуйте файл в MP3, M4A или WAV и попробуйте снова.";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper не может прочитать звук в этом файле. Возможно, файл повреждён или имеет формат, который macOS не умеет декодировать.";
+"transcribe.file.error.tooShort" = "Этот файл слишком короткий для расшифровки (%@ с).";
 "transcribe.file.error.copy" = "Ошибка копирования файла в папку записей.";
 "transcribe.file.error.video.title" = "Нет звука в видео";
 "transcribe.file.error.video.noAudio" = "Этот видеофайл не содержит аудиодорожку. Пожалуйста, выберите видео со звуком или аудиофайл.";

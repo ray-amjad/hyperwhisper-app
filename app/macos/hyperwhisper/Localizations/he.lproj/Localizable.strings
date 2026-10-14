@@ -976,6 +976,7 @@
 "transcription.guidance.quotaExceeded" = "הוסף נקודות זכות לחשבון %@ שלך או עדכן את פרטי החיוב";
 "transcription.guidance.timeout" = "הבקשה ארכה יותר מדי זמן. בדוק את מהירות האינטרנט שלך ונסה שוב.";
 "transcription.error.noSpeechDetected" = "לא זוהה דיבור בהקלטה.";
+"transcription.error.audioTooShort" = "ההקלטה קצרה מדי לתמלול. יש להקליט זמן רב יותר.";
 "transcription.guidance.noSpeechDetected" = "טיפים:\n• דבר בבירור למיקרופון\n• החזק את המקש זמן רב יותר לפני הדיבור\n• בדוק שהמיקרופון שלך עובד\n• ודא שהתקן הקלט הנכון נבחר";
 "transcription.guidance.needsNativeRelaunch" = "צא מ-HyperWhisper ופתח אותה מחדש כאפליקציה מקורית כדי להשתמש בעיבוד מקומי.";
 "transcription.guidance.localRuntimeUnavailable" = "נסה שוב, או בחר מודל מקומי קטן יותר בהגדרות המצב.";
@@ -1120,6 +1121,7 @@
 "transcribe.file.error.read" = "לא ניתן לקרוא את הקובץ שנבחר.";
 "transcribe.file.error.webm" = "פורמט WebM אינו נתמך. המירו את הקובץ ל-MP3, M4A או WAV ונסו שוב.";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper לא יכול לקרוא את השמע בקובץ הזה. ייתכן שהוא פגום, או בפורמט ש-macOS לא יכול לפענח.";
+"transcribe.file.error.tooShort" = "הקובץ הזה קצר מדי לתמלול (%@ שנ׳).";
 "transcribe.file.error.copy" = "כשל בהעתקת קובץ לתיקיית הקלטות.";
 "transcribe.file.error.video.title" = "אין אודיו בוידאו";
 "transcribe.file.error.video.noAudio" = "קובץ הוידאו הזה לא מכיל רצועת אודיו. אנא בחר וידאו עם אודיו או קובץ אודיו.";

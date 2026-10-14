@@ -976,6 +976,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.guidance.quotaExceeded" = "Bættu við einingum á %@ reikninginn þinn eða uppfærðu greiðsluupplýsingar þínar";
 "transcription.guidance.timeout" = "Beiðnin tók of langan tíma. Athugaðu nethraðann þinn og reyndu aftur.";
 "transcription.error.noSpeechDetected" = "Engin tala greind í upptökunni.";
+"transcription.error.audioTooShort" = "Upptakan er of stutt til að umrita hana. Taktu upp lengur.";
 "transcription.guidance.noSpeechDetected" = "Ábendingar:\n• Talaðu skýrt í hljóðnemanninn\n• Haltu lyklinum lengur áður en þú talar\n• Athugaðu að hljóðneminn þinn sé að virka\n• Gakktu úr skugga um að rétt inntakstæki sé valið";
 "transcription.guidance.needsNativeRelaunch" = "Lokaðu HyperWhisper og opnaðu forritið aftur sem innbyggt forrit til að nota staðbundna eftirvinnslu.";
 "transcription.guidance.localRuntimeUnavailable" = "Reyndu aftur eða veldu minna staðbundið líkan í hamstillingunum þínum.";
@@ -1120,6 +1121,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcribe.file.error.read" = "Get ekki lesið valda skrá.";
 "transcribe.file.error.webm" = "WebM er ekki stutt. Umbreyttu skránni í MP3, M4A eða WAV og reyndu aftur.";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper getur ekki lesið hljóðið í þessari skrá. Hún gæti verið skemmd eða á sniði sem macOS getur ekki afkóðað.";
+"transcribe.file.error.tooShort" = "Þessi skrá er of stutt til að umrita hana (%@ s).";
 "transcribe.file.error.copy" = "Mistókst að afrita skrá í upptökumöppu.";
 "transcribe.file.error.video.title" = "Ekkert hljóð í myndskrá";
 "transcribe.file.error.video.noAudio" = "Þessi myndbandskrá inniheldur ekki hljóðlag. Vinsamlegast veldu myndband með hljóði eða hljóðskrá.";

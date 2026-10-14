@@ -976,6 +976,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcription.guidance.quotaExceeded" = "Adăugați credite la contul %@ sau actualizați detaliile de facturare";
 "transcription.guidance.timeout" = "Cererea a durat prea mult. Verificați viteza internetului și reîncercați.";
 "transcription.error.noSpeechDetected" = "Nicio vorbire detectată în înregistrare.";
+"transcription.error.audioTooShort" = "Înregistrarea este prea scurtă pentru a fi transcrisă. Înregistrează mai mult timp.";
 "transcription.guidance.noSpeechDetected" = "Sfaturi:\n• Vorbiți clar în microfon\n• Țineti cheia mai mult înainte de a vorbi\n• Verificați că microfonul funcționează\n• Asigurați-vă că dispozitivul de intrare corect este selectat";
 "transcription.guidance.needsNativeRelaunch" = "Închide și redeschide HyperWhisper în mod nativ pentru a folosi post-procesarea locală.";
 "transcription.guidance.localRuntimeUnavailable" = "Încearcă din nou sau alege un model local mai mic în setările modului.";
@@ -1120,6 +1121,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcribe.file.error.read" = "Nu se poate citi fișierul selectat.";
 "transcribe.file.error.webm" = "WebM nu este acceptat. Convertiți fișierul în MP3, M4A sau WAV, apoi încercați din nou.";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper nu poate citi sunetul din acest fișier. Poate fi deteriorat sau într-un format pe care macOS nu îl poate decoda.";
+"transcribe.file.error.tooShort" = "Acest fișier este prea scurt pentru a fi transcris (%@ s).";
 "transcribe.file.error.copy" = "Nu s-a putut copia fișier în folderul înregistrări.";
 "transcribe.file.error.video.title" = "Nicio audio în video";
 "transcribe.file.error.video.noAudio" = "Acest fișier video nu conține o pistă audio. Vă rugăm selectați un video cu audio sau un fișier audio.";

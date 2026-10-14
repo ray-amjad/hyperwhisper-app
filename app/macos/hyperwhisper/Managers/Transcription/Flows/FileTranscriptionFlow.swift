@@ -355,6 +355,10 @@ class FileTranscriptionFlow {
             }
         )
 
+        // Read once STEP 4 knows it, so a too-short error from the engine can
+        // name the file's length (#1427).
+        var importDuration: TimeInterval?
+
         do {
             // STEP 2a: Validate file size against provider limits (0-5%)
             progressState.animateProgress(to: 0.03, duration: 0.2)
@@ -438,6 +442,7 @@ class FileTranscriptionFlow {
             // STEP 4: Get audio duration (12-13%)
             progressState.animateProgress(to: 0.13, duration: 0.2)
             let duration = try await getAudioDuration(audioURL)
+            importDuration = duration
 
             // STEP 4b: VAD SILENCE TRIMMING (Optional) (13-15%)
             // Uses VADProcessingService to analyze audio and trim leading/trailing silence.
@@ -608,11 +613,11 @@ class FileTranscriptionFlow {
             currentTranscriptionTask = nil
             // Before the alert, so History already shows the failed row with
             // Retry behind it.
-            await markProcessingTranscriptFailed(after: error)
+            await markProcessingTranscriptFailed(after: error, audioDuration: importDuration)
             AppLogger.transcription.error("❌ File transcription failed: \(error.localizedDescription)")
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
-                message: error.localizedDescription
+                message: Self.failureMessage(for: error, audioDuration: importDuration)
             )
             appState?.recordingState = .idle
         }
@@ -829,18 +834,23 @@ class FileTranscriptionFlow {
     /// exists finds no ID and writes nothing. The ID is cleared before the write,
     /// so a second caller (a cancel racing an error) cannot write twice.
     ///
-    /// - Parameter error: Why the import stopped. `CancellationError` is a cancel.
-    func markProcessingTranscriptFailed(after error: Error) async {
+    /// - Parameters:
+    ///   - error: Why the import stopped. `CancellationError` is a cancel.
+    ///   - audioDuration: The file's length, when the import read it.
+    func markProcessingTranscriptFailed(after error: Error, audioDuration: TimeInterval? = nil) async {
         guard let transcriptID = processingTranscriptID else { return }
         processingTranscriptID = nil
-        await writeFailedStatus(transcriptID, after: error)
+        await writeFailedStatus(transcriptID, after: error, audioDuration: audioDuration)
     }
 
-    /// Writes the failed status with the same reason and text dictation uses
-    /// (`RecordingTranscriptionFlow`), so HistoryView shows the row as failed and
+    /// Writes the failed status, so HistoryView shows the row as failed and
     /// offers Retry (canRetry = failed + audio file on disk).
-    private func writeFailedStatus(_ transcriptID: NSManagedObjectID, after error: Error) async {
-        let outcome = Self.failureOutcome(for: error)
+    private func writeFailedStatus(
+        _ transcriptID: NSManagedObjectID,
+        after error: Error,
+        audioDuration: TimeInterval? = nil
+    ) async {
+        let outcome = Self.failureOutcome(for: error, audioDuration: audioDuration)
         await persistence.markTranscriptFailedInBackground(
             transcriptID: transcriptID,
             failedReason: outcome.failedReason,
@@ -851,12 +861,32 @@ class FileTranscriptionFlow {
     }
 
     /// The `failedReason` and row text for an import that stopped with `error`.
-    static func failureOutcome(for error: Error) -> (failedReason: String, errorText: String) {
+    ///
+    /// The text is empty: a failed import has no transcript, and the reason
+    /// lives only in `failedReason` (Ray, #1427). Writing the error as the text
+    /// made the row preview read as a transcript and Copy copy the error.
+    static func failureOutcome(
+        for error: Error,
+        audioDuration: TimeInterval? = nil
+    ) -> (failedReason: String, errorText: String) {
         if error is CancellationError {
-            return ("cancelled", "Transcription cancelled")
+            return ("cancelled", "")
         }
-        let description = error.localizedDescription
-        return (description, "Transcription failed: \(description)")
+        return (failureMessage(for: error, audioDuration: audioDuration), "")
+    }
+
+    /// What the alert and the row's Reason say for an import that failed with
+    /// `error`.
+    ///
+    /// A too-short file gets the file wording, with its length, instead of the
+    /// engine's dictation wording ("record for longer"), which makes no sense
+    /// for a file the user picked (#1427).
+    static func failureMessage(for error: Error, audioDuration: TimeInterval?) -> String {
+        if case .audioTooShort? = error as? TranscriptionError {
+            let seconds = (audioDuration ?? 0).formatted(.number.precision(.fractionLength(1)))
+            return "transcribe.file.error.tooShort".localized(arguments: seconds)
+        }
+        return error.localizedDescription
     }
 
     /// Handles file transcription errors with appropriate UI

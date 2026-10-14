@@ -976,6 +976,7 @@
 "transcription.guidance.quotaExceeded" = "أضف أرصدة إلى حسابك %@ أو حدّث تفاصيل الفواتير";
 "transcription.guidance.timeout" = "استغرق الطلب وقتاً طويلاً. تحقق من سرعة الإنترنت الخاصة بك وحاول مرة أخرى.";
 "transcription.error.noSpeechDetected" = "لم يتم الكشف عن أي كلام في التسجيل.";
+"transcription.error.audioTooShort" = "التسجيل قصير جدًا ولا يمكن تحويله إلى نص. يُرجى التسجيل لمدة أطول.";
 "transcription.guidance.noSpeechDetected" = "نصائح:\n• تحدث بوضوح نحو الميكروفون\n• اضغط على المفتاح لفترة أطول قبل التحدث\n• تحقق من أن الميكروفون يعمل\n• تأكد من تحديد جهاز الإدخال الصحيح";
 "transcription.guidance.needsNativeRelaunch" = "أغلق HyperWhisper وأعد فتحه كتطبيق أصلي لاستخدام المعالجة اللاحقة المحلية.";
 "transcription.guidance.localRuntimeUnavailable" = "حاول مرة أخرى، أو اختر نموذجاً محلياً أصغر في إعدادات الوضع.";
@@ -1120,6 +1121,7 @@
 "transcribe.file.error.read" = "لا يمكن قراءة الملف المحدد.";
 "transcribe.file.error.webm" = "تنسيق WebM غير مدعوم. حوّل الملف إلى MP3 أو M4A أو WAV، ثم حاول مرة أخرى.";
 "transcribe.file.error.unreadableAudio" = "لا يستطيع HyperWhisper قراءة الصوت في هذا الملف. قد يكون تالفًا، أو بتنسيق لا يستطيع macOS فك ترميزه.";
+"transcribe.file.error.tooShort" = "هذا الملف قصير جدًا ولا يمكن تحويله إلى نص (%@ ث).";
 "transcribe.file.error.copy" = "فشل في نسخ الملف إلى مجلد التسجيلات.";
 "transcribe.file.error.video.title" = "لا توجد صوت في الفيديو";
 "transcribe.file.error.video.noAudio" = "لا يحتوي ملف الفيديو هذا على مسار صوتي. يرجى تحديد فيديو مع صوت أو ملف صوتي.";

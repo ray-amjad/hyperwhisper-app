@@ -976,6 +976,7 @@
 "transcription.guidance.quotaExceeded" = "%@ 계정에 크레딧을 추가하거나 청구 세부 정보를 업데이트하세요";
 "transcription.guidance.timeout" = "요청이 너무 오래 걸렸습니다. 인터넷 속도를 확인하고 다시 시도하세요.";
 "transcription.error.noSpeechDetected" = "녹음에서 음성이 감지되지 않았습니다.";
+"transcription.error.audioTooShort" = "녹음이 너무 짧아 전사할 수 없습니다. 더 길게 녹음해 주세요.";
 "transcription.guidance.noSpeechDetected" = "팁:\n• 마이크에 명확하게 말하세요\n• 말하기 전에 키를 더 오래 누르세요\n• 마이크가 작동하는지 확인하세요\n• 올바른 입력 장치가 선택되었는지 확인하세요";
 "transcription.guidance.needsNativeRelaunch" = "로컬 후처리를 사용하려면 HyperWhisper를 종료한 후 네이티브로 다시 실행하세요.";
 "transcription.guidance.localRuntimeUnavailable" = "다시 시도하거나, 모드 설정에서 더 작은 로컬 모델을 선택하세요.";
@@ -1120,6 +1121,7 @@
 "transcribe.file.error.read" = "선택한 파일을 읽을 수 없습니다.";
 "transcribe.file.error.webm" = "WebM은 지원되지 않습니다. 파일을 MP3, M4A 또는 WAV로 변환한 후 다시 시도하세요.";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper가 이 파일의 오디오를 읽을 수 없습니다. 파일이 손상되었거나 macOS가 디코딩할 수 없는 형식일 수 있습니다.";
+"transcribe.file.error.tooShort" = "이 파일은 너무 짧아 전사할 수 없습니다(%@초).";
 "transcribe.file.error.copy" = "파일을 녹음 폴더로 복사하지 못했습니다.";
 "transcribe.file.error.video.title" = "비디오에 오디오 없음";
 "transcribe.file.error.video.noAudio" = "이 비디오 파일에는 오디오 트랙이 포함되어 있지 않습니다. 오디오가 있는 비디오 또는 오디오 파일을 선택하세요.";

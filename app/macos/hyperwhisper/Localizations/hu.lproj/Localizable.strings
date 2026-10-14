@@ -976,6 +976,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.guidance.quotaExceeded" = "Adj hozzá krediteket a(z) %@ fiókodhoz vagy frissítsd a számlázási adatokat";
 "transcription.guidance.timeout" = "A kérés túl sokáig tartott. Ellenőrizd az internet sebességet és próbáld újra.";
 "transcription.error.noSpeechDetected" = "Nem észlelhető beszéd a felvételben.";
+"transcription.error.audioTooShort" = "A felvétel túl rövid az átíráshoz. Rögzíts hosszabban.";
 "transcription.guidance.noSpeechDetected" = "Tippek:\n• Beszélj tisztán a mikrofonba\n• Tartsd lenyomva a billentyűt hosszabb ideig beszélés előtt\n• Ellenőrizd, hogy a mikrofonod működik-e\n• Győződj meg róla, hogy a helyes bemeneti eszköz van kiválasztva";
 "transcription.guidance.needsNativeRelaunch" = "A helyi utófeldolgozáshoz lépjen ki, és indítsa újra a HyperWhispert natív módban.";
 "transcription.guidance.localRuntimeUnavailable" = "Próbálja újra, vagy válasszon kisebb helyi modellt a Mód beállításaiban.";
@@ -1120,6 +1121,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcribe.file.error.read" = "Nem lehet olvasni a kiválasztott fájlt.";
 "transcribe.file.error.webm" = "A WebM nem támogatott. Alakítsa át a fájlt MP3, M4A vagy WAV formátumba, majd próbálja újra.";
 "transcribe.file.error.unreadableAudio" = "A HyperWhisper nem tudja beolvasni a fájl hangját. Lehet, hogy sérült, vagy olyan formátumú, amelyet a macOS nem tud dekódolni.";
+"transcribe.file.error.tooShort" = "Ez a fájl túl rövid az átíráshoz (%@ mp).";
 "transcribe.file.error.copy" = "Nem sikerült a fájl másolása a felvételek mappába.";
 "transcribe.file.error.video.title" = "Nincs audio a videóban";
 "transcribe.file.error.video.noAudio" = "Ez a videó fájl nem tartalmaz audio sávot. Kérlek válassz audio sávval rendelkező videót vagy audio fájlt.";

@@ -976,6 +976,7 @@
 "transcription.guidance.quotaExceeded" = "向您的 %@ 帳戶新增額度或更新您的帳單詳細資訊";
 "transcription.guidance.timeout" = "請求耗時過長。檢查您的網際網路速度並重試。";
 "transcription.error.noSpeechDetected" = "在錄音中未偵測到語音。";
+"transcription.error.audioTooShort" = "錄音太短，無法轉寫。請錄製更長時間。";
 "transcription.guidance.noSpeechDetected" = "提示：\n• 清楚地對著麥克風說話\n• 在說話前按住按鍵較長時間\n• 檢查您的麥克風是否運作正常\n• 確保選擇了正確的輸入裝置";
 "transcription.guidance.needsNativeRelaunch" = "請結束並以原生模式重新開啟 HyperWhisper，才能使用本機後處理。";
 "transcription.guidance.localRuntimeUnavailable" = "請再試一次，或在模式設定中選擇較小的本機模型。";
@@ -1120,6 +1121,7 @@
 "transcribe.file.error.read" = "無法讀取選定的檔案。";
 "transcribe.file.error.webm" = "不支援 WebM。請將檔案轉換為 MP3、M4A 或 WAV 後再試一次。";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper 無法讀取此檔案中的音訊。檔案可能已損毀，或是 macOS 無法解碼的格式。";
+"transcribe.file.error.tooShort" = "此檔案太短，無法轉寫（%@ 秒）。";
 "transcribe.file.error.copy" = "無法將檔案複製到錄音資料夾。";
 "transcribe.file.error.video.title" = "影片中沒有音頻";
 "transcribe.file.error.video.noAudio" = "此影片檔案不包含音頻軌道。請選擇有音頻的影片或音頻檔案。";

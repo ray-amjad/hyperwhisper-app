@@ -977,6 +977,7 @@
 "transcription.guidance.quotaExceeded" = "为你的 %@ 账户充值或更新账单信息";
 "transcription.guidance.timeout" = "请求时间过长。检查网络速度后重试。";
 "transcription.error.noSpeechDetected" = "录音中未检测到语音。";
+"transcription.error.audioTooShort" = "录音太短，无法转写。请录制更长时间。";
 "transcription.guidance.noSpeechDetected" = "提示：\n• 请清晰地对着麦克风说话\n• 说话前按住按键更久一些\n• 检查麦克风是否正常工作\n• 确认已选择正确的输入设备";
 "transcription.guidance.needsNativeRelaunch" = "请退出并以原生方式重新打开 HyperWhisper，以使用本地后处理。";
 "transcription.guidance.localRuntimeUnavailable" = "请重试，或在模式设置中选择更小的本地模型。";
@@ -1121,6 +1122,7 @@
 "transcribe.file.error.read" = "无法读取所选文件。";
 "transcribe.file.error.webm" = "不支持 WebM。请将文件转换为 MP3、M4A 或 WAV 后重试。";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper 无法读取此文件中的音频。文件可能已损坏，或者是 macOS 无法解码的格式。";
+"transcribe.file.error.tooShort" = "此文件太短，无法转写（%@ 秒）。";
 "transcribe.file.error.copy" = "无法将文件复制到录音文件夹。";
 "transcribe.file.error.video.title" = "视频无音频";
 "transcribe.file.error.video.noAudio" = "该视频文件不包含音轨。请选择带音频的视频或音频文件。";

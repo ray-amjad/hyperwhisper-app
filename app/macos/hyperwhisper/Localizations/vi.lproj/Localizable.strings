@@ -976,6 +976,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcription.guidance.quotaExceeded" = "Thêm tín dụ vào tài khoản %@ của bạn hoặc cập nhật chi tiết thanh toán";
 "transcription.guidance.timeout" = "Yêu cầu mất quá lâu. Kiểm tra tốc độ internet của bạn và thử lại.";
 "transcription.error.noSpeechDetected" = "Không phát hiện lời nói trong bản ghi âm.";
+"transcription.error.audioTooShort" = "Bản ghi quá ngắn để chép lời. Vui lòng ghi âm lâu hơn.";
 "transcription.guidance.noSpeechDetected" = "Mẹo:\n• Nói rõ ràng vào micrô\n• Giữ chìa khóa lâu hơn trước khi nói\n• Kiểm tra micrô của bạn đang hoạt động\n• Đảm bảo thiết bị đầu vào chính xác được chọn";
 "transcription.guidance.needsNativeRelaunch" = "Hãy thoát và mở lại HyperWhisper ở chế độ gốc để dùng hậu xử lý cục bộ.";
 "transcription.guidance.localRuntimeUnavailable" = "Hãy thử lại hoặc chọn một mô hình cục bộ nhỏ hơn trong cài đặt Chế độ.";
@@ -1120,6 +1121,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcribe.file.error.read" = "Không thể đọc tệp được chọn.";
 "transcribe.file.error.webm" = "Không hỗ trợ WebM. Hãy chuyển tệp sang MP3, M4A hoặc WAV rồi thử lại.";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper không đọc được âm thanh trong tệp này. Tệp có thể bị hỏng hoặc ở định dạng mà macOS không giải mã được.";
+"transcribe.file.error.tooShort" = "Tệp này quá ngắn để chép lời (%@ giây).";
 "transcribe.file.error.copy" = "Không thể sao chép tệp vào thư mục bản ghi âm.";
 "transcribe.file.error.video.title" = "Không có Âm thanh trong Video";
 "transcribe.file.error.video.noAudio" = "Tệp video này không chứa bản nhạc âm thanh. Vui lòng chọn video có âm thanh hoặc tệp âm thanh.";

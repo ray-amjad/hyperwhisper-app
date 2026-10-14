@@ -976,6 +976,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcription.guidance.quotaExceeded" = "Dodaj kredite svojemu %@ računu ali posodobi svoje podrobnosti zaračunavanja";
 "transcription.guidance.timeout" = "Zahteva je trajala predolgo. Preveri hitrost svojega interneta in poskusi znova.";
 "transcription.error.noSpeechDetected" = "V posnetku ni bil zaznan glas.";
+"transcription.error.audioTooShort" = "Posnetek je prekratek za prepis. Snemajte dlje.";
 "transcription.guidance.noSpeechDetected" = "Namigi:\n• Jasno govori v mikrofon\n• Drži tipko dlje, preden govoriš\n• Preveri, da tvoj mikrofon deluje\n• Poskupi, da je izbrana pravilna vhodna naprava";
 "transcription.guidance.needsNativeRelaunch" = "Zaprite in znova odprite HyperWhisper kot izvorno aplikacijo, da boste lahko uporabljali lokalno naknadno obdelavo.";
 "transcription.guidance.localRuntimeUnavailable" = "Poskusite znova ali v nastavitvah načina izberite manjši lokalni model.";
@@ -1120,6 +1121,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcribe.file.error.read" = "Izbrane datoteke ni mogoče prebrati.";
 "transcribe.file.error.webm" = "WebM ni podprt. Pretvorite datoteko v MP3, M4A ali WAV in poskusite znova.";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper ne more prebrati zvoka v tej datoteki. Morda je poškodovana ali v obliki, ki je macOS ne zna dekodirati.";
+"transcribe.file.error.tooShort" = "Ta datoteka je prekratka za prepis (%@ s).";
 "transcribe.file.error.copy" = "Napaka pri kopiranju datoteke v mapo posnetkov.";
 "transcribe.file.error.video.title" = "Brez zvoka v videu";
 "transcribe.file.error.video.noAudio" = "Ta video datoteka ne vsebuje avdio steze. Prosimo, izberi video s povkom ali zvočno datoteko.";

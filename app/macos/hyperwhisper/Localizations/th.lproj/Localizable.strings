@@ -976,6 +976,7 @@
 "transcription.guidance.quotaExceeded" = "เพิ่มเครดิตไปยัง %@ บัญชีของคุณหรืออัปเดตรายละเอียดการเรียกเก็บเงิน";
 "transcription.guidance.timeout" = "คำขอใช้เวลานานเกินไป ตรวจสอบความเร็วอินเทอร์เน็ตและลองใหม่";
 "transcription.error.noSpeechDetected" = "ไม่พบเสียงพูดในการบันทึก";
+"transcription.error.audioTooShort" = "การบันทึกสั้นเกินไปจนถอดความไม่ได้ โปรดบันทึกให้นานขึ้น";
 "transcription.guidance.noSpeechDetected" = "เคล็ดลับ:\n• พูดชัดเจนลงในไมโครโฟน\n• ค้างคีย์นานขึ้นก่อนพูด\n• ตรวจสอบว่าไมโครโฟนของคุณใช้งานได้\n• ตรวจสอบให้แน่ใจว่าอุปกรณ์อินพุตที่ถูกต้องได้รับการเลือก";
 "transcription.guidance.needsNativeRelaunch" = "ออกจาก HyperWhisper แล้วเปิดใหม่แบบเนทีฟ เพื่อใช้การประมวลผลหลังถอดเสียงในเครื่อง";
 "transcription.guidance.localRuntimeUnavailable" = "ลองอีกครั้ง หรือเลือกโมเดลในเครื่องที่เล็กลงในการตั้งค่าโหมด";
@@ -1120,6 +1121,7 @@
 "transcribe.file.error.read" = "ไม่สามารถอ่านไฟล์ที่เลือก";
 "transcribe.file.error.webm" = "ไม่รองรับ WebM แปลงไฟล์เป็น MP3, M4A หรือ WAV แล้วลองอีกครั้ง";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper อ่านเสียงในไฟล์นี้ไม่ได้ ไฟล์อาจเสียหาย หรืออยู่ในรูปแบบที่ macOS ถอดรหัสไม่ได้";
+"transcribe.file.error.tooShort" = "ไฟล์นี้สั้นเกินไปจนถอดความไม่ได้ (%@ วินาที)";
 "transcribe.file.error.copy" = "ไม่สามารถคัดลอกไฟล์ไปยังโฟลเดอร์การบันทึก";
 "transcribe.file.error.video.title" = "ไม่มีเสียงในวิดีโอ";
 "transcribe.file.error.video.noAudio" = "ไฟล์วิดีโอนี้ไม่มีเทร็กเสียง โปรดเลือกวิดีโอที่มีเสียงหรือไฟล์เสียง";

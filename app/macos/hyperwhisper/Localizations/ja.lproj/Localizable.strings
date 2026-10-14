@@ -977,6 +977,7 @@
 "transcription.guidance.quotaExceeded" = "%@ のアカウントにクレジットを追加するか、請求設定を更新してください";
 "transcription.guidance.timeout" = "リクエストに時間がかかり過ぎました。ネットワーク速度を確認して再試行してください。";
 "transcription.error.noSpeechDetected" = "録音内に音声が検出されませんでした。";
+"transcription.error.audioTooShort" = "録音が短すぎるため文字起こしできません。もう少し長く録音してください。";
 "transcription.guidance.noSpeechDetected" = "ヒント:\n• マイクに向かってはっきり話してください\n• 話し始める前にキーを長めに押し続けてください\n• マイクが正常に動作しているか確認してください\n• 正しい入力デバイスが選択されているか確認してください";
 "transcription.guidance.needsNativeRelaunch" = "ローカル後処理を使用するには、HyperWhisper を終了し、ネイティブで開き直してください。";
 "transcription.guidance.localRuntimeUnavailable" = "もう一度お試しいただくか、モード設定でより小さいローカルモデルを選択してください。";
@@ -1121,6 +1122,7 @@
 "transcribe.file.error.read" = "選択したファイルを読み込めません。";
 "transcribe.file.error.webm" = "WebM には対応していません。ファイルを MP3、M4A、WAV のいずれかに変換してから、もう一度お試しください。";
 "transcribe.file.error.unreadableAudio" = "HyperWhisper はこのファイルの音声を読み込めません。ファイルが破損しているか、macOS がデコードできない形式の可能性があります。";
+"transcribe.file.error.tooShort" = "このファイルは短すぎるため文字起こしできません（%@ 秒）。";
 "transcribe.file.error.copy" = "録音フォルダへのファイルコピーに失敗しました。";
 "transcribe.file.error.video.title" = "動画に音声がありません";
 "transcribe.file.error.video.noAudio" = "この動画ファイルには音声トラックが含まれていません。音声付きの動画または音声ファイルを選択してください。";
