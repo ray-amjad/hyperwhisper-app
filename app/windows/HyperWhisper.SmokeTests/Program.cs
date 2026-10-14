@@ -9768,6 +9768,62 @@ internal static class Program
                 }
             });
 
+            Run("terminal-status safety net keeps the M4A a compression re-pointed the row at — issue #1603", () =>
+            {
+                // The terminal UpdateTranscript failed, the compression then deleted the WAV
+                // and pointed the row at the M4A; the in-memory copy still names the WAV.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var history = HistoryService.Instance;
+                var dir = Path.Combine(Path.GetTempPath(), "hw-1603-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(dir);
+                var wav = Path.Combine(dir, "rec.wav");
+                var m4a = Path.Combine(dir, "rec.m4a");
+                var ids = new List<Guid>();
+                try
+                {
+                    foreach (var inMemoryStatus in new[] { TranscriptStatus.Completed, TranscriptStatus.Processing })
+                    {
+                        File.WriteAllBytes(wav, new byte[] { 1 });
+                        var row = history.CreateProcessingTranscript(1.0, "percy1603", audioFilePath: wav);
+                        ids.Add(row.Id);
+                        row.Status = inMemoryStatus;
+                        row.Text = "done";
+
+                        // A successful compression: the M4A is written, the WAV deleted.
+                        File.WriteAllBytes(m4a, new byte[] { 2 });
+                        File.Delete(wav);
+                        Assert(history.UpdateAudioFilePath(row.Id, m4a), "the row was reported as gone");
+                        Assert(row.AudioFilePath == wav, "precondition: the in-memory copy should still name the WAV");
+
+                        MainViewModel.EnsureTranscriptTerminalStatus(row);
+
+                        var persisted = history.GetTranscript(row.Id);
+                        Assert(persisted?.Status != TranscriptStatus.Processing,
+                            $"({inMemoryStatus}) the row was left Processing");
+                        Assert(persisted?.AudioFilePath == m4a,
+                            $"({inMemoryStatus}) the safety net wrote '{persisted?.AudioFilePath}' over the M4A");
+                        Assert(File.Exists(persisted!.AudioFilePath!), $"({inMemoryStatus}) the row points at a missing file");
+                        Assert(row.AudioFilePath == m4a, $"({inMemoryStatus}) the in-memory copy still names the deleted WAV");
+                        File.Delete(m4a);
+                    }
+
+                    // The other order: the terminal write failed and the in-memory copy already
+                    // names the M4A while the row still names the deleted WAV. The M4A wins.
+                    var late = history.CreateProcessingTranscript(1.0, "percy1603", audioFilePath: wav);
+                    ids.Add(late.Id);
+                    File.WriteAllBytes(m4a, new byte[] { 2 });
+                    late.Status = TranscriptStatus.Completed;
+                    late.AudioFilePath = m4a;
+                    MainViewModel.EnsureTranscriptTerminalStatus(late);
+                    Assert(history.GetTranscript(late.Id)?.AudioFilePath == m4a, "the M4A named in memory was not written");
+                }
+                finally
+                {
+                    foreach (var id in ids) history.DeleteTranscript(id);
+                    try { Directory.Delete(dir, recursive: true); } catch { }
+                }
+            });
+
             RunAsync("M4A compression: a real Media Foundation encode on a thread-pool thread — issue #1499", async () =>
             {
                 // TryConvertWavToM4A used to run on the STA UI thread for file imports.

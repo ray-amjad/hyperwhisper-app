@@ -3034,8 +3034,11 @@ public partial class MainViewModel : ViewModelBase
     /// when we exit the flow (early return, swallowed exception, task abort),
     /// flip it to Failed so the History row stops spinning forever.
     /// See tasks/windows/phils-feedback/05-processing-audio-stuck-state.md
+    /// The in-memory copy can still name the WAV after a background compression deleted
+    /// it and re-pointed the row at the M4A, so the write keeps the row's live audio
+    /// path (#1603). Internal for HyperWhisper.SmokeTests.
     /// </summary>
-    private static void EnsureTranscriptTerminalStatus(Transcript? transcript)
+    internal static void EnsureTranscriptTerminalStatus(Transcript? transcript)
     {
         if (transcript == null) return;
 
@@ -3056,7 +3059,7 @@ public partial class MainViewModel : ViewModelBase
             if (persisted?.Status == TranscriptStatus.Processing &&
                 transcript.Status != TranscriptStatus.Processing)
             {
-                HistoryService.Instance.UpdateTranscript(transcript);
+                HistoryService.Instance.UpdateTranscript(transcript, keepLiveAudioPath: true);
                 LoggingService.Warn($"EnsureTranscriptTerminalStatus: Repaired persisted Processing transcript {transcript.Id} with in-memory {transcript.Status} status");
                 return;
             }
@@ -3069,7 +3072,7 @@ public partial class MainViewModel : ViewModelBase
                 ? reason
                 : transcript.FailedReason;
             transcript.Text = reason;
-            HistoryService.Instance.UpdateTranscript(transcript);
+            HistoryService.Instance.UpdateTranscript(transcript, keepLiveAudioPath: true);
             LoggingService.Warn($"EnsureTranscriptTerminalStatus: Flipped orphaned transcript {transcript.Id} from Processing to Failed");
         }
         catch (Exception ex)
