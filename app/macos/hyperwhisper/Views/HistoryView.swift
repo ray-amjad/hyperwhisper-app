@@ -1497,7 +1497,10 @@ private struct TranscriptDetailView: View {
             } label: {
                 Label(LocalizedStringKey("common.copy"), systemImage: "doc.on.doc")
             }
-            
+            // A failed import has no text (#1427); copying "" would only empty
+            // the user's clipboard.
+            .disabled(displayedText.isEmpty)
+
             // RETRY BUTTON:
             // Shows for failed transcriptions when audio file exists
             if isFailedTranscript && canRetry {
