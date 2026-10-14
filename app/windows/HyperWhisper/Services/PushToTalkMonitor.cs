@@ -7,6 +7,7 @@ using HyperWhisper.Services.Platform;
 using HyperWhisper.SharedCore;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 using static HyperWhisper.Services.ModifierChordGate;
+using static HyperWhisper.Services.Platform.LowLevelKeyboardHook;
 
 namespace HyperWhisper.Services;
 
@@ -35,8 +36,6 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
 
     private readonly PushToTalkSettings _settings = new();
     private readonly LowLevelKeyboardHook _hook;
-
-    private IReadOnlySet<int> PressedKeys => _hook.PressedKeys;
 
     // =========================================================================
     // STATE MACHINE
@@ -326,15 +325,15 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     {
         if (_settings.CustomShortcut == null || _settings.CustomShortcut.IsEmpty) return false;
 
-        if (_settings.CustomShortcut.Control && !IsAnyCtrlDown(PressedKeys)) return false;
-        if (_settings.CustomShortcut.Alt && !IsAnyAltDown(PressedKeys)) return false;
-        if (_settings.CustomShortcut.Shift && !IsAnyShiftDown(PressedKeys)) return false;
-        if (_settings.CustomShortcut.Win && !IsAnyWinDown(PressedKeys)) return false;
+        if (_settings.CustomShortcut.Control && !IsAnyCtrlDown(_hook.PressedKeys)) return false;
+        if (_settings.CustomShortcut.Alt && !IsAnyAltDown(_hook.PressedKeys)) return false;
+        if (_settings.CustomShortcut.Shift && !IsAnyShiftDown(_hook.PressedKeys)) return false;
+        if (_settings.CustomShortcut.Win && !IsAnyWinDown(_hook.PressedKeys)) return false;
 
         if (_settings.CustomShortcut.Key.HasValue)
         {
             int vk = KeyInterop.VirtualKeyFromKey(_settings.CustomShortcut.Key.Value);
-            if (!PressedKeys.Contains(vk)) return false;
+            if (!_hook.PressedKeys.Contains(vk)) return false;
         }
 
         return true;
@@ -435,20 +434,20 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
 
     private bool IsModifierPressed(string modifier) => modifier.ToLowerInvariant() switch
     {
-        "leftcontrol" or "leftctrl" => PressedKeys.Contains(VK_LCONTROL),
-        "rightcontrol" or "rightctrl" => PressedKeys.Contains(VK_RCONTROL),
-        "control" or "ctrl" => IsAnyCtrlDown(PressedKeys),
-        "leftalt" => PressedKeys.Contains(VK_LMENU),
-        "rightalt" => PressedKeys.Contains(VK_RMENU),
-        "alt" => IsAnyAltDown(PressedKeys),
-        "leftshift" => PressedKeys.Contains(VK_LSHIFT),
-        "rightshift" => PressedKeys.Contains(VK_RSHIFT),
-        "shift" => IsAnyShiftDown(PressedKeys),
-        "leftmeta" or "leftwin" => PressedKeys.Contains(VK_LWIN),
-        "rightmeta" or "rightwin" => PressedKeys.Contains(VK_RWIN),
-        "meta" => IsAnyWinDown(PressedKeys),
-        "win" => IsAnyWinDown(PressedKeys),
-        _ => IsAnyCtrlDown(PressedKeys)
+        "leftcontrol" or "leftctrl" => _hook.PressedKeys.Contains(VK_LCONTROL),
+        "rightcontrol" or "rightctrl" => _hook.PressedKeys.Contains(VK_RCONTROL),
+        "control" or "ctrl" => IsAnyCtrlDown(_hook.PressedKeys),
+        "leftalt" => _hook.PressedKeys.Contains(VK_LMENU),
+        "rightalt" => _hook.PressedKeys.Contains(VK_RMENU),
+        "alt" => IsAnyAltDown(_hook.PressedKeys),
+        "leftshift" => _hook.PressedKeys.Contains(VK_LSHIFT),
+        "rightshift" => _hook.PressedKeys.Contains(VK_RSHIFT),
+        "shift" => IsAnyShiftDown(_hook.PressedKeys),
+        "leftmeta" or "leftwin" => _hook.PressedKeys.Contains(VK_LWIN),
+        "rightmeta" or "rightwin" => _hook.PressedKeys.Contains(VK_RWIN),
+        "meta" => IsAnyWinDown(_hook.PressedKeys),
+        "win" => IsAnyWinDown(_hook.PressedKeys),
+        _ => IsAnyCtrlDown(_hook.PressedKeys)
     };
 
     // =========================================================================
@@ -462,8 +461,6 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     /// </summary>
     private bool IsPhysicallyHeld()
     {
-        static bool IsKeyPhysicallyDown(int vk) => LowLevelKeyboardHook.IsKeyPhysicallyDown(vk);
-
         if (_settings.Mode == PushToTalkMode.Modifier)
         {
             return _settings.Modifier.ToLowerInvariant() switch

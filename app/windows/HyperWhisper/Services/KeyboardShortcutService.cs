@@ -8,6 +8,8 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Platform;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
+using static HyperWhisper.Services.ModifierChordGate;
+using static HyperWhisper.Services.Platform.LowLevelKeyboardHook;
 
 namespace HyperWhisper.Services;
 
@@ -444,7 +446,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     {
         if (_hook.PressedKeys.Count == 0) return;
 
-        foreach (var vk in ModifierChordGate.KeysNoLongerDown(
+        foreach (var vk in KeysNoLongerDown(
                      _hook.PressedKeys, exceptVk, _suppressedKeyDowns, IsKeyPhysicallyDown))
         {
             _hook.ForgetKey(vk);
@@ -560,18 +562,6 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
             shortcut);
     }
 
-    // The modifier tests, AltGr handling included, live in ModifierChordGate so
-    // the modifier-only chord decision and these matchers can never disagree.
-    private static bool IsAnyCtrlDown(IReadOnlySet<int> pressedKeys) => ModifierChordGate.IsAnyCtrlDown(pressedKeys);
-    private static bool IsAnyAltDown(IReadOnlySet<int> pressedKeys) => ModifierChordGate.IsAnyAltDown(pressedKeys);
-    private static bool IsAnyShiftDown(IReadOnlySet<int> pressedKeys) => ModifierChordGate.IsAnyShiftDown(pressedKeys);
-    private static bool IsAnyWinDown(IReadOnlySet<int> pressedKeys) => ModifierChordGate.IsAnyWinDown(pressedKeys);
-
-    /// <summary>
-    /// Returns true if the given key is physically held down according to GetAsyncKeyState.
-    /// </summary>
-    private static bool IsKeyPhysicallyDown(int vk) => LowLevelKeyboardHook.IsKeyPhysicallyDown(vk);
-
     private bool IsShortcutPressed(KeyboardShortcut shortcut, int justPressedVk = -1)
     {
         if (shortcut.IsEmpty) return false;
@@ -659,12 +649,6 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         if (shortcut.Win && IsWinVirtualKey(vk)) return true;
         return shortcut.Key.HasValue && KeyInterop.VirtualKeyFromKey(shortcut.Key.Value) == vk;
     }
-
-    private static bool IsModifierVirtualKey(int vk) => ModifierChordGate.IsModifierVirtualKey(vk);
-    private static bool IsCtrlVirtualKey(int vk) => ModifierChordGate.IsCtrlVirtualKey(vk);
-    private static bool IsAltVirtualKey(int vk) => ModifierChordGate.IsAltVirtualKey(vk);
-    private static bool IsShiftVirtualKey(int vk) => ModifierChordGate.IsShiftVirtualKey(vk);
-    private static bool IsWinVirtualKey(int vk) => ModifierChordGate.IsWinVirtualKey(vk);
 
     private uint BuildHotkeyModifierMask(KeyboardShortcut shortcut)
     {
