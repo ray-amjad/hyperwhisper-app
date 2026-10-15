@@ -98,27 +98,10 @@ class WhisperModelManager: NSObject, ObservableObject {
     /// launch sweep deletes whatever a quit or a kill left.
     static let partialFileSuffix = ".partial"
 
-    /// One in-flight download's file. The dictionary entry is guarded by `stateQueue`;
-    /// the fields are touched only on the session's serial delegate queue.
-    private final class PartialFile {
-        let url: URL
-        let handle: FileHandle
-        var bytesWritten: Int64 = 0
-        var expectedBytes: Int64 = NSURLSessionTransferSizeUnknown
-        /// Set when we abort the task ourselves (bad HTTP status, disk write error),
-        /// so completion reports that instead of a bare "cancelled".
-        var failure: Error?
-
-        init(url: URL, handle: FileHandle) {
-            self.url = url
-            self.handle = handle
-        }
-    }
-
     /// In-flight download files by task identifier. Unlike `taskModelNames`, an entry
     /// is NOT removed by `cancelDownload`: `didCompleteWithError` always runs after a
     /// cancel and is what closes and deletes the file.
-    private var partialFiles: [Int: PartialFile] = [:]
+    private let partialFiles = ModelDownloadPartialFiles()
 
     /// Issue #1445: sweep once per process, before any download can start, so a
     /// second manager instance can never delete a file the first is writing.
@@ -287,6 +270,14 @@ class WhisperModelManager: NSObject, ObservableObject {
         notificationObservers.append(observer)
     }
 
+    /// Whether a model file on disk is the whole catalog file. Every catalog model
+    /// has an exact byte size (pinned to Hugging Face by `ModelSizeLabelTests`), so
+    /// anything else, shorter or longer, is a damaged file (#1632, after #1598).
+    static func isCompleteModelFile(byteCount: Int64?, for model: WhisperCppModel) -> Bool {
+        guard let byteCount, model.sizeInBytes > 0 else { return false }
+        return byteCount == model.sizeInBytes
+    }
+
     /// Track last scan time for debouncing
     private var lastScanTime: Date?
     
@@ -311,6 +302,15 @@ class WhisperModelManager: NSObject, ObservableObject {
                 
                 // Find matching model definition
                 if let model = Self.allModels.first(where: { $0.filename == filename }) {
+                    // #1632: a file cut short (an interrupted copy, a damaged disk) is not
+                    // installed. Every local transcription would fail on it, so the row
+                    // offers Download again instead of saying Installed.
+                    let byteCount = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize.map(Int64.init)
+                    guard Self.isCompleteModelFile(byteCount: byteCount, for: model) else {
+                        let found = byteCount.map(String.init) ?? "unknown"
+                        logger.warning("⚠️ \(filename) is \(found) bytes, expected \(model.sizeInBytes); not installed")
+                        continue
+                    }
                     logger.debug("✅ Matched \(filename) to model: \(model.name)")
                     
                     // Create model with local URL
@@ -427,17 +427,7 @@ class WhisperModelManager: NSObject, ObservableObject {
         let partialURL = Self.modelsDirectory.appendingPathComponent(
             "\(destinationURL.lastPathComponent).\(UUID().uuidString)\(Self.partialFileSuffix)"
         )
-        guard FileManager.default.createFile(atPath: partialURL.path, contents: nil) else {
-            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: partialURL.path])
-        }
-        let handle: FileHandle
-        do {
-            handle = try FileHandle(forWritingTo: partialURL)
-        } catch {
-            try? FileManager.default.removeItem(at: partialURL)
-            throw error
-        }
-        let partial = PartialFile(url: partialURL, handle: handle)
+        let partial = try ModelDownloadPartialFiles.open(at: partialURL)
 
         return try await withCheckedThrowingContinuation { continuation in
             // Create a data task WITHOUT completion handler so the delegate gets the bytes
@@ -469,7 +459,7 @@ class WhisperModelManager: NSObject, ObservableObject {
                 downloadCompletions[taskIdentifier] = completion
                 taskModelNames[taskIdentifier] = modelName
                 downloadTasks[modelName] = task
-                partialFiles[taskIdentifier] = partial
+                partialFiles.insert(partial, for: taskIdentifier)
             }
 
             // Start the download
@@ -563,41 +553,14 @@ extension WhisperModelManager: URLSessionDataDelegate {
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
                     didReceive response: URLResponse,
                     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
-        let taskIdentifier = dataTask.taskIdentifier
-        guard let partial = stateQueue.sync(execute: { partialFiles[taskIdentifier] }) else {
-            completionHandler(.cancel)
-            return
-        }
-
-        if let httpResponse = response as? HTTPURLResponse,
-           !(200..<300).contains(httpResponse.statusCode) {
-            partial.failure = NSError(domain: "WhisperModelManager",
-                                      code: httpResponse.statusCode,
-                                      userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"])
-            completionHandler(.cancel)
-            return
-        }
-
-        partial.expectedBytes = response.expectedContentLength
-        completionHandler(.allow)
+        completionHandler(partialFiles.disposition(for: dataTask.taskIdentifier, response: response,
+                                                   errorDomain: "WhisperModelManager"))
     }
 
     /// Called for each chunk: append it to the partial file and report progress.
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        let taskIdentifier = dataTask.taskIdentifier
-        guard let partial = stateQueue.sync(execute: { partialFiles[taskIdentifier] }),
-              partial.failure == nil else { return }
-
-        do {
-            try partial.handle.write(contentsOf: data)
-        } catch {
-            partial.failure = error
-            dataTask.cancel()
-            return
-        }
-        partial.bytesWritten += Int64(data.count)
-
-        reportProgress(taskIdentifier: taskIdentifier,
+        guard let partial = partialFiles.append(data, for: dataTask) else { return }
+        reportProgress(taskIdentifier: dataTask.taskIdentifier,
                        totalBytesWritten: partial.bytesWritten,
                        totalBytesExpectedToWrite: partial.expectedBytes)
     }
@@ -642,24 +605,18 @@ extension WhisperModelManager: URLSessionDataDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         let taskIdentifier = task.taskIdentifier
         let (modelName, completion, partial) = stateQueue.sync {
-            (taskModelNames[taskIdentifier], downloadCompletions[taskIdentifier], partialFiles.removeValue(forKey: taskIdentifier))
+            (taskModelNames[taskIdentifier], downloadCompletions[taskIdentifier], partialFiles.remove(for: taskIdentifier))
         }
         guard let partial else { return }
-        try? partial.handle.close()
-
-        var failure = partial.failure ?? error
-        if failure == nil, partial.expectedBytes > 0, partial.bytesWritten != partial.expectedBytes {
-            failure = URLError(.networkConnectionLost)
-        }
+        let failure = partial.finish(transportError: error)
 
         guard let modelName else {
             // Cancelled: the caller has already been told. Only the file is left to drop.
-            try? FileManager.default.removeItem(at: partial.url)
+            partial.discard()
             return
         }
 
         if let failure {
-            try? FileManager.default.removeItem(at: partial.url)
             logger.error("❌ Download failed for \(modelName): \(failure)")
             completion?(nil, failure)
         } else {

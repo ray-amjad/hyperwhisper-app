@@ -178,7 +178,7 @@ extension RecordingTranscriptionFlow {
         await persistence.updateTranscriptWithTranscriptionInBackground(
             transcriptID: transcriptID,
             transcribedText: transcriptionResult.rawText,
-            postProcessedText: transcriptionResult.wasPostProcessed ? transcriptionResult.text : nil,
+            postProcessedText: transcriptionResult.historyPostProcessedText,
             transcriptionProvider: transcriptionResult.provider,
             postProcessingProvider: transcriptionResult.postProcessingProvider,
             wordTimestampsJSON: transcriptionResult.timestamps?.wordTimestampsJSON(),

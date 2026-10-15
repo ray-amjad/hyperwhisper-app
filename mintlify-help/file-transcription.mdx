@@ -38,8 +38,12 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
 
     | Type | Extensions |
     | --- | --- |
-    | Audio | `.wav`, `.mp3`, `.m4a`, `.aiff`, `.webm`, `.ogg`, `.flac` |
+    | Audio | `.wav`, `.mp3`, `.m4a`, `.aiff`, `.ogg`, `.flac` |
     | Video (audio extracted) | `.mp4`, `.mov`, `.m4v` |
+
+    HyperWhisper does not support WebM. If you select a `.webm` file, HyperWhisper tells you to convert the file to MP3, M4A, or WAV first.
+
+    HyperWhisper reads the format from the content of the file, not only from its extension. For example, a WAV file named `.mp3`, or a file with no extension, still opens as a WAV file.
 
     <Note>
       Each cloud provider supports a different set of audio formats. If you select a format that the provider does not accept, HyperWhisper stops before the upload. It shows the formats that the provider supports. You do not wait for a long upload and then get an unclear API error.
@@ -118,6 +122,8 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
 
     Right-click the HyperWhisper tray icon. Hover over **Transcribe File**, then select the mode from the submenu. The procedure is the same as macOS. A standard Windows file dialog opens immediately. The mode that you select in the submenu applies only to this transcription. Your currently selected mode does not change.
 
+    Only one file dialog can be open at a time. While the dialog is open, or while a recording or a transcription runs, the **Transcribe File** items in the tray menu are not available. If a dictation starts while the dialog is open, HyperWhisper does not transcribe the file that you select. It shows a notification that tells you to try the file again when the current work finishes.
+
     ## Supported formats
 
     The Windows app supports three audio formats:
@@ -129,6 +135,8 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
     <Note>
       The Windows app does not support video files (`.mp4`, `.mov`) yet. To transcribe a video, you must extract the audio track first with a tool such as ffmpeg.
     </Note>
+
+    If the file is empty (0 bytes), HyperWhisper stops before any mode runs and tells you that the file has no audio. When HyperWhisper converts a file for the local Whisper model, a damaged file or a file that is not audio gets a plain error message. The message tells you that HyperWhisper cannot read the file.
 
     ## File size limits
 
@@ -195,6 +203,10 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
     4. HyperWhisper writes a temporary 16 kHz mono WAV file for that transcription only.
 
     HyperWhisper keeps the original file that you imported in your History. It converts only the temporary WAV file for the model.
+
+    ## Long files with the local Whisper model
+
+    The local Whisper model processes a long file in chunks of about 5 minutes. This keeps the memory use low for a long file. If your mode detects the language automatically, the first chunk that contains speech sets the language. HyperWhisper then uses that language for the remaining chunks of the file.
   </Tab>
 </Tabs>
 

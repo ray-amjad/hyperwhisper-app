@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Greiningarskrár fluttar út";
 "alerts.export.diagnostics.success.message" = "Allar greiningarskrár hafa verið fluttar út með góðum árangri.";
 "alerts.export.diagnostics.saveFailed.message" = "Gat ekki vistað greiningarskrár á valda staðsetningu: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Greiningargögn flutt út án kerfisannála";
+"alerts.export.diagnostics.noSystemLogs.message" = "Greiningarskráin var vistuð, en ekki tókst að lesa kerfisannála forritsins, svo system-logs.txt inniheldur aðeins ástæðuna. Ástæða: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Flytja út uppfærsluskrár fyrir aðstoð";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Ljúka byrjunarferli";
 
 "onboarding.setupLater.button" = "Setja upp síðar";
-"onboarding.error.microphone.denied" = "Hljóðnemaleyfi hafnað. Vinsamlegast veittu leyfi í kerfisstillingum.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Ræsa við innskráningu";
@@ -336,6 +337,9 @@
 "settings.storage.choose.button" = "Velja...";
 "settings.storage.dialog.select" = "Velja möppu";
 "settings.storage.dialog.message" = "Veldu möppu til að geyma upptökur";
+"settings.storage.folderRefused.title" = "Ekki er hægt að nota þessa möppu";
+"settings.storage.folderRefused.notWritable" = "Þú hefur ekki heimild til að skrifa í „%@“, svo HyperWhisper getur ekki vistað upptökur þar. Upptökumöppunni var ekki breytt.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper gat ekki búið til þessa möppu: %@ Upptökumöppunni var ekki breytt.";
 "settings.storage.storeAsM4A.title" = "Þjappa upptökum í M4A";
 "settings.storage.storeAsM4A.subtitle" = "Breytir WAV upptökum í minni skrár eftir afritun. Slökktu til að halda upprunalegum WAV skrám (stærri en taplausar).";
 
@@ -383,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Breyta ham";
 "settings.shortcuts.changeMode.subtitle" = "Virkar aðeins þegar upptaka er í gangi";
+"settings.shortcuts.conflict.alert" = "Ekki er hægt að nota þessa flýtilykla þar sem „%@“ notar þá nú þegar.";
 
 "settings.shortcuts.reset.button" = "Endurstilla í sjálfgefin gildi";
 "settings.shortcuts.reset.dialog.title" = "Endurstilla lyklaborðsflýtileiðir";
@@ -576,6 +581,8 @@
 "onboarding.configure.cloud.note" = "Inneign er fyrirframgreidd og deilt á milli allra Mac-tölva sem eru innskráðar með þessum lykli. Aðgerðarlaus tími kostar ekkert.";
 "onboarding.source.note" = "Skiptir þú um skoðun síðar er þetta eina skrefið endurtekið. Ekkert annað sem þú settir upp týnist.";
 "onboarding.permissions.note" = "Sleppir þú Aðgengi fara umskriftir á klippiborðið, tilbúnar til að líma. Að kveikja á því síðar tekur eitt smell.";
+"onboarding.permissions.microphone.denied" = "Ekki leyft. Kveiktu á HyperWhisper í kerfisstillingum og komdu svo aftur hingað.";
+"onboarding.permissions.continueNeedsMicrophone" = "Til að halda áfram þarf hljóðnemann. Leyfðu hann hér að ofan eða veldu Setja upp síðar.";
 "onboarding.welcome.task1.title" = "Veldu hvernig umritun keyrir";
 "onboarding.welcome.task1.caption" = "Í skýinu okkar, á þessari Mac-tölvu, eða í gegnum veitureikning sem þú borgar nú þegar fyrir.";
 "onboarding.welcome.task2.title" = "Athugaðu hljóðnemann þinn";
@@ -899,6 +906,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "audio.error.microphonePermission" = "Hljóðnemaleyfi ekki veitt";
 "audio.error.microphoneInUse" = "HyperWhisper getur ekki nálgast hljóðnemannm vegna þess að annað forrit er núna að nota hann. Gerðu hlé á hinu forritinu eða skiptu um inntak, reyndu síðan aftur.";
 "audio.error.audioSystemNotResponding" = "Hljóðkerfi macOS svarar ekki, svo ekki tókst að ræsa hljóðnemann. Reyndu aftur eftir smástund. Ef þetta heldur áfram skaltu endurræsa Mac-tölvuna.";
+"audio.error.recorderStopTimedOut" = "Hljóðkerfi macOS hætti að svara á meðan upptakan var vistuð, svo hún var ekki umrituð. Hljóðið var geymt: HyperWhisper reynir að endurheimta það næst þegar forritið ræsist.";
 "audio.error.createEngine" = "Mistókst að búa til hljóðvél";
 "audio.error.noInput" = "Ekkert hljóðinntak tiltækt";
 "audio.error.createFile" = "Mistókst að búa til hljóðskrá";
@@ -972,6 +980,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.guidance.quotaExceeded" = "Bættu við einingum á %@ reikninginn þinn eða uppfærðu greiðsluupplýsingar þínar";
 "transcription.guidance.timeout" = "Beiðnin tók of langan tíma. Athugaðu nethraðann þinn og reyndu aftur.";
 "transcription.error.noSpeechDetected" = "Engin tala greind í upptökunni.";
+"transcription.error.audioTooShort" = "Upptakan er of stutt til að umrita hana. Taktu upp lengur.";
 "transcription.guidance.noSpeechDetected" = "Ábendingar:\n• Talaðu skýrt í hljóðnemanninn\n• Haltu lyklinum lengur áður en þú talar\n• Athugaðu að hljóðneminn þinn sé að virka\n• Gakktu úr skugga um að rétt inntakstæki sé valið";
 "transcription.guidance.needsNativeRelaunch" = "Lokaðu HyperWhisper og opnaðu forritið aftur sem innbyggt forrit til að nota staðbundna eftirvinnslu.";
 "transcription.guidance.localRuntimeUnavailable" = "Reyndu aftur eða veldu minna staðbundið líkan í hamstillingunum þínum.";
@@ -1114,6 +1123,13 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcribe.file.error.format.title" = "Óstutt form";
 "transcribe.file.error.format.message" = ".%@ skrár eru ekki studdar af %@. Studd form: %@";
 "transcribe.file.error.read" = "Get ekki lesið valda skrá.";
+"transcribe.file.error.webm" = "WebM er ekki stutt. Umbreyttu skránni í MP3, M4A eða WAV og reyndu aftur.";
+"transcribe.file.error.notAudio" = "Skráin „%@“ er ekki gilt hljóð. Hún gæti verið skemmd eða á sniði sem macOS getur ekki afkóðað.";
+"transcribe.file.error.empty" = "Skráin „%@“ er tóm. Hún inniheldur ekkert hljóð til að umrita.";
+"transcribe.file.error.permission" = "HyperWhisper getur ekki lesið skrána „%@“. Athugaðu heimildir skrárinnar.";
+"transcribe.file.error.folderPermission" = "HyperWhisper getur ekki opnað möppu sem inniheldur skrána „%@“. Athugaðu heimildir þeirrar möppu.";
+"transcribe.file.error.privacy" = "Persónuverndarstillingar macOS komu í veg fyrir að HyperWhisper læsi skrána „%@“. Leyfðu það í Kerfisstillingum > Persónuvernd og öryggi > Fullur diskaðgangur.";
+"transcribe.file.error.tooShort" = "Þessi skrá er of stutt til að umrita hana (%@ s).";
 "transcribe.file.error.copy" = "Mistókst að afrita skrá í upptökumöppu.";
 "transcribe.file.error.video.title" = "Ekkert hljóð í myndskrá";
 "transcribe.file.error.video.noAudio" = "Þessi myndbandskrá inniheldur ekki hljóðlag. Vinsamlegast veldu myndband með hljóði eða hljóðskrá.";

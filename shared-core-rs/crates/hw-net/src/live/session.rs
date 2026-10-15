@@ -50,6 +50,13 @@ pub(super) struct SessionState {
 
     /// xAI: the running committed transcript for the whole session.
     pub(super) committed_transcript: String,
+
+    /// HyperWhisper Cloud: a `ready` frame arrived on this socket.
+    ///
+    /// The stop path reads it: `session_complete` is only ever sent for a
+    /// session the relay started, so waiting for one on a socket that never saw
+    /// `ready` is a 10 s wait on an event that cannot arrive.
+    pub(super) session_started: bool,
 }
 
 impl SessionState {
@@ -174,7 +181,7 @@ impl LiveSession {
             LiveProvider::OpenAi => openai::parse(&mut self.state, root),
             LiveProvider::Grok => xai::parse(&mut self.state, root),
             LiveProvider::GeminiTranscribe => gemini::parse(root, text),
-            LiveProvider::HyperWhisperCloud => hw_cloud::parse(root),
+            LiveProvider::HyperWhisperCloud => hw_cloud::parse(&mut self.state, root),
         }
     }
 
@@ -182,8 +189,9 @@ impl LiveSession {
     ///
     /// `now_ms` is used only by OpenAI, and only to mark the commit clock when
     /// the stop path claims the outstanding audio — so a session that is
-    /// stopped, reset and reconnected does not carry a stale commit mark. The
-    /// other four answer a constant list.
+    /// stopped, reset and reconnected does not carry a stale commit mark.
+    /// HyperWhisper Cloud reads whether its session started; the other four
+    /// answer a constant list.
     pub fn stop_sequence(&mut self, now_ms: u64) -> Vec<StopStep> {
         match self.config.provider {
             LiveProvider::Deepgram => deepgram::stop_sequence(),
@@ -191,7 +199,7 @@ impl LiveSession {
             LiveProvider::OpenAi => openai::stop_sequence(&mut self.state, now_ms),
             LiveProvider::Grok => xai::stop_sequence(),
             LiveProvider::GeminiTranscribe => gemini::stop_sequence(),
-            LiveProvider::HyperWhisperCloud => hw_cloud::stop_sequence(),
+            LiveProvider::HyperWhisperCloud => hw_cloud::stop_sequence(&self.state),
         }
     }
 

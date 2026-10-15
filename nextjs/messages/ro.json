@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "Ce este HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud este o transcriere în cloud integrată, destinată utilizatorilor mai puțin tehnici care vor să înceapă rapid.\n\nEste pay-as-you-go, cu credite. Adaugi fonduri începând de la doar $5 (1.000 de credite pentru $1) și le cheltuiești doar pe măsură ce transcrii. Prima ta achiziție de credite îți creează automat Account Key-ul, așa că nu mai ai nimic altceva de cumpărat.\n    \nOferim patru niveluri de acuratețe: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) și Highest (Grok STT, implicit pentru instalările noi și alimentat de SpaceXAI Grok STT). Post-procesarea este automată și folosește implicit Grok 4.1 Fast fără raționament. Nu stocăm nimic în afară de câte credite ai consumat și te-am exclus din antrenarea modelelor la fiecare furnizor upstream pe care îl folosim. Vezi [ghidul nostru de Confidențialitate a datelor](https://hyperwhisper.com/docs/data-privacy) pentru detalii.\n\nCreditele se cheltuiesc la costul propriu de procesare al furnizorilor — fără adaos la transcriere. La finalizarea plății se adaugă o taxă fixă de procesare a plății de 6%, afișată ca o linie separată. Creditele neutilizate expiră după 12 luni (vezi mai jos).\n\nPentru liniștea ta, întreaga aplicație este open-source sub Apache-2.0 — inclusiv backendul Cloud. Poți citi fiecare linie de cod care rulează între aplicația ta și furnizorii către care facem proxy [pe GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud este o transcriere în cloud integrată, destinată utilizatorilor mai puțin tehnici care vor să înceapă rapid.\n\nEste pay-as-you-go, cu credite. Adaugi fonduri începând de la doar $5 (1.000 de credite pentru $1) și le cheltuiești doar pe măsură ce transcrii. Prima ta achiziție de credite îți creează automat Account Key-ul, așa că nu mai ai nimic altceva de cumpărat.\n    \nHyperWhisper Cloud îți oferă 12 furnizori de transcriere, de la Groq Whisper la ElevenLabs Scribe v2 (vezi [lista completă și tarifele](https://hyperwhisper.com/docs/cloud-credits)). Instalările noi pornesc cu ElevenLabs Scribe v2. Post-procesarea este automată, iar instalările noi pornesc cu Claude Haiku 5.5. Nu stocăm nimic în afară de câte credite ai consumat și te-am exclus din antrenarea modelelor la fiecare furnizor upstream pe care îl folosim. Vezi [ghidul nostru de Confidențialitate a datelor](https://hyperwhisper.com/docs/data-privacy) pentru detalii.\n\nCreditele se cheltuiesc la costul propriu de procesare al furnizorilor — fără adaos la transcriere. La finalizarea plății se adaugă o taxă fixă de procesare a plății de 6%, afișată ca o linie separată. Creditele neutilizate expiră după 12 luni (vezi mai jos).\n\nPentru liniștea ta, întreaga aplicație este open-source sub Apache-2.0 — inclusiv backendul Cloud. Poți citi fiecare linie de cod care rulează între aplicația ta și furnizorii către care facem proxy [pe GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Datele mele vocale vor fi folosite pentru antrenarea modelelor AI?",
@@ -390,5 +390,12 @@
     "heading": "Sursă deschisă. Nimic de ascuns.",
     "body": "HyperWhisper este complet open-source sub Apache-2.0 — atât aplicațiile desktop, cât și backendul Cloud. O aplicație care îți ascultă microfonul ar trebui să fie ceva ce poți verifica, nu doar ceva în care ai încredere: citește fiecare linie, auditează exact unde ajunge audio-ul tău și fii sigur că nu vei fi niciodată blocat la un furnizor — codul este al tău, să-i faci fork și să-l găzduiești singur pentru totdeauna. Construit în mod deschis de creatorul independent Ray Amjad.",
     "cta": "Vezi pe GitHub"
+  },
+  "notFound": {
+    "title": "Pagina nu a fost găsită",
+    "heading": "Această pagină nu există",
+    "description": "Linkul poate fi greșit sau pagina a fost mutată.",
+    "home": "Mergi la pagina principală",
+    "download": "Descarcă HyperWhisper"
   }
 }

@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostische gegevens geëxporteerd";
 "alerts.export.diagnostics.success.message" = "Alle diagnostische logboeken zijn met succes geëxporteerd.";
 "alerts.export.diagnostics.saveFailed.message" = "Kan diagnostische gegevens niet opslaan op de geselecteerde locatie: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostiek geëxporteerd zonder systeemlogs";
+"alerts.export.diagnostics.noSystemLogs.message" = "Het diagnostiekbestand is opgeslagen, maar de systeemlogs van de app konden niet worden gelezen, dus system-logs.txt bevat alleen de reden. Reden: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Updatelogboeken exporteren voor ondersteuning";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Onboarding voltooid";
 
 "onboarding.setupLater.button" = "Later instellen";
-"onboarding.error.microphone.denied" = "Microfoontoestemming geweigerd. Verleen toestemming in Systeeminstellingen.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Starten bij aanmelden";
@@ -336,6 +337,9 @@
 "settings.storage.choose.button" = "Kies...";
 "settings.storage.dialog.select" = "Map selecteren";
 "settings.storage.dialog.message" = "Kies een map voor het opslaan van opnamen";
+"settings.storage.folderRefused.title" = "Deze map kan niet worden gebruikt";
+"settings.storage.folderRefused.notWritable" = "Je hebt geen toestemming om naar ‘%@’ te schrijven, dus HyperWhisper kan daar geen opnamen bewaren. De opnamemap is niet gewijzigd.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper kon deze map niet aanmaken: %@ De opnamemap is niet gewijzigd.";
 "settings.storage.storeAsM4A.title" = "Comprimeer opnamen naar M4A";
 "settings.storage.storeAsM4A.subtitle" = "Zet WAV-opnamen na transcriptie om in kleinere bestanden. Uit om originele WAV-bestanden (groter maar verliesvrij) te behouden.";
 
@@ -383,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Modus wijzigen";
 "settings.shortcuts.changeMode.subtitle" = "Werkt alleen bij opnamen";
+"settings.shortcuts.conflict.alert" = "Deze sneltoets kan niet worden gebruikt omdat deze al wordt gebruikt door ‘%@’.";
 
 "settings.shortcuts.reset.button" = "Standaardwaarden herstellen";
 "settings.shortcuts.reset.dialog.title" = "Sneltoetsen opnieuw instellen";
@@ -576,6 +581,8 @@
 "onboarding.configure.cloud.note" = "Credits zijn vooruitbetaald en gedeeld tussen elke Mac die met deze sleutel is aangemeld. Inactieve tijd kost niets.";
 "onboarding.source.note" = "Als je later van gedachten verandert, doorloop je alleen deze ene stap opnieuw. Al het andere blijft behouden.";
 "onboarding.permissions.note" = "Sla Toegankelijkheid over en transcripties gaan naar het klembord, klaar om te plakken. Later inschakelen kost één klik.";
+"onboarding.permissions.microphone.denied" = "Niet toegestaan. Zet HyperWhisper aan in Systeeminstellingen en kom dan hier terug.";
+"onboarding.permissions.continueNeedsMicrophone" = "Doorgaan vereist de microfoon. Sta hem hierboven toe, of kies Later instellen.";
 "onboarding.welcome.task1.title" = "Kies hoe transcriptie werkt";
 "onboarding.welcome.task1.caption" = "In onze cloud, op deze Mac, of via een provideraccount waar je al voor betaalt.";
 "onboarding.welcome.task2.title" = "Controleer je microfoon";
@@ -899,6 +906,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "audio.error.microphonePermission" = "Microfoontoestemming niet verleend";
 "audio.error.microphoneInUse" = "HyperWhisper kan geen toegang krijgen tot de microfoon omdat een andere app deze momenteel gebruikt. Onderbreek de andere app of schakel invoer in en probeer het opnieuw.";
 "audio.error.audioSystemNotResponding" = "De audio van macOS reageert niet, dus de microfoon kon niet starten. Probeer het zo opnieuw. Blijft dit gebeuren, herstart dan je Mac.";
+"audio.error.recorderStopTimedOut" = "macOS-audio reageerde niet meer terwijl de opname werd opgeslagen, dus deze is niet getranscribeerd. De audio is bewaard: HyperWhisper probeert deze de volgende keer dat de app start te herstellen.";
 "audio.error.createEngine" = "Kan audiomotor niet maken";
 "audio.error.noInput" = "Geen audio-ingang beschikbaar";
 "audio.error.createFile" = "Kan audiobestand niet maken";
@@ -972,6 +980,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcription.guidance.quotaExceeded" = "Voeg tegoed toe aan je %@ account of werk je factureringsgegevens bij";
 "transcription.guidance.timeout" = "Het verzoek duurde te lang. Controleer je internetsnelheid en probeer het opnieuw.";
 "transcription.error.noSpeechDetected" = "Geen spraak gedetecteerd in de opname.";
+"transcription.error.audioTooShort" = "De opname is te kort om te transcriberen. Neem langer op.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Spreek duidelijk in de microfoon\n• Houd de toets langer vast voordat je spreekt\n• Controleer of je microfoon werkt\n• Zorg ervoor dat het juiste invoerapparaat is geselecteerd";
 "transcription.guidance.needsNativeRelaunch" = "Stop HyperWhisper en open het native opnieuw om lokale nabewerking te gebruiken.";
 "transcription.guidance.localRuntimeUnavailable" = "Probeer het opnieuw of kies een kleiner lokaal model in je modusinstellingen.";
@@ -1114,6 +1123,13 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcribe.file.error.format.title" = "Niet-ondersteund formaat";
 "transcribe.file.error.format.message" = ".%@ bestanden worden niet ondersteund door %@. Ondersteunde formaten: %@";
 "transcribe.file.error.read" = "Kan het geselecteerde bestand niet lezen.";
+"transcribe.file.error.webm" = "WebM wordt niet ondersteund. Zet het bestand om naar MP3, M4A of WAV en probeer het opnieuw.";
+"transcribe.file.error.notAudio" = "Het bestand ‘%@’ is geen geldige audio. Het is mogelijk beschadigd of heeft een indeling die macOS niet kan decoderen.";
+"transcribe.file.error.empty" = "Het bestand ‘%@’ is leeg. Er staat geen audio in om te transcriberen.";
+"transcribe.file.error.permission" = "HyperWhisper kan het bestand ‘%@’ niet lezen. Controleer de rechten van het bestand.";
+"transcribe.file.error.folderPermission" = "HyperWhisper kan een map met het bestand ‘%@’ niet openen. Controleer de rechten van die map.";
+"transcribe.file.error.privacy" = "De privacyinstellingen van macOS hebben HyperWhisper verhinderd het bestand ‘%@’ te lezen. Sta het toe via Systeeminstellingen > Privacy en beveiliging > Volledige schijftoegang.";
+"transcribe.file.error.tooShort" = "Dit bestand is te kort om te transcriberen (%@ s).";
 "transcribe.file.error.copy" = "Kan bestand niet naar opnamemap kopiëren.";
 "transcribe.file.error.video.title" = "Geen audio in video";
 "transcribe.file.error.video.noAudio" = "Dit videobestand bevat geen audiopunt. Selecteer een video met audio of een audiobestand.";

@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         TextOptions.TextRenderingMode="Antialias"
-        xmlns:vm="using:HyperWhisper.PortableApplication.ViewModels"
+        xmlns:vm="using:HyperWhisper.PortableApplication.ViewModels" xmlns:local="using:HyperWhisper.Linux"
         x:Class="HyperWhisper.Linux.ModeEditorWindow" x:DataType="vm:ModesViewModel"
         Title="{ReflectionBinding [mode.editor.title.edit], Source={StaticResource Localization}}"
         FontFamily="{StaticResource HwUiFont}"
@@ -63,14 +63,15 @@
                        Text="{ReflectionBinding [mode.editor.section.transcription], Source={StaticResource Localization}}"/>
           </StackPanel>
 
-          <!-- Source — the 3-way segmented selector (ModeEditorWindow.xaml:76-98). "On-device"
+          <!-- Source — the 3-way segmented selector (ModeEditorWindow.xaml:76-98), laid out by
+               SegmentedPanel so a label wider than a third (#635) is never clipped. "On-device"
                is the legacy local ProviderType; both cloud segments set ProviderType=cloud and
                are told apart by CloudProvider. -->
           <StackPanel Margin="0,0,0,16">
             <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
                        Text="{ReflectionBinding [mode.editor.field.source], Source={StaticResource Localization}}"/>
             <Border Classes="segmented">
-              <UniformGrid Rows="1" Columns="3">
+              <local:SegmentedPanel>
                 <RadioButton x:Name="ModeSourceOnDevice" Classes="segment" GroupName="TranscriptionSource"
                              IsChecked="{Binding IsOnDeviceSource, Mode=TwoWay}"
                              Content="{ReflectionBinding [mode.editor.source.onDevice], Source={StaticResource Localization}}"/>
@@ -80,7 +81,7 @@
                 <RadioButton x:Name="ModeSourceYourProvider" Classes="segment" GroupName="TranscriptionSource"
                              IsChecked="{Binding IsYourProviderSource, Mode=TwoWay}"
                              Content="{ReflectionBinding [mode.editor.source.yourProvider], Source={StaticResource Localization}}"/>
-              </UniformGrid>
+              </local:SegmentedPanel>
             </Border>
           </StackPanel>
 
@@ -248,7 +249,7 @@
               <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
                          Text="{ReflectionBinding [mode.editor.field.source], Source={StaticResource Localization}}"/>
               <Border Classes="segmented">
-                <UniformGrid Rows="1" Columns="3">
+                <local:SegmentedPanel>
                   <RadioButton x:Name="ModePpSourceOnDevice" Classes="segment" GroupName="PostProcessingSource"
                                IsChecked="{Binding IsPpOnDeviceSource, Mode=TwoWay}"
                                Content="{ReflectionBinding [mode.editor.source.onDevice], Source={StaticResource Localization}}"/>
@@ -258,7 +259,7 @@
                   <RadioButton x:Name="ModePpSourceYourProvider" Classes="segment" GroupName="PostProcessingSource"
                                IsChecked="{Binding IsPpYourProviderSource, Mode=TwoWay}"
                                Content="{ReflectionBinding [mode.editor.source.yourProvider], Source={StaticResource Localization}}"/>
-                </UniformGrid>
+                </local:SegmentedPanel>
               </Border>
             </StackPanel>
 

@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "Hvad er HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud er indbygget cloudtransskription målrettet mindre tekniske brugere, der vil hurtigt i gang.\n\nDet er credits efter forbrug. Du fylder op fra så lidt som $5 (1.000 credits pr. $1) og bruger dem kun, mens du transskriberer. Dit første credit-køb opretter automatisk din Account Key, så der er ikke andet at købe.\n    \nVi tilbyder fire nøjagtighedsniveauer: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) og Highest (Grok STT, standard for nye installationer og drevet af SpaceXAI Grok STT). Efterbehandling er automatisk og er som standard Grok 4.1 Fast uden ræsonnement. Vi gemmer intet ud over, hvor mange credits du har brugt, og vi har fravalgt dig fra modeltræning hos hver eneste opstrømsudbyder, vi bruger. Se vores [guide til databeskyttelse](https://hyperwhisper.com/docs/data-privacy) for detaljer.\n\nCredits bruges til udbydernes egen behandlingspris — ingen avance på transskription. Ved betaling tilføjes et fast gebyr på 6% til betalingsbehandling, vist som en separat linje. Ubrugte credits udløber efter 12 måneder (se nedenfor).\n\nFor en god ordens skyld er hele appen open source under Apache-2.0 — inklusive Cloud-backenden. Du kan læse hver linje kode, der kører mellem din app og de udbydere, vi sender videre til [på GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud er indbygget cloudtransskription målrettet mindre tekniske brugere, der vil hurtigt i gang.\n\nDet er credits efter forbrug. Du fylder op fra så lidt som $5 (1.000 credits pr. $1) og bruger dem kun, mens du transskriberer. Dit første credit-køb opretter automatisk din Account Key, så der er ikke andet at købe.\n    \nHyperWhisper Cloud giver dig 12 transskriptionsudbydere, fra Groq Whisper til ElevenLabs Scribe v2 (se [den fulde liste og priser](https://hyperwhisper.com/docs/cloud-credits)). Nye installationer starter på ElevenLabs Scribe v2. Efterbehandling er automatisk, og nye installationer starter på Claude Haiku 5.5. Vi gemmer intet ud over, hvor mange credits du har brugt, og vi har fravalgt dig fra modeltræning hos hver eneste opstrømsudbyder, vi bruger. Se vores [guide til databeskyttelse](https://hyperwhisper.com/docs/data-privacy) for detaljer.\n\nCredits bruges til udbydernes egen behandlingspris — ingen avance på transskription. Ved betaling tilføjes et fast gebyr på 6% til betalingsbehandling, vist som en separat linje. Ubrugte credits udløber efter 12 måneder (se nedenfor).\n\nFor en god ordens skyld er hele appen open source under Apache-2.0 — inklusive Cloud-backenden. Du kan læse hver linje kode, der kører mellem din app og de udbydere, vi sender videre til [på GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Vil mine stemmedata blive brugt til at træne AI-modeller?",
@@ -390,5 +390,12 @@
     "heading": "Åben kildekode. Intet at skjule.",
     "body": "HyperWhisper er fuldt open source under Apache-2.0 — både desktop-apps og Cloud-backend. En app, der lytter til din mikrofon, bør være noget, du kan verificere, ikke bare stole på: læs hver linje, kontrollér præcis, hvor din lyd havner, og vid, at du aldrig bliver låst inde — koden er din at forke og selv-hoste for altid. Bygget i det åbne af den uafhængige udvikler Ray Amjad.",
     "cta": "Se på GitHub"
+  },
+  "notFound": {
+    "title": "Siden blev ikke fundet",
+    "heading": "Denne side findes ikke",
+    "description": "Linket kan være ødelagt, eller siden kan være flyttet.",
+    "home": "Gå til forsiden",
+    "download": "Download HyperWhisper"
   }
 }

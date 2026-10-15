@@ -38,8 +38,9 @@ export default function DevicesClient() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
+      {/* Page Header. Wraps on a phone, so the range buttons and Refresh
+          never push the page wider than the viewport (#1764, as #1330). */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">
             Device Activations
@@ -48,7 +49,7 @@ export default function DevicesClient() {
             Unique devices per Account Key (active in last {days} days)
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Time Range Selector */}
           <div
             role="group"
@@ -291,14 +292,18 @@ function DeviceRow({
                           d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                         />
                       </svg>
-                      <div>
-                        <span className="text-white text-sm">
+                      {/* <bdi> isolates a user-typed name, so an Arabic name or a
+                          bracket never reorders the id beside it on an RTL page (#1659).
+                          The gap sits on the parent: a margin on the <bdi> follows the
+                          id's own LTR direction and lands on the wrong side in RTL. */}
+                      <div className="flex flex-wrap items-baseline gap-x-2">
+                        <bdi className="text-white text-sm">
                           {device.deviceName || device.deviceId}
-                        </span>
+                        </bdi>
                         {device.deviceName && (
-                          <span className="text-gray-500 text-xs ml-2">
+                          <bdi className="text-gray-500 text-xs">
                             {device.deviceId}
-                          </span>
+                          </bdi>
                         )}
                       </div>
                     </div>

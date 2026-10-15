@@ -88,7 +88,8 @@ public partial class MainViewModel
         {
             switch (stepId)
             {
-                case "shortcuts": CurrentPage = NavigationPage.Settings; break;
+                // The row promises the Shortcuts section, not Settings' first page (#637).
+                case "shortcuts": OpenSettingsSection("Shortcuts"); break;
                 case "mode": CurrentPage = NavigationPage.Modes; break;
                 case "vocabulary": CurrentPage = NavigationPage.Vocabulary; break;
             }

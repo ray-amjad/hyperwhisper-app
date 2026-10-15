@@ -60,7 +60,7 @@ function PurchaseSuccessContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center px-7 py-20">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center py-20">
       <m.div
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-xl w-full text-center"
@@ -147,7 +147,7 @@ function LoadingFallback() {
   const t = useTranslations("purchaseSuccess");
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center px-7 py-20">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center py-20">
       <div className="text-center">
         <div className="inline-flex items-center justify-center w-[82px] h-[82px] bg-gradient-to-r from-purple-600 to-blue-600 rounded-full mb-6 animate-pulse" />
         <p className="text-lg text-gray-400">{t("loading")}</p>

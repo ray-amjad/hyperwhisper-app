@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "Kaj je HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud je vgrajeno cloud prepisovanje, namenjeno manj tehnicnim uporabnikom, ki zelijo hitro zaceti.\n\nGre za kredite po nacelu placaj sproti. Napolnite ze od $5 (1.000 kreditov na $1) in jih porabljate sele med prepisovanjem. Vas prvi nakup kreditov samodejno ustvari vas Account Key, tako da ni treba kupiti nicesar drugega.\n    \nPonujamo stiri ravni natancnosti: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) in Highest (Grok STT, privzeto za nove namestitve in poganja ga SpaceXAI Grok STT). Naknadna obdelava je samodejna in privzeto uporablja Grok 4.1 Fast brez sklepanja. Ne hranimo nicesar razen tega, koliko kreditov ste porabili, in pri vsakem ponudniku, ki ga uporabljamo, smo vas izkljucili iz ucenja modelov. Za podrobnosti si oglejte nas [vodnik o zasebnosti podatkov](https://hyperwhisper.com/docs/data-privacy).\n\nKrediti se porabljajo po lastni obdelovalni ceni ponudnikov — brez pribitka na prepisovanje. Ob placilu se doda fiksna 6 % provizija za obdelavo placila, prikazana kot locena postavka. Neporabljeni krediti potecejo po 12 mesecih (glejte spodaj).\n\nZa mirno vest je celotna aplikacija odprtokodna pod Apache-2.0 — vkljucno s Cloud zaledjem. Vsako vrstico kode, ki tece med vaso aplikacijo in ponudniki, do katerih posredujemo, lahko preberete [na GitHubu](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud je vgrajeno cloud prepisovanje, namenjeno manj tehnicnim uporabnikom, ki zelijo hitro zaceti.\n\nGre za kredite po nacelu placaj sproti. Napolnite ze od $5 (1.000 kreditov na $1) in jih porabljate sele med prepisovanjem. Vas prvi nakup kreditov samodejno ustvari vas Account Key, tako da ni treba kupiti nicesar drugega.\n    \nHyperWhisper Cloud vam ponuja 12 ponudnikov prepisovanja, od Groq Whisper do ElevenLabs Scribe v2 (glejte [celoten seznam in cene](https://hyperwhisper.com/docs/cloud-credits)). Nove namestitve zacnejo z ElevenLabs Scribe v2. Naknadna obdelava je samodejna, nove namestitve pa zacnejo s Claude Haiku 5.5. Ne hranimo nicesar razen tega, koliko kreditov ste porabili, in pri vsakem ponudniku, ki ga uporabljamo, smo vas izkljucili iz ucenja modelov. Za podrobnosti si oglejte nas [vodnik o zasebnosti podatkov](https://hyperwhisper.com/docs/data-privacy).\n\nKrediti se porabljajo po lastni obdelovalni ceni ponudnikov — brez pribitka na prepisovanje. Ob placilu se doda fiksna 6 % provizija za obdelavo placila, prikazana kot locena postavka. Neporabljeni krediti potecejo po 12 mesecih (glejte spodaj).\n\nZa mirno vest je celotna aplikacija odprtokodna pod Apache-2.0 — vkljucno s Cloud zaledjem. Vsako vrstico kode, ki tece med vaso aplikacijo in ponudniki, do katerih posredujemo, lahko preberete [na GitHubu](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Ali bodo moji glasovni podatki uporabljeni za učenje modelov UI?",
@@ -390,5 +390,12 @@
     "heading": "Odprta koda. Nicesar za skrivati.",
     "body": "HyperWhisper je popolnoma odprtokoden pod Apache-2.0 — tako namizne aplikacije kot Cloud zaledje. Aplikacija, ki poslusa vas mikrofon, naj bo nekaj, kar lahko preverite, ne le zaupate: preberite vsako vrstico, preverite, kam tocno gre vas zvok, in vedite, da ne boste nikoli vezani — koda je vasa, da jo za vedno razvejite in gostite sami. Zgradil jo je v odprtem neodvisni ustvarjalec Ray Amjad.",
     "cta": "Oglejte si na GitHubu"
+  },
+  "notFound": {
+    "title": "Strani ni mogoče najti",
+    "heading": "Ta stran ne obstaja",
+    "description": "Povezava je morda okvarjena ali pa je bila stran premaknjena.",
+    "home": "Pojdi na domačo stran",
+    "download": "Prenesi HyperWhisper"
   }
 }

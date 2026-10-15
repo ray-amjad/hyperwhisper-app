@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Faila transkripcija atcelta</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkribē failu...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modelis tiek izmantots</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} izmanto režīms “{1}”. Pirms dzēšanas pārslēdziet šo režīmu uz citu modeli.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1312,8 +1321,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Jau notiek ierakstīšana vai faila transkribēšana. Mēģiniet failu vēlreiz, kad tā būs pabeigta.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Šis fails ir tukšs, tāpēc nav audio, ko transkribēt.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Šis fails ir bojāts vai nav audio fails, ko HyperWhisper var nolasīt.</value>
   </data>
 
   <!-- Mode Change Toast -->

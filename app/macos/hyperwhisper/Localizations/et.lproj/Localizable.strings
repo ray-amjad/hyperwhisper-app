@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika eksporditud";
 "alerts.export.diagnostics.success.message" = "Kõik diagnostika logid on edukalt eksporditud.";
 "alerts.export.diagnostics.saveFailed.message" = "Diagnostika salvestamine valitud asukohta ebaõnnestus: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika eksporditi ilma süsteemilogideta";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikafail salvestati, kuid rakenduse süsteemilogisid ei õnnestunud lugeda, seega sisaldab system-logs.txt ainult põhjust. Põhjus: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Ekspordi uuenduste logid toe jaoks";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Lõpeta sisseelamine";
 
 "onboarding.setupLater.button" = "Seadista hiljem";
-"onboarding.error.microphone.denied" = "Mikrofoni luba keelduti. Palun andke luba süsteemiseadetes.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Käivita sisselogimisel";
@@ -336,6 +337,9 @@
 "settings.storage.choose.button" = "Vali...";
 "settings.storage.dialog.select" = "Vali kaust";
 "settings.storage.dialog.message" = "Valige salvestuste salvestamiseks kaust";
+"settings.storage.folderRefused.title" = "Seda kausta ei saa kasutada";
+"settings.storage.folderRefused.notWritable" = "Teil pole õigust kirjutada kausta „%@“, seega ei saa HyperWhisper sinna salvestisi salvestada. Salvestiste kausta ei muudetud.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper ei saanud seda kausta luua: %@ Salvestiste kausta ei muudetud.";
 "settings.storage.storeAsM4A.title" = "Tihenda salvestused M4A-sse";
 "settings.storage.storeAsM4A.subtitle" = "Teisendab WAV salvestused väiksemateks failideks pärast transkriptsiooni. Lülitage välja, et hoida algseid WAV faile (suuremad, kuid kadudeta).";
 
@@ -383,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Muuda režiimi";
 "settings.shortcuts.changeMode.subtitle" = "Töötab ainult salvestamise ajal";
+"settings.shortcuts.conflict.alert" = "Seda kiirklahvi ei saa kasutada, sest seda kasutab juba „%@“.";
 
 "settings.shortcuts.reset.button" = "Lähtesta vaikeseadetele";
 "settings.shortcuts.reset.dialog.title" = "Lähtesta klaviatuuri otseteed";
@@ -576,6 +581,8 @@
 "onboarding.configure.cloud.note" = "Krediidid on ette makstud ja jagatud kõigi Macide vahel, mis on selle võtmega sisse logitud. Jõudeaeg ei maksa midagi.";
 "onboarding.source.note" = "Kui muudad hiljem meelt, korratakse ainult seda üht sammu. Muu, mille oled seadistanud, ei kao.";
 "onboarding.permissions.note" = "Jäta Ligipääsetavus vahele ja transkriptsioonid lähevad lõikelauale, valmis kleepimiseks. Hilisem sisselülitamine võtab ühe klõpsu.";
+"onboarding.permissions.microphone.denied" = "Pole lubatud. Lülita HyperWhisper süsteemiseadetes sisse ja tule siia tagasi.";
+"onboarding.permissions.continueNeedsMicrophone" = "Jätkamiseks on vaja mikrofoni. Luba see ülal või vali Seadista hiljem.";
 "onboarding.welcome.task1.title" = "Vali, kuidas transkribeerimine toimub";
 "onboarding.welcome.task1.caption" = "Meie pilves, selles Macis või juba makstud teenusepakkuja konto kaudu.";
 "onboarding.welcome.task2.title" = "Kontrolli oma mikrofoni";
@@ -899,6 +906,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "audio.error.microphonePermission" = "Mikrofoni luba pole antud";
 "audio.error.microphoneInUse" = "HyperWhisper ei pääse mikrofonile juurde, kuna teine rakendus kasutab seda praegu. Peatage teine rakendus või vahetage sisendeid, seejärel proovige uuesti.";
 "audio.error.audioSystemNotResponding" = "macOS-i heli ei reageeri, seega mikrofoni ei õnnestunud käivitada. Proovi hetke pärast uuesti. Kui see kordub, taaskäivita oma Mac.";
+"audio.error.recorderStopTimedOut" = "macOS-i heli lakkas salvestise salvestamise ajal reageerimast, seega seda ei transkribeeritud. Heli jäi alles: HyperWhisper proovib selle järgmisel käivitamisel taastada.";
 "audio.error.createEngine" = "Helimootorit loomine ebaõnnestus";
 "audio.error.noInput" = "Heli sisend pole saadaval";
 "audio.error.createFile" = "Helifaili loomine ebaõnnestus";
@@ -972,6 +980,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcription.guidance.quotaExceeded" = "Lisage krediite oma %@ kontole või uuendage oma arveldustandmeid";
 "transcription.guidance.timeout" = "Päring võttis liiga kaua aega. Kontrollige oma interneti kiirust ja proovige uuesti.";
 "transcription.error.noSpeechDetected" = "Salvestuses ei tuvastatud kõnet.";
+"transcription.error.audioTooShort" = "Salvestis on transkribeerimiseks liiga lühike. Salvesta kauem.";
 "transcription.guidance.noSpeechDetected" = "Näpunäited:\n• Rääkige selgelt mikrofonisse\n• Hoidke klahvi kauem enne rääkimist\n• Kontrollige, et teie mikrofon töötab\n• Veenduge, et õige sisendseade on valitud";
 "transcription.guidance.needsNativeRelaunch" = "Kohaliku järeltöötluse kasutamiseks sulge HyperWhisper ja ava see uuesti natiivselt.";
 "transcription.guidance.localRuntimeUnavailable" = "Proovi uuesti või vali režiimi seadetes väiksem kohalik mudel.";
@@ -1114,6 +1123,13 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcribe.file.error.format.title" = "Toetamata vorming";
 "transcribe.file.error.format.message" = ".%@ failid ei ole %@ poolt toetatud. Toetatud vormingud: %@";
 "transcribe.file.error.read" = "Valitud faili ei saa lugeda.";
+"transcribe.file.error.webm" = "WebM-i ei toetata. Teisenda fail MP3-, M4A- või WAV-vormingusse ja proovi uuesti.";
+"transcribe.file.error.notAudio" = "Fail „%@“ ei ole korrektne heli. See võib olla kahjustatud või vormingus, mida macOS ei suuda dekodeerida.";
+"transcribe.file.error.empty" = "Fail „%@“ on tühi. Selles pole heli, mida transkribeerida.";
+"transcribe.file.error.permission" = "HyperWhisper ei saa faili „%@“ lugeda. Kontrolli faili õigusi.";
+"transcribe.file.error.folderPermission" = "HyperWhisper ei saa avada kausta, mis sisaldab faili „%@“. Kontrolli selle kausta õigusi.";
+"transcribe.file.error.privacy" = "macOS-i privaatsusseaded takistasid HyperWhisperil faili „%@“ lugemist. Luba see jaotises Süsteemiseaded > Privaatsus ja turvalisus > Täielik kettale juurdepääs.";
+"transcribe.file.error.tooShort" = "See fail on transkribeerimiseks liiga lühike (%@ s).";
 "transcribe.file.error.copy" = "Faili kopeerimine salvestuste kausta ebaõnnestus.";
 "transcribe.file.error.video.title" = "Heli puudub videos";
 "transcribe.file.error.video.noAudio" = "See videofail ei sisalda heliriba. Palun valige video heliga või helifail.";

@@ -408,12 +408,14 @@ describe('splitVocabularyTerms (shared vocabulary-prompt splitter)', () => {
     expect(splitVocabularyTerms('  a  ,   ,b\t', NO_LIMITS)).toEqual(['a', 'b']);
   });
 
-  test('strips a leading bullet marker, with or without a following space', () => {
-    expect(splitVocabularyTerms('- a\n* b\n-c\n*d', NO_LIMITS)).toEqual(['a', 'b', 'c', 'd']);
+  test('strips a leading bullet marker only when whitespace follows it (issue #729)', () => {
+    expect(splitVocabularyTerms('- a\n* b\n-\tc\n-Xmx\n*args', NO_LIMITS)).toEqual(['a', 'b', 'c', '-Xmx', '*args']);
   });
 
-  test('a term that is only a bullet marker is dropped', () => {
+  test('a term that is only a bullet marker is dropped, sanitizing or not', () => {
     expect(splitVocabularyTerms('-,*,a', NO_LIMITS)).toEqual(['a']);
+    expect(splitVocabularyTerms('foo\n-\n*\n- \nbar', NO_LIMITS)).toEqual(['foo', 'bar']);
+    expect(splitVocabularyTerms('foo\n-\n*\n- \nbar', { maxTerms: 100, sanitize: true })).toEqual(['foo', 'bar']);
   });
 
   test('inner whitespace is preserved by default', () => {
@@ -457,6 +459,29 @@ describe('splitVocabularyTerms (shared vocabulary-prompt splitter)', () => {
     // 'a' + 5 spaces + 'b' is 7 chars raw but 3 once joined, so the cap sees 3.
     expect(splitVocabularyTerms('a     b', { maxTerms: 100, maxTermChars: 4, joinWordsWith: '_' }))
       .toEqual(['a_b']);
+  });
+
+  test('sanitize strips <>, collapses whitespace and de-duplicates case-insensitively', () => {
+    expect(splitVocabularyTerms('<HyperWhisper>, hyperwhisper,  spaced   out ', { maxTerms: 100, sanitize: true }))
+      .toEqual(['HyperWhisper', 'spaced out']);
+    // A duplicate does not use up a slot.
+    expect(splitVocabularyTerms('a, A, b', { maxTerms: 2, sanitize: true })).toEqual(['a', 'b']);
+  });
+
+  test('sanitize strips a bullet only when a space follows it (issue #729)', () => {
+    expect(splitVocabularyTerms('-Xmx, *args, - bulleted, * starred', { maxTerms: 100, sanitize: true }))
+      .toEqual(['-Xmx', '*args', 'bulleted', 'starred']);
+  });
+
+  test('overLongTerm truncates by code point, or drops by default', () => {
+    expect(splitVocabularyTerms('x'.repeat(100), { maxTerms: 100, maxTermChars: 80, overLongTerm: 'truncate' }))
+      .toEqual(['x'.repeat(80)]);
+    // Supplementary characters are 2 UTF-16 units each; none is split in half.
+    expect(splitVocabularyTerms('😀'.repeat(81), { maxTerms: 100, maxTermChars: 80, overLongTerm: 'truncate' }))
+      .toEqual(['😀'.repeat(80)]);
+    expect(splitVocabularyTerms(`ok,${'x'.repeat(51)}`, { maxTerms: 100, maxTermChars: 50, overLongTerm: 'drop' }))
+      .toEqual(['ok']);
+    expect(splitVocabularyTerms(`ok,${'x'.repeat(51)}`, { maxTerms: 100, maxTermChars: 50 })).toEqual(['ok']);
   });
 
   test('an empty prompt yields no terms', () => {

@@ -1,6 +1,8 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using HyperWhisper.Localization;
 using HyperWhisper.Models;
 
 namespace HyperWhisper.Services;
@@ -46,6 +48,24 @@ public static class FileTranscriptionService
     public static string FileFilter =>
         "Audio Files (*.wav;*.mp3;*.m4a)|*.wav;*.mp3;*.m4a|All Files (*.*)|*.*";
 
+    /// <summary>
+    /// Shown for a 0-byte file. NAudio says "Unable to read beyond the end of the stream" (#1452).
+    /// </summary>
+    internal static string EmptyFileMessage => Loc.S("errors.fileEmpty");
+
+    /// <summary>
+    /// Shown for a file the decoders reject: a truncated or corrupt WAV, or a non-audio file
+    /// with an audio extension. NAudio and Media Foundation word it as "Not a WAVE file - no
+    /// RIFF header" or "The byte stream type of the given URL is unsupported" (#1452).
+    /// </summary>
+    internal static string UnreadableAudioMessage => Loc.S("errors.fileUnreadable");
+
+    /// <summary>
+    /// FACILITY_MF: every Media Foundation error HRESULT is 0xC00Dxxxx.
+    /// </summary>
+    private const int MediaFoundationErrorMask = unchecked((int)0xFFFF0000);
+    private const int MediaFoundationErrorPrefix = unchecked((int)0xC00D0000);
+
     // =========================================================================
     // PUBLIC METHODS
     // =========================================================================
@@ -89,6 +109,13 @@ public static class FileTranscriptionService
         {
             LoggingService.Warn($"FileTranscriptionService: Unsupported format - {extension}");
             return Result<string>.Failure($"Unsupported audio format: {extension}. Please use WAV, MP3, or M4A.");
+        }
+
+        // GUARD CLAUSE: An empty file holds no audio
+        if (new FileInfo(inputPath).Length == 0)
+        {
+            LoggingService.Warn($"FileTranscriptionService: File is empty - {inputPath}");
+            return Result<string>.Failure(EmptyFileMessage);
         }
 
         try
@@ -155,12 +182,35 @@ public static class FileTranscriptionService
             LoggingService.Info("FileTranscriptionService: Conversion cancelled");
             throw;
         }
+        catch (Exception ex) when (IsUnreadableAudio(ex))
+        {
+            LoggingService.Warn($"FileTranscriptionService: File is not readable audio - {ex.GetType().Name}: {ex.Message}");
+            return Result<string>.Failure(UnreadableAudioMessage, ex);
+        }
         catch (Exception ex)
         {
             LoggingService.Error($"FileTranscriptionService: Conversion failed - {ex.Message}", ex);
             return Result<string>.Failure($"Failed to convert audio file: {ex.Message}", ex);
         }
     }
+
+    /// <summary>
+    /// True when <paramref name="ex"/> says the file's bytes are not audio the decoders can
+    /// read, as opposed to a fault of the machine (a locked file, a full disk, a missing
+    /// codec driver), whose own message stays the clearer one.
+    /// </summary>
+    internal static bool IsUnreadableAudio(Exception ex) => ex switch
+    {
+        // A WAV cut off inside its header (WaveFileReader).
+        EndOfStreamException => true,
+        // "Not a WAVE file - no RIFF header", "Invalid WAV file - No fmt chunk found".
+        FormatException => true,
+        // Mp3FileReader: "Invalid MP3 file - no MP3 Frames Detected".
+        InvalidDataException => true,
+        // Media Foundation, e.g. MF_E_UNSUPPORTED_BYTESTREAM_TYPE (0xC00D36C4) for a text file named .mp3.
+        COMException com => (com.HResult & MediaFoundationErrorMask) == MediaFoundationErrorPrefix,
+        _ => false,
+    };
 
     private static void WriteWaveFile16Cancellable(
         string outputPath,

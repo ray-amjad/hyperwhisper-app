@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "Co je HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud je vestavěná cloudová transkripce zaměřená na méně technické uživatele, kteří chtějí rychle začít.\n\nFunguje na kreditech s platbou podle spotřeby. Dobíjíte už od $5 (1 000 kreditů za $1) a utrácíte je jen při přepisu. Váš první nákup kreditů automaticky vytvoří váš Account Key, takže není nic dalšího ke koupi.\n    \nNabízíme čtyři úrovně přesnosti: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) a Highest (Grok STT, výchozí pro nové instalace a poháněný SpaceXAI Grok STT). Následné zpracování je automatické a ve výchozím nastavení používá Grok 4.1 Fast bez uvažování. Neukládáme nic kromě toho, kolik kreditů jste spotřebovali, a u každého poskytovatele, kterého využíváme, jsme vás odhlásili z trénování modelů. Podrobnosti najdete v našem [průvodci ochranou soukromí dat](https://hyperwhisper.com/docs/data-privacy).\n\nKredity se utrácejí za vlastní cenu zpracování poskytovatelů — bez jakékoli přirážky na transkripci. Při platbě se přidává pevný poplatek 6% za zpracování platby, zobrazený jako samostatná položka. Nevyužité kredity vyprší po 12 měsících (viz níže).\n\nPro klid v duši je celá aplikace open source pod licencí Apache-2.0 — včetně Cloud backendu. Můžete si přečíst každý řádek kódu, který běží mezi vaší aplikací a poskytovateli, na které směrujeme [na GitHubu](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud je vestavěná cloudová transkripce zaměřená na méně technické uživatele, kteří chtějí rychle začít.\n\nFunguje na kreditech s platbou podle spotřeby. Dobíjíte už od $5 (1 000 kreditů za $1) a utrácíte je jen při přepisu. Váš první nákup kreditů automaticky vytvoří váš Account Key, takže není nic dalšího ke koupi.\n    \nHyperWhisper Cloud vám nabízí 12 poskytovatelů přepisu, od Groq Whisper po ElevenLabs Scribe v2 (viz [úplný seznam a ceny](https://hyperwhisper.com/docs/cloud-credits)). Nové instalace začínají s ElevenLabs Scribe v2. Následné zpracování je automatické a nové instalace začínají s Claude Haiku 5.5. Neukládáme nic kromě toho, kolik kreditů jste spotřebovali, a u každého poskytovatele, kterého využíváme, jsme vás odhlásili z trénování modelů. Podrobnosti najdete v našem [průvodci ochranou soukromí dat](https://hyperwhisper.com/docs/data-privacy).\n\nKredity se utrácejí za vlastní cenu zpracování poskytovatelů — bez jakékoli přirážky na transkripci. Při platbě se přidává pevný poplatek 6% za zpracování platby, zobrazený jako samostatná položka. Nevyužité kredity vyprší po 12 měsících (viz níže).\n\nPro klid v duši je celá aplikace open source pod licencí Apache-2.0 — včetně Cloud backendu. Můžete si přečíst každý řádek kódu, který běží mezi vaší aplikací a poskytovateli, na které směrujeme [na GitHubu](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Budou má hlasová data použita k trénování modelů AI?",
@@ -390,5 +390,12 @@
     "heading": "Otevřený zdroj. Nic ke skrývání.",
     "body": "HyperWhisper je plně open source pod licencí Apache-2.0 — desktopové aplikace i Cloud backend. Aplikace, která poslouchá váš mikrofon, by měla být něco, co si můžete ověřit, ne jen čemu věříte: přečtěte si každý řádek, prověřte přesně, kam jde váš zvuk, a mějte jistotu, že nikdy nebudete uzamčeni — kód je váš, můžete ho forknout a hostovat sami navždy. Vytvořeno otevřeně nezávislým tvůrcem Ray Amjad.",
     "cta": "Zobrazit na GitHubu"
+  },
+  "notFound": {
+    "title": "Stránka nenalezena",
+    "heading": "Tato stránka neexistuje",
+    "description": "Odkaz může být nefunkční nebo byla stránka přesunuta.",
+    "home": "Přejít na úvodní stránku",
+    "download": "Stáhnout HyperWhisper"
   }
 }

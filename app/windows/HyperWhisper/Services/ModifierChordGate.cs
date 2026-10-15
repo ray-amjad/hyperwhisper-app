@@ -204,4 +204,61 @@ internal sealed class ModifierChordGate
     internal static bool IsAltVirtualKey(int vk) => vk is VK_MENU or VK_LMENU or VK_RMENU;
     internal static bool IsShiftVirtualKey(int vk) => vk is VK_SHIFT or VK_LSHIFT or VK_RSHIFT;
     internal static bool IsWinVirtualKey(int vk) => vk is VK_LWIN or VK_RWIN;
+
+    internal static readonly int[] CtrlVirtualKeys = { VK_CONTROL, VK_LCONTROL, VK_RCONTROL };
+    internal static readonly int[] AltVirtualKeys = { VK_MENU, VK_LMENU, VK_RMENU };
+    internal static readonly int[] ShiftVirtualKeys = { VK_SHIFT, VK_LSHIFT, VK_RSHIFT };
+    internal static readonly int[] WinVirtualKeys = { VK_LWIN, VK_RWIN };
+
+    /// <summary>
+    /// The virtual keys that press a push-to-talk modifier name ("leftalt", "ctrl", ...).
+    /// A sideless name also takes the generic code; an unknown name means Ctrl.
+    /// </summary>
+    internal static int[] VirtualKeysForModifierName(string modifier) => modifier.ToLowerInvariant() switch
+    {
+        "leftcontrol" or "leftctrl" => new[] { VK_LCONTROL },
+        "rightcontrol" or "rightctrl" => new[] { VK_RCONTROL },
+        "control" or "ctrl" => CtrlVirtualKeys,
+        "leftalt" => new[] { VK_LMENU },
+        "rightalt" => new[] { VK_RMENU },
+        "alt" => AltVirtualKeys,
+        "leftshift" => new[] { VK_LSHIFT },
+        "rightshift" => new[] { VK_RSHIFT },
+        "shift" => ShiftVirtualKeys,
+        "leftmeta" or "leftwin" => new[] { VK_LWIN },
+        "rightmeta" or "rightwin" => new[] { VK_RWIN },
+        "meta" or "win" => WinVirtualKeys,
+        _ => CtrlVirtualKeys
+    };
+
+    /// <summary>
+    /// A push-to-talk modifier name is down. A sideless name goes through the family
+    /// check, so AltGr's synthetic LCtrl is not Ctrl and AltGr is not Alt.
+    /// </summary>
+    internal static bool IsModifierNameDown(string modifier, IReadOnlySet<int> pressedKeys)
+    {
+        var keys = VirtualKeysForModifierName(modifier);
+        if (keys == CtrlVirtualKeys) return IsAnyCtrlDown(pressedKeys);
+        if (keys == AltVirtualKeys) return IsAnyAltDown(pressedKeys);
+        if (keys == ShiftVirtualKeys) return IsAnyShiftDown(pressedKeys);
+        if (keys == WinVirtualKeys) return IsAnyWinDown(pressedKeys);
+        return pressedKeys.Contains(keys[0]);
+    }
+
+    /// <summary>
+    /// The key is the opposite side, or the sideless generic code, of a side-specific
+    /// modifier name's family (RAlt or VK_MENU for "leftalt").
+    /// </summary>
+    internal static bool IsOtherSideOfModifierName(string modifier, int vk) => modifier.ToLowerInvariant() switch
+    {
+        "leftcontrol" or "leftctrl" => vk is VK_RCONTROL or VK_CONTROL,
+        "rightcontrol" or "rightctrl" => vk is VK_LCONTROL or VK_CONTROL,
+        "leftalt" => vk is VK_RMENU or VK_MENU,
+        "rightalt" => vk is VK_LMENU or VK_MENU,
+        "leftshift" => vk is VK_RSHIFT or VK_SHIFT,
+        "rightshift" => vk is VK_LSHIFT or VK_SHIFT,
+        "leftmeta" or "leftwin" => vk == VK_RWIN,
+        "rightmeta" or "rightwin" => vk == VK_LWIN,
+        _ => false
+    };
 }

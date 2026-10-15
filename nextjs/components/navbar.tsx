@@ -14,17 +14,25 @@ import { link as linkStyles } from "@heroui/theme";
 import clsx from "clsx";
 import { Link as HeroUILink } from "@heroui/link";
 import { Download, Github } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { useSiteHref } from "@/src/i18n/use-site-href";
 
 export const Navbar = () => {
   const { openModal } = useDownloadModal();
   const t = useTranslations("navbar");
-  const locale = useLocale();
+  /*
+    #1170: on an English-only page (/en/latency, /en/choosing-a-model,
+    /en/blog) useLocale() is "en" for every visitor, and /en#features is an
+    ordinary page that writes NEXT_LOCALE=en. There, after hydration, the home
+    and section links follow the saved NEXT_LOCALE, and stay /en with none
+    (see siteHref).
+  */
+  const { nativeLinks, siteHref } = useSiteHref();
   /*
     The menu is controlled here because nothing else closes it. HeroUI closes it
     only from the toggle and from its own resize observer, so a tap on a menu
@@ -49,21 +57,36 @@ export const Navbar = () => {
   };
 
   const navItems = [
-    { label: t("features"), href: `/${locale}#features` },
-    { label: t("cloud"), href: `/${locale}#cloud` },
+    { label: t("features"), href: siteHref("/#features") },
+    { label: t("cloud"), href: siteHref("/#cloud") },
     chooseModelItem,
     latencyItem,
-    { label: t("faq"), href: `/${locale}#faq` },
+    { label: t("faq"), href: siteHref("/#faq") },
   ];
 
   const navMenuItems = [
-    { label: t("features"), href: `/${locale}#features` },
-    { label: t("cloud"), href: `/${locale}#cloud` },
+    { label: t("features"), href: siteHref("/#features") },
+    { label: t("cloud"), href: siteHref("/#cloud") },
     chooseModelItem,
     latencyItem,
-    { label: t("faq"), href: `/${locale}#faq` },
-    { label: t("support"), href: "/support" },
+    { label: t("faq"), href: siteHref("/#faq") },
+    // A LocaleLink would prefix "en" back onto an English-only page's link.
+    nativeLinks
+      ? { label: t("support"), href: siteHref("/support"), raw: true }
+      : { label: t("support"), href: "/support" },
   ];
+
+  const brandClassName = "flex justify-start items-center gap-2";
+  const brand = (
+    <>
+      <img
+        alt="HyperWhisper Logo"
+        className="w-8 h-8 rounded-lg"
+        src="/icon/128.png"
+      />
+      <p className="font-bold text-white">HyperWhisper</p>
+    </>
+  );
 
   return (
     <HeroUINavbar
@@ -97,17 +120,15 @@ export const Navbar = () => {
         justify="start"
       >
         <NavbarBrand as="li" className="gap-3 max-w-fit">
-          <LocaleLink
-            className="flex justify-start items-center gap-2"
-            href="/"
-          >
-            <img
-              alt="HyperWhisper Logo"
-              className="w-8 h-8 rounded-lg"
-              src="/icon/128.png"
-            />
-            <p className="font-bold text-white">HyperWhisper</p>
-          </LocaleLink>
+          {nativeLinks ? (
+            <a className={brandClassName} href={siteHref("/")}>
+              {brand}
+            </a>
+          ) : (
+            <LocaleLink className={brandClassName} href="/">
+              {brand}
+            </LocaleLink>
+          )}
         </NavbarBrand>
       </NavbarContent>
 

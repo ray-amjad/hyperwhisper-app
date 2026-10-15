@@ -21,6 +21,7 @@ using System.IO.Compression;
 using HyperWhisper.PortableApplication.Audio;
 using HyperWhisper.Platform.Abstractions.Audio;
 using HyperWhisper.TranscriptionRouting;
+using HyperWhisper.ModelManagement;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -70,6 +71,7 @@ try
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
+    await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
 
     var history = new HistoryRepository(database);
@@ -284,6 +286,13 @@ try
     Assert(fallbackModeSelection.Selected?.Id == mode.Id
         && reloadedSettings.Get<string>("selectedModeId") == mode.Id.ToString("D"),
         "missing selected mode did not fall back and repair device-local state");
+    // #630: status lines say "1 mode" / "2 modes", not the developer shorthand.
+    Assert(Plural.Count(1, "mode", "modes") == "1 mode"
+        && Plural.Count(2, "mode", "modes") == "2 modes"
+        && Plural.Count(0, "mode", "modes") == "0 modes",
+        "Plural.Count did not pick the singular for exactly one and the plural otherwise");
+    Assert(fallbackModeSelection.Items.Count == 1 && fallbackModeSelection.Status.Message == "1 mode",
+        $"the Modes status after loading one mode read '{fallbackModeSelection.Status.Message}' (#630)");
 
     var backupService = new ApplicationBackupService(database, reloadedSettings);
     var exported = await backupService.ExportAsync();
@@ -421,6 +430,57 @@ try
         shell.Vocabulary.Word = " ";
         await shell.Vocabulary.AddAsync();
         Assert(shell.Vocabulary.Status.ErrorCode == "vocabulary.word_required", "vocabulary accepted an empty term");
+        // #634: loading a row into the pill clears the empty-term error, and so does typing.
+        shell.Vocabulary.Selected = (await vocabulary.ListAsync()).First();
+        Assert(!shell.Vocabulary.HasInputError && shell.Vocabulary.InputError.Length == 0,
+            "the empty-term error survived editing a row (#634)");
+        shell.Vocabulary.Selected = null;
+        shell.Vocabulary.Word = string.Empty;
+        shell.Vocabulary.Replacement = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        shell.Vocabulary.Word = "a";
+        Assert(!shell.Vocabulary.HasInputError, "the empty-term error survived typing a word (#634)");
+        shell.Vocabulary.Word = string.Empty;
+        // #634: a failed save of an edited row leaves it selected; loading that same row again
+        // still clears the error and reloads its word.
+        var editedRow = (await vocabulary.ListAsync()).First();
+        shell.Vocabulary.Selected = editedRow;
+        shell.Vocabulary.Word = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        Assert(shell.Vocabulary.Status.ErrorCode == "vocabulary.word_required", "an emptied row was saved (#634)");
+        // The Linux page stays in edit mode on a refused save because the row stays selected:
+        // the next save is that row's update, never a silent rename from an "Add word" chip.
+        Assert(ReferenceEquals(shell.Vocabulary.Selected, editedRow), "a refused save dropped the edited row (#634)");
+        shell.Vocabulary.Selected = editedRow;
+        Assert(!shell.Vocabulary.HasInputError && shell.Vocabulary.Word == editedRow.Word,
+            "re-editing the same row kept the error or an empty pill (#634)");
+        shell.Vocabulary.Selected = null;
+        shell.Vocabulary.Word = string.Empty;
+        shell.Vocabulary.Replacement = string.Empty;
+
+        // #1777: a pasted multi-line text is one word per non-empty line, and a snippet's
+        // replacement keeps its line break. Read back from the database, then removed so the
+        // vocabulary checks below see the list they expect.
+        var pastedBefore = (await vocabulary.ListAsync()).Select(item => item.Id).ToHashSet();
+        shell.Vocabulary.Word = "alpha\nbeta\r\n\n  gamma ";
+        shell.Vocabulary.Replacement = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        shell.Vocabulary.Word = "sig";
+        shell.Vocabulary.Replacement = "Best,\nRay";
+        await shell.Vocabulary.AddAsync();
+        var pasted = (await vocabulary.ListAsync()).Where(item => !pastedBefore.Contains(item.Id)).ToList();
+        Assert(!shell.Vocabulary.Status.HasError
+            && pasted.Select(item => item.Word).Order(StringComparer.Ordinal).SequenceEqual(["alpha", "beta", "gamma", "sig"])
+            && pasted.All(item => !VocabularyWords.HasLineBreak(item.Word)),
+            $"a pasted multi-line vocabulary text was not saved one word per line (#1777): {string.Join(" | ", pasted.Select(item => item.Word))}");
+        Assert(pasted.Single(item => item.Word == "sig").Replacement == "Best,\nRay",
+            "a snippet replacement lost its line break (#1777)");
+        var multiLineRefused = false;
+        try { _ = await vocabulary.UpsertAsync(new VocabularyItem { Word = "line1\nline2" }); }
+        catch (ArgumentException) { multiLineRefused = true; }
+        Assert(multiLineRefused, "the vocabulary store accepted a word with a line break inside it (#1777)");
+        foreach (var item in pasted) Assert(await vocabulary.DeleteAsync(item.Id), $"could not remove the pasted test word {item.Word}");
+        await shell.Vocabulary.RefreshAsync();
         shell.Modes.Selected = null;
         shell.Modes.Name = "";
         await shell.Modes.SaveAsync();
@@ -432,6 +492,8 @@ try
         Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
             "modes accepted a local LLM path outside the models directory");
         shell.Modes.LocalPostProcessingModel = "local-test.gguf";
+        Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
+            "editing a field cleared the error the user is fixing");
         shell.Modes.UserSystemPrompt = new string('p', 8001);
         await shell.Modes.SaveAsync();
         Assert(shell.Modes.Status.ErrorCode == "modes.prompt_too_long",
@@ -442,6 +504,31 @@ try
             "mode editor refused or cut a system prompt at the 8,000-character limit (#1488)");
         shell.Modes.UserSystemPrompt = "Keep the dictated wording.";
         await shell.Modes.SaveAsync();
+        // #632: the editor footer binds Modes.Status. A `Mode saved` must not sit beside a
+        // pending rename, nor greet the next dialog the editor opens.
+        Assert(shell.Modes.Status.Message == "Mode saved" && !shell.Modes.Status.HasError,
+            $"a valid save reported '{shell.Modes.Status.Message}'");
+        var savedName = shell.Modes.Name;
+        shell.Modes.Name = "Renamed Mode";
+        Assert(shell.Modes.Status.Message.Length == 0,
+            $"an unsaved rename still shows '{shell.Modes.Status.Message}' (#632)");
+        shell.Modes.Name = savedName;
+        await shell.Modes.SaveAsync();
+        Assert(shell.Modes.Status.Message == "Mode saved", "the re-save did not report Mode saved");
+        shell.Modes.ReloadSelected();
+        Assert(shell.Modes.Status.Message == "Mode saved", "reloading the saved mode counted as an edit");
+        shell.Modes.BeginEditorSession();
+        Assert(shell.Modes.Status.Message.Length == 0 && !shell.Modes.Status.HasError,
+            $"a freshly opened editor shows '{shell.Modes.Status.Message}' (#632)");
+        // The gear click sets Selected before the editor opens, and the footer is the only place a
+        // failure to remember that selection shows: opening the editor must keep it.
+        shell.Modes.Status.Failure("settings.write_failed", "The selected mode could not be remembered on this device.");
+        shell.Modes.BeginEditorSession();
+        Assert(shell.Modes.Status.ErrorCode == "settings.write_failed",
+            "opening the editor hid the error from persisting the selected mode");
+        shell.Modes.EndEditorSession();
+        Assert(shell.Modes.Status.Message.Length == 0 && !shell.Modes.Status.HasError,
+            $"a discarded editor left '{shell.Modes.Status.Message}' for the next dialog");
         var localMode = (await new ModeRepository(database).ListAsync()).Single();
         Assert(localMode.PostProcessingMode == 2
             && localMode.PostProcessingProvider == "local_llm"
@@ -1384,6 +1471,44 @@ static async Task RunLocalEngineVocabularyOnceTestsAsync(string root)
         Assert(hint.Saved.TranscribedText == "hyper wisper",
             $"{mode.Name}: History's raw transcript held a phonetic correction");
     }
+}
+
+// #1632: the status bar must not say Ready while the selected mode's local model is missing or
+// truncated, and a download that lands makes it Ready again.
+static async Task RunShellMissingLocalModelStatusTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    var database = new ApplicationDb(paths);
+    await database.InitializeAsync();
+    var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "settings.json"));
+    using var http = new HttpClient();
+    var manager = new PortableModelManager(paths, http);
+    var baseModel = PortableModelCatalog.Whisper.Single(model => model.Id == "base");
+    var file = manager.GetInstalledPath(baseModel);
+    Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+    // The #1598 repro: Base cut to 96%.
+    using (var stream = File.Create(file)) { stream.Write("lmgg"u8); stream.SetLength(142_033_406); }
+    var mode = new Mode { Name = "Local Base", ProviderType = "local", Model = "base", Language = "en", PostProcessingMode = 0 };
+    await new ModeRepository(database).UpsertAsync(mode);
+    using var shell = new ApplicationShellViewModel(database, settings, modelManager: manager);
+    await shell.InitializeAsync();
+    shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
+    Assert(shell.Status.Message == "Model 'Base' not downloaded",
+        $"a truncated selected model left the status bar on '{shell.Status.Message}'");
+    shell.Navigate("home");
+    Assert(shell.Status.Message == "Model 'Base' not downloaded", "a page change said Ready over a truncated model");
+
+    using (var stream = File.OpenWrite(file)) stream.SetLength(baseModel.ApproximateSizeBytes);
+    var row = shell.Models!.Items.Single(item => item.Model?.Id == "base");
+    row.Installed = true;
+    Assert(shell.Status.Message == "Ready", $"a finished download left the status bar on '{shell.Status.Message}'");
+
+    shell.Modes.Selected = shell.Modes.Items.First(item => item.Id != mode.Id);
+    var other = shell.Status.Message;
+    shell.Status.Failure("test.error", "Something failed");
+    shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
+    Assert(shell.Status.Message == "Something failed", $"a mode change overwrote an error with '{shell.Status.Message}' (was '{other}')");
 }
 
 static async Task RunShellLanguageRoutingTestsAsync(string root)
@@ -2348,9 +2473,13 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     var repository = new HistoryRepository(database, paths);
 
     // A mixed dataset: today, yesterday, rows either side of a local midnight, and older days in
-    // two months, added out of order so the repository's sort is what orders them.
-    var now = DateTime.UtcNow;
-    var localMidnight = DateTime.Now.Date.AddDays(-3);
+    // two months, added out of order so the repository's sort is what orders them. One local clock
+    // reading seeds the rows and pins the view model's Today, so a run just after local midnight
+    // (where now - 5 min is Yesterday) or one that crosses it expects what the view model shows (#1354).
+    var localNow = DateTime.Now;
+    var today = localNow.Date;
+    var now = localNow.ToUniversalTime();
+    var localMidnight = today.AddDays(-3);
     var dates = new List<DateTime>
     {
         localMidnight.AddMinutes(-1).ToUniversalTime(), localMidnight.AddMinutes(1).ToUniversalTime(),
@@ -2366,7 +2495,7 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
             Date = DateTime.SpecifyKind(dates[(index * 7) % dates.Count], DateTimeKind.Utc),
         });
 
-    using var viewModel = new HistoryViewModel(repository);
+    using var viewModel = new HistoryViewModel(repository) { LocalNow = () => localNow };
     var before = viewModel.GroupRebuildCount;
     await viewModel.RefreshAsync();
     var expected = await repository.ListAsync();
@@ -2375,21 +2504,21 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     // dates.Count + 1, and a clear outside the region made it 2.
     var rebuilds = viewModel.GroupRebuildCount - before;
     Assert(rebuilds == 1, $"a {dates.Count}-row history load rebuilt the day groups {rebuilds} times, not once");
-    AssertHistoryGroups(viewModel, expected, "history load");
+    AssertHistoryGroups(viewModel, expected, today, "history load");
     var headers = viewModel.GroupedItems.OfType<HistoryDateGroup>().ToList();
-    Assert(headers.Count > 20 && headers[0].LocalizationKey == "history.section.today"
+    Assert(headers.Count > 20 && Equals(headers[0], ExpectedHistoryGroup(expected[0].Date.ToLocalTime().Date, today))
         && headers.Any(header => header.LocalizationKey == "history.section.yesterday"),
         $"the history dataset spans {headers.Count} days, too few for the grouping check to prove anything");
     Assert(viewModel.Selected?.Id == expected[0].Id && viewModel.SelectedItems.Count == 1,
         "history load did not select the newest transcript");
-    Assert(viewModel.Status.Message == $"{dates.Count} transcript(s)", $"history load status was '{viewModel.Status.Message}'");
+    Assert(viewModel.Status.Message == $"{dates.Count} transcripts", $"history load status was '{viewModel.Status.Message}'");
 
     // A second load over a full list is still one rebuild (the clear is inside the region too).
     before = viewModel.GroupRebuildCount;
     await viewModel.RefreshAsync();
     rebuilds = viewModel.GroupRebuildCount - before;
     Assert(rebuilds == 1, $"a reload of a full history list rebuilt the day groups {rebuilds} times, not once");
-    AssertHistoryGroups(viewModel, expected, "history reload");
+    AssertHistoryGroups(viewModel, expected, today, "history reload");
 
     viewModel.SearchText = term;
     before = viewModel.GroupRebuildCount;
@@ -2398,26 +2527,27 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     rebuilds = viewModel.GroupRebuildCount - before;
     Assert(matches.Count > 10 && rebuilds == 1,
         $"a {matches.Count}-row history search rebuilt the day groups {rebuilds} times, not once");
-    AssertHistoryGroups(viewModel, matches, "history search");
+    AssertHistoryGroups(viewModel, matches, today, "history search");
     Assert(viewModel.Selected?.Id == matches[0].Id, "history search did not select the newest match");
 
     // A save: ApplicationShellViewModel.OnTranscriptionSaved runs RefreshAsync, which drops the
-    // filter and shows the new row on top, under Today, with one rebuild.
-    var saved = new Transcript { Text = "just saved", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow.AddSeconds(1) };
+    // filter and shows the new row on top, under its own day's header, with one rebuild.
+    var saved = new Transcript { Text = "just saved", Status = TranscriptStatus.Completed, Date = now.AddSeconds(1) };
     await repository.AddAsync(saved);
     before = viewModel.GroupRebuildCount;
     await viewModel.RefreshAsync();
     expected = await repository.ListAsync();
     Assert(viewModel.GroupRebuildCount - before == 1, $"a save rebuilt the day groups {viewModel.GroupRebuildCount - before} times");
-    AssertHistoryGroups(viewModel, expected, "save");
-    Assert(viewModel.Items[0].Id == saved.Id && viewModel.GroupedItems[0] is HistoryDateGroup { LocalizationKey: "history.section.today" }
+    AssertHistoryGroups(viewModel, expected, today, "save");
+    Assert(viewModel.Items[0].Id == saved.Id
+        && Equals(viewModel.GroupedItems[0], ExpectedHistoryGroup(saved.Date.ToLocalTime().Date, today))
         && viewModel.GroupedItems[1] is Transcript { Id: var firstId } && firstId == saved.Id,
-        "a save did not show the new row first, under Today");
+        "a save did not show the new row first, under its day's header");
     Assert(viewModel.Selected?.Id == saved.Id && !viewModel.IsFilteredEmpty && !viewModel.Status.HasError,
         "a save did not reload the way RefreshAsync does");
 
     // A row changed in place (a retry, the Local API) shows its new state after the next save reload.
-    var processing = new Transcript { Text = "in progress", Status = TranscriptStatus.Processing, Date = DateTime.UtcNow.AddSeconds(4) };
+    var processing = new Transcript { Text = "in progress", Status = TranscriptStatus.Processing, Date = now.AddSeconds(4) };
     await repository.AddAsync(processing);
     await viewModel.RefreshAsync();
     processing.Status = TranscriptStatus.Completed;
@@ -2453,18 +2583,18 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
         Assert(false, "the throwing history result did not throw");
     }
     catch (InvalidOperationException exception) when (exception.Message == "history result failed") { }
-    AssertHistoryGroups(viewModel, expected.Take(3).ToList(), "history result that threw");
+    AssertHistoryGroups(viewModel, expected.Take(3).ToList(), today, "history result that threw");
     viewModel.Items.Add(expected[3]);
-    AssertHistoryGroups(viewModel, expected.Take(4).ToList(), "history edit after a result that threw");
+    AssertHistoryGroups(viewModel, expected.Take(4).ToList(), today, "history edit after a result that threw");
     await viewModel.RefreshAsync();
 
     // A single edit still rebuilds: deleting a row takes it and an emptied day header away.
-    var lonely = new Transcript { Text = "lonely day", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow.AddDays(-400) };
+    var lonely = new Transcript { Text = "lonely day", Status = TranscriptStatus.Completed, Date = now.AddDays(-400) };
     await repository.AddAsync(lonely);
     await viewModel.RefreshAsync();
     viewModel.UpdateSelection([viewModel.Items.Single(item => item.Id == lonely.Id)]);
     await viewModel.DeleteSelectedAsync();
-    AssertHistoryGroups(viewModel, await repository.ListAsync(), "history delete");
+    AssertHistoryGroups(viewModel, await repository.ListAsync(), today, "history delete");
 }
 
 static IEnumerable<Transcript> ThrowAfter(IEnumerable<Transcript> rows, int count)
@@ -2474,11 +2604,10 @@ static IEnumerable<Transcript> ThrowAfter(IEnumerable<Transcript> rows, int coun
 }
 
 /// <summary>The grouping the per-row rebuild produced, written out independently of the view model.</summary>
-static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transcript> rows, string what)
+static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transcript> rows, DateTime today, string what)
 {
     Assert(viewModel.Items.Select(item => item.Id).SequenceEqual(rows.Select(item => item.Id)),
         $"{what}: rows are not in repository order");
-    var today = DateTime.Now.Date;
     var expected = new List<object>();
     DateTime? currentDay = null;
     foreach (var row in rows)
@@ -2487,9 +2616,7 @@ static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transc
         if (currentDay != day)
         {
             currentDay = day;
-            expected.Add(day == today ? new HistoryDateGroup("history.section.today", "Today")
-                : day == today.AddDays(-1) ? new HistoryDateGroup("history.section.yesterday", "Yesterday")
-                : new HistoryDateGroup(null, day.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture)));
+            expected.Add(ExpectedHistoryGroup(day, today));
         }
         expected.Add(row.Id);
     }
@@ -2497,6 +2624,12 @@ static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transc
     Assert(actual.Count == expected.Count && actual.Zip(expected).All(pair => Equals(pair.First, pair.Second)),
         $"{what}: day groups differ ({actual.Count} entries, expected {expected.Count})");
 }
+
+/// <summary>The header a row's local day sits under, with <paramref name="today"/> as the view model's Today.</summary>
+static HistoryDateGroup ExpectedHistoryGroup(DateTime day, DateTime today) =>
+    day == today ? new HistoryDateGroup("history.section.today", "Today")
+    : day == today.AddDays(-1) ? new HistoryDateGroup("history.section.yesterday", "Yesterday")
+    : new HistoryDateGroup(null, day.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture));
 
 static void Assert(bool condition, string message)
 {

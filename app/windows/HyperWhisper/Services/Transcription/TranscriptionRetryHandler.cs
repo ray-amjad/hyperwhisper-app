@@ -177,9 +177,9 @@ public class TranscriptionRetryHandler : IDisposable
 
         var modelPath = _modelService.GetModelPath(modelInfo);
 
-        // Skip if already loaded with same model
-        if (_localTranscriptionService.IsInitialized &&
-            _localTranscriptionService.LoadedModelPath == modelPath)
+        // Skip if already loaded with same model, unless an unload is about to
+        // dispose it (#1609): then queue behind the unload and load it again.
+        if (_localTranscriptionService.IsLoadedAndStaying(modelPath))
         {
             return;
         }

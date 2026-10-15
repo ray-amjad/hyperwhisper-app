@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "¿Qué es HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud es una transcripción en la nube integrada, pensada para usuarios menos técnicos que quieren empezar rápido.\n\nSon créditos de pago por uso. Recargas desde tan solo 5 $ (1.000 créditos por 1 $) y los gastas únicamente a medida que transcribes. Tu primera compra de créditos crea automáticamente tu Account Key, así que no hay nada más que comprar.\n    \nOfrecemos cuatro niveles de precisión: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) y Highest (Grok STT, predeterminado en las instalaciones nuevas y con tecnología de SpaceXAI Grok STT). El posprocesamiento es automático y usa de forma predeterminada Grok 4.1 Fast sin razonamiento. No almacenamos nada salvo cuántos créditos consumiste, y te hemos excluido del entrenamiento de modelos en cada proveedor que utilizamos. Consulta nuestra [guía de privacidad de datos](https://hyperwhisper.com/docs/data-privacy) para más detalles.\n\nLos créditos se gastan al coste de procesamiento de los propios proveedores — sin recargo en la transcripción. Al pagar se añade una tarifa fija de procesamiento de pago del 6 %, que se muestra como una línea aparte. Los créditos no utilizados caducan al cabo de 12 meses (ver más abajo).\n\nPara tu tranquilidad, toda la aplicación es de código abierto bajo Apache-2.0 — incluido el backend de Cloud. Puedes leer cada línea de código que se ejecuta entre tu aplicación y los proveedores a los que hacemos de proxy [en GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud es una transcripción en la nube integrada, pensada para usuarios menos técnicos que quieren empezar rápido.\n\nSon créditos de pago por uso. Recargas desde tan solo 5 $ (1.000 créditos por 1 $) y los gastas únicamente a medida que transcribes. Tu primera compra de créditos crea automáticamente tu Account Key, así que no hay nada más que comprar.\n    \nHyperWhisper Cloud te ofrece 12 proveedores de transcripción, desde Groq Whisper hasta ElevenLabs Scribe v2 (consulta [la lista completa y las tarifas](https://hyperwhisper.com/docs/cloud-credits)). Las instalaciones nuevas empiezan con ElevenLabs Scribe v2. El posprocesamiento es automático y las instalaciones nuevas empiezan con Claude Haiku 5.5. No almacenamos nada salvo cuántos créditos consumiste, y te hemos excluido del entrenamiento de modelos en cada proveedor que utilizamos. Consulta nuestra [guía de privacidad de datos](https://hyperwhisper.com/docs/data-privacy) para más detalles.\n\nLos créditos se gastan al coste de procesamiento de los propios proveedores — sin recargo en la transcripción. Al pagar se añade una tarifa fija de procesamiento de pago del 6 %, que se muestra como una línea aparte. Los créditos no utilizados caducan al cabo de 12 meses (ver más abajo).\n\nPara tu tranquilidad, toda la aplicación es de código abierto bajo Apache-2.0 — incluido el backend de Cloud. Puedes leer cada línea de código que se ejecuta entre tu aplicación y los proveedores a los que hacemos de proxy [en GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "¿Se usarán mis datos de voz para entrenar modelos de IA?",
@@ -390,5 +390,12 @@
     "heading": "Código abierto. Nada que ocultar.",
     "body": "HyperWhisper es totalmente de código abierto bajo Apache-2.0 — tanto las aplicaciones de escritorio como el backend de Cloud. Una aplicación que escucha tu micrófono debería ser algo que puedas verificar, no solo algo en lo que confiar: lee cada línea, audita exactamente adónde va tu audio y ten la certeza de que nunca quedarás atrapado — el código es tuyo para hacer un fork y alojarlo tú mismo para siempre. Creado de forma abierta por el creador independiente Ray Amjad.",
     "cta": "Ver en GitHub"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "heading": "Esta página no existe",
+    "description": "Puede que el enlace esté roto o que la página se haya movido.",
+    "home": "Ir a la página de inicio",
+    "download": "Descargar HyperWhisper"
   }
 }

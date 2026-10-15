@@ -823,6 +823,9 @@ Aquesta acció no es pot desfer.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>S'ha cancel·lat la transcripció del fitxer</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>S’està transcrivint el fitxer...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model en ús</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>El mode "{1}" utilitza {0}. Canvia aquest mode a un altre model abans d'eliminar-lo.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1312,8 +1321,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Ja hi ha una gravació o una transcripció de fitxer en curs. Torna-ho a provar quan acabi.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Aquest fitxer és buit, així que no hi ha àudio per transcriure.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Aquest fitxer està malmès o no és un fitxer d'àudio que HyperWhisper pugui llegir.</value>
   </data>
 
 

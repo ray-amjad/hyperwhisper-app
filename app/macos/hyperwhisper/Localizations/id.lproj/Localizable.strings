@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostik Diekspor";
 "alerts.export.diagnostics.success.message" = "Semua log diagnostik telah berhasil diekspor.";
 "alerts.export.diagnostics.saveFailed.message" = "Tidak dapat menyimpan diagnostik ke lokasi yang dipilih: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostik Diekspor Tanpa Log Sistem";
+"alerts.export.diagnostics.noSystemLogs.message" = "File diagnostik telah disimpan, tetapi log sistem aplikasi tidak dapat dibaca, sehingga system-logs.txt hanya berisi alasannya. Alasan: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Ekspor log pembaruan untuk dukungan";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Selesai Onboarding";
 
 "onboarding.setupLater.button" = "Siapkan nanti";
-"onboarding.error.microphone.denied" = "Izin mikrofon ditolak. Silakan berikan izin di Pengaturan Sistem.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Luncurkan saat login";
@@ -336,6 +337,9 @@
 "settings.storage.choose.button" = "Pilih...";
 "settings.storage.dialog.select" = "Pilih Folder";
 "settings.storage.dialog.message" = "Pilih folder untuk menyimpan rekaman";
+"settings.storage.folderRefused.title" = "Folder ini tidak dapat digunakan";
+"settings.storage.folderRefused.notWritable" = "Anda tidak memiliki izin untuk menulis ke “%@”, jadi HyperWhisper tidak dapat menyimpan rekaman di sana. Folder Rekaman tidak diubah.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper tidak dapat membuat folder ini: %@ Folder Rekaman tidak diubah.";
 "settings.storage.storeAsM4A.title" = "Kompres rekaman ke M4A";
 "settings.storage.storeAsM4A.subtitle" = "Mengonversi rekaman WAV ke file yang lebih kecil setelah transkripsi. Matikan untuk menyimpan file WAV asli (lebih besar tetapi tanpa kehilangan).";
 
@@ -383,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Ubah Mode";
 "settings.shortcuts.changeMode.subtitle" = "Hanya berfungsi saat merekam";
+"settings.shortcuts.conflict.alert" = "Pintasan keyboard ini tidak dapat digunakan karena sudah dipakai oleh “%@”.";
 
 "settings.shortcuts.reset.button" = "Setel Ulang ke Default";
 "settings.shortcuts.reset.dialog.title" = "Setel Ulang Pintasan Keyboard";
@@ -576,6 +581,8 @@
 "onboarding.configure.cloud.note" = "Kredit dibayar di muka dan dibagikan di semua Mac yang masuk dengan kunci ini. Waktu idle tidak dikenakan biaya.";
 "onboarding.source.note" = "Mengubah pilihan nanti hanya mengulang langkah ini saja. Semua yang sudah Anda atur lainnya tidak akan hilang.";
 "onboarding.permissions.note" = "Lewati Aksesibilitas dan transkrip akan masuk ke clipboard, siap ditempel. Mengaktifkannya nanti hanya perlu satu klik.";
+"onboarding.permissions.microphone.denied" = "Tidak diizinkan. Aktifkan HyperWhisper di Pengaturan Sistem, lalu kembali ke sini.";
+"onboarding.permissions.continueNeedsMicrophone" = "Lanjutkan memerlukan mikrofon. Izinkan di atas, atau pilih Atur Nanti.";
 "onboarding.welcome.task1.title" = "Pilih cara transkripsi berjalan";
 "onboarding.welcome.task1.caption" = "Di cloud kami, di Mac ini, atau melalui akun penyedia yang sudah Anda bayar.";
 "onboarding.welcome.task2.title" = "Periksa mikrofon Anda";
@@ -899,6 +906,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "audio.error.microphonePermission" = "Izin mikrofon tidak diberikan";
 "audio.error.microphoneInUse" = "HyperWhisper tidak dapat mengakses mikrofon karena aplikasi lain sedang menggunakannya. Jeda aplikasi lain atau ganti input, lalu coba lagi.";
 "audio.error.audioSystemNotResponding" = "Audio macOS tidak merespons, jadi mikrofon tidak dapat dimulai. Coba lagi sebentar lagi. Jika terus terjadi, mulai ulang Mac Anda.";
+"audio.error.recorderStopTimedOut" = "Audio macOS berhenti merespons saat rekaman sedang disimpan, jadi rekaman tidak ditranskripsi. Audio tetap disimpan: HyperWhisper akan mencoba memulihkannya saat dijalankan berikutnya.";
 "audio.error.createEngine" = "Gagal membuat mesin audio";
 "audio.error.noInput" = "Tidak ada input audio yang tersedia";
 "audio.error.createFile" = "Gagal membuat file audio";
@@ -972,6 +980,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.guidance.quotaExceeded" = "Tambahkan kredit ke akun %@ Anda atau perbarui detail tagihan Anda";
 "transcription.guidance.timeout" = "Permintaan memakan waktu terlalu lama. Periksa kecepatan internet Anda dan coba lagi.";
 "transcription.error.noSpeechDetected" = "Tidak ada ucapan terdeteksi dalam rekaman.";
+"transcription.error.audioTooShort" = "Rekaman terlalu pendek untuk ditranskripsi. Silakan rekam lebih lama.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Berbicara dengan jelas ke mikrofon\n• Tahan tombol lebih lama sebelum berbicara\n• Periksa apakah mikrofon Anda berfungsi\n• Pastikan perangkat input yang benar dipilih";
 "transcription.guidance.needsNativeRelaunch" = "Keluar lalu buka kembali HyperWhisper secara native untuk memakai pasca-pemrosesan lokal.";
 "transcription.guidance.localRuntimeUnavailable" = "Coba lagi, atau pilih model lokal yang lebih kecil di pengaturan Mode Anda.";
@@ -1114,6 +1123,13 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcribe.file.error.format.title" = "Format Tidak Didukung";
 "transcribe.file.error.format.message" = "File .%@ tidak didukung oleh %@. Format yang didukung: %@";
 "transcribe.file.error.read" = "Tidak dapat membaca file yang dipilih.";
+"transcribe.file.error.webm" = "WebM tidak didukung. Ubah file ke MP3, M4A, atau WAV, lalu coba lagi.";
+"transcribe.file.error.notAudio" = "File “%@” bukan audio yang valid. File mungkin rusak, atau dalam format yang tidak dapat didekode macOS.";
+"transcribe.file.error.empty" = "File “%@” kosong. Tidak ada audio untuk ditranskripsi.";
+"transcribe.file.error.permission" = "HyperWhisper tidak dapat membaca file “%@”. Periksa izin file tersebut.";
+"transcribe.file.error.folderPermission" = "HyperWhisper tidak dapat membuka folder yang berisi file “%@”. Periksa izin folder tersebut.";
+"transcribe.file.error.privacy" = "Pengaturan privasi macOS memblokir HyperWhisper membaca file “%@”. Izinkan di Pengaturan Sistem > Privasi & Keamanan > Akses Disk Penuh.";
+"transcribe.file.error.tooShort" = "File ini terlalu pendek untuk ditranskripsi (%@ dtk).";
 "transcribe.file.error.copy" = "Gagal menyalin file ke folder rekaman.";
 "transcribe.file.error.video.title" = "Tidak Ada Audio dalam Video";
 "transcribe.file.error.video.noAudio" = "File video ini tidak berisi trek audio. Silakan pilih video dengan audio atau file audio.";

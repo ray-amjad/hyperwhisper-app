@@ -54,7 +54,8 @@ struct FileTranscriptionFailedRowTests {
 
     // MARK: - Error path
 
-    /// An error after the row exists marks it failed, with the dictation text.
+    /// An error after the row exists marks it failed, with the reason and no
+    /// text (#1427).
     @Test func errorAfterRowExistsMarksRowFailed() async throws {
         let persistence = PersistenceController(inMemory: true)
         let audio = try makeAudioFile()
@@ -70,7 +71,7 @@ struct FileTranscriptionFailedRowTests {
         let saved = try reload(row.objectID, in: persistence)
         #expect(status(saved) == "failed")
         #expect(failedReason(saved) == "Transcription manager unavailable")
-        #expect(saved.text == "Transcription failed: Transcription manager unavailable")
+        #expect(saved.text == "")
         #expect(flow.processingTranscriptID == nil)
         // Retry needs the audio: canRetry = failed + audio file on disk.
         #expect(saved.audioFilePath == audio.path)
@@ -84,7 +85,7 @@ struct FileTranscriptionFailedRowTests {
         }
         let outcome = FileTranscriptionFlow.failureOutcome(for: NoKey())
         #expect(outcome.failedReason == "No API key for OpenAI")
-        #expect(outcome.errorText == "Transcription failed: No API key for OpenAI")
+        #expect(outcome.errorText == "")
     }
 
     /// A failure before the row exists has nothing to resolve and writes nothing.
@@ -118,7 +119,7 @@ struct FileTranscriptionFailedRowTests {
         let saved = try reload(row.objectID, in: persistence)
         #expect(status(saved) == "failed")
         #expect(failedReason(saved) == "cancelled")
-        #expect(saved.text == "Transcription cancelled")
+        #expect(saved.text == "")
         #expect(flow.processingTranscriptID == nil)
         #expect(FileManager.default.fileExists(atPath: audio.path))
     }
@@ -138,7 +139,7 @@ struct FileTranscriptionFailedRowTests {
 
         let saved = try reload(row.objectID, in: persistence)
         #expect(failedReason(saved) == "cancelled")
-        #expect(saved.text == "Transcription cancelled")
+        #expect(saved.text == "")
     }
 
     /// A cancel after the row completed (the flow clears the ID with the
@@ -157,9 +158,9 @@ struct FileTranscriptionFailedRowTests {
         #expect(saved.text == "hello world")
     }
 
-    @Test func cancellationMapsToTheDictationCancelText() {
+    @Test func cancellationMapsToTheCancelledReasonAndNoText() {
         let outcome = FileTranscriptionFlow.failureOutcome(for: CancellationError())
         #expect(outcome.failedReason == "cancelled")
-        #expect(outcome.errorText == "Transcription cancelled")
+        #expect(outcome.errorText == "")
     }
 }

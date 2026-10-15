@@ -625,26 +625,26 @@ extension RecordingTranscriptionFlow {
 
         // Stop the recording and capture result for cleanup.
         // Pass cancelled: true to skip file finalization — the raw file has no
-        // useful audio and will be deleted below (fixes HYPERWHISPER-F1).
+        // useful audio and stopRecording deletes it and its session row
+        // (fixes HYPERWHISPER-F1). Not the manager's current session here: since #1359 it
+        // may belong to a recording started during the stop wait.
         let result = await recordingLifecycle.stopRecording(cancelled: true)
 
-        // Fallback: if deleteCurrentSession doesn't catch the file (session already
-        // cleared by stopRecording's error path), delete it directly.
+        // #1359: a stop that timed out kept its WAV and session row for crash
+        // recovery, and the user must be told so; that outranks the validation message.
+        let stopTimedOut = recordingLifecycle.lastStopTimedOut
+
+        // Fallback: delete a file the stop handed back.
         if let url = result?.url, FileManager.default.fileExists(atPath: url.path) {
             try? FileManager.default.removeItem(at: url)
             AppLogger.audio.info("Deleted orphaned audio file from cancelled recording")
         }
 
-        // Clean up orphaned Core Data session and its audio file.
-        // stopRecording() finalizes the file and updates the session entity,
-        // deleteCurrentSession() then removes both.
-        await recordingLifecycle.sessionManager.deleteCurrentSession()
-
         await MainActor.run {
             appState?.recordingState = .idle
             appState?.showRecordingDialog = false
             appState?.isStreamingShortcutTriggered = false  // Reset streaming shortcut flag
-            appState?.showError(message)
+            appState?.showError(stopTimedOut ? AudioError.recorderStopTimedOut.localizedDescription : message)
         }
 
         // Cleanup

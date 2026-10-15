@@ -321,6 +321,21 @@ struct MenuBarIconView: View {
                     // Update transcription manager when models change
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
+                // A finished Whisper download prepares the selected mode again, so a
+                // mode that launched on a missing or truncated file returns to Ready
+                // (#1632). Fires after the rescan above: same publisher, registered later.
+                .onReceive(
+                    whisperModelManager.$downloadedModels
+                        .dropFirst()
+                        .map { models in models.map(\.name) }
+                        .removeDuplicates()
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
+                }
                 .onReceive(parakeetModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
@@ -340,6 +355,26 @@ struct MenuBarIconView: View {
                 }
                 .onReceive(nemotronModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
+                }
+                // Prepare the selected Nemotron mode again once its install changes,
+                // or once a Re-download clears a broken flag: that leaves
+                // availableModels equal, so watch the flag too (#1632). A flag being
+                // set is skipped, or each failed load would retry the load.
+                .onReceive(
+                    nemotronModelManager.$availableModels
+                        .dropFirst()
+                        .removeDuplicates()
+                        .map { _ in () }
+                        .merge(with: nemotronModelManager.$brokenVariants
+                            .scan((Set<String>(), Set<String>())) { pair, next in (pair.1, next) }
+                            .filter { pair in !pair.0.isSubset(of: pair.1) }
+                            .map { _ in () })
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
                 }
                 .onReceive(localModelManager.$downloadedModels) { _ in
                     cloudProviderHealthManager.refreshAllPostProcessing(force: true)
@@ -1204,6 +1239,10 @@ struct MenuBarIconView: View {
         // disabled, and keep OS-level registration in sync with the settings
         // toggles (settings change paths post .shortcutDidChange).
         syncFeatureGatedHotkeys()
+
+        // A recorder refuses a combo another action uses, and says which (#1474).
+        ShortcutConflictGuard.shared.start()
+
         NotificationCenter.default.addObserver(
             forName: .shortcutDidChange,
             object: nil,
@@ -1312,8 +1351,8 @@ struct MenuBarIconView: View {
     
     /// Exports all diagnostics (combines update logs and system logs)
     private func exportAllDiagnostics() {
-        AppLogger.exportDiagnostics { exportURL in
-            guard let exportURL = exportURL else {
+        AppLogger.exportDiagnostics { export in
+            guard let export else {
                 // Show error alert if export failed
                 let alert = NSAlert()
                 alert.messageText = "alerts.export.failed.title".localized
@@ -1322,6 +1361,8 @@ struct MenuBarIconView: View {
                 alert.runModal()
                 return
             }
+            
+            let exportURL = export.url
             
             // Open save panel for user to choose destination
             let savePanel = NSSavePanel()
@@ -1338,11 +1379,20 @@ struct MenuBarIconView: View {
                         }
                         try FileManager.default.moveItem(at: exportURL, to: destination)
                         
-                        // Show success alert
+                        // Only claim every log made it when system-logs.txt
+                        // holds real log lines (#1480). Otherwise the zip is
+                        // still worth sending, and the alert gives the reason.
                         let successAlert = NSAlert()
-                        successAlert.messageText = "alerts.export.diagnostics.success.title".localized
-                        successAlert.informativeText = "alerts.export.diagnostics.success.message".localized
-                        successAlert.alertStyle = .informational
+                        switch export.systemLogs {
+                        case .written:
+                            successAlert.messageText = "alerts.export.diagnostics.success.title".localized
+                            successAlert.informativeText = "alerts.export.diagnostics.success.message".localized
+                            successAlert.alertStyle = .informational
+                        case .unavailable(let reason):
+                            successAlert.messageText = "alerts.export.diagnostics.noSystemLogs.title".localized
+                            successAlert.informativeText = "alerts.export.diagnostics.noSystemLogs.message".localized(arguments: reason)
+                            successAlert.alertStyle = .warning
+                        }
                         successAlert.runModal()
                     } catch {
                         // Show error alert

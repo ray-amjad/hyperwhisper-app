@@ -28,28 +28,34 @@ export default function CreditHistoryCard() {
             className="flex items-center justify-between gap-4 border-b border-white/5 pb-3 last:border-0 last:pb-0"
           >
             <div className="min-w-0">
+              {/* <bdi> keeps the English number-and-word order on an RTL page (#1659). */}
               <p className="text-white font-medium">
-                {grant.originalAmount.toLocaleString()} credits
+                <bdi>{grant.originalAmount.toLocaleString()} credits</bdi>
               </p>
               <p className="text-xs text-gray-500 mt-0.5">
-                {formatDate(grant.createdAt)}
-                {grant.expiresAt && (
-                  <>
-                    {" · "}
-                    {grant.expired ? (
-                      <span className="text-red-400">
-                        expired {formatDate(grant.expiresAt)}
-                      </span>
-                    ) : (
-                      <span>expires {formatDate(grant.expiresAt)}</span>
-                    )}
-                  </>
-                )}
+                <bdi>
+                  {formatDate(grant.createdAt)}
+                  {grant.expiresAt && (
+                    <>
+                      {" · "}
+                      {grant.expired ? (
+                        <span className="text-red-400">
+                          expired {formatDate(grant.expiresAt)}
+                        </span>
+                      ) : (
+                        <span>expires {formatDate(grant.expiresAt)}</span>
+                      )}
+                    </>
+                  )}
+                </bdi>
               </p>
             </div>
             <div className="text-right shrink-0">
               <p className="text-sm text-gray-300">
-                {grant.expired ? 0 : grant.remainingAmount.toLocaleString()} left
+                <bdi>
+                  {grant.expired ? 0 : grant.remainingAmount.toLocaleString()}{" "}
+                  left
+                </bdi>
               </p>
             </div>
           </div>

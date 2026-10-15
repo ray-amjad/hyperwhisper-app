@@ -66,6 +66,16 @@ enum TranscriptionError: LocalizedError {
     /// which is suppressed. If this fires we want to see it.
     ///
     /// - Parameter model: the model that was evicted, for diagnostics.
+    case localSpeechModelEvicted(model: String? = nil)
+    /// The audio is too short for a local engine to transcribe (Nemotron,
+    /// Parakeet and Qwen3 ASR refuse a file under 5,000 bytes).
+    ///
+    /// Its own case, not a `providerNotAvailable` reason (issue #1427): that
+    /// case renders as "<engine> is not available", which told a user with a
+    /// working engine that it was broken. The description keeps the dictation
+    /// wording; a file import shows its own "file is too short" message.
+    ///
+    /// - Parameter fileSize: the audio file's size in bytes, for logs.
     ///
     /// ⚠️ APPEND-ONLY ENUM — always add new cases at the END, never in the
     /// middle, and move this warning down to stay on the last case.
@@ -73,7 +83,7 @@ enum TranscriptionError: LocalizedError {
     /// index and is recorded in Sentry extras as `errorCode`. Inserting a case
     /// mid-enum silently renumbers every case after it and invalidates all
     /// historical Sentry triage.
-    case localSpeechModelEvicted(model: String? = nil)
+    case audioTooShort(fileSize: Int64)
 
     var errorDescription: String? {
         switch self {
@@ -160,6 +170,8 @@ enum TranscriptionError: LocalizedError {
             // on the model name, only on the memory pressure. The name is
             // carried for logs and Sentry.
             return "transcription.error.localSpeechModelEvicted".localized
+        case .audioTooShort:
+            return "transcription.error.audioTooShort".localized
         }
     }
 
@@ -178,7 +190,7 @@ enum TranscriptionError: LocalizedError {
         // `.localSpeechModelEvicted` is NOT retryable: the pass already reloaded
         // the model once and lost it again, so the pressure is sustained and an
         // automatic retry would reload and lose it over and over.
-        case .audioFileNotFound, .apiKeyMissing(_), .modelNotDownloaded, .modelProtected, .maxRetriesExceeded, .unauthorized, .invalidRequest, .busy, .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _), .insufficientCredits(_, _), .quotaExceeded(_, _), .noSpeechDetected, .localRuntimeUnavailable(_), .cloudAccountRequired(_), .localSpeechModelEvicted(_):
+        case .audioFileNotFound, .apiKeyMissing(_), .modelNotDownloaded, .modelProtected, .maxRetriesExceeded, .unauthorized, .invalidRequest, .busy, .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _), .insufficientCredits(_, _), .quotaExceeded(_, _), .noSpeechDetected, .localRuntimeUnavailable(_), .cloudAccountRequired(_), .localSpeechModelEvicted(_), .audioTooShort(_):
             return false
         }
     }
@@ -212,7 +224,7 @@ enum TranscriptionError: LocalizedError {
              .providerNotAvailable, .modelNotDownloaded, .modelProtected, .audioFileNotFound,
              .maxRetriesExceeded, .invalidRequest, .streamingInterrupted, .busy,
              .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _),
-             .localRuntimeUnavailable(_), .localSpeechModelEvicted(_):
+             .localRuntimeUnavailable(_), .localSpeechModelEvicted(_), .audioTooShort(_):
             // Nothing in Settings frees memory; the user's action is elsewhere.
             return false
         }

@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Транскрибування файлу скасовано</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Розшифрування файлу...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Модель використовується</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} використовується режимом «{1}». Перемкніть цей режим на іншу модель, перш ніж видаляти її.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1312,8 +1321,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Уже триває запис або транскрибування файлу. Спробуйте файл ще раз, коли воно завершиться.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Цей файл порожній, тому в ньому немає аудіо для транскрибування.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Цей файл пошкоджений або не є аудіофайлом, який може прочитати HyperWhisper.</value>
   </data>
 
   <!-- Mode Change Toast -->

@@ -1087,11 +1087,22 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Stop the onboarding input-level preview and release the microphone.
     /// Safe to call repeatedly; also invoked when onboarding is dismissed and
     /// whenever a real recording starts.
+    ///
+    /// The `stop()` runs on `inputLevelPreviewMeterQueue`, behind any read in
+    /// flight, so a read and a stop of the same recorder never overlap and a read
+    /// stuck on the AudioQueue lock cannot freeze the main thread here (#1359).
+    /// Nothing waits for it: the preview writes to `/dev/null`, so there is no
+    /// file to finalise.
     func stopInputLevelPreview() {
         inputLevelPreviewTask?.cancel()
         inputLevelPreviewTask = nil
-        inputLevelPreviewRecorder?.stop()
-        inputLevelPreviewRecorder = nil
+        if let recorder = inputLevelPreviewRecorder {
+            inputLevelPreviewRecorder = nil
+            let queue = inputLevelPreviewMeterQueue
+            queue.async {
+                SimpleRecorder.stopAndReleaseLater(recorder, on: queue, using: SimpleRecorder.defaultRecorderStopper)
+            }
+        }
         idleInputLevel = 0
     }
 

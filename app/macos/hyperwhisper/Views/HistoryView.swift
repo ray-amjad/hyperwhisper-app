@@ -488,19 +488,27 @@ private final class HistoryViewModel: ObservableObject {
             queue: .main
         ) { [weak self] notification in
             Task { @MainActor [weak self] in
-                guard let self, self.containsTranscriptChanges(notification) else { return }
-                self.enqueueCurrentQuery()
+                guard let self else { return }
+                // A mode added, renamed or deleted while History is open (the
+                // Modes page, the Local API) must reach "Retry with..." now: a
+                // deleted mode left in the list showed as "Unknown" (#1620).
+                if HistoryViewModel.containsChanges(to: "Mode", in: notification) {
+                    self.refreshAvailableModes()
+                }
+                if HistoryViewModel.containsChanges(to: "Transcript", in: notification) {
+                    self.enqueueCurrentQuery()
+                }
             }
         }
     }
 
-    private func containsTranscriptChanges(_ notification: Notification) -> Bool {
+    private static func containsChanges(to entityName: String, in notification: Notification) -> Bool {
         let keys = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
         for key in keys {
             guard let objects = notification.userInfo?[key] as? Set<NSManagedObject> else {
                 continue
             }
-            if objects.contains(where: { $0.entity.name == "Transcript" }) {
+            if objects.contains(where: { $0.entity.name == entityName }) {
                 return true
             }
         }
@@ -668,6 +676,11 @@ private struct HistoryScreen: View, Equatable {
             }
             .keyboardShortcut(.delete, modifiers: [])
         } else {
+            // The snapshot only knows the path is set. Check the file itself, so
+            // a row whose audio was moved or deleted doesn't offer a retry the
+            // detail pane already calls unavailable (#1455).
+            let audioOnDisk = audioFileIsOnDisk(item)
+
             if item.canRetry {
                 Button(action: { retryTranscript(item.objectID) }) {
                     Label {
@@ -676,26 +689,32 @@ private struct HistoryScreen: View, Equatable {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
-                .disabled(isRetrying(item))
+                .disabled(isRetrying(item) || !audioOnDisk)
 
                 Divider()
             }
 
             if item.hasAudioPath {
-                Menu {
-                    ForEach(viewModel.availableModes, id: \.objectID) { mode in
-                        Button {
-                            retryTranscript(item.objectID, with: mode)
-                        } label: {
-                            Text(mode.name ?? "Unknown")
+                if audioOnDisk {
+                    Menu {
+                        ForEach(viewModel.availableModes, id: \.objectID) { mode in
+                            Button {
+                                retryTranscript(item.objectID, with: mode)
+                            } label: {
+                                Text(mode.name ?? "Unknown")
+                            }
                         }
+                    } label: {
+                        retryWithLabel
                     }
-                } label: {
-                    Label {
-                        Text(localized: "history.context.retryWith")
-                    } icon: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
+                } else {
+                    // .disabled on a context-menu Menu only grays its items; the
+                    // submenu header stays live and still opens. A disabled Button
+                    // with the same label is the item that actually greys out.
+                    Button(action: {}) {
+                        retryWithLabel
                     }
+                    .disabled(true)
                 }
 
                 Divider()
@@ -708,6 +727,7 @@ private struct HistoryScreen: View, Equatable {
                     Image(systemName: "doc.on.doc")
                 }
             }
+            .disabled((item.postProcessedText ?? item.text).isEmpty)
 
             Divider()
 
@@ -850,6 +870,20 @@ private struct HistoryScreen: View, Equatable {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    private var retryWithLabel: some View {
+        Label {
+            Text(localized: "history.context.retryWith")
+        } icon: {
+            Image(systemName: "arrow.triangle.2.circlepath")
+        }
+    }
+
+    /// True when the row's original audio file is on disk right now.
+    private func audioFileIsOnDisk(_ item: HistoryItemSnapshot) -> Bool {
+        guard let path = item.audioFilePath else { return false }
+        return FileManager.default.fileExists(atPath: path)
     }
 
     private func isRetrying(_ item: HistoryItemSnapshot) -> Bool {
@@ -1021,6 +1055,30 @@ enum AudioFileState {
     case exists
     /// File confirmed missing or no audio path (show missing message)
     case missing
+}
+
+/// What pressing Play in the History detail pane should do.
+///
+/// #1456: the "file exists" flag is cached when the row's metadata loads, so a
+/// file moved away while the row stays open used to make Play do nothing at
+/// all. Play re-checks the disk at press time instead of trusting the cache.
+enum HistoryPlaybackStart: Equatable {
+    /// The selected file is on disk: open it and play.
+    case play(URL)
+    /// The selected file is gone (or there is none): re-check the row's audio
+    /// so the pane shows the missing-audio state instead of a dead ▶.
+    case audioGone
+
+    static func resolve(
+        path: String?,
+        cachedExists: Bool,
+        fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+    ) -> HistoryPlaybackStart {
+        guard let path, !path.isEmpty, cachedExists, fileExists(path) else {
+            return .audioGone
+        }
+        return .play(URL(fileURLWithPath: path))
+    }
 }
 
 // MARK: - Transcript Detail View
@@ -1452,10 +1510,14 @@ private struct TranscriptDetailView: View {
             isPlaying = false
         } else {
             // Use selectedAudioFilePath to play either original or trimmed audio
-            // based on the user's toggle selection
-            if let audioPath = selectedAudioFilePath, selectedAudioPathExists {
+            // based on the user's toggle selection. The cached exists flag can be
+            // stale (#1456), so the disk is checked again here.
+            switch HistoryPlaybackStart.resolve(path: selectedAudioFilePath, cachedExists: selectedAudioPathExists) {
+            case .audioGone:
+                historyViewLogger.warning("Play pressed but the selected audio file is gone; re-checking the row's audio")
+                Task { await refreshAudioMetadata() }
+            case .play(let url):
                 do {
-                    let url = URL(fileURLWithPath: audioPath)
                     let player = try AVAudioPlayer(contentsOf: url)
                     audioPlayer = player
                     player.play()
@@ -1472,6 +1534,9 @@ private struct TranscriptDetailView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + player.duration, execute: workItem)
                 } catch {
                     historyViewLogger.error("Error playing audio: \(error, privacy: .public)")
+                    // The file can vanish between the check and the open. Re-check
+                    // so a gone file drops the pane to the missing-audio banner.
+                    Task { await refreshAudioMetadata() }
                 }
             }
         }
@@ -1497,7 +1562,10 @@ private struct TranscriptDetailView: View {
             } label: {
                 Label(LocalizedStringKey("common.copy"), systemImage: "doc.on.doc")
             }
-            
+            // A failed import has no text (#1427); copying "" would only empty
+            // the user's clipboard.
+            .disabled(displayedText.isEmpty)
+
             // RETRY BUTTON:
             // Shows for failed transcriptions when audio file exists
             if isFailedTranscript && canRetry {

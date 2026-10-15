@@ -823,6 +823,9 @@ Esta ação não pode ser desfeita.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcrição do ficheiro cancelada</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>A transcrever ficheiro...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Desconhecido</value>
   </data>
@@ -1159,6 +1162,12 @@ Pode voltar a descarregá-lo mais tarde.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modelo em uso</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} é usado pelo modo "{1}". Mude esse modo para outro modelo antes de excluí-lo.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Desativar licença</value>
@@ -1312,8 +1321,17 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>Ficheiro não encontrado</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Já está em curso uma gravação ou transcrição de ficheiro. Tente o ficheiro novamente quando terminar.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>O ficheiro é demasiado grande para este fornecedor. Tamanho máximo: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Este ficheiro está vazio, por isso não há áudio para transcrever.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Este ficheiro está danificado ou não é um ficheiro de áudio que o HyperWhisper consiga ler.</value>
   </data>
 
   <!-- Mode Change Toast -->

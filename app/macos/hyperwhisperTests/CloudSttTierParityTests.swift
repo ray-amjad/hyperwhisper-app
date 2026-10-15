@@ -116,12 +116,22 @@ struct CloudSttTierParityTests {
             ("universal-3-pro", .assemblyAI, "universal-3-5-pro"),
             ("universal-3-pro-medical", .assemblyAI, "universal-3-5-pro-medical"),
             ("stt-async-v4", .soniox, "stt-async-v5"),
-            ("gemini-3.1-flash-lite-preview", .gemini, "gemini-3.1-flash-lite"),
+            ("gemini-3.1-flash-lite-preview", .gemini, "gemini-2.5-flash-lite"),
+            ("gemini-2.0-flash", .gemini, "gemini-3.8-flash"),
         ]
 
         for (oldId, provider, replacement) in cases {
             #expect(CloudTranscriptionModels.resolveModelAlias(oldId, provider: provider) == replacement)
             #expect(CloudTranscriptionModels.model(withId: replacement, provider: provider) != nil)
+        }
+
+        // #796: a Gemini target the Cloud catalog does not sell is judged foreign
+        // and swapped, so pin each target to the catalog entry's models.
+        let sold = Set(CloudSTTCatalog.shared.models(forEntryId: "gemini").map(\.id))
+        #expect(!sold.isEmpty)
+        for oldId in ["gemini-3.1-flash-lite-preview", "gemini-2.0-flash", "gemini-3-flash-preview"] {
+            let target = CloudTranscriptionModels.resolveModelAlias(oldId, provider: .gemini)
+            #expect(sold.contains(target), "\(oldId) resolves to \(target), which the gemini catalog entry does not sell")
         }
     }
 

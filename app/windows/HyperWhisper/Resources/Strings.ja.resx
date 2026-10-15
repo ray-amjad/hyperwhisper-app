@@ -911,6 +911,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>ファイルの文字起こしをキャンセルしました</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>ファイルを文字起こし中...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>不明</value>
   </data>
@@ -1250,6 +1253,12 @@
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>使用中のモデル</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} はモード「{1}」で使用されています。削除する前に、そのモードを別のモデルに切り替えてください。</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>ライセンスを無効化</value>
@@ -1399,8 +1408,17 @@
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>ファイルが見つかりません</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>録音またはファイルの文字起こしが既に実行中です。完了してからもう一度ファイルをお試しください。</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>このプロバイダーにはファイルが大きすぎます。最大サイズ: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>このファイルは空のため、文字起こしする音声がありません。</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>このファイルは破損しているか、HyperWhisper が読み込めるオーディオファイルではありません。</value>
   </data>
 
   <!-- Update UI -->

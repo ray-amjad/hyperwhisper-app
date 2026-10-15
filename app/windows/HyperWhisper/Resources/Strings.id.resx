@@ -823,6 +823,9 @@ Tindakan ini tidak dapat dibatalkan.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transkripsi file dibatalkan</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Mentranskripsikan file...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model sedang digunakan</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} digunakan oleh mode "{1}". Ganti mode tersebut ke model lain sebelum menghapusnya.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1312,8 +1321,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Perekaman atau transkripsi file sedang berjalan. Coba file itu lagi setelah selesai.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>File ini kosong, jadi tidak ada audio untuk ditranskripsi.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>File ini rusak atau bukan file audio yang dapat dibaca HyperWhisper.</value>
   </data>
 
 

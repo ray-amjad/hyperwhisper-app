@@ -176,13 +176,13 @@ private actor EventLog {
         #expect(handle.contains("Self.whisperPassCancelled"))
     }
 
-    /// whisper.cpp finishes a decode it was cancelled in, so the pass checks
-    /// after it: a pass an in-app dictation cancelled throws instead of
-    /// returning the transcript it went on to produce.
+    /// whisper.cpp can finish a decode cancelled in its last window, so the
+    /// pass checks after it: a pass an in-app dictation cancelled throws
+    /// instead of returning the transcript it went on to produce.
     @Test func aPassCancelledMidDecodeDropsItsText() throws {
         let finish = try ProductionSource.slice(
             of: Self.providerSource,
-            from: "let output = try await task.value",
+            from: "let output = try await withTaskCancellationHandler {",
             to: "return output"
         )
         #expect(finish.contains("if task.isCancelled || cancellationEpoch != epoch {"))

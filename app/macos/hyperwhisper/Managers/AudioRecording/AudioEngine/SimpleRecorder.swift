@@ -31,6 +31,20 @@ enum RecorderStartOutcome: Sendable {
     case superseded
 }
 
+/// How a `SimpleRecorder.stopRecording()` ended (#1359).
+///
+/// File scope for the same reason as `RecorderStartOutcome`.
+enum RecorderStopOutcome: Sendable {
+    /// `stop()` returned, so the file is finalised and safe to read. Also what a
+    /// stop with no installed recorder reports.
+    case stopped
+    /// `stop()` did not return within `SimpleRecorder.recorderStopTimeout`,
+    /// because a meter read ahead of it on the meter queue (or `stop()` itself) is
+    /// stuck on the AudioQueue lock. The file was never finalised: do not read it.
+    /// The stop still runs when the lock frees, so the microphone is released then.
+    case timedOut
+}
+
 /// Simple audio recorder using AVAudioRecorder
 ///
 /// **Why This Exists:**
@@ -55,12 +69,6 @@ class SimpleRecorder: NSObject, ObservableObject {
 
     /// Task for periodic meter updates
     private var meterUpdateTask: Task<Void, Never>?
-
-    /// Keep the last stopped recorder alive briefly to avoid AudioQueue callback/dealloc races.
-    private var recorderRetention: AVAudioRecorder?
-
-    /// Deferred release task for `recorderRetention`.
-    private var recorderReleaseTask: Task<Void, Never>?
 
     /// Monotonic ticket that invalidates an in-flight `startRecording(to:)`.
     ///
@@ -185,6 +193,32 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// behind it. Only touched on the main actor.
     private(set) var meterReadInFlight = false
 
+    // MARK: - Stop (off the main actor, behind the meter read)
+
+    /// Stops one recorder. Runs on `meterQueue`, never on the main thread.
+    typealias RecorderStopper = @Sendable (AVAudioRecorder) -> Void
+
+    /// The production stop. `delegate` is never assigned by this class; clearing
+    /// it is belt and braces against a late callback into a retired recorder.
+    nonisolated static let defaultRecorderStopper: RecorderStopper = { recorder in
+        recorder.delegate = nil
+        recorder.stop()
+    }
+
+    /// The stop. Test seam, like `meterReader`: a test swaps in a fake to see
+    /// when, and on which thread, the stop runs. Production never changes it.
+    var recorderStopper: RecorderStopper = SimpleRecorder.defaultRecorderStopper
+
+    /// How long `stopRecording()` waits for `stop()` to run and return before it
+    /// reports `.timedOut` (#1359, Ray 2026-10-07: at most 5 s). A healthy stop
+    /// waits behind at most one ~1 ms meter read; the HYPERWHISPER-KB lock stall
+    /// ran to 10 s.
+    nonisolated static let recorderStopTimeout: DispatchTimeInterval = .seconds(5)
+
+    /// The deadline `stopRecording()` uses. Test seam, so a test does not wait
+    /// the full 5 s. Production never changes it.
+    var stopTimeout: DispatchTimeInterval = SimpleRecorder.recorderStopTimeout
+
     /// Test seam: put `recorder` in the installed slot without starting it, the
     /// meter loop, or `isRecording`, so a test can reach the publish guards in
     /// `finishMeterRead`. Production never calls it.
@@ -194,7 +228,6 @@ class SimpleRecorder: NSObject, ObservableObject {
 
     deinit {
         meterUpdateTask?.cancel()
-        recorderReleaseTask?.cancel()
     }
 
     // MARK: - Recording Control
@@ -231,12 +264,13 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// "a recorder created on a thread without a run loop never delivers its
     /// delegate callbacks" hazard does not apply. Do not add a run loop here.
     ///
-    /// **What did NOT move off the main actor:** the `recorder` /
-    /// `recorderRetention` / `recorderReleaseTask` state, the `@Published`
-    /// `isRecording` and `audioLevel` writes, the `startMeterUpdates()` loop, and
-    /// `stopRecording()`. The meter read itself (`updateMeters` +
-    /// `averagePower`) DID move, to `meterQueue` — see
-    /// `requestMeterRead(from:)` (Sentry HYPERWHISPER-KB). Resuming the
+    /// **What did NOT move off the main actor:** the `recorder` state, the
+    /// `@Published` `isRecording` and `audioLevel` writes, the
+    /// `startMeterUpdates()` loop, and the bookkeeping half of `stopRecording()`.
+    /// The meter read itself (`updateMeters` + `averagePower`) DID move, to
+    /// `meterQueue` — see `requestMeterRead(from:)` (Sentry HYPERWHISPER-KB) —
+    /// and so did the live recorder's `stop()`, behind it on the same queue —
+    /// see `stopOnMeterQueue(_:on:timeout:using:)` (#1359). Resuming the
     /// continuation establishes the happens-before edge for each handoff, which
     /// is why no `@unchecked Sendable` conformance is needed anywhere.
     ///
@@ -362,7 +396,7 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// the newer attempt holds the highest ticket, so it legitimately wins, but
     /// assigning straight over `recorder` would drop the last strong reference to a
     /// *running* `AVAudioRecorder` and deallocate it inline on the main actor,
-    /// mid-record, with none of the 300 ms `recorderRetention` AudioQueue-drain
+    /// mid-record, with none of the meter-queue stop and 300 ms AudioQueue-drain
     /// discipline the rest of this file insists on — and would leave the displaced
     /// recorder's `meterUpdateTask` running against it. `retireActiveRecorder()` is
     /// therefore run first, so there is exactly one path by which a live recorder is
@@ -386,10 +420,6 @@ class SimpleRecorder: NSObject, ObservableObject {
             AppLogger.audio.error("Recorder start refused: an earlier start is still blocked in CoreAudio")
             throw AudioError.audioSystemNotResponding
         }
-
-        // Cancel any pending deferred release from a previous stop.
-        recorderReleaseTask?.cancel()
-        recorderReleaseTask = nil
 
         // Take a ticket for this attempt before suspending. Any stop, any
         // `cancelPendingStart()`, or any later start invalidates it.
@@ -434,7 +464,15 @@ class SimpleRecorder: NSObject, ObservableObject {
                 category: "audio.recording",
                 level: .warning
             )
-            retireActiveRecorder()
+            // Nobody reads the displaced recorder's file now, so its stop is not
+            // awaited: it only has to land on the meter queue, behind any read.
+            if let displaced = retireActiveRecorder() {
+                let queue = meterQueue
+                let stopper = recorderStopper
+                queue.async {
+                    SimpleRecorder.stopAndReleaseLater(displaced, on: queue, using: stopper)
+                }
+            }
         }
 
         recorder = startedRecorder
@@ -472,14 +510,15 @@ class SimpleRecorder: NSObject, ObservableObject {
         return true
     }
 
-    /// Stop, retire and schedule the release of whatever is installed in `recorder`,
-    /// and cancel the meter loop reading from it.
+    /// Take whatever is installed in `recorder` out of the slot, and cancel the meter
+    /// loop reading from it. The caller stops the returned recorder on `meterQueue`.
     ///
     /// The single teardown path for a *live* recorder, shared by `stopRecording()` and
-    /// by the install path of `startRecording(to:)`. Dropping the last strong reference
-    /// to a running `AVAudioRecorder` deallocates it inline while AudioQueue callbacks
-    /// may still be draining; the 300 ms retention below is what avoids that, and it
-    /// only helps if every teardown goes through here.
+    /// by the install path of `startRecording(to:)`. It does not call `stop()` itself:
+    /// on the main actor that could overlap a meter read of the same recorder on
+    /// `meterQueue`, and wait on the same stuck AudioQueue lock (#1359). Both callers
+    /// hand the recorder to `stopAndReleaseLater(_:on:using:)` on `meterQueue`, which
+    /// also keeps it alive 300 ms past `stop()` while AudioQueue callbacks drain.
     ///
     /// Deliberately does **not** touch `startGeneration`, `isRecording` or `audioLevel`
     /// — those belong to the caller. `stopRecording()` clears them; a start that is
@@ -490,23 +529,62 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// `discardSupersededRecorder(_:)`, a recorder that reached the installed state was
     /// live and may hold real audio. Leaving the WAV lets `CrashRecoveryManager` claim it
     /// as an unfinished recording, which is the non-destructive outcome.
-    private func retireActiveRecorder() {
+    private func retireActiveRecorder() -> AVAudioRecorder? {
         meterUpdateTask?.cancel()
         meterUpdateTask = nil
 
-        let stoppedRecorder = recorder
-        stoppedRecorder?.delegate = nil
-        stoppedRecorder?.stop()
+        let retired = recorder
         recorder = nil
-        recorderRetention = stoppedRecorder
+        return retired
+    }
 
-        // Avoid immediate deallocation right after stop() while AQ callbacks may still be draining.
-        recorderReleaseTask?.cancel()
-        recorderReleaseTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 300_000_000) // 300ms
-            guard !Task.isCancelled else { return }
-            self?.recorderRetention = nil
-            self?.recorderReleaseTask = nil
+    /// Stop `recorder` on `queue` once every meter read queued ahead of it has
+    /// returned, and wait at most `timeout` for that (#1359).
+    ///
+    /// **Why the meter queue:** `requestMeterRead(from:)` reads the same recorder on
+    /// `meterQueue`. `AVAudioRecorder` is not documented as thread-safe, and a
+    /// `stop()` on the main actor during a stuck read waited on the same AudioQueue
+    /// lock, which only moved the HYPERWHISPER-KB 10 s hang from mid-recording to the
+    /// moment of stop. The queue is serial, so a read and a stop never overlap.
+    ///
+    /// **Why bounded:** the read ahead of the stop can be stuck for 10 s or more.
+    /// `DeadlineGate` stops waiting after `timeout` and returns `.timedOut`. The
+    /// stop is not cancelled (`.runAnyway`): it runs when the lock frees, so the
+    /// microphone is released then. Its file is the caller's to leave alone.
+    nonisolated static func stopOnMeterQueue(
+        _ recorder: AVAudioRecorder,
+        on queue: DispatchQueue,
+        timeout: DispatchTimeInterval,
+        using stopper: @escaping RecorderStopper
+    ) async -> RecorderStopOutcome {
+        let gate = DeadlineGate(queue: queue, timeout: timeout, queuedPastDeadline: .runAnyway)
+        let outcome = await gate.run({
+            SimpleRecorder.stopAndReleaseLater(recorder, on: queue, using: stopper)
+        }, discardLate: { _ in
+            AppLogger.audio.warning("AVAudioRecorder.stop() returned only after its stop had timed out - the microphone is released now")
+        })
+        switch outcome {
+        case .finished:
+            return .stopped
+        case .timedOut:
+            return .timedOut
+        }
+    }
+
+    /// Stop `recorder`, then keep it alive 300 ms more. Call it only on `queue`.
+    ///
+    /// Dropping the last strong reference to an `AVAudioRecorder` right after
+    /// `stop()` can race AudioQueue callbacks that are still draining. Same
+    /// discipline as `discardSupersededRecorder(_:)`. Also used by
+    /// `AudioRecordingManager.stopInputLevelPreview()` on its own meter queue.
+    nonisolated static func stopAndReleaseLater(
+        _ recorder: AVAudioRecorder,
+        on queue: DispatchQueue,
+        using stopper: RecorderStopper
+    ) {
+        stopper(recorder)
+        queue.asyncAfter(deadline: .now() + .milliseconds(300)) {
+            withExtendedLifetime(recorder) {}
         }
     }
 
@@ -533,16 +611,44 @@ class SimpleRecorder: NSObject, ObservableObject {
     ///
     /// The teardown itself lives in `retireActiveRecorder()` so that the install path of
     /// `startRecording(to:)` uses the identical sequence.
-    func stopRecording() {
+    ///
+    /// **Async since #1359.** `stop()` runs on `meterQueue`, after any meter read in
+    /// flight, and this method waits for it there instead of on the main thread. The
+    /// state above (`startGeneration`, `recorder`, `isRecording`, `audioLevel`) still
+    /// changes before the first suspension, so a start or stop that lands during the
+    /// wait sees a recorder that is already stopped.
+    ///
+    /// - Returns: `.stopped` once `stop()` has returned and the file is finalised, or
+    ///   `.timedOut` after `stopTimeout` (5 s) with the file NOT finalised. On
+    ///   `.timedOut` the caller must not read the file; leave it for
+    ///   `CrashRecoveryManager` (Ray, 2026-10-07).
+    func stopRecording() async -> RecorderStopOutcome {
         // Invalidate any start that is still suspended in makeLiveRecorder().
         startGeneration &+= 1
 
-        retireActiveRecorder()
+        let retired = retireActiveRecorder()
 
         isRecording = false
         audioLevel = 0
 
-        AppLogger.audio.info("SimpleRecorder stopped recording")
+        guard let retired else {
+            AppLogger.audio.info("SimpleRecorder stopped recording (no recorder was installed)")
+            return .stopped
+        }
+
+        let outcome = await SimpleRecorder.stopOnMeterQueue(
+            retired,
+            on: meterQueue,
+            timeout: stopTimeout,
+            using: recorderStopper
+        )
+        switch outcome {
+        case .stopped:
+            AppLogger.audio.info("SimpleRecorder stopped recording")
+        case .timedOut:
+            AppLogger.audio.error("SimpleRecorder stop timed out: AVAudioRecorder.stop() did not return in time, likely behind a meter read stuck on the AudioQueue lock")
+        }
+        return outcome
     }
 
     // MARK: - Audio Level Metering

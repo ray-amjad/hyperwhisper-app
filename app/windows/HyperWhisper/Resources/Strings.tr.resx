@@ -823,6 +823,9 @@ Bu işlem geri alınamaz.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Dosya transkripsiyonu iptal edildi</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Dosya yazıya dökülüyor...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model kullanımda</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0}, "{1}" modu tarafından kullanılıyor. Silmeden önce bu modu başka bir modele geçirin.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1312,8 +1321,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Bir kayıt veya dosya dökümü zaten çalışıyor. Bittiğinde dosyayı yeniden deneyin.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Bu dosya boş, bu yüzden yazıya dökülecek ses yok.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Bu dosya bozuk veya HyperWhisper'ın okuyabileceği bir ses dosyası değil.</value>
   </data>
 
 

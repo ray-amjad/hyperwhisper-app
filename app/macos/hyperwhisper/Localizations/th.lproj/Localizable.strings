@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "ส่งออกการวินิจฉัยแล้ว";
 "alerts.export.diagnostics.success.message" = "บันทึกการวินิจฉัยทั้งหมดส่งออกสำเร็จ";
 "alerts.export.diagnostics.saveFailed.message" = "ไม่สามารถบันทึกการวินิจฉัยลงในตำแหน่งที่เลือก: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "ส่งออกข้อมูลวินิจฉัยโดยไม่มีบันทึกระบบ";
+"alerts.export.diagnostics.noSystemLogs.message" = "บันทึกไฟล์ข้อมูลวินิจฉัยแล้ว แต่ไม่สามารถอ่านบันทึกระบบของแอปได้ ดังนั้น system-logs.txt จึงมีเพียงสาเหตุเท่านั้น สาเหตุ: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "ส่งออกบันทึกการอัปเดตเพื่อการสนับสนุน";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "เสร็จสิ้นการเข้าสู่ระบบ";
 
 "onboarding.setupLater.button" = "ตั้งค่าภายหลัง";
-"onboarding.error.microphone.denied" = "ปฏิเสธการอนุญาตไมโครโฟน โปรดให้สิทธิ์ในการตั้งค่าระบบ";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "เปิดตัวเมื่อเข้าสู่ระบบ";
@@ -336,6 +337,9 @@
 "settings.storage.choose.button" = "เลือก...";
 "settings.storage.dialog.select" = "เลือกโฟลเดอร์";
 "settings.storage.dialog.message" = "เลือกโฟลเดอร์เพื่อเก็บการบันทึก";
+"settings.storage.folderRefused.title" = "ไม่สามารถใช้โฟลเดอร์นี้ได้";
+"settings.storage.folderRefused.notWritable" = "คุณไม่มีสิทธิ์เขียนลงใน “%@” HyperWhisper จึงบันทึกการบันทึกเสียงไว้ที่นั่นไม่ได้ โฟลเดอร์การบันทึกไม่ได้เปลี่ยนแปลง";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper ไม่สามารถสร้างโฟลเดอร์นี้ได้: %@ โฟลเดอร์การบันทึกไม่ได้เปลี่ยนแปลง";
 "settings.storage.storeAsM4A.title" = "บีบอัดการบันทึกเป็น M4A";
 "settings.storage.storeAsM4A.subtitle" = "แปลงการบันทึก WAV เป็นไฟล์ขนาดเล็กกว่าหลังการสัญลักษณ์ ปิดเพื่อเก็บไฟล์ WAV ดั้งเดิม (ใหญ่กว่า แต่ไม่มีการสูญเสีย)";
 
@@ -383,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "เปลี่ยนโหมด";
 "settings.shortcuts.changeMode.subtitle" = "ใช้ได้เฉพาะระหว่างการบันทึกเท่านั้น";
+"settings.shortcuts.conflict.alert" = "ไม่สามารถใช้แป้นพิมพ์ลัดนี้ได้ เนื่องจาก “%@” ใช้อยู่แล้ว";
 
 "settings.shortcuts.reset.button" = "รีเซ็ตเป็นค่าเริ่มต้น";
 "settings.shortcuts.reset.dialog.title" = "รีเซ็ตลัดแป้นพิมพ์";
@@ -576,6 +581,8 @@
 "onboarding.configure.cloud.note" = "เครดิตเป็นแบบเติมเงินล่วงหน้าและใช้ร่วมกันในทุกเครื่อง Mac ที่เข้าสู่ระบบด้วยคีย์นี้ เวลาที่ไม่ได้ใช้งานไม่เสียค่าใช้จ่าย";
 "onboarding.source.note" = "หากเปลี่ยนใจภายหลัง ระบบจะรันซ้ำแค่ขั้นตอนนี้ขั้นตอนเดียว สิ่งอื่นที่คุณตั้งค่าไว้จะไม่หายไป";
 "onboarding.permissions.note" = "ข้ามการช่วยการเข้าถึงไปได้ ข้อความที่ถอดเสียงจะไปอยู่ในคลิปบอร์ด พร้อมวางได้ทันที เปิดใช้งานภายหลังได้ในคลิกเดียว";
+"onboarding.permissions.microphone.denied" = "ไม่ได้รับอนุญาต เปิด HyperWhisper ในการตั้งค่าระบบ แล้วกลับมาที่นี่";
+"onboarding.permissions.continueNeedsMicrophone" = "การดำเนินการต่อต้องใช้ไมโครโฟน อนุญาตด้านบน หรือเลือกตั้งค่าภายหลัง";
 "onboarding.welcome.task1.title" = "เลือกวิธีการถอดเสียง";
 "onboarding.welcome.task1.caption" = "ในคลาวด์ของเรา บน Mac เครื่องนี้ หรือผ่านบัญชีผู้ให้บริการที่คุณจ่ายเงินอยู่แล้ว";
 "onboarding.welcome.task2.title" = "ตรวจสอบไมโครโฟนของคุณ";
@@ -899,6 +906,7 @@
 "audio.error.microphonePermission" = "ไม่ได้รับสิทธิ์ไมโครโฟน";
 "audio.error.microphoneInUse" = "HyperWhisper ไม่สามารถเข้าถึงไมโครโฟนเพราะแอปอื่นใช้งานอยู่ หยุดแอปอื่นหรือสลับอินพุต แล้วลองใหม่";
 "audio.error.audioSystemNotResponding" = "ระบบเสียงของ macOS ไม่ตอบสนอง จึงไม่สามารถเริ่มไมโครโฟนได้ ลองอีกครั้งในอีกสักครู่ หากยังเกิดขึ้นอยู่ ให้รีสตาร์ท Mac ของคุณ";
+"audio.error.recorderStopTimedOut" = "ระบบเสียงของ macOS หยุดตอบสนองขณะบันทึกไฟล์เสียง จึงไม่ได้ถอดความ ไฟล์เสียงยังถูกเก็บไว้: HyperWhisper จะพยายามกู้คืนในครั้งถัดไปที่เปิดแอป";
 "audio.error.createEngine" = "ไม่สามารถสร้างเอนจิ้นเสียง";
 "audio.error.noInput" = "ไม่มีอินพุตเสียง";
 "audio.error.createFile" = "ไม่สามารถสร้างไฟล์เสียง";
@@ -972,6 +980,7 @@
 "transcription.guidance.quotaExceeded" = "เพิ่มเครดิตไปยัง %@ บัญชีของคุณหรืออัปเดตรายละเอียดการเรียกเก็บเงิน";
 "transcription.guidance.timeout" = "คำขอใช้เวลานานเกินไป ตรวจสอบความเร็วอินเทอร์เน็ตและลองใหม่";
 "transcription.error.noSpeechDetected" = "ไม่พบเสียงพูดในการบันทึก";
+"transcription.error.audioTooShort" = "การบันทึกสั้นเกินไปจนถอดความไม่ได้ โปรดบันทึกให้นานขึ้น";
 "transcription.guidance.noSpeechDetected" = "เคล็ดลับ:\n• พูดชัดเจนลงในไมโครโฟน\n• ค้างคีย์นานขึ้นก่อนพูด\n• ตรวจสอบว่าไมโครโฟนของคุณใช้งานได้\n• ตรวจสอบให้แน่ใจว่าอุปกรณ์อินพุตที่ถูกต้องได้รับการเลือก";
 "transcription.guidance.needsNativeRelaunch" = "ออกจาก HyperWhisper แล้วเปิดใหม่แบบเนทีฟ เพื่อใช้การประมวลผลหลังถอดเสียงในเครื่อง";
 "transcription.guidance.localRuntimeUnavailable" = "ลองอีกครั้ง หรือเลือกโมเดลในเครื่องที่เล็กลงในการตั้งค่าโหมด";
@@ -1114,6 +1123,13 @@
 "transcribe.file.error.format.title" = "รูปแบบไม่รองรับ";
 "transcribe.file.error.format.message" = "ไฟล์ .%@ ไม่ได้รับการสนับสนุนโดย %@ รูปแบบที่รองรับ: %@";
 "transcribe.file.error.read" = "ไม่สามารถอ่านไฟล์ที่เลือก";
+"transcribe.file.error.webm" = "ไม่รองรับ WebM แปลงไฟล์เป็น MP3, M4A หรือ WAV แล้วลองอีกครั้ง";
+"transcribe.file.error.notAudio" = "ไฟล์ “%@” ไม่ใช่เสียงที่ถูกต้อง ไฟล์อาจเสียหาย หรืออยู่ในรูปแบบที่ macOS ถอดรหัสไม่ได้";
+"transcribe.file.error.empty" = "ไฟล์ “%@” ว่างเปล่า ไม่มีเสียงให้ถอดความ";
+"transcribe.file.error.permission" = "HyperWhisper อ่านไฟล์ “%@” ไม่ได้ โปรดตรวจสอบสิทธิ์ของไฟล์";
+"transcribe.file.error.folderPermission" = "HyperWhisper เปิดโฟลเดอร์ที่มีไฟล์ “%@” ไม่ได้ โปรดตรวจสอบสิทธิ์ของโฟลเดอร์นั้น";
+"transcribe.file.error.privacy" = "การตั้งค่าความเป็นส่วนตัวของ macOS บล็อกไม่ให้ HyperWhisper อ่านไฟล์ “%@” โปรดอนุญาตในการตั้งค่าระบบ > ความเป็นส่วนตัวและความปลอดภัย > การเข้าถึงดิสก์เต็มรูปแบบ";
+"transcribe.file.error.tooShort" = "ไฟล์นี้สั้นเกินไปจนถอดความไม่ได้ (%@ วินาที)";
 "transcribe.file.error.copy" = "ไม่สามารถคัดลอกไฟล์ไปยังโฟลเดอร์การบันทึก";
 "transcribe.file.error.video.title" = "ไม่มีเสียงในวิดีโอ";
 "transcribe.file.error.video.noAudio" = "ไฟล์วิดีโอนี้ไม่มีเทร็กเสียง โปรดเลือกวิดีโอที่มีเสียงหรือไฟล์เสียง";

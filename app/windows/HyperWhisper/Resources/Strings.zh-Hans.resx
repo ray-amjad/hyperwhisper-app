@@ -911,6 +911,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>已取消文件转写</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>正在转录文件...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>未知</value>
   </data>
@@ -1250,6 +1253,12 @@
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>模型正在使用</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>“{1}”模式正在使用 {0}。请先将该模式切换到其他模型，然后再删除。</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>停用许可证</value>
@@ -1399,8 +1408,17 @@
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>文件未找到</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>已有录音或文件转录正在进行。完成后请重新尝试该文件。</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>文件对于此提供商来说太大了。最大大小: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>此文件为空，没有可转写的音频。</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>此文件已损坏，或不是 HyperWhisper 可以读取的音频文件。</value>
   </data>
 
   <!-- Update UI -->

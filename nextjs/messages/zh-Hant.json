@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "什麼是 HyperWhisper Cloud？",
-        "answer": "HyperWhisper Cloud 是內建的雲端轉錄服務，專為想要快速上手、較不熟悉技術的使用者打造。\n\n它採用隨用隨付的點數制。你最低只需儲值 $5（每 $1 可換 1,000 點），而且只在轉錄時才會消耗。你第一次購買點數時會自動建立你的 Account Key，因此不需要再額外購買任何東西。\n    \n我們提供四種準確度等級：Medium（Groq）、Medium（Deepgram Nova 3）、High（ElevenLabs Scribe v2）以及 Highest（Grok STT，新安裝的預設值，由 SpaceXAI Grok STT 提供技術支援）。後處理會自動進行，預設使用 Grok 4.1 Fast non-reasoning。除了你消耗了多少點數之外，我們不儲存任何其他資料，而且我們已在所有上游供應商處替你選擇退出模型訓練。詳情請參閱我們的[資料隱私指南](https://hyperwhisper.com/docs/data-privacy)。\n\n點數依供應商本身的處理成本計費——轉錄不加價。結帳時會加收固定 6% 的付款處理費，並以獨立項目顯示。未使用的點數將於 12 個月後到期（見下文）。\n\n為了讓你安心，整個應用程式都採用 Apache-2.0 開放原始碼——包括 Cloud 後端在內。你可以[在 GitHub 上](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)閱讀在你的應用程式與我們代理連接的供應商之間執行的每一行程式碼。"
+        "answer": "HyperWhisper Cloud 是內建的雲端轉錄服務，專為想要快速上手、較不熟悉技術的使用者打造。\n\n它採用隨用隨付的點數制。你最低只需儲值 $5（每 $1 可換 1,000 點），而且只在轉錄時才會消耗。你第一次購買點數時會自動建立你的 Account Key，因此不需要再額外購買任何東西。\n    \nHyperWhisper Cloud 提供 12 個轉錄供應商，從 Groq Whisper 到 ElevenLabs Scribe v2（請參閱[完整清單與費率](https://hyperwhisper.com/docs/cloud-credits)）。新安裝會從 ElevenLabs Scribe v2 開始。後處理會自動進行，新安裝會從 Claude Haiku 5.5 開始。除了你消耗了多少點數之外，我們不儲存任何其他資料，而且我們已在所有上游供應商處替你選擇退出模型訓練。詳情請參閱我們的[資料隱私指南](https://hyperwhisper.com/docs/data-privacy)。\n\n點數依供應商本身的處理成本計費——轉錄不加價。結帳時會加收固定 6% 的付款處理費，並以獨立項目顯示。未使用的點數將於 12 個月後到期（見下文）。\n\n為了讓你安心，整個應用程式都採用 Apache-2.0 開放原始碼——包括 Cloud 後端在內。你可以[在 GitHub 上](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)閱讀在你的應用程式與我們代理連接的供應商之間執行的每一行程式碼。"
       },
       "dataTraining": {
         "question": "我的語音資料會被用於訓練 AI 模型嗎？",
@@ -390,5 +390,12 @@
     "heading": "開放原始碼，無所隱藏。",
     "body": "HyperWhisper 完全開放原始碼，採用 Apache-2.0 授權——桌面應用程式與 Cloud 後端皆是如此。一個會聆聽你麥克風的應用程式，應該是你能夠驗證的，而不只是去信任：閱讀每一行程式碼、稽核你的音訊究竟流向何處，並確信自己永遠不會被鎖定——程式碼歸你所有，可以永遠 fork 並自行架設。由獨立開發者 Ray Amjad 公開打造。",
     "cta": "在 GitHub 上查看"
+  },
+  "notFound": {
+    "title": "找不到頁面",
+    "heading": "此頁面不存在",
+    "description": "連結可能已失效，或頁面可能已移動。",
+    "home": "前往首頁",
+    "download": "下載 HyperWhisper"
   }
 }

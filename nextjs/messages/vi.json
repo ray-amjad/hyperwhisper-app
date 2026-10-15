@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "HyperWhisper Cloud là gì?",
-        "answer": "HyperWhisper Cloud là dịch vụ phiên âm đám mây tích hợp sẵn, hướng đến những người dùng ít rành kỹ thuật muốn bắt đầu nhanh chóng.\n\nĐây là tín dụng trả theo mức dùng (pay-as-you-go). Bạn nạp chỉ từ $5 (1.000 tín dụng cho mỗi $1) và chỉ tiêu khi phiên âm. Lần mua tín dụng đầu tiên tự động tạo Account Key của bạn, nên không còn gì khác phải mua.\n    \nChúng tôi cung cấp bốn mức độ chính xác: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2), và Highest (Grok STT, mặc định cho các bản cài mới và được cung cấp bởi SpaceXAI Grok STT). Hậu xử lý là tự động và mặc định dùng Grok 4.1 Fast non-reasoning. Chúng tôi không lưu trữ gì ngoài số tín dụng bạn đã dùng, và chúng tôi đã chọn không tham gia huấn luyện mô hình thay cho bạn ở mọi nhà cung cấp thượng nguồn mà chúng tôi sử dụng. Xem [hướng dẫn Quyền riêng tư Dữ liệu](https://hyperwhisper.com/docs/data-privacy) của chúng tôi để biết chi tiết.\n\nTín dụng được tiêu theo đúng chi phí xử lý của chính các nhà cung cấp — không cộng thêm phí cho việc phiên âm. Khi thanh toán có thêm một khoản phí xử lý thanh toán cố định 6%, được hiển thị thành một mục riêng. Tín dụng chưa dùng sẽ hết hạn sau 12 tháng (xem bên dưới).\n\nĐể bạn yên tâm, toàn bộ ứng dụng là mã nguồn mở theo Apache-2.0 — bao gồm cả backend Cloud. Bạn có thể đọc từng dòng mã chạy giữa ứng dụng của bạn và các nhà cung cấp mà chúng tôi chuyển tiếp đến [trên GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud là dịch vụ phiên âm đám mây tích hợp sẵn, hướng đến những người dùng ít rành kỹ thuật muốn bắt đầu nhanh chóng.\n\nĐây là tín dụng trả theo mức dùng (pay-as-you-go). Bạn nạp chỉ từ $5 (1.000 tín dụng cho mỗi $1) và chỉ tiêu khi phiên âm. Lần mua tín dụng đầu tiên tự động tạo Account Key của bạn, nên không còn gì khác phải mua.\n    \nHyperWhisper Cloud cung cấp cho bạn 12 nhà cung cấp chuyển giọng nói thành văn bản, từ Groq Whisper đến ElevenLabs Scribe v2 (xem [danh sách đầy đủ và mức giá](https://hyperwhisper.com/docs/cloud-credits)). Các bản cài mới bắt đầu với ElevenLabs Scribe v2. Hậu xử lý là tự động và các bản cài mới bắt đầu với Claude Haiku 5.5. Chúng tôi không lưu trữ gì ngoài số tín dụng bạn đã dùng, và chúng tôi đã chọn không tham gia huấn luyện mô hình thay cho bạn ở mọi nhà cung cấp thượng nguồn mà chúng tôi sử dụng. Xem [hướng dẫn Quyền riêng tư Dữ liệu](https://hyperwhisper.com/docs/data-privacy) của chúng tôi để biết chi tiết.\n\nTín dụng được tiêu theo đúng chi phí xử lý của chính các nhà cung cấp — không cộng thêm phí cho việc phiên âm. Khi thanh toán có thêm một khoản phí xử lý thanh toán cố định 6%, được hiển thị thành một mục riêng. Tín dụng chưa dùng sẽ hết hạn sau 12 tháng (xem bên dưới).\n\nĐể bạn yên tâm, toàn bộ ứng dụng là mã nguồn mở theo Apache-2.0 — bao gồm cả backend Cloud. Bạn có thể đọc từng dòng mã chạy giữa ứng dụng của bạn và các nhà cung cấp mà chúng tôi chuyển tiếp đến [trên GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Dữ liệu giọng nói của tôi có được dùng để huấn luyện mô hình AI không?",
@@ -390,5 +390,12 @@
     "heading": "Mã nguồn mở. Không có gì để giấu.",
     "body": "HyperWhisper hoàn toàn mã nguồn mở theo giấy phép Apache-2.0 — cả ứng dụng máy tính lẫn backend Cloud. Một ứng dụng lắng nghe micro của bạn nên là thứ bạn có thể kiểm chứng, chứ không chỉ tin tưởng: hãy đọc từng dòng, kiểm tra chính xác âm thanh của bạn đi đâu, và biết rằng bạn sẽ không bao giờ bị khóa chân — mã nguồn là của bạn để fork và tự lưu trữ mãi mãi. Được xây dựng công khai bởi nhà phát triển độc lập Ray Amjad.",
     "cta": "Xem trên GitHub"
+  },
+  "notFound": {
+    "title": "Không tìm thấy trang",
+    "heading": "Trang này không tồn tại",
+    "description": "Liên kết có thể bị hỏng, hoặc trang có thể đã được chuyển đi.",
+    "home": "Về trang chủ",
+    "download": "Tải xuống HyperWhisper"
   }
 }

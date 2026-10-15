@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>已取消檔案轉錄</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>正在轉錄檔案...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>模型使用中</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>「{1}」模式正在使用 {0}。請先將該模式切換至其他模型，再刪除它。</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1312,8 +1321,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>已有錄音或檔案轉錄正在進行。完成後請重新嘗試該檔案。</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>此檔案是空的，沒有可轉錄的音訊。</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>此檔案已損毀，或不是 HyperWhisper 能讀取的音訊檔案。</value>
   </data>
 
   <!-- Mode Change Toast -->

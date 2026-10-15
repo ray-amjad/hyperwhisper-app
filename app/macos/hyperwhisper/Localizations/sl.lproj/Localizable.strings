@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika izvožena";
 "alerts.export.diagnostics.success.message" = "Vsi diagnostični dnevniki so bili uspešno izvoženi.";
 "alerts.export.diagnostics.saveFailed.message" = "Ni bilo mogoče shraniti diagnostike na izbrano lokacijo: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika izvožena brez sistemskih dnevnikov";
+"alerts.export.diagnostics.noSystemLogs.message" = "Datoteka z diagnostiko je bila shranjena, vendar sistemskih dnevnikov aplikacije ni bilo mogoče prebrati, zato system-logs.txt vsebuje le razlog. Razlog: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Izvozi dnevnike posodobitev za podporo";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Zaključi vpeljevanje";
 
 "onboarding.setupLater.button" = "Nastavi pozneje";
-"onboarding.error.microphone.denied" = "Dostop do mikrofonskega vhoda je zavrnjen. Odobri dostop v Sistemskih nastavitvah.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Zaženi ob prijavi";
@@ -336,6 +337,9 @@
 "settings.storage.choose.button" = "Izberi...";
 "settings.storage.dialog.select" = "Izberi mapo";
 "settings.storage.dialog.message" = "Izberi mapo za shranjevanje posnetkov";
+"settings.storage.folderRefused.title" = "Te mape ni mogoče uporabiti";
+"settings.storage.folderRefused.notWritable" = "Nimate dovoljenja za pisanje v »%@«, zato HyperWhisper tja ne more shranjevati posnetkov. Mapa posnetkov ni bila spremenjena.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper ni mogel ustvariti te mape: %@ Mapa posnetkov ni bila spremenjena.";
 "settings.storage.storeAsM4A.title" = "Stisni posnetke v M4A";
 "settings.storage.storeAsM4A.subtitle" = "Pretvori posnetke WAV v manjše datoteke po prepisu. Izključi za ohranitev prvotnih datotek WAV (večje vendar brez izgube).";
 
@@ -383,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Spremenj način";
 "settings.shortcuts.changeMode.subtitle" = "Deluje le med snemanjem";
+"settings.shortcuts.conflict.alert" = "Te bližnjice na tipkovnici ni mogoče uporabiti, ker jo že uporablja »%@«.";
 
 "settings.shortcuts.reset.button" = "Ponastavi privzete nastavitve";
 "settings.shortcuts.reset.dialog.title" = "Ponastavi bližnjice na tipkovnici";
@@ -576,6 +581,8 @@
 "onboarding.configure.cloud.note" = "Dobropisi so vnaprej plačani in deljeni med vsemi Maci, prijavljenimi s tem ključem. Neaktivni čas ne stane nič.";
 "onboarding.source.note" = "Če si pozneje premisliš, se ponovi samo ta korak. Nič drugega, kar si nastavil, se ne izgubi.";
 "onboarding.permissions.note" = "Preskoči Dostopnost in prepisi gredo v odložišče, pripravljeni za lepljenje. Vklop pozneje traja en klik.";
+"onboarding.permissions.microphone.denied" = "Ni dovoljeno. Vklopite HyperWhisper v Sistemskih nastavitvah in se vrnite sem.";
+"onboarding.permissions.continueNeedsMicrophone" = "Za nadaljevanje je potreben mikrofon. Dovolite ga zgoraj ali izberite Nastavi pozneje.";
 "onboarding.welcome.task1.title" = "Izberi, kako naj poteka prepisovanje";
 "onboarding.welcome.task1.caption" = "V našem oblaku, na tem Macu ali prek računa ponudnika, ki ga že plačuješ.";
 "onboarding.welcome.task2.title" = "Preveri svoj mikrofon";
@@ -899,6 +906,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "audio.error.microphonePermission" = "Dozvoljenje za mikrofon ni odobreno";
 "audio.error.microphoneInUse" = "HyperWhisper ne more dostopati do mikrofonskega vhoda, ker ga trenutno uporabljam druga aplikacija. Prekini drugo aplikacijo ali zamenjaj vhode in poskusi znova.";
 "audio.error.audioSystemNotResponding" = "Zvok v macOS se ne odziva, zato mikrofona ni bilo mogoče zagnati. Poskusite znova čez trenutek. Če se to ponavlja, znova zaženite Mac.";
+"audio.error.recorderStopTimedOut" = "Zvok sistema macOS se je med shranjevanjem posnetka prenehal odzivati, zato posnetek ni bil prepisan. Zvok je ohranjen: HyperWhisper ga bo poskušal obnoviti ob naslednjem zagonu.";
 "audio.error.createEngine" = "Napaka pri ustvarjanju audio motorja";
 "audio.error.noInput" = "Ni dostopnega zvočnega vhoda";
 "audio.error.createFile" = "Napaka pri ustvarjanju zvočne datoteke";
@@ -972,6 +980,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcription.guidance.quotaExceeded" = "Dodaj kredite svojemu %@ računu ali posodobi svoje podrobnosti zaračunavanja";
 "transcription.guidance.timeout" = "Zahteva je trajala predolgo. Preveri hitrost svojega interneta in poskusi znova.";
 "transcription.error.noSpeechDetected" = "V posnetku ni bil zaznan glas.";
+"transcription.error.audioTooShort" = "Posnetek je prekratek za prepis. Snemajte dlje.";
 "transcription.guidance.noSpeechDetected" = "Namigi:\n• Jasno govori v mikrofon\n• Drži tipko dlje, preden govoriš\n• Preveri, da tvoj mikrofon deluje\n• Poskupi, da je izbrana pravilna vhodna naprava";
 "transcription.guidance.needsNativeRelaunch" = "Zaprite in znova odprite HyperWhisper kot izvorno aplikacijo, da boste lahko uporabljali lokalno naknadno obdelavo.";
 "transcription.guidance.localRuntimeUnavailable" = "Poskusite znova ali v nastavitvah načina izberite manjši lokalni model.";
@@ -1114,6 +1123,13 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcribe.file.error.format.title" = "Nepodporan oblika";
 "transcribe.file.error.format.message" = "Datoteke .%@ niso podprte s strani %@. Podprte oblike: %@";
 "transcribe.file.error.read" = "Izbrane datoteke ni mogoče prebrati.";
+"transcribe.file.error.webm" = "WebM ni podprt. Pretvorite datoteko v MP3, M4A ali WAV in poskusite znova.";
+"transcribe.file.error.notAudio" = "Datoteka »%@« ni veljaven zvok. Morda je poškodovana ali v obliki, ki je macOS ne zna dekodirati.";
+"transcribe.file.error.empty" = "Datoteka »%@« je prazna. V njej ni zvoka za prepis.";
+"transcribe.file.error.permission" = "HyperWhisper ne more prebrati datoteke »%@«. Preverite dovoljenja datoteke.";
+"transcribe.file.error.folderPermission" = "HyperWhisper ne more odpreti mape, ki vsebuje datoteko »%@«. Preverite dovoljenja te mape.";
+"transcribe.file.error.privacy" = "Nastavitve zasebnosti sistema macOS so HyperWhisperju preprečile branje datoteke »%@«. Dovolite to v Sistemskih nastavitvah > Zasebnost in varnost > Poln dostop do diska.";
+"transcribe.file.error.tooShort" = "Ta datoteka je prekratka za prepis (%@ s).";
 "transcribe.file.error.copy" = "Napaka pri kopiranju datoteke v mapo posnetkov.";
 "transcribe.file.error.video.title" = "Brez zvoka v videu";
 "transcribe.file.error.video.noAudio" = "Ta video datoteka ne vsebuje avdio steze. Prosimo, izberi video s povkom ali zvočno datoteko.";

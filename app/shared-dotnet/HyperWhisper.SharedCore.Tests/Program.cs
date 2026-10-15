@@ -207,6 +207,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("retry policy retries transient responses deterministically", TestRetryAsync),
     ("the retry backoff budget stops a hard-down provider early", TestRetryBudgetAsync),
     ("unauthorized responses are classified without leaking provider bodies", TestUnauthorizedAsync),
+    ("HyperWhisper Cloud with no account key is CloudAccountRequired, not Unauthorized", TestCloudAccountRequiredAsync),
     ("cancellation stops in-flight HTTP and returns structured cancellation", TestCancellationAsync),
     ("Meta transport rechecks WAV limits retry auth and diagnostics", TestMetaTransportGuardsAsync),
     ("live strategies construct and parse all six provider protocols", TestLiveProvidersAsync),
@@ -938,6 +939,35 @@ static async Task TestUnauthorizedAsync()
         Assert.Equal(CloudTranscriptionErrorCode.Unauthorized, result.Failure!.Code);
         Assert.Equal(401, result.Failure.HttpStatus);
         Assert.DoesNotContain(hostileBody, result.Failure.Message);
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
+}
+
+static async Task TestCloudAccountRequiredAsync()
+{
+    // Issue #1487: the Local API answers MISSING_API_KEY for this case on
+    // /transcribe and /post-process alike, so it must not share Unauthorized
+    // with a provider's 401 (which stays ENGINE_UNAVAILABLE on Linux).
+    var audio = TempAudio();
+    try
+    {
+        var handler = new RecordingHandler((_, _) => Json("{\"text\":\"never\"}"));
+        using var service = new CloudTranscriptionService(handler, new NoAccountKeyCredentials(), Sharing);
+        var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.HyperWhisperCloud,
+            audio,
+            "nova-3"));
+        Assert.Equal(CloudTranscriptionErrorCode.CloudAccountRequired, result.Failure!.Code);
+        Assert.True(handler.LastRequest is null);
+
+        var byok = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.OpenAi,
+            audio,
+            "whisper-1"));
+        Assert.Equal(CloudTranscriptionErrorCode.Unauthorized, byok.Failure!.Code);
     }
     finally
     {
@@ -2088,6 +2118,12 @@ static Task TestRustLiveStopSequenceAsync()
     }
     using (var cloud = Protocol(LiveTranscriptionProvider.HyperWhisperCloud))
     {
+        // No `ready` frame, no relay session: nothing will send session_complete,
+        // so the stop does not wait 10 s for it (issue #834).
+        Assert.Equal(
+            "SendMessage:{\"type\":\"stop\"}|Close",
+            Rendered(cloud.StopSequence(0)));
+        cloud.Parse(Utf8("{\"type\":\"ready\",\"sessionId\":\"s1\"}"));
         Assert.Equal(
             "SendMessage:{\"type\":\"stop\"}|WaitForSessionComplete:10000|Close",
             Rendered(cloud.StopSequence(0)));
@@ -2592,6 +2628,15 @@ sealed class StaticCredentials(string apiKey = "test-api-key") : ICloudCredentia
         cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.FromResult<CloudCredential?>(new CloudCredential(apiKey, "test-license-key", "test-device"));
     }
+}
+
+/// <summary>A device identity and nothing else: no API key, no account key.</summary>
+sealed class NoAccountKeyCredentials : ICloudCredentialSource
+{
+    public ValueTask<CloudCredential?> GetCredentialAsync(
+        CloudTranscriptionProvider provider,
+        CancellationToken cancellationToken) =>
+        ValueTask.FromResult<CloudCredential?>(new CloudCredential(null, null, "test-device"));
 }
 
 sealed class ImmediateDelay : ICloudTranscriptionDelay

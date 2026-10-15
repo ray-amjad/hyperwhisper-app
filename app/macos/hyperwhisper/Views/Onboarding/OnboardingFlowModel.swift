@@ -289,8 +289,6 @@ final class OnboardingFlowModel: ObservableObject {
     @Published private(set) var hasAccessibilityPermission = false
     @Published private(set) var isPollingForAccessibility = false
     @Published private(set) var microphoneAuthorization: OnboardingMicrophoneAuthorization = .undetermined
-    /// Non-nil when the last permission request was refused. Drives the alert.
-    @Published var permissionErrorMessage: String?
 
     // MARK: Staged source configuration
 
@@ -455,8 +453,8 @@ final class OnboardingFlowModel: ObservableObject {
     /// `everyEntryGuardInTheModelIsSweptHere`, which counts the guards in this file.
     /// So: add the guard, add the line, and let the sweep prove it.
     ///
-    /// The invariant is about METHODS. `licenseKeyInput`, `apiKeyInput` and
-    /// `permissionErrorMessage` are publicly settable and have `didSet` side
+    /// The invariant is about METHODS. `licenseKeyInput` and `apiKeyInput` are
+    /// publicly settable and have `didSet` side
     /// effects, and they are not guarded: a keystroke landing during the dismissal
     /// animation still runs `invalidateProviderValidation()`. That is allowed
     /// because those writes never leave this model, but it is a gap in the wording
@@ -602,10 +600,9 @@ final class OnboardingFlowModel: ObservableObject {
             let granted = await self.permissions.requestMicrophonePermission()
             guard !Task.isCancelled, self.isLive else { return }
             self.hasMicrophonePermission = granted
+            // #1508: a refusal is the user's choice, not an error. No alert: the
+            // step shows the notice inline from `microphoneAuthorization`.
             self.microphoneAuthorization = granted ? .authorized : .denied
-            if !granted {
-                self.permissionErrorMessage = "onboarding.error.microphone.denied".localized
-            }
             self.taskBox.clear(TaskKey.microphonePermission)
         }
         track(task, key: TaskKey.microphonePermission)

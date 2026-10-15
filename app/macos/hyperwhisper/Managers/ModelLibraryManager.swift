@@ -60,6 +60,7 @@ final class ModelLibraryManager: ObservableObject {
             whisperManager.$downloadedModels.map { _ in () }.eraseToAnyPublisher(),
             whisperManager.$downloadingModels.map { _ in () }.eraseToAnyPublisher(),
             parakeetManager.$availableModels.map { _ in () }.eraseToAnyPublisher(),
+            parakeetManager.$brokenModels.map { _ in () }.eraseToAnyPublisher(),
             qwen3AsrManager.$isDownloaded.map { _ in () }.eraseToAnyPublisher(),
             qwen3AsrManager.downloads.$downloading.map { _ in () }.eraseToAnyPublisher(),
             localLLMManager.$availableModels.map { _ in () }.eraseToAnyPublisher(),
@@ -385,7 +386,9 @@ final class ModelLibraryManager: ObservableObject {
             let isDownloading = manager.downloads.isDownloading(item.id)
             let progress = manager.downloads.progress[item.id]
             let downloadProgress: Double? = isDownloading ? (progress ?? 0.01) : nil
-            let status: LibraryModelStatus = item.isDownloaded
+            // A version whose load failed (#1632) offers Re-download, as Nemotron does.
+            let isUsable = item.isDownloaded && !manager.isModelBroken(item.id)
+            let status: LibraryModelStatus = isUsable
                 ? .enabled
                 : .downloadable(progress: downloadProgress)
             let rating = Self.parakeetRatings[item.id] ?? (5, 3)

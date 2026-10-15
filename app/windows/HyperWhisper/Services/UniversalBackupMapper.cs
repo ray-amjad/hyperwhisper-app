@@ -40,13 +40,21 @@ public static class UniversalBackupMapper
     /// supplied one, so the caller keeps the Mode entity's own default instead of
     /// the core's. The normalized name and five cloud-routing properties are read
     /// from the result; every other field is taken from the original DTO.
+    ///
+    /// <paramref name="withoutOwnSlice"/> hands the core the mode WITHOUT its
+    /// <c>platformExtensions.windows</c> slice, so that slice's tier and
+    /// post-processing model do not override the top-level ones. Set when a newer
+    /// linux slice won (#1747): the Linux head keeps those two fields only at the
+    /// top level, so the top level holds its edit and the windows slice a stale copy.
     /// </remarks>
-    private static UniversalMode NormalizeCloudRouting(UniversalMode universal)
+    private static UniversalMode NormalizeCloudRouting(UniversalMode universal, bool withoutOwnSlice = false)
     {
         try
         {
-            var json = HyperwhisperCoreMethods.NormalizeUniversalModeJson(
-                JsonSerializer.Serialize(universal, CamelCaseOptions));
+            var node = JsonSerializer.SerializeToNode(universal, CamelCaseOptions)!.AsObject();
+            if (withoutOwnSlice && node["platformExtensions"] is JsonObject extensions)
+                extensions.Remove("windows");
+            var json = HyperwhisperCoreMethods.NormalizeUniversalModeJson(node.ToJsonString());
             return JsonSerializer.Deserialize<UniversalMode>(json, CamelCaseOptions) ?? universal;
         }
         catch (Exception ex)
@@ -978,7 +986,31 @@ public static class UniversalBackupMapper
     /// </summary>
     public static Mode MapToMode(UniversalMode universal)
     {
-        var normalized = NormalizeCloudRouting(universal);
+        // Try to extract Windows-specific fields from platformExtensions
+        WindowsModeExtensions? winExt = null;
+        if (universal.PlatformExtensions != null &&
+            universal.PlatformExtensions.TryGetValue("windows", out var windowsElement))
+        {
+            try
+            {
+                winExt = JsonSerializer.Deserialize<WindowsModeExtensions>(
+                    windowsElement.GetRawText(), CamelCaseOptions);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Warn($"UniversalBackupMapper: Failed to deserialize Windows mode extensions for '{universal.Name}': {ex.Message}");
+            }
+        }
+
+        // When the mode also carries a readable linux slice with a NEWER
+        // modifiedDate, the mode was edited on Linux after this windows slice was
+        // preserved there, so the linux slice is the record of the fields both
+        // .NET heads share (#1716), and the top level is the record of the cloud
+        // tier, cloud and local post-processing models, which Linux writes only
+        // there (#1747).
+        var peerExt = ReadPeerModeExtensions(universal);
+        var peerIsNewer = winExt != null && PeerSliceIsNewer(winExt, peerExt);
+        var normalized = NormalizeCloudRouting(universal, withoutOwnSlice: peerIsNewer);
 
         var mode = new Mode
         {
@@ -1007,7 +1039,8 @@ public static class UniversalBackupMapper
             CustomInstructions = universal.CustomInstructions,
             GeminiCustomPrompt = universal.GeminiCustomPrompt,
             // The core already applied the full precedence chain, including the
-            // platformExtensions.windows override. It returns the field ABSENT when
+            // platformExtensions.windows override (skipped when a newer linux slice
+            // won, #1747). It returns the field ABSENT when
             // no source supplied one, so the Mode entity's own default applies here
             // rather than the core's (deepgramNova3 / grok:grok-4.3), which is not
             // what either .NET head ships.
@@ -1016,30 +1049,10 @@ public static class UniversalBackupMapper
                 normalized.CloudPostProcessingModel ?? ModeDefaults.CloudPostProcessingModel
         };
 
-        // Try to extract Windows-specific fields from platformExtensions
-        WindowsModeExtensions? winExt = null;
-        if (universal.PlatformExtensions != null &&
-            universal.PlatformExtensions.TryGetValue("windows", out var windowsElement))
-        {
-            try
-            {
-                winExt = JsonSerializer.Deserialize<WindowsModeExtensions>(
-                    windowsElement.GetRawText(), CamelCaseOptions);
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Warn($"UniversalBackupMapper: Failed to deserialize Windows mode extensions for '{universal.Name}': {ex.Message}");
-            }
-        }
-
         if (winExt != null)
         {
-            // Windows export — use stored values. When the mode also carries a
-            // readable linux slice with a NEWER modifiedDate, the mode was edited on
-            // Linux after this windows slice was preserved there, so the linux slice
-            // is the record of the fields both .NET heads share (#1716).
-            var peerExt = ReadPeerModeExtensions(universal);
-            var shared = PeerSliceIsNewer(winExt, peerExt) ? peerExt! : winExt;
+            // Windows export — use stored values, or the newer linux slice's (above).
+            var shared = peerIsNewer ? peerExt! : winExt;
             mode.ModelType = shared.ModelType;
             mode.LocalEngine = shared.LocalEngine ?? "whisper";
             mode.LocalParakeetModel = shared.LocalParakeetModel;
@@ -1048,8 +1061,10 @@ public static class UniversalBackupMapper
             // the core already folded them in with the right precedence (a present
             // Windows-extension value wins over the universal one, an absent one keeps
             // whatever the universal section and the provider fold produced).
-            // localPostProcessingModel is Windows-only, so it stays own-slice only.
-            mode.LocalPostProcessingModel = winExt.LocalPostProcessingModel ?? mode.LocalPostProcessingModel;
+            // localPostProcessingModel likewise: the windows slice's value wins over
+            // the top-level one, unless a newer linux slice won (#1747).
+            if (!peerIsNewer)
+                mode.LocalPostProcessingModel = winExt.LocalPostProcessingModel ?? mode.LocalPostProcessingModel;
             // Own slice first (an explicit true OR false wins), or the newer linux
             // slice; absent falls back to the foreign slices (#1498).
             mode.EnableScreenOCR = shared.EnableScreenOCR
@@ -1065,7 +1080,6 @@ public static class UniversalBackupMapper
         {
             // macOS or Linux export. A Linux backup carries the same per-mode fields
             // in ITS slice (#1712); anything it lacks gets the defaults.
-            var peerExt = ReadPeerModeExtensions(universal);
             mode.ModelType = peerExt?.ModelType ?? universal.Model;
             mode.LocalEngine = peerExt?.LocalEngine ?? "whisper";
             mode.LocalParakeetModel = peerExt?.LocalParakeetModel;

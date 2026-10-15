@@ -17,6 +17,7 @@
 
 import CoreData
 import Foundation
+import SQLite3
 
 // MARK: - Mode Name Policy
 
@@ -142,6 +143,8 @@ struct AutoDeleteTransactionSnapshot: Sendable {
     let audioPaths: [String]
     let transcriptsDeleted: Int
     let hasMore: Bool
+    /// The deleted rows, whose running retries must stop (#1743).
+    var transcriptIDs: [UUID] = []
 }
 
 // MARK: - Persistence Controller
@@ -1458,7 +1461,7 @@ class PersistenceController: ObservableObject {
     /// out only after the save commits. A fetch or save failure returns `nil`, so
     /// callers must not unlink any files or record successful cleanup state.
     func deleteTranscriptsOlderThanInBackground(_ cutoffDate: Date) async -> AutoDeleteTransactionSnapshot? {
-        return await performWriteRequiringSave(deleteWinsConflicts: true) { context -> AutoDeleteTransactionSnapshot? in
+        let snapshot = await performWriteRequiringSave(deleteWinsConflicts: true) { context -> AutoDeleteTransactionSnapshot? in
             let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
             request.predicate = NSPredicate(format: "date < %@", cutoffDate as NSDate)
             request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: true)]
@@ -1492,9 +1495,15 @@ class PersistenceController: ObservableObject {
             return AutoDeleteTransactionSnapshot(
                 audioPaths: paths,
                 transcriptsDeleted: batch.count,
-                hasMore: transcripts.count > batch.count
+                hasMore: transcripts.count > batch.count,
+                transcriptIDs: batch.compactMap(\.id)
             )
         }
+        // Only once the delete committed: stop the retries of the expired rows.
+        if let snapshot {
+            Self.stopRetries(ofDeleted: snapshot.transcriptIDs)
+        }
+        return snapshot
     }
 
     /// Debounced (cancel-previous) view-context re-faulting. After ~3s of write
@@ -1545,6 +1554,7 @@ class PersistenceController: ObservableObject {
                         for duplicate in existing.dropFirst() {
                             context.delete(duplicate)
                         }
+                        Self.stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
                         AppLogger.coreData.warning(
                             "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
                         )
@@ -1656,15 +1666,13 @@ class PersistenceController: ObservableObject {
                 transcript.setValue(Date(), forKey: "lastRetryDate")
             }
             transcript.setValue(transcribedText, forKey: "transcribedText")
-            if let postProcessedText {
-                transcript.setValue(postProcessedText, forKey: "postProcessedText")
-            }
+            // Always overwrite (including clearing to nil) — see the @MainActor variant.
+            transcript.setValue(postProcessedText, forKey: "postProcessedText")
             if let transcriptionProvider {
                 transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
             }
-            if let postProcessingProvider {
-                transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
-            }
+            // Always overwrite, in step with `postProcessedText` — see the @MainActor variant.
+            transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
             // Always overwrite (including clearing to nil) — see the @MainActor variant.
             transcript.setValue(wordTimestampsJSON, forKey: "wordTimestampsJSON")
 
@@ -1692,6 +1700,7 @@ class PersistenceController: ObservableObject {
 
                             if isNearInTime && (isNearInDuration || sameText) {
                                 context.delete(candidate)
+                                Self.stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
                                 AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
                             }
                         }
@@ -1829,6 +1838,7 @@ class PersistenceController: ObservableObject {
                         for duplicate in existing.dropFirst() {
                             context.delete(duplicate)
                         }
+                        Self.stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
                         AppLogger.coreData.warning(
                             "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
                         )
@@ -1877,7 +1887,9 @@ class PersistenceController: ObservableObject {
     /// - Parameters:
     ///   - transcript: The transcript to update (currently in "processing" state)
     ///   - transcribedText: The transcribed text (or error message if transcription failed)
-    ///   - postProcessedText: Optional AI-enhanced version of the text
+    ///   - postProcessedText: The delivered text when it differs from the raw text (AI
+    ///     post-processing, or with it off, filler removal, voice commands and
+    ///     Vocabulary swaps); nil clears the field. See `TranscriptionResult.historyPostProcessedText`.
     ///
     /// Auto-refresh mechanism:
     /// 1. Updates the transcript's text and status from "processing" to "completed"
@@ -1898,20 +1910,24 @@ class PersistenceController: ObservableObject {
         // Store the raw transcribed text
         transcript.setValue(transcribedText, forKey: "transcribedText")
 
-        // Store the post-processed text if available
-        if let postProcessedText = postProcessedText {
-            transcript.setValue(postProcessedText, forKey: "postProcessedText")
-        }
+        // Store the delivered text. Always overwrite, including clearing to
+        // nil: History, the Recording dialog and `GET /recordings/{id}` all
+        // read `postProcessedText` before `text`, so a Retry whose new text
+        // equals its raw text would otherwise keep showing the old run's
+        // text (issue #1638).
+        transcript.setValue(postProcessedText, forKey: "postProcessedText")
 
         // Store the transcription provider (e.g., "LibWhisper", "HyperWhisper Cloud", "OpenAI Whisper")
         if let provider = transcriptionProvider {
             transcript.setValue(provider, forKey: "transcriptionProvider")
         }
 
-        // Store the post-processing provider if available
-        if let provider = postProcessingProvider {
-            transcript.setValue(provider, forKey: "postProcessingProvider")
-        }
+        // Store the post-processing provider. Always overwrite, including
+        // clearing to nil, in step with `postProcessedText`: a Retry with AI
+        // off (or an AI step that left the text unchanged) has no provider,
+        // and keeping the old run's one would badge non-AI text as AI in
+        // History and in `GET /recordings/{id}`.
+        transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
 
         // Store segment/word timestamps JSON blob (basis: raw_text). Always
         // overwrite — including clearing to nil when the caller supplies none.
@@ -1949,6 +1965,7 @@ class PersistenceController: ObservableObject {
 
                         if isNearInTime && (isNearInDuration || sameText) {
                             container.viewContext.delete(candidate)
+                            Self.stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
                             AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
                         }
                     }
@@ -2069,6 +2086,7 @@ class PersistenceController: ObservableObject {
             removeTranscriptAudioFile(atPath: path)
         }
 
+        Self.stopRetries(ofDeleted: [transcript.id].compactMap { $0 })
         context.delete(transcript)
         save()
     }
@@ -2097,8 +2115,27 @@ class PersistenceController: ObservableObject {
         for path in Self.audioFilePathsToDelete(for: transcriptsToDelete, in: context) {
             removeTranscriptAudioFile(atPath: path)
         }
+        Self.stopRetries(ofDeleted: transcriptsToDelete.compactMap(\.id))
         transcriptsToDelete.forEach { context.delete($0) }
         save()
+    }
+
+    /// Stops every running retry (plain Retry or "Retry with") of rows being
+    /// deleted, whichever path deletes them (#1743): History, auto-delete, a
+    /// duplicate collapse. Otherwise the engine runs on for a row that is gone.
+    /// Cancels at once on the main thread; from a background context it hops
+    /// there, and the retry's own deleted-row checks cover the gap.
+    static func stopRetries(ofDeleted transcriptIDs: [UUID]) {
+        guard !transcriptIDs.isEmpty else { return }
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                transcriptIDs.forEach(TranscriptActionHandler.cancelRetryTask(for:))
+            }
+        } else {
+            Task { @MainActor in
+                transcriptIDs.forEach(TranscriptActionHandler.cancelRetryTask(for:))
+            }
+        }
     }
 
     // MARK: - Transcript Audio Files
@@ -2149,6 +2186,34 @@ class PersistenceController: ObservableObject {
             return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: [])
         }
 
+        let protectedPaths = pathsOwnedBySurvivors(of: lookupPaths, excluding: transcripts, in: context)
+        return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: protectedPaths)
+    }
+
+    /// Of `paths`, the files no remaining transcript records or derives.
+    /// For files no row records, such as the VAD output of a retry its row's
+    /// delete cancelled (#1743): another row recorded from the same audio
+    /// shares those names and keeps its files.
+    ///
+    /// Must run on `context`'s queue, AFTER the row is deleted from it.
+    static func audioPathsNoTranscriptOwns(
+        _ paths: [String],
+        in context: NSManagedObjectContext
+    ) -> [String] {
+        guard !paths.isEmpty else { return [] }
+        let owned = pathsOwnedBySurvivors(of: paths, excluding: [], in: context)
+        return paths.filter { !owned.contains($0) }
+    }
+
+    /// Every path the transcripts outside `transcripts` that record any of
+    /// `lookupPaths` own or derive. If that fetch fails, every lookup path
+    /// counts as owned: a leaked file is recoverable, a deleted file another
+    /// row plays is not.
+    private static func pathsOwnedBySurvivors(
+        of lookupPaths: [String],
+        excluding transcripts: [Transcript],
+        in context: NSManagedObjectContext
+    ) -> Set<String> {
         let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
         request.predicate = NSPredicate(
             format: "NOT (SELF IN %@) AND (audioFilePath IN %@ OR trimmedAudioFilePath IN %@)",
@@ -2157,16 +2222,13 @@ class PersistenceController: ObservableObject {
             lookupPaths as NSArray
         )
 
-        let protectedPaths: Set<String>
         do {
             let survivors = try context.fetch(request)
-            protectedPaths = TranscriptAudioFiles.protectedPaths(for: survivors.map(Self.recordedAudioPaths(of:)))
+            return TranscriptAudioFiles.protectedPaths(for: survivors.map(Self.recordedAudioPaths(of:)))
         } catch {
             AppLogger.coreData.error("Could not check owners of derived audio files; keeping them: \(error.localizedDescription, privacy: .public)")
-            protectedPaths = Set(lookupPaths)
+            return Set(lookupPaths)
         }
-
-        return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: protectedPaths)
     }
 
     /// Removes one transcript audio file if it exists, logging the outcome.
@@ -2775,7 +2837,17 @@ class PersistenceController: ObservableObject {
     // viewContext insert/save for RecordingSession here.
 
     // MARK: - Vocabulary Operations
-    
+
+    /// Splits a vocabulary add-field value into one word per non-empty line,
+    /// each trimmed (issue #1475). A pasted list becomes one word per line
+    /// instead of one word with newlines inside it. Single-line input comes
+    /// back as one trimmed word; blank input comes back empty.
+    nonisolated static func vocabularyWordLines(from text: String) -> [String] {
+        text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     /// Adds a new vocabulary item to Core Data
     /// - Parameters:
     ///   - word: The word/phrase to recognize
@@ -2797,6 +2869,13 @@ class PersistenceController: ObservableObject {
         // to the regex "\b\b" in VocabularyProcessor, matching every word
         // boundary and corrupting the entire transcript.
         guard !normalizedWord.isEmpty else {
+            return false
+        }
+
+        // A word is one line (issue #1475). Callers split a multi-line value
+        // with `vocabularyWordLines(from:)` first. The replacement may keep
+        // its line breaks: a multi-line snippet is allowed.
+        guard normalizedWord.rangeOfCharacter(from: .newlines) == nil else {
             return false
         }
 
@@ -3080,7 +3159,7 @@ class PersistenceController: ObservableObject {
         // whatever was pending before it starts.
         if context.hasChanges {
             do {
-                try context.save()
+                try saveBackupImportChanges(context: context)
             } catch {
                 AppLogger.logCoreData(
                     .save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
@@ -3134,7 +3213,7 @@ class PersistenceController: ObservableObject {
     private func saveBackupImportSection(context: NSManagedObjectContext, saveSite: String) throws {
         do {
             if context.hasChanges {
-                try context.save()
+                try saveBackupImportChanges(context: context)
             }
             AppLogger.logCoreData(.save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey))
         } catch {
@@ -3147,6 +3226,173 @@ class PersistenceController: ObservableObject {
                 metadata: shape
             )
             throw error
+        }
+    }
+
+    /// How long a backup import save waits for another process's write lock
+    /// on a store file before it fails (issue #1626; Ray chose 10 s).
+    nonisolated static let backupImportWriteLockTimeout: TimeInterval = 10
+
+    /// A backup import save that never started: another process held a
+    /// store's write lock for longer than `backupImportWriteLockTimeout`.
+    struct BackupImportStoreLockedError: Error {
+        /// The store file's name (not its path: the path holds the account name).
+        let storeFileName: String
+        /// The SQLite result code (`SQLITE_BUSY` or `SQLITE_LOCKED`).
+        let sqliteCode: Int32
+    }
+
+    /// Saves a backup import's changes in a bounded time, or throws (#1626).
+    ///
+    /// A plain `context.save()` has two ways to never come back when SQLite
+    /// itself refuses the write:
+    /// - Busy lock: Core Data waits for another process's write lock with no
+    ///   limit. Neither `NSPersistentStoreTimeoutOption` nor a `busy_timeout`
+    ///   pragma bounds that wait (measured on macOS 26). So before each
+    ///   `context.save()` take the write lock on every store the save writes,
+    ///   on our own connections within one 10 s deadline, hold them all until
+    ///   the line before the save, and let them go together (Core Data's own
+    ///   connection cannot take a lock ours hold, so they cannot be held
+    ///   through it). A lock another process takes in the short gap between
+    ///   that release and Core Data's own BEGIN still waits. The gap cannot be
+    ///   handed over either: on macOS 26 a raw `fcntl` lock this process takes
+    ///   on the WAL-index write byte blocks Core Data's own save too, because
+    ///   SQLite's locks there belong to its open file, not to the process.
+    /// - Constraint: a refused statement (`SQLITE_CONSTRAINT`, e.g. a trigger)
+    ///   reads to Core Data as an optimistic-locking failure. With a merging
+    ///   policy it retries, then ends the process ("Unable to recover from
+    ///   optimistic locking failure"). So save under `NSErrorMergePolicy`,
+    ///   which throws the conflicts instead. Real conflicts (a row another
+    ///   context changed since the import read it) are resolved ONCE with the
+    ///   context's own policy and the save is tried again; a failure with no
+    ///   conflict to resolve, or a second failure, is thrown.
+    @MainActor
+    private func saveBackupImportChanges(context: NSManagedObjectContext) throws {
+        try Self.saveWithoutRetryLoop(
+            context: context,
+            lockingStoresAt: Self.storeFileURLsWritten(by: context),
+            lockTimeout: Self.backupImportWriteLockTimeout
+        )
+    }
+
+    /// The on-disk SQLite files the context's pending changes are written to.
+    /// An in-memory (`/dev/null`) store has no file and no other writer.
+    @MainActor
+    private static func storeFileURLsWritten(by context: NSManagedObjectContext) -> [URL] {
+        guard let coordinator = context.persistentStoreCoordinator else { return [] }
+        let pending = context.insertedObjects.union(context.updatedObjects).union(context.deletedObjects)
+        let entityNames = Set(pending.compactMap { $0.entity.name })
+        return coordinator.persistentStores.compactMap { store in
+            guard store.type == NSSQLiteStoreType,
+                  let url = store.url,
+                  url.isFileURL,
+                  url.path != "/dev/null" else { return nil }
+            // A store with no named configuration holds every entity.
+            guard let entities = coordinator.managedObjectModel.entities(forConfigurationName: store.configurationName) else {
+                return url
+            }
+            return entities.contains { entityNames.contains($0.name ?? "") } ? url : nil
+        }
+    }
+
+    /// Write locks taken by `acquireStoreWriteLocks` on our own connections,
+    /// held until `release()`.
+    final class StoreWriteLocks {
+        private var connections: [OpaquePointer]
+
+        fileprivate init(connections: [OpaquePointer]) {
+            self.connections = connections
+        }
+
+        func release() {
+            for db in connections {
+                sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+                sqlite3_close_v2(db)
+            }
+            connections = []
+        }
+
+        deinit { release() }
+    }
+
+    /// Takes the write lock on every SQLite file in `urls`, all within one
+    /// `timeout`, and holds them until the result is released. Throws
+    /// `BackupImportStoreLockedError` (with every lock already taken let go)
+    /// when another connection still holds one at the deadline. Any other
+    /// SQLite failure skips that file and is left to the Core Data save,
+    /// which reports it.
+    nonisolated static func acquireStoreWriteLocks(at urls: [URL], timeout: TimeInterval) throws -> StoreWriteLocks {
+        var held: [OpaquePointer] = []
+        let deadline = Date().addingTimeInterval(timeout)
+        for url in urls {
+            var db: OpaquePointer?
+            guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK, let db else {
+                sqlite3_close_v2(db)
+                continue
+            }
+            let remaining = max(0, deadline.timeIntervalSinceNow)
+            sqlite3_busy_timeout(db, Int32(remaining * 1000))
+            let code = sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil)
+            if code == SQLITE_OK {
+                held.append(db)
+                continue
+            }
+            sqlite3_close_v2(db)
+            let primaryCode = code & 0xFF
+            if primaryCode == SQLITE_BUSY || primaryCode == SQLITE_LOCKED {
+                StoreWriteLocks(connections: held).release()
+                AppLogger.coreData.error("Backup import: \(url.lastPathComponent, privacy: .public) stayed write-locked by another connection for \(Int(timeout))s · not saving")
+                throw BackupImportStoreLockedError(storeFileName: url.lastPathComponent, sqliteCode: code)
+            }
+        }
+        return StoreWriteLocks(connections: held)
+    }
+
+    /// Waits up to `timeout` for the write lock on the SQLite file at `url`,
+    /// then releases it (see `acquireStoreWriteLocks`).
+    nonisolated static func waitForStoreWriteLock(at url: URL, timeout: TimeInterval) throws {
+        try acquireStoreWriteLocks(at: [url], timeout: timeout).release()
+    }
+
+    /// Saves under `NSErrorMergePolicy`, resolving real conflicts once with the
+    /// context's own policy (see `saveBackupImportChanges`). The context's
+    /// policy is put back afterwards. Each save, the retry included, first
+    /// takes and holds the write locks on `storeURLs` and lets them go on the
+    /// line before it.
+    @MainActor
+    static func saveWithoutRetryLoop(
+        context: NSManagedObjectContext,
+        lockingStoresAt storeURLs: [URL] = [],
+        lockTimeout: TimeInterval = backupImportWriteLockTimeout
+    ) throws {
+        let policy = context.mergePolicy
+        context.mergePolicy = NSErrorMergePolicy
+        defer { context.mergePolicy = policy }
+        func save() throws {
+            let locks = try acquireStoreWriteLocks(at: storeURLs, timeout: lockTimeout)
+            locks.release()
+            try context.save()
+        }
+        do {
+            try save()
+        } catch let error as NSError where error.domain == NSCocoaErrorDomain
+            && (error.code == NSManagedObjectMergeError || error.code == NSManagedObjectConstraintMergeError) {
+            let conflicts = error.userInfo[NSPersistentStoreSaveConflictsErrorKey] as? [Any] ?? []
+            let mergeConflicts = conflicts.compactMap { $0 as? NSMergeConflict }
+            let constraintConflicts = conflicts.compactMap { $0 as? NSConstraintConflict }
+            // No conflict to resolve: SQLite refused the statement itself.
+            guard let resolver = policy as? NSMergePolicy,
+                  resolver.mergeType != .errorMergePolicyType,
+                  !(mergeConflicts.isEmpty && constraintConflicts.isEmpty) else {
+                throw error
+            }
+            if !mergeConflicts.isEmpty {
+                try resolver.resolve(optimisticLockingConflicts: mergeConflicts)
+            }
+            if !constraintConflicts.isEmpty {
+                try resolver.resolve(constraintConflicts: constraintConflicts)
+            }
+            try save()
         }
     }
 
@@ -3418,9 +3664,16 @@ class PersistenceController: ObservableObject {
         // the same "add to end" order `addVocabularyItem` gives each row.
         var maxSortOrder: Int16?
 
-        for item in backupItems {
-            let normalizedWord = item.word.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A backup made before #1475 can carry a word with line breaks inside it. It
+        // imports as one word per non-empty line, the way the add field saves a paste
+        // (#1777); each line carries the item's replacement and source. A blank word
+        // stays one empty entry, so it is still counted as skipped below.
+        let entries = backupItems.flatMap { item -> [(String, BackupVocabularyItem)] in
+            let lines = Self.vocabularyWordLines(from: item.word)
+            return lines.isEmpty ? [("", item)] : lines.map { ($0, item) }
+        }
 
+        for (normalizedWord, item) in entries {
             // Skip empty/whitespace-only words. An empty word would later compile
             // to the regex "\b\b" in VocabularyProcessor, matching every word
             // boundary and corrupting the entire transcript.

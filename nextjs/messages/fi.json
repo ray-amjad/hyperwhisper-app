@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "Mikä on HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvitranskriptio, joka on suunnattu vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe on käytön mukaan maksettavia krediittejä. Lataat tiliä jo 5 $ alkaen (1 000 krediittiä / 1 $) ja käytät niitä vain transkriboidessasi. Ensimmäinen krediittiostosi luo automaattisesti Account Keysi, joten muuta ei tarvitse ostaa.\n    \nTarjoamme neljä tarkkuustasoa: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) ja Highest (Grok STT, oletus uusille asennuksille ja SpaceXAI Grok STT:n voimalla). Jälkikäsittely on automaattinen ja käyttää oletuksena Grok 4.1 Fast -mallia ilman päättelyä. Emme tallenna mitään muuta kuin sen, kuinka monta krediittiä kulutit, ja olemme jättäneet sinut pois mallien koulutuksesta jokaisella käyttämällämme taustapalveluntarjoajalla. Katso lisätiedot [tietosuojaoppaastamme](https://hyperwhisper.com/docs/data-privacy).\n\nKrediitit käytetään palveluntarjoajien omaan käsittelykustannukseen — ei katetta transkriptiosta. Kassalla lisätään kiinteä 6 %:n maksunkäsittelymaksu, joka näytetään erillisenä rivinä. Käyttämättömät krediitit vanhenevat 12 kuukauden kuluttua (katso alta).\n\nMielenrauhan vuoksi koko sovellus on avointa lähdekoodia Apache-2.0-lisenssillä — mukaan lukien Cloud-taustajärjestelmä. Voit lukea jokaisen koodirivin, joka suoritetaan sovelluksesi ja niiden palveluntarjoajien välillä, joille toimimme välityspalvelimena, [GitHubissa](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvitranskriptio, joka on suunnattu vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe on käytön mukaan maksettavia krediittejä. Lataat tiliä jo 5 $ alkaen (1 000 krediittiä / 1 $) ja käytät niitä vain transkriboidessasi. Ensimmäinen krediittiostosi luo automaattisesti Account Keysi, joten muuta ei tarvitse ostaa.\n    \nHyperWhisper Cloud tarjoaa sinulle 12 litterointipalveluntarjoajaa Groq Whisperistä ElevenLabs Scribe v2:een (katso [koko luettelo ja hinnat](https://hyperwhisper.com/docs/cloud-credits)). Uudet asennukset käyttävät aluksi ElevenLabs Scribe v2:ta. Jälkikäsittely on automaattinen, ja uudet asennukset käyttävät aluksi Claude Haiku 5.5:tä. Emme tallenna mitään muuta kuin sen, kuinka monta krediittiä kulutit, ja olemme jättäneet sinut pois mallien koulutuksesta jokaisella käyttämällämme taustapalveluntarjoajalla. Katso lisätiedot [tietosuojaoppaastamme](https://hyperwhisper.com/docs/data-privacy).\n\nKrediitit käytetään palveluntarjoajien omaan käsittelykustannukseen — ei katetta transkriptiosta. Kassalla lisätään kiinteä 6 %:n maksunkäsittelymaksu, joka näytetään erillisenä rivinä. Käyttämättömät krediitit vanhenevat 12 kuukauden kuluttua (katso alta).\n\nMielenrauhan vuoksi koko sovellus on avointa lähdekoodia Apache-2.0-lisenssillä — mukaan lukien Cloud-taustajärjestelmä. Voit lukea jokaisen koodirivin, joka suoritetaan sovelluksesi ja niiden palveluntarjoajien välillä, joille toimimme välityspalvelimena, [GitHubissa](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Käytetäänkö äänidataani tekoälymallien kouluttamiseen?",
@@ -390,5 +390,12 @@
     "heading": "Avoin lähdekoodi. Ei mitään salattavaa.",
     "body": "HyperWhisper on täysin avointa lähdekoodia Apache-2.0-lisenssillä — niin työpöytäsovellukset kuin Cloud-taustajärjestelmäkin. Sovelluksen, joka kuuntelee mikrofoniasi, pitäisi olla jotain, jonka voit varmistaa, ei vain luottaa siihen: lue jokainen rivi, tarkista tarkalleen, minne äänesi menee, ja tiedä, ettet jää koskaan lukkoon — koodi on sinun forkattavaksesi ja itse isännöitäväksesi ikuisesti. Rakennettu avoimesti indie-tekijä Ray Amjadin toimesta.",
     "cta": "Katso GitHubissa"
+  },
+  "notFound": {
+    "title": "Sivua ei löytynyt",
+    "heading": "Tätä sivua ei ole olemassa",
+    "description": "Linkki voi olla rikki, tai sivu on ehkä siirretty.",
+    "home": "Siirry etusivulle",
+    "download": "Lataa HyperWhisper"
   }
 }

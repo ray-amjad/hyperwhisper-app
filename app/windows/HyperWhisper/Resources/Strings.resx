@@ -1086,6 +1086,9 @@ Do you want to restart now?</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>File transcription cancelled</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transcribing file...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1495,6 +1498,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model In Use</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} is used by the "{1}" mode. Switch that mode to another model before deleting it.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1788,8 +1797,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>A recording or file transcription is already running. Try the file again when it finishes.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>This file is empty, so there is no audio to transcribe.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>This file is damaged or is not an audio file HyperWhisper can read.</value>
   </data>
 
   <!-- Update UI -->

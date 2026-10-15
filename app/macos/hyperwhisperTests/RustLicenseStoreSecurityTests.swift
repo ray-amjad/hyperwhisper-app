@@ -86,6 +86,68 @@ private final class ThreadRecordingCredentialStore: LicenseCredentialStore, @unc
     }
 }
 
+/// Holds every licence-record write until the test releases it, standing in
+/// for a slow `SecItemUpdate` (#1424). The wait is bounded so a regression
+/// that blocks the main thread on the write fails the test instead of hanging.
+private final class PersistenceResultBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: LicenseNetworkService.ValidationPersistenceResult?
+
+    var value: LicenseNetworkService.ValidationPersistenceResult? {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
+    }
+}
+
+private final class BlockingWriteCredentialStore: LicenseCredentialStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [LicenseCredentialDescriptor: Data] = [:]
+    private var blocksLicenseStateWrites = false
+    private var writeInFlight = false
+    private let writeRelease = DispatchSemaphore(value: 0)
+    /// How long a held write waits for `releaseBlockedWrite()` before it lands
+    /// anyway. Long, so the in-flight window outlasts a loaded runner holding
+    /// the main actor; it only bounds a regression that blocks a read on the
+    /// write, which then fails instead of hanging.
+    static let writeHoldSafetyBound: Double = 60
+    /// Signalled when a held write starts.
+    let writeStarted = DispatchSemaphore(value: 0)
+
+    /// True while a licence-record write is held inside `write`.
+    var isWriteInFlight: Bool {
+        lock.withLock { writeInFlight }
+    }
+
+    func blockLicenseStateWrites() {
+        lock.withLock { blocksLicenseStateWrites = true }
+    }
+
+    func releaseBlockedWrite() {
+        writeRelease.signal()
+    }
+
+    func read(item: LicenseCredentialDescriptor) throws -> Data? {
+        lock.withLock { storage[item] }
+    }
+
+    func write(_ data: Data, item: LicenseCredentialDescriptor) throws {
+        let blocks = lock.withLock {
+            item == LicenseKeychainStore.licenseStateItem && blocksLicenseStateWrites
+        }
+        if blocks {
+            lock.withLock { writeInFlight = true }
+            writeStarted.signal()
+            _ = writeRelease.wait(timeout: .now() + Self.writeHoldSafetyBound)
+            lock.withLock { writeInFlight = false }
+        }
+        lock.withLock { storage[item] = data }
+    }
+
+    func delete(item: LicenseCredentialDescriptor) throws {
+        _ = lock.withLock { storage.removeValue(forKey: item) }
+    }
+}
+
 /// Answers every request with HTTP 200 and an Active verdict, so a test can
 /// drive `LicenseNetworkService`'s real stateful validation and commit path
 /// without reaching the licence server.
@@ -476,6 +538,73 @@ struct RustLicenseStoreSecurityTests {
         #expect(try keychain.readRecord()?.key == "off-main-key")
         // Exactly one commit, and it did not run on the main thread.
         #expect(credentials.licenseStateWritesOnMainThread == [false])
+    }
+
+    /// #1424: a stateful commit holds the transaction lock across its blocking
+    /// Keychain write. A main-actor licence read must not wait on it; it sees
+    /// the last committed record until the write lands.
+    @MainActor
+    @Test func mainActorLicenceReadDoesNotWaitOnInFlightKeychainWrite() async throws {
+        let defaults = makeDefaults()
+        let credentials = BlockingWriteCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        try keychain.replaceRecord(with: LicenseKeychainRecord(
+            key: "current-key",
+            lastValidation: "100",
+            cachedStatus: "Active"
+        ))
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        let service = LicenseNetworkService(store: store)
+        let manager = LicenseManager(
+            networkService: service,
+            loadStoredLicenseOnInit: false,
+            notificationCenter: NotificationCenter()
+        )
+        manager.licenseStatus = .active
+        // Load the committed snapshot, as the launch read does.
+        #expect(manager.storedLicenseKeyReadForSeeding() == .present("current-key"))
+        credentials.blockLicenseStateWrites()
+
+        // The held write blocks its thread, so it runs on a thread of its own,
+        // not the Swift concurrency pool (see SemaphoreWait.swift).
+        let commitResult = PersistenceResultBox()
+        let commitDone = DispatchSemaphore(value: 0)
+        Thread.detachNewThread {
+            commitResult.value = LicenseNetworkService.persistValidationVerdictIfCurrent(
+                store: store,
+                status: .active,
+                attemptedKey: "current-key",
+                expectedStoredLicenseKey: "current-key",
+                nowUnixSecs: 200,
+                isCancelled: false
+            )
+            commitDone.signal()
+        }
+        // Generous bounds: on a loaded runner the main actor can resume late.
+        // The held write cannot land meanwhile; only the release below lets it.
+        #expect(await waitOffThePool(for: credentials.writeStarted, seconds: 30))
+
+        let identifier = manager.getTranscriptionIdentifier()
+        let seeding = manager.storedLicenseKeyReadForSeeding()
+        let stored = service.getStoredLicenseKey()
+        let lastValidation = store.get(key: RustLicenseStore.kLicenseLastValidation)
+        // Every read above returned while the write was still held. A read that
+        // waited on the write returns only once the safety bound lets it land,
+        // so this fails rather than hangs.
+        #expect(credentials.isWriteInFlight)
+        #expect(identifier.identifier == "current-key")
+        #expect(identifier.isLicensed)
+        #expect(seeding == .present("current-key"))
+        #expect(stored == "current-key")
+        // The staged verdict is not visible before its Keychain write lands.
+        #expect(lastValidation == "100")
+
+        credentials.releaseBlockedWrite()
+        #expect(await waitOffThePool(for: commitDone, seconds: 30))
+        #expect(commitResult.value == .persisted)
+        #expect(store.get(key: RustLicenseStore.kLicenseLastValidation) == "200")
+        #expect(try keychain.readRecord()?.lastValidation == "200")
     }
 
     @Test func noOpLicenseTransactionSkipsKeychainWrite() throws {

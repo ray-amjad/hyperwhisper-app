@@ -184,10 +184,16 @@ describe('isIPBlocked', () => {
     expect(store.gets).toEqual(['ip_blocked:203.0.113.7']);
   });
 
-  test('blocks only on the exact string "true"', async () => {
-    // The block flag is compared as a string, so every other truthy value a
-    // stale or hand-written entry could hold must NOT block a paying user.
-    expect(await isIPBlocked(() => recordingStore(true), '203.0.113.7')).toBe(false);
+  test('blocks on the boolean true, the form a bare stored true reads back as', async () => {
+    // Upstash JSON-parses every read, so `SET ip_blocked:<ip> true` arrives
+    // here as the boolean, not the string.
+    expect(await isIPBlocked(() => recordingStore(true), '203.0.113.7')).toBe(true);
+  });
+
+  test('blocks only on true or the exact string "true"', async () => {
+    // Every other truthy value a stale or hand-written entry could hold must
+    // NOT block a paying user.
+    expect(await isIPBlocked(() => recordingStore('true'), '203.0.113.7')).toBe(true);
     expect(await isIPBlocked(() => recordingStore(1), '203.0.113.7')).toBe(false);
     expect(await isIPBlocked(() => recordingStore('TRUE'), '203.0.113.7')).toBe(false);
     expect(await isIPBlocked(() => recordingStore('false'), '203.0.113.7')).toBe(false);

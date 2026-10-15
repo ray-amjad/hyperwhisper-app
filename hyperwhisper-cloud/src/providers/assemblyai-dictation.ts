@@ -3,7 +3,7 @@
 import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, providerHttpError } from './utils';
+import { fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 export const DICTATION_LANGUAGES = ['en', 'es', 'de', 'fr', 'it', 'pt', 'tr', 'nl', 'sv', 'no', 'da', 'fi', 'hi', 'vi', 'he', 'ur', 'ko', 'ca', 'gl', 'ru', 'ro', 'et', 'fa', 'yue', 'af', 'mr', 'zu', 'xh', 'nn', 'ar', 'ja', 'zh'] as const;
 
@@ -109,16 +109,11 @@ export function parseDictationWav(audio: ArrayBuffer, contentType: string): { du
 /** Match the native vocabulary sanitizer without the async six-word limit. */
 export function dictationKeyterms(prompt: string): string[] {
   const terms: string[] = [];
-  const seen = new Set<string>();
   let chars = 0;
-  for (const raw of prompt.split(/[,\n;]+/)) {
-    const sanitized = raw.trim().replace(/^[-*]\s*/, '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
-    const term = Array.from(sanitized).slice(0, 80).join('');
+  for (const term of splitVocabularyTerms(prompt, { maxTerms: 100, maxTermChars: 80, sanitize: true, overLongTerm: 'truncate' })) {
     const length = Array.from(term).length;
-    if (!length || seen.has(term.toLowerCase())) continue;
-    if (terms.length >= 100 || chars + length > 8000) break;
+    if (chars + length > 8000) break;
     terms.push(term);
-    seen.add(term.toLowerCase());
     chars += length;
   }
   return terms;

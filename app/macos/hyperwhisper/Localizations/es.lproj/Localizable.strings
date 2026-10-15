@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnósticos exportados";
 "alerts.export.diagnostics.success.message" = "Todos los registros de diagnóstico se han exportado correctamente.";
 "alerts.export.diagnostics.saveFailed.message" = "No se pudieron guardar los diagnósticos en la ubicación seleccionada: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnósticos exportados sin registros del sistema";
+"alerts.export.diagnostics.noSystemLogs.message" = "Se guardó el archivo de diagnósticos, pero no se pudieron leer los registros del sistema de la app, así que system-logs.txt solo contiene el motivo. Motivo: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportar registros de actualización para soporte";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Finalizar configuración";
 
 "onboarding.setupLater.button" = "Configurar más tarde";
-"onboarding.error.microphone.denied" = "Permiso del micrófono denegado. Concede permiso en Ajustes del Sistema.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Iniciar al iniciar sesión";
@@ -336,6 +337,9 @@
 "settings.storage.choose.button" = "Elegir...";
 "settings.storage.dialog.select" = "Seleccionar carpeta";
 "settings.storage.dialog.message" = "Elige una carpeta para guardar las grabaciones";
+"settings.storage.folderRefused.title" = "No se puede usar esta carpeta";
+"settings.storage.folderRefused.notWritable" = "No tienes permiso para escribir en «%@», así que HyperWhisper no puede guardar grabaciones ahí. La carpeta de grabaciones no se ha cambiado.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper no pudo crear esta carpeta: %@ La carpeta de grabaciones no se ha cambiado.";
 "settings.storage.storeAsM4A.title" = "Comprimir grabaciones a M4A";
 "settings.storage.storeAsM4A.subtitle" = "Convierte grabaciones WAV a archivos más pequeños tras la transcripción. Desactívalo para conservar los WAV originales (más grandes pero sin pérdidas).";
 
@@ -383,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Cambiar modo";
 "settings.shortcuts.changeMode.subtitle" = "Solo funciona durante la grabación";
+"settings.shortcuts.conflict.alert" = "No se puede usar este atajo de teclado porque ya lo usa «%@».";
 
 "settings.shortcuts.reset.button" = "Restablecer valores predeterminados";
 "settings.shortcuts.reset.dialog.title" = "Restablecer atajos de teclado";
@@ -576,6 +581,8 @@
 "onboarding.configure.cloud.note" = "Los créditos son prepago y se comparten entre todos los Mac con sesión iniciada con esta clave. El tiempo inactivo no cuesta nada.";
 "onboarding.source.note" = "Si cambias de opinión más tarde, solo se repite este paso. No se pierde nada más de lo que configures.";
 "onboarding.permissions.note" = "Si omites Accesibilidad, las transcripciones van al portapapeles, listas para pegar. Activarla más tarde es cuestión de un clic.";
+"onboarding.permissions.microphone.denied" = "No permitido. Activa HyperWhisper en Ajustes del Sistema y vuelve aquí.";
+"onboarding.permissions.continueNeedsMicrophone" = "Para continuar se necesita el micrófono. Permítelo arriba o elige Configurar más tarde.";
 "onboarding.welcome.task1.title" = "Elige cómo se ejecuta la transcripción";
 "onboarding.welcome.task1.caption" = "En nuestra nube, en este Mac o mediante una cuenta de proveedor que ya pagas.";
 "onboarding.welcome.task2.title" = "Comprueba tu micrófono";
@@ -900,6 +907,7 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "audio.error.microphonePermission" = "Permiso del micrófono no concedido";
 "audio.error.microphoneInUse" = "HyperWhisper no puede acceder al micrófono porque otra app lo está usando. Pausa la otra app o cambia de entrada y vuelve a intentarlo.";
 "audio.error.audioSystemNotResponding" = "El audio de macOS no responde, así que no se pudo iniciar el micrófono. Vuelve a intentarlo en un momento. Si sigue ocurriendo, reinicia tu Mac.";
+"audio.error.recorderStopTimedOut" = "El audio de macOS dejó de responder mientras se guardaba la grabación, así que no se transcribió. El audio se ha conservado: HyperWhisper intentará recuperarlo la próxima vez que se inicie.";
 "audio.error.createEngine" = "No se pudo crear el motor de audio";
 "audio.error.noInput" = "No hay entrada de audio disponible";
 "audio.error.createFile" = "No se pudo crear el archivo de audio";
@@ -973,6 +981,7 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "transcription.guidance.quotaExceeded" = "Añade créditos a tu cuenta de %@ o actualiza tus datos de facturación";
 "transcription.guidance.timeout" = "La solicitud tardó demasiado. Revisa tu velocidad de Internet e inténtalo de nuevo.";
 "transcription.error.noSpeechDetected" = "No se detectó voz en la grabación.";
+"transcription.error.audioTooShort" = "La grabación es demasiado corta para transcribirla. Graba durante más tiempo.";
 "transcription.guidance.noSpeechDetected" = "Consejos:\n• Habla con claridad al micrófono\n• Mantén la tecla pulsada más tiempo antes de hablar\n• Comprueba que tu micrófono funciona\n• Asegúrate de que el dispositivo de entrada correcto esté seleccionado";
 "transcription.guidance.needsNativeRelaunch" = "Cierra y vuelve a abrir HyperWhisper en modo nativo para usar el posprocesamiento local.";
 "transcription.guidance.localRuntimeUnavailable" = "Vuelve a intentarlo o elige un modelo local más pequeño en los ajustes del modo.";
@@ -1115,6 +1124,13 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "transcribe.file.error.format.title" = "Formato no compatible";
 "transcribe.file.error.format.message" = "Los archivos .%@ no son compatibles con %@. Formatos compatibles: %@";
 "transcribe.file.error.read" = "No se puede leer el archivo seleccionado.";
+"transcribe.file.error.webm" = "WebM no es compatible. Convierte el archivo a MP3, M4A o WAV y vuelve a intentarlo.";
+"transcribe.file.error.notAudio" = "El archivo «%@» no es un audio válido. Puede estar dañado o en un formato que macOS no puede descodificar.";
+"transcribe.file.error.empty" = "El archivo «%@» está vacío. No contiene audio que transcribir.";
+"transcribe.file.error.permission" = "HyperWhisper no puede leer el archivo «%@». Revisa los permisos del archivo.";
+"transcribe.file.error.folderPermission" = "HyperWhisper no puede abrir una carpeta que contiene el archivo «%@». Revisa los permisos de esa carpeta.";
+"transcribe.file.error.privacy" = "La configuración de privacidad de macOS impidió que HyperWhisper leyera el archivo «%@». Permítelo en Ajustes del Sistema > Privacidad y seguridad > Acceso total al disco.";
+"transcribe.file.error.tooShort" = "Este archivo es demasiado corto para transcribirlo (%@ s).";
 "transcribe.file.error.copy" = "No se pudo copiar el archivo a la carpeta de grabaciones.";
 "transcribe.file.error.video.title" = "Sin audio en el video";
 "transcribe.file.error.video.noAudio" = "Este archivo de video no contiene pista de audio. Selecciona un video con audio o un archivo de audio.";

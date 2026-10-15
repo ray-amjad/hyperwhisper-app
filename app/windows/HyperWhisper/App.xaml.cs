@@ -268,6 +268,13 @@ public partial class App : WpfApplication
             }
         });
 
+        // MODEL DOWNLOAD LEFTOVERS
+        // A kill, crash or power loss mid-download left that model's partial
+        // file or folder in Models for good; remove it now (#1599).
+        // A download awaits ModelDownloadLeftovers.WhenSwept, so it never races the
+        // sweep. StartSweep runs off the UI thread and logs every exception.
+        _ = ModelDownloadLeftovers.StartSweep(DateTime.UtcNow);
+
         // LOCAL API SERVER
         // Off by default. When the user has enabled it via Settings → Local API,
         // bring up the loopback HTTP host so MCP/cURL scripts can talk to the
@@ -283,6 +290,16 @@ public partial class App : WpfApplication
                 localLlmModels,
                 ApiKeyService.Instance,
                 CloudProviderHealthService.Instance);
+
+            // A Quit that outran a request, or a hard kill, left that request's
+            // decoded upload or snapshot in %TEMP%; remove it now (#1476).
+            var scratchSweepCutoffUtc = DateTime.UtcNow;
+            // ast-grep-ignore: no-discarded-task-run -- start-up runs on the UI thread and %TEMP% can hold many files; the sweep catches its own IO errors and the catch inside the lambda logs anything else
+            _ = Task.Run(() =>
+            {
+                try { LocalApiScratchFiles.SweepLeftovers(scratchSweepCutoffUtc); }
+                catch (Exception ex) { LoggingService.Warn($"LocalAPI scratch sweep failed: {ex.Message}"); }
+            });
 
             // Phase 3: hand the API server the same orchestrator + local
             // provider that `MainViewModel` consumes via
@@ -419,6 +436,12 @@ public partial class App : WpfApplication
         // the port frees up cleanly. The shared orchestrator + local provider
         // owned by TranscriptionRuntime are disposed implicitly by process exit.
         try { LocalApiServer.Instance.Shutdown(); } catch { /* best-effort on shutdown */ }
+
+        // Quit paths that skip MainWindow.ShutdownAsync (an update restart, a
+        // session end) still cancel running model downloads so each deletes its
+        // partial if it gets the chance; start-up sweeps the rest (#1599). No wait:
+        // a download's progress handler can need this UI thread.
+        _ = ModelDownloadService.Instance.CancelAllAsync(TimeSpan.Zero);
 
         // Release single-instance mutex
         SingleInstanceGuard.Release();

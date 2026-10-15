@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "Apa itu HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud adalah transkripsi cloud bawaan yang ditujukan untuk pengguna yang kurang teknis dan ingin segera memulai.\n\nIni adalah kredit bayar-sesuai-pakai. Anda mengisi mulai dari hanya $5 (1.000 kredit per $1) dan menggunakannya hanya saat Anda mentranskripsi. Pembelian kredit pertama Anda otomatis membuat Account Key Anda, jadi tidak ada lagi yang perlu dibeli.\n    \nKami menawarkan empat tingkat akurasi: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2), dan Highest (Grok STT, default untuk instalasi baru dan didukung oleh SpaceXAI Grok STT). Pasca-pemrosesan bersifat otomatis dan secara default menggunakan Grok 4.1 Fast non-reasoning. Kami tidak menyimpan apa pun selain berapa banyak kredit yang Anda konsumsi, dan kami telah memilihkan Anda keluar dari pelatihan model pada setiap penyedia hulu yang kami gunakan. Lihat [panduan Privasi Data](https://hyperwhisper.com/docs/data-privacy) kami untuk detailnya.\n\nKredit dibelanjakan sesuai biaya pemrosesan penyedia itu sendiri — tanpa markup pada transkripsi. Checkout menambahkan biaya pemrosesan pembayaran tetap sebesar 6%, ditampilkan sebagai item terpisah. Kredit yang tidak terpakai kedaluwarsa setelah 12 bulan (lihat di bawah).\n\nUntuk ketenangan pikiran, seluruh aplikasi bersifat open source di bawah Apache-2.0 — termasuk backend Cloud. Anda dapat membaca setiap baris kode yang berjalan antara aplikasi Anda dan penyedia yang kami proksikan [di GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud adalah transkripsi cloud bawaan yang ditujukan untuk pengguna yang kurang teknis dan ingin segera memulai.\n\nIni adalah kredit bayar-sesuai-pakai. Anda mengisi mulai dari hanya $5 (1.000 kredit per $1) dan menggunakannya hanya saat Anda mentranskripsi. Pembelian kredit pertama Anda otomatis membuat Account Key Anda, jadi tidak ada lagi yang perlu dibeli.\n    \nHyperWhisper Cloud memberi Anda 12 penyedia transkripsi, dari Groq Whisper hingga ElevenLabs Scribe v2 (lihat [daftar lengkap dan tarifnya](https://hyperwhisper.com/docs/cloud-credits)). Instalasi baru dimulai dengan ElevenLabs Scribe v2. Pasca-pemrosesan bersifat otomatis dan instalasi baru dimulai dengan Claude Haiku 5.5. Kami tidak menyimpan apa pun selain berapa banyak kredit yang Anda konsumsi, dan kami telah memilihkan Anda keluar dari pelatihan model pada setiap penyedia hulu yang kami gunakan. Lihat [panduan Privasi Data](https://hyperwhisper.com/docs/data-privacy) kami untuk detailnya.\n\nKredit dibelanjakan sesuai biaya pemrosesan penyedia itu sendiri — tanpa markup pada transkripsi. Checkout menambahkan biaya pemrosesan pembayaran tetap sebesar 6%, ditampilkan sebagai item terpisah. Kredit yang tidak terpakai kedaluwarsa setelah 12 bulan (lihat di bawah).\n\nUntuk ketenangan pikiran, seluruh aplikasi bersifat open source di bawah Apache-2.0 — termasuk backend Cloud. Anda dapat membaca setiap baris kode yang berjalan antara aplikasi Anda dan penyedia yang kami proksikan [di GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Apakah data suara saya akan digunakan untuk melatih model AI?",
@@ -390,5 +390,12 @@
     "heading": "Sumber terbuka. Tidak ada yang disembunyikan.",
     "body": "HyperWhisper sepenuhnya open-source di bawah Apache-2.0 — baik aplikasi desktop maupun backend Cloud. Aplikasi yang mendengarkan mikrofon Anda seharusnya bisa Anda verifikasi, bukan sekadar dipercaya: baca setiap baris, audit ke mana persis audio Anda pergi, dan ketahui bahwa Anda tidak akan pernah terkunci — kode ini milik Anda untuk di-fork dan di-host sendiri selamanya. Dibangun secara terbuka oleh indie maker Ray Amjad.",
     "cta": "Lihat di GitHub"
+  },
+  "notFound": {
+    "title": "Halaman tidak ditemukan",
+    "heading": "Halaman ini tidak ada",
+    "description": "Tautan mungkin rusak, atau halaman mungkin telah dipindahkan.",
+    "home": "Ke halaman beranda",
+    "download": "Unduh HyperWhisper"
   }
 }

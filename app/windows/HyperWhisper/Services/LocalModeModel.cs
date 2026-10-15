@@ -25,6 +25,17 @@ public static class LocalModeModel
     public const string MacParakeetV3Id = "parakeet-tdt-0.6b-v3";
 
     /// <summary>
+    /// The macOS id of Nemotron 3.5 ASR Streaming, multilingual (macOS
+    /// NemotronModelManager). Windows ships the same multilingual checkpoint as
+    /// <c>nemotron-3.5-ml-560ms</c> (a 560 ms chunk sherpa-onnx build); macOS
+    /// has no Windows-style id and its Latin variant is a different model (#1625).
+    /// </summary>
+    public const string MacNemotronMultilingualId = "nemotron-asr-3.5-multilingual";
+
+    /// <summary>The Windows id of Nemotron 3.5 ASR Streaming, multilingual (ParakeetModelInfo).</summary>
+    public const string WindowsNemotronMultilingualId = "nemotron-3.5-ml-560ms";
+
+    /// <summary>
     /// The Whisper id every head ships ("base" on macOS, Linux and Windows), used
     /// when a local mode names no usable model at all. Never empty and never
     /// "cloud": macOS reads both of those as a cloud mode.
@@ -59,8 +70,9 @@ public static class LocalModeModel
     }
 
     /// <summary>
-    /// The portable <c>model</c> a local mode exports. Parakeet v2 / v3 use the
-    /// macOS ids so macOS restores the same engine; any other sherpa-onnx id
+    /// The portable <c>model</c> a local mode exports. Parakeet v2 / v3 and
+    /// Nemotron multilingual use the macOS ids so macOS restores the same
+    /// engine; any other sherpa-onnx id
     /// (Qwen3 ASR shares its id with macOS) and every Whisper type cross
     /// verbatim. The result is never empty and never "cloud", so every head
     /// reads the mode as local.
@@ -72,6 +84,7 @@ public static class LocalModeModel
             var id = mode.LocalParakeetModel!.Trim();
             if (string.Equals(id, "parakeet-v2", StringComparison.OrdinalIgnoreCase)) return MacParakeetV2Id;
             if (string.Equals(id, "parakeet-v3", StringComparison.OrdinalIgnoreCase)) return MacParakeetV3Id;
+            if (string.Equals(id, WindowsNemotronMultilingualId, StringComparison.OrdinalIgnoreCase)) return MacNemotronMultilingualId;
             return id;
         }
 

@@ -62,7 +62,7 @@ public partial class MainWindow : Window
         WindowWorkAreaFit.Attach(this);
 
         _viewModel = (MainViewModel)DataContext;
-        _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(MainViewModel.CurrentPage)) NavigateToPage(_viewModel.CurrentPage); };
+        _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(MainViewModel.CurrentPage)) NavigateToPage(_viewModel.CurrentPage, _viewModel.TakePendingSettingsSection()); };
 
         // The nav rail is its own control now (issue #570); it reports the credits
         // call to action rather than navigating, because navigation lives here.
@@ -258,6 +258,9 @@ public partial class MainWindow : Window
 
         try
         {
+            // A model download the app exits under never deletes its partial
+            // file (#1599): cancel it and give it a moment to clean up.
+            await ModelDownloadService.Instance.CancelAllAsync(TimeSpan.FromSeconds(3));
             await _viewModel.CleanupAsync();
             _recordingOverlay?.Close();
             _fileProgressWindow?.Close();
@@ -361,15 +364,11 @@ public partial class MainWindow : Window
     private void CloudCreditsSidebar_Click(object? sender, EventArgs e)
     {
         // Open the combined Cloud account / credits + license activation panel.
-        _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
-        NavigateToPage(MainViewModel.NavigationPage.Settings, "License");
+        NavigateToSettingsSection("License");
     }
 
-    public void NavigateToSettingsSection(string sectionTag)
-    {
-        _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
-        NavigateToPage(MainViewModel.NavigationPage.Settings, sectionTag);
-    }
+    // One navigation, not two: the CurrentPage change carries the section (#637).
+    public void NavigateToSettingsSection(string sectionTag) => _viewModel.OpenSettingsSection(sectionTag);
 
     /// <summary>
     /// Creates the recording overlay window if it doesn't exist and wires up all events.
@@ -449,8 +448,7 @@ public partial class MainWindow : Window
             }
 
             // Show main window and navigate to settings
-            _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
-            NavigateToPage(MainViewModel.NavigationPage.Settings, args.SettingsSection ?? "General");
+            NavigateToSettingsSection(args.SettingsSection ?? "General");
         };
         _errorToast.Dismissed += (s, e) =>
         {
@@ -643,9 +641,7 @@ public partial class MainWindow : Window
             // Subscribe to audio device and mode changes to refresh the menus
             _viewModel.PropertyChanged += (s, e) =>
             {
-                if (e.PropertyName == nameof(MainViewModel.IsRecording) ||
-                    e.PropertyName == nameof(MainViewModel.IsTranscribing) ||
-                    e.PropertyName == nameof(MainViewModel.IsModelLoading) ||
+                if ((e.PropertyName is { } changed && MainViewModel.TrayFileTranscriptionInputs.Contains(changed)) ||
                     e.PropertyName == nameof(MainViewModel.SelectedAudioDevice) ||
                     e.PropertyName == nameof(MainViewModel.SelectedMode))
                 {
@@ -995,7 +991,7 @@ public partial class MainWindow : Window
             var modeItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(modeName))
             {
                 ToolTipText = MenuItemText.Tooltip(modeName),
-                Enabled = !_viewModel.IsRecording && !_viewModel.IsTranscribing && !_viewModel.IsModelLoading && !IsOnboardingOpen,
+                Enabled = _viewModel.CanOfferTrayFileTranscription && !IsOnboardingOpen,
                 Tag = mode
             };
 

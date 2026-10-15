@@ -38,9 +38,18 @@ head is importing. Each head preserves the other's slice unchanged, so after a W
 → Windows trip the file holds the edit in `linux` and the OLD values in the preserved `windows`
 slice; without this rule Windows restored the old values. A tie, or a missing `modifiedDate` on
 either side, keeps the own slice, so an unedited trip restores exactly what it did before. A date
-with no offset is read as UTC (both heads store UTC). Fields only one head has stay own-slice only
-(Windows `localPostProcessingModel`; `cloudAccuracyTier` / `cloudPostProcessingModel` are folded
-by the core). macOS never takes part: it writes none of these fields.
+with no offset is read as UTC (both heads store UTC). macOS never takes part: it writes none of
+these fields.
+
+The same rule covers `cloudAccuracyTier`, `cloudPostProcessingModel` and `localPostProcessingModel`
+(#1747), which Linux writes only at the TOP level and Windows writes at the top level AND in its
+`windows` slice, where the slice value overrides the top-level one (the core fold,
+`normalize_universal_mode_value`, for the first two). When the `linux` slice wins — a newer
+`modifiedDate` on Windows; any readable `linux` slice the `windows` slice does not beat on Linux —
+each head reads these three from the top level and ignores the `windows` slice's copies (it hands
+the core the mode without that slice). When the `windows` slice wins — or is the only readable
+slice — its copies still override, on both heads: the core fold reads the first two, and each head
+reads `localPostProcessingModel` from that slice itself, else from the top level.
 The fields read this way today:
 
 | Field | Read by | Foreign source |
@@ -271,7 +280,7 @@ Windows-only mode fields (go into `platformExtensions.windows`):
 | `localEngine` | `Mode.LocalEngine` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `"whisper"` |
 | `localParakeetModel` | `Mode.LocalParakeetModel` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `null` |
 | `providerType` | `Mode.ProviderType` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else infer from `cloudProvider` |
-| `cloudAccuracyTier` | `Mode.CloudAccuracyTier` | `"High"` |
+| `cloudAccuracyTier` | `Mode.CloudAccuracyTier` | the top-level value when a newer `linux` slice wins (#1747), else this slice's, else the provider fold's or the top level's, else `"High"` |
 | `enableScreenOCR` | `Mode.EnableScreenOCR` | a newer `linux` slice's (by `modifiedDate`), else the `windows` slice's, else the `macos`, then the `linux`, slice's `enableScreenOCR`, else `false` |
 | `customVocabulary` | `Mode.CustomVocabulary` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `null` |
 | `isSystemProvided` | `Mode.IsSystemProvided` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `false` |

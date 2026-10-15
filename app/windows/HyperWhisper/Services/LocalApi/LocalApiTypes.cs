@@ -488,6 +488,10 @@ internal sealed class PostProcessResponse
     /// the `ok: false` envelope as well. Documented on the `/post-process`
     /// path in `openapi.yaml`.
     ///
+    /// A HyperWhisper Cloud run with no account key is refused as
+    /// `MISSING_API_KEY` on every head (issue #1487), the same refusal
+    /// `/transcribe` gives for the same mode.
+    ///
     /// Set from <c>PostProcessingResult.WasApplied</c> — `false` on the
     /// no-op branch, `true` on the branch that ran. Do not give this a
     /// default: both call sites must state it, so a third one cannot silently

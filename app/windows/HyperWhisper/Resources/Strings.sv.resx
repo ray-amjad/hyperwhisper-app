@@ -823,6 +823,9 @@ Denna åtgärd kan inte ångras.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Filtranskribering avbruten</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkriberar fil...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modellen används</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} används av läget ”{1}”. Byt läget till en annan modell innan du tar bort den.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1312,8 +1321,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>En inspelning eller filtranskribering pågår redan. Försök med filen igen när den är klar.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Den här filen är tom, så det finns inget ljud att transkribera.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Den här filen är skadad eller är inte en ljudfil som HyperWhisper kan läsa.</value>
   </data>
 
 

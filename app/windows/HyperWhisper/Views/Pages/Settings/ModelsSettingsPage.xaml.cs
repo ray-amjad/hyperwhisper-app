@@ -855,7 +855,7 @@ public partial class ModelsSettingsPage : Page
     private static void ShowModelInUse(string modelName, string modeName)
     {
         WpfMessageBox.Show(
-            $"{modelName} is used by the \"{modeName}\" mode. Switch that mode to another model before deleting it.",
+            Loc.S("settings.models.alert.cannotDelete.message", modelName, modeName),
             Loc.S("settings.models.alert.cannotDelete.title"),
             MessageBoxButton.OK,
             MessageBoxImage.Warning);
@@ -993,7 +993,9 @@ public partial class ModelsSettingsPage : Page
         {
             if (e.IsCompleted)
             {
-                if (!e.IsSuccess && !string.IsNullOrWhiteSpace(e.Error)
+                // IsCancelled covers the non-English cancel text: Quit cancels
+                // running downloads, and must not raise a failure box (#1599).
+                if (!e.IsSuccess && !e.IsCancelled && !string.IsNullOrWhiteSpace(e.Error)
                     && !e.Error.Contains("cancelled", StringComparison.OrdinalIgnoreCase))
                 {
                     WpfMessageBox.Show(

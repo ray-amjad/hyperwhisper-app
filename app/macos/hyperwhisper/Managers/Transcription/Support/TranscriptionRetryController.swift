@@ -34,11 +34,17 @@ enum TranscriptionRetryError: LocalizedError, Equatable {
     /// recorded, without asking. Ray (2026-10-08): Retry stops, sends nothing,
     /// and points the user at "Retry with..." to pick another mode.
     case originalModeDeleted
+    /// The retry's mode was live when the retry started but was deleted
+    /// before the router read it (#1620). Thrown by the pipeline when a
+    /// retry passes `refuseDeletedMode`, so nothing is sent.
+    case modeDeletedDuringRetry
 
     var errorDescription: String? {
         switch self {
         case .originalModeDeleted:
             return "transcripts.retry.error.modeDeleted".localized
+        case .modeDeletedDuringRetry:
+            return "recording.retry.modeDeleted".localized
         }
     }
 }
@@ -47,16 +53,25 @@ enum TranscriptionRetryError: LocalizedError, Equatable {
 /// "Retry with..." menu and the recording dialog's pending-file mode picker
 /// (#1617) both list exactly these, so the two never disagree.
 enum RetryModeChoices {
-    /// Every mode while online. Offline, the modes that need the internet
+    /// Every live mode while online. Offline, the modes that need the internet
     /// (a Cloud transcription model or cloud post-processing) are left out.
+    /// A deleted mode is never a choice (#1620).
     static func available(from modes: [Mode], isOnline: Bool) -> [Mode] {
-        guard !isOnline else { return modes }
-        return modes.filter { mode in
+        let live = modes.filter(isLive)
+        guard !isOnline else { return live }
+        return live.filter { mode in
             let isCloudModel = (mode.model ?? "").lowercased() == "cloud"
             let processingMode = PostProcessingMode(rawValue: mode.postProcessingMode) ?? .off
             let hasCloudPostProcessing = processingMode.requiresInternet
             return !isCloudModel && !hasCloudPostProcessing
         }
+    }
+
+    /// False for a mode deleted since it was fetched. Once the delete is
+    /// saved the object leaves its context and reads every attribute as nil,
+    /// so a nil model would route a retry to HyperWhisper Cloud (#1440, #1620).
+    static func isLive(_ mode: Mode) -> Bool {
+        !mode.isDeleted && mode.managedObjectContext != nil
     }
 }
 
@@ -79,6 +94,13 @@ class TranscriptionRetryController {
 
     /// VAD processing service for silence trimming and M4A conversion
     private let vadProcessingService = VADProcessingService()
+
+    /// The VAD output paths in-flight retries write or still transcribe, with
+    /// how many runs hold each. Every retry of the same recording writes the
+    /// same names, so a cancelled run's cleanup must skip the files another
+    /// running retry still uses (#1743). Static: History and the recording
+    /// dialog each reach a controller of their own pipeline.
+    private static var vadOutputsInFlight: [String: Int] = [:]
 
     // MARK: - Initialization
 
@@ -159,6 +181,10 @@ class TranscriptionRetryController {
             throw TranscriptionRetryError.originalModeDeleted
         }
 
+        // The row's delete cancelled this retry before it began (#1743): leave
+        // the row as it was, not flipped to "processing".
+        try Task.checkCancellation()
+
         // UPDATE STEP 1: Mark transcript as processing
         // This immediately shows the user that we're retrying the transcription
         transcript.setValue("processing", forKey: "status")
@@ -178,6 +204,13 @@ class TranscriptionRetryController {
         // Uses VADProcessingService to analyze audio and trim leading/trailing silence.
         // Only applies to recordings >= 30 seconds when VAD is enabled in settings.
         let recordingDuration = transcript.duration
+        // Claimed before VAD writes them, held until this run is over.
+        let claimedVADOutputs = Self.vadOutputPaths(for: audioURL)
+        Self.claimVADOutputs(claimedVADOutputs)
+        var holdsVADOutputs = true
+        defer {
+            if holdsVADOutputs { Self.releaseVADOutputs(claimedVADOutputs) }
+        }
         let vadResult = await vadProcessingService.processAudioForTranscription(
             audioURL: audioURL,
             duration: recordingDuration,
@@ -188,6 +221,9 @@ class TranscriptionRetryController {
         let trimResult = vadResult.trimResult
 
         do {
+            // The row was deleted while VAD ran (#1743): do not start the engine.
+            try Task.checkCancellation()
+
             // TRANSCRIPTION STEP: Execute the actual transcription
             // Guard against nil manager (should never happen, but defensive)
             guard let manager = transcriptionPipeline else {
@@ -199,8 +235,18 @@ class TranscriptionRetryController {
             let result = try await manager.transcribeWithDetails(
                 audioURL: finalAudioURL,
                 mode: mode,
-                recordingSession: transcript.recordingSession
+                recordingSession: transcript.recordingSession,
+                refuseDeletedMode: true
             )
+
+            // The row was deleted while the engine finished: nothing to write to.
+            if transcript.retryWasStoppedByDelete() {
+                throw CancellationError()
+            }
+
+            // A retry that hears no speech keeps the row failed, with the
+            // "no speech" reason, instead of a blank completed row (#1429).
+            try result.throwIfNoSpeech()
 
             // SAVE TRIMMED AUDIO PATH:
             // If VAD created a valid trimmed file, store the path in Core Data.
@@ -211,12 +257,17 @@ class TranscriptionRetryController {
                 }
             }
 
+            // The row was deleted while that save ran: still nothing to write to.
+            if transcript.retryWasStoppedByDelete() {
+                throw CancellationError()
+            }
+
             // SUCCESS HANDLING: Update transcript with successful result
             // This marks the transcript as completed and stores the text
             persistence.updateTranscriptWithTranscription(
                 transcript,
                 transcribedText: result.rawText,
-                postProcessedText: result.wasPostProcessed ? result.text : nil,
+                postProcessedText: result.historyPostProcessedText,
                 transcriptionProvider: result.provider,
                 postProcessingProvider: result.postProcessingProvider
             )
@@ -225,6 +276,22 @@ class TranscriptionRetryController {
 
             return result
         } catch {
+            // A delete cancelled this retry (#1743): the row is gone, so leave it be.
+            // The delete swept only the files the row recorded, so remove the
+            // VAD output this run wrote, or it stays on disk (#1513), unless
+            // another row recorded from the same audio still owns it.
+            if transcript.retryWasStoppedByDelete() {
+                Self.releaseVADOutputs(claimedVADOutputs)
+                holdsVADOutputs = false
+                let leftovers = PersistenceController.audioPathsNoTranscriptOwns(
+                    Self.vadOutputsNoRunUses(Self.filesMadeByRetry(vadResult)),
+                    in: persistence.container.viewContext
+                )
+                _ = await FileDeletion.deleteFiles(at: leftovers)
+                AppLogger.transcription.info("Retry stopped: its transcript was deleted")
+                throw error
+            }
+
             // FAILURE HANDLING: Update transcript with error information
             // This helps users understand why the retry failed
             transcript.setValue("failed", forKey: "status")
@@ -241,6 +308,7 @@ class TranscriptionRetryController {
         }
     }
 
+
     /// Check if a transcript can be retried
     /// ELIGIBILITY CRITERIA:
     /// - Audio file must still exist on disk
@@ -255,5 +323,56 @@ class TranscriptionRetryController {
         }
 
         return FileManager.default.fileExists(atPath: audioPath)
+    }
+
+    /// The names VAD gives its output for this recording: the trimmed WAV and
+    /// its M4A upload copy.
+    static func vadOutputPaths(for audioURL: URL) -> [String] {
+        let trimmed = SilenceTrimmer().generateOutputURL(for: audioURL)
+        return [trimmed.path, TranscriptAudioFiles.uploadCopyURL(forTrimmedWAV: trimmed).path]
+    }
+
+    static func claimVADOutputs(_ paths: [String]) {
+        for path in paths {
+            vadOutputsInFlight[path, default: 0] += 1
+        }
+    }
+
+    static func releaseVADOutputs(_ paths: [String]) {
+        for path in paths {
+            guard let count = vadOutputsInFlight[path] else { continue }
+            vadOutputsInFlight[path] = count > 1 ? count - 1 : nil
+        }
+    }
+
+    /// Of `paths`, the ones no in-flight retry holds.
+    static func vadOutputsNoRunUses(_ paths: [String]) -> [String] {
+        paths.filter { vadOutputsInFlight[$0] == nil }
+    }
+
+    /// The files a retry's VAD step wrote: the trimmed WAV and, for a large
+    /// one, its M4A upload copy. Never the recording the retry started from.
+    static func filesMadeByRetry(_ vadResult: VADProcessingResult) -> [String] {
+        let originalPath = vadResult.originalAudioURL.path
+        var paths: [String] = []
+        for url in [vadResult.trimResult?.outputURL, vadResult.finalAudioURL] {
+            guard let path = url?.path, path != originalPath, !paths.contains(path) else { continue }
+            paths.append(path)
+        }
+        return paths
+    }
+}
+
+extension Transcript {
+    /// True once deleting this row stopped its retry: the delete cancelled the
+    /// retry's task (`TranscriptActionHandler.cancelRetryTask`) or already
+    /// removed the row. The one rule for both kinds of retry (#1458, #1743).
+    ///
+    /// `taskCancelled` defaults to the calling task. A caller that awaits the
+    /// retry from outside its task passes that task's `isCancelled`. A newer
+    /// dictation that took the pipeline over (#1425) cancels only the engine
+    /// run, not the retry task, so its row still records the failure.
+    func retryWasStoppedByDelete(taskCancelled: Bool = Task.isCancelled) -> Bool {
+        taskCancelled || isDeleted || managedObjectContext == nil
     }
 }

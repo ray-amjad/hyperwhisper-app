@@ -823,6 +823,9 @@ Tuto akci nelze vrátit zpět.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Přepis souboru byl zrušen</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Přepisuji soubor...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model se používá</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} používá režim „{1}“. Před smazáním přepněte tento režim na jiný model.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1312,8 +1321,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Už probíhá nahrávání nebo přepis souboru. Zkuste soubor znovu, až skončí.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Tento soubor je prázdný, takže neobsahuje žádný zvuk k přepisu.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Tento soubor je poškozený nebo to není zvukový soubor, který HyperWhisper dokáže přečíst.</value>
   </data>
 
 

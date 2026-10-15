@@ -28,6 +28,7 @@ import {
   setRequestLocale,
 } from "next-intl/server";
 import { headers } from "next/headers";
+import { notFound } from "next/navigation";
 
 import { Providers } from "./providers";
 
@@ -44,6 +45,7 @@ import {
 import {
   buildAlternateLanguageMap,
   defaultLocale,
+  isSupportedLocale,
   locales,
   stripLocalePrefix,
   toOpenGraphLocale,
@@ -60,6 +62,12 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props) {
   const { locale } = await params;
+
+  // The proxy skips any path with a dot, so /favicon.ico or /.env reaches this
+  // segment with a locale that is not one (#1853). 404 before the canonical is
+  // built from it.
+  if (!isSupportedLocale(locale)) notFound();
+
   const [t, headersList] = await Promise.all([
     getTranslations({ locale, namespace: "metadata" }),
     headers(),
@@ -146,6 +154,9 @@ export const viewport: Viewport = {
 export default async function LocaleLayout({ children, params }: Props) {
   // Await params to access locale (Next.js 15 requirement)
   const { locale } = await params;
+
+  // See generateMetadata: an unknown first segment is a 404, not a page (#1853).
+  if (!isSupportedLocale(locale)) notFound();
 
   // Enable static rendering
   setRequestLocale(locale);

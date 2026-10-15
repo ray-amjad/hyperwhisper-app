@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "Czym jest HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud to wbudowana transkrypcja w chmurze przeznaczona dla mniej technicznych użytkowników, którzy chcą szybko zacząć.\n\nDziała na zasadzie kredytów płaconych w miarę użycia. Doładowujesz konto już od $5 (1 000 kredytów za $1) i wydajesz je tylko w trakcie transkrypcji. Pierwszy zakup kredytów automatycznie tworzy Twój Account Key, więc nie musisz kupować nic więcej.\n    \nOferujemy cztery poziomy dokładności: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) oraz Highest (Grok STT, domyślny dla nowych instalacji i napędzany przez SpaceXAI Grok STT). Przetwarzanie końcowe jest automatyczne i domyślnie korzysta z Grok 4.1 Fast w trybie bez rozumowania. Nie przechowujemy nic poza liczbą wykorzystanych przez Ciebie kredytów, a u każdego dostawcy, z którego korzystamy, wypisaliśmy Cię z trenowania modeli. Szczegóły znajdziesz w naszym [przewodniku po prywatności danych](https://hyperwhisper.com/docs/data-privacy).\n\nKredyty są wydawane po własnym koszcie przetwarzania dostawców — bez marży na transkrypcji. Przy płatności doliczana jest stała opłata za obsługę płatności w wysokości 6%, pokazywana jako osobna pozycja. Niewykorzystane kredyty wygasają po 12 miesiącach (zobacz poniżej).\n\nDla spokoju ducha cała aplikacja jest otwartoźródłowa na licencji Apache-2.0 — w tym backend Cloud. Możesz przeczytać każdą linię kodu, która działa pomiędzy Twoją aplikacją a dostawcami, do których pośredniczymy, [na GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud to wbudowana transkrypcja w chmurze przeznaczona dla mniej technicznych użytkowników, którzy chcą szybko zacząć.\n\nDziała na zasadzie kredytów płaconych w miarę użycia. Doładowujesz konto już od $5 (1 000 kredytów za $1) i wydajesz je tylko w trakcie transkrypcji. Pierwszy zakup kredytów automatycznie tworzy Twój Account Key, więc nie musisz kupować nic więcej.\n    \nHyperWhisper Cloud daje Ci 12 dostawców transkrypcji, od Groq Whisper po ElevenLabs Scribe v2 (zobacz [pełną listę i stawki](https://hyperwhisper.com/docs/cloud-credits)). Nowe instalacje zaczynają od ElevenLabs Scribe v2. Przetwarzanie końcowe jest automatyczne, a nowe instalacje zaczynają od Claude Haiku 5.5. Nie przechowujemy nic poza liczbą wykorzystanych przez Ciebie kredytów, a u każdego dostawcy, z którego korzystamy, wypisaliśmy Cię z trenowania modeli. Szczegóły znajdziesz w naszym [przewodniku po prywatności danych](https://hyperwhisper.com/docs/data-privacy).\n\nKredyty są wydawane po własnym koszcie przetwarzania dostawców — bez marży na transkrypcji. Przy płatności doliczana jest stała opłata za obsługę płatności w wysokości 6%, pokazywana jako osobna pozycja. Niewykorzystane kredyty wygasają po 12 miesiącach (zobacz poniżej).\n\nDla spokoju ducha cała aplikacja jest otwartoźródłowa na licencji Apache-2.0 — w tym backend Cloud. Możesz przeczytać każdą linię kodu, która działa pomiędzy Twoją aplikacją a dostawcami, do których pośredniczymy, [na GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Czy moje dane głosowe będą używane do trenowania modeli AI?",
@@ -390,5 +390,12 @@
     "heading": "Otwarty kod. Nie mamy nic do ukrycia.",
     "body": "HyperWhisper jest w pełni otwartoźródłowy na licencji Apache-2.0 — zarówno aplikacje desktopowe, jak i backend Cloud. Aplikacja, która słucha Twojego mikrofonu, powinna być czymś, co możesz zweryfikować, a nie tylko czemu musisz ufać: przeczytaj każdą linię kodu, sprawdź dokładnie, dokąd trafia Twoje audio, i miej pewność, że nigdy nie zostaniesz uzależniony od dostawcy — kod jest Twój, by go sforkować i hostować samodzielnie na zawsze. Tworzony otwarcie przez niezależnego twórcę Raya Amjada.",
     "cta": "Zobacz na GitHub"
+  },
+  "notFound": {
+    "title": "Nie znaleziono strony",
+    "heading": "Ta strona nie istnieje",
+    "description": "Link może być nieprawidłowy lub strona mogła zostać przeniesiona.",
+    "home": "Przejdź do strony głównej",
+    "download": "Pobierz HyperWhisper"
   }
 }

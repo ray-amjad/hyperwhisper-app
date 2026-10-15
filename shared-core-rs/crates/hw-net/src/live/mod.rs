@@ -92,7 +92,7 @@
 //! |---|---|---|
 //! | Deepgram query parameters | the thirteen the .NET heads send | macOS's ten — no `filler_words`, `utterance_end_ms`, `vad_events` |
 //! | Deepgram auto-detect | `detect_language=true`, which BOTH .NET heads ship — and which Deepgram does not support on streaming (see below) | macOS omits it, leaving the account default |
-//! | HyperWhisper Cloud stop | `WaitForSessionComplete(10 s)` | macOS's hard close 500 ms after `stop`, which loses `credits_used` |
+//! | HyperWhisper Cloud stop | `WaitForSessionComplete(10 s)`, once `ready` arrived | macOS's hard close 500 ms after `stop`, which loses `credits_used` |
 //! | OpenAI commit floor | re-derived from `100 ms × 24 kHz × 2 bytes` | `shared-dotnet`'s hardcoded `4800` with the derivation lost |
 //! | Vocabulary caps | one shared normalizer + xAI's vendor limit | four different caps for one concept |
 //! | Deepgram model alias | resolved, and never emits a bare `model=` | Linux sends `config.Model` verbatim |

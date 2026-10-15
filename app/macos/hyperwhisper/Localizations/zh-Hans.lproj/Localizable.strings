@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "诊断已导出";
 "alerts.export.diagnostics.success.message" = "所有诊断日志已成功导出。";
 "alerts.export.diagnostics.saveFailed.message" = "无法将诊断信息保存到所选位置：%@";
+"alerts.export.diagnostics.noSystemLogs.title" = "已导出诊断信息，但不含系统日志";
+"alerts.export.diagnostics.noSystemLogs.message" = "诊断文件已保存，但无法读取应用的系统日志，因此 system-logs.txt 中只有原因。原因：%@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "导出更新日志以供支持";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "完成引导";
 
 "onboarding.setupLater.button" = "稍后设置";
-"onboarding.error.microphone.denied" = "麦克风权限被拒绝。请在系统设置中授予权限。";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "开机启动";
@@ -336,6 +337,9 @@
 "settings.storage.choose.button" = "选择...";
 "settings.storage.dialog.select" = "选择文件夹";
 "settings.storage.dialog.message" = "选择一个文件夹保存录音";
+"settings.storage.folderRefused.title" = "无法使用此文件夹";
+"settings.storage.folderRefused.notWritable" = "你没有写入“%@”的权限，因此 HyperWhisper 无法在其中保存录音。录音文件夹未更改。";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper 无法创建此文件夹：%@ 录音文件夹未更改。";
 "settings.storage.storeAsM4A.title" = "将录音压缩为 M4A";
 "settings.storage.storeAsM4A.subtitle" = "转写后将 WAV 录音转换为更小的文件。关闭则保留原始 WAV（更大但无损）。";
 
@@ -383,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "切换模式";
 "settings.shortcuts.changeMode.subtitle" = "仅在录音时有效";
+"settings.shortcuts.conflict.alert" = "无法使用此键盘快捷键，因为“%@”已在使用它。";
 
 "settings.shortcuts.reset.button" = "恢复默认";
 "settings.shortcuts.reset.dialog.title" = "重置键盘快捷键";
@@ -576,6 +581,8 @@
 "onboarding.configure.cloud.note" = "额度为预付制，由使用此密钥登录的每台 Mac 共享。空闲时间不消耗额度。";
 "onboarding.source.note" = "之后改变主意只会重新执行这一步。您设置的其他内容都不会丢失。";
 "onboarding.permissions.note" = "跳过辅助功能，转写结果会进入剪贴板，随时可粘贴。之后开启只需一次点击。";
+"onboarding.permissions.microphone.denied" = "未允许。请在“系统设置”中打开 HyperWhisper，然后回到这里。";
+"onboarding.permissions.continueNeedsMicrophone" = "继续需要麦克风。请在上方允许，或选择“稍后设置”。";
 "onboarding.welcome.task1.title" = "选择转录的运行方式";
 "onboarding.welcome.task1.caption" = "在我们的云端、这台 Mac 上，或通过您已付费的服务商账户。";
 "onboarding.welcome.task2.title" = "检查您的麦克风";
@@ -900,6 +907,7 @@
 "audio.error.microphonePermission" = "未授予麦克风权限";
 "audio.error.microphoneInUse" = "HyperWhisper 无法访问麦克风，因为其他应用正在使用。请暂停其他应用或切换输入后再试。";
 "audio.error.audioSystemNotResponding" = "macOS 音频没有响应，因此无法启动麦克风。请稍后重试。如果问题持续出现，请重新启动 Mac。";
+"audio.error.recorderStopTimedOut" = "保存录音时 macOS 音频停止响应，因此未进行转写。音频已保留：HyperWhisper 会在下次启动时尝试恢复。";
 "audio.error.createEngine" = "无法创建音频引擎";
 "audio.error.noInput" = "无可用音频输入";
 "audio.error.createFile" = "无法创建音频文件";
@@ -973,6 +981,7 @@
 "transcription.guidance.quotaExceeded" = "为你的 %@ 账户充值或更新账单信息";
 "transcription.guidance.timeout" = "请求时间过长。检查网络速度后重试。";
 "transcription.error.noSpeechDetected" = "录音中未检测到语音。";
+"transcription.error.audioTooShort" = "录音太短，无法转写。请录制更长时间。";
 "transcription.guidance.noSpeechDetected" = "提示：\n• 请清晰地对着麦克风说话\n• 说话前按住按键更久一些\n• 检查麦克风是否正常工作\n• 确认已选择正确的输入设备";
 "transcription.guidance.needsNativeRelaunch" = "请退出并以原生方式重新打开 HyperWhisper，以使用本地后处理。";
 "transcription.guidance.localRuntimeUnavailable" = "请重试，或在模式设置中选择更小的本地模型。";
@@ -1115,6 +1124,13 @@
 "transcribe.file.error.format.title" = "不支持的格式";
 "transcribe.file.error.format.message" = ".%@ 文件不受 %@ 支持。支持的格式：%@";
 "transcribe.file.error.read" = "无法读取所选文件。";
+"transcribe.file.error.webm" = "不支持 WebM。请将文件转换为 MP3、M4A 或 WAV 后重试。";
+"transcribe.file.error.notAudio" = "文件“%@”不是有效的音频。文件可能已损坏，或者是 macOS 无法解码的格式。";
+"transcribe.file.error.empty" = "文件“%@”是空的，没有可转写的音频。";
+"transcribe.file.error.permission" = "HyperWhisper 无法读取文件“%@”。请检查该文件的权限。";
+"transcribe.file.error.folderPermission" = "HyperWhisper 无法打开包含文件“%@”的文件夹。请检查该文件夹的权限。";
+"transcribe.file.error.privacy" = "macOS 隐私设置阻止了 HyperWhisper 读取文件“%@”。请在“系统设置”>“隐私与安全性”>“完全磁盘访问权限”中允许。";
+"transcribe.file.error.tooShort" = "此文件太短，无法转写（%@ 秒）。";
 "transcribe.file.error.copy" = "无法将文件复制到录音文件夹。";
 "transcribe.file.error.video.title" = "视频无音频";
 "transcribe.file.error.video.noAudio" = "该视频文件不包含音轨。请选择带音频的视频或音频文件。";

@@ -184,7 +184,7 @@
       },
       "cloud": {
         "question": "HyperWhisper Cloudとは何ですか？",
-        "answer": "HyperWhisper Cloudは、すぐに使い始めたい、技術にあまり詳しくないユーザー向けの、組み込みのクラウド文字起こしです。\n\n従量課金制のクレジットです。わずか$5（$1あたり1,000クレジット）からチャージでき、文字起こしをするときにだけ消費します。最初のクレジット購入で自動的にAccount Keyが作成されるため、ほかに購入するものはありません。\n    \n精度は4段階あります：Medium（Groq）、Medium（Deepgram Nova 3）、High（ElevenLabs Scribe v2）、そしてHighest（Grok STT。新規インストールのデフォルトで、SpaceXAI Grok STTを利用）。後処理は自動で、デフォルトはGrok 4.1 Fast non-reasoningです。消費したクレジット数以外は何も保存せず、利用するすべての上流プロバイダーでモデル学習へのオプトアウトを設定済みです。詳しくは[データプライバシーガイド](https://hyperwhisper.com/docs/data-privacy)をご覧ください。\n\nクレジットはプロバイダー自身の処理コストで消費され、文字起こしへの上乗せはありません。チェックアウト時には一律6%の決済処理手数料が加算され、個別の項目として表示されます。未使用のクレジットは12か月後に失効します（下記参照）。\n\nご安心いただけるよう、Cloudバックエンドを含め、アプリ全体がApache-2.0のもとでオープンソースです。あなたのアプリと、私たちがプロキシするプロバイダーとの間で実行されるすべてのコードを[GitHubで](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)読むことができます。"
+        "answer": "HyperWhisper Cloudは、すぐに使い始めたい、技術にあまり詳しくないユーザー向けの、組み込みのクラウド文字起こしです。\n\n従量課金制のクレジットです。わずか$5（$1あたり1,000クレジット）からチャージでき、文字起こしをするときにだけ消費します。最初のクレジット購入で自動的にAccount Keyが作成されるため、ほかに購入するものはありません。\n    \nHyperWhisper Cloudでは、Groq WhisperからElevenLabs Scribe v2まで12の文字起こしプロバイダーを利用できます（[全リストと料金](https://hyperwhisper.com/docs/cloud-credits)を参照）。新規インストールではElevenLabs Scribe v2から始まります。後処理は自動で、新規インストールではClaude Haiku 5.5から始まります。消費したクレジット数以外は何も保存せず、利用するすべての上流プロバイダーでモデル学習へのオプトアウトを設定済みです。詳しくは[データプライバシーガイド](https://hyperwhisper.com/docs/data-privacy)をご覧ください。\n\nクレジットはプロバイダー自身の処理コストで消費され、文字起こしへの上乗せはありません。チェックアウト時には一律6%の決済処理手数料が加算され、個別の項目として表示されます。未使用のクレジットは12か月後に失効します（下記参照）。\n\nご安心いただけるよう、Cloudバックエンドを含め、アプリ全体がApache-2.0のもとでオープンソースです。あなたのアプリと、私たちがプロキシするプロバイダーとの間で実行されるすべてのコードを[GitHubで](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)読むことができます。"
       },
       "dataTraining": {
         "question": "私の音声データはAIモデルの学習に使用されますか？",
@@ -390,5 +390,12 @@
     "heading": "オープンソース。隠すものは何もありません。",
     "body": "HyperWhisperは、デスクトップアプリもCloudバックエンドも含め、Apache-2.0のもとで完全にオープンソースです。マイクに耳を傾けるアプリは、ただ信頼するのではなく、自分で検証できるべきです。すべての行を読み、音声がどこへ行くのかを正確に監査し、決してロックインされないと確信できます。コードはあなたのもので、いつまでも自由にフォークして自分でホストできます。インディーメーカーのRay Amjadがオープンに開発しています。",
     "cta": "GitHubで見る"
+  },
+  "notFound": {
+    "title": "ページが見つかりません",
+    "heading": "このページは存在しません",
+    "description": "リンクが壊れているか、ページが移動した可能性があります。",
+    "home": "ホームページへ",
+    "download": "HyperWhisper をダウンロード"
   }
 }

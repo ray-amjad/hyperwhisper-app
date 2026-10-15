@@ -36,7 +36,8 @@ extension TranscriptionPipeline {
         mode: Mode?,
         recordingSession: RecordingSession? = nil,
         applicationContext: ApplicationContext? = nil,
-        audioDurationSeconds: TimeInterval? = nil
+        audioDurationSeconds: TimeInterval? = nil,
+        refuseDeletedMode: Bool = false
     ) async throws -> TranscriptionResult {
         lastFailedAttemptDiagnostics = nil
 
@@ -142,7 +143,19 @@ extension TranscriptionPipeline {
             // while this request is in flight makes its later outcome stale.
             let healthManager = providerCoordinator.providerHealthManager
             let credentialGeneration = healthManager?.captureTranscriptionCredentialGeneration()
+            // A retry's mode can be deleted while this run waited (the cancel
+            // sleep, the MainActor hops). Its nil model would route the audio
+            // to Cloud (#1620), so check right before the router reads it (no
+            // suspension in between, both on the MainActor), and again after
+            // a slow local model load, before anything else reads the mode.
+            func refuseIfModeDeleted() throws {
+                if refuseDeletedMode, let mode, !RetryModeChoices.isLive(mode) {
+                    throw TranscriptionRetryError.modeDeletedDuringRetry
+                }
+            }
+            try refuseIfModeDeleted()
             let selection = try await providerCoordinator.selectProvider(for: mode, vocabulary: vocabulary)
+            try refuseIfModeDeleted()
             let provider = selection.provider
             // Health feedback (issue #379): the cloud identity comes out of the
             // router's own resolution — never re-derived from the Mode here,
@@ -463,7 +476,6 @@ extension TranscriptionPipeline {
             }
 
             markStage("cache_result")
-            cache.cacheTranscription(finalText, for: audioURL)
             markStage("finalize")
 
             // Determine if post-processing occurred and by which provider.
@@ -520,7 +532,11 @@ extension TranscriptionPipeline {
 
         do {
             let result = try await Self.value(of: task)
-            await MainActor.run { state = .idle }
+            // As in the cancel branch below: a superseded run that still
+            // finishes must not idle the pipeline under the newer run (#1743).
+            if currentTask == task {
+                await MainActor.run { state = .idle }
+            }
 
             let now = Date()
             let totalElapsedMs = Int(now.timeIntervalSince(transcriptionStart) * 1000)
@@ -581,8 +597,17 @@ extension TranscriptionPipeline {
 
             return result
         } catch {
-            if error is CancellationError {
-                await MainActor.run { state = .idle }
+            // A cancelled run is not a failure, whatever the engine threw on the
+            // way out: local Whisper reports its abort as `streamingInterrupted`
+            // (#1743), which must not reach Sentry or the error state.
+            if error is CancellationError || task.isCancelled {
+                // Only the run that still owns the pipeline resets it. A run a
+                // newer dictation took over (#1425) now aborts within a window,
+                // so its cancel lands while the newer run is transcribing, and
+                // `.idle` there would let a third request skip the takeover.
+                if currentTask == task {
+                    await MainActor.run { state = .idle }
+                }
             } else {
                 await MainActor.run { state = .error(message: error.localizedDescription) }
                 if AppLogger.isErrorLoggingEnabled {

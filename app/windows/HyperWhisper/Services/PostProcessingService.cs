@@ -127,11 +127,13 @@ public class PostProcessingService : IDisposable
         string? resolvedProvider = null;
         string? resolvedModel = null;
         var modelsDisagreed = false;
+        var anyCloudAccountMissing = false;
         foreach (var segment in segments)
         {
             var result = await ProcessAsync(segment, mode, applicationContext, cancellationToken);
             anyApplied |= result.WasApplied;
             anyFailed |= !result.WasApplied;
+            anyCloudAccountMissing |= result.CloudAccountMissing;
             if (result.ResolvedProvider != null)
             {
                 if (resolvedProvider == null)
@@ -168,6 +170,7 @@ public class PostProcessingService : IDisposable
             string.Join("\n\n", processed),
             anyApplied,
             AnyPartialFailure: anyApplied && anyFailed,
+            CloudAccountMissing: anyCloudAccountMissing,
             ResolvedProvider: resolvedProvider,
             // Non-null (a run happened) but unnamed, when the segments disagreed.
             ResolvedModel: modelsDisagreed ? string.Empty : resolvedModel);
@@ -283,6 +286,17 @@ public class PostProcessingService : IDisposable
             {
                 LoggingService.Info("PostProcessingService: Operation cancelled");
                 return PostProcessingResult.Skipped(text);
+            }
+            catch (TranscriptionException ex) when (ex.Code == TranscriptionErrorCode.CloudAccountRequired)
+            {
+                // No account key. Still a graceful skip in-app, but flagged so
+                // the Local API can refuse with MISSING_API_KEY (issue #1487).
+                LoggingService.Warn("PostProcessingService: HyperWhisper Cloud skipped, no account key");
+                WarningOccurred?.Invoke(this, new ErrorToastEventArgs(
+                    ex.GetUserMessage(),
+                    showSettingsButton: true,
+                    settingsSection: "Cloud"));
+                return PostProcessingResult.AccountKeyMissing(text);
             }
             catch (HttpRequestException ex)
             {
@@ -650,16 +664,22 @@ public class PostProcessingService : IDisposable
 /// post-fallback model id: the replacement that stood in for an unknown or
 /// retired id, the <c>X-LLM-Model</c> value the cloud route really sent, or the
 /// model name the custom-endpoint validator repaired to.</param>
+/// <param name="CloudAccountMissing">True when a HyperWhisper Cloud run was
+/// refused before it started because no account key is stored (issue #1487).
+/// The Local API answers MISSING_API_KEY for it, the same refusal
+/// <c>/transcribe</c> gives; every other skip keeps its existing shape.</param>
 public readonly record struct PostProcessingResult(
     string Text,
     bool WasApplied,
     bool AnyPartialFailure = false,
     string? ResolvedProvider = null,
-    string? ResolvedModel = null)
+    string? ResolvedModel = null,
+    bool CloudAccountMissing = false)
 {
     public static PostProcessingResult Applied(string text, string? provider = null, string? model = null) =>
         new(text, true, ResolvedProvider: provider, ResolvedModel: model);
     public static PostProcessingResult Skipped(string text) => new(text, false);
+    public static PostProcessingResult AccountKeyMissing(string text) => new(text, false, CloudAccountMissing: true);
 }
 
 // `OpenAICompatibleProvider` and its endpoint table used to live here. It was the

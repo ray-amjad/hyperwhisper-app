@@ -823,6 +823,9 @@ Ova radnja se ne može poništiti.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transkripcija datoteke otkazana</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkribiranje datoteke...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model se koristi</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} koristi način „{1}”. Prije brisanja prebacite taj način na drugi model.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1312,8 +1321,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Snimanje ili transkripcija datoteke već je u tijeku. Pokušajte ponovno s datotekom kada završi.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Ova je datoteka prazna, pa nema zvuka za transkripciju.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Ova je datoteka oštećena ili nije zvučna datoteka koju HyperWhisper može pročitati.</value>
   </data>
 
 

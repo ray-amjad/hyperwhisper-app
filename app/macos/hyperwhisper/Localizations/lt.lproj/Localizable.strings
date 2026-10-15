@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika eksportuota";
 "alerts.export.diagnostics.success.message" = "Visi diagnostikos žurnalai sėkmingai eksportuoti.";
 "alerts.export.diagnostics.saveFailed.message" = "Nepavyko išsaugoti diagnostikos pasirinktoje vietoje: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika eksportuota be sistemos žurnalų";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikos failas išsaugotas, bet programos sistemos žurnalų nepavyko perskaityti, todėl system-logs.txt yra tik priežastis. Priežastis: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksportuoti atnaujinimo žurnalus pagalbai";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Atlikti registraciją";
 
 "onboarding.setupLater.button" = "Nustatyti vėliau";
-"onboarding.error.microphone.denied" = "Mikrofo leidimas atmestas. Suteikite leidimą Sistemos nustatymuose.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Paleisti prisijungus";
@@ -336,6 +337,9 @@
 "settings.storage.choose.button" = "Pasirinkti...";
 "settings.storage.dialog.select" = "Pasirinkti aplanką";
 "settings.storage.dialog.message" = "Pasirinkite aplanką įrašams saugoti";
+"settings.storage.folderRefused.title" = "Šio aplanko naudoti negalima";
+"settings.storage.folderRefused.notWritable" = "Neturite leidimo rašyti į „%@“, todėl HyperWhisper negali ten išsaugoti įrašų. Įrašų aplankas nepakeistas.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nepavyko sukurti šio aplanko: %@ Įrašų aplankas nepakeistas.";
 "settings.storage.storeAsM4A.title" = "Suspausti įrašus į M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konvertuoja WAV įrašus į mažesnius failus po transkriptsiniu. Išjunkite, kad išlaikytumėte originalius WAV failus (didesni, bet be nuostolių).";
 
@@ -383,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Keisti režimą";
 "settings.shortcuts.changeMode.subtitle" = "Veikia tik įrašant";
+"settings.shortcuts.conflict.alert" = "Šio spartųjų klavišų derinio negalima naudoti, nes jį jau naudoja „%@“.";
 
 "settings.shortcuts.reset.button" = "Atstatyti į numatytuosius";
 "settings.shortcuts.reset.dialog.title" = "Atstatyti klaviatūros nuorodas";
@@ -576,6 +581,8 @@
 "onboarding.configure.cloud.note" = "Kreditai yra iš anksto apmokėti ir bendri visiems Mac, prisijungusiems su šiuo raktu. Prastovos laikas nieko nekainuoja.";
 "onboarding.source.note" = "Jei vėliau apsigalvosite, teks pakartoti tik šį vieną žingsnį. Visa kita, ką sukonfigūravote, išlieka.";
 "onboarding.permissions.note" = "Praleiskite Pritaikymą neįgaliesiems ir transkripcijos pateks į iškarpinę, paruoštos įklijuoti. Įjungti vėliau užtrunka vieną spustelėjimą.";
+"onboarding.permissions.microphone.denied" = "Neleidžiama. Įjunkite HyperWhisper sistemos nustatymuose ir grįžkite čia.";
+"onboarding.permissions.continueNeedsMicrophone" = "Norint tęsti, reikia mikrofono. Leiskite jį aukščiau arba pasirinkite Nustatyti vėliau.";
 "onboarding.welcome.task1.title" = "Pasirinkite, kaip veiks transkripcija";
 "onboarding.welcome.task1.caption" = "Mūsų debesyje, šiame Mac, arba per teikėjo paskyrą, už kurią jau mokate.";
 "onboarding.welcome.task2.title" = "Patikrinkite mikrofoną";
@@ -899,6 +906,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "audio.error.microphonePermission" = "Mikrofo leidimas negrąžintas";
 "audio.error.microphoneInUse" = "HyperWhisper negali pasiekti mikrofo, nes jį naudoja kita programa. Pristabdykite kitą programą arba perjunkitės įėjimai, tada bandykite iš naujo.";
 "audio.error.audioSystemNotResponding" = "macOS garsas nereaguoja, todėl mikrofono nepavyko įjungti. Po akimirkos bandykite dar kartą. Jei tai kartojasi, iš naujo paleiskite „Mac“.";
+"audio.error.recorderStopTimedOut" = "Įrašo saugojimo metu macOS garso sistema nustojo reaguoti, todėl jis nebuvo transkribuotas. Garsas išsaugotas: HyperWhisper bandys jį atkurti kitą kartą paleidus programą.";
 "audio.error.createEngine" = "Nepavyko sukurti audio variklės";
 "audio.error.noInput" = "Nėra audio įvesties prieinamos";
 "audio.error.createFile" = "Nepavyko sukurti audio failo";
@@ -972,6 +980,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcription.guidance.quotaExceeded" = "Pridėkite nuopelnus savo %@ paskyrai arba atnaujinkite savo sąskaitymo duomenis";
 "transcription.guidance.timeout" = "Užklausa užtruko per ilgai. Patikrinkite savo interneto greitį ir bandykite iš naujo.";
 "transcription.error.noSpeechDetected" = "Neaptiktas joks balsas įrašyme.";
+"transcription.error.audioTooShort" = "Įrašas per trumpas, kad būtų transkribuotas. Įrašykite ilgiau.";
 "transcription.guidance.noSpeechDetected" = "Patarimai:\n• Kalbėkite aiškiai į mikrofon\n• Laikykite raktą ilgiau prieš pradėdami kalbėti\n• Patikrinkite, ar jūsų mikrofon veikia\n• Įsitikinkite, kad pasirinktas teisingas įvesties įrenginys";
 "transcription.guidance.needsNativeRelaunch" = "Uždarykite ir vėl atidarykite HyperWhisper natyviai, kad galėtumėte naudoti vietinį papildomą apdorojimą.";
 "transcription.guidance.localRuntimeUnavailable" = "Bandykite dar kartą arba režimo nustatymuose pasirinkite mažesnį vietinį modelį.";
@@ -1114,6 +1123,13 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcribe.file.error.format.title" = "Nepalaikomas formatas";
 "transcribe.file.error.format.message" = ".%@ failai nepalaikomi %@. Palaikomi formatai: %@";
 "transcribe.file.error.read" = "Negalima skaityti pasirinktą failą.";
+"transcribe.file.error.webm" = "WebM nepalaikomas. Konvertuokite failą į MP3, M4A arba WAV ir bandykite dar kartą.";
+"transcribe.file.error.notAudio" = "Failas „%@“ nėra tinkamas garso failas. Jis gali būti sugadintas arba tokio formato, kurio macOS negali iškoduoti.";
+"transcribe.file.error.empty" = "Failas „%@“ tuščias. Jame nėra garso, kurį būtų galima transkribuoti.";
+"transcribe.file.error.permission" = "HyperWhisper negali perskaityti failo „%@“. Patikrinkite failo teises.";
+"transcribe.file.error.folderPermission" = "HyperWhisper negali atidaryti aplanko, kuriame yra failas „%@“. Patikrinkite to aplanko teises.";
+"transcribe.file.error.privacy" = "macOS privatumo nustatymai neleido HyperWhisper perskaityti failo „%@“. Leiskite tai skiltyje Sistemos nustatymai > Privatumas ir sauga > Visa prieiga prie disko.";
+"transcribe.file.error.tooShort" = "Šis failas per trumpas, kad būtų transkribuotas (%@ s).";
 "transcribe.file.error.copy" = "Nepavyko kopijuoti failo į įrašų aplanką.";
 "transcribe.file.error.video.title" = "Jokios audio vaizdo";
 "transcribe.file.error.video.noAudio" = "Šiame vaizdo faile nėra audio takelio. Pasirinkite video su audio arba audio failą.";

@@ -13,7 +13,16 @@ type Props = {
   params: Promise<{ locale: string }>;
 };
 
-export async function generateMetadata() {
+// #815: the English-only check runs here too. A notFound() thrown only from the
+// page left this English metadata (and the layout's "index, follow") in the RSC
+// payload, which is what the browser shows on /de/blog. Thrown here, Next
+// resolves the [locale] 404's metadata instead.
+export async function generateMetadata({ params }: Props) {
+  const { locale } = await params;
+  if (locale !== "en") {
+    notFound();
+  }
+
   return englishStaticPageMetadata({
     path: "/blog",
     title: "Blog",

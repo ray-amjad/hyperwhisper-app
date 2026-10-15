@@ -371,7 +371,7 @@ public sealed partial class ApplicationBackupService
             List<VocabularyItem>? vocabulary = null;
             if (root["vocabulary"] is JsonArray vocabularyNodes)
             {
-                vocabulary = vocabularyNodes.Select(ParseVocabulary).ToList();
+                vocabulary = SplitMultiLineWords(vocabularyNodes.Select(ParseVocabulary).ToList());
                 ValidateVocabulary(vocabulary);
             }
             var platform = root["platform"]!.GetValue<string>();
