@@ -152,7 +152,13 @@ fn health_vectors_match_the_written_rule() {
     for row in load().cases {
         let want = expected_reason(&row.provider, row.status);
         assert_eq!(row.reason, want, "{} {}", row.provider, row.status);
-        assert_eq!(row.healthy, want == "healthy", "{} {}", row.provider, row.status);
+        assert_eq!(
+            row.healthy,
+            want == "healthy",
+            "{} {}",
+            row.provider,
+            row.status
+        );
     }
 }
 
@@ -171,7 +177,10 @@ fn health_vectors_cover_every_provider_and_status() {
         .into_iter()
         .flat_map(|p| STATUSES.into_iter().map(move |s| (name(p), s)))
         .collect();
-    assert_eq!(got, want, "health-vectors.json must list every provider x status");
+    assert_eq!(
+        got, want,
+        "health-vectors.json must list every provider x status"
+    );
 }
 
 /// The row issue #779 was filed for.

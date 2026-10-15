@@ -51,7 +51,7 @@
 //!   HW Cloud edge; [`parse_health_response`] grades it by 2xx like the others.
 
 use crate::contract::{
-    HealthReason, Header, HttpMethod, HttpRequest, HttpResponse, Provider, ProviderHealth,
+    Header, HealthReason, HttpMethod, HttpRequest, HttpResponse, Provider, ProviderHealth,
 };
 
 /// Default HyperWhisper Cloud base URL used for routed providers' health probe
@@ -534,9 +534,15 @@ mod tests {
     #[test]
     fn healthy_flag_always_agrees_with_the_reason() {
         for p in ALL_PROVIDERS {
-            for status in [0u16, 200, 204, 299, 300, 400, 401, 403, 404, 422, 429, 500, 599] {
+            for status in [
+                0u16, 200, 204, 299, 300, 400, 401, 403, 404, 422, 429, 500, 599,
+            ] {
                 let h = parse_health_response(p, &resp(status));
-                assert_eq!(h.healthy, h.reason == HealthReason::Healthy, "{p:?} {status}");
+                assert_eq!(
+                    h.healthy,
+                    h.reason == HealthReason::Healthy,
+                    "{p:?} {status}"
+                );
             }
         }
     }
