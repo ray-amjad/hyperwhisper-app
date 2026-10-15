@@ -558,6 +558,7 @@
 
 "settings.shortcuts.changeMode.title" = "Change Mode";
 "settings.shortcuts.changeMode.subtitle" = "Only works when recording";
+"settings.shortcuts.conflict.alert" = "This keyboard shortcut cannot be used as it’s already used by “%@”.";
 
 // MARK: - Quick Capture (Settings · Shortcuts)
 "settings.shortcuts.quickCapture.enable.title" = "Quick Capture";

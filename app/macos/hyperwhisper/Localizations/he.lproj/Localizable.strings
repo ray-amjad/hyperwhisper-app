@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "שנה מצב";
 "settings.shortcuts.changeMode.subtitle" = "עובד רק בזמן הקלטה";
+"settings.shortcuts.conflict.alert" = "לא ניתן להשתמש בקיצור מקלדת זה כי הוא כבר בשימוש על ידי “%@”.";
 
 "settings.shortcuts.reset.button" = "אפס לברירות מחדל";
 "settings.shortcuts.reset.dialog.title" = "אפס קיצורי מקלדת";

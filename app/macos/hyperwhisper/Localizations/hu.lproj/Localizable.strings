@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Mód váltása";
 "settings.shortcuts.changeMode.subtitle" = "Csak felvétel közben működik";
+"settings.shortcuts.conflict.alert" = "Ez a billentyűparancs nem használható, mert már a(z) „%@” használja.";
 
 "settings.shortcuts.reset.button" = "Alaphelyzetbe állítás";
 "settings.shortcuts.reset.dialog.title" = "Billentyűparancsok alaphelyzetbe állítása";

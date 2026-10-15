@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Muuda režiimi";
 "settings.shortcuts.changeMode.subtitle" = "Töötab ainult salvestamise ajal";
+"settings.shortcuts.conflict.alert" = "Seda kiirklahvi ei saa kasutada, sest seda kasutab juba „%@“.";
 
 "settings.shortcuts.reset.button" = "Lähtesta vaikeseadetele";
 "settings.shortcuts.reset.dialog.title" = "Lähtesta klaviatuuri otseteed";

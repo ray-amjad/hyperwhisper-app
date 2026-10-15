@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Zmeniť režim";
 "settings.shortcuts.changeMode.subtitle" = "Funguje len počas nahrávania";
+"settings.shortcuts.conflict.alert" = "Túto klávesovú skratku nemožno použiť, pretože ju už používa „%@“.";
 
 "settings.shortcuts.reset.button" = "Obnoviť na predvolené";
 "settings.shortcuts.reset.dialog.title" = "Obnoviť klávesové skratky";

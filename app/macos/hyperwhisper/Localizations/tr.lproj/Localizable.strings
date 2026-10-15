@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Modu Değiştir";
 "settings.shortcuts.changeMode.subtitle" = "Yalnızca kayıt sırasında çalışır";
+"settings.shortcuts.conflict.alert" = "Bu klavye kısayolu, zaten “%@” tarafından kullanıldığı için kullanılamaz.";
 
 "settings.shortcuts.reset.button" = "Varsayılanlara Sıfırla";
 "settings.shortcuts.reset.dialog.title" = "Klavye Kısayollarını Sıfırla";

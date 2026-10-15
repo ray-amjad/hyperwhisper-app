@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Modus ändern";
 "settings.shortcuts.changeMode.subtitle" = "Funktioniert nur beim Aufnehmen";
+"settings.shortcuts.conflict.alert" = "Dieses Tastenkürzel kann nicht verwendet werden, da es bereits von „%@“ verwendet wird.";
 
 "settings.shortcuts.reset.button" = "Auf Standardeinstellungen zurücksetzen";
 "settings.shortcuts.reset.dialog.title" = "Tastaturkürzel zurücksetzen";

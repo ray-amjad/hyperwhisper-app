@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Keisti režimą";
 "settings.shortcuts.changeMode.subtitle" = "Veikia tik įrašant";
+"settings.shortcuts.conflict.alert" = "Šio spartųjų klavišų derinio negalima naudoti, nes jį jau naudoja „%@“.";
 
 "settings.shortcuts.reset.button" = "Atstatyti į numatytuosius";
 "settings.shortcuts.reset.dialog.title" = "Atstatyti klaviatūros nuorodas";

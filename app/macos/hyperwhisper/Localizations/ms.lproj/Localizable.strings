@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Tukar Mod";
 "settings.shortcuts.changeMode.subtitle" = "Hanya berfungsi semasa merakam";
+"settings.shortcuts.conflict.alert" = "Pintasan papan kekunci ini tidak boleh digunakan kerana ia sudah digunakan oleh “%@”.";
 
 "settings.shortcuts.reset.button" = "Tetapkan Semula ke Lalai";
 "settings.shortcuts.reset.dialog.title" = "Tetapkan Semula Pintasan Papan Kekunci";

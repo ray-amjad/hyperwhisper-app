@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Modus wijzigen";
 "settings.shortcuts.changeMode.subtitle" = "Werkt alleen bij opnamen";
+"settings.shortcuts.conflict.alert" = "Deze sneltoets kan niet worden gebruikt omdat deze al wordt gebruikt door ‘%@’.";
 
 "settings.shortcuts.reset.button" = "Standaardwaarden herstellen";
 "settings.shortcuts.reset.dialog.title" = "Sneltoetsen opnieuw instellen";

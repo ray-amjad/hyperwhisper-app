@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Mainīt režīmu";
 "settings.shortcuts.changeMode.subtitle" = "Darbojas tikai ierakstīšanas laikā";
+"settings.shortcuts.conflict.alert" = "Šo īsinājumtaustiņu nevar izmantot, jo to jau izmanto “%@”.";
 
 "settings.shortcuts.reset.button" = "Atiestatīt uz noklusējumiem";
 "settings.shortcuts.reset.dialog.title" = "Atiestatīt tastatūras saīsinājumus";

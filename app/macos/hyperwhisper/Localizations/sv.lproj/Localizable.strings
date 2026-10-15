@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Ändra läge";
 "settings.shortcuts.changeMode.subtitle" = "Fungerar endast vid inspelning";
+"settings.shortcuts.conflict.alert" = "Det här kortkommandot kan inte användas eftersom det redan används av ”%@”.";
 
 "settings.shortcuts.reset.button" = "Återställ till standard";
 "settings.shortcuts.reset.dialog.title" = "Återställ tangentbordgenvägar";

@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "เปลี่ยนโหมด";
 "settings.shortcuts.changeMode.subtitle" = "ใช้ได้เฉพาะระหว่างการบันทึกเท่านั้น";
+"settings.shortcuts.conflict.alert" = "ไม่สามารถใช้แป้นพิมพ์ลัดนี้ได้ เนื่องจาก “%@” ใช้อยู่แล้ว";
 
 "settings.shortcuts.reset.button" = "รีเซ็ตเป็นค่าเริ่มต้น";
 "settings.shortcuts.reset.dialog.title" = "รีเซ็ตลัดแป้นพิมพ์";

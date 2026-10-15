@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Thay đổi Chế độ";
 "settings.shortcuts.changeMode.subtitle" = "Chỉ hoạt động khi ghi âm";
+"settings.shortcuts.conflict.alert" = "Không thể dùng phím tắt này vì “%@” đã dùng nó.";
 
 "settings.shortcuts.reset.button" = "Đặt lại thành Mặc định";
 "settings.shortcuts.reset.dialog.title" = "Đặt lại Phím tắt Bàn phím";

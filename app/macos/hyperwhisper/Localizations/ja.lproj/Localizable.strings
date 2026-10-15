@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "モードを切り替え";
 "settings.shortcuts.changeMode.subtitle" = "録音中のみ有効";
+"settings.shortcuts.conflict.alert" = "このキーボードショートカットは「%@」で既に使用されているため使用できません。";
 
 "settings.shortcuts.reset.button" = "デフォルトにリセット";
 "settings.shortcuts.reset.dialog.title" = "キーボードショートカットをリセット";

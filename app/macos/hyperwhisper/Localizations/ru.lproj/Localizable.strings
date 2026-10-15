@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Изменить режим";
 "settings.shortcuts.changeMode.subtitle" = "Работает только при записи";
+"settings.shortcuts.conflict.alert" = "Это сочетание клавиш нельзя использовать, так как оно уже используется для «%@».";
 
 "settings.shortcuts.reset.button" = "Сбросить на значения по умолчанию";
 "settings.shortcuts.reset.dialog.title" = "Сбросить сочетания клавиш";

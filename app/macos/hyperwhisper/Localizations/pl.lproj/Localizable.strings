@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Zmień tryb";
 "settings.shortcuts.changeMode.subtitle" = "Działa tylko podczas nagrywania";
+"settings.shortcuts.conflict.alert" = "Nie można użyć tego skrótu klawiszowego, ponieważ jest już używany przez „%@”.";
 
 "settings.shortcuts.reset.button" = "Zresetuj do wartości domyślnych";
 "settings.shortcuts.reset.dialog.title" = "Zresetuj skróty klawiszowe";

@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "모드 변경";
 "settings.shortcuts.changeMode.subtitle" = "녹음 중에만 작동";
+"settings.shortcuts.conflict.alert" = "이 키보드 단축키는 이미 “%@”에서 사용 중이므로 사용할 수 없습니다.";
 
 "settings.shortcuts.reset.button" = "기본값으로 재설정";
 "settings.shortcuts.reset.dialog.title" = "키보드 단축키 재설정";

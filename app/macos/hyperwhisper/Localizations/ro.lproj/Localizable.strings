@@ -387,6 +387,7 @@
 
 "settings.shortcuts.changeMode.title" = "Schimbați modul";
 "settings.shortcuts.changeMode.subtitle" = "Funcționează doar în timp ce înregistrați";
+"settings.shortcuts.conflict.alert" = "Această scurtătură de tastatură nu poate fi folosită deoarece este deja folosită de „%@”.";
 
 "settings.shortcuts.reset.button" = "Resetați la implicit";
 "settings.shortcuts.reset.dialog.title" = "Resetați scurtăturile de tastatură";
