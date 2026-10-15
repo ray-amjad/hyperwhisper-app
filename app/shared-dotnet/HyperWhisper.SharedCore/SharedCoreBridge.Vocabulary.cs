@@ -39,6 +39,20 @@ public static partial class SharedCoreBridge
         return HyperwhisperCoreMethods.RemoveTrailingPeriod(text);
     }
 
+    /// <summary>
+    /// Removes Whisper's non-speech markers (the blank-audio tag, <c>(silence)</c>,
+    /// <c>[inaudible]</c>, <c>[ Music ]</c>, <c>(applause)</c> and kin) and trims.
+    /// A transcript made only of markers, null, or whitespace comes back empty; a
+    /// bracket the speaker dictated survives. The one rule for every head is the
+    /// core's (issue #1811); its cases are
+    /// <c>shared-conformance/whisper-marker-vectors.json</c>.
+    /// </summary>
+    public static string StripWhisperNonSpeechMarkers(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        return HyperwhisperCoreMethods.StripWhisperNonSpeechMarkers(text);
+    }
+
     public static string RemoveFillerWords(string text, string? language)
     {
         ArgumentNullException.ThrowIfNull(text);

@@ -12,4 +12,10 @@
     <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime.Cuda12" Version="1.9.1" />
   </ItemGroup>
+
+  <!-- Whisper's non-speech marker rule is the shared core's (issue #1811), so
+       Linux, Windows and macOS strip the same markers. -->
+  <ItemGroup>
+    <ProjectReference Include="../HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
+  </ItemGroup>
 </Project>

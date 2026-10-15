@@ -1271,7 +1271,7 @@ static Task RecordingRefusesWithoutInputDevice()
 }
 
 // Issue #1742: the workflow reports a transcript that is empty after Whisper's
-// [BLANK_AUDIO] markers are stripped as workflow.no_speech. The batch stop path
+// non-speech markers are stripped as workflow.no_speech. The batch stop path
 // must hand that code to the overlay; every other failure stays one code.
 static Task SilentRecordingReadsNoSpeech()
 {
