@@ -605,6 +605,18 @@ private struct HistoryScreen: View, Equatable {
                 focusedList = target
             }
         }
+        .onChange(of: focusedList) { previous, now in
+            // The same hand-off when SwiftUI reports the old table's focus loss
+            // only after the identity change above has already run.
+            guard let target = HistoryListFocus.identityToRefocusAfterFocusLoss(
+                previous: previous,
+                now: now,
+                current: viewModel.listIdentity
+            ) else { return }
+            DispatchQueue.main.async {
+                focusedList = target
+            }
+        }
     }
 
     private var historyList: some View {
@@ -1090,6 +1102,19 @@ enum HistoryListFocus {
     ) -> Identity? {
         guard old != new, let focused, focused == old else { return nil }
         return new
+    }
+
+    /// Focus left the list (`now` is nil). If it was held by a list build that
+    /// has since been replaced, the loss is the rebuild's, not the user's, so
+    /// the current build gets it back. A user clicking elsewhere leaves focus
+    /// from the current build, which stays put.
+    static func identityToRefocusAfterFocusLoss<Identity: Equatable>(
+        previous: Identity?,
+        now: Identity?,
+        current: Identity
+    ) -> Identity? {
+        guard now == nil, let previous, previous != current else { return nil }
+        return current
     }
 }
 
