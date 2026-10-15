@@ -1024,6 +1024,30 @@ enum AudioFileState {
     case missing
 }
 
+/// What pressing Play in the History detail pane should do.
+///
+/// #1456: the "file exists" flag is cached when the row's metadata loads, so a
+/// file moved away while the row stays open used to make Play do nothing at
+/// all. Play re-checks the disk at press time instead of trusting the cache.
+enum HistoryPlaybackStart: Equatable {
+    /// The selected file is on disk: open it and play.
+    case play(URL)
+    /// The selected file is gone (or there is none): re-check the row's audio
+    /// so the pane shows the missing-audio state instead of a dead ▶.
+    case audioGone
+
+    static func resolve(
+        path: String?,
+        cachedExists: Bool,
+        fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+    ) -> HistoryPlaybackStart {
+        guard let path, !path.isEmpty, cachedExists, fileExists(path) else {
+            return .audioGone
+        }
+        return .play(URL(fileURLWithPath: path))
+    }
+}
+
 // MARK: - Transcript Detail View
 
 /// Detailed view of a single transcript.
@@ -1453,10 +1477,14 @@ private struct TranscriptDetailView: View {
             isPlaying = false
         } else {
             // Use selectedAudioFilePath to play either original or trimmed audio
-            // based on the user's toggle selection
-            if let audioPath = selectedAudioFilePath, selectedAudioPathExists {
+            // based on the user's toggle selection. The cached exists flag can be
+            // stale (#1456), so the disk is checked again here.
+            switch HistoryPlaybackStart.resolve(path: selectedAudioFilePath, cachedExists: selectedAudioPathExists) {
+            case .audioGone:
+                historyViewLogger.warning("Play pressed but the selected audio file is gone; re-checking the row's audio")
+                Task { await refreshAudioMetadata() }
+            case .play(let url):
                 do {
-                    let url = URL(fileURLWithPath: audioPath)
                     let player = try AVAudioPlayer(contentsOf: url)
                     audioPlayer = player
                     player.play()
@@ -1473,6 +1501,9 @@ private struct TranscriptDetailView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + player.duration, execute: workItem)
                 } catch {
                     historyViewLogger.error("Error playing audio: \(error, privacy: .public)")
+                    // The file can vanish between the check and the open. Re-check
+                    // so a gone file drops the pane to the missing-audio banner.
+                    Task { await refreshAudioMetadata() }
                 }
             }
         }
