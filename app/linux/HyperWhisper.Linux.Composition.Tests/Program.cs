@@ -1518,6 +1518,15 @@ static async Task LocalApiHealthCloudKeyFollowsAccountKey()
                 Assert((row.Status == "credential_required") == !present,
                     $"{label}: {list} hyperwhisper status {row.Status}");
             }
+            // /models: the hyperwhisper Cloud models are usable (`installed`, the
+            // Linux wire name for enabled) only when /transcribe would run them.
+            var cloudModels = catalog.Models
+                .Where(model => model.Provider.Equals("hyperwhisper", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            Assert(cloudModels.Length > 0, $"{label}: /models lists no hyperwhisper Cloud model");
+            foreach (var model in cloudModels)
+                Assert(model.Installed == present,
+                    $"{label}: /models {model.Id} enabled={model.Installed}, /transcribe would {(present ? "run" : "refuse")}");
         }
 
         await Expect(false, "no account key");

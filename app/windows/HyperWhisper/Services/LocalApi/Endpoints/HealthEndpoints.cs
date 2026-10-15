@@ -53,6 +53,17 @@ internal static class HealthEndpoints
     internal static bool CloudAccountKeyPresent() =>
         LicenseManager.Instance.GetTranscriptionIdentifier().IsLicensed;
 
+    /// <summary>
+    /// The HW-Cloud-routed transcription providers: they hold no BYOK key and
+    /// run only with the HyperWhisper Cloud account key
+    /// (<see cref="CloudAccountKeyPresent"/>). `/health` key_present and
+    /// `/models` installed both read this set.
+    /// </summary>
+    internal static bool UsesCloudAccountKey(CloudTranscriptionProvider provider) => provider is
+        CloudTranscriptionProvider.HyperWhisperCloud
+        or CloudTranscriptionProvider.MicrosoftAzureSpeech
+        or CloudTranscriptionProvider.GoogleSpeech;
+
     internal static List<HealthProviderStatus> BuildTranscriptionProviders(
         ApiKeyService? apiKeys, CloudProviderHealthService? health, bool cloudAccountKeyPresent)
     {
@@ -98,9 +109,7 @@ internal static class HealthEndpoints
             CloudTranscriptionProvider.Meta => apiKeys.HasApiKey(TranscriptionApiKeyType.Meta),
             // HW-Cloud-routed providers: /transcribe refuses them with
             // MISSING_API_KEY when no account key is stored, so report that.
-            CloudTranscriptionProvider.HyperWhisperCloud => cloudAccountKeyPresent,
-            CloudTranscriptionProvider.MicrosoftAzureSpeech => cloudAccountKeyPresent,
-            CloudTranscriptionProvider.GoogleSpeech => cloudAccountKeyPresent,
+            _ when UsesCloudAccountKey(provider) => cloudAccountKeyPresent,
             _ => false
         };
     }

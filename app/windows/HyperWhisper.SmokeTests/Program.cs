@@ -12663,6 +12663,49 @@ internal static class Program
                     Assert(post.Where(r => r.Id != cloudPostId).All(r => !r.KeyPresent),
                         "an account key made a BYOK post-processing row claim a key");
                 }
+
+                // /models `installed` for the same HW-Cloud-routed rows (always
+                // Enabled in the library) follows the same account key; an
+                // Enabled BYOK row does not move with it.
+                LibraryModel Row(string id, object payload, LibraryModelKind kind) => new()
+                {
+                    Id = id,
+                    DisplayName = "row",
+                    ProviderName = "row",
+                    ProviderAssetName = "row",
+                    Kind = kind,
+                    LocationKind = LibraryModelLocationKind.Cloud,
+                    StatusKind = LibraryModelStatusKind.Enabled,
+                    Source = LibraryModelSource.CloudTranscription,
+                    SupportsCustomVocabulary = false,
+                    AvailableViaHyperWhisperCloud = false,
+                    Payload = payload
+                };
+                var cloudRowsForModels = cloudTranscription
+                    .Select(p => Row(
+                        p.GetIdentifier(),
+                        CloudTranscriptionModels.All.First(m => m.Provider == p),
+                        LibraryModelKind.Voice))
+                    .Append(Row(
+                        cloudPostId,
+                        new LanguageModelInfo("hw-cloud", "HW Cloud", PostProcessingProvider.HyperWhisperCloud, "test"),
+                        LibraryModelKind.Text))
+                    .ToList();
+                var byokRow = Row(
+                    "deepgram",
+                    CloudTranscriptionModels.All.First(m => m.Provider == CloudTranscriptionProvider.Deepgram),
+                    LibraryModelKind.Voice);
+                foreach (var keyPresent in new[] { false, true })
+                {
+                    foreach (var row in cloudRowsForModels)
+                    {
+                        var entry = ModelsEndpoints.ToEntry(row, keyPresent);
+                        Assert(entry.Installed == keyPresent,
+                            $"/models {row.Id} installed={entry.Installed} with account key present={keyPresent}");
+                    }
+                    Assert(ModelsEndpoints.ToEntry(byokRow, keyPresent).Installed,
+                        $"an Enabled BYOK row read as not installed with account key present={keyPresent}");
+                }
             });
 
             Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>

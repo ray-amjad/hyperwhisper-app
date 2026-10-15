@@ -153,10 +153,12 @@ internal sealed class LinuxLocalApiCapabilityCatalog(
     {
         if (capability.Deployment == ModelDeployment.Local)
             return TryManagedModel(capability.ModelId, out var model) && models.IsInstalled(model);
+        // Same credential read as /health key_present (issue #650): the account
+        // key is trimmed and there is no device-identity fallback, so a Cloud
+        // model is enabled only when /transcribe would not refuse it with
+        // MISSING_API_KEY.
         var configured = !capability.RequiresCredential
-            || HasCredential(capability.CredentialAccount)
-            || capability.ProviderId.Equals("hyperwhisper", StringComparison.OrdinalIgnoreCase)
-                && deviceIdentity.GetDeviceIdentity().IsSuccess;
+            || HasUsableCredential(capability.CredentialAccount);
         if (!configured) return false;
         return LinuxProviderReadinessSnapshot.Get(capability.ProviderId, capability.Surface)?.Outcome
             is not (ProviderHealthOutcome.Unauthorized or ProviderHealthOutcome.Unreachable
