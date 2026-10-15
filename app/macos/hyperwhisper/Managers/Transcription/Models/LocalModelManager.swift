@@ -241,6 +241,16 @@ class LocalModelManager: NSObject, ObservableObject {
         logger.info("Local model catalog: \(self.availableModels.count) available, \(self.downloadedModels.count) downloaded")
     }
 
+    #if DEBUG
+    /// TEST SEAM, Debug builds only (tests run against Debug). Production never
+    /// calls it. Replaces `downloadedModels` so a test can hand
+    /// `AIPostProcessor` an installed model whose file is a temp file, without
+    /// writing into the real models directory (#908). Release has no such method.
+    func replaceDownloadedModelsForTesting(_ models: [LocalModel]) {
+        downloadedModels = models
+    }
+    #endif
+
     /// Kick off a download for the given model.
     func downloadModel(_ modelId: String, forceRedownload: Bool = false) {
         guard let model = availableModels.first(where: { $0.id == modelId }) else {
