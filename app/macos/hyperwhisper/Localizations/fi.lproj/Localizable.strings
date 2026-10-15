@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostiikka viety";
 "alerts.export.diagnostics.success.message" = "Kaikki diagnostiikkalokit on viety onnistuneesti.";
 "alerts.export.diagnostics.saveFailed.message" = "Diagnostiikan tallennus valittuun sijaintiin epäonnistui: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostiikka viety ilman järjestelmälokeja";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostiikkatiedosto tallennettiin, mutta sovelluksen järjestelmälokeja ei voitu lukea, joten system-logs.txt sisältää vain syyn. Syy: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Vie päivityslokit tukea varten";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "Valitse...";
 "settings.storage.dialog.select" = "Valitse kansio";
 "settings.storage.dialog.message" = "Valitse kansio nauhoitusten tallentamiseen";
+"settings.storage.folderRefused.title" = "Tätä kansiota ei voi käyttää";
+"settings.storage.folderRefused.notWritable" = "Sinulla ei ole oikeutta kirjoittaa kansioon ”%@”, joten HyperWhisper ei voi tallentaa sinne äänityksiä. Äänityskansiota ei muutettu.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper ei voinut luoda tätä kansiota: %@ Äänityskansiota ei muutettu.";
 "settings.storage.storeAsM4A.title" = "Pakkaa nauhoitukset M4A-muotoon";
 "settings.storage.storeAsM4A.subtitle" = "Muuntaa WAV-nauhoitukset pienemmiksi tiedostoiksi transkription jälkeen. Poista käytöstä säilyttääksesi alkuperäiset WAV-tiedostot (suuremmat mutta häviöttömät).";
 
@@ -900,6 +905,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "audio.error.microphonePermission" = "Mikrofonilupaa ei myönnetty";
 "audio.error.microphoneInUse" = "HyperWhisper ei voi käyttää mikrofonia, koska toinen sovellus käyttää sitä tällä hetkellä. Keskeytä toinen sovellus tai vaihda tuloa ja yritä uudelleen.";
 "audio.error.audioSystemNotResponding" = "macOS:n ääni ei vastaa, joten mikrofonia ei voitu käynnistää. Yritä hetken kuluttua uudelleen. Jos tämä toistuu, käynnistä Mac uudelleen.";
+"audio.error.recorderStopTimedOut" = "macOS:n ääni lakkasi vastaamasta tallenteen tallennuksen aikana, joten sitä ei litteroitu. Ääni säilytettiin: HyperWhisper yrittää palauttaa sen seuraavan käynnistyksen yhteydessä.";
 "audio.error.createEngine" = "Äänimoottorin luominen epäonnistui";
 "audio.error.noInput" = "Äänituloa ei ole saatavilla";
 "audio.error.createFile" = "Äänitiedoston luominen epäonnistui";
@@ -973,6 +979,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "transcription.guidance.quotaExceeded" = "Lisää krediittejä %@-tilillesi tai päivitä laskutustietosi";
 "transcription.guidance.timeout" = "Pyyntö kesti liian kauan. Tarkista internet-nopeutesi ja yritä uudelleen.";
 "transcription.error.noSpeechDetected" = "Nauhoituksessa ei havaittu puhetta.";
+"transcription.error.audioTooShort" = "Tallenne on liian lyhyt litteroitavaksi. Tallenna pidempään.";
 "transcription.guidance.noSpeechDetected" = "Vinkkejä:\n• Puhu selvästi mikrofoniin\n• Pidä näppäintä pidempään ennen puhumista\n• Tarkista, että mikrofonisi toimii\n• Varmista, että oikea tulolaite on valittu";
 "transcription.guidance.needsNativeRelaunch" = "Lopeta HyperWhisper ja avaa se uudelleen natiivina, jotta voit käyttää paikallista jälkikäsittelyä.";
 "transcription.guidance.localRuntimeUnavailable" = "Yritä uudelleen tai valitse pienempi paikallinen malli tilan asetuksista.";
@@ -1115,6 +1122,10 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "transcribe.file.error.format.title" = "Ei-tuettu muoto";
 "transcribe.file.error.format.message" = ".%@ tiedostoja ei tueta palvelussa %@. Tuetut muodot: %@";
 "transcribe.file.error.read" = "Valittua tiedostoa ei voi lukea.";
+"transcribe.file.error.webm" = "WebM-muotoa ei tueta. Muunna tiedosto MP3-, M4A- tai WAV-muotoon ja yritä uudelleen.";
+"transcribe.file.error.notAudio" = "Tiedosto ”%@” ei ole kelvollista ääntä. Se voi olla vioittunut tai muodossa, jota macOS ei osaa purkaa.";
+"transcribe.file.error.empty" = "Tiedosto ”%@” on tyhjä. Siinä ei ole ääntä litteroitavaksi.";
+"transcribe.file.error.tooShort" = "Tämä tiedosto on liian lyhyt litteroitavaksi (%@ s).";
 "transcribe.file.error.copy" = "Tiedoston kopiointi nauhoituskansioon epäonnistui.";
 "transcribe.file.error.video.title" = "Ei ääntä videossa";
 "transcribe.file.error.video.noAudio" = "Tämä videotiedosto ei sisällä äänitä. Valitse video, jossa on ääni tai äänitiedosto.";

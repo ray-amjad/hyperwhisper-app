@@ -390,5 +390,12 @@
     "heading": "Öppen källkod. Inget att dölja.",
     "body": "HyperWhisper är helt öppen källkod under Apache-2.0 — både skrivbordsapparna och Cloud-backenden. En app som lyssnar på din mikrofon bör vara något du kan verifiera, inte bara lita på: läs varje rad, granska exakt vart ditt ljud tar vägen och vet att du aldrig blir inlåst — koden är din att forka och köra i egen regi för alltid. Byggd i det öppna av den oberoende skaparen Ray Amjad.",
     "cta": "Visa på GitHub"
+  },
+  "notFound": {
+    "title": "Sidan hittades inte",
+    "heading": "Den här sidan finns inte",
+    "description": "Länken kan vara trasig, eller så har sidan flyttats.",
+    "home": "Gå till startsidan",
+    "download": "Ladda ner HyperWhisper"
   }
 }

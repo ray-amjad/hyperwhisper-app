@@ -390,5 +390,12 @@
     "heading": "Avatud lähtekood. Midagi pole varjata.",
     "body": "HyperWhisper on täielikult avatud lähtekoodiga Apache-2.0 litsentsi all — nii töölauarakendused kui ka Cloudi backend. Rakendus, mis kuulab sinu mikrofoni, peaks olema midagi, mida saad kontrollida, mitte lihtsalt usaldada: loe iga rida, auditeeri täpselt, kuhu su heli läheb, ja tea, et sind ei lukustata kunagi sisse — kood on sinu oma, et seda igavesti forkida ja ise majutada. Ehitatud avatult indie-tegija Ray Amjadi poolt.",
     "cta": "Vaata GitHubis"
+  },
+  "notFound": {
+    "title": "Lehte ei leitud",
+    "heading": "Seda lehte ei ole olemas",
+    "description": "Link võib olla katki või leht on teisaldatud.",
+    "home": "Mine avalehele",
+    "download": "Laadi alla HyperWhisper"
   }
 }

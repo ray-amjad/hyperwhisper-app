@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "निदान निर्यात किए गए";
 "alerts.export.diagnostics.success.message" = "सभी निदान लॉग सफलतापूर्वक निर्यात कर दिए गए हैं।";
 "alerts.export.diagnostics.saveFailed.message" = "निदान को चयनित स्थान पर सहेज नहीं सके: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "सिस्टम लॉग के बिना डायग्नोस्टिक्स निर्यात किए गए";
+"alerts.export.diagnostics.noSystemLogs.message" = "डायग्नोस्टिक्स फ़ाइल सहेजी गई, लेकिन ऐप के सिस्टम लॉग पढ़े नहीं जा सके, इसलिए system-logs.txt में केवल कारण है। कारण: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "समर्थन के लिए अपडेट लॉग निर्यात करें";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "चुनें...";
 "settings.storage.dialog.select" = "फ़ोल्डर चुनें";
 "settings.storage.dialog.message" = "रिकॉर्डिंग संग्रहीत करने के लिए एक फ़ोल्डर चुनें";
+"settings.storage.folderRefused.title" = "इस फ़ोल्डर का उपयोग नहीं किया जा सकता";
+"settings.storage.folderRefused.notWritable" = "आपको “%@” में लिखने की अनुमति नहीं है, इसलिए HyperWhisper वहाँ रिकॉर्डिंग सहेज नहीं सकता। रिकॉर्डिंग फ़ोल्डर नहीं बदला गया।";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper यह फ़ोल्डर नहीं बना सका: %@ रिकॉर्डिंग फ़ोल्डर नहीं बदला गया।";
 "settings.storage.storeAsM4A.title" = "रिकॉर्डिंग को M4A में संपीड़ित करें";
 "settings.storage.storeAsM4A.subtitle" = "WAV रिकॉर्डिंग को ट्रांसक्रिप्शन के बाद छोटी फ़ाइलों में परिवर्तित करता है। मूल WAV फ़ाइलों को रखने के लिए बंद करें (बड़ी लेकिन नुकसान रहित)।";
 
@@ -900,6 +905,7 @@
 "audio.error.microphonePermission" = "माइक्रोफ़ोन अनुमति नहीं दी गई";
 "audio.error.microphoneInUse" = "HyperWhisper माइक्रोफ़ोन तक पहुंच नहीं सकता क्योंकि एक अन्य ऐप वर्तमान में इसका उपयोग कर रहा है। अन्य ऐप को रोकें या इनपुट स्विच करें, फिर फिर से प्रयास करें।";
 "audio.error.audioSystemNotResponding" = "macOS ऑडियो प्रतिक्रिया नहीं दे रहा है, इसलिए माइक्रोफ़ोन शुरू नहीं हो सका। थोड़ी देर में फिर से कोशिश करें। अगर ऐसा होता रहे, तो अपना Mac रीस्टार्ट करें।";
+"audio.error.recorderStopTimedOut" = "रिकॉर्डिंग सहेजते समय macOS ऑडियो ने जवाब देना बंद कर दिया, इसलिए उसका ट्रांसक्रिप्शन नहीं हुआ। ऑडियो सुरक्षित रखा गया है: HyperWhisper अगली बार शुरू होने पर इसे पुनर्प्राप्त करने का प्रयास करेगा।";
 "audio.error.createEngine" = "ऑडियो इंजन बनाने में विफल";
 "audio.error.noInput" = "कोई ऑडियो इनपुट उपलब्ध नहीं";
 "audio.error.createFile" = "ऑडियो फ़ाइल बनाने में विफल";
@@ -973,6 +979,7 @@
 "transcription.guidance.quotaExceeded" = "अपने %@ खाते में क्रेडिट जोड़ें या अपनी बिलिंग जानकारी अपडेट करें";
 "transcription.guidance.timeout" = "अनुरोध में बहुत समय लगा। अपनी इंटरनेट गति जांचें और फिर से प्रयास करें।";
 "transcription.error.noSpeechDetected" = "रिकॉर्डिंग में कोई भाषण का पता नहीं चला।";
+"transcription.error.audioTooShort" = "रिकॉर्डिंग ट्रांसक्राइब करने के लिए बहुत छोटी है। कृपया थोड़ी देर और रिकॉर्ड करें।";
 "transcription.guidance.noSpeechDetected" = "सुझाव:\n• माइक्रोफ़ोन में स्पष्ट रूप से बोलें\n• कुंजी को दबाने से पहले लंबे समय तक दबाएं\n• जांचें कि आपका माइक्रोफ़ोन काम कर रहा है\n• सुनिश्चित करें कि सही इनपुट डिवाइस चयनित है";
 "transcription.guidance.needsNativeRelaunch" = "लोकल पोस्ट-प्रोसेसिंग इस्तेमाल करने के लिए HyperWhisper को बंद करके नेटिव रूप से फिर से खोलें।";
 "transcription.guidance.localRuntimeUnavailable" = "फिर से कोशिश करें, या अपनी मोड सेटिंग में कोई छोटा लोकल मॉडल चुनें।";
@@ -1115,6 +1122,10 @@
 "transcribe.file.error.format.title" = "असमर्थित प्रारूप";
 "transcribe.file.error.format.message" = ".%@ फ़ाइलें %@ द्वारा समर्थित नहीं हैं। समर्थित प्रारूप: %@";
 "transcribe.file.error.read" = "चयनित फ़ाइल को पढ़ा नहीं जा सकता।";
+"transcribe.file.error.webm" = "WebM समर्थित नहीं है। फ़ाइल को MP3, M4A या WAV में बदलें, फिर से कोशिश करें।";
+"transcribe.file.error.notAudio" = "फ़ाइल “%@” मान्य ऑडियो नहीं है। फ़ाइल ख़राब हो सकती है, या ऐसे फ़ॉर्मेट में हो सकती है जिसे macOS डिकोड नहीं कर सकता।";
+"transcribe.file.error.empty" = "फ़ाइल “%@” ख़ाली है। इसमें ट्रांसक्राइब करने के लिए कोई ऑडियो नहीं है।";
+"transcribe.file.error.tooShort" = "यह फ़ाइल ट्रांसक्राइब करने के लिए बहुत छोटी है (%@ s)।";
 "transcribe.file.error.copy" = "फ़ाइल को रिकॉर्डिंग फ़ोल्डर में कॉपी करने में विफल।";
 "transcribe.file.error.video.title" = "वीडियो में कोई ऑडियो नहीं";
 "transcribe.file.error.video.noAudio" = "इस वीडियो फ़ाइल में ऑडियो ट्रैक नहीं है। कृपया ऑडियो या एक ऑडियो फ़ाइल के साथ एक वीडियो चुनें।";

@@ -823,6 +823,9 @@ Tej czynności nie można cofnąć.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Anulowano transkrypcję pliku</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkrypcja pliku...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1158,6 +1161,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model jest używany</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} jest używany przez tryb „{1}”. Przed usunięciem przełącz ten tryb na inny model.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

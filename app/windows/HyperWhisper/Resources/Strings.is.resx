@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Hætt við umritun skrár</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Umritar skrá...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1158,6 +1161,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Líkanið er í notkun</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>Hamurinn „{1}“ notar {0}. Skiptu yfir í annað líkan í þeim ham áður en þú eyðir því.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

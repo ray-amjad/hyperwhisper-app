@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "診斷已匯出";
 "alerts.export.diagnostics.success.message" = "所有診斷日誌已成功匯出。";
 "alerts.export.diagnostics.saveFailed.message" = "無法將診斷儲存到選定位置：%@";
+"alerts.export.diagnostics.noSystemLogs.title" = "已匯出診斷資訊，但不含系統記錄";
+"alerts.export.diagnostics.noSystemLogs.message" = "診斷檔案已儲存，但無法讀取 App 的系統記錄，因此 system-logs.txt 中只有原因。原因：%@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "匯出更新日誌以取得支援";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "選擇...";
 "settings.storage.dialog.select" = "選擇資料夾";
 "settings.storage.dialog.message" = "選擇用於儲存錄音的資料夾";
+"settings.storage.folderRefused.title" = "無法使用此資料夾";
+"settings.storage.folderRefused.notWritable" = "你沒有寫入「%@」的權限，因此 HyperWhisper 無法在其中儲存錄音。錄音資料夾未變更。";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper 無法建立此資料夾：%@ 錄音資料夾未變更。";
 "settings.storage.storeAsM4A.title" = "將錄音壓縮為 M4A";
 "settings.storage.storeAsM4A.subtitle" = "轉錄後將 WAV 錄音轉換為較小的檔案。關閉以保持原始 WAV 檔案（較大但無損）。";
 
@@ -900,6 +905,7 @@
 "audio.error.microphonePermission" = "未授予麥克風許可";
 "audio.error.microphoneInUse" = "HyperWhisper 無法存取麥克風，因為另一個應用程式目前正在使用它。暫停另一個應用程式或切換輸入，然後再試一次。";
 "audio.error.audioSystemNotResponding" = "macOS 音訊沒有回應，因此無法啟動麥克風。請稍後再試。如果問題持續發生，請重新啟動 Mac。";
+"audio.error.recorderStopTimedOut" = "儲存錄音時 macOS 音訊停止回應，因此未進行轉寫。音訊已保留：HyperWhisper 會在下次啟動時嘗試復原。";
 "audio.error.createEngine" = "無法建立音頻引擎";
 "audio.error.noInput" = "沒有可用的音頻輸入";
 "audio.error.createFile" = "無法建立音頻檔案";
@@ -973,6 +979,7 @@
 "transcription.guidance.quotaExceeded" = "向您的 %@ 帳戶新增額度或更新您的帳單詳細資訊";
 "transcription.guidance.timeout" = "請求耗時過長。檢查您的網際網路速度並重試。";
 "transcription.error.noSpeechDetected" = "在錄音中未偵測到語音。";
+"transcription.error.audioTooShort" = "錄音太短，無法轉寫。請錄製更長時間。";
 "transcription.guidance.noSpeechDetected" = "提示：\n• 清楚地對著麥克風說話\n• 在說話前按住按鍵較長時間\n• 檢查您的麥克風是否運作正常\n• 確保選擇了正確的輸入裝置";
 "transcription.guidance.needsNativeRelaunch" = "請結束並以原生模式重新開啟 HyperWhisper，才能使用本機後處理。";
 "transcription.guidance.localRuntimeUnavailable" = "請再試一次，或在模式設定中選擇較小的本機模型。";
@@ -1115,6 +1122,10 @@
 "transcribe.file.error.format.title" = "不支援的格式";
 "transcribe.file.error.format.message" = ".%@ 檔案不被 %@ 支援。支援的格式：%@";
 "transcribe.file.error.read" = "無法讀取選定的檔案。";
+"transcribe.file.error.webm" = "不支援 WebM。請將檔案轉換為 MP3、M4A 或 WAV 後再試一次。";
+"transcribe.file.error.notAudio" = "檔案「%@」不是有效的音訊。檔案可能已損毀，或是 macOS 無法解碼的格式。";
+"transcribe.file.error.empty" = "檔案「%@」是空的，沒有可轉錄的音訊。";
+"transcribe.file.error.tooShort" = "此檔案太短，無法轉寫（%@ 秒）。";
 "transcribe.file.error.copy" = "無法將檔案複製到錄音資料夾。";
 "transcribe.file.error.video.title" = "影片中沒有音頻";
 "transcribe.file.error.video.noAudio" = "此影片檔案不包含音頻軌道。請選擇有音頻的影片或音頻檔案。";

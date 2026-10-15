@@ -219,7 +219,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             _lastQueryWasFiltered = false;
             ReplaceItems(await _repository.ListAsync(cancellationToken));
             UpdateSelection(Items.Take(1));
-            Status.Success(Items.Count == 0 ? "No transcripts yet" : $"{Items.Count} transcript(s)");
+            Status.Success(Items.Count == 0 ? "No transcripts yet" : Plural.Count(Items.Count, "transcript", "transcripts"));
         }
         catch (OperationCanceledException)
         {
@@ -249,7 +249,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             ReplaceItems(await _repository.SearchAsync(
                 SearchText, fromUtc, toUtcExclusive, cancellationToken));
             UpdateSelection(Items.Take(1));
-            Status.Success($"{Items.Count} matching transcript(s)");
+            Status.Success(Plural.Count(Items.Count, "matching transcript", "matching transcripts"));
         }
         catch (Exception)
         {
@@ -308,6 +308,12 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     internal int GroupRebuildCount { get; private set; }
 
     /// <summary>
+    /// The local clock that decides Today and Yesterday. Tests pin it so a run near local
+    /// midnight, or one that crosses it, groups the same way the test expects (#1354).
+    /// </summary>
+    internal Func<DateTime> LocalNow { get; set; } = () => DateTime.Now;
+
+    /// <summary>
     /// Rebuilds <see cref="GroupedItems"/> from <see cref="Items"/>, inserting one
     /// <see cref="HistoryDateGroup"/> ahead of every new local day. The repository already
     /// returns newest first, so a single pass is enough.
@@ -316,7 +322,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     {
         GroupRebuildCount++;
         GroupedItems.Clear();
-        var today = DateTime.Now.Date;
+        var today = LocalNow().Date;
         var yesterday = today.AddDays(-1);
         DateTime? currentDay = null;
         foreach (var item in Items)
@@ -369,8 +375,8 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             UpdateSelection([]);
             if (deletion.Warnings.Count == 0)
                 Status.Success(DeleteAudio
-                    ? $"{deletion.TranscriptsDeleted} transcript(s) and {deletion.AudioFilesDeleted} audio file(s) deleted"
-                    : $"{deletion.TranscriptsDeleted} transcript(s) deleted; audio retained");
+                    ? $"{Plural.Count(deletion.TranscriptsDeleted, "transcript", "transcripts")} and {Plural.Count(deletion.AudioFilesDeleted, "audio file", "audio files")} deleted"
+                    : $"{Plural.Count(deletion.TranscriptsDeleted, "transcript", "transcripts")} deleted; audio retained");
             else Status.Failure("history.audio_delete_failed", string.Join(" ", deletion.Warnings.Distinct()));
         }
         catch (OperationCanceledException) { Status.Failure("history.cancelled", "Delete cancelled"); }

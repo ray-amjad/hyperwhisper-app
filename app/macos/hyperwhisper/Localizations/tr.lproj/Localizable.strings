@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Tanılar Dışa Aktarıldı";
 "alerts.export.diagnostics.success.message" = "Tüm tanı günlükleri başarıyla dışa aktarıldı.";
 "alerts.export.diagnostics.saveFailed.message" = "Tanılar seçilen konuma kaydedilemedi: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Tanılama Sistem Günlükleri Olmadan Dışa Aktarıldı";
+"alerts.export.diagnostics.noSystemLogs.message" = "Tanılama dosyası kaydedildi, ancak uygulamanın sistem günlükleri okunamadı; bu yüzden system-logs.txt yalnızca nedeni içeriyor. Neden: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Destek için güncellemeler günlüğünü dışa aktarın";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "Seç...";
 "settings.storage.dialog.select" = "Klasör Seç";
 "settings.storage.dialog.message" = "Kayıtları depolamak için bir klasör seçin";
+"settings.storage.folderRefused.title" = "Bu klasör kullanılamıyor";
+"settings.storage.folderRefused.notWritable" = "“%@” klasörüne yazma izniniz yok, bu yüzden HyperWhisper oraya kayıt kaydedemez. Kayıt Klasörü değiştirilmedi.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper bu klasörü oluşturamadı: %@ Kayıt Klasörü değiştirilmedi.";
 "settings.storage.storeAsM4A.title" = "Kayıtları M4A'ya sıkıştır";
 "settings.storage.storeAsM4A.subtitle" = "WAV kayıtlarını transkripsiyon sonrasında daha küçük dosyalara dönüştürür. Orijinal WAV dosyalarını (daha büyük ancak kayıpsız) tutmak için kapatın.";
 
@@ -900,6 +905,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "audio.error.microphonePermission" = "Mikrofon izni verilmedi";
 "audio.error.microphoneInUse" = "HyperWhisper, başka bir uygulama şu anda kullanıyor olduğu için mikrofonuna erişemez. Diğer uygulamayı duraklatın veya giriş değiştirin, ardından tekrar deneyin.";
 "audio.error.audioSystemNotResponding" = "macOS ses sistemi yanıt vermiyor, bu yüzden mikrofon başlatılamadı. Birazdan tekrar deneyin. Bu durum sürerse Mac'inizi yeniden başlatın.";
+"audio.error.recorderStopTimedOut" = "Kayıt kaydedilirken macOS ses sistemi yanıt vermeyi bıraktı, bu yüzden kayıt metne dönüştürülmedi. Ses korundu: HyperWhisper bir sonraki açılışta onu kurtarmayı deneyecek.";
 "audio.error.createEngine" = "Ses motoru oluşturulamadı";
 "audio.error.noInput" = "Ses girdisi yok";
 "audio.error.createFile" = "Ses dosyası oluşturulamadı";
@@ -973,6 +979,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcription.guidance.quotaExceeded" = "%@ hesabınıza kredi ekleyin veya fatura bilgilerinizi güncelleyin";
 "transcription.guidance.timeout" = "İstek çok uzun sürdü. İnternet hızınızı kontrol edin ve tekrar deneyin.";
 "transcription.error.noSpeechDetected" = "Kayıtta konuşma algılanmadı.";
+"transcription.error.audioTooShort" = "Kayıt yazıya dökülemeyecek kadar kısa. Lütfen daha uzun kaydedin.";
 "transcription.guidance.noSpeechDetected" = "İpuçları:\n• Mikrofonun içine açıkça konuş\n• Konuşmadan önce tuşu daha uzun basın\n• Mikrofonunuzun çalıştığını kontrol edin\n• Doğru giriş cihazının seçildiğinden emin olun";
 "transcription.guidance.needsNativeRelaunch" = "Yerel son işlemeyi kullanmak için HyperWhisper'dan çıkıp uygulamayı yerel mimaride yeniden açın.";
 "transcription.guidance.localRuntimeUnavailable" = "Tekrar deneyin veya Mod ayarlarınızda daha küçük bir yerel model seçin.";
@@ -1115,6 +1122,10 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcribe.file.error.format.title" = "Desteklenmeyen Biçim";
 "transcribe.file.error.format.message" = ".%@ dosyaları %@ tarafından desteklenmez. Desteklenen biçimler: %@";
 "transcribe.file.error.read" = "Seçilen dosya okunamaz.";
+"transcribe.file.error.webm" = "WebM desteklenmiyor. Dosyayı MP3, M4A veya WAV biçimine dönüştürüp yeniden deneyin.";
+"transcribe.file.error.notAudio" = "“%@” dosyası geçerli bir ses değil. Dosya bozuk olabilir veya macOS'un çözemediği bir biçimde olabilir.";
+"transcribe.file.error.empty" = "“%@” dosyası boş. Yazıya dökülecek ses içermiyor.";
+"transcribe.file.error.tooShort" = "Bu dosya yazıya dökülemeyecek kadar kısa (%@ sn).";
 "transcribe.file.error.copy" = "Dosya kayıtlar klasörüne kopyalanamadı.";
 "transcribe.file.error.video.title" = "Videoda Ses Yok";
 "transcribe.file.error.video.noAudio" = "Bu video dosyasında ses parçası yok. Lütfen ses içeren bir video veya ses dosyası seçin.";

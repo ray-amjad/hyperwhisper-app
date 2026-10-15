@@ -60,6 +60,7 @@ public partial class LocalApiSettingsPage : Page
     private void EnabledToggle_Checked(object sender, RoutedEventArgs e)
     {
         if (_suppressToggleEvent) return;
+        ClearActionStatus();
         SettingsService.Instance.LocalApiServerEnabled = true;
         LocalApiServer.Instance.Start();
         Refresh();
@@ -68,6 +69,7 @@ public partial class LocalApiSettingsPage : Page
     private void EnabledToggle_Unchecked(object sender, RoutedEventArgs e)
     {
         if (_suppressToggleEvent) return;
+        ClearActionStatus();
         SettingsService.Instance.LocalApiServerEnabled = false;
         LocalApiServer.Instance.Stop();
         Refresh();
@@ -304,5 +306,13 @@ public partial class LocalApiSettingsPage : Page
             : TryFindResource("TextSecondaryBrush") as Brush
               ?? System.Windows.Media.Brushes.Gray;
         ActionStatusText.Visibility = Visibility.Visible;
+    }
+
+    // A server toggle starts a fresh state, so a Copy or Regenerate line from
+    // before it no longer describes anything on screen.
+    private void ClearActionStatus()
+    {
+        ActionStatusText.Text = string.Empty;
+        ActionStatusText.Visibility = Visibility.Collapsed;
     }
 }

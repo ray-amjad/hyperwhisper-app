@@ -415,8 +415,13 @@ class SettingsManager: ObservableObject {
     }
 
     // Storage methods
-    func changeRecordingsFolder(to url: URL) {
+    @discardableResult
+    func changeRecordingsFolder(to url: URL) -> Bool {
         storage.changeRecordingsFolder(to: url)
+    }
+
+    func presentRecordingsFolderRefusedAlert() {
+        storage.presentRecordingsFolderRefusedAlert()
     }
 
     func ensureRecordingsFolderExists() {

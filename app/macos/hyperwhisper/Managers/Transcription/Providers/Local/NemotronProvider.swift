@@ -192,7 +192,7 @@ final class NemotronProvider: TranscriptionProvider {
         if let attrs = try? fm.attributesOfItem(atPath: audioURL.path),
            let size = attrs[.size] as? Int64, size < 5000 {
             logger.error("Audio file too small: \(size) bytes")
-            throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Audio file is too small (\(size) bytes). Please record for longer.")
+            throw TranscriptionError.audioTooShort(fileSize: size)
         }
 
         guard isAvailable(for: modelId) else {
@@ -236,11 +236,18 @@ final class NemotronProvider: TranscriptionProvider {
         let samples: [Float]
         do {
             samples = try LocalAudioSampleLoader.loadMono16kSamples(from: audioURL, providerName: "Nemotron", logger: logger)
+        } catch let error as TranscriptionError {
+            // The loader's own faults already name the provider; do not wrap twice.
+            await manager.cleanup()
+            throw error
         } catch {
+            // `AVAudioFile(forReading:)` could not open the file. That is the
+            // file's fault, not the model's: say so, without AVFoundation's raw
+            // code (issue #1426).
             let nsError = error as NSError
             logger.error("Nemotron audio conversion failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await manager.cleanup()
-            throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Audio conversion failed: \(error.localizedDescription)")
+            throw TranscriptionError.invalidAudioFormat
         }
 
         do {

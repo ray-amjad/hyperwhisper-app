@@ -32,7 +32,11 @@ struct StorageSettingsSection: View {
                         folderPath: $settingsManager.recordingsFolder,
                         standalone: false,
                         onFolderChange: { url in
-                            settingsManager.changeRecordingsFolder(to: url)
+                            // A refused folder (read-only, or not creatable)
+                            // must say so, not close silently (#1473).
+                            if !settingsManager.changeRecordingsFolder(to: url) {
+                                settingsManager.presentRecordingsFolderRefusedAlert()
+                            }
                         }
                     )
 

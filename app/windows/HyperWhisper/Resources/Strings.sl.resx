@@ -823,6 +823,9 @@ Te akcije se ne da razveljaviti.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Prepis datoteke je preklican</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Prepisovanje datoteke...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1158,6 +1161,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model je v uporabi</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} uporablja način »{1}«. Pred brisanjem preklopite ta način na drug model.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

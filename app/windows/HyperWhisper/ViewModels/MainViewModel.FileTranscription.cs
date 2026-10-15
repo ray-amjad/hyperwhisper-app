@@ -166,8 +166,7 @@ public partial class MainViewModel
         // STEP 1: Validate file
         if (!File.Exists(filePath))
         {
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.fileNotFound"), showSettingsButton: false));
+            RejectFile(Loc.S("errors.fileNotFound"));
             return;
         }
 
@@ -176,8 +175,7 @@ public partial class MainViewModel
         if (new FileInfo(filePath).Length == 0)
         {
             LoggingService.Warn($"TranscribeFileAsync: File is empty - {filePath}");
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                FileTranscriptionService.EmptyFileMessage, showSettingsButton: false));
+            RejectFile(FileTranscriptionService.EmptyFileMessage);
             return;
         }
 
@@ -194,9 +192,7 @@ public partial class MainViewModel
         var maxSize = GetMaxFileSizeForProvider(mode);
         if (!requiresMuseNormalization && fileInfo.Length > maxSize)
         {
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(maxSize)),
-                showSettingsButton: false));
+            RejectFile(Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(maxSize)));
             return;
         }
 
@@ -204,16 +200,13 @@ public partial class MainViewModel
         {
             if (ExceedsMuseSourceLimit(fileInfo.Length))
             {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(MetaMuseAudioContract.MaximumSourceBytes)),
-                    showSettingsButton: false));
+                RejectFile(Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(MetaMuseAudioContract.MaximumSourceBytes)));
                 return;
             }
             var sourceDuration = FileTranscriptionService.GetAudioDuration(filePath);
             if (sourceDuration.IsSuccess && sourceDuration.Value > 10 * 60)
             {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    "Meta Muse supports audio up to 10 minutes.", showSettingsButton: false));
+                RejectFile("Meta Muse supports audio up to 10 minutes.");
                 return;
             }
         }
@@ -233,6 +226,9 @@ public partial class MainViewModel
         // STEP 3: Show progress window
         IsTranscribing = true;
         _fileTranscriptionActive = true;
+        // The toggle hotkey is ignored while IsTranscribing, so "Ready - Press ... to
+        // record" would be untrue for the whole job (#1519).
+        ShowJobStatus("status.fileTranscribing");
         ShowFileProgressRequested?.Invoke(this, new FileTranscriptionProgressEventArgs(
             fileName,
             onCancel: () =>
@@ -454,9 +450,8 @@ public partial class MainViewModel
                             providerDiagnostics: txEx.ProviderDiagnostics,
                             exception: txEx);
 
-                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                            txEx.GetUserMessage(),
-                            showSettingsButton: false));
+                        ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
+                        StatusText = Loc.S("status.failed", txEx.GetUserMessage());
                     }
                 }
                 else
@@ -464,18 +459,16 @@ public partial class MainViewModel
                     var failureWritten = MarkTranscriptAsGenericFailure(transcript, ex);
                     if (failureWritten)
                     {
-                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                            Loc.S("errors.transcriptionFailed", ex.Message), showSettingsButton: false));
+                        ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
+                        StatusText = Loc.S("status.failed", ex.Message);
                     }
                 }
             }
             else
             {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    ex is TranscriptionException txEx
-                        ? txEx.GetUserMessage()
-                        : Loc.S("errors.transcriptionFailed", ex.Message),
-                    showSettingsButton: false));
+                ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
+                StatusText = Loc.S("status.failed",
+                    ex is TranscriptionException userEx ? userEx.GetUserMessage() : ex.Message);
             }
         }
         finally
@@ -501,8 +494,14 @@ public partial class MainViewModel
                 }
             }
 
+            // Before the Whisper reload below, which must not replace a result the job left.
+            var jobLeftResult = EndJobStatus();
+
+            // Before IsTranscribing: its idle housekeeping may dispose the daemon now.
+            _parakeetFileJobOwnsDaemon = false;
             IsTranscribing = false;
             _fileTranscriptionActive = false;
+            RestoreSelectedModeModelAfterFileJob(keepStatusText: jobLeftResult);
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
                 _activeTranscriptionCts = null;
@@ -523,6 +522,16 @@ public partial class MainViewModel
 
     internal static bool ExceedsMuseSourceLimit(long sourceBytes) =>
         sourceBytes > MetaMuseAudioContract.MaximumSourceBytes;
+
+    /// <summary>
+    /// A file refused before the job starts: the toast, and the status bar says it
+    /// failed rather than keeping what the last job left (#1519).
+    /// </summary>
+    private void RejectFile(string message)
+    {
+        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(message, showSettingsButton: false));
+        StatusText = Loc.S("status.failed", message);
+    }
 
     private bool CanStartFileTranscription()
     {
@@ -573,10 +582,7 @@ public partial class MainViewModel
             var model = ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == mode.LocalParakeetModel);
             if (model == null || !_parakeetModelService.IsModelDownloaded(model))
             {
-                var modelName = mode.LocalParakeetModel ?? "Unknown";
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    Loc.S("errors.modelNotDownloaded", modelName),
-                    showSettingsButton: false));
+                RejectFile(Loc.S("errors.modelNotDownloaded", mode.LocalParakeetModel ?? "Unknown"));
                 return false;
             }
 
@@ -605,18 +611,24 @@ public partial class MainViewModel
 
                 IsModelLoading = true;
                 StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
+                // Set before the unload: it reads as pending to a Whisper load,
+                // which must not queue behind it and then dispose this job's
+                // daemon (#1609). Cleared when the file job ends.
+                _parakeetFileJobOwnsDaemon = true;
                 await UnloadWhisperForParakeetIfLowMemoryAsync("EnsureLocalProviderReadyForFileAsync");
                 await _parakeetTranscriptionService.InitializeAsync(
                     _parakeetModelService.GetModelDirectory(model),
                     language);
                 IsModelLoaded = true;
-                ModelStatus = Loc.S("status.model.parakeet.ready", model.DisplayName, _parakeetTranscriptionService.ActiveProvider ?? "CPU");
+                // The bar describes the selected mode, not this job's (#1639).
+                UpdateModelStatus();
                 return true;
             }
             catch (Exception ex)
             {
-                ModelStatus = Loc.S("status.model.loadFailed");
+                _parakeetFileJobOwnsDaemon = false;
                 StatusText = Loc.S("status.failed", ex.Message);
+                ShowFileJobModelLoadFailed(mode);
                 LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Parakeet model load failed - {ex.Message}", ex);
                 ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                     Loc.S("errors.modelLoadFailed"),
@@ -632,24 +644,19 @@ public partial class MainViewModel
 
         if (!PlatformHelper.SupportsWhisperTranscription)
         {
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.modelLoadFailed"),
-                showSettingsButton: false));
+            RejectFile(Loc.S("errors.modelLoadFailed"));
             return false;
         }
 
         var whisperModel = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == mode.ModelType);
         if (whisperModel == null || !_modelService.IsModelDownloaded(whisperModel))
         {
-            var modelName = mode.ModelType ?? "Unknown";
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.modelNotDownloaded", modelName),
-                showSettingsButton: false));
+            RejectFile(Loc.S("errors.modelNotDownloaded", mode.ModelType ?? "Unknown"));
             return false;
         }
 
         var modelPath = _modelService.GetModelPath(whisperModel);
-        if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath)
+        if (_transcriptionService.IsLoadedAndStaying(modelPath))
         {
             return true;
         }
@@ -657,7 +664,7 @@ public partial class MainViewModel
         await _modelLoadLock.WaitAsync();
         try
         {
-            if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath)
+            if (_transcriptionService.IsLoadedAndStaying(modelPath))
             {
                 return true;
             }
@@ -674,13 +681,13 @@ public partial class MainViewModel
             StatusText = Loc.S("status.model.loading", whisperModel.DisplayName);
             await _transcriptionService.InitializeAsync(modelPath, p => { }, CancellationToken.None);
             IsModelLoaded = true;
-            ModelStatus = Loc.S("status.model.ready", whisperModel.DisplayName);
+            UpdateModelStatus();
             return true;
         }
         catch (Exception ex)
         {
-            ModelStatus = Loc.S("status.model.loadFailed");
             StatusText = Loc.S("status.failed", ex.Message);
+            ShowFileJobModelLoadFailed(mode);
             LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Whisper model load failed - {ex.Message}", ex);
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                 Loc.S("errors.modelLoadFailed"),
@@ -692,6 +699,65 @@ public partial class MainViewModel
             IsModelLoading = false;
             _modelLoadLock.Release();
         }
+    }
+
+    /// <summary>
+    /// A file job's model failed to load, so TranscribeFileAsync returns before the
+    /// finally that restores the selected mode. Set StatusText first. When the job
+    /// ran on the selected mode, the model part of the bar says the load failed, and
+    /// retrying that load would only fail again. Another mode's failure is the job's
+    /// own (its toast and status line say it), but its load may already have taken
+    /// the selected mode's model out: the Whisper load disposes the loaded model or
+    /// the Parakeet daemon first, and the Parakeet load can unload Whisper on a
+    /// low-memory machine. So put the selected mode's model back, as the job's end
+    /// does (#1639). Either way the Whisper load it held out runs now, and waits on
+    /// _modelLoadLock, so it lands after this failure is up and keeps it (#1519).
+    /// </summary>
+    private void ShowFileJobModelLoadFailed(Mode jobMode)
+    {
+        if (SelectedMode?.Id == jobMode.Id)
+        {
+            ModelStatus = Loc.S("status.model.loadFailed");
+            LoadWhisperHeldOutByParakeetFileJob(keepStatusText: true);
+        }
+        else
+        {
+            RestoreSelectedModeModelAfterFileJob(keepStatusText: true);
+        }
+    }
+
+    /// <summary>
+    /// Puts the model part of the status bar back on the selected mode once a file
+    /// job ends, and loads that mode's model again if the job took it out (#1639).
+    /// A job on another mode replaces the loaded Whisper model, or starts a Parakeet
+    /// daemon that unloads Whisper on a low-memory machine and is disposed at the
+    /// end; the bar then kept naming the job's model, or showed the selected one as
+    /// only Downloaded. The load is the same one a mode switch does, and a no-op when
+    /// the model is still up. Covers the Whisper load the job held out (#1609).
+    /// </summary>
+    private void RestoreSelectedModeModelAfterFileJob(bool keepStatusText)
+    {
+        _whisperLoadHeldForParakeetFileJob = false;
+        UpdateModelStatus();
+
+        var mode = SelectedMode;
+        if (mode == null || mode.ProviderType == "cloud" || !PlatformHelper.SupportsLocalTranscription) return;
+        if (!IsLocalModelDownloaded(mode)) return;
+
+        LoadSelectedModeModelInBackground(mode, keepStatusText);
+    }
+
+    // async void for the reason LoadModelInBackground gives.
+    private async void LoadSelectedModeModelInBackground(Mode mode, bool keepStatusText)
+    {
+        try
+        {
+            if (mode.LocalEngine == "parakeet")
+                await LoadParakeetModelAsync(keepStatusText);
+            else
+                await LoadWhisperModelAsync(keepStatusText);
+        }
+        catch (Exception ex) { ReportBackgroundModelLoadFailure("file_job_end", mode, ex); }
     }
 
 }

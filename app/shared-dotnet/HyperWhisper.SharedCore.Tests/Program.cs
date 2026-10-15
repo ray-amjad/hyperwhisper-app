@@ -2088,6 +2088,12 @@ static Task TestRustLiveStopSequenceAsync()
     }
     using (var cloud = Protocol(LiveTranscriptionProvider.HyperWhisperCloud))
     {
+        // No `ready` frame, no relay session: nothing will send session_complete,
+        // so the stop does not wait 10 s for it (issue #834).
+        Assert.Equal(
+            "SendMessage:{\"type\":\"stop\"}|Close",
+            Rendered(cloud.StopSequence(0)));
+        cloud.Parse(Utf8("{\"type\":\"ready\",\"sessionId\":\"s1\"}"));
         Assert.Equal(
             "SendMessage:{\"type\":\"stop\"}|WaitForSessionComplete:10000|Close",
             Rendered(cloud.StopSequence(0)));

@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Διαγνωστικά Εξαγωγή";
 "alerts.export.diagnostics.success.message" = "Όλα τα διαγνωστικά κούπη εξαγόμενη με επιτυχία.";
 "alerts.export.diagnostics.saveFailed.message" = "Δεν ήταν δυνατή η αποθήκευση διαγνωστικών στη θέση που επιλέχθηκε: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Τα διαγνωστικά εξήχθησαν χωρίς αρχεία καταγραφής συστήματος";
+"alerts.export.diagnostics.noSystemLogs.message" = "Το αρχείο διαγνωστικών αποθηκεύτηκε, αλλά δεν ήταν δυνατή η ανάγνωση των αρχείων καταγραφής συστήματος της εφαρμογής, οπότε το system-logs.txt περιέχει μόνο την αιτία. Αιτία: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Εξαγωγή καταλόγου ενημερώσεων για υποστήριξη";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "Επιλογή...";
 "settings.storage.dialog.select" = "Επιλέξτε Φάκελο";
 "settings.storage.dialog.message" = "Επιλέξτε έναν φάκελο για αποθήκευση εγγραφών";
+"settings.storage.folderRefused.title" = "Δεν είναι δυνατή η χρήση αυτού του φακέλου";
+"settings.storage.folderRefused.notWritable" = "Δεν έχετε άδεια εγγραφής στο «%@», οπότε το HyperWhisper δεν μπορεί να αποθηκεύσει εκεί ηχογραφήσεις. Ο φάκελος ηχογραφήσεων δεν άλλαξε.";
+"settings.storage.folderRefused.createFailed" = "Το HyperWhisper δεν μπόρεσε να δημιουργήσει αυτόν τον φάκελο: %@ Ο φάκελος ηχογραφήσεων δεν άλλαξε.";
 "settings.storage.storeAsM4A.title" = "Συμπίεση εγγραφών σε M4A";
 "settings.storage.storeAsM4A.subtitle" = "Μετατρέπει τις εγγραφές WAV σε μικρότερα αρχεία μετά τη μεταγραφή. Απενεργοποιήστε για να διατηρήσετε τα αρχικά αρχεία WAV (μεγαλύτερα αλλά χωρίς απώλεια).";
 
@@ -900,6 +905,7 @@
 "audio.error.microphonePermission" = "Άδεια μικροφώνου δεν δoθείσα";
 "audio.error.microphoneInUse" = "Το HyperWhisper δεν μπορεί να αποκτήσει πρόσβαση στο μικροφώνο επειδή μια άλλη εφαρμογή το χρησιμοποιεί. Παύστε την άλλη εφαρμογή ή αλλάξτε τις εισόδους, στη συνέχεια δοκιμάστε ξανά.";
 "audio.error.audioSystemNotResponding" = "Ο ήχος του macOS δεν αποκρίνεται, οπότε το μικρόφωνο δεν μπόρεσε να ξεκινήσει. Δοκιμάστε ξανά σε λίγο. Αν συνεχίσει να συμβαίνει, επανεκκινήστε το Mac σας.";
+"audio.error.recorderStopTimedOut" = "Ο ήχος του macOS σταμάτησε να αποκρίνεται κατά την αποθήκευση της εγγραφής, οπότε δεν έγινε μεταγραφή. Ο ήχος διατηρήθηκε: το HyperWhisper θα προσπαθήσει να τον ανακτήσει την επόμενη φορά που θα ξεκινήσει.";
 "audio.error.createEngine" = "Αποτυχία δημιουργίας κινητήρα ήχου";
 "audio.error.noInput" = "Δεν υπάρχει διαθέσιμη είσοδος ήχου";
 "audio.error.createFile" = "Αποτυχία δημιουργίας αρχείου ήχου";
@@ -973,6 +979,7 @@
 "transcription.guidance.quotaExceeded" = "Προσθέστε πιστώσεις στο λογαριασμό %@ σας ή ενημερώστε τα στοιχεία χρέωσης";
 "transcription.guidance.timeout" = "Το αίτημα χρειάστηκε πολύ χρόνο. Ελέγξτε την ταχύτητα του διαδικτύου σας και δοκιμάστε ξανά.";
 "transcription.error.noSpeechDetected" = "Δεν ανιχνεύθηκε ομιλία στην εγγραφή.";
+"transcription.error.audioTooShort" = "Η ηχογράφηση είναι πολύ σύντομη για μεταγραφή. Ηχογραφήστε για περισσότερο χρόνο.";
 "transcription.guidance.noSpeechDetected" = "Συμβουλές:\n• Μιλήστε καθαρά στο μικροφώνο\n• Κρατήστε το πλήκτρο περισσότερο πριν μιλήσετε\n• Ελέγξτε ότι το μικροφώνο σας λειτουργεί\n• Βεβαιωθείτε ότι είναι επιλεγμένη η σωστή συσκευή εισόδου";
 "transcription.guidance.needsNativeRelaunch" = "Κλείστε και ανοίξτε ξανά το HyperWhisper σε εγγενή λειτουργία για να χρησιμοποιήσετε την τοπική μετεπεξεργασία.";
 "transcription.guidance.localRuntimeUnavailable" = "Δοκιμάστε ξανά ή επιλέξτε μικρότερο τοπικό μοντέλο στις ρυθμίσεις της Λειτουργίας.";
@@ -1115,6 +1122,10 @@
 "transcribe.file.error.format.title" = "Μη Υποστηριζόμενη Μορφή";
 "transcribe.file.error.format.message" = "Τα αρχεία .%@ δεν υποστηρίζονται από %@. Υποστηριζόμενες μορφές: %@";
 "transcribe.file.error.read" = "Δεν είναι δυνατή η ανάγνωση του επιλεγμένου αρχείου.";
+"transcribe.file.error.webm" = "Το WebM δεν υποστηρίζεται. Μετατρέψτε το αρχείο σε MP3, M4A ή WAV και δοκιμάστε ξανά.";
+"transcribe.file.error.notAudio" = "Το αρχείο «%@» δεν είναι έγκυρος ήχος. Μπορεί να είναι κατεστραμμένο ή σε μορφή που το macOS δεν μπορεί να αποκωδικοποιήσει.";
+"transcribe.file.error.empty" = "Το αρχείο «%@» είναι κενό. Δεν περιέχει ήχο για μεταγραφή.";
+"transcribe.file.error.tooShort" = "Αυτό το αρχείο είναι πολύ σύντομο για μεταγραφή (%@ s).";
 "transcribe.file.error.copy" = "Αποτυχία αντιγραφής αρχείου στο φάκελο εγγραφών.";
 "transcribe.file.error.video.title" = "Δεν υπάρχει Ήχος στο Βίντεο";
 "transcribe.file.error.video.noAudio" = "Αυτό το αρχείο βίντεο δεν περιέχει κομμάτι ήχου. Παρακαλώ επιλέξτε ένα βίντεο με ήχο ή ένα αρχείο ήχου.";

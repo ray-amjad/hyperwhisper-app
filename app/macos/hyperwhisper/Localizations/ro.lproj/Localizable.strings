@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostice exportate";
 "alerts.export.diagnostics.success.message" = "Toate jurnalele de diagnosticare au fost exportate cu succes.";
 "alerts.export.diagnostics.saveFailed.message" = "Nu s-au putut salva diagnosticele în locația selectată: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnosticare exportată fără jurnale de sistem";
+"alerts.export.diagnostics.noSystemLogs.message" = "Fișierul de diagnosticare a fost salvat, dar jurnalele de sistem ale aplicației nu au putut fi citite, așa că system-logs.txt conține doar motivul. Motiv: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportați jurnalele de actualizare pentru suport";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "Alegeți...";
 "settings.storage.dialog.select" = "Selectați folder";
 "settings.storage.dialog.message" = "Alegeți un folder pentru a stoca înregistrări";
+"settings.storage.folderRefused.title" = "Acest dosar nu poate fi folosit";
+"settings.storage.folderRefused.notWritable" = "Nu aveți permisiunea de a scrie în „%@”, așa că HyperWhisper nu poate salva înregistrări acolo. Dosarul de înregistrări nu a fost schimbat.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nu a putut crea acest dosar: %@ Dosarul de înregistrări nu a fost schimbat.";
 "settings.storage.storeAsM4A.title" = "Comprimați înregistrări la M4A";
 "settings.storage.storeAsM4A.subtitle" = "Convertește înregistrări WAV în fișiere mai mici după transcriere. Opriți pentru a păstra fișierele WAV originale (mai mari dar fără pierderi).";
 
@@ -900,6 +905,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "audio.error.microphonePermission" = "Permisiune microfon nu a fost acordată";
 "audio.error.microphoneInUse" = "HyperWhisper nu poate accesa microfonul pentru că o altă aplicație o folosește în prezent. Pauzați cealaltă aplicație sau comutați intrări, apoi încercați din nou.";
 "audio.error.audioSystemNotResponding" = "Sistemul audio macOS nu răspunde, așa că microfonul nu a putut porni. Încearcă din nou peste câteva momente. Dacă problema persistă, repornește Mac-ul.";
+"audio.error.recorderStopTimedOut" = "Sistemul audio macOS a încetat să răspundă în timp ce înregistrarea era salvată, așa că nu a fost transcrisă. Sunetul a fost păstrat: HyperWhisper va încerca să îl recupereze la următoarea pornire.";
 "audio.error.createEngine" = "Nu s-a putut crea motor audio";
 "audio.error.noInput" = "Nicio intrare audio disponibilă";
 "audio.error.createFile" = "Nu s-a putut crea fișier audio";
@@ -973,6 +979,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcription.guidance.quotaExceeded" = "Adăugați credite la contul %@ sau actualizați detaliile de facturare";
 "transcription.guidance.timeout" = "Cererea a durat prea mult. Verificați viteza internetului și reîncercați.";
 "transcription.error.noSpeechDetected" = "Nicio vorbire detectată în înregistrare.";
+"transcription.error.audioTooShort" = "Înregistrarea este prea scurtă pentru a fi transcrisă. Înregistrează mai mult timp.";
 "transcription.guidance.noSpeechDetected" = "Sfaturi:\n• Vorbiți clar în microfon\n• Țineti cheia mai mult înainte de a vorbi\n• Verificați că microfonul funcționează\n• Asigurați-vă că dispozitivul de intrare corect este selectat";
 "transcription.guidance.needsNativeRelaunch" = "Închide și redeschide HyperWhisper în mod nativ pentru a folosi post-procesarea locală.";
 "transcription.guidance.localRuntimeUnavailable" = "Încearcă din nou sau alege un model local mai mic în setările modului.";
@@ -1115,6 +1122,10 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcribe.file.error.format.title" = "Format nesuportat";
 "transcribe.file.error.format.message" = "Fișierele .%@ nu sunt acceptate de %@. Formate acceptate: %@";
 "transcribe.file.error.read" = "Nu se poate citi fișierul selectat.";
+"transcribe.file.error.webm" = "WebM nu este acceptat. Convertiți fișierul în MP3, M4A sau WAV, apoi încercați din nou.";
+"transcribe.file.error.notAudio" = "Fișierul „%@” nu este audio valid. Poate fi deteriorat sau într-un format pe care macOS nu îl poate decoda.";
+"transcribe.file.error.empty" = "Fișierul „%@” este gol. Nu conține audio de transcris.";
+"transcribe.file.error.tooShort" = "Acest fișier este prea scurt pentru a fi transcris (%@ s).";
 "transcribe.file.error.copy" = "Nu s-a putut copia fișier în folderul înregistrări.";
 "transcribe.file.error.video.title" = "Nicio audio în video";
 "transcribe.file.error.video.noAudio" = "Acest fișier video nu conține o pistă audio. Vă rugăm selectați un video cu audio sau un fișier audio.";

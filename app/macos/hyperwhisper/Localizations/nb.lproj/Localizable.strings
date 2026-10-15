@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostikk eksportert";
 "alerts.export.diagnostics.success.message" = "Alle diagnostikklogger er eksportert vellykket.";
 "alerts.export.diagnostics.saveFailed.message" = "Kunne ikke lagre diagnostikk til valgt plassering: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostikk eksportert uten systemlogger";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikkfilen ble lagret, men appens systemlogger kunne ikke leses, så system-logs.txt inneholder bare årsaken. Årsak: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksporter oppdateringslogger for støtte";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "Velg...";
 "settings.storage.dialog.select" = "Velg mappe";
 "settings.storage.dialog.message" = "Velg en mappe for å lagre opptak";
+"settings.storage.folderRefused.title" = "Denne mappen kan ikke brukes";
+"settings.storage.folderRefused.notWritable" = "Du har ikke tillatelse til å skrive til «%@», så HyperWhisper kan ikke lagre opptak der. Opptaksmappen ble ikke endret.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper kunne ikke opprette denne mappen: %@ Opptaksmappen ble ikke endret.";
 "settings.storage.storeAsM4A.title" = "Komprimer opptak til M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konverterer WAV-opptak til mindre filer etter transkripsjon. Slå av for å beholde originale WAV-filer (større men tapsfrie).";
 
@@ -900,6 +905,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "audio.error.microphonePermission" = "Mikrofontillatelse ikke gitt";
 "audio.error.microphoneInUse" = "HyperWhisper får ikke tilgang til mikrofonen fordi en annen app for øyeblikket bruker den. Pause den andre appen eller bytt inngangskilder, og prøv deretter igjen.";
 "audio.error.audioSystemNotResponding" = "Lyden i macOS svarer ikke, så mikrofonen kunne ikke starte. Prøv igjen om litt. Hvis dette fortsetter, start Mac-en på nytt.";
+"audio.error.recorderStopTimedOut" = "Lyden i macOS sluttet å svare mens opptaket ble lagret, så det ble ikke transkribert. Lyden er tatt vare på: HyperWhisper prøver å gjenopprette den neste gang appen starter.";
 "audio.error.createEngine" = "Kunne ikke opprette lydmotor";
 "audio.error.noInput" = "Ingen lydinngang tilgjengelig";
 "audio.error.createFile" = "Kunne ikke opprette lydfil";
@@ -973,6 +979,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcription.guidance.quotaExceeded" = "Legg til kreditter til din %@ konto eller oppdater faktureringsdetaljene dine";
 "transcription.guidance.timeout" = "Forespørselen tok for lang tid. Sjekk internettshastigheten din og prøv igjen.";
 "transcription.error.noSpeechDetected" = "Ingen tale oppdaget i opptaket.";
+"transcription.error.audioTooShort" = "Opptaket er for kort til å transkriberes. Ta opp lenger.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Snakk tydelig inn i mikrofonen\n• Hold tasten lengre før du snakker\n• Sjekk at mikrofonen din fungerer\n• Sørg for at riktig inngangsenhet er valgt";
 "transcription.guidance.needsNativeRelaunch" = "Avslutt og åpne HyperWhisper nativt på nytt for å bruke lokal etterbehandling.";
 "transcription.guidance.localRuntimeUnavailable" = "Prøv igjen, eller velg en mindre lokal modell i modusinnstillingene.";
@@ -1115,6 +1122,10 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcribe.file.error.format.title" = "Ustøttet format";
 "transcribe.file.error.format.message" = ".%@ filer støttes ikke av %@. Støttede formater: %@";
 "transcribe.file.error.read" = "Kan ikke lese den valgte filen.";
+"transcribe.file.error.webm" = "WebM støttes ikke. Konverter filen til MP3, M4A eller WAV, og prøv igjen.";
+"transcribe.file.error.notAudio" = "Filen «%@» er ikke gyldig lyd. Den kan være skadet eller i et format macOS ikke kan dekode.";
+"transcribe.file.error.empty" = "Filen «%@» er tom. Den inneholder ingen lyd å transkribere.";
+"transcribe.file.error.tooShort" = "Denne filen er for kort til å transkriberes (%@ s).";
 "transcribe.file.error.copy" = "Kunne ikke kopiere fil til opptaksmappe.";
 "transcribe.file.error.video.title" = "Ingen lyd i video";
 "transcribe.file.error.video.noAudio" = "Denne videofilen inneholder ikke et lydspor. Vennligst velg en video med lyd eller en lydfil.";

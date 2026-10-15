@@ -390,5 +390,12 @@
     "heading": "Odprta koda. Nicesar za skrivati.",
     "body": "HyperWhisper je popolnoma odprtokoden pod Apache-2.0 — tako namizne aplikacije kot Cloud zaledje. Aplikacija, ki poslusa vas mikrofon, naj bo nekaj, kar lahko preverite, ne le zaupate: preberite vsako vrstico, preverite, kam tocno gre vas zvok, in vedite, da ne boste nikoli vezani — koda je vasa, da jo za vedno razvejite in gostite sami. Zgradil jo je v odprtem neodvisni ustvarjalec Ray Amjad.",
     "cta": "Oglejte si na GitHubu"
+  },
+  "notFound": {
+    "title": "Strani ni mogoče najti",
+    "heading": "Ta stran ne obstaja",
+    "description": "Povezava je morda okvarjena ali pa je bila stran premaknjena.",
+    "home": "Pojdi na domačo stran",
+    "download": "Prenesi HyperWhisper"
   }
 }

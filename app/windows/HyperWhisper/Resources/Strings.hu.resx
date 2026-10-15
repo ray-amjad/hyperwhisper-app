@@ -823,6 +823,9 @@ Ez a művelet nem vonható vissza.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Fájl átírása megszakítva</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Fájl átírása...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1158,6 +1161,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>A modell használatban van</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>A(z) {0} modellt a(z) „{1}” mód használja. Törlés előtt állítsa át ezt a módot egy másik modellre.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

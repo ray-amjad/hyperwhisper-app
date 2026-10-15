@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika vyvezená";
 "alerts.export.diagnostics.success.message" = "Všetky diagnostické záznamy boli úspešne vyvezené.";
 "alerts.export.diagnostics.saveFailed.message" = "Nepodarilo sa uložiť diagnostiku na zvolené miesto: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika exportovaná bez systémových záznamov";
+"alerts.export.diagnostics.noSystemLogs.message" = "Súbor s diagnostikou bol uložený, ale systémové záznamy aplikácie sa nepodarilo prečítať, takže system-logs.txt obsahuje iba dôvod. Dôvod: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Vyviezť záznamy aktualizácií pre podporu";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "Zvoľte...";
 "settings.storage.dialog.select" = "Vybrať zložku";
 "settings.storage.dialog.message" = "Vyberte zložku na uloženie nahrávok";
+"settings.storage.folderRefused.title" = "Tento priečinok nemožno použiť";
+"settings.storage.folderRefused.notWritable" = "Nemáte povolenie zapisovať do „%@“, takže HyperWhisper tam nemôže ukladať nahrávky. Priečinok nahrávok sa nezmenil.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nemohol vytvoriť tento priečinok: %@ Priečinok nahrávok sa nezmenil.";
 "settings.storage.storeAsM4A.title" = "Skomprimovať nahrávky na M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konvertuje WAV nahrávky na menšie súbory po prepise. Vypnutím si zachováte pôvodné WAV súbory (väčšie, ale bez straty.";
 
@@ -900,6 +905,7 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "audio.error.microphonePermission" = "Povolenie mikrofónu neudelené";
 "audio.error.microphoneInUse" = "HyperWhisper nemôže pristupovať k mikrofónu, pretože ho v tejto chvíli používa ďalšia aplikácia. Pozastavte ďalšiu aplikáciu alebo prepnite vstupy a skúste znova.";
 "audio.error.audioSystemNotResponding" = "Zvuk v macOS nereaguje, takže mikrofón sa nepodarilo spustiť. Skúste to o chvíľu znova. Ak sa to opakuje, reštartujte Mac.";
+"audio.error.recorderStopTimedOut" = "Zvukový systém macOS prestal reagovať počas ukladania nahrávky, takže nebola prepísaná. Zvuk zostal zachovaný: HyperWhisper sa ho pokúsi obnoviť pri ďalšom spustení.";
 "audio.error.createEngine" = "Nepodarilo sa vytvoriť zvukový stroj";
 "audio.error.noInput" = "Žiadny dostupný zvukový vstup";
 "audio.error.createFile" = "Nepodarilo sa vytvoriť zvukový súbor";
@@ -973,6 +979,7 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "transcription.guidance.quotaExceeded" = "Pridajte kredity do svojho %@ konta alebo aktualizujte podrobnosti fakturácie";
 "transcription.guidance.timeout" = "Požiadavka trvala príliš dlho. Skontrolujte rýchlosť internetu a skúste znova.";
 "transcription.error.noSpeechDetected" = "V nahrávke nebola detekovaná reč.";
+"transcription.error.audioTooShort" = "Nahrávka je na prepis príliš krátka. Nahrávajte dlhšie.";
 "transcription.guidance.noSpeechDetected" = "Tipy:\n• Jasne rozprávajtea do mikrofónu\n• Držte kľúč dlhšie pred rozprávaním\n• Skontrolujte, či mikrofón funguje\n• Uistite sa, že je vybrané správne vstupné zariadenie";
 "transcription.guidance.needsNativeRelaunch" = "Ukončite a znova otvorte HyperWhisper natívne, aby ste mohli používať lokálne dodatočné spracovanie.";
 "transcription.guidance.localRuntimeUnavailable" = "Skúste to znova alebo v nastaveniach režimu vyberte menší lokálny model.";
@@ -1115,6 +1122,10 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "transcribe.file.error.format.title" = "Nepodporovaný formát";
 "transcribe.file.error.format.message" = "Súbory .%@ nie sú podporované %@. Podporované formáty: %@";
 "transcribe.file.error.read" = "Vybraný súbor sa nedá prečítať.";
+"transcribe.file.error.webm" = "Formát WebM nie je podporovaný. Skonvertujte súbor do MP3, M4A alebo WAV a skúste to znova.";
+"transcribe.file.error.notAudio" = "Súbor „%@“ nie je platný zvuk. Môže byť poškodený alebo vo formáte, ktorý macOS nevie dekódovať.";
+"transcribe.file.error.empty" = "Súbor „%@“ je prázdny. Neobsahuje žiadny zvuk na prepis.";
+"transcribe.file.error.tooShort" = "Tento súbor je na prepis príliš krátky (%@ s).";
 "transcribe.file.error.copy" = "Nepodarilo sa skopírovať súbor do zložky nahrávok.";
 "transcribe.file.error.video.title" = "Žiadny zvuk vo videu";
 "transcribe.file.error.video.noAudio" = "Tento videosúbor neobsahuje zvukovú stopu. Vyberte si video so zvukom alebo zvukový súbor.";

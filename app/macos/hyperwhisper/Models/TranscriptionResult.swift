@@ -61,5 +61,24 @@ struct TranscriptionResult: Identifiable {
     var historyPostProcessedText: String? {
         wasPostProcessed || text != rawText ? text : nil
     }
+
+    /// True when the engine heard nothing: `rawText` is empty or only whitespace.
+    var isNoSpeech: Bool {
+        rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Throws `.noSpeechDetected` for a result with no speech, before a caller
+    /// saves it to a History row (issue #1429).
+    ///
+    /// Some engines return `""` for silence instead of throwing (Apple Speech,
+    /// the Nemotron/Parakeet family), and `updateTranscriptWithTranscription`
+    /// marks any text `completed`, so a silent file gave a finished row with no
+    /// text and no notice. File import and History Retry both call this, so the
+    /// row is marked failed with the "no speech" reason instead.
+    func throwIfNoSpeech() throws {
+        if isNoSpeech {
+            throw TranscriptionError.noSpeechDetected
+        }
+    }
 }
 

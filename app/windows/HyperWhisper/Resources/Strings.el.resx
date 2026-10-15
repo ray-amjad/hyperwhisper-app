@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Η μεταγραφή του αρχείου ακυρώθηκε</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Γίνεται απομαγνητοφώνηση αρχείου...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1158,6 +1161,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Το μοντέλο χρησιμοποιείται</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>Το {0} χρησιμοποιείται από τη λειτουργία «{1}». Αλλάξτε αυτή τη λειτουργία σε άλλο μοντέλο πριν το διαγράψετε.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

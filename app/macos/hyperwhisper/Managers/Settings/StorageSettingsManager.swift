@@ -98,8 +98,8 @@ class StorageSettingsManager: ObservableObject {
 
     // MARK: - Published Error State
 
-    /// Validation error for folder operations
-    /// Displayed in UI when folder creation or permission checks fail
+    /// Why the last `changeRecordingsFolder(to:)` refused the folder, or nil
+    /// once one is accepted. `presentRecordingsFolderRefusedAlert()` shows it.
     @Published var validationError: String?
 
     // MARK: - Initialization
@@ -116,8 +116,13 @@ class StorageSettingsManager: ObservableObject {
 
     /// Change recordings folder location
     /// - Parameter url: The new folder URL
+    /// - Returns: True if the folder was saved. False if it was refused; then
+    ///   `validationError` says why and `recordingsFolder` is unchanged. A
+    ///   caller that shows a chooser must tell the user (#1473):
+    ///   `presentRecordingsFolderRefusedAlert()`.
     /// - Note: This does NOT migrate existing recordings, only affects new recordings
-    func changeRecordingsFolder(to url: URL) {
+    @discardableResult
+    func changeRecordingsFolder(to url: URL) -> Bool {
         let newPath = url.path
 
         // Create folder if it doesn't exist
@@ -130,7 +135,9 @@ class StorageSettingsManager: ObservableObject {
                 logger.info("✅ Created recordings folder at: \(newPath, privacy: .public)")
             } catch {
                 logger.error("❌ Failed to create recordings folder: \(error.localizedDescription, privacy: .public)")
-                validationError = "Failed to create folder: \(error.localizedDescription)"
+                validationError = Self.folderCreateFailedMessage(
+                    systemError: error.localizedDescription
+                )
                 if AppLogger.isErrorLoggingEnabled {
                     SentryService.addBreadcrumb(
                         message: "Recordings folder creation failed",
@@ -142,13 +149,13 @@ class StorageSettingsManager: ObservableObject {
                         ]
                     )
                 }
-                return
+                return false
             }
         }
 
         // Verify write permissions
         if !FileManager.default.isWritableFile(atPath: newPath) {
-            validationError = "Cannot write to selected folder. Please check permissions."
+            validationError = Self.folderNotWritableMessage(folderName: url.lastPathComponent)
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
                     message: "Recordings folder not writable",
@@ -157,9 +164,10 @@ class StorageSettingsManager: ObservableObject {
                     data: ["path": newPath]
                 )
             }
-            return
+            return false
         }
 
+        validationError = nil
         recordingsFolder = newPath
         logger.info("✅ Recordings folder changed to: \(newPath, privacy: .public)")
         if AppLogger.isErrorLoggingEnabled {
@@ -169,6 +177,38 @@ class StorageSettingsManager: ObservableObject {
                 data: ["path": newPath]
             )
         }
+        return true
+    }
+
+    /// The refusal text for a folder the user cannot write to (#1473).
+    nonisolated static func folderNotWritableMessage(
+        folderName: String,
+        localize: (String) -> String = { $0.localized }
+    ) -> String {
+        String(format: localize("settings.storage.folderRefused.notWritable"), folderName)
+    }
+
+    /// The refusal text for a folder that could not be created (#1473).
+    nonisolated static func folderCreateFailedMessage(
+        systemError: String,
+        localize: (String) -> String = { $0.localized }
+    ) -> String {
+        String(format: localize("settings.storage.folderRefused.createFailed"), systemError)
+    }
+
+    /// Tell the user why the folder they just chose was refused (#1473).
+    ///
+    /// Without this a refused pick closes the chooser and shows nothing: the
+    /// field keeps the old path, and the user can easily think it was saved.
+    @MainActor
+    func presentRecordingsFolderRefusedAlert() {
+        guard let message = validationError else { return }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "settings.storage.folderRefused.title".localized
+        alert.informativeText = message
+        alert.addButton(withTitle: "common.ok".localized)
+        alert.runModal()
     }
 
     /// Ensure recordings folder exists
@@ -355,7 +395,10 @@ class StorageSettingsManager: ObservableObject {
         panel.canCreateDirectories = true
         let response = panel.runModal()
         if response == .OK, let url = panel.url {
-            changeRecordingsFolder(to: url)
+            guard changeRecordingsFolder(to: url) else {
+                presentRecordingsFolderRefusedAlert()
+                return false
+            }
             return true
         }
         return false

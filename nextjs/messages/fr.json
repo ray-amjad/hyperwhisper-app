@@ -390,5 +390,12 @@
     "heading": "Open source. Rien à cacher.",
     "body": "HyperWhisper est entièrement open source sous licence Apache-2.0 — applications de bureau comme backend Cloud. Une application qui écoute votre microphone devrait être quelque chose que vous pouvez vérifier, pas seulement croire sur parole : lisez chaque ligne, auditez exactement où va votre audio, et sachez que vous ne serez jamais verrouillé — le code vous appartient, à forker et auto-héberger pour toujours. Conçu en toute transparence par le créateur indépendant Ray Amjad.",
     "cta": "Voir sur GitHub"
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "heading": "Cette page n'existe pas",
+    "description": "Le lien est peut-être rompu, ou la page a peut-être été déplacée.",
+    "home": "Aller à la page d'accueil",
+    "download": "Télécharger HyperWhisper"
   }
 }

@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Greiningarskrár fluttar út";
 "alerts.export.diagnostics.success.message" = "Allar greiningarskrár hafa verið fluttar út með góðum árangri.";
 "alerts.export.diagnostics.saveFailed.message" = "Gat ekki vistað greiningarskrár á valda staðsetningu: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Greiningargögn flutt út án kerfisannála";
+"alerts.export.diagnostics.noSystemLogs.message" = "Greiningarskráin var vistuð, en ekki tókst að lesa kerfisannála forritsins, svo system-logs.txt inniheldur aðeins ástæðuna. Ástæða: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Flytja út uppfærsluskrár fyrir aðstoð";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "Velja...";
 "settings.storage.dialog.select" = "Velja möppu";
 "settings.storage.dialog.message" = "Veldu möppu til að geyma upptökur";
+"settings.storage.folderRefused.title" = "Ekki er hægt að nota þessa möppu";
+"settings.storage.folderRefused.notWritable" = "Þú hefur ekki heimild til að skrifa í „%@“, svo HyperWhisper getur ekki vistað upptökur þar. Upptökumöppunni var ekki breytt.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper gat ekki búið til þessa möppu: %@ Upptökumöppunni var ekki breytt.";
 "settings.storage.storeAsM4A.title" = "Þjappa upptökum í M4A";
 "settings.storage.storeAsM4A.subtitle" = "Breytir WAV upptökum í minni skrár eftir afritun. Slökktu til að halda upprunalegum WAV skrám (stærri en taplausar).";
 
@@ -900,6 +905,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "audio.error.microphonePermission" = "Hljóðnemaleyfi ekki veitt";
 "audio.error.microphoneInUse" = "HyperWhisper getur ekki nálgast hljóðnemannm vegna þess að annað forrit er núna að nota hann. Gerðu hlé á hinu forritinu eða skiptu um inntak, reyndu síðan aftur.";
 "audio.error.audioSystemNotResponding" = "Hljóðkerfi macOS svarar ekki, svo ekki tókst að ræsa hljóðnemann. Reyndu aftur eftir smástund. Ef þetta heldur áfram skaltu endurræsa Mac-tölvuna.";
+"audio.error.recorderStopTimedOut" = "Hljóðkerfi macOS hætti að svara á meðan upptakan var vistuð, svo hún var ekki umrituð. Hljóðið var geymt: HyperWhisper reynir að endurheimta það næst þegar forritið ræsist.";
 "audio.error.createEngine" = "Mistókst að búa til hljóðvél";
 "audio.error.noInput" = "Ekkert hljóðinntak tiltækt";
 "audio.error.createFile" = "Mistókst að búa til hljóðskrá";
@@ -973,6 +979,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.guidance.quotaExceeded" = "Bættu við einingum á %@ reikninginn þinn eða uppfærðu greiðsluupplýsingar þínar";
 "transcription.guidance.timeout" = "Beiðnin tók of langan tíma. Athugaðu nethraðann þinn og reyndu aftur.";
 "transcription.error.noSpeechDetected" = "Engin tala greind í upptökunni.";
+"transcription.error.audioTooShort" = "Upptakan er of stutt til að umrita hana. Taktu upp lengur.";
 "transcription.guidance.noSpeechDetected" = "Ábendingar:\n• Talaðu skýrt í hljóðnemanninn\n• Haltu lyklinum lengur áður en þú talar\n• Athugaðu að hljóðneminn þinn sé að virka\n• Gakktu úr skugga um að rétt inntakstæki sé valið";
 "transcription.guidance.needsNativeRelaunch" = "Lokaðu HyperWhisper og opnaðu forritið aftur sem innbyggt forrit til að nota staðbundna eftirvinnslu.";
 "transcription.guidance.localRuntimeUnavailable" = "Reyndu aftur eða veldu minna staðbundið líkan í hamstillingunum þínum.";
@@ -1115,6 +1122,10 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcribe.file.error.format.title" = "Óstutt form";
 "transcribe.file.error.format.message" = ".%@ skrár eru ekki studdar af %@. Studd form: %@";
 "transcribe.file.error.read" = "Get ekki lesið valda skrá.";
+"transcribe.file.error.webm" = "WebM er ekki stutt. Umbreyttu skránni í MP3, M4A eða WAV og reyndu aftur.";
+"transcribe.file.error.notAudio" = "Skráin „%@“ er ekki gilt hljóð. Hún gæti verið skemmd eða á sniði sem macOS getur ekki afkóðað.";
+"transcribe.file.error.empty" = "Skráin „%@“ er tóm. Hún inniheldur ekkert hljóð til að umrita.";
+"transcribe.file.error.tooShort" = "Þessi skrá er of stutt til að umrita hana (%@ s).";
 "transcribe.file.error.copy" = "Mistókst að afrita skrá í upptökumöppu.";
 "transcribe.file.error.video.title" = "Ekkert hljóð í myndskrá";
 "transcribe.file.error.video.noAudio" = "Þessi myndbandskrá inniheldur ekki hljóðlag. Vinsamlegast veldu myndband með hljóði eða hljóðskrá.";

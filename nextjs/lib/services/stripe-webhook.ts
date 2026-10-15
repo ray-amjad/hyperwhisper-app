@@ -465,6 +465,16 @@ async function handleCreditRefund(
     refundedCreditsTotal: refundedCredits,
   });
 
+  // The refund arrived before checkout.session.completed minted the grant
+  // (the mint is still in Stripe's retry queue). Throw so the route answers
+  // 500 and Stripe re-sends this refund; the retry after the mint removes the
+  // credits once, because refundCreditGrant dedupes on the running total.
+  if (result.status === "not_found") {
+    throw new Error(
+      `No credit grant yet for session ${checkoutSession.id} (charge ${charge.id}); retrying`
+    );
+  }
+
   if (result.status === "duplicate") {
     console.log(
       `Credit refund already processed for charge ${charge.id} (${refundedCredits} credits refunded in total), skipping`

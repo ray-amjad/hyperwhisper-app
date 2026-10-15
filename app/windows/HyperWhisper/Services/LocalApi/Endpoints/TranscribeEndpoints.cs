@@ -314,7 +314,9 @@ internal static class TranscribeEndpoints
         }
 
         var modelPath = modelService.GetModelPath(modelInfo);
-        if (transcriptionService.IsInitialized &&
+        // Not while an unload is pending (#1609): the model is about to go, so
+        // queue behind the unload and load it again.
+        if (transcriptionService.IsLoadedAndStaying() &&
             string.Equals(transcriptionService.LoadedModelPath, modelPath, StringComparison.OrdinalIgnoreCase))
         {
             return;

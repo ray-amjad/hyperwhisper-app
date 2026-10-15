@@ -823,6 +823,9 @@ Esta ação não pode ser desfeita.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcrição do ficheiro cancelada</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>A transcrever ficheiro...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Desconhecido</value>
   </data>
@@ -1158,6 +1161,12 @@ Pode voltar a descarregá-lo mais tarde.</value>
     <value>Não foi possível eliminar {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modelo em uso</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} é usado pelo modo "{1}". Mude esse modo para outro modelo antes de excluí-lo.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

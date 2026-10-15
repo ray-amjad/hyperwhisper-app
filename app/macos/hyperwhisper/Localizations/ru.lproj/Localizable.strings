@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Диагностика экспортирована";
 "alerts.export.diagnostics.success.message" = "Все журналы диагностики были успешно экспортированы.";
 "alerts.export.diagnostics.saveFailed.message" = "Не удалось сохранить диагностику в выбранное местоположение: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Диагностика экспортирована без системных журналов";
+"alerts.export.diagnostics.noSystemLogs.message" = "Файл диагностики сохранён, но системные журналы приложения не удалось прочитать, поэтому system-logs.txt содержит только причину. Причина: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Экспортировать журналы обновлений для поддержки";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "Выбрать...";
 "settings.storage.dialog.select" = "Выбрать папку";
 "settings.storage.dialog.message" = "Выберите папку для сохранения записей";
+"settings.storage.folderRefused.title" = "Эту папку нельзя использовать";
+"settings.storage.folderRefused.notWritable" = "У вас нет разрешения на запись в «%@», поэтому HyperWhisper не может сохранять туда записи. Папка записей не изменена.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper не удалось создать эту папку: %@ Папка записей не изменена.";
 "settings.storage.storeAsM4A.title" = "Сжать записи в M4A";
 "settings.storage.storeAsM4A.subtitle" = "Преобразует записи WAV в меньшие файлы после транскрипции. Отключите, чтобы сохранять исходные файлы WAV (больше, но без потерь).";
 
@@ -900,6 +905,7 @@
 "audio.error.microphonePermission" = "Разрешение на микрофон не предоставлено";
 "audio.error.microphoneInUse" = "HyperWhisper не может получить доступ к микрофону, потому что другое приложение в настоящее время его использует. Приостановите другое приложение или переключитесь на входы, а затем повторите попытку.";
 "audio.error.audioSystemNotResponding" = "Звуковая система macOS не отвечает, поэтому не удалось включить микрофон. Попробуйте ещё раз через несколько секунд. Если это повторяется, перезагрузите Mac.";
+"audio.error.recorderStopTimedOut" = "Аудиосистема macOS перестала отвечать во время сохранения записи, поэтому она не была расшифрована. Аудио сохранено: HyperWhisper попытается восстановить его при следующем запуске.";
 "audio.error.createEngine" = "Ошибка создания аудиомеханизма";
 "audio.error.noInput" = "Нет доступного входного аудио";
 "audio.error.createFile" = "Ошибка создания аудиофайла";
@@ -973,6 +979,7 @@
 "transcription.guidance.quotaExceeded" = "Добавьте кредиты на учетную запись %@ или обновите сведения о биллинге";
 "transcription.guidance.timeout" = "Запрос занял слишком много времени. Проверьте скорость интернета и повторите попытку.";
 "transcription.error.noSpeechDetected" = "В записи не обнаружена речь.";
+"transcription.error.audioTooShort" = "Запись слишком короткая для расшифровки. Запишите подольше.";
 "transcription.guidance.noSpeechDetected" = "Советы:\n• Говорите четко в микрофон\n• Держите клавишу дольше перед разговором\n• Проверьте, что микрофон работает\n• Убедитесь, что выбрано правильное устройство ввода";
 "transcription.guidance.needsNativeRelaunch" = "Завершите работу HyperWhisper и откройте программу в нативном режиме, чтобы использовать локальную постобработку.";
 "transcription.guidance.localRuntimeUnavailable" = "Повторите попытку или выберите более компактную локальную модель в настройках режима.";
@@ -1115,6 +1122,10 @@
 "transcribe.file.error.format.title" = "Неподдерживаемый формат";
 "transcribe.file.error.format.message" = "Файлы .%@ не поддерживаются %@. Поддерживаемые форматы: %@";
 "transcribe.file.error.read" = "Невозможно прочитать выбранный файл.";
+"transcribe.file.error.webm" = "Формат WebM не поддерживается. Преобразуйте файл в MP3, M4A или WAV и попробуйте снова.";
+"transcribe.file.error.notAudio" = "Файл «%@» не является корректным аудио. Возможно, он повреждён или имеет формат, который macOS не умеет декодировать.";
+"transcribe.file.error.empty" = "Файл «%@» пуст. В нём нет аудио для расшифровки.";
+"transcribe.file.error.tooShort" = "Этот файл слишком короткий для расшифровки (%@ с).";
 "transcribe.file.error.copy" = "Ошибка копирования файла в папку записей.";
 "transcribe.file.error.video.title" = "Нет звука в видео";
 "transcribe.file.error.video.noAudio" = "Этот видеофайл не содержит аудиодорожку. Пожалуйста, выберите видео со звуком или аудиофайл.";

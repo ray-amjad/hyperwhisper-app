@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "診断情報を書き出しました";
 "alerts.export.diagnostics.success.message" = "すべての診断ログの書き出しに成功しました。";
 "alerts.export.diagnostics.saveFailed.message" = "選択した場所に診断情報を保存できませんでした: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "システムログなしで診断情報を書き出しました";
+"alerts.export.diagnostics.noSystemLogs.message" = "診断ファイルは保存されましたが、アプリのシステムログを読み取れなかったため、system-logs.txt には理由のみが記録されています。理由: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "サポート用に更新ログを書き出します";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "選択...";
 "settings.storage.dialog.select" = "フォルダを選択";
 "settings.storage.dialog.message" = "録音を保存するフォルダを選択してください";
+"settings.storage.folderRefused.title" = "このフォルダは使用できません";
+"settings.storage.folderRefused.notWritable" = "「%@」への書き込み権限がないため、HyperWhisperはそこに録音を保存できません。録音フォルダは変更されていません。";
+"settings.storage.folderRefused.createFailed" = "HyperWhisperはこのフォルダを作成できませんでした: %@ 録音フォルダは変更されていません。";
 "settings.storage.storeAsM4A.title" = "録音をM4Aに圧縮";
 "settings.storage.storeAsM4A.subtitle" = "文字起こし後にWAV録音をより小さいファイルに変換します。オフにすると元のWAVファイルを保持します（容量は大きいがロスレス）。";
 
@@ -901,6 +906,7 @@
 "audio.error.microphonePermission" = "マイクの許可が付与されていません";
 "audio.error.microphoneInUse" = "他のアプリがマイクを使用しているため HyperWhisper はマイクにアクセスできません。他の録音や通話を一時停止するか、別の入力を選択してから再度お試しください。";
 "audio.error.audioSystemNotResponding" = "macOS のオーディオが応答しないため、マイクを開始できませんでした。しばらくしてからもう一度お試しください。繰り返し発生する場合は、Mac を再起動してください。";
+"audio.error.recorderStopTimedOut" = "録音の保存中に macOS のオーディオが応答しなくなったため、文字起こしは行われませんでした。音声は保持されています。次回の起動時に HyperWhisper が復元を試みます。";
 "audio.error.createEngine" = "オーディオエンジンの作成に失敗しました";
 "audio.error.noInput" = "利用できるオーディオ入力がありません";
 "audio.error.createFile" = "オーディオファイルの作成に失敗しました";
@@ -974,6 +980,7 @@
 "transcription.guidance.quotaExceeded" = "%@ のアカウントにクレジットを追加するか、請求設定を更新してください";
 "transcription.guidance.timeout" = "リクエストに時間がかかり過ぎました。ネットワーク速度を確認して再試行してください。";
 "transcription.error.noSpeechDetected" = "録音内に音声が検出されませんでした。";
+"transcription.error.audioTooShort" = "録音が短すぎるため文字起こしできません。もう少し長く録音してください。";
 "transcription.guidance.noSpeechDetected" = "ヒント:\n• マイクに向かってはっきり話してください\n• 話し始める前にキーを長めに押し続けてください\n• マイクが正常に動作しているか確認してください\n• 正しい入力デバイスが選択されているか確認してください";
 "transcription.guidance.needsNativeRelaunch" = "ローカル後処理を使用するには、HyperWhisper を終了し、ネイティブで開き直してください。";
 "transcription.guidance.localRuntimeUnavailable" = "もう一度お試しいただくか、モード設定でより小さいローカルモデルを選択してください。";
@@ -1116,6 +1123,10 @@
 "transcribe.file.error.format.title" = "サポートされていない形式";
 "transcribe.file.error.format.message" = ".%@ファイルは%@でサポートされていません。対応形式: %@";
 "transcribe.file.error.read" = "選択したファイルを読み込めません。";
+"transcribe.file.error.webm" = "WebM には対応していません。ファイルを MP3、M4A、WAV のいずれかに変換してから、もう一度お試しください。";
+"transcribe.file.error.notAudio" = "「%@」は有効な音声ファイルではありません。ファイルが破損しているか、macOS がデコードできない形式の可能性があります。";
+"transcribe.file.error.empty" = "「%@」は空のファイルです。文字起こしする音声が含まれていません。";
+"transcribe.file.error.tooShort" = "このファイルは短すぎるため文字起こしできません（%@ 秒）。";
 "transcribe.file.error.copy" = "録音フォルダへのファイルコピーに失敗しました。";
 "transcribe.file.error.video.title" = "動画に音声がありません";
 "transcribe.file.error.video.noAudio" = "この動画ファイルには音声トラックが含まれていません。音声付きの動画または音声ファイルを選択してください。";

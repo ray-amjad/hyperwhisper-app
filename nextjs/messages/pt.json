@@ -390,5 +390,12 @@
     "heading": "Código aberto. Nada a esconder.",
     "body": "O HyperWhisper é totalmente de código aberto sob Apache-2.0 — tanto os aplicativos de desktop quanto o backend do Cloud. Um aplicativo que escuta o seu microfone deveria ser algo que você pode verificar, e não apenas algo em que confiar: leia cada linha, audite exatamente para onde vai o seu áudio e tenha certeza de que nunca ficará preso a um fornecedor — o código é seu para fazer fork e hospedar você mesmo para sempre. Construído de forma aberta pelo criador independente Ray Amjad.",
     "cta": "Ver no GitHub"
+  },
+  "notFound": {
+    "title": "Página não encontrada",
+    "heading": "Esta página não existe",
+    "description": "O link pode estar quebrado ou a página pode ter sido movida.",
+    "home": "Ir para a página inicial",
+    "download": "Baixar o HyperWhisper"
   }
 }

@@ -8,6 +8,7 @@
 //! Fixtures use generic provider wording only: no real endpoints, keys,
 //! organisation ids or user ids.
 
+use super::session::SessionState;
 use super::*;
 
 // ===========================================================================
@@ -1595,6 +1596,8 @@ fn hyperwhisper_cloud_stop_waits_ten_seconds_for_the_credits_figure() {
     let mut config = LiveConfig::new(LiveProvider::HyperWhisperCloud);
     config.device_id = Some("d".to_string());
     let mut session = LiveSession::new(config);
+    session.connect().unwrap();
+    session.parse(r#"{"type":"ready","sessionId":"s-1"}"#);
     assert_eq!(
         session.stop_sequence(0),
         [
@@ -1606,6 +1609,56 @@ fn hyperwhisper_cloud_stop_waits_ten_seconds_for_the_credits_figure() {
         ],
         "macOS hard-closes 500 ms after stop and loses the credits_used it carries"
     );
+}
+
+#[test]
+fn hyperwhisper_cloud_stop_skips_the_wait_when_the_session_never_started() {
+    // HYPERWHISPER-YD: no `ready`, no audio, no receive loop left — a wait for
+    // `session_complete` there can only time out, 10 s after a failed start.
+    let stop = StopStep::SendText {
+        text: r#"{"type":"stop"}"#.to_string(),
+    };
+
+    let mut state = SessionState::default();
+    assert!(!state.session_started);
+    assert_eq!(
+        hw_cloud::stop_sequence(&state),
+        [stop.clone(), StopStep::Close]
+    );
+
+    state.session_started = true;
+    assert_eq!(
+        hw_cloud::stop_sequence(&state),
+        [
+            stop.clone(),
+            StopStep::WaitForSessionComplete { timeout_ms: 10_000 },
+            StopStep::Close,
+        ]
+    );
+
+    // Through the session: only a `ready` frame sets the flag, and a reconnect
+    // clears it so a dead second socket does not inherit the first one's wait.
+    let mut config = LiveConfig::new(LiveProvider::HyperWhisperCloud);
+    config.device_id = Some("d".to_string());
+    let mut session = LiveSession::new(config);
+    session.connect().unwrap();
+    session.parse(r#"{"type":"transcript","text":"hel"}"#);
+    session.parse(r#"{"type":"error","message":"boom"}"#);
+    assert!(!session
+        .stop_sequence(0)
+        .iter()
+        .any(|step| matches!(step, StopStep::WaitForSessionComplete { .. })));
+
+    session.parse(r#"{"type":"ready"}"#);
+    assert!(session
+        .stop_sequence(0)
+        .contains(&StopStep::WaitForSessionComplete { timeout_ms: 10_000 }));
+
+    session.connect().unwrap();
+    assert_eq!(session.stop_sequence(0), [stop.clone(), StopStep::Close]);
+    session.parse(r#"{"type":"ready","sessionId":"s-2"}"#);
+    session.reset();
+    assert_eq!(session.stop_sequence(0), [stop, StopStep::Close]);
 }
 
 #[test]

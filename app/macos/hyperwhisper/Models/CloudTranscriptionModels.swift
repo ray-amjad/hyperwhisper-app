@@ -750,8 +750,11 @@ struct CloudTranscriptionModels {
         legacySonioxAliases[id] ?? id
     }
 
+    /// Every target must be a model the Cloud catalog's `gemini` entry sells, or the
+    /// membership guard judges a migrated mode foreign and swaps its model (#796).
     private static let legacyGeminiAliases: [String: String] = [
-        "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
+        "gemini-3.1-flash-lite-preview": "gemini-2.5-flash-lite",
+        "gemini-2.0-flash": "gemini-3.8-flash",
         // Left the picker 2026-10 for the GA model. PARITY: hw-catalog GEMINI_ALIASES.
         "gemini-3-flash-preview": "gemini-3.8-flash",
     ]

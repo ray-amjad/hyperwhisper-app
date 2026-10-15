@@ -70,7 +70,7 @@ export const behaviour = {
   grantForEventResult: "processed" as "processed" | "duplicate",
   creditBalance: 12_345,
   refundResult: { status: "processed", refundedAmount: 500, removedAmount: 500 } as {
-    status: "processed" | "duplicate";
+    status: "processed" | "duplicate" | "not_found";
     refundedAmount: number;
     removedAmount: number;
   },

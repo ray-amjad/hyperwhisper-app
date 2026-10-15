@@ -823,6 +823,9 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Dateitranskription abgebrochen</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Datei wird transkribiert...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unbekannt</value>
   </data>
@@ -1158,6 +1161,12 @@ Sie können es später erneut herunterladen.</value>
     <value>Fehler beim Löschen von {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modell wird verwendet</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} wird vom Modus „{1}“ verwendet. Stellen Sie diesen Modus auf ein anderes Modell um, bevor Sie es löschen.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

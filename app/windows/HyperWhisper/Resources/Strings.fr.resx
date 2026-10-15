@@ -823,6 +823,9 @@ Cette action est irréversible.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcription du fichier annulée</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transcription du fichier...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Inconnu</value>
   </data>
@@ -1158,6 +1161,12 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
     <value>Échec de la suppression de {0} :
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modèle utilisé</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} est utilisé par le mode « {1} ». Passez ce mode sur un autre modèle avant de le supprimer.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

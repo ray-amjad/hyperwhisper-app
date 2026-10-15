@@ -908,6 +908,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcripción del archivo cancelada</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transcribiendo archivo...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Desconocido</value>
   </data>
@@ -1246,6 +1249,12 @@ Puede volver a descargarlo más tarde.</value>
     <value>No se pudo eliminar {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modelo en uso</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>El modo "{1}" usa {0}. Cambia ese modo a otro modelo antes de eliminarlo.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

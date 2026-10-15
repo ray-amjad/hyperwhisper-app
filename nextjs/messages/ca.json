@@ -390,5 +390,12 @@
     "heading": "Codi obert. Res a amagar.",
     "body": "HyperWhisper és totalment de codi obert sota Apache-2.0 — tant les aplicacions d'escriptori com el backend de Cloud. Una aplicació que escolta el teu micròfon hauria de ser quelcom que puguis verificar, no només confiar-hi: llegeix cada línia, audita exactament on va el teu àudio i tingues la certesa que mai no quedaràs lligat — el codi és teu per fer-ne un fork i allotjar-lo tu mateix per sempre. Creat de manera oberta pel creador independent Ray Amjad.",
     "cta": "Mostra a GitHub"
+  },
+  "notFound": {
+    "title": "Pàgina no trobada",
+    "heading": "Aquesta pàgina no existeix",
+    "description": "Pot ser que l'enllaç estigui trencat o que la pàgina s'hagi mogut.",
+    "home": "Ves a la pàgina d'inici",
+    "download": "Descarrega HyperWhisper"
   }
 }

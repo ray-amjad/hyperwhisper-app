@@ -390,5 +390,12 @@
     "heading": "Otwarty kod. Nie mamy nic do ukrycia.",
     "body": "HyperWhisper jest w pełni otwartoźródłowy na licencji Apache-2.0 — zarówno aplikacje desktopowe, jak i backend Cloud. Aplikacja, która słucha Twojego mikrofonu, powinna być czymś, co możesz zweryfikować, a nie tylko czemu musisz ufać: przeczytaj każdą linię kodu, sprawdź dokładnie, dokąd trafia Twoje audio, i miej pewność, że nigdy nie zostaniesz uzależniony od dostawcy — kod jest Twój, by go sforkować i hostować samodzielnie na zawsze. Tworzony otwarcie przez niezależnego twórcę Raya Amjada.",
     "cta": "Zobacz na GitHub"
+  },
+  "notFound": {
+    "title": "Nie znaleziono strony",
+    "heading": "Ta strona nie istnieje",
+    "description": "Link może być nieprawidłowy lub strona mogła zostać przeniesiona.",
+    "home": "Przejdź do strony głównej",
+    "download": "Pobierz HyperWhisper"
   }
 }

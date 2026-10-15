@@ -235,7 +235,7 @@ enum LocalAPIResponder {
             // what to do, and no other head has the numbers to render.
             return (.quotaExceeded, slots())
         default:
-            // Four cases stay here on purpose, and each would need a wording
+            // Five cases stay here on purpose, and each would need a wording
             // decision no head has made:
             //
             // * `.maxRetriesExceeded` and `.streamingInterrupted` — the
@@ -249,6 +249,9 @@ enum LocalAPIResponder {
             //   comment says the raw `reason` is for logs and must not be
             //   shown. ENGINE_UNAVAILABLE would put the wrong noun on the one
             //   route (`/post-process`) that produces it.
+            // * `.audioTooShort` — the engine is fine, so ENGINE_UNAVAILABLE
+            //   (what its old `providerNotAvailable` form gave) is wrong, and
+            //   the closed shared set has no "too short" reason (#1427).
             //
             // The generic row passes `localizedDescription` through verbatim,
             // which is exactly what this arm always did.

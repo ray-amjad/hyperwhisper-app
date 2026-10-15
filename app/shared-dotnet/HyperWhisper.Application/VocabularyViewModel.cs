@@ -59,7 +59,7 @@ public sealed class VocabularyViewModel : ViewModelBase
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        try { Items.Clear(); foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item); Status.Success($"{Items.Count} term(s)"); }
+        try { Items.Clear(); foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item); Status.Success(Plural.Count(Items.Count, "term", "terms")); }
         catch (Exception) { Status.Failure("vocabulary.load_failed", "Could not load vocabulary."); }
         NotifyDerived();
     }
@@ -124,7 +124,7 @@ public sealed class VocabularyViewModel : ViewModelBase
             }).Where(item => item.Word.Length > 0);
             var count = await _repository.MergeAsync(items, cancellationToken);
             await RefreshAsync(cancellationToken);
-            Status.Success($"Imported {count} term(s); duplicates merged");
+            Status.Success($"Imported {Plural.Count(count, "term", "terms")}; duplicates merged");
         }
         catch (Exception) { Status.Failure("vocabulary.import_failed", "Could not import vocabulary."); }
     }

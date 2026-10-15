@@ -823,6 +823,9 @@ Această acțiune nu poate fi anulată.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcrierea fișierului a fost anulată</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Se transcrie fișierul...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1158,6 +1161,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model în uz</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} este folosit de modul „{1}”. Comutați acel mod pe alt model înainte de a-l șterge.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

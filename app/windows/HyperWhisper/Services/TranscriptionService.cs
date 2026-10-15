@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using Whisper.net;
@@ -220,6 +221,18 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         await _modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // A caller that saw an unload pending queues here behind it (#1609).
+            // If that unload was cancelled, the model it would have disposed is
+            // still loaded: keep it instead of waiting out the running job to
+            // load the same file again. Every caller checks this before it calls,
+            // so this only fires after a wait on the lock.
+            if (IsInitialized
+                && string.Equals(LoadedModelPath, modelPath, StringComparison.OrdinalIgnoreCase))
+            {
+                LoggingService.Info("  Model already loaded while this load waited; keeping it");
+                return;
+            }
+
             // Wait for in-flight transcriptions to drain before disposing the old
             // factory. They were started before we acquired the lock and the still
             // running native processor is bound to the current WhisperFactory;
@@ -370,23 +383,56 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     public async Task UnloadModelAsync(CancellationToken cancellationToken = default)
     {
-        await _modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        // Counted before the lock wait, so the model reads as going away for the
+        // whole wait (#1609). A cancelled unload keeps the model.
+        Interlocked.Increment(ref _pendingUnloads);
         try
         {
-            // Wait for in-flight transcriptions to drain. They were started
-            // before we acquired the lock, but we still need to ensure the
-            // native processor is gone before we dispose the factory.
-            while (Volatile.Read(ref _inFlight) > 0)
+            await _modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                await Task.Delay(25, cancellationToken).ConfigureAwait(false);
+                // Wait for in-flight transcriptions to drain. They were started
+                // before we acquired the lock, but we still need to ensure the
+                // native processor is gone before we dispose the factory.
+                while (Volatile.Read(ref _inFlight) > 0)
+                {
+                    await Task.Delay(25, cancellationToken).ConfigureAwait(false);
+                }
+                DisposeModel();
             }
-            DisposeModel();
+            finally
+            {
+                _modelLock.Release();
+            }
         }
         finally
         {
-            _modelLock.Release();
+            Interlocked.Decrement(ref _pendingUnloads);
         }
     }
+
+    /// <summary>
+    /// Number of <see cref="UnloadModelAsync"/> calls that have not returned.
+    /// </summary>
+    private int _pendingUnloads;
+
+    /// <summary>
+    /// True while an <see cref="UnloadModelAsync"/> call is waiting or running
+    /// (#1609). The wait can last a whole file job, and <see cref="IsInitialized"/>
+    /// stays true through it, so a caller that saw only IsInitialized started new
+    /// work on a model about to be disposed: the work queued on the model lock
+    /// behind the unload, then failed EnsureInitialized.
+    /// </summary>
+    public bool IsUnloadPending => Volatile.Read(ref _pendingUnloads) > 0;
+
+    /// <summary>
+    /// True when <paramref name="modelPath"/> is loaded (any model when null)
+    /// and no unload is pending: new work can rely on it (#1609).
+    /// </summary>
+    public bool IsLoadedAndStaying(string? modelPath = null) =>
+        IsInitialized
+        && !IsUnloadPending
+        && (modelPath == null || LoadedModelPath == modelPath);
 
     // =========================================================================
     // FILE TRANSCRIPTION
@@ -490,10 +536,11 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
 
         try
         {
-            // STEP 1: Prepare audio stream
+            // STEP 1: Scan the audio and plan its chunks. Only the plan is kept; the
+            // samples are read again chunk by chunk in STEP 3 (#1451).
             stepStopwatch.Restart();
             LoggingService.Debug("Step 1: Preparing audio stream...");
-            using var audioStream = PrepareAudioStream(audioPath);
+            var chunkEnds = PlanAudioChunks(audioPath, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             stepStopwatch.Stop();
             LoggingService.Debug($"Step 1: Complete ({stepStopwatch.ElapsedMilliseconds}ms)");
@@ -655,12 +702,16 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                     builder.WithSingleSegment();
                 }
 
+                // Whisper times each segment from the start of its chunk.
+                var chunkOffset = TimeSpan.Zero;
+                string? detectedLanguage = null;
                 builder.WithSegmentEventHandler((segment) =>
                     {
                         segmentCount++;
+                        detectedLanguage ??= segment.Language;
                         var segmentText = segment.Text ?? "";
                         text.Append(segmentText);
-                        LoggingService.Debug(DescribeSegment(segment.Start, segment.End, segmentText));
+                        LoggingService.Debug(DescribeSegment(segment.Start + chunkOffset, segment.End + chunkOffset, segmentText));
                     });
 
                 // Configure language
@@ -700,12 +751,36 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 LoggingService.Info("Step 3: Running transcription...");
                 LoggingService.Debug($"  Start time: {DateTime.Now:HH:mm:ss.fff}");
 
-                // Process audio - segments are collected via the event handler
-                await foreach (var _ in processor
-                    .ProcessAsync(audioStream, cancellationToken)
-                    .WithCancellation(cancellationToken)
-                    .ConfigureAwait(false))
+                // Process audio one chunk at a time - segments are collected via the
+                // event handler. Each ProcessAsync call is its own whisper_full run with
+                // its own state, so only one chunk's samples and mel are ever held.
+                if (chunkEnds.Count > 1)
                 {
+                    LoggingService.Debug($"  Chunks: {chunkEnds.Count} (at most {MaxChunkSamples / WhisperSampleRate / 60.0:F1} min each)");
+                }
+                bool languagePinned = !string.IsNullOrEmpty(language);
+                foreach (var chunk in ReadAudioChunks(audioPath, chunkEnds, cancellationToken))
+                {
+                    chunkOffset = TimeSpan.FromSeconds(chunk.StartSample / (double)WhisperSampleRate);
+                    await foreach (var _ in processor
+                        .ProcessAsync(chunk.Samples, cancellationToken)
+                        .WithCancellation(cancellationToken)
+                        .ConfigureAwait(false))
+                    {
+                    }
+
+                    // Auto-detect used to run once, on the file's first 30 s. Keep it that
+                    // way: the first chunk that yields speech decides the language, and
+                    // every later chunk is decoded in it rather than detecting its own.
+                    if (!languagePinned && !string.IsNullOrEmpty(detectedLanguage))
+                    {
+                        languagePinned = true;
+                        if (chunkEnds.Count > 1)
+                        {
+                            processor.ChangeLanguage(detectedLanguage);
+                            LoggingService.Debug($"  Language: detected {detectedLanguage}, kept for the remaining chunks");
+                        }
+                    }
                 }
 
             stepStopwatch.Stop();
@@ -718,7 +793,11 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 LoggingService.Warn($"  WARNING: Inference took {inferenceTimeMs}ms (>30s) - potential performance issue");
             }
 
-            var rawText = text.ToString().Trim();
+            // Whisper writes its own non-speech markers ([BLANK_AUDIO] and kin) as
+            // segment text. A silent file or mic must come back empty, so the
+            // orchestrator raises NoSpeechDetected instead of saving or pasting the
+            // marker as a transcript (issue #1449).
+            var rawText = StripNonSpeechMarkers(text.ToString());
 
             // Belt-and-braces: collapse whisper.cpp repetition loops that leak through
             // the decoder-level entropy/temperature gating. Requires repeated phrases
@@ -820,95 +899,202 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     // AUDIO PREPARATION
     // =========================================================================
 
+    /// <summary>Whisper's input rate. Every chunk constant below counts samples at this rate.</summary>
+    private const int WhisperSampleRate = 16000;
+
     /// <summary>
-    /// Prepares an audio stream for Whisper transcription.
-    /// Whisper.net requires a WAV stream with proper RIFF headers at 16kHz mono.
-    ///
-    /// CRITICAL: Whisper.net's Process(Stream) method expects a complete WAV file
-    /// with RIFF headers, not raw PCM samples. This method uses NAudio's
-    /// WaveFileWriter.WriteWavFileToStream() to ensure proper WAV formatting.
-    ///
-    /// See: https://github.com/sandrohanea/whisper.net/issues/154
+    /// Whisper gets long audio in chunks of about five minutes, so a job never holds
+    /// the whole decoded file. Holding it (twice as floats, once as an in-memory WAV,
+    /// all on the large object heap) left a 3 h Transcribe File job's idle app at
+    /// 3.1 GB private memory (#1451).
     /// </summary>
-    /// <param name="audioPath">Path to the audio file.</param>
-    /// <returns>A MemoryStream containing a complete WAV file (16kHz mono 16-bit).</returns>
-    private static Stream PrepareAudioStream(string audioPath)
+    internal const int TargetChunkSamples = WhisperSampleRate * 300;
+
+    /// <summary>Each cut lands on the quietest 50 ms in the 10 s before its target, so it falls between words.</summary>
+    private const int ChunkCutSearchSamples = WhisperSampleRate * 10;
+
+    /// <summary>
+    /// Up to 30 s past a target stays in the chunk, so the last chunk is never a
+    /// fragment whisper.cpp skips (it ignores input under one second).
+    /// </summary>
+    private const int ChunkTailSamples = WhisperSampleRate * 30;
+
+    internal const int MaxChunkSamples = TargetChunkSamples + ChunkTailSamples;
+
+    /// <summary>
+    /// One chunk of Whisper input. <see cref="Samples"/> is a view of a buffer that
+    /// <see cref="ReadAudioChunks"/> refills for the next chunk, so finish with it first.
+    /// </summary>
+    internal readonly record struct AudioChunk(long StartSample, ReadOnlyMemory<float> Samples);
+
+    /// <summary>
+    /// Reads the audio once, without keeping its samples, and returns where each chunk
+    /// ends (in 16 kHz samples). The last end is the trailing-silence trim point. Short
+    /// audio is one chunk.
+    /// </summary>
+    internal static List<long> PlanAudioChunks(string audioPath, CancellationToken cancellationToken)
     {
         // AudioFileDecoder, not AudioFileReader: the Local API hands this method the
         // caller's own file, and a WAVE_FORMAT_EXTENSIBLE WAV would go to ACM and fail (#1450).
         using var reader = AudioFileDecoder.Open(audioPath);
 
-        ISampleProvider provider = reader.Samples;
-
         // Log conversion info
-        if (reader.WaveFormat.SampleRate == 16000 && reader.WaveFormat.Channels == 1)
+        if (reader.WaveFormat.SampleRate == WhisperSampleRate && reader.WaveFormat.Channels == 1)
         {
-            LoggingService.Debug("  Audio already 16kHz mono, writing with WAV headers");
+            LoggingService.Debug("  Audio already 16kHz mono");
         }
         else
         {
             LoggingService.Debug($"  Resampling from {reader.WaveFormat.SampleRate}Hz {reader.WaveFormat.Channels}ch to 16kHz mono");
         }
 
-        // Fold to mono by averaging every channel (NAudio's ToMono() throws on more than two)
-        provider = AudioFileDecoder.ToMono(provider);
-
-        // Resample to 16kHz if needed
-        if (reader.WaveFormat.SampleRate != 16000)
-        {
-            provider = new WdlResamplingSampleProvider(provider, 16000);
-        }
-
-        var samples = ReadAllSamples(provider, reader.TotalTime);
-
-        // Whisper invents a closing "Okay." or "Thank you." when a recording ends in
-        // silence (the user pausing before the hotkey). Cut that silence off.
-        var keep = TrailingSilenceTrimPoint(samples.AsSpan(), 16000);
-        if (keep < samples.Length)
-        {
-            LoggingService.Debug($"  Trimmed {(samples.Length - keep) / 16000.0:F2}s of trailing silence");
-        }
-
-        // Write to MemoryStream with proper WAV headers (RIFF format)
-        // This is critical - Whisper.net expects a complete WAV file, not raw samples
-        // Pre-allocate MemoryStream to avoid LOH-triggering buffer doublings
-        // 16kHz * 2 bytes/sample * 1 channel * duration + 44 byte WAV header
-        var output = new MemoryStream(keep * 2 + 44);
-        using (var writer = new WaveFileWriter(new NAudio.Utils.IgnoreDisposeStream(output), new WaveFormat(16000, 16, 1)))
-        {
-            writer.WriteSamples(samples, 0, keep);
-        }
-        output.Position = 0;
-
-        LoggingService.Debug($"  Prepared WAV stream: {output.Length:N0} bytes");
-        return output;
-    }
-
-    /// <summary>
-    /// Reads every sample from a 16kHz mono provider, clamped to [-1, 1] so the
-    /// 16-bit conversion cannot wrap around on resampler overshoot.
-    /// </summary>
-    private static float[] ReadAllSamples(ISampleProvider provider, TimeSpan totalTime)
-    {
-        var samples = new float[(int)(totalTime.TotalSeconds * 16000) + 16000];
-        int count = 0;
-        var buffer = new float[16000];
+        var provider = ToWhisperSamples(reader);
+        int window = WhisperSampleRate / 20;
+        var rms = new List<double>((int)Math.Min(int.MaxValue, reader.TotalTime.TotalSeconds * 20 + 20));
+        var buffer = new float[WhisperSampleRate];
+        long count = 0;
+        double sum = 0;
+        int inWindow = 0;
         int read;
         while ((read = provider.Read(buffer, 0, buffer.Length)) > 0)
         {
-            if (count + read > samples.Length)
-            {
-                Array.Resize(ref samples, samples.Length * 2);
-            }
+            cancellationToken.ThrowIfCancellationRequested();
             for (int i = 0; i < read; i++)
             {
-                samples[count + i] = Math.Clamp(buffer[i], -1f, 1f);
+                var s = Math.Clamp(buffer[i], -1f, 1f);
+                sum += s * s;
+                if (++inWindow == window)
+                {
+                    rms.Add(Math.Sqrt(sum / window));
+                    sum = 0;
+                    inWindow = 0;
+                }
             }
             count += read;
         }
-        Array.Resize(ref samples, count);
-        return samples;
+
+        // Whisper invents a closing "Okay." or "Thank you." when a recording ends in
+        // silence (the user pausing before the hotkey). Cut that silence off.
+        var windowRms = CollectionsMarshal.AsSpan(rms);
+        var keep = TrailingSilenceTrimPoint(windowRms, count, WhisperSampleRate);
+        if (keep < count)
+        {
+            LoggingService.Debug($"  Trimmed {(count - keep) / (double)WhisperSampleRate:F2}s of trailing silence");
+        }
+
+        LoggingService.Debug($"  Prepared audio: {keep:N0} samples ({keep / (double)WhisperSampleRate:F2}s)");
+        return ChunkEnds(windowRms, keep);
     }
+
+    /// <summary>
+    /// Splits the first <paramref name="keep"/> samples into chunks of about
+    /// <see cref="TargetChunkSamples"/>, each cut at the quietest 50 ms window in the
+    /// <see cref="ChunkCutSearchSamples"/> before its target. Returns each chunk's end.
+    /// </summary>
+    internal static List<long> ChunkEnds(ReadOnlySpan<double> windowRms, long keep)
+    {
+        int window = WhisperSampleRate / 20;
+        var ends = new List<long>();
+        long start = 0;
+        while (keep - start > MaxChunkSamples)
+        {
+            long target = start + TargetChunkSamples;
+            int first = (int)((target - ChunkCutSearchSamples) / window);
+            int last = (int)(target / window) - 1;
+            int quietest = last;
+            for (int w = last - 1; w >= first; w--)
+            {
+                if (windowRms[w] < windowRms[quietest])
+                {
+                    quietest = w;
+                }
+            }
+            long cut = (long)quietest * window + window / 2;
+            ends.Add(cut);
+            start = cut;
+        }
+        ends.Add(keep);
+        return ends;
+    }
+
+    /// <summary>
+    /// Reads the audio again and yields it chunk by chunk, ending each chunk at the
+    /// matching entry of <paramref name="chunkEnds"/>. One buffer of the longest
+    /// chunk's size is reused, so take each chunk before asking for the next.
+    /// </summary>
+    internal static IEnumerable<AudioChunk> ReadAudioChunks(
+        string audioPath, IReadOnlyList<long> chunkEnds, CancellationToken cancellationToken)
+    {
+        using var reader = AudioFileDecoder.Open(audioPath);
+        var provider = ToWhisperSamples(reader);
+
+        long longest = 0;
+        long previous = 0;
+        foreach (var end in chunkEnds)
+        {
+            longest = Math.Max(longest, end - previous);
+            previous = end;
+        }
+
+        var chunk = new float[longest];
+        var buffer = new float[WhisperSampleRate];
+        int buffered = 0;
+        int position = 0;
+        long start = 0;
+        foreach (var end in chunkEnds)
+        {
+            int length = (int)(end - start);
+            int filled = 0;
+            while (filled < length)
+            {
+                if (position == buffered)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    buffered = provider.Read(buffer, 0, buffer.Length);
+                    position = 0;
+                    if (buffered == 0)
+                    {
+                        break;
+                    }
+                }
+                int take = Math.Min(buffered - position, length - filled);
+                for (int i = 0; i < take; i++)
+                {
+                    chunk[filled + i] = ToWhisperInput(buffer[position + i]);
+                }
+                position += take;
+                filled += take;
+            }
+
+            if (filled == 0)
+            {
+                yield break;
+            }
+            yield return new AudioChunk(start, chunk.AsMemory(0, filled));
+            start = end;
+        }
+    }
+
+    /// <summary>Folds to mono by averaging every channel, then resamples to 16 kHz if needed.</summary>
+    private static ISampleProvider ToWhisperSamples(DecodedAudioFile reader)
+    {
+        // NAudio's ToMono() throws on more than two channels
+        var provider = AudioFileDecoder.ToMono(reader.Samples);
+        if (reader.WaveFormat.SampleRate != WhisperSampleRate)
+        {
+            provider = new WdlResamplingSampleProvider(provider, WhisperSampleRate);
+        }
+        return provider;
+    }
+
+    /// <summary>
+    /// The sample Whisper got when this audio went through a 16-bit WAV
+    /// (NAudio's WaveFileWriter, then Whisper.net's WaveParser), so chunking
+    /// leaves the input unchanged. The clamp stops resampler overshoot from
+    /// wrapping around.
+    /// </summary>
+    internal static float ToWhisperInput(float sample) =>
+        (short)(Math.Clamp(sample, -1f, 1f) * short.MaxValue) / 32768f;
 
     /// <summary>
     /// Returns how many samples to keep so the audio ends 0.3s after the last
@@ -922,14 +1108,8 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     internal static int TrailingSilenceTrimPoint(ReadOnlySpan<float> samples, int sampleRate)
     {
         int window = sampleRate / 20;
-        int windowCount = samples.Length / window;
-        if (windowCount == 0)
-        {
-            return samples.Length;
-        }
-
-        var rms = new double[windowCount];
-        for (int w = 0; w < windowCount; w++)
+        var rms = new double[samples.Length / window];
+        for (int w = 0; w < rms.Length; w++)
         {
             double sum = 0;
             foreach (var s in samples.Slice(w * window, window))
@@ -938,8 +1118,23 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             }
             rms[w] = Math.Sqrt(sum / window);
         }
+        return (int)TrailingSilenceTrimPoint(rms, samples.Length, sampleRate);
+    }
 
-        var sorted = (double[])rms.Clone();
+    /// <summary>
+    /// <see cref="TrailingSilenceTrimPoint(ReadOnlySpan{float}, int)"/> from the RMS of
+    /// each whole 50 ms window, so a caller can measure while it streams.
+    /// </summary>
+    internal static long TrailingSilenceTrimPoint(ReadOnlySpan<double> windowRms, long sampleCount, int sampleRate)
+    {
+        int window = sampleRate / 20;
+        int windowCount = windowRms.Length;
+        if (windowCount == 0)
+        {
+            return sampleCount;
+        }
+
+        var sorted = windowRms.ToArray();
         Array.Sort(sorted);
         double floor = sorted[windowCount / 10];
         double speech = sorted[windowCount * 9 / 10];
@@ -948,18 +1143,18 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         double threshold = Math.Min(Math.Max(floor * 6, 0.0012), speech / 5);
 
         int last = windowCount - 1;
-        while (last >= 0 && rms[last] <= threshold)
+        while (last >= 0 && windowRms[last] <= threshold)
         {
             last--;
         }
         if (last < 0)
         {
-            return samples.Length;
+            return sampleCount;
         }
 
-        int keep = (last + 1) * window + (int)(0.3 * sampleRate);
-        int minimum = (int)(1.1 * sampleRate);
-        return Math.Min(samples.Length, Math.Max(keep, minimum));
+        long keep = (long)(last + 1) * window + (int)(0.3 * sampleRate);
+        long minimum = (int)(1.1 * sampleRate);
+        return Math.Min(sampleCount, Math.Max(keep, minimum));
     }
 
     // =========================================================================
@@ -1093,6 +1288,34 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     {
         var characters = segmentText?.Trim().Length ?? 0;
         return $"  Segment: [{start:mm\\:ss} - {end:mm\\:ss}] {characters} chars";
+    }
+
+    /// <summary>
+    /// Whisper's non-speech annotations: a bracketed or parenthesised marker it
+    /// emits in place of words when it hears none. Only these fixed names match, so
+    /// a bracket the speaker dictated survives.
+    /// </summary>
+    private static readonly Regex NonSpeechMarker = new(
+        @"[\[(]\s*(?:BLANK[_ ]AUDIO|silence|no speech|inaudible|music)\s*[\])]",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex WhitespaceRun = new(@"\s{2,}", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Removes Whisper's non-speech markers from a transcript and trims it. A
+    /// transcript made only of markers comes back empty (issue #1449).
+    /// </summary>
+    internal static string StripNonSpeechMarkers(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+
+        var trimmed = text.Trim();
+        if (!NonSpeechMarker.IsMatch(trimmed)) return trimmed;
+
+        var stripped = WhitespaceRun.Replace(NonSpeechMarker.Replace(trimmed, " "), " ").Trim();
+        LoggingService.Info(
+            $"  Removed Whisper non-speech markers ({trimmed.Length} → {stripped.Length} chars)");
+        return stripped;
     }
 
     /// <summary>

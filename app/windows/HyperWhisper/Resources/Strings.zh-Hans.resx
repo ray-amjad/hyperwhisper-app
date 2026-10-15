@@ -908,6 +908,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>已取消文件转写</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>正在转录文件...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>未知</value>
   </data>
@@ -1246,6 +1249,12 @@
     <value>删除 {0} 失败：
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>模型正在使用</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>“{1}”模式正在使用 {0}。请先将该模式切换到其他模型，然后再删除。</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

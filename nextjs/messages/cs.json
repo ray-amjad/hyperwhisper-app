@@ -390,5 +390,12 @@
     "heading": "Otevřený zdroj. Nic ke skrývání.",
     "body": "HyperWhisper je plně open source pod licencí Apache-2.0 — desktopové aplikace i Cloud backend. Aplikace, která poslouchá váš mikrofon, by měla být něco, co si můžete ověřit, ne jen čemu věříte: přečtěte si každý řádek, prověřte přesně, kam jde váš zvuk, a mějte jistotu, že nikdy nebudete uzamčeni — kód je váš, můžete ho forknout a hostovat sami navždy. Vytvořeno otevřeně nezávislým tvůrcem Ray Amjad.",
     "cta": "Zobrazit na GitHubu"
+  },
+  "notFound": {
+    "title": "Stránka nenalezena",
+    "heading": "Tato stránka neexistuje",
+    "description": "Odkaz může být nefunkční nebo byla stránka přesunuta.",
+    "home": "Přejít na úvodní stránku",
+    "download": "Stáhnout HyperWhisper"
   }
 }

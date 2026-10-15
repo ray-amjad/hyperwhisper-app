@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { routing } from "./src/i18n/routing";
 import { defaultLocale, locales } from "./src/i18n/locales";
+import { isEnglishOnlyPath } from "./src/i18n/english-only";
 
 const intlMiddleware = createMiddleware(routing);
 const localePattern = locales
@@ -14,11 +15,10 @@ const USER_SIGN_IN_REGEX = new RegExp(`^\\/(${localePattern})\\/user\\/sign-in`)
 const USER_AUTH_SIGN_OUT_REGEX = new RegExp(
   `^\\/(${localePattern})\\/user\\/auth\\/sign-out`,
 );
-// #1135: pages whose page.tsx calls notFound() for every locale but "en".
-// Every locale links to them with a raw /en/... href, so a visit there says
-// nothing about the visitor's language and must not rewrite NEXT_LOCALE.
-const ENGLISH_ONLY_REGEX = /^\/en\/(latency|choosing-a-model|blog)(\/|$)/;
-// Same routing, but next-intl never writes NEXT_LOCALE. The regex only matches
+// #1135: on an English-only page (isEnglishOnlyPath) a visit says nothing
+// about the visitor's language and must not rewrite NEXT_LOCALE.
+// Same routing, but next-intl never writes NEXT_LOCALE. ENGLISH_ONLY_REGEX
+// (src/i18n/english-only.ts) only matches
 // /en/-prefixed paths, and next-intl resolves the locale from the prefix before
 // it looks at the cookie, so routing, rewrites and redirects are unchanged.
 const englishOnlyIntlMiddleware = createMiddleware({
@@ -27,7 +27,7 @@ const englishOnlyIntlMiddleware = createMiddleware({
 });
 
 function runIntlMiddleware(request: NextRequest, pathname: string) {
-  const middleware = ENGLISH_ONLY_REGEX.test(pathname)
+  const middleware = isEnglishOnlyPath(pathname)
     ? englishOnlyIntlMiddleware
     : intlMiddleware;
   const response = middleware(request);

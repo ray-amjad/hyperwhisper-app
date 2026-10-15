@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnósticos Exportados";
 "alerts.export.diagnostics.success.message" = "Todos os registros de diagnóstico foram exportados com sucesso.";
 "alerts.export.diagnostics.saveFailed.message" = "Não foi possível salvar diagnósticos no local selecionado: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnósticos exportados sem registos do sistema";
+"alerts.export.diagnostics.noSystemLogs.message" = "O ficheiro de diagnósticos foi guardado, mas não foi possível ler os registos do sistema da app, por isso system-logs.txt contém apenas o motivo. Motivo: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportar registros de atualização para suporte";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "Escolher...";
 "settings.storage.dialog.select" = "Selecionar Pasta";
 "settings.storage.dialog.message" = "Escolha uma pasta para armazenar gravações";
+"settings.storage.folderRefused.title" = "Não é possível usar esta pasta";
+"settings.storage.folderRefused.notWritable" = "Você não tem permissão para gravar em “%@”, por isso o HyperWhisper não pode salvar gravações nela. A pasta de gravações não foi alterada.";
+"settings.storage.folderRefused.createFailed" = "O HyperWhisper não conseguiu criar esta pasta: %@ A pasta de gravações não foi alterada.";
 "settings.storage.storeAsM4A.title" = "Comprimir gravações para M4A";
 "settings.storage.storeAsM4A.subtitle" = "Converte gravações WAV para arquivos menores após a transcrição. Desative para manter arquivos WAV originais (maiores mas sem perdas).";
 
@@ -900,6 +905,7 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "audio.error.microphonePermission" = "Permissão de microfone não concedida";
 "audio.error.microphoneInUse" = "O HyperWhisper não consegue acessar o microfone porque outro aplicativo está usando-o. Pause o outro aplicativo ou mude de entrada e tente novamente.";
 "audio.error.audioSystemNotResponding" = "O áudio do macOS não está a responder, por isso não foi possível iniciar o microfone. Tente novamente daqui a pouco. Se continuar a acontecer, reinicie o Mac.";
+"audio.error.recorderStopTimedOut" = "O áudio do macOS deixou de responder enquanto a gravação era guardada, por isso não foi transcrita. O áudio foi mantido: o HyperWhisper tentará recuperá-lo na próxima vez que for iniciado.";
 "audio.error.createEngine" = "Falha ao criar mecanismo de áudio";
 "audio.error.noInput" = "Nenhuma entrada de áudio disponível";
 "audio.error.createFile" = "Falha ao criar arquivo de áudio";
@@ -973,6 +979,7 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "transcription.guidance.quotaExceeded" = "Adicione créditos à sua conta %@ ou atualize seus detalhes de faturamento";
 "transcription.guidance.timeout" = "A solicitação levou muito tempo. Verifique sua velocidade de Internet e tente novamente.";
 "transcription.error.noSpeechDetected" = "Nenhuma fala detectada na gravação.";
+"transcription.error.audioTooShort" = "A gravação é curta demais para ser transcrita. Grave por mais tempo.";
 "transcription.guidance.noSpeechDetected" = "Dicas:\n• Fale claramente no microfone\n• Segure a tecla mais tempo antes de falar\n• Verifique se seu microfone está funcionando\n• Certifique-se de que o dispositivo de entrada correto está selecionado";
 "transcription.guidance.needsNativeRelaunch" = "Encerre e reabra o HyperWhisper nativamente para usar o pós-processamento local.";
 "transcription.guidance.localRuntimeUnavailable" = "Tente novamente ou escolha um modelo local mais pequeno nas definições do Modo.";
@@ -1115,6 +1122,10 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "transcribe.file.error.format.title" = "Formato Não Suportado";
 "transcribe.file.error.format.message" = "Arquivos .%@ não são suportados por %@. Formatos suportados: %@";
 "transcribe.file.error.read" = "Não é possível ler o arquivo selecionado.";
+"transcribe.file.error.webm" = "O formato WebM não é suportado. Converta o arquivo para MP3, M4A ou WAV e tente novamente.";
+"transcribe.file.error.notAudio" = "O arquivo “%@” não é um áudio válido. Ele pode estar danificado ou em um formato que o macOS não consegue decodificar.";
+"transcribe.file.error.empty" = "O arquivo “%@” está vazio. Não há áudio para transcrever.";
+"transcribe.file.error.tooShort" = "Este arquivo é curto demais para ser transcrito (%@ s).";
 "transcribe.file.error.copy" = "Falha ao copiar arquivo para pasta de gravações.";
 "transcribe.file.error.video.title" = "Sem Áudio no Vídeo";
 "transcribe.file.error.video.noAudio" = "Este arquivo de vídeo não contém uma trilha de áudio. Selecione um vídeo com áudio ou um arquivo de áudio.";

@@ -1083,6 +1083,9 @@ Do you want to restart now?</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>File transcription cancelled</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transcribing file...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1491,6 +1494,12 @@ You can re-download it later.</value>
     <value>Failed to delete {0}:
 
 {1}</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model In Use</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} is used by the "{1}" mode. Switch that mode to another model before deleting it.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">

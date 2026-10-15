@@ -390,5 +390,12 @@
     "heading": "Açık kaynak. Saklayacak hiçbir şey yok.",
     "body": "HyperWhisper, Apache-2.0 altında tamamen açık kaynaktır — hem masaüstü uygulamaları hem de Cloud arka ucu. Mikrofonunuzu dinleyen bir uygulama, yalnızca güveneceğiniz değil, doğrulayabileceğiniz bir şey olmalıdır: her satırı okuyun, sesinizin tam olarak nereye gittiğini denetleyin ve asla kilitlenmeyeceğinizi bilin — kod sizindir, sonsuza dek fork edip kendiniz barındırabilirsiniz. Bağımsız geliştirici Ray Amjad tarafından açıkta inşa edildi.",
     "cta": "GitHub'da görüntüle"
+  },
+  "notFound": {
+    "title": "Sayfa bulunamadı",
+    "heading": "Bu sayfa mevcut değil",
+    "description": "Bağlantı bozuk olabilir veya sayfa taşınmış olabilir.",
+    "home": "Ana sayfaya git",
+    "download": "HyperWhisper'ı indir"
   }
 }

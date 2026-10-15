@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "האבחון יוצא";
 "alerts.export.diagnostics.success.message" = "כל יומני האבחון יוצאו בהצלחה.";
 "alerts.export.diagnostics.saveFailed.message" = "לא ניתן לשמור אבחון למיקום שנבחר: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "האבחון יוצא ללא יומני מערכת";
+"alerts.export.diagnostics.noSystemLogs.message" = "קובץ האבחון נשמר, אך לא ניתן היה לקרוא את יומני המערכת של האפליקציה, ולכן system-logs.txt מכיל רק את הסיבה. סיבה: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "ייצא יומני עדכון לתמיכה";
@@ -335,6 +337,9 @@
 "settings.storage.choose.button" = "בחר...";
 "settings.storage.dialog.select" = "בחר תיקייה";
 "settings.storage.dialog.message" = "בחר תיקייה לאחסון הקלטות";
+"settings.storage.folderRefused.title" = "לא ניתן להשתמש בתיקייה זו";
+"settings.storage.folderRefused.notWritable" = "אין לך הרשאה לכתוב אל „%@”, ולכן HyperWhisper לא יכול לשמור שם הקלטות. תיקיית ההקלטות לא שונתה.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper לא הצליח ליצור את התיקייה: %@ תיקיית ההקלטות לא שונתה.";
 "settings.storage.storeAsM4A.title" = "דחוס הקלטות ל-M4A";
 "settings.storage.storeAsM4A.subtitle" = "ממיר הקלטות WAV לקבצים קטנים יותר לאחר התמלול. כבה כדי לשמור קבצי WAV מקוריים (גדולים יותר אך ללא אובדן).";
 
@@ -900,6 +905,7 @@
 "audio.error.microphonePermission" = "הרשאת מיקרופון לא ניתנה";
 "audio.error.microphoneInUse" = "HyperWhisper לא יכול לגשת למיקרופון מכיוון שאפליקציה אחרת משתמשת בו כרגע. השהה את האפליקציה האחרת או החלף קלטים, ואז נסה שוב.";
 "audio.error.audioSystemNotResponding" = "מערכת השמע של macOS לא מגיבה, ולכן לא ניתן היה להפעיל את המיקרופון. נסו שוב בעוד רגע. אם זה ממשיך לקרות, הפעילו מחדש את ה-Mac.";
+"audio.error.recorderStopTimedOut" = "מערכת השמע של macOS הפסיקה להגיב בזמן שמירת ההקלטה, ולכן היא לא תומללה. השמע נשמר: HyperWhisper ינסה לשחזר אותו בפעם הבאה שיופעל.";
 "audio.error.createEngine" = "כשל ביצירת מנוע אודיו";
 "audio.error.noInput" = "אין קלט אודיו זמין";
 "audio.error.createFile" = "כשל ביצירת קובץ אודיו";
@@ -973,6 +979,7 @@
 "transcription.guidance.quotaExceeded" = "הוסף נקודות זכות לחשבון %@ שלך או עדכן את פרטי החיוב";
 "transcription.guidance.timeout" = "הבקשה ארכה יותר מדי זמן. בדוק את מהירות האינטרנט שלך ונסה שוב.";
 "transcription.error.noSpeechDetected" = "לא זוהה דיבור בהקלטה.";
+"transcription.error.audioTooShort" = "ההקלטה קצרה מדי לתמלול. יש להקליט זמן רב יותר.";
 "transcription.guidance.noSpeechDetected" = "טיפים:\n• דבר בבירור למיקרופון\n• החזק את המקש זמן רב יותר לפני הדיבור\n• בדוק שהמיקרופון שלך עובד\n• ודא שהתקן הקלט הנכון נבחר";
 "transcription.guidance.needsNativeRelaunch" = "צא מ-HyperWhisper ופתח אותה מחדש כאפליקציה מקורית כדי להשתמש בעיבוד מקומי.";
 "transcription.guidance.localRuntimeUnavailable" = "נסה שוב, או בחר מודל מקומי קטן יותר בהגדרות המצב.";
@@ -1115,6 +1122,10 @@
 "transcribe.file.error.format.title" = "פורמט לא נתמך";
 "transcribe.file.error.format.message" = "קבצי .%@ אינם נתמכים על ידי %@. פורמטים נתמכים: %@";
 "transcribe.file.error.read" = "לא ניתן לקרוא את הקובץ שנבחר.";
+"transcribe.file.error.webm" = "פורמט WebM אינו נתמך. המירו את הקובץ ל-MP3, M4A או WAV ונסו שוב.";
+"transcribe.file.error.notAudio" = "הקובץ „%@” אינו שמע תקין. ייתכן שהוא פגום, או בפורמט ש-macOS לא יכול לפענח.";
+"transcribe.file.error.empty" = "הקובץ „%@” ריק. אין בו שמע לתמלול.";
+"transcribe.file.error.tooShort" = "הקובץ הזה קצר מדי לתמלול (%@ שנ׳).";
 "transcribe.file.error.copy" = "כשל בהעתקת קובץ לתיקיית הקלטות.";
 "transcribe.file.error.video.title" = "אין אודיו בוידאו";
 "transcribe.file.error.video.noAudio" = "קובץ הוידאו הזה לא מכיל רצועת אודיו. אנא בחר וידאו עם אודיו או קובץ אודיו.";
