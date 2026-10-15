@@ -131,6 +131,9 @@
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>未命名</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>更多...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>转写文件</value>
   </data>

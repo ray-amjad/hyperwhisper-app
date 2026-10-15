@@ -1714,6 +1714,9 @@ Sie können es später erneut herunterladen.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unbenannt</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Mehr...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Datei transkribieren</value>
   </data>
