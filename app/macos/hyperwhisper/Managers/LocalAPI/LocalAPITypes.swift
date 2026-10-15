@@ -78,7 +78,10 @@ struct APIFailureEnvelope: Codable, Sendable {
 struct HealthProviderStatus: Codable, Sendable {
     let id: String
     /// Whether a usable API key is present (for providers that require one).
-    /// Always `true` for keyless providers like `hyperwhisper`.
+    /// For the HyperWhisper Cloud-routed providers (`hyperwhisper`,
+    /// `microsoftazurespeech`, `googlespeech`) this is whether an account key is
+    /// stored, the same check `/transcribe` refuses on. Always `true` for the
+    /// on-device `localLLM` post-processor.
     let key_present: Bool
     /// Whether the most recent health probe succeeded.
     let reachable: Bool
