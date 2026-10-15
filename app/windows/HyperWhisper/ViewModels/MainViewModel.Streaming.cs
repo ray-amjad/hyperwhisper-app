@@ -380,15 +380,7 @@ public partial class MainViewModel : ViewModelBase
             // misleading "transcription failed" toast/status on top of it.
             if (failureWritten)
             {
-                var isCredentialError = ex is TranscriptionException { Code: TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized };
-                // CloudAccountRequired routes to the HW Cloud settings page (where
-                // the account key is entered), NOT the BYOK API-keys manager.
-                var isCloudAccountError = ex is TranscriptionException { Code: TranscriptionErrorCode.CloudAccountRequired };
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    ex is TranscriptionException txEx ? txEx.GetUserMessage() : Loc.S("errors.transcriptionFailed", ex.Message),
-                    showSettingsButton: isCredentialError || isCloudAccountError,
-                    settingsSection: isCloudAccountError ? "Cloud" : null,
-                    openApiKeysManager: isCredentialError));
+                ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
 
                 StatusText = Loc.S("status.failed", ex.Message);
             }

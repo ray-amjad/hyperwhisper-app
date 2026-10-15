@@ -19519,6 +19519,46 @@ internal static class Program
                     "was recorded");
             });
 
+            Run("failure toast: every transcription path routes a credential error to Settings — issue #1842", () =>
+            {
+                // #1842. Dictation and streaming routed a missing API key or account key
+                // to Settings, but Transcribe File built its own toast with the raw
+                // exception text and no button. All three now share one mapping.
+                foreach (var code in new[] { TranscriptionErrorCode.ApiKeyMissing, TranscriptionErrorCode.Unauthorized })
+                {
+                    var txEx = new TranscriptionException(code, "raw provider text", "OpenAI");
+                    var toast = MainViewModel.TranscriptionFailureToast(txEx);
+                    Assert(toast.ShowSettingsButton, $"{code}: the toast has no Settings button");
+                    Assert(toast.OpenApiKeysManager, $"{code}: the button does not open the API-keys manager");
+                    Assert(toast.SettingsSection == null, $"{code}: section is '{toast.SettingsSection}'");
+                    Assert(toast.Message == txEx.GetUserMessage(),
+                        $"{code}: the toast reads '{toast.Message}', not the user message");
+                }
+
+                var cloud = new TranscriptionException(TranscriptionErrorCode.CloudAccountRequired, "raw", "HyperWhisper Cloud");
+                var cloudToast = MainViewModel.TranscriptionFailureToast(cloud);
+                Assert(cloudToast.ShowSettingsButton, "CloudAccountRequired: the toast has no Settings button");
+                Assert(cloudToast.SettingsSection == "Cloud",
+                    $"CloudAccountRequired: section is '{cloudToast.SettingsSection}', not Cloud");
+                Assert(!cloudToast.OpenApiKeysManager,
+                    "CloudAccountRequired opens the BYOK API-keys manager instead of the Cloud page");
+                Assert(cloudToast.Message == cloud.GetUserMessage(), $"CloudAccountRequired: reads '{cloudToast.Message}'");
+
+                var noSpeech = new TranscriptionException(TranscriptionErrorCode.NoSpeechDetected, "raw", "Whisper");
+                var noSpeechToast = MainViewModel.TranscriptionFailureToast(noSpeech);
+                Assert(!noSpeechToast.ShowSettingsButton && !noSpeechToast.OpenApiKeysManager
+                        && noSpeechToast.SettingsSection == null,
+                    "NoSpeechDetected: the toast offers a Settings button");
+                Assert(noSpeechToast.Message == noSpeech.GetUserMessage(), $"NoSpeechDetected: reads '{noSpeechToast.Message}'");
+
+                var plainToast = MainViewModel.TranscriptionFailureToast(new Exception("boom"));
+                Assert(plainToast.Message == HyperWhisper.Localization.Loc.S("errors.transcriptionFailed", "boom"),
+                    $"a plain exception reads '{plainToast.Message}'");
+                Assert(!plainToast.ShowSettingsButton && !plainToast.OpenApiKeysManager
+                        && plainToast.SettingsSection == null,
+                    "a plain exception offers a Settings button");
+            });
+
             Run("status bar: a job's busy line ends at Ready, and a result it wrote stays — issue #1519", () =>
             {
                 // #1519. The status bar said "Ready - Press Ctrl+Alt to record" during a

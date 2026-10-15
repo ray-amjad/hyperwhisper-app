@@ -597,6 +597,31 @@ public partial class MainViewModel : ViewModelBase
             : "status.recordingCancelled");
 
     /// <summary>
+    /// The error toast for a failed transcription (issue #1842). Dictation, streaming and
+    /// Transcribe File all build their toast here, so a credential error routes to Settings
+    /// the same way on every path: ApiKeyMissing/Unauthorized open the API-keys manager,
+    /// CloudAccountRequired opens the HW Cloud page (account key entry, NOT the BYOK
+    /// manager). Any other failure shows its message with no button.
+    /// </summary>
+    internal static ErrorToastEventArgs TranscriptionFailureToast(Exception ex)
+    {
+        if (ex is not TranscriptionException txEx)
+        {
+            return new ErrorToastEventArgs(
+                Loc.S("errors.transcriptionFailed", ex.Message),
+                showSettingsButton: false);
+        }
+
+        var isCredentialError = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
+        var isCloudAccountError = txEx.Code == TranscriptionErrorCode.CloudAccountRequired;
+        return new ErrorToastEventArgs(
+            txEx.GetUserMessage(),
+            showSettingsButton: isCredentialError || isCloudAccountError,
+            settingsSection: isCloudAccountError ? "Cloud" : null,
+            openApiKeysManager: isCredentialError);
+    }
+
+    /// <summary>
     /// The status line a job leaves when it ends (issue #1519). While a job runs the
     /// bar shows its busy line. If that line is still there at the end, nothing put a
     /// result up (a failure, a cancel, an undelivered transcript), so the bar goes back
@@ -2535,9 +2560,7 @@ public partial class MainViewModel : ViewModelBase
 
                     if (failureWritten)
                     {
-                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                            txEx.GetUserMessage(),
-                            showSettingsButton: false));
+                        ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
                         StatusText = Loc.S("status.failed", txEx.GetUserMessage());
                     }
                     return;
@@ -2546,15 +2569,7 @@ public partial class MainViewModel : ViewModelBase
                 var failureWrittenForTxEx = transcript == null || MarkTranscriptAsGenericFailure(transcript, txEx);
                 if (failureWrittenForTxEx)
                 {
-                    var showSettings = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
-                    // CloudAccountRequired routes to the HW Cloud settings page
-                    // (account key entry), NOT the BYOK API-keys manager.
-                    var isCloudAccountError = txEx.Code == TranscriptionErrorCode.CloudAccountRequired;
-                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                        txEx.GetUserMessage(),
-                        showSettingsButton: showSettings || isCloudAccountError,
-                        settingsSection: isCloudAccountError ? "Cloud" : null,
-                        openApiKeysManager: showSettings));
+                    ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
                     StatusText = Loc.S("status.failed", ex.Message);
                 }
             }
@@ -2563,9 +2578,7 @@ public partial class MainViewModel : ViewModelBase
                 var failureWritten = transcript == null || MarkTranscriptAsGenericFailure(transcript, ex);
                 if (failureWritten)
                 {
-                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                        Loc.S("errors.transcriptionFailed", ex.Message),
-                        showSettingsButton: false));
+                    ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
                     StatusText = Loc.S("status.failed", ex.Message);
                 }
             }

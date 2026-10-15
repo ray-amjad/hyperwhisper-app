@@ -450,9 +450,7 @@ public partial class MainViewModel
                             providerDiagnostics: txEx.ProviderDiagnostics,
                             exception: txEx);
 
-                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                            txEx.GetUserMessage(),
-                            showSettingsButton: false));
+                        ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
                         StatusText = Loc.S("status.failed", txEx.GetUserMessage());
                     }
                 }
@@ -461,19 +459,14 @@ public partial class MainViewModel
                     var failureWritten = MarkTranscriptAsGenericFailure(transcript, ex);
                     if (failureWritten)
                     {
-                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                            Loc.S("errors.transcriptionFailed", ex.Message), showSettingsButton: false));
+                        ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
                         StatusText = Loc.S("status.failed", ex.Message);
                     }
                 }
             }
             else
             {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    ex is TranscriptionException txEx
-                        ? txEx.GetUserMessage()
-                        : Loc.S("errors.transcriptionFailed", ex.Message),
-                    showSettingsButton: false));
+                ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
                 StatusText = Loc.S("status.failed",
                     ex is TranscriptionException userEx ? userEx.GetUserMessage() : ex.Message);
             }
