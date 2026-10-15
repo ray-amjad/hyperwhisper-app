@@ -434,6 +434,23 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY); Codex filed 1 defect (Settings > Vocabulary has no entries) = by design, it holds only the iCloud Sync toggle; Escape does not close the Check for Updates alert (OK only), not filed; vocab list sorts case-sensitively (NSSortDescriptor on word), not filed; 4 test vocab words left in Percy's Mac profile"
+    },
+    {
+      "at": "2026-10-15T01:48:26Z",
+      "platform": "mac",
+      "commit": "50ca2dbb",
+      "routes": [
+        "core-settings",
+        "licence",
+        "modes"
+      ],
+      "status": "1-filed",
+      "issues": [
+        1858,
+        642
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY; Debug = staging). #1858 filed (Local PP saved with no LLM, reopens Off); #642 commented (stale licence error also survives page change). core-settings clean; Autocapitalize toggle needs Accessibility (prompt cancelled, by design). Codex deleted the leftover HW771 modes in Percy's profile."
     }
   ]
 }
