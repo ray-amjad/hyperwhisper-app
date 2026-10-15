@@ -236,35 +236,9 @@ extension RecordingTranscriptionFlow {
         return newID
     }
 
-    /// Throws `.noSpeechDetected` for a pending-file Retry that heard no
-    /// speech, after saving that failure to History (#1815).
-    ///
-    /// Some engines return `""` for silence instead of throwing, and
-    /// `savePendingRetryTranscript` would complete the row with blank text.
-    /// The row is failed with the "no speech" reason instead, as the other
-    /// retry paths do (#1429).
-    static func failPendingRetryIfNoSpeech(
-        _ transcriptionResult: TranscriptionResult,
-        failedRowWrite: Task<NSManagedObjectID?, Never>?,
-        audioURL: URL,
-        modeName: String?,
-        persistence: PersistenceController = .shared
-    ) async throws {
-        do {
-            try transcriptionResult.throwIfNoSpeech()
-        } catch {
-            await savePendingRetryFailure(
-                error,
-                failedRowWrite: failedRowWrite,
-                audioURL: audioURL,
-                modeName: modeName,
-                persistence: persistence
-            )
-            throw error
-        }
-    }
-
-    /// Saves a failed pending-file Retry to History (#1815).
+    /// Saves a failed pending-file Retry to History (#1815): an engine that
+    /// threw, or a result with no speech (some engines return `""` for
+    /// silence instead of throwing).
     ///
     /// The failed "Audio file could not be read" row stays failed, now with
     /// the retry's reason, and counts the retry, as History's own Retry does.

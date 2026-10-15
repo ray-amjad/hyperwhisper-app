@@ -174,13 +174,8 @@ extension RecordingTranscriptionFlow {
 
             // A retry that hears no speech keeps the row failed, with the
             // "no speech" reason, instead of a blank completed row (#1815).
-            // Nothing is delivered; the catch below shows the error.
-            try await Self.failPendingRetryIfNoSpeech(
-                transcriptionResult,
-                failedRowWrite: failedRowWrite,
-                audioURL: audioURL,
-                modeName: transcriptionMode.name
-            )
+            // Nothing is delivered; the catch below saves and shows the error.
+            try transcriptionResult.throwIfNoSpeech()
 
             // Deliver like a dictation (paste, clipboard fallback, the pill's
             // "Pasted!" only after a real paste), then save. Before #1636 the
@@ -227,6 +222,24 @@ extension RecordingTranscriptionFlow {
             // Superseded: the newer flow's own request cancelled this one (or it
             // failed while the newer flow ran). Its error is not the user's.
             guard !isPendingRetrySuperseded(identity) else { return }
+
+            // Every failure, an empty result or an engine that threw (Whisper
+            // throws `.noSpeechDetected` itself), fails the History row with
+            // its reason and counts the retry (#1815).
+            if !(error is CancellationError) {
+                let failedRowWrite = appState.pendingRetryAudioPath == path
+                    ? appState.pendingRetryFailedRowWrite
+                    : nil
+                await Self.savePendingRetryFailure(
+                    error,
+                    failedRowWrite: failedRowWrite,
+                    audioURL: audioURL,
+                    modeName: transcriptionMode.name
+                )
+
+                // The save suspends; a newer flow may own the dialog now.
+                guard !isPendingRetrySuperseded(identity) else { return }
+            }
 
             await MainActor.run {
                 appState.recordingState = .idle

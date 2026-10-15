@@ -12,9 +12,11 @@
 //  VAD trim on the row, so the trimmed WAV of a no-speech retry was left on
 //  disk with no row to own it.
 //
-//  The fix: the pending-file Retry calls `failPendingRetryIfNoSpeech` before it
-//  delivers or saves, which fails the row with the "no speech" reason; History
-//  Retry checks for speech after `setTrimmedAudioPath`.
+//  The fix: the pending-file Retry checks for speech before it delivers or
+//  saves, and its catch fails the row through `savePendingRetryFailure` for
+//  any error, an empty result or an engine that threw (Whisper throws
+//  `.noSpeechDetected` itself). History Retry records its trim whether the
+//  engine succeeded or threw, before the speech check.
 //
 
 import CoreData
@@ -83,6 +85,26 @@ struct NoSpeechPendingRetryFailsRowTests {
         )
     }
 
+    /// The retry's sequence: the speech check, then the catch's save.
+    private func retry(
+        _ result: TranscriptionResult,
+        failedRowWrite: Task<NSManagedObjectID?, Never>?,
+        persistence: PersistenceController
+    ) async throws {
+        do {
+            try result.throwIfNoSpeech()
+        } catch {
+            await RecordingTranscriptionFlow.savePendingRetryFailure(
+                error,
+                failedRowWrite: failedRowWrite,
+                audioURL: URL(fileURLWithPath: Self.audioPath),
+                modeName: "LocNemo",
+                persistence: persistence
+            )
+            throw error
+        }
+    }
+
     private func isNoSpeech(_ error: Error) -> Bool {
         if let error = error as? TranscriptionError, case .noSpeechDetected = error { return true }
         return false
@@ -99,11 +121,9 @@ struct NoSpeechPendingRetryFailsRowTests {
         let failedID = try await makeFailedRow(in: persistence)
 
         do {
-            try await RecordingTranscriptionFlow.failPendingRetryIfNoSpeech(
+            try await retry(
                 makeResult(rawText: rawText),
                 failedRowWrite: Task { failedID },
-                audioURL: URL(fileURLWithPath: Self.audioPath),
-                modeName: "LocNemo",
                 persistence: persistence
             )
             Issue.record("a silent retry passed the speech check")
@@ -128,11 +148,9 @@ struct NoSpeechPendingRetryFailsRowTests {
         let persistence = PersistenceController(inMemory: true)
 
         await #expect(throws: TranscriptionError.self) {
-            try await RecordingTranscriptionFlow.failPendingRetryIfNoSpeech(
+            try await retry(
                 makeResult(rawText: ""),
                 failedRowWrite: nil,
-                audioURL: URL(fileURLWithPath: Self.audioPath),
-                modeName: "LocNemo",
                 persistence: persistence
             )
         }
@@ -152,11 +170,9 @@ struct NoSpeechPendingRetryFailsRowTests {
         let persistence = PersistenceController(inMemory: true)
         let failedID = try await makeFailedRow(in: persistence)
 
-        try await RecordingTranscriptionFlow.failPendingRetryIfNoSpeech(
+        try await retry(
             makeResult(rawText: "hello"),
             failedRowWrite: Task { failedID },
-            audioURL: URL(fileURLWithPath: Self.audioPath),
-            modeName: "LocNemo",
             persistence: persistence
         )
 
@@ -173,17 +189,34 @@ struct NoSpeechPendingRetryFailsRowTests {
     private static let retryControllerPath =
         "app/macos/hyperwhisper/Managers/Transcription/Support/TranscriptionRetryController.swift"
 
-    /// The pending-file Retry checks for speech before it delivers or saves.
+    /// The pending-file Retry checks for speech before it delivers or saves,
+    /// and its catch saves every failure.
     @Test func thePendingRetryChecksForSpeechBeforeItDeliversOrSaves() throws {
         let beforeDelivery = try ProductionSource.slice(
             of: Self.errorHandlingPath,
             from: "transcribeWithDetails(",
             to: "deliverBatchTranscript("
         )
-        #expect(beforeDelivery.contains("try await Self.failPendingRetryIfNoSpeech("),
+        #expect(beforeDelivery.contains("try transcriptionResult.throwIfNoSpeech()"),
                 "the pending-file Retry delivers a result without checking it holds speech: \(beforeDelivery)")
         #expect(!beforeDelivery.contains("savePendingRetryTranscript("),
                 "the pending-file Retry saves before its speech check")
+
+        // Its catch saves every failure to the row, so an engine that throws
+        // `.noSpeechDetected` itself (Whisper) fails it too, after the
+        // supersede check.
+        let body = try ProductionSource.slice(
+            of: Self.errorHandlingPath,
+            from: "private func retryTranscriptionFromPendingPath(",
+            to: "func handleRecordingStartFailure("
+        )
+        let call = try #require(body.range(of: "transcribeWithDetails("))
+        let catchArm = try #require(body.range(of: "} catch {", range: call.upperBound..<body.endIndex))
+        let afterCatch = body[catchArm.upperBound...]
+        let check = try #require(afterCatch.range(of: "isPendingRetrySuperseded(identity)"))
+        let save = try #require(afterCatch.range(of: "Self.savePendingRetryFailure("),
+                                "the retry's catch no longer saves the failure: \(afterCatch)")
+        #expect(check.lowerBound < save.lowerBound, "the catch saves before the supersede check")
     }
 
     /// History Retry records its VAD trim on the row before the speech check,
@@ -197,6 +230,11 @@ struct NoSpeechPendingRetryFailsRowTests {
         )
         let trim = try #require(afterEngine.range(of: "persistence.setTrimmedAudioPath("),
                                 "the retry no longer records its trimmed WAV")
+        // An engine that throws is held until the trim is recorded.
+        let rethrow = try #require(afterEngine.range(of: "try engineOutcome.get()"),
+                                   "the engine's error skips the trim again")
+        #expect(trim.lowerBound < rethrow.lowerBound,
+                "the engine's error is thrown before the trimmed WAV is recorded on the row")
         let check = try #require(afterEngine.range(of: "try result.throwIfNoSpeech()"))
         #expect(trim.lowerBound < check.lowerBound,
                 "the speech check throws before the trimmed WAV is recorded on the row")

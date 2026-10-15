@@ -256,8 +256,8 @@ class TranscriptionRetryController {
             // If VAD created a valid trimmed file, store the path in Core Data,
             // whether the engine succeeded or failed.
             // This allows users to toggle between original and trimmed audio in history view.
-            if vadResult.wasProcessed, let result = trimResult {
-                if await persistence.setTrimmedAudioPath(transcript, trimmedPath: result.outputURL.path) {
+            if vadResult.wasProcessed, let trim = trimResult {
+                if await persistence.setTrimmedAudioPath(transcript, trimmedPath: trim.outputURL.path) {
                     AppLogger.transcription.debug("📝 [Retry] Saved trimmed audio path to transcript")
                 }
             }
