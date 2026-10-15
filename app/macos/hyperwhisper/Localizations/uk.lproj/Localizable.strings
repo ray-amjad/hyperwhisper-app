@@ -824,7 +824,7 @@
 "transcripts.delete.single.message" = "Це назавжди видалить цей запис та його аудіо файл.";
 "transcripts.delete.multiple.title" = "Видалити %d записів?";
 "transcripts.delete.multiple.message" = "Це назавжди видалить %d записів та їхні аудіо файли.\n\nЦю дію не можна скасувати.";
-"transcripts.delete.multiple.confirm" = "Видалити %d записів";
+"transcripts.delete.multiple.confirm" = "Видалити записи: %d";
 "transcripts.retry.error.title" = "Повторна спроба не вдалася";
 "transcripts.retry.error.modeDeleted" = "Режим, у якому зроблено цей запис, видалено, тому повтор не виконано. В Історії клацніть запис правою кнопкою миші та виберіть \"Повторити з...\", щоб вибрати інший режим.";
 

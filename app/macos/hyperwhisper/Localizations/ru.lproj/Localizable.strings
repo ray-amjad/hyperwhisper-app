@@ -824,7 +824,7 @@
 "transcripts.delete.single.message" = "Это будет постоянно удалять эту запись и файл аудио.";
 "transcripts.delete.multiple.title" = "Удалить %d записей?";
 "transcripts.delete.multiple.message" = "Это будет постоянно удалять %d записей и их аудиофайлы.\n\nЭто действие невозможно отменить.";
-"transcripts.delete.multiple.confirm" = "Удалить %d записей";
+"transcripts.delete.multiple.confirm" = "Удалить записи: %d";
 "transcripts.retry.error.title" = "Ошибка повтора";
 "transcripts.retry.error.modeDeleted" = "Режим, в котором была сделана эта запись, удалён, поэтому повтор не выполнен. В Истории щёлкните запись правой кнопкой мыши и выберите \"Повторить с...\", чтобы выбрать другой режим.";
 

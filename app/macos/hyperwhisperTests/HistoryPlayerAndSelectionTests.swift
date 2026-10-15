@@ -191,6 +191,25 @@ struct MultiDeleteConfirmButtonTests {
         }
     }
 
+    /// Locales whose noun takes a different form for different counts (Russian
+    /// 2 "записи" / 5 "записей" / 21 "запись", and the like). The app has no
+    /// .stringsdict, so these say "<verb> <noun>: %d": the noun does not agree with
+    /// the number and the button reads right for every count.
+    private static let countSafeLocales = [
+        "ar", "cs", "hr", "is", "lt", "lv", "pl", "ro", "ru", "sk", "sl", "sr", "uk",
+    ]
+
+    @Test func manyPluralFormLocalesPutTheCountAfterTheNoun() throws {
+        let localizations = ProductionSource.url("app/macos/hyperwhisper/Localizations")
+        for locale in Self.countSafeLocales {
+            let lines = try ProductionSource.text(
+                of: localizations.appendingPathComponent("\(locale).lproj/Localizable.strings")
+            ).components(separatedBy: .newlines)
+            let line = try #require(lines.first { $0.hasPrefix("\"\(Self.key)\" = \"") }, "\(locale)")
+            #expect(line.hasSuffix(": %d\";"), "\(locale): \(line)")
+        }
+    }
+
     @Test func theEnglishButtonReadsDeleteNRecordings() throws {
         let base = try #require(BaseLocalizationBundle.resolve(in: .main))
         let format = try #require(base.localizedValueIfPresent(forKey: Self.key))
