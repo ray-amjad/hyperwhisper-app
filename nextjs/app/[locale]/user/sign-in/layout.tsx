@@ -1,8 +1,19 @@
 import { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Sign In",
-};
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+
+  return {
+    title: "Sign In",
+    ...(await localizedPageMetadata(locale, "/user/sign-in")),
+  };
+}
 
 export default function SignInLayout({
   children,

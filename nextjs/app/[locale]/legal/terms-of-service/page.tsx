@@ -1,9 +1,20 @@
 import { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Terms of Service | HyperWhisper",
-  description: "HyperWhisper Terms of Service and User Agreement",
-};
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+
+  return {
+    title: "Terms of Service | HyperWhisper",
+    description: "HyperWhisper Terms of Service and User Agreement",
+    ...(await localizedPageMetadata(locale, "/legal/terms-of-service")),
+  };
+}
 
 export default function TermsOfServicePage() {
   return (

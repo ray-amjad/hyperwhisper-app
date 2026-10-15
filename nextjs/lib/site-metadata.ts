@@ -8,6 +8,8 @@
  * layout and those pages read them from here, so the list lives in one place.
  */
 
+import { toOpenGraphLocale } from "@/src/i18n/locales";
+
 export const SITE_URL = "https://hyperwhisper.com";
 export const SITE_NAME = "HyperWhisper";
 
@@ -22,6 +24,26 @@ export const TWITTER_CARD = "summary" as const;
 export const TWITTER_CREATOR = "@theramjad";
 export const TWITTER_IMAGES = [`${SITE_URL}/icon/256.png`];
 
+/**
+ * The [locale] layout's Open Graph object, without a `url`. A layout cannot
+ * know the child path without reading the request (#843), so each page adds
+ * its own `url` through `localizedPageMetadata`, which spreads this object.
+ */
+export function localeOpenGraph(
+  locale: string,
+  title: string,
+  description: string,
+) {
+  return {
+    type: "website" as const,
+    locale: toOpenGraphLocale(locale),
+    title,
+    description,
+    siteName: SITE_NAME,
+    images: OG_IMAGES,
+  };
+}
+
 type EnglishStaticPageMetadataInput = {
   /** Route path below the locale, starting with "/", e.g. "/blog". */
   path: string;
@@ -30,10 +52,9 @@ type EnglishStaticPageMetadataInput = {
 };
 
 /**
- * Metadata for an English-only `force-static` page. Under `force-static` the
- * layout's `headers()` is empty, so its canonical and `og:url` fall back to
- * the home page; the page has to state its own. No hreflang `languages`: these
- * pages 404 in every other locale.
+ * Metadata for an English-only `force-static` page. The layout sets no
+ * canonical or `og:url` (#843), so the page has to state its own. No hreflang
+ * `languages`: these pages 404 in every other locale.
  */
 export function englishStaticPageMetadata({
   path,

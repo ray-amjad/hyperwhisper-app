@@ -1,10 +1,21 @@
 import { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy | HyperWhisper",
-  description:
-    "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route.",
-};
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+
+  return {
+    title: "Privacy Policy | HyperWhisper",
+    description:
+      "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route.",
+    ...(await localizedPageMetadata(locale, "/legal/privacy-policy")),
+  };
+}
 
 // The one storage exception, written once and rendered after every
 // no-storage claim below. The first sentence is Ray's approved wording

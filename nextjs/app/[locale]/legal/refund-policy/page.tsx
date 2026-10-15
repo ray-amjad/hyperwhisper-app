@@ -7,12 +7,22 @@ import {
   MIN_CREDIT_DOLLARS,
   computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
-export const metadata: Metadata = {
-  title: "Refund Policy | HyperWhisper",
-  description:
-    "HyperWhisper refund policy for HyperWhisper Cloud credits, including the 14-day money back guarantee",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+
+  return {
+    title: "Refund Policy | HyperWhisper",
+    description:
+      "HyperWhisper refund policy for HyperWhisper Cloud credits, including the 14-day money back guarantee",
+    ...(await localizedPageMetadata(locale, "/legal/refund-policy")),
+  };
+}
 
 // Every number on this page comes from the checkout's own constants, so the
 // policy cannot drift from what checkout charges.

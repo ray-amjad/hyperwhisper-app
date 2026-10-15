@@ -1,9 +1,20 @@
 import { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Support",
-  description: "Get help with HyperWhisper",
-};
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+
+  return {
+    title: "Support",
+    description: "Get help with HyperWhisper",
+    ...(await localizedPageMetadata(locale, "/support")),
+  };
+}
 
 export default function SupportLayout({
   children,
