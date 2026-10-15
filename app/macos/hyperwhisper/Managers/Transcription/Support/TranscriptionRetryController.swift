@@ -232,12 +232,20 @@ class TranscriptionRetryController {
 
             // Perform transcription with the final audio URL (may be VAD-trimmed)
             // This maintains consistency with the original transcription attempt
-            let result = try await manager.transcribeWithDetails(
-                audioURL: finalAudioURL,
-                mode: mode,
-                recordingSession: transcript.recordingSession,
-                refuseDeletedMode: true
-            )
+            // The engine's error is held, not thrown, until the trim below is
+            // recorded: a failed row must own the trimmed WAV this run wrote,
+            // or its delete leaves the WAV on disk (#1815).
+            let engineOutcome: Result<TranscriptionResult, Error>
+            do {
+                engineOutcome = .success(try await manager.transcribeWithDetails(
+                    audioURL: finalAudioURL,
+                    mode: mode,
+                    recordingSession: transcript.recordingSession,
+                    refuseDeletedMode: true
+                ))
+            } catch {
+                engineOutcome = .failure(error)
+            }
 
             // The row was deleted while the engine finished: nothing to write to.
             if transcript.retryWasStoppedByDelete() {
@@ -245,7 +253,8 @@ class TranscriptionRetryController {
             }
 
             // SAVE TRIMMED AUDIO PATH:
-            // If VAD created a valid trimmed file, store the path in Core Data.
+            // If VAD created a valid trimmed file, store the path in Core Data,
+            // whether the engine succeeded or failed.
             // This allows users to toggle between original and trimmed audio in history view.
             if vadResult.wasProcessed, let result = trimResult {
                 if await persistence.setTrimmedAudioPath(transcript, trimmedPath: result.outputURL.path) {
@@ -257,6 +266,8 @@ class TranscriptionRetryController {
             if transcript.retryWasStoppedByDelete() {
                 throw CancellationError()
             }
+
+            let result = try engineOutcome.get()
 
             // A retry that hears no speech keeps the row failed, with the
             // "no speech" reason, instead of a blank completed row (#1429).
