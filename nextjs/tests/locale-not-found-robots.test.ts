@@ -199,9 +199,10 @@ test("[locale] not-found speaks the URL's locale when the request locale is the 
 });
 
 test("[locale] not-found falls back to the locale it is given off a locale path", async () => {
-  // app/not-found.tsx passes the request locale. Under [locale] the boundary
-  // gets no props and must not read the request locale itself: that is a
-  // headers() call, and it made every route dynamic (#843).
+  // Only app/global-not-found.tsx passes the request locale; app/not-found.tsx
+  // passes the default locale. Under [locale] the boundary gets no props and
+  // must not read the request locale itself: that is a headers() call, and it
+  // made every route dynamic (#843).
   request.locale = "en";
   browser.pathname = null;
   const { default: LocaleNotFound } = (await import(
