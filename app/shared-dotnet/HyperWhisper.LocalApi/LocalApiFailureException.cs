@@ -63,6 +63,25 @@ public sealed class LocalApiFailureException : Exception
     /// public surface of the server — the same trick
     /// <see cref="LocalApiSharedFailure"/> uses.
     /// </summary>
+    /// <summary>
+    /// `MISSING_API_KEY` for a HyperWhisper Cloud call with no account key,
+    /// from the shared table's `CloudAccountRequired` row — the envelope
+    /// macOS and Windows send for `/transcribe` and `/post-process` alike
+    /// (issue #1487). Public because a head's post-processor adapter lives in
+    /// its own assembly.
+    /// </summary>
+    public static LocalApiFailureException CloudAccountRequired() =>
+        From(HyperwhisperCoreMethods.LocalApiMapTranscriptionError(
+            HwLocalApiTranscriptionFailureReason.CloudAccountRequired,
+            new HwLocalApiTranscriptionFailureParams(
+                @provider: "HyperWhisper Cloud",
+                @detail: null,
+                @model: null,
+                @limitBytes: null,
+                @httpStatus: null,
+                @retryAfterSeconds: null,
+                @hint: "Add your account key in Settings → HyperWhisper Cloud.")));
+
     internal static LocalApiFailureException From(HwLocalApiFailure failure) =>
         new(failure.httpStatus,
             HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(failure.code),

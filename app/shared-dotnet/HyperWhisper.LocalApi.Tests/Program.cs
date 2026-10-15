@@ -841,9 +841,19 @@ static async Task PostProcessContextContract()
         Assert(skippedJson.RootElement.GetProperty("post_processed").ValueKind == JsonValueKind.False,
             "post_processed must be false when no LLM ran, not dropped and not true");
         Assert(skippedJson.RootElement.GetProperty("ok").GetBoolean(),
-            "graceful degradation keeps ok:true — post_processed is the only signal");
+            "graceful degradation keeps ok:true for a provider failure — post_processed is the only signal");
     }
     fixture.Backend.PostProcessApplied = true;
+
+    // The one exception (issue #1487, Ray inbox #298): no account key on a
+    // HyperWhisper Cloud run is a configuration fault, refused with the same
+    // MISSING_API_KEY envelope /transcribe gives for that mode.
+    fixture.Backend.PostProcessCloudAccountMissing = true;
+    using (var noKey = await fixture.Client.PostAsync("/post-process", JsonContent("""{"text":"raw words","prompt":"Translate to French"}""")))
+    {
+        await AssertBusinessFailure(noKey, LocalApiErrorCodes.MissingApiKey, "a Cloud run with no account key");
+    }
+    fixture.Backend.PostProcessCloudAccountMissing = false;
 
     using var conflicting = JsonContent("""{"text":"raw","preset":"hyper","prompt":"custom"}""");
     Assert((await fixture.Client.PostAsync("/post-process", conflicting)).StatusCode == HttpStatusCode.BadRequest,
@@ -3148,8 +3158,17 @@ sealed class FakeBackend : ILocalApiBackend
     /// from one that writes a constant (issue #499).
     /// </summary>
     public bool PostProcessApplied { get; set; } = true;
+    /// <summary>
+    /// Makes <see cref="PostProcessAsync"/> refuse the way a head's adapter does
+    /// for a HyperWhisper Cloud run with no account key (issue #1487).
+    /// </summary>
+    public bool PostProcessCloudAccountMissing { get; set; }
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
-    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, PostProcessApplied)); }
+    {
+        PostProcess = request;
+        if (PostProcessCloudAccountMissing) throw LocalApiFailureException.CloudAccountRequired();
+        return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, PostProcessApplied));
+    }
     /// <summary>
     /// The full match set this fake holds. <see cref="GetRecordingsAsync"/> pages it
     /// with the query's limit, so a caller can set more rows than the limit and get
