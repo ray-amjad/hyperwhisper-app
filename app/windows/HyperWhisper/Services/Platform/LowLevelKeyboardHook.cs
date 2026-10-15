@@ -12,12 +12,17 @@ namespace HyperWhisper.Services.Platform;
 /// Every key-down is added to <see cref="PressedKeys"/> and every key-up removed
 /// from it BEFORE the owner's callback runs, so the callback reads the set as it
 /// stands after this event.
+///
+/// An owner can ask to skip HyperWhisper's own synthetic keys (see
+/// <see cref="SyntheticKeyboard"/>): such a key is neither tracked nor passed to
+/// the callback, as if it never happened. Other programs' injected keys are not
+/// skipped (#1851).
 /// </summary>
 internal sealed class LowLevelKeyboardHook : IDisposable
 {
     private const int WH_KEYBOARD_LL = 13;
-    private const int WM_KEYDOWN = 0x0100;
-    private const int WM_KEYUP = 0x0101;
+    internal const int WM_KEYDOWN = 0x0100;
+    internal const int WM_KEYUP = 0x0101;
     private const int WM_SYSKEYDOWN = 0x0104;
     private const int WM_SYSKEYUP = 0x0105;
 
@@ -55,6 +60,7 @@ internal sealed class LowLevelKeyboardHook : IDisposable
 
     private readonly string _ownerName;
     private readonly Func<int, bool, bool> _onKey;
+    private readonly bool _ignoreOwnInjectedKeys;
     private readonly HashSet<int> _pressedKeys = new();
 
     // Held in a field so the GC cannot collect the delegate Windows calls back into.
@@ -69,13 +75,18 @@ internal sealed class LowLevelKeyboardHook : IDisposable
     /// Called as <c>onKey(vkCode, isKeyDown)</c> for every key-down and key-up.
     /// Return true to swallow the key: no later hook and no application sees it.
     /// </param>
-    internal LowLevelKeyboardHook(string ownerName, Func<int, bool, bool> onKey)
+    /// <param name="ignoreOwnInjectedKeys">
+    /// Skip keys HyperWhisper itself sent through <see cref="SyntheticKeyboard"/>
+    /// (SmartPaste's Ctrl+V). Keys injected by any other program still count.
+    /// </param>
+    internal LowLevelKeyboardHook(string ownerName, Func<int, bool, bool> onKey, bool ignoreOwnInjectedKeys = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerName);
         ArgumentNullException.ThrowIfNull(onKey);
 
         _ownerName = ownerName;
         _onKey = onKey;
+        _ignoreOwnInjectedKeys = ignoreOwnInjectedKeys;
         _hookCallback = HookCallback;
     }
 
@@ -146,22 +157,10 @@ internal sealed class LowLevelKeyboardHook : IDisposable
         {
             if (nCode >= 0)
             {
-                int msg = (int)wParam;
                 var hookStruct = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-                int vkCode = (int)hookStruct.vkCode;
-
-                bool isKeyDown = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
-                bool isKeyUp = msg == WM_KEYUP || msg == WM_SYSKEYUP;
-
-                if (isKeyDown)
+                if (HandleKeyEvent((int)wParam, (int)hookStruct.vkCode, hookStruct.flags, hookStruct.dwExtraInfo))
                 {
-                    _pressedKeys.Add(vkCode);
-                    if (_onKey(vkCode, true)) return new IntPtr(1);
-                }
-                else if (isKeyUp)
-                {
-                    _pressedKeys.Remove(vkCode);
-                    if (_onKey(vkCode, false)) return new IntPtr(1);
+                    return new IntPtr(1);
                 }
             }
         }
@@ -170,5 +169,31 @@ internal sealed class LowLevelKeyboardHook : IDisposable
             LoggingService.Error($"{_ownerName}: HookCallback error", ex);
         }
         return CallNextHookEx(_hookId, nCode, wParam, lParam);
+    }
+
+    /// <summary>
+    /// One hook event, from the fields of its KBDLLHOOKSTRUCT. The smoke suite
+    /// calls this directly, since it cannot make Windows deliver a key.
+    /// </summary>
+    /// <returns>True to swallow the key.</returns>
+    internal bool HandleKeyEvent(int msg, int vkCode, uint flags, IntPtr extraInfo)
+    {
+        bool isKeyDown = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
+        bool isKeyUp = msg == WM_KEYUP || msg == WM_SYSKEYUP;
+        if (!isKeyDown && !isKeyUp) return false;
+
+        if (_ignoreOwnInjectedKeys && SyntheticKeyboard.IsOwnInjectedKey(flags, extraInfo))
+        {
+            return false;
+        }
+
+        if (isKeyDown)
+        {
+            _pressedKeys.Add(vkCode);
+            return _onKey(vkCode, true);
+        }
+
+        _pressedKeys.Remove(vkCode);
+        return _onKey(vkCode, false);
     }
 }

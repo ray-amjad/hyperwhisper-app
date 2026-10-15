@@ -90,7 +90,6 @@ NuGet packages — all **MIT** unless noted:
 | Whisper.net (+ Runtime, Runtime.NoAvx, Runtime.Vulkan) | MIT | Sandro Hawke / const-me upstream |
 | LLamaSharp (+ Backend.Cpu, Backend.Cuda12) | MIT | SciSharp / LLamaSharp contributors |
 | System.Management | MIT | Microsoft |
-| GregsStack.InputSimulatorStandard | MIT | Gregory Morse |
 | CommunityToolkit.Mvvm | MIT | Microsoft |
 | Microsoft.EntityFrameworkCore.Sqlite / .Design | MIT | Microsoft |
 | Microsoft.AspNetCore.App (framework reference) | MIT | Microsoft |

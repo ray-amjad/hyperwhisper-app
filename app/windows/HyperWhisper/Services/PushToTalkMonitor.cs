@@ -96,8 +96,17 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
 
     public PushToTalkMonitor()
     {
-        _hook = new LowLevelKeyboardHook(nameof(PushToTalkMonitor), OnHookKey);
+        // SmartPaste's Ctrl+V uses the generic VK_CONTROL, a primary key here
+        // since #694. Skip it, and only it: an AutoHotkey or Stream Deck key is
+        // injected too and must still drive push-to-talk (#1851).
+        _hook = new LowLevelKeyboardHook(nameof(PushToTalkMonitor), OnHookKey, ignoreOwnInjectedKeys: true);
     }
+
+    /// <summary>The hook, for the smoke suite to feed events into.</summary>
+    internal LowLevelKeyboardHook Hook => _hook;
+
+    /// <summary>The shared machine's state, for the smoke suite.</summary>
+    internal PortablePttState State => _machine.State;
 
     public void Configure(PushToTalkSettings settings)
     {
