@@ -1297,14 +1297,14 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     internal static string StripNonSpeechMarkers(string? text)
     {
-        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
-
-        var trimmed = text.Trim();
-        var stripped = global::HyperWhisper.SharedCore.SharedCoreBridge.StripWhisperNonSpeechMarkers(trimmed);
-        if (stripped.Length != trimmed.Length)
+        // The core handles null, blank and surrounding whitespace itself; the
+        // trimmed length is read only for the log line.
+        var stripped = global::HyperWhisper.SharedCore.SharedCoreBridge.StripWhisperNonSpeechMarkers(text);
+        var trimmedLength = text?.Trim().Length ?? 0;
+        if (stripped.Length != trimmedLength)
         {
             LoggingService.Info(
-                $"  Removed Whisper non-speech markers ({trimmed.Length} → {stripped.Length} chars)");
+                $"  Removed Whisper non-speech markers ({trimmedLength} → {stripped.Length} chars)");
         }
         return stripped;
     }
