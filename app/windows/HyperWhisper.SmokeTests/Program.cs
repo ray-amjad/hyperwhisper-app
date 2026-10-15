@@ -12620,6 +12620,96 @@ internal static class Program
                     "an unrelated Deepgram key edit discarded a valid Google outcome");
             });
 
+            Run("issue #650: /health key_present for the HW-Cloud rows follows the account key /transcribe refuses on", () =>
+            {
+                var cloudTranscription = new[]
+                {
+                    CloudTranscriptionProvider.HyperWhisperCloud,
+                    CloudTranscriptionProvider.MicrosoftAzureSpeech,
+                    CloudTranscriptionProvider.GoogleSpeech,
+                };
+                var cloudTranscriptionIds = cloudTranscription.Select(p => p.GetIdentifier()).ToHashSet();
+                var cloudPostId = PostProcessingProvider.HyperWhisperCloud.ToStringValue();
+                // No BYOK key stored anywhere: only the account key can move these rows.
+                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
+
+                // The predicate /health reads is the one /transcribe and Cloud
+                // post-processing refuse on. This process never loads or
+                // activates a licence, so it is unlicensed, as a fresh profile is.
+                Assert(HealthEndpoints.CloudAccountKeyPresent()
+                        == LicenseManager.Instance.GetTranscriptionIdentifier().IsLicensed,
+                    "/health reads a different account-key predicate than /transcribe");
+                Assert(!HealthEndpoints.CloudAccountKeyPresent(),
+                    "a smoke process with no licence reads as holding an account key");
+
+                foreach (var keyPresent in new[] { false, true })
+                {
+                    var providers = HealthEndpoints.BuildTranscriptionProviders(apiKeys, health: null, keyPresent);
+                    var cloudRows = providers.Where(r => cloudTranscriptionIds.Contains(r.Id)).ToList();
+                    Assert(cloudRows.Count == cloudTranscription.Length,
+                        $"/health lost a HW-Cloud transcription row: {string.Join(",", cloudRows.Select(r => r.Id))}");
+                    foreach (var row in cloudRows)
+                    {
+                        Assert(row.KeyPresent == keyPresent,
+                            $"/health {row.Id} key_present={row.KeyPresent} with account key present={keyPresent}");
+                    }
+                    // The BYOK rows do not follow the account key.
+                    Assert(providers.Where(r => !cloudTranscriptionIds.Contains(r.Id)).All(r => !r.KeyPresent),
+                        "an account key made a BYOK transcription row claim a key");
+
+                    var post = HealthEndpoints.BuildPostProcessingProviders(apiKeys, health: null, keyPresent);
+                    var cloudPost = post.SingleOrDefault(r => r.Id == cloudPostId);
+                    Assert(cloudPost != null, "/health lost the HW-Cloud post-processing row");
+                    Assert(cloudPost!.KeyPresent == keyPresent,
+                        $"/health post-processing {cloudPostId} key_present={cloudPost.KeyPresent} with account key present={keyPresent}");
+                    Assert(post.Where(r => r.Id != cloudPostId).All(r => !r.KeyPresent),
+                        "an account key made a BYOK post-processing row claim a key");
+                }
+
+                // /models `installed` for the same HW-Cloud-routed rows (always
+                // Enabled in the library) follows the same account key; an
+                // Enabled BYOK row does not move with it.
+                LibraryModel Row(string id, object payload, LibraryModelKind kind) => new()
+                {
+                    Id = id,
+                    DisplayName = "row",
+                    ProviderName = "row",
+                    ProviderAssetName = "row",
+                    Kind = kind,
+                    LocationKind = LibraryModelLocationKind.Cloud,
+                    StatusKind = LibraryModelStatusKind.Enabled,
+                    Source = LibraryModelSource.CloudTranscription,
+                    SupportsCustomVocabulary = false,
+                    AvailableViaHyperWhisperCloud = false,
+                    Payload = payload
+                };
+                var cloudRowsForModels = cloudTranscription
+                    .Select(p => Row(
+                        p.GetIdentifier(),
+                        CloudTranscriptionModels.GetModelsForProvider(p).First(),
+                        LibraryModelKind.Voice))
+                    .Append(Row(
+                        cloudPostId,
+                        new LanguageModelInfo("hw-cloud", "HW Cloud", PostProcessingProvider.HyperWhisperCloud, "test"),
+                        LibraryModelKind.Text))
+                    .ToList();
+                var byokRow = Row(
+                    "deepgram",
+                    CloudTranscriptionModels.All.First(m => m.Provider == CloudTranscriptionProvider.Deepgram),
+                    LibraryModelKind.Voice);
+                foreach (var keyPresent in new[] { false, true })
+                {
+                    foreach (var row in cloudRowsForModels)
+                    {
+                        var entry = ModelsEndpoints.ToEntry(row, keyPresent);
+                        Assert(entry.Installed == keyPresent,
+                            $"/models {row.Id} installed={entry.Installed} with account key present={keyPresent}");
+                    }
+                    Assert(ModelsEndpoints.ToEntry(byokRow, keyPresent).Installed,
+                        $"an Enabled BYOK row read as not installed with account key present={keyPresent}");
+                }
+            });
+
             Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
             {
                 // Not a real credential: a placeholder whose only job is to prove it
