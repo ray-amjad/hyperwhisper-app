@@ -273,7 +273,7 @@ pub enum HealthReason {
     Healthy,
     /// The vendor rejected the key: 401 / 403 for every provider, and 400 for
     /// the vendors that answer an invalid key with 400 (Gemini, Gemini 3.5
-    /// Transcribe and Grok).
+    /// Transcribe in both batch and Live mode, and Grok).
     Unauthorized,
     /// Anything else: the probe got an answer that proves neither a valid nor
     /// an invalid key (other 4xx, 429, 5xx, ...).

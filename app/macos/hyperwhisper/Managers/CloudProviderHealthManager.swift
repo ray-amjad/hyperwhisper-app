@@ -750,7 +750,7 @@ final class CloudProviderHealthManager: ObservableObject {
     /// Map the core's `HwProviderHealth` verdict onto the app's `ProviderHealth`.
     ///
     /// The core's `reason` already says why a probe failed — including the
-    /// vendors (Gemini, Gemini 3.5 Transcribe, Grok) that answer an invalid key
+    /// vendors (Gemini, Gemini 3.5 Transcribe batch + Live, Grok) that answer an invalid key
     /// with HTTP 400 rather than 401/403. macOS and Windows used to keep their
     /// own copies of that vendor list, and they disagreed on Gemini 3.5
     /// Transcribe (issue #779). Do not re-derive the reason from the raw status.

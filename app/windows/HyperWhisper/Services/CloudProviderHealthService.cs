@@ -506,7 +506,7 @@ public class CloudProviderHealthService : IDisposable
     /// <summary>
     /// Map the core's <see cref="HwProviderHealth"/> onto the app's
     /// <see cref="ProviderHealth"/>. The core's <c>reason</c> already says why a
-    /// probe failed, including the vendors (Gemini, Gemini 3.5 Transcribe, Grok)
+    /// probe failed, including the vendors (Gemini, Gemini 3.5 Transcribe batch + Live, Grok)
     /// that answer a bad key with HTTP 400. This head used to keep its own copy of
     /// that vendor list and left out Gemini 3.5 Transcribe, so a bad key read
     /// "Provider unreachable" here and "Key invalid" on macOS (issue #779). Do
