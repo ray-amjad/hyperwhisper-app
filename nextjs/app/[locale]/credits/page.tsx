@@ -3,15 +3,9 @@ import { redirect } from "next/navigation";
 import CreditsPurchase from "@/components/credits/CreditsPurchase";
 import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
-type MetadataProps = {
-  params: Promise<{ locale: string }>;
-};
-
-export async function generateMetadata({ params }: MetadataProps) {
-  const { locale } = await params;
-
-  return localizedPageMetadata(locale, "/credits");
-}
+export const generateMetadata = localizedPageMetadata({
+  path: "/credits",
+});
 
 /**
  * Credits Page
