@@ -233,6 +233,8 @@ public partial class MainWindow : Window
         _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ActionRequested += OnTrayActionRequested;
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
+        _viewModel.Modes.PropertyChanged += OnModesChangedForParakeetPrewarm;
+        _viewModel.Modes.Items.CollectionChanged += OnModeItemsChangedForParakeetPrewarm;
         if (_viewModel.Recording is not null)
         {
             _viewModel.Recording.TranscriptionSaved += OnOnboardingTranscriptionSaved;
@@ -256,6 +258,7 @@ public partial class MainWindow : Window
             }
             var initializesHere = _initialization is null;
             await EnsureInitializedAsync();
+            PrewarmSelectedParakeetMode();
             var recovery = await new CrashAudioRecoveryService(
                 _platformServices.Paths,
                 new HistoryRepository(_database, _platformServices.Paths),
@@ -374,6 +377,8 @@ public partial class MainWindow : Window
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
+        _viewModel.Modes.PropertyChanged -= OnModesChangedForParakeetPrewarm;
+        _viewModel.Modes.Items.CollectionChanged -= OnModeItemsChangedForParakeetPrewarm;
         if (_viewModel.Recording is not null)
         {
             _viewModel.Recording.TranscriptionSaved -= OnOnboardingTranscriptionSaved;
@@ -409,6 +414,61 @@ public partial class MainWindow : Window
     }
 
     private Task EnsureInitializedAsync() => _initialization ??= InitializeAndArmAutoSaveAsync();
+
+    // The model + language the batch Parakeet daemon was last asked to load (#1791).
+    private string? _parakeetPrewarmKey;
+
+    private void OnModesChangedForParakeetPrewarm(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ModesViewModel.Selected)) PrewarmSelectedParakeetMode();
+    }
+
+    // A saved edit to the selected mode keeps the same Mode instance, so Selected does not
+    // change; Save replaces the row in Items, which is the signal for a new model or language.
+    private void OnModeItemsChangedForParakeetPrewarm(
+        object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
+        PrewarmSelectedParakeetMode();
+
+    /// <summary>
+    /// Loads the batch Parakeet daemon for the mode the next dictation will use, so the first
+    /// dictation after launch does not wait for the model load (#1791), as Windows loads
+    /// Parakeet on mode select. Fire and forget: a failure is logged, never shown, and the
+    /// dictation then starts the daemon itself as before. Whisper and cloud modes load nothing.
+    /// </summary>
+    private void PrewarmSelectedParakeetMode()
+    {
+        if (_closing || _shuttingDown || _initialization is not { IsCompletedSuccessfully: true }) return;
+        // The same pick LinuxInteractionRecordingSession.StartCoreAsync makes.
+        var mode = _viewModel.Modes.Selected ?? _viewModel.Modes.Items.FirstOrDefault(item => item.IsDefault)
+            ?? _viewModel.Modes.Items.FirstOrDefault();
+        if (mode is null
+            || string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(mode.LocalParakeetModel))
+        {
+            _parakeetPrewarmKey = null;
+            return;
+        }
+        // The request language CreateTranscriptionRequest sends for this mode.
+        var language = mode.Language ?? _viewModel.Settings.Language;
+        var key = mode.LocalParakeetModel.Trim() + "\n" + language;
+        if (key == _parakeetPrewarmKey) return;
+        _parakeetPrewarmKey = key;
+        _ = PrewarmParakeetAsync(mode, language, key);
+    }
+
+    private async Task PrewarmParakeetAsync(Mode mode, string? language, string key)
+    {
+        bool loaded;
+        try { loaded = await _platformServices.PrewarmLocalParakeetAsync(mode, language, _lifetime.Token); }
+        catch (Exception) { loaded = false; }
+        if (loaded || _lifetime.IsCancellationRequested) return;
+        // Not loaded (model not downloaded, daemon missing or failed to start): forget the key so
+        // the next change tries again, and the first dictation starts the daemon as before.
+        if (_parakeetPrewarmKey == key) _parakeetPrewarmKey = null;
+        try { await WriteDiagnosticAsync(DiagnosticSeverity.Warning, DiagnosticComponent.Transcription, DiagnosticOutcome.Degraded); }
+        catch (Exception) { }
+    }
 
     private async Task InitializeAndArmAutoSaveAsync()
     {

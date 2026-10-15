@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using HyperWhisper.Data.Entities;
 using HyperWhisper.ModelManagement;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Transcription;
@@ -113,19 +114,9 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!File.Exists(audioPath))
             return Failure(PortableTranscriptionErrorCode.InvalidRequest, "The audio file does not exist.");
-        var mode = request.SelectedMode;
-        var modelId = mode?.LocalParakeetModel?.Trim();
-        var model = PortableModelCatalog.Parakeet.FirstOrDefault(item =>
-            string.Equals(item.Id, modelId, StringComparison.OrdinalIgnoreCase));
-        if (model is null)
-            return Failure(PortableTranscriptionErrorCode.InvalidRequest, "Choose a supported Parakeet model.");
-
-        var modelDirectory = Path.GetFullPath(Path.Combine(_modelsRoot, model.StorageName));
-        if (!modelDirectory.StartsWith(_modelsRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-            || !HasCompleteModel(model, modelDirectory))
-            return Failure(PortableTranscriptionErrorCode.BackendUnavailable, "The selected Parakeet model is not downloaded.");
-
-        var language = NormalizeLanguage(request.Language ?? mode?.Language);
+        var unresolved = Resolve(request.SelectedMode, request.Language,
+            out var model, out var modelDirectory, out var language);
+        if (unresolved is not null) return unresolved;
         // Read before the gate: only the header is parsed, and an unreadable or non-WAV
         // file gives null, which keeps the fixed floor.
         var responseTimeout = ComputeResponseTimeout(
@@ -138,10 +129,10 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
         {
             try
             {
-                if (!IsReusable(model.Id, language))
+                if (!IsReusable(model!.Id, language))
                 {
                     await StopDaemonAsync(CancellationToken.None).ConfigureAwait(false);
-                    var started = await StartDaemonAsync(model, modelDirectory, language, cancellationToken).ConfigureAwait(false);
+                    var started = await StartDaemonAsync(model, modelDirectory!, language, cancellationToken).ConfigureAwait(false);
                     if (started is not null) return started;
                 }
 
@@ -188,6 +179,51 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
             {
                 await StopDaemonAsync(CancellationToken.None, force: true).ConfigureAwait(false);
                 return Failure(PortableTranscriptionErrorCode.TranscriptionFailed, "The Parakeet daemon connection failed.");
+            }
+        }
+        finally { _gate.Release(); }
+    }
+
+    /// <summary>
+    /// Loads the daemon for <paramref name="mode"/> before its first dictation (#1791), as
+    /// Windows loads Parakeet on mode select. <paramref name="language"/> is the request
+    /// language the head would send (it wins over the mode's own, as in
+    /// <see cref="TranscribeAsync(string, TranscriptionWorkflowRequest, CancellationToken)"/>).
+    /// A request that arrives meanwhile waits on the same gate and reuses the loaded daemon.
+    /// Returns true when the daemon for this mode is loaded and has run one warm-up decode;
+    /// a model that is not downloaded, a missing daemon, a failed start or a daemon that
+    /// dies during the warm-up gives false and leaves nothing running.
+    /// </summary>
+    public async Task<bool> PrewarmAsync(
+        Mode mode,
+        string? language = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(mode);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (Resolve(mode, language, out var model, out var modelDirectory, out var resolvedLanguage) is not null)
+            return false;
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposeCts.Token);
+        try { await _gate.WaitAsync(linked.Token).ConfigureAwait(false); }
+        catch (OperationCanceledException) { return false; }
+        try
+        {
+            if (_disposed) return false;
+            if (IsReusable(model!.Id, resolvedLanguage)) return true;
+            try
+            {
+                await StopDaemonAsync(CancellationToken.None).ConfigureAwait(false);
+                if (await StartDaemonAsync(model, modelDirectory!, resolvedLanguage, linked.Token)
+                    .ConfigureAwait(false) is not null) return false;
+                if (await WarmUpAsync(linked.Token).ConfigureAwait(false)) return true;
+                await StopDaemonAsync(CancellationToken.None).ConfigureAwait(false);
+                return false;
+            }
+            catch (Exception exception) when (exception is OperationCanceledException or TimeoutException
+                or JsonException or IOException or InvalidOperationException or ObjectDisposedException)
+            {
+                await StopDaemonAsync(CancellationToken.None, force: true).ConfigureAwait(false);
+                return false;
             }
         }
         finally { _gate.Release(); }
@@ -264,6 +300,79 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
             ? provider.GetString() : "cpu";
         _loadedModel = model.Id;
         _loadedLanguage = language;
+        return null;
+    }
+
+    /// <summary>The length of the silent clip <see cref="WarmUpAsync"/> decodes.</summary>
+    internal const int WarmUpSeconds = 3;
+
+    /// <summary>
+    /// Runs one throwaway decode of a silent clip on the just-loaded daemon (#1791). The
+    /// ready line only means the model is loaded; ONNX Runtime still pays its one-time
+    /// first-inference setup on the first real request, which kept the first dictation
+    /// ~25-40% slower than the second. Any reply (text, empty or an error) means the
+    /// decode ran; no reply means the daemon died and the prewarm failed.
+    /// </summary>
+    private async Task<bool> WarmUpAsync(CancellationToken cancellationToken)
+    {
+        var clip = Path.Combine(Path.GetTempPath(), $"hyperwhisper-parakeet-warmup-{Guid.NewGuid():N}.wav");
+        try
+        {
+            await File.WriteAllBytesAsync(clip, SilentWave(WarmUpSeconds), cancellationToken).ConfigureAwait(false);
+            var payload = JsonSerializer.Serialize(new { audio_path = clip });
+            await _stdin!.WriteLineAsync(payload).ConfigureAwait(false);
+            await _stdin.FlushAsync(cancellationToken).ConfigureAwait(false);
+            return await ReadLineAsync(_stdout!, _timeouts.Transcription, cancellationToken)
+                .ConfigureAwait(false) is not null;
+        }
+        finally { try { File.Delete(clip); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+    }
+
+    /// <summary>A 16 kHz mono PCM16 WAV of <paramref name="seconds"/> of silence.</summary>
+    internal static byte[] SilentWave(int seconds)
+    {
+        const int sampleRate = 16_000;
+        var dataBytes = sampleRate * 2 * seconds;
+        var wave = new byte[44 + dataBytes];
+        using var writer = new BinaryWriter(new MemoryStream(wave));
+        writer.Write("RIFF"u8);
+        writer.Write(36 + dataBytes);
+        writer.Write("WAVEfmt "u8);
+        writer.Write(16);
+        writer.Write((short)1);
+        writer.Write((short)1);
+        writer.Write(sampleRate);
+        writer.Write(sampleRate * 2);
+        writer.Write((short)2);
+        writer.Write((short)16);
+        writer.Write("data"u8);
+        writer.Write(dataBytes);
+        return wave;
+    }
+
+    /// <summary>
+    /// The one model/language resolution for a request and a prewarm (#1791), so a prewarm
+    /// loads exactly the daemon the next request for the same mode will reuse.
+    /// </summary>
+    private PortableTranscriptionResult? Resolve(
+        Mode? mode,
+        string? requestLanguage,
+        out ManagedModel? model,
+        out string? modelDirectory,
+        out string language)
+    {
+        var modelId = mode?.LocalParakeetModel?.Trim();
+        model = PortableModelCatalog.Parakeet.FirstOrDefault(item =>
+            string.Equals(item.Id, modelId, StringComparison.OrdinalIgnoreCase));
+        modelDirectory = null;
+        language = NormalizeLanguage(requestLanguage ?? mode?.Language);
+        if (model is null)
+            return Failure(PortableTranscriptionErrorCode.InvalidRequest, "Choose a supported Parakeet model.");
+
+        modelDirectory = Path.GetFullPath(Path.Combine(_modelsRoot, model.StorageName));
+        if (!modelDirectory.StartsWith(_modelsRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            || !HasCompleteModel(model, modelDirectory))
+            return Failure(PortableTranscriptionErrorCode.BackendUnavailable, "The selected Parakeet model is not downloaded.");
         return null;
     }
 
