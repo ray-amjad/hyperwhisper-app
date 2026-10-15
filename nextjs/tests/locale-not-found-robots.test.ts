@@ -208,6 +208,36 @@ test("the English-only pages throw their 404 from generateMetadata too", () => {
   }
 });
 
+test("the [locale] layout 404s an unknown locale in its metadata and its render", () => {
+  // The proxy matcher skips dotted paths, so /favicon.ico and /.env reach the
+  // layout with a "locale" that is not one. Both entry points must refuse it
+  // before the canonical or the page is built from it (#1853). The real layout
+  // imports CSS and next/font, so the source is read instead.
+  const source = readFileSync(
+    path.join(__dirname, "..", "app", "[locale]", "layout.tsx"),
+    "utf8",
+  );
+
+  for (const entry of [
+    "export async function generateMetadata",
+    "export default async function LocaleLayout",
+  ]) {
+    const start = source.indexOf(entry);
+
+    assert.ok(start >= 0, entry);
+    const body = source.slice(start, source.indexOf("\n}", start));
+    const guard = body.search(/if \(!isSupportedLocale\(locale\)\) notFound\(\)/);
+
+    assert.ok(guard > 0, `${entry} has no locale guard`);
+    // The guard comes before the first use of the locale.
+    for (const use of ["getTranslations(", "setRequestLocale("]) {
+      const at = body.indexOf(use);
+
+      if (at >= 0) assert.ok(guard < at, `${entry}: guard after ${use}`);
+    }
+  }
+});
+
 test("the root not-found wraps the [locale] 404 in the [locale] layout", async () => {
   request.locale = "de";
   const [{ default: RootNotFound, generateMetadata }, localeModule] =
