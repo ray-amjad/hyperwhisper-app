@@ -19,16 +19,21 @@ struct CloudPostProcessingAccountKeyTests {
 
     private static let text = "um so like the meeting is at three pm tomorrow okay"
 
-    private func makeProcessor() -> (AIPostProcessor, ErrorBox) {
+    /// `AIPostProcessor.licenseManager` is `weak`, so the caller must hold the
+    /// returned `LicenseManager` for the whole test. Dropped, it is nil at once
+    /// and the processor takes its "license manager not available" exit, which
+    /// never reaches the account-key check.
+    private func makeProcessor() -> (AIPostProcessor, LicenseManager, ErrorBox) {
         let processor = AIPostProcessor(settingsManager: SettingsManager.shared)
-        processor.licenseManager = LicenseManager(
+        let licenseManager = LicenseManager(
             networkService: NoAccountKeyLicenseNetwork(),
             loadStoredLicenseOnInit: false,
             notificationCenter: NotificationCenter()
         )
+        processor.licenseManager = licenseManager
         let box = ErrorBox()
         processor.onPostProcessingError = { box.errors.append($0) }
-        return (processor, box)
+        return (processor, licenseManager, box)
     }
 
     private func makeCloudMode(_ persistence: PersistenceController) -> Mode {
@@ -44,7 +49,7 @@ struct CloudPostProcessingAccountKeyTests {
     @Test func noAccountKeyFlagsTheSignalAndReturnsTheTextUnchanged() async throws {
         let persistence = PersistenceController(inMemory: true)
         let mode = makeCloudMode(persistence)
-        let (processor, box) = makeProcessor()
+        let (processor, licenseManager, box) = makeProcessor()
         let signal = MutationSignal()
 
         let result = try await processor.performAIPostProcessingPreservingBreaks(
@@ -59,6 +64,7 @@ struct CloudPostProcessingAccountKeyTests {
         #expect(signal.cloudAccountMissing)
         #expect(!signal.didMutate)
         #expect(signal.resolvedModel == nil)
+        #expect(processor.licenseManager === licenseManager)
         // The in-app pipeline still gets the actionable error, now naming the
         // real cause rather than a 401 from a doomed request.
         guard case .cloudAccountRequired? = box.errors.first else {
@@ -70,7 +76,7 @@ struct CloudPostProcessingAccountKeyTests {
     @Test func noAccountKeyIsFlaggedOnTheMultiSegmentPath() async throws {
         let persistence = PersistenceController(inMemory: true)
         let mode = makeCloudMode(persistence)
-        let (processor, _) = makeProcessor()
+        let (processor, licenseManager, _) = makeProcessor()
         let signal = MutationSignal()
 
         _ = try await processor.performAIPostProcessingPreservingBreaks(
@@ -84,6 +90,7 @@ struct CloudPostProcessingAccountKeyTests {
         #expect(signal.cloudAccountMissing)
         #expect(!signal.didMutate)
         #expect(!signal.anyPartialFailure)
+        #expect(processor.licenseManager === licenseManager)
     }
 
 }

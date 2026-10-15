@@ -1091,7 +1091,7 @@ class AIPostProcessor: ObservableObject {
     ///
     /// API CONTRACT:
     /// - Endpoint: POST /post-process
-    /// - Request: JSON body with { text, prompt, license_key OR device_id }
+    /// - Request: JSON body with { text, prompt, license_key } (no account key: refused before the request, #1487)
     /// - Response: { corrected, cost: { usd, credits } }
     ///
     /// - Parameters:
