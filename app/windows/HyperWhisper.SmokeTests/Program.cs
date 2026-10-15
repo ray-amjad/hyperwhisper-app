@@ -921,6 +921,93 @@ internal static class Program
                     "PushToTalkMonitor does not implement the portable contract");
             });
 
+            Run("Push-to-talk skips SmartPaste's marked Ctrl+V and nothing else (#1851)", () =>
+            {
+                // SmartPaste's Ctrl+V uses the generic VK_CONTROL, which push-to-talk
+                // reads as Ctrl since #694. The records below are the very INPUTs
+                // SmartPaste hands to SendInput; each is fed to the hook as Windows
+                // delivers it (LLKHF_INJECTED, the INPUT's dwExtraInfo).
+                var paste = SyntheticKeyboard.BuildInputs(SyntheticKeyboard.CtrlV);
+                Assert(paste.Length == 4 && paste[0].u.ki.wVk == 0x11 && paste[3].u.ki.wVk == 0x11,
+                    "SmartPaste's Ctrl+V uses the generic VK_CONTROL");
+                Assert(paste.All(i => i.u.ki.dwExtraInfo == SyntheticKeyboard.InjectedKeyMarker),
+                    "every SmartPaste key carries the HyperWhisper marker");
+                Assert(System.Runtime.InteropServices.Marshal.SizeOf<SyntheticKeyboard.INPUT>() == (IntPtr.Size == 8 ? 40 : 28),
+                    "INPUT has the size SendInput checks");
+
+                static void Feed(LowLevelKeyboardHook hook, SyntheticKeyboard.INPUT[] inputs, IntPtr extraInfo)
+                {
+                    foreach (var input in inputs)
+                    {
+                        var ki = input.u.ki;
+                        var msg = (ki.dwFlags & SyntheticKeyboard.KEYEVENTF_KEYUP) != 0
+                            ? LowLevelKeyboardHook.WM_KEYUP
+                            : LowLevelKeyboardHook.WM_KEYDOWN;
+                        hook.HandleKeyEvent(msg, ki.wVk, SyntheticKeyboard.LLKHF_INJECTED, extraInfo);
+                    }
+                }
+
+                static PushToTalkMonitor CtrlMonitor()
+                {
+                    var monitor = new PushToTalkMonitor();
+                    monitor.Configure(new PushToTalkSettings { Mode = PushToTalkMode.Modifier, Modifier = "Ctrl" });
+                    return monitor;
+                }
+
+                // 1. HyperWhisper's own paste: no state change, nothing tracked.
+                using (var monitor = CtrlMonitor())
+                {
+                    Feed(monitor.Hook, paste, SyntheticKeyboard.InjectedKeyMarker);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.Idle,
+                        $"SmartPaste's Ctrl+V moved push-to-talk to {monitor.State}");
+                    Assert(monitor.Hook.PressedKeys.Count == 0, "SmartPaste's keys were tracked as pressed");
+
+                    // ...and while the user holds Ctrl, the paste is no interference.
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, 0xA2, 0, IntPtr.Zero);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        "a physical LCtrl starts the activation wait");
+                    Feed(monitor.Hook, paste, SyntheticKeyboard.InjectedKeyMarker);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        $"SmartPaste's Ctrl+V during a hold moved push-to-talk to {monitor.State}");
+                    Assert(monitor.Hook.PressedKeys.SetEquals(new[] { 0xA2 }), "the held LCtrl must stay tracked");
+                }
+
+                // 2. A physical generic Ctrl still drives push-to-talk (#694).
+                using (var monitor = CtrlMonitor())
+                {
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, 0x11, 0, IntPtr.Zero);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        $"a physical generic Ctrl left push-to-talk in {monitor.State}");
+                }
+
+                // 3. Another program's injected Ctrl (AutoHotkey, Stream Deck) still drives it.
+                using (var monitor = CtrlMonitor())
+                {
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, 0x11,
+                        SyntheticKeyboard.LLKHF_INJECTED, IntPtr.Zero);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        $"an unmarked injected Ctrl left push-to-talk in {monitor.State}");
+                }
+
+                // 4. The marker alone, without LLKHF_INJECTED, is not ours.
+                using (var monitor = CtrlMonitor())
+                {
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, 0x11, 0, SyntheticKeyboard.InjectedKeyMarker);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        "a non-injected key is never skipped");
+                }
+
+                // 5. Named shortcuts keep the unfiltered hook: they still see the paste.
+                using var shortcuts = new KeyboardShortcutService();
+                var hookField = typeof(KeyboardShortcutService).GetField(
+                    "_hook", BindingFlags.NonPublic | BindingFlags.Instance)
+                    ?? throw new InvalidOperationException("KeyboardShortcutService._hook is gone");
+                var shortcutHook = (LowLevelKeyboardHook)hookField.GetValue(shortcuts)!;
+                shortcutHook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, 0x11,
+                    SyntheticKeyboard.LLKHF_INJECTED, SyntheticKeyboard.InjectedKeyMarker);
+                Assert(shortcutHook.PressedKeys.Contains(0x11), "named shortcuts must still track SmartPaste's Ctrl");
+            });
+
             // Issue #1497: the default toggle Ctrl+Alt fired the moment Ctrl and Alt
             // were both down, so Ctrl+Alt+Left started a hidden recording. A
             // modifier-only chord now triggers on a clean release. The sequences
