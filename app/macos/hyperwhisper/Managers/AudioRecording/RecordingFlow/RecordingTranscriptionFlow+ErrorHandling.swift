@@ -172,6 +172,16 @@ extension RecordingTranscriptionFlow {
                 ? appState.pendingRetryFailedRowWrite
                 : nil
 
+            // A retry that hears no speech keeps the row failed, with the
+            // "no speech" reason, instead of a blank completed row (#1815).
+            // Nothing is delivered; the catch below shows the error.
+            try await Self.failPendingRetryIfNoSpeech(
+                transcriptionResult,
+                failedRowWrite: failedRowWrite,
+                audioURL: audioURL,
+                modeName: transcriptionMode.name
+            )
+
             // Deliver like a dictation (paste, clipboard fallback, the pill's
             // "Pasted!" only after a real paste), then save. Before #1636 the
             // retry only set the text: nothing was pasted, copied or saved.

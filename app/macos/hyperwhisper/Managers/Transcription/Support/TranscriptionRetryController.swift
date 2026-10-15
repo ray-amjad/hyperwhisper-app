@@ -228,10 +228,6 @@ class TranscriptionRetryController {
                 throw CancellationError()
             }
 
-            // A retry that hears no speech keeps the row failed, with the
-            // "no speech" reason, instead of a blank completed row (#1429).
-            try result.throwIfNoSpeech()
-
             // SAVE TRIMMED AUDIO PATH:
             // If VAD created a valid trimmed file, store the path in Core Data.
             // This allows users to toggle between original and trimmed audio in history view.
@@ -245,6 +241,12 @@ class TranscriptionRetryController {
             if transcript.retryWasStoppedByDelete() {
                 throw CancellationError()
             }
+
+            // A retry that hears no speech keeps the row failed, with the
+            // "no speech" reason, instead of a blank completed row (#1429).
+            // Checked after the trimmed path is saved, so the failed row owns
+            // the trimmed WAV this run wrote and its delete sweeps it (#1815).
+            try result.throwIfNoSpeech()
 
             // SUCCESS HANDLING: Update transcript with successful result
             // This marks the transcript as completed and stores the text

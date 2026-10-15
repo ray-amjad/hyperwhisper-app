@@ -1712,20 +1712,33 @@ class PersistenceController: ObservableObject {
     }
 
     /// Mark a transcript failed on the serial writer.
+    ///
+    /// - Parameter countsRetry: a retry failed this row (#1815). Counts it
+    ///   (`retryCount` + 1, `lastRetryDate`) as History's own Retry does.
+    /// - Returns: whether the row was found and the write was saved.
+    @discardableResult
     func markTranscriptFailedInBackground(
         transcriptID: NSManagedObjectID,
         failedReason: String,
-        errorText: String
-    ) async {
-        await performWrite { context in
+        errorText: String,
+        countsRetry: Bool = false
+    ) async -> Bool {
+        let result = await performWriteReportingSave { context -> Bool in
             guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
                 AppLogger.coreData.warning("markTranscriptFailedInBackground: transcript row not found — skipping")
-                return
+                return false
             }
             transcript.setValue("failed", forKey: "status")
             transcript.setValue(failedReason, forKey: "failedReason")
             transcript.text = errorText
+            if countsRetry {
+                let currentRetryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
+                transcript.setValue(currentRetryCount + 1, forKey: "retryCount")
+                transcript.setValue(Date(), forKey: "lastRetryDate")
+            }
+            return true
         }
+        return result.value && result.saved
     }
 
     /// Finalize a recording session on stop in ONE serial write — collapses the
