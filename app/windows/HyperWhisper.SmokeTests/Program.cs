@@ -1221,25 +1221,27 @@ internal static class Program
                 Assert(!described.Contains("quarterly", StringComparison.OrdinalIgnoreCase), "path description leaked the file name");
             });
 
-            Run("Whisper non-speech markers never become a transcript — issue #1449", () =>
+            Run("Whisper non-speech markers never become a transcript — issues #1449, #1811", () =>
             {
                 // The issue's silent file and silent dictation: only markers come back,
                 // so the text is empty and the orchestrator raises NoSpeechDetected.
-                Assert(TranscriptionService.StripNonSpeechMarkers(" [BLANK_AUDIO] [BLANK_AUDIO]") == "",
-                    "a transcript of only [BLANK_AUDIO] markers must strip to empty");
-                Assert(TranscriptionService.StripNonSpeechMarkers("[BLANK_AUDIO] ") == "",
-                    "the dictation case ('[BLANK_AUDIO] ') must strip to empty");
-                Assert(TranscriptionService.StripNonSpeechMarkers("[ Silence ] (music) [no speech]") == "",
-                    "Whisper's other non-speech annotations must strip too");
+                // The cases are the cross-platform contract: Rust, Linux and macOS
+                // replay this very file, so the three heads strip the same markers.
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "whisper-marker-vectors.json");
+                Assert(File.Exists(vectorsPath), $"whisper-marker-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var cases = vectors.RootElement.GetProperty("cases");
+                Assert(cases.GetArrayLength() >= 20, "whisper-marker-vectors.json looks truncated");
+                foreach (var vector in cases.EnumerateArray())
+                {
+                    var name = vector.GetProperty("name").GetString()!;
+                    var input = vector.GetProperty("input").GetString()!;
+                    var expected = vector.GetProperty("expected").GetString()!;
+                    var actual = TranscriptionService.StripNonSpeechMarkers(input);
+                    Assert(actual == expected, $"{name}: got '{actual}', expected '{expected}'");
+                }
                 Assert(TranscriptionService.StripNonSpeechMarkers(null) == "", "null must strip to empty");
-
-                // Real speech around a marker survives, with one space where it was.
-                var mixed = TranscriptionService.StripNonSpeechMarkers(" Hello there. [BLANK_AUDIO] See you soon.");
-                Assert(mixed == "Hello there. See you soon.", $"speech around a marker was damaged: '{mixed}'");
-
-                // A bracket the speaker dictated is not a marker.
-                var dictated = TranscriptionService.StripNonSpeechMarkers(" Call the function [user id] (optional). ");
-                Assert(dictated == "Call the function [user id] (optional).", $"dictated brackets were removed: '{dictated}'");
             });
 
             Run("On-device transcript log lines carry metadata, never the words — issue #1645", () =>
