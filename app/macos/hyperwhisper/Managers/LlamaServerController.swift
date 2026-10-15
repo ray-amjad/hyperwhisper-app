@@ -184,6 +184,15 @@ final class LlamaServerController: ObservableObject {
 
     @Published private(set) var state: State = .stopped
 
+    #if DEBUG
+    /// TEST SEAM, Debug builds only (tests run against Debug). Always nil in the
+    /// app. When set, `ensureRunning` launches with it in place of the
+    /// configuration its caller passed, so a test can drive a production caller
+    /// that passes none (`AIPostProcessor`) against a fake runtime on a port
+    /// nothing listens on (#908). Release has no such property.
+    var configurationOverrideForTesting: Configuration?
+    #endif
+
     /// Signal that a local runtime will be needed (shows "Warming Up" in the status bar).
     /// Called before the async `ensureRunning` work begins.
     ///
@@ -252,6 +261,9 @@ final class LlamaServerController: ObservableObject {
     /// Ensures the llama-server is running with the given model file.
     /// Use this overload when the caller has already resolved the model (e.g. Qwen models).
     func ensureRunning(modelId: String, modelURL: URL, configuration: Configuration = .default) async throws -> String {
+        #if DEBUG
+        let configuration = configurationOverrideForTesting ?? configuration
+        #endif
         // Runtime gate (not compile-time): on Intel the runtime can never run; under
         // Rosetta on Apple Silicon the arm64 runtime can't load, so nudge a native
         // relaunch rather than failing opaquely. `#if arch(arm64)` is kept as a final
