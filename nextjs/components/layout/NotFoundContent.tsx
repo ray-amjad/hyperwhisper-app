@@ -32,7 +32,7 @@ export default function NotFoundContent({
   const t = copyByLocale[locale] ?? copyByLocale[fallbackLocale];
 
   return (
-    <section className="flex flex-col items-center justify-center gap-6 px-6 py-32 text-center">
+    <section className="flex flex-col items-center justify-center gap-6 py-32 text-center">
       <p className="text-6xl font-extrabold tracking-tight text-gray-500">
         404
       </p>
