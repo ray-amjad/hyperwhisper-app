@@ -58,15 +58,9 @@ public sealed class LocalApiFailureException : Exception
     }
 
     /// <summary>
-    /// Wrap a <c>hw-localapi</c> failure. The binding's records are
-    /// <c>internal</c>, so this factory is the seam that keeps them off the
-    /// public surface of the server — the same trick
-    /// <see cref="LocalApiSharedFailure"/> uses.
-    /// </summary>
-    /// <summary>
-    /// `MISSING_API_KEY` for a HyperWhisper Cloud call with no account key,
-    /// from the shared table's `CloudAccountRequired` row — the envelope
-    /// macOS and Windows send for `/transcribe` and `/post-process` alike
+    /// <c>MISSING_API_KEY</c> for a HyperWhisper Cloud call with no account key,
+    /// from the shared table's <c>CloudAccountRequired</c> row — the envelope
+    /// macOS and Windows send for <c>/transcribe</c> and <c>/post-process</c> alike
     /// (issue #1487). Public because a head's post-processor adapter lives in
     /// its own assembly.
     /// </summary>
@@ -82,6 +76,12 @@ public sealed class LocalApiFailureException : Exception
                 @retryAfterSeconds: null,
                 @hint: "Add your account key in Settings → HyperWhisper Cloud.")));
 
+    /// <summary>
+    /// Wrap a <c>hw-localapi</c> failure. The binding's records are
+    /// <c>internal</c>, so this factory is the seam that keeps them off the
+    /// public surface of the server — the same trick
+    /// <see cref="LocalApiSharedFailure"/> uses.
+    /// </summary>
     internal static LocalApiFailureException From(HwLocalApiFailure failure) =>
         new(failure.httpStatus,
             HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(failure.code),
