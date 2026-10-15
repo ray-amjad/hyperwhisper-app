@@ -28,6 +28,10 @@
          portable head and macOS replay this very file. -->
     <Content Include="../../../shared-conformance/default-model-vectors.json"
              Link="default-model-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- And for the provider health verdict (issue #779): Rust, the portable
+         head and macOS replay this very file. -->
+    <Content Include="../../../shared-conformance/health-vectors.json"
+             Link="health-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The LIVE Windows appcast, not a fixture: the AppcastService checks
          replay the very feed the shipped app fetches and pin the 15 releases it
          renders, so #353's move of the selection rules into the shared core is

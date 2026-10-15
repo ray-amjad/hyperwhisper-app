@@ -2873,6 +2873,61 @@ internal static class Program
                 }
             });
 
+            // Replays shared-conformance/health-vectors.json through THIS head's
+            // own mapping of the core's verdict (issue #779). The other heads
+            // replay the same file:
+            //   shared-core-rs/crates/hw-net/tests/health_vectors.rs
+            //   app/shared-dotnet/HyperWhisper.SharedCore.Tests
+            //   app/macos/hyperwhisperTests/HealthConformanceVectorTests.swift
+            //
+            // MapHealthVerdict used to keep its own "which vendors answer a bad
+            // key with 400" list and left out Gemini 3.5 Transcribe, so the same
+            // bad key read "Provider unreachable" here and "Key invalid" on macOS.
+            // The rows are asserted against the LITERAL reason in the file.
+            Run("provider health vectors match this head's verdict mapping", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "health-vectors.json");
+                Assert(File.Exists(vectorsPath), $"health-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var rows = vectors.RootElement.GetProperty("cases");
+                Assert(rows.GetArrayLength() >= 15 * 6, "health-vectors.json looks truncated");
+
+                foreach (var row in rows.EnumerateArray())
+                {
+                    var providerName = row.GetProperty("provider").GetString()!;
+                    var status = row.GetProperty("status").GetUInt16();
+                    var reason = row.GetProperty("reason").GetString()!;
+                    var label = $"{providerName} {status}";
+
+                    Assert(Enum.TryParse<HwProvider>(providerName, out var hwProvider),
+                        $"{label}: the binding has no HwProvider named '{providerName}'");
+                    var want = reason switch
+                    {
+                        "healthy" => ProviderHealth.Healthy,
+                        "unauthorized" => ProviderHealth.Unauthorized,
+                        "unreachable" => ProviderHealth.Unreachable,
+                        _ => throw new InvalidOperationException($"{label}: unknown reason '{reason}'"),
+                    };
+
+                    var verdict = HyperwhisperCoreMethods.ParseHealthResponse(
+                        hwProvider,
+                        new uniffi.hyperwhisper_core.HttpResponse(status, new List<Header>(), Array.Empty<byte>()));
+                    Assert(verdict.@healthy == row.GetProperty("healthy").GetBoolean(),
+                        $"{label}: core healthy flag disagrees with the vectors");
+                    var got = CloudProviderHealthService.MapHealthVerdict(verdict);
+                    Assert(got == want, $"{label}: Windows reads {got}, the vectors say {want}");
+                }
+
+                // The row the issue was filed for, through the provider mapping the
+                // shipping probe uses rather than through the vector's own name.
+                var geminiTranscribe = HyperwhisperCoreMethods.ParseHealthResponse(
+                    RustCoreMapping.HwProviderFor(CloudTranscriptionProvider.GeminiTranscribe),
+                    new uniffi.hyperwhisper_core.HttpResponse(400, new List<Header>(), Array.Empty<byte>()));
+                Assert(CloudProviderHealthService.MapHealthVerdict(geminiTranscribe) == ProviderHealth.Unauthorized,
+                    "a Gemini 3.5 Transcribe key rejected with HTTP 400 must read as Unauthorized");
+            });
+
             // NATIVE CAPTURE (issue #277, phase 1a). Drives every
             // shared-conformance/backup-vectors.json modeNormalization row through the
             // SHIPPING Windows mode-import path — UniversalBackupMapper.MapToMode, which
