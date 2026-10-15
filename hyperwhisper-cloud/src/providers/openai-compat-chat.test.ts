@@ -240,7 +240,7 @@ describe('request body construction', () => {
     expect(lastBody().temperature).toBe(0);
   });
 
-  test('gemini disables thinking on the 2.5-flash and 3.8-flash families only', async () => {
+  test('gemini sends the lowest thinking level on the 2.5-flash and 3.8-flash families only', async () => {
     // Both families default to a dynamic thinking budget and bill thinking
     // tokens as output — pure cost on a text-cleanup call.
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
@@ -250,9 +250,12 @@ describe('request body construction', () => {
     expect(lastBody().reasoning_effort).toBe('none');
 
     // Cloud-routed since 2026-09; at $3.75/1M output, thinking tokens are the
-    // single most expensive thing this model can do on a cleanup call.
+    // single most expensive thing this model can do on a cleanup call. 3.8 Flash
+    // cannot turn thinking off and rejects 'minimal' with a 400 (measured on the
+    // compat surface 2026-10-15), so its floor is 'low' — never 'none' or
+    // 'minimal'. A 400 is not retried on another provider.
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash');
-    expect(lastBody().reasoning_effort).toBe('none');
+    expect(lastBody().reasoning_effort).toBe('low');
 
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.0-pro');
     expect(lastBody()).not.toHaveProperty('reasoning_effort');
