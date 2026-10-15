@@ -825,7 +825,7 @@
 "transcripts.delete.single.message" = "この録音と音声ファイルを完全に削除します。";
 "transcripts.delete.multiple.title" = "%d件の録音を削除しますか？";
 "transcripts.delete.multiple.message" = "選択した %d 件の録音と音声ファイルを完全に削除します。\n\nこの操作は元に戻せません。";
-"transcripts.delete.multiple.confirm" = "すべて削除";
+"transcripts.delete.multiple.confirm" = "%d件の録音を削除";
 "transcripts.retry.error.title" = "再試行に失敗しました";
 "transcripts.retry.error.modeDeleted" = "この録音を作成したモードは削除されたため、再試行しませんでした。履歴で録音を右クリックし、\"指定モードで再試行...\" を選んで別のモードを指定してください。";
 

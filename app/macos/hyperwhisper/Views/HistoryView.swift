@@ -535,6 +535,10 @@ private struct HistoryScreen: View, Equatable {
     @StateObject private var viewModel = HistoryViewModel()
     @State private var selectedTranscriptIDs: Set<NSManagedObjectID> = []
     @State private var actionHandler: TranscriptActionHandler?
+    /// Which build of the List holds keyboard focus. Keyed by the list identity
+    /// so the List rebuilt by `.id(viewModel.listIdentity)` is a different focus
+    /// target from the one it replaced (#1460, see HistoryListFocus).
+    @FocusState private var focusedList: HistoryViewModel.ListIdentity?
 
     static func == (lhs: HistoryScreen, rhs: HistoryScreen) -> Bool {
         ObjectIdentifier(lhs.transcriptionPipeline) == ObjectIdentifier(rhs.transcriptionPipeline)
@@ -585,6 +589,34 @@ private struct HistoryScreen: View, Equatable {
         .onChange(of: viewModel.loadedObjectIDs) { _, ids in
             selectedTranscriptIDs.formIntersection(ids)
         }
+        .onChange(of: viewModel.listIdentity) { oldIdentity, newIdentity in
+            // #1460: a rebuild (a retry inserting a newest row) tears down the
+            // focused table. The selection survives, but AppKit draws it as the
+            // grey inactive highlight and arrow keys stop working until a click.
+            // Hand focus to the rebuilt List, but only if the old one had it, so
+            // a rebuild caused by typing in the search field never steals focus.
+            guard let target = HistoryListFocus.identityToRefocus(
+                focused: focusedList,
+                old: oldIdentity,
+                new: newIdentity
+            ) else { return }
+            // Next main-loop turn: the rebuilt table must be in the window first.
+            DispatchQueue.main.async {
+                focusedList = target
+            }
+        }
+        .onChange(of: focusedList) { previous, now in
+            // The same hand-off when SwiftUI reports the old table's focus loss
+            // only after the identity change above has already run.
+            guard let target = HistoryListFocus.identityToRefocusAfterFocusLoss(
+                previous: previous,
+                now: now,
+                current: viewModel.listIdentity
+            ) else { return }
+            DispatchQueue.main.async {
+                focusedList = target
+            }
+        }
     }
 
     private var historyList: some View {
@@ -634,6 +666,7 @@ private struct HistoryScreen: View, Equatable {
                 }
             }
             .listStyle(.sidebar)
+            .focused($focusedList, equals: viewModel.listIdentity)
             // Rebuild the NSTableView-backed List (instead of diffing rows in
             // place) when the query changes or when the newest row changes —
             // the two transitions where in-place diffing mis-reuses row views.
@@ -1057,6 +1090,58 @@ enum AudioFileState {
     case missing
 }
 
+/// #1460: after `.id(listIdentity)` rebuilds the History List, which list
+/// build should get keyboard focus back, if any. Only a rebuild of the list
+/// that held focus hands it on; focus elsewhere (the search field, the detail
+/// pane) is left alone.
+enum HistoryListFocus {
+    static func identityToRefocus<Identity: Equatable>(
+        focused: Identity?,
+        old: Identity,
+        new: Identity
+    ) -> Identity? {
+        guard old != new, let focused, focused == old else { return nil }
+        return new
+    }
+
+    /// Focus left the list (`now` is nil). If it was held by a list build that
+    /// has since been replaced, the loss is the rebuild's, not the user's, so
+    /// the current build gets it back. A user clicking elsewhere leaves focus
+    /// from the current build, which stays put.
+    static func identityToRefocusAfterFocusLoss<Identity: Equatable>(
+        previous: Identity?,
+        now: Identity?,
+        current: Identity
+    ) -> Identity? {
+        guard now == nil, let previous, previous != current else { return nil }
+        return current
+    }
+}
+
+/// #1460: the History player's elapsed-time label and resume point.
+enum HistoryPlaybackClock {
+    /// "elapsed / total", e.g. "1m 5s / 97m 16s". Elapsed is clamped into the
+    /// file so a timer tick past the end never reads longer than the file.
+    static func label(
+        elapsed: TimeInterval,
+        duration: TimeInterval,
+        format: (TimeInterval) -> String = formatDuration
+    ) -> String {
+        let total = duration.isFinite ? max(0, duration) : 0
+        let shown = elapsed.isFinite ? min(max(0, elapsed), total) : 0
+        return "\(format(shown)) / \(format(total))"
+    }
+
+    /// Where Play starts from a stored position: the position itself, or the
+    /// start of the file when the position is at (or past) the end.
+    static func startTime(position: TimeInterval, duration: TimeInterval) -> TimeInterval {
+        guard position.isFinite, duration.isFinite, position > 0, position < duration else {
+            return 0
+        }
+        return position
+    }
+}
+
 /// What pressing Play in the History detail pane should do.
 ///
 /// #1456: the "file exists" flag is cached when the row's metadata loads, so a
@@ -1107,6 +1192,10 @@ private struct TranscriptDetailView: View {
     @State private var editedText = ""
     @State private var audioPlayer: AVAudioPlayer?
     @State private var isPlaying = false
+    /// Where playback stands while nothing is playing: the paused point, or a
+    /// point picked on the waveform before Play (#1460). While playing, the
+    /// player's own currentTime is the source of truth.
+    @State private var playbackPosition: TimeInterval = 0
 
     /// Cancellable completion timer that flips `isPlaying` back off when playback
     /// reaches the end. Stored so pause / replay / source-toggle / disappear can
@@ -1452,13 +1541,26 @@ private struct TranscriptDetailView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Waveform visualization - uses selected audio path (original or trimmed)
-                WaveformVisualizer(audioFilePath: selectedAudioFilePath)
-                    .frame(height: 60)
+                // Waveform + elapsed time (#1460). The timeline only ticks while
+                // playing; paused, it shows the stored position.
+                TimelineView(.animation(minimumInterval: 0.1, paused: !isPlaying)) { _ in
+                    let elapsed = currentPlaybackTime
+                    let duration = playbackDuration
+                    HStack {
+                        // Uses the selected audio path (original or trimmed).
+                        // A click seeks; a drag scrubs and seeks on release.
+                        WaveformVisualizer(
+                            audioFilePath: selectedAudioFilePath,
+                            progress: WaveformScrub.fraction(atTime: elapsed, duration: duration),
+                            onSeek: { fraction in seek(toFraction: fraction) }
+                        )
+                        .frame(height: 60)
 
-                Text(formatDuration(selectedAudioDuration))
-                    .font(.caption)
-                    .monospacedDigit()
+                        Text(HistoryPlaybackClock.label(elapsed: elapsed, duration: duration))
+                            .font(.caption)
+                            .monospacedDigit()
+                    }
+                }
             }
             .padding()
         }
@@ -1507,6 +1609,9 @@ private struct TranscriptDetailView: View {
             playbackCompletionWorkItem?.cancel()
             playbackCompletionWorkItem = nil
             audioPlayer?.pause()
+            if let audioPlayer {
+                playbackPosition = audioPlayer.currentTime
+            }
             isPlaying = false
         } else {
             // Use selectedAudioFilePath to play either original or trimmed audio
@@ -1518,20 +1623,22 @@ private struct TranscriptDetailView: View {
                 Task { await refreshAudioMetadata() }
             case .play(let url):
                 do {
-                    let player = try AVAudioPlayer(contentsOf: url)
-                    audioPlayer = player
+                    // Resume the paused player when it still holds this file, so
+                    // Play after Pause continues where it stopped (#1460).
+                    let player: AVAudioPlayer
+                    if let existing = audioPlayer, existing.url == url {
+                        player = existing
+                    } else {
+                        player = try AVAudioPlayer(contentsOf: url)
+                        audioPlayer = player
+                    }
+                    player.currentTime = HistoryPlaybackClock.startTime(
+                        position: playbackPosition,
+                        duration: player.duration
+                    )
                     player.play()
                     isPlaying = true
-
-                    // Set up a cancellable completion handler. Cancel any prior
-                    // timer first so stacked closures can't desync the button.
-                    playbackCompletionWorkItem?.cancel()
-                    let workItem = DispatchWorkItem {
-                        isPlaying = false
-                        playbackCompletionWorkItem = nil
-                    }
-                    playbackCompletionWorkItem = workItem
-                    DispatchQueue.main.asyncAfter(deadline: .now() + player.duration, execute: workItem)
+                    scheduleCompletion(for: player)
                 } catch {
                     historyViewLogger.error("Error playing audio: \(error, privacy: .public)")
                     // The file can vanish between the check and the open. Re-check
@@ -1551,6 +1658,52 @@ private struct TranscriptDetailView: View {
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
+        playbackPosition = 0
+    }
+
+    /// Flips the play/pause button back off when the player reaches the end.
+    /// Cancels any prior timer first so stacked closures can't desync the
+    /// button, and times from the current position, so a resume or a seek
+    /// re-arms it for the time actually left.
+    private func scheduleCompletion(for player: AVAudioPlayer) {
+        playbackCompletionWorkItem?.cancel()
+        let workItem = DispatchWorkItem {
+            isPlaying = false
+            playbackPosition = 0
+            playbackCompletionWorkItem = nil
+        }
+        playbackCompletionWorkItem = workItem
+        let remaining = max(0, player.duration - player.currentTime)
+        DispatchQueue.main.asyncAfter(deadline: .now() + remaining, execute: workItem)
+    }
+
+    /// Where playback is now: the live player while playing, else the stored
+    /// position (paused point, or where a click on the waveform put it).
+    private var currentPlaybackTime: TimeInterval {
+        if isPlaying, let audioPlayer {
+            return audioPlayer.currentTime
+        }
+        return playbackPosition
+    }
+
+    /// The open player's duration, else the cached duration of the selected file.
+    private var playbackDuration: TimeInterval {
+        if let audioPlayer, audioPlayer.duration > 0 {
+            return audioPlayer.duration
+        }
+        return selectedAudioDuration
+    }
+
+    /// Click-to-seek on the waveform (#1460). Playing: jump there and keep
+    /// playing. Paused or stopped: the next Play starts there.
+    private func seek(toFraction fraction: Double) {
+        let time = WaveformScrub.time(atFraction: fraction, duration: playbackDuration)
+        playbackPosition = time
+        guard let audioPlayer else { return }
+        audioPlayer.currentTime = time
+        if isPlaying {
+            scheduleCompletion(for: audioPlayer)
+        }
     }
     
     private var actionsBar: some View {

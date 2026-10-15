@@ -824,7 +824,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "transcripts.delete.single.message" = "Ini akan menghapus rekaman ini dan file audionya secara permanen.";
 "transcripts.delete.multiple.title" = "Hapus %d Rekaman?";
 "transcripts.delete.multiple.message" = "Ini akan menghapus %d rekaman dan file audio mereka secara permanen.\n\nTindakan ini tidak dapat dibatalkan.";
-"transcripts.delete.multiple.confirm" = "Hapus Semua";
+"transcripts.delete.multiple.confirm" = "Hapus %d Rekaman";
 "transcripts.retry.error.title" = "Coba Lagi Gagal";
 "transcripts.retry.error.modeDeleted" = "Mode yang membuat rekaman ini telah dihapus, jadi tidak dicoba lagi. Di Riwayat, klik kanan rekaman dan pilih \"Coba lagi dengan...\" untuk memilih mode lain.";
 

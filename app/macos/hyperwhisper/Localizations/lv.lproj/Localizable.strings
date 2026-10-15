@@ -824,7 +824,7 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "transcripts.delete.single.message" = "Tas neatgriezenski dzēsīs šo ierakstu un tā audio failu.";
 "transcripts.delete.multiple.title" = "Dzēst %d ierakstus?";
 "transcripts.delete.multiple.message" = "Tas neatgriezenski dzēsīs %d ierakstus un to audio failus.\n\nŠo darbību nevar atsaukt.";
-"transcripts.delete.multiple.confirm" = "Dzēst visus";
+"transcripts.delete.multiple.confirm" = "Dzēst ierakstus: %d";
 "transcripts.retry.error.title" = "Atkārtošana neizdevās";
 "transcripts.retry.error.modeDeleted" = "Režīms, ar kuru tika veikts šis ieraksts, ir izdzēsts, tāpēc atkārtots mēģinājums netika veikts. Vēsturē ar peles labo pogu noklikšķiniet uz ieraksta un izvēlieties \"Atkārtot ar...\", lai izvēlētos citu režīmu.";
 

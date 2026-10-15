@@ -824,7 +824,7 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "transcripts.delete.single.message" = "Þetta mun varanlega eyða þessari upptöku og hljóðskrá hennar.";
 "transcripts.delete.multiple.title" = "Eyða %d upptökum?";
 "transcripts.delete.multiple.message" = "Þetta mun varanlega eyða %d upptökum og hljóðskránum þeirra.\n\nÞessa aðgerð er ekki hægt að afturkalla.";
-"transcripts.delete.multiple.confirm" = "Eyða öllum";
+"transcripts.delete.multiple.confirm" = "Eyða upptökum: %d";
 "transcripts.retry.error.title" = "Endurtilraun mistókst";
 "transcripts.retry.error.modeDeleted" = "Hamurinn sem gerði þessa upptöku var eyddur, svo ekki var reynt aftur. Í Sögu skaltu hægrismella á upptökuna og velja \"Reyna aftur með...\" til að velja annan ham.";
 

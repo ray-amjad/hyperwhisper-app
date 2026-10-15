@@ -824,7 +824,7 @@
 "transcripts.delete.single.message" = "Αυτό θα διαγράψει μόνιμα αυτήν την εγγραφή και το αρχείο ήχου της.";
 "transcripts.delete.multiple.title" = "Διαγραφή %d Εγγραφών;";
 "transcripts.delete.multiple.message" = "Αυτό θα διαγράψει μόνιμα %d εγγραφές και τα αρχεία ήχου τους.\n\nΑυτή η ενέργεια δεν μπορεί να αναιρεθεί.";
-"transcripts.delete.multiple.confirm" = "Διαγραφή Όλων";
+"transcripts.delete.multiple.confirm" = "Διαγραφή %d Εγγραφών";
 "transcripts.retry.error.title" = "Η Δοκιμή Απέτυχε";
 "transcripts.retry.error.modeDeleted" = "Η λειτουργία που δημιούργησε αυτή την εγγραφή διαγράφηκε, οπότε δεν έγινε νέα προσπάθεια. Στο Ιστορικό, κάντε δεξί κλικ στην εγγραφή και επιλέξτε \"Δοκιμάστε ξανά με...\" για να διαλέξετε άλλη λειτουργία.";
 

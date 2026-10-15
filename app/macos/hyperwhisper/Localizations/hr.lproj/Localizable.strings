@@ -824,7 +824,7 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "transcripts.delete.single.message" = "Ovo će trajno izbrisati ovo snimanje i njegovu audio datoteku.";
 "transcripts.delete.multiple.title" = "Izbrisati %d snimanja?";
 "transcripts.delete.multiple.message" = "Ovo će trajno izbrisati %d snimanja i njihove audio datoteke.\n\nOva radnja se ne može poništiti.";
-"transcripts.delete.multiple.confirm" = "Izbriši sve";
+"transcripts.delete.multiple.confirm" = "Izbriši snimanja: %d";
 "transcripts.retry.error.title" = "Ponovno pokušavanje nije uspjelo";
 "transcripts.retry.error.modeDeleted" = "Način koji je napravio ovu snimku je izbrisan, pa nije ponovno pokušano. U Povijesti desnom tipkom kliknite snimku i odaberite \"Pokušaj ponovno s...\" za odabir drugog načina.";
 
