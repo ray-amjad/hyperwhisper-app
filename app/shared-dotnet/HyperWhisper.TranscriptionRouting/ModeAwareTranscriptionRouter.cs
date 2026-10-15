@@ -490,6 +490,7 @@ public sealed class ModeAwareTranscriptionRouter :
         CloudTranscriptionErrorCode.InvalidRequest or CloudTranscriptionErrorCode.FileTooLarge
             or CloudTranscriptionErrorCode.Unsupported => PortableTranscriptionErrorCode.InvalidRequest,
         CloudTranscriptionErrorCode.Unauthorized => PortableTranscriptionErrorCode.BackendUnavailable,
+        CloudTranscriptionErrorCode.CloudAccountRequired => PortableTranscriptionErrorCode.CloudAccountRequired,
         _ => PortableTranscriptionErrorCode.TranscriptionFailed,
     };
 }

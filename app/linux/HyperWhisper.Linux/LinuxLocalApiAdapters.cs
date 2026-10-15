@@ -149,7 +149,8 @@ internal sealed class LinuxLocalApiPostProcessor(
         var result = await processor.ProcessAsync(
             request.Text, mode, request.ApplicationContext?.ToSnapshot(), cancellationToken);
         // No account key on a HyperWhisper Cloud run: the same MISSING_API_KEY
-        // refusal `/transcribe` gives for the same mode (issue #1487), not the
+        // envelope `/transcribe` gives for the same mode (issue #1487; both go
+        // through `LocalApiFailureException.CloudAccountRequired`), not the
         // generic ENGINE_UNAVAILABLE below.
         if (!result.WasApplied
             && result.FailureCode == PortablePostProcessingResult.CloudAccountRequiredFailureCode)

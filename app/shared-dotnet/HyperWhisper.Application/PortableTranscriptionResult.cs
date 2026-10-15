@@ -8,6 +8,8 @@ public enum PortableTranscriptionErrorCode
     BackendUnavailable,
     TranscriptionFailed,
     Cancelled,
+    /// <summary>No account key for a HyperWhisper Cloud run (issue #1487).</summary>
+    CloudAccountRequired,
 }
 
 public sealed record PortableTranscriptionFailure(

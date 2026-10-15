@@ -63,16 +63,21 @@ internal static class LocalApiSharedFailure
     /// hint in.
     /// </remarks>
     internal static LocalApiFailureException TranscriptionFailure(PortableTranscriptionFailure? failure) =>
-        LocalApiFailureException.From(HyperwhisperCoreMethods.LocalApiMapTranscriptionError(
-            ReasonFor(failure?.Code),
-            new HwLocalApiTranscriptionFailureParams(
-                @provider: null,
-                @detail: failure?.Message,
-                @model: null,
-                @limitBytes: null,
-                @httpStatus: null,
-                @retryAfterSeconds: null,
-                @hint: null)));
+        // No account key on a HyperWhisper Cloud run: the one envelope
+        // /post-process sends for the same mode, provider and hint included
+        // (issue #1487), so the two endpoints cannot drift apart.
+        failure?.Code == PortableTranscriptionErrorCode.CloudAccountRequired
+            ? LocalApiFailureException.CloudAccountRequired()
+            : LocalApiFailureException.From(HyperwhisperCoreMethods.LocalApiMapTranscriptionError(
+                ReasonFor(failure?.Code),
+                new HwLocalApiTranscriptionFailureParams(
+                    @provider: null,
+                    @detail: failure?.Message,
+                    @model: null,
+                    @limitBytes: null,
+                    @httpStatus: null,
+                    @retryAfterSeconds: null,
+                    @hint: null)));
 
     /// <summary>
     /// A failed ffmpeg conversion of an upload (issue #1572), through the same

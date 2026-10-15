@@ -1657,6 +1657,18 @@ static async Task PortableTranscriptionFailuresReachTheWire()
         "Transcription was cancelled.",
         "cancelled transcription");
 
+    // No account key on a HyperWhisper Cloud run: MISSING_API_KEY, the exact
+    // envelope /post-process sends for the same mode (issue #1487, review R2-1).
+    // This head used to answer ENGINE_UNAVAILABLE here.
+    var cloudAccount = LocalApiFailureException.CloudAccountRequired();
+    await Assert357(
+        new CloudAccountRequiredTranscriber(),
+        new NoDevices(),
+        async client => { using var form = Clip(); return await client.PostAsync("/transcribe", form); },
+        LocalApiErrorCodes.MissingApiKey,
+        cloudAccount.Message,
+        "a Cloud transcription with no account key");
+
     // The `/recording/*` routes reach the same table through
     // `ThrowWorkflowFailure`, which did a partial two-way split of the SAME
     // enum — `BackendUnavailable` became HTTP 200 ENGINE_UNAVAILABLE and
@@ -3336,6 +3348,15 @@ sealed class CancelledTranscriber : IRecordedAudioTranscriber
     public TranscriptionBackendCapability Capability { get; } = new(true, "Cancelling");
     public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
         => Task.FromResult(PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.Cancelled, "Transcription was cancelled.", "Cancelling"));
+}
+
+/// <summary>What the cloud router returns for a HyperWhisper Cloud mode with no account key.</summary>
+sealed class CloudAccountRequiredTranscriber : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(true, "HyperWhisper Cloud");
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
+        => Task.FromResult(PortableTranscriptionResult.Failed(
+            PortableTranscriptionErrorCode.CloudAccountRequired, "A HyperWhisper account key is required.", "HyperWhisper Cloud"));
 }
 
 /// <summary>Returns one fixed transcript and remembers the request it ran under.</summary>

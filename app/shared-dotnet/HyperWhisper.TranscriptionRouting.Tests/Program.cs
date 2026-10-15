@@ -14,6 +14,7 @@ Directory.CreateDirectory(root);
 try
 {
     await TestRouterAsync(root);
+    await TestCloudAccountRequiredAsync(root);
     await TestLocalVocabularyAsync(root);
     await TestParakeetProtocolAsync(root);
     await TestParakeetCancellationAsync(root);
@@ -87,6 +88,30 @@ static async IAsyncEnumerable<ReadOnlyMemory<byte>> OneChunk(byte[] value)
 {
     yield return value;
     await Task.CompletedTask;
+}
+
+static async Task TestCloudAccountRequiredAsync(string root)
+{
+    // Issue #1487 (review R2-1): no account key on a HyperWhisper Cloud mode
+    // keeps its own code through the router, so the Local API answers
+    // MISSING_API_KEY on /transcribe as it does on /post-process. A provider's
+    // 401 stays BackendUnavailable.
+    var audio = Path.Combine(root, "account.wav");
+    await File.WriteAllBytesAsync(audio, [1]);
+    var mode = new Mode { ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "deepgramNova3" };
+    foreach (var (cloudCode, expected) in new[]
+    {
+        (CloudTranscriptionErrorCode.CloudAccountRequired, PortableTranscriptionErrorCode.CloudAccountRequired),
+        (CloudTranscriptionErrorCode.Unauthorized, PortableTranscriptionErrorCode.BackendUnavailable),
+    })
+    {
+        using var router = new ModeAwareTranscriptionRouter(
+            new FakeTranscriber("whisper", available: false),
+            new FakeTranscriber("parakeet", available: false),
+            new FailingCloud(cloudCode));
+        var result = await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: mode));
+        Assert(result.Failure?.Code == expected, $"{cloudCode} routed to {result.Failure?.Code}, expected {expected}");
+    }
 }
 
 static async Task TestRouterAsync(string root)
@@ -871,6 +896,13 @@ sealed class FakeTranscriber(string provider, bool available = true, string? tex
         Task.FromResult(PortableTranscriptionResult.Success(text ?? provider, provider));
     public Task<PortableTranscriptionResult> TranscribeAsync(string path, TranscriptionWorkflowRequest request, CancellationToken token = default)
     { LastRequest = request; return Task.FromResult(PortableTranscriptionResult.Success(text ?? provider, provider)); }
+}
+
+sealed class FailingCloud(CloudTranscriptionErrorCode code) : IBatchCloudTranscriptionClient
+{
+    public Task<CloudTranscriptionResult> TranscribeAsync(CloudTranscriptionRequest request, CancellationToken token = default) =>
+        Task.FromResult(CloudTranscriptionResult.Failed(
+            new CloudTranscriptionFailure(code, "refused", request.Provider), 1));
 }
 
 sealed class RecordingCloud : IBatchCloudTranscriptionClient
