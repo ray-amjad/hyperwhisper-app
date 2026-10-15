@@ -1125,6 +1125,9 @@
 "transcribe.file.error.webm" = "WebM समर्थित नहीं है। फ़ाइल को MP3, M4A या WAV में बदलें, फिर से कोशिश करें।";
 "transcribe.file.error.notAudio" = "फ़ाइल “%@” मान्य ऑडियो नहीं है। फ़ाइल ख़राब हो सकती है, या ऐसे फ़ॉर्मेट में हो सकती है जिसे macOS डिकोड नहीं कर सकता।";
 "transcribe.file.error.empty" = "फ़ाइल “%@” ख़ाली है। इसमें ट्रांसक्राइब करने के लिए कोई ऑडियो नहीं है।";
+"transcribe.file.error.permission" = "HyperWhisper फ़ाइल “%@” को नहीं पढ़ सकता। फ़ाइल की अनुमतियाँ जाँचें।";
+"transcribe.file.error.folderPermission" = "HyperWhisper उस फ़ोल्डर को नहीं खोल सकता जिसमें फ़ाइल “%@” है। उस फ़ोल्डर की अनुमतियाँ जाँचें।";
+"transcribe.file.error.privacy" = "macOS की गोपनीयता सेटिंग्स ने HyperWhisper को फ़ाइल “%@” पढ़ने से रोक दिया। इसे सिस्टम सेटिंग्स > गोपनीयता और सुरक्षा > पूर्ण डिस्क एक्सेस में अनुमति दें।";
 "transcribe.file.error.tooShort" = "यह फ़ाइल ट्रांसक्राइब करने के लिए बहुत छोटी है (%@ s)।";
 "transcribe.file.error.copy" = "फ़ाइल को रिकॉर्डिंग फ़ोल्डर में कॉपी करने में विफल।";
 "transcribe.file.error.video.title" = "वीडियो में कोई ऑडियो नहीं";

@@ -1125,6 +1125,9 @@
 "transcribe.file.error.webm" = "ไม่รองรับ WebM แปลงไฟล์เป็น MP3, M4A หรือ WAV แล้วลองอีกครั้ง";
 "transcribe.file.error.notAudio" = "ไฟล์ “%@” ไม่ใช่เสียงที่ถูกต้อง ไฟล์อาจเสียหาย หรืออยู่ในรูปแบบที่ macOS ถอดรหัสไม่ได้";
 "transcribe.file.error.empty" = "ไฟล์ “%@” ว่างเปล่า ไม่มีเสียงให้ถอดความ";
+"transcribe.file.error.permission" = "HyperWhisper อ่านไฟล์ “%@” ไม่ได้ โปรดตรวจสอบสิทธิ์ของไฟล์";
+"transcribe.file.error.folderPermission" = "HyperWhisper เปิดโฟลเดอร์ที่มีไฟล์ “%@” ไม่ได้ โปรดตรวจสอบสิทธิ์ของโฟลเดอร์นั้น";
+"transcribe.file.error.privacy" = "การตั้งค่าความเป็นส่วนตัวของ macOS บล็อกไม่ให้ HyperWhisper อ่านไฟล์ “%@” โปรดอนุญาตในการตั้งค่าระบบ > ความเป็นส่วนตัวและความปลอดภัย > การเข้าถึงดิสก์เต็มรูปแบบ";
 "transcribe.file.error.tooShort" = "ไฟล์นี้สั้นเกินไปจนถอดความไม่ได้ (%@ วินาที)";
 "transcribe.file.error.copy" = "ไม่สามารถคัดลอกไฟล์ไปยังโฟลเดอร์การบันทึก";
 "transcribe.file.error.video.title" = "ไม่มีเสียงในวิดีโอ";

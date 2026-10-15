@@ -1125,6 +1125,9 @@
 "transcribe.file.error.webm" = "פורמט WebM אינו נתמך. המירו את הקובץ ל-MP3, M4A או WAV ונסו שוב.";
 "transcribe.file.error.notAudio" = "הקובץ „%@” אינו שמע תקין. ייתכן שהוא פגום, או בפורמט ש-macOS לא יכול לפענח.";
 "transcribe.file.error.empty" = "הקובץ „%@” ריק. אין בו שמע לתמלול.";
+"transcribe.file.error.permission" = "‏HyperWhisper לא יכול לקרוא את הקובץ „%@”. בדקו את ההרשאות של הקובץ.";
+"transcribe.file.error.folderPermission" = "‏HyperWhisper לא יכול לפתוח תיקייה שמכילה את הקובץ „%@”. בדקו את ההרשאות של התיקייה הזו.";
+"transcribe.file.error.privacy" = "הגדרות הפרטיות של macOS מנעו מ-HyperWhisper לקרוא את הקובץ „%@”. אפשרו זאת בהגדרות המערכת > פרטיות ואבטחה > גישה מלאה לדיסק.";
 "transcribe.file.error.tooShort" = "הקובץ הזה קצר מדי לתמלול (%@ שנ׳).";
 "transcribe.file.error.copy" = "כשל בהעתקת קובץ לתיקיית הקלטות.";
 "transcribe.file.error.video.title" = "אין אודיו בוידאו";

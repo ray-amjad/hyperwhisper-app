@@ -141,6 +141,10 @@ struct AudioContainerSnifferTests {
             "transcribe.file.error.webm": 0,
             "transcribe.file.error.notAudio": 1,
             "transcribe.file.error.empty": 1,
+            // #1551: an unreadable source names itself and the cause.
+            "transcribe.file.error.permission": 1,
+            "transcribe.file.error.folderPermission": 1,
+            "transcribe.file.error.privacy": 1,
         ]
         let localizations = ProductionSource.url("app/macos/hyperwhisper/Localizations")
         let locales = try FileManager.default.contentsOfDirectory(
