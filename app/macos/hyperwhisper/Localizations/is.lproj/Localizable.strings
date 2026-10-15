@@ -1125,6 +1125,9 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcribe.file.error.webm" = "WebM er ekki stutt. Umbreyttu skránni í MP3, M4A eða WAV og reyndu aftur.";
 "transcribe.file.error.notAudio" = "Skráin „%@“ er ekki gilt hljóð. Hún gæti verið skemmd eða á sniði sem macOS getur ekki afkóðað.";
 "transcribe.file.error.empty" = "Skráin „%@“ er tóm. Hún inniheldur ekkert hljóð til að umrita.";
+"transcribe.file.error.permission" = "HyperWhisper getur ekki lesið skrána „%@“. Athugaðu heimildir skrárinnar.";
+"transcribe.file.error.folderPermission" = "HyperWhisper getur ekki opnað möppu sem inniheldur skrána „%@“. Athugaðu heimildir þeirrar möppu.";
+"transcribe.file.error.privacy" = "Persónuverndarstillingar macOS komu í veg fyrir að HyperWhisper læsi skrána „%@“. Leyfðu það í Kerfisstillingum > Persónuvernd og öryggi > Fullur diskaðgangur.";
 "transcribe.file.error.tooShort" = "Þessi skrá er of stutt til að umrita hana (%@ s).";
 "transcribe.file.error.copy" = "Mistókst að afrita skrá í upptökumöppu.";
 "transcribe.file.error.video.title" = "Ekkert hljóð í myndskrá";

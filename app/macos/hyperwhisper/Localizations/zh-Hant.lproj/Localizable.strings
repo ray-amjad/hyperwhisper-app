@@ -1125,6 +1125,9 @@
 "transcribe.file.error.webm" = "不支援 WebM。請將檔案轉換為 MP3、M4A 或 WAV 後再試一次。";
 "transcribe.file.error.notAudio" = "檔案「%@」不是有效的音訊。檔案可能已損毀，或是 macOS 無法解碼的格式。";
 "transcribe.file.error.empty" = "檔案「%@」是空的，沒有可轉錄的音訊。";
+"transcribe.file.error.permission" = "HyperWhisper 無法讀取檔案「%@」。請檢查該檔案的權限。";
+"transcribe.file.error.folderPermission" = "HyperWhisper 無法打開包含檔案「%@」的檔案夾。請檢查該檔案夾的權限。";
+"transcribe.file.error.privacy" = "macOS 隱私權設定阻止了 HyperWhisper 讀取檔案「%@」。請在「系統設定」>「隱私權與安全性」>「完整磁碟取用權限」中允許。";
 "transcribe.file.error.tooShort" = "此檔案太短，無法轉寫（%@ 秒）。";
 "transcribe.file.error.copy" = "無法將檔案複製到錄音資料夾。";
 "transcribe.file.error.video.title" = "影片中沒有音頻";

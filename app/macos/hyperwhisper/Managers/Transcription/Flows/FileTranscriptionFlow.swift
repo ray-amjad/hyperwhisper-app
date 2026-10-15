@@ -301,7 +301,10 @@ class FileTranscriptionFlow {
             Self.isFilePickerOpen = false
 
             guard response == .OK, let selectedURL = panel.url else {
-                AppLogger.transcription.info("📂 File picker cancelled")
+                // Which exit, so a silent close can be told from a cancel in
+                // the log (issue #1551 case B).
+                let reason = response == .OK ? "OK with no URL" : "response \(response.rawValue)"
+                AppLogger.transcription.info("📂 File picker cancelled (\(reason, privacy: .public))")
                 return
             }
 
@@ -360,14 +363,19 @@ class FileTranscriptionFlow {
         var importDuration: TimeInterval?
 
         do {
-            // STEP 2a: Validate file size against provider limits (0-5%)
+            // STEP 2a: The source must be readable, and if it is not, the alert
+            // names it and the cause (issue #1551). Otherwise the first read is
+            // the copy below, whose Foundation error names the recordings folder.
             progressState.animateProgress(to: 0.03, duration: 0.2)
+            try Self.checkSourceReadable(fileURL)
+
+            // STEP 2b: Validate file size against provider limits (0-5%)
             try validateFileSize(fileURL, for: mode)
 
             // Check for cancellation
             guard !progressState.isCancelled else { throw CancellationError() }
 
-            // STEP 2b: Validate file format is supported by provider
+            // STEP 2c: Validate file format is supported by provider
             // This catches unsupported formats early with a helpful error message
             // rather than letting the API return a cryptic error after upload
             progressState.animateProgress(to: 0.05, duration: 0.2)
@@ -623,6 +631,31 @@ class FileTranscriptionFlow {
         }
     }
 
+    /// Throws the error that names why `fileURL` cannot be read, if the cause
+    /// is one the user can act on (issue #1551). A missing file or another
+    /// errno passes, and the next step's own error reports it.
+    nonisolated static func checkSourceReadable(_ fileURL: URL) throws {
+        let access = SourceFileAccess.probe(path: fileURL.path)
+        if let error = sourceAccessError(for: access, fileName: fileURL.lastPathComponent) {
+            AppLogger.transcription.error("❌ Source file not readable: \(String(describing: access), privacy: .public)")
+            throw error
+        }
+    }
+
+    /// The alert error for a probe result, or `nil` when there is none to give.
+    nonisolated static func sourceAccessError(for access: SourceFileAccess, fileName: String) -> FileTranscriptionError? {
+        switch access {
+        case .fileDenied:
+            return .sourcePermissionDenied(fileName: fileName)
+        case .folderInPathDenied:
+            return .sourceFolderPermissionDenied(fileName: fileName)
+        case .privacyBlocked:
+            return .sourcePrivacyBlocked(fileName: fileName)
+        case .readable, .missing, .isFolder, .unreadable:
+            return nil
+        }
+    }
+
     /// Validates that the file size doesn't exceed the provider's limit
     ///
     /// - Parameters:
@@ -762,8 +795,15 @@ class FileTranscriptionFlow {
         )
         let destinationURL = recordingsDirectory.appendingPathComponent(newFileName)
 
-        // Copy file
-        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        // Copy file. Foundation's copy error names the destination folder even
+        // when the source is what cannot be read, so a failure re-checks the
+        // source first (issue #1551): it may have changed since STEP 2a.
+        do {
+            try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        } catch {
+            try Self.checkSourceReadable(sourceURL)
+            throw error
+        }
 
         AppLogger.transcription.info("📁 Copied file to: \(destinationURL.lastPathComponent)")
         return destinationURL
@@ -998,7 +1038,8 @@ class FileTranscriptionFlow {
                 message: "transcribe.file.error.webm".localized
             )
 
-        case .unreadableAudio, .emptyFile:
+        case .unreadableAudio, .emptyFile, .sourcePermissionDenied,
+             .sourceFolderPermissionDenied, .sourcePrivacyBlocked:
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
                 message: error.localizedDescription
@@ -1189,6 +1230,18 @@ enum FileTranscriptionError: Error, LocalizedError {
     /// The picked file is 0 bytes (#1428).
     case emptyFile(fileName: String)
 
+    /// The picked file's own permissions forbid reading it (EACCES on open,
+    /// issue #1551).
+    case sourcePermissionDenied(fileName: String)
+
+    /// A folder in the picked file's path cannot be entered (EACCES on stat,
+    /// issue #1551).
+    case sourceFolderPermissionDenied(fileName: String)
+
+    /// macOS privacy protection blocked the read (EPERM, issue #1551). The one
+    /// case where Full Disk Access is the fix.
+    case sourcePrivacyBlocked(fileName: String)
+
     var errorDescription: String? {
         switch self {
         case .fileTooLarge(_, _, let providerName):
@@ -1209,6 +1262,12 @@ enum FileTranscriptionError: Error, LocalizedError {
             return "transcribe.file.error.notAudio".localized(arguments: fileName)
         case .emptyFile(let fileName):
             return "transcribe.file.error.empty".localized(arguments: fileName)
+        case .sourcePermissionDenied(let fileName):
+            return "transcribe.file.error.permission".localized(arguments: fileName)
+        case .sourceFolderPermissionDenied(let fileName):
+            return "transcribe.file.error.folderPermission".localized(arguments: fileName)
+        case .sourcePrivacyBlocked(let fileName):
+            return "transcribe.file.error.privacy".localized(arguments: fileName)
         }
     }
 }

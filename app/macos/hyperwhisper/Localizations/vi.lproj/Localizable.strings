@@ -1125,6 +1125,9 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcribe.file.error.webm" = "Không hỗ trợ WebM. Hãy chuyển tệp sang MP3, M4A hoặc WAV rồi thử lại.";
 "transcribe.file.error.notAudio" = "Tệp “%@” không phải là âm thanh hợp lệ. Tệp có thể bị hỏng hoặc ở định dạng mà macOS không giải mã được.";
 "transcribe.file.error.empty" = "Tệp “%@” trống. Không có âm thanh để chép lời.";
+"transcribe.file.error.permission" = "HyperWhisper không thể đọc tệp “%@”. Hãy kiểm tra quyền của tệp.";
+"transcribe.file.error.folderPermission" = "HyperWhisper không thể mở một thư mục chứa tệp “%@”. Hãy kiểm tra quyền của thư mục đó.";
+"transcribe.file.error.privacy" = "Cài đặt quyền riêng tư của macOS đã chặn HyperWhisper đọc tệp “%@”. Hãy cho phép trong Cài đặt hệ thống > Quyền riêng tư & Bảo mật > Truy cập toàn bộ ổ đĩa.";
 "transcribe.file.error.tooShort" = "Tệp này quá ngắn để chép lời (%@ giây).";
 "transcribe.file.error.copy" = "Không thể sao chép tệp vào thư mục bản ghi âm.";
 "transcribe.file.error.video.title" = "Không có Âm thanh trong Video";
