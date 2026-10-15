@@ -2327,6 +2327,13 @@ public partial class MainWindow : Window
         var token = TryReadLocalApiToken();
         SetNamedText("SettingsLocalApiToken", token is null ? "—" : _localApiTokenRevealed
             ? token : new string('•', Math.Max(0, token.Length - 4)) + token[^Math.Min(4, token.Length)..]);
+        // #643: a revealed token wraps onto as many lines as it needs, so all of it can be read.
+        // The masked value keeps the row's one trimmed line.
+        if (FindNamed<TextBlock>("SettingsLocalApiToken") is { } tokenText)
+        {
+            tokenText.TextWrapping = _localApiTokenRevealed ? TextWrapping.Wrap : TextWrapping.NoWrap;
+            tokenText.TextTrimming = _localApiTokenRevealed ? TextTrimming.None : TextTrimming.CharacterEllipsis;
+        }
         SetNamedText("SettingsLocalApiMcpSnippet", LocalApiMcpSnippet);
         SetNamedText("SettingsLocalApiCurlSnippet", LocalApiCurlSnippet);
     }
