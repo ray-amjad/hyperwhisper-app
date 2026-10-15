@@ -17400,6 +17400,87 @@ internal static class Program
                 Assert(Realized() <= 40, $"scrolled to the end, {Realized()} cards are built");
             });
 
+            Run("tray: an active mode past the first 50 is listed and checked in Select Mode - issue #1870", () =>
+            {
+                // #1870. Since #1593 the tray Select Mode submenu lists the first 50 modes,
+                // then More... With the active mode at index 50 or later no item was
+                // checked, so the tray hid which mode was active. Ray (inbox #1293): add
+                // it as one extra checked item after the 50, before More... Drive the real
+                // RefreshModeMenu on a bare window with 10,000 modes.
+                const int count = 10_000;
+                var modes = Enumerable.Range(0, count).Select(i => new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = $"mode {i:D5}",
+                    SortOrder = i
+                }).ToList();
+
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                var window = (HyperWhisper.Views.Windows.MainWindow)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(HyperWhisper.Views.Windows.MainWindow));
+                var menu = new System.Windows.Forms.ToolStripMenuItem();
+                const BindingFlags field = BindingFlags.Instance | BindingFlags.NonPublic;
+                typeof(MainViewModel).GetField("_modes", field)!.SetValue(vm, modes);
+                typeof(HyperWhisper.Views.Windows.MainWindow).GetField("_viewModel", field)!.SetValue(window, vm);
+                typeof(HyperWhisper.Views.Windows.MainWindow).GetField("_modeMenu", field)!.SetValue(window, menu);
+                var refresh = typeof(HyperWhisper.Views.Windows.MainWindow).GetMethod("RefreshModeMenu", field)!;
+
+                List<System.Windows.Forms.ToolStripMenuItem> Rebuild(Mode? active)
+                {
+                    typeof(MainViewModel).GetField("_selectedMode", field)!.SetValue(vm, active);
+                    refresh.Invoke(window, null);
+                    return menu.DropDownItems.OfType<System.Windows.Forms.ToolStripMenuItem>().ToList();
+                }
+
+                var limit = HyperWhisper.Views.Windows.MainWindow.TrayModeMenuLimit;
+                var moreText = Loc.S("menu.mode.more");
+
+                // Active mode 00500: the 50 modes, then 00500 checked, then More...
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                var items = Rebuild(modes[500]);
+                clock.Stop();
+                var modeItems = items.Where(i => i.Tag is Mode).ToList();
+                Assert(modeItems.Count == limit + 1,
+                    $"the submenu lists {modeItems.Count} modes with mode 00500 active, not {limit + 1}");
+                var checkedItems = modeItems.Where(i => i.Checked).ToList();
+                Assert(checkedItems.Count == 1 && ReferenceEquals(checkedItems[0].Tag, modes[500]),
+                    $"{checkedItems.Count} items are checked and mode 00500 is not the checked one");
+                Assert(ReferenceEquals(modeItems[limit].Tag, modes[500]) && modeItems[limit].Text == "mode 00500",
+                    "the active mode is not the extra item right after the first 50");
+                Assert(ReferenceEquals(modeItems[limit - 1].Tag, modes[limit - 1]),
+                    "mode 50 was swapped out for the active mode");
+                Assert(items.Last().Text == moreText && menu.DropDownItems.IndexOf(modeItems[limit]) < menu.DropDownItems.IndexOf(items.Last()),
+                    "More... is not the last item, after the active mode");
+                Assert(clock.ElapsedMilliseconds < 2000,
+                    $"building the submenu for {count} modes took {clock.ElapsedMilliseconds} ms");
+
+                // The last mode active: same shape.
+                items = Rebuild(modes[count - 1]);
+                modeItems = items.Where(i => i.Tag is Mode).ToList();
+                Assert(modeItems.Count == limit + 1 && modeItems[limit].Checked && ReferenceEquals(modeItems[limit].Tag, modes[count - 1]),
+                    "the last mode, when active, is not listed and checked after the first 50");
+
+                // Active mode inside the first 50: no extra item, it is checked in place.
+                items = Rebuild(modes[7]);
+                modeItems = items.Where(i => i.Tag is Mode).ToList();
+                Assert(modeItems.Count == limit, $"an active mode inside the first 50 added an item: {modeItems.Count}");
+                Assert(modeItems.Count(i => i.Checked) == 1 && modeItems[7].Checked, "mode 00007 is not checked in place");
+
+                // No active mode, or one no longer in the list: the first 50 only.
+                Assert(Rebuild(null).Count(i => i.Tag is Mode) == limit, "no active mode still added an item");
+                var gone = new Mode { Id = Guid.NewGuid(), Name = "deleted" };
+                items = Rebuild(gone);
+                Assert(items.Count(i => i.Tag is Mode) == limit && !items.Any(i => i.Checked),
+                    "an active mode that is not in the list was added to the submenu");
+
+                // 50 modes or fewer: unchanged, no More...
+                typeof(MainViewModel).GetField("_modes", field)!.SetValue(vm, modes.Take(3).ToList());
+                items = Rebuild(modes[2]);
+                Assert(items.Count == 3 && items[2].Checked && items.All(i => i.Text != moreText),
+                    "a 3-mode submenu changed shape");
+            });
+
             Run("modes: a long mode name never pushes the hint or the model out of the status bar", () =>
             {
                 // #492, and this is the half the issue actually complained about: with a
