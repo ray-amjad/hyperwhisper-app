@@ -376,6 +376,86 @@ enum TranscribeEndpoint {
         return Self.uploadTooLargeError()
     }
 
+    /// The answer to a `file` the probe found unreadable, or `nil` when it is
+    /// readable (issue #1551; codes per Ray, inbox #358).
+    ///
+    /// Only `.privacyBlocked` (EPERM) carries the Full Disk Access hint: that
+    /// is the one denial Full Disk Access can lift. A POSIX EACCES is the
+    /// file's or a folder's mode, and the hint sent users to the wrong fix.
+    ///
+    /// A function rather than inline `throw`s so a test can call it for each
+    /// case, the same split `uploadCapRefusal(forAudioBytes:)` makes.
+    static func fileInputRefusal(for access: SourceFileAccess, displayPath: String) -> APIInputError? {
+        switch access {
+        case .readable:
+            return nil
+        case .missing:
+            return APIInputError(
+                code: .fileNotFound,
+                message: "Audio file not found: \(displayPath)",
+                hint: "Pass an absolute path the running app can read."
+            )
+        case .isFolder:
+            // INVALID_REQUEST, not a new code: the error enum is a closed wire
+            // contract, and the request is what is wrong, not the disk.
+            return APIInputError(
+                code: .invalidRequest,
+                message: "\(displayPath) is a folder, not an audio file",
+                hint: "Pass the path of an audio file."
+            )
+        case .folderInPathDenied:
+            return APIInputError(
+                code: .fileAccessDenied,
+                message: "Permission denied on a folder in the path: \(displayPath)",
+                hint: "Check the permissions of the folders that hold the file."
+            )
+        case .fileDenied:
+            return APIInputError(
+                code: .fileAccessDenied,
+                message: "Permission denied: cannot read \(displayPath)",
+                hint: "Check the file's permissions."
+            )
+        case .privacyBlocked:
+            return Self.privacyBlockedError(displayPath: displayPath)
+        case .unreadable:
+            return APIInputError(
+                code: .fileAccessDenied,
+                message: "Cannot read \(displayPath)",
+                hint: nil
+            )
+        }
+    }
+
+    private static func privacyBlockedError(displayPath: String) -> APIInputError {
+        APIInputError(
+            code: .fileAccessDenied,
+            message: "Cannot read \(displayPath)",
+            hint: "macOS may require granting Full Disk Access to HyperWhisper."
+        )
+    }
+
+    /// The answer when a read fails after the probe passed (the file changed
+    /// in between, or staging failed). The Full Disk Access hint only for EPERM.
+    private static func cannotReadError(after error: Error, displayPath: String) -> APIInputError {
+        let code: Int32?
+        if let posix = error as? POSIXError {
+            code = posix.code.rawValue
+        } else if let underlying = (error as NSError).userInfo[NSUnderlyingErrorKey] as? NSError,
+                  underlying.domain == NSPOSIXErrorDomain {
+            code = Int32(underlying.code)
+        } else {
+            code = nil
+        }
+        if code == EPERM {
+            return Self.privacyBlockedError(displayPath: displayPath)
+        }
+        return APIInputError(
+            code: .fileAccessDenied,
+            message: "Cannot read \(displayPath)",
+            hint: nil
+        )
+    }
+
     /// Resolve `file` or `audio_base64` into a concrete file URL on disk.
     /// When base64 is used, writes a temp file and returns a cleanup closure
     /// that deletes it after the transcription run.
@@ -418,30 +498,21 @@ enum TranscribeEndpoint {
                     hint: "Use a file inside the recordings folder, or send the audio via 'audio_base64' instead of 'file'."
                 )
             }
-            var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: allowListedPath.resolvedURL.path, isDirectory: &isDir), !isDir.boolValue else {
-                throw APIInputError(
-                    code: .fileNotFound,
-                    message: "Audio file not found: \(filePath)",
-                    hint: "Pass an absolute path the running app can read."
-                )
-            }
-            guard FileManager.default.isReadableFile(atPath: allowListedPath.resolvedURL.path) else {
-                throw APIInputError(
-                    code: .fileAccessDenied,
-                    message: "Cannot read \(filePath)",
-                    hint: "macOS may require granting Full Disk Access to HyperWhisper."
-                )
+            // One probe names the cause (issue #1551): missing, a folder, a
+            // folder in the path that cannot be entered, the file's own
+            // permissions, or a privacy block. One `fileExists` guard used to
+            // answer FILE_NOT_FOUND for the first three.
+            if let refusal = Self.fileInputRefusal(
+                for: SourceFileAccess.probe(path: allowListedPath.resolvedURL.path),
+                displayPath: filePath
+            ) {
+                throw refusal
             }
             let fileIdentity: FileIdentity
             do {
                 fileIdentity = try Self.fileIdentity(for: allowListedPath.resolvedURL)
             } catch {
-                throw APIInputError(
-                    code: .fileAccessDenied,
-                    message: "Cannot read \(filePath)",
-                    hint: "macOS may require granting Full Disk Access to HyperWhisper."
-                )
+                throw Self.cannotReadError(after: error, displayPath: filePath)
             }
             // TOCTOU hardening (issue #713): the allow-list check above runs now,
             // but providers re-open the file by PATH much later (cloud providers do
@@ -494,11 +565,7 @@ enum TranscribeEndpoint {
                 // permissions on a file they can read perfectly well.
                 throw inputError
             } catch {
-                throw APIInputError(
-                    code: .fileAccessDenied,
-                    message: "Cannot read \(filePath)",
-                    hint: "macOS may require granting Full Disk Access to HyperWhisper."
-                )
+                throw Self.cannotReadError(after: error, displayPath: filePath)
             }
             return AudioResolution(url: stagedFile.fileURL, cleanup: {
                 try? FileManager.default.removeItem(at: stagedFile.directoryURL)

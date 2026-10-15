@@ -1125,6 +1125,9 @@
 "transcribe.file.error.webm" = "Формат WebM не підтримується. Перетворіть файл у MP3, M4A або WAV і спробуйте ще раз.";
 "transcribe.file.error.notAudio" = "Файл «%@» не є коректним аудіо. Можливо, його пошкоджено або він має формат, який macOS не вміє декодувати.";
 "transcribe.file.error.empty" = "Файл «%@» порожній. У ньому немає аудіо для транскрибування.";
+"transcribe.file.error.permission" = "HyperWhisper не може прочитати файл «%@». Перевірте права доступу до файлу.";
+"transcribe.file.error.folderPermission" = "HyperWhisper не може відкрити папку, у якій міститься файл «%@». Перевірте права доступу до цієї папки.";
+"transcribe.file.error.privacy" = "Налаштування приватності macOS не дозволили HyperWhisper прочитати файл «%@». Дозвольте це в Системних параметрах > Приватність і безпека > Повний доступ до диска.";
 "transcribe.file.error.tooShort" = "Цей файл закороткий для транскрибування (%@ с).";
 "transcribe.file.error.copy" = "Не вдалось скопіювати файл у папку записів.";
 "transcribe.file.error.video.title" = "Нема звуку у відео";

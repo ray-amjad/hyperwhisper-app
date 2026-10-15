@@ -1125,6 +1125,9 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcribe.file.error.webm" = "WebM nu este acceptat. Convertiți fișierul în MP3, M4A sau WAV, apoi încercați din nou.";
 "transcribe.file.error.notAudio" = "Fișierul „%@” nu este audio valid. Poate fi deteriorat sau într-un format pe care macOS nu îl poate decoda.";
 "transcribe.file.error.empty" = "Fișierul „%@” este gol. Nu conține audio de transcris.";
+"transcribe.file.error.permission" = "HyperWhisper nu poate citi fișierul „%@”. Verificați permisiunile fișierului.";
+"transcribe.file.error.folderPermission" = "HyperWhisper nu poate deschide un dosar care conține fișierul „%@”. Verificați permisiunile acelui dosar.";
+"transcribe.file.error.privacy" = "Setările de confidențialitate macOS au împiedicat HyperWhisper să citească fișierul „%@”. Permiteți acest lucru în Configurări sistem > Confidențialitate și securitate > Acces complet la disc.";
 "transcribe.file.error.tooShort" = "Acest fișier este prea scurt pentru a fi transcris (%@ s).";
 "transcribe.file.error.copy" = "Nu s-a putut copia fișier în folderul înregistrări.";
 "transcribe.file.error.video.title" = "Nicio audio în video";
