@@ -131,6 +131,9 @@
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Sin nombre</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Más...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribir archivo</value>
   </data>
