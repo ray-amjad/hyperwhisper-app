@@ -7,14 +7,14 @@ import LocaleNotFound from "./[locale]/not-found";
 
 import { defaultLocale } from "@/src/i18n/locales";
 
-// A URL that matches no route and has no real locale (/favicon.ico, /.env: the
-// proxy skips dotted paths, and the [locale] layout 404s them, #1853) renders
-// this file directly, inside the root layout only. It wraps the [locale] 404 in
-// that layout so the page gets the navbar, footer, dark theme and translations,
-// and keeps its 404 status (#815).
+// The boundary for a notFound() thrown by the [locale] layout itself: a first
+// segment that is not a locale (/favicon.ico, /.env: the proxy skips dotted
+// paths, #1853). It wraps the [locale] 404 in that layout so the page gets the
+// navbar, footer, dark theme and translations (#815).
 //
-// An unmatched URL under a locale (/de/zzz) is caught by [locale]/[...rest] and
-// renders [locale]/not-found.tsx inside the real [locale] layout instead.
+// An unmatched URL (/de/zzz) renders app/global-not-found.tsx instead, and a
+// notFound() thrown under a real locale renders [locale]/not-found.tsx inside
+// the real [locale] layout.
 //
 // The locale is the default, never the request's: Next renders this boundary
 // on every page, and getLocale() is a headers() call that made every route
@@ -27,10 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 
   // No [locale] layout above this file, so no "%s - HyperWhisper" template.
-  // robots: Next injects its own noindex here only when the status is already
-  // 404 at render. next start does that; Vercel does not, and production
-  // answered /de/zzz with no robots tag at all. So the tag is set on Vercel
-  // only: anywhere else it would be a second, identical noindex (#815).
+  // robots: Vercel only, as in app/global-not-found.tsx (#815).
   return {
     title: `${t("title")} - HyperWhisper`,
     ...(process.env.VERCEL ? { robots: { index: false } } : {}),

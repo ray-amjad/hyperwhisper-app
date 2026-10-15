@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
@@ -51,9 +51,26 @@ const LINUX_RELEASES_URL =
 const GRADIENT_CTA_CLASS_NAME =
   "isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,scale,opacity,box-shadow,outline-color,outline-width,outline-offset] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none";
 
+// #843: the page is prerendered, and a useSearchParams() with no Suspense
+// boundary above it fails `next build`. Only the platform choice reads the
+// query, so only this null-rendering child sits in the boundary and the rest of
+// the page stays in the static HTML.
+function PlatformFromQuery({
+  onPlatform,
+}: {
+  onPlatform: (platformParam: string | null) => void;
+}) {
+  const platformParam = useSearchParams().get("platform");
+
+  useEffect(() => {
+    onPlatform(platformParam);
+  }, [platformParam, onPlatform]);
+
+  return null;
+}
+
 export default function DownloadPage() {
   const t = useTranslations("downloadPage");
-  const searchParams = useSearchParams();
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>("mac");
   const [downloadState, setDownloadState] = useState<
     Record<Platform, { countdown: number; started: boolean }>
@@ -85,10 +102,8 @@ export default function DownloadPage() {
 
   // Detect user's OS on mount and set platform accordingly
   // URL query param takes precedence over OS detection
-  useEffect(() => {
+  const applyPlatform = useCallback((platformParam: string | null) => {
     // Check URL param first
-    const platformParam = searchParams.get("platform");
-
     if (platformParam === "windows") {
       setSelectedPlatform("windows");
 
@@ -115,7 +130,7 @@ export default function DownloadPage() {
       setSelectedPlatform("linux");
     }
     // macOS is default, no change needed
-  }, [searchParams]);
+  }, []);
 
   // Read the current Linux version once the user is on the Linux tab. A failure
   // is not an error state: the button falls back to the releases list, so the
@@ -221,6 +236,9 @@ export default function DownloadPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 py-20">
+      <Suspense fallback={null}>
+        <PlatformFromQuery onPlatform={applyPlatform} />
+      </Suspense>
       <div className="mx-auto lg:max-w-2xl">
         {/* Header */}
         <div className="text-center mb-6">

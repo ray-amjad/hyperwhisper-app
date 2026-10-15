@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import NotFoundContent, {
   type NotFoundCopy,
@@ -14,7 +14,8 @@ import { loadMessages } from "@/src/i18n/messages";
 
 // The 404 content for every locale (#815). A notFound() under [locale] renders
 // it inside the [locale] layout; an unmatched URL renders it through
-// app/not-found.tsx, which wraps it in the same layout.
+// app/global-not-found.tsx, and a non-locale first segment through
+// app/not-found.tsx, which both wrap it in the same layout.
 //
 // robots: the [locale] layout's robots is "index, follow", and Next also
 // injects its own noindex for a thrown notFound(), so without this the page
@@ -25,8 +26,9 @@ import { loadMessages } from "@/src/i18n/messages";
 //
 // The locale comes from the segment params when Next passes them (a notFound()
 // under [locale]): there the request locale is not set yet when metadata
-// resolves, and the title came out in English on /de/blog. app/not-found.tsx
-// calls this with no params, and the request locale is right there.
+// resolves, and the title came out in English on /de/blog. With no usable
+// param (/favicon.ico) it is the default locale, not getLocale(): that is a
+// headers() call, and on a prerendered route it is a 500 (#843).
 export async function generateMetadata(props?: {
   params?: Promise<{ locale?: string }>;
 }): Promise<Metadata> {
@@ -34,7 +36,7 @@ export async function generateMetadata(props?: {
   const locale =
     paramLocale && isSupportedLocale(paramLocale)
       ? paramLocale
-      : await getLocale();
+      : defaultLocale;
   const t = await getTranslations({ locale, namespace: "notFound" });
 
   return {
@@ -59,7 +61,7 @@ async function loadNotFoundCopy(): Promise<Record<string, NotFoundCopy>> {
 }
 
 // `locale` is the fallback for a URL with no locale segment. Only
-// app/not-found.tsx passes it. Under [locale] Next renders this boundary on
+// app/global-not-found.tsx and app/not-found.tsx pass it. Under [locale] Next renders this boundary on
 // every page, and getLocale() there would read headers() before the layout's
 // setRequestLocale, making every route dynamic again (#843). A [locale] URL
 // always carries its locale, so the default is only a formality there.
