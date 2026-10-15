@@ -597,7 +597,7 @@ class FileTranscriptionFlow {
             // Reset state after completion
             appState?.recordingState = .idle
 
-        } catch is CancellationError {
+        } catch where Self.isCancel(error, taskCancelled: Task.isCancelled) {
             // User cancelled - cleanup was already done by cancelTranscription(),
             // which also resolved the row. This resolves it only when the task was
             // cancelled some other way.
@@ -940,6 +940,15 @@ class FileTranscriptionFlow {
         )
         let kind = error is CancellationError ? "cancelled" : "error"
         AppLogger.transcription.info("📝 [FileImport] Marked processing transcript failed (\(kind, privacy: .public))")
+    }
+
+    /// Whether an import that stopped with `error` was a cancel, not a failure.
+    ///
+    /// A cancelled task is a cancel whatever the engine threw on the way out:
+    /// local Whisper reports its abort as `streamingInterrupted` (#1743), and
+    /// that must not show the error alert (#1871).
+    nonisolated static func isCancel(_ error: Error, taskCancelled: Bool) -> Bool {
+        error is CancellationError || taskCancelled
     }
 
     /// The `failedReason` and row text for an import that stopped with `error`.
