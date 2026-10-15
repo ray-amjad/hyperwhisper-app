@@ -230,7 +230,7 @@ extension RecordingTranscriptionFlow {
                 let failedRowWrite = appState.pendingRetryAudioPath == path
                     ? appState.pendingRetryFailedRowWrite
                     : nil
-                await Self.savePendingRetryFailure(
+                let failedTranscriptID = await Self.savePendingRetryFailure(
                     error,
                     failedRowWrite: failedRowWrite,
                     audioURL: audioURL,
@@ -239,6 +239,12 @@ extension RecordingTranscriptionFlow {
 
                 // The save suspends; a newer flow may own the dialog now.
                 guard !isPendingRetrySuperseded(identity) else { return }
+
+                // The next Retry of this file updates the row just saved, not
+                // a new one per attempt.
+                if let failedTranscriptID, appState.pendingRetryAudioPath == path {
+                    appState.pendingRetryFailedRowWrite = Task { failedTranscriptID }
+                }
             }
 
             await MainActor.run {

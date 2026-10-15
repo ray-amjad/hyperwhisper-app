@@ -86,6 +86,7 @@ struct NoSpeechPendingRetryFailsRowTests {
     }
 
     /// The retry's sequence: the speech check, then the catch's save.
+    @MainActor
     private func retry(
         _ result: TranscriptionResult,
         failedRowWrite: Task<NSManagedObjectID?, Never>?,
