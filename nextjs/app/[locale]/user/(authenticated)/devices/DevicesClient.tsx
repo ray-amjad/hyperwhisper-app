@@ -38,8 +38,9 @@ export default function DevicesClient() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
+      {/* Page Header. Wraps on a phone, so the range buttons and Refresh
+          never push the page wider than the viewport (#1764, as #1330). */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">
             Device Activations
@@ -48,7 +49,7 @@ export default function DevicesClient() {
             Unique devices per Account Key (active in last {days} days)
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Time Range Selector */}
           <div
             role="group"
