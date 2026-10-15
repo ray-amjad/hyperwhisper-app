@@ -668,6 +668,11 @@ private struct HistoryScreen: View, Equatable {
             }
             .keyboardShortcut(.delete, modifiers: [])
         } else {
+            // The snapshot only knows the path is set. Check the file itself, so
+            // a row whose audio was moved or deleted doesn't offer a retry the
+            // detail pane already calls unavailable (#1455).
+            let audioOnDisk = audioFileIsOnDisk(item)
+
             if item.canRetry {
                 Button(action: { retryTranscript(item.objectID) }) {
                     Label {
@@ -676,26 +681,32 @@ private struct HistoryScreen: View, Equatable {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
-                .disabled(isRetrying(item))
+                .disabled(isRetrying(item) || !audioOnDisk)
 
                 Divider()
             }
 
             if item.hasAudioPath {
-                Menu {
-                    ForEach(viewModel.availableModes, id: \.objectID) { mode in
-                        Button {
-                            retryTranscript(item.objectID, with: mode)
-                        } label: {
-                            Text(mode.name ?? "Unknown")
+                if audioOnDisk {
+                    Menu {
+                        ForEach(viewModel.availableModes, id: \.objectID) { mode in
+                            Button {
+                                retryTranscript(item.objectID, with: mode)
+                            } label: {
+                                Text(mode.name ?? "Unknown")
+                            }
                         }
+                    } label: {
+                        retryWithLabel
                     }
-                } label: {
-                    Label {
-                        Text(localized: "history.context.retryWith")
-                    } icon: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
+                } else {
+                    // .disabled on a context-menu Menu only grays its items; the
+                    // submenu header stays live and still opens. A disabled Button
+                    // with the same label is the item that actually greys out.
+                    Button(action: {}) {
+                        retryWithLabel
                     }
+                    .disabled(true)
                 }
 
                 Divider()
@@ -851,6 +862,20 @@ private struct HistoryScreen: View, Equatable {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    private var retryWithLabel: some View {
+        Label {
+            Text(localized: "history.context.retryWith")
+        } icon: {
+            Image(systemName: "arrow.triangle.2.circlepath")
+        }
+    }
+
+    /// True when the row's original audio file is on disk right now.
+    private func audioFileIsOnDisk(_ item: HistoryItemSnapshot) -> Bool {
+        guard let path = item.audioFilePath else { return false }
+        return FileManager.default.fileExists(atPath: path)
     }
 
     private func isRetrying(_ item: HistoryItemSnapshot) -> Bool {
