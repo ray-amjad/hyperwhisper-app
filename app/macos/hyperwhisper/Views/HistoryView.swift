@@ -535,6 +535,10 @@ private struct HistoryScreen: View, Equatable {
     @StateObject private var viewModel = HistoryViewModel()
     @State private var selectedTranscriptIDs: Set<NSManagedObjectID> = []
     @State private var actionHandler: TranscriptActionHandler?
+    /// Which build of the List holds keyboard focus. Keyed by the list identity
+    /// so the List rebuilt by `.id(viewModel.listIdentity)` is a different focus
+    /// target from the one it replaced (#1460, see HistoryListFocus).
+    @FocusState private var focusedList: HistoryViewModel.ListIdentity?
 
     static func == (lhs: HistoryScreen, rhs: HistoryScreen) -> Bool {
         ObjectIdentifier(lhs.transcriptionPipeline) == ObjectIdentifier(rhs.transcriptionPipeline)
@@ -585,6 +589,22 @@ private struct HistoryScreen: View, Equatable {
         .onChange(of: viewModel.loadedObjectIDs) { _, ids in
             selectedTranscriptIDs.formIntersection(ids)
         }
+        .onChange(of: viewModel.listIdentity) { oldIdentity, newIdentity in
+            // #1460: a rebuild (a retry inserting a newest row) tears down the
+            // focused table. The selection survives, but AppKit draws it as the
+            // grey inactive highlight and arrow keys stop working until a click.
+            // Hand focus to the rebuilt List, but only if the old one had it, so
+            // a rebuild caused by typing in the search field never steals focus.
+            guard let target = HistoryListFocus.identityToRefocus(
+                focused: focusedList,
+                old: oldIdentity,
+                new: newIdentity
+            ) else { return }
+            // Next main-loop turn: the rebuilt table must be in the window first.
+            DispatchQueue.main.async {
+                focusedList = target
+            }
+        }
     }
 
     private var historyList: some View {
@@ -634,6 +654,7 @@ private struct HistoryScreen: View, Equatable {
                 }
             }
             .listStyle(.sidebar)
+            .focused($focusedList, equals: viewModel.listIdentity)
             // Rebuild the NSTableView-backed List (instead of diffing rows in
             // place) when the query changes or when the newest row changes —
             // the two transitions where in-place diffing mis-reuses row views.
@@ -1055,6 +1076,21 @@ enum AudioFileState {
     case exists
     /// File confirmed missing or no audio path (show missing message)
     case missing
+}
+
+/// #1460: after `.id(listIdentity)` rebuilds the History List, which list
+/// build should get keyboard focus back, if any. Only a rebuild of the list
+/// that held focus hands it on; focus elsewhere (the search field, the detail
+/// pane) is left alone.
+enum HistoryListFocus {
+    static func identityToRefocus<Identity: Equatable>(
+        focused: Identity?,
+        old: Identity,
+        new: Identity
+    ) -> Identity? {
+        guard old != new, let focused, focused == old else { return nil }
+        return new
+    }
 }
 
 /// #1460: the History player's elapsed-time label and resume point.
