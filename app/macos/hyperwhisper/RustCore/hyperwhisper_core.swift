@@ -18821,6 +18821,19 @@ public func statsSavedMinutesCeiling() -> Int32 {
 })
 }
 /**
+ * Remove Whisper's non-speech markers (a blank-audio tag, `(silence)`,
+ * `[inaudible]`, `[ Music ]`, `(applause)` and kin) and trim. Marker-only input
+ * returns `""`; a bracket the speaker dictated survives. One rule for every
+ * head (issue #1811); cases in `shared-conformance/whisper-marker-vectors.json`.
+ */
+public func stripWhisperNonSpeechMarkers(text: String) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_strip_whisper_non_speech_markers(
+        FfiConverterString.lower(text),$0
+    )
+})
+}
+/**
  * Lenient wrapper handling for plain transcription text: extract wrapped content
  * if present, else return the text (stray end-tags stripped). For raw-transcript
  * sites where the strict `extract_cleaned_from_wrapped` would wipe a valid result.
@@ -19703,6 +19716,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling() != 6847) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_strip_whisper_non_speech_markers() != 49359) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers() != 55122) {
