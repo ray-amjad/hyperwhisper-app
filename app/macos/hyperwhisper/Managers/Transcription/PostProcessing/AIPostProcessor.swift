@@ -35,6 +35,14 @@ final class MutationSignal {
     /// pipeline's multi-segment branch, which doesn't need this distinction.
     var anyPartialFailure: Bool = false
 
+    /// `true` when a HyperWhisper Cloud run was refused before it started
+    /// because no account key is stored (issue #1487). The raw text still comes
+    /// back, so the in-app pipeline keeps its graceful fallback; the Local API
+    /// reads this to answer `MISSING_API_KEY`, the same refusal `/transcribe`
+    /// gives for the same mode. Every other provider failure leaves it `false`
+    /// and keeps the graceful `ok: true` + `post_processed: false` (#499).
+    var cloudAccountMissing: Bool = false
+
     /// The provider and model that ACTUALLY produced the returned text — not the
     /// ones stored on the Mode (issue #314). Every fallback inside this file
     /// (deprecated-model remap, provider-default substitution, installed-local-model
@@ -572,6 +580,7 @@ class AIPostProcessor: ObservableObject {
             // isolation, mirroring how `PostProcessingService.cs` tracks
             // `anyApplied`/`anyFailed` per segment on the Windows side.
             var anyFailed = false
+            var anyCloudAccountMissing = false
             // Resolved provider/model (#314) are aggregated FIRST-NON-NIL rather
             // than last-write-wins: every segment shares one `mode`, so they can
             // only disagree if a provider fell back differently mid-request. A
@@ -610,6 +619,7 @@ class AIPostProcessor: ObservableObject {
                 )
                 anyMutated = anyMutated || segmentSignal.didMutate
                 anyFailed = anyFailed || !segmentSignal.didMutate
+                anyCloudAccountMissing = anyCloudAccountMissing || segmentSignal.cloudAccountMissing
                 if let segmentProvider = segmentSignal.resolvedProvider {
                     if let resolvedProvider {
                         if resolvedProvider != segmentProvider {
@@ -639,6 +649,7 @@ class AIPostProcessor: ObservableObject {
             // and would already make `anyMutated` false overall.
             signal.didMutate = anyMutated
             signal.anyPartialFailure = anyMutated && anyFailed
+            signal.cloudAccountMissing = anyCloudAccountMissing
             signal.resolvedProvider = resolvedProvider
             // Non-nil (a run happened) but unnamed, when the segments disagreed.
             signal.resolvedModel = modelsDisagreed ? "" : resolvedModel
@@ -1101,15 +1112,27 @@ class AIPostProcessor: ObservableObject {
             return text
         }
 
-        // STEP 2: Check network connectivity
+        // STEP 2: Get authentication identifier (license key or device ID)
+        let (identifier, isLicensed) = licenseManager.getTranscriptionIdentifier()
+        AppLogger.network.debug("HyperWhisper Cloud post-processing · licensed=\(isLicensed, privacy: .public)")
+
+        // No account key: the backend answers 401 "License required" to a
+        // device-id request, so refuse here, as transcription already does
+        // (`HyperWhisperCloudEntitlement`). Fail-closed only — the server stays
+        // the authority. Checked before the offline guard so the Local API
+        // reports the configuration fault, not a network one (issue #1487).
+        guard isLicensed else {
+            AppLogger.transcription.warning("HyperWhisper Cloud post-processing skipped: no account key")
+            signal.cloudAccountMissing = true
+            onPostProcessingError?(TranscriptionError.cloudAccountRequired(provider: "HyperWhisper Cloud"))
+            return text
+        }
+
+        // STEP 3: Check network connectivity
         guard NetworkStatus.shared.isOnline else {
             AppLogger.transcription.warning("HyperWhisper Cloud post-processing skipped: Offline")
             return text
         }
-
-        // STEP 3: Get authentication identifier (license key or device ID)
-        let (identifier, isLicensed) = licenseManager.getTranscriptionIdentifier()
-        AppLogger.network.debug("HyperWhisper Cloud post-processing · licensed=\(isLicensed, privacy: .public)")
 
         // STEP 4: Build system prompt
         // Mode is required for prompt building - if nil, use a minimal prompt
@@ -1145,8 +1168,8 @@ class AIPostProcessor: ObservableObject {
                 systemInfo: systemInfo,
                 transcript: text,
                 baseUrl: NetworkConfig.hyperwhisperCloudURL,
-                licenseKey: isLicensed ? identifier : nil,
-                deviceId: isLicensed ? nil : identifier,
+                licenseKey: identifier,
+                deviceId: nil,
                 llmProviderHeader: cloudPPModel.llmProviderHeader,
                 llmModelHeader: cloudPPModel.llmModelHeader
             ))
