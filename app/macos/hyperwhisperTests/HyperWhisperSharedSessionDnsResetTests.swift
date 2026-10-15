@@ -30,7 +30,7 @@ struct HyperWhisperSharedSessionDnsResetTests {
 
     /// Points the window at a fake clock and a counting reset action, starts it
     /// from "never reset", runs `body`, then puts the production seams back.
-    private func withHarness(_ body: (ResetHarness) throws -> Void) rethrows {
+    private func withHarness(_ body: (ResetHarness) async throws -> Void) async rethrows {
         let savedLastReset = HyperWhisperRoutedTranscription.lastDnsResetAt
         let savedClock = HyperWhisperRoutedTranscription.dnsResetClock
         let savedAction = HyperWhisperRoutedTranscription.dnsResetAction
@@ -47,7 +47,7 @@ struct HyperWhisperSharedSessionDnsResetTests {
             harness.resets += 1
             harness.resetSessions.append(session)
         }
-        try body(harness)
+        try await body(harness)
     }
 
     private static func occurrences(of needle: String, in haystack: String) -> Int {
@@ -56,28 +56,28 @@ struct HyperWhisperSharedSessionDnsResetTests {
 
     // MARK: - The window
 
-    @Test func twoCallsInsideTheWindowResetOnce() {
-        withHarness { harness in
+    @Test func twoCallsInsideTheWindowResetOnce() async {
+        await withHarness { harness in
             let firstAt = harness.now
-            #expect(HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure())
+            #expect(await HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure())
             #expect(harness.resets == 1)
             #expect(harness.resetSessions.allSatisfy { $0 === HyperWhisperRoutedTranscription.sharedSession })
 
             harness.now = firstAt.addingTimeInterval(59)
-            #expect(!HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure(), "the second call inside 60 s is a no-op")
+            #expect(await !HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure(), "the second call inside 60 s is a no-op")
             #expect(harness.resets == 1)
             #expect(HyperWhisperRoutedTranscription.lastDnsResetAt == firstAt, "an absorbed call must not move the window")
         }
     }
 
-    @Test func aCallAfterTheWindowResetsAgain() {
-        withHarness { harness in
+    @Test func aCallAfterTheWindowResetsAgain() async {
+        await withHarness { harness in
             let firstAt = harness.now
-            HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure()
+            await HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure()
             #expect(harness.resets == 1)
 
             harness.now = firstAt.addingTimeInterval(HyperWhisperRoutedTranscription.minDnsResetInterval)
-            #expect(HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure())
+            #expect(await HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure())
             #expect(harness.resets == 2)
             #expect(HyperWhisperRoutedTranscription.lastDnsResetAt == harness.now)
         }
@@ -93,13 +93,13 @@ struct HyperWhisperSharedSessionDnsResetTests {
     /// Google Chirp retry) 10 s later: one reset, not two. Both paths call the
     /// same function; `everyResetCallSiteGoesThroughTheSharedWindow` below
     /// proves they do.
-    @Test func aCloudCallAndARoutedCallShareTheWindow() {
-        withHarness { harness in
+    @Test func aCloudCallAndARoutedCallShareTheWindow() async {
+        await withHarness { harness in
             let cloudAt = harness.now
-            #expect(HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure())
+            #expect(await HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure())
 
             harness.now = cloudAt.addingTimeInterval(10)
-            #expect(!HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure())
+            #expect(await !HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure())
             #expect(harness.resets == 1)
         }
     }
@@ -113,7 +113,7 @@ struct HyperWhisperSharedSessionDnsResetTests {
             from: "private func sendWarmup() {",
             to: "private static let maxRetryAttempts = 4"
         )
-        #expect(warmup.contains("HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure()"))
+        #expect(warmup.contains("await HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure()"))
 
         let cloud = try ProductionSource.code(of: Self.cloudProviderPath)
         #expect(cloud.contains("await HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure()"), "the Cloud transcribe retry")

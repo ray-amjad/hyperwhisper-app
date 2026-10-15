@@ -318,10 +318,14 @@ enum HyperWhisperRoutedTranscription {
     /// replaces it.
     @MainActor static var dnsResetClock: () -> Date = { Date() }
 
-    /// What a flush does. A seam for tests, so they can count flushes without
-    /// cancelling real uploads; production never replaces it.
-    @MainActor static var dnsResetAction: (URLSession) -> Void = { session in
-        session.reset { }
+    /// What a flush does: reset the pool and return once the reset has
+    /// finished, so a retry does not start on the pool being flushed. A seam
+    /// for tests, so they can count flushes without cancelling real uploads;
+    /// production never replaces it.
+    @MainActor static var dnsResetAction: (URLSession) async -> Void = { session in
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            session.reset { continuation.resume() }
+        }
     }
 
     /// One-shot pool flush so the next attempt re-resolves the host, gated by
@@ -333,15 +337,17 @@ enum HyperWhisperRoutedTranscription {
     /// upload. RustRetry's per-sequence one-shot gate still applies inside a
     /// single transcribe; this window layers on top of it.
     ///
-    /// @MainActor serializes access to `lastDnsResetAt`. Returns true when it
-    /// flushed, false when the window absorbed the call.
+    /// @MainActor serializes access to `lastDnsResetAt`; the window is claimed
+    /// before the await, so a second caller during the flush is absorbed.
+    /// Returns once the flush has finished: true when it flushed, false when
+    /// the window absorbed the call.
     @MainActor
     @discardableResult
-    static func resetSharedSessionAfterDnsFailure() -> Bool {
+    static func resetSharedSessionAfterDnsFailure() async -> Bool {
         let now = dnsResetClock()
         if now.timeIntervalSince(lastDnsResetAt) < minDnsResetInterval { return false }
         lastDnsResetAt = now
-        dnsResetAction(sharedSession)
+        await dnsResetAction(sharedSession)
         AppLogger.network.debug("DNS recovery: shared-session pool flushed")
         return true
     }

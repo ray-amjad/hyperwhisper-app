@@ -170,7 +170,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 // free text: its domain and code are public, the description private (#1679).
                 AppLogger.network.debug("Cloud warmup failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
                 if let urlError = error as? URLError, HyperWhisperRoutedTranscription.isDnsError(urlError) {
-                    Task { @MainActor in HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure() }
+                    Task { @MainActor in await HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure() }
                 }
                 return
             }
