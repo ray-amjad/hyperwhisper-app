@@ -824,7 +824,7 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "transcripts.delete.single.message" = "Spowoduje to trwałe usunięcie tego nagrania i jego pliku audio.";
 "transcripts.delete.multiple.title" = "Usunąć %d nagrań?";
 "transcripts.delete.multiple.message" = "Spowoduje to trwałe usunięcie %d nagrań i ich plików audio.\n\nTej czynności nie można cofnąć.";
-"transcripts.delete.multiple.confirm" = "Usuń wszystko";
+"transcripts.delete.multiple.confirm" = "Usuń %d nagrań";
 "transcripts.retry.error.title" = "Ponowienie nie powiodło się";
 "transcripts.retry.error.modeDeleted" = "Tryb, w którym powstało to nagranie, został usunięty, więc nie ponowiono próby. W Historii kliknij nagranie prawym przyciskiem myszy i wybierz \"Ponów z...\", aby wybrać inny tryb.";
 

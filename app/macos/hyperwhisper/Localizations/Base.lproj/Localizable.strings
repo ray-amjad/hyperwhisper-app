@@ -879,7 +879,7 @@
 "transcripts.delete.single.message" = "This will permanently delete this recording and its audio file.";
 "transcripts.delete.multiple.title" = "Delete %d Recordings?";
 "transcripts.delete.multiple.message" = "This will permanently delete %d recordings and their audio files.\n\nThis action cannot be undone.";
-"transcripts.delete.multiple.confirm" = "Delete All";
+"transcripts.delete.multiple.confirm" = "Delete %d Recordings";
 "transcripts.retry.error.title" = "Retry Failed";
 "transcripts.retry.error.modeDeleted" = "The mode that made this recording was deleted, so it was not retried. In History, right-click the recording and choose \"Retry with...\" to pick another mode.";
 

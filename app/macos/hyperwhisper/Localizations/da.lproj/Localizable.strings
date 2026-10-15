@@ -824,7 +824,7 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "transcripts.delete.single.message" = "Dette vil permanent slette denne optagelse og dens lydfil.";
 "transcripts.delete.multiple.title" = "Slet %d optagelser?";
 "transcripts.delete.multiple.message" = "Dette vil permanent slette %d optagelser og deres lydfiler.\n\nDenne handling kan ikke fortrydes.";
-"transcripts.delete.multiple.confirm" = "Slet alle";
+"transcripts.delete.multiple.confirm" = "Slet %d optagelser";
 "transcripts.retry.error.title" = "Nyt forsøg mislykkedes";
 "transcripts.retry.error.modeDeleted" = "Den tilstand, der lavede denne optagelse, er slettet, så den blev ikke prøvet igen. Højreklik på optagelsen i Historik, og vælg \"Prøv igen med...\" for at vælge en anden tilstand.";
 

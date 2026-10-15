@@ -824,7 +824,7 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "transcripts.delete.single.message" = "Això eliminarà permanentment aquesta gravació i el seu fitxer d'àudio.";
 "transcripts.delete.multiple.title" = "Eliminar %d gravacions?";
 "transcripts.delete.multiple.message" = "Això eliminarà permanentment %d gravacions i els seus fitxers d'àudio.\n\nAquesta acció no es pot desfer.";
-"transcripts.delete.multiple.confirm" = "Eliminar tot";
+"transcripts.delete.multiple.confirm" = "Eliminar %d gravacions";
 "transcripts.retry.error.title" = "Reintent fallat";
 "transcripts.retry.error.modeDeleted" = "El mode que va crear aquesta gravació s'ha suprimit, així que no s'ha tornat a provar. A l'Historial, fes clic amb el botó dret a la gravació i tria \"Reintentar amb...\" per escollir un altre mode.";
 

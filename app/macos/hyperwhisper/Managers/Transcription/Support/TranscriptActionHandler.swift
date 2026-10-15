@@ -504,7 +504,11 @@ class TranscriptActionHandler: ObservableObject {
         }
         
         alert.alertStyle = .warning
-        alert.addButton(withTitle: transcripts.count == 1 ? "common.delete".localized : "transcripts.delete.multiple.confirm".localized)
+        // The button names the count ("Delete 4 Recordings"): "Delete All" read as
+        // if it wiped the whole history when only the selection goes (#1460).
+        alert.addButton(withTitle: transcripts.count == 1
+            ? "common.delete".localized
+            : "transcripts.delete.multiple.confirm".localized(arguments: transcripts.count))
         alert.addButton(withTitle: "common.cancel".localized)
         
         // Make delete button red
