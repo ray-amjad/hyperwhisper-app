@@ -133,11 +133,15 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   // Providing all messages to the client
   // side is the easiest way to get started
-  const messages = await getMessages();
+  const messages = await getMessages({ locale });
 
   return (
     <HtmlDocument locale={locale}>
-      <NextIntlClientProvider messages={messages}>
+      {/* The locale is passed, not inferred: app/not-found.tsx renders this
+          layout with "en" on every page, its setRequestLocale("en") shares the
+          render's cache, and the inferred locale then hydrated as "en", so
+          Providers rewrote <html lang> to en (#843). */}
+      <NextIntlClientProvider locale={locale} messages={messages}>
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <div
             className={clsx(

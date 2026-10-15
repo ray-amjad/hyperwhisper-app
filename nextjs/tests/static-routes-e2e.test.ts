@@ -155,6 +155,10 @@ test("a deep localized page states its own lang, canonical and 41 hreflang links
   assert.match(body, /<title>Refund Policy \| HyperWhisper - HyperWhisper<\/title>/);
   assert.match(body, /<meta name="description" content="HyperWhisper refund policy for/);
   assert.match(body, /<meta property="og:image"/);
+  // The client provider must hydrate with the same locale: Providers writes its
+  // useLocale() back onto <html lang>, and an "en" here turned lang="de" into
+  // lang="en" after hydration (#843).
+  assert.ok(body.includes(String.raw`\"locale\":\"de\",\"messages\"`), "client locale de");
 
   const hreflangs = Array.from(
     body.matchAll(/<link rel="alternate" hrefLang="([^"]+)" href="([^"]+)"/g),
