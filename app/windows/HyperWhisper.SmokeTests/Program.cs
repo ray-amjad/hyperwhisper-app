@@ -17434,7 +17434,7 @@ internal static class Program
                 }
 
                 var limit = HyperWhisper.Views.Windows.MainWindow.TrayModeMenuLimit;
-                var moreText = Loc.S("menu.mode.more");
+                var moreText = HyperWhisper.Localization.Loc.S("menu.mode.more");
 
                 // Active mode 00500: the 50 modes, then 00500 checked, then More...
                 var clock = System.Diagnostics.Stopwatch.StartNew();
