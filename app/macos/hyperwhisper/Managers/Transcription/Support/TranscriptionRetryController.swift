@@ -34,11 +34,17 @@ enum TranscriptionRetryError: LocalizedError, Equatable {
     /// recorded, without asking. Ray (2026-10-08): Retry stops, sends nothing,
     /// and points the user at "Retry with..." to pick another mode.
     case originalModeDeleted
+    /// The retry's mode was live when the retry started but was deleted
+    /// before the router read it (#1620). Thrown by the pipeline when a
+    /// retry passes `refuseDeletedMode`, so nothing is sent.
+    case modeDeletedDuringRetry
 
     var errorDescription: String? {
         switch self {
         case .originalModeDeleted:
             return "transcripts.retry.error.modeDeleted".localized
+        case .modeDeletedDuringRetry:
+            return "recording.retry.modeDeleted".localized
         }
     }
 }
@@ -229,7 +235,8 @@ class TranscriptionRetryController {
             let result = try await manager.transcribeWithDetails(
                 audioURL: finalAudioURL,
                 mode: mode,
-                recordingSession: transcript.recordingSession
+                recordingSession: transcript.recordingSession,
+                refuseDeletedMode: true
             )
 
             // The row was deleted while the engine finished: nothing to write to.

@@ -127,4 +127,52 @@ struct HistoryRetryWithDeletedModeTests {
             #expect(guardRange.lowerBound < use.lowerBound, "\(later) runs before the live check")
         }
     }
+
+    private static let pipelinePath =
+        "app/macos/hyperwhisper/Managers/Transcription/Pipeline/TranscriptionPipeline+Transcription.swift"
+    private static let retryControllerPath =
+        "app/macos/hyperwhisper/Managers/Transcription/Support/TranscriptionRetryController.swift"
+
+    /// The entry guard cannot see a delete that lands while the pipeline
+    /// waits (the cancel sleep, the MainActor hops). The pipeline re-checks
+    /// right before the router reads the mode's model, and again after it.
+    @Test func thePipelineRechecksTheModeAroundRouting() throws {
+        let body = try ProductionSource.slice(
+            of: Self.pipelinePath,
+            from: "let credentialGeneration = healthManager?.captureTranscriptionCredentialGeneration()",
+            to: "let provider = selection.provider"
+        )
+        let route = try #require(body.range(of: "try await providerCoordinator.selectProvider("), "\(body)")
+        let before = try #require(body.range(of: "try refuseIfModeDeleted()"), "no check before routing: \(body)")
+        #expect(before.upperBound < route.lowerBound)
+        let between = body[before.upperBound..<route.lowerBound]
+        #expect(!between.contains("await"), "a suspension between the check and the router reopens the window")
+        let after = body[route.upperBound...]
+        #expect(after.contains("try refuseIfModeDeleted()"), "no check after a slow model load: \(body)")
+    }
+
+    /// Both History retries opt in to that re-check.
+    @Test func bothRetriesRefuseAModeDeletedMidRun() throws {
+        let retryWith = try ProductionSource.slice(
+            of: Self.handlerPath,
+            from: "func retryTranscription(_ transcript: Transcript, with mode: Mode) async -> Bool {",
+            to: "Self.trackRetryTask("
+        )
+        #expect(retryWith.contains("refuseDeletedMode: true"), "\(retryWith)")
+
+        let retry = try ProductionSource.slice(
+            of: Self.retryControllerPath,
+            from: "let result = try await manager.transcribeWithDetails(",
+            to: "transcript.retryWasStoppedByDelete()"
+        )
+        #expect(retry.contains("refuseDeletedMode: true"), "\(retry)")
+    }
+
+    /// The refusal names the deleted mode, not a generic failure.
+    @Test func theMidRunRefusalSaysTheModeWasDeleted() {
+        #expect(
+            TranscriptionRetryError.modeDeletedDuringRetry.errorDescription
+                == "recording.retry.modeDeleted".localized
+        )
+    }
 }

@@ -254,7 +254,8 @@ class TranscriptActionHandler: ObservableObject {
             do {
                 let result = try await transcriptionPipeline.transcribeWithDetails(
                     audioURL: newAudioURL,
-                    mode: mode
+                    mode: mode,
+                    refuseDeletedMode: true
                 )
 
                 // The row was deleted while the engine finished: nothing to write to.
