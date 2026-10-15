@@ -12684,7 +12684,7 @@ internal static class Program
                 var cloudRowsForModels = cloudTranscription
                     .Select(p => Row(
                         p.GetIdentifier(),
-                        CloudTranscriptionModels.All.First(m => m.Provider == p),
+                        CloudTranscriptionModels.GetModelsForProvider(p).First(),
                         LibraryModelKind.Voice))
                     .Append(Row(
                         cloudPostId,
