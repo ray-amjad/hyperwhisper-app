@@ -488,19 +488,27 @@ private final class HistoryViewModel: ObservableObject {
             queue: .main
         ) { [weak self] notification in
             Task { @MainActor [weak self] in
-                guard let self, self.containsTranscriptChanges(notification) else { return }
-                self.enqueueCurrentQuery()
+                guard let self else { return }
+                // A mode added, renamed or deleted while History is open (the
+                // Modes page, the Local API) must reach "Retry with..." now: a
+                // deleted mode left in the list showed as "Unknown" (#1620).
+                if HistoryViewModel.containsChanges(to: "Mode", in: notification) {
+                    self.refreshAvailableModes()
+                }
+                if HistoryViewModel.containsChanges(to: "Transcript", in: notification) {
+                    self.enqueueCurrentQuery()
+                }
             }
         }
     }
 
-    private func containsTranscriptChanges(_ notification: Notification) -> Bool {
+    private static func containsChanges(to entityName: String, in notification: Notification) -> Bool {
         let keys = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
         for key in keys {
             guard let objects = notification.userInfo?[key] as? Set<NSManagedObject> else {
                 continue
             }
-            if objects.contains(where: { $0.entity.name == "Transcript" }) {
+            if objects.contains(where: { $0.entity.name == entityName }) {
                 return true
             }
         }

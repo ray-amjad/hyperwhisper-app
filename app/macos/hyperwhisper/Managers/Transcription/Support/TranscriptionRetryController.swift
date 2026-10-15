@@ -34,11 +34,17 @@ enum TranscriptionRetryError: LocalizedError, Equatable {
     /// recorded, without asking. Ray (2026-10-08): Retry stops, sends nothing,
     /// and points the user at "Retry with..." to pick another mode.
     case originalModeDeleted
+    /// The retry's mode was live when the retry started but was deleted
+    /// before the router read it (#1620). Thrown by the pipeline when a
+    /// retry passes `refuseDeletedMode`, so nothing is sent.
+    case modeDeletedDuringRetry
 
     var errorDescription: String? {
         switch self {
         case .originalModeDeleted:
             return "transcripts.retry.error.modeDeleted".localized
+        case .modeDeletedDuringRetry:
+            return "recording.retry.modeDeleted".localized
         }
     }
 }
@@ -47,16 +53,25 @@ enum TranscriptionRetryError: LocalizedError, Equatable {
 /// "Retry with..." menu and the recording dialog's pending-file mode picker
 /// (#1617) both list exactly these, so the two never disagree.
 enum RetryModeChoices {
-    /// Every mode while online. Offline, the modes that need the internet
+    /// Every live mode while online. Offline, the modes that need the internet
     /// (a Cloud transcription model or cloud post-processing) are left out.
+    /// A deleted mode is never a choice (#1620).
     static func available(from modes: [Mode], isOnline: Bool) -> [Mode] {
-        guard !isOnline else { return modes }
-        return modes.filter { mode in
+        let live = modes.filter(isLive)
+        guard !isOnline else { return live }
+        return live.filter { mode in
             let isCloudModel = (mode.model ?? "").lowercased() == "cloud"
             let processingMode = PostProcessingMode(rawValue: mode.postProcessingMode) ?? .off
             let hasCloudPostProcessing = processingMode.requiresInternet
             return !isCloudModel && !hasCloudPostProcessing
         }
+    }
+
+    /// False for a mode deleted since it was fetched. Once the delete is
+    /// saved the object leaves its context and reads every attribute as nil,
+    /// so a nil model would route a retry to HyperWhisper Cloud (#1440, #1620).
+    static func isLive(_ mode: Mode) -> Bool {
+        !mode.isDeleted && mode.managedObjectContext != nil
     }
 }
 
@@ -220,7 +235,8 @@ class TranscriptionRetryController {
             let result = try await manager.transcribeWithDetails(
                 audioURL: finalAudioURL,
                 mode: mode,
-                recordingSession: transcript.recordingSession
+                recordingSession: transcript.recordingSession,
+                refuseDeletedMode: true
             )
 
             // The row was deleted while the engine finished: nothing to write to.

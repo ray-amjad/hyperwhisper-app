@@ -193,6 +193,15 @@ class TranscriptActionHandler: ObservableObject {
     /// - Returns: Success status
     @discardableResult
     func retryTranscription(_ transcript: Transcript, with mode: Mode) async -> Bool {
+        // A menu built before the mode was deleted can still hand it over. Its
+        // nil model would route the audio to Cloud (#1620), so send nothing.
+        guard RetryModeChoices.isLive(mode) else {
+            let message = "recording.retry.modeDeleted".localized
+            lastError = message
+            await showRetryErrorAlert(message)
+            return false
+        }
+
         // VALIDATION:
         // Check if audio file exists
         guard let originalAudioPath = transcript.audioFilePath,
@@ -245,7 +254,8 @@ class TranscriptActionHandler: ObservableObject {
             do {
                 let result = try await transcriptionPipeline.transcribeWithDetails(
                     audioURL: newAudioURL,
-                    mode: mode
+                    mode: mode,
+                    refuseDeletedMode: true
                 )
 
                 // The row was deleted while the engine finished: nothing to write to.
