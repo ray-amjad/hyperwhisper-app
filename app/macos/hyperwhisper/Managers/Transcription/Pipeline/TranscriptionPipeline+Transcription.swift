@@ -519,7 +519,11 @@ extension TranscriptionPipeline {
 
         do {
             let result = try await Self.value(of: task)
-            await MainActor.run { state = .idle }
+            // As in the cancel branch below: a superseded run that still
+            // finishes must not idle the pipeline under the newer run (#1743).
+            if currentTask == task {
+                await MainActor.run { state = .idle }
+            }
 
             let now = Date()
             let totalElapsedMs = Int(now.timeIntervalSince(transcriptionStart) * 1000)
@@ -580,8 +584,17 @@ extension TranscriptionPipeline {
 
             return result
         } catch {
-            if error is CancellationError {
-                await MainActor.run { state = .idle }
+            // A cancelled run is not a failure, whatever the engine threw on the
+            // way out: local Whisper reports its abort as `streamingInterrupted`
+            // (#1743), which must not reach Sentry or the error state.
+            if error is CancellationError || task.isCancelled {
+                // Only the run that still owns the pipeline resets it. A run a
+                // newer dictation took over (#1425) now aborts within a window,
+                // so its cancel lands while the newer run is transcribing, and
+                // `.idle` there would let a third request skip the takeover.
+                if currentTask == task {
+                    await MainActor.run { state = .idle }
+                }
             } else {
                 await MainActor.run { state = .error(message: error.localizedDescription) }
                 if AppLogger.isErrorLoggingEnabled {
