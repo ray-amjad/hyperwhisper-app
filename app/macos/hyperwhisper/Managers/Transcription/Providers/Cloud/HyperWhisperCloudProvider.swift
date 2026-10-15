@@ -168,7 +168,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 // A transport error (no server body), but an error description is
                 // free text: its domain and code are public, the description private (#1679).
                 AppLogger.network.debug("Cloud warmup failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
-                if Self.isDnsError(nsError) {
+                if let urlError = error as? URLError, HyperWhisperRoutedTranscription.isDnsError(urlError) {
                     Task { @MainActor in self?.performDnsRecoveryReset() }
                 }
                 return
@@ -197,21 +197,6 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         lastDnsResetAt = Date()
         session.reset { }
         AppLogger.network.debug("DNS recovery: session reset")
-    }
-
-    /// True for errors that look like a stale/poisoned DNS cache — typical after
-    /// a network flip (captive portal, VPN toggle, tether swap). Used to gate a
-    /// one-shot URLSession pool flush in the warmup callback and transcribe retry.
-    private static func isDnsError(_ e: NSError) -> Bool {
-        guard e.domain == NSURLErrorDomain else { return false }
-        switch e.code {
-        case NSURLErrorDNSLookupFailed,
-             NSURLErrorCannotFindHost,
-             NSURLErrorCannotConnectToHost:
-            return true
-        default:
-            return false
-        }
     }
 
     // MARK: - Retry Configuration
@@ -421,24 +406,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                         // 2xx never reaches parseError; a non-error parse is unexpected.
                         return TranscriptionError.invalidResponse(details: "unexpected non-error response")
                     } catch let err as HwTranscriptionError {
-                        let creditDenial = Self.creditDenialContext(from: resp)
-                        if resp.status == 402, let invalidMessage = creditDenial.invalidExhaustedBalanceMessage {
-                            return TranscriptionError.invalidResponse(details: invalidMessage)
-                        }
-                        let (tooBigBytes, tooBigLimit) = RustCoreMapping.fileTooLargeContext(from: resp)
-                        return RustCoreMapping.mapTranscriptionError(
-                            err,
-                            providerName: "HyperWhisper Cloud",
-                            insufficientCredits: (resp.status == 402),
-                            creditsRemaining: creditDenial.remaining,
-                            creditsRequired: creditDenial.required,
-                            fileTooLargeBytes: tooBigBytes,
-                            fileTooLargeLimit: tooBigLimit,
-                            // The 401/403 that HYPERWHISPER-T2 reports arrives
-                            // here. The core drops the code when it classifies
-                            // the body, so read it off the response instead.
-                            httpStatus: Int(resp.status)
-                        )
+                        return HyperWhisperRoutedTranscription.mapBackendError(err, resp: resp, providerName: "HyperWhisper Cloud")
                     } catch {
                         return TranscriptionError.invalidResponse(details: error.localizedDescription)
                     }
@@ -448,7 +416,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                     // recovery the deleted native `performRequestWithRetry` did. The
                     // existing `performDnsRecoveryReset` is @MainActor and applies its
                     // own coarse cross-call gate on top of RustRetry's one-shot gate.
-                    if Self.isDnsError(urlError as NSError) {
+                    if HyperWhisperRoutedTranscription.isDnsError(urlError) {
                         await self?.performDnsRecoveryReset()
                     }
                 }
@@ -896,20 +864,6 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         let separator = urlString.contains("?") ? "&" : "?"
         let encoded = modeId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? modeId
         return "\(urlString)\(separator)mode=\(encoded)"
-    }
-
-    /// Read the HW-Cloud 402 credit context from an error response body.
-    private static func creditDenialContext(from response: HttpResponse) -> (remaining: Int, required: Int, invalidExhaustedBalanceMessage: String?) {
-        guard let json = try? JSONSerialization.jsonObject(with: response.body) as? [String: Any] else {
-            return (0, 0, nil)
-        }
-        let serverMessage = json["message"] as? String ?? json["error"] as? String
-        let denial = HyperWhisperCloudCreditDenial(errorJson: json, message: serverMessage)
-        return (
-            denial.remainingForTranscriptionError,
-            denial.requiredForTranscriptionError,
-            denial.invalidExhaustedBalanceMessage
-        )
     }
 
     /// Read the server-detected language from a success response body. The

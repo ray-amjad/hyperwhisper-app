@@ -157,24 +157,7 @@ enum HyperWhisperRoutedTranscription {
                         _ = try parseRoutedResponse(providerHeader: providerHeader, resp: resp)
                         return TranscriptionError.invalidResponse(details: "unexpected non-error response")
                     } catch let err as HwTranscriptionError {
-                        let creditDenial = Self.creditDenialContext(from: resp)
-                        if resp.status == 402, let invalidMessage = creditDenial.invalidExhaustedBalanceMessage {
-                            return TranscriptionError.invalidResponse(details: invalidMessage)
-                        }
-                        let (tooBigBytes, tooBigLimit) = RustCoreMapping.fileTooLargeContext(from: resp)
-                        return RustCoreMapping.mapTranscriptionError(
-                            err,
-                            providerName: providerDisplayName,
-                            insufficientCredits: (resp.status == 402),
-                            creditsRemaining: creditDenial.remaining,
-                            creditsRequired: creditDenial.required,
-                            fileTooLargeBytes: tooBigBytes,
-                            fileTooLargeLimit: tooBigLimit,
-                            // Same backend as the HW Cloud provider, so the same
-                            // 401/403 reaches HYPERWHISPER-T2 from here. Carry
-                            // the status rather than dropping it.
-                            httpStatus: Int(resp.status)
-                        )
+                        return Self.mapBackendError(err, resp: resp, providerName: providerDisplayName)
                     } catch {
                         return TranscriptionError.invalidResponse(details: error.localizedDescription)
                     }
@@ -263,8 +246,39 @@ enum HyperWhisperRoutedTranscription {
         }
     }
 
+    // MARK: - Shared backend error mapping
+
+    /// Map a non-2xx response from the Fly transcribe backend to a
+    /// `TranscriptionError`. The one copy of this mapping for every provider on
+    /// `sharedSession` (`HyperWhisperCloudProvider`, `AzureMAIProvider`,
+    /// `GoogleChirpProvider`): each caller keeps its own core parser call and
+    /// hands the classified error here from its `parseError` closure.
+    ///
+    /// Enriches the core's classification from the response body: the HW-Cloud
+    /// 402 credit context (remaining/required, or the invalid-balance message),
+    /// the file-too-large context, and the HTTP status. The 401/403 that
+    /// HYPERWHISPER-T2 reports arrives here; the core drops the code when it
+    /// classifies the body, so it is read off the response instead.
+    static func mapBackendError(_ err: HwTranscriptionError, resp: HttpResponse, providerName: String) -> TranscriptionError {
+        let creditDenial = Self.creditDenialContext(from: resp)
+        if resp.status == 402, let invalidMessage = creditDenial.invalidExhaustedBalanceMessage {
+            return TranscriptionError.invalidResponse(details: invalidMessage)
+        }
+        let (tooBigBytes, tooBigLimit) = RustCoreMapping.fileTooLargeContext(from: resp)
+        return RustCoreMapping.mapTranscriptionError(
+            err,
+            providerName: providerName,
+            insufficientCredits: (resp.status == 402),
+            creditsRemaining: creditDenial.remaining,
+            creditsRequired: creditDenial.required,
+            fileTooLargeBytes: tooBigBytes,
+            fileTooLargeLimit: tooBigLimit,
+            httpStatus: Int(resp.status)
+        )
+    }
+
     /// Read the HW-Cloud 402 credit context from an error response body.
-    private static func creditDenialContext(from response: HttpResponse) -> (remaining: Int, required: Int, invalidExhaustedBalanceMessage: String?) {
+    static func creditDenialContext(from response: HttpResponse) -> (remaining: Int, required: Int, invalidExhaustedBalanceMessage: String?) {
         guard let json = try? JSONSerialization.jsonObject(with: response.body) as? [String: Any] else {
             return (0, 0, nil)
         }
@@ -280,9 +294,10 @@ enum HyperWhisperRoutedTranscription {
     // MARK: - DNS recovery (network-flip resilience)
 
     /// True for errors that look like a stale/poisoned DNS cache — typical after
-    /// a network flip (captive portal, VPN toggle, tether swap). Mirrors
-    /// `HyperWhisperCloudProvider.isDnsError`.
-    private static func isDnsError(_ error: URLError) -> Bool {
+    /// a network flip (captive portal, VPN toggle, tether swap). The one copy
+    /// for every provider on `sharedSession`: gates the pool flush in the
+    /// HyperWhisper Cloud warmup callback and in every transcribe retry.
+    static func isDnsError(_ error: URLError) -> Bool {
         switch error.code {
         case .dnsLookupFailed, .cannotFindHost, .cannotConnectToHost:
             return true
