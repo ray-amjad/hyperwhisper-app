@@ -124,7 +124,8 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
     /// fired before a recording primes the same connection the subsequent upload
     /// uses, regardless of which STT engine the backend dispatches to.
     /// Never call `invalidate` on this; `reset` is gated by
-    /// `performDnsRecoveryReset` for one-shot DNS-flush recovery only.
+    /// `HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure` for
+    /// one-shot DNS-flush recovery only.
     private var session: URLSession { HyperWhisperRoutedTranscription.sharedSession }
 
     // MARK: - Connection Pre-Warm
@@ -169,7 +170,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 // free text: its domain and code are public, the description private (#1679).
                 AppLogger.network.debug("Cloud warmup failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · description=\(error.localizedDescription, privacy: .private)")
                 if let urlError = error as? URLError, HyperWhisperRoutedTranscription.isDnsError(urlError) {
-                    Task { @MainActor in self?.performDnsRecoveryReset() }
+                    Task { @MainActor in HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure() }
                 }
                 return
             }
@@ -178,25 +179,6 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 AppLogger.network.debug("Cloud warmup ok · status=\(http.statusCode, privacy: .public) · region=\(region, privacy: .public)")
             }
         }.resume()
-    }
-
-    private var lastDnsResetAt: Date = .distantPast
-    private static let minDnsResetInterval: TimeInterval = 60
-
-    /// Coarse cross-call gate so the keepalive ticker flapping against a
-    /// dead DNS entry can't repeatedly call `session.reset` — each reset
-    /// also cancels in-flight tasks on the same `URLSession`, so an
-    /// ungated warmup failure could kill an active transcribe upload.
-    /// Per-retry-sequence flags (`didResetThisSequence`) still guard
-    /// within a single transcribe; this gate layers on top of those.
-    /// @MainActor for serialized access to `lastDnsResetAt` (matches the
-    /// existing `lastWarmupAt` pattern in this file).
-    @MainActor
-    private func performDnsRecoveryReset() {
-        if Date().timeIntervalSince(lastDnsResetAt) < Self.minDnsResetInterval { return }
-        lastDnsResetAt = Date()
-        session.reset { }
-        AppLogger.network.debug("DNS recovery: session reset")
     }
 
     // MARK: - Retry Configuration
@@ -411,13 +393,14 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                         return TranscriptionError.invalidResponse(details: error.localizedDescription)
                     }
                 },
-                onTransportError: { [weak self] urlError in
+                onTransportError: { urlError in
                     // One-shot DNS-cache flush on a network flip — restores the
-                    // recovery the deleted native `performRequestWithRetry` did. The
-                    // existing `performDnsRecoveryReset` is @MainActor and applies its
-                    // own coarse cross-call gate on top of RustRetry's one-shot gate.
+                    // recovery the deleted native `performRequestWithRetry` did.
+                    // `resetSharedSessionAfterDnsFailure` is @MainActor and applies
+                    // the 60 s cross-call window shared with the warmup and the
+                    // routed providers, on top of RustRetry's one-shot gate.
                     if HyperWhisperRoutedTranscription.isDnsError(urlError) {
-                        await self?.performDnsRecoveryReset()
+                        await HyperWhisperRoutedTranscription.resetSharedSessionAfterDnsFailure()
                     }
                 }
             )

@@ -170,7 +170,7 @@ struct SpokenTextLogPrivacyTests {
         let body = try ProductionSource.slice(
             of: "app/macos/hyperwhisper/Managers/Transcription/Providers/Cloud/HyperWhisperCloudProvider.swift",
             from: "private func sendWarmup() {",
-            to: "private var lastDnsResetAt"
+            to: "private static let maxRetryAttempts = 4"
         )
         #expect(body.contains("Cloud warmup failed"))
         #expect(!body.contains("localizedDescription, privacy: .public"))

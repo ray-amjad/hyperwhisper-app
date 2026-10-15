@@ -29,10 +29,10 @@ enum HyperWhisperRoutedTranscription {
     /// one the upload actually uses, regardless of which STT engine is
     /// dispatched server-side.
     ///
-    /// NOTE: `HyperWhisperCloudProvider.performDnsRecoveryReset()` calls
-    /// `sharedSession.reset(...)` on DNS-shaped failures. After this change
-    /// that reset drops in-flight uploads from AzureMAI and GoogleChirp too —
-    /// the correct behavior on a network flip since all three hit the same host.
+    /// NOTE: `resetSharedSessionAfterDnsFailure()` resets this session on
+    /// DNS-shaped failures, which drops in-flight uploads from every provider
+    /// on it — the correct behavior on a network flip since all three hit the
+    /// same host, and why that reset is rate-limited across all of them.
     static let sharedSession: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 120
@@ -164,12 +164,13 @@ enum HyperWhisperRoutedTranscription {
                 },
                 onTransportError: { urlError in
                     // One-shot DNS-cache flush on a network flip (VPN/captive-portal/
-                    // tether swap). All three Fly providers share `session`, so a
-                    // reset re-resolves the host for the next attempt. Gated to one
-                    // flush per sequence by RustRetry; we additionally gate on the
-                    // DNS-shaped error codes so a generic blip doesn't reset the pool.
+                    // tether swap). All three Fly providers share `sharedSession`, so
+                    // a reset re-resolves the host for the next attempt. Gated to one
+                    // flush per sequence by RustRetry, to DNS-shaped error codes so a
+                    // generic blip doesn't reset the pool, and to one flush per 60 s
+                    // across every provider on the session.
                     if Self.isDnsError(urlError) {
-                        await Self.recoverDns(session: session)
+                        await Self.resetSharedSessionAfterDnsFailure()
                     }
                 }
             )
@@ -306,13 +307,42 @@ enum HyperWhisperRoutedTranscription {
         }
     }
 
-    /// One-shot URLSession pool flush so the next attempt re-resolves the host.
-    /// `reset` also cancels in-flight tasks on the shared session — acceptable on
-    /// a network flip since all three Fly providers hit the same host.
-    private static func recoverDns(session: URLSession) async {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            session.reset { continuation.resume() }
-        }
-        AppLogger.network.debug("HW-routed DNS recovery: session reset")
+    /// Minimum time between two flushes of `sharedSession`, across every caller.
+    static let minDnsResetInterval: TimeInterval = 60
+
+    /// When `sharedSession` was last flushed. `.distantPast` = never. Internal
+    /// (not private) so a test can read it and put it back.
+    @MainActor static var lastDnsResetAt: Date = .distantPast
+
+    /// The clock the 60 s window reads. A seam for tests; production never
+    /// replaces it.
+    @MainActor static var dnsResetClock: () -> Date = { Date() }
+
+    /// What a flush does. A seam for tests, so they can count flushes without
+    /// cancelling real uploads; production never replaces it.
+    @MainActor static var dnsResetAction: (URLSession) -> Void = { session in
+        session.reset { }
+    }
+
+    /// One-shot pool flush so the next attempt re-resolves the host, gated by
+    /// ONE cross-call window shared by the HyperWhisper Cloud warmup, the Cloud
+    /// transcribe retry and the routed (Azure MAI, Google Chirp) transcribe
+    /// retry. A flush also cancels every in-flight task on the shared session,
+    /// so without the window a keepalive ticker flapping against a dead DNS
+    /// entry, or one provider's retry, could kill another provider's active
+    /// upload. RustRetry's per-sequence one-shot gate still applies inside a
+    /// single transcribe; this window layers on top of it.
+    ///
+    /// @MainActor serializes access to `lastDnsResetAt`. Returns true when it
+    /// flushed, false when the window absorbed the call.
+    @MainActor
+    @discardableResult
+    static func resetSharedSessionAfterDnsFailure() -> Bool {
+        let now = dnsResetClock()
+        if now.timeIntervalSince(lastDnsResetAt) < minDnsResetInterval { return false }
+        lastDnsResetAt = now
+        dnsResetAction(sharedSession)
+        AppLogger.network.debug("DNS recovery: shared-session pool flushed")
+        return true
     }
 }
