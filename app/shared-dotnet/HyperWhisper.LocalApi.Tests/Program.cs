@@ -841,9 +841,19 @@ static async Task PostProcessContextContract()
         Assert(skippedJson.RootElement.GetProperty("post_processed").ValueKind == JsonValueKind.False,
             "post_processed must be false when no LLM ran, not dropped and not true");
         Assert(skippedJson.RootElement.GetProperty("ok").GetBoolean(),
-            "graceful degradation keeps ok:true — post_processed is the only signal");
+            "graceful degradation keeps ok:true for a provider failure — post_processed is the only signal");
     }
     fixture.Backend.PostProcessApplied = true;
+
+    // The one exception (issue #1487, Ray inbox #298): no account key on a
+    // HyperWhisper Cloud run is a configuration fault, refused with the same
+    // MISSING_API_KEY envelope /transcribe gives for that mode.
+    fixture.Backend.PostProcessCloudAccountMissing = true;
+    using (var noKey = await fixture.Client.PostAsync("/post-process", JsonContent("""{"text":"raw words","prompt":"Translate to French"}""")))
+    {
+        await AssertBusinessFailure(noKey, LocalApiErrorCodes.MissingApiKey, "a Cloud run with no account key");
+    }
+    fixture.Backend.PostProcessCloudAccountMissing = false;
 
     using var conflicting = JsonContent("""{"text":"raw","preset":"hyper","prompt":"custom"}""");
     Assert((await fixture.Client.PostAsync("/post-process", conflicting)).StatusCode == HttpStatusCode.BadRequest,
@@ -1646,6 +1656,18 @@ static async Task PortableTranscriptionFailuresReachTheWire()
         LocalApiErrorCodes.Timeout,
         "Transcription was cancelled.",
         "cancelled transcription");
+
+    // No account key on a HyperWhisper Cloud run: MISSING_API_KEY, the exact
+    // envelope /post-process sends for the same mode (issue #1487, review R2-1).
+    // This head used to answer ENGINE_UNAVAILABLE here.
+    var cloudAccount = LocalApiFailureException.CloudAccountRequired();
+    await Assert357(
+        new CloudAccountRequiredTranscriber(),
+        new NoDevices(),
+        async client => { using var form = Clip(); return await client.PostAsync("/transcribe", form); },
+        LocalApiErrorCodes.MissingApiKey,
+        cloudAccount.Message,
+        "a Cloud transcription with no account key");
 
     // The `/recording/*` routes reach the same table through
     // `ThrowWorkflowFailure`, which did a partial two-way split of the SAME
@@ -3148,8 +3170,17 @@ sealed class FakeBackend : ILocalApiBackend
     /// from one that writes a constant (issue #499).
     /// </summary>
     public bool PostProcessApplied { get; set; } = true;
+    /// <summary>
+    /// Makes <see cref="PostProcessAsync"/> refuse the way a head's adapter does
+    /// for a HyperWhisper Cloud run with no account key (issue #1487).
+    /// </summary>
+    public bool PostProcessCloudAccountMissing { get; set; }
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
-    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, PostProcessApplied)); }
+    {
+        PostProcess = request;
+        if (PostProcessCloudAccountMissing) throw LocalApiFailureException.CloudAccountRequired();
+        return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, PostProcessApplied));
+    }
     /// <summary>
     /// The full match set this fake holds. <see cref="GetRecordingsAsync"/> pages it
     /// with the query's limit, so a caller can set more rows than the limit and get
@@ -3317,6 +3348,15 @@ sealed class CancelledTranscriber : IRecordedAudioTranscriber
     public TranscriptionBackendCapability Capability { get; } = new(true, "Cancelling");
     public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
         => Task.FromResult(PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.Cancelled, "Transcription was cancelled.", "Cancelling"));
+}
+
+/// <summary>What the cloud router returns for a HyperWhisper Cloud mode with no account key.</summary>
+sealed class CloudAccountRequiredTranscriber : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(true, "HyperWhisper Cloud");
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
+        => Task.FromResult(PortableTranscriptionResult.Failed(
+            PortableTranscriptionErrorCode.CloudAccountRequired, "A HyperWhisper account key is required.", "HyperWhisper Cloud"));
 }
 
 /// <summary>Returns one fixed transcript and remembers the request it ran under.</summary>

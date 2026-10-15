@@ -58,6 +58,25 @@ public sealed class LocalApiFailureException : Exception
     }
 
     /// <summary>
+    /// <c>MISSING_API_KEY</c> for a HyperWhisper Cloud call with no account key,
+    /// from the shared table's <c>CloudAccountRequired</c> row — the envelope
+    /// every head sends for <c>/transcribe</c> and <c>/post-process</c> alike
+    /// (issue #1487). Public because a head's post-processor adapter lives in
+    /// its own assembly.
+    /// </summary>
+    public static LocalApiFailureException CloudAccountRequired() =>
+        From(HyperwhisperCoreMethods.LocalApiMapTranscriptionError(
+            HwLocalApiTranscriptionFailureReason.CloudAccountRequired,
+            new HwLocalApiTranscriptionFailureParams(
+                @provider: "HyperWhisper Cloud",
+                @detail: null,
+                @model: null,
+                @limitBytes: null,
+                @httpStatus: null,
+                @retryAfterSeconds: null,
+                @hint: "Add your account key in Settings → HyperWhisper Cloud.")));
+
+    /// <summary>
     /// Wrap a <c>hw-localapi</c> failure. The binding's records are
     /// <c>internal</c>, so this factory is the seam that keeps them off the
     /// public surface of the server — the same trick

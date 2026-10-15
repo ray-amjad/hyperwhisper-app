@@ -114,6 +114,20 @@ internal static class PostProcessEndpoints
                 }
                 var latencyMs = (int)Math.Round((DateTime.UtcNow - started).TotalMilliseconds);
 
+                // No account key on a HyperWhisper Cloud run: refuse with the
+                // envelope `/transcribe` gives for the same mode (issue #1487),
+                // not the generic TRANSCRIPTION_FAILED the captured warning
+                // below would produce.
+                if (!result.WasApplied && result.CloudAccountMissing)
+                {
+                    var (code, message, hint) = LocalApiResponder.MapTranscriptionException(
+                        new TranscriptionException(
+                            TranscriptionErrorCode.CloudAccountRequired,
+                            "HyperWhisper Cloud requires an account key",
+                            "HyperWhisper Cloud"));
+                    return LocalApiResponder.Failure(code, message, hint);
+                }
+
                 // `result.AnyPartialFailure` covers the multi-segment case where
                 // some segments applied and at least one did not — `WasApplied`
                 // alone is OR-aggregated across segments and would otherwise

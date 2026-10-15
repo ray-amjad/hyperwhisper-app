@@ -108,6 +108,18 @@ enum PostProcessEndpoint {
         // the honest, concurrency-safe answer.
         let didPostProcess = mutationSignal.didMutate
 
+        // No account key on a HyperWhisper Cloud run is a configuration fault,
+        // not a soft skip: refuse with the same `MISSING_API_KEY` envelope
+        // `/transcribe` gives for the same mode (issue #1487). A narrow
+        // exception to #499 — every other provider failure still answers
+        // `ok: true` with `post_processed: false`.
+        if !didPostProcess && mutationSignal.cloudAccountMissing {
+            let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(
+                TranscriptionError.cloudAccountRequired(provider: "HyperWhisper Cloud")
+            )
+            return LocalAPIResponder.failure(code: code, message: message, hint: hint)
+        }
+
         // `mutationSignal.anyPartialFailure` covers the multi-segment case where
         // some segments post-processed and at least one fell back to raw text —
         // `didMutate` alone is OR-aggregated across segments and would otherwise

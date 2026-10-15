@@ -184,6 +184,10 @@ paths:
         skip (post-processing off for the resolved mode, or an empty system
         prompt) on Windows and Linux, and either that or a provider failure on
         macOS. Handle both the `ok: false` envelope and `post_processed: false`.
+
+        One case is the same on every platform: a HyperWhisper Cloud run with
+        no account key stored answers `ok: false` / `MISSING_API_KEY`, the same
+        refusal `/transcribe` gives for that mode.
       requestBody:
         required: true
         content:

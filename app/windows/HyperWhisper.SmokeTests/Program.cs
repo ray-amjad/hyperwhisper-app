@@ -2718,6 +2718,15 @@ internal static class Program
                         && skipped.ResolvedProvider == null
                         && skipped.ResolvedModel == null,
                     "PostProcessingResult.Skipped leaked a resolved provider/model");
+                // Only the no-account-key skip carries the flag the endpoint
+                // turns into MISSING_API_KEY (issue #1487); a plain skip keeps
+                // the graceful ok:true + post_processed:false shape (#499).
+                var noKey = PostProcessingResult.AccountKeyMissing("in");
+                Assert(!noKey.WasApplied && noKey.CloudAccountMissing && noKey.Text == "in"
+                        && noKey.ResolvedProvider == null && noKey.ResolvedModel == null,
+                    "PostProcessingResult.AccountKeyMissing does not flag the missing account key");
+                Assert(!skipped.CloudAccountMissing,
+                    "PostProcessingResult.Skipped claims a missing account key");
 
                 // The cloud branch labels the model from `CloudPostProcessingModel`
                 // (the X-LLM-Model value it really sends), NOT `Mode.LanguageModel`
