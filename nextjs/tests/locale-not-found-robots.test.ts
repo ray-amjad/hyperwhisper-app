@@ -7,10 +7,14 @@
  * the only robots tag (a noindex here would be a second one). It must also carry a real title, in the URL's locale, and links back into the
  * site, so a 404 is not a dead end (#815).
  *
- * `app/not-found.tsx` serves every unmatched URL (/de/zzz). It must wrap that
- * same content in the [locale] layout, so the page gets the site chrome, and
+ * `app/[locale]/[...rest]/page.tsx` sends every unmatched URL under a locale
+ * (/de/zzz) to that 404, inside the real [locale] layout.
+ *
+ * `app/not-found.tsx` serves an unmatched URL with no real locale. It must wrap
+ * the same content in the [locale] layout, so the page gets the site chrome, and
  * set its own noindex on Vercel only: next start injects one there, Vercel
- * does not.
+ * does not. It must not read the request locale: Next renders it on every
+ * page, so that headers() read made every route dynamic (#843).
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -68,8 +72,16 @@ moduleMock.module("next-intl/server", {
 /** The browser's path, which the 404 content reads its locale from. */
 const browser: { pathname: string | null } = { pathname: null };
 
+// notFound() throws what the real one throws: an error carrying Next's 404 digest.
 moduleMock.module("next/navigation", {
-  namedExports: { usePathname: () => browser.pathname },
+  namedExports: {
+    usePathname: () => browser.pathname,
+    notFound: () => {
+      throw Object.assign(new Error("NEXT_HTTP_ERROR_FALLBACK;404"), {
+        digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+      });
+    },
+  },
 });
 
 // The real next/link needs the router context. A plain anchor keeps the href,
@@ -97,23 +109,24 @@ moduleMock.module("../app/[locale]/layout.tsx", {
 // Variable specifiers, imported after the mocks (see root-layout-direction).
 const LOCALE_NOT_FOUND_PATH = "../app/[locale]/not-found.tsx";
 const ROOT_NOT_FOUND_PATH = "../app/not-found.tsx";
+const CATCH_ALL_PATH = "../app/[locale]/[...rest]/page.tsx";
 
 type Metadata = { title: string; robots?: unknown };
 
 type LocaleNotFoundModule = {
-  default: () => Promise<React.ReactElement>;
+  default: (props?: { locale?: string }) => Promise<React.ReactElement>;
   generateMetadata: (props?: {
     params?: Promise<{ locale?: string }>;
   }) => Promise<Metadata>;
 };
 
 type RootNotFoundModule = {
-  default: () => Promise<
-    React.ReactElement<{
-      params: Promise<{ locale: string }>;
-      children: React.ReactElement;
-    }>
-  >;
+  default: () =>
+    | React.ReactElement<{
+        params: Promise<{ locale: string }>;
+        children: React.ReactElement;
+      }>
+    | Promise<never>;
   generateMetadata: () => Promise<Metadata>;
 };
 
@@ -174,7 +187,22 @@ test("[locale] not-found speaks the URL's locale when the request locale is the 
   assert.match(markup, new RegExp(`<a href="/ja/download">${ja.download}</a>`));
 });
 
-test("[locale] not-found falls back to the request locale off a locale path", async () => {
+test("[locale] not-found falls back to the locale it is given off a locale path", async () => {
+  // app/not-found.tsx passes the request locale. Under [locale] the boundary
+  // gets no props and must not read the request locale itself: that is a
+  // headers() call, and it made every route dynamic (#843).
+  request.locale = "en";
+  browser.pathname = null;
+  const { default: LocaleNotFound } = (await import(
+    LOCALE_NOT_FOUND_PATH
+  )) as LocaleNotFoundModule;
+  const markup = renderToStaticMarkup(await LocaleNotFound({ locale: "de" }));
+
+  assert.match(markup, new RegExp(`<h1[^>]*>${de.heading}</h1>`));
+  assert.match(markup, /<a href="\/de">/);
+});
+
+test("[locale] not-found reads no request locale when it gets no props", async () => {
   request.locale = "de";
   browser.pathname = null;
   const { default: LocaleNotFound } = (await import(
@@ -182,8 +210,8 @@ test("[locale] not-found falls back to the request locale off a locale path", as
   )) as LocaleNotFoundModule;
   const markup = renderToStaticMarkup(await LocaleNotFound());
 
-  assert.match(markup, new RegExp(`<h1[^>]*>${de.heading}</h1>`));
-  assert.match(markup, /<a href="\/de">/);
+  assert.match(markup, new RegExp(`<h1[^>]*>${en.heading}</h1>`));
+  assert.match(markup, /<a href="\/en">/);
 });
 
 test("the English-only pages throw their 404 from generateMetadata too", () => {
@@ -205,6 +233,18 @@ test("the English-only pages throw their 404 from generateMetadata too", () => {
     );
 
     assert.match(metadata, /if \(locale !== "en"\)[\s{]*notFound\(\)/, page);
+  }
+});
+
+test("an unmatched URL under a locale 404s inside the [locale] layout", async () => {
+  // Thrown from both, or the browser keeps the layout's metadata (#815).
+  const page = (await import(CATCH_ALL_PATH)) as {
+    default: () => never;
+    generateMetadata: () => never;
+  };
+
+  for (const entry of [page.default, page.generateMetadata]) {
+    assert.throws(entry, { digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
   }
 });
 
@@ -239,6 +279,7 @@ test("the [locale] layout 404s an unknown locale in its metadata and its render"
 });
 
 test("the root not-found wraps the [locale] 404 in the [locale] layout", async () => {
+  // "de" here would leak into the result only through getLocale().
   request.locale = "de";
   const [{ default: RootNotFound, generateMetadata }, localeModule] =
     await Promise.all([
@@ -248,9 +289,10 @@ test("the root not-found wraps the [locale] 404 in the [locale] layout", async (
   const element = await RootNotFound();
 
   assert.equal(element.type, FakeLocaleLayout);
-  assert.deepEqual(await element.props.params, { locale: "de" });
+  assert.deepEqual(await element.props.params, { locale: "en" });
   assert.equal(element.props.children.type, localeModule.default);
-  assert.equal((await generateMetadata()).title, `${de.title} - HyperWhisper`);
+  assert.deepEqual(element.props.children.props, { locale: "en" });
+  assert.equal((await generateMetadata()).title, `${en.title} - HyperWhisper`);
 });
 
 test("the root not-found marks an unmatched URL noindex on Vercel only", async () => {

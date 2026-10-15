@@ -1,23 +1,30 @@
 import type { Metadata } from "next";
 
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import LocaleLayout from "./[locale]/layout";
 import LocaleNotFound from "./[locale]/not-found";
 
-// Every unmatched URL (/de/zzz) renders this file directly, inside the root
-// layout only, so it never reaches the [locale] layout on its own. It wraps the
-// [locale] 404 in that layout so the page gets the navbar, footer, dark theme
-// and translations, and keeps its 404 status (#815).
+import { defaultLocale } from "@/src/i18n/locales";
+
+// A URL that matches no route and has no real locale (/favicon.ico, /.env: the
+// proxy skips dotted paths, and the [locale] layout 404s them, #1853) renders
+// this file directly, inside the root layout only. It wraps the [locale] 404 in
+// that layout so the page gets the navbar, footer, dark theme and translations,
+// and keeps its 404 status (#815).
 //
-// A notFound() thrown under [locale] renders [locale]/not-found.tsx inside the
-// real [locale] layout instead, so the chrome is never doubled.
+// An unmatched URL under a locale (/de/zzz) is caught by [locale]/[...rest] and
+// renders [locale]/not-found.tsx inside the real [locale] layout instead.
 //
-// The locale comes from the proxy's x-next-intl-locale header through
-// src/i18n/request.ts, which falls back to the default locale when it is
-// absent or unknown.
+// The locale is the default, never the request's: Next renders this boundary
+// on every page, and getLocale() is a headers() call that made every route
+// dynamic (#843). The paths that reach it skip the proxy, so they never carried
+// a locale header anyway.
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("notFound");
+  const t = await getTranslations({
+    locale: defaultLocale,
+    namespace: "notFound",
+  });
 
   // No [locale] layout above this file, so no "%s - HyperWhisper" template.
   // robots: Next injects its own noindex here only when the status is already
@@ -30,12 +37,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function NotFound() {
-  const locale = await getLocale();
-
+export default function NotFound() {
   return (
-    <LocaleLayout params={Promise.resolve({ locale })}>
-      <LocaleNotFound />
+    <LocaleLayout params={Promise.resolve({ locale: defaultLocale })}>
+      <LocaleNotFound locale={defaultLocale} />
     </LocaleLayout>
   );
 }

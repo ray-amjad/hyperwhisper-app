@@ -5,7 +5,11 @@ import { getLocale, getTranslations } from "next-intl/server";
 import NotFoundContent, {
   type NotFoundCopy,
 } from "@/components/layout/NotFoundContent";
-import { isSupportedLocale, locales } from "@/src/i18n/locales";
+import {
+  defaultLocale,
+  isSupportedLocale,
+  locales,
+} from "@/src/i18n/locales";
 import { loadMessages } from "@/src/i18n/messages";
 
 // The 404 content for every locale (#815). A notFound() under [locale] renders
@@ -39,9 +43,9 @@ export async function generateMetadata(props?: {
   };
 }
 
-// This component gets no params, and on the force-static English-only pages
-// the request locale is the default, not the URL's. So every locale's copy goes
-// to the client, which picks the URL's (five short strings per locale).
+// This component gets no params, and the request locale is not set yet when
+// Next renders it under [locale]. So every locale's copy goes to the client,
+// which picks the URL's (five short strings per locale).
 async function loadNotFoundCopy(): Promise<Record<string, NotFoundCopy>> {
   const entries = await Promise.all(
     locales.map(async (locale) => {
@@ -54,11 +58,17 @@ async function loadNotFoundCopy(): Promise<Record<string, NotFoundCopy>> {
   return Object.fromEntries(entries);
 }
 
-export default async function LocaleNotFound() {
-  const [copyByLocale, fallbackLocale] = await Promise.all([
-    loadNotFoundCopy(),
-    getLocale(),
-  ]);
+// `locale` is the fallback for a URL with no locale segment. Only
+// app/not-found.tsx passes it. Under [locale] Next renders this boundary on
+// every page, and getLocale() there would read headers() before the layout's
+// setRequestLocale, making every route dynamic again (#843). A [locale] URL
+// always carries its locale, so the default is only a formality there.
+export default async function LocaleNotFound({
+  locale,
+}: { locale?: string } = {}) {
+  const copyByLocale = await loadNotFoundCopy();
+  const fallbackLocale =
+    locale && isSupportedLocale(locale) ? locale : defaultLocale;
 
   return (
     <NotFoundContent
