@@ -173,6 +173,9 @@ public partial class LocalApiSettingsPage : Page
 
         PortValue.Text = server.ListeningPort > 0 ? server.ListeningPort.ToString() : "—";
         TokenValue.Text = FormatTokenDisplay(server.BearerToken, _tokenRevealed);
+        // #643: a revealed token wraps onto as many lines as it needs, so all of it can be read.
+        TokenValue.TextWrapping = _tokenRevealed ? TextWrapping.Wrap : TextWrapping.NoWrap;
+        TokenValue.TextTrimming = _tokenRevealed ? TextTrimming.None : TextTrimming.CharacterEllipsis;
         RevealTokenButton.Content = _tokenRevealed
             ? Loc.S("settings.localApi.hide")
             : Loc.S("settings.localApi.reveal");

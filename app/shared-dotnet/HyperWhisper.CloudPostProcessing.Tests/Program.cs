@@ -15,7 +15,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("custom endpoint validation", TestCustomValidation),
     ("custom Groq request policy", TestCustomGroq),
     ("HyperWhisper Cloud catalog route", TestHyperWhisperCloud),
-    ("HyperWhisper Cloud device identity", TestHyperWhisperCloudDevice),
+    ("HyperWhisper Cloud with no account key fails closed", TestHyperWhisperCloudDevice),
     ("HyperWhisper Cloud base URL is switchable", TestHyperWhisperCloudBaseUrl),
     ("HyperWhisper Cloud sends the transcript once", TestHyperWhisperCloudTranscriptOnce),
     ("saved endpoints are repaired, not dropped", TestExistingEndpointRepair),
@@ -237,19 +237,17 @@ static async Task TestHyperWhisperCloud()
 
 static async Task TestHyperWhisperCloudDevice()
 {
-    RequestSnapshot? seen = null;
-    var handler = new StubHandler(async request =>
-    {
-        seen = await RequestSnapshot.FromAsync(request);
-        return Json(HttpStatusCode.OK, "{\"corrected\":\"device result\"}");
-    });
+    // Issue #1487: the backend answers 401 "License required" to a device-id
+    // request, so a device identity without an account key is refused before
+    // any request goes out, and the Local API reports MISSING_API_KEY for it.
+    var handler = new StubHandler(_ => throw new InvalidOperationException("HTTP should not run"));
     var credentials = new MemoryCredentialSource();
     credentials.SetLicense(null, "device-safe");
     using var service = Service(handler, credentials);
     var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud));
-    Assert(result.WasApplied, "device-auth cloud request failed");
-    Assert(seen?.Body.Contains("\"device_id\":\"device-safe\"", StringComparison.Ordinal) == true, "device auth missing");
-    Assert(seen?.Headers["X-LLM-Provider"] == "grok", "legacy empty-model fallback changed");
+    Assert(!result.WasApplied, "a device-only cloud request was applied");
+    Assert(result.Failure?.Code == CloudPostProcessingFailureCode.MissingCredential, "no account key was not a missing credential");
+    Assert(handler.CallCount == 0, "a request went out with no account key");
 }
 
 static async Task TestHyperWhisperCloudBaseUrl()

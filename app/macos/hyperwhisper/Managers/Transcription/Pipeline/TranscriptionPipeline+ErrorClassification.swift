@@ -184,6 +184,12 @@ extension TranscriptionPipeline {
             }
         }
 
+        // A retry whose mode the user deleted mid-run (#1620): a user action,
+        // not a defect.
+        if error is TranscriptionRetryError {
+            return false
+        }
+
         guard let transcriptionError = error as? TranscriptionError else {
             return true
         }

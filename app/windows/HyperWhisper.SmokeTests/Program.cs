@@ -2718,6 +2718,15 @@ internal static class Program
                         && skipped.ResolvedProvider == null
                         && skipped.ResolvedModel == null,
                     "PostProcessingResult.Skipped leaked a resolved provider/model");
+                // Only the no-account-key skip carries the flag the endpoint
+                // turns into MISSING_API_KEY (issue #1487); a plain skip keeps
+                // the graceful ok:true + post_processed:false shape (#499).
+                var noKey = PostProcessingResult.AccountKeyMissing("in");
+                Assert(!noKey.WasApplied && noKey.CloudAccountMissing && noKey.Text == "in"
+                        && noKey.ResolvedProvider == null && noKey.ResolvedModel == null,
+                    "PostProcessingResult.AccountKeyMissing does not flag the missing account key");
+                Assert(!skipped.CloudAccountMissing,
+                    "PostProcessingResult.Skipped claims a missing account key");
 
                 // The cloud branch labels the model from `CloudPostProcessingModel`
                 // (the X-LLM-Model value it really sends), NOT `Mode.LanguageModel`
@@ -17321,6 +17330,74 @@ internal static class Program
                     $"at {gearX:F1} - the badge is rendering underneath the gear button");
                 Assert(gearX + offlineGear.ActualWidth <= offlineContainer.ActualWidth + 0.5,
                     "the now-visible offline badge has pushed the gear button off the card");
+            });
+
+            Run("modes: 10,000 modes build only the cards on screen, in two columns — issue #1593", () =>
+            {
+                // #1593. A backup import has no mode cap, and the cards sat in a plain
+                // UniformGrid inside the page ScrollViewer, so all 10,000 were built on
+                // the UI thread and the window hung for about 100 s. MEASURED: count the
+                // containers the ListBox actually made, and lay the grid out.
+                EnsureSmokeApplication();
+
+                const int count = 10_000;
+                var modes = Enumerable.Range(0, count).Select(i => new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = $"Mode {i}",
+                    ProviderType = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    Language = "auto",
+                    PostProcessingMode = 0
+                }).ToArray();
+
+                var page = new HyperWhisper.Views.Pages.ModesPage();
+                var list = (System.Windows.Controls.ListBox)page.FindName("ModeListBox")!;
+                list.ItemsSource = modes;
+
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                page.Measure(new Size(1000, 700));
+                page.Arrange(new Rect(0, 0, 1000, 700));
+                page.UpdateLayout();
+                clock.Stop();
+
+                int Realized() => Enumerable.Range(0, count)
+                    .Count(i => list.ItemContainerGenerator.ContainerFromIndex(i) is not null);
+
+                var realized = Realized();
+                Assert(realized > 0, "the Modes page built no card at all");
+                Assert(realized <= 40,
+                    $"the Modes page built {realized} of {count} cards for a 700px page - the grid is not virtualised");
+                Assert(clock.ElapsedMilliseconds < 2000,
+                    $"the first layout of {count} modes took {clock.ElapsedMilliseconds} ms");
+
+                // Two columns, side by side: the card look is kept.
+                var first = (System.Windows.Controls.ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
+                var second = (System.Windows.Controls.ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(1);
+                var third = (System.Windows.Controls.ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(2);
+                var origin = new Point(0, 0);
+                var p0 = first.TranslatePoint(origin, list);
+                var p1 = second.TranslatePoint(origin, list);
+                var p2 = third.TranslatePoint(origin, list);
+                Assert(Math.Abs(p0.Y - p1.Y) < 0.5 && p1.X > p0.X + first.ActualWidth / 2,
+                    $"cards 0 and 1 are at {p0} and {p1}, not side by side in one row");
+                Assert(Math.Abs(p2.X - p0.X) < 0.5 && p2.Y > p0.Y + first.ActualHeight / 2,
+                    $"card 2 is at {p2}, not under card 0 in the next row");
+
+                // The scrollbar covers every row, and the end of the list is reachable.
+                var scroller = DescendantsOf<System.Windows.Controls.ScrollViewer>(list).First();
+                var rows = (count + 1) / 2;
+                Assert(scroller.ExtentHeight >= rows * first.ActualHeight - 0.5,
+                    $"the scroll extent is {scroller.ExtentHeight:F0}px for {rows} rows of {first.ActualHeight:F0}px");
+
+                scroller.ScrollToEnd();
+                page.UpdateLayout();
+
+                Assert(list.ItemContainerGenerator.ContainerFromIndex(count - 1) is not null,
+                    "scrolled to the end, the last mode has no card");
+                Assert(list.ItemContainerGenerator.ContainerFromIndex(0) is null,
+                    "scrolled to the end, the first card is still built - containers are not released");
+                Assert(Realized() <= 40, $"scrolled to the end, {Realized()} cards are built");
             });
 
             Run("modes: a long mode name never pushes the hint or the model out of the status bar", () =>

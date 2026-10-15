@@ -14,6 +14,7 @@ Directory.CreateDirectory(root);
 try
 {
     await TestRouterAsync(root);
+    await TestCloudAccountRequiredAsync(root);
     await TestLocalVocabularyAsync(root);
     await TestParakeetProtocolAsync(root);
     await TestParakeetCancellationAsync(root);
@@ -21,6 +22,7 @@ try
     TestWaveFileDuration(root);
     await TestParakeetScaledResponseTimeoutAsync(root);
     await TestParakeetDisposeBoundedByFloorAsync(root);
+    await TestParakeetPrewarmAsync(root);
     await TestParakeetLiveProtocolAsync(root);
     TestCredentials();
     TestDefaultModelVectors();
@@ -86,6 +88,30 @@ static async IAsyncEnumerable<ReadOnlyMemory<byte>> OneChunk(byte[] value)
 {
     yield return value;
     await Task.CompletedTask;
+}
+
+static async Task TestCloudAccountRequiredAsync(string root)
+{
+    // Issue #1487 (review R2-1): no account key on a HyperWhisper Cloud mode
+    // keeps its own code through the router, so the Local API answers
+    // MISSING_API_KEY on /transcribe as it does on /post-process. A provider's
+    // 401 stays BackendUnavailable.
+    var audio = Path.Combine(root, "account.wav");
+    await File.WriteAllBytesAsync(audio, [1]);
+    var mode = new Mode { ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "deepgramNova3" };
+    foreach (var (cloudCode, expected) in new[]
+    {
+        (CloudTranscriptionErrorCode.CloudAccountRequired, PortableTranscriptionErrorCode.CloudAccountRequired),
+        (CloudTranscriptionErrorCode.Unauthorized, PortableTranscriptionErrorCode.BackendUnavailable),
+    })
+    {
+        using var router = new ModeAwareTranscriptionRouter(
+            new FakeTranscriber("whisper", available: false),
+            new FakeTranscriber("parakeet", available: false),
+            new FailingCloud(cloudCode));
+        var result = await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: mode));
+        Assert(result.Failure?.Code == expected, $"{cloudCode} routed to {result.Failure?.Code}, expected {expected}");
+    }
 }
 
 static async Task TestRouterAsync(string root)
@@ -640,6 +666,115 @@ static async Task TestParakeetDisposeBoundedByFloorAsync(string root)
         $"a request ended by Dispose was not Cancelled with the daemon killed: {result.Failure?.Code}");
 }
 
+// #1791: a prewarm loads the daemon the next request for the same mode reuses, and a
+// request that arrives while the prewarm is still loading waits for it, not a second daemon.
+static async Task TestParakeetPrewarmAsync(string root)
+{
+    var (executable, models) = await ParakeetFixtureAsync(root, "prewarm");
+    var audio = Path.Combine(root, "prewarm.wav");
+    await File.WriteAllBytesAsync(audio, Wave(sampleRate: 16_000, dataBytes: 3200));
+    var timeouts = new ParakeetDaemonTimeouts(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(20));
+    var mode = new Mode { LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3", Language = "en" };
+    const string ready = "{\"status\":\"ready\",\"provider\":\"cpu\"}\n";
+    const string words = "{\"text\":\"warm words\"}\n";
+    // The daemon's reply to the prewarm's silent warm-up decode.
+    const string warm = "{\"text\":\"\"}\n";
+
+    // Prewarm, then dictate: the dictation starts no process of its own.
+    FakeProcess? first = null;
+    var launcher = new CountingLauncher(() => first = new FakeProcess(ready + warm + words));
+    using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), launcher, models, timeouts: timeouts))
+    {
+        Assert(await service.PrewarmAsync(mode), "a prewarm of a downloaded Parakeet mode did not load the daemon");
+        Assert(launcher.Starts == 1, $"a prewarm started {launcher.Starts} daemons, not 1");
+        // The prewarm also ran one decode, so the first dictation does not pay ONNX's first-inference setup.
+        var sent = Encoding.UTF8.GetString(first!.Input.ToArray()).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var clip = sent.Length == 1 ? JsonDocument.Parse(sent[0]).RootElement.GetProperty("audio_path").GetString() : null;
+        Assert(clip is not null && clip.EndsWith(".wav", StringComparison.Ordinal),
+            $"the prewarm did not send one warm-up decode: {string.Join(" | ", sent)}");
+        Assert(!File.Exists(clip), "the prewarm left its warm-up clip behind");
+        var header = ParakeetDaemonTranscriber.SilentWave(ParakeetDaemonTranscriber.WarmUpSeconds);
+        Assert(header.Length == 44 + 16_000 * 2 * ParakeetDaemonTranscriber.WarmUpSeconds
+            && Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && Encoding.ASCII.GetString(header, 36, 4) == "data",
+            "the warm-up clip is not a 16 kHz mono PCM16 WAV");
+        var result = await service.TranscribeAsync(audio, new TranscriptionWorkflowRequest(Language: "en", SelectedMode: mode));
+        Assert(result.IsSuccess && result.Text == "warm words", $"the request after a prewarm failed: {result.Failure?.Message}");
+        Assert(launcher.Starts == 1, $"the request after a prewarm started a daemon ({launcher.Starts} in total)");
+        Assert(await service.PrewarmAsync(mode) && launcher.Starts == 1, "a second prewarm of the same mode restarted the daemon");
+    }
+
+    // A dictation during the prewarm's model load waits for it: exactly 1 process in total.
+    var slow = new CountingLauncher(() => new FakeProcess("",
+        delayedReply: (ready + warm + words, TimeSpan.FromMilliseconds(300))));
+    using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), slow, models, timeouts: timeouts))
+    {
+        var prewarm = service.PrewarmAsync(mode);
+        await Task.Delay(50);
+        Assert(!prewarm.IsCompleted && slow.Starts == 1, "the prewarm did not wait on the daemon's ready line");
+        var result = await service.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: mode))
+            .WaitAsync(TimeSpan.FromSeconds(10));
+        Assert(await prewarm, "the prewarm under a concurrent request did not load the daemon");
+        Assert(result.IsSuccess && result.Text == "warm words", $"the request during a prewarm failed: {result.Failure?.Message}");
+        Assert(slow.Starts == 1, $"a request during a prewarm started {slow.Starts} daemons in total, not 1");
+    }
+
+    // Same resolution as a request: a different request language is a different daemon.
+    var relaunch = new CountingLauncher(() => new FakeProcess(ready + warm + words));
+    using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), relaunch, models, timeouts: timeouts))
+    {
+        Assert(await service.PrewarmAsync(mode, "en"), "the prewarm with a request language failed");
+        await service.TranscribeAsync(audio, new TranscriptionWorkflowRequest(Language: "ja", SelectedMode: mode));
+        Assert(relaunch.Starts == 2 && relaunch.Requests[1].Arguments.SequenceEqual(new[]
+        {
+            "--model", Path.Combine(models, "Parakeet", "parakeet-v3"), "--language", "ja", "--engine", "nemo_transducer",
+        }), "a request for another language reused the prewarmed daemon");
+    }
+
+    // Nothing to load: a model that is not downloaded, an unknown model, a Whisper mode.
+    var idle = new CountingLauncher(() => new FakeProcess(ready));
+    using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), idle, models, timeouts: timeouts))
+    {
+        foreach (var other in new[]
+        {
+            new Mode { LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v2" },
+            new Mode { LocalEngine = "parakeet", LocalParakeetModel = "not-a-model" },
+            new Mode { LocalEngine = "whisper", Model = "base" },
+        })
+            Assert(!await service.PrewarmAsync(other), $"a prewarm of {other.LocalEngine}/{other.LocalParakeetModel} reported loaded");
+        Assert(idle.Starts == 0, "a prewarm with nothing to load started a daemon");
+    }
+
+    // A daemon that fails to initialize leaves nothing loaded, and the request starts its own.
+    var launches = 0;
+    var failing = new CountingLauncher(() => new FakeProcess(++launches == 1
+        ? "{\"status\":\"error\"}\n" : ready + words));
+    using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), failing, models, timeouts: timeouts))
+    {
+        Assert(!await service.PrewarmAsync(mode), "a daemon that failed to initialize was reported loaded");
+        var result = await service.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: mode));
+        Assert(result.IsSuccess && failing.Starts == 2, "the request after a failed prewarm did not start its own daemon");
+    }
+
+    // A daemon that dies during the warm-up decode is not reported loaded, and nothing stays running.
+    var warmLaunches = 0;
+    var dies = new CountingLauncher(() => new FakeProcess(++warmLaunches == 1 ? ready : ready + words));
+    using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), dies, models, timeouts: timeouts))
+    {
+        Assert(!await service.PrewarmAsync(mode), "a daemon that died during the warm-up was reported loaded");
+        var result = await service.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: mode));
+        Assert(result.IsSuccess && dies.Starts == 2, "the request after a failed warm-up did not start its own daemon");
+    }
+
+    // A cancelled prewarm kills the half-loaded daemon.
+    var blocked = new FakeProcess("", blockAfterContent: true);
+    using (var service = new ParakeetDaemonTranscriber(new StaticRuntime(executable), new RecordingLauncher(blocked), models, timeouts: timeouts))
+    {
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        Assert(!await service.PrewarmAsync(mode, cancellationToken: cancellation.Token) && blocked.Terminated,
+            "a cancelled prewarm did not terminate the loading daemon");
+    }
+}
+
 static async Task<(string Executable, string Models)> ParakeetFixtureAsync(string root, string name)
 {
     var executable = Path.Combine(root, name + "-engine");
@@ -763,6 +898,13 @@ sealed class FakeTranscriber(string provider, bool available = true, string? tex
     { LastRequest = request; return Task.FromResult(PortableTranscriptionResult.Success(text ?? provider, provider)); }
 }
 
+sealed class FailingCloud(CloudTranscriptionErrorCode code) : IBatchCloudTranscriptionClient
+{
+    public Task<CloudTranscriptionResult> TranscribeAsync(CloudTranscriptionRequest request, CancellationToken token = default) =>
+        Task.FromResult(CloudTranscriptionResult.Failed(
+            new CloudTranscriptionFailure(code, "refused", request.Provider), 1));
+}
+
 sealed class RecordingCloud : IBatchCloudTranscriptionClient
 {
     public CloudTranscriptionRequest? LastRequest { get; private set; }
@@ -785,6 +927,19 @@ sealed class RecordingLauncher(FakeProcess process) : IChildProcessLauncher
     public ChildProcessStartRequest? Request { get; private set; }
     public PlatformResult<IChildProcess> Start(ChildProcessStartRequest request)
     { Request = request; return PlatformResult<IChildProcess>.Success(process); }
+}
+
+sealed class CountingLauncher(Func<FakeProcess> next) : IChildProcessLauncher
+{
+    private int _starts;
+    public int Starts => Volatile.Read(ref _starts);
+    public List<ChildProcessStartRequest> Requests { get; } = [];
+    public PlatformResult<IChildProcess> Start(ChildProcessStartRequest request)
+    {
+        lock (Requests) Requests.Add(request);
+        Interlocked.Increment(ref _starts);
+        return PlatformResult<IChildProcess>.Success(next());
+    }
 }
 
 sealed class FakeProcess(

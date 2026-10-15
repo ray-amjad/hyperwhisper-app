@@ -233,6 +233,8 @@ public partial class MainWindow : Window
         _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ActionRequested += OnTrayActionRequested;
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
+        _viewModel.Modes.PropertyChanged += OnModesChangedForParakeetPrewarm;
+        _viewModel.Modes.Items.CollectionChanged += OnModeItemsChangedForParakeetPrewarm;
         if (_viewModel.Recording is not null)
         {
             _viewModel.Recording.TranscriptionSaved += OnOnboardingTranscriptionSaved;
@@ -256,6 +258,7 @@ public partial class MainWindow : Window
             }
             var initializesHere = _initialization is null;
             await EnsureInitializedAsync();
+            PrewarmSelectedParakeetMode();
             var recovery = await new CrashAudioRecoveryService(
                 _platformServices.Paths,
                 new HistoryRepository(_database, _platformServices.Paths),
@@ -374,6 +377,8 @@ public partial class MainWindow : Window
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
+        _viewModel.Modes.PropertyChanged -= OnModesChangedForParakeetPrewarm;
+        _viewModel.Modes.Items.CollectionChanged -= OnModeItemsChangedForParakeetPrewarm;
         if (_viewModel.Recording is not null)
         {
             _viewModel.Recording.TranscriptionSaved -= OnOnboardingTranscriptionSaved;
@@ -409,6 +414,61 @@ public partial class MainWindow : Window
     }
 
     private Task EnsureInitializedAsync() => _initialization ??= InitializeAndArmAutoSaveAsync();
+
+    // The model + language the batch Parakeet daemon was last asked to load (#1791).
+    private string? _parakeetPrewarmKey;
+
+    private void OnModesChangedForParakeetPrewarm(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ModesViewModel.Selected)) PrewarmSelectedParakeetMode();
+    }
+
+    // A saved edit to the selected mode keeps the same Mode instance, so Selected does not
+    // change; Save replaces the row in Items, which is the signal for a new model or language.
+    private void OnModeItemsChangedForParakeetPrewarm(
+        object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
+        PrewarmSelectedParakeetMode();
+
+    /// <summary>
+    /// Loads the batch Parakeet daemon for the mode the next dictation will use, so the first
+    /// dictation after launch does not wait for the model load (#1791), as Windows loads
+    /// Parakeet on mode select. Fire and forget: a failure is logged, never shown, and the
+    /// dictation then starts the daemon itself as before. Whisper and cloud modes load nothing.
+    /// </summary>
+    private void PrewarmSelectedParakeetMode()
+    {
+        if (_closing || _shuttingDown || _initialization is not { IsCompletedSuccessfully: true }) return;
+        // The same pick LinuxInteractionRecordingSession.StartCoreAsync makes.
+        var mode = _viewModel.Modes.Selected ?? _viewModel.Modes.Items.FirstOrDefault(item => item.IsDefault)
+            ?? _viewModel.Modes.Items.FirstOrDefault();
+        if (mode is null
+            || string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(mode.LocalParakeetModel))
+        {
+            _parakeetPrewarmKey = null;
+            return;
+        }
+        // The request language CreateTranscriptionRequest sends for this mode.
+        var language = mode.Language ?? _viewModel.Settings.Language;
+        var key = mode.LocalParakeetModel.Trim() + "\n" + language;
+        if (key == _parakeetPrewarmKey) return;
+        _parakeetPrewarmKey = key;
+        _ = PrewarmParakeetAsync(mode, language, key);
+    }
+
+    private async Task PrewarmParakeetAsync(Mode mode, string? language, string key)
+    {
+        bool loaded;
+        try { loaded = await _platformServices.PrewarmLocalParakeetAsync(mode, language, _lifetime.Token); }
+        catch (Exception) { loaded = false; }
+        if (loaded || _lifetime.IsCancellationRequested) return;
+        // Not loaded (model not downloaded, daemon missing or failed to start): forget the key so
+        // the next change tries again, and the first dictation starts the daemon as before.
+        if (_parakeetPrewarmKey == key) _parakeetPrewarmKey = null;
+        try { await WriteDiagnosticAsync(DiagnosticSeverity.Warning, DiagnosticComponent.Transcription, DiagnosticOutcome.Degraded); }
+        catch (Exception) { }
+    }
 
     private async Task InitializeAndArmAutoSaveAsync()
     {
@@ -2267,6 +2327,13 @@ public partial class MainWindow : Window
         var token = TryReadLocalApiToken();
         SetNamedText("SettingsLocalApiToken", token is null ? "—" : _localApiTokenRevealed
             ? token : new string('•', Math.Max(0, token.Length - 4)) + token[^Math.Min(4, token.Length)..]);
+        // #643: a revealed token wraps onto as many lines as it needs, so all of it can be read.
+        // The masked value keeps the row's one trimmed line.
+        if (FindNamed<TextBlock>("SettingsLocalApiToken") is { } tokenText)
+        {
+            tokenText.TextWrapping = _localApiTokenRevealed ? TextWrapping.Wrap : TextWrapping.NoWrap;
+            tokenText.TextTrimming = _localApiTokenRevealed ? TextTrimming.None : TextTrimming.CharacterEllipsis;
+        }
         SetNamedText("SettingsLocalApiMcpSnippet", LocalApiMcpSnippet);
         SetNamedText("SettingsLocalApiCurlSnippet", LocalApiCurlSnippet);
     }
@@ -3732,6 +3799,9 @@ public partial class MainWindow : Window
             // #653: a Copy or Regenerate report on the shared action line must not outlive a
             // change of server state. 28 is the regression, 29 a probe that could not be set up.
             if (await LocalApiActionStatusClearFailureAsync() is var statusCode && statusCode != 0) return statusCode;
+            // #643: Reveal must show the whole token, not a revealed value cut off with an
+            // ellipsis. 30 is the regression, 31 a probe that could not be set up.
+            if (await LocalApiRevealedTokenFailureAsync() is var tokenCode && tokenCode != 0) return tokenCode;
 
             _viewModel.Navigate("account");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
@@ -4894,6 +4964,104 @@ public partial class MainWindow : Window
             if (settings.LocalApiEnabled != enabled) settings.LocalApiEnabled = enabled;
             line.Text = string.Empty;
             line.IsVisible = false;
+            settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
+            settings.PropertyChanged += OnSettingsPropertyChanged;
+            _settingsAutoSave?.Stop();
+            if (saveWasArmed) _settingsAutoSave?.Start();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+    }
+
+    /// <summary>
+    /// Issue #643: after Reveal the button read Hide, but the token row stayed one trimmed line, so
+    /// the end of the token was an ellipsis and the value could not be read off the page. This
+    /// turns the server on for real, presses the real Reveal button, and MEASURES the token block
+    /// in the real window: its arranged height must hold the whole token wrapped at its arranged
+    /// width. 30 is the regression; 31 says the probe could not be set up.
+    /// </summary>
+    private async Task<int> LocalApiRevealedTokenFailureAsync()
+    {
+        const int regression = 30;
+        const int cannotRun = 31;
+
+        var settings = _viewModel.Settings;
+        var enabled = settings.LocalApiEnabled;
+        var saveWasArmed = _settingsAutoSave is { IsEnabled: true };
+        var page = _currentPageId;
+        // The server is started and stopped by this probe directly, so neither an armed auto-save
+        // nor the settings listener may start a second host behind it.
+        _settingsAutoSave?.Stop();
+        settings.PropertyChanged -= OnSettingsPropertyChanged;
+        settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
+        try
+        {
+            settings.LocalApiEnabled = true;
+            await ApplyLocalApiSettingsAsync(_lifetime.Token);
+            // Through the sidebar's own entry point, so the Settings sub-navigation takes its
+            // column exactly as it does for a user; a bare Navigate leaves it out and widens the row.
+            GoTo("localapi");
+            _localApiTokenRevealed = false;
+            UpdateLocalApiConnectionUi();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (TryReadLocalApiToken() is not { Length: > 0 } token
+                || FindNamed<TextBlock>("SettingsLocalApiToken") is not { IsEffectivelyVisible: true } block
+                || FindNamed<Button>("SettingsLocalApiReveal") is not { IsEffectivelyVisible: true } reveal)
+            {
+                Console.Error.WriteLine("Smoke: with the Local API server on, the page shows no token "
+                    + "row or the host has no token. Setup failure, not the #643 regression.");
+                return cannotRun;
+            }
+
+            reveal.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!_localApiTokenRevealed || !string.Equals(block.Text, token, StringComparison.Ordinal))
+            {
+                Console.Error.WriteLine("Smoke: pressing Reveal did not put the token in the row. "
+                    + "Setup failure, not the #643 regression.");
+                return cannotRun;
+            }
+            // The check is only evidence when the token is wider than its row on one line, which
+            // is the case at the smoke window's size; otherwise it would pass on any layout.
+            var oneLine = TextProbe(block, double.PositiveInfinity).Width;
+            if (oneLine <= block.Bounds.Width)
+            {
+                Console.Error.WriteLine($"Smoke: the {token.Length}-character token ({oneLine:F1}px) fits its "
+                    + $"{block.Bounds.Width:F1}px row on one line, so nothing can be cut. Setup failure, "
+                    + "not the #643 regression.");
+                return cannotRun;
+            }
+            var needed = TextProbe(block, block.Bounds.Width);
+            if (block.Bounds.Height + 0.5 < needed.Height)
+            {
+                Console.Error.WriteLine($"Smoke: the revealed Local API token is cut: its row is "
+                    + $"{block.Bounds.Width:F1}x{block.Bounds.Height:F1}px, and the whole "
+                    + $"{token.Length}-character token needs {needed.Height:F1}px at that width "
+                    + $"(wrapping {block.TextWrapping}, trimming {block.TextTrimming}). Reveal must show "
+                    + "the full value (#643).");
+                return regression;
+            }
+
+            reveal.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (_localApiTokenRevealed || string.Equals(block.Text, token, StringComparison.Ordinal))
+            {
+                Console.Error.WriteLine("Smoke: pressing Hide left the token revealed (#643).");
+                return regression;
+            }
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"Smoke: the revealed Local API token check could not finish: {exception} "
+                + "Setup failure, not the #643 regression.");
+            return cannotRun;
+        }
+        finally
+        {
+            _localApiTokenRevealed = false;
+            settings.LocalApiEnabled = enabled;
+            await ApplyLocalApiSettingsAsync(_lifetime.Token);
+            GoTo(page);
             settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
             settings.PropertyChanged += OnSettingsPropertyChanged;
             _settingsAutoSave?.Stop();

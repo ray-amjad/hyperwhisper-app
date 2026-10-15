@@ -65,6 +65,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
+    ("Local API post-processing refuses a Cloud run with no account key", LocalApiPostProcessingCloudAccountRequired),
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
@@ -1411,6 +1412,64 @@ static string RuntimeFor(LocalWhisperBackend backend) => backend switch
     _ => "Cpu: test runtime",
 };
 
+static async Task LocalApiPostProcessingCloudAccountRequired()
+{
+    // Issue #1487 (Ray, inbox #298): no account key on a HyperWhisper Cloud
+    // run is MISSING_API_KEY, as on /transcribe. Any other skip keeps the
+    // generic refusal this head already sent.
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-pp-key-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        var database = new ApplicationDb(new StaticPaths(root));
+        await database.MigrateAsync();
+        var repository = new ModeRepository(database);
+        var processor = new CapturingPostProcessor
+        {
+            Result = PortablePostProcessingResult.Skipped(
+                "raw",
+                PortablePostProcessingResult.CloudAccountRequiredFailureCode,
+                "HyperWhisper Cloud requires an account key."),
+        };
+        var adapter = new LinuxLocalApiPostProcessor(processor, repository);
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", null, null, "Translate to French", null, null),
+                CancellationToken.None);
+            throw new InvalidOperationException("a Cloud run with no account key was not refused");
+        }
+        catch (LocalApiFailureException failure)
+        {
+            Assert(failure.Code == "MISSING_API_KEY", $"expected MISSING_API_KEY, got {failure.Code}");
+            Assert(failure.HttpStatus == 200, $"a business failure must be HTTP 200, got {failure.HttpStatus}");
+            Assert(failure.Hint?.Contains("HyperWhisper Cloud", StringComparison.Ordinal) == true,
+                $"the hint does not name the Cloud settings page: {failure.Hint}");
+        }
+
+        processor.Result = PortablePostProcessingResult.Skipped(
+            "raw", "postprocessing.missingcredential", "A provider API key is required.");
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", null, null, "Translate to French", "openai", "gpt-test"),
+                CancellationToken.None);
+            throw new InvalidOperationException("a skipped BYOK run was answered ok");
+        }
+        catch (LocalApiFailureException)
+        {
+            throw new InvalidOperationException("a BYOK missing key was reported as the Cloud account refusal");
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "Local post-processing is unavailable for this request.")
+        {
+        }
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
 static async Task LocalApiPostProcessingTransientModes()
 {
     var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-pp-{Guid.NewGuid():N}");
@@ -1971,6 +2030,9 @@ sealed class CapturingPostProcessor : ITranscriptionPostProcessor
     /// </summary>
     public string? ResolvedModel { get; set; }
 
+    /// <summary>When set, returned as-is instead of an applied result.</summary>
+    public PortablePostProcessingResult? Result { get; set; }
+
     public Task<PortablePostProcessingResult> ProcessAsync(
         string transcript,
         Mode mode,
@@ -1986,7 +2048,7 @@ sealed class CapturingPostProcessor : ITranscriptionPostProcessor
         Mode = mode;
         Context = applicationContext;
         return Task.FromResult(
-            PortablePostProcessingResult.Applied($"processed {transcript}", "test-provider", ResolvedModel));
+            Result ?? PortablePostProcessingResult.Applied($"processed {transcript}", "test-provider", ResolvedModel));
     }
 }
 
