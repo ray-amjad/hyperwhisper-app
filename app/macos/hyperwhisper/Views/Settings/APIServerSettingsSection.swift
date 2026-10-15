@@ -168,9 +168,11 @@ struct APIServerSettingsSection: View {
                 }
                 Divider().padding(.vertical, 8)
 
+                // #643: once revealed, the token wraps so all of it can be read.
                 kvRow(label: "Bearer token",
                       value: tokenDisplay,
-                      monospaced: true) {
+                      monospaced: true,
+                      wrap: revealToken) {
                     HStack(spacing: 6) {
                         Button(revealToken ? "Hide" : "Reveal") { revealToken.toggle() }
                             .buttonStyle(.bordered).controlSize(.small)
@@ -267,6 +269,7 @@ struct APIServerSettingsSection: View {
         value: String,
         monospaced: Bool = false,
         truncate: Bool = false,
+        wrap: Bool = false,
         @ViewBuilder trailing: () -> Trailing
     ) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -282,8 +285,9 @@ struct APIServerSettingsSection: View {
                 }
             }
             .textSelection(.enabled)
-            .lineLimit(1)
+            .lineLimit(wrap ? nil : 1)
             .truncationMode(truncate ? .middle : .tail)
+            .fixedSize(horizontal: false, vertical: wrap)
             .frame(maxWidth: .infinity, alignment: .leading)
             trailing()
         }
