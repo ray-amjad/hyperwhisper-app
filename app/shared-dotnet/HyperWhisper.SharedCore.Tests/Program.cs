@@ -512,6 +512,44 @@ var tests = new (string Name, Func<Task> Run)[]
             new PortableModeIdentity("local", null, "  ")));
         return Task.CompletedTask;
     }),
+    // Replays shared-conformance/health-vectors.json through the C# binding
+    // (issue #779). The core decides why a provider health probe failed; the
+    // Linux probe (ProviderMetadataHealthProbe) reads that reason through
+    // SharedCoreBridge.GradeHealthResponse. Rust, Windows and macOS replay the
+    // same file through their own mapping.
+    ("provider health vectors match the core's reason across the binding", () =>
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "health-vectors.json");
+        Assert.True(File.Exists(path), $"health-vectors.json not found at {path}");
+        using var vectors = JsonDocument.Parse(File.ReadAllText(path));
+        var rows = vectors.RootElement.GetProperty("cases");
+        Assert.True(rows.GetArrayLength() >= 15 * 6, "health-vectors.json looks truncated");
+
+        foreach (var row in rows.EnumerateArray())
+        {
+            var providerName = row.GetProperty("provider").GetString()!;
+            var status = row.GetProperty("status").GetUInt16();
+            var label = $"{providerName} {status}";
+            Assert.True(
+                Enum.TryParse<uniffi.hyperwhisper_core.HwProvider>(providerName, out var provider),
+                $"{label}: the binding has no HwProvider named '{providerName}'");
+            var want = row.GetProperty("reason").GetString() switch
+            {
+                "healthy" => uniffi.hyperwhisper_core.HwHealthReason.Healthy,
+                "unauthorized" => uniffi.hyperwhisper_core.HwHealthReason.Unauthorized,
+                "unreachable" => uniffi.hyperwhisper_core.HwHealthReason.Unreachable,
+                var other => throw new InvalidOperationException($"{label}: unknown reason '{other}'"),
+            };
+
+            var verdict = uniffi.hyperwhisper_core.HyperwhisperCoreMethods.ParseHealthResponse(
+                provider, new uniffi.hyperwhisper_core.HttpResponse(status, [], []));
+            Assert.True(verdict.@reason == want, $"{label}: binding reason {verdict.@reason}, vectors say {want}");
+            Assert.True(verdict.@healthy == row.GetProperty("healthy").GetBoolean(), $"{label}: healthy flag");
+            Assert.True(SharedCoreBridge.GradeHealthResponse(provider, status) == want,
+                $"{label}: SharedCoreBridge.GradeHealthResponse disagrees");
+        }
+        return Task.CompletedTask;
+    }),
 };
 
 var failures = 0;
