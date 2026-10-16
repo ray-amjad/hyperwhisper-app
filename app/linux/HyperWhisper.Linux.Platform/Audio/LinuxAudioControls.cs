@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Linux.Platform.Injection;
+using HyperWhisper.Linux.Platform.SystemIntegration;
 using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Linux.Platform.Audio;
@@ -129,14 +130,31 @@ public sealed class LinuxSoundEffectsService : ISoundEffectsService
 
 public sealed class LinuxAudioEnvironmentService : IAudioEnvironmentService
 {
-    private readonly IDesktopCommandRunner _runner; private readonly string? _pactl;
-    public LinuxAudioEnvironmentService() : this(new DesktopCommandRunner(), CommandClipboardBackend.FindExecutable("pactl")) { }
-    internal LinuxAudioEnvironmentService(IDesktopCommandRunner runner, string? pactl) { _runner = runner; _pactl = pactl; }
+    private readonly IDesktopCommandRunner _runner; private readonly string? _pactl; private readonly PulseAudioMuffler _muffler;
+    private readonly object _muffleGate = new(); private PulseMuffleRun? _muffle;
+    public LinuxAudioEnvironmentService() : this(new DesktopCommandRunner(), CommandClipboardBackend.FindExecutable("pactl"), new LinuxChildProcessLauncher(),
+        CommandClipboardBackend.FindExecutable("parec"), CommandClipboardBackend.FindExecutable("pacat"), Environment.ProcessId, PulseAudioMuffler.ParentProcessId) { }
+    internal LinuxAudioEnvironmentService(IDesktopCommandRunner runner, string? pactl) : this(runner, pactl, new LinuxChildProcessLauncher(), null, null, Environment.ProcessId, _ => null) { }
+    internal LinuxAudioEnvironmentService(IDesktopCommandRunner runner, string? pactl, IChildProcessLauncher launcher, string? parec, string? pacat,
+        int ownProcessId, Func<int, int?> parentProcessId)
+    {
+        _runner = runner; _pactl = pactl; _muffler = new(runner, launcher, pactl, parec, pacat, ownProcessId, parentProcessId);
+        _muffler.ActivationFailed = code => { var handlers = MuffleFellBack; try { handlers?.Invoke(this, code); } catch { } };
+    }
+    /// <summary>Raised with an error code when Muffle Audio could not start and the recording ducked instead, or (from a
+    /// worker thread, "audio_environment.muffle_no_audio") when its sink never carried audio and the other audio played on unmuffled.</summary>
+    public event EventHandler<string>? MuffleFellBack;
     public PlatformResult<IAudioEnvironmentSession> PrepareForRecording(AudioEnvironmentPolicy policy, TimeSpan restoreDelay)
     {
         if (restoreDelay < TimeSpan.Zero) return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.invalid_delay", "The restore delay cannot be negative.");
         if (policy == AudioEnvironmentPolicy.Unchanged) return PlatformResult<IAudioEnvironmentSession>.Success(new LinuxAudioEnvironmentSession(null, [], restoreDelay));
         if (_pactl is null) return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.unsupported", "pactl is unavailable.");
+        if (policy == AudioEnvironmentPolicy.MuffleOtherAudio)
+        {
+            var muffled = PrepareMuffle(restoreDelay); if (muffled.IsSuccess) return muffled;
+            var handlers = MuffleFellBack; try { handlers?.Invoke(this, muffled.Error!.Code); } catch { }
+            policy = AudioEnvironmentPolicy.DuckOtherAudio;
+        }
         try
         {
             var query = policy == AudioEnvironmentPolicy.MuteOtherAudio ? new[] { "get-sink-mute", "@DEFAULT_SINK@" } : ["get-sink-volume", "@DEFAULT_SINK@"];
@@ -155,6 +173,39 @@ public sealed class LinuxAudioEnvironmentService : IAudioEnvironmentService
         }
         catch { return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.unavailable", "Output audio policy is unavailable."); }
     }
+
+    /// <summary>At app start: removes a muffle sink a crashed run left behind, moving its streams back to a real sink first.</summary>
+    public Task<int> RecoverStaleMuffleAsync(CancellationToken cancellationToken = default) => Task.Run(() =>
+    {
+        lock (_muffleGate) { if (_muffle is not null) return 0; try { return _muffler.RecoverStale(); } catch { return 0; } }
+    }, cancellationToken);
+
+    private PlatformResult<IAudioEnvironmentSession> PrepareMuffle(TimeSpan restoreDelay)
+    {
+        lock (_muffleGate)
+        {
+            if (_muffle is { } live)
+            {
+                if (live.TryClaim(out var generation)) return PlatformResult<IAudioEnvironmentSession>.Success(new LinuxMuffleSession(this, live, generation, restoreDelay));
+                // The previous run is tearing down: let it finish (or finish it) before building a new sink.
+                try { if (!live.TeardownAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(3)))
+                        return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.muffle_busy", "The previous muffle sink is still being removed."); }
+                catch { }
+                _muffle = null;
+            }
+            try
+            {
+                var started = _muffler.Start();
+                if (started.IsFailure) return PlatformResult<IAudioEnvironmentSession>.Failure(started.Error!.Code, started.Error.Message);
+                _muffle = started.Value!;
+                return PlatformResult<IAudioEnvironmentSession>.Success(new LinuxMuffleSession(this, _muffle, _muffle.Generation, restoreDelay));
+            }
+            catch (Exception error) { return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.muffle_start_failed", error.Message); }
+        }
+    }
+
+    internal PulseAudioMuffler Muffler => _muffler;
+    internal void Forget(PulseMuffleRun run) { lock (_muffleGate) if (ReferenceEquals(_muffle, run)) _muffle = null; }
 }
 
 internal sealed class LinuxAudioEnvironmentSession(IDesktopCommandRunner? runner, IReadOnlyList<string> command, TimeSpan delay) : IAudioEnvironmentSession
