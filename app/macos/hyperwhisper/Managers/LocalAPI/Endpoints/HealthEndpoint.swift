@@ -26,59 +26,14 @@ enum HealthEndpoint {
         nemotronModelManager: NemotronModelManager?,
         qwen3AsrModelManager: Qwen3AsrModelManager?,
         localModelManager: LocalModelManager?,
-        settingsManager: SettingsManager?
+        settingsManager: SettingsManager?,
+        licenseManager: LicenseManager?
     ) async -> HTTPResponse {
-        let snapshot = cloudHealth?.healthSnapshot()
-
-        // Cloud transcription providers
-        var providerEntries: [HealthProviderStatus] = []
-        for provider in transcriptionProviders {
-            var status = snapshot?.cloud[provider.rawValue] ?? "unknown"
-            let keyPresent: Bool
-            if !provider.requiresAPIKey {
-                // HW-Cloud-routed providers (hyperwhisper, microsoftAzureSpeech,
-                // googleSpeech) authenticate via license/device — always "configured".
-                keyPresent = true
-            } else if let settingsManager {
-                keyPresent = !settingsManager.apiKey(for: provider).isEmpty
-            } else {
-                keyPresent = false
-            }
-            if provider == .meta, keyPresent {
-                // Meta has no documented content-free validation endpoint.
-                // Presence is configuration, not proof of reachability.
-                status = "configured"
-            }
-            providerEntries.append(HealthProviderStatus(
-                id: provider.rawValue,
-                key_present: keyPresent,
-                reachable: status == "healthy",
-                status: status
-            ))
-        }
-
-        // Post-processing providers
-        var postEntries: [HealthProviderStatus] = []
-        for provider in PostProcessingProvider.allCases {
-            let status = snapshot?.postProcessing[provider.rawValue] ?? "unknown"
-            let keyPresent: Bool
-            switch provider {
-            case .hyperwhisper, .localLLM:
-                keyPresent = true
-            default:
-                if let settingsManager {
-                    keyPresent = !settingsManager.postProcessingAPIKey(for: provider).isEmpty
-                } else {
-                    keyPresent = false
-                }
-            }
-            postEntries.append(HealthProviderStatus(
-                id: provider.rawValue,
-                key_present: keyPresent,
-                reachable: status == "healthy",
-                status: status
-            ))
-        }
+        let entries = providerEntries(
+            snapshot: cloudHealth?.healthSnapshot(),
+            settingsManager: settingsManager,
+            licenseManager: licenseManager
+        )
 
         let local = collectLocalModels(
             whisperModelManager: whisperModelManager,
@@ -95,12 +50,91 @@ enum HealthEndpoint {
             api_version: LocalAPIVersion.current,
             port: port,
             pid: ProcessInfo.processInfo.processIdentifier,
-            providers: providerEntries,
-            post_processing_providers: postEntries,
+            providers: entries.providers,
+            post_processing_providers: entries.postProcessing,
             local_models: local
         )
 
         return LocalAPIResponder.ok(response)
+    }
+
+    /// The `providers` and `post_processing_providers` rows of `GET /health`.
+    ///
+    /// Split out of `handle` because it names no FlyingFox type, so the test
+    /// target (which links no FlyingFox) can drive the real rows.
+    ///
+    /// `key_present` for the HyperWhisper Cloud-routed providers (`hyperwhisper`,
+    /// `microsoftAzureSpeech`, `googleSpeech`, and post-processing
+    /// `hyperwhisper`) reads the SAME predicate `/transcribe` and Cloud
+    /// post-processing use to refuse a job with `MISSING_API_KEY`:
+    /// `LicenseManager.getTranscriptionIdentifier().isLicensed`, fed to
+    /// `HyperWhisperCloudEntitlement.requireLicense` (transcription) and checked
+    /// by `AIPostProcessor.performHyperWhisperCloudPostProcessing`. They used to
+    /// be hard-coded `true`, so a profile with no account key read
+    /// `key_present: true` while every Cloud job was refused (#650, #1492).
+    /// Presence only: the identifier itself is discarded, never logged.
+    @MainActor
+    static func providerEntries(
+        snapshot: HealthSnapshot?,
+        settingsManager: SettingsManager?,
+        licenseManager: LicenseManager?
+    ) -> (providers: [HealthProviderStatus], postProcessing: [HealthProviderStatus]) {
+        let cloudAccountKeyPresent = licenseManager?.getTranscriptionIdentifier().isLicensed ?? false
+
+        // Cloud transcription providers
+        var transcriptionEntries: [HealthProviderStatus] = []
+        for provider in transcriptionProviders {
+            var status = snapshot?.cloud[provider.rawValue] ?? "unknown"
+            let keyPresent: Bool
+            if !provider.requiresAPIKey {
+                // HW-Cloud-routed providers (hyperwhisper, microsoftAzureSpeech,
+                // googleSpeech) need the HyperWhisper Cloud account key.
+                keyPresent = cloudAccountKeyPresent
+            } else if let settingsManager {
+                keyPresent = !settingsManager.apiKey(for: provider).isEmpty
+            } else {
+                keyPresent = false
+            }
+            if provider == .meta, keyPresent {
+                // Meta has no documented content-free validation endpoint.
+                // Presence is configuration, not proof of reachability.
+                status = "configured"
+            }
+            transcriptionEntries.append(HealthProviderStatus(
+                id: provider.rawValue,
+                key_present: keyPresent,
+                reachable: status == "healthy",
+                status: status
+            ))
+        }
+
+        // Post-processing providers
+        var postEntries: [HealthProviderStatus] = []
+        for provider in PostProcessingProvider.allCases {
+            let status = snapshot?.postProcessing[provider.rawValue] ?? "unknown"
+            let keyPresent: Bool
+            switch provider {
+            case .hyperwhisper:
+                keyPresent = cloudAccountKeyPresent
+            case .localLLM:
+                // Runs on this Mac; there is no credential to hold.
+                keyPresent = true
+            default:
+                if let settingsManager {
+                    keyPresent = !settingsManager.postProcessingAPIKey(for: provider).isEmpty
+                } else {
+                    keyPresent = false
+                }
+            }
+            postEntries.append(HealthProviderStatus(
+                id: provider.rawValue,
+                key_present: keyPresent,
+                reachable: status == "healthy",
+                status: status
+            ))
+        }
+
+        return (transcriptionEntries, postEntries)
     }
 
     @MainActor

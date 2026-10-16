@@ -1,0 +1,31 @@
+{
+  "description": "Whisper's non-speech markers (issue #1811). One rule for every head: shared-core-rs hw-text strip_whisper_non_speech_markers. A marker is one of BLANK_AUDIO / BLANK AUDIO, silence, no speech, inaudible, music, applause, in [] or (), any case, whitespace allowed inside the brackets. Where a marker is removed, whitespace runs collapse to one space; the result is trimmed; marker-only input is empty. Text with no marker is only trimmed. A bracket the speaker dictated survives. Run by shared-core-rs/crates/hw-text/tests/whisper_marker_vectors.rs, app/shared-dotnet/HyperWhisper.LocalInference.Tests, app/windows/HyperWhisper.SmokeTests and app/macos/hyperwhisperTests/WhisperMarkerConformanceVectorTests.swift.",
+  "cases": [
+    { "name": "blank-audio only (issue table)", "input": " [BLANK_AUDIO]", "expected": "" },
+    { "name": "silence only (issue table)", "input": " (silence)", "expected": "" },
+    { "name": "inaudible only (issue table)", "input": " [inaudible]", "expected": "" },
+    { "name": "music with inner spaces (issue table)", "input": " [ Music ]", "expected": "" },
+    { "name": "applause, the macOS-only marker (issue table)", "input": " [Applause]", "expected": "" },
+    { "name": "speech then a trailing marker (issue table)", "input": " Hello. [BLANK_AUDIO]", "expected": "Hello." },
+
+    { "name": "two markers only (#1449 / #1742 silent file)", "input": " [BLANK_AUDIO] [BLANK_AUDIO]", "expected": "" },
+    { "name": "dictation case with a trailing space (#1449)", "input": "[BLANK_AUDIO] ", "expected": "" },
+    { "name": "every other annotation in either bracket shape", "input": "[ Silence ] (music) [no speech] (inaudible) [blank audio]", "expected": "" },
+    { "name": "applause in parentheses", "input": "(applause)", "expected": "" },
+    { "name": "markers in upper case", "input": "[MUSIC] (APPLAUSE) [SILENCE]", "expected": "" },
+    { "name": "speech around a marker keeps one space", "input": " Hello there. [BLANK_AUDIO] See you soon.", "expected": "Hello there. See you soon." },
+    { "name": "markers between lines collapse to one space", "input": "Hello.\n[BLANK_AUDIO]\nBye.", "expected": "Hello. Bye." },
+    { "name": "speech between two music markers", "input": "[Music] la la la [Music]", "expected": "la la la" },
+
+    { "name": "dictated brackets survive (#1742)", "input": " Call the function [user id] (optional). ", "expected": "Call the function [user id] (optional)." },
+    { "name": "a dictated TODO bracket survives", "input": "Fix the [TODO] before Friday.", "expected": "Fix the [TODO] before Friday." },
+    { "name": "a longer bracket that only starts with a marker word survives", "input": "Play the [music video] again.", "expected": "Play the [music video] again." },
+    { "name": "marker words without brackets survive", "input": "I love music and silence.", "expected": "I love music and silence." },
+    { "name": "a marker word in another language survives", "input": "[Música]", "expected": "[Música]" },
+    { "name": "a dictated bracket next to a real marker", "input": "[TODO] [BLANK_AUDIO] (optional)", "expected": "[TODO] (optional)" },
+
+    { "name": "empty input", "input": "", "expected": "" },
+    { "name": "whitespace-only input", "input": "  \n\t ", "expected": "" },
+    { "name": "text with no marker is only trimmed, its line breaks kept", "input": "  Line one.\n\nLine two.  ", "expected": "Line one.\n\nLine two." }
+  ]
+}

@@ -32,6 +32,10 @@
          head and macOS replay this very file. -->
     <Content Include="../../../shared-conformance/health-vectors.json"
              Link="health-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Whisper's non-speech marker vectors (issue #1811): Rust, the Linux
+         local-inference harness and macOS replay this very file. -->
+    <Content Include="../../../shared-conformance/whisper-marker-vectors.json"
+             Link="whisper-marker-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The LIVE Windows appcast, not a fixture: the AppcastService checks
          replay the very feed the shipped app fetches and pin the 15 releases it
          renders, so #353's move of the selection rules into the shared core is

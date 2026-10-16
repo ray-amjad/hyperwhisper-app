@@ -670,7 +670,10 @@ final class LocalAPIServer: ObservableObject {
             nemotronModelManager: nemotronModelManager,
             qwen3AsrModelManager: qwen3AsrModelManager,
             localModelManager: localModelManager,
-            settingsManager: settingsManager
+            settingsManager: settingsManager,
+            // The same instance the transcription router and AIPostProcessor
+            // read, so `key_present` answers what `/transcribe` will do.
+            licenseManager: transcriptionPipeline?.licenseManager
         )
     }
 

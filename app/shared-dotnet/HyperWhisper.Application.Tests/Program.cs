@@ -2954,7 +2954,7 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         Assert(File.Exists(failureAudio), "owned audio was deleted after a non-cancel failure");
     }
 
-    // A backend that answers with no text (Whisper's [BLANK_AUDIO]-only silence,
+    // A backend that answers with no text (Whisper's markers-only silence,
     // once stripped) is no speech, not a generic failure, and nothing is delivered (#1742).
     var silentStore = await CreateStoreAsync(root, "workflow-no-speech");
     var silentAudio = Path.Combine(root, "silent.wav");

@@ -469,7 +469,11 @@ actor WhisperContext {
     /// - Do not strip "..." to avoid removing genuine content from some languages.
     /// - Use `.letters` to treat non-Latin scripts as valid when filtering very short noise.
     private func cleanTranscription(_ text: String) -> String {
-        var cleaned = text
+        // Whisper's non-speech markers ([ Music ], (applause), (silence) and kin)
+        // are the shared core's rule, so this head strips exactly what Windows
+        // and Linux strip (issue #1811). Cases:
+        // shared-conformance/whisper-marker-vectors.json.
+        var cleaned = HyperWhisper.stripWhisperNonSpeechMarkers(text: text)
         
         // Common hallucination patterns to remove
         let hallucinationPatterns = [
@@ -477,10 +481,6 @@ actor WhisperContext {
             "Thanks for watching!",
             "Please subscribe",
             "Don't forget to like",
-            "[Music]",
-            "[Applause]",
-            "(applause)",
-            "(music)",
             "Transcribed by https://otter.ai",
             "Subtitles by",
             "♪♪♪",

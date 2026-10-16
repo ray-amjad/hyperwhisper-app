@@ -1336,6 +1336,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -2490,6 +2492,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern int uniffi_hyperwhisper_core_fn_func_stats_saved_minutes_ceiling(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_strip_whisper_non_speech_markers(RustBuffer @text,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3774,6 +3780,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_strip_whisper_non_speech_markers(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -5442,6 +5452,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling();
             if (checksum != 6847) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling` checksum `6847`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_strip_whisper_non_speech_markers();
+            if (checksum != 49359) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_strip_whisper_non_speech_markers` checksum `49359`, library returned `{checksum}`");
             }
         }
         {
@@ -19909,6 +19925,20 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterInt32.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_stats_saved_minutes_ceiling( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Remove Whisper's non-speech markers (a blank-audio tag, `(silence)`,
+    /// `[inaudible]`, `[ Music ]`, `(applause)` and kin) and trim. Marker-only input
+    /// returns `""`; a bracket the speaker dictated survives. One rule for every
+    /// head (issue #1811); cases in `shared-conformance/whisper-marker-vectors.json`.
+    /// </summary>
+    public static string StripWhisperNonSpeechMarkers(string @text) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_strip_whisper_non_speech_markers(FfiConverterString.INSTANCE.Lower(@text), ref _status)
 ));
     }
 
