@@ -700,36 +700,37 @@ struct OnboardingFooter: View {
 
     var body: some View {
         HStack(spacing: DesignConstants.Spacing.medium) {
-            Button(action: onBack) {
-                HStack(spacing: DesignConstants.Spacing.xs) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 11, weight: .semibold))
-                    Text(localized: "common.back")
-                        .font(.system(size: 13, weight: .medium))
+            // A withdrawn control leaves the hierarchy and a hidden copy of its
+            // label holds the slot, so the footer does not shift. An invisible
+            // button would keep its keyboard focus ring and draw an empty box.
+            if showsBack {
+                Button(action: onBack) {
+                    backLabel
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            } else {
+                backLabel
+                    .hidden()
+                    .accessibilityHidden(true)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .opacity(showsBack ? 1 : 0)
-            .disabled(!showsBack)
-            .accessibilityHidden(!showsBack)
 
             // First run setup can need a download or a network round trip, so the
             // deferral stays reachable while there is still setup left to skip,
             // as the quietest control on screen so the single primary keeps its
             // hierarchy. It is withdrawn on the final step, where the work is
             // already done and deferring would only roll it back.
-            Button(action: onDefer) {
-                Text(deferTitle)
-                    .font(.system(size: 13))
-                    .contentShape(Rectangle())
+            if showsDefer {
+                Button(action: onDefer) {
+                    deferLabel
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tertiary)
+            } else {
+                deferLabel
+                    .hidden()
+                    .accessibilityHidden(true)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tertiary)
-            .opacity(showsDefer ? 1 : 0)
-            .disabled(!showsDefer)
-            .accessibilityHidden(!showsDefer)
 
             Spacer(minLength: DesignConstants.Spacing.medium)
 
@@ -748,6 +749,22 @@ struct OnboardingFooter: View {
         .padding(.horizontal, DesignConstants.Spacing.large)
         .frame(height: OnboardingStyle.footerHeight)
         .overlay(alignment: .top) { OnboardingCardDivider() }
+    }
+
+    private var backLabel: some View {
+        HStack(spacing: DesignConstants.Spacing.xs) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 11, weight: .semibold))
+            Text(localized: "common.back")
+                .font(.system(size: 13, weight: .medium))
+        }
+        .contentShape(Rectangle())
+    }
+
+    private var deferLabel: some View {
+        Text(deferTitle)
+            .font(.system(size: 13))
+            .contentShape(Rectangle())
     }
 }
 
