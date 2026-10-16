@@ -408,21 +408,40 @@ public sealed class MuffleRestoreJournal : IDisposable
     internal static bool StillAtSetVolume(float current, float set) =>
         Math.Abs(current - set) <= Math.Max(1e-7f, Math.Abs(set) * 1e-3f);
 
-    internal static List<MuffleRestoreEntry> Parse(string json)
+    internal static List<MuffleRestoreEntry> Parse(string json) =>
+        TryParse(json, out var entries, out _) ? entries : new List<MuffleRestoreEntry>();
+
+    /// <summary>
+    /// False when <paramref name="json"/> is not a journal (empty, torn or garbled): the file must
+    /// then be kept aside, not overwritten, since it may be the only record of lowered volumes.
+    /// </summary>
+    internal static bool TryParse(string json, out List<MuffleRestoreEntry> entries, out string? error)
     {
+        entries = new List<MuffleRestoreEntry>();
+        error = null;
         try
         {
             var file = JsonSerializer.Deserialize<JournalFile>(json, JsonOptions);
+            if (file == null)
+            {
+                error = "the file holds no journal";
+                return false;
+            }
+
             // FindMatch can use either identifier, so an entry is kept while it has at least one.
-            return file?.Entries?.Where(e => e != null && IsMatchable(e)).ToList()
-                ?? new List<MuffleRestoreEntry>();
+            entries = file.Entries?.Where(e => e != null && IsMatchable(e)).ToList() ?? entries;
+            return true;
         }
         catch (JsonException ex)
         {
-            LoggingService.Warn($"MuffleRestoreJournal: Ignoring an unreadable journal: {ex.Message}");
-            return new List<MuffleRestoreEntry>();
+            error = ex.Message;
+            return false;
         }
     }
+
+    /// <summary>Where an unreadable journal is moved, so a later write cannot destroy it.</summary>
+    internal static string CorruptCopyPath(string path, DateTimeOffset now) =>
+        $"{path}.corrupt-{now.UtcDateTime:yyyyMMdd-HHmmss-fff}";
 
     internal static string Serialize(IEnumerable<MuffleRestoreEntry> entries) =>
         JsonSerializer.Serialize(new JournalFile { Version = 1, Entries = entries.ToList() }, JsonOptions);
@@ -450,7 +469,13 @@ public sealed class MuffleRestoreJournal : IDisposable
         {
             if (File.Exists(FilePath))
             {
-                _stale.AddRange(Parse(File.ReadAllText(FilePath)));
+                if (!TryParse(File.ReadAllText(FilePath), out var entries, out var error))
+                {
+                    PreserveCorruptFile(error);
+                    return;
+                }
+
+                _stale.AddRange(entries);
                 if (_stale.Count > 0)
                 {
                     LoggingService.Info($"MuffleRestoreJournal: Found {_stale.Count} volume(s) an earlier run did not restore");
@@ -460,6 +485,30 @@ public sealed class MuffleRestoreJournal : IDisposable
         catch (Exception ex)
         {
             LoggingService.Warn($"MuffleRestoreJournal: Could not read {Path.GetFileName(FilePath)}: {ex.Message}");
+        }
+    }
+
+    // An unreadable journal may be the only record of volumes left at -80 dB, so it is moved aside
+    // (for a person or a later fix to read) instead of being treated as empty and overwritten.
+    private void PreserveCorruptFile(string? error)
+    {
+        var target = CorruptCopyPath(FilePath, DateTimeOffset.UtcNow);
+        try
+        {
+            File.Move(FilePath, target);
+            LoggingService.Error($"MuffleRestoreJournal: {Path.GetFileName(FilePath)} is unreadable ({error}); kept it as {Path.GetFileName(target)}. App volumes it recorded are not restored automatically");
+        }
+        catch (Exception moveEx)
+        {
+            try
+            {
+                File.Copy(FilePath, target, overwrite: false);
+                LoggingService.Error($"MuffleRestoreJournal: {Path.GetFileName(FilePath)} is unreadable ({error}); could not move it ({moveEx.Message}), copied it to {Path.GetFileName(target)}");
+            }
+            catch (Exception copyEx)
+            {
+                LoggingService.Error($"MuffleRestoreJournal: {Path.GetFileName(FilePath)} is unreadable ({error}) and could not be kept aside: {copyEx.Message}");
+            }
         }
     }
 
@@ -483,8 +532,16 @@ public sealed class MuffleRestoreJournal : IDisposable
                 Directory.CreateDirectory(directory);
             }
 
+            // The bytes reach the disk before the rename, so a power cut leaves the old journal or
+            // the new one, never a torn or empty file in its place.
             var temp = FilePath + ".tmp";
-            File.WriteAllText(temp, Serialize(_stale.Concat(_live)));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(Serialize(_stale.Concat(_live)));
+            using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+            {
+                stream.Write(bytes, 0, bytes.Length);
+                stream.Flush(flushToDisk: true);
+            }
+
             File.Move(temp, FilePath, overwrite: true);
             return Result.Success();
         }

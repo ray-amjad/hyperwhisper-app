@@ -591,7 +591,10 @@ internal static class Program
                 var parsed = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse(
                     HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(entries));
                 Assert(parsed.Count == 2 && parsed[0] == first && parsed[1] == second, "entries survive a round trip");
-                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse("{ not json").Count == 0, "a damaged file reads as empty");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse("{ not json", out _, out _), "a damaged file is reported, not read as empty");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(string.Empty, out _, out _), "an empty (torn) file is reported");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse("{\"version\":1,\"entries\":[]}", out var none, out _) && none.Count == 0,
+                    "an empty journal parses");
 
                 Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|b.exe|2", "app|a.exe") == second,
                     "the instance id wins over the session id");
@@ -623,12 +626,42 @@ internal static class Program
                         Assert(journal.Add(second).IsSuccess, "second entry written");
                     }
 
+                    Assert(!File.Exists(path + ".tmp"), "no temporary file is left behind");
                     using var nextRun = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path);
                     Assert(nextRun.HasStaleEntries, "the next start sees what a killed run left");
                 }
                 finally
                 {
                     File.Delete(path);
+                }
+            });
+
+            // A journal torn by a power cut must not be read as empty and then overwritten: it is
+            // moved aside, and the journal starts afresh next to it.
+            Run("Muffle restore journal keeps an unreadable file aside", () =>
+            {
+                var directory = Path.Combine(Path.GetTempPath(), $"hw-muffle-corrupt-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(directory);
+                var path = Path.Combine(directory, "muffle-restore.json");
+                try
+                {
+                    const string torn = "{\"version\":1,\"entries\":[{\"sessionIdentifier\":\"app|a.e";
+                    File.WriteAllText(path, torn);
+                    var entry = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, DateTimeOffset.UtcNow);
+                    using (var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path))
+                    {
+                        Assert(!journal.HasStaleEntries, "a torn journal has no usable entries");
+                        Assert(journal.Add(entry).IsSuccess, "the journal still takes new entries");
+                    }
+
+                    var kept = Directory.GetFiles(directory, "muffle-restore.json.corrupt-*");
+                    Assert(kept.Length == 1 && File.ReadAllText(kept[0]) == torn, "the torn file is kept, byte for byte");
+                    Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(File.ReadAllText(path), out var fresh, out _)
+                        && fresh.Count == 1 && fresh[0] == entry, "the new journal holds only the new entry");
+                }
+                finally
+                {
+                    Directory.Delete(directory, recursive: true);
                 }
             });
 
