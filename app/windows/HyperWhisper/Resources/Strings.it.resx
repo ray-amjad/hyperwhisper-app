@@ -2011,6 +2011,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Disattiva l'audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Attenua l'audio</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Mantieni il microfono pronto</value>
   </data>

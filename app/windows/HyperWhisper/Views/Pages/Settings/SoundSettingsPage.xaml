@@ -54,6 +54,7 @@
                                   SelectionChanged="MediaControlModeComboBox_SelectionChanged">
                             <ComboBoxItem Tag="off" Content="{loc:Loc settings.sound.mediaControl.off}"/>
                             <ComboBoxItem Tag="muteAudio" Content="{loc:Loc settings.sound.mediaControl.muteAudio}"/>
+                            <ComboBoxItem Tag="muffleAudio" Content="{loc:Loc settings.sound.mediaControl.muffleAudio}"/>
                         </ComboBox>
                     </Grid>
 

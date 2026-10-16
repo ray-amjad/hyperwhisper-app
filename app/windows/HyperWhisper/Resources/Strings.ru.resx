@@ -2011,6 +2011,9 @@
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Отключить звук</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Приглушить звук</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Держать микрофон наготове</value>
   </data>

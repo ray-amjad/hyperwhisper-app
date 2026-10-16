@@ -278,7 +278,7 @@ public partial class SettingsService
 
     /// <summary>
     /// Controls how Windows output audio is handled during recording.
-    /// Values: "off" or "muteAudio". Default: off.
+    /// Values: "off", "muteAudio" or "muffleAudio" (the macOS raw values). Default: off.
     /// </summary>
     public string MediaControlMode
     {
@@ -818,9 +818,16 @@ public partial class SettingsService
         return AppPaths.LegacyAudioDirectory;
     }
 
-    private static string NormalizeMediaControlMode(string? value)
+    internal static string NormalizeMediaControlMode(string? value)
     {
-        return string.Equals(value, "muteAudio", StringComparison.OrdinalIgnoreCase) ? "muteAudio" : "off";
+        if (string.Equals(value, AudioEnvironmentService.MuteAudioMode, StringComparison.OrdinalIgnoreCase))
+        {
+            return AudioEnvironmentService.MuteAudioMode;
+        }
+
+        return string.Equals(value, AudioEnvironmentService.MuffleAudioMode, StringComparison.OrdinalIgnoreCase)
+            ? AudioEnvironmentService.MuffleAudioMode
+            : "off";
     }
 
 }
