@@ -509,6 +509,21 @@ export async function grantCreditsForStripeEvent(
 }
 
 /**
+ * True when a Stripe object (a Checkout Session id) already has its completed
+ * event recorded in `stripe_processed_events`. The table is keyed by event id
+ * with a unique index on `stripe_object_id`, and a credit purchase writes the
+ * session id there in the same transaction as its grant (#1834).
+ */
+export async function hasProcessedStripeObject(stripeObjectId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ eventId: stripeProcessedEvents.eventId })
+    .from(stripeProcessedEvents)
+    .where(eq(stripeProcessedEvents.stripeObjectId, stripeObjectId))
+    .limit(1);
+  return Boolean(row);
+}
+
+/**
  * Record a refund against ONE grant and take the refunded credits off it.
  *
  * RULE (#1351, Ray 2026-10-07): a refund removes credits from the refunded

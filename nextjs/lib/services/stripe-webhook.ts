@@ -18,6 +18,7 @@ import {
   getOrCreateUser,
   grantCreditsForStripeEvent,
   refundCreditGrant,
+  hasProcessedStripeObject,
   getCreditBalance,
 } from "@/src/lib/db-layer";
 
@@ -410,6 +411,51 @@ export async function handleChargeRefunded(
 }
 
 /**
+ * When the credit ledger (migration 0006_fat_husk, journal `when`) came in.
+ * A credit pack bought before it has no `stripe_credit_pack` grant: its
+ * credits were folded into the account's one `legacy_unknown` grant (#1834).
+ */
+const CREDIT_LEDGER_STARTED_AT_MS = 1781592905796; // 2026-06-16T06:55:05.796Z
+
+/**
+ * Why a refunded pack's missing grant will never exist, or null when it may
+ * still be minted (#1834). Only facts the code can check count; no time window:
+ * - a top-up whose licence row is missing or not granted (the top-up refuses
+ *   to grant onto it, so its checkout event never grants);
+ * - a session created before the credit ledger (a `legacy_unknown` pack: the
+ *   refund takes nothing back from that grant, as before #1801);
+ * - a session whose completed event is already processed, yet no grant exists.
+ */
+async function permanentMissingGrantReason(
+  checkoutSession: Stripe.Checkout.Session
+): Promise<string | null> {
+  const createdMs =
+    typeof checkoutSession.created === "number"
+      ? checkoutSession.created * 1000
+      : null;
+  if (createdMs !== null && createdMs < CREDIT_LEDGER_STARTED_AT_MS) {
+    return "the pack was bought before the credit ledger (legacy_unknown grant)";
+  }
+
+  const licenseKey = checkoutSession.metadata?.license_key;
+  if (licenseKey) {
+    const license = await findAccountByKey(licenseKey);
+    if (!license) {
+      return `top-up licence ${licenseKey.substring(0, 7)}... does not exist`;
+    }
+    if (license.status !== "granted") {
+      return `top-up licence ${licenseKey.substring(0, 7)}... is ${license.status}`;
+    }
+  }
+
+  if (await hasProcessedStripeObject(checkoutSession.id)) {
+    return "its checkout event was already processed but no grant exists";
+  }
+
+  return null;
+}
+
+/**
  * Reverse a refunded credit-pack purchase, in whole or in part.
  *
  * Turns the charge's cumulative refunded cents into the grant's cumulative
@@ -459,20 +505,39 @@ async function handleCreditRefund(
     return;
   }
 
-  const result = await refundCreditGrant({
-    sourceType: "stripe_credit_pack",
-    sourceId: checkoutSession.id,
-    refundedCreditsTotal: refundedCredits,
-  });
+  const refundGrant = () =>
+    refundCreditGrant({
+      sourceType: "stripe_credit_pack",
+      sourceId: checkoutSession.id,
+      refundedCreditsTotal: refundedCredits,
+    });
+  let result = await refundGrant();
 
-  // The refund arrived before checkout.session.completed minted the grant
-  // (the mint is still in Stripe's retry queue). Throw so the route answers
-  // 500 and Stripe re-sends this refund; the retry after the mint removes the
-  // credits once, because refundCreditGrant dedupes on the running total.
   if (result.status === "not_found") {
-    throw new Error(
-      `No credit grant yet for session ${checkoutSession.id} (charge ${charge.id}); retrying`
-    );
+    const reason = await permanentMissingGrantReason(checkoutSession);
+    // The mint commits the grant and its processed-event row together, so a
+    // mint that committed between the first lookup and the reason check is
+    // visible now: look once more before calling the miss permanent.
+    if (reason) result = await refundGrant();
+    if (result.status === "not_found") {
+      if (reason) {
+        // A grant that will never exist: log why and answer 200 (#1834).
+        // Nothing is taken back, from this pack or from any other grant.
+        console.warn(
+          `Refund on charge ${charge.id} for session ${checkoutSession.id} took back no credits: ${reason}`
+        );
+        return;
+      }
+
+      // Otherwise the refund arrived before checkout.session.completed
+      // minted the grant (the mint is still in Stripe's retry queue). Throw
+      // so the route answers 500 and Stripe re-sends this refund; the retry
+      // after the mint removes the credits once, because refundCreditGrant
+      // dedupes on the running total (#1798).
+      throw new Error(
+        `No credit grant yet for session ${checkoutSession.id} (charge ${charge.id}); retrying`
+      );
+    }
   }
 
   if (result.status === "duplicate") {
