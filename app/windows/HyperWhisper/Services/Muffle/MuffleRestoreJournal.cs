@@ -34,7 +34,14 @@ public sealed class MuffleRestoreJournal : IDisposable
     private readonly object _gate = new();
     private readonly List<MuffleRestoreEntry> _live = new();
     private readonly List<MuffleRestoreEntry> _stale = new();
+    private const int LoadAttempts = 3;
+    private const int MaxRecoveryRetries = 10;
+    private static readonly TimeSpan LoadRetryDelay = TimeSpan.FromMilliseconds(50);
+    private static readonly TimeSpan RecoveryRetryDelay = TimeSpan.FromSeconds(3);
     private bool _loaded;
+    private DateTimeOffset _nextLoadAttempt = DateTimeOffset.MinValue;
+    private System.Threading.Timer? _recoveryRetry;
+    private int _recoveryRetries;
     private bool _disposed;
     private MMDeviceEnumerator? _watchEnumerator;
     private List<(MMDevice Device, AudioSessionManager.SessionCreatedDelegate Handler)>? _watched;
@@ -50,6 +57,12 @@ public sealed class MuffleRestoreJournal : IDisposable
     }
 
     public string FilePath { get; }
+
+    /// <summary>
+    /// How long after a failed read the file is left alone (accesses meanwhile see an unloaded
+    /// journal at once instead of each waiting out the read retries). Settable for tests.
+    /// </summary>
+    internal TimeSpan LoadRetryBackoff { get; set; } = TimeSpan.FromSeconds(1);
 
     public bool HasStaleEntries
     {
@@ -141,13 +154,21 @@ public sealed class MuffleRestoreJournal : IDisposable
     /// </summary>
     public int RecoverStale()
     {
+        var unreadable = false;
         lock (_gate)
         {
             EnsureLoaded();
-            if (_stale.Count == 0)
+            unreadable = !_loaded;
+            if (!unreadable && _stale.Count == 0)
             {
                 return 0;
             }
+        }
+
+        if (unreadable)
+        {
+            ScheduleRecoveryRetry();
+            return 0;
         }
 
         var restored = 0;
@@ -327,7 +348,7 @@ public sealed class MuffleRestoreJournal : IDisposable
                 return false;
             }
 
-            var match = FindMatch(_stale, instanceId, sessionId);
+            var match = FindMatch(_stale, instanceId, sessionId, out var byInstance);
             if (match == null)
             {
                 return false;
@@ -351,7 +372,16 @@ public sealed class MuffleRestoreJournal : IDisposable
             }
 
             var restored = false;
-            if (HoldsOurVolume(match, current))
+            var decision = DecideStale(match, byInstance, current);
+            if (decision == StaleDecision.Keep)
+            {
+                // Matched by app only: this may be another instance of the app (or one the user set
+                // themselves), not the session we lowered. That one may still turn up, so keep it.
+                LoggingService.Debug($"MuffleRestoreJournal: A session of the same app (pid {session.GetProcessID}) is at {current:G4}, not our {match.SetVolume:G4}; keeping the leftover for pid {match.ProcessId}");
+                return false;
+            }
+
+            if (decision == StaleDecision.Restore)
             {
                 try
                 {
@@ -491,19 +521,27 @@ public sealed class MuffleRestoreJournal : IDisposable
             }
 
             _disposed = true;
+            _recoveryRetry?.Dispose();
+            _recoveryRetry = null;
         }
 
         StopWatching();
     }
 
-    internal static MuffleRestoreEntry? FindMatch(IReadOnlyList<MuffleRestoreEntry> entries, string instanceId, string sessionId)
+    internal static MuffleRestoreEntry? FindMatch(IReadOnlyList<MuffleRestoreEntry> entries, string instanceId, string sessionId) =>
+        FindMatch(entries, instanceId, sessionId, out _);
+
+    /// <summary>Instance identifier first, then session identifier; <paramref name="byInstance"/> says which matched.</summary>
+    internal static MuffleRestoreEntry? FindMatch(IReadOnlyList<MuffleRestoreEntry> entries, string instanceId, string sessionId, out bool byInstance)
     {
+        byInstance = false;
         if (!string.IsNullOrEmpty(instanceId))
         {
             foreach (var entry in entries)
             {
                 if (string.Equals(entry.SessionInstanceIdentifier, instanceId, StringComparison.Ordinal))
                 {
+                    byInstance = true;
                     return entry;
                 }
             }
@@ -521,6 +559,32 @@ public sealed class MuffleRestoreJournal : IDisposable
         }
 
         return null;
+    }
+
+    internal enum StaleDecision
+    {
+        /// <summary>The session holds our volume: put the prior back and drop the entry.</summary>
+        Restore,
+        /// <summary>The very session we lowered was changed since: the user's value stays, the entry goes.</summary>
+        Drop,
+        /// <summary>Only the app matched and the session is not at our volume: keep the entry for the right session.</summary>
+        Keep,
+    }
+
+    /// <summary>
+    /// What recovery does with a leftover <paramref name="entry"/> matched to a session reading
+    /// <paramref name="current"/>. Only an instance-identifier match proves it is the session we
+    /// lowered; a session-identifier match can be another instance of the same app, so one that does
+    /// not hold our volume says nothing about the entry and it is kept.
+    /// </summary>
+    internal static StaleDecision DecideStale(MuffleRestoreEntry entry, bool matchedByInstance, float current)
+    {
+        if (HoldsOurVolume(entry, current))
+        {
+            return StaleDecision.Restore;
+        }
+
+        return matchedByInstance ? StaleDecision.Drop : StaleDecision.Keep;
     }
 
     /// <summary>
@@ -612,34 +676,116 @@ public sealed class MuffleRestoreJournal : IDisposable
 
     // Everything on disk when this process first touches the journal is a leftover of an earlier
     // run (the app is single-instance); it is loaded before the first write so nothing is lost.
+    // A file that exists but cannot be read (held open by an antivirus scan or a backup) is NOT
+    // taken as empty: _loaded stays false, so nothing is written over it (Add fails, and the
+    // muffler then leaves that app alone) and the read is tried again on a later access.
     private void EnsureLoaded()
     {
-        if (_loaded)
+        if (_loaded || DateTimeOffset.UtcNow < _nextLoadAttempt)
         {
             return;
         }
 
-        _loaded = true;
-        try
+        string? text = null;
+        Exception? readError = null;
+        for (var attempt = 0; attempt < LoadAttempts; attempt++)
         {
-            if (File.Exists(FilePath))
+            if (attempt > 0)
             {
-                if (!TryParse(File.ReadAllText(FilePath), out var entries, out var error))
-                {
-                    PreserveCorruptFile(error);
-                    return;
-                }
+                Thread.Sleep(LoadRetryDelay);
+            }
 
-                _stale.AddRange(entries);
-                if (_stale.Count > 0)
-                {
-                    LoggingService.Info($"MuffleRestoreJournal: Found {_stale.Count} volume(s) an earlier run did not restore");
-                }
+            try
+            {
+                text = File.Exists(FilePath) ? File.ReadAllText(FilePath) : null;
+                readError = null;
+                break;
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                text = null;
+                readError = null;
+                break;
+            }
+            catch (Exception ex)
+            {
+                readError = ex;
             }
         }
-        catch (Exception ex)
+
+        if (readError != null)
         {
-            LoggingService.Warn($"MuffleRestoreJournal: Could not read {Path.GetFileName(FilePath)}: {ex.Message}");
+            _nextLoadAttempt = DateTimeOffset.UtcNow + LoadRetryBackoff;
+            LoggingService.Warn($"MuffleRestoreJournal: Could not read {Path.GetFileName(FilePath)} ({readError.Message}); leaving it untouched and retrying later");
+            return;
+        }
+
+        _loaded = true;
+        if (text == null)
+        {
+            return;
+        }
+
+        if (!TryParse(text, out var entries, out var error))
+        {
+            PreserveCorruptFile(error);
+            return;
+        }
+
+        _stale.AddRange(entries);
+        if (_stale.Count > 0)
+        {
+            LoggingService.Info($"MuffleRestoreJournal: Found {_stale.Count} volume(s) an earlier run did not restore");
+        }
+    }
+
+    /// <summary>True once the file on disk has been read (or found absent or kept aside as corrupt).</summary>
+    internal bool IsLoaded
+    {
+        get
+        {
+            lock (_gate)
+            {
+                EnsureLoaded();
+                return _loaded;
+            }
+        }
+    }
+
+    // The startup recovery found the file unreadable: try it again shortly, in the background, so
+    // the leftovers are still put back (and watched for) without waiting for the next muffle.
+    private void ScheduleRecoveryRetry()
+    {
+        lock (_gate)
+        {
+            if (_disposed || _recoveryRetry != null || _recoveryRetries >= MaxRecoveryRetries)
+            {
+                return;
+            }
+
+            _recoveryRetries++;
+            _recoveryRetry = new System.Threading.Timer(_ =>
+            {
+                lock (_gate)
+                {
+                    _recoveryRetry?.Dispose();
+                    _recoveryRetry = null;
+                    if (_disposed)
+                    {
+                        return;
+                    }
+                }
+
+                try
+                {
+                    RecoverStale();
+                    WatchForStaleSessions();
+                }
+                catch (Exception ex)
+                {
+                    LoggingService.Debug($"MuffleRestoreJournal: Recovery retry failed: {ex.Message}");
+                }
+            }, null, RecoveryRetryDelay, Timeout.InfiniteTimeSpan);
         }
     }
 
@@ -669,6 +815,13 @@ public sealed class MuffleRestoreJournal : IDisposable
 
     private Result Save()
     {
+        if (!_loaded)
+        {
+            // The file on disk could not be read; replacing or deleting it could lose the only
+            // record of volumes an earlier run left lowered.
+            return Result.Failure("the muffle restore journal on disk could not be read yet");
+        }
+
         try
         {
             if (_live.Count == 0 && _stale.Count == 0)

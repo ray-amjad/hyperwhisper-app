@@ -176,13 +176,16 @@ internal sealed unsafe class ProcessLoopbackSource : IDisposable
             : Result.Success();
     }
 
-    /// <summary>Audio thread: moves every captured packet into the jitter buffer.</summary>
-    public void Drain()
+    /// <summary>
+    /// Audio thread: moves every captured packet into the jitter buffer. Returns true only on the
+    /// call where the capture fails, so the muffler hears of each failure once.
+    /// </summary>
+    public bool Drain()
     {
         var capture = _capture;
         if (Failed || capture == null)
         {
-            return;
+            return false;
         }
 
         while (true)
@@ -191,24 +194,24 @@ internal sealed unsafe class ProcessLoopbackSource : IDisposable
             if (hr < 0)
             {
                 Fail(hr);
-                return;
+                return true;
             }
 
             if (nextFrames == 0)
             {
-                return;
+                return false;
             }
 
             hr = capture.GetBuffer(out var data, out var frames, out var bufferFlags, out _, out _);
             if (hr == ProcessLoopbackNative.AUDCLNT_S_BUFFER_EMPTY)
             {
-                return;
+                return false;
             }
 
             if (hr < 0)
             {
                 Fail(hr);
-                return;
+                return true;
             }
 
             var samples = (int)frames * _channels;

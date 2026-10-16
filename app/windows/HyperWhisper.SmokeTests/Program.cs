@@ -693,6 +693,66 @@ internal static class Program
                 }
             });
 
+            // A journal held open by someone else (an antivirus scan) is not read as empty: nothing
+            // is written over it until it can be read, and its entries are found then.
+            Run("Muffle restore journal waits out a file it cannot read", () =>
+            {
+                var directory = Path.Combine(Path.GetTempPath(), $"hw-muffle-locked-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(directory);
+                var path = Path.Combine(directory, "muffle-restore.json");
+                try
+                {
+                    var created = DateTimeOffset.UtcNow;
+                    var leftover = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, created);
+                    var fresh = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|b.exe", "app|b.exe|2", 20, 1f, 1e-4f, created);
+                    var original = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(new[] { leftover });
+                    File.WriteAllText(path, original);
+
+                    using var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path) { LoadRetryBackoff = TimeSpan.Zero };
+                    using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+                    {
+                        Assert(!journal.IsLoaded, "a locked journal is not taken as read");
+                        Assert(!journal.HasStaleEntries, "a locked journal shows no entries yet");
+                        Assert(journal.Add(fresh).IsFailure, "nothing is lowered while the journal cannot be read");
+                        Assert(journal.RecoverStale() == 0, "recovery of a locked journal restores nothing (and retries later)");
+                    }
+
+                    Assert(File.ReadAllText(path) == original, "the locked journal was left byte for byte");
+                    Assert(journal.IsLoaded && journal.HasStaleEntries, "the leftover is found once the file can be read");
+                    Assert(journal.Add(fresh).IsSuccess, "the journal takes new entries once read");
+                    Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(File.ReadAllText(path), out var onDisk, out _)
+                        && onDisk.Count == 2 && onDisk.Contains(leftover) && onDisk.Contains(fresh),
+                        "the leftover is kept alongside the new entry");
+                }
+                finally
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+            });
+
+            // Recovery trusts only an instance-id match to say "the user changed it": a session of
+            // the same app found by session id alone may be another instance, so the entry stays.
+            Run("Muffle recovery keeps a leftover matched only by app", () =>
+            {
+                var created = new DateTimeOffset(2026, 10, 16, 9, 0, 0, TimeSpan.Zero);
+                var entry = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, created);
+                var entries = new[] { entry };
+
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|a.exe|1", "app|a.exe", out var byInstance) == entry && byInstance,
+                    "an instance-id match is reported as such");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|a.exe|2", "app|a.exe", out var byApp) == entry && !byApp,
+                    "a session-id match is reported as app-only");
+
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, true, 0.8f * 1e-4f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Restore,
+                    "the very session at our volume is restored");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, false, 0.8f * 1e-4f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Restore,
+                    "a reopened app at our volume is restored");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, true, 0.5f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Drop,
+                    "the very session the user moved keeps their value and the entry goes");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, false, 0.5f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Keep,
+                    "another instance of the app not at our volume leaves the entry for the right one");
+            });
+
             // App exit cancels a muffler start: a start that sees the exit lowers nothing, and the
             // exit's journal restore has nothing to do when this run lowered nothing.
             Run("Muffle start stops for app exit, and the exit restore needs no live entries", () =>
@@ -713,6 +773,25 @@ internal static class Program
                 {
                     File.Delete(path);
                 }
+            });
+
+            // A tree capture covers a process's descendants, never its ancestors: a parent that
+            // opens a session after its child was captured gets its own capture, which replaces
+            // the child's.
+            Run("Muffle captures a parent that plays after its child", () =>
+            {
+                // 100 -> 200 -> 300 (browser -> renderer -> its child); 400 is unrelated.
+                var tree = HyperWhisper.Services.Muffle.ProcessTree.FromParents(new Dictionary<uint, uint> { [200] = 100, [300] = 200, [400] = 1 });
+                var (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(300, new HashSet<uint> { 200 }, tree);
+                Assert(covering == 200 && replaced.Count == 0, "a descendant of a captured process is covered by it");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(200, new HashSet<uint> { 200 }, tree);
+                Assert(covering == 200 && replaced.Count == 0, "a captured process's second session is covered");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(100, new HashSet<uint> { 200, 400 }, tree);
+                Assert(covering == null && replaced.Count == 1 && replaced[0] == 200, "a parent is captured and replaces its captured child");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(100, new HashSet<uint> { 300 }, tree);
+                Assert(covering == null && replaced.SequenceEqual(new uint[] { 300 }), "a grandchild's capture is replaced too");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(400, new HashSet<uint> { 200 }, tree);
+                Assert(covering == null && replaced.Count == 0, "an unrelated process gets its own capture and replaces nothing");
             });
 
             // A second session of an app the muffler already lowered opens at the lowered
