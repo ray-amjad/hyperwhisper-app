@@ -131,6 +131,18 @@ test("only a URL with an Account Key parameter counts as carrying the key", () =
     false,
   );
   assert.equal(
+    hasAccountKeyParam(
+      `https://hyperwhisper.com/en/user/sign-in?returnTo=%2Fen%2Fcredits%3Flicense_key%3D${KEY}`,
+    ),
+    true,
+  );
+  assert.equal(
+    hasAccountKeyParam(
+      "https://hyperwhisper.com/en?utm_campaign=hw-launch&ref=HW-blog",
+    ),
+    false,
+  );
+  assert.equal(
     hasAccountKeyParam("https://hyperwhisper.com/en/blog?q=a%20b&flag#top"),
     false,
   );
