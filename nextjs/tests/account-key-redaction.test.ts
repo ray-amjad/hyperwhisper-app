@@ -92,7 +92,7 @@ test("before_send redacts every string property, $set and $set_once, and drops n
   assert.equal(redactAccountKeyFromEvent(null), null);
 });
 
-test("the address bar URL loses only licenseKey and license_key", () => {
+test("the address bar URL loses only the Account Key parameters", () => {
   assert.equal(
     withoutAccountKeyParams(
       `https://hyperwhisper.com/en/user/sign-in?licenseKey=${KEY}&returnTo=%2Fen%2Fuser%2Fdashboard#top`,
@@ -105,9 +105,15 @@ test("the address bar URL loses only licenseKey and license_key", () => {
     ),
     "/en/user/sign-in",
   );
+  assert.equal(
+    withoutAccountKeyParams(
+      `https://hyperwhisper.com/en/credits?license_key=hw-lower&id=${KEY}&id2=device-1&utm=a#faq`,
+    ),
+    "/en/credits?id2=device-1&utm=a#faq",
+  );
 });
 
-test("only a URL with licenseKey or license_key counts as carrying the key", () => {
+test("only a URL with an Account Key parameter counts as carrying the key", () => {
   assert.equal(
     hasAccountKeyParam(`https://hyperwhisper.com/en?licenseKey=${KEY}`),
     true,
@@ -115,6 +121,14 @@ test("only a URL with licenseKey or license_key counts as carrying the key", () 
   assert.equal(
     hasAccountKeyParam(`https://hyperwhisper.com/en/credits?license_key=x`),
     true,
+  );
+  assert.equal(
+    hasAccountKeyParam(`https://hyperwhisper.com/en/credits?id=${KEY}`),
+    true,
+  );
+  assert.equal(
+    hasAccountKeyParam("https://hyperwhisper.com/en/checkout?id=price_123"),
+    false,
   );
   assert.equal(
     hasAccountKeyParam("https://hyperwhisper.com/en/blog?q=a%20b&flag#top"),

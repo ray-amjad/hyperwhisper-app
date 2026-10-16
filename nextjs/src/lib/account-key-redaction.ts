@@ -70,25 +70,36 @@ export function redactAccountKeyFromEvent<T extends RedactableEvent | null>(
 }
 
 // The query parameters that carry the Account Key into a page: `licenseKey`
-// (`/user/sign-in`) and `license_key` (`/credits`, `/checkout`).
+// (`/user/sign-in`) and `license_key` (`/credits`, `/checkout`). Any other
+// parameter counts too when its value is a key (`HW-…`), like the legacy
+// `/credits?id=HW-…`.
 const ACCOUNT_KEY_PARAMS = ["licenseKey", "license_key"];
 
-/** Whether `url` carries a `licenseKey` or `license_key` query parameter. */
-export function hasAccountKeyParam(url: string): boolean {
-  const { searchParams } = new URL(url);
+function accountKeyParamNames(searchParams: URLSearchParams): string[] {
+  return Array.from(new Set(searchParams.keys())).filter(
+    (name) =>
+      ACCOUNT_KEY_PARAMS.includes(name) ||
+      searchParams.getAll(name).some((value) => /^HW-/i.test(value)),
+  );
+}
 
-  return ACCOUNT_KEY_PARAMS.some((name) => searchParams.has(name));
+/** Whether `url` carries an Account Key query parameter. */
+export function hasAccountKeyParam(url: string): boolean {
+  return accountKeyParamNames(new URL(url).searchParams).length > 0;
 }
 
 /**
- * The same URL with the `licenseKey` and `license_key` query parameters
- * removed, for `history.replaceState`, so the key leaves the address bar and
- * the browser history. Path, other parameters and fragment are kept.
+ * The same URL with its Account Key query parameters removed (`licenseKey`,
+ * `license_key`, and any parameter whose value is a key), for
+ * `history.replaceState`, so the key leaves the address bar and the browser
+ * history. Path, other parameters and fragment are kept.
  */
 export function withoutAccountKeyParams(url: string): string {
   const parsed = new URL(url);
 
-  for (const name of ACCOUNT_KEY_PARAMS) parsed.searchParams.delete(name);
+  for (const name of accountKeyParamNames(parsed.searchParams)) {
+    parsed.searchParams.delete(name);
+  }
 
   return parsed.pathname + parsed.search + parsed.hash;
 }
