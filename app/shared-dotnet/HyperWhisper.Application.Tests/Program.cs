@@ -1138,6 +1138,18 @@ try
             "a rejected activation reported success or echoed the key into the status line");
         Assert(rejected.ActivateCommand.CanExecute(null),
             "a rejected activation did not re-enable Activate for the corrected key");
+        // #1889: the error belongs to the key that failed. Re-assigning the same value is not an
+        // edit and keeps it; editing the key or clearing the field removes it.
+        rejected.AccountKey = typedKey;
+        Assert(rejected.HasActivationError, "re-assigning the unchanged key cleared the activation error");
+        rejected.AccountKey = "HW-0000-0000-0002";
+        Assert(!rejected.HasActivationError && rejected.ActivationError is null,
+            $"editing the key after a failed activation left the error on screen ('{rejected.ActivationError}')");
+        await rejected.ActivateAsync();
+        Assert(rejected.HasActivationError, "a second rejected activation did not show its error");
+        rejected.AccountKey = string.Empty;
+        Assert(!rejected.HasActivationError,
+            $"clearing the key after a failed activation left the error on screen ('{rejected.ActivationError}')");
     }
 
     using (var identityService = NewAccountService(new CloudAccountHttpHandler(), "/identity-license-state.json"))
