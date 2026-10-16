@@ -971,13 +971,20 @@ class FileTranscriptionFlow {
     ///
     /// A too-short file gets the file wording, with its length, instead of the
     /// engine's dictation wording ("record for longer"), which makes no sense
-    /// for a file the user picked (#1427).
+    /// for a file the user picked (#1427). A History Retry or "Retry with..."
+    /// re-runs a saved file too, so it says the same (Ray, #1836).
     static func failureMessage(for error: Error, audioDuration: TimeInterval?) -> String {
-        if case .audioTooShort? = error as? TranscriptionError {
+        if isTooShort(error) {
             let seconds = (audioDuration ?? 0).formatted(.number.precision(.fractionLength(1)))
             return "transcribe.file.error.tooShort".localized(arguments: seconds)
         }
         return error.localizedDescription
+    }
+
+    /// True when an engine refused the audio as too short to transcribe.
+    nonisolated static func isTooShort(_ error: Error) -> Bool {
+        if case .audioTooShort? = error as? TranscriptionError { return true }
+        return false
     }
 
     /// Handles file transcription errors with appropriate UI
