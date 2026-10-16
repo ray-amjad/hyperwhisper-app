@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -376,20 +377,30 @@ internal sealed class PulseMuffleRun
         try { if (_activate is not null) await _activate.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false); } catch (TimeoutException) { }
         await StopAsync(Subscription, cancellationToken).ConfigureAwait(false); Subscription = null;
         try { if (_watch is not null) await _watch.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false); } catch (TimeoutException) { }
-        var back = MuffleSinkIndex >= 0 ? await MoveBackAsync(cancellationToken).ConfigureAwait(false) : 0;
+        // Best effort per step: a move-back that fails (a pactl timeout listing the streams) must not keep pacat on the real
+        // sink or the null sink loaded. The unload below rescues whatever is still on the sink, and the failure is reported
+        // after it. Only the caller's own cancel stops the remaining steps.
+        var back = 0; Exception? failure = null;
+        try { if (MuffleSinkIndex >= 0) back = await MoveBackAsync(cancellationToken).ConfigureAwait(false); }
+        catch (Exception error) when (error is not OperationCanceledException || !cancellationToken.IsCancellationRequested) { failure = error; }
         await StopAsync(Playback, cancellationToken).ConfigureAwait(false); Playback = null;
         await StopAsync(Capture, cancellationToken).ConfigureAwait(false); Capture = null;
         _pump?.Join(TimeSpan.FromSeconds(2));
-        if (!_unloaded)
+        // Whatever is still on the sink (our moves that failed, streams stream-restore sent there) is rescued to the default by the server.
+        var unload = await _owner.PactlAsync(["unload-module", PulseAudioMuffler.Number(_module)], cancellationToken).ConfigureAwait(false);
+        if (unload.ExitCode != 0) throw new InvalidOperationException("The muffle sink could not be removed.", failure);
+        lock (_gate) _unloaded = true;
+        Completion.TrySetResult();
+        if (failure is not null)
         {
-            var unload = await _owner.PactlAsync(["unload-module", PulseAudioMuffler.Number(_module)], cancellationToken).ConfigureAwait(false);
-            // Whatever is still on the sink (our moves that failed, streams stream-restore sent there) is rescued to the default by the server.
-            if (unload.ExitCode != 0) throw new InvalidOperationException("The muffle sink could not be removed.");
-            _unloaded = true;
+            _owner.Info("restored: the streams could not all be moved back; the sink was removed and the server rescued them");
+            ExceptionDispatchInfo.Throw(failure);
         }
         _owner.Info($"restored: moved {PulseAudioMuffler.Number(back)} stream(s) back, sink removed");
-        Completion.TrySetResult();
     }
+
+    /// <summary>The null sink is gone and every helper stopped: nothing of this run is live any more.</summary>
+    public bool IsTornDown { get { lock (_gate) return _unloaded; } }
 
     private static async Task StopAsync(IChildProcess? child, CancellationToken cancellationToken)
     {
@@ -430,7 +441,8 @@ internal sealed class LinuxMuffleSession(LinuxAudioEnvironmentService owner, Tim
         // A quit skips the glide as well: the sink must be gone before the process is.
         await DelayAsync(MuffleFilter.TeardownDelay, cancellationToken).ConfigureAwait(false);
         if (!run.TryBeginTeardown(generation)) return;
-        await run.TeardownAsync(cancellationToken).ConfigureAwait(false);
-        Owner!.Forget(run);
+        // Forgotten only once nothing of it is live: a teardown that threw before the unload stays reachable for the retry or the quit.
+        try { await run.TeardownAsync(cancellationToken).ConfigureAwait(false); }
+        finally { if (run.IsTornDown) Owner!.Forget(run); }
     }
 }

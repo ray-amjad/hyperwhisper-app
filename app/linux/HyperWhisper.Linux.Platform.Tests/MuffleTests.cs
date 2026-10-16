@@ -446,6 +446,44 @@ static class MuffleTests
         Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle"), "the retry did not unload");
     }
 
+    // Review round 3, #2: a teardown whose move-back fails (pactl times out listing the streams) still stops the helpers
+    // and unloads the sink, which rescues the streams, and still reports the failure; the retry then has nothing left to do.
+    public static async Task TeardownUnloadsWhenTheMoveBackFails()
+    {
+        var (pulse, service) = Create();
+        var session = await Muffled(service, TimeSpan.Zero);
+        Assert.True(pulse.SinkOf(10) == pulse.MuffleIndex, "the stream was not moved");
+        var calls = pulse.CallCount; pulse.FailListInputs = 1;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.RestoreAsync().AsTask());
+        Assert.True(pulse.Playback!.Terminated && pulse.Capture!.Terminated, "a failed move-back left parec/pacat running");
+        Assert.True(pulse.CalledSince(calls, call => call[0] == "unload-module") && pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0,
+            "a failed move-back skipped the unload that rescues the streams");
+        await session.RestoreAsync();
+        Assert.True(pulse.Calls.Skip(calls).Count(call => call[0] == "unload-module") == 1 && !service.HasPendingRestore, "the retry did more than finish");
+    }
+
+    // Review round 3, #1: when the next recording cannot claim a dying run and that run's teardown throws, the service keeps
+    // the run (its sink is still loaded) instead of dropping it: the recording ducks, and the quit still removes the sink.
+    public static async Task FailedClaimTeardownKeepsTheRun()
+    {
+        var (pulse, service) = Create(); var reasons = new List<string>(); service.MuffleFellBack += (_, code) => reasons.Add(code);
+        var first = await Muffled(service, TimeSpan.Zero);
+        var capture = pulse.Capture!; var playback = pulse.Playback!;
+        capture.Close(); // parec died: the run can no longer be claimed
+        await pulse.WaitUntil(() => pulse.SinkOf(10) == 0 && pulse.SinkOf(17) == 0, "streams stayed on a dead muffle sink");
+        await Task.Delay(100); // the pump's own move-back is done listing
+        pulse.FailListInputs = 1; pulse.FailUnload = 1;
+        var second = Prepare(service, TimeSpan.Zero); var ready = await second.Ready.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(ready.Run is null && ready.Fallback is not null && reasons.Contains("audio_environment.muffle_busy"), string.Join(',', reasons));
+        Assert.True(playback.Terminated && capture.Terminated, "the failed teardown left pacat on the real sink");
+        Assert.True(pulse.Sinks.Any(sink => sink.Name == "hw_muffle") && pulse.Calls.Count(call => call[0] == "load-module") == 1, "the failure was not simulated");
+        // The quit: the first session's own restore fails both attempts, then the run the service kept is torn down.
+        pulse.FailUnload = 2;
+        await service.FlushRestoresAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "the quit could not reach the run the claim failed to tear down");
+        await second.RestoreAsync();
+    }
+
     /// <summary>A restore whose core waits until the test finishes it, with an error or without one.</summary>
     private sealed class GatedRestore() : DeferredAudioRestore(null)
     {
@@ -483,6 +521,8 @@ sealed class FakePulse : IDesktopCommandRunner, IChildProcessLauncher
     /// <summary>The muffle sink never sends its monitor any audio, even when nudged.</summary>
     public bool Silent { get; set; }
     public int FailUnload { get; set; }
+    /// <summary>The next this many sink-input listings fail, as a pactl that timed out does.</summary>
+    public int FailListInputs { get; set; }
     public string? FailStart { get; set; }
     public ManualResetEventSlim? HoldLoad { get; set; }
     /// <summary>Runs once, right after the next sink-input listing was taken (a stream that starts just after a scan).</summary>
@@ -538,6 +578,7 @@ sealed class FakePulse : IDesktopCommandRunner, IChildProcessLauncher
                     return Task.FromResult(Ok(JsonSerializer.Serialize(Sinks.Select(sink => new Dictionary<string, object> { ["index"] = sink.Index, ["name"] = sink.Name,
                         ["owner_module"] = sink.Module.ToString(System.Globalization.CultureInfo.InvariantCulture), ["sample_specification"] = sink.Spec, ["monitor_source"] = sink.Name + ".monitor" }))));
                 case "--format=json" when arguments[2] == "sink-inputs":
+                    if (FailListInputs > 0) { FailListInputs--; return Task.FromResult(fail); }
                     var listed = Ok(JsonSerializer.Serialize(Inputs.Select(item =>
                     {
                         var properties = new Dictionary<string, string> { ["application.name"] = "app" };
