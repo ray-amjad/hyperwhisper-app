@@ -1,6 +1,6 @@
 # Spec: Windows on-device Whisper in an idle-exiting worker process
 
-Status: DRAFT 2. The interview is not done. Items marked *(open)* wait for Ray.
+Status: DRAFT 3. The interview is not done. Items marked *(open)* wait for Ray.
 
 - Repo: `ray-amjad/hyperwhisper-app`, base `main` (`4166f4b0` when this draft was written).
 - Issue: #1194 (follow-up of #1122; PR #1193 closed).
@@ -53,8 +53,9 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 
 ### 5.1 The worker: `app/windows/HyperWhisper.WhisperWorker`
 
-- A console app, `net10.0`, self-contained publish for `win-x64` (and `win-arm64` if D3 says so).
-- It references Whisper.net and its native runtimes. The main app no longer does (if D3 moves every path).
+- A console app, `net10.0`, self-contained publish for `win-x64` and `win-arm64` (D3).
+- Every Whisper path runs in the worker: x64 with a GPU, x64 CPU-only, and ARM64 (D3). The ARM64 thread rule (`TranscriptionService.cs` 522-544) moves into the worker.
+- The worker references Whisper.net and its native runtimes. The app csproj removes Whisper.net, its 3 runtime packages and the static `RuntimeLibraryOrder` ctor. No Whisper DLL loads in the app process.
 - It does the native work only: load the model, run the processor with the options the app sends, return segments and text.
 - Audio preparation stays in the app. The app writes the 16 kHz mono WAV to a temp file and sends the path. So NAudio stays out of the worker.
 - It exits on stdin EOF. So it dies with the app, also on a crash of the app.
@@ -90,13 +91,13 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 
 - D1 *(decided 2026-10-16)*: Option A, a new console project `HyperWhisper.WhisperWorker`. Not B (re-launch `HyperWhisper.exe --whisper-worker`: WPF host starts in the child, Whisper DLLs stay in the app). Not C (accept P0).
 - D2 *(open)*: the idle exit — fixed 5 minutes, or a setting.
-- D3 *(open)*: which paths use the worker — every platform, or x64 GPU only with CPU and ARM64 in-process.
+- D3 *(decided 2026-10-16)*: every Whisper path runs in the worker (x64 GPU, x64 CPU, ARM64). One code path. The app drops Whisper.net. Not chosen: worker only for x64 with a discrete GPU.
 - D4 *(open)*: the Whisper.net version in the worker — reuse `LocalInference` (1.9.1, with Cuda12 and no NoAvx), or the app's 1.9.0 set.
 - D5 *(open)*: the cold-start cost — keep-warm at recording start only, or also at app start.
 
 ## 7. Risks
 
-- First dictation after idle pays process start + model load (a few seconds for a large model). Keep-warm hides part of it.
+- First dictation after idle pays process start + model load (a few seconds for a large model). Keep-warm hides part of it. Because of D3, CPU-only and ARM64 users pay it too; they get the model RAM back in exchange.
 - Antivirus and SmartScreen can slow or block a new unsigned exe. The worker needs the same signing as the app.
 - Two processes hold the model during a model switch if the old worker does not exit first. The client waits for the exit.
 - Temp WAV files must be deleted after each request, also on a crash.
@@ -105,6 +106,7 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 ## 8. Test plan
 
 - Unit: protocol parse and build, client state machine (start, load, idle shutdown, crash restart once, cancel), with a fake worker process.
+- ARM64: one dictation through the worker on a Windows 11 ARM64 build (or the ARM64 publish at least starts and answers `ready`).
 - Smoke on the Windows dev box (RTX 4060): the #1122 acceptance in §2, with `nvidia-smi` samples and the app log as evidence.
 - Local API: `/transcribe` with a Whisper model before and after an idle exit.
 - Installer: upgrade over the last release; check that `{app}\whisper-worker` is replaced and that no worker survives the upgrade.
