@@ -10,6 +10,8 @@
 //      what the user heard at their own per-app level.
 //   3. The captures are mixed, low-passed and rendered from our own process on a private,
 //      non-persisted session. HyperWhisper's own sounds are never captured, so they stay clear.
+//      The captures sit on a private session too: a capture is scaled by its own session's
+//      volume, and HyperWhisper's default session is the chimes' (0.5) and the mixer's.
 // Windows persists per-app volume, so every change is written to the MuffleRestoreJournal first.
 //
 // Threads: Start, session handling and Dispose run on control threads under _gate (always MTA).
@@ -136,6 +138,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             muffler.Engage();
             muffler.StartAudioThread();
             muffler.SubscribeToNewSessions();
+            var renderVolume = muffler.EnsureUnityRenderSessionVolume();
 
             var (needed, captured) = muffler.AttachExistingSessions();
             if (needed > 0 && captured == 0)
@@ -158,7 +161,8 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
                 probe.Value!.Dispose();
             }
 
-            LoggingService.Info($"WindowsAudioMuffler: Muffling {muffler.SourceCount} app(s) on {muffler.DeviceName} ({muffler.SampleRate} Hz, {muffler.Channels} ch, start {stopwatch.ElapsedMilliseconds} ms)");
+            var captureVolume = muffler.SourceCount > 0 ? muffler._sources[0]!.SessionVolume : float.NaN;
+            LoggingService.Info($"WindowsAudioMuffler: Muffling {muffler.SourceCount} app(s) on {muffler.DeviceName} ({muffler.SampleRate} Hz, {muffler.Channels} ch, start {stopwatch.ElapsedMilliseconds} ms, render session vol {renderVolume:G4}, capture session vol {captureVolume:G4})");
             return Result<WindowsAudioMuffler>.Success(muffler);
         }
         catch (Exception ex)
@@ -358,6 +362,52 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         _sessionManager.RefreshSessions();
         _sessionCreatedHandler = (_, newSession) => OnSessionCreated(newSession);
         _sessionManager.OnSessionCreated += _sessionCreatedHandler;
+    }
+
+    // Our render session is private and NoPersist, so it should start at 1.0 and unmuted. Its
+    // volume scales the whole muffled mix, so anything else is logged and put back to 1.0.
+    // Returns the volume found (NaN when the session could not be read).
+    private float EnsureUnityRenderSessionVolume()
+    {
+        try
+        {
+            var sessions = _sessionManager!.Sessions;
+            var guid = RenderSessionGuid.ToString("B");
+            var count = sessions.Count;
+            for (var i = 0; i < count; i++)
+            {
+                try
+                {
+                    var session = sessions[i];
+                    if (session.GetProcessID != _ownProcessId
+                        || session.GetSessionInstanceIdentifier?.Contains(guid, StringComparison.OrdinalIgnoreCase) != true)
+                    {
+                        continue;
+                    }
+
+                    var volume = session.SimpleAudioVolume;
+                    var level = volume.Volume;
+                    if (Math.Abs(level - 1f) > 1e-6f || volume.Mute)
+                    {
+                        LoggingService.Warn($"WindowsAudioMuffler: Render session was at {level:G4} (mute {volume.Mute}); setting it to 1");
+                        volume.Volume = 1f;
+                        volume.Mute = false;
+                    }
+
+                    return level;
+                }
+                catch (Exception ex)
+                {
+                    LoggingService.Debug($"WindowsAudioMuffler: Skipped a session while checking the render session: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"WindowsAudioMuffler: Could not check the render session volume: {ex.Message}");
+        }
+
+        return float.NaN;
     }
 
     private void OnSessionCreated(IAudioSessionControl newSession)
