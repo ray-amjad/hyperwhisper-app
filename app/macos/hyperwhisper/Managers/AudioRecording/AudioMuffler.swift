@@ -11,7 +11,9 @@
 //     process except HyperWhisper, with `.mutedWhenTapped`, so the originals
 //     go silent while the tap runs.
 //  2. A private aggregate device pairs that tap (input) with the default
-//     output device (output).
+//     output device (output). If the default output changes mid-recording,
+//     the tap and aggregate are rebuilt on the new device (or removed if
+//     that fails, so audio plays normally).
 //  3. The aggregate's IOProc runs the tapped audio through a 4-pole low-pass
 //     filter and writes it to the output device.
 //  4. The cutoff glides from fully open down to `muffledCutoffHz` on start
@@ -58,6 +60,10 @@ final class AudioMuffler: @unchecked Sendable {
     private var ioProcID: AudioDeviceIOProcID?
     private var dsp: MuffleDSP?
     private var pendingTeardown: DispatchWorkItem?
+    /// The output device the aggregate is bound to.
+    private var outputDeviceID = AudioDeviceID(kAudioObjectUnknown)
+    /// Default-output listener, registered while the muffler is live.
+    private var defaultOutputListener: AudioObjectPropertyListenerBlock?
 
     // MARK: - Public API
 
@@ -80,6 +86,7 @@ final class AudioMuffler: @unchecked Sendable {
             do {
                 try build()
                 dsp?.setTargetCutoff(Self.muffledCutoffHz)
+                addDefaultOutputListener()
                 AppLogger.audio.info("🔉 Muffle: other audio muffled for recording")
             } catch {
                 AppLogger.audio.error("🔉 Muffle: failed to start (\(error.localizedDescription, privacy: .public)); recording continues")
@@ -105,9 +112,71 @@ final class AudioMuffler: @unchecked Sendable {
         }
     }
 
+    // MARK: - Default output changes
+
+    /// The global tap keeps the originals silent whatever the default output
+    /// is, so the muffled mix has to follow the default output: AirPods
+    /// connecting must not leave it playing from the old speakers, and a
+    /// removed device must not leave the rest of the recording silent.
+    private func addDefaultOutputListener() {
+        guard defaultOutputListener == nil else { return }
+        let listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            // Delivered on `controlQueue`.
+            self?.handleDefaultOutputChange()
+        }
+        var address = Self.defaultOutputAddress()
+        let status = AudioObjectAddPropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject), &address, controlQueue, listener
+        )
+        if status == noErr {
+            defaultOutputListener = listener
+        } else {
+            AppLogger.audio.warning("🔉 Muffle: could not watch the default output (\(status)); a device change will not move the muffled audio")
+        }
+    }
+
+    private func removeDefaultOutputListener() {
+        guard let listener = defaultOutputListener else { return }
+        var address = Self.defaultOutputAddress()
+        AudioObjectRemovePropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject), &address, controlQueue, listener
+        )
+        defaultOutputListener = nil
+    }
+
+    private func handleDefaultOutputChange() {
+        guard dsp != nil else { return }
+        if let pending = pendingTeardown {
+            // Already gliding out: finish now rather than move devices.
+            pending.cancel()
+            pendingTeardown = nil
+            teardown()
+            AppLogger.audio.info("🔊 Muffle: default output changed during glide out; other audio restored")
+            return
+        }
+        guard let newDevice = Self.defaultOutputDevice() else {
+            teardown()
+            AppLogger.audio.warning("🔊 Muffle: no default output device; muffle removed so audio plays normally")
+            return
+        }
+        guard newDevice != outputDeviceID else { return }
+
+        teardownGraph()
+        do {
+            try build(startMuffled: true)
+            dsp?.setTargetCutoff(Self.muffledCutoffHz)
+            AppLogger.audio.info("🔉 Muffle: moved to the new default output device")
+        } catch {
+            AppLogger.audio.error("🔊 Muffle: rebuild on the new output failed (\(error.localizedDescription, privacy: .public)); muffle removed so audio plays normally")
+            teardown()
+        }
+    }
+
     // MARK: - Build / teardown
 
-    private func build() throws {
+    /// - Parameter startMuffled: start the filter already at the muffled
+    ///   cutoff (a device move mid-recording) instead of fully open.
+    private func build(startMuffled: Bool = false) throws {
         guard let outputDevice = Self.defaultOutputDevice() else {
             throw MuffleError("no default output device")
         }
@@ -160,9 +229,14 @@ final class AudioMuffler: @unchecked Sendable {
             throw MuffleError("AudioHardwareCreateAggregateDevice failed (\(status))")
         }
         aggregateID = newAggregate
+        outputDeviceID = outputDevice
 
         let sampleRate = Self.nominalSampleRate(newAggregate) ?? 48_000
-        let dsp = MuffleDSP(sampleRate: sampleRate, tapChannels: tapChannels)
+        let dsp = MuffleDSP(
+            sampleRate: sampleRate,
+            tapChannels: tapChannels,
+            startCutoff: startMuffled ? Self.muffledCutoffHz : nil
+        )
         self.dsp = dsp
 
         var procID: AudioDeviceIOProcID?
@@ -182,7 +256,14 @@ final class AudioMuffler: @unchecked Sendable {
         AppLogger.audio.info("🔉 Muffle: tap \(newTap) + aggregate \(newAggregate) at \(Int(sampleRate)) Hz, \(tapChannels) tap channels")
     }
 
+    /// Full stop: stop following the default output and remove the tap.
     private func teardown() {
+        removeDefaultOutputListener()
+        teardownGraph()
+    }
+
+    /// Destroys the IOProc, aggregate and tap, leaving the listener alone.
+    private func teardownGraph() {
         if aggregateID != kAudioObjectUnknown, let procID = ioProcID {
             AudioDeviceStop(aggregateID, procID)
             AudioDeviceDestroyIOProcID(aggregateID, procID)
@@ -196,17 +277,22 @@ final class AudioMuffler: @unchecked Sendable {
             AudioHardwareDestroyProcessTap(tapID)
             tapID = AudioObjectID(kAudioObjectUnknown)
         }
+        outputDeviceID = AudioDeviceID(kAudioObjectUnknown)
         dsp = nil
     }
 
     // MARK: - Core Audio helpers
 
-    private static func defaultOutputDevice() -> AudioDeviceID? {
-        var address = AudioObjectPropertyAddress(
+    private static func defaultOutputAddress() -> AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultOutputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
+    }
+
+    private static func defaultOutputDevice() -> AudioDeviceID? {
+        var address = defaultOutputAddress()
         var deviceID = AudioDeviceID(kAudioObjectUnknown)
         var size = UInt32(MemoryLayout<AudioDeviceID>.size)
         let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &deviceID)
@@ -301,12 +387,14 @@ final class MuffleDSP: @unchecked Sendable {
     private let outPointers: UnsafeMutablePointer<UnsafeMutablePointer<Float>?>
     private let outStrides: UnsafeMutablePointer<Int>
 
-    init(sampleRate: Double, tapChannels: Int) {
+    init(sampleRate: Double, tapChannels: Int, startCutoff: Double? = nil) {
         self.sampleRate = sampleRate
         self.tapChannels = max(1, tapChannels)
-        self.maxCutoff = min(AudioMuffler.openCutoffHz, sampleRate * 0.45)
-        self.currentCutoff = maxCutoff
-        self.targetCutoff = ManagedAtomic(Int(maxCutoff))
+        let maxCutoff = min(AudioMuffler.openCutoffHz, sampleRate * 0.45)
+        self.maxCutoff = maxCutoff
+        let initialCutoff = min(max(startCutoff ?? maxCutoff, 20), maxCutoff)
+        self.currentCutoff = initialCutoff
+        self.targetCutoff = ManagedAtomic(Int(initialCutoff))
 
         let stateCount = Self.maxChannels * Self.stages * 2
         state = .allocate(capacity: stateCount)
