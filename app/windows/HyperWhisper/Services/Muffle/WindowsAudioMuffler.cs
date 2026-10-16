@@ -36,6 +36,12 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
     internal const int MaxSources = 32;
     private const long RenderBufferHns = 400_000; // 40 ms
     private const double RenderTargetSeconds = 0.030;
+    // Our replay fades in when the first capture carries sound and out before teardown, and the
+    // apps' session volumes ramp instead of stepping: a hard step at either end was a click.
+    internal const double RenderFadeSeconds = 0.015;
+    internal const double VolumeRampSeconds = 0.050;
+    private const int VolumeRampSteps = 20;
+    private static readonly TimeSpan FadeOutWait = TimeSpan.FromMilliseconds(250);
     private static readonly Guid IeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
     // Our render stream gets its own session, so the muffled mix never inherits a per-app volume
     // the user set on HyperWhisper's chimes; NoPersist keeps it out of the volume store.
@@ -69,6 +75,8 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
     private const int EngageRequested = 1;
     private const int EngageDone = 2;
     private int _engageState;
+    private volatile bool _fadeOutRequested;
+    private readonly ManualResetEventSlim _fadedOut = new(false);
     private long _renderedFrames;
     private float _outputPeak;
     private bool _disposed;
@@ -259,6 +267,10 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             var bufferFrames = _bufferFrames;
             var targetFrames = _targetFrames;
             var sources = _sources;
+            var fadeStep = 1f / (float)Math.Max(1, SampleRate * RenderFadeSeconds);
+            var fadeGain = 0f;
+            var signalSeen = false;
+            long silentFramesAfterFade = 0;
 
             while (!_stopRequested)
             {
@@ -272,6 +284,19 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
                 for (var i = 0; i < sourceCount; i++)
                 {
                     sources[i]!.Drain();
+                }
+
+                if (!signalSeen && AnySignal(sources, sourceCount))
+                {
+                    signalSeen = true;
+                }
+
+                var fadingOut = _fadeOutRequested;
+                if (fadingOut && (!signalSeen || (fadeGain == 0f && silentFramesAfterFade >= targetFrames)))
+                {
+                    // Nothing was ever replayed, or the fade and every frame queued before it
+                    // have played: the apps' own audio can come back without overlapping ours.
+                    _fadedOut.Set();
                 }
 
                 if (Volatile.Read(ref _engageState) == EngageRequested && AnySignal(sources, sourceCount))
@@ -299,15 +324,32 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
                 }
 
                 filter.Process(output);
+                var fadeTarget = fadingOut || !signalSeen ? 0f : 1f;
+                var blockSilent = fadingOut && fadeGain == 0f;
                 var peak = _outputPeak;
-                for (var i = 0; i < output.Length; i++)
+                for (var frame = 0; frame < frames; frame++)
                 {
-                    var sample = Math.Clamp(output[i], -1f, 1f);
-                    output[i] = sample;
-                    if (Math.Abs(sample) > peak) peak = Math.Abs(sample);
+                    if (fadeGain != fadeTarget)
+                    {
+                        fadeGain = fadeTarget > fadeGain
+                            ? Math.Min(fadeTarget, fadeGain + fadeStep)
+                            : Math.Max(fadeTarget, fadeGain - fadeStep);
+                    }
+
+                    var start = frame * channels;
+                    for (var c = 0; c < channels; c++)
+                    {
+                        var sample = Math.Clamp(output[start + c] * fadeGain, -1f, 1f);
+                        output[start + c] = sample;
+                        if (Math.Abs(sample) > peak) peak = Math.Abs(sample);
+                    }
                 }
 
                 _outputPeak = peak;
+                if (blockSilent)
+                {
+                    silentFramesAfterFade += frames;
+                }
 
                 render.ReleaseBuffer(frames, AudioClientBufferFlags.None);
                 _renderedFrames += frames;
@@ -643,12 +685,26 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
 
         try
         {
-            session.SimpleAudioVolume.Volume = entry.SetVolume;
+            var volume = session.SimpleAudioVolume;
+            RampVolumes(new[] { new VolumeRamp(volume, prior, entry.SetVolume) });
+            volume.Volume = entry.SetVolume;
         }
         catch (Exception ex)
         {
             LoggingService.Warn($"WindowsAudioMuffler: Could not scale a session of pid {pid}: {ex.Message}");
-            _journal.Remove(entry);
+            try
+            {
+                // The ramp may have got part of the way down.
+                session.SimpleAudioVolume.Volume = prior;
+                _journal.Remove(entry);
+            }
+            catch (Exception restoreEx)
+            {
+                LoggingService.Debug($"WindowsAudioMuffler: Could not put pid {pid} back after a failed scale; kept for retry: {restoreEx.Message}");
+                _journal.MarkStale(entry);
+                _journal.WatchForStaleSessions();
+            }
+
             return null;
         }
 
@@ -667,6 +723,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
     private void RestoreLocked(List<ScaledSession> sessions, string reason)
     {
         int restored = 0, leftAlone = 0, failed = 0;
+        var toRestore = new List<(ScaledSession Scaled, SimpleAudioVolume Volume)>();
         foreach (var scaled in sessions)
         {
             _scaled.Remove(scaled);
@@ -676,20 +733,35 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
                 var current = volume.Volume;
                 if (MuffleRestoreJournal.StillAtSetVolume(current, scaled.Entry.SetVolume))
                 {
-                    volume.Volume = scaled.Entry.PriorVolume;
-                    restored++;
-                }
-                else
-                {
-                    leftAlone++;
-                    LoggingService.Info($"WindowsAudioMuffler: pid {scaled.Entry.ProcessId} volume changed during recording ({current:G4}); leaving it");
+                    toRestore.Add((scaled, volume));
+                    continue;
                 }
 
+                leftAlone++;
+                LoggingService.Info($"WindowsAudioMuffler: pid {scaled.Entry.ProcessId} volume changed during recording ({current:G4}); leaving it");
                 _journal.Remove(scaled.Entry);
             }
             catch (Exception ex)
             {
                 // The session is gone; the journal keeps the entry and retries when the app reopens.
+                failed++;
+                _journal.MarkStale(scaled.Entry);
+                LoggingService.Warn($"WindowsAudioMuffler: Could not restore pid {scaled.Entry.ProcessId}; kept for retry: {ex.Message}");
+            }
+        }
+
+        // All the apps ramp back together, so the restore costs one ramp however many there are.
+        RampVolumes(toRestore.Select(r => new VolumeRamp(r.Volume, r.Scaled.Entry.SetVolume, r.Scaled.Entry.PriorVolume)).ToList());
+        foreach (var (scaled, volume) in toRestore)
+        {
+            try
+            {
+                volume.Volume = scaled.Entry.PriorVolume;
+                restored++;
+                _journal.Remove(scaled.Entry);
+            }
+            catch (Exception ex)
+            {
                 failed++;
                 _journal.MarkStale(scaled.Entry);
                 LoggingService.Warn($"WindowsAudioMuffler: Could not restore pid {scaled.Entry.ProcessId}; kept for retry: {ex.Message}");
@@ -804,6 +876,17 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             }
         }
 
+        // Fade our replay out and let it play out BEFORE the volumes come back: the apps' own audio
+        // overlapping our copy is +6 dB, and a hard stop is a click.
+        var fadeWatch = Stopwatch.StartNew();
+        var fadedOut = false;
+        if (_audioThread != null && !_faulted)
+        {
+            _fadeOutRequested = true;
+            fadedOut = _fadedOut.Wait(FadeOutWait);
+        }
+
+        var fadeMs = fadeWatch.ElapsedMilliseconds;
         _stopRequested = true;
         var joined = true;
         if (_audioThread != null)
@@ -856,6 +939,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             SafeDispose(ref _renderClient);
             SafeDispose(ref _audioClient);
             SafeDispose(ref _renderEvent);
+            _fadedOut.Dispose();
         }
 
         SafeDispose(ref _device);
@@ -869,7 +953,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         if (count > 0 || _renderedFrames > 0)
         {
             var seconds = SampleRate > 0 ? _renderedFrames / (double)SampleRate : 0;
-            LoggingService.Info($"WindowsAudioMuffler: Stopped ({count} capture(s), {packets} packet(s) of which {silentPackets} silent, input peak {Dbfs(inputPeak / VolumeFactor)}, output peak {Dbfs(_outputPeak)}, {seconds:F1}s rendered, {underruns} underrun(s), {tripped} unscaled packet(s) silenced, {failedSources} capture(s) failed)");
+            LoggingService.Info($"WindowsAudioMuffler: Stopped ({count} capture(s), {packets} packet(s) of which {silentPackets} silent, input peak {Dbfs(inputPeak / VolumeFactor)}, output peak {Dbfs(_outputPeak)}, {seconds:F1}s rendered, {underruns} underrun(s), {tripped} unscaled packet(s) silenced, {failedSources} capture(s) failed, fade-out {(fadedOut ? $"{fadeMs} ms" : "skipped")})");
         }
     }
 
@@ -916,6 +1000,48 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             return $"pid {pid}";
         }
     }
+
+    // Walks each volume linearly from From toward To over VolumeRampSeconds, stopping one step
+    // short: the caller writes the final value itself and handles its failure. The engine reads a
+    // session volume once per period (~10 ms), so a single write is a step and a click.
+    // Thread.Sleep(1) can take a whole 15.6 ms timer tick, so the steps are timed by spinning.
+    private static void RampVolumes(IReadOnlyList<VolumeRamp> ramps)
+    {
+        if (ramps.Count == 0)
+        {
+            return;
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        for (var step = 1; step < VolumeRampSteps; step++)
+        {
+            var dueSeconds = VolumeRampSeconds * step / VolumeRampSteps;
+            while (stopwatch.Elapsed.TotalSeconds < dueSeconds)
+            {
+                Thread.Sleep(0);
+            }
+
+            var fraction = (float)step / VolumeRampSteps;
+            foreach (var ramp in ramps)
+            {
+                try
+                {
+                    ramp.Volume.Volume = ramp.From + ((ramp.To - ramp.From) * fraction);
+                }
+                catch (Exception ex)
+                {
+                    LoggingService.Debug($"WindowsAudioMuffler: A volume ramp step failed: {ex.Message}");
+                }
+            }
+        }
+
+        while (stopwatch.Elapsed.TotalSeconds < VolumeRampSeconds)
+        {
+            Thread.Sleep(0);
+        }
+    }
+
+    private sealed record VolumeRamp(SimpleAudioVolume Volume, float From, float To);
 
     private sealed record ScaledSession(AudioSessionControl Control, MuffleRestoreEntry Entry);
 
