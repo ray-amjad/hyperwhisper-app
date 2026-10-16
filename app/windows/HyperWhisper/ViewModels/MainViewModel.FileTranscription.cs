@@ -310,7 +310,8 @@ public partial class MainViewModel
                 duration, mode.Name, permanentPath);
 
             // STEP 8: Transcribing stage (15-85%) - Start slow animation to 80%
-            // (will be cut short when transcription completes)
+            // (will be cut short when transcription completes; a job that outlasts
+            // the ramp turns the bar indeterminate, #1911)
             UpdateFileProgressRequested?.Invoke(this, 0.80f);
 
             var vocabulary = _vocabularyService.GetVocabularyWords(100);

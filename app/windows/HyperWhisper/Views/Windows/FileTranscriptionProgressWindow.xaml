@@ -63,6 +63,7 @@
                         CornerRadius="3"
                         Background="#26FFFFFF"
                         Margin="0,0,8,0"
+                        ClipToBounds="True"
                         x:Name="ProgressBarTrack">
                     <Border x:Name="ProgressFill"
                             HorizontalAlignment="Left"

@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 using HyperWhisper.Services;
 
@@ -20,6 +21,9 @@ namespace HyperWhisper.Views.Windows;
 /// - 60 FPS refresh rate using DispatcherTimer
 /// - Smooth easeOutCubic easing
 /// - Variable duration based on progress delta
+/// - A ramp started with thenIndeterminate (the open-ended transcribing wait)
+///   turns the bar indeterminate when it reaches its target, so a long job
+///   shows a moving bar with no percentage instead of sitting at 80% (#1911)
 ///
 /// WINDOW BEHAVIOR:
 /// - Non-activating (doesn't steal focus) using Win32 API
@@ -47,11 +51,25 @@ public partial class FileTranscriptionProgressWindow : Window
     private double _animationDuration = 0;
     private double _progressBarWidth = 0;
 
+    // INDETERMINATE: no engine reports progress while it transcribes, so once the
+    // timed ramp ends the bar sweeps instead of claiming a number (#1911, as #1437 on macOS)
+    private const double INDETERMINATE_SWEEP_PERIOD_S = 1.4;
+    private const double INDETERMINATE_PULSE_PERIOD_S = 2.0;
+    private const double INDETERMINATE_SEGMENT_FRACTION = 0.3;
+    private readonly DispatcherTimer _indeterminateTimer;
+    private readonly TranslateTransform _fillOffset = new();
+    private DateTime _indeterminateStartTime;
+    private bool _becomesIndeterminateAtTarget = false;
+    private bool _isIndeterminate = false;
+
     /// <summary>Event fired when cancel button is clicked.</summary>
     public event EventHandler? CancelRequested;
 
     /// <summary>Current progress value (0.0 to 1.0) for external access.</summary>
     public float CurrentProgress => _currentProgress;
+
+    /// <summary>Whether the bar no longer shows how far along the job is.</summary>
+    public bool IsIndeterminate => _isIndeterminate;
 
     // ========================================================================
     // WIN32 API - NON-ACTIVATING WINDOW
@@ -81,6 +99,13 @@ public partial class FileTranscriptionProgressWindow : Window
         };
         _animationTimer.Tick += AnimationTimer_Tick;
 
+        _indeterminateTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(ANIMATION_INTERVAL_MS)
+        };
+        _indeterminateTimer.Tick += (s, e) => UpdateIndeterminateUI();
+        ProgressFill.RenderTransform = _fillOffset;
+
         // Position window at center of screen
         PositionWindow();
 
@@ -104,6 +129,7 @@ public partial class FileTranscriptionProgressWindow : Window
     public void ShowProgress(string fileName, Action onCancel)
     {
         FileNameText.Text = fileName;
+        StopIndeterminate();
         _currentProgress = 0f;
         _targetProgress = 0f;
         UpdateProgressUI(0f);
@@ -122,8 +148,12 @@ public partial class FileTranscriptionProgressWindow : Window
     /// <summary>
     /// Animates progress to target value over specified duration.
     /// </summary>
-    public void AnimateProgress(float targetProgress, double duration)
+    /// <param name="thenIndeterminate">Switch the bar to indeterminate when the target is
+    /// reached before a later call moves it on (the open-ended transcribing wait).</param>
+    public void AnimateProgress(float targetProgress, double duration, bool thenIndeterminate = false)
     {
+        StopIndeterminate();
+        _becomesIndeterminateAtTarget = thenIndeterminate;
         _targetProgress = Math.Clamp(targetProgress, 0f, 1f);
         _animationDuration = duration;
         _animationStartTime = DateTime.Now;
@@ -143,6 +173,7 @@ public partial class FileTranscriptionProgressWindow : Window
             // Instant update for zero duration or no change
             _currentProgress = _targetProgress;
             UpdateProgressUI(_currentProgress);
+            EnterIndeterminateIfRequested();
         }
     }
 
@@ -152,6 +183,7 @@ public partial class FileTranscriptionProgressWindow : Window
     public void SetProgress(float progress)
     {
         _animationTimer.Stop();
+        StopIndeterminate();
         _currentProgress = Math.Clamp(progress, 0f, 1f);
         _targetProgress = _currentProgress;
         UpdateProgressUI(_currentProgress);
@@ -163,6 +195,7 @@ public partial class FileTranscriptionProgressWindow : Window
     public void Dismiss()
     {
         _animationTimer.Stop();
+        StopIndeterminate();
         CancelRequested = null;
         Hide();
         LoggingService.Debug("FileTranscriptionProgressWindow: Dismissed");
@@ -204,6 +237,54 @@ public partial class FileTranscriptionProgressWindow : Window
             _animationTimer.Stop();
             _currentProgress = _targetProgress;
             UpdateProgressUI(_currentProgress);
+            EnterIndeterminateIfRequested();
+        }
+    }
+
+    private void EnterIndeterminateIfRequested()
+    {
+        if (!_becomesIndeterminateAtTarget) return;
+        _becomesIndeterminateAtTarget = false;
+        _isIndeterminate = true;
+        _indeterminateStartTime = DateTime.Now;
+        PercentageText.Text = string.Empty;
+        UpdateIndeterminateUI();
+        _indeterminateTimer.Start();
+        LoggingService.Debug("FileTranscriptionProgressWindow: Ramp ended with the job still running, bar is indeterminate");
+    }
+
+    private void StopIndeterminate()
+    {
+        _becomesIndeterminateAtTarget = false;
+        if (!_isIndeterminate) return;
+        _isIndeterminate = false;
+        _indeterminateTimer.Stop();
+        _fillOffset.X = 0;
+        ProgressFill.Opacity = 1.0;
+        UpdateProgressUI(_currentProgress);
+    }
+
+    /// <summary>
+    /// A segment sweeps across the track. With Windows animation effects off, the
+    /// full track pulses in place instead.
+    /// </summary>
+    private void UpdateIndeterminateUI()
+    {
+        double elapsed = (DateTime.Now - _indeterminateStartTime).TotalSeconds;
+        if (SystemParameters.ClientAreaAnimation)
+        {
+            double phase = (elapsed % INDETERMINATE_SWEEP_PERIOD_S) / INDETERMINATE_SWEEP_PERIOD_S;
+            double segmentWidth = _progressBarWidth * INDETERMINATE_SEGMENT_FRACTION;
+            ProgressFill.Opacity = 1.0;
+            ProgressFill.Width = segmentWidth;
+            _fillOffset.X = -segmentWidth + phase * (_progressBarWidth + segmentWidth);
+        }
+        else
+        {
+            double phase = (elapsed % INDETERMINATE_PULSE_PERIOD_S) / INDETERMINATE_PULSE_PERIOD_S;
+            ProgressFill.Width = _progressBarWidth;
+            _fillOffset.X = 0;
+            ProgressFill.Opacity = 0.45 + 0.35 * (0.5 + 0.5 * Math.Cos(phase * 2 * Math.PI));
         }
     }
 
@@ -242,8 +323,9 @@ public partial class FileTranscriptionProgressWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        // CLEANUP: Stop timer when window closes
+        // CLEANUP: Stop timers when window closes
         _animationTimer.Stop();
+        _indeterminateTimer.Stop();
         CancelRequested = null;
         base.OnClosed(e);
     }

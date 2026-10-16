@@ -162,7 +162,11 @@ public partial class MainWindow : Window
                 _ => 60.0        // Large jumps (transcribing): slow (60s)
             };
 
-            _fileProgressWindow?.AnimateProgress(progress, duration);
+            // Only the transcribing ramp waits on a job with no real progress, so a job
+            // that outlasts it turns the bar indeterminate instead of sitting at 80% (#1911)
+            bool thenIndeterminate = progressDelta >= 0.20f;
+
+            _fileProgressWindow?.AnimateProgress(progress, duration, thenIndeterminate);
         });
 
         InitializeSystemTray();
