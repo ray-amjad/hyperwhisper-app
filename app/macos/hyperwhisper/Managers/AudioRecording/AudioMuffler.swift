@@ -15,6 +15,7 @@
 //     a new tap and aggregate are built on the new device before the old
 //     ones are destroyed, so the originals never play unmuted in between
 //     (if the build fails, everything is removed so audio plays normally).
+//     A sample-rate change on the same device rebuilds the same way.
 //  3. The aggregate's IOProc runs the tapped audio through a 4-pole low-pass
 //     filter and writes it to the output device.
 //  4. The cutoff glides from fully open down to `muffledCutoffHz` on start
@@ -181,22 +182,50 @@ final class AudioMuffler: @unchecked Sendable {
             return
         }
         guard newDevice != graph?.outputDeviceID else { return }
+        rebuildGraph(reason: "moved to the new default output device")
+    }
 
-        // Build the new graph BEFORE destroying the old one. The old tap's
-        // `.mutedWhenTapped` keeps the originals silent until the new tap
-        // has taken over (both taps mute, so overlapping them is harmless);
-        // destroying first would let the originals play at full volume for
-        // the whole build, which takes hundreds of ms on Bluetooth.
+    /// A sample-rate change on the same device (a Bluetooth headset moving to
+    /// HFP, a new rate in Audio MIDI Setup) keeps the device ID, so only this
+    /// catches it. The DSP's coefficients and maximum cutoff are computed for
+    /// one rate, so rebuild at the new one, the same way as a device move.
+    private func handleSampleRateChange() {
+        guard let current = graph else { return }
+        // Compare the aggregate's rate: that is the rate the IOProc runs at.
+        // The output device's listener is only a trigger, and a rebuild only
+        // happens while the two rates differ, so it cannot loop.
+        guard let rate = Self.nominalSampleRate(current.aggregateID),
+              abs(rate - current.sampleRate) > 0.5 else { return }
+        if let pending = pendingTeardown {
+            // Already gliding out: finish now rather than rebuild.
+            pending.cancel()
+            pendingTeardown = nil
+            teardown()
+            AppLogger.audio.info("🔊 Muffle: sample rate changed during glide out; other audio restored")
+            return
+        }
+        rebuildGraph(reason: "rebuilt for the new sample rate")
+    }
+
+    /// Replaces the running graph with one built on the current default
+    /// output, starting muffled.
+    ///
+    /// The new graph is built BEFORE the old one is destroyed. The old tap's
+    /// `.mutedWhenTapped` keeps the originals silent until the new tap has
+    /// taken over (both taps mute, so overlapping them is harmless);
+    /// destroying first would let the originals play at full volume for the
+    /// whole build, which takes hundreds of ms on Bluetooth.
+    private func rebuildGraph(reason: String) {
         let old = graph
         do {
             let built = try build(startMuffled: true)
             graph = built
             built.dsp?.setTargetCutoff(Self.muffledCutoffHz)
             old?.destroy()
-            AppLogger.audio.info("🔉 Muffle: moved to the new default output device")
+            AppLogger.audio.info("🔉 Muffle: \(reason, privacy: .public)")
         } catch {
             // build() cleaned up its own partial graph; this removes the old one.
-            AppLogger.audio.error("🔊 Muffle: rebuild on the new output failed (\(error.localizedDescription, privacy: .public)); muffle removed so audio plays normally")
+            AppLogger.audio.error("🔊 Muffle: rebuild failed (\(error.localizedDescription, privacy: .public)); muffle removed so audio plays normally")
             teardown()
         }
     }
@@ -212,9 +241,20 @@ final class AudioMuffler: @unchecked Sendable {
         var outputDeviceID = AudioDeviceID(kAudioObjectUnknown)
         var sampleRate: Double = 0
         var dsp: MuffleDSP?
+        /// Sample-rate listener, registered on each of `rateWatchedObjects`.
+        var rateListener: AudioObjectPropertyListenerBlock?
+        var rateListenerQueue: DispatchQueue?
+        var rateWatchedObjects: [AudioObjectID] = []
 
         /// Stops and destroys whatever parts exist. Safe on a partial graph.
         func destroy() {
+            if let listener = rateListener, let queue = rateListenerQueue {
+                var address = AudioMuffler.sampleRateAddress()
+                for object in rateWatchedObjects {
+                    // Fails harmlessly if the device has already gone.
+                    AudioObjectRemovePropertyListenerBlock(object, &address, queue, listener)
+                }
+            }
             if aggregateID != kAudioObjectUnknown, let procID = ioProcID {
                 AudioDeviceStop(aggregateID, procID)
                 AudioDeviceDestroyIOProcID(aggregateID, procID)
@@ -321,6 +361,12 @@ final class AudioMuffler: @unchecked Sendable {
             throw MuffleError("AudioDeviceStart failed (\(status))")
         }
 
+        watchSampleRate(of: &graph)
+        if let rate = Self.nominalSampleRate(newAggregate), abs(rate - sampleRate) > 0.5 {
+            // Changed between the read above and the listener registering.
+            controlQueue.async { [weak self] in self?.handleSampleRateChange() }
+        }
+
         AppLogger.audio.info("🔉 Muffle: tap \(newTap) + aggregate \(newAggregate) at \(Int(sampleRate)) Hz, \(tapChannels) tap channels")
     }
 
@@ -337,7 +383,37 @@ final class AudioMuffler: @unchecked Sendable {
         graph = nil
     }
 
+    /// Watches the nominal sample rate of the graph's aggregate and output
+    /// device. Best effort: a failed registration is logged, not thrown.
+    private func watchSampleRate(of graph: inout Graph) {
+        let listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            // Delivered on `listenerQueue`; handled on `controlQueue` after
+            // this block returns (see `addDefaultOutputListener`).
+            guard let self else { return }
+            self.controlQueue.async { self.handleSampleRateChange() }
+        }
+        graph.rateListener = listener
+        graph.rateListenerQueue = listenerQueue
+        var address = Self.sampleRateAddress()
+        for object in [graph.aggregateID, graph.outputDeviceID] where object != kAudioObjectUnknown {
+            let status = AudioObjectAddPropertyListenerBlock(object, &address, listenerQueue, listener)
+            if status == noErr {
+                graph.rateWatchedObjects.append(object)
+            } else {
+                AppLogger.audio.warning("🔉 Muffle: could not watch the sample rate of device \(object) (\(status))")
+            }
+        }
+    }
+
     // MARK: - Core Audio helpers
+
+    fileprivate static func sampleRateAddress() -> AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyNominalSampleRate,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+    }
 
     private static func defaultOutputAddress() -> AudioObjectPropertyAddress {
         AudioObjectPropertyAddress(
@@ -398,11 +474,7 @@ final class AudioMuffler: @unchecked Sendable {
     }
 
     private static func nominalSampleRate(_ deviceID: AudioDeviceID) -> Double? {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyNominalSampleRate,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
+        var address = sampleRateAddress()
         var rate = Float64(0)
         var size = UInt32(MemoryLayout<Float64>.size)
         let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &rate)
