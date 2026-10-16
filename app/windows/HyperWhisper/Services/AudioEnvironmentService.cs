@@ -32,7 +32,9 @@ public sealed class AudioEnvironmentService
     private readonly Lazy<MuffleRestoreJournal> _muffleJournal = new(
         () => new MuffleRestoreJournal(Path.Combine(AppPaths.AppDataRoot, MuffleJournalFileName)));
     private WindowsAudioMuffler? _muffler;               // guarded by _muffleGate
-    private AudioEnvironmentState? _muffleFallbackMute;  // guarded by _muffleGate
+    // Guarded by _restoreLock (not only _muffleGate): a following Mute Audio recording takes it over
+    // synchronously, and set, take-over and restore must not interleave with the mute itself.
+    private AudioEnvironmentState? _muffleFallbackMute;
     private volatile bool _shuttingDown;
 
     public sealed record AudioEnvironmentRestoreClaim(
@@ -114,20 +116,49 @@ public sealed class AudioEnvironmentService
             return AudioEnvironmentState.ForMuffle(generation);
         }
 
-        if (inheritedRestoreState?.MuffledByHyperWhisper == true)
+        var muteMode = mode.Equals(MuteAudioMode, StringComparison.OrdinalIgnoreCase);
+        if (!muteMode)
         {
-            // The mode changed while the last muffle was still gliding open: end it now instead of
-            // carrying it through a recording that did not ask for it.
-            _ = RunMuffleOperationAsync(() => TearDownMuffle("the media control mode changed"), "Muffle teardown");
-            inheritedRestoreState = null;
-        }
+            if (inheritedRestoreState?.MuffledByHyperWhisper == true)
+            {
+                // The mode changed while the last muffle was still gliding open: end it now instead of
+                // carrying it through a recording that did not ask for it.
+                _ = RunMuffleOperationAsync(() => TearDownMuffle("the media control mode changed"), "Muffle teardown");
+                inheritedRestoreState = null;
+            }
 
-        if (!mode.Equals(MuteAudioMode, StringComparison.OrdinalIgnoreCase))
-        {
             return inheritedRestoreState;
         }
 
-        return MuteOutput(restoreClaim.Generation, inheritedRestoreState) ?? inheritedRestoreState;
+        lock (_restoreLock)
+        {
+            // A muffle that fell back to muting still holds the output muted. This recording mutes
+            // too, so it takes that mute over (and its WasMuted) instead of seeing an already muted
+            // output, owning nothing, and having the muffle teardown below unmute it mid-recording.
+            var fallbackMute = TakeMuffleFallbackMuteLocked(restoreClaim.Generation);
+            if (inheritedRestoreState?.MuffledByHyperWhisper == true)
+            {
+                _ = RunMuffleOperationAsync(() => TearDownMuffle("the media control mode changed"), "Muffle teardown");
+                inheritedRestoreState = null;
+            }
+
+            var owned = fallbackMute ?? inheritedRestoreState;
+            return MuteOutput(restoreClaim.Generation, owned) ?? owned;
+        }
+    }
+
+    // Caller holds _restoreLock.
+    private AudioEnvironmentState? TakeMuffleFallbackMuteLocked(int generation)
+    {
+        var fallbackMute = _muffleFallbackMute;
+        _muffleFallbackMute = null;
+        if (fallbackMute == null)
+        {
+            return null;
+        }
+
+        LoggingService.Debug("AudioEnvironmentService: Mute Audio recording took over the muffle fallback mute");
+        return fallbackMute with { Generation = generation };
     }
 
     /// <summary>
@@ -453,10 +484,13 @@ public sealed class AudioEnvironmentService
             TearDownMuffle("its output failed");
         }
 
-        if (_muffleFallbackMute != null)
+        lock (_restoreLock)
         {
-            LoggingService.Debug("AudioEnvironmentService: Output is still muted from the last fallback; keeping it");
-            return;
+            if (_muffleFallbackMute != null)
+            {
+                LoggingService.Debug("AudioEnvironmentService: Output is still muted from the last fallback; keeping it");
+                return;
+            }
         }
 
         var started = WindowsAudioMuffler.Start(_muffleJournal.Value);
@@ -468,8 +502,19 @@ public sealed class AudioEnvironmentService
         }
 
         LoggingService.Warn($"AudioEnvironmentService: Muffle audio is unavailable ({started.Error}); muting the output instead");
-        var muted = MuteOutput(generation, null);
-        _muffleFallbackMute = muted?.MutedByHyperWhisper == true ? muted : null;
+        lock (_restoreLock)
+        {
+            // A failed start can take seconds; if another recording claimed the output meanwhile
+            // (or the app restored immediately), this mute would belong to no one.
+            if (generation != _restoreGeneration)
+            {
+                LoggingService.Debug("AudioEnvironmentService: Skipping the fallback mute for a recording that is over");
+                return;
+            }
+
+            var muted = MuteOutput(generation, null);
+            _muffleFallbackMute = muted?.MutedByHyperWhisper == true ? muted : null;
+        }
     }
 
     // Runs behind _muffleGate.
@@ -538,11 +583,16 @@ public sealed class AudioEnvironmentService
             }
         }
 
-        var fallbackMute = _muffleFallbackMute;
-        _muffleFallbackMute = null;
-        if (fallbackMute != null)
+        // Under _restoreLock, so a Mute Audio recording either takes this mute over first or sees
+        // the output already unmuted, never the moment in between.
+        lock (_restoreLock)
         {
-            TryRestoreMuteState(fallbackMute, reason);
+            var fallbackMute = _muffleFallbackMute;
+            _muffleFallbackMute = null;
+            if (fallbackMute != null)
+            {
+                TryRestoreMuteState(fallbackMute, reason);
+            }
         }
     }
 
