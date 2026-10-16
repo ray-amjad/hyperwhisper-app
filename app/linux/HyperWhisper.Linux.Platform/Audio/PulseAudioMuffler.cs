@@ -228,7 +228,8 @@ internal sealed class PulseMuffleRun
         catch { }
         // A helper that died mid-recording would leave the moved streams silent: put them back at once.
         bool stopping; lock (_gate) stopping = _stopping;
-        if (!stopping) _ = Task.Run(() => MoveBackAsync(CancellationToken.None));
+        // ast-grep-ignore: no-discarded-task-run -- the pump thread must not block on pactl; the restore's own MoveBackAsync retries what this best-effort pass misses.
+        if (!stopping) _ = Task.Run(async () => { try { await MoveBackAsync(CancellationToken.None).ConfigureAwait(false); } catch { } });
     }
 
     public void StartActivation()
