@@ -66,6 +66,12 @@ final class AudioMuffler: @unchecked Sendable {
 
     private let controlQueue = DispatchQueue(label: "com.hyperwhisper.audio-muffler", qos: .userInitiated)
     private let ioQueue = DispatchQueue(label: "com.hyperwhisper.audio-muffler.io", qos: .userInteractive)
+    /// The HAL delivers property listeners here, never on `controlQueue`.
+    /// A listener only hops to `controlQueue` and returns, so removing a
+    /// listener from `controlQueue` (which can happen while handling that
+    /// very listener's change) never waits on a block running on its own
+    /// queue.
+    private let listenerQueue = DispatchQueue(label: "com.hyperwhisper.audio-muffler.listener", qos: .userInitiated)
 
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
@@ -133,12 +139,15 @@ final class AudioMuffler: @unchecked Sendable {
     private func addDefaultOutputListener() {
         guard defaultOutputListener == nil else { return }
         let listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-            // Delivered on `controlQueue`.
-            self?.handleDefaultOutputChange()
+            // Delivered on `listenerQueue`. Handle it after this block has
+            // returned, so a teardown that removes this listener never runs
+            // inside the listener's own delivery.
+            guard let self else { return }
+            self.controlQueue.async { self.handleDefaultOutputChange() }
         }
         var address = Self.defaultOutputAddress()
         let status = AudioObjectAddPropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject), &address, controlQueue, listener
+            AudioObjectID(kAudioObjectSystemObject), &address, listenerQueue, listener
         )
         if status == noErr {
             defaultOutputListener = listener
@@ -151,13 +160,14 @@ final class AudioMuffler: @unchecked Sendable {
         guard let listener = defaultOutputListener else { return }
         var address = Self.defaultOutputAddress()
         AudioObjectRemovePropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject), &address, controlQueue, listener
+            AudioObjectID(kAudioObjectSystemObject), &address, listenerQueue, listener
         )
         defaultOutputListener = nil
     }
 
     private func handleDefaultOutputChange() {
-        guard dsp != nil else { return }
+        // A change queued before teardown removed the listener: ignore it.
+        guard defaultOutputListener != nil, dsp != nil else { return }
         if let pending = pendingTeardown {
             // Already gliding out: finish now rather than move devices.
             pending.cancel()
