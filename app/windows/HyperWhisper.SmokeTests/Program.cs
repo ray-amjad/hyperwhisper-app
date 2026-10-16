@@ -730,6 +730,29 @@ internal static class Program
                 }
             });
 
+            // Recovery trusts only an instance-id match to say "the user changed it": a session of
+            // the same app found by session id alone may be another instance, so the entry stays.
+            Run("Muffle recovery keeps a leftover matched only by app", () =>
+            {
+                var created = new DateTimeOffset(2026, 10, 16, 9, 0, 0, TimeSpan.Zero);
+                var entry = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, created);
+                var entries = new[] { entry };
+
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|a.exe|1", "app|a.exe", out var byInstance) == entry && byInstance,
+                    "an instance-id match is reported as such");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|a.exe|2", "app|a.exe", out var byApp) == entry && !byApp,
+                    "a session-id match is reported as app-only");
+
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, true, 0.8f * 1e-4f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Restore,
+                    "the very session at our volume is restored");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, false, 0.8f * 1e-4f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Restore,
+                    "a reopened app at our volume is restored");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, true, 0.5f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Drop,
+                    "the very session the user moved keeps their value and the entry goes");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, false, 0.5f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Keep,
+                    "another instance of the app not at our volume leaves the entry for the right one");
+            });
+
             // App exit cancels a muffler start: a start that sees the exit lowers nothing, and the
             // exit's journal restore has nothing to do when this run lowered nothing.
             Run("Muffle start stops for app exit, and the exit restore needs no live entries", () =>

@@ -348,7 +348,7 @@ public sealed class MuffleRestoreJournal : IDisposable
                 return false;
             }
 
-            var match = FindMatch(_stale, instanceId, sessionId);
+            var match = FindMatch(_stale, instanceId, sessionId, out var byInstance);
             if (match == null)
             {
                 return false;
@@ -372,7 +372,16 @@ public sealed class MuffleRestoreJournal : IDisposable
             }
 
             var restored = false;
-            if (HoldsOurVolume(match, current))
+            var decision = DecideStale(match, byInstance, current);
+            if (decision == StaleDecision.Keep)
+            {
+                // Matched by app only: this may be another instance of the app (or one the user set
+                // themselves), not the session we lowered. That one may still turn up, so keep it.
+                LoggingService.Debug($"MuffleRestoreJournal: A session of the same app (pid {session.GetProcessID}) is at {current:G4}, not our {match.SetVolume:G4}; keeping the leftover for pid {match.ProcessId}");
+                return false;
+            }
+
+            if (decision == StaleDecision.Restore)
             {
                 try
                 {
@@ -519,14 +528,20 @@ public sealed class MuffleRestoreJournal : IDisposable
         StopWatching();
     }
 
-    internal static MuffleRestoreEntry? FindMatch(IReadOnlyList<MuffleRestoreEntry> entries, string instanceId, string sessionId)
+    internal static MuffleRestoreEntry? FindMatch(IReadOnlyList<MuffleRestoreEntry> entries, string instanceId, string sessionId) =>
+        FindMatch(entries, instanceId, sessionId, out _);
+
+    /// <summary>Instance identifier first, then session identifier; <paramref name="byInstance"/> says which matched.</summary>
+    internal static MuffleRestoreEntry? FindMatch(IReadOnlyList<MuffleRestoreEntry> entries, string instanceId, string sessionId, out bool byInstance)
     {
+        byInstance = false;
         if (!string.IsNullOrEmpty(instanceId))
         {
             foreach (var entry in entries)
             {
                 if (string.Equals(entry.SessionInstanceIdentifier, instanceId, StringComparison.Ordinal))
                 {
+                    byInstance = true;
                     return entry;
                 }
             }
@@ -544,6 +559,32 @@ public sealed class MuffleRestoreJournal : IDisposable
         }
 
         return null;
+    }
+
+    internal enum StaleDecision
+    {
+        /// <summary>The session holds our volume: put the prior back and drop the entry.</summary>
+        Restore,
+        /// <summary>The very session we lowered was changed since: the user's value stays, the entry goes.</summary>
+        Drop,
+        /// <summary>Only the app matched and the session is not at our volume: keep the entry for the right session.</summary>
+        Keep,
+    }
+
+    /// <summary>
+    /// What recovery does with a leftover <paramref name="entry"/> matched to a session reading
+    /// <paramref name="current"/>. Only an instance-identifier match proves it is the session we
+    /// lowered; a session-identifier match can be another instance of the same app, so one that does
+    /// not hold our volume says nothing about the entry and it is kept.
+    /// </summary>
+    internal static StaleDecision DecideStale(MuffleRestoreEntry entry, bool matchedByInstance, float current)
+    {
+        if (HoldsOurVolume(entry, current))
+        {
+            return StaleDecision.Restore;
+        }
+
+        return matchedByInstance ? StaleDecision.Drop : StaleDecision.Keep;
     }
 
     /// <summary>
