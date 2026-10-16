@@ -15,6 +15,12 @@ internal sealed unsafe class ProcessLoopbackSource : IDisposable
     private const double RingSeconds = 0.25;
     private const double PrimeSeconds = 0.010;
     private const double MaxBufferedSeconds = 0.060;
+    // The capture applies its OWN session's volume to what it hears. With GUID_NULL the clients
+    // joined HyperWhisper's default session, which the chimes leave at 0.5 (WaveOutEvent.Volume)
+    // and the Volume Mixer slider for HyperWhisper moves, so everything muffled played 6 dB low.
+    // A private session starts at 1.0 and no one else writes to it. (Process loopback refuses
+    // AUDCLNT_STREAMFLAGS_NOPERSIST with AUDCLNT_E_INVALID_STREAM_FLAG, so Open forces it to 1.0.)
+    private static readonly Guid CaptureSessionGuid = new("3f6b9e27-5c41-4d8a-b0e3-7a2d61c94f58");
 
     private readonly int _channels;
     private readonly float _gain;
@@ -83,7 +89,8 @@ internal sealed unsafe class ProcessLoopbackSource : IDisposable
             | ProcessLoopbackNative.AUDCLNT_STREAMFLAGS_EVENTCALLBACK
             | ProcessLoopbackNative.AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
             | ProcessLoopbackNative.AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
-        var hr = source._client!.Initialize(ProcessLoopbackNative.AUDCLNT_SHAREMODE_SHARED, flags, CaptureBufferHns, 0, format, IntPtr.Zero);
+        var sessionGuid = CaptureSessionGuid;
+        var hr = source._client!.Initialize(ProcessLoopbackNative.AUDCLNT_SHAREMODE_SHARED, flags, CaptureBufferHns, 0, format, (IntPtr)(&sessionGuid));
         if (hr < 0)
         {
             source.Dispose();
@@ -109,7 +116,51 @@ internal sealed unsafe class ProcessLoopbackSource : IDisposable
         }
 
         source._capture = capture;
+        source.SessionVolume = EnsureUnitySessionVolume(source._client);
         return Result<ProcessLoopbackSource>.Success(source);
+    }
+
+    /// <summary>The capture session's volume as found at open (it is then forced to 1); NaN if unreadable.</summary>
+    public float SessionVolume { get; private set; } = float.NaN;
+
+    // The private session should start at 1.0; if anything left it lower, the captured audio would
+    // be scaled by it, so it is put to 1.0. Returns the volume that was found.
+    private static float EnsureUnitySessionVolume(IAudioClientRaw client)
+    {
+        var iid = ProcessLoopbackNative.IID_ISimpleAudioVolume;
+        object? service = null;
+        try
+        {
+            if (client.GetService(ref iid, out service) < 0 || service is not ISimpleAudioVolumeRaw volume)
+            {
+                return float.NaN;
+            }
+
+            if (volume.GetMasterVolume(out var level) < 0)
+            {
+                return float.NaN;
+            }
+
+            if (Math.Abs(level - 1f) > 1e-6f)
+            {
+                var context = Guid.Empty;
+                volume.SetMasterVolume(1f, ref context);
+            }
+
+            return level;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"ProcessLoopbackSource: Could not read the capture session volume: {ex.Message}");
+            return float.NaN;
+        }
+        finally
+        {
+            if (service != null && Marshal.IsComObject(service))
+            {
+                Marshal.ReleaseComObject(service);
+            }
+        }
     }
 
     public Result Start()

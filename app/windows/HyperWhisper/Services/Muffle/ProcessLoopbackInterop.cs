@@ -34,6 +34,7 @@ internal static class ProcessLoopbackNative
 
     public static readonly Guid IID_IAudioClient = new("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2");
     public static readonly Guid IID_IAudioCaptureClient = new("C8ADBD64-E71E-48a0-A4DE-185C395CD317");
+    public static readonly Guid IID_ISimpleAudioVolume = new("87CE5498-68D6-44E5-9215-6DA47EF883D8");
 
     public static bool IsSupported => OperatingSystem.IsWindowsVersionAtLeast(10, 0, MinimumWindowsBuild);
 
@@ -177,6 +178,15 @@ internal interface IAudioCaptureClientRaw
     [PreserveSig] int GetBuffer(out IntPtr data, out uint numFramesToRead, out uint flags, out ulong devicePosition, out ulong qpcPosition);
     [PreserveSig] int ReleaseBuffer(uint numFramesRead);
     [PreserveSig] int GetNextPacketSize(out uint numFramesInNextPacket);
+}
+
+[ComImport, Guid("87CE5498-68D6-44E5-9215-6DA47EF883D8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface ISimpleAudioVolumeRaw
+{
+    [PreserveSig] int SetMasterVolume(float level, [In] ref Guid eventContext);
+    [PreserveSig] int GetMasterVolume(out float level);
+    [PreserveSig] int SetMute([MarshalAs(UnmanagedType.Bool)] bool mute, [In] ref Guid eventContext);
+    [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool mute);
 }
 
 [ComVisible(true)]

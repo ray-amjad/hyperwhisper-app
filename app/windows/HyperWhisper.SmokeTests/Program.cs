@@ -623,6 +623,26 @@ internal static class Program
                 }
             });
 
+            // A second session of an app the muffler already lowered opens at the lowered
+            // per-app volume; its prior must be the app's own volume, not ours.
+            Run("Muffle remembers the app's own volume for a second session", () =>
+            {
+                var created = new DateTimeOffset(2026, 10, 16, 9, 0, 0, TimeSpan.Zero);
+                var scaled = new[]
+                {
+                    new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, created),
+                };
+
+                Assert(HyperWhisper.Services.Muffle.WindowsAudioMuffler.PriorVolumeFor(0.8f * 1e-4f, "app|a.exe", scaled) == 0.8f,
+                    "a session at our set volume takes the journaled prior");
+                Assert(HyperWhisper.Services.Muffle.WindowsAudioMuffler.PriorVolumeFor(0.5f, "app|a.exe", scaled) == 0.5f,
+                    "a session the user set elsewhere keeps its own volume");
+                Assert(HyperWhisper.Services.Muffle.WindowsAudioMuffler.PriorVolumeFor(0.8f * 1e-4f, "app|b.exe", scaled) == 0.8f * 1e-4f,
+                    "another app's session is not matched");
+                Assert(HyperWhisper.Services.Muffle.WindowsAudioMuffler.PriorVolumeFor(0.8f * 1e-4f, string.Empty, scaled) == 0.8f * 1e-4f,
+                    "a session with no identifier is not matched");
+            });
+
             // #1535. The Transcribe File dialog has no owner, so the tray stays live
             // while it is open. Drive the real TranscribeFileWithModeAsync on a bare
             // view model, with the dialog seam standing in for the dialog: the tray
