@@ -38,7 +38,10 @@
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="130"/>
+                            <!-- 200 like the Shortcuts page's ComboBoxes: the longest label (bg
+                                 "Приглушаване на звука", 141 px in Segoe UI 13) plus the 42 px of
+                                 text margin and chevron the ComboBox template leaves. -->
+                            <ColumnDefinition Width="200"/>
                         </Grid.ColumnDefinitions>
 
                         <StackPanel>
