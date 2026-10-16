@@ -2,6 +2,7 @@ import type { PostHog } from "posthog-js";
 
 import { env } from "@env/client.mjs";
 import {
+  hasAccountKeyParam,
   redactAccountKeyFromEvent,
   withoutAccountKeyParams,
 } from "@/src/lib/account-key-redaction";
@@ -13,16 +14,21 @@ let client: Promise<PostHog | null> | undefined;
 /**
  * Takes the Account Key out of the address bar, on every page, before PostHog
  * reads it (#1901). `init` stores the page URL as `$initial_current_url` and
- * sends it in the `/flags/` request body, which `before_send` never sees.
+ * sends it in the `/flags/` request body, which `before_send` never sees. A
+ * URL with no key is left alone: rewriting it would re-encode its query.
  */
-function stripAccountKeyFromAddressBar(): void {
+export function stripAccountKeyFromAddressBar(): void {
   if (typeof window === "undefined") return;
 
-  const { href, pathname, search, hash } = window.location;
-  const clean = withoutAccountKeyParams(href);
-  if (clean === pathname + search + hash) return;
+  const { href } = window.location;
 
-  window.history.replaceState(window.history.state, "", clean);
+  if (!hasAccountKeyParam(href)) return;
+
+  window.history.replaceState(
+    window.history.state,
+    "",
+    withoutAccountKeyParams(href),
+  );
 }
 
 /**

@@ -11,6 +11,7 @@ import test from "node:test";
 import {
   redactAccountKeyFromEvent,
   redactAccountKeyFromUrl,
+  hasAccountKeyParam,
   withoutAccountKeyParams,
 } from "../src/lib/account-key-redaction";
 
@@ -104,6 +105,22 @@ test("the address bar URL loses only licenseKey and license_key", () => {
     ),
     "/en/user/sign-in",
   );
+});
+
+test("only a URL with licenseKey or license_key counts as carrying the key", () => {
+  assert.equal(
+    hasAccountKeyParam(`https://hyperwhisper.com/en?licenseKey=${KEY}`),
+    true,
+  );
+  assert.equal(
+    hasAccountKeyParam(`https://hyperwhisper.com/en/credits?license_key=x`),
+    true,
+  );
+  assert.equal(
+    hasAccountKeyParam("https://hyperwhisper.com/en/blog?q=a%20b&flag#top"),
+    false,
+  );
+  assert.equal(hasAccountKeyParam("https://hyperwhisper.com/en"), false);
 });
 
 test("the sign-in page strips the key from history before it signs in, and PostHog inits with the hook", () => {

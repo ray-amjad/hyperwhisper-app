@@ -100,6 +100,22 @@ test("the Account Key leaves the address bar before init, once, keeping the rout
   assert.doesNotMatch(inits[0]?.href ?? "", /HW-/);
 });
 
+test("a URL with no Account Key is never rewritten, so its query keeps its encoding", async () => {
+  const { stripAccountKeyFromAddressBar } = (await import(LOADER_PATH)) as {
+    stripAccountKeyFromAddressBar: () => void;
+  };
+  const before = fakeWindow.history.replaceStates.length;
+
+  fakeWindow.location = new URL(`${PAGE_ORIGIN}/en/blog?q=a%20b&flag&x=~#top`);
+  stripAccountKeyFromAddressBar();
+
+  assert.equal(fakeWindow.history.replaceStates.length, before);
+  assert.equal(
+    fakeWindow.location.href,
+    `${PAGE_ORIGIN}/en/blog?q=a%20b&flag&x=~#top`,
+  );
+});
+
 test("the before_send hook it inits with takes the Account Key out of a $pageview (#1897)", () => {
   const options = inits[0]?.options as {
     before_send: (event: unknown) => unknown;

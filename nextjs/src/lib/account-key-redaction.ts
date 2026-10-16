@@ -73,6 +73,13 @@ export function redactAccountKeyFromEvent<T extends RedactableEvent | null>(
 // (`/user/sign-in`) and `license_key` (`/credits`, `/checkout`).
 const ACCOUNT_KEY_PARAMS = ["licenseKey", "license_key"];
 
+/** Whether `url` carries a `licenseKey` or `license_key` query parameter. */
+export function hasAccountKeyParam(url: string): boolean {
+  const { searchParams } = new URL(url);
+
+  return ACCOUNT_KEY_PARAMS.some((name) => searchParams.has(name));
+}
+
 /**
  * The same URL with the `licenseKey` and `license_key` query parameters
  * removed, for `history.replaceState`, so the key leaves the address bar and
@@ -80,6 +87,7 @@ const ACCOUNT_KEY_PARAMS = ["licenseKey", "license_key"];
  */
 export function withoutAccountKeyParams(url: string): string {
   const parsed = new URL(url);
+
   for (const name of ACCOUNT_KEY_PARAMS) parsed.searchParams.delete(name);
 
   return parsed.pathname + parsed.search + parsed.hash;
