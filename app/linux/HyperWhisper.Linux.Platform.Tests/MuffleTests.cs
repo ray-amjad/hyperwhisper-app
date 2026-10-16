@@ -345,7 +345,7 @@ static class MuffleTests
         int? sleeper = null;
         for (var i = 0; i < 200 && sleeper is null; i++)
         {
-            sleeper = ChildrenOf(shell.Id).FirstOrDefault(pid => File.ReadAllText($"/proc/{pid}/comm").Trim() == "sleep") is var pid && pid > 0 ? pid : null;
+            sleeper = ChildrenOf(shell.Id).FirstOrDefault(pid => ReadProc($"/proc/{pid}/comm")?.Trim() == "sleep") is var pid && pid > 0 ? pid : null;
             if (sleeper is null) await Task.Delay(10);
         }
         Assert.True(sleeper is not null, "the tied child did not start");
@@ -356,8 +356,10 @@ static class MuffleTests
         Assert.Equal(0, await shell.StandardOutput!.ReadAsync(new byte[16]).AsTask().WaitAsync(TimeSpan.FromSeconds(2)));
         // Only /proc/[pid]/task/[tid]/children: a recursive walk follows each task's root symlink into the whole filesystem.
         static IEnumerable<int> ChildrenOf(int pid) => Directory.EnumerateDirectories($"/proc/{pid}/task").Select(task => Path.Combine(task, "children"))
-            .Where(File.Exists).SelectMany(file => File.ReadAllText(file).Split(' ', StringSplitOptions.RemoveEmptyEntries)).Select(int.Parse);
-        static bool Alive(int pid) => File.Exists($"/proc/{pid}/stat") && !File.ReadAllText($"/proc/{pid}/stat").Contains(") Z ", StringComparison.Ordinal);
+            .Select(ReadProc).SelectMany(text => (text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries)).Select(int.Parse);
+        // A process can exit between any two /proc reads, so a read that fails means it is gone.
+        static bool Alive(int pid) => ReadProc($"/proc/{pid}/stat") is { } stat && !stat.Contains(") Z ", StringComparison.Ordinal);
+        static string? ReadProc(string path) { try { return File.ReadAllText(path); } catch (IOException) { return null; } catch (UnauthorizedAccessException) { return null; } }
     }
 
     // Review round 2, #1: a restore whose generation was overtaken by a new claim never opens the new recording's filter,
