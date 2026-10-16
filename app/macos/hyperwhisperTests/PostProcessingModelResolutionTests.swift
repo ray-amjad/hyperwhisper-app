@@ -28,9 +28,18 @@ struct PostProcessingModelResolutionTests {
             ("gpt-5-mini", .openai, "gpt-5.6-luna"),
             ("gpt-5", .openai, "gpt-5.6-luna"),
             ("gemini-3-pro-preview", .gemini, "gemini-3.1-pro-preview"),
-            ("gemini-3.1-flash-lite-preview", .gemini, "gemini-3.1-flash-lite"),
+            ("gemini-3.1-flash-lite-preview", .gemini, "gemini-3.5-flash-lite"),
             ("gemini-2.0-flash", .gemini, "gemini-3.6-flash"),
-            ("gemini-2.0-flash-lite", .gemini, "gemini-3.1-flash-lite"),
+            ("gemini-2.0-flash-lite", .gemini, "gemini-3.5-flash-lite"),
+            // #798: Google shuts gemini-3.1-flash-lite down 2027-05-07.
+            ("gemini-3.1-flash-lite", .gemini, "gemini-3.5-flash-lite"),
+            // #1209: OpenAI removes gpt-5.1 and gpt-5.4-nano 2027-04-01.
+            ("gpt-5.1", .openai, "gpt-5.6-luna"),
+            ("gpt-5.4-nano", .openai, "gpt-6-luna"),
+            // OpenAI removes gpt-4.1 2027-01-14; Google deprecated 3.5 / 3.7 Flash 2026-10-08.
+            ("gpt-4.1", .openai, "gpt-6-luna"),
+            ("gemini-3.5-flash", .gemini, "gemini-3.6-flash"),
+            ("gemini-3.7-flash", .gemini, "gemini-3.8-flash"),
             // Gemma hosted models left the Gemini API 2026-03-08 (#1019, matches Windows).
             ("gemma-3-12b-it", .gemini, "gemini-3.8-flash"),
             ("gemma-3-27b-it", .gemini, "gemini-3.8-flash"),
@@ -70,6 +79,8 @@ struct PostProcessingModelResolutionTests {
             "gemma-4-31b",
             "claude-haiku-4-5", "claude-sonnet-4-5",
             "gemini-3-flash-preview", "qwen/qwen3.6-27b",
+            "gemini-3.1-flash-lite", "gpt-5.1", "gpt-5.4-nano",
+            "gpt-4.1", "gemini-3.5-flash", "gemini-3.7-flash",
         ])
         #expect(PostProcessingModels.availableModels.allSatisfy { !retired.contains($0.id) })
         #expect(PostProcessingModels.defaultModel(for: .openai)?.id == "gpt-5.6-luna")

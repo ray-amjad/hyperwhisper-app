@@ -2574,9 +2574,18 @@ internal static class Program
                 {
                     ("gpt-4.1-nano", "gpt-5.6-luna"),
                     ("gemini-3-pro-preview", "gemini-3.1-pro-preview"),
-                    ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
+                    ("gemini-3.1-flash-lite-preview", "gemini-3.5-flash-lite"),
                     ("gemini-2.0-flash", "gemini-3.6-flash"),
-                    ("gemini-2.0-flash-lite", "gemini-3.1-flash-lite"),
+                    ("gemini-2.0-flash-lite", "gemini-3.5-flash-lite"),
+                    // #798: Google shuts gemini-3.1-flash-lite down 2027-05-07.
+                    ("gemini-3.1-flash-lite", "gemini-3.5-flash-lite"),
+                    // #1209: OpenAI removes gpt-5.1 and gpt-5.4-nano 2027-04-01.
+                    ("gpt-5.1", "gpt-5.6-luna"),
+                    ("gpt-5.4-nano", "gpt-6-luna"),
+                    // OpenAI removes gpt-4.1 2027-01-14; Google deprecated 3.5 / 3.7 Flash 2026-10-08.
+                    ("gpt-4.1", "gpt-6-luna"),
+                    ("gemini-3.5-flash", "gemini-3.6-flash"),
+                    ("gemini-3.7-flash", "gemini-3.8-flash"),
                     // #1019: 3.8 Flash, not the 2.5 Flash that Google now gates to past users.
                     ("gemma-3-12b-it", "gemini-3.8-flash"),
                     ("gemma-3-27b-it", "gemini-3.8-flash"),
@@ -2609,6 +2618,8 @@ internal static class Program
 
                 Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.OpenAI)?.Id == "gpt-5.6-luna",
                     "new OpenAI modes should default to GPT-5.6 Luna");
+                Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.Gemini)?.Id == "gemini-3.8-flash",
+                    "new Gemini modes should default to Gemini 3.8 Flash (matches macOS)");
             });
 
             // #1018: OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11. The
