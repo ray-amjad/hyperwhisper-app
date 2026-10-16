@@ -174,7 +174,11 @@ class TranscriptActionHandler: ObservableObject {
                 return .stoppedByDelete
             }
 
-            let errorMessage = error.localizedDescription
+            // The row's Reason: a too-short file gets the file wording (#1836).
+            let errorMessage = TranscriptionRetryController.failedRow(
+                after: error,
+                audioDuration: transcript.duration
+            ).failedReason
             lastError = errorMessage
             
             // Show error alert
@@ -244,6 +248,7 @@ class TranscriptActionHandler: ObservableObject {
         // EXECUTION:
         // Run transcription with the new mode
         let newTranscriptId = newTranscript.id
+        let audioDuration = transcript.duration
         let retryToken = UUID()
         let task = Task {
             defer {
@@ -287,7 +292,12 @@ class TranscriptActionHandler: ObservableObject {
                 AppLogger.ui.error("Retry with new mode failed: \(error.localizedDescription)")
 
                 // Update transcript to failed state
-                await Self.markRetryWithFailed(newTranscript.objectID, after: error, persistence: persistenceController)
+                await Self.markRetryWithFailed(
+                    newTranscript.objectID,
+                    after: error,
+                    audioDuration: audioDuration,
+                    persistence: persistenceController
+                )
             }
         }
         if let newTranscriptId {
@@ -302,11 +312,27 @@ class TranscriptActionHandler: ObservableObject {
     /// same serial-writer helper, so the list and detail pane stop reading as
     /// running.
     ///
-    /// Keeps the "Transcription failed: …" text a file import used to write.
-    /// The empty-text rule of #1427 covers file imports only.
-    static func markRetryWithFailed(_ transcriptID: NSManagedObjectID, after error: Error, persistence: PersistenceController) async {
-        let reason = error is CancellationError ? "cancelled" : error.localizedDescription
-        let text = error is CancellationError ? "Transcription cancelled" : "Transcription failed: \(reason)"
+    /// Keeps the "Transcription failed: …" text a file import used to write,
+    /// except for a too-short file: its text stays empty and Reason says the
+    /// file wording, as a first import does (Ray, #1427, #1836).
+    static func markRetryWithFailed(
+        _ transcriptID: NSManagedObjectID,
+        after error: Error,
+        audioDuration: TimeInterval? = nil,
+        persistence: PersistenceController
+    ) async {
+        let text: String
+        let reason: String
+        if error is CancellationError {
+            reason = "cancelled"
+            text = "Transcription cancelled"
+        } else if FileTranscriptionFlow.isTooShort(error) {
+            reason = FileTranscriptionFlow.failureMessage(for: error, audioDuration: audioDuration)
+            text = ""
+        } else {
+            reason = error.localizedDescription
+            text = "Transcription failed: \(reason)"
+        }
         await persistence.markTranscriptFailedInBackground(
             transcriptID: transcriptID,
             failedReason: reason,
