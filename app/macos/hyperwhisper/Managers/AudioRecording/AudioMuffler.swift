@@ -116,9 +116,9 @@ final class AudioMuffler: @unchecked Sendable {
         }
 
         // Exclude HyperWhisper itself, so its own start/stop sounds stay clear.
-        var excluded: [NSNumber] = []
+        var excluded: [AudioObjectID] = []
         if let ownProcess = Self.processObject(for: getpid()) {
-            excluded.append(NSNumber(value: ownProcess))
+            excluded.append(ownProcess)
         }
 
         let description = CATapDescription(stereoGlobalTapButExcludeProcesses: excluded)
