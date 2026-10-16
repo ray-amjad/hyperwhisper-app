@@ -8,6 +8,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test, { mock } from "node:test";
 
+import { redactAccountKeyFromEvent } from "../src/lib/account-key-redaction";
+
 interface ModuleMocker {
   module(
     specifier: string,
@@ -67,9 +69,38 @@ test("with a key: inits once, with today's options, before any caller gets it", 
       options: {
         api_host: "https://us.i.posthog.com",
         person_profiles: "always",
+        before_send: redactAccountKeyFromEvent,
       },
     },
   ]);
+});
+
+test("the before_send hook it inits with takes the Account Key out of a $pageview (#1897)", () => {
+  const options = inits[0]?.options as {
+    before_send: (event: unknown) => unknown;
+  };
+  const url =
+    "https://hyperwhisper.com/en/user/sign-in?licenseKey=HW-AB12-CD34-EF56-GH78&returnTo=%2Fen%2Fuser%2Fdashboard";
+
+  const sent = options.before_send({
+    event: "$pageview",
+    properties: { $current_url: url, $pathname: "/en/user/sign-in" },
+    $set_once: { $initial_current_url: url },
+  });
+
+  assert.doesNotMatch(JSON.stringify(sent), /HW-/);
+  assert.deepEqual(sent, {
+    event: "$pageview",
+    properties: {
+      $current_url:
+        "https://hyperwhisper.com/en/user/sign-in?licenseKey=[redacted]&returnTo=%2Fen%2Fuser%2Fdashboard",
+      $pathname: "/en/user/sign-in",
+    },
+    $set_once: {
+      $initial_current_url:
+        "https://hyperwhisper.com/en/user/sign-in?licenseKey=[redacted]&returnTo=%2Fen%2Fuser%2Fdashboard",
+    },
+  });
 });
 
 test("no globally-mounted or caller file imports PostHog statically", () => {
