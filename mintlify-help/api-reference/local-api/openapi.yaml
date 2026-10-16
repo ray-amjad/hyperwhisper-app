@@ -719,8 +719,9 @@ components:
             is refused with `INVALID_REQUEST` on all three platforms (macOS
             and Windows answer HTTP 200 with the message "A Whisper model is
             required."; Linux answers HTTP 400). `nemotron` with no `model` tries
-            `nemotron-asr-3.5-multilingual`; when that is not installed, the
-            `MODEL_NOT_INSTALLED` message names it.
+            `nemotron-asr-3.5-multilingual`; on macOS, sent with `engine` and no
+            `mode_id`, the `MODEL_NOT_INSTALLED` message names that model when it
+            is not installed.
         language:
           type: string
         timestamp_granularities:
