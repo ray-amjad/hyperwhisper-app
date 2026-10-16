@@ -51,11 +51,17 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
     private readonly MuffleRestoreJournal _journal;
     private readonly Func<uint, bool>? _processFilter;
     private readonly uint _ownProcessId = (uint)Environment.ProcessId;
-    private readonly ProcessLoopbackSource?[] _sources = new ProcessLoopbackSource?[MaxSources];
+    // The captures the audio thread mixes. Control threads replace the whole array under _gate and
+    // the audio thread reads it once per cycle, so it never sees a half-made change. A source taken
+    // out (failed, or replaced by its parent's tree capture) may still be in use for that cycle,
+    // so it goes to _retired and is disposed only after the audio thread has stopped.
+    private ProcessLoopbackSource[] _active = Array.Empty<ProcessLoopbackSource>();
+    private readonly List<ProcessLoopbackSource> _retired = new();
     private readonly List<ScaledSession> _scaled = new();
     private readonly HashSet<uint> _capturedPids = new();
     private readonly HashSet<uint> _skippedPids = new();
-    private int _sourceCount;
+    private readonly HashSet<uint> _reattachedPids = new();
+    private readonly Action<ProcessLoopbackSource> _onSourceFailed;
 
     private MMDeviceEnumerator? _enumerator;
     private MMDevice? _device;
@@ -88,6 +94,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         _journal = journal;
         _processFilter = processFilter;
         _cancellation = cancellation;
+        _onSourceFailed = OnSourceFailed;
     }
 
     public string DeviceId { get; private set; } = string.Empty;
@@ -95,7 +102,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
     public int SampleRate { get; private set; }
     public int Channels { get; private set; }
     public MuffleFilter Filter { get; private set; } = null!;
-    public int SourceCount => Volatile.Read(ref _sourceCount);
+    public int SourceCount => Volatile.Read(ref _active).Length;
     public bool IsFaulted => _faulted;
     /// <summary>True once a release has glided the cutoff back open.</summary>
     public bool IsOpen => Filter.IsOpen;
@@ -189,7 +196,8 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
                 probe.Value!.Dispose();
             }
 
-            var captureVolume = muffler.SourceCount > 0 ? muffler._sources[0]!.SessionVolume : float.NaN;
+            var firstSource = Volatile.Read(ref muffler._active).FirstOrDefault();
+            var captureVolume = firstSource?.SessionVolume ?? float.NaN;
             LoggingService.Info($"WindowsAudioMuffler: Muffling {muffler.SourceCount} app(s) on {muffler.DeviceName} ({muffler.SampleRate} Hz, {muffler.Channels} ch, start {stopwatch.ElapsedMilliseconds} ms, render session vol {renderVolume:G4}, capture session vol {captureVolume:G4})");
             return Result<WindowsAudioMuffler>.Success(muffler);
         }
@@ -286,7 +294,6 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             var channels = Channels;
             var bufferFrames = _bufferFrames;
             var targetFrames = _targetFrames;
-            var sources = _sources;
             var fadeStep = 1f / (float)Math.Max(1, SampleRate * RenderFadeSeconds);
             var fadeGain = 0f;
             var signalSeen = false;
@@ -300,10 +307,16 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
                     break;
                 }
 
-                var sourceCount = Volatile.Read(ref _sourceCount);
+                var sources = Volatile.Read(ref _active);
+                var sourceCount = sources.Length;
                 for (var i = 0; i < sourceCount; i++)
                 {
-                    sources[i]!.Drain();
+                    if (sources[i].Drain())
+                    {
+                        // Its app is now silent (at -80 dB, nothing replays it): a control thread
+                        // gives it its volume back and drops the capture. Once per failure.
+                        ThreadPool.QueueUserWorkItem(_onSourceFailed, sources[i], preferLocal: false);
+                    }
                 }
 
                 if (!signalSeen && AnySignal(sources, sourceCount))
@@ -340,7 +353,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
                 output.Clear();
                 for (var i = 0; i < sourceCount; i++)
                 {
-                    sources[i]!.MixInto(output);
+                    sources[i].MixInto(output);
                 }
 
                 filter.Process(output);
@@ -392,11 +405,11 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         }
     }
 
-    private static bool AnySignal(ProcessLoopbackSource?[] sources, int count)
+    private static bool AnySignal(ProcessLoopbackSource[] sources, int count)
     {
         for (var i = 0; i < count; i++)
         {
-            if (sources[i]!.HasSignal) return true;
+            if (sources[i].HasSignal) return true;
         }
 
         return false;
@@ -626,10 +639,13 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
 
         if (covered)
         {
+            // Whose capture replays these sessions: if it fails, they are the ones to put back.
+            var coveringPid = _capturedPids.Contains(pid) ? pid : _capturedPids.First(c => tree.IsAncestor(c, pid));
+            TagCapture(scaledNow, coveringPid);
             return AttachOutcome.Covered;
         }
 
-        if (_sourceCount >= MaxSources)
+        if (_active.Length >= MaxSources)
         {
             RestoreLocked(scaledNow, "too many apps");
             _skippedPids.Add(pid);
@@ -657,10 +673,127 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             return AttachOutcome.CaptureFailed;
         }
 
-        _sources[_sourceCount] = source;
-        Volatile.Write(ref _sourceCount, _sourceCount + 1);
+        TagCapture(scaledNow, pid);
+        Volatile.Write(ref _active, _active.Append(source).ToArray());
         _capturedPids.Add(pid);
         return AttachOutcome.Captured;
+    }
+
+    private static void TagCapture(List<ScaledSession> sessions, uint capturePid)
+    {
+        foreach (var scaled in sessions)
+        {
+            scaled.CapturePid = capturePid;
+        }
+    }
+
+    // A thread-pool thread, told by the audio thread that a capture stopped (GetBuffer or
+    // GetNextPacketSize failed: the app exited, its stream was invalidated). Its apps sit at -80 dB
+    // with nothing replaying them, so the capture is dropped and their volumes put back now; if the
+    // app still has a session open it is muffled again with a fresh capture, once.
+    private void OnSourceFailed(ProcessLoopbackSource source)
+    {
+        try
+        {
+            lock (_gate)
+            {
+                if (_disposed || _faulted)
+                {
+                    return;
+                }
+
+                var active = _active;
+                if (Array.IndexOf(active, source) < 0)
+                {
+                    return;
+                }
+
+                var pid = source.ProcessId;
+                Volatile.Write(ref _active, active.Where(s => !ReferenceEquals(s, source)).ToArray());
+                _retired.Add(source);
+                _capturedPids.Remove(pid);
+                LoggingService.Warn($"WindowsAudioMuffler: Capture of {DescribeProcess(pid)} failed (hr=0x{source.FailureHr:X8}); restoring its volume");
+                RestoreLocked(_scaled.Where(s => s.CapturePid == pid).ToList(), "capture failed mid-recording");
+
+                if (_cancellation.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                if (!_reattachedPids.Add(pid))
+                {
+                    // A second failure: leave the app at its own volume for the rest of this muffle.
+                    _skippedPids.Add(pid);
+                    LoggingService.Info($"WindowsAudioMuffler: Leaving {DescribeProcess(pid)} unmuffled: its capture failed twice");
+                    return;
+                }
+
+                ReattachLocked(pid);
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"WindowsAudioMuffler: Could not handle a failed capture: {ex.Message}");
+        }
+    }
+
+    // Muffles again the sessions a failed capture covered (the process and its descendants), if
+    // any of them is still playing.
+    private void ReattachLocked(uint pid)
+    {
+        var tree = ProcessTree.Snapshot();
+        var groups = new Dictionary<uint, List<AudioSessionControl>>();
+        var anyActive = false;
+        try
+        {
+            _sessionManager!.RefreshSessions();
+            var sessions = _sessionManager.Sessions;
+            var count = sessions.Count;
+            for (var i = 0; i < count; i++)
+            {
+                try
+                {
+                    var session = sessions[i];
+                    var sessionPid = session.GetProcessID;
+                    if ((sessionPid != pid && !tree.IsAncestor(pid, sessionPid))
+                        || IsAlwaysExcluded(sessionPid, session)
+                        || session.State == AudioSessionState.AudioSessionStateExpired)
+                    {
+                        continue;
+                    }
+
+                    anyActive |= session.State == AudioSessionState.AudioSessionStateActive;
+                    if (!groups.TryGetValue(sessionPid, out var list))
+                    {
+                        groups[sessionPid] = list = new List<AudioSessionControl>();
+                    }
+
+                    list.Add(session);
+                }
+                catch (Exception ex)
+                {
+                    LoggingService.Debug($"WindowsAudioMuffler: Skipped a session while re-attaching: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"WindowsAudioMuffler: Session enumeration failed while re-attaching: {ex.Message}");
+            return;
+        }
+
+        if (!anyActive)
+        {
+            LoggingService.Info($"WindowsAudioMuffler: Not re-attaching {DescribeProcess(pid)}: no session of it is playing");
+            return;
+        }
+
+        var foreign = CollectForeignSessionPids();
+        foreach (var groupPid in groups.Keys.OrderBy(tree.Depth))
+        {
+            var outcome = AttachProcessLocked(groupPid, groups[groupPid], tree, foreign);
+            LoggingService.Info($"WindowsAudioMuffler: Re-attached {DescribeProcess(groupPid)}: {outcome}");
+        }
     }
 
     private ScaledSession? ScaleSessionLocked(AudioSessionControl session, uint pid)
@@ -1045,13 +1178,25 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         }
 
         // Stop replaying BEFORE the volumes come back, or the restored audio would be doubled.
-        var count = Volatile.Read(ref _sourceCount);
+        // Taken under the gate: a session handler or a failed-capture handler that was already
+        // running when Dispose began finishes first (the ones after it see _disposed).
+        List<ProcessLoopbackSource> allSources;
+        lock (_gate)
+        {
+            allSources = _active.Concat(_retired).ToList();
+            if (joined)
+            {
+                Volatile.Write(ref _active, Array.Empty<ProcessLoopbackSource>());
+                _retired.Clear();
+            }
+        }
+
+        var count = allSources.Count;
         int tripped = 0, underruns = 0, failedSources = 0, packets = 0, silentPackets = 0;
         var inputPeak = 0f;
         for (var i = count - 1; i >= 0; i--)
         {
-            var source = _sources[i];
-            if (source == null) continue;
+            var source = allSources[i];
             tripped += source.TrippedPackets;
             underruns += source.Underruns;
             packets += source.Packets;
@@ -1061,7 +1206,6 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             if (joined)
             {
                 source.Dispose();
-                _sources[i] = null;
             }
         }
 
@@ -1179,7 +1323,11 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
 
     private sealed record VolumeRamp(SimpleAudioVolume Volume, float From, float To);
 
-    private sealed record ScaledSession(AudioSessionControl Control, MuffleRestoreEntry Entry);
+    private sealed record ScaledSession(AudioSessionControl Control, MuffleRestoreEntry Entry)
+    {
+        /// <summary>The captured process whose tree capture replays this session (it or an ancestor).</summary>
+        public uint CapturePid { get; set; }
+    }
 
     private enum AttachOutcome
     {
