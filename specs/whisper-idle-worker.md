@@ -1,6 +1,6 @@
 # Spec: Windows on-device Whisper in an idle-exiting worker process
 
-Status: DRAFT 1. The interview is not done. Items marked *(open)* wait for Ray.
+Status: DRAFT 2. The interview is not done. Items marked *(open)* wait for Ray.
 
 - Repo: `ray-amjad/hyperwhisper-app`, base `main` (`4166f4b0` when this draft was written).
 - Issue: #1194 (follow-up of #1122; PR #1193 closed).
@@ -48,7 +48,7 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 - Packaging: `HyperWhisper.csproj` 59-66 (Whisper.net 1.9.0, Runtime, NoAvx, Vulkan); `setup-x64.iss` `[InstallDelete]` (61-62), `[Files]` (66), `KillProcess('parakeet-engine.exe')` (145); same shape in `setup-arm64.iss`; `build-release.ps1` publishes one project.
 - Reusable core: `app/shared-dotnet/HyperWhisper.LocalInference/LocalWhisperService.cs` (Linux today). Whisper.net 1.9.1 with Runtime, Vulkan and Cuda12; no NoAvx.
 
-## 5. Design (draft — recommended Option A, decision D1)
+## 5. Design (Option A, decided in D1)
 
 ### 5.1 The worker: `app/windows/HyperWhisper.WhisperWorker`
 
@@ -87,7 +87,7 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 
 ## 6. Decisions
 
-- D1 *(open)*: the worker design — A new console project (recommended), B re-launch `HyperWhisper.exe --whisper-worker`, or C accept P0 and close #1194.
+- D1 *(decided 2026-10-16)*: Option A, a new console project `HyperWhisper.WhisperWorker`. Not B (re-launch `HyperWhisper.exe --whisper-worker`: WPF host starts in the child, Whisper DLLs stay in the app). Not C (accept P0).
 - D2 *(open)*: the idle exit — fixed 5 minutes, or a setting.
 - D3 *(open)*: which paths use the worker — every platform, or x64 GPU only with CPU and ARM64 in-process.
 - D4 *(open)*: the Whisper.net version in the worker — reuse `LocalInference` (1.9.1, with Cuda12 and no NoAvx), or the app's 1.9.0 set.
