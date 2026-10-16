@@ -505,31 +505,39 @@ async function handleCreditRefund(
     return;
   }
 
-  const result = await refundCreditGrant({
-    sourceType: "stripe_credit_pack",
-    sourceId: checkoutSession.id,
-    refundedCreditsTotal: refundedCredits,
-  });
+  const refundGrant = () =>
+    refundCreditGrant({
+      sourceType: "stripe_credit_pack",
+      sourceId: checkoutSession.id,
+      refundedCreditsTotal: refundedCredits,
+    });
+  let result = await refundGrant();
 
   if (result.status === "not_found") {
-    // A grant that will never exist: log why and answer 200 (#1834). Nothing
-    // is taken back, from this pack or from any other grant.
     const reason = await permanentMissingGrantReason(checkoutSession);
-    if (reason) {
-      console.warn(
-        `Refund on charge ${charge.id} for session ${checkoutSession.id} took back no credits: ${reason}`
-      );
-      return;
-    }
+    // The mint commits the grant and its processed-event row together, so a
+    // mint that committed between the first lookup and the reason check is
+    // visible now: look once more before calling the miss permanent.
+    if (reason) result = await refundGrant();
+    if (result.status === "not_found") {
+      if (reason) {
+        // A grant that will never exist: log why and answer 200 (#1834).
+        // Nothing is taken back, from this pack or from any other grant.
+        console.warn(
+          `Refund on charge ${charge.id} for session ${checkoutSession.id} took back no credits: ${reason}`
+        );
+        return;
+      }
 
-    // Otherwise the refund arrived before checkout.session.completed minted
-    // the grant (the mint is still in Stripe's retry queue). Throw so the
-    // route answers 500 and Stripe re-sends this refund; the retry after the
-    // mint removes the credits once, because refundCreditGrant dedupes on
-    // the running total (#1798).
-    throw new Error(
-      `No credit grant yet for session ${checkoutSession.id} (charge ${charge.id}); retrying`
-    );
+      // Otherwise the refund arrived before checkout.session.completed
+      // minted the grant (the mint is still in Stripe's retry queue). Throw
+      // so the route answers 500 and Stripe re-sends this refund; the retry
+      // after the mint removes the credits once, because refundCreditGrant
+      // dedupes on the running total (#1798).
+      throw new Error(
+        `No credit grant yet for session ${checkoutSession.id} (charge ${charge.id}); retrying`
+      );
+    }
   }
 
   if (result.status === "duplicate") {

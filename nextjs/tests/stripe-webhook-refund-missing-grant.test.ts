@@ -253,6 +253,47 @@ describe("charge.refunded with no grant: permanent cases answer 200 and log why 
     assert.equal(warnings().length, 1, logLines.join("\n"));
     assert.match(warnings()[0], /cs_lost.*checkout event was already processed but no grant exists/);
   });
+
+  test("(c) a mint that commits after the first lookup is refunded, not called permanent", async () => {
+    await seedOtherPack();
+    const intent = checkoutSession({ session: "cs_race" });
+    // The refund path's only transaction is refundCreditGrant. Run it (it
+    // finds no grant), then let checkout.session.completed commit the grant
+    // and its processed-event row, before the processed-event check runs.
+    const ledgerDb = db as unknown as { transaction: (...args: unknown[]) => Promise<unknown> };
+    const realTransaction = ledgerDb.transaction.bind(db);
+    let minted = false;
+    const hook = mock.method(ledgerDb, "transaction", async (...args: unknown[]) => {
+      const out = await realTransaction(...args);
+      if (!minted) {
+        minted = true;
+        hook.mock.restore();
+        await L.grantCreditsForStripeEvent({
+          eventId: "evt_cs_race",
+          eventType: "checkout.session.completed",
+          stripeObjectId: "cs_race",
+          userId: "u1",
+          creditAmount: 5000,
+        });
+      }
+      return out;
+    });
+
+    let response: Response;
+    try {
+      response = await postRefund(intent);
+    } finally {
+      hook.mock.restore();
+    }
+
+    assert.ok(minted, "the mint never ran between the lookup and the check");
+    assert.equal(response.status, 200);
+    const g = await grantsBySource("u1");
+    assert.equal(g.get("cs_race")?.remaining, 0);
+    assert.equal(g.get("cs_race")?.refunded, 5000);
+    assert.equal(g.get("cs_other")?.remaining, 2000);
+    assert.deepEqual(warnings(), []);
+  });
 });
 
 describe("charge.refunded with no grant yet: still 500 so Stripe retries (#1798)", () => {
