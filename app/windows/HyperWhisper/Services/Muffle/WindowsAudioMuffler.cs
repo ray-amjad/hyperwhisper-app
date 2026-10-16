@@ -81,10 +81,13 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
     private float _outputPeak;
     private bool _disposed;
 
-    private WindowsAudioMuffler(MuffleRestoreJournal journal, Func<uint, bool>? processFilter)
+    private readonly CancellationToken _cancellation;
+
+    private WindowsAudioMuffler(MuffleRestoreJournal journal, Func<uint, bool>? processFilter, CancellationToken cancellation)
     {
         _journal = journal;
         _processFilter = processFilter;
+        _cancellation = cancellation;
     }
 
     public string DeviceId { get; private set; } = string.Empty;
@@ -102,11 +105,18 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
     /// <see cref="Dispose"/>. Fails (and changes nothing) when process loopback is missing
     /// (Windows build &lt; 20348), the endpoint cannot be opened, or no capture can start.
     /// <paramref name="processFilter"/> limits which process ids are muffled (diagnostics and
-    /// device tests only; the app passes null).
+    /// device tests only; the app passes null). <paramref name="cancellation"/> (app exit) stops
+    /// the start between sessions: nothing more is lowered, what was lowered is put back, and the
+    /// start fails. Once started, the muffler lowers no new session after it is cancelled.
     /// </summary>
-    public static Result<WindowsAudioMuffler> Start(MuffleRestoreJournal journal, Func<uint, bool>? processFilter = null)
+    public static Result<WindowsAudioMuffler> Start(MuffleRestoreJournal journal, Func<uint, bool>? processFilter = null, CancellationToken cancellation = default)
     {
         ArgumentNullException.ThrowIfNull(journal);
+
+        if (cancellation.IsCancellationRequested)
+        {
+            return Result<WindowsAudioMuffler>.Failure(CancelledError);
+        }
 
         if (!ProcessLoopbackNative.IsSupported)
         {
@@ -114,8 +124,10 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
                 $"process loopback needs Windows build {ProcessLoopbackNative.MinimumWindowsBuild} or later (this is {Environment.OSVersion.Version.Build})");
         }
 
-        return RunInMta(() => StartCore(journal, processFilter));
+        return RunInMta(() => StartCore(journal, processFilter, cancellation));
     }
+
+    internal const string CancelledError = "muffle start cancelled";
 
     /// <summary>
     /// Glide the cutoff down to the muffled frequency (thread-safe). The glide starts once a capture
@@ -130,10 +142,10 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         Filter.Release();
     }
 
-    private static Result<WindowsAudioMuffler> StartCore(MuffleRestoreJournal journal, Func<uint, bool>? processFilter)
+    private static Result<WindowsAudioMuffler> StartCore(MuffleRestoreJournal journal, Func<uint, bool>? processFilter, CancellationToken cancellation)
     {
         var stopwatch = Stopwatch.StartNew();
-        var muffler = new WindowsAudioMuffler(journal, processFilter);
+        var muffler = new WindowsAudioMuffler(journal, processFilter, cancellation);
         try
         {
             var opened = muffler.OpenRender();
@@ -149,6 +161,14 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             var renderVolume = muffler.EnsureUnityRenderSessionVolume();
 
             var (needed, captured) = muffler.AttachExistingSessions();
+            if (cancellation.IsCancellationRequested)
+            {
+                // The app is exiting: put back what was lowered while there is still time.
+                LoggingService.Info($"WindowsAudioMuffler: Start cancelled after {stopwatch.ElapsedMilliseconds} ms; restoring");
+                muffler.Dispose();
+                return Result<WindowsAudioMuffler>.Failure(CancelledError);
+            }
+
             if (needed > 0 && captured == 0)
             {
                 muffler.Dispose();
@@ -465,7 +485,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         {
             lock (_gate)
             {
-                if (_disposed || _faulted)
+                if (_disposed || _faulted || _cancellation.IsCancellationRequested)
                 {
                     return;
                 }
@@ -530,6 +550,13 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             // Ancestors first, so a child is covered by its parent's tree capture, not captured twice.
             foreach (var pid in groups.Keys.OrderBy(tree.Depth))
             {
+                // Each capture activation can wait seconds; an exit must not wait for them all.
+                if (_cancellation.IsCancellationRequested)
+                {
+                    LoggingService.Debug("WindowsAudioMuffler: Start cancelled; lowering no more apps");
+                    break;
+                }
+
                 var outcome = AttachProcessLocked(pid, groups[pid], tree, foreign);
                 LoggingService.Debug($"WindowsAudioMuffler: {DescribeProcess(pid)}: {outcome}");
                 if (outcome is AttachOutcome.Captured or AttachOutcome.CaptureFailed)
@@ -642,6 +669,11 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         string sessionId;
         float current;
         float prior;
+        if (_cancellation.IsCancellationRequested)
+        {
+            return null;
+        }
+
         try
         {
             if (session.State == AudioSessionState.AudioSessionStateExpired)
@@ -651,7 +683,15 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
 
             instanceId = session.GetSessionInstanceIdentifier ?? string.Empty;
             sessionId = session.GetSessionIdentifier ?? string.Empty;
-            if (_scaled.Any(s => string.Equals(s.Entry.SessionInstanceIdentifier, instanceId, StringComparison.Ordinal)))
+            if (string.IsNullOrEmpty(instanceId) && string.IsNullOrEmpty(sessionId))
+            {
+                // Its journal entry could never be matched back to it after a crash.
+                LoggingService.Info($"WindowsAudioMuffler: Not muffling a session of pid {pid}: it has no identifier to restore it by");
+                return null;
+            }
+
+            if (!string.IsNullOrEmpty(instanceId)
+                && _scaled.Any(s => string.Equals(s.Entry.SessionInstanceIdentifier, instanceId, StringComparison.Ordinal)))
             {
                 return null;
             }
@@ -682,18 +722,28 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             return null;
         }
 
-        var entry = new MuffleRestoreEntry(sessionId, instanceId, pid, prior, prior * VolumeFactor, DateTimeOffset.UtcNow);
+        // A session that opened at our value already (see PriorVolumeFor) is not ramped. One that is
+        // is journaled as ramping until it settles, so a crash mid-ramp is still recognised as ours.
+        var setVolume = prior * VolumeFactor;
+        var needsRamp = !MuffleRestoreJournal.StillAtSetVolume(current, setVolume);
+        var entry = new MuffleRestoreEntry(sessionId, instanceId, pid, prior, setVolume, DateTimeOffset.UtcNow, Ramping: needsRamp);
         if (_journal.Add(entry).IsFailure)
         {
             LoggingService.Warn($"WindowsAudioMuffler: Not muffling pid {pid}: the restore journal could not be written");
             return null;
         }
 
+        // The exit's emergency restore holds the journal while it runs, so Add can wait it out.
+        if (_cancellation.IsCancellationRequested)
+        {
+            _journal.Remove(entry);
+            return null;
+        }
+
         try
         {
             var volume = session.SimpleAudioVolume;
-            // A session that opened at our value already (see PriorVolumeFor) is not ramped.
-            if (!MuffleRestoreJournal.StillAtSetVolume(current, entry.SetVolume))
+            if (needsRamp)
             {
                 RampVolumes(new[] { new VolumeRamp(volume, current, entry.SetVolume) });
             }
@@ -717,6 +767,13 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             }
 
             return null;
+        }
+
+        if (needsRamp)
+        {
+            var settled = entry with { Ramping = false };
+            _journal.Update(new[] { (entry, settled) });
+            entry = settled;
         }
 
         var scaled = new ScaledSession(session, entry);
@@ -809,12 +866,33 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         }
 
         // All the apps ramp back together, so the restore costs one ramp however many there are.
-        RampVolumes(toRestore.Select(r => new VolumeRamp(r.Volume, r.Scaled.Entry.SetVolume, r.Scaled.Entry.PriorVolume)).ToList());
-        foreach (var (scaled, volume) in toRestore)
+        // They are journaled as ramping first (one write), so a crash mid-ramp is still recovered.
+        var ramping = toRestore.Select(r => (r.Scaled, r.Volume, Entry: r.Scaled.Entry with { Ramping = true })).ToList();
+        if (ramping.Count > 0)
         {
+            _journal.Update(ramping.Select(r => (r.Scaled.Entry, r.Entry)).ToList());
+        }
+
+        RampVolumes(ramping.Select(r => new VolumeRamp(r.Volume, r.Entry.SetVolume, r.Entry.PriorVolume)).ToList());
+        foreach (var (scaledSession, volume, entry) in ramping)
+        {
+            var scaled = scaledSession with { Entry = entry };
             try
             {
                 volume.Volume = scaled.Entry.PriorVolume;
+                // The session can expire during the ramp, after the check above, and Windows then
+                // takes the write without keeping it for the app's next session: the entry goes
+                // only once the write is seen on a session that is still open.
+                var expired = scaled.Control.State == AudioSessionState.AudioSessionStateExpired;
+                var readBack = volume.Volume;
+                if (!MuffleRestoreJournal.RestoreLanded(expired, readBack, scaled.Entry.PriorVolume))
+                {
+                    failed++;
+                    _journal.MarkStale(scaled.Entry);
+                    LoggingService.Info($"WindowsAudioMuffler: pid {scaled.Entry.ProcessId}'s restore did not hold (expired {expired}, reads {readBack:G4}); kept for retry");
+                    continue;
+                }
+
                 restored++;
                 _journal.Remove(scaled.Entry);
             }

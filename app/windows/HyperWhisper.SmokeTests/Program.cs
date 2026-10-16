@@ -591,7 +591,10 @@ internal static class Program
                 var parsed = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse(
                     HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(entries));
                 Assert(parsed.Count == 2 && parsed[0] == first && parsed[1] == second, "entries survive a round trip");
-                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse("{ not json").Count == 0, "a damaged file reads as empty");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse("{ not json", out _, out _), "a damaged file is reported, not read as empty");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(string.Empty, out _, out _), "an empty (torn) file is reported");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse("{\"version\":1,\"entries\":[]}", out var none, out _) && none.Count == 0,
+                    "an empty journal parses");
 
                 Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|b.exe|2", "app|a.exe") == second,
                     "the instance id wins over the session id");
@@ -600,8 +603,41 @@ internal static class Program
                 Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "other|1", "other") == null,
                     "an unknown session matches nothing");
 
+                // An entry with only an instance id can still be matched, so it survives a reload.
+                var instanceOnly = new HyperWhisper.Services.Muffle.MuffleRestoreEntry(string.Empty, "app|c.exe|3", 30, 0.6f, 0.6f * 1e-4f, created);
+                var noIds = new HyperWhisper.Services.Muffle.MuffleRestoreEntry(string.Empty, string.Empty, 40, 0.6f, 0.6f * 1e-4f, created);
+                var reloaded = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse(
+                    HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(new[] { instanceOnly, noIds }));
+                Assert(reloaded.Count == 1 && reloaded[0] == instanceOnly, "an entry with only an instance id is kept, one with neither id is dropped");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(reloaded, "app|c.exe|3", string.Empty) == instanceOnly,
+                    "an entry with only an instance id matches by it");
+
                 Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(1.00005e-4f, 1e-4f), "float noise still counts as ours");
                 Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(0.5f, 1e-4f), "a volume the user moved is left alone");
+
+                // A crash mid-ramp leaves a volume between prior and set; it is ours only while the
+                // entry says it was ramping.
+                var settledEntry = first;
+                var rampingEntry = first with { Ramping = true };
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(settledEntry, 0.8f * 1e-4f), "a settled entry at its set volume is ours");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(settledEntry, 0.3f), "a settled entry between prior and set was moved by the user");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(rampingEntry, 0.3f), "a ramping entry between prior and set is ours");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(rampingEntry, 0.8f), "a ramping entry already back at its prior is ours");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(rampingEntry, 0.95f), "a ramping entry above its prior was moved by the user");
+                var rampingParsed = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse(
+                    HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(new[] { rampingEntry }));
+                Assert(rampingParsed.Count == 1 && rampingParsed[0].Ramping, "the ramping flag survives a round trip");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(
+                        "{\"version\":1,\"entries\":[{\"sessionIdentifier\":\"s\",\"sessionInstanceIdentifier\":\"i\",\"processId\":1,\"priorVolume\":0.5,\"setVolume\":5E-05,\"createdUtc\":\"2026-10-16T09:00:00+00:00\"}]}",
+                        out var older, out _)
+                    && older.Count == 1 && !older[0].Ramping && older[0].PriorVolume == 0.5f,
+                    "a journal written before the ramping flag still reads, as settled");
+
+                // A restore write counts only on a session still open that reads it back.
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(false, 0.8f, 0.8f), "a write that holds on an open session lands");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(true, 0.8f, 0.8f),
+                    "a session that expired during the ramp keeps its entry, even if it reads the prior back");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(false, 0.8f * 1e-4f, 0.8f), "a write that did not stick keeps its entry");
 
                 var path = Path.Combine(Path.GetTempPath(), $"hw-muffle-journal-{Guid.NewGuid():N}.json");
                 try
@@ -609,13 +645,69 @@ internal static class Program
                     using (var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path))
                     {
                         Assert(journal.Add(first).IsSuccess && File.Exists(path), "an entry is on disk before the volume changes");
-                        journal.Remove(first);
+                        var firstRamping = first with { Ramping = true };
+                        Assert(journal.Update(new[] { (first, firstRamping) }).IsSuccess, "an entry can be marked as ramping");
+                        Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(File.ReadAllText(path), out var onDisk, out _)
+                            && onDisk.Count == 1 && onDisk[0] == firstRamping, "the ramping flag is on disk before the ramp");
+                        journal.Remove(firstRamping);
                         Assert(!File.Exists(path), "the file goes once every volume is back");
                         Assert(journal.Add(second).IsSuccess, "second entry written");
                     }
 
+                    Assert(!File.Exists(path + ".tmp"), "no temporary file is left behind");
                     using var nextRun = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path);
                     Assert(nextRun.HasStaleEntries, "the next start sees what a killed run left");
+                }
+                finally
+                {
+                    File.Delete(path);
+                }
+            });
+
+            // A journal torn by a power cut must not be read as empty and then overwritten: it is
+            // moved aside, and the journal starts afresh next to it.
+            Run("Muffle restore journal keeps an unreadable file aside", () =>
+            {
+                var directory = Path.Combine(Path.GetTempPath(), $"hw-muffle-corrupt-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(directory);
+                var path = Path.Combine(directory, "muffle-restore.json");
+                try
+                {
+                    const string torn = "{\"version\":1,\"entries\":[{\"sessionIdentifier\":\"app|a.e";
+                    File.WriteAllText(path, torn);
+                    var entry = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, DateTimeOffset.UtcNow);
+                    using (var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path))
+                    {
+                        Assert(!journal.HasStaleEntries, "a torn journal has no usable entries");
+                        Assert(journal.Add(entry).IsSuccess, "the journal still takes new entries");
+                    }
+
+                    var kept = Directory.GetFiles(directory, "muffle-restore.json.corrupt-*");
+                    Assert(kept.Length == 1 && File.ReadAllText(kept[0]) == torn, "the torn file is kept, byte for byte");
+                    Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(File.ReadAllText(path), out var fresh, out _)
+                        && fresh.Count == 1 && fresh[0] == entry, "the new journal holds only the new entry");
+                }
+                finally
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+            });
+
+            // App exit cancels a muffler start: a start that sees the exit lowers nothing, and the
+            // exit's journal restore has nothing to do when this run lowered nothing.
+            Run("Muffle start stops for app exit, and the exit restore needs no live entries", () =>
+            {
+                using var cancelled = new CancellationTokenSource();
+                cancelled.Cancel();
+                var path = Path.Combine(Path.GetTempPath(), $"hw-muffle-exit-{Guid.NewGuid():N}.json");
+                try
+                {
+                    using var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path);
+                    var started = HyperWhisper.Services.Muffle.WindowsAudioMuffler.Start(journal, cancellation: cancelled.Token);
+                    Assert(started.IsFailure && started.Error == HyperWhisper.Services.Muffle.WindowsAudioMuffler.CancelledError,
+                        "a start cancelled by the exit fails without muffling");
+                    Assert(!File.Exists(path), "a cancelled start writes no journal");
+                    Assert(journal.RestoreLiveNow() == 0, "the exit restore has nothing to put back");
                 }
                 finally
                 {
