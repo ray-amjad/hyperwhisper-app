@@ -69,13 +69,18 @@ export function redactAccountKeyFromEvent<T extends RedactableEvent | null>(
   return event;
 }
 
+// The query parameters that carry the Account Key into a page: `licenseKey`
+// (`/user/sign-in`) and `license_key` (`/credits`, `/checkout`).
+const ACCOUNT_KEY_PARAMS = ["licenseKey", "license_key"];
+
 /**
- * The same URL with the `licenseKey` query parameter removed, for
- * `history.replaceState`, so the key leaves the address bar and the browser
- * history. Path, other parameters and fragment are kept.
+ * The same URL with the `licenseKey` and `license_key` query parameters
+ * removed, for `history.replaceState`, so the key leaves the address bar and
+ * the browser history. Path, other parameters and fragment are kept.
  */
-export function withoutLicenseKeyParam(url: string): string {
+export function withoutAccountKeyParams(url: string): string {
   const parsed = new URL(url);
-  parsed.searchParams.delete("licenseKey");
+  for (const name of ACCOUNT_KEY_PARAMS) parsed.searchParams.delete(name);
+
   return parsed.pathname + parsed.search + parsed.hash;
 }

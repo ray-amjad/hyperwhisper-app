@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 
 import { authClient } from "@/src/lib/auth-client";
-import { withoutLicenseKeyParam } from "@/src/lib/account-key-redaction";
+import { withoutAccountKeyParams } from "@/src/lib/account-key-redaction";
 import { sanitizeReturnTo } from "@/src/lib/license-key-redirect";
 import { isRecord } from "@/src/lib/type-guards";
 
@@ -63,7 +63,7 @@ export default function SignInClient() {
     window.history.replaceState(
       window.history.state,
       "",
-      withoutLicenseKeyParam(window.location.href),
+      withoutAccountKeyParams(window.location.href),
     );
     setLicenseKey(licenseKeyParam);
     setAutoSigningIn(true);

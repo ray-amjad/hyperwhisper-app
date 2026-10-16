@@ -26,12 +26,29 @@ const env: Record<string, string | undefined> = {};
 
 moduleMock.module("../src/env/client.mjs", { namedExports: { env } });
 
-const inits: Array<{ key: string; options: unknown }> = [];
+const inits: Array<{ key: string; options: unknown; href: string }> = [];
 const fakePostHog = {
   init: (key: string, options: unknown) => {
-    inits.push({ key, options });
+    inits.push({ key, options, href: fakeWindow.location.href });
   },
 };
+
+// The page PostHog starts on: opened with the Account Key in its URL (#1901).
+const PAGE_ORIGIN = "https://hyperwhisper.com";
+const fakeWindow = {
+  location: new URL(
+    `${PAGE_ORIGIN}/en?licenseKey=HW-AB12-CD34-EF56-GH78&license_key=HW-AB12-CD34-EF56-GH78&utm_source=app#faq`,
+  ),
+  history: {
+    state: { next: "router-state" },
+    replaceStates: [] as Array<{ state: unknown; url: string }>,
+    replaceState(state: unknown, _unused: string, url: string) {
+      this.replaceStates.push({ state, url });
+      fakeWindow.location = new URL(url, PAGE_ORIGIN);
+    },
+  },
+};
+(globalThis as { window?: unknown }).window = fakeWindow;
 
 moduleMock.module("posthog-js", { defaultExport: fakePostHog });
 
@@ -66,6 +83,7 @@ test("with a key: inits once, with today's options, before any caller gets it", 
   assert.deepEqual(inits, [
     {
       key: "phc_test",
+      href: `${PAGE_ORIGIN}/en?utm_source=app#faq`,
       options: {
         api_host: "https://us.i.posthog.com",
         person_profiles: "always",
@@ -73,6 +91,13 @@ test("with a key: inits once, with today's options, before any caller gets it", 
       },
     },
   ]);
+});
+
+test("the Account Key leaves the address bar before init, once, keeping the router state (#1901)", () => {
+  assert.deepEqual(fakeWindow.history.replaceStates, [
+    { state: { next: "router-state" }, url: "/en?utm_source=app#faq" },
+  ]);
+  assert.doesNotMatch(inits[0]?.href ?? "", /HW-/);
 });
 
 test("the before_send hook it inits with takes the Account Key out of a $pageview (#1897)", () => {

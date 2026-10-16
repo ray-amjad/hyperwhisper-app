@@ -11,7 +11,7 @@ import test from "node:test";
 import {
   redactAccountKeyFromEvent,
   redactAccountKeyFromUrl,
-  withoutLicenseKeyParam,
+  withoutAccountKeyParams,
 } from "../src/lib/account-key-redaction";
 
 const KEY = "HW-AAAA-BBBB-CCCC-DDDD";
@@ -91,15 +91,15 @@ test("before_send redacts every string property, $set and $set_once, and drops n
   assert.equal(redactAccountKeyFromEvent(null), null);
 });
 
-test("the address bar URL loses only licenseKey", () => {
+test("the address bar URL loses only licenseKey and license_key", () => {
   assert.equal(
-    withoutLicenseKeyParam(
+    withoutAccountKeyParams(
       `https://hyperwhisper.com/en/user/sign-in?licenseKey=${KEY}&returnTo=%2Fen%2Fuser%2Fdashboard#top`,
     ),
     "/en/user/sign-in?returnTo=%2Fen%2Fuser%2Fdashboard#top",
   );
   assert.equal(
-    withoutLicenseKeyParam(
+    withoutAccountKeyParams(
       `https://hyperwhisper.com/en/user/sign-in?licenseKey=${KEY}`,
     ),
     "/en/user/sign-in",
@@ -116,7 +116,7 @@ test("the sign-in page strips the key from history before it signs in, and PostH
     signIn.indexOf("void handleLicenseKeySignInWithKey(licenseKeyParam);"),
   );
   assert.match(effect, /window\.history\.replaceState\(/);
-  assert.match(effect, /withoutLicenseKeyParam\(window\.location\.href\)/);
+  assert.match(effect, /withoutAccountKeyParams\(window\.location\.href\)/);
 
   const client = readFileSync(
     new URL("../src/lib/posthog-client.ts", import.meta.url),
