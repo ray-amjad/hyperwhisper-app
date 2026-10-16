@@ -693,6 +693,43 @@ internal static class Program
                 }
             });
 
+            // A journal held open by someone else (an antivirus scan) is not read as empty: nothing
+            // is written over it until it can be read, and its entries are found then.
+            Run("Muffle restore journal waits out a file it cannot read", () =>
+            {
+                var directory = Path.Combine(Path.GetTempPath(), $"hw-muffle-locked-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(directory);
+                var path = Path.Combine(directory, "muffle-restore.json");
+                try
+                {
+                    var created = DateTimeOffset.UtcNow;
+                    var leftover = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, created);
+                    var fresh = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|b.exe", "app|b.exe|2", 20, 1f, 1e-4f, created);
+                    var original = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(new[] { leftover });
+                    File.WriteAllText(path, original);
+
+                    using var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path) { LoadRetryBackoff = TimeSpan.Zero };
+                    using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+                    {
+                        Assert(!journal.IsLoaded, "a locked journal is not taken as read");
+                        Assert(!journal.HasStaleEntries, "a locked journal shows no entries yet");
+                        Assert(journal.Add(fresh).IsFailure, "nothing is lowered while the journal cannot be read");
+                        Assert(journal.RecoverStale() == 0, "recovery of a locked journal restores nothing (and retries later)");
+                    }
+
+                    Assert(File.ReadAllText(path) == original, "the locked journal was left byte for byte");
+                    Assert(journal.IsLoaded && journal.HasStaleEntries, "the leftover is found once the file can be read");
+                    Assert(journal.Add(fresh).IsSuccess, "the journal takes new entries once read");
+                    Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(File.ReadAllText(path), out var onDisk, out _)
+                        && onDisk.Count == 2 && onDisk.Contains(leftover) && onDisk.Contains(fresh),
+                        "the leftover is kept alongside the new entry");
+                }
+                finally
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+            });
+
             // App exit cancels a muffler start: a start that sees the exit lowers nothing, and the
             // exit's journal restore has nothing to do when this run lowered nothing.
             Run("Muffle start stops for app exit, and the exit restore needs no live entries", () =>
