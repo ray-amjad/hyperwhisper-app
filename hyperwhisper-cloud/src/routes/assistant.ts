@@ -9,6 +9,7 @@ import { logEvent } from '../lib/logging';
 import { MAX_ASSISTANT_BODY_BYTES } from '../lib/constants';
 import { creditsForCost } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
+import { validateContentLength, type ContentLengthCheck } from '../lib/request-limits';
 import { MAX_ASSISTANT_IMAGE_BYTES } from '../lib/constants';
 import { errorResponse, imageTooLargeResponse, CORS_HEADERS } from '../lib/responses';
 import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
@@ -83,37 +84,8 @@ export function detectImageMediaType(bytes: Uint8Array): string | null {
   return null;
 }
 
-export function validateAssistantContentLength(contentLengthHeader: string | undefined):
-  | { ok: true }
-  | { ok: false; response: Response; contentLength: number | null } {
-  if (!contentLengthHeader) {
-    return {
-      ok: false,
-      contentLength: null,
-      response: errorResponse(400, 'Missing Content-Length', 'Content-Length header is required'),
-    };
-  }
-
-  const contentLength = Number.parseInt(contentLengthHeader, 10);
-  if (!Number.isFinite(contentLength) || contentLength <= 0) {
-    return {
-      ok: false,
-      contentLength: Number.isFinite(contentLength) ? contentLength : null,
-      response: errorResponse(400, 'Invalid Content-Length', 'Content-Length must be a positive integer'),
-    };
-  }
-
-  if (contentLength > MAX_ASSISTANT_BODY_BYTES) {
-    return {
-      ok: false,
-      contentLength,
-      response: errorResponse(413, 'Request too large',
-        `Request body must be ${Math.round(MAX_ASSISTANT_BODY_BYTES / (1024 * 1024))} MB or smaller`,
-        { max_size_bytes: MAX_ASSISTANT_BODY_BYTES, content_length: contentLength }),
-    };
-  }
-
-  return { ok: true };
+export function validateAssistantContentLength(contentLengthHeader: string | undefined): ContentLengthCheck {
+  return validateContentLength(contentLengthHeader, MAX_ASSISTANT_BODY_BYTES);
 }
 
 /**
