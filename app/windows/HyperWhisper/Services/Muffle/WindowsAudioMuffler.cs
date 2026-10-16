@@ -651,7 +651,15 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
 
             instanceId = session.GetSessionInstanceIdentifier ?? string.Empty;
             sessionId = session.GetSessionIdentifier ?? string.Empty;
-            if (_scaled.Any(s => string.Equals(s.Entry.SessionInstanceIdentifier, instanceId, StringComparison.Ordinal)))
+            if (string.IsNullOrEmpty(instanceId) && string.IsNullOrEmpty(sessionId))
+            {
+                // Its journal entry could never be matched back to it after a crash.
+                LoggingService.Info($"WindowsAudioMuffler: Not muffling a session of pid {pid}: it has no identifier to restore it by");
+                return null;
+            }
+
+            if (!string.IsNullOrEmpty(instanceId)
+                && _scaled.Any(s => string.Equals(s.Entry.SessionInstanceIdentifier, instanceId, StringComparison.Ordinal)))
             {
                 return null;
             }

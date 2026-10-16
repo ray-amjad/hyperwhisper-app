@@ -600,6 +600,15 @@ internal static class Program
                 Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "other|1", "other") == null,
                     "an unknown session matches nothing");
 
+                // An entry with only an instance id can still be matched, so it survives a reload.
+                var instanceOnly = new HyperWhisper.Services.Muffle.MuffleRestoreEntry(string.Empty, "app|c.exe|3", 30, 0.6f, 0.6f * 1e-4f, created);
+                var noIds = new HyperWhisper.Services.Muffle.MuffleRestoreEntry(string.Empty, string.Empty, 40, 0.6f, 0.6f * 1e-4f, created);
+                var reloaded = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse(
+                    HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(new[] { instanceOnly, noIds }));
+                Assert(reloaded.Count == 1 && reloaded[0] == instanceOnly, "an entry with only an instance id is kept, one with neither id is dropped");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(reloaded, "app|c.exe|3", string.Empty) == instanceOnly,
+                    "an entry with only an instance id matches by it");
+
                 Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(1.00005e-4f, 1e-4f), "float noise still counts as ours");
                 Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(0.5f, 1e-4f), "a volume the user moved is left alone");
 

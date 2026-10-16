@@ -212,7 +212,8 @@ public sealed class MuffleRestoreJournal : IDisposable
             }
 
             // A session this process is muffling right now belongs to the live run, not the leftovers.
-            if (_live.Any(e => string.Equals(e.SessionInstanceIdentifier, instanceId, StringComparison.Ordinal)))
+            if (!string.IsNullOrEmpty(instanceId)
+                && _live.Any(e => string.Equals(e.SessionInstanceIdentifier, instanceId, StringComparison.Ordinal)))
             {
                 return false;
             }
@@ -399,6 +400,10 @@ public sealed class MuffleRestoreJournal : IDisposable
         return null;
     }
 
+    /// <summary>True when FindMatch can ever match the entry (it has an instance or a session identifier).</summary>
+    internal static bool IsMatchable(MuffleRestoreEntry entry) =>
+        !string.IsNullOrEmpty(entry.SessionInstanceIdentifier) || !string.IsNullOrEmpty(entry.SessionIdentifier);
+
     /// <summary>True while a session still holds (within float noise) the volume the muffler set.</summary>
     internal static bool StillAtSetVolume(float current, float set) =>
         Math.Abs(current - set) <= Math.Max(1e-7f, Math.Abs(set) * 1e-3f);
@@ -408,7 +413,8 @@ public sealed class MuffleRestoreJournal : IDisposable
         try
         {
             var file = JsonSerializer.Deserialize<JournalFile>(json, JsonOptions);
-            return file?.Entries?.Where(e => e != null && !string.IsNullOrEmpty(e.SessionIdentifier)).ToList()
+            // FindMatch can use either identifier, so an entry is kept while it has at least one.
+            return file?.Entries?.Where(e => e != null && IsMatchable(e)).ToList()
                 ?? new List<MuffleRestoreEntry>();
         }
         catch (JsonException ex)
