@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI transkripcija glasa za macOS i Windows",
-    "description": "Pišite 5x brže uz AI transkripciju glasa. HyperWhisper transkribuje vaš glas sa neverovatnom preciznošću na macOS-u i Windows-u. Govorite prirodno i gledajte kako se vaše reči pojavljuju odmah."
+    "title": "HyperWhisper - AI transkripcija glasa za macOS, Windows i Linux",
+    "description": "Pišite 5x brže uz AI transkripciju glasa. HyperWhisper transkribuje vaš glas sa neverovatnom preciznošću na macOS-u, Windows-u i Linux-u. Govorite prirodno i gledajte kako se vaše reči pojavljuju odmah."
   },
   "navbar": {
     "features": "Funkcije",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Mogu li da koristim bez interneta?",
-        "answer": "Apsolutno. HyperWhisper može da se koristi potpuno offline na vašem Mac-u ili Windows računaru uz lokalne AI modele - internet nije potreban. Za korisnike koji žele maksimalnu preciznost i brzinu, nudimo i opcionu cloud obradu preko različitih provajdera."
+        "answer": "Apsolutno. HyperWhisper može da se koristi potpuno offline na vašem Mac-u, Windows ili Linux računaru uz lokalne AI modele - internet nije potreban. Za korisnike koji žele maksimalnu preciznost i brzinu, nudimo i opcionu cloud obradu preko različitih provajdera."
       },
       "apiKey": {
         "question": "Da li moram da plaćam API pristup?",
@@ -175,12 +175,12 @@
         "answer": "Za offline transkripciju nudimo više veličina Whisper modela (napravljen od OpenAI, podržava 99+ jezika). Nudimo i NVidia Parakeet modele (podržavaju 25+ jezika).\n      \n      Za offline naknadnu obradu nudimo više veličina Gemma 3 modela (napravljen od Google)."
       },
       "compatibility": {
-        "question": "Da li radi sa svim Mac i Windows aplikacijama?",
+        "question": "Da li radi sa svim mojim aplikacijama?",
         "answer": "Da, radi svuda gde možete da kucate. Bilo da pišete emailove, dokumente, kod ili ćaskate. Samo pritisnite prečicu, govorite i gledajte kako se vaše reči pojavljuju odmah."
       },
       "privacy": {
         "question": "Kako je zaštićena moja privatnost?",
-        "answer": "Kada koristite lokalni režim, nijedan podatak ne napušta vaš Mac ni vaš Windows računar.\n\nKada koristite cloud transkripciju, vaši podaci se šalju cloud provajderu kojeg izaberete (npr. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ili Google Gemini).\n\nOvo možete i sami proveriti pomoću mrežnog inspektora kao što je [Proxyman](https://proxyman.io), mrežnog monitora kao što je [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), ili čitanjem [izvornog koda na GitHub-u](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Kada koristite lokalni režim, nijedan podatak ne napušta vaš Mac ni vaš Windows ili Linux računar.\n\nKada koristite cloud transkripciju, vaši podaci se šalju cloud provajderu kojeg izaberete (npr. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ili Google Gemini).\n\nOvo možete i sami proveriti pomoću mrežnog inspektora kao što je [Proxyman](https://proxyman.io), mrežnog monitora kao što je [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), ili čitanjem [izvornog koda na GitHub-u](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Šta je HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Koji su sistemski zahtevi?",
-        "answer": "Za Mac: macOS 14 ili noviji, uz podršku za Apple Silicon i Intel. Za Windows: Windows 10/11, x64 ili ARM64. Za optimalne performanse preporučeno je 8GB RAM-a."
+        "answer": "Za Mac: macOS 14 ili noviji, uz podršku za Apple Silicon i Intel. Za Windows: Windows 10/11, x64 ili ARM64. Za Linux v1: Ubuntu 22.04 ili noviji ili Debian 12 ili noviji, na amd64. Za optimalne performanse preporučeno je 8GB RAM-a."
       },
       "madeBy": {
         "question": "Ko je ovo napravio?",
@@ -289,7 +289,7 @@
     "loading": "Учитавање..."
   },
   "footer": {
-    "tagline": "Pišite 5x brže uz AI transkripciju glasa za macOS i Windows.",
+    "tagline": "Pišite 5x brže uz AI transkripciju glasa za macOS, Windows i Linux.",
     "product": "Proizvod",
     "resources": "Resursi",
     "company": "Kompanija",

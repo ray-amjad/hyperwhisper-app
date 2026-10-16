@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - Transcripció de veu amb IA per a macOS i Windows",
-    "description": "Escriu 5x més ràpid amb transcripció de veu amb IA. HyperWhisper transcriu la teva veu amb una precisió increïble a macOS i Windows. Parla de manera natural i mira com les teves paraules apareixen a l'instant."
+    "title": "HyperWhisper - Transcripció de veu amb IA per a macOS, Windows i Linux",
+    "description": "Escriu 5x més ràpid amb transcripció de veu amb IA. HyperWhisper transcriu la teva veu amb una precisió increïble a macOS, Windows i Linux. Parla de manera natural i mira com les teves paraules apareixen a l'instant."
   },
   "navbar": {
     "features": "Funcions",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "El puc fer servir sense internet?",
-        "answer": "I tant. HyperWhisper es pot fer servir completament fora de línia al teu Mac o al teu PC amb Windows amb models locals d'IA, sense internet. Per als usuaris que volen màxima precisió i velocitat, també oferim processament al núvol opcional a través de diversos proveïdors."
+        "answer": "I tant. HyperWhisper es pot fer servir completament fora de línia al teu Mac, al teu PC amb Windows o al teu ordinador amb Linux amb models locals d'IA, sense internet. Per als usuaris que volen màxima precisió i velocitat, també oferim processament al núvol opcional a través de diversos proveïdors."
       },
       "apiKey": {
         "question": "He de pagar per l'accés API?",
@@ -175,12 +175,12 @@
         "answer": "Per a transcripció fora de línia, oferim diverses mides del model Whisper (creat per OpenAI, amb suport per a 99+ idiomes). També oferim els models Parakeet de NVidia (amb suport per a 25+ idiomes).\n      \n      Per a postprocessament fora de línia, oferim diverses mides del model Gemma 3 (creat per Google)."
       },
       "compatibility": {
-        "question": "Funciona amb totes les aplicacions de Mac i Windows?",
+        "question": "Funciona amb totes les meves aplicacions?",
         "answer": "Sí, funciona a qualsevol lloc on puguis escriure. Tant si redactes correus, documents, codi o xateges. Només cal prémer la drecera, parlar i veure com les paraules apareixen a l'instant."
       },
       "privacy": {
         "question": "Com es protegeix la meva privadesa?",
-        "answer": "Quan fas servir el mode local, cap dada surt del teu Mac ni del teu PC amb Windows.\n\nQuan utilitzes transcripció al núvol, les teves dades s'envien al proveïdor de núvol que triïs (p. ex., OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox o Google Gemini).\n\nHo pots verificar tu mateix amb un inspector de xarxa com [Proxyman](https://proxyman.io) o un monitor de xarxa com [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), o llegint el [codi font a GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Quan fas servir el mode local, cap dada surt del teu Mac, del teu PC amb Windows ni del teu ordinador amb Linux.\n\nQuan utilitzes transcripció al núvol, les teves dades s'envien al proveïdor de núvol que triïs (p. ex., OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox o Google Gemini).\n\nHo pots verificar tu mateix amb un inspector de xarxa com [Proxyman](https://proxyman.io) o un monitor de xarxa com [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), o llegint el [codi font a GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Què és HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Quins són els requisits del sistema?",
-        "answer": "Per a Mac: macOS 14 o superior, amb suport per a Apple Silicon i Intel. Per a Windows: Windows 10/11, x64 o ARM64. Es recomanen 8GB de RAM per a un rendiment òptim."
+        "answer": "Per a Mac: macOS 14 o superior, amb suport per a Apple Silicon i Intel. Per a Windows: Windows 10/11, x64 o ARM64. Per a Linux v1: Ubuntu 22.04 o superior o Debian 12 o superior, en amd64. Es recomanen 8GB de RAM per a un rendiment òptim."
       },
       "madeBy": {
         "question": "Qui ho ha creat?",
@@ -289,7 +289,7 @@
     "loading": "S'està carregant..."
   },
   "footer": {
-    "tagline": "Escriu 5x més ràpid amb transcripció de veu amb IA per a macOS i Windows.",
+    "tagline": "Escriu 5x més ràpid amb transcripció de veu amb IA per a macOS, Windows i Linux.",
     "product": "Producte",
     "resources": "Recursos",
     "company": "Empresa",

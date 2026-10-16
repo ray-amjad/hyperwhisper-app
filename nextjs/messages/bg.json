@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI гласова транскрипция за macOS и Windows",
-    "description": "Пишете 5x по-бързо с AI гласова транскрипция. HyperWhisper транскрибира гласа ви с невероятна точност на macOS и Windows. Говорете естествено и вижте как думите ви се появяват мигновено."
+    "title": "HyperWhisper - AI гласова транскрипция за macOS, Windows и Linux",
+    "description": "Пишете 5x по-бързо с AI гласова транскрипция. HyperWhisper транскрибира гласа ви с невероятна точност на macOS, Windows и Linux. Говорете естествено и вижте как думите ви се появяват мигновено."
   },
   "navbar": {
     "features": "Функции",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Мога ли да го използвам без интернет?",
-        "answer": "Абсолютно. HyperWhisper може да се използва напълно офлайн на вашия Mac или Windows компютър с локални AI модели - не е нужен интернет. За потребители, които искат максимална точност и скорост, предлагаме и опционална cloud обработка чрез различни доставчици."
+        "answer": "Абсолютно. HyperWhisper може да се използва напълно офлайн на вашия Mac, Windows или Linux компютър с локални AI модели - не е нужен интернет. За потребители, които искат максимална точност и скорост, предлагаме и опционална cloud обработка чрез различни доставчици."
       },
       "apiKey": {
         "question": "Трябва ли да плащам за API достъп?",
@@ -175,12 +175,12 @@
         "answer": "За офлайн транскрипция предлагаме множество размери на модела Whisper (създаден от OpenAI, с поддръжка на 99+ езика). Предлагаме и моделите Parakeet на NVidia (с поддръжка на 25+ езика).\n      \n      За офлайн пост-обработка предлагаме множество размери на модела Gemma 3 (създаден от Google)."
       },
       "compatibility": {
-        "question": "Работи ли с всички Mac и Windows приложения?",
+        "question": "Работи ли с всички мои приложения?",
         "answer": "Да, работи навсякъде, където можете да пишете. Независимо дали пишете имейли, документи, код или чатите. Просто натиснете клавишната комбинация, говорете и вижте как думите ви се появяват веднага."
       },
       "privacy": {
         "question": "Как е защитена поверителността ми?",
-        "answer": "Когато използвате локален режим, никакви данни не напускат вашия Mac или Windows компютър.\n\nКогато използвате cloud транскрипция, данните ви се изпращат до cloud доставчика, който изберете (напр. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox или Google Gemini).\n\nМожете сами да проверите това с network inspector като [Proxyman](https://proxyman.io) или мрежов монитор като [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), или като прочетете [изходния код в GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Когато използвате локален режим, никакви данни не напускат вашия Mac, Windows или Linux компютър.\n\nКогато използвате cloud транскрипция, данните ви се изпращат до cloud доставчика, който изберете (напр. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox или Google Gemini).\n\nМожете сами да проверите това с network inspector като [Proxyman](https://proxyman.io) или мрежов монитор като [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), или като прочетете [изходния код в GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Какво е HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Какви са системните изисквания?",
-        "answer": "За Mac: macOS 14 или по-нова версия, с поддръжка на Apple Silicon и Intel. За Windows: Windows 10/11, x64 или ARM64. За оптимална производителност се препоръчват 8GB RAM."
+        "answer": "За Mac: macOS 14 или по-нова версия, с поддръжка на Apple Silicon и Intel. За Windows: Windows 10/11, x64 или ARM64. За Linux v1: Ubuntu 22.04 или по-нова версия или Debian 12 или по-нова версия, на amd64. За оптимална производителност се препоръчват 8GB RAM."
       },
       "madeBy": {
         "question": "Кой го създаде?",
@@ -289,7 +289,7 @@
     "loading": "Зареждане..."
   },
   "footer": {
-    "tagline": "Пишете 5x по-бързо с AI гласова транскрипция за macOS и Windows.",
+    "tagline": "Пишете 5x по-бързо с AI гласова транскрипция за macOS, Windows и Linux.",
     "product": "Продукт",
     "resources": "Ресурси",
     "company": "Компания",

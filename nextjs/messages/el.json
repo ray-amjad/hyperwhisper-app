@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - Μεταγραφή φωνής με AI για macOS και Windows",
-    "description": "Γράψτε 5x πιο γρήγορα με μεταγραφή φωνής με τεχνητή νοημοσύνη. Το HyperWhisper μεταγράφει τη φωνή σας με εντυπωσιακή ακρίβεια σε macOS και Windows. Μιλήστε φυσικά και δείτε τις λέξεις σας να εμφανίζονται άμεσα."
+    "title": "HyperWhisper - Μεταγραφή φωνής με AI για macOS, Windows και Linux",
+    "description": "Γράψτε 5x πιο γρήγορα με μεταγραφή φωνής με τεχνητή νοημοσύνη. Το HyperWhisper μεταγράφει τη φωνή σας με εντυπωσιακή ακρίβεια σε macOS, Windows και Linux. Μιλήστε φυσικά και δείτε τις λέξεις σας να εμφανίζονται άμεσα."
   },
   "navbar": {
     "features": "Δυνατότητες",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Μπορώ να το χρησιμοποιήσω χωρίς ίντερνετ;",
-        "answer": "Απολύτως. Το HyperWhisper μπορεί να χρησιμοποιηθεί πλήρως offline στο Mac ή στον υπολογιστή σας με Windows με τοπικά μοντέλα AI - δεν απαιτείται ίντερνετ. Για χρήστες που θέλουν μέγιστη ακρίβεια και ταχύτητα, προσφέρουμε επίσης προαιρετική επεξεργασία στο cloud μέσω διαφόρων παρόχων."
+        "answer": "Απολύτως. Το HyperWhisper μπορεί να χρησιμοποιηθεί πλήρως offline στο Mac ή στον υπολογιστή σας με Windows ή Linux με τοπικά μοντέλα AI - δεν απαιτείται ίντερνετ. Για χρήστες που θέλουν μέγιστη ακρίβεια και ταχύτητα, προσφέρουμε επίσης προαιρετική επεξεργασία στο cloud μέσω διαφόρων παρόχων."
       },
       "apiKey": {
         "question": "Χρειάζεται να πληρώσω για πρόσβαση σε API;",
@@ -175,12 +175,12 @@
         "answer": "Για offline μεταγραφή, προσφέρουμε πολλαπλά μεγέθη του μοντέλου Whisper (της OpenAI, με υποστήριξη 99+ γλωσσών). Προσφέρουμε επίσης τα μοντέλα Parakeet της NVidia (με υποστήριξη 25+ γλωσσών).\n      \n      Για offline μετα-επεξεργασία, προσφέρουμε πολλαπλά μεγέθη του μοντέλου Gemma 3 (της Google)."
       },
       "compatibility": {
-        "question": "Λειτουργεί με όλες τις εφαρμογές Mac και Windows;",
+        "question": "Λειτουργεί με όλες τις εφαρμογές μου;",
         "answer": "Ναι, λειτουργεί παντού όπου μπορείτε να πληκτρολογήσετε. Είτε γράφετε email, έγγραφα, κώδικα ή συνομιλείτε. Απλώς πατήστε τη συντόμευση, μιλήστε και δείτε τις λέξεις σας να εμφανίζονται αμέσως."
       },
       "privacy": {
         "question": "Πώς προστατεύεται η ιδιωτικότητά μου;",
-        "answer": "Όταν χρησιμοποιείτε τοπική λειτουργία, κανένα δεδομένο δεν φεύγει από το Mac ή τον υπολογιστή σας με Windows.\n\nΌταν χρησιμοποιείτε cloud μεταγραφή, τα δεδομένα σας αποστέλλονται στον πάροχο cloud που επιλέγετε (π.χ. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ή Google Gemini).\n\nΜπορείτε να το επαληθεύσετε μόνοι σας με έναν network inspector όπως το [Proxyman](https://proxyman.io), έναν network monitor όπως το [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) ή διαβάζοντας τον [πηγαίο κώδικα στο GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Όταν χρησιμοποιείτε τοπική λειτουργία, κανένα δεδομένο δεν φεύγει από το Mac ή τον υπολογιστή σας με Windows ή Linux.\n\nΌταν χρησιμοποιείτε cloud μεταγραφή, τα δεδομένα σας αποστέλλονται στον πάροχο cloud που επιλέγετε (π.χ. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ή Google Gemini).\n\nΜπορείτε να το επαληθεύσετε μόνοι σας με έναν network inspector όπως το [Proxyman](https://proxyman.io), έναν network monitor όπως το [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) ή διαβάζοντας τον [πηγαίο κώδικα στο GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Τι είναι το HyperWhisper Cloud;",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Ποιες είναι οι απαιτήσεις συστήματος;",
-        "answer": "Για Mac: macOS 14 ή νεότερο, με υποστήριξη Apple Silicon και Intel. Για Windows: Windows 10/11, x64 ή ARM64. Συνιστώνται 8GB RAM για βέλτιστη απόδοση."
+        "answer": "Για Mac: macOS 14 ή νεότερο, με υποστήριξη Apple Silicon και Intel. Για Windows: Windows 10/11, x64 ή ARM64. Για Linux v1: Ubuntu 22.04 ή νεότερο ή Debian 12 ή νεότερο, σε amd64. Συνιστώνται 8GB RAM για βέλτιστη απόδοση."
       },
       "madeBy": {
         "question": "Ποιος το έφτιαξε;",
@@ -289,7 +289,7 @@
     "loading": "Φόρτωση..."
   },
   "footer": {
-    "tagline": "Γράψτε 5x πιο γρήγορα με AI μεταγραφή φωνής για macOS και Windows.",
+    "tagline": "Γράψτε 5x πιο γρήγορα με AI μεταγραφή φωνής για macOS, Windows και Linux.",
     "product": "Προϊόν",
     "resources": "Πόροι",
     "company": "Εταιρεία",

@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - macOS・Windows向けAI音声文字起こしアプリ",
-    "description": "AI音声認識で執筆スピードが5倍に。HyperWhisperは、話すだけで高精度な文字起こしを実現するmacOS・Windowsアプリです。自然に話すだけで、瞬時にテキスト化されます。"
+    "title": "HyperWhisper - macOS・Windows・Linux向けAI音声文字起こしアプリ",
+    "description": "AI音声認識で執筆スピードが5倍に。HyperWhisperは、話すだけで高精度な文字起こしを実現するmacOS・Windows・Linuxアプリです。自然に話すだけで、瞬時にテキスト化されます。"
   },
   "navbar": {
     "features": "機能",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "インターネット接続なしで使えますか？",
-        "answer": "はい、完全にオフラインで使用できます。Mac でも Windows PC でも、ローカルAIモデルを使用するためインターネット接続は不要です。より高速で高精度な処理をご希望の場合は、各種クラウドプロバイダーによるオプションのクラウド処理もご利用いただけます。"
+        "answer": "はい、完全にオフラインで使用できます。Mac でも Windows PC でも Linux PC でも、ローカルAIモデルを使用するためインターネット接続は不要です。より高速で高精度な処理をご希望の場合は、各種クラウドプロバイダーによるオプションのクラウド処理もご利用いただけます。"
       },
       "apiKey": {
         "question": "APIの利用に料金がかかりますか？",
@@ -175,12 +175,12 @@
         "answer": "オフライン文字起こしには、OpenAI製のWhisperモデル（複数サイズ、99言語以上に対応）と、NVIDIA製のParakeetモデル（25言語以上に対応）を提供しています。\n      \n      オフライン後処理には、Google製のGemma 3モデル（複数サイズ）を提供しています。"
       },
       "compatibility": {
-        "question": "すべてのMac・Windowsアプリで使えますか？",
+        "question": "お使いのすべてのアプリで使えますか？",
         "answer": "はい、テキスト入力ができる場所ならどこでも使えます。メール作成、文書作成、プログラミング、チャットなど。ショートカットを押して話すだけで、即座にテキストが表示されます。"
       },
       "privacy": {
         "question": "プライバシーはどのように保護されますか？",
-        "answer": "ローカルモードを使用している場合、データが Mac や Windows PC の外に出ることは決してありません。\n\nクラウド文字起こしを使用している場合、データはお客様が選択したクラウドプロバイダー（OpenAI、Groq、SpaceXAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini など）に送信されます。\n\n[Proxyman](https://proxyman.io)などのネットワークインスペクターや、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)などのネットワークモニターで、あるいは[GitHub のソースコード](https://github.com/ray-amjad/hyperwhisper-app)を読むことで、ご自身で確認することもできます。"
+        "answer": "ローカルモードを使用している場合、データが Mac、Windows PC、Linux PC の外に出ることは決してありません。\n\nクラウド文字起こしを使用している場合、データはお客様が選択したクラウドプロバイダー（OpenAI、Groq、SpaceXAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini など）に送信されます。\n\n[Proxyman](https://proxyman.io)などのネットワークインスペクターや、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)などのネットワークモニターで、あるいは[GitHub のソースコード](https://github.com/ray-amjad/hyperwhisper-app)を読むことで、ご自身で確認することもできます。"
       },
       "cloud": {
         "question": "HyperWhisper Cloudとは何ですか？",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "動作環境を教えてください。",
-        "answer": "Mac：macOS 14以降、Apple SiliconとIntelの両方に対応。Windows：Windows 10/11、x64またはARM64。最適なパフォーマンスには8GB以上のRAMを推奨します。"
+        "answer": "Mac：macOS 14以降、Apple SiliconとIntelの両方に対応。Windows：Windows 10/11、x64またはARM64。Linux v1：amd64上のUbuntu 22.04以降またはDebian 12以降。最適なパフォーマンスには8GB以上のRAMを推奨します。"
       },
       "madeBy": {
         "question": "開発者は誰ですか？",
@@ -289,7 +289,7 @@
     "loading": "読み込み中..."
   },
   "footer": {
-    "tagline": "macOS・Windows向けAI音声文字起こしで、執筆スピードを5倍に。",
+    "tagline": "macOS・Windows・Linux向けAI音声文字起こしで、執筆スピードを5倍に。",
     "product": "製品",
     "resources": "リソース",
     "company": "会社情報",

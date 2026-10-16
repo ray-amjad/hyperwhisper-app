@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - macOS और Windows के लिए AI वॉइस ट्रांसक्रिप्शन",
-    "description": "AI-पावर्ड वॉइस ट्रांसक्रिप्शन के साथ 5x तेजी से लिखें। HyperWhisper आपकी आवाज़ को macOS और Windows पर अविश्वसनीय सटीकता के साथ ट्रांसक्राइब करता है। स्वाभाविक रूप से बोलें और अपने शब्दों को तुरंत स्क्रीन पर देखें।"
+    "title": "HyperWhisper - macOS, Windows और Linux के लिए AI वॉइस ट्रांसक्रिप्शन",
+    "description": "AI-पावर्ड वॉइस ट्रांसक्रिप्शन के साथ 5x तेजी से लिखें। HyperWhisper आपकी आवाज़ को macOS, Windows और Linux पर अविश्वसनीय सटीकता के साथ ट्रांसक्राइब करता है। स्वाभाविक रूप से बोलें और अपने शब्दों को तुरंत स्क्रीन पर देखें।"
   },
   "navbar": {
     "features": "फीचर्स",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "क्या मैं इसे इंटरनेट के बिना उपयोग कर सकता/सकती हूँ?",
-        "answer": "बिल्कुल। HyperWhisper को आपके Mac या Windows PC पर लोकल AI मॉडलों के साथ पूरी तरह ऑफलाइन इस्तेमाल किया जा सकता है — इंटरनेट की ज़रूरत नहीं। जो यूज़र अधिकतम सटीकता और गति चाहते हैं, उनके लिए हम विभिन्न प्रदाताओं के माध्यम से वैकल्पिक क्लाउड प्रोसेसिंग भी देते हैं।"
+        "answer": "बिल्कुल। HyperWhisper को आपके Mac, Windows PC या Linux कंप्यूटर पर लोकल AI मॉडलों के साथ पूरी तरह ऑफलाइन इस्तेमाल किया जा सकता है — इंटरनेट की ज़रूरत नहीं। जो यूज़र अधिकतम सटीकता और गति चाहते हैं, उनके लिए हम विभिन्न प्रदाताओं के माध्यम से वैकल्पिक क्लाउड प्रोसेसिंग भी देते हैं।"
       },
       "apiKey": {
         "question": "क्या API एक्सेस के लिए भुगतान करना होगा?",
@@ -175,12 +175,12 @@
         "answer": "ऑफलाइन ट्रांसक्रिप्शन के लिए हम Whisper मॉडल के कई आकार देते हैं (OpenAI द्वारा निर्मित, 99+ भाषाएँ समर्थित)। हम NVidia के Parakeet मॉडल भी देते हैं (25+ भाषाएँ समर्थित)।\n      \n      ऑफलाइन पोस्ट-प्रोसेसिंग के लिए हम Gemma 3 मॉडल के कई आकार देते हैं (Google द्वारा निर्मित)।"
       },
       "compatibility": {
-        "question": "क्या यह सभी Mac और Windows ऐप्स में काम करता है?",
+        "question": "क्या यह मेरे सभी ऐप्स में काम करता है?",
         "answer": "हाँ, जहाँ भी आप टाइप कर सकते हैं वहाँ यह काम करता है। चाहे आप ईमेल लिख रहे हों, दस्तावेज़, कोड, या चैट कर रहे हों। बस शॉर्टकट दबाएँ, बोलें और शब्दों को तुरंत उभरते देखें।"
       },
       "privacy": {
         "question": "मेरी प्राइवेसी कैसे सुरक्षित रहती है?",
-        "answer": "जब आप लोकल मोड इस्तेमाल करते हैं, कोई भी डेटा आपके Mac या Windows PC से बाहर नहीं जाता।\n\nजब आप क्लाउड ट्रांसक्रिप्शन उपयोग करते हैं, आपका डेटा आपके चुने हुए क्लाउड प्रदाता को भेजा जाता है (जैसे OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox या Google Gemini)।\n\nआप इसे [Proxyman](https://proxyman.io) जैसे नेटवर्क इंस्पेक्टर या [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) जैसे नेटवर्क मॉनिटर से, या [GitHub पर सोर्स कोड](https://github.com/ray-amjad/hyperwhisper-app) पढ़कर खुद सत्यापित कर सकते हैं।"
+        "answer": "जब आप लोकल मोड इस्तेमाल करते हैं, कोई भी डेटा आपके Mac, Windows PC या Linux कंप्यूटर से बाहर नहीं जाता।\n\nजब आप क्लाउड ट्रांसक्रिप्शन उपयोग करते हैं, आपका डेटा आपके चुने हुए क्लाउड प्रदाता को भेजा जाता है (जैसे OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox या Google Gemini)।\n\nआप इसे [Proxyman](https://proxyman.io) जैसे नेटवर्क इंस्पेक्टर या [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) जैसे नेटवर्क मॉनिटर से, या [GitHub पर सोर्स कोड](https://github.com/ray-amjad/hyperwhisper-app) पढ़कर खुद सत्यापित कर सकते हैं।"
       },
       "cloud": {
         "question": "HyperWhisper Cloud क्या है?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "सिस्टम आवश्यकताएँ क्या हैं?",
-        "answer": "Mac के लिए: macOS 14 या नया, Apple Silicon और Intel दोनों सपोर्टेड। Windows के लिए: Windows 10/11, x64 या ARM64। सर्वोत्तम प्रदर्शन के लिए 8GB RAM अनुशंसित है।"
+        "answer": "Mac के लिए: macOS 14 या नया, Apple Silicon और Intel दोनों सपोर्टेड। Windows के लिए: Windows 10/11, x64 या ARM64। Linux v1 के लिए: amd64 पर Ubuntu 22.04 या नया, या Debian 12 या नया। सर्वोत्तम प्रदर्शन के लिए 8GB RAM अनुशंसित है।"
       },
       "madeBy": {
         "question": "यह किसने बनाया है?",
@@ -289,7 +289,7 @@
     "loading": "लोड हो रहा है..."
   },
   "footer": {
-    "tagline": "macOS और Windows के लिए AI वॉइस ट्रांसक्रिप्शन के साथ 5x तेज़ लिखें।",
+    "tagline": "macOS, Windows और Linux के लिए AI वॉइस ट्रांसक्रिप्शन के साथ 5x तेज़ लिखें।",
     "product": "प्रोडक्ट",
     "resources": "संसाधन",
     "company": "कंपनी",

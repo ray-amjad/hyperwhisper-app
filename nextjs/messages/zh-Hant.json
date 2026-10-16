@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - macOS 與 Windows 上的 AI 語音轉寫",
-    "description": "用 AI 語音轉寫讓寫作速度提升 5 倍。HyperWhisper 在 macOS 與 Windows 上以驚人的準確度轉寫你的語音。自然開口，文字立刻出現。"
+    "title": "HyperWhisper - macOS、Windows 與 Linux 上的 AI 語音轉寫",
+    "description": "用 AI 語音轉寫讓寫作速度提升 5 倍。HyperWhisper 在 macOS、Windows 與 Linux 上以驚人的準確度轉寫你的語音。自然開口，文字立刻出現。"
   },
   "navbar": {
     "features": "功能",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "沒有網路也能用嗎？",
-        "answer": "當然可以。HyperWhisper 可在你的 Mac 或 Windows 電腦上以本機 AI 模型完全離線使用，無需連網。對於想要更高準確度與速度的使用者，我們也提供可選的雲端處理，支援多家雲端供應商。"
+        "answer": "當然可以。HyperWhisper 可在你的 Mac、Windows 或 Linux 電腦上以本機 AI 模型完全離線使用，無需連網。對於想要更高準確度與速度的使用者，我們也提供可選的雲端處理，支援多家雲端供應商。"
       },
       "apiKey": {
         "question": "需要為 API 存取付費嗎？",
@@ -175,12 +175,12 @@
         "answer": "離線轉寫提供多種大小的 Whisper 模型（OpenAI 出品，支援 99+ 種語言），也提供 NVIDIA 的 Parakeet 模型（支援 25+ 種語言）。\n      \n      離線後處理提供多種大小的 Gemma 3 模型（Google 出品）。"
       },
       "compatibility": {
-        "question": "能在所有 Mac 和 Windows 應用程式中使用嗎？",
+        "question": "能在我所有的應用程式中使用嗎？",
         "answer": "可以，只要能輸入文字的地方都能用。不管是寫郵件、文件、程式碼還是聊天。按下快捷鍵，開口說話即可看到文字即時出現。"
       },
       "privacy": {
         "question": "我的隱私如何保障？",
-        "answer": "使用本機模式時，資料不會離開你的 Mac 或 Windows 電腦。\n\n使用雲端轉寫時，資料會傳送到你選擇的雲端供應商（例如 OpenAI、Groq、SpaceXAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox 或 Google Gemini）。\n\n你可以使用 [Proxyman](https://proxyman.io) 等網路封包工具、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 等網路監控工具，或閱讀 [GitHub 上的原始碼](https://github.com/ray-amjad/hyperwhisper-app) 自行驗證。"
+        "answer": "使用本機模式時，資料不會離開你的 Mac、Windows 或 Linux 電腦。\n\n使用雲端轉寫時，資料會傳送到你選擇的雲端供應商（例如 OpenAI、Groq、SpaceXAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox 或 Google Gemini）。\n\n你可以使用 [Proxyman](https://proxyman.io) 等網路封包工具、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 等網路監控工具，或閱讀 [GitHub 上的原始碼](https://github.com/ray-amjad/hyperwhisper-app) 自行驗證。"
       },
       "cloud": {
         "question": "什麼是 HyperWhisper Cloud？",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "系統需求是什麼？",
-        "answer": "Mac：macOS 14 或更新版本，支援 Apple Silicon 與 Intel。Windows：Windows 10/11，x64 或 ARM64。建議 8GB 記憶體以獲得最佳效能。"
+        "answer": "Mac：macOS 14 或更新版本，支援 Apple Silicon 與 Intel。Windows：Windows 10/11，x64 或 ARM64。Linux v1：amd64 上的 Ubuntu 22.04 或更新版本，或 Debian 12 或更新版本。建議 8GB 記憶體以獲得最佳效能。"
       },
       "madeBy": {
         "question": "這是誰做的？",
@@ -289,7 +289,7 @@
     "loading": "載入中..."
   },
   "footer": {
-    "tagline": "面向 macOS 與 Windows 的 AI 語音轉寫，讓寫作速度提升 5 倍。",
+    "tagline": "面向 macOS、Windows 與 Linux 的 AI 語音轉寫，讓寫作速度提升 5 倍。",
     "product": "產品",
     "resources": "資源",
     "company": "公司",

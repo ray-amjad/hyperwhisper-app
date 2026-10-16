@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI-äänitranskriptio macOS:lle ja Windowsille",
-    "description": "Kirjoita 5x nopeammin AI-pohjaisella äänitranskriptiolla. HyperWhisper litteroi puheesi huipputarkasti macOS:ssä ja Windowsissa. Puhu luonnollisesti ja katso, miten sanat ilmestyvät heti."
+    "title": "HyperWhisper - AI-äänitranskriptio macOS:lle, Windowsille ja Linuxille",
+    "description": "Kirjoita 5x nopeammin AI-pohjaisella äänitranskriptiolla. HyperWhisper litteroi puheesi huipputarkasti macOS:ssä, Windowsissa ja Linuxissa. Puhu luonnollisesti ja katso, miten sanat ilmestyvät heti."
   },
   "navbar": {
     "features": "Ominaisuudet",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Voinko käyttää sitä ilman internetiä?",
-        "answer": "Ehdottomasti. HyperWhisper toimii täysin offline-tilassa Macillasi tai Windows-tietokoneellasi paikallisten AI-mallien avulla - internetyhteyttä ei tarvita. Käyttäjille, jotka haluavat maksimaalisen tarkkuuden ja nopeuden, tarjoamme myös valinnaisen pilvikäsittelyn eri pilvipalveluntarjoajien kautta."
+        "answer": "Ehdottomasti. HyperWhisper toimii täysin offline-tilassa Macillasi, Windows-tietokoneellasi tai Linux-tietokoneellasi paikallisten AI-mallien avulla - internetyhteyttä ei tarvita. Käyttäjille, jotka haluavat maksimaalisen tarkkuuden ja nopeuden, tarjoamme myös valinnaisen pilvikäsittelyn eri pilvipalveluntarjoajien kautta."
       },
       "apiKey": {
         "question": "Täytyykö API-käytöstä maksaa?",
@@ -175,12 +175,12 @@
         "answer": "Offline-litterointiin tarjoamme useita kokoja Whisper-mallista (OpenAI:n tekemä, tukee 99+ kieltä). Tarjoamme myös NVidia's Parakeet -malleja (tukee 25+ kieltä).\n      \n      Offline-jälkikäsittelyyn tarjoamme useita kokoja Gemma 3 -mallista (Googlen tekemä)."
       },
       "compatibility": {
-        "question": "Toimiiko se kaikissa Mac- ja Windows-sovelluksissa?",
+        "question": "Toimiiko se kaikissa sovelluksissani?",
         "answer": "Kyllä, se toimii kaikkialla missä voit kirjoittaa. Olitpa kirjoittamassa sähköposteja, asiakirjoja, koodia tai chattaamassa. Paina pikanäppäintä, puhu ja näe sanojesi ilmestyvän heti."
       },
       "privacy": {
         "question": "Miten yksityisyyteni suojataan?",
-        "answer": "Kun käytät paikallista tilaa, mitään dataa ei poistu Maciltasi tai Windows-tietokoneeltasi.\n\nKun käytät pilvilitterointia, datasi lähetetään valitsemallesi pilvipalveluntarjoajalle (esim. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox tai Google Gemini).\n\nVoit varmistaa tämän itse verkkoliikennettä tarkkailevalla työkalulla, kuten [Proxyman](https://proxyman.io), verkkomonitorilla, kuten [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), tai lukemalla [lähdekoodin GitHubissa](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Kun käytät paikallista tilaa, mitään dataa ei poistu Maciltasi, Windows-tietokoneeltasi tai Linux-tietokoneeltasi.\n\nKun käytät pilvilitterointia, datasi lähetetään valitsemallesi pilvipalveluntarjoajalle (esim. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox tai Google Gemini).\n\nVoit varmistaa tämän itse verkkoliikennettä tarkkailevalla työkalulla, kuten [Proxyman](https://proxyman.io), verkkomonitorilla, kuten [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), tai lukemalla [lähdekoodin GitHubissa](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Mikä on HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Mitkä ovat järjestelmävaatimukset?",
-        "answer": "Mac: macOS 14 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
+        "answer": "Mac: macOS 14 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. Linux v1: Ubuntu 22.04 tai uudempi tai Debian 12 tai uudempi, amd64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
       },
       "madeBy": {
         "question": "Kuka tämän teki?",
@@ -289,7 +289,7 @@
     "loading": "Ladataan..."
   },
   "footer": {
-    "tagline": "Kirjoita 5x nopeammin AI-pohjaisella äänitranskriptiolla macOS:lle ja Windowsille.",
+    "tagline": "Kirjoita 5x nopeammin AI-pohjaisella äänitranskriptiolla macOS:lle, Windowsille ja Linuxille.",
     "product": "Tuote",
     "resources": "Resurssit",
     "company": "Yritys",
