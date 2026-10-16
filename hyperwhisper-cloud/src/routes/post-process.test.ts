@@ -778,15 +778,28 @@ describe('postProcessRoute size gate', () => {
     expect(provider.called).toBe(true);
   });
 
-  test('a body of exactly 2 MB passes the gate', async () => {
-    const response = await buildApp().fetch(postProcessRequest(
-      { text: '', prompt: 'fix grammar', account_key: 'lk-edge' },
-      { 'Content-Length': String(2 * 1024 * 1024) },
-    ));
-    const body = await response.json() as { error: string };
+  test('a real body of exactly 2 MB passes the gate and is parsed', async () => {
+    const provider = trackProvider();
+    const limit = 2 * 1024 * 1024;
+    const base = { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-edge', pad: '' };
+    const raw = JSON.stringify({ ...base, pad: 'a'.repeat(limit - Buffer.byteLength(JSON.stringify(base))) });
+    expect(Buffer.byteLength(raw)).toBe(limit);
 
-    // Past the gate, the empty text is the next refusal.
-    expect(response.status).toBe(400);
-    expect(body.error).toBe('Missing field');
+    const response = await buildApp().fetch(jsonRequest(raw));
+
+    expect(response.status).toBe(200);
+    expect(cacheReads).toEqual(['lk-edge']);
+    expect(provider.called).toBe(true);
   });
+
+  test('one byte over 2 MB gets 413', async () => {
+    const response = await buildApp().fetch(postProcessRequest(
+      { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-over' },
+      { 'Content-Length': String(2 * 1024 * 1024 + 1) },
+    ));
+
+    expect(response.status).toBe(413);
+    expect(cacheReads).toEqual([]);
+  });
+
 });
