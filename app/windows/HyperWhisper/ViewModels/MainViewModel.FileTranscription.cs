@@ -14,6 +14,12 @@ namespace HyperWhisper.ViewModels;
 
 public partial class MainViewModel
 {
+    /// <summary>
+    /// Where the transcribing ramp aims. No engine reports progress while it runs,
+    /// so the progress window turns indeterminate once the ramp gets here (#1911).
+    /// </summary>
+    public const float FileTranscribingRampTarget = 0.80f;
+
     // =========================================================================
     // FILE TRANSCRIPTION
     // =========================================================================
@@ -312,7 +318,7 @@ public partial class MainViewModel
             // STEP 8: Transcribing stage (15-85%) - Start slow animation to 80%
             // (will be cut short when transcription completes; a job that outlasts
             // the ramp turns the bar indeterminate, #1911)
-            UpdateFileProgressRequested?.Invoke(this, 0.80f);
+            UpdateFileProgressRequested?.Invoke(this, FileTranscribingRampTarget);
 
             var vocabulary = _vocabularyService.GetVocabularyWords(100);
             var result = await _transcriptionOrchestrator.TranscribeAsync(

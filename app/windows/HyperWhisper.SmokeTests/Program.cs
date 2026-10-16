@@ -3853,19 +3853,14 @@ internal static class Program
                 var percent = (System.Windows.Controls.TextBlock)window.FindName("PercentageText")!;
                 try
                 {
-                    // A real timed ramp, pumped on this dispatcher until it ends.
+                    // The real 60 s transcribing ramp, its frames driven with a clock.
                     window.AnimateProgress(0.15f, 0);
-                    window.AnimateProgress(0.80f, 0.2, thenIndeterminate: true);
-                    Assert(!window.IsIndeterminate, "the bar went indeterminate before its ramp ended");
-                    var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
-                    var frame = new System.Windows.Threading.DispatcherFrame();
-                    var bound = new System.Windows.Threading.DispatcherTimer(
-                        TimeSpan.FromSeconds(1),
-                        System.Windows.Threading.DispatcherPriority.Normal,
-                        (_, _) => frame.Continue = false,
-                        dispatcher);
-                    System.Windows.Threading.Dispatcher.PushFrame(frame);
-                    bound.Stop();
+                    window.AnimateProgress(HyperWhisper.ViewModels.MainViewModel.FileTranscribingRampTarget, 60.0,
+                        thenIndeterminate: true);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(30));
+                    Assert(!window.IsIndeterminate, "the bar went indeterminate halfway through its ramp");
+                    Assert(percent.Text.EndsWith('%'), $"a ramp in progress shows no percentage ({percent.Text})");
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(61));
 
                     Assert(window.IsIndeterminate,
                         "the transcribing ramp reached its target with the job still running, but the bar stayed determinate");

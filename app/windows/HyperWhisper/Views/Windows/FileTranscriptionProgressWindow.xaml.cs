@@ -116,6 +116,11 @@ public partial class FileTranscriptionProgressWindow : Window
         ProgressBarTrack.SizeChanged += (s, e) =>
         {
             _progressBarWidth = ProgressBarTrack.ActualWidth;
+            // Clip to the track's rounded shape, so the indeterminate segment
+            // enters and leaves through the rounded ends, not square ones
+            ProgressBarTrack.Clip = new RectangleGeometry(
+                new Rect(0, 0, ProgressBarTrack.ActualWidth, ProgressBarTrack.ActualHeight),
+                ProgressBarTrack.CornerRadius.TopLeft, ProgressBarTrack.CornerRadius.TopLeft);
         };
     }
 
@@ -223,9 +228,13 @@ public partial class FileTranscriptionProgressWindow : Window
         }
     }
 
-    private void AnimationTimer_Tick(object? sender, EventArgs e)
+    private void AnimationTimer_Tick(object? sender, EventArgs e) => AdvanceAnimation(DateTime.Now);
+
+    /// <summary>One animation frame at <paramref name="now"/>; the timer passes the clock.</summary>
+    internal void AdvanceAnimation(DateTime now)
     {
-        double elapsed = (DateTime.Now - _animationStartTime).TotalSeconds;
+        if (!_animationTimer.IsEnabled) return;
+        double elapsed = (now - _animationStartTime).TotalSeconds;
         double normalizedTime = Math.Min(elapsed / _animationDuration, 1.0);
         double easedTime = EaseOutCubic(normalizedTime);
 

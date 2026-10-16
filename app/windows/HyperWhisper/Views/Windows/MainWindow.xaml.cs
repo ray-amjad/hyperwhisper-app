@@ -164,7 +164,7 @@ public partial class MainWindow : Window
 
             // Only the transcribing ramp waits on a job with no real progress, so a job
             // that outlasts it turns the bar indeterminate instead of sitting at 80% (#1911)
-            bool thenIndeterminate = progressDelta >= 0.20f;
+            bool thenIndeterminate = progress == MainViewModel.FileTranscribingRampTarget;
 
             _fileProgressWindow?.AnimateProgress(progress, duration, thenIndeterminate);
         });
