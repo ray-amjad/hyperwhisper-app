@@ -72,10 +72,13 @@ held by the "model id" line of §2 when all three of these hold:
   - `app/windows/HyperWhisper/Models/CloudTranscriptionModel.cs`,
     `app/windows/HyperWhisper/Models/LanguageModelInfo.cs`,
     `app/windows/HyperWhisper/Models/PostProcessingProvider.cs`
+  - `app/shared-dotnet/HyperWhisper.CloudPostProcessing/PostProcessingModelCatalog.cs` (the third
+    copy of the retired-model redirect table, `Migrate`, see #1083: a redirect must land in all three)
   - a test or a golden vector: `app/macos/hyperwhisperTests/**`, `app/windows/HyperWhisper.SmokeTests/**`,
+    `app/shared-dotnet/HyperWhisper.CloudPostProcessing.Tests/**`,
     `shared-conformance/**`
 - The diff only adds, removes or edits model entries and redirect mappings (`deprecatedModelMappings`
-  on macOS, its inline twin in `LanguageModelInfo.cs`), on both heads alike. A new model ships
+  on macOS, `MigrateModelId` in `LanguageModelInfo.cs`, `Migrate` in `PostProcessingModelCatalog.cs`), on both heads alike. A new model ships
   bring-your-own-key: `availableViaHyperWhisperCloud` stays `false` unless
   `hyperwhisper-cloud/src/lib/stt-models.ts` already routes it.
 
