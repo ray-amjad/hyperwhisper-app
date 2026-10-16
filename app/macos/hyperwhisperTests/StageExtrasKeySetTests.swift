@@ -171,6 +171,7 @@ struct StageExtrasKeySetTests {
         var offenders: [String] = []
         for file in files {
             var inBuilder = false
+            var inAllowList = false
             let lines = try ProductionSource.text(of: file).components(separatedBy: .newlines)
             for (offset, line) in lines.enumerated() {
                 // The builder's own dictionary is the one allowed writer. It ends
@@ -178,6 +179,13 @@ struct StageExtrasKeySetTests {
                 if line.contains("static func stageExtras(") { inBuilder = true }
                 if inBuilder {
                     if line == "    }" { inBuilder = false }
+                    continue
+                }
+                // Sentry's allow-list names the keys without writing them
+                // (issue #805). It ends at the first line that is exactly "    ]".
+                if line.contains("static let allowedExtraKeys") { inAllowList = true }
+                if inAllowList {
+                    if line == "    ]" { inAllowList = false }
                     continue
                 }
                 guard !line.trimmingCharacters(in: .whitespaces).hasPrefix("//") else { continue }
