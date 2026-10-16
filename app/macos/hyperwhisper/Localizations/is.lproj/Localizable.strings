@@ -798,6 +798,7 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.field.name.placeholder" = "t.d., Fundarathugasemdir";
 "modes.field.name.editPlaceholder" = "Heiti hams";
 "modes.field.name.defaultLocked" = "Þetta er sjálfgefna stillingin, svo ekki er hægt að breyta nafni hennar. Þú getur endurnefnt allar aðrar stillingar.";
+"modes.field.name.taken" = "Hamur með þessu nafni er þegar til.";
 "modes.field.model" = "Líkan";
 "modes.field.provider" = "Veitandi";
 "modes.provider.local" = "Staðbundinn";

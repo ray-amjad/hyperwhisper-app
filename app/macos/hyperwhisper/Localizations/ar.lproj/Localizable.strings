@@ -798,6 +798,7 @@
 "modes.field.name.placeholder" = "مثل ملاحظات الاجتماع";
 "modes.field.name.editPlaceholder" = "اسم الوضع";
 "modes.field.name.defaultLocked" = "هذا هو الوضع الافتراضي، لذا لا يمكن تغيير اسمه. يمكنك إعادة تسمية أي وضع آخر.";
+"modes.field.name.taken" = "يوجد وضع بهذا الاسم بالفعل.";
 "modes.field.model" = "النموذج";
 "modes.field.provider" = "المزود";
 "modes.provider.local" = "محلي";
