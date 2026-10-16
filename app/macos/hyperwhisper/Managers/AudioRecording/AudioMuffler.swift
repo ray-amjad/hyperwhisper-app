@@ -516,8 +516,10 @@ final class MuffleDSP: @unchecked Sendable {
     private let outStrides: UnsafeMutablePointer<Int>
 
     init(sampleRate: Double, tapChannels: Int, startCutoff: Double? = nil) {
+        let sampleRate = sampleRate.isFinite && sampleRate >= 8_000 ? sampleRate : 48_000
         self.sampleRate = sampleRate
         self.tapChannels = max(1, tapChannels)
+        // Never at or above Nyquist, whatever the open cutoff is set to.
         let maxCutoff = min(AudioMuffler.openCutoffHz, sampleRate * 0.45)
         self.maxCutoff = maxCutoff
         let initialCutoff = min(max(startCutoff ?? maxCutoff, 20), maxCutoff)
@@ -612,7 +614,10 @@ final class MuffleDSP: @unchecked Sendable {
         // Glide the cutoff once per block, in the log domain.
         let target = Double(targetCutoff.load(ordering: .relaxed))
         let alpha = 1 - exp(-Double(frames) / (AudioMuffler.glideTimeConstant * sampleRate))
-        currentCutoff = exp(log(currentCutoff) + (log(target) - log(currentCutoff)) * alpha)
+        let glided = exp(log(currentCutoff) + (log(target) - log(currentCutoff)) * alpha)
+        // Defensive: keep the cutoff in [20 Hz, 0.45 * sampleRate], so the
+        // biquad stays stable even if a value drifts or goes non-finite.
+        currentCutoff = glided.isFinite ? min(max(glided, 20), maxCutoff) : maxCutoff
 
         // RBJ low-pass, Q = 1/sqrt(2).
         let w0 = 2 * Double.pi * currentCutoff / sampleRate
@@ -645,12 +650,19 @@ final class MuffleDSP: @unchecked Sendable {
                 z2b = b2 * y1 - a2 * y2
                 outBase[f * outStride] = y2
             }
-            // Flush denormals so a silent tail does not burn CPU.
-            s[0] = abs(z1a) < 1e-20 ? 0 : z1a
-            s[1] = abs(z2a) < 1e-20 ? 0 : z2a
-            s[2] = abs(z1b) < 1e-20 ? 0 : z1b
-            s[3] = abs(z2b) < 1e-20 ? 0 : z2b
+            // Flush denormals so a silent tail does not burn CPU, and reset
+            // a non-finite state so one bad block cannot silence the rest
+            // of the recording with NaNs.
+            s[0] = Self.sanitized(z1a)
+            s[1] = Self.sanitized(z2a)
+            s[2] = Self.sanitized(z1b)
+            s[3] = Self.sanitized(z2b)
         }
         // Output frames past the input length were zeroed at the top.
+    }
+
+    @inline(__always)
+    private static func sanitized(_ z: Float) -> Float {
+        z.isFinite && abs(z) >= 1e-20 ? z : 0
     }
 }
