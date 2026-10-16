@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Исключено";
 "settings.general.mediaControl.mode.mute" = "Утишај Звук";
+"settings.general.mediaControl.mode.muffle" = "Пригуши Звук";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Репродукуј звучне ефекте";
 "settings.sound.soundEffects.info" = "Репродукуј аудио сигнале када снимање почне и заустави се.";
 "settings.sound.mediaControl.title" = "Управљање медијумом при снимању";
-"settings.sound.mediaControl.info" = "Изабери како HyperWhisper управља другим звуком током снимања. 'Искључено' оставља звук непромењен, 'Утишај Звук' утишава систем током снимања и враћа га након тога.";
+"settings.sound.mediaControl.info" = "Изабери како HyperWhisper управља другим звуком током снимања. 'Искључено' оставља звук непромењен, 'Утишај Звук' утишава систем током снимања и враћа га након тога, а 'Пригуши Звук' га оставља да тихо свира, као из суседне собе.";
 "settings.sound.autoIncreaseMicVolume.title" = "Аутоматски повећај громкост микрофона";
 "settings.sound.autoIncreaseMicVolume.info" = "Аутоматски подеси громкост уноса микрофона на максимум када снимање почне, затим врати оригиналан ниво када се снимање заврши. Односи се само када користиш подразумевани системски уређај за унос.";
 "settings.sound.vad.title" = "Уклони тишину пре транскрипције";

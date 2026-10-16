@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Av";
 "settings.general.mediaControl.mode.mute" = "Stäng av ljud";
+"settings.general.mediaControl.mode.muffle" = "Dämpa ljud";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Spela upp ljudeffekter";
 "settings.sound.soundEffects.info" = "Spela upp ljudsignaler när inspelningen startar och stoppar.";
 "settings.sound.mediaControl.title" = "Mediakontroll vid inspelning";
-"settings.sound.mediaControl.info" = "Välj hur HyperWhisper hanterar annan ljud under inspelning. 'Av' lämnar ljud oförändrat, 'Stäng av ljud' tystnar systemutgång under inspelning och återställer den efteråt.";
+"settings.sound.mediaControl.info" = "Välj hur HyperWhisper hanterar annan ljud under inspelning. 'Av' lämnar ljud oförändrat, 'Stäng av ljud' tystnar systemutgång under inspelning och återställer den efteråt, och 'Dämpa ljud' låter det spelas svagt, som från rummet bredvid.";
 "settings.sound.autoIncreaseMicVolume.title" = "Öka automatiskt mikrofonvolym";
 "settings.sound.autoIncreaseMicVolume.info" = "Ställer automatiskt in mikrofoningångsvolymen på max när inspelningen startar, sedan återställs den ursprungliga nivån när inspelningen stoppas. Gäller endast när systemets standardingångsenhet används.";
 "settings.sound.vad.title" = "Ta bort tystnad innan transkription";

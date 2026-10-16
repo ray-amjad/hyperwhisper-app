@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Oprit";
 "settings.general.mediaControl.mode.mute" = "Asmuțiți audio";
+"settings.general.mediaControl.mode.muffle" = "Estompați audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Redă efecte sonore";
 "settings.sound.soundEffects.info" = "Redă indicii audio la începerea și oprirea înregistrării.";
 "settings.sound.mediaControl.title" = "Control media în timp ce înregistrați";
-"settings.sound.mediaControl.info" = "Aleţeţi cum gestionează HyperWhisper alt audio în timp ce înregistraţi. 'Oprit' lasă audio neschimbat, 'Asmuţiţi audio' taie ieşirea sistemului în timp ce înregistraţi şi o restaurează după aceea.";
+"settings.sound.mediaControl.info" = "Aleţeţi cum gestionează HyperWhisper alt audio în timp ce înregistraţi. 'Oprit' lasă audio neschimbat, 'Asmuţiţi audio' taie ieşirea sistemului în timp ce înregistraţi şi o restaurează după aceea, iar 'Estompați audio' îl menține redat încet, ca din camera alăturată.";
 "settings.sound.autoIncreaseMicVolume.title" = "Măriți automat volumul microfonului";
 "settings.sound.autoIncreaseMicVolume.info" = "Setează automat volumul de intrare al microfonului la maxim la pornirea înregistrării, apoi restabilește nivelul inițial la oprire. Se aplică doar la utilizarea dispozitivului implicit de intrare al sistemului.";
 "settings.sound.vad.title" = "Eliminați tăcerea înainte de transcriere";

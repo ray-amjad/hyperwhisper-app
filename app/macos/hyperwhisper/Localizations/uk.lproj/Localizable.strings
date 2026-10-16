@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Вимкнено";
 "settings.general.mediaControl.mode.mute" = "Вимкнути звук";
+"settings.general.mediaControl.mode.muffle" = "Приглушити звук";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Відтворювати звукові ефекти";
 "settings.sound.soundEffects.info" = "Відтворювати звукові сигнали під час початку та зупинки запису.";
 "settings.sound.mediaControl.title" = "Керування медіа під час запису";
-"settings.sound.mediaControl.info" = "Виберіть, як HyperWhisper обробляє інший звук під час запису. 'Вимкнено' залишає звук без змін, 'Вимкнути звук' вимикає системний вивід під час запису та відновлює його після.";
+"settings.sound.mediaControl.info" = "Виберіть, як HyperWhisper обробляє інший звук під час запису. 'Вимкнено' залишає звук без змін, 'Вимкнути звук' вимикає системний вивід під час запису та відновлює його після, а 'Приглушити звук' залишає його тихо грати, ніби з сусідньої кімнати.";
 "settings.sound.autoIncreaseMicVolume.title" = "Автоматично підвищувати гучність мікрофона";
 "settings.sound.autoIncreaseMicVolume.info" = "Автоматично встановлює гучність вхідного сигналу мікрофона на максимум при початку запису, а потім відновлює вихідний рівень при зупинці. Застосовується тільки при використанні системного пристрою введення за замовчуванням.";
 "settings.sound.vad.title" = "Видалити тишу перед транскрипцією";

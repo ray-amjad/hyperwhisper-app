@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "끄기";
 "settings.general.mediaControl.mode.mute" = "오디오 음소거";
+"settings.general.mediaControl.mode.muffle" = "오디오 먹먹하게";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "효과음 재생";
 "settings.sound.soundEffects.info" = "녹음이 시작되고 중지될 때 오디오 신호를 재생합니다.";
 "settings.sound.mediaControl.title" = "녹음 중 미디어 제어";
-"settings.sound.mediaControl.info" = "녹음하는 동안 HyperWhisper가 다른 오디오를 처리하는 방법을 선택하세요. '끄기'는 오디오를 변경하지 않고 그대로 두고, '오디오 음소거'는 녹음 중 시스템 출력을 음소거하고 이후 복원합니다.";
+"settings.sound.mediaControl.info" = "녹음하는 동안 HyperWhisper가 다른 오디오를 처리하는 방법을 선택하세요. '끄기'는 오디오를 변경하지 않고 그대로 두고, '오디오 음소거'는 녹음 중 시스템 출력을 음소거하고 이후 복원합니다, '오디오 먹먹하게'는 옆방에서 들리는 것처럼 부드럽게 계속 재생합니다.";
 "settings.sound.autoIncreaseMicVolume.title" = "마이크 볼륨 자동 증가";
 "settings.sound.autoIncreaseMicVolume.info" = "녹음 시작 시 마이크 입력 볼륨을 최대로 자동 설정한 다음 녹음 중지 시 원래 레벨로 복원합니다. 시스템 기본 입력 장치를 사용하는 경우에만 적용됩니다.";
 "settings.sound.vad.title" = "음성 인식 전 무음 제거";

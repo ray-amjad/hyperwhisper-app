@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Af";
 "settings.general.mediaControl.mode.mute" = "Þagga hljóð";
+"settings.general.mediaControl.mode.muffle" = "Deyfa hljóð";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Spila hljóðbrellur";
 "settings.sound.soundEffects.info" = "Spila hljóðmerki þegar upptaka hefst og hættir.";
 "settings.sound.mediaControl.title" = "Miðilstjórnun á meðan á upptöku stendur";
-"settings.sound.mediaControl.info" = "Veldu hvernig HyperWhisper meðhöndlar annað hljóð á meðan þu tekur upp. 'Af' lætur hljóð óbreytt, 'Þögga hljóð' þöggar niður kerfisúttaki meðan á upptokt stendur og endurheimtir þeð á eftir.";
+"settings.sound.mediaControl.info" = "Veldu hvernig HyperWhisper meðhöndlar annað hljóð á meðan þu tekur upp. 'Af' lætur hljóð óbreytt, 'Þögga hljóð' þöggar niður kerfisúttaki meðan á upptokt stendur og endurheimtir þeð á eftir, og 'Deyfa hljóð' lætur það spila lágt, eins og úr næsta herbergi.";
 "settings.sound.autoIncreaseMicVolume.title" = "Hækka sjálfkrafa hljóðnemahljóðstyrk";
 "settings.sound.autoIncreaseMicVolume.info" = "Stillir sjálfkrafa hljóðnemainntakshljóðstyrk á hámark þegar upptaka byrjar, endurheimtir síðan upprunalegt stig þegar upptöku lýkur. Gildir aðeins þegar sjálfgefið kerfisinntak tæki er notað.";
 "settings.sound.vad.title" = "Fjarlægja þögn fyrir afritun";

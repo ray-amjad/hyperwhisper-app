@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Wyłączone";
 "settings.general.mediaControl.mode.mute" = "Wycisz audio";
+"settings.general.mediaControl.mode.muffle" = "Przytłum audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Odtwarzaj efekty dźwiękowe";
 "settings.sound.soundEffects.info" = "Odtwarzaj sygnały dźwiękowe po rozpoczęciu i zakończeniu nagrywania.";
 "settings.sound.mediaControl.title" = "Kontrola mediów podczas nagrywania";
-"settings.sound.mediaControl.info" = "Wybierz sposób, w jaki HyperWhisper obsługuje inne audio podczas nagrywania. 'Wyłączone' pozostawia audio bez zmian, 'Wycisz audio' wycisza wyjście systemowe podczas nagrywania i przywraca je potem.";
+"settings.sound.mediaControl.info" = "Wybierz sposób, w jaki HyperWhisper obsługuje inne audio podczas nagrywania. 'Wyłączone' pozostawia audio bez zmian, 'Wycisz audio' wycisza wyjście systemowe podczas nagrywania i przywraca je potem, a 'Przytłum audio' odtwarza je cicho, jakby z sąsiedniego pokoju.";
 "settings.sound.autoIncreaseMicVolume.title" = "Automatycznie zwiększ głośność mikrofonu";
 "settings.sound.autoIncreaseMicVolume.info" = "Automatycznie ustawia głośność wejścia mikrofonu na maksimum, gdy nagrywanie się zaczyna, a następnie przywraca oryginalny poziom po zatrzymaniu nagrywania. Dotyczy tylko domyślnego urządzenia wejściowego.";
 "settings.sound.vad.title" = "Usuń ciszę przed transkrypcją";

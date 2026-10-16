@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "关闭";
 "settings.general.mediaControl.mode.mute" = "静音音频";
+"settings.general.mediaControl.mode.muffle" = "柔化音频";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "播放音效";
 "settings.sound.soundEffects.info" = "在录音开始和停止时播放音频提示。";
 "settings.sound.mediaControl.title" = "录音时媒体控制";
-"settings.sound.mediaControl.info" = "选择录音时 HyperWhisper 对其他音频的处理方式。“关闭”保持原样，“静音音频”会在录音时静音系统输出并在之后恢复。";
+"settings.sound.mediaControl.info" = "选择录音时 HyperWhisper 对其他音频的处理方式。“关闭”保持原样，“静音音频”会在录音时静音系统输出并在之后恢复，“柔化音频”则让音频继续轻声播放，仿佛来自隔壁房间。";
 "settings.sound.autoIncreaseMicVolume.title" = "自动提高麦克风音量";
 "settings.sound.autoIncreaseMicVolume.info" = "录音开始时自动将麦克风输入音量调到最大，停止后恢复原值。仅适用于系统默认输入设备。";
 "settings.sound.vad.title" = "转写前移除静音";

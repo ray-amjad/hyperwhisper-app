@@ -102,6 +102,9 @@ class RecordingLifecycle {
     /// Stores original system volume and paused media players
     private var recordingAudioEnvironmentState: AudioEnvironmentState?
 
+    /// Whether this recording muffled other audio (Muffle Audio mode)
+    private var recordingMuffledAudio = false
+
     /// Original microphone input volume for restoration after recording
     /// Used by the "Automatically increase microphone volume" feature.
     /// Stores the volume level (0.0 to 1.0) before it was increased to max.
@@ -177,6 +180,9 @@ class RecordingLifecycle {
             } else {
                 AppLogger.audio.warning("Failed to mute audio environment, continuing recording")
             }
+        case .muffleAudio:
+            audioSessionManager.startMuffle()
+            recordingMuffledAudio = true
         }
     }
 
@@ -755,6 +761,10 @@ class RecordingLifecycle {
             audioSessionManager.restoreAudioEnvironment(state)
             AppLogger.audio.info("Audio environment restored after recording")
             self.recordingAudioEnvironmentState = nil
+        }
+        if recordingMuffledAudio {
+            audioSessionManager.stopMuffle()
+            recordingMuffledAudio = false
         }
 
         // STEP 3.6: Restore microphone input volume if we increased it
