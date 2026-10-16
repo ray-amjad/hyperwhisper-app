@@ -954,14 +954,6 @@ internal static class TranscribeEndpoints
     }
 
     /// <summary>
-    /// Encode an engine + (optional) model pair onto a Mode's provider/engine
-    /// fields. Recognized engine strings are: any cloud-provider identifier
-    /// ("openai", "groq", "deepgram", "hyperwhisper", "gemini", …) plus "cloud"
-    /// (treated as HyperWhisperCloud), "whisper" / "whisperlocal", and
-    /// "parakeet", and "qwen3_asr". Unknown strings are rejected so callers do not silently run
-    /// a different engine than they requested.
-    /// </summary>
-    /// <summary>
     /// The refusal for <c>engine: whisper</c> with no or a blank <c>model</c>
     /// (issue #1493). Internal so the smoke tests pin the exact wording.
     /// </summary>
@@ -970,6 +962,14 @@ internal static class TranscribeEndpoints
     /// <summary>The hint that goes with <see cref="WhisperModelRequiredMessage"/>.</summary>
     internal const string WhisperModelRequiredHint = "Send model, for example base.en.";
 
+    /// <summary>
+    /// Encode an engine + (optional) model pair onto a Mode's provider/engine
+    /// fields. Recognized engine strings are: any cloud-provider identifier
+    /// ("openai", "groq", "deepgram", "hyperwhisper", "gemini", …) plus "cloud"
+    /// (treated as HyperWhisperCloud), "whisper" / "whisperlocal", and
+    /// "parakeet", and "qwen3_asr". Unknown strings are rejected so callers do not silently run
+    /// a different engine than they requested.
+    /// </summary>
     internal static void ApplyEngineModel(Mode mode, string engine, string? model)
     {
         var normalized = engine.Trim().ToLowerInvariant();
