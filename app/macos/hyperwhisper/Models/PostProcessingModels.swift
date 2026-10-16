@@ -62,34 +62,16 @@ struct PostProcessingModels {
             description: "models.postProcessing.gpt4.1.mini.description".localized,
             provider: .openai
         ),
-        PostProcessingModel(
-            id: "gpt-4.1",
-            displayName: "GPT-4.1",
-            isAvailable: true,
-            description: "models.postProcessing.gpt4.1.description".localized,
-            provider: .openai
-        ),
+        // gpt-4.1 row removed: OpenAI removes it 2027-01-14 (notice 2026-10-14), and
+        // deprecatedModelMappings redirects it to gpt-6-luna, OpenAI's named replacement.
         // gpt-5 / gpt-5-mini / gpt-5-nano rows removed (#1018): OpenAI removes them
         // 2026-12-11, and deprecatedModelMappings redirects all 3 to gpt-5.6-luna.
-        PostProcessingModel(
-            id: "gpt-5.1",
-            displayName: "GPT-5.1",
-            isAvailable: true,
-            description: "models.postProcessing.gpt5.1.description".localized,
-            provider: .openai
-        ),
+        // gpt-5.1 / gpt-5.4-nano rows removed (#1209): OpenAI removes them 2027-04-01.
         PostProcessingModel(
             id: "gpt-5.2",
             displayName: "GPT-5.2",
             isAvailable: true,
             description: "models.postProcessing.gpt5.2.description".localized,
-            provider: .openai
-        ),
-        PostProcessingModel(
-            id: "gpt-5.4-nano",
-            displayName: "GPT-5.4 Nano",
-            isAvailable: true,
-            description: "Fast, lightweight",
             provider: .openai
         ),
         PostProcessingModel(
@@ -139,13 +121,8 @@ struct PostProcessingModels {
         ),
 
         // MARK: - Google Gemini Models
-        PostProcessingModel(
-            id: "gemini-3.5-flash",
-            displayName: "Gemini 3.5 Flash",
-            isAvailable: true,
-            description: "Most intelligent flash model, frontier performance for agentic tasks",
-            provider: .gemini
-        ),
+        // gemini-3.5-flash / gemini-3.7-flash rows removed: Google deprecated both
+        // 2026-10-08 and routes them to 3.6 / 3.8 Flash; deprecatedModelMappings does too.
         PostProcessingModel(
             id: "gemini-2.5-flash",
             displayName: "Gemini 2.5 Flash",
@@ -174,23 +151,11 @@ struct PostProcessingModels {
             description: "Latest pro-level intelligence",
             provider: .gemini
         ),
-        PostProcessingModel(
-            id: "gemini-3.1-flash-lite",
-            displayName: "Gemini 3.1 Flash Lite",
-            isAvailable: true,
-            description: "Lightweight, fast and cost-efficient",
-            provider: .gemini
-        ),
+        // gemini-3.1-flash-lite row removed (#798): Google shuts it down 2027-05-07,
+        // and deprecatedModelMappings redirects it to gemini-3.5-flash-lite.
         PostProcessingModel(
             id: "gemini-3.6-flash",
             displayName: "Gemini 3.6 Flash",
-            isAvailable: true,
-            description: "Capable flash model, frontier performance for agentic tasks",
-            provider: .gemini
-        ),
-        PostProcessingModel(
-            id: "gemini-3.7-flash",
-            displayName: "Gemini 3.7 Flash",
             isAvailable: true,
             description: "Capable flash model, frontier performance for agentic tasks",
             provider: .gemini
@@ -339,6 +304,13 @@ struct PostProcessingModels {
             "gpt-5-nano": "gpt-5.6-luna",
             "gpt-5-mini": "gpt-5.6-luna",
             "gpt-5": "gpt-5.6-luna",
+            // OpenAI removes both 2027-04-01 (#1209). gpt-5.4-nano goes to OpenAI's
+            // named replacement, gpt-6-luna. For gpt-5.1 OpenAI names gpt-6-sol; we use
+            // gpt-5.6-luna, as for gpt-5 above (sol is ~50x the price for this task).
+            "gpt-5.4-nano": "gpt-6-luna",
+            "gpt-5.1": "gpt-5.6-luna",
+            // OpenAI removes gpt-4.1 2027-01-14 (notice 2026-10-14) and names gpt-6-luna.
+            "gpt-4.1": "gpt-6-luna",
         ],
         .anthropic: [
             // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10 for their 5.5
@@ -379,9 +351,16 @@ struct PostProcessingModels {
         ],
         .gemini: [
             "gemini-3-pro-preview": "gemini-3.1-pro-preview",
-            "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
+            // gemini-3.1-flash-lite shuts down 2027-05-07; Google names
+            // gemini-3.5-flash-lite (#798). Both older lite ids go straight there.
+            "gemini-3.1-flash-lite": "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite-preview": "gemini-3.5-flash-lite",
             "gemini-2.0-flash": "gemini-3.6-flash",
-            "gemini-2.0-flash-lite": "gemini-3.1-flash-lite",
+            "gemini-2.0-flash-lite": "gemini-3.5-flash-lite",
+            // Google deprecated both 2026-10-08 and routes their API requests to these
+            // successors (Gemini API changelog). No shutdown date yet.
+            "gemini-3.5-flash": "gemini-3.6-flash",
+            "gemini-3.7-flash": "gemini-3.8-flash",
             // The preview left the picker 2026-10. 3.8 Flash on every route
             // (HyperWhisper Cloud does not serve 3.6). PARITY: hw-catalog
             // GEMINI_ALIASES, Windows MigrateModelId, shared-dotnet Migrate.
