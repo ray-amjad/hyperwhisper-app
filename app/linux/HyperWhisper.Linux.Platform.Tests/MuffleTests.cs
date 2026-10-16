@@ -237,7 +237,7 @@ static class MuffleTests
         // Audio that arrives after the stop began moves the streams but never engages the filter again.
         (pulse, service) = Create(); pulse.Silent = true; service.Muffler.ActivationTimeout = TimeSpan.FromSeconds(30);
         var session = Prepare(service, TimeSpan.Zero); var run = await RunOf(session);
-        run.Release(); pulse.Capture!.Write(new byte[8]);
+        Assert.True(run.TryRelease(run.Generation), "the current generation could not release"); pulse.Capture!.Write(new byte[8]);
         Assert.True(await run.Activated.WaitAsync(TimeSpan.FromSeconds(5)), "the run did not activate");
         Assert.Equal(run.Filter.MaxCutoffHz, run.Filter.TargetCutoffHz);
         await session.RestoreAsync();
@@ -357,6 +357,25 @@ static class MuffleTests
         static IEnumerable<int> ChildrenOf(int pid) => Directory.EnumerateFiles($"/proc/{pid}/task", "children", SearchOption.AllDirectories)
             .SelectMany(file => File.ReadAllText(file).Split(' ', StringSplitOptions.RemoveEmptyEntries)).Select(int.Parse);
         static bool Alive(int pid) => File.Exists($"/proc/{pid}/stat") && !File.ReadAllText($"/proc/{pid}/stat").Contains(") Z ", StringComparison.Ordinal);
+    }
+
+    // Review round 2, #1: a restore whose generation was overtaken by a new claim never opens the new recording's filter,
+    // and does not keep a later activation from engaging it.
+    public static async Task StaleRestoreDoesNotReleaseANewClaim()
+    {
+        var (pulse, service) = Create();
+        var first = Prepare(service, TimeSpan.Zero); var run = await RunOf(first); var old = (await first.Ready).Generation;
+        var second = Prepare(service, TimeSpan.Zero);
+        Assert.True(ReferenceEquals(await RunOf(second), run) && run.Generation != old, "the second recording did not claim the run");
+        Assert.True(!run.TryRelease(old), "a stale generation released the run");
+        Assert.True(await run.Activated.WaitAsync(TimeSpan.FromSeconds(5)), "the run did not activate");
+        Assert.Equal(MuffleFilter.MuffledCutoffHz, run.Filter.TargetCutoffHz);
+        // The stale restore returns at once and leaves the sink to the recording that holds it.
+        await first.RestoreAsync();
+        Assert.True(pulse.Sinks.Any(sink => sink.Name == "hw_muffle") && pulse.SinkOf(10) == pulse.MuffleIndex && run.Filter.TargetCutoffHz == MuffleFilter.MuffledCutoffHz,
+            "the stale restore undid the new recording's muffle");
+        await second.RestoreAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "restore left the wrong routing");
     }
 
     public static Task ParsesPactlJson()
