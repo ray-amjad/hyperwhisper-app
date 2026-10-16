@@ -171,4 +171,36 @@ struct SentryDiagnosticRoutingTests {
         #expect(SentryService.isRedactedExtraKey("fileExtension "))
         #expect(SentryService.isRedactedExtraKey(""))
     }
+
+    /// Keys sent today whose VALUE can carry personal data are deliberately
+    /// off the list (issue #805, review round 1): raw error text, microphone
+    /// names a person can rename, and hardware device UIDs. Ray's ruling
+    /// 2026-10-07 (#1364): a device identifier carrying a person's name is
+    /// personal data. A String value becomes `[redacted]` on the Event path;
+    /// a Bool or a number still survives (#684).
+    @Test func contentBearingKeysSentTodayAreNotAllowed() {
+        let offTheList = [
+            "errorDescription", "errorFailureReason", "user_message",
+            "selectedDeviceName", "activeDeviceName", "selectedInputDeviceName",
+            "activeInputDeviceName", "availableInputDevices", "selected_input_device_name",
+            "selectedDeviceUID", "activeDeviceUID", "systemDefaultDeviceUID",
+            "selectedInputDeviceUID", "activeInputDeviceUID", "systemDefaultInputDeviceUID"
+        ]
+        #expect(offTheList.count == 15)
+        for key in offTheList {
+            #expect(SentryService.isRedactedExtraKey(key), "\(key) must stay off the list")
+            #expect(SentryService.redactedValue(forKey: key, value: "Fixture Person's AirPods")
+                as? String == "[redacted]", "\(key) ships its String value")
+            #expect(SentryService.redactedValue(forKey: key, value: true) as? Bool == true)
+        }
+
+        // The keys that still identify the failure stay on the list.
+        for key in [
+            "errorDomain", "errorCode", "selectedDeviceTransportType",
+            "activeDeviceTransportType", "selectedInputDeviceTransportType",
+            "activeInputDeviceTransportType", "availableInputDeviceCount"
+        ] {
+            #expect(!SentryService.isRedactedExtraKey(key), "\(key) must stay on the list")
+        }
+    }
 }

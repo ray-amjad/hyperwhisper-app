@@ -413,11 +413,19 @@ enum SentryService {
     /// A key whose value is only ever a Bool or a number does not need to be
     /// here at all — see `redactedValue(forKey:value:)`.
     ///
-    /// Sent today, on the list, and follow-up candidates to take OFF it: every
-    /// key marked FOLLOW-UP below. They may carry
-    /// personal data — raw error text with paths, device names a person can
-    /// rename, a Bluetooth device address — and are kept only so this change
-    /// hides nothing that ships today. Removing them is a separate decision.
+    /// Sent today but deliberately NOT on the list, so their String values now
+    /// arrive as `[redacted]`: raw error text (`errorDescription`,
+    /// `errorFailureReason`, `user_message`), microphone names
+    /// (`selectedDeviceName`, `activeDeviceName`, `selectedInputDeviceName`,
+    /// `activeInputDeviceName`, `availableInputDevices` and the no-speech tag
+    /// `selected_input_device_name`) and device UIDs (`selectedDeviceUID`,
+    /// `activeDeviceUID`, `systemDefaultDeviceUID`, `selectedInputDeviceUID`,
+    /// `activeInputDeviceUID`, `systemDefaultInputDeviceUID`). A value that can
+    /// hold a user-renamed device name ("Ray's AirPods"), a hardware address or
+    /// raw error text with paths is personal data — Ray's ruling 2026-10-07
+    /// (#1364): a hostname or device identifier that carries a person's name is
+    /// personal data. The error domain/code and transport-type keys that stay
+    /// on the list still identify the failure.
     ///
     /// Tags are on the list too: the Logs path (`mergeLogAttributes`) flattens
     /// tags into the same attribute bag and redacts them by the same rule. The
@@ -469,8 +477,7 @@ enum SentryService {
         "cloud_provider", "local_engine", "provider_attempt_source",
         "backend_no_speech_detected", "audio_analysis_succeeded", "audio_rms_dbfs_bucket",
         "mic_boost_failed",
-        // FOLLOW-UP: the active microphone's name, which a person can rename.
-        "selected_input_device_name",
+        // Not `selected_input_device_name`: a person can rename the microphone.
         "audio_file_exists", "audio_file_extension", "audio_file_size_bytes",
         "audio_duration_seconds", "audio_peak_dbfs", "audio_rms_dbfs", "audio_non_silent_ratio",
         "audio_decoded_sample_count", "audio_measured_sample_count", "provider_display_name",
@@ -496,19 +503,15 @@ enum SentryService {
         "mediaControlMode", "autoIncreaseMicVolume", "activeDeviceIsDefault",
         "activeDeviceTransportType", "inputSampleRateHz", "inputChannelCount", "inputBitDepth",
         "inputIsFloat", "availableInputDeviceCount", "recordingFailureStage",
-        // FOLLOW-UP: may carry personal data (raw error text, renamed device
-        // names, Bluetooth address). Kept so nothing shipping today is hidden.
-        "errorDescription", "errorFailureReason", "selectedDeviceName", "selectedDeviceUID",
-        "activeDeviceName", "activeDeviceUID", "systemDefaultDeviceUID", "availableInputDevices",
+        // Not the error text, device names or device UIDs: personal data, see
+        // above.
 
         // Recording stop / audio finalization (RecordingLifecycle).
         "recordingDurationMs", "rawExists", "rawReadable", "dstExists", "rawSizeBytes",
         "volumeFreeBytes", "sessionId", "rawFileType", "dstFileType", "rawIsIncompleteName",
         "dstInDefaultRecordingsFolder", "inputVolumeScalar", "selectedInputDeviceTransportType",
         "activeInputDeviceTransportType",
-        // FOLLOW-UP: device names and hardware UIDs, as above.
-        "selectedInputDeviceName", "selectedInputDeviceUID", "activeInputDeviceName",
-        "activeInputDeviceUID", "systemDefaultInputDeviceUID",
+        // Not the device names or hardware UIDs: personal data, see above.
 
         // RecordingStartTrace (`recording_start_` + fixed suffixes).
         "recording_start_state", "recording_start_attempt", "recording_start_trigger",
@@ -584,9 +587,8 @@ enum SentryService {
         "parakeet_error_domain", "parakeet_model_id_length", "parakeet_unknown_model_version",
         "parakeet_failure_kind", "parakeet_unknown_model_class",
         "modelId", "target", "model_id",
-        // FOLLOW-UP: LocalModelManager's message, which embeds a raw
+        // Not `user_message`: LocalModelManager's message embeds a raw
         // `localizedDescription`.
-        "user_message",
 
         // Licence validation (LicenseNetworkService). `license_reason` is the
         // server's own reason slug.
