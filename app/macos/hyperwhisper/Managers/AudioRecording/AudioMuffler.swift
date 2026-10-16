@@ -592,7 +592,7 @@ final class MuffleDSP: @unchecked Sendable {
         guard tapCount > 0, inFrames != Int.max, inFrames > 0 else { return }
 
         // Output channels that carry audio: one per tap channel, and a mono
-        // tap feeds both L and R.
+        // tap feeds both L and R. A mono output takes a downmix (below).
         let outWanted = min(tapCount == 1 ? 2 : tapCount, Self.maxChannels)
         var outCount = 0
         var outFrames = Int.max
@@ -630,6 +630,12 @@ final class MuffleDSP: @unchecked Sendable {
         let a1 = Float(-2 * cosW0 / a0)
         let a2 = Float((1 - a) / a0)
 
+        // A single-channel output (e.g. Bluetooth HFP) under a multi-channel
+        // tap gets the average of every tap channel, filtered once with that
+        // output's state, so content panned away from the left still plays.
+        let downmix = outCount == 1 && tapCount > 1
+        let mixScale = 1 / Float(tapCount)
+
         for oc in 0..<outCount {
             guard let outBase = outPointers[oc] else { continue }
             let outStride = outStrides[oc]
@@ -641,7 +647,16 @@ final class MuffleDSP: @unchecked Sendable {
 
             var z1a = s[0], z2a = s[1], z1b = s[2], z2b = s[3]
             for f in 0..<frames {
-                let x = inBase[f * inStride]
+                var x: Float
+                if downmix {
+                    x = 0
+                    for t in 0..<tapCount {
+                        if let p = inPointers[t] { x += p[f * inStrides[t]] }
+                    }
+                    x *= mixScale
+                } else {
+                    x = inBase[f * inStride]
+                }
                 let y1 = b0 * x + z1a
                 z1a = b1 * x - a1 * y1 + z2a
                 z2a = b2 * x - a2 * y1
