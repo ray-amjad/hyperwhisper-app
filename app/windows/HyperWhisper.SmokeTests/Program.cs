@@ -775,6 +775,25 @@ internal static class Program
                 }
             });
 
+            // A tree capture covers a process's descendants, never its ancestors: a parent that
+            // opens a session after its child was captured gets its own capture, which replaces
+            // the child's.
+            Run("Muffle captures a parent that plays after its child", () =>
+            {
+                // 100 -> 200 -> 300 (browser -> renderer -> its child); 400 is unrelated.
+                var tree = HyperWhisper.Services.Muffle.ProcessTree.FromParents(new Dictionary<uint, uint> { [200] = 100, [300] = 200, [400] = 1 });
+                var (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(300, new HashSet<uint> { 200 }, tree);
+                Assert(covering == 200 && replaced.Count == 0, "a descendant of a captured process is covered by it");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(200, new HashSet<uint> { 200 }, tree);
+                Assert(covering == 200 && replaced.Count == 0, "a captured process's second session is covered");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(100, new HashSet<uint> { 200, 400 }, tree);
+                Assert(covering == null && replaced.Count == 1 && replaced[0] == 200, "a parent is captured and replaces its captured child");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(100, new HashSet<uint> { 300 }, tree);
+                Assert(covering == null && replaced.SequenceEqual(new uint[] { 300 }), "a grandchild's capture is replaced too");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(400, new HashSet<uint> { 200 }, tree);
+                Assert(covering == null && replaced.Count == 0, "an unrelated process gets its own capture and replaces nothing");
+            });
+
             // A second session of an app the muffler already lowered opens at the lowered
             // per-app volume; its prior must be the app's own volume, not ours.
             Run("Muffle remembers the app's own volume for a second session", () =>

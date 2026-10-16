@@ -598,7 +598,8 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             return AttachOutcome.Skipped;
         }
 
-        var covered = _capturedPids.Contains(pid) || _capturedPids.Any(c => tree.IsAncestor(c, pid));
+        var (coveringPid, replacedPids) = PlanCapture(pid, _capturedPids, tree);
+        var covered = coveringPid != null;
         string? skipReason = null;
         if (tree.IsAncestor(pid, _ownProcessId))
         {
@@ -609,10 +610,6 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             // Process loopback hears a process on EVERY endpoint; its other output would be
             // replayed here at +80 dB.
             skipReason = "it also plays on another output";
-        }
-        else if (!covered && _capturedPids.Any(c => tree.IsAncestor(pid, c)))
-        {
-            skipReason = "a child of it is already captured";
         }
 
         if (skipReason != null)
@@ -640,12 +637,11 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         if (covered)
         {
             // Whose capture replays these sessions: if it fails, they are the ones to put back.
-            var coveringPid = _capturedPids.Contains(pid) ? pid : _capturedPids.First(c => tree.IsAncestor(c, pid));
-            TagCapture(scaledNow, coveringPid);
+            TagCapture(scaledNow, coveringPid!.Value);
             return AttachOutcome.Covered;
         }
 
-        if (_active.Length >= MaxSources)
+        if (_active.Length - replacedPids.Count >= MaxSources)
         {
             RestoreLocked(scaledNow, "too many apps");
             _skippedPids.Add(pid);
@@ -674,9 +670,49 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         }
 
         TagCapture(scaledNow, pid);
-        Volatile.Write(ref _active, _active.Append(source).ToArray());
+        if (replacedPids.Count > 0)
+        {
+            // This process's tree capture also hears the descendants already captured, so their
+            // own captures go in the same swap (keeping both would play their audio twice).
+            var replaced = _active.Where(s => replacedPids.Contains(s.ProcessId)).ToList();
+            _retired.AddRange(replaced);
+            foreach (var child in replacedPids)
+            {
+                _capturedPids.Remove(child);
+            }
+
+            TagCapture(_scaled.Where(s => replacedPids.Contains(s.CapturePid)).ToList(), pid);
+            LoggingService.Info($"WindowsAudioMuffler: {DescribeProcess(pid)}'s capture replaces its descendants' ({string.Join(", ", replacedPids)})");
+        }
+
+        Volatile.Write(ref _active, _active.Where(s => !replacedPids.Contains(s.ProcessId)).Append(source).ToArray());
         _capturedPids.Add(pid);
         return AttachOutcome.Captured;
+    }
+
+    /// <summary>
+    /// How <paramref name="pid"/> relates to the processes already captured. A tree capture hears a
+    /// process and all its descendants, so: if <paramref name="pid"/> is one of them or a
+    /// descendant of one, that capture already covers it (CoveringPid). Otherwise it needs its own
+    /// capture, and every captured descendant of it (a child that started playing first) is
+    /// replaced by it (ReplacedPids): an ancestor is never left unmuffled, nor heard twice.
+    /// </summary>
+    internal static (uint? CoveringPid, List<uint> ReplacedPids) PlanCapture(uint pid, IReadOnlyCollection<uint> capturedPids, ProcessTree tree)
+    {
+        if (capturedPids.Contains(pid))
+        {
+            return (pid, new List<uint>());
+        }
+
+        foreach (var captured in capturedPids)
+        {
+            if (tree.IsAncestor(captured, pid))
+            {
+                return (captured, new List<uint>());
+            }
+        }
+
+        return (null, capturedPids.Where(c => tree.IsAncestor(pid, c)).ToList());
     }
 
     private static void TagCapture(List<ScaledSession> sessions, uint capturePid)
@@ -1350,6 +1386,10 @@ internal sealed class ProcessTree
     {
         _parents = parents;
     }
+
+    /// <summary>A tree from a child-to-parent map (tests).</summary>
+    internal static ProcessTree FromParents(IReadOnlyDictionary<uint, uint> parents) =>
+        new(new Dictionary<uint, uint>(parents));
 
     public static ProcessTree Snapshot()
     {
