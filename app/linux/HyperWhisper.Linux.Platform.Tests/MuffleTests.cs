@@ -354,8 +354,9 @@ static class MuffleTests
         Assert.True(!Alive(sleeper!.Value), "the tied child outlived the closed pipe");
         // Only the child holds the output pipe, so its death ends the watcher's read.
         Assert.Equal(0, await shell.StandardOutput!.ReadAsync(new byte[16]).AsTask().WaitAsync(TimeSpan.FromSeconds(2)));
-        static IEnumerable<int> ChildrenOf(int pid) => Directory.EnumerateFiles($"/proc/{pid}/task", "children", SearchOption.AllDirectories)
-            .SelectMany(file => File.ReadAllText(file).Split(' ', StringSplitOptions.RemoveEmptyEntries)).Select(int.Parse);
+        // Only /proc/[pid]/task/[tid]/children: a recursive walk follows each task's root symlink into the whole filesystem.
+        static IEnumerable<int> ChildrenOf(int pid) => Directory.EnumerateDirectories($"/proc/{pid}/task").Select(task => Path.Combine(task, "children"))
+            .Where(File.Exists).SelectMany(file => File.ReadAllText(file).Split(' ', StringSplitOptions.RemoveEmptyEntries)).Select(int.Parse);
         static bool Alive(int pid) => File.Exists($"/proc/{pid}/stat") && !File.ReadAllText($"/proc/{pid}/stat").Contains(") Z ", StringComparison.Ordinal);
     }
 
