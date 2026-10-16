@@ -578,6 +578,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         {
             "duck" => AudioEnvironmentPolicy.DuckOtherAudio,
             "mute" => AudioEnvironmentPolicy.MuteOtherAudio,
+            "muffle" => AudioEnvironmentPolicy.MuffleOtherAudio,
             _ => AudioEnvironmentPolicy.Unchanged,
         };
         var environment = _services.AudioEnvironment.PrepareForRecording(policy, TimeSpan.FromMilliseconds(500));

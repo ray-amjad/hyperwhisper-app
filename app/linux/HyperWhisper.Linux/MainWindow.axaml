@@ -1130,9 +1130,10 @@
           </StackPanel>
           <CheckBox Grid.Column="1" x:Name="SettingsSoundEffects" IsChecked="{Binding Settings.EnableSoundEffects}" VerticalAlignment="Center"/>
         </Grid></Border>
-        <!-- Windows offers two localized items in a fixed 130px column, not the three raw
-             lowercase policy strings the shared list carries. The Tag is the stored value, the
-             way the Windows page writes it, and code behind syncs the pick on navigation. -->
+        <!-- Windows offers localized items in a fixed 130px column, not the raw lowercase
+             policy strings the shared list carries. The Tag is the stored value, the way the
+             Windows page writes it, and code behind syncs the pick on navigation. "muffle" is
+             the macOS Muffle Audio mode (LinuxAudioEnvironmentService). -->
         <Border Classes="card" Margin="0,0,0,20"><Grid ColumnDefinitions="*,130">
           <StackPanel Spacing="2">
             <TextBlock Text="{ReflectionBinding [settings.sound.mediaControl.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
@@ -1142,6 +1143,7 @@
                     VerticalAlignment="Center" SelectionChanged="OnAudioEnvironmentPolicyChanged">
             <ComboBoxItem Tag="unchanged" Content="{ReflectionBinding [settings.sound.mediaControl.off], Source={StaticResource Localization}}"/>
             <ComboBoxItem Tag="mute" Content="{ReflectionBinding [settings.sound.mediaControl.muteAudio], Source={StaticResource Localization}}"/>
+            <ComboBoxItem Tag="muffle" Content="{ReflectionBinding [linux.settings.sound.mediaControl.muffleAudio], Source={StaticResource Localization}}"/>
           </ComboBox>
         </Grid></Border>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>

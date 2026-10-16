@@ -124,6 +124,9 @@ public partial class MainWindow : Window
         _diagnosticLogger = new PrivacySafeRotatingLogger(diagnosticDirectory);
         _lifecycleDiagnostics = new LinuxLifecycleDiagnostics(
             _diagnosticLogger, () => _settings.Get("general.enableErrorLogging", true));
+        // Muffle Audio could not start (no parec/pacat, the null sink was refused), so that recording ducked instead.
+        if (_platformServices.AudioEnvironment is LinuxAudioEnvironmentService audioEnvironment)
+            audioEnvironment.MuffleFellBack += (_, _) => _ = _lifecycleDiagnostics.ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Degraded);
         _postProcessor = new LinuxLocalPostProcessor(
             _platformServices.Paths.ModelsDirectory, _settings, _database);
         _postProcessingRouter = new LinuxPostProcessingRouter(
@@ -264,6 +267,9 @@ public partial class MainWindow : Window
                 new HistoryRepository(_database, _platformServices.Paths),
                 () => _platformServices.AudioRecorder.IsRecording ? "active" : null)
                 .RecoverAsync(_lifetime.Token);
+            // A crash while muffling leaves its null sink loaded: put those streams back on a real sink and remove it.
+            if (_platformServices.AudioEnvironment is LinuxAudioEnvironmentService muffledAudio)
+                await muffledAudio.RecoverStaleMuffleAsync(_lifetime.Token);
             // A successful InitializeAsync has just loaded History, so a second load at startup only
             // repeats it (#997). Load again when recovery added rows, when startup failed anywhere
             // (the shell status then holds the failure), or on a later Opened that did not run
