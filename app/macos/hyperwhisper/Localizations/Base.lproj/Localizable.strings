@@ -845,6 +845,7 @@
 "modes.field.name.placeholder" = "e.g., Meeting Notes";
 "modes.field.name.editPlaceholder" = "Mode name";
 "modes.field.name.defaultLocked" = "This is the default mode, so its name cannot be changed. You can rename any other mode.";
+"modes.field.name.taken" = "A mode with that name already exists.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Provider";
 "modes.field.engine" = "Engine";

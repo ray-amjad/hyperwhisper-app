@@ -81,6 +81,11 @@ struct ModesView: View {
         return ids
     }
 
+    /// Every mode's id and name, for the editor's taken-name check (issue #1435).
+    private var modeNameEntries: [ModeNameEntry] {
+        modes.map { ModeNameEntry(id: $0.id, name: $0.name) }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header section
@@ -100,6 +105,7 @@ struct ModesView: View {
             ModeEditorView(
                 configuration: .create,
                 availableModelIds: downloadedLocalModelIds,
+                existingModes: modeNameEntries,
                 licenseActive: ModeEditorDefaults.treatsLicenseAsActive(
                     status: licenseManager.licenseStatus,
                     storedKey: licenseManager.storedLicenseKeyReadForSeeding()
@@ -144,6 +150,7 @@ struct ModesView: View {
                     initiateDeleteMode(mode)
                 }),
                 availableModelIds: downloadedLocalModelIds,
+                existingModes: modeNameEntries,
                 onSave: { updatedModeData in
                     // Update the Core Data entity. The default mode's name is
                     // fixed (issue #536): the editor disables the field, so this
