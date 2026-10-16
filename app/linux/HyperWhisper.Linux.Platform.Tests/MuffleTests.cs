@@ -237,7 +237,7 @@ static class MuffleTests
         // Audio that arrives after the stop began moves the streams but never engages the filter again.
         (pulse, service) = Create(); pulse.Silent = true; service.Muffler.ActivationTimeout = TimeSpan.FromSeconds(30);
         var session = Prepare(service, TimeSpan.Zero); var run = await RunOf(session);
-        run.Release(); pulse.Capture!.Write(new byte[8]);
+        Assert.True(run.TryRelease(run.Generation), "the current generation could not release"); pulse.Capture!.Write(new byte[8]);
         Assert.True(await run.Activated.WaitAsync(TimeSpan.FromSeconds(5)), "the run did not activate");
         Assert.Equal(run.Filter.MaxCutoffHz, run.Filter.TargetCutoffHz);
         await session.RestoreAsync();
@@ -354,9 +354,110 @@ static class MuffleTests
         Assert.True(!Alive(sleeper!.Value), "the tied child outlived the closed pipe");
         // Only the child holds the output pipe, so its death ends the watcher's read.
         Assert.Equal(0, await shell.StandardOutput!.ReadAsync(new byte[16]).AsTask().WaitAsync(TimeSpan.FromSeconds(2)));
-        static IEnumerable<int> ChildrenOf(int pid) => Directory.EnumerateFiles($"/proc/{pid}/task", "children", SearchOption.AllDirectories)
-            .SelectMany(file => File.ReadAllText(file).Split(' ', StringSplitOptions.RemoveEmptyEntries)).Select(int.Parse);
+        // Only /proc/[pid]/task/[tid]/children: a recursive walk follows each task's root symlink into the whole filesystem.
+        static IEnumerable<int> ChildrenOf(int pid) => Directory.EnumerateDirectories($"/proc/{pid}/task").Select(task => Path.Combine(task, "children"))
+            .Where(File.Exists).SelectMany(file => File.ReadAllText(file).Split(' ', StringSplitOptions.RemoveEmptyEntries)).Select(int.Parse);
         static bool Alive(int pid) => File.Exists($"/proc/{pid}/stat") && !File.ReadAllText($"/proc/{pid}/stat").Contains(") Z ", StringComparison.Ordinal);
+    }
+
+    // Review round 2, #1: a restore whose generation was overtaken by a new claim never opens the new recording's filter,
+    // and does not keep a later activation from engaging it.
+    public static async Task StaleRestoreDoesNotReleaseANewClaim()
+    {
+        var (pulse, service) = Create();
+        var first = Prepare(service, TimeSpan.Zero); var run = await RunOf(first); var old = (await first.Ready).Generation;
+        var second = Prepare(service, TimeSpan.Zero);
+        Assert.True(ReferenceEquals(await RunOf(second), run) && run.Generation != old, "the second recording did not claim the run");
+        Assert.True(!run.TryRelease(old), "a stale generation released the run");
+        Assert.True(await run.Activated.WaitAsync(TimeSpan.FromSeconds(5)), "the run did not activate");
+        Assert.Equal(MuffleFilter.MuffledCutoffHz, run.Filter.TargetCutoffHz);
+        // The stale restore returns at once and leaves the sink to the recording that holds it.
+        await first.RestoreAsync();
+        Assert.True(pulse.Sinks.Any(sink => sink.Name == "hw_muffle") && pulse.SinkOf(10) == pulse.MuffleIndex && run.Filter.TargetCutoffHz == MuffleFilter.MuffledCutoffHz,
+            "the stale restore undid the new recording's muffle");
+        await second.RestoreAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "restore left the wrong routing");
+    }
+
+    // Review round 2, #2: a helper that dies while a stream is being moved in must not strand that stream on hw_muffle,
+    // even though the pump's move-back took its copy of the moved streams before the move was recorded.
+    public static async Task HelperDeathDuringAMoveStrandsNothing()
+    {
+        var (pulse, service) = Create();
+        var session = await Muffled(service, TimeSpan.Zero);
+        pulse.BeforeMoveToMuffle = index =>
+        {
+            var before = pulse.CallCount;
+            pulse.Capture!.Close(); // parec died while the watcher's move of this stream is in flight
+            bool Listed() => pulse.CalledSince(before, call => call.Length > 2 && call[2] == "sink-inputs");
+            for (var i = 0; i < 300 && !Listed(); i++) Thread.Sleep(10);
+            Thread.Sleep(100); // the pump's move-back has its snapshot and is done with it
+        };
+        pulse.AddInput(new(15, 0, 502, false));
+        await pulse.WaitUntil(() => pulse.SinkOf(10) == 0 && pulse.SinkOf(17) == 0, "streams stayed on a dead muffle sink");
+        await pulse.WaitUntil(() => pulse.MovedTo("hw_muffle").Contains(15) && pulse.SinkOf(15) == 0, "a stream moved during the helper's death stayed on hw_muffle");
+        await session.RestoreAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(15) == 0, "restore left the wrong routing");
+    }
+
+    // Review round 2, #3: a restore that joins a running one fails when that one fails, and its own token ends only its wait.
+    public static async Task JoinedRestoreSharesTheOutcome()
+    {
+        var restore = new GatedRestore();
+        var owning = restore.RestoreAsync().AsTask(); var joined = restore.RestoreAsync().AsTask();
+        restore.Finish(new InvalidOperationException("unload failed"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => owning);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => joined);
+        Assert.Equal(1, restore.Runs);
+
+        // A joiner whose token is cancelled stops waiting at once; the owner runs on and succeeds; later calls are no-ops.
+        owning = restore.RestoreAsync().AsTask();
+        using (var cancelled = new CancellationTokenSource())
+        {
+            var waiting = restore.RestoreAsync(cancelled.Token).AsTask(); cancelled.Cancel();
+            await Assert.ThrowsAsync<OperationCanceledException>(() => waiting.WaitAsync(TimeSpan.FromSeconds(2)));
+        }
+        Assert.True(!owning.IsCompleted, "the joiner's cancel ended the owner");
+        restore.Finish(null);
+        await owning.WaitAsync(TimeSpan.FromSeconds(2));
+        await restore.RestoreAsync(); Assert.Equal(2, restore.Runs);
+
+        // An owner cancelled by its own caller hands the restore to a joiner that was not cancelled.
+        restore = new GatedRestore();
+        using (var cancelled = new CancellationTokenSource())
+        {
+            owning = restore.RestoreAsync(cancelled.Token).AsTask(); joined = restore.RestoreAsync().AsTask();
+            cancelled.Cancel();
+            await Assert.ThrowsAsync<OperationCanceledException>(() => owning.WaitAsync(TimeSpan.FromSeconds(2)));
+        }
+        await restore.WaitForRuns(2);
+        restore.Finish(null);
+        await joined.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // End to end: the stop's restore fails to unload the sink, and a DisposeAsync that joined it fails as well.
+        var (pulse, service) = Create();
+        var session = await Muffled(service, TimeSpan.FromMilliseconds(100));
+        pulse.FailUnload = 1;
+        var stopping = session.RestoreAsync().AsTask(); var disposing = session.DisposeAsync().AsTask();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => stopping);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => disposing);
+        Assert.True(pulse.Sinks.Any(sink => sink.Name == "hw_muffle"), "the sink is gone, so the failure was not simulated");
+        await session.RestoreAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle"), "the retry did not unload");
+    }
+
+    /// <summary>A restore whose core waits until the test finishes it, with an error or without one.</summary>
+    private sealed class GatedRestore() : DeferredAudioRestore(null)
+    {
+        private TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously); private int _runs;
+        public int Runs => Volatile.Read(ref _runs);
+        public void Finish(Exception? error) { var gate = _gate; _gate = new(TaskCreationOptions.RunContinuationsAsynchronously); if (error is null) gate.TrySetResult(); else gate.TrySetException(error); }
+        public async Task WaitForRuns(int count) { for (var i = 0; i < 200 && Runs < count; i++) await Task.Delay(10); Assert.Equal(count, Runs); }
+        protected override async Task RestoreCoreAsync(CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _runs);
+            await _gate.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     public static Task ParsesPactlJson()
@@ -386,9 +487,14 @@ sealed class FakePulse : IDesktopCommandRunner, IChildProcessLauncher
     public ManualResetEventSlim? HoldLoad { get; set; }
     /// <summary>Runs once, right after the next sink-input listing was taken (a stream that starts just after a scan).</summary>
     public Action? AfterListInputs { get; set; }
+    /// <summary>Runs once, on the caller's thread and before the server takes the call, for the next move into hw_muffle.</summary>
+    public Action<int>? BeforeMoveToMuffle { get => _beforeMove; set => _beforeMove = value; }
+    private Action<int>? _beforeMove;
     /// <summary>The server notifies a subscriber of every new sink input, as a connected `pactl subscribe` prints it.</summary>
     public void AddInput(FakeInput input) { lock (_gate) { Inputs.Add(input); Subscription?.Emit($"Event 'new' on sink-input #{input.Index}\n"); } }
     public List<string[]> Calls { get; } = [];
+    public int CallCount { get { lock (_gate) return Calls.Count; } }
+    public bool CalledSince(int start, Func<string[], bool> match) { lock (_gate) return Calls.Skip(start).Any(match); }
     public List<ChildProcessStartRequest> Started { get; } = [];
     public List<FakePulseChild> Children { get; } = [];
     public FakePulseChild? Capture { get; private set; }
@@ -412,6 +518,8 @@ sealed class FakePulse : IDesktopCommandRunner, IChildProcessLauncher
         cancellationToken.ThrowIfCancellationRequested();
         // A slow server: load-module blocks its caller until the test lets it go.
         if (arguments[0] == "load-module") HoldLoad?.Wait(TimeSpan.FromSeconds(10));
+        if (arguments[0] == "move-sink-input" && arguments[2] == "hw_muffle" && Interlocked.Exchange(ref _beforeMove, null) is { } before)
+            before(int.Parse(arguments[1], System.Globalization.CultureInfo.InvariantCulture));
         lock (_gate)
         {
             Calls.Add([.. arguments]);

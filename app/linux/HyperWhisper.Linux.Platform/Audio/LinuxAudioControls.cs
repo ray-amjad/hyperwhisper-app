@@ -255,8 +255,10 @@ public sealed class LinuxAudioEnvironmentService : IAudioEnvironmentService
     internal void Forget(PulseMuffleRun run) { lock (_muffleGate) if (ReferenceEquals(_muffle, run)) _muffle = null; }
 }
 
-/// <summary>A restore that first waits out a delay. A second call while one runs joins it; one that failed or was cancelled
-/// can be retried; <see cref="RestoreNowAsync"/> (the quit) skips every remaining delay.</summary>
+/// <summary>A restore that first waits out a delay. A second call while one runs joins it and shares its outcome: a failure
+/// throws for both, and a joiner's own token cancels only its wait. When the owner was cancelled by its own token, a joiner
+/// runs the restore itself. One that failed or was cancelled can be retried; <see cref="RestoreNowAsync"/> (the quit) skips
+/// every remaining delay.</summary>
 internal abstract class DeferredAudioRestore(LinuxAudioEnvironmentService? owner) : IAudioEnvironmentSession
 {
     private readonly object _gate = new(); private readonly CancellationTokenSource _skip = new();
@@ -266,22 +268,42 @@ internal abstract class DeferredAudioRestore(LinuxAudioEnvironmentService? owner
 
     public async ValueTask RestoreAsync(CancellationToken cancellationToken = default)
     {
-        TaskCompletionSource? mine = null; Task running;
-        lock (_gate)
+        while (true)
         {
-            if (_done) return;
-            if (_running is null) { mine = new(TaskCreationOptions.RunContinuationsAsynchronously); _running = mine.Task; }
-            running = _running;
+            TaskCompletionSource? mine = null; Task running;
+            lock (_gate)
+            {
+                if (_done) return;
+                if (_running is null) { mine = new(TaskCreationOptions.RunContinuationsAsynchronously); _running = mine.Task; }
+                running = _running;
+            }
+            if (mine is null)
+            {
+                try { await running.WaitAsync(cancellationToken).ConfigureAwait(false); return; }
+                // The owner's caller cancelled, not this one: this caller still wants the restore, so it takes it over.
+                catch (OperationCanceledException) when (running.IsCanceled && !cancellationToken.IsCancellationRequested) { continue; }
+            }
+            try
+            {
+                await RestoreCoreAsync(cancellationToken).ConfigureAwait(false);
+                lock (_gate) { _done = true; _running = null; }
+                owner?.Untrack(this);
+                mine.TrySetResult();
+                return;
+            }
+            catch (Exception error)
+            {
+                lock (_gate) _running = null;
+                if (error is OperationCanceledException && cancellationToken.IsCancellationRequested) mine.TrySetCanceled(cancellationToken);
+                else
+                {
+                    mine.TrySetException(error);
+                    // With no joiner the throw below reports it; reading it keeps the task from being reported as unobserved.
+                    _ = mine.Task.Exception;
+                }
+                throw;
+            }
         }
-        if (mine is null) { await running.ConfigureAwait(false); return; }
-        try
-        {
-            await RestoreCoreAsync(cancellationToken).ConfigureAwait(false);
-            lock (_gate) { _done = true; _running = null; }
-            owner?.Untrack(this);
-        }
-        catch { lock (_gate) _running = null; throw; }
-        finally { mine.TrySetResult(); }
     }
 
     /// <summary>Restores at once, joining a restore already waiting (its delay ends now), and retries once if that fails.</summary>

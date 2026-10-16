@@ -206,9 +206,16 @@ internal sealed class PulseMuffleRun
             return true;
         }
     }
-    /// <summary>Glides back open, and keeps a late activation from engaging again.</summary>
-    public void Release() { lock (_gate) { _released = true; Filter.Release(); } }
-    public bool IsCurrent(int generation) { lock (_gate) return generation == _generation; }
+    /// <summary>Glides back open, and keeps a late activation from engaging again, if <paramref name="generation"/> still holds
+    /// the run. The check and the release are one step: a recording that claims the run in between keeps its filter engaged.</summary>
+    public bool TryRelease(int generation)
+    {
+        lock (_gate)
+        {
+            if (generation != _generation) return false;
+            _released = true; Filter.Release(); return true;
+        }
+    }
     public bool TryBeginTeardown(int generation) { lock (_gate) { if (generation != _generation) return false; _teardownStarted = true; return true; } }
 
     public bool TryMove(int index)
@@ -216,8 +223,13 @@ internal sealed class PulseMuffleRun
         lock (_gate) { if (_stopping || _moved.ContainsKey(index)) return false; }
         var moved = _owner.Pactl(["move-sink-input", PulseAudioMuffler.Number(index), PulseAudioMuffler.SinkName]).ExitCode == 0;
         // A stream that refuses to move (DONT_MOVE) just keeps playing unmuffled.
-        if (moved) lock (_gate) _moved[index] = _real.Name;
-        return moved;
+        if (!moved) return false;
+        // The move ran outside the lock. Either it is recorded before _stopping is set, so MoveBackAsync (which sets
+        // _stopping and then copies _moved) sees it, or a move-back already started without it and this puts it back.
+        lock (_gate) { if (!_stopping) { _moved[index] = _real.Name; return true; } }
+        // If that fails too, the restore's own MoveBackAsync retries it (and the unload rescues it in the end).
+        if (_owner.Pactl(["move-sink-input", PulseAudioMuffler.Number(index), _real.Name]).ExitCode != 0) lock (_gate) _moved[index] = _real.Name;
+        return false;
     }
 
     public void StartPump()
@@ -414,8 +426,7 @@ internal sealed class LinuxMuffleSession(LinuxAudioEnvironmentService owner, Tim
         var generation = prepared.Generation;
         await DelayAsync(delay, cancellationToken).ConfigureAwait(false);
         // A newer recording took the sink over during the delay; it restores it.
-        if (!run.IsCurrent(generation)) return;
-        run.Release();
+        if (!run.TryRelease(generation)) return;
         // A quit skips the glide as well: the sink must be gone before the process is.
         await DelayAsync(MuffleFilter.TeardownDelay, cancellationToken).ConfigureAwait(false);
         if (!run.TryBeginTeardown(generation)) return;
