@@ -213,7 +213,8 @@ public sealed class LinuxAudioEnvironmentService : IAudioEnvironmentService
         // A run no session restores any more (its restore failed twice): tear it down anyway.
         PulseMuffleRun? live; lock (_muffleGate) live = _muffle;
         if (live is null) return;
-        try { await live.TeardownAsync(CancellationToken.None).ConfigureAwait(false); Forget(live); } catch { }
+        try { await live.TeardownAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+        if (live.IsTornDown) Forget(live);
     }
 
     // On the muffle queue: claim the live sink, or replace a dying one, or build one; on failure duck instead.
@@ -228,8 +229,10 @@ public sealed class LinuxAudioEnvironmentService : IAudioEnvironmentService
                 {
                     if (live.TryClaim(out var generation)) return new(live, generation, null);
                     // The previous run is tearing down, or its helpers died: let it finish (or finish it) before building a new sink.
+                    // A teardown that failed may have left its sink loaded (or, before it got that far, its helpers running):
+                    // keep the reference so the next recording or FlushRestoresAsync finishes it, and duck this one instead.
                     var finished = false;
-                    try { finished = live.TeardownAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(3)); } catch { finished = true; }
+                    try { finished = live.TeardownAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(3)); } catch { finished = live.IsTornDown; }
                     if (finished) _muffle = null;
                 }
                 if (_muffle is not null) code = "audio_environment.muffle_busy";
