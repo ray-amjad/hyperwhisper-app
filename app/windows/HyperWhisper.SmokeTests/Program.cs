@@ -111,6 +111,29 @@ internal static class Program
                 Assert(credits >= 0, $"expected credits/min >= 0, got {credits}");
             });
 
+            Run("model download logs one progress line per 10% band (#1600)", () =>
+            {
+                // A 488 MB Whisper download read 16 KB at a time, as the fuzz log
+                // showed: the old "percent % 10 == 0" rule wrote 2,977 lines.
+                const long expectedSize = 487_614_201;
+                const int chunk = 16_384;
+                var lastLoggedBand = DownloadProgressLog.NoBandLogged;
+                var logged = new List<int>();
+                long total = 0;
+                while (total < expectedSize)
+                {
+                    total = Math.Min(total + chunk, expectedSize);
+                    var currentPercent = (int)((double)total / expectedSize * 100);
+                    if (DownloadProgressLog.ShouldLog(currentPercent, ref lastLoggedBand))
+                    {
+                        logged.Add(currentPercent / 10);
+                    }
+                }
+
+                Assert(logged.SequenceEqual(Enumerable.Range(0, 11)),
+                    $"expected one line per band 0..10, got [{string.Join(",", logged)}]");
+            });
+
             Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
             {
                 const string privateUrl = "https://private.example.test/download";

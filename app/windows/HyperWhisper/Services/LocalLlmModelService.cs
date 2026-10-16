@@ -96,7 +96,7 @@ public class LocalLlmModelService
             var buffer = new byte[81920];
             long totalBytesRead = 0;
             int bytesRead;
-            var lastLoggedPercent = -1;
+            var lastLoggedBand = DownloadProgressLog.NoBandLogged;
 
             await using (var fileStream = File.Create(tempPath))
             {
@@ -109,9 +109,8 @@ public class LocalLlmModelService
                     progress?.Report(Math.Min(progressValue, 0.999));
 
                     var currentPercent = (int)(progressValue * 100);
-                    if (currentPercent / 10 != lastLoggedPercent / 10)
+                    if (DownloadProgressLog.ShouldLog(currentPercent, ref lastLoggedBand))
                     {
-                        lastLoggedPercent = currentPercent;
                         LoggingService.Debug($"  Download progress: {currentPercent}% ({totalBytesRead:N0} / {expectedSize:N0} bytes)");
                     }
                 }
