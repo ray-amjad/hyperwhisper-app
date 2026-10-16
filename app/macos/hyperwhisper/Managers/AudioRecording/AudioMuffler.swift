@@ -12,8 +12,9 @@
 //     go silent while the tap runs.
 //  2. A private aggregate device pairs that tap (input) with the default
 //     output device (output). If the default output changes mid-recording,
-//     the tap and aggregate are rebuilt on the new device (or removed if
-//     that fails, so audio plays normally).
+//     a new tap and aggregate are built on the new device before the old
+//     ones are destroyed, so the originals never play unmuted in between
+//     (if the build fails, everything is removed so audio plays normally).
 //  3. The aggregate's IOProc runs the tapped audio through a 4-pole low-pass
 //     filter and writes it to the output device.
 //  4. The cutoff glides from fully open down to `muffledCutoffHz` on start
@@ -73,13 +74,10 @@ final class AudioMuffler: @unchecked Sendable {
     /// queue.
     private let listenerQueue = DispatchQueue(label: "com.hyperwhisper.audio-muffler.listener", qos: .userInitiated)
 
-    private var tapID = AudioObjectID(kAudioObjectUnknown)
-    private var aggregateID = AudioObjectID(kAudioObjectUnknown)
-    private var ioProcID: AudioDeviceIOProcID?
-    private var dsp: MuffleDSP?
+    /// The running tap + aggregate, nil while the muffler is idle.
+    private var graph: Graph?
+    private var dsp: MuffleDSP? { graph?.dsp }
     private var pendingTeardown: DispatchWorkItem?
-    /// The output device the aggregate is bound to.
-    private var outputDeviceID = AudioDeviceID(kAudioObjectUnknown)
     /// Default-output listener, registered while the muffler is live.
     private var defaultOutputListener: AudioObjectPropertyListenerBlock?
 
@@ -102,8 +100,9 @@ final class AudioMuffler: @unchecked Sendable {
                 return
             }
             do {
-                try build()
-                dsp?.setTargetCutoff(Self.muffledCutoffHz)
+                let built = try build()
+                graph = built
+                built.dsp?.setTargetCutoff(Self.muffledCutoffHz)
                 addDefaultOutputListener()
                 AppLogger.audio.info("🔉 Muffle: other audio muffled for recording")
             } catch {
@@ -181,14 +180,22 @@ final class AudioMuffler: @unchecked Sendable {
             AppLogger.audio.warning("🔊 Muffle: no default output device; muffle removed so audio plays normally")
             return
         }
-        guard newDevice != outputDeviceID else { return }
+        guard newDevice != graph?.outputDeviceID else { return }
 
-        teardownGraph()
+        // Build the new graph BEFORE destroying the old one. The old tap's
+        // `.mutedWhenTapped` keeps the originals silent until the new tap
+        // has taken over (both taps mute, so overlapping them is harmless);
+        // destroying first would let the originals play at full volume for
+        // the whole build, which takes hundreds of ms on Bluetooth.
+        let old = graph
         do {
-            try build(startMuffled: true)
-            dsp?.setTargetCutoff(Self.muffledCutoffHz)
+            let built = try build(startMuffled: true)
+            graph = built
+            built.dsp?.setTargetCutoff(Self.muffledCutoffHz)
+            old?.destroy()
             AppLogger.audio.info("🔉 Muffle: moved to the new default output device")
         } catch {
+            // build() cleaned up its own partial graph; this removes the old one.
             AppLogger.audio.error("🔊 Muffle: rebuild on the new output failed (\(error.localizedDescription, privacy: .public)); muffle removed so audio plays normally")
             teardown()
         }
@@ -196,9 +203,47 @@ final class AudioMuffler: @unchecked Sendable {
 
     // MARK: - Build / teardown
 
+    /// One tap + aggregate + IOProc, bound to one output device.
+    private struct Graph {
+        var tapID = AudioObjectID(kAudioObjectUnknown)
+        var aggregateID = AudioObjectID(kAudioObjectUnknown)
+        var ioProcID: AudioDeviceIOProcID?
+        /// The output device the aggregate is bound to.
+        var outputDeviceID = AudioDeviceID(kAudioObjectUnknown)
+        var sampleRate: Double = 0
+        var dsp: MuffleDSP?
+
+        /// Stops and destroys whatever parts exist. Safe on a partial graph.
+        func destroy() {
+            if aggregateID != kAudioObjectUnknown, let procID = ioProcID {
+                AudioDeviceStop(aggregateID, procID)
+                AudioDeviceDestroyIOProcID(aggregateID, procID)
+            }
+            if aggregateID != kAudioObjectUnknown {
+                AudioHardwareDestroyAggregateDevice(aggregateID)
+            }
+            if tapID != kAudioObjectUnknown {
+                AudioHardwareDestroyProcessTap(tapID)
+            }
+        }
+    }
+
+    /// Builds and starts a new graph on the current default output. Does not
+    /// touch `graph`; on failure it destroys whatever it had created.
     /// - Parameter startMuffled: start the filter already at the muffled
     ///   cutoff (a device move mid-recording) instead of fully open.
-    private func build(startMuffled: Bool = false) throws {
+    private func build(startMuffled: Bool = false) throws -> Graph {
+        var graph = Graph()
+        do {
+            try build(into: &graph, startMuffled: startMuffled)
+            return graph
+        } catch {
+            graph.destroy()
+            throw error
+        }
+    }
+
+    private func build(into graph: inout Graph, startMuffled: Bool) throws {
         guard let outputDevice = Self.defaultOutputDevice() else {
             throw MuffleError("no default output device")
         }
@@ -223,7 +268,7 @@ final class AudioMuffler: @unchecked Sendable {
         guard status == noErr, newTap != kAudioObjectUnknown else {
             throw MuffleError("AudioHardwareCreateProcessTap failed (\(status))")
         }
-        tapID = newTap
+        graph.tapID = newTap
 
         let tapChannels = Self.tapChannelCount(newTap) ?? 2
 
@@ -250,8 +295,8 @@ final class AudioMuffler: @unchecked Sendable {
         guard status == noErr, newAggregate != kAudioObjectUnknown else {
             throw MuffleError("AudioHardwareCreateAggregateDevice failed (\(status))")
         }
-        aggregateID = newAggregate
-        outputDeviceID = outputDevice
+        graph.aggregateID = newAggregate
+        graph.outputDeviceID = outputDevice
 
         let sampleRate = Self.nominalSampleRate(newAggregate) ?? 48_000
         let dsp = MuffleDSP(
@@ -259,7 +304,8 @@ final class AudioMuffler: @unchecked Sendable {
             tapChannels: tapChannels,
             startCutoff: startMuffled ? Self.muffledCutoffHz : nil
         )
-        self.dsp = dsp
+        graph.sampleRate = sampleRate
+        graph.dsp = dsp
 
         var procID: AudioDeviceIOProcID?
         status = AudioDeviceCreateIOProcIDWithBlock(&procID, newAggregate, ioQueue) { _, inputData, _, outputData, _ in
@@ -268,7 +314,7 @@ final class AudioMuffler: @unchecked Sendable {
         guard status == noErr, let procID else {
             throw MuffleError("AudioDeviceCreateIOProcIDWithBlock failed (\(status))")
         }
-        ioProcID = procID
+        graph.ioProcID = procID
 
         status = AudioDeviceStart(newAggregate, procID)
         guard status == noErr else {
@@ -285,22 +331,10 @@ final class AudioMuffler: @unchecked Sendable {
     }
 
     /// Destroys the IOProc, aggregate and tap, leaving the listener alone.
+    /// Idempotent.
     private func teardownGraph() {
-        if aggregateID != kAudioObjectUnknown, let procID = ioProcID {
-            AudioDeviceStop(aggregateID, procID)
-            AudioDeviceDestroyIOProcID(aggregateID, procID)
-        }
-        ioProcID = nil
-        if aggregateID != kAudioObjectUnknown {
-            AudioHardwareDestroyAggregateDevice(aggregateID)
-            aggregateID = AudioObjectID(kAudioObjectUnknown)
-        }
-        if tapID != kAudioObjectUnknown {
-            AudioHardwareDestroyProcessTap(tapID)
-            tapID = AudioObjectID(kAudioObjectUnknown)
-        }
-        outputDeviceID = AudioDeviceID(kAudioObjectUnknown)
-        dsp = nil
+        graph?.destroy()
+        graph = nil
     }
 
     // MARK: - Core Audio helpers
