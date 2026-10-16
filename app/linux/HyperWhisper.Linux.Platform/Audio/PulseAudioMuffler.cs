@@ -223,8 +223,13 @@ internal sealed class PulseMuffleRun
         lock (_gate) { if (_stopping || _moved.ContainsKey(index)) return false; }
         var moved = _owner.Pactl(["move-sink-input", PulseAudioMuffler.Number(index), PulseAudioMuffler.SinkName]).ExitCode == 0;
         // A stream that refuses to move (DONT_MOVE) just keeps playing unmuffled.
-        if (moved) lock (_gate) _moved[index] = _real.Name;
-        return moved;
+        if (!moved) return false;
+        // The move ran outside the lock. Either it is recorded before _stopping is set, so MoveBackAsync (which sets
+        // _stopping and then copies _moved) sees it, or a move-back already started without it and this puts it back.
+        lock (_gate) { if (!_stopping) { _moved[index] = _real.Name; return true; } }
+        // If that fails too, the restore's own MoveBackAsync retries it (and the unload rescues it in the end).
+        if (_owner.Pactl(["move-sink-input", PulseAudioMuffler.Number(index), _real.Name]).ExitCode != 0) lock (_gate) _moved[index] = _real.Name;
+        return false;
     }
 
     public void StartPump()

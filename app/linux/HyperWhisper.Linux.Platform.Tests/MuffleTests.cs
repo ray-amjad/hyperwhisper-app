@@ -378,6 +378,27 @@ static class MuffleTests
         Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "restore left the wrong routing");
     }
 
+    // Review round 2, #2: a helper that dies while a stream is being moved in must not strand that stream on hw_muffle,
+    // even though the pump's move-back took its copy of the moved streams before the move was recorded.
+    public static async Task HelperDeathDuringAMoveStrandsNothing()
+    {
+        var (pulse, service) = Create();
+        var session = await Muffled(service, TimeSpan.Zero);
+        pulse.BeforeMoveToMuffle = index =>
+        {
+            var before = pulse.CallCount;
+            pulse.Capture!.Close(); // parec died while the watcher's move of this stream is in flight
+            bool Listed() => pulse.CalledSince(before, call => call.Length > 2 && call[2] == "sink-inputs");
+            for (var i = 0; i < 300 && !Listed(); i++) Thread.Sleep(10);
+            Thread.Sleep(100); // the pump's move-back has its snapshot and is done with it
+        };
+        pulse.AddInput(new(15, 0, 502, false));
+        await pulse.WaitUntil(() => pulse.SinkOf(10) == 0 && pulse.SinkOf(17) == 0, "streams stayed on a dead muffle sink");
+        await pulse.WaitUntil(() => pulse.MovedTo("hw_muffle").Contains(15) && pulse.SinkOf(15) == 0, "a stream moved during the helper's death stayed on hw_muffle");
+        await session.RestoreAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(15) == 0, "restore left the wrong routing");
+    }
+
     public static Task ParsesPactlJson()
     {
         var sinks = PulseAudioMuffler.ParseSinks(new(0, """[{"index":3,"name":"alsa_output.pci","owner_module":"12","sample_specification":"s32le 6ch 96000Hz"}]"""u8.ToArray()));
@@ -405,9 +426,14 @@ sealed class FakePulse : IDesktopCommandRunner, IChildProcessLauncher
     public ManualResetEventSlim? HoldLoad { get; set; }
     /// <summary>Runs once, right after the next sink-input listing was taken (a stream that starts just after a scan).</summary>
     public Action? AfterListInputs { get; set; }
+    /// <summary>Runs once, on the caller's thread and before the server takes the call, for the next move into hw_muffle.</summary>
+    public Action<int>? BeforeMoveToMuffle { get => _beforeMove; set => _beforeMove = value; }
+    private Action<int>? _beforeMove;
     /// <summary>The server notifies a subscriber of every new sink input, as a connected `pactl subscribe` prints it.</summary>
     public void AddInput(FakeInput input) { lock (_gate) { Inputs.Add(input); Subscription?.Emit($"Event 'new' on sink-input #{input.Index}\n"); } }
     public List<string[]> Calls { get; } = [];
+    public int CallCount { get { lock (_gate) return Calls.Count; } }
+    public bool CalledSince(int start, Func<string[], bool> match) { lock (_gate) return Calls.Skip(start).Any(match); }
     public List<ChildProcessStartRequest> Started { get; } = [];
     public List<FakePulseChild> Children { get; } = [];
     public FakePulseChild? Capture { get; private set; }
@@ -431,6 +457,8 @@ sealed class FakePulse : IDesktopCommandRunner, IChildProcessLauncher
         cancellationToken.ThrowIfCancellationRequested();
         // A slow server: load-module blocks its caller until the test lets it go.
         if (arguments[0] == "load-module") HoldLoad?.Wait(TimeSpan.FromSeconds(10));
+        if (arguments[0] == "move-sink-input" && arguments[2] == "hw_muffle" && Interlocked.Exchange(ref _beforeMove, null) is { } before)
+            before(int.Parse(arguments[1], System.Globalization.CultureInfo.InvariantCulture));
         lock (_gate)
         {
             Calls.Add([.. arguments]);
