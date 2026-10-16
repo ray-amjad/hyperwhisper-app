@@ -253,31 +253,6 @@ struct NoSpeechDiagnosticsTests {
         })
     }
 
-    /// A microphone's name is one a person can rename ("<name>'s AirPods"), so
-    /// `selected_input_device_name` is off the allow-list (issue #805). This
-    /// diagnostic is a Sentry Log, and the Logs path redacts tags too.
-    @Test func theInputDeviceNameTagIsRedactedOnTheLogsPath() {
-        let payload = TranscriptionDiagnosticsService.buildPayload(
-            audio: audio(),
-            audioFileExists: true,
-            audioFileExtension: "wav",
-            modeIdentity: nil,
-            attemptDiagnostics: nil,
-            responseNoSpeechDetected: nil,
-            diagnosticStage: "live_recording",
-            diagnosticSource: "provider_no_speech",
-            presentation: TranscriptionDiagnosticsService.presentation(for: .noSpeech)!,
-            inputDeviceName: "Fixture Person's Headset"
-        )
-        let attributes = SentryService.mergeLogAttributes(
-            scopeExtras: [:], scopeTags: [:], extras: payload.extras, tags: payload.tags
-        )
-
-        #expect(payload.tags["selected_input_device_name"] == "Fixture Person's Headset")
-        #expect(attributes["selected_input_device_name"] as? String == "[redacted]")
-        #expect(attributes["audio_file_extension"] as? String == "wav")
-    }
-
     @Test func missingResponseMetadataUsesUnknown() {
         let payload = TranscriptionDiagnosticsService.buildPayload(
             audio: audio(),

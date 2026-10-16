@@ -163,24 +163,12 @@ struct SentryDiagnosticRoutingTests {
         #expect(!SentryService.isRedactedExtraKey("isHyperwhisperTranscription"))
         #expect(!SentryService.isRedactedExtraKey("fileExtension"))
         #expect(!SentryService.isRedactedExtraKey("audio_file_extension"))
+        #expect(!SentryService.isRedactedExtraKey("save_context"))
 
         #expect(SentryService.isRedactedExtraKey("TranscriptionState"))
         #expect(SentryService.isRedactedExtraKey("transcriptionstate"))
         #expect(SentryService.isRedactedExtraKey("transcriptionState_text"))
         #expect(SentryService.isRedactedExtraKey("fileExtension "))
         #expect(SentryService.isRedactedExtraKey(""))
-    }
-
-    /// Keys sent today whose value can carry user content are deliberately off
-    /// the list: raw error descriptions, and device names a person can rename.
-    @Test func contentBearingKeysSentTodayAreNotAllowed() {
-        let offTheList = [
-            "errorDescription", "errorFailureReason", "user_message",
-            "selectedDeviceName", "activeDeviceName", "selectedInputDeviceName",
-            "activeInputDeviceName", "availableInputDevices", "selected_input_device_name"
-        ]
-        for key in offTheList {
-            #expect(SentryService.isRedactedExtraKey(key), "\(key) must stay off the list")
-        }
     }
 }

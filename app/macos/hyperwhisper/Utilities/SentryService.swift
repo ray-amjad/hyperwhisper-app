@@ -398,8 +398,9 @@ enum SentryService {
     /// redacted: its String, array or dictionary value becomes `[redacted]`.
     ///
     /// This replaced a substring deny-list (`transcript` / `text` / `prompt`).
-    /// That list over-matched — `transcriptionState`, `fileExtension` and
-    /// `audio_file_extension` all arrived as `[redacted]` — and under-matched:
+    /// That list over-matched — `transcriptionState` and `save_context`
+    /// ("conTEXT") arrived as `[redacted]`, and so does any key where a word
+    /// ending in "t" meets "Extension" — and under-matched:
     /// the user-typed Mode name went out as `modeName` for months (#795)
     /// because nobody had thought to add `mode`. With an allow-list a key
     /// nobody reviewed stays hidden, so a new diagnostic fails safe.
@@ -412,15 +413,11 @@ enum SentryService {
     /// A key whose value is only ever a Bool or a number does not need to be
     /// here at all — see `redactedValue(forKey:value:)`.
     ///
-    /// Sent today and deliberately NOT here (their String values redact):
-    /// `errorDescription`, `errorFailureReason`, `user_message` (raw error
-    /// text); `selectedDeviceName`, `activeDeviceName`,
-    /// `selectedInputDeviceName`, `activeInputDeviceName`,
-    /// `availableInputDevices`, `selected_input_device_name` (device names a
-    /// person can rename, e.g. "<name>'s AirPods"); `selectedDeviceUID`,
-    /// `activeDeviceUID`, `systemDefaultDeviceUID`, `selectedInputDeviceUID`,
-    /// `activeInputDeviceUID`, `systemDefaultInputDeviceUID` (hardware ids; a
-    /// Bluetooth one embeds the device address).
+    /// Sent today, on the list, and follow-up candidates to take OFF it: every
+    /// key marked FOLLOW-UP below. They may carry
+    /// personal data — raw error text with paths, device names a person can
+    /// rename, a Bluetooth device address — and are kept only so this change
+    /// hides nothing that ships today. Removing them is a separate decision.
     ///
     /// Tags are on the list too: the Logs path (`mergeLogAttributes`) flattens
     /// tags into the same attribute bag and redacts them by the same rule. The
@@ -457,7 +454,7 @@ enum SentryService {
 
         // Transcription failure (TranscriptionPipeline.transcriptionFailureExtras)
         // and its tags. `transcriptionState` is the case name only;
-        // `fileExtension` is `pathExtension` alone (#1673 class).
+        // `fileExtension` is `pathExtension` alone.
         "actualProvider", "modelString", "useCloud", "modePreset", "modeIsSystemProvided",
         "language", "postProcessingMode", "postProcessingProvider", "shouldRunPostProcessing",
         "isHyperwhisperTranscription", "fileExists", "fileReadable", "fileSizeBytes",
@@ -472,6 +469,8 @@ enum SentryService {
         "cloud_provider", "local_engine", "provider_attempt_source",
         "backend_no_speech_detected", "audio_analysis_succeeded", "audio_rms_dbfs_bucket",
         "mic_boost_failed",
+        // FOLLOW-UP: the active microphone's name, which a person can rename.
+        "selected_input_device_name",
         "audio_file_exists", "audio_file_extension", "audio_file_size_bytes",
         "audio_duration_seconds", "audio_peak_dbfs", "audio_rms_dbfs", "audio_non_silent_ratio",
         "audio_decoded_sample_count", "audio_measured_sample_count", "provider_display_name",
@@ -487,7 +486,7 @@ enum SentryService {
         "stage_effective_ui_threshold_ms", "stage_reported_at",
 
         // Recording-start failure (RecordingTranscriptionFlow
-        // .recordingStartFailureMetadata). Device names and UIDs are left off.
+        // .recordingStartFailureMetadata).
         "recordingAttemptId", "recordingTriggerSource", "permissionStatus",
         "hasMicrophonePermission", "recordingLifecycleHasPermission",
         "selectedDeviceTransportType", "recordingsFolderIsDefault", "recordingsFolderIsInHome",
@@ -497,12 +496,19 @@ enum SentryService {
         "mediaControlMode", "autoIncreaseMicVolume", "activeDeviceIsDefault",
         "activeDeviceTransportType", "inputSampleRateHz", "inputChannelCount", "inputBitDepth",
         "inputIsFloat", "availableInputDeviceCount", "recordingFailureStage",
+        // FOLLOW-UP: may carry personal data (raw error text, renamed device
+        // names, Bluetooth address). Kept so nothing shipping today is hidden.
+        "errorDescription", "errorFailureReason", "selectedDeviceName", "selectedDeviceUID",
+        "activeDeviceName", "activeDeviceUID", "systemDefaultDeviceUID", "availableInputDevices",
 
         // Recording stop / audio finalization (RecordingLifecycle).
         "recordingDurationMs", "rawExists", "rawReadable", "dstExists", "rawSizeBytes",
         "volumeFreeBytes", "sessionId", "rawFileType", "dstFileType", "rawIsIncompleteName",
         "dstInDefaultRecordingsFolder", "inputVolumeScalar", "selectedInputDeviceTransportType",
         "activeInputDeviceTransportType",
+        // FOLLOW-UP: device names and hardware UIDs, as above.
+        "selectedInputDeviceName", "selectedInputDeviceUID", "activeInputDeviceName",
+        "activeInputDeviceUID", "systemDefaultInputDeviceUID",
 
         // RecordingStartTrace (`recording_start_` + fixed suffixes).
         "recording_start_state", "recording_start_attempt", "recording_start_trigger",
@@ -578,6 +584,9 @@ enum SentryService {
         "parakeet_error_domain", "parakeet_model_id_length", "parakeet_unknown_model_version",
         "parakeet_failure_kind", "parakeet_unknown_model_class",
         "modelId", "target", "model_id",
+        // FOLLOW-UP: LocalModelManager's message, which embeds a raw
+        // `localizedDescription`.
+        "user_message",
 
         // Licence validation (LicenseNetworkService). `license_reason` is the
         // server's own reason slug.
