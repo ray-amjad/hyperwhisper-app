@@ -1,6 +1,6 @@
 # Spec: Windows on-device Whisper in an idle-exiting worker process
 
-Status: DRAFT 3. The interview is not done. Items marked *(open)* wait for Ray.
+Status: DRAFT 4. The interview is not done. Items marked *(open)* wait for Ray.
 
 - Repo: `ray-amjad/hyperwhisper-app`, base `main` (`4166f4b0` when this draft was written).
 - Issue: #1194 (follow-up of #1122; PR #1193 closed).
@@ -34,7 +34,7 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 - No change to transcription quality, the decoding options or `CollapseRepetitionLoops` output.
 - No change on macOS or Linux.
 - No change to local post-processing. Note: `LLamaSharp.Backend.Vulkan` (`HyperWhisper.csproj` 76) can also hold a Vulkan device in the app. If a user has a local LLM loaded, the GPU can stay at P0 for that reason. That is a separate issue.
-- No upgrade of the Whisper.net native runtime for its own sake (see decision D4).
+- No other Whisper.net change than the 1.9.0 to 1.9.1 step that D4 brings.
 
 ## 4. Code on main today
 
@@ -56,9 +56,21 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 - A console app, `net10.0`, self-contained publish for `win-x64` and `win-arm64` (D3).
 - Every Whisper path runs in the worker: x64 with a GPU, x64 CPU-only, and ARM64 (D3). The ARM64 thread rule (`TranscriptionService.cs` 522-544) moves into the worker.
 - The worker references Whisper.net and its native runtimes. The app csproj removes Whisper.net, its 3 runtime packages and the static `RuntimeLibraryOrder` ctor. No Whisper DLL loads in the app process.
+- It references `app/shared-dotnet/HyperWhisper.LocalInference` and uses `LocalWhisperService` for load and transcribe (D4). No second copy of the decoding code.
 - It does the native work only: load the model, run the processor with the options the app sends, return segments and text.
 - Audio preparation stays in the app. The app writes the 16 kHz mono WAV to a temp file and sends the path. So NAudio stays out of the worker.
 - It exits on stdin EOF. So it dies with the app, also on a crash of the app.
+
+### 5.1a Shared project changes (D4)
+
+- `HyperWhisper.LocalInference.csproj` keeps only `Whisper.net` 1.9.1. The runtime PackageReferences move to each head.
+- `HyperWhisper.Linux.csproj` adds `Whisper.net.Runtime`, `.Vulkan` and `.Cuda12` 1.9.1, so the Linux build output does not change. The Linux test projects add the same if they load a model.
+- The worker csproj adds `Whisper.net.Runtime`, `.NoAvx` and `.Vulkan` 1.9.1. No Cuda12.
+- Windows moves from Whisper.net 1.9.0 to 1.9.1.
+- `LocalWhisperRequest` gets the 2 Windows deltas as options, default off so Linux does not change: `MaxLastTextTokensZero` (`WithMaxLastTextTokens(0)`) and the ARM64 thread rule.
+- `LocalWhisperLoadOptions` gets a runtime order (Vulkan, Cpu, CpuNoAvx on Windows), set before the first factory.
+- `LoadAsync` today returns `ModelLoadFailed` for every exception. It must split a native-runtime fault (`DllNotFoundException`, `BadImageFormatException`, `EntryPointNotFoundException` inside) into `RuntimeUnavailable`, so `IsModelFileLoadFault` (#1598) still holds across the process boundary.
+- Tests: `HyperWhisper.LocalInference.Tests` covers the new options and the error split.
 
 ### 5.2 Protocol (JSON lines over stdio, like Parakeet)
 
@@ -92,7 +104,7 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 - D1 *(decided 2026-10-16)*: Option A, a new console project `HyperWhisper.WhisperWorker`. Not B (re-launch `HyperWhisper.exe --whisper-worker`: WPF host starts in the child, Whisper DLLs stay in the app). Not C (accept P0).
 - D2 *(open)*: the idle exit — fixed 5 minutes, or a setting.
 - D3 *(decided 2026-10-16)*: every Whisper path runs in the worker (x64 GPU, x64 CPU, ARM64). One code path. The app drops Whisper.net. Not chosen: worker only for x64 with a discrete GPU.
-- D4 *(open)*: the Whisper.net version in the worker — reuse `LocalInference` (1.9.1, with Cuda12 and no NoAvx), or the app's 1.9.0 set.
+- D4 *(decided 2026-10-16)*: reuse `LocalWhisperService` from `HyperWhisper.LocalInference`. Move the runtime packages from the shared csproj to each head (Linux keeps Cuda12; the worker gets Runtime, NoAvx, Vulkan). Windows moves to Whisper.net 1.9.1. Not chosen: a worker-only copy of the code on 1.9.0.
 - D5 *(open)*: the cold-start cost — keep-warm at recording start only, or also at app start.
 
 ## 7. Risks
@@ -101,6 +113,7 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 - Antivirus and SmartScreen can slow or block a new unsigned exe. The worker needs the same signing as the app.
 - Two processes hold the model during a model switch if the old worker does not exit first. The client waits for the exit.
 - Temp WAV files must be deleted after each request, also on a crash.
+- Whisper.net 1.9.1 on Windows Vulkan is new. The RTX 4060 smoke and one CPU-only run must pass before the PR is ready.
 - Installer size grows if the worker carries its own self-contained .NET runtime.
 
 ## 8. Test plan
