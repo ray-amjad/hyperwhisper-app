@@ -12333,6 +12333,48 @@ internal static class Program
                 }
             });
 
+            Run("engine whisper with no model is INVALID_REQUEST with a send-model hint (#1493)", () =>
+            {
+                // ISSUE #1493 (Ray, inbox #295). A missing or blank Whisper
+                // `model` is a request mistake: INVALID_REQUEST, the portable
+                // head's message, and a hint to send `model`. It used to be
+                // ENGINE_UNAVAILABLE "Missing 'model' for whisperLocal engine",
+                // whose shared hint says "Try again later", so a client that
+                // branches on `code` retried a request that can never pass.
+                // No default model is picked.
+                foreach (var engine in new[] { "whisper", "whisperLocal", "libwhisper", " WhisperLocal " })
+                {
+                    foreach (var model in new string?[] { null, "", "  ", "\t\n" })
+                    {
+                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException? refusal = null;
+                        try
+                        {
+                            HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                                new Mode(), engine, model);
+                        }
+                        catch (HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException ex)
+                        {
+                            refusal = ex;
+                        }
+                        var label = $"engine '{engine}' with model {(model is null ? "null" : $"'{model}'")}";
+                        Assert(refusal is not null, $"{label} was not refused");
+                        Assert(refusal!.Code == LocalApiErrorCode.InvalidRequest,
+                            $"{label} answered {refusal.Code}, not INVALID_REQUEST");
+                        Assert(refusal.Message == "A Whisper model is required.",
+                            $"{label} answered message '{refusal.Message}'");
+                        Assert(refusal.Hint == "Send model, for example base.en.",
+                            $"{label} answered hint '{refusal.Hint}'");
+                    }
+                }
+
+                // A real model still runs: the refusal is scoped to a missing one.
+                var explicitModel = new Mode();
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    explicitModel, "whisper", "base.en");
+                Assert(explicitModel is { ProviderType: "local", LocalEngine: "whisper", ModelType: "base.en" },
+                    "engine whisper with model base.en no longer selects local Whisper base.en");
+            });
+
             Run("the transcription detail slot carries ex.Message, not the toast sentence", () =>
             {
                 // ISSUE #356 ITEM 4, REVIEW ROUND 1. `MapTranscriptionException`

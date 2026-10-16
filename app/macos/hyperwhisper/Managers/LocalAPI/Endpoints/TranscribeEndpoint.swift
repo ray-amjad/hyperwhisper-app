@@ -328,6 +328,57 @@ enum TranscribeEndpoint {
         let code: LocalAPIErrorCode
         let message: String
         let hint: String?
+
+        /// `engine: whisper` (any alias of `whisperLocal`) with no or a blank
+        /// `model` (issue #1493, Ray's decision via inbox #295). A request
+        /// mistake, so INVALID_REQUEST with a hint to send `model` — not the
+        /// ENGINE_UNAVAILABLE "Try again later" it used to be, which a client
+        /// that branches on `code` retries forever. No default model is picked.
+        /// The message is the portable head's own wording
+        /// (`ApplicationLocalApiBackend.Transcription.cs`), and Windows sends
+        /// the same bytes (`TranscribeEndpoints.ApplyEngineModel`).
+        ///
+        /// Thrown by both `/transcribe` forms: the engine-only path
+        /// (`TranscriptionProviderRouter.resolveProvider`) and the mixed
+        /// mode_id + engine path (`validateMixedPathEngineModel`, #1466).
+        /// Not routed through the shared failure table: its INVALID_REQUEST
+        /// row renders "Invalid request: <detail>" and carries no hint.
+        static let whisperModelRequired = APIInputError(
+            code: .invalidRequest,
+            message: "A Whisper model is required.",
+            hint: "Send model, for example base.en."
+        )
+
+        /// MODEL_NOT_INSTALLED for a Nemotron variant that is not on disk,
+        /// naming the model that was tried and, when the other variant IS
+        /// installed, suggesting it (issue #1493). The routing is unchanged: an
+        /// omitted `model` still tries `nemotron-asr-3.5-multilingual`
+        /// (`NemotronModelManager.Constants.modelIdForSelection`); only the
+        /// error says which model that was. The shared row's message ignores
+        /// the `model` slot, so the head renders it here.
+        ///
+        /// `isInstalled` is `NemotronModelManager.isVariantInstalled` in the
+        /// app and a stub in the tests, which cannot control the disk.
+        static func nemotronModelNotInstalled(
+            _ triedModelId: String,
+            isInstalled: (String) -> Bool
+        ) -> APIInputError {
+            let installedAlternative = [
+                NemotronModelManager.Constants.multilingualModelId,
+                NemotronModelManager.Constants.latinModelId,
+            ].first { $0 != triedModelId && isInstalled($0) }
+            let hint: String
+            if let installedAlternative {
+                hint = "Send model: \(installedAlternative), or install it."
+            } else {
+                hint = "Install it from the app's Library, or pick a different engine/model."
+            }
+            return APIInputError(
+                code: .modelNotInstalled,
+                message: "\(triedModelId) is not installed.",
+                hint: hint
+            )
+        }
     }
 
     /// The "audio is too big" input error, with its wording read off Rust.
@@ -1381,10 +1432,11 @@ enum TranscribeEndpoint {
     /// string itself (issue #1466).
     ///
     /// - A blank model (`""`, whitespace) throws `resolveProvider`'s own
-    ///   "Missing 'model' for whisperLocal engine", which the endpoint maps to
-    ///   ENGINE_UNAVAILABLE. Ray's decision 2026-10-08: refuse it, like Windows
-    ///   (`ApplyEngineModel`) and Linux (`ApplyTranscriptionOverrides`) do on
-    ///   both paths, rather than default it to "base".
+    ///   `APIInputError.whisperModelRequired` (INVALID_REQUEST, "A Whisper
+    ///   model is required.", issue #1493). Ray's decision 2026-10-08: refuse
+    ///   it, like Windows (`ApplyEngineModel`) and Linux
+    ///   (`ApplyTranscriptionOverrides`) do on both paths, rather than default
+    ///   it to "base".
     /// - `"cloud"` (any case, padded) throws "Unknown local model: <model>".
     ///   The engine-only path already refuses it that way: `resolveProvider`
     ///   passes it to `selectLocalProvider`, which matches no local model and
@@ -1426,7 +1478,7 @@ enum TranscribeEndpoint {
             guard let model else { return }
             let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmedModel.isEmpty {
-                throw TranscriptionError.providerNotAvailable(provider: "Whisper", reason: "Missing 'model' for whisperLocal engine")
+                throw APIInputError.whisperModelRequired
             }
             if trimmedModel.lowercased() == "cloud" {
                 throw TranscriptionError.providerNotAvailable(provider: "Local", reason: "Unknown local model: \(trimmedModel)")

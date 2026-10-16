@@ -713,7 +713,14 @@ components:
             The model to run. Optional. It is echoed back unvalidated, and it
             wins over everything the Mode holds. Omit it to let the `engine`
             choose, and read `mode_id` above for what happens when the Mode and
-            the `engine` disagree about the model.
+            the `engine` disagree about the model. `whisperLocal` (and its
+            aliases) is the exception: sent with `engine` and no `mode_id`, it
+            needs a `model` (for example `base.en`), and a missing or blank one
+            is refused with `INVALID_REQUEST` on all three platforms (macOS
+            and Windows answer HTTP 200 with the message "A Whisper model is
+            required."; Linux answers HTTP 400). `nemotron` with no `model` tries
+            `nemotron-asr-3.5-multilingual`; when that is not installed, the
+            `MODEL_NOT_INSTALLED` message names it.
         language:
           type: string
         timestamp_granularities:
