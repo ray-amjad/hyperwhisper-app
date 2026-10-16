@@ -50,6 +50,18 @@ final class AudioMuffler: @unchecked Sendable {
     /// How long `stop()` waits for the glide back up before tearing down.
     static let teardownDelay: TimeInterval = 0.25
 
+    // MARK: - Aggregate identity
+
+    /// Name and UID prefix of the private aggregate. It is visible to this
+    /// process's own device list, so device pickers must skip it.
+    static let aggregateName = "HyperWhisper Muffle"
+    static let aggregateUIDPrefix = "com.hyperwhisper.muffle."
+
+    /// True for the muffle aggregate (matched by UID prefix, or by name).
+    static func isMuffleAggregate(uid: String, name: String) -> Bool {
+        uid.hasPrefix(aggregateUIDPrefix) || name == aggregateName
+    }
+
     // MARK: - State (only touched on `controlQueue`)
 
     private let controlQueue = DispatchQueue(label: "com.hyperwhisper.audio-muffler", qos: .userInitiated)
@@ -206,8 +218,8 @@ final class AudioMuffler: @unchecked Sendable {
         let tapChannels = Self.tapChannelCount(newTap) ?? 2
 
         let aggregateDescription: [String: Any] = [
-            kAudioAggregateDeviceNameKey: "HyperWhisper Muffle",
-            kAudioAggregateDeviceUIDKey: "com.hyperwhisper.muffle.\(UUID().uuidString)",
+            kAudioAggregateDeviceNameKey: Self.aggregateName,
+            kAudioAggregateDeviceUIDKey: "\(Self.aggregateUIDPrefix)\(UUID().uuidString)",
             kAudioAggregateDeviceMainSubDeviceKey: outputUID,
             kAudioAggregateDeviceIsPrivateKey: true,
             kAudioAggregateDeviceIsStackedKey: false,
