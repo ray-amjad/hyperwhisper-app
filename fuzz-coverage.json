@@ -451,6 +451,22 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY; Debug = staging). #1858 filed (Local PP saved with no LLM, reopens Off); #642 commented (stale licence error also survives page change). core-settings clean; Autocapitalize toggle needs Accessibility (prompt cancelled, by design). Codex deleted the leftover HW771 modes in Percy's profile."
+    },
+    {
+      "at": "2026-10-16T02:05:27Z",
+      "platform": "win",
+      "commit": "669b7412",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "modes"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "unlicensed. vocabulary: add/edit/delete clean. provider-settings: Groq fake key, empty clear, spaced key all gave clear validation. modes: 14 steps ran out in the new-mode form (scroll ate 4 steps), never saved/renamed/deleted a mode - next modes goal should start from the form already open and go straight to Save + status bar check."
     }
   ]
 }
