@@ -337,30 +337,53 @@ final class MuffleDSP: @unchecked Sendable {
         let inList = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
         let outList = UnsafeMutableAudioBufferListPointer(output)
 
-        // Flatten input channels. The tap's channels come after any input
-        // channels of the output device itself, so take the LAST `tapChannels`.
-        var inCount = 0
-        var inFrames = Int.max
-        for buffer in inList {
-            guard let data = buffer.mData?.assumingMemoryBound(to: Float.self) else { continue }
-            let channels = Int(buffer.mNumberChannels)
-            guard channels > 0 else { continue }
-            inFrames = min(inFrames, Int(buffer.mDataByteSize) / (MemoryLayout<Float>.size * channels))
-            for c in 0..<channels where inCount < Self.maxChannels * 2 {
-                inPointers[inCount] = data + c
-                inStrides[inCount] = channels
-                inCount += 1
-            }
+        // Start from silence on every output channel. Only the first
+        // tap-wide channels (L/R) get the muffled mix below; centre, LFE,
+        // rears and any extra interface outputs stay silent.
+        for buffer in outList {
+            if let data = buffer.mData { memset(data, 0, Int(buffer.mDataByteSize)) }
         }
 
+        // Locate the tap. The aggregate lists the output device's own input
+        // streams (if any) first and the tap's stream LAST, so walk the
+        // buffer list from the end and take `tapChannels` channels from there.
+        // Counting from the end, with no cap on how many device inputs come
+        // before it, keeps a device's microphones out of the filter however
+        // many input channels it has. Pointers are collected in reverse.
+        let wanted = min(tapChannels, Self.maxChannels)
+        var tapCount = 0
+        var inFrames = Int.max
+        var bufferIndex = inList.count - 1
+        while bufferIndex >= 0 && tapCount < wanted {
+            let buffer = inList[bufferIndex]
+            bufferIndex -= 1
+            let channels = Int(buffer.mNumberChannels)
+            guard channels > 0 else { continue }
+            // A tap buffer with no data: treat the tap as silent this cycle
+            // rather than reaching past it into the device's inputs.
+            guard let data = buffer.mData?.assumingMemoryBound(to: Float.self) else { break }
+            inFrames = min(inFrames, Int(buffer.mDataByteSize) / (MemoryLayout<Float>.size * channels))
+            var c = channels - 1
+            while c >= 0 && tapCount < wanted {
+                inPointers[tapCount] = data + c
+                inStrides[tapCount] = channels
+                tapCount += 1
+                c -= 1
+            }
+        }
+        guard tapCount > 0, inFrames != Int.max, inFrames > 0 else { return }
+
+        // Output channels that carry audio: one per tap channel, and a mono
+        // tap feeds both L and R.
+        let outWanted = min(tapCount == 1 ? 2 : tapCount, Self.maxChannels)
         var outCount = 0
         var outFrames = Int.max
-        for buffer in outList {
+        for buffer in outList where outCount < outWanted {
             guard let data = buffer.mData?.assumingMemoryBound(to: Float.self) else { continue }
             let channels = Int(buffer.mNumberChannels)
             guard channels > 0 else { continue }
             outFrames = min(outFrames, Int(buffer.mDataByteSize) / (MemoryLayout<Float>.size * channels))
-            for c in 0..<channels where outCount < Self.maxChannels {
+            for c in 0..<channels where outCount < outWanted {
                 outPointers[outCount] = data + c
                 outStrides[outCount] = channels
                 outCount += 1
@@ -368,15 +391,6 @@ final class MuffleDSP: @unchecked Sendable {
         }
         guard outCount > 0, outFrames != Int.max else { return }
 
-        let tapCount = min(tapChannels, inCount)
-        guard tapCount > 0, inFrames != Int.max else {
-            // No tap audio this cycle: write silence rather than garbage.
-            for buffer in outList {
-                if let data = buffer.mData { memset(data, 0, Int(buffer.mDataByteSize)) }
-            }
-            return
-        }
-        let tapStart = inCount - tapCount
         let frames = min(inFrames, outFrames)
 
         // Glide the cutoff once per block, in the log domain.
@@ -398,7 +412,8 @@ final class MuffleDSP: @unchecked Sendable {
         for oc in 0..<outCount {
             guard let outBase = outPointers[oc] else { continue }
             let outStride = outStrides[oc]
-            let ic = tapStart + (oc % tapCount)
+            // Tap channel `oc` (mono: channel 0); pointers were collected in reverse.
+            let ic = tapCount - 1 - (tapCount == 1 ? 0 : oc)
             guard let inBase = inPointers[ic] else { continue }
             let inStride = inStrides[ic]
             let s = state + oc * Self.stages * 2
@@ -420,13 +435,6 @@ final class MuffleDSP: @unchecked Sendable {
             s[2] = abs(z1b) < 1e-20 ? 0 : z1b
             s[3] = abs(z2b) < 1e-20 ? 0 : z2b
         }
-
-        // Zero any output frames past the input length.
-        if frames < outFrames {
-            for oc in 0..<outCount {
-                guard let outBase = outPointers[oc] else { continue }
-                for f in frames..<outFrames { outBase[f * outStrides[oc]] = 0 }
-            }
-        }
+        // Output frames past the input length were zeroed at the top.
     }
 }
