@@ -51,6 +51,11 @@ struct CloudAccountSettingsSection: View {
                 Task { await fetchCredits(forceRefresh: true) }
             }
         }
+        // Issue #642: the red banner below the key field belongs to the key that
+        // failed. Leaving the page resets the field, so drop the error with it.
+        .onDisappear {
+            licenseManager.dismissLastError()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .licenseStatusChanged)) { _ in
             // Identifier changes when the license is activated/deactivated, which
             // means a different credit pool — refetch so the balance stays correct.
@@ -134,6 +139,11 @@ struct CloudAccountSettingsSection: View {
                         TextField(LocalizedStringKey("settings.license.placeholder"), text: $licenseKeyInput)
                             .textFieldStyle(.roundedBorder)
                             .font(.system(.body, design: .monospaced))
+                            // Issue #642: an edit, a paste or Clear means the
+                            // error no longer names the key in the field.
+                            .onChange(of: licenseKeyInput) { _, _ in
+                                licenseManager.dismissLastError()
+                            }
                         HStack(spacing: 12) {
                             Button(action: pasteOrClearInput) {
                                 if licenseKeyInput.isEmpty {
