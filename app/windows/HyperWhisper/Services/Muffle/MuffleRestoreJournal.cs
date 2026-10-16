@@ -227,6 +227,12 @@ public sealed class MuffleRestoreJournal : IDisposable
             float current;
             try
             {
+                if (session.State == AudioSessionState.AudioSessionStateExpired)
+                {
+                    // A write to a closed session need not reach the app's next one.
+                    return false;
+                }
+
                 current = session.SimpleAudioVolume.Volume;
             }
             catch (Exception ex)
@@ -241,6 +247,14 @@ public sealed class MuffleRestoreJournal : IDisposable
                 try
                 {
                     session.SimpleAudioVolume.Volume = match.PriorVolume;
+                    var expired = session.State == AudioSessionState.AudioSessionStateExpired;
+                    var readBack = session.SimpleAudioVolume.Volume;
+                    if (!RestoreLanded(expired, readBack, match.PriorVolume))
+                    {
+                        LoggingService.Info($"MuffleRestoreJournal: A leftover restore did not hold (expired {expired}, reads {readBack:G4}); will retry");
+                        return false;
+                    }
+
                     restored = true;
                     LoggingService.Info($"MuffleRestoreJournal: Restored a volume left by an earlier run (pid {match.ProcessId} -> {session.GetProcessID}, {current:G4} -> {match.PriorVolume:G4})");
                 }
@@ -399,6 +413,14 @@ public sealed class MuffleRestoreJournal : IDisposable
 
         return null;
     }
+
+    /// <summary>
+    /// True when a restore write can be trusted: the session was still open after the write and
+    /// reads back the prior volume. A session that expires mid-restore can take a write without
+    /// keeping it for the app's next session, so otherwise the entry is kept for a retry.
+    /// </summary>
+    internal static bool RestoreLanded(bool expiredAfterWrite, float readBack, float prior) =>
+        !expiredAfterWrite && StillAtSetVolume(readBack, prior);
 
     /// <summary>True when FindMatch can ever match the entry (it has an instance or a session identifier).</summary>
     internal static bool IsMatchable(MuffleRestoreEntry entry) =>

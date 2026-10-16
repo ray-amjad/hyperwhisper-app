@@ -615,6 +615,12 @@ internal static class Program
                 Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(1.00005e-4f, 1e-4f), "float noise still counts as ours");
                 Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(0.5f, 1e-4f), "a volume the user moved is left alone");
 
+                // A restore write counts only on a session still open that reads it back.
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(false, 0.8f, 0.8f), "a write that holds on an open session lands");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(true, 0.8f, 0.8f),
+                    "a session that expired during the ramp keeps its entry, even if it reads the prior back");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(false, 0.8f * 1e-4f, 0.8f), "a write that did not stick keeps its entry");
+
                 var path = Path.Combine(Path.GetTempPath(), $"hw-muffle-journal-{Guid.NewGuid():N}.json");
                 try
                 {
