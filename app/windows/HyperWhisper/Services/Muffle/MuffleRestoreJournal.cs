@@ -210,6 +210,87 @@ public sealed class MuffleRestoreJournal : IDisposable
     }
 
     /// <summary>
+    /// Exit safety net for when the muffler cannot finish in time (a start stuck in a capture
+    /// activation): puts this run's lowered volumes back straight from the journal, on every active
+    /// render endpoint. The entries are kept on disk, so a write that does not hold, or a ramp that
+    /// carries on afterwards, is still recovered at the next start (which drops an entry whose
+    /// session is back at its own volume). The journal is held throughout, so the muffler cannot
+    /// lower another session meanwhile. Returns how many volumes were put back.
+    /// </summary>
+    public int RestoreLiveNow()
+    {
+        lock (_gate)
+        {
+            EnsureLoaded();
+            if (_live.Count == 0)
+            {
+                return 0;
+            }
+
+            var pending = _live.ToList();
+            var restored = 0;
+            try
+            {
+                using var enumerator = new MMDeviceEnumerator();
+                var devices = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
+                var deviceCount = devices.Count;
+                for (var d = 0; d < deviceCount && pending.Count > 0; d++)
+                {
+                    MMDevice? device = null;
+                    try
+                    {
+                        device = devices[d];
+                        var manager = device.AudioSessionManager;
+                        manager.RefreshSessions();
+                        var sessions = manager.Sessions;
+                        var sessionCount = sessions.Count;
+                        for (var s = 0; s < sessionCount && pending.Count > 0; s++)
+                        {
+                            try
+                            {
+                                var session = sessions[s];
+                                if (session.State == AudioSessionState.AudioSessionStateExpired)
+                                {
+                                    continue;
+                                }
+
+                                var match = FindMatch(pending, session.GetSessionInstanceIdentifier ?? string.Empty, session.GetSessionIdentifier ?? string.Empty);
+                                if (match == null || !HoldsOurVolume(match, session.SimpleAudioVolume.Volume))
+                                {
+                                    continue;
+                                }
+
+                                session.SimpleAudioVolume.Volume = match.PriorVolume;
+                                pending.Remove(match);
+                                restored++;
+                            }
+                            catch (Exception ex)
+                            {
+                                LoggingService.Debug($"MuffleRestoreJournal: Skipped a session during the exit restore: {ex.Message}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggingService.Debug($"MuffleRestoreJournal: Skipped an endpoint during the exit restore: {ex.Message}");
+                    }
+                    finally
+                    {
+                        device?.Dispose();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Warn($"MuffleRestoreJournal: Exit restore enumeration failed: {ex.Message}");
+            }
+
+            LoggingService.Info($"MuffleRestoreJournal: Exit restore put back {restored} of {_live.Count} volume(s) from the journal; the entries stay for the next start");
+            return restored;
+        }
+    }
+
+    /// <summary>
     /// Restores <paramref name="session"/> if a leftover entry matches it (instance identifier first,
     /// then session identifier for a re-opened app). Returns true when a volume was put back. The
     /// muffler calls this before it scales a session, so a crash leftover is never scaled twice.

@@ -36,6 +36,8 @@ public sealed class AudioEnvironmentService
     // synchronously, and set, take-over and restore must not interleave with the mute itself.
     private AudioEnvironmentState? _muffleFallbackMute;
     private volatile bool _shuttingDown;
+    // Cancelled at exit: a muffler start that is still lowering apps stops and puts them back.
+    private readonly CancellationTokenSource _shutdownCts = new();
 
     public sealed record AudioEnvironmentRestoreClaim(
         int Generation,
@@ -268,12 +270,18 @@ public sealed class AudioEnvironmentService
     }
 
     /// <summary>
-    /// Exit safety net: tears down a muffle that is still running (its volumes come back) and stops
-    /// any later start. Waits at most <paramref name="timeout"/>.
+    /// Exit safety net: stops a muffler start that is still lowering apps, tears down a muffle that
+    /// is running (its volumes come back) and stops any later start. If that has not finished
+    /// within two thirds of <paramref name="timeout"/> (a start stuck in a capture activation holds
+    /// the muffle gate), the volumes are put back straight from the journal in the time left.
+    /// Waits at most <paramref name="timeout"/> in all.
     /// </summary>
     public void ShutdownMuffle(TimeSpan timeout)
     {
         _shuttingDown = true;
+        SafeCancel(_shutdownCts);
+        var orderlyBudget = TimeSpan.FromTicks(timeout.Ticks * 2 / 3);
+        var emergencyBudget = timeout - orderlyBudget;
 
         try
         {
@@ -286,9 +294,22 @@ public sealed class AudioEnvironmentService
                 }
             }, "Muffle shutdown");
 
-            if (!teardown.Wait(timeout))
+            if (teardown.Wait(orderlyBudget))
             {
-                LoggingService.Warn("AudioEnvironmentService: Muffle shutdown timed out; the next start restores the volumes");
+                return;
+            }
+
+            if (!_muffleJournal.IsValueCreated)
+            {
+                LoggingService.Warn("AudioEnvironmentService: Muffle shutdown timed out before the muffler ever ran");
+                return;
+            }
+
+            LoggingService.Warn("AudioEnvironmentService: Muffle shutdown is taking too long; restoring the volumes from the journal");
+            var journal = _muffleJournal.Value;
+            if (!Task.Run(journal.RestoreLiveNow).Wait(emergencyBudget))
+            {
+                LoggingService.Warn("AudioEnvironmentService: Muffle exit restore timed out; the next start restores the volumes");
             }
         }
         catch (Exception ex)
@@ -493,11 +514,18 @@ public sealed class AudioEnvironmentService
             }
         }
 
-        var started = WindowsAudioMuffler.Start(_muffleJournal.Value);
+        var started = WindowsAudioMuffler.Start(_muffleJournal.Value, cancellation: _shutdownCts.Token);
         if (started.IsSuccess)
         {
             _muffler = started.Value;
             _muffler!.Engage();
+            return;
+        }
+
+        if (_shuttingDown)
+        {
+            // The start saw the exit and put back what it had lowered; nothing to fall back to.
+            LoggingService.Debug($"AudioEnvironmentService: Muffle start stopped for app exit ({started.Error})");
             return;
         }
 

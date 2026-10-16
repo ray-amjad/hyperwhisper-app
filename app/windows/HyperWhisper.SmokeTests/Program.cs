@@ -693,6 +693,28 @@ internal static class Program
                 }
             });
 
+            // App exit cancels a muffler start: a start that sees the exit lowers nothing, and the
+            // exit's journal restore has nothing to do when this run lowered nothing.
+            Run("Muffle start stops for app exit, and the exit restore needs no live entries", () =>
+            {
+                using var cancelled = new CancellationTokenSource();
+                cancelled.Cancel();
+                var path = Path.Combine(Path.GetTempPath(), $"hw-muffle-exit-{Guid.NewGuid():N}.json");
+                try
+                {
+                    using var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path);
+                    var started = HyperWhisper.Services.Muffle.WindowsAudioMuffler.Start(journal, cancellation: cancelled.Token);
+                    Assert(started.IsFailure && started.Error == HyperWhisper.Services.Muffle.WindowsAudioMuffler.CancelledError,
+                        "a start cancelled by the exit fails without muffling");
+                    Assert(!File.Exists(path), "a cancelled start writes no journal");
+                    Assert(journal.RestoreLiveNow() == 0, "the exit restore has nothing to put back");
+                }
+                finally
+                {
+                    File.Delete(path);
+                }
+            });
+
             // A second session of an app the muffler already lowered opens at the lowered
             // per-app volume; its prior must be the app's own volume, not ours.
             Run("Muffle remembers the app's own volume for a second session", () =>
