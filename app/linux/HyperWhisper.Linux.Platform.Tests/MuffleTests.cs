@@ -399,6 +399,66 @@ static class MuffleTests
         Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(15) == 0, "restore left the wrong routing");
     }
 
+    // Review round 2, #3: a restore that joins a running one fails when that one fails, and its own token ends only its wait.
+    public static async Task JoinedRestoreSharesTheOutcome()
+    {
+        var restore = new GatedRestore();
+        var owning = restore.RestoreAsync().AsTask(); var joined = restore.RestoreAsync().AsTask();
+        restore.Finish(new InvalidOperationException("unload failed"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => owning);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => joined);
+        Assert.Equal(1, restore.Runs);
+
+        // A joiner whose token is cancelled stops waiting at once; the owner runs on and succeeds; later calls are no-ops.
+        owning = restore.RestoreAsync().AsTask();
+        using (var cancelled = new CancellationTokenSource())
+        {
+            var waiting = restore.RestoreAsync(cancelled.Token).AsTask(); cancelled.Cancel();
+            await Assert.ThrowsAsync<OperationCanceledException>(() => waiting.WaitAsync(TimeSpan.FromSeconds(2)));
+        }
+        Assert.True(!owning.IsCompleted, "the joiner's cancel ended the owner");
+        restore.Finish(null);
+        await owning.WaitAsync(TimeSpan.FromSeconds(2));
+        await restore.RestoreAsync(); Assert.Equal(2, restore.Runs);
+
+        // An owner cancelled by its own caller hands the restore to a joiner that was not cancelled.
+        restore = new GatedRestore();
+        using (var cancelled = new CancellationTokenSource())
+        {
+            owning = restore.RestoreAsync(cancelled.Token).AsTask(); joined = restore.RestoreAsync().AsTask();
+            cancelled.Cancel();
+            await Assert.ThrowsAsync<OperationCanceledException>(() => owning.WaitAsync(TimeSpan.FromSeconds(2)));
+        }
+        await restore.WaitForRuns(2);
+        restore.Finish(null);
+        await joined.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // End to end: the stop's restore fails to unload the sink, and a DisposeAsync that joined it fails as well.
+        var (pulse, service) = Create();
+        var session = await Muffled(service, TimeSpan.FromMilliseconds(100));
+        pulse.FailUnload = 1;
+        var stopping = session.RestoreAsync().AsTask(); var disposing = session.DisposeAsync().AsTask();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => stopping);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => disposing);
+        Assert.True(pulse.Sinks.Any(sink => sink.Name == "hw_muffle"), "the sink is gone, so the failure was not simulated");
+        await session.RestoreAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle"), "the retry did not unload");
+    }
+
+    /// <summary>A restore whose core waits until the test finishes it, with an error or without one.</summary>
+    private sealed class GatedRestore() : DeferredAudioRestore(null)
+    {
+        private TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously); private int _runs;
+        public int Runs => Volatile.Read(ref _runs);
+        public void Finish(Exception? error) { var gate = _gate; _gate = new(TaskCreationOptions.RunContinuationsAsynchronously); if (error is null) gate.TrySetResult(); else gate.TrySetException(error); }
+        public async Task WaitForRuns(int count) { for (var i = 0; i < 200 && Runs < count; i++) await Task.Delay(10); Assert.Equal(count, Runs); }
+        protected override async Task RestoreCoreAsync(CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _runs);
+            await _gate.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     public static Task ParsesPactlJson()
     {
         var sinks = PulseAudioMuffler.ParseSinks(new(0, """[{"index":3,"name":"alsa_output.pci","owner_module":"12","sample_specification":"s32le 6ch 96000Hz"}]"""u8.ToArray()));

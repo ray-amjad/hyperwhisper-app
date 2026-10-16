@@ -224,6 +224,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("muffle pactl subscribe dies with the app", MuffleTests.TiedChildDiesWithTheApp),
     ("muffle restore of an overtaken generation leaves the new claim muffled", MuffleTests.StaleRestoreDoesNotReleaseANewClaim),
     ("muffle helper death during a move strands no stream", MuffleTests.HelperDeathDuringAMoveStrandsNothing),
+    ("audio restore joiners share the owner's failure and honour their own cancel", MuffleTests.JoinedRestoreSharesTheOutcome),
     ("muffle parses pactl JSON and parent pids", MuffleTests.ParsesPactlJson),
     ("UI dispatcher posts and invokes through context", UiDispatcherContext),
     ("UI dispatcher cancellation skips queued work", UiDispatcherCancellation),
