@@ -640,6 +640,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
     {
         string instanceId;
         string sessionId;
+        float current;
         float prior;
         try
         {
@@ -663,7 +664,12 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
                 return null;
             }
 
-            prior = session.SimpleAudioVolume.Volume;
+            current = session.SimpleAudioVolume.Volume;
+            prior = PriorVolumeFor(current, sessionId, _scaled.Select(s => s.Entry));
+            if (prior != current)
+            {
+                LoggingService.Info($"WindowsAudioMuffler: Another session of pid {pid} opened at our lowered volume ({current:G4}); remembering the app's own {prior:G4}");
+            }
         }
         catch (Exception ex)
         {
@@ -686,7 +692,12 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         try
         {
             var volume = session.SimpleAudioVolume;
-            RampVolumes(new[] { new VolumeRamp(volume, prior, entry.SetVolume) });
+            // A session that opened at our value already (see PriorVolumeFor) is not ramped.
+            if (!MuffleRestoreJournal.StillAtSetVolume(current, entry.SetVolume))
+            {
+                RampVolumes(new[] { new VolumeRamp(volume, current, entry.SetVolume) });
+            }
+
             volume.Volume = entry.SetVolume;
         }
         catch (Exception ex)
@@ -695,7 +706,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             try
             {
                 // The ramp may have got part of the way down.
-                session.SimpleAudioVolume.Volume = prior;
+                session.SimpleAudioVolume.Volume = current;
                 _journal.Remove(entry);
             }
             catch (Exception restoreEx)
@@ -711,6 +722,32 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         var scaled = new ScaledSession(session, entry);
         _scaled.Add(scaled);
         return scaled;
+    }
+
+    /// <summary>
+    /// The volume to remember for a session about to be scaled. Windows keeps one volume per app
+    /// (session identifier), so a second session of an app we already lowered opens at our value;
+    /// taken as its prior, it would be scaled again and "restored" to p x 1e-4 for good. When an
+    /// entry for the same identifier is still in force and the session sits at its set volume,
+    /// that entry's prior is used instead.
+    /// </summary>
+    internal static float PriorVolumeFor(float current, string sessionId, IEnumerable<MuffleRestoreEntry> scaledEntries)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            return current;
+        }
+
+        foreach (var entry in scaledEntries)
+        {
+            if (string.Equals(entry.SessionIdentifier, sessionId, StringComparison.Ordinal)
+                && MuffleRestoreJournal.StillAtSetVolume(current, entry.SetVolume))
+            {
+                return entry.PriorVolume;
+            }
+        }
+
+        return current;
     }
 
     private void RestoreAllLocked(string reason)
