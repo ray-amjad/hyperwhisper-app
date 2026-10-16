@@ -79,23 +79,27 @@ struct SentryDiagnosticRoutingTests {
     @Test func logsKeepScopeContextAndRedactContentKeys() {
         let attributes = SentryService.mergeLogAttributes(
             scopeExtras: [
-                "recording_stage": "captured", "prompt_body": "private", "transcript_empty": true
+                "recording_start_step": "captured", "prompt_body": "private", "transcript_empty": true
             ],
             scopeTags: ["build_number": "100", "component": "scope"],
-            extras: ["duration_ms": 42, "component": "extra"],
-            tags: ["component": "transcription"]
+            extras: ["duration_ms": 42, "component": "extra", "spoken_words": "private"],
+            tags: ["component": "transcription", "unreviewed_tag": "private"]
         )
 
-        #expect(attributes["recording_stage"] as? String == "captured")
+        #expect(attributes["recording_start_step"] as? String == "captured")
         #expect(attributes["build_number"] as? String == "100")
         #expect(attributes["duration_ms"] as? Int == 42)
         #expect(attributes["component"] as? String == "transcription")
         #expect(attributes["prompt_body"] as? String == "[redacted]")
         #expect(attributes["transcript_empty"] as? Bool == true)
+        // Not on the allow-list: an extra and a tag both redact on the Logs path.
+        #expect(attributes["spoken_words"] as? String == "[redacted]")
+        #expect(attributes["unreviewed_tag"] as? String == "[redacted]")
     }
 
     /// Issue #684: the key rule only flags a field; the value's type decides.
-    /// A Bool or a number cannot hold speech, so it survives a matching key.
+    /// A Bool or a number cannot hold speech, so it survives a key that is not
+    /// on the allow-list.
     @Test func redactionKeepsMeasurementsAndRedactsContent() {
         let flag = SentryService.redactedValue(
             forKey: "backend_empty_transcript_without_flag", value: false)
@@ -114,8 +118,69 @@ struct SentryDiagnosticRoutingTests {
             #expect(SentryService.redactedValue(
                 forKey: "prompt_parts", value: value) as? String == "[redacted]")
         }
-        // An unmatched key is never touched, whatever it holds.
+        // An allow-listed key is never touched, whatever it holds.
         #expect(SentryService.redactedValue(
-            forKey: "recording_stage", value: "captured") as? String == "captured")
+            forKey: "recording_start_step", value: "captured") as? String == "captured")
+        #expect(SentryService.redactedValue(
+            forKey: "stageTimeline", value: ["start=10ms@10ms"]) as? [String] == ["start=10ms@10ms"])
+    }
+
+    // MARK: - The exact allow-list (issue #805)
+
+    /// Keys that really hold spoken or typed text stay redacted. None of them is
+    /// on the list, and none may ever be added to it.
+    @Test func keysThatHoldTranscriptTextAreStillRedacted() {
+        let transcript = "please send the quarterly numbers to my accountant"
+        let contentKeys = [
+            "transcript", "text", "prompt", "transcript_preview", "rawText", "processedText",
+            "prompt_body", "modeName", "mode_name", "vocabulary", "filePath", "audioURL"
+        ]
+        for key in contentKeys {
+            #expect(SentryService.isRedactedExtraKey(key), "\(key) must be redacted")
+            #expect(SentryService.redactedValue(forKey: key, value: transcript) as? String
+                    == "[redacted]", "\(key) leaked its value")
+        }
+    }
+
+    /// A key nobody has reviewed yet is hidden until someone adds it: its String
+    /// becomes `[redacted]`. This is the property the substring rule lacked (#795).
+    @Test func aStringUnderAnUnknownKeyIsRedacted() {
+        let unknown = "a_key_added_next_month"
+
+        #expect(SentryService.allowedExtraKeys.contains(unknown) == false)
+        #expect(SentryService.isRedactedExtraKey(unknown))
+        #expect(SentryService.redactedValue(forKey: unknown, value: "anything at all") as? String
+                == "[redacted]")
+        // Its measurements still survive (#684).
+        #expect(SentryService.redactedValue(forKey: unknown, value: true) as? Bool == true)
+        #expect(SentryService.redactedValue(forKey: unknown, value: 7) as? Int == 7)
+    }
+
+    /// The match is exact: no case folding, no prefix, no substring. A key that
+    /// only LOOKS like an allowed one is redacted.
+    @Test func theAllowListMatchesExactly() {
+        #expect(!SentryService.isRedactedExtraKey("transcriptionState"))
+        #expect(!SentryService.isRedactedExtraKey("isHyperwhisperTranscription"))
+        #expect(!SentryService.isRedactedExtraKey("fileExtension"))
+        #expect(!SentryService.isRedactedExtraKey("audio_file_extension"))
+
+        #expect(SentryService.isRedactedExtraKey("TranscriptionState"))
+        #expect(SentryService.isRedactedExtraKey("transcriptionstate"))
+        #expect(SentryService.isRedactedExtraKey("transcriptionState_text"))
+        #expect(SentryService.isRedactedExtraKey("fileExtension "))
+        #expect(SentryService.isRedactedExtraKey(""))
+    }
+
+    /// Keys sent today whose value can carry user content are deliberately off
+    /// the list: raw error descriptions, and device names a person can rename.
+    @Test func contentBearingKeysSentTodayAreNotAllowed() {
+        let offTheList = [
+            "errorDescription", "errorFailureReason", "user_message",
+            "selectedDeviceName", "activeDeviceName", "selectedInputDeviceName",
+            "activeInputDeviceName", "availableInputDevices", "selected_input_device_name"
+        ]
+        for key in offTheList {
+            #expect(SentryService.isRedactedExtraKey(key), "\(key) must stay off the list")
+        }
     }
 }

@@ -82,8 +82,8 @@ struct StageExtrasKeySetTests {
         #expect(ISO8601DateFormatter().date(from: stamp) == when)
     }
 
-    /// Every value is a number or the timestamp, and no key is one the
-    /// `beforeSend` deny-list would rewrite.
+    /// Every value is a number or the timestamp, and every key is on the
+    /// `beforeSend` allow-list (issue #805).
     @Test func noValueCarriesContentAndNoKeyIsRedacted() {
         for (key, value) in Self.success {
             #expect(value is Int || value is Double || key == "stage_reported_at", "\(key)")
