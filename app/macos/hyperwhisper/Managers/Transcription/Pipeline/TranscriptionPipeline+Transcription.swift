@@ -609,6 +609,10 @@ extension TranscriptionPipeline {
                     await MainActor.run { state = .idle }
                 }
             } else {
+                // The phase the run was in when it failed, read before the
+                // `.error` overwrite below. Read after it, the Sentry extra
+                // would always say `error` (issue #805).
+                let stateAtFailure = state
                 await MainActor.run { state = .error(message: error.localizedDescription) }
                 if AppLogger.isErrorLoggingEnabled {
                     // Include audio + provider context for diagnostics.
@@ -642,7 +646,7 @@ extension TranscriptionPipeline {
                         stageElapsedMs: currentStageElapsedMs,
                         totalElapsedMs: totalElapsedMs,
                         stageTimeline: stageTimelineSnapshot,
-                        transcriptionState: state,
+                        transcriptionState: stateAtFailure,
                         recordingSessionID: recordingSession?.id?.uuidString ?? "nil"
                     )
 
@@ -920,10 +924,9 @@ extension TranscriptionPipeline {
             "stageElapsedMs": stageElapsedMs,
             "totalElapsedMs": totalElapsedMs,
             "stageTimeline": stageTimeline,
-            // The case name only. The pipeline sets `.error(message:)` with
-            // the error's `localizedDescription` just before this capture, and
-            // that text can hold a file name, a path or a provider's response
-            // (issue #805). `transcriptionState` is on Sentry's allow-list, so
+            // The case name only. An `.error(message:)` state carries an
+            // error's `localizedDescription`, and that text can hold a file
+            // name, a path or a provider's response (issue #805). `transcriptionState` is on Sentry's allow-list, so
             // the value has to be safe on its own.
             "transcriptionState": transcriptionState.reportingName,
             "recordingSessionID": recordingSessionID
