@@ -75,7 +75,11 @@ struct TranscriptionFailureExtrasTests {
             stageElapsedMs: 1_200,
             totalElapsedMs: 4_500,
             stageTimeline: ["start=10ms@10ms", "transcribe=1200ms@4500ms (failed)"],
-            transcriptionState: "error",
+            // The state the pipeline really holds at the capture: `.error`
+            // carrying the error's text, which can embed the recording path.
+            transcriptionState: .error(
+                message: "The file couldn't be opened at /Users/example/Documents/hyperwhisper/recordings/recording-1.wav"
+            ),
             recordingSessionID: "nil"
         )
     }
