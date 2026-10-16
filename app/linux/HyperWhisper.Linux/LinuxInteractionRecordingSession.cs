@@ -1,4 +1,5 @@
 using HyperWhisper.Data.Entities;
+using HyperWhisper.Linux.Platform.Audio;
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.LiveStreaming;
 using HyperWhisper.Platform.Abstractions;
@@ -105,8 +106,10 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         Volatile.Write(ref _liveCaptureActive, value);
         LiveCaptureChanged?.Invoke(this, EventArgs.Empty);
     }
-    /// <summary>PrepareAudio ran and no restore has taken it yet; true even before IsActive (#1038).</summary>
-    public bool HasAudioToRestore => Volatile.Read(ref _audioPrepared) != 0;
+    /// <summary>PrepareAudio ran and no restore has taken it yet, true even before IsActive (#1038); or a restore that was
+    /// taken is still waiting out its delay, which the quit must not outlive.</summary>
+    public bool HasAudioToRestore => Volatile.Read(ref _audioPrepared) != 0
+        || _services.AudioEnvironment is LinuxAudioEnvironmentService { HasPendingRestore: true };
 
     public async ValueTask<PlatformResult> StartAsync(
         InteractionRecordingKind kind,
@@ -587,12 +590,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     /// <summary>The quit puts the sink and the mic volume back before anything else (#1038). It never
     /// resumes keep-warm: a recording may still be capturing, and Dispose stops keep-warm anyway. The
-    /// session is taken once and the mic has no prior volume left, so a later restore is a no-op.</summary>
+    /// session is taken once and the mic has no prior volume left, so a later restore is a no-op. A restore a stop already
+    /// took (it waits 500 ms, then glides) is finished here at once too: otherwise the null sink outlives the app.</summary>
     public async ValueTask RestoreAudioEnvironmentForShutdownAsync()
     {
         Volatile.Write(ref _audioPrepared, 0);
         var environment = Interlocked.Exchange(ref _audioEnvironment, null);
         _ = _services.MicrophoneVolume.Restore();
+        if (_services.AudioEnvironment is LinuxAudioEnvironmentService linux)
+            try { await linux.FlushRestoresAsync(); } catch { }
         if (environment is null) return;
         try { await environment.RestoreAsync(CancellationToken.None); } catch { }
         try { await environment.DisposeAsync(); } catch { }

@@ -1130,11 +1130,13 @@
           </StackPanel>
           <CheckBox Grid.Column="1" x:Name="SettingsSoundEffects" IsChecked="{Binding Settings.EnableSoundEffects}" VerticalAlignment="Center"/>
         </Grid></Border>
-        <!-- Windows offers localized items in a fixed 130px column, not the raw lowercase
-             policy strings the shared list carries. The Tag is the stored value, the way the
-             Windows page writes it, and code behind syncs the pick on navigation. "muffle" is
-             the macOS Muffle Audio mode (LinuxAudioEnvironmentService). -->
-        <Border Classes="card" Margin="0,0,0,20"><Grid ColumnDefinitions="*,130">
+        <!-- Localized items, not the raw lowercase policy strings the shared list carries. The
+             Tag is the stored value, the way the Windows page writes it, and code behind syncs
+             the pick on navigation. "muffle" is the macOS Muffle Audio mode
+             (LinuxAudioEnvironmentService). 240px, not Windows' 130px: the closed box takes 52px
+             for padding and chevron, so 130px clipped "Muffle audio", and the longest label (bg
+             "Приглушаване на звука", 166px in Inter) needs 218px. MediaControlComboRenderTests. -->
+        <Border Classes="card" Margin="0,0,0,20"><Grid ColumnDefinitions="*,240">
           <StackPanel Spacing="2">
             <TextBlock Text="{ReflectionBinding [settings.sound.mediaControl.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
             <TextBlock Text="{ReflectionBinding [settings.sound.mediaControl.subtitle], Source={StaticResource Localization}}" Classes="caption"/>

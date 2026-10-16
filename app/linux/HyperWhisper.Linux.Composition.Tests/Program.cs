@@ -32,6 +32,10 @@ if (args is [ModeEditorSourceSegmentRenderTests.ProbeArgument])
 {
     Environment.Exit(await ModeEditorSourceSegmentRenderTests.RunProbeAsync());
 }
+if (args is [MediaControlComboRenderTests.ProbeArgument])
+{
+    Environment.Exit(await MediaControlComboRenderTests.RunProbeAsync());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -94,6 +98,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a failed clipboard write shows Copy failed on the overlay and a paste-failed status line (#1703, #1402)", RecordingStatusAfterStopTests.FailedCopyShowsCopyFailed),
     ("the mode editor's local model combo shows the engine's model after an engine change (#1629)", ModeEditorEngineSwitchRenderTests.RunAsync),
     ("every Source segment in the mode editor shows its whole label (#635)", ModeEditorSourceSegmentRenderTests.RunAsync),
+    ("the Sound page's media-control ComboBox shows its whole label in every long culture", MediaControlComboRenderTests.RunAsync),
 };
 
 foreach (var test in tests)
