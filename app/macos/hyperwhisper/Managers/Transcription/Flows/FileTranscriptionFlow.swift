@@ -524,9 +524,10 @@ class FileTranscriptionFlow {
             // STEP 6: Start transcription (15-85%)
             // Update progress to transcribing stage with slow animation
             progressState.updateStage(.transcribing)
-            // Start a slow animation that will be cut short when transcription completes
-            // Duration estimates: 60s covers most transcriptions, will jump to completion when done
-            progressState.animateProgress(to: 0.85, duration: 60.0)
+            // Start a slow animation that will be cut short when transcription completes.
+            // No engine reports real progress here, so a job longer than the 60 s ramp
+            // turns the bar indeterminate instead of freezing at 85% (#1437).
+            progressState.animateProgress(to: 0.85, duration: 60.0, thenIndeterminate: true)
 
             guard let transcriptionPipeline = transcriptionPipeline else {
                 AppLogger.transcription.error("❌ TranscriptionPipeline not available")
