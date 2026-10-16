@@ -467,6 +467,22 @@
       ],
       "licensed": false,
       "note": "unlicensed. vocabulary: add/edit/delete clean. provider-settings: Groq fake key, empty clear, spaced key all gave clear validation. modes: 14 steps ran out in the new-mode form (scroll ate 4 steps), never saved/renamed/deleted a mode - next modes goal should start from the form already open and go straight to Save + status bar check."
+    },
+    {
+      "at": "2026-10-16T04:14:49Z",
+      "platform": "linux",
+      "commit": "669b7412",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "onboarding"
+      ],
+      "status": "1-commented",
+      "issues": [
+        633
+      ],
+      "licensed": false,
+      "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). vocabulary: re-adding an existing word wipes its replacement + case variant rewrites the word (shared-dotnet UpsertAsync) -> comment on #633. onboarding (--fresh-profile) + provider-settings clean; Groq API-key source shows no key field in mode editor (key entry not reached). Sidebar keeps Home highlighted after onboarding closes until Home is clicked; did not repro by clicks, not filed."
     }
   ]
 }
