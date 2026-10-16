@@ -767,6 +767,27 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             try
             {
                 var volume = scaled.Control.SimpleAudioVolume;
+                if (scaled.Control.State == AudioSessionState.AudioSessionStateExpired)
+                {
+                    // The app closed this session. A write to it can succeed without reaching the
+                    // per-app volume Windows will reopen the app at, so the entry is kept: the
+                    // session watcher or the next start restores it (or drops it if the app comes
+                    // back at its own volume).
+                    try
+                    {
+                        volume.Volume = scaled.Entry.PriorVolume;
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggingService.Debug($"WindowsAudioMuffler: Write to pid {scaled.Entry.ProcessId}'s expired session failed: {ex.Message}");
+                    }
+
+                    failed++;
+                    _journal.MarkStale(scaled.Entry);
+                    LoggingService.Info($"WindowsAudioMuffler: pid {scaled.Entry.ProcessId}'s session has expired; kept for retry");
+                    continue;
+                }
+
                 var current = volume.Volume;
                 if (MuffleRestoreJournal.StillAtSetVolume(current, scaled.Entry.SetVolume))
                 {
