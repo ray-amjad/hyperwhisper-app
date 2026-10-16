@@ -33,6 +33,7 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 - No change to the Parakeet, Qwen3 or Nemotron daemon.
 - No change to transcription quality, the decoding options or `CollapseRepetitionLoops` output.
 - No change on macOS or Linux.
+- No change to local post-processing. Note: `LLamaSharp.Backend.Vulkan` (`HyperWhisper.csproj` 76) can also hold a Vulkan device in the app. If a user has a local LLM loaded, the GPU can stay at P0 for that reason. That is a separate issue.
 - No upgrade of the Whisper.net native runtime for its own sake (see decision D4).
 
 ## 4. Code on main today
