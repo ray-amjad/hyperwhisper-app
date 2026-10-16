@@ -82,8 +82,20 @@ held by the "model id" line of §2 when all three of these hold:
   bring-your-own-key: `availableViaHyperWhisperCloud` stays `false` unless
   `hyperwhisper-cloud/src/lib/stt-models.ts` already routes it.
 
-The cloud backend (`hyperwhisper-cloud/**`), `shared-app-classification/**`, `shared-core-rs/**`
-and every other line of §2 stay held: cloud routing spends money.
+One server change is allowed too (Ray, 2026-10-16): **speech-to-text aliases** in
+`hyperwhisper-cloud/src/lib/stt-models.ts`, plus its test `hyperwhisper-cloud/src/lib/stt-models.test.ts`.
+The server sends a 400 for any retired id that no alias rewrites, so an old app on a retired model
+stops transcribing. A PR may only add or edit rows inside a provider's `aliases` map, and only when:
+
+- the target is a model row that already exists for that same provider, and
+- the target's `estimatedUsdPerMinute` is the same as or lower than the old id's row, or than the
+  provider's `defaultModel` row when the old id has no row. An alias must never make a request dearer.
+
+Adding, removing or repricing a model row, changing `defaultModel` or `fallbackChain`, or touching any
+other line of the file stays held.
+
+The rest of the cloud backend (`hyperwhisper-cloud/**`), `shared-app-classification/**`,
+`shared-core-rs/**` and every other line of §2 stay held: cloud routing spends money.
 
 Such a PR needs no review round and no device proof. Its proof is every workflow run on its head
 going green. A catalog change triggers `macos-ci`, `windows-ci` and `shared-core-tests`, and §5
