@@ -52,7 +52,14 @@ public sealed class CloudAccountViewModel : ViewModelBase
         ManageCommand = new AsyncCommand(_ => OpenManageAsync(), _ => CanRunOperation);
     }
 
-    public string AccountKey { get => _accountKey; set => Set(ref _accountKey, value); }
+    // The red activation error belongs to the key that failed, so editing or clearing the field
+    // removes it (#1889, as Windows does since #1129). An edit while a validation is in flight
+    // cannot hide that validation's result: the result is written after the edit.
+    public string AccountKey
+    {
+        get => _accountKey;
+        set { if (Set(ref _accountKey, value)) ActivationError = null; }
+    }
     public string AccountState { get => _accountState; private set { if (Set(ref _accountState, value)) NotifyLicenseState(); } }
     public string? CustomerEmail { get => _customerEmail; private set { if (Set(ref _customerEmail, value)) Notify(nameof(HasCustomerEmail)); } }
     public string? CustomerId { get => _customerId; private set { if (Set(ref _customerId, value)) Notify(nameof(HasCustomerId)); } }
