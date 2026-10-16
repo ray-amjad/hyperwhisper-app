@@ -126,7 +126,11 @@ public partial class MainWindow : Window
             _diagnosticLogger, () => _settings.Get("general.enableErrorLogging", true));
         // Muffle Audio could not start (no parec/pacat, the null sink was refused), so that recording ducked instead.
         if (_platformServices.AudioEnvironment is LinuxAudioEnvironmentService audioEnvironment)
+        {
             audioEnvironment.MuffleFellBack += (_, _) => _ = _lifecycleDiagnostics.ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Degraded);
+            // The diagnostics log carries enums only, so the muffle's info lines (counts and codes) go to stderr, like the head's other notices.
+            audioEnvironment.MuffleDiagnostic += (_, message) => { try { Console.Error.WriteLine($"HyperWhisper muffle: {message}"); } catch { } };
+        }
         _postProcessor = new LinuxLocalPostProcessor(
             _platformServices.Paths.ModelsDirectory, _settings, _database);
         _postProcessingRouter = new LinuxPostProcessingRouter(

@@ -34,11 +34,23 @@ static class MuffleTests
     // Prepares, then waits for the run to see audio (the fake sink starts on the first suspend/resume, as a real null sink does).
     private static async Task<IAudioEnvironmentSession> Muffled(LinuxAudioEnvironmentService service, TimeSpan delay)
     {
+        var session = Prepare(service, delay);
+        Assert.True(await (await RunOf(session)).Activated.WaitAsync(TimeSpan.FromSeconds(5)), "the muffle run did not activate");
+        return session;
+    }
+
+    // PrepareForRecording returns at once; the sink is built on the service's muffle queue.
+    private static LinuxMuffleSession Prepare(LinuxAudioEnvironmentService service, TimeSpan delay)
+    {
         var prepared = service.PrepareForRecording(AudioEnvironmentPolicy.MuffleOtherAudio, delay);
         Assert.True(prepared.IsSuccess, prepared.Error?.Code);
-        Assert.True(await ((LinuxMuffleSession)prepared.Value!).Run.Activated.WaitAsync(TimeSpan.FromSeconds(5)), "the muffle run did not activate");
-        return prepared.Value!;
+        return (LinuxMuffleSession)prepared.Value!;
     }
+
+    private static async Task<PulseMuffleRun> RunOf(LinuxMuffleSession session) =>
+        (await session.Ready.WaitAsync(TimeSpan.FromSeconds(5))).Run ?? throw new InvalidOperationException("the muffle did not start");
+
+    private static Task Ready(IAudioEnvironmentSession session) => ((LinuxMuffleSession)session).Ready.WaitAsync(TimeSpan.FromSeconds(5));
 
     public static async Task MovesOtherStreamsAndRestoresOnlyThose()
     {
@@ -59,7 +71,7 @@ static class MuffleTests
         // Nothing moves into the new sink before it carries audio: a fresh null sink is silent for about 2 s until nudged.
         var nudge = pulse.Calls.FindIndex(call => string.Join(' ', call) == "suspend-sink hw_muffle 0");
         Assert.True(nudge > 0 && nudge < pulse.Calls.FindIndex(call => call[0] == "move-sink-input"), "streams moved before the sink carried audio");
-        Assert.Equal(MuffleFilter.MuffledCutoffHz, ((LinuxMuffleSession)session).Run.Filter.TargetCutoffHz);
+        Assert.Equal(MuffleFilter.MuffledCutoffHz, ((LinuxMuffleSession)session).Run!.Filter.TargetCutoffHz);
         Assert.True(pulse.Calls.All(call => call[0] != "set-default-sink"), "the default sink was touched");
 
         // A stream that starts mid-recording is moved; a new stream of ours is not.
@@ -120,6 +132,7 @@ static class MuffleTests
         (pulse, service) = Create(); pulse.AddSink(5, "hw_muffle", 7, "float32le 2ch 48000Hz");
         var prepared = service.PrepareForRecording(AudioEnvironmentPolicy.MuffleOtherAudio, TimeSpan.Zero);
         Assert.True(prepared.IsSuccess, prepared.Error?.Code);
+        await Ready(prepared.Value!);
         var unload = pulse.Calls.FindIndex(call => call[0] == "unload-module"); var load = pulse.Calls.FindIndex(call => call[0] == "load-module");
         Assert.True(unload >= 0 && unload < load && pulse.Sinks.Count(sink => sink.Name == "hw_muffle") == 1, "the stale sink was not removed first");
         await prepared.Value!.RestoreAsync();
@@ -131,6 +144,7 @@ static class MuffleTests
         var (pulse, service) = Create(); pulse.FailLoad = true; var reasons = new List<string>(); service.MuffleFellBack += (_, code) => reasons.Add(code);
         var prepared = service.PrepareForRecording(AudioEnvironmentPolicy.MuffleOtherAudio, TimeSpan.Zero);
         Assert.True(prepared.IsSuccess, prepared.Error?.Code);
+        await Ready(prepared.Value!);
         Assert.Equal("audio_environment.muffle_load_failed", string.Join(',', reasons));
         Assert.True(pulse.Calls.Any(call => string.Join(' ', call) == "set-sink-volume @DEFAULT_SINK@ 35% 35%") && pulse.Started.Count == 0, "did not duck");
         await prepared.Value!.RestoreAsync();
@@ -138,11 +152,13 @@ static class MuffleTests
 
         (pulse, service) = Create(tools: false); reasons.Clear(); service.MuffleFellBack += (_, code) => reasons.Add(code);
         prepared = service.PrepareForRecording(AudioEnvironmentPolicy.MuffleOtherAudio, TimeSpan.Zero);
+        await Ready(prepared.Value!);
         Assert.True(prepared.IsSuccess && reasons.SequenceEqual(["audio_environment.muffle_unavailable"]) && pulse.Calls.All(call => call[0] != "load-module"), "missing parec/pacat did not fall back");
 
         // A helper that cannot start unloads the sink it just made.
         (pulse, service) = Create(); pulse.FailStart = "/usr/bin/pacat"; reasons.Clear(); service.MuffleFellBack += (_, code) => reasons.Add(code);
         prepared = service.PrepareForRecording(AudioEnvironmentPolicy.MuffleOtherAudio, TimeSpan.Zero);
+        await Ready(prepared.Value!);
         Assert.True(prepared.IsSuccess && reasons.SequenceEqual(["audio_environment.muffle_start_failed"]), string.Join(',', reasons));
         Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.MovedTo("hw_muffle").Count == 0 && pulse.Children.All(child => child.Terminated), "a failed start left state behind");
     }
@@ -169,12 +185,14 @@ static class MuffleTests
         var restoring = first.RestoreAsync().AsTask();
         var second = service.PrepareForRecording(AudioEnvironmentPolicy.MuffleOtherAudio, TimeSpan.Zero);
         Assert.True(second.IsSuccess, second.Error?.Code);
+        await Ready(second.Value!);
         await restoring;
         Assert.True(pulse.Calls.Count(call => call[0] == "load-module") == 1 && pulse.Sinks.Any(sink => sink.Name == "hw_muffle") && pulse.SinkOf(10) == pulse.MuffleIndex,
             "the earlier session tore down the sink the new recording uses");
         await second.Value!.RestoreAsync();
         Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "the new recording did not restore");
         var third = service.PrepareForRecording(AudioEnvironmentPolicy.MuffleOtherAudio, TimeSpan.Zero);
+        await Ready(third.Value!);
         Assert.True(third.IsSuccess && pulse.Calls.Count(call => call[0] == "load-module") == 2, "a recording after teardown did not build a new sink");
         await third.Value!.RestoreAsync();
     }
@@ -193,9 +211,8 @@ static class MuffleTests
     public static async Task SilentSinkMovesNothing()
     {
         var (pulse, service) = Create(); pulse.Silent = true; var reasons = new List<string>(); service.MuffleFellBack += (_, code) => reasons.Add(code);
-        var prepared = service.PrepareForRecording(AudioEnvironmentPolicy.MuffleOtherAudio, TimeSpan.Zero);
-        Assert.True(prepared.IsSuccess, prepared.Error?.Code);
-        Assert.True(!await ((LinuxMuffleSession)prepared.Value!).Run.Activated.WaitAsync(TimeSpan.FromSeconds(5)), "a silent sink activated");
+        var prepared = Prepare(service, TimeSpan.Zero);
+        Assert.True(!await (await RunOf(prepared)).Activated.WaitAsync(TimeSpan.FromSeconds(5)), "a silent sink activated");
         await pulse.WaitUntil(() => reasons.Count == 1, "the silent sink was not reported");
         // The watcher is up from the start, but a run that never activated moves nothing it reports either.
         pulse.Subscription!.Emit("Event 'new' on sink-input #10\n"); await Task.Delay(100);
@@ -204,7 +221,7 @@ static class MuffleTests
         pulse.Silent = false;
         var next = await Muffled(service, TimeSpan.Zero);
         Assert.True(pulse.Calls.Count(call => call[0] == "load-module") == 2 && pulse.SinkOf(10) == pulse.MuffleIndex, "the dead run was reused");
-        await prepared.Value.RestoreAsync(); await next.RestoreAsync();
+        await prepared.RestoreAsync(); await next.RestoreAsync();
         Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "restore left the wrong routing");
     }
 
@@ -219,12 +236,48 @@ static class MuffleTests
 
         // Audio that arrives after the stop began moves the streams but never engages the filter again.
         (pulse, service) = Create(); pulse.Silent = true; service.Muffler.ActivationTimeout = TimeSpan.FromSeconds(30);
-        var session = (LinuxMuffleSession)service.PrepareForRecording(AudioEnvironmentPolicy.MuffleOtherAudio, TimeSpan.Zero).Value!;
-        session.Run.Release(); pulse.Capture!.Write(new byte[8]);
-        Assert.True(await session.Run.Activated.WaitAsync(TimeSpan.FromSeconds(5)), "the run did not activate");
-        Assert.Equal(session.Run.Filter.MaxCutoffHz, session.Run.Filter.TargetCutoffHz);
+        var session = Prepare(service, TimeSpan.Zero); var run = await RunOf(session);
+        run.Release(); pulse.Capture!.Write(new byte[8]);
+        Assert.True(await run.Activated.WaitAsync(TimeSpan.FromSeconds(5)), "the run did not activate");
+        Assert.Equal(run.Filter.MaxCutoffHz, run.Filter.TargetCutoffHz);
         await session.RestoreAsync();
         Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "restore left the wrong routing");
+    }
+
+    // Review round 1, #1: a quit while a stop's restore waits out its 500 ms delay (or glides) must remove the sink now.
+    public static async Task QuitFlushesAPendingRestore()
+    {
+        var (pulse, service) = Create();
+        var session = await Muffled(service, TimeSpan.FromSeconds(30));
+        var restoring = session.RestoreAsync().AsTask();   // the stop took the session: the recording holds nothing now
+        Assert.True(service.HasPendingRestore && !restoring.IsCompleted, "the delayed restore is not pending");
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        await service.FlushRestoresAsync();
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"the quit waited {clock.ElapsedMilliseconds} ms");
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0 && pulse.SinkOf(17) == 0, "the quit left streams on hw_muffle");
+        await restoring.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.True(!service.HasPendingRestore && pulse.Children.All(child => child.Terminated), "the flushed restore left state behind");
+
+        // In the glide (past the delay, before the teardown), and a recording still live, are flushed the same way.
+        (pulse, service) = Create();
+        session = await Muffled(service, TimeSpan.Zero);
+        restoring = session.RestoreAsync().AsTask(); await Task.Delay(50);
+        await service.FlushRestoresAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "the quit during the glide left the sink");
+        await restoring.WaitAsync(TimeSpan.FromSeconds(2));
+        (pulse, service) = Create();
+        await Muffled(service, TimeSpan.FromSeconds(30));
+        await service.FlushRestoresAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && !service.HasPendingRestore, "the quit left a live recording's sink");
+
+        // Duck waits out the same delay; the quit puts the volume back at once.
+        (pulse, service) = Create();
+        var duck = service.PrepareForRecording(AudioEnvironmentPolicy.DuckOtherAudio, TimeSpan.FromSeconds(30)).Value!;
+        restoring = duck.RestoreAsync().AsTask();
+        await service.FlushRestoresAsync();
+        Assert.Equal("set-sink-volume @DEFAULT_SINK@ 80% 80%", string.Join(' ', pulse.Calls[^1]));
+        await restoring.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.True(!service.HasPendingRestore, "the duck restore stayed pending");
     }
 
     // Review round 1, #2: a run whose parec/pacat died is not claimed by the next recording; that one builds a fresh sink.
@@ -232,18 +285,42 @@ static class MuffleTests
     {
         var (pulse, service) = Create(); var reasons = new List<string>(); service.MuffleFellBack += (_, code) => reasons.Add(code);
         var first = await Muffled(service, TimeSpan.FromMilliseconds(300));
-        var dead = ((LinuxMuffleSession)first).Run;
+        var dead = ((LinuxMuffleSession)first).Run!;
         pulse.Capture!.Close(); // parec died
         await pulse.WaitUntil(() => pulse.SinkOf(10) == 0, "streams stayed on a dead muffle sink");
         Assert.Equal("audio_environment.muffle_helper_exited", string.Join(',', reasons));
         var restoring = first.RestoreAsync().AsTask();
-        var second = await Muffled(service, TimeSpan.Zero); var run = ((LinuxMuffleSession)second).Run;
+        var second = Prepare(service, TimeSpan.Zero); var run = await RunOf(second);
         Assert.True(!ReferenceEquals(run, dead) && pulse.Calls.Count(call => call[0] == "load-module") == 2, "the new recording claimed the dead run");
-        Assert.True(pulse.SinkOf(10) == pulse.MuffleIndex, "the new recording muffled nothing");
+        Assert.True(await run.Activated.WaitAsync(TimeSpan.FromSeconds(5)) && pulse.SinkOf(10) == pulse.MuffleIndex, "the new recording muffled nothing");
         await restoring;
         Assert.True(pulse.SinkOf(10) == pulse.MuffleIndex && pulse.Sinks.Count(sink => sink.Name == "hw_muffle") == 1, "the dead run's restore undid the new sink");
         await second.RestoreAsync();
         Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "restore left the wrong routing");
+    }
+
+    // Review round 1, #3: PrepareForRecording never waits for pactl; a restore issued before the sink exists waits for it.
+    public static async Task PrepareDoesNotBlockTheCaller()
+    {
+        var (pulse, service) = Create(); using var hold = new ManualResetEventSlim(false); pulse.HoldLoad = hold;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var session = Prepare(service, TimeSpan.Zero);
+        Assert.True(clock.Elapsed < TimeSpan.FromMilliseconds(200) && !session.Ready.IsCompleted, $"prepare blocked for {clock.ElapsedMilliseconds} ms");
+        var restoring = session.RestoreAsync().AsTask();
+        await Task.Delay(50);
+        Assert.True(!restoring.IsCompleted, "the restore did not wait for the prepare");
+        hold.Set();
+        await restoring.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(pulse.Calls.Count(call => call[0] == "load-module") == 1 && pulse.Sinks.All(sink => sink.Name != "hw_muffle")
+            && pulse.SinkOf(10) == 0 && pulse.Children.All(child => child.Terminated) && !service.HasPendingRestore, "an early restore left the sink behind");
+
+        // Two recordings in a row are prepared in order: the second claims the first's sink.
+        (pulse, service) = Create(); using var again = new ManualResetEventSlim(false); pulse.HoldLoad = again;
+        var one = Prepare(service, TimeSpan.FromMilliseconds(300)); var two = Prepare(service, TimeSpan.Zero);
+        again.Set();
+        Assert.True(ReferenceEquals(await RunOf(one), await RunOf(two)), "the queued prepares built two sinks");
+        await one.RestoreAsync(); await two.RestoreAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle"), "the sink stayed");
     }
 
     // Review round 1, #4: a stream that starts right after the activation's scan is still moved (the subscription is up first).

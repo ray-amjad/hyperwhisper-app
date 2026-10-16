@@ -388,25 +388,38 @@ internal sealed class PulseMuffleRun
     }
 }
 
-internal sealed class LinuxMuffleSession(LinuxAudioEnvironmentService owner, PulseMuffleRun run, int generation, TimeSpan delay) : IAudioEnvironmentSession
+/// <summary>What the muffle queue produced for one recording: a run it holds by generation, the duck it fell back to, or nothing.</summary>
+internal sealed record MufflePrepared(PulseMuffleRun? Run, int Generation, IAudioEnvironmentSession? Fallback);
+
+/// <summary>A Muffle Audio recording. It is returned at once; the sink is built (or claimed) on the service's muffle queue, so
+/// the recording never waits for pactl. Its restore waits for that work first, so restore order is the prepare order.</summary>
+internal sealed class LinuxMuffleSession(LinuxAudioEnvironmentService owner, TimeSpan delay) : DeferredAudioRestore(owner)
 {
-    private int _restored;
-    public PulseMuffleRun Run => run;
-    public async ValueTask RestoreAsync(CancellationToken cancellationToken = default)
+    private Task<MufflePrepared> _ready = Task.FromResult(new MufflePrepared(null, 0, null));
+    /// <summary>Completes once the sink was built or claimed, or the recording fell back; it never faults.</summary>
+    public Task<MufflePrepared> Ready => _ready;
+    public PulseMuffleRun? Run => _ready.IsCompletedSuccessfully ? _ready.Result.Run : null;
+    internal void Begin(Task<MufflePrepared> ready) => _ready = ready;
+
+    protected override async Task RestoreCoreAsync(CancellationToken cancellationToken)
     {
-        if (Interlocked.CompareExchange(ref _restored, 1, 0) != 0) return;
-        try
+        var prepared = await _ready.WaitAsync(cancellationToken).ConfigureAwait(false);
+        if (prepared.Fallback is { } fallback)
         {
-            if (delay > TimeSpan.Zero) await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-            // A newer recording took the sink over during the delay; it restores it.
-            if (!run.IsCurrent(generation)) return;
-            run.Release();
-            await Task.Delay(MuffleFilter.TeardownDelay, cancellationToken).ConfigureAwait(false);
-            if (!run.TryBeginTeardown(generation)) return;
-            await run.TeardownAsync(cancellationToken).ConfigureAwait(false);
-            owner.Forget(run);
+            await DelayAsync(delay, cancellationToken).ConfigureAwait(false);
+            await fallback.RestoreAsync(cancellationToken).ConfigureAwait(false);
+            return;
         }
-        catch { Volatile.Write(ref _restored, 0); throw; }
+        if (prepared.Run is not { } run) return;
+        var generation = prepared.Generation;
+        await DelayAsync(delay, cancellationToken).ConfigureAwait(false);
+        // A newer recording took the sink over during the delay; it restores it.
+        if (!run.IsCurrent(generation)) return;
+        run.Release();
+        // A quit skips the glide as well: the sink must be gone before the process is.
+        await DelayAsync(MuffleFilter.TeardownDelay, cancellationToken).ConfigureAwait(false);
+        if (!run.TryBeginTeardown(generation)) return;
+        await run.TeardownAsync(cancellationToken).ConfigureAwait(false);
+        Owner!.Forget(run);
     }
-    public async ValueTask DisposeAsync() => await RestoreAsync().ConfigureAwait(false);
 }

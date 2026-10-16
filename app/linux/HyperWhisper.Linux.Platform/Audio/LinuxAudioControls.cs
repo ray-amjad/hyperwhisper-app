@@ -132,6 +132,10 @@ public sealed class LinuxAudioEnvironmentService : IAudioEnvironmentService
 {
     private readonly IDesktopCommandRunner _runner; private readonly string? _pactl; private readonly PulseAudioMuffler _muffler;
     private readonly object _muffleGate = new(); private PulseMuffleRun? _muffle;
+    // Muffle start and claim run here, one at a time and in prepare order, never on the caller's (UI) thread.
+    private readonly object _queueGate = new(); private Task _queue = Task.CompletedTask;
+    // Every session that changed something and has not finished restoring it, so a quit can finish them all at once.
+    private readonly HashSet<DeferredAudioRestore> _pending = [];
     public LinuxAudioEnvironmentService() : this(new DesktopCommandRunner(), CommandClipboardBackend.FindExecutable("pactl"), new LinuxChildProcessLauncher(),
         CommandClipboardBackend.FindExecutable("parec"), CommandClipboardBackend.FindExecutable("pacat"), Environment.ProcessId, PulseAudioMuffler.ParentProcessId) { }
     internal LinuxAudioEnvironmentService(IDesktopCommandRunner runner, string? pactl) : this(runner, pactl, new LinuxChildProcessLauncher(), null, null, Environment.ProcessId, _ => null) { }
@@ -139,26 +143,44 @@ public sealed class LinuxAudioEnvironmentService : IAudioEnvironmentService
         int ownProcessId, Func<int, int?> parentProcessId)
     {
         _runner = runner; _pactl = pactl; _muffler = new(runner, launcher, pactl, parec, pacat, ownProcessId, parentProcessId);
-        _muffler.ActivationFailed = code => { var handlers = MuffleFellBack; try { handlers?.Invoke(this, code); } catch { } };
+        _muffler.ActivationFailed = FellBack;
+        _muffler.Log = message => { var handlers = MuffleDiagnostic; try { handlers?.Invoke(this, message); } catch { } };
     }
-    /// <summary>Raised with an error code when Muffle Audio could not start and the recording ducked instead, or (from a
-    /// worker thread, "audio_environment.muffle_no_audio") when its sink never carried audio and the other audio played on unmuffled.</summary>
+    /// <summary>Raised with an error code, from a worker thread, when Muffle Audio could not start and the recording ducked
+    /// instead, or when its sink never carried audio ("audio_environment.muffle_no_audio") or a helper exited
+    /// ("audio_environment.muffle_helper_exited") and the other audio played on unmuffled.</summary>
     public event EventHandler<string>? MuffleFellBack;
+    /// <summary>Info-level Muffle Audio diagnostics, from any thread: counts and error codes, no stream or device names.</summary>
+    public event EventHandler<string>? MuffleDiagnostic;
+    /// <summary>A recording's audio change has not been put back yet: it is live, waiting out its restore delay, or restoring.</summary>
+    public bool HasPendingRestore { get { lock (_pending) return _pending.Count > 0; } }
+
     public PlatformResult<IAudioEnvironmentSession> PrepareForRecording(AudioEnvironmentPolicy policy, TimeSpan restoreDelay)
     {
         if (restoreDelay < TimeSpan.Zero) return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.invalid_delay", "The restore delay cannot be negative.");
-        if (policy == AudioEnvironmentPolicy.Unchanged) return PlatformResult<IAudioEnvironmentSession>.Success(new LinuxAudioEnvironmentSession(null, [], restoreDelay));
+        if (policy == AudioEnvironmentPolicy.Unchanged) return PlatformResult<IAudioEnvironmentSession>.Success(new LinuxAudioEnvironmentSession(null, null, [], restoreDelay));
         if (_pactl is null) return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.unsupported", "pactl is unavailable.");
         if (policy == AudioEnvironmentPolicy.MuffleOtherAudio)
         {
-            var muffled = PrepareMuffle(restoreDelay); if (muffled.IsSuccess) return muffled;
-            var handlers = MuffleFellBack; try { handlers?.Invoke(this, muffled.Error!.Code); } catch { }
-            policy = AudioEnvironmentPolicy.DuckOtherAudio;
+            var session = new LinuxMuffleSession(this, restoreDelay); Track(session);
+            lock (_queueGate)
+            {
+                var ready = _queue.ContinueWith(_ => PrepareMuffle(), CancellationToken.None, TaskContinuationOptions.DenyChildAttach, TaskScheduler.Default);
+                session.Begin(ready); _queue = ready;
+            }
+            return PlatformResult<IAudioEnvironmentSession>.Success(session);
         }
+        var prepared = PrepareVolume(policy, restoreDelay);
+        if (prepared.IsSuccess) Track((DeferredAudioRestore)prepared.Value!);
+        return prepared;
+    }
+
+    private PlatformResult<IAudioEnvironmentSession> PrepareVolume(AudioEnvironmentPolicy policy, TimeSpan restoreDelay)
+    {
         try
         {
             var query = policy == AudioEnvironmentPolicy.MuteOtherAudio ? new[] { "get-sink-mute", "@DEFAULT_SINK@" } : ["get-sink-volume", "@DEFAULT_SINK@"];
-            var prior = _runner.RunAsync(_pactl, query, null, CancellationToken.None, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+            var prior = _runner.RunAsync(_pactl!, query, null, CancellationToken.None, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
             if (prior.ExitCode != 0) return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.read_failed", "The output audio state could not be read.");
             IReadOnlyList<string> restore; IReadOnlyList<string> mutate;
             if (policy == AudioEnvironmentPolicy.MuteOtherAudio)
@@ -167,8 +189,8 @@ public sealed class LinuxAudioEnvironmentService : IAudioEnvironmentService
             { var volumes = LinuxMicrophoneVolumeService.Percentages(prior.Output); if (volumes.Count == 0) return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.read_failed", "The output volume could not be read.");
                 restore = ["set-sink-volume", "@DEFAULT_SINK@", .. volumes.Select(value => $"{value}%")];
                 mutate = ["set-sink-volume", "@DEFAULT_SINK@", .. volumes.Select(value => $"{Math.Min(value, 35)}%")]; }
-            var changed = _runner.RunAsync(_pactl, mutate, null, CancellationToken.None, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
-            return changed.ExitCode == 0 ? PlatformResult<IAudioEnvironmentSession>.Success(new LinuxAudioEnvironmentSession(_runner, [_pactl, .. restore], restoreDelay))
+            var changed = _runner.RunAsync(_pactl!, mutate, null, CancellationToken.None, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+            return changed.ExitCode == 0 ? PlatformResult<IAudioEnvironmentSession>.Success(new LinuxAudioEnvironmentSession(this, _runner, [_pactl!, .. restore], restoreDelay))
                 : PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.change_failed", "The output audio state could not be changed.");
         }
         catch { return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.unavailable", "Output audio policy is unavailable."); }
@@ -180,47 +202,119 @@ public sealed class LinuxAudioEnvironmentService : IAudioEnvironmentService
         lock (_muffleGate) { if (_muffle is not null) return 0; try { return _muffler.RecoverStale(); } catch { return 0; } }
     }, cancellationToken);
 
-    private PlatformResult<IAudioEnvironmentSession> PrepareMuffle(TimeSpan restoreDelay)
+    /// <summary>The quit: every pending restore runs now, skipping its delay and the glide, and waits for the muffle queue,
+    /// so no null sink, duck or mute outlives the process. Bounded by pactl's own timeouts.</summary>
+    public async Task FlushRestoresAsync()
     {
-        lock (_muffleGate)
-        {
-            if (_muffle is { } live)
-            {
-                if (live.TryClaim(out var generation)) return PlatformResult<IAudioEnvironmentSession>.Success(new LinuxMuffleSession(this, live, generation, restoreDelay));
-                // The previous run is tearing down: let it finish (or finish it) before building a new sink.
-                try { if (!live.TeardownAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(3)))
-                        return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.muffle_busy", "The previous muffle sink is still being removed."); }
-                catch { }
-                _muffle = null;
-            }
-            try
-            {
-                var started = _muffler.Start();
-                if (started.IsFailure) return PlatformResult<IAudioEnvironmentSession>.Failure(started.Error!.Code, started.Error.Message);
-                _muffle = started.Value!;
-                return PlatformResult<IAudioEnvironmentSession>.Success(new LinuxMuffleSession(this, _muffle, _muffle.Generation, restoreDelay));
-            }
-            catch (Exception error) { return PlatformResult<IAudioEnvironmentSession>.Failure("audio_environment.muffle_start_failed", error.Message); }
-        }
+        DeferredAudioRestore[] pending; lock (_pending) pending = [.. _pending];
+        foreach (var session in pending) await session.RestoreNowAsync().ConfigureAwait(false);
+        Task queue; lock (_queueGate) queue = _queue;
+        try { await queue.ConfigureAwait(false); } catch { }
+        // A run no session restores any more (its restore failed twice): tear it down anyway.
+        PulseMuffleRun? live; lock (_muffleGate) live = _muffle;
+        if (live is null) return;
+        try { await live.TeardownAsync(CancellationToken.None).ConfigureAwait(false); Forget(live); } catch { }
     }
 
+    // On the muffle queue: claim the live sink, or replace a dying one, or build one; on failure duck instead.
+    private MufflePrepared PrepareMuffle()
+    {
+        string code;
+        lock (_muffleGate)
+        {
+            try
+            {
+                if (_muffle is { } live)
+                {
+                    if (live.TryClaim(out var generation)) return new(live, generation, null);
+                    // The previous run is tearing down, or its helpers died: let it finish (or finish it) before building a new sink.
+                    var finished = false;
+                    try { finished = live.TeardownAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(3)); } catch { finished = true; }
+                    if (finished) _muffle = null;
+                }
+                if (_muffle is not null) code = "audio_environment.muffle_busy";
+                else
+                {
+                    var started = _muffler.Start();
+                    if (started.IsSuccess) { _muffle = started.Value!; return new(_muffle, _muffle.Generation, null); }
+                    code = started.Error!.Code;
+                }
+            }
+            catch { code = "audio_environment.muffle_start_failed"; }
+        }
+        _muffler.Info($"fell back to duck ({code})");
+        FellBack(code);
+        var duck = PrepareVolume(AudioEnvironmentPolicy.DuckOtherAudio, TimeSpan.Zero);
+        return new(null, 0, duck.IsSuccess ? duck.Value : null);
+    }
+
+    private void FellBack(string code) { var handlers = MuffleFellBack; try { handlers?.Invoke(this, code); } catch { } }
+    private void Track(DeferredAudioRestore session) { lock (_pending) _pending.Add(session); }
+    internal void Untrack(DeferredAudioRestore session) { lock (_pending) _pending.Remove(session); }
     internal PulseAudioMuffler Muffler => _muffler;
     internal void Forget(PulseMuffleRun run) { lock (_muffleGate) if (ReferenceEquals(_muffle, run)) _muffle = null; }
 }
 
-internal sealed class LinuxAudioEnvironmentSession(IDesktopCommandRunner? runner, IReadOnlyList<string> command, TimeSpan delay) : IAudioEnvironmentSession
+/// <summary>A restore that first waits out a delay. A second call while one runs joins it; one that failed or was cancelled
+/// can be retried; <see cref="RestoreNowAsync"/> (the quit) skips every remaining delay.</summary>
+internal abstract class DeferredAudioRestore(LinuxAudioEnvironmentService? owner) : IAudioEnvironmentSession
 {
-    private int _restored;
+    private readonly object _gate = new(); private readonly CancellationTokenSource _skip = new();
+    private Task? _running; private bool _done;
+    protected LinuxAudioEnvironmentService? Owner => owner;
+    protected abstract Task RestoreCoreAsync(CancellationToken cancellationToken);
+
     public async ValueTask RestoreAsync(CancellationToken cancellationToken = default)
     {
-        if (Interlocked.CompareExchange(ref _restored, 1, 0) != 0 || runner is null || command.Count == 0) return;
+        TaskCompletionSource? mine = null; Task running;
+        lock (_gate)
+        {
+            if (_done) return;
+            if (_running is null) { mine = new(TaskCreationOptions.RunContinuationsAsynchronously); _running = mine.Task; }
+            running = _running;
+        }
+        if (mine is null) { await running.ConfigureAwait(false); return; }
         try
         {
-            if (delay > TimeSpan.Zero) await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-            var result = await runner.RunAsync(command[0], command.Skip(1).ToArray(), null, cancellationToken, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-            if (result.ExitCode != 0) throw new InvalidOperationException("The output audio state could not be restored.");
+            await RestoreCoreAsync(cancellationToken).ConfigureAwait(false);
+            lock (_gate) { _done = true; _running = null; }
+            owner?.Untrack(this);
         }
-        catch { Volatile.Write(ref _restored, 0); throw; }
+        catch { lock (_gate) _running = null; throw; }
+        finally { mine.TrySetResult(); }
     }
+
+    /// <summary>Restores at once, joining a restore already waiting (its delay ends now), and retries once if that fails.</summary>
+    public async Task RestoreNowAsync()
+    {
+        try { _skip.Cancel(); } catch { }
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try { await RestoreAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+            lock (_gate) if (_done) return;
+        }
+    }
+
+    /// <summary>The caller's token cancels (and throws); a quit's skip just ends the wait.</summary>
+    protected async Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken)
+    {
+        if (delay <= TimeSpan.Zero || _skip.IsCancellationRequested) return;
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _skip.Token);
+        try { await Task.Delay(delay, linked.Token).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { }
+    }
+
     public async ValueTask DisposeAsync() => await RestoreAsync().ConfigureAwait(false);
+}
+
+internal sealed class LinuxAudioEnvironmentSession(LinuxAudioEnvironmentService? owner, IDesktopCommandRunner? runner, IReadOnlyList<string> command, TimeSpan delay)
+    : DeferredAudioRestore(owner)
+{
+    protected override async Task RestoreCoreAsync(CancellationToken cancellationToken)
+    {
+        if (runner is null || command.Count == 0) return;
+        await DelayAsync(delay, cancellationToken).ConfigureAwait(false);
+        var result = await runner.RunAsync(command[0], command.Skip(1).ToArray(), null, cancellationToken, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        if (result.ExitCode != 0) throw new InvalidOperationException("The output audio state could not be restored.");
+    }
 }
