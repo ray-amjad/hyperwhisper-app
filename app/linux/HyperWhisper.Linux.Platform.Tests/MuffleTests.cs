@@ -5,6 +5,7 @@ using System.Text.Json;
 using HyperWhisper.Linux.Platform.Audio;
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Linux.Platform.Injection;
+using HyperWhisper.Linux.Platform.SystemIntegration;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.Platform.Abstractions.Audio;
 
@@ -50,8 +51,10 @@ static class MuffleTests
             && parec.Arguments.Contains("--channels=2") && parec.Arguments.Contains("--latency-msec=20"), string.Join(' ', parec.Arguments));
         var pacat = pulse.Started.Single(request => request.ExecutablePath == "/usr/bin/pacat");
         Assert.True(pacat.Arguments.Contains("--device=speakers") && pacat.Arguments.Contains("--property=hyperwhisper.muffle=1"), string.Join(' ', pacat.Arguments));
-        var subscribe = pulse.Started.Single(request => request.ExecutablePath == "/usr/bin/pactl");
-        Assert.True(subscribe.Arguments.SequenceEqual(["subscribe"]) && subscribe.Environment["LC_ALL"] == "C", "pactl subscribe is not locale-pinned");
+        // pactl subscribe runs under a shell that ends it when our end of its stdin closes (a kill -9 of the app).
+        var subscribe = pulse.Started.Single(request => request.ExecutablePath == "/bin/sh");
+        Assert.True(subscribe.Arguments.Skip(3).SequenceEqual(["/usr/bin/pactl", "subscribe"]) && subscribe.RedirectStandardInput
+            && subscribe.Environment["LC_ALL"] == "C", "pactl subscribe is not locale-pinned or not tied to the app: " + string.Join(' ', subscribe.Arguments));
         Assert.Equal("10,17", string.Join(',', pulse.MovedTo("hw_muffle")));
         // Nothing moves into the new sink before it carries audio: a fresh null sink is silent for about 2 s until nudged.
         var nudge = pulse.Calls.FindIndex(call => string.Join(' ', call) == "suspend-sink hw_muffle 0");
@@ -194,7 +197,9 @@ static class MuffleTests
         Assert.True(prepared.IsSuccess, prepared.Error?.Code);
         Assert.True(!await ((LinuxMuffleSession)prepared.Value!).Run.Activated.WaitAsync(TimeSpan.FromSeconds(5)), "a silent sink activated");
         await pulse.WaitUntil(() => reasons.Count == 1, "the silent sink was not reported");
-        Assert.True(reasons[0] == "audio_environment.muffle_no_audio" && pulse.MovedTo("hw_muffle").Count == 0 && pulse.Subscription is null, "a silent sink took streams");
+        // The watcher is up from the start, but a run that never activated moves nothing it reports either.
+        pulse.Subscription!.Emit("Event 'new' on sink-input #10\n"); await Task.Delay(100);
+        Assert.True(reasons[0] == "audio_environment.muffle_no_audio" && pulse.MovedTo("hw_muffle").Count == 0, "a silent sink took streams");
         // The next recording does not inherit the dead run: it builds a new sink.
         pulse.Silent = false;
         var next = await Muffled(service, TimeSpan.Zero);
@@ -222,6 +227,61 @@ static class MuffleTests
         Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "restore left the wrong routing");
     }
 
+    // Review round 1, #2: a run whose parec/pacat died is not claimed by the next recording; that one builds a fresh sink.
+    public static async Task DeadRunIsNotClaimed()
+    {
+        var (pulse, service) = Create(); var reasons = new List<string>(); service.MuffleFellBack += (_, code) => reasons.Add(code);
+        var first = await Muffled(service, TimeSpan.FromMilliseconds(300));
+        var dead = ((LinuxMuffleSession)first).Run;
+        pulse.Capture!.Close(); // parec died
+        await pulse.WaitUntil(() => pulse.SinkOf(10) == 0, "streams stayed on a dead muffle sink");
+        Assert.Equal("audio_environment.muffle_helper_exited", string.Join(',', reasons));
+        var restoring = first.RestoreAsync().AsTask();
+        var second = await Muffled(service, TimeSpan.Zero); var run = ((LinuxMuffleSession)second).Run;
+        Assert.True(!ReferenceEquals(run, dead) && pulse.Calls.Count(call => call[0] == "load-module") == 2, "the new recording claimed the dead run");
+        Assert.True(pulse.SinkOf(10) == pulse.MuffleIndex, "the new recording muffled nothing");
+        await restoring;
+        Assert.True(pulse.SinkOf(10) == pulse.MuffleIndex && pulse.Sinks.Count(sink => sink.Name == "hw_muffle") == 1, "the dead run's restore undid the new sink");
+        await second.RestoreAsync();
+        Assert.True(pulse.Sinks.All(sink => sink.Name != "hw_muffle") && pulse.SinkOf(10) == 0, "restore left the wrong routing");
+    }
+
+    // Review round 1, #4: a stream that starts right after the activation's scan is still moved (the subscription is up first).
+    public static async Task StreamBetweenScanAndSubscribeIsMoved()
+    {
+        var (pulse, service) = Create();
+        pulse.AfterListInputs = () => pulse.AddInput(new(19, 0, 505, false));
+        var session = await Muffled(service, TimeSpan.Zero);
+        await pulse.WaitUntil(() => pulse.SinkOf(19) == pulse.MuffleIndex, "a stream that started after the scan stayed unmuffled");
+        await session.RestoreAsync();
+        Assert.Equal(0, pulse.SinkOf(19));
+    }
+
+    // Review round 1, #5: with the real shell, closing our end of its stdin (what a kill -9 of the app does) ends the child.
+    public static async Task TiedChildDiesWithTheApp()
+    {
+        if (!File.Exists(PulseAudioMuffler.Shell) || !File.Exists("/bin/sleep")) return;
+        var started = new LinuxChildProcessLauncher().Start(new ChildProcessStartRequest { ExecutablePath = PulseAudioMuffler.Shell,
+            Arguments = PulseAudioMuffler.TiedArguments("/bin/sleep", ["600"]), RedirectStandardInput = true, RedirectStandardOutput = true });
+        Assert.True(started.IsSuccess, started.Error?.Code);
+        await using var shell = started.Value!;
+        int? sleeper = null;
+        for (var i = 0; i < 200 && sleeper is null; i++)
+        {
+            sleeper = ChildrenOf(shell.Id).FirstOrDefault(pid => File.ReadAllText($"/proc/{pid}/comm").Trim() == "sleep") is var pid && pid > 0 ? pid : null;
+            if (sleeper is null) await Task.Delay(10);
+        }
+        Assert.True(sleeper is not null, "the tied child did not start");
+        shell.StandardInput!.Dispose();
+        for (var i = 0; i < 200 && Alive(sleeper!.Value); i++) await Task.Delay(10);
+        Assert.True(!Alive(sleeper!.Value), "the tied child outlived the closed pipe");
+        // Only the child holds the output pipe, so its death ends the watcher's read.
+        Assert.Equal(0, await shell.StandardOutput!.ReadAsync(new byte[16]).AsTask().WaitAsync(TimeSpan.FromSeconds(2)));
+        static IEnumerable<int> ChildrenOf(int pid) => Directory.EnumerateFiles($"/proc/{pid}/task", "children", SearchOption.AllDirectories)
+            .SelectMany(file => File.ReadAllText(file).Split(' ', StringSplitOptions.RemoveEmptyEntries)).Select(int.Parse);
+        static bool Alive(int pid) => File.Exists($"/proc/{pid}/stat") && !File.ReadAllText($"/proc/{pid}/stat").Contains(") Z ", StringComparison.Ordinal);
+    }
+
     public static Task ParsesPactlJson()
     {
         var sinks = PulseAudioMuffler.ParseSinks(new(0, """[{"index":3,"name":"alsa_output.pci","owner_module":"12","sample_specification":"s32le 6ch 96000Hz"}]"""u8.ToArray()));
@@ -246,6 +306,11 @@ sealed class FakePulse : IDesktopCommandRunner, IChildProcessLauncher
     public bool Silent { get; set; }
     public int FailUnload { get; set; }
     public string? FailStart { get; set; }
+    public ManualResetEventSlim? HoldLoad { get; set; }
+    /// <summary>Runs once, right after the next sink-input listing was taken (a stream that starts just after a scan).</summary>
+    public Action? AfterListInputs { get; set; }
+    /// <summary>The server notifies a subscriber of every new sink input, as a connected `pactl subscribe` prints it.</summary>
+    public void AddInput(FakeInput input) { lock (_gate) { Inputs.Add(input); Subscription?.Emit($"Event 'new' on sink-input #{input.Index}\n"); } }
     public List<string[]> Calls { get; } = [];
     public List<ChildProcessStartRequest> Started { get; } = [];
     public List<FakePulseChild> Children { get; } = [];
@@ -268,6 +333,8 @@ sealed class FakePulse : IDesktopCommandRunner, IChildProcessLauncher
     public Task<ExternalProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments, byte[]? input, CancellationToken cancellationToken, TimeSpan timeout)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        // A slow server: load-module blocks its caller until the test lets it go.
+        if (arguments[0] == "load-module") HoldLoad?.Wait(TimeSpan.FromSeconds(10));
         lock (_gate)
         {
             Calls.Add([.. arguments]);
@@ -286,13 +353,15 @@ sealed class FakePulse : IDesktopCommandRunner, IChildProcessLauncher
                     return Task.FromResult(Ok(JsonSerializer.Serialize(Sinks.Select(sink => new Dictionary<string, object> { ["index"] = sink.Index, ["name"] = sink.Name,
                         ["owner_module"] = sink.Module.ToString(System.Globalization.CultureInfo.InvariantCulture), ["sample_specification"] = sink.Spec, ["monitor_source"] = sink.Name + ".monitor" }))));
                 case "--format=json" when arguments[2] == "sink-inputs":
-                    return Task.FromResult(Ok(JsonSerializer.Serialize(Inputs.Select(item =>
+                    var listed = Ok(JsonSerializer.Serialize(Inputs.Select(item =>
                     {
                         var properties = new Dictionary<string, string> { ["application.name"] = "app" };
                         if (item.Pid is { } pid) properties["application.process.id"] = pid.ToString(System.Globalization.CultureInfo.InvariantCulture);
                         if (item.Own) properties["hyperwhisper.muffle"] = "1";
                         return new Dictionary<string, object> { ["index"] = item.Index, ["sink"] = item.Sink, ["properties"] = properties };
-                    }))));
+                    })));
+                    var after = AfterListInputs; AfterListInputs = null; after?.Invoke();
+                    return Task.FromResult(listed);
                 case "load-module":
                     if (FailLoad) return Task.FromResult(fail);
                     var name = arguments.First(argument => argument.StartsWith("sink_name=", StringComparison.Ordinal))[10..];
@@ -327,6 +396,8 @@ sealed class FakePulse : IDesktopCommandRunner, IChildProcessLauncher
             if (request.ExecutablePath.EndsWith("parec", StringComparison.Ordinal)) Capture = child;
             else if (request.ExecutablePath.EndsWith("pacat", StringComparison.Ordinal)) Playback = child;
             else Subscription = child;
+            // The helpers' own streams are events a connected subscriber sees.
+            if (child != Subscription) Subscription?.Emit($"Event 'new' on source-output #{Children.Count}\n");
             return PlatformResult<IChildProcess>.Success(child);
         }
     }

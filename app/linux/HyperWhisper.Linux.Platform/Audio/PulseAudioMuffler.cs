@@ -29,8 +29,13 @@ internal sealed class PulseAudioMuffler(IDesktopCommandRunner runner, IChildProc
     internal TimeSpan ActivationTimeout { get; set; } = TimeSpan.FromSeconds(3);
     /// <summary>How often a silent new sink is suspended and resumed to start its clock.</summary>
     internal TimeSpan NudgeInterval { get; set; } = TimeSpan.FromMilliseconds(200);
-    /// <summary>Raised from a worker thread when a started run never received audio, so it moved nothing.</summary>
+    /// <summary>How long the activation waits for `pactl subscribe` to prove it is connected before its first scan.</summary>
+    internal TimeSpan SubscribeReadyTimeout { get; set; } = TimeSpan.FromSeconds(1);
+    /// <summary>Raised from a worker thread when a started run stopped muffling on its own (its sink never received audio,
+    /// or a helper exited), so the other audio plays on unmuffled.</summary>
     internal Action<string>? ActivationFailed { get; set; }
+    /// <summary>Info-level diagnostics (counts and error codes only, never stream or device names).</summary>
+    internal Action<string>? Log { get; set; }
 
     public PlatformResult<PulseMuffleRun> Start()
     {
@@ -52,6 +57,10 @@ internal sealed class PulseAudioMuffler(IDesktopCommandRunner runner, IChildProc
             run.MuffleSinkIndex = muffle.Index;
             // module-switch-on-connect may make a new sink the default; this mode must never change it.
             if (Text(Pactl(["get-default-sink"])).Trim() == SinkName) Pactl(["set-default-sink", real]);
+            // Subscribe before anything else happens on the sink: the helpers' own streams then prove it is connected,
+            // and no stream that starts before the activation's scan can fall between the scan and the subscription.
+            Subscribe(run);
+            run.StartWatching();
             var format = new[] { "--raw", "--format=float32le", $"--rate={sink.Rate}", $"--channels={sink.Channels}", "--client-name=HyperWhisper",
                 "--stream-name=HyperWhisper Muffle", $"--property={OwnStreamProperty}=1" };
             run.Capture = Child(parec!, ["--record", .. format, "--latency-msec=20", $"--device={SinkName}.monitor"], output: true);
@@ -59,6 +68,7 @@ internal sealed class PulseAudioMuffler(IDesktopCommandRunner runner, IChildProc
             run.StartPump();
             // Streams move only once audio flows through the new sink (see ActivateAsync), so start never blocks on it.
             run.StartActivation();
+            Info($"started ({Number(sink.Rate)} Hz, {Number(sink.Channels)} ch)");
             return PlatformResult<PulseMuffleRun>.Success(run);
         }
         catch (Exception error)
@@ -79,6 +89,7 @@ internal sealed class PulseAudioMuffler(IDesktopCommandRunner runner, IChildProc
         if (fallback.Length > 0)
             foreach (var input in SinkInputs()) if (stale.Any(item => item.Index == input.Sink)) Pactl(["move-sink-input", Number(input.Index), fallback]);
         foreach (var item in stale) Pactl(["unload-module", Number(item.OwnerModule)]);
+        Info($"removed {Number(stale.Length)} stale sink(s)");
         return stale.Length;
     }
 
@@ -90,8 +101,16 @@ internal sealed class PulseAudioMuffler(IDesktopCommandRunner runner, IChildProc
     internal IReadOnlyList<PulseSinkInput> SinkInputs() => ParseSinkInputs(Pactl(["--format=json", "list", "sink-inputs"]));
     internal async Task<IReadOnlyList<PulseSinkInput>> SinkInputsAsync(CancellationToken cancellationToken) =>
         ParseSinkInputs(await PactlAsync(["--format=json", "list", "sink-inputs"], cancellationToken).ConfigureAwait(false));
+    // A crashed app (kill -9) closes this pipe, but `pactl subscribe` never writes to its parent and so would run on, orphaned,
+    // holding a server connection. The shell runs it in the background and kills it once our end of its stdin closes.
+    internal const string Shell = "/bin/sh";
+    internal const string WatchScript = "\"$@\" </dev/null & p=$!; exec >/dev/null; read -r _ || :; kill \"$p\" 2>/dev/null";
+    internal static IReadOnlyList<string> TiedArguments(string executable, IReadOnlyList<string> arguments) =>
+        ["-c", WatchScript, "hyperwhisper-muffle-watch", executable, .. arguments];
     internal void Subscribe(PulseMuffleRun run) =>
-        run.Subscription = Child(pactl!, ["subscribe"], output: true, environment: new Dictionary<string, string?> { ["LC_ALL"] = "C" });
+        run.Subscription = Child(Shell, TiedArguments(pactl!, ["subscribe"]), output: true, input: true,
+            environment: new Dictionary<string, string?> { ["LC_ALL"] = "C" });
+    internal void Info(string message) { try { Log?.Invoke(message); } catch { } }
     internal static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
     private static string Text(ExternalProcessResult result) => result.ExitCode == 0 ? Encoding.UTF8.GetString(result.Output) : "";
     private static PlatformResult<PulseMuffleRun> Fail(string code, string message) => PlatformResult<PulseMuffleRun>.Failure(code, message);
@@ -157,8 +176,11 @@ internal sealed class PulseMuffleRun
     private readonly PulseAudioMuffler _owner; private readonly int _module; private readonly PulseSink _real;
     private readonly object _gate = new(); private readonly Dictionary<int, string> _moved = []; private readonly SemaphoreSlim _teardown = new(1, 1);
     private readonly TaskCompletionSource _audio = new(TaskCreationOptions.RunContinuationsAsynchronously); private readonly CancellationTokenSource _activation = new();
+    private readonly TaskCompletionSource _subscribed = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Thread? _pump; private Task? _watch; private Task? _activate; private int _generation = 1;
-    private bool _teardownStarted; private bool _stopping; private bool _unloaded; private bool _released; private bool _active;
+    // _stopping: streams are going (or went) back, because of a teardown or a dead helper; such a run is never claimed again.
+    // _watching: the watcher moves new streams; set just before the activation's scan, so between them they see every stream.
+    private bool _teardownStarted; private bool _stopping; private bool _unloaded; private bool _released; private bool _active; private bool _watching;
     internal PulseMuffleRun(PulseAudioMuffler owner, int module, PulseSink real) { _owner = owner; _module = module; _real = real; Filter = new(real.Rate, real.Channels); }
     public MuffleFilter Filter { get; }
     public int MuffleSinkIndex { get; set; } = -1;
@@ -177,8 +199,8 @@ internal sealed class PulseMuffleRun
     {
         lock (_gate)
         {
-            // A run whose sink never carried audio is not worth keeping: the caller replaces it.
-            generation = _teardownStarted || Activated is { IsCompleted: true, Result: false } ? 0 : ++_generation;
+            // A run whose sink never carried audio, or whose parec/pacat died, is not worth keeping: the caller replaces it.
+            generation = _teardownStarted || _stopping || Activated is { IsCompleted: true, Result: false } ? 0 : ++_generation;
             if (generation == 0) return false;
             _released = false; if (_active) Filter.Engage();
             return true;
@@ -226,10 +248,15 @@ internal sealed class PulseMuffleRun
             }
         }
         catch { }
-        // A helper that died mid-recording would leave the moved streams silent: put them back at once.
-        bool stopping; lock (_gate) stopping = _stopping;
+        // A helper that died mid-recording would leave the moved streams silent: put them back at once. Marking the run as
+        // stopping here, on this thread, keeps a recording that starts right now from claiming it.
+        bool stopping, active; lock (_gate) { stopping = _stopping; active = _active; _stopping = true; }
+        if (stopping) return;
+        _owner.Info("a helper exited; moving the streams back");
+        // An activation still waiting reports its own failure.
+        if (active) try { _owner.ActivationFailed?.Invoke("audio_environment.muffle_helper_exited"); } catch { }
         // ast-grep-ignore: no-discarded-task-run -- the pump thread must not block on pactl; the restore's own MoveBackAsync retries what this best-effort pass misses.
-        if (!stopping) _ = Task.Run(async () => { try { await MoveBackAsync(CancellationToken.None).ConfigureAwait(false); } catch { } });
+        _ = Task.Run(async () => { try { await MoveBackAsync(CancellationToken.None).ConfigureAwait(false); } catch { } });
     }
 
     public void StartActivation()
@@ -240,7 +267,11 @@ internal sealed class PulseMuffleRun
             var result = false;
             try { result = await ActivateAsync(_activation.Token).ConfigureAwait(false); } catch { }
             activated.TrySetResult(result);
-            if (!result && !_activation.IsCancellationRequested) try { _owner.ActivationFailed?.Invoke("audio_environment.muffle_no_audio"); } catch { }
+            if (!result && !_activation.IsCancellationRequested)
+            {
+                _owner.Info("fell back: the sink never carried audio (audio_environment.muffle_no_audio)");
+                try { _owner.ActivationFailed?.Invoke("audio_environment.muffle_no_audio"); } catch { }
+            }
         });
     }
 
@@ -259,12 +290,14 @@ internal sealed class PulseMuffleRun
             await _owner.PactlAsync(["suspend-sink", PulseAudioMuffler.SinkName, "1"], cancellationToken).ConfigureAwait(false);
             await _owner.PactlAsync(["suspend-sink", PulseAudioMuffler.SinkName, "0"], cancellationToken).ConfigureAwait(false);
         }
-        lock (_gate) if (_stopping) return false;
+        // Any event line proves `pactl subscribe` is connected; the helpers' streams and the nudges make several.
+        try { await _subscribed.Task.WaitAsync(_owner.SubscribeReadyTimeout, cancellationToken).ConfigureAwait(false); } catch (TimeoutException) { }
+        lock (_gate) { if (_stopping) return false; _watching = true; }
+        var moved = 0;
         foreach (var input in await _owner.SinkInputsAsync(cancellationToken).ConfigureAwait(false))
-            if (input.Sink == _real.Index && !_owner.IsOwn(input)) { cancellationToken.ThrowIfCancellationRequested(); TryMove(input.Index); }
-        _owner.Subscribe(this);
-        StartWatching();
+            if (input.Sink == _real.Index && !_owner.IsOwn(input)) { cancellationToken.ThrowIfCancellationRequested(); if (TryMove(input.Index)) moved++; }
         lock (_gate) { _active = true; if (!_released) Filter.Engage(); }
+        _owner.Info($"engaged: moved {PulseAudioMuffler.Number(moved)} stream(s)");
         return true;
     }
 
@@ -278,12 +311,15 @@ internal sealed class PulseMuffleRun
                 using var reader = new StreamReader(output, Encoding.UTF8);
                 while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
                 {
+                    _subscribed.TrySetResult();
                     var match = NewSinkInput.Match(line); if (!match.Success) continue;
+                    // Before the activation's scan, that scan moves whatever exists; moving earlier would silence it.
+                    lock (_gate) if (!_watching) continue;
                     var index = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
                     try
                     {
                         var input = (await _owner.SinkInputsAsync(CancellationToken.None).ConfigureAwait(false)).FirstOrDefault(item => item.Index == index);
-                        if (input is not null && input.Sink == _real.Index && !_owner.IsOwn(input)) TryMove(index);
+                        if (input is not null && input.Sink == _real.Index && !_owner.IsOwn(input) && TryMove(index)) _owner.Info("moved a new stream");
                     }
                     catch { }
                 }
@@ -292,22 +328,24 @@ internal sealed class PulseMuffleRun
         });
     }
 
-    private async Task MoveBackAsync(CancellationToken cancellationToken)
+    private async Task<int> MoveBackAsync(CancellationToken cancellationToken)
     {
         lock (_gate) _stopping = true;
         var inputs = await _owner.SinkInputsAsync(cancellationToken).ConfigureAwait(false);
-        KeyValuePair<int, string>[] moved; lock (_gate) moved = [.. _moved];
+        KeyValuePair<int, string>[] moved; lock (_gate) moved = [.. _moved]; var back = 0;
         foreach (var (index, original) in moved)
         {
             var input = inputs.FirstOrDefault(item => item.Index == index);
             // Gone, or moved elsewhere by the user since: not ours to touch.
             if (input is not null && input.Sink == MuffleSinkIndex)
             {
-                var back = await _owner.PactlAsync(["move-sink-input", PulseAudioMuffler.Number(index), original], cancellationToken).ConfigureAwait(false);
-                if (back.ExitCode != 0) continue;
+                var result = await _owner.PactlAsync(["move-sink-input", PulseAudioMuffler.Number(index), original], cancellationToken).ConfigureAwait(false);
+                if (result.ExitCode != 0) continue;
+                back++;
             }
             lock (_gate) _moved.Remove(index);
         }
+        return back;
     }
 
     /// <summary>Idempotent: a step that failed is retried by the next call; one that succeeded is not repeated.</summary>
@@ -326,7 +364,7 @@ internal sealed class PulseMuffleRun
         try { if (_activate is not null) await _activate.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false); } catch (TimeoutException) { }
         await StopAsync(Subscription, cancellationToken).ConfigureAwait(false); Subscription = null;
         try { if (_watch is not null) await _watch.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false); } catch (TimeoutException) { }
-        if (MuffleSinkIndex >= 0) await MoveBackAsync(cancellationToken).ConfigureAwait(false);
+        var back = MuffleSinkIndex >= 0 ? await MoveBackAsync(cancellationToken).ConfigureAwait(false) : 0;
         await StopAsync(Playback, cancellationToken).ConfigureAwait(false); Playback = null;
         await StopAsync(Capture, cancellationToken).ConfigureAwait(false); Capture = null;
         _pump?.Join(TimeSpan.FromSeconds(2));
@@ -337,6 +375,7 @@ internal sealed class PulseMuffleRun
             if (unload.ExitCode != 0) throw new InvalidOperationException("The muffle sink could not be removed.");
             _unloaded = true;
         }
+        _owner.Info($"restored: moved {PulseAudioMuffler.Number(back)} stream(s) back, sink removed");
         Completion.TrySetResult();
     }
 
