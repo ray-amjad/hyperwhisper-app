@@ -558,6 +558,71 @@ internal static class Program
                 }
             });
 
+            // Muffle Audio: the setting keeps the macOS raw value, and every catalog
+            // translates the new Sound settings choice.
+            Run("Media control mode keeps muffleAudio and every catalog translates it", () =>
+            {
+                Assert(SettingsService.NormalizeMediaControlMode("muffleAudio") == "muffleAudio", "muffleAudio is kept");
+                Assert(SettingsService.NormalizeMediaControlMode("MUFFLEAUDIO") == "muffleAudio", "muffleAudio is case-insensitive");
+                Assert(SettingsService.NormalizeMediaControlMode("muteAudio") == "muteAudio", "muteAudio is kept");
+                Assert(SettingsService.NormalizeMediaControlMode("pauseMedia") == "off", "an unknown mode is off");
+                Assert(SettingsService.NormalizeMediaControlMode(null) == "off", "a missing mode is off");
+
+                const string key = "settings.sound.mediaControl.muffleAudio";
+                var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, CultureInfo.InvariantCulture);
+                Assert(neutral == "Muffle audio", $"{key} is missing from Strings.resx");
+                foreach (var name in ShippedSatelliteCultures())
+                {
+                    var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, new CultureInfo(name));
+                    Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
+                        $"Strings.{name}.resx does not translate {key}");
+                }
+            });
+
+            // Muffle Audio crash journal: a volume the muffler lowered is written down first
+            // and matched back to its session by instance id, then by session id.
+            Run("Muffle restore journal round-trips and matches sessions", () =>
+            {
+                var created = new DateTimeOffset(2026, 10, 16, 9, 0, 0, TimeSpan.Zero);
+                var first = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, created);
+                var second = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|b.exe", "app|b.exe|2", 20, 1f, 1e-4f, created);
+                var entries = new[] { first, second };
+
+                var parsed = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse(
+                    HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(entries));
+                Assert(parsed.Count == 2 && parsed[0] == first && parsed[1] == second, "entries survive a round trip");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse("{ not json").Count == 0, "a damaged file reads as empty");
+
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|b.exe|2", "app|a.exe") == second,
+                    "the instance id wins over the session id");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|a.exe|99", "app|a.exe") == first,
+                    "a reopened app matches by session id");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "other|1", "other") == null,
+                    "an unknown session matches nothing");
+
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(1.00005e-4f, 1e-4f), "float noise still counts as ours");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(0.5f, 1e-4f), "a volume the user moved is left alone");
+
+                var path = Path.Combine(Path.GetTempPath(), $"hw-muffle-journal-{Guid.NewGuid():N}.json");
+                try
+                {
+                    using (var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path))
+                    {
+                        Assert(journal.Add(first).IsSuccess && File.Exists(path), "an entry is on disk before the volume changes");
+                        journal.Remove(first);
+                        Assert(!File.Exists(path), "the file goes once every volume is back");
+                        Assert(journal.Add(second).IsSuccess, "second entry written");
+                    }
+
+                    using var nextRun = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path);
+                    Assert(nextRun.HasStaleEntries, "the next start sees what a killed run left");
+                }
+                finally
+                {
+                    File.Delete(path);
+                }
+            });
+
             // #1535. The Transcribe File dialog has no owner, so the tray stays live
             // while it is open. Drive the real TranscribeFileWithModeAsync on a bare
             // view model, with the dialog seam standing in for the dialog: the tray
