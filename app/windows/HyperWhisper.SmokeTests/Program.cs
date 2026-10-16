@@ -615,6 +615,24 @@ internal static class Program
                 Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(1.00005e-4f, 1e-4f), "float noise still counts as ours");
                 Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(0.5f, 1e-4f), "a volume the user moved is left alone");
 
+                // A crash mid-ramp leaves a volume between prior and set; it is ours only while the
+                // entry says it was ramping.
+                var settledEntry = first;
+                var rampingEntry = first with { Ramping = true };
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(settledEntry, 0.8f * 1e-4f), "a settled entry at its set volume is ours");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(settledEntry, 0.3f), "a settled entry between prior and set was moved by the user");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(rampingEntry, 0.3f), "a ramping entry between prior and set is ours");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(rampingEntry, 0.8f), "a ramping entry already back at its prior is ours");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(rampingEntry, 0.95f), "a ramping entry above its prior was moved by the user");
+                var rampingParsed = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse(
+                    HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(new[] { rampingEntry }));
+                Assert(rampingParsed.Count == 1 && rampingParsed[0].Ramping, "the ramping flag survives a round trip");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(
+                        "{\"version\":1,\"entries\":[{\"sessionIdentifier\":\"s\",\"sessionInstanceIdentifier\":\"i\",\"processId\":1,\"priorVolume\":0.5,\"setVolume\":5E-05,\"createdUtc\":\"2026-10-16T09:00:00+00:00\"}]}",
+                        out var older, out _)
+                    && older.Count == 1 && !older[0].Ramping && older[0].PriorVolume == 0.5f,
+                    "a journal written before the ramping flag still reads, as settled");
+
                 // A restore write counts only on a session still open that reads it back.
                 Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(false, 0.8f, 0.8f), "a write that holds on an open session lands");
                 Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(true, 0.8f, 0.8f),
@@ -627,7 +645,11 @@ internal static class Program
                     using (var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path))
                     {
                         Assert(journal.Add(first).IsSuccess && File.Exists(path), "an entry is on disk before the volume changes");
-                        journal.Remove(first);
+                        var firstRamping = first with { Ramping = true };
+                        Assert(journal.Update(new[] { (first, firstRamping) }).IsSuccess, "an entry can be marked as ramping");
+                        Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(File.ReadAllText(path), out var onDisk, out _)
+                            && onDisk.Count == 1 && onDisk[0] == firstRamping, "the ramping flag is on disk before the ramp");
+                        journal.Remove(firstRamping);
                         Assert(!File.Exists(path), "the file goes once every volume is back");
                         Assert(journal.Add(second).IsSuccess, "second entry written");
                     }

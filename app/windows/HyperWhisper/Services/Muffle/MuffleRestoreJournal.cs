@@ -19,7 +19,10 @@ public sealed record MuffleRestoreEntry(
     [property: JsonPropertyName("processId")] uint ProcessId,
     [property: JsonPropertyName("priorVolume")] float PriorVolume,
     [property: JsonPropertyName("setVolume")] float SetVolume,
-    [property: JsonPropertyName("createdUtc")] DateTimeOffset CreatedUtc);
+    [property: JsonPropertyName("createdUtc")] DateTimeOffset CreatedUtc,
+    // True while the volume is being ramped between PriorVolume and SetVolume (either way), so a
+    // crash mid-ramp leaves a value between the two that is still ours. Absent in older files.
+    [property: JsonPropertyName("ramping")] bool Ramping = false);
 
 public sealed class MuffleRestoreJournal : IDisposable
 {
@@ -74,6 +77,31 @@ public sealed class MuffleRestoreJournal : IDisposable
             }
 
             return saved;
+        }
+    }
+
+    /// <summary>
+    /// Replaces live entries in one write (a ramp starting or settling). The new entries are kept
+    /// in memory even if the write fails; the next write puts them on disk.
+    /// </summary>
+    public Result Update(IReadOnlyList<(MuffleRestoreEntry Old, MuffleRestoreEntry New)> changes)
+    {
+        ArgumentNullException.ThrowIfNull(changes);
+        lock (_gate)
+        {
+            EnsureLoaded();
+            var changed = false;
+            foreach (var (old, replacement) in changes)
+            {
+                var index = _live.IndexOf(old);
+                if (index >= 0)
+                {
+                    _live[index] = replacement;
+                    changed = true;
+                }
+            }
+
+            return changed ? Save() : Result.Success();
         }
     }
 
@@ -242,7 +270,7 @@ public sealed class MuffleRestoreJournal : IDisposable
             }
 
             var restored = false;
-            if (StillAtSetVolume(current, match.SetVolume))
+            if (HoldsOurVolume(match, current))
             {
                 try
                 {
@@ -266,7 +294,7 @@ public sealed class MuffleRestoreJournal : IDisposable
             }
             else
             {
-                LoggingService.Info($"MuffleRestoreJournal: Leftover volume was changed since (now {current:G4}, set {match.SetVolume:G4}); leaving it");
+                LoggingService.Info($"MuffleRestoreJournal: Leftover volume was changed since (now {current:G4}, set {match.SetVolume:G4}, ramping {match.Ramping}); leaving it");
             }
 
             _stale.Remove(match);
@@ -415,6 +443,28 @@ public sealed class MuffleRestoreJournal : IDisposable
     }
 
     /// <summary>
+    /// True when <paramref name="current"/> is a volume the muffler left: its set volume, or, for an
+    /// entry journaled mid-ramp, anything between the prior and the set volume. Anything else was
+    /// changed by the user and is left alone.
+    /// </summary>
+    internal static bool HoldsOurVolume(MuffleRestoreEntry entry, float current)
+    {
+        if (StillAtSetVolume(current, entry.SetVolume))
+        {
+            return true;
+        }
+
+        if (!entry.Ramping)
+        {
+            return false;
+        }
+
+        var low = Math.Min(entry.PriorVolume, entry.SetVolume);
+        var high = Math.Max(entry.PriorVolume, entry.SetVolume);
+        return current >= low - Tolerance(low) && current <= high + Tolerance(high);
+    }
+
+    /// <summary>
     /// True when a restore write can be trusted: the session was still open after the write and
     /// reads back the prior volume. A session that expires mid-restore can take a write without
     /// keeping it for the app's next session, so otherwise the entry is kept for a retry.
@@ -428,7 +478,9 @@ public sealed class MuffleRestoreJournal : IDisposable
 
     /// <summary>True while a session still holds (within float noise) the volume the muffler set.</summary>
     internal static bool StillAtSetVolume(float current, float set) =>
-        Math.Abs(current - set) <= Math.Max(1e-7f, Math.Abs(set) * 1e-3f);
+        Math.Abs(current - set) <= Tolerance(set);
+
+    private static float Tolerance(float volume) => Math.Max(1e-7f, Math.Abs(volume) * 1e-3f);
 
     internal static List<MuffleRestoreEntry> Parse(string json) =>
         TryParse(json, out var entries, out _) ? entries : new List<MuffleRestoreEntry>();

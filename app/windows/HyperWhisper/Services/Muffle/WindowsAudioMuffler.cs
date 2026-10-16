@@ -690,7 +690,11 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             return null;
         }
 
-        var entry = new MuffleRestoreEntry(sessionId, instanceId, pid, prior, prior * VolumeFactor, DateTimeOffset.UtcNow);
+        // A session that opened at our value already (see PriorVolumeFor) is not ramped. One that is
+        // is journaled as ramping until it settles, so a crash mid-ramp is still recognised as ours.
+        var setVolume = prior * VolumeFactor;
+        var needsRamp = !MuffleRestoreJournal.StillAtSetVolume(current, setVolume);
+        var entry = new MuffleRestoreEntry(sessionId, instanceId, pid, prior, setVolume, DateTimeOffset.UtcNow, Ramping: needsRamp);
         if (_journal.Add(entry).IsFailure)
         {
             LoggingService.Warn($"WindowsAudioMuffler: Not muffling pid {pid}: the restore journal could not be written");
@@ -700,8 +704,7 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         try
         {
             var volume = session.SimpleAudioVolume;
-            // A session that opened at our value already (see PriorVolumeFor) is not ramped.
-            if (!MuffleRestoreJournal.StillAtSetVolume(current, entry.SetVolume))
+            if (needsRamp)
             {
                 RampVolumes(new[] { new VolumeRamp(volume, current, entry.SetVolume) });
             }
@@ -725,6 +728,13 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
             }
 
             return null;
+        }
+
+        if (needsRamp)
+        {
+            var settled = entry with { Ramping = false };
+            _journal.Update(new[] { (entry, settled) });
+            entry = settled;
         }
 
         var scaled = new ScaledSession(session, entry);
@@ -817,9 +827,17 @@ public sealed unsafe class WindowsAudioMuffler : IDisposable
         }
 
         // All the apps ramp back together, so the restore costs one ramp however many there are.
-        RampVolumes(toRestore.Select(r => new VolumeRamp(r.Volume, r.Scaled.Entry.SetVolume, r.Scaled.Entry.PriorVolume)).ToList());
-        foreach (var (scaled, volume) in toRestore)
+        // They are journaled as ramping first (one write), so a crash mid-ramp is still recovered.
+        var ramping = toRestore.Select(r => (r.Scaled, r.Volume, Entry: r.Scaled.Entry with { Ramping = true })).ToList();
+        if (ramping.Count > 0)
         {
+            _journal.Update(ramping.Select(r => (r.Scaled.Entry, r.Entry)).ToList());
+        }
+
+        RampVolumes(ramping.Select(r => new VolumeRamp(r.Volume, r.Entry.SetVolume, r.Entry.PriorVolume)).ToList());
+        foreach (var (scaledSession, volume, entry) in ramping)
+        {
+            var scaled = scaledSession with { Entry = entry };
             try
             {
                 volume.Volume = scaled.Entry.PriorVolume;
