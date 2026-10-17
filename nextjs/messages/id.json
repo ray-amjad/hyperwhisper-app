@@ -272,7 +272,31 @@
     "homebrewTitle": "Instal via Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Salin",
-    "copied": "Disalin!"
+    "copied": "Disalin!",
+    "linuxSubtitle": "Paket Debian untuk sistem Intel/AMD 64-bit",
+    "downloadLinux": "Unduh untuk Linux",
+    "downloadLinuxVersion": "Unduh untuk Linux v{version}",
+    "linuxReleaseNotes": "Checksum dan catatan rilis",
+    "linuxInstallTitle": "Instal paket Debian",
+    "linuxTargets": "Linux v1 menargetkan Ubuntu 22.04+ dan Debian 12+ pada amd64.",
+    "linuxReplaceVersion": "Ganti VERSION dengan versi yang Anda unduh.",
+    "linuxInstallCommandLabel": "Perintah instalasi Debian",
+    "linuxInputGroupNote": "Keluar lalu masuk kembali setelah bergabung dengan grup input. Keanggotaan bersifat opsional, tetapi pintasan global dan tempel otomatis memerlukannya.",
+    "aptTitle": "Host sendiri repositori APT",
+    "aptBody": "Rilis Linux juga menyertakan arsip repositori APT statis. HyperWhisper saat ini tidak mengoperasikan endpoint APT publik; lihat panduan instalasi Linux untuk penyiapan host sendiri yang ditandatangani, pendamping desktop, detail privasi, dan cara menghapus instalasi.",
+    "linuxGuideCta": "Baca panduan instalasi Linux"
+  },
+  "olderVersions": {
+    "title": "Versi Lama",
+    "subtitle": "Jelajahi dan unduh semua rilis HyperWhisper",
+    "errorLoading": "Gagal memuat versi: {error}",
+    "unknownError": "Terjadi kesalahan",
+    "loading": "Memuat versi...",
+    "latest": "Terbaru",
+    "build": "Build {number}",
+    "downloadDmg": "Unduh DMG",
+    "downloadExe": "Unduh EXE",
+    "unknownSize": "Tidak diketahui"
   },
   "purchaseSuccess": {
     "title": "Semua sudah siap!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Sumber terbuka. Tidak ada yang disembunyikan.",
     "body": "HyperWhisper sepenuhnya open-source di bawah Apache-2.0 — baik aplikasi desktop maupun backend Cloud. Aplikasi yang mendengarkan mikrofon Anda seharusnya bisa Anda verifikasi, bukan sekadar dipercaya: baca setiap baris, audit ke mana persis audio Anda pergi, dan ketahui bahwa Anda tidak akan pernah terkunci — kode ini milik Anda untuk di-fork dan di-host sendiri selamanya. Dibangun secara terbuka oleh indie maker Ray Amjad.",
-    "cta": "Lihat di GitHub"
+    "cta": "Lihat di GitHub",
+    "metaTitle": "Sumber Terbuka | HyperWhisper",
+    "metaDescription": "HyperWhisper sepenuhnya open-source di bawah Apache-2.0 — baik aplikasi desktop maupun backend Cloud. Baca kodenya, audit ke mana audio Anda pergi, fork, dan host sendiri selamanya.",
+    "eyebrow": "Sumber Terbuka",
+    "lead": "HyperWhisper kini sepenuhnya open-source di bawah Apache-2.0 — baik aplikasi desktop maupun backend Cloud.",
+    "intro": "Aplikasi yang mendengarkan mikrofon Anda seharusnya bisa Anda verifikasi, bukan sekadar dipercaya. Karena itu, kami membuka semuanya. Anda dapat membaca setiap baris HyperWhisper — aplikasi macOS, Windows, dan Linux, serta backend transkripsi Cloud — melihat persis ke mana audio Anda pergi, dan tahu bahwa Anda tidak akan pernah terkunci. Seluruh proyek tersedia di <github>GitHub</github> di bawah <license>lisensi Apache-2.0</license>.",
+    "whyHeading": "Mengapa ini penting",
+    "whyVerify": "<strong>Verifikasi, jangan sekadar percaya.</strong> Baca setiap baris dan audit ke mana persis audio Anda pergi. Aplikasi dengan akses mikrofon seharusnya bisa Anda periksa, bukan sekadar diterima begitu saja.",
+    "whyNoLockIn": "<strong>Tanpa ketergantungan.</strong> Kodenya berlisensi Apache-2.0 — milik Anda untuk disimpan, diadaptasi, dan dijalankan sesuai keinginan Anda. Alur kerja Anda tidak akan pernah disandera.",
+    "whyFork": "<strong>Fork dan host sendiri.</strong> Clone repo, build sendiri, atau jalankan backend Cloud Anda sendiri. Semua yang Anda butuhkan tersedia untuk publik.",
+    "whyOpen": "<strong>Dibangun secara terbuka.</strong> HyperWhisper dikembangkan secara publik oleh indie maker Ray Amjad. Issue, diskusi, dan rilis semuanya berlangsung secara terbuka.",
+    "licenseHeading": "Sudah membeli lisensi?",
+    "licenseIntro": "HyperWhisper kini open-source, dan transkripsi berbayar menggunakan kredit HyperWhisper Cloud. Jika Anda membeli lisensi sebelum peralihan ini, beginilah cara kami mengurus Anda — cukup kirim email ke <mail>{email}</mail> dan kami akan menanganinya secara manual.",
+    "licenseRecent": "<strong>Membeli dalam 30 hari terakhir:</strong> Anda masih dalam masa pengembalian dana. Kami akan mengembalikan pembelian Anda sepenuhnya — tanpa pertanyaan. Cukup <refund>kirimi kami pesan</refund>.",
+    "licenseOlder": "<strong>Membeli lebih dari 30 hari yang lalu:</strong> kami akan mengonversi jumlah yang Anda bayarkan menjadi kredit HyperWhisper Cloud — harga pembelian penuh, dikurangi kredit $5 yang sudah ditambahkan ke akun Anda. <credits>Kirimi kami email</credits> dan kami akan menambahkan saldonya.",
+    "contributeHeading": "Ingin berkontribusi?",
+    "contributeBody": "Laporan bug, ide fitur, dan pull request semuanya diterima. Buka issue atau mulai diskusi <github>di GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper kini sepenuhnya open-source",
+    "shortText": "Kini open-source",
+    "learnMore": "Pelajari lebih lanjut",
+    "dismiss": "Tutup pengumuman"
   },
   "notFound": {
     "title": "Halaman tidak ditemukan",

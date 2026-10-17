@@ -339,7 +339,7 @@ Windows accepts the same two field names, but it applies no list of accepted val
   Windows and Linux accept and return five more mode fields than macOS: `localEngine`, `localParakeetModel`, `localPostProcessingModel`, `customVocabulary`, and `providerType`. These fields hold the settings that have no macOS equivalent. macOS ignores these keys when you send them, and never returns them. On Linux, `localEngine` and `localParakeetModel` are the only way to select a local model — read [Local models on Linux](#local-models-on-linux).
 </Note>
 
-The `providers` array includes `key_present`, `reachable`, and `status`. A Meta key reports `status: "configured"` and `reachable: false`. Meta has no safe empty request for key validation. A transcription validates the key for that request, but the health endpoint stays conservative. macOS and Windows use the same status.
+The `providers` array includes `key_present`, `reachable`, and `status`. For HyperWhisper Cloud, `key_present` reports whether HyperWhisper has your Cloud account key. A Meta key reports `status: "configured"` and `reachable: false`. Meta has no safe empty request for key validation. A transcription validates the key for that request, but the health endpoint stays conservative. macOS and Windows use the same status.
 
 ## Next steps
 

@@ -1301,6 +1301,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Det ser inte ut som en kontonyckel.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 

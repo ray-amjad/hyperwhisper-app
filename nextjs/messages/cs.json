@@ -272,7 +272,31 @@
     "homebrewTitle": "Instalace přes Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopírovat",
-    "copied": "Zkopírováno!"
+    "copied": "Zkopírováno!",
+    "linuxSubtitle": "Balíček Debian pro 64bitové systémy Intel/AMD",
+    "downloadLinux": "Stáhnout pro Linux",
+    "downloadLinuxVersion": "Stáhnout pro Linux v{version}",
+    "linuxReleaseNotes": "Kontrolní součty a poznámky k vydání",
+    "linuxInstallTitle": "Instalace balíčku Debian",
+    "linuxTargets": "Linux v1 cílí na Ubuntu 22.04+ a Debian 12+ na amd64.",
+    "linuxReplaceVersion": "Nahraďte VERSION verzí, kterou jste stáhli.",
+    "linuxInstallCommandLabel": "Instalační příkaz pro Debian",
+    "linuxInputGroupNote": "Po přidání do skupiny input se odhlaste a znovu přihlaste. Členství je volitelné, ale globální zkratky a automatické vkládání ho vyžadují.",
+    "aptTitle": "Vlastní repozitář APT",
+    "aptBody": "Vydání pro Linux obsahují také archiv statického repozitáře APT. HyperWhisper v současnosti neprovozuje veřejný server APT; nastavení podepsaného vlastního repozitáře, desktopové doplňky, informace o soukromí a odinstalaci najdete v průvodci instalací pro Linux.",
+    "linuxGuideCta": "Přečíst průvodce instalací pro Linux"
+  },
+  "olderVersions": {
+    "title": "Starší verze",
+    "subtitle": "Procházejte a stahujte všechna vydání HyperWhisper",
+    "errorLoading": "Chyba při načítání verzí: {error}",
+    "unknownError": "Došlo k chybě",
+    "loading": "Načítání verzí...",
+    "latest": "Nejnovější",
+    "build": "Sestavení {number}",
+    "downloadDmg": "Stáhnout DMG",
+    "downloadExe": "Stáhnout EXE",
+    "unknownSize": "Neznámá"
   },
   "purchaseSuccess": {
     "title": "Hotovo!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Otevřený zdroj. Nic ke skrývání.",
     "body": "HyperWhisper je plně open source pod licencí Apache-2.0 — desktopové aplikace i Cloud backend. Aplikace, která poslouchá váš mikrofon, by měla být něco, co si můžete ověřit, ne jen čemu věříte: přečtěte si každý řádek, prověřte přesně, kam jde váš zvuk, a mějte jistotu, že nikdy nebudete uzamčeni — kód je váš, můžete ho forknout a hostovat sami navždy. Vytvořeno otevřeně nezávislým tvůrcem Ray Amjad.",
-    "cta": "Zobrazit na GitHubu"
+    "cta": "Zobrazit na GitHubu",
+    "metaTitle": "Otevřený zdroj | HyperWhisper",
+    "metaDescription": "HyperWhisper je plně open source pod licencí Apache-2.0 — desktopové aplikace i Cloud backend. Čtěte kód, prověřte, kam jde váš zvuk, forkněte ho a hostujte sami navždy.",
+    "eyebrow": "Otevřený zdroj",
+    "lead": "HyperWhisper je nyní plně open source pod licencí Apache-2.0 — desktopové aplikace i Cloud backend.",
+    "intro": "Aplikace, která poslouchá váš mikrofon, by měla být něco, co si můžete ověřit, ne jen čemu musíte věřit. Proto jsme otevřeli všechno. Můžete si přečíst každý řádek HyperWhisper — aplikace pro macOS, Windows a Linux i cloudový backend pro přepis — přesně vidět, kam jde váš zvuk, a vědět, že nikdy nebudete uzamčeni. Celý projekt najdete na <github>GitHubu</github> pod <license>licencí Apache-2.0</license>.",
+    "whyHeading": "Proč na tom záleží",
+    "whyVerify": "<strong>Ověřujte, nevěřte.</strong> Přečtěte si každý řádek a prověřte přesně, kam jde váš zvuk. Aplikace s přístupem k mikrofonu by měla jít zkontrolovat, ne jen brát na víru.",
+    "whyNoLockIn": "<strong>Žádné uzamčení.</strong> Kód je pod Apache-2.0 — můžete si ho ponechat, upravit a provozovat podle svého. Váš pracovní postup nikdy nebude rukojmím.",
+    "whyFork": "<strong>Forkněte a hostujte sami.</strong> Naklonujte repozitář, sestavte si ho sami nebo spusťte vlastní Cloud backend. Vše, co potřebujete, je veřejné.",
+    "whyOpen": "<strong>Vyvíjeno otevřeně.</strong> HyperWhisper veřejně vyvíjí nezávislý tvůrce Ray Amjad. Issues, diskuse i vydání probíhají otevřeně.",
+    "licenseHeading": "Už jste si koupili licenci?",
+    "licenseIntro": "HyperWhisper je nyní open source a placený přepis běží na kreditech HyperWhisper Cloud. Pokud jste si licenci koupili před touto změnou, takto se o vás postaráme — stačí napsat na <mail>{email}</mail> a vše vyřešíme ručně.",
+    "licenseRecent": "<strong>Koupeno za posledních 30 dní:</strong> jste v lhůtě pro vrácení peněz. Vrátíme vám celou částku za nákup — bez otázek. Stačí nám <refund>poslat zprávu</refund>.",
+    "licenseOlder": "<strong>Koupeno před více než 30 dny:</strong> převedeme, co jste zaplatili, na kredity HyperWhisper Cloud — celou kupní cenu po odečtení $5 v kreditech, které už máte na účtu. <credits>Napište nám</credits> a zbytek vám připíšeme.",
+    "contributeHeading": "Chcete přispět?",
+    "contributeBody": "Hlášení chyb, nápady na funkce i pull requesty jsou vítány. Založte issue nebo zahajte diskusi <github>na GitHubu</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper je nyní plně open source",
+    "shortText": "Nyní open source",
+    "learnMore": "Zjistit více",
+    "dismiss": "Zavřít oznámení"
   },
   "notFound": {
     "title": "Stránka nenalezena",

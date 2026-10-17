@@ -272,7 +272,31 @@
     "homebrewTitle": "Cài qua Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Sao chép",
-    "copied": "Đã sao chép!"
+    "copied": "Đã sao chép!",
+    "linuxSubtitle": "Gói Debian cho hệ thống Intel/AMD 64-bit",
+    "downloadLinux": "Tải cho Linux",
+    "downloadLinuxVersion": "Tải cho Linux v{version}",
+    "linuxReleaseNotes": "Checksum và ghi chú phát hành",
+    "linuxInstallTitle": "Cài đặt gói Debian",
+    "linuxTargets": "Linux v1 hỗ trợ Ubuntu 22.04+ và Debian 12+ trên amd64.",
+    "linuxReplaceVersion": "Thay VERSION bằng phiên bản bạn đã tải xuống.",
+    "linuxInstallCommandLabel": "Lệnh cài đặt Debian",
+    "linuxInputGroupNote": "Đăng xuất rồi đăng nhập lại sau khi tham gia nhóm input. Việc tham gia là tùy chọn, nhưng phím tắt toàn cục và tự động dán cần đến nó.",
+    "aptTitle": "Tự lưu trữ kho APT",
+    "aptBody": "Các bản phát hành Linux cũng kèm theo một tệp lưu trữ kho APT tĩnh. HyperWhisper hiện không vận hành endpoint APT công khai; hãy xem hướng dẫn cài đặt Linux để biết cách thiết lập tự lưu trữ có ký số, các thành phần đi kèm cho máy tính, chi tiết quyền riêng tư và cách gỡ cài đặt.",
+    "linuxGuideCta": "Đọc hướng dẫn cài đặt Linux"
+  },
+  "olderVersions": {
+    "title": "Phiên bản cũ",
+    "subtitle": "Duyệt và tải xuống tất cả các bản phát hành của HyperWhisper",
+    "errorLoading": "Lỗi khi tải danh sách phiên bản: {error}",
+    "unknownError": "Đã xảy ra lỗi",
+    "loading": "Đang tải các phiên bản...",
+    "latest": "Mới nhất",
+    "build": "Bản dựng {number}",
+    "downloadDmg": "Tải DMG",
+    "downloadExe": "Tải EXE",
+    "unknownSize": "Không rõ"
   },
   "purchaseSuccess": {
     "title": "Tất cả đã sẵn sàng!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Mã nguồn mở. Không có gì để giấu.",
     "body": "HyperWhisper hoàn toàn mã nguồn mở theo giấy phép Apache-2.0 — cả ứng dụng máy tính lẫn backend Cloud. Một ứng dụng lắng nghe micro của bạn nên là thứ bạn có thể kiểm chứng, chứ không chỉ tin tưởng: hãy đọc từng dòng, kiểm tra chính xác âm thanh của bạn đi đâu, và biết rằng bạn sẽ không bao giờ bị khóa chân — mã nguồn là của bạn để fork và tự lưu trữ mãi mãi. Được xây dựng công khai bởi nhà phát triển độc lập Ray Amjad.",
-    "cta": "Xem trên GitHub"
+    "cta": "Xem trên GitHub",
+    "metaTitle": "Mã nguồn mở | HyperWhisper",
+    "metaDescription": "HyperWhisper hoàn toàn mã nguồn mở theo giấy phép Apache-2.0 — cả ứng dụng máy tính lẫn backend Cloud. Đọc mã nguồn, kiểm tra âm thanh của bạn đi đâu, fork và tự lưu trữ mãi mãi.",
+    "eyebrow": "Mã nguồn mở",
+    "lead": "HyperWhisper giờ đây đã hoàn toàn mã nguồn mở theo giấy phép Apache-2.0 — cả ứng dụng máy tính lẫn backend Cloud.",
+    "intro": "Một ứng dụng lắng nghe micro của bạn nên là thứ bạn có thể kiểm chứng, chứ không chỉ tin tưởng. Vì vậy, chúng tôi đã công khai mọi thứ. Bạn có thể đọc từng dòng mã của HyperWhisper — các ứng dụng macOS, Windows và Linux, cùng backend chuyển âm Cloud — thấy chính xác âm thanh của bạn đi đâu, và biết rằng bạn sẽ không bao giờ bị khóa chân. Toàn bộ dự án nằm trên <github>GitHub</github> theo <license>giấy phép Apache-2.0</license>.",
+    "whyHeading": "Vì sao điều này quan trọng",
+    "whyVerify": "<strong>Kiểm chứng, đừng chỉ tin.</strong> Đọc từng dòng và kiểm tra chính xác âm thanh của bạn đi đâu. Một ứng dụng có quyền truy cập micro nên là thứ bạn có thể tự kiểm tra, chứ không phải chỉ tin suông.",
+    "whyNoLockIn": "<strong>Không bị khóa chân.</strong> Mã nguồn theo giấy phép Apache-2.0 — bạn được giữ, chỉnh sửa và chạy theo cách của riêng mình. Quy trình làm việc của bạn không bao giờ bị kìm kẹp.",
+    "whyFork": "<strong>Fork và tự lưu trữ.</strong> Clone repo, tự build hoặc chạy backend Cloud của riêng bạn. Mọi thứ bạn cần đều công khai.",
+    "whyOpen": "<strong>Phát triển công khai.</strong> HyperWhisper được phát triển công khai bởi nhà phát triển độc lập Ray Amjad. Mọi issue, thảo luận và bản phát hành đều diễn ra công khai.",
+    "licenseHeading": "Bạn đã mua giấy phép?",
+    "licenseIntro": "HyperWhisper giờ đã là mã nguồn mở, và tính năng chuyển âm trả phí chạy bằng tín dụng HyperWhisper Cloud. Nếu bạn đã mua giấy phép trước khi chuyển đổi, đây là cách chúng tôi hỗ trợ bạn — chỉ cần gửi email tới <mail>{email}</mail> và chúng tôi sẽ xử lý thủ công cho bạn.",
+    "licenseRecent": "<strong>Mua trong 30 ngày gần đây:</strong> bạn vẫn trong thời hạn hoàn tiền. Chúng tôi sẽ hoàn lại toàn bộ số tiền mua — không cần lý do. Chỉ cần <refund>gửi cho chúng tôi một tin nhắn</refund>.",
+    "licenseOlder": "<strong>Mua cách đây hơn 30 ngày:</strong> chúng tôi sẽ chuyển số tiền bạn đã trả thành tín dụng HyperWhisper Cloud — toàn bộ giá mua, trừ đi $5 tín dụng đã được thêm vào tài khoản của bạn. <credits>Gửi email cho chúng tôi</credits> và chúng tôi sẽ cộng số dư cho bạn.",
+    "contributeHeading": "Bạn muốn đóng góp?",
+    "contributeBody": "Chúng tôi luôn hoan nghênh báo cáo lỗi, ý tưởng tính năng và pull request. Hãy mở một issue hoặc bắt đầu thảo luận <github>trên GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper giờ đã hoàn toàn mã nguồn mở",
+    "shortText": "Giờ đã là mã nguồn mở",
+    "learnMore": "Tìm hiểu thêm",
+    "dismiss": "Đóng thông báo"
   },
   "notFound": {
     "title": "Không tìm thấy trang",

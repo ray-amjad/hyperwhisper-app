@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Incolla dagli Appunti";
 "settings.license.clearInput" = "Cancella";
+"license.error.keyFormat" = "Questa non sembra una chiave dell'account.";
 "settings.license.recovery.prompt" = "Hai dimenticato la chiave di licenza?";
 "settings.license.recovery.button" = "Vai al portale clienti";
 "settings.license.daily.title" = "Trascrizione Giornaliera";

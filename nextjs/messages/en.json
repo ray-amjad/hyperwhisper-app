@@ -95,7 +95,29 @@
   "openSource": {
     "heading": "Open source. Nothing to hide.",
     "body": "HyperWhisper is fully open-source under Apache-2.0 — desktop apps and Cloud backend alike. An app that listens to your microphone should be something you can verify, not just trust: read every line, audit exactly where your audio goes, and know you'll never be locked in — the code is yours to fork and self-host forever. Built in the open by indie maker Ray Amjad.",
-    "cta": "View on GitHub"
+    "cta": "View on GitHub",
+    "metaTitle": "Open Source | HyperWhisper",
+    "metaDescription": "HyperWhisper is fully open source under Apache-2.0 — desktop apps and Cloud backend alike. Read the code, audit where your audio goes, fork it, and self-host forever.",
+    "eyebrow": "Open Source",
+    "lead": "HyperWhisper is now fully open source under Apache-2.0 — the desktop apps and the Cloud backend alike.",
+    "intro": "An app that listens to your microphone should be something you can verify, not just trust. So we opened everything up. You can read every line of HyperWhisper — the macOS, Windows, and Linux apps, and the Cloud transcription backend — see exactly where your audio goes, and know you'll never be locked in. The whole project lives on <github>GitHub</github> under the <license>Apache-2.0 license</license>.",
+    "whyHeading": "Why it matters",
+    "whyVerify": "<strong>Verify, don't trust.</strong> Read every line and audit exactly where your audio goes. An app with microphone access should be something you can inspect, not just take on faith.",
+    "whyNoLockIn": "<strong>No lock-in.</strong> The code is Apache-2.0 — yours to keep, adapt, and run on your own terms. Your workflow is never held hostage.",
+    "whyFork": "<strong>Fork and self-host.</strong> Clone the repo, build it yourself, or run your own Cloud backend. Everything you need is public.",
+    "whyOpen": "<strong>Built in the open.</strong> HyperWhisper is developed publicly by indie maker Ray Amjad. Issues, discussions, and releases all happen out in the open.",
+    "licenseHeading": "Already bought a license?",
+    "licenseIntro": "HyperWhisper is now open source, and paid transcription runs on HyperWhisper Cloud credits. If you bought a license before the switch, here's how we're taking care of you — just email <mail>{email}</mail> and we'll sort it out by hand.",
+    "licenseRecent": "<strong>Bought in the last 30 days:</strong> you're inside the refund window. We'll refund your purchase in full — no questions asked. Just <refund>send us a note</refund>.",
+    "licenseOlder": "<strong>Bought more than 30 days ago:</strong> we'll convert what you paid into HyperWhisper Cloud credits — the full purchase price, minus the $5 in credits already added to your account. <credits>Email us</credits> and we'll apply the balance.",
+    "contributeHeading": "Want to contribute?",
+    "contributeBody": "Bug reports, feature ideas, and pull requests are all welcome. Open an issue or start a discussion <github>on GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper is now fully open source",
+    "shortText": "Now open source",
+    "learnMore": "Learn more",
+    "dismiss": "Dismiss announcement"
   },
   "demo": {
     "fasterThanTyping": "Faster than typing",
@@ -277,7 +299,31 @@
     "homebrewTitle": "Install via Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Copy",
-    "copied": "Copied!"
+    "copied": "Copied!",
+    "linuxSubtitle": "Debian package for 64-bit Intel/AMD systems",
+    "downloadLinux": "Download Linux",
+    "downloadLinuxVersion": "Download Linux v{version}",
+    "linuxReleaseNotes": "Checksums and release notes",
+    "linuxInstallTitle": "Install the Debian package",
+    "linuxTargets": "Linux v1 targets Ubuntu 22.04+ and Debian 12+ on amd64.",
+    "linuxReplaceVersion": "Replace VERSION with the version you downloaded.",
+    "linuxInstallCommandLabel": "Debian install command",
+    "linuxInputGroupNote": "Log out and back in after joining the input group. Membership is optional, but global shortcuts and automatic paste need it.",
+    "aptTitle": "Self-host an APT repository",
+    "aptBody": "Linux releases also include a static APT repository archive. HyperWhisper does not currently operate a public APT endpoint; see the Linux installation guide for signed, self-hosted setup, desktop companions, privacy details, and removal.",
+    "linuxGuideCta": "Read the Linux installation guide"
+  },
+  "olderVersions": {
+    "title": "Older Versions",
+    "subtitle": "Browse and download all releases of HyperWhisper",
+    "errorLoading": "Error loading versions: {error}",
+    "unknownError": "An error occurred",
+    "loading": "Loading versions...",
+    "latest": "Latest",
+    "build": "Build {number}",
+    "downloadDmg": "Download DMG",
+    "downloadExe": "Download EXE",
+    "unknownSize": "Unknown"
   },
   "purchaseSuccess": {
     "title": "You're all set!",

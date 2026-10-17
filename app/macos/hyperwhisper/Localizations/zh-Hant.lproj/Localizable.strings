@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "從剪貼板貼上";
 "settings.license.clearInput" = "清除";
+"license.error.keyFormat" = "這看起來不像帳戶金鑰。";
 "settings.license.recovery.prompt" = "忘記您的授權金鑰？";
 "settings.license.recovery.button" = "前往客戶入口";
 "settings.license.daily.title" = "每日轉錄";

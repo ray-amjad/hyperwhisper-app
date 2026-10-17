@@ -272,7 +272,31 @@
     "homebrewTitle": "Setja upp með Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Afrita",
-    "copied": "Afritað!"
+    "copied": "Afritað!",
+    "linuxSubtitle": "Debian-pakki fyrir 64-bita Intel/AMD-kerfi",
+    "downloadLinux": "Sækja fyrir Linux",
+    "downloadLinuxVersion": "Sækja fyrir Linux v{version}",
+    "linuxReleaseNotes": "Gátsummur og útgáfuupplýsingar",
+    "linuxInstallTitle": "Settu upp Debian-pakkann",
+    "linuxTargets": "Linux v1 styður Ubuntu 22.04+ og Debian 12+ á amd64.",
+    "linuxReplaceVersion": "Skiptu VERSION út fyrir útgáfuna sem þú sóttir.",
+    "linuxInstallCommandLabel": "Uppsetningarskipun fyrir Debian",
+    "linuxInputGroupNote": "Skráðu þig út og aftur inn eftir að þú gengur í input-hópinn. Aðild er valfrjáls, en altækar flýtileiðir og sjálfvirk innsetning þurfa hana.",
+    "aptTitle": "Hýstu þína eigin APT-geymslu",
+    "aptBody": "Linux-útgáfur innihalda einnig kyrrstætt APT-geymslusafn. HyperWhisper rekur sem stendur engan opinberan APT-endapunkt; sjáðu uppsetningarleiðbeiningarnar fyrir Linux varðandi undirritaða, sjálfhýsta uppsetningu, skjáborðssamþættingu, persónuverndarupplýsingar og fjarlægingu.",
+    "linuxGuideCta": "Lesa uppsetningarleiðbeiningar fyrir Linux"
+  },
+  "olderVersions": {
+    "title": "Eldri útgáfur",
+    "subtitle": "Skoðaðu og sæktu allar útgáfur af HyperWhisper",
+    "errorLoading": "Villa við að hlaða útgáfum: {error}",
+    "unknownError": "Villa kom upp",
+    "loading": "Hleð útgáfum...",
+    "latest": "Nýjast",
+    "build": "Smíð {number}",
+    "downloadDmg": "Sækja DMG",
+    "downloadExe": "Sækja EXE",
+    "unknownSize": "Óþekkt"
   },
   "purchaseSuccess": {
     "title": "Allt klárt!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Opinn hugbúnaður. Ekkert að fela.",
     "body": "HyperWhisper er algjörlega opinn hugbúnaður undir Apache-2.0 — bæði skjáborðsforritin og Cloud-bakendinn. Forrit sem hlustar á hljóðnemann þinn ætti að vera eitthvað sem þú getur sannreynt, ekki bara treyst: lestu hverja línu, kannaðu nákvæmlega hvert hljóðið þitt fer, og vittu að þú verður aldrei innilokuð — kóðinn er þinn til að forka og hýsa sjálf(ur) að eilífu. Byggt fyrir opnum tjöldum af indie-höfundinum Ray Amjad.",
-    "cta": "Skoða á GitHub"
+    "cta": "Skoða á GitHub",
+    "metaTitle": "Opinn hugbúnaður | HyperWhisper",
+    "metaDescription": "HyperWhisper er algjörlega opinn hugbúnaður undir Apache-2.0 — bæði skjáborðsforritin og Cloud-bakendinn. Lestu kóðann, kannaðu hvert hljóðið þitt fer, forkaðu hann og hýstu hann sjálf(ur) að eilífu.",
+    "eyebrow": "Opinn hugbúnaður",
+    "lead": "HyperWhisper er nú algjörlega opinn hugbúnaður undir Apache-2.0 — bæði skjáborðsforritin og Cloud-bakendinn.",
+    "intro": "Forrit sem hlustar á hljóðnemann þinn ætti að vera eitthvað sem þú getur sannreynt, ekki bara treyst. Þess vegna opnuðum við allt. Þú getur lesið hverja einustu línu í HyperWhisper — forritin fyrir macOS, Windows og Linux og Cloud-bakendann fyrir umritun — séð nákvæmlega hvert hljóðið þitt fer og vitað að þú festist aldrei inni. Allt verkefnið er á <github>GitHub</github> undir <license>Apache-2.0-leyfinu</license>.",
+    "whyHeading": "Af hverju þetta skiptir máli",
+    "whyVerify": "<strong>Sannreyndu í stað þess að treysta í blindni.</strong> Lestu hverja línu og kannaðu nákvæmlega hvert hljóðið þitt fer. Forrit með aðgang að hljóðnemanum ætti að vera eitthvað sem þú getur skoðað, ekki bara tekið trúanlegt.",
+    "whyNoLockIn": "<strong>Engin innilokun.</strong> Kóðinn er undir Apache-2.0 — þinn til að eiga, aðlaga og keyra á þínum eigin forsendum. Vinnuflæðinu þínu er aldrei haldið í gíslingu.",
+    "whyFork": "<strong>Forkaðu og hýstu sjálf(ur).</strong> Klónaðu geymsluna, byggðu hana sjálf(ur) eða keyrðu þinn eigin Cloud-bakenda. Allt sem þú þarft er opinbert.",
+    "whyOpen": "<strong>Byggt fyrir opnum tjöldum.</strong> HyperWhisper er þróað opinberlega af indie-höfundinum Ray Amjad. Villutilkynningar, umræður og útgáfur fara allar fram fyrir opnum tjöldum.",
+    "licenseHeading": "Hefurðu þegar keypt leyfi?",
+    "licenseIntro": "HyperWhisper er nú opinn hugbúnaður og greidd umritun notar HyperWhisper Cloud-inneign. Ef þú keyptir leyfi fyrir breytinguna sjáum við svona um þig — sendu bara póst á <mail>{email}</mail> og við göngum frá þessu handvirkt.",
+    "licenseRecent": "<strong>Keypt á síðustu 30 dögum:</strong> þú ert innan endurgreiðslutímabilsins. Við endurgreiðum kaupin að fullu — engar spurningar. <refund>Sendu okkur bara línu</refund>.",
+    "licenseOlder": "<strong>Keypt fyrir meira en 30 dögum:</strong> við breytum því sem þú greiddir í HyperWhisper Cloud-inneign — fullu kaupverði, að frádregnum þeim $5 í inneign sem þegar hafa verið lagðir inn á reikninginn þinn. <credits>Sendu okkur póst</credits> og við færum eftirstöðvarnar inn.",
+    "contributeHeading": "Viltu leggja þitt af mörkum?",
+    "contributeBody": "Villutilkynningar, hugmyndir að eiginleikum og pull requests eru öll velkomin. Stofnaðu mál eða hefðu umræðu <github>á GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper er nú algjörlega opinn hugbúnaður",
+    "shortText": "Nú opinn hugbúnaður",
+    "learnMore": "Lesa meira",
+    "dismiss": "Loka tilkynningu"
   },
   "notFound": {
     "title": "Síða fannst ekki",

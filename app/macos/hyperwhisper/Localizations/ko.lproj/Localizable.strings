@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "클립보드에서 붙여넣기";
 "settings.license.clearInput" = "지우기";
+"license.error.keyFormat" = "계정 키 형식이 아닌 것 같습니다.";
 "settings.license.recovery.prompt" = "라이선스 키를 잊으셨나요?";
 "settings.license.recovery.button" = "고객 포털로 이동";
 "settings.license.daily.title" = "일일 음성 인식";

@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Vložiť zo schránky";
 "settings.license.clearInput" = "Vyčistiť";
+"license.error.keyFormat" = "Toto nevyzerá ako kľúč účtu.";
 "settings.license.recovery.prompt" = "Zabudli ste kľúč licencie?";
 "settings.license.recovery.button" = "Prejsť na zákaznícky portál";
 "settings.license.daily.title" = "Denný prepis";
