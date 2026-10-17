@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI häältranskriptsioon macOS-ile ja Windowsile",
-    "description": "Kirjuta 5x kiiremini AI-põhise häältranskriptsiooniga. HyperWhisper transkribeerib sinu häält uskumatult täpselt macOS-is ja Windowsis. Räägi loomulikult ja vaata, kuidas sõnad ilmuvad kohe."
+    "title": "HyperWhisper - AI häältranskriptsioon macOS-ile, Windowsile ja Linuxile",
+    "description": "Kirjuta 5x kiiremini AI-põhise häältranskriptsiooniga. HyperWhisper transkribeerib sinu häält uskumatult täpselt macOS-is, Windowsis ja Linuxis. Räägi loomulikult ja vaata, kuidas sõnad ilmuvad kohe."
   },
   "navbar": {
     "features": "Funktsioonid",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Kas saan seda kasutada ilma internetita?",
-        "answer": "Absoluutselt. HyperWhisperit saab Macis või Windowsi arvutis kasutada täielikult offline kohalike AI mudelitega - internetti pole vaja. Kasutajatele, kes soovivad maksimaalset täpsust ja kiirust, pakume ka valikulist pilvetöötlust erinevate pakkujate kaudu."
+        "answer": "Absoluutselt. HyperWhisperit saab Macis, Windowsi või Linuxi arvutis kasutada täielikult offline kohalike AI mudelitega - internetti pole vaja. Kasutajatele, kes soovivad maksimaalset täpsust ja kiirust, pakume ka valikulist pilvetöötlust erinevate pakkujate kaudu."
       },
       "apiKey": {
         "question": "Kas pean API juurdepääsu eest maksma?",
@@ -175,12 +175,12 @@
         "answer": "Offline transkriptsiooniks pakume Whisper-mudeli mitut suurust (loodud OpenAI poolt, toetab 99+ keelt). Pakume ka NVidia Parakeet mudeleid (toetavad 25+ keelt).\n      \n      Offline järeltöötluseks pakume Gemma 3 mudeli mitut suurust (loodud Google'i poolt)."
       },
       "compatibility": {
-        "question": "Kas see töötab kõigi Maci ja Windowsi rakendustega?",
+        "question": "Kas see töötab kõigi minu rakendustega?",
         "answer": "Jah, see töötab kõikjal, kus saad kirjutada. Olgu see e-kirjade, dokumentide või koodi kirjutamine või vestlemine. Vajuta lihtsalt kiirklahvi, räägi ja vaata, kuidas su sõnad kohe ilmuvad."
       },
       "privacy": {
         "question": "Kuidas on minu privaatsus kaitstud?",
-        "answer": "Kui kasutad kohalikku režiimi, ei lahku andmed kunagi sinu Macist ega Windowsi arvutist.\n\nKui kasutad pilvetranskriptsiooni, saadetakse andmed sinu valitud pilvepakkujale (nt OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox või Google Gemini).\n\nSeda saad ise kontrollida võrguliikluse tööriistaga nagu [Proxyman](https://proxyman.io), võrgumonitoriga nagu [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) või lugedes [lähtekoodi GitHubis](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Kui kasutad kohalikku režiimi, ei lahku andmed kunagi sinu Macist ega Windowsi või Linuxi arvutist.\n\nKui kasutad pilvetranskriptsiooni, saadetakse andmed sinu valitud pilvepakkujale (nt OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox või Google Gemini).\n\nSeda saad ise kontrollida võrguliikluse tööriistaga nagu [Proxyman](https://proxyman.io), võrgumonitoriga nagu [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) või lugedes [lähtekoodi GitHubis](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Mis on HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Millised on süsteeminõuded?",
-        "answer": "Macile: macOS 14 või uuem, toetatud on nii Apple Silicon kui Intel. Windowsile: Windows 10/11, x64 või ARM64. Parima jõudluse jaoks soovitame 8GB RAM-i."
+        "answer": "Macile: macOS 14 või uuem, toetatud on nii Apple Silicon kui Intel. Windowsile: Windows 10/11, x64 või ARM64. Linux v1: Ubuntu 22.04 või uuem või Debian 12 või uuem, amd64 platvormil. Parima jõudluse jaoks soovitame 8GB RAM-i."
       },
       "madeBy": {
         "question": "Kes selle tegi?",
@@ -289,7 +289,7 @@
     "loading": "Laadimine..."
   },
   "footer": {
-    "tagline": "Kirjuta 5x kiiremini AI häältranskriptsiooniga macOS-ile ja Windowsile.",
+    "tagline": "Kirjuta 5x kiiremini AI häältranskriptsiooniga macOS-ile, Windowsile ja Linuxile.",
     "product": "Toode",
     "resources": "Ressursid",
     "company": "Ettevõte",

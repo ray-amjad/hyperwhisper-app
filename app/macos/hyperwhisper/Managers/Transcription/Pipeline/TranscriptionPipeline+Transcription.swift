@@ -609,6 +609,10 @@ extension TranscriptionPipeline {
                     await MainActor.run { state = .idle }
                 }
             } else {
+                // The phase the run was in when it failed, read before the
+                // `.error` overwrite below. Read after it, the Sentry extra
+                // would always say `error` (issue #805).
+                let stateAtFailure = state
                 await MainActor.run { state = .error(message: error.localizedDescription) }
                 if AppLogger.isErrorLoggingEnabled {
                     // Include audio + provider context for diagnostics.
@@ -642,7 +646,7 @@ extension TranscriptionPipeline {
                         stageElapsedMs: currentStageElapsedMs,
                         totalElapsedMs: totalElapsedMs,
                         stageTimeline: stageTimelineSnapshot,
-                        transcriptionState: String(describing: state),
+                        transcriptionState: stateAtFailure,
                         recordingSessionID: recordingSession?.id?.uuidString ?? "nil"
                     )
 
@@ -852,6 +856,9 @@ extension TranscriptionPipeline {
     /// re-checks the value with `PresetType.sanitizedReportingValue(_:)` anyway,
     /// so a call site that forgets cannot put free text in a Sentry payload.
     ///
+    /// Every key here must be on `SentryService.allowedExtraKeys`, or
+    /// `beforeSend` replaces its String value with `[redacted]` (issue #805).
+    ///
     /// `nonisolated` on purpose: `TranscriptionPipeline` is `@MainActor`, and a
     /// pure payload builder must stay callable from a non-isolated test.
     /// `Mode` is kept out of the signature because a managed object is not
@@ -877,7 +884,7 @@ extension TranscriptionPipeline {
         stageElapsedMs: Int,
         totalElapsedMs: Int,
         stageTimeline: [String],
-        transcriptionState: String,
+        transcriptionState: TranscriptionState,
         recordingSessionID: String
     ) -> [String: Any] {
         var extras: [String: Any] = [
@@ -917,7 +924,11 @@ extension TranscriptionPipeline {
             "stageElapsedMs": stageElapsedMs,
             "totalElapsedMs": totalElapsedMs,
             "stageTimeline": stageTimeline,
-            "transcriptionState": transcriptionState,
+            // The case name only. An `.error(message:)` state carries an
+            // error's `localizedDescription`, and that text can hold a file
+            // name, a path or a provider's response (issue #805). `transcriptionState` is on Sentry's allow-list, so
+            // the value has to be safe on its own.
+            "transcriptionState": transcriptionState.reportingName,
             "recordingSessionID": recordingSessionID
         ]
         if let httpStatus = classification.httpStatus {

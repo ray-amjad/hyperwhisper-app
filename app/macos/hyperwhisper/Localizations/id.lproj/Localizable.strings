@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Nonaktif";
 "settings.general.mediaControl.mode.mute" = "Bisukan Audio";
+"settings.general.mediaControl.mode.muffle" = "Redam Audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Putar efek suara";
 "settings.sound.soundEffects.info" = "Putar isyarat audio saat perekaman dimulai dan berhenti.";
 "settings.sound.mediaControl.title" = "Kontrol media saat merekam";
-"settings.sound.mediaControl.info" = "Pilih bagaimana HyperWhisper menangani audio lain saat Anda merekam. 'Nonaktif' membiarkan audio tidak berubah, 'Bisukan Audio' membungkam output sistem saat merekam dan memulihkannya setelahnya.";
+"settings.sound.mediaControl.info" = "Pilih bagaimana HyperWhisper menangani audio lain saat Anda merekam. 'Nonaktif' membiarkan audio tidak berubah, 'Bisukan Audio' membungkam output sistem saat merekam dan memulihkannya setelahnya, dan 'Redam Audio' tetap memutarnya dengan lembut, seolah dari ruangan sebelah.";
 "settings.sound.autoIncreaseMicVolume.title" = "Tingkatkan volume mikrofon secara otomatis";
 "settings.sound.autoIncreaseMicVolume.info" = "Secara otomatis menyetel volume input mikrofon ke maksimum saat perekaman dimulai, kemudian mengembalikan level asli saat perekaman berhenti. Hanya berlaku saat menggunakan perangkat input default sistem.";
 "settings.sound.vad.title" = "Hapus keheningan sebelum transkripsi";
@@ -798,6 +799,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.field.name.placeholder" = "misalnya, Catatan Rapat";
 "modes.field.name.editPlaceholder" = "Nama mode";
 "modes.field.name.defaultLocked" = "Ini adalah mode default, jadi namanya tidak dapat diubah. Anda dapat mengganti nama mode lainnya.";
+"modes.field.name.taken" = "Mode dengan nama itu sudah ada.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Penyedia";
 "modes.provider.local" = "Lokal";
@@ -824,7 +826,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "transcripts.delete.single.message" = "Ini akan menghapus rekaman ini dan file audionya secara permanen.";
 "transcripts.delete.multiple.title" = "Hapus %d Rekaman?";
 "transcripts.delete.multiple.message" = "Ini akan menghapus %d rekaman dan file audio mereka secara permanen.\n\nTindakan ini tidak dapat dibatalkan.";
-"transcripts.delete.multiple.confirm" = "Hapus Semua";
+"transcripts.delete.multiple.confirm" = "Hapus %d Rekaman";
 "transcripts.retry.error.title" = "Coba Lagi Gagal";
 "transcripts.retry.error.modeDeleted" = "Mode yang membuat rekaman ini telah dihapus, jadi tidak dicoba lagi. Di Riwayat, klik kanan rekaman dan pilih \"Coba lagi dengan...\" untuk memilih mode lain.";
 

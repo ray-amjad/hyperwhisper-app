@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Tắt";
 "settings.general.mediaControl.mode.mute" = "Tắt tiếng Âm thanh";
+"settings.general.mediaControl.mode.muffle" = "Làm nghẹt Âm thanh";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Phát hiệu ứng âm thanh";
 "settings.sound.soundEffects.info" = "Phát tín hiệu âm thanh khi bắt đầu và dừng ghi âm.";
 "settings.sound.mediaControl.title" = "Kiểm soát phương tiện trong khi ghi âm";
-"settings.sound.mediaControl.info" = "Chọn cách HyperWhisper xử lý âm thanh khác trong khi bạn ghi âm. 'Tắt' để giữ âm thanh không thay đổi, 'Tắt tiếng Âm thanh' để tắt tiếng đầu ra hệ thống khi ghi âm và khôi phục sau đó.";
+"settings.sound.mediaControl.info" = "Chọn cách HyperWhisper xử lý âm thanh khác trong khi bạn ghi âm. 'Tắt' để giữ âm thanh không thay đổi, 'Tắt tiếng Âm thanh' để tắt tiếng đầu ra hệ thống khi ghi âm và khôi phục sau đó, và 'Làm nghẹt Âm thanh' để âm thanh phát nhẹ nhàng, như từ phòng bên cạnh.";
 "settings.sound.autoIncreaseMicVolume.title" = "Tự động tăng âm lượng micrô";
 "settings.sound.autoIncreaseMicVolume.info" = "Tự động đặt âm lượng nhập liệu micrô ở mức tối đa khi ghi âm bắt đầu, sau đó khôi phục mức ban đầu khi ghi âm dừng. Chỉ áp dụng khi sử dụng thiết bị nhập liệu mặc định của hệ thống.";
 "settings.sound.vad.title" = "Loại bỏ Im lặng trước khi chuyển đổi";
@@ -798,6 +799,7 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.field.name.placeholder" = "ví dụ: Ghi chú Cuộc họp";
 "modes.field.name.editPlaceholder" = "Tên chế độ";
 "modes.field.name.defaultLocked" = "Đây là chế độ mặc định nên không thể đổi tên. Bạn có thể đổi tên bất kỳ chế độ nào khác.";
+"modes.field.name.taken" = "Đã có chế độ mang tên này.";
 "modes.field.model" = "Mô hình";
 "modes.field.provider" = "Nhà cung cấp";
 "modes.provider.local" = "Cục bộ";
@@ -824,7 +826,7 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "transcripts.delete.single.message" = "Điều này sẽ xóa vĩnh viễn bản ghi âm này và tệp âm thanh của nó.";
 "transcripts.delete.multiple.title" = "Xóa %d Bản ghi âm?";
 "transcripts.delete.multiple.message" = "Điều này sẽ xóa vĩnh viễn %d bản ghi âm và các tệp âm thanh của chúng.\n\nHành động này không thể được hoàn tác.";
-"transcripts.delete.multiple.confirm" = "Xóa Tất cả";
+"transcripts.delete.multiple.confirm" = "Xóa %d bản ghi âm";
 "transcripts.retry.error.title" = "Thử lại Không thành công";
 "transcripts.retry.error.modeDeleted" = "Chế độ đã tạo bản ghi này đã bị xóa, nên không thử lại. Trong Lịch sử, nhấp chuột phải vào bản ghi và chọn \"Thử lại với...\" để chọn chế độ khác.";
 

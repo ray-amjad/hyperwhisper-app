@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 11, 2026
+        Last Updated: October 16, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -537,6 +537,25 @@ export default function PrivacyPolicyPage() {
         standard data processing terms still apply. Please review each
         provider&apos;s privacy policy linked above for full details on how they
         handle data.
+      </p>
+      <p>
+        That control is not available on every HyperWhisper Cloud provider
+        account. ElevenLabs stores your audio and transcript by default,
+        because its zero-retention mode is available only on enterprise plans
+        and our account is not on one yet. Grok and Mistral store
+        transcription requests for approximately 30 days for abuse monitoring,
+        and do not use them to train their models. Meta does not publish a
+        retention statement for its Muse speech-to-text API, so we do not
+        claim one for Meta. Our{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://hyperwhisper.com/docs/data-privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Data Privacy help page
+        </a>{" "}
+        lists the control we apply for each provider.
       </p>
       <p>
         HyperWhisper is fully open source under Apache-2.0 — including the Cloud

@@ -111,6 +111,29 @@ internal static class Program
                 Assert(credits >= 0, $"expected credits/min >= 0, got {credits}");
             });
 
+            Run("model download logs one progress line per 10% band (#1600)", () =>
+            {
+                // A 488 MB Whisper download read 16 KB at a time, as the fuzz log
+                // showed: the old "percent % 10 == 0" rule wrote 2,977 lines.
+                const long expectedSize = 487_614_201;
+                const int chunk = 16_384;
+                var lastLoggedBand = DownloadProgressLog.NoBandLogged;
+                var logged = new List<int>();
+                long total = 0;
+                while (total < expectedSize)
+                {
+                    total = Math.Min(total + chunk, expectedSize);
+                    var currentPercent = (int)((double)total / expectedSize * 100);
+                    if (DownloadProgressLog.ShouldLog(currentPercent, ref lastLoggedBand))
+                    {
+                        logged.Add(currentPercent / 10);
+                    }
+                }
+
+                Assert(logged.SequenceEqual(Enumerable.Range(0, 11)),
+                    $"expected one line per band 0..10, got [{string.Join(",", logged)}]");
+            });
+
             Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
             {
                 const string privateUrl = "https://private.example.test/download";
@@ -556,6 +579,262 @@ internal static class Program
                             $"Strings.{name}.resx does not translate {key}");
                     }
                 }
+            });
+
+            // Muffle Audio: the setting keeps the macOS raw value, and every catalog
+            // translates the new Sound settings choice.
+            Run("Media control mode keeps muffleAudio and every catalog translates it", () =>
+            {
+                Assert(SettingsService.NormalizeMediaControlMode("muffleAudio") == "muffleAudio", "muffleAudio is kept");
+                Assert(SettingsService.NormalizeMediaControlMode("MUFFLEAUDIO") == "muffleAudio", "muffleAudio is case-insensitive");
+                Assert(SettingsService.NormalizeMediaControlMode("muteAudio") == "muteAudio", "muteAudio is kept");
+                Assert(SettingsService.NormalizeMediaControlMode("pauseMedia") == "off", "an unknown mode is off");
+                Assert(SettingsService.NormalizeMediaControlMode(null) == "off", "a missing mode is off");
+
+                const string key = "settings.sound.mediaControl.muffleAudio";
+                var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, CultureInfo.InvariantCulture);
+                Assert(neutral == "Muffle audio", $"{key} is missing from Strings.resx");
+                foreach (var name in ShippedSatelliteCultures())
+                {
+                    var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, new CultureInfo(name));
+                    Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
+                        $"Strings.{name}.resx does not translate {key}");
+                }
+            });
+
+            // Muffle Audio crash journal: a volume the muffler lowered is written down first
+            // and matched back to its session by instance id, then by session id.
+            Run("Muffle restore journal round-trips and matches sessions", () =>
+            {
+                var created = new DateTimeOffset(2026, 10, 16, 9, 0, 0, TimeSpan.Zero);
+                var first = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, created);
+                var second = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|b.exe", "app|b.exe|2", 20, 1f, 1e-4f, created);
+                var entries = new[] { first, second };
+
+                var parsed = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse(
+                    HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(entries));
+                Assert(parsed.Count == 2 && parsed[0] == first && parsed[1] == second, "entries survive a round trip");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse("{ not json", out _, out _), "a damaged file is reported, not read as empty");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(string.Empty, out _, out _), "an empty (torn) file is reported");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse("{\"version\":1,\"entries\":[]}", out var none, out _) && none.Count == 0,
+                    "an empty journal parses");
+
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|b.exe|2", "app|a.exe") == second,
+                    "the instance id wins over the session id");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|a.exe|99", "app|a.exe") == first,
+                    "a reopened app matches by session id");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "other|1", "other") == null,
+                    "an unknown session matches nothing");
+
+                // An entry with only an instance id can still be matched, so it survives a reload.
+                var instanceOnly = new HyperWhisper.Services.Muffle.MuffleRestoreEntry(string.Empty, "app|c.exe|3", 30, 0.6f, 0.6f * 1e-4f, created);
+                var noIds = new HyperWhisper.Services.Muffle.MuffleRestoreEntry(string.Empty, string.Empty, 40, 0.6f, 0.6f * 1e-4f, created);
+                var reloaded = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse(
+                    HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(new[] { instanceOnly, noIds }));
+                Assert(reloaded.Count == 1 && reloaded[0] == instanceOnly, "an entry with only an instance id is kept, one with neither id is dropped");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(reloaded, "app|c.exe|3", string.Empty) == instanceOnly,
+                    "an entry with only an instance id matches by it");
+
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(1.00005e-4f, 1e-4f), "float noise still counts as ours");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.StillAtSetVolume(0.5f, 1e-4f), "a volume the user moved is left alone");
+
+                // A crash mid-ramp leaves a volume between prior and set; it is ours only while the
+                // entry says it was ramping.
+                var settledEntry = first;
+                var rampingEntry = first with { Ramping = true };
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(settledEntry, 0.8f * 1e-4f), "a settled entry at its set volume is ours");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(settledEntry, 0.3f), "a settled entry between prior and set was moved by the user");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(rampingEntry, 0.3f), "a ramping entry between prior and set is ours");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(rampingEntry, 0.8f), "a ramping entry already back at its prior is ours");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.HoldsOurVolume(rampingEntry, 0.95f), "a ramping entry above its prior was moved by the user");
+                var rampingParsed = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Parse(
+                    HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(new[] { rampingEntry }));
+                Assert(rampingParsed.Count == 1 && rampingParsed[0].Ramping, "the ramping flag survives a round trip");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(
+                        "{\"version\":1,\"entries\":[{\"sessionIdentifier\":\"s\",\"sessionInstanceIdentifier\":\"i\",\"processId\":1,\"priorVolume\":0.5,\"setVolume\":5E-05,\"createdUtc\":\"2026-10-16T09:00:00+00:00\"}]}",
+                        out var older, out _)
+                    && older.Count == 1 && !older[0].Ramping && older[0].PriorVolume == 0.5f,
+                    "a journal written before the ramping flag still reads, as settled");
+
+                // A restore write counts only on a session still open that reads it back.
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(false, 0.8f, 0.8f), "a write that holds on an open session lands");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(true, 0.8f, 0.8f),
+                    "a session that expired during the ramp keeps its entry, even if it reads the prior back");
+                Assert(!HyperWhisper.Services.Muffle.MuffleRestoreJournal.RestoreLanded(false, 0.8f * 1e-4f, 0.8f), "a write that did not stick keeps its entry");
+
+                var path = Path.Combine(Path.GetTempPath(), $"hw-muffle-journal-{Guid.NewGuid():N}.json");
+                try
+                {
+                    using (var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path))
+                    {
+                        Assert(journal.Add(first).IsSuccess && File.Exists(path), "an entry is on disk before the volume changes");
+                        var firstRamping = first with { Ramping = true };
+                        Assert(journal.Update(new[] { (first, firstRamping) }).IsSuccess, "an entry can be marked as ramping");
+                        Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(File.ReadAllText(path), out var onDisk, out _)
+                            && onDisk.Count == 1 && onDisk[0] == firstRamping, "the ramping flag is on disk before the ramp");
+                        journal.Remove(firstRamping);
+                        Assert(!File.Exists(path), "the file goes once every volume is back");
+                        Assert(journal.Add(second).IsSuccess, "second entry written");
+                    }
+
+                    Assert(!File.Exists(path + ".tmp"), "no temporary file is left behind");
+                    using var nextRun = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path);
+                    Assert(nextRun.HasStaleEntries, "the next start sees what a killed run left");
+                }
+                finally
+                {
+                    File.Delete(path);
+                }
+            });
+
+            // A journal torn by a power cut must not be read as empty and then overwritten: it is
+            // moved aside, and the journal starts afresh next to it.
+            Run("Muffle restore journal keeps an unreadable file aside", () =>
+            {
+                var directory = Path.Combine(Path.GetTempPath(), $"hw-muffle-corrupt-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(directory);
+                var path = Path.Combine(directory, "muffle-restore.json");
+                try
+                {
+                    const string torn = "{\"version\":1,\"entries\":[{\"sessionIdentifier\":\"app|a.e";
+                    File.WriteAllText(path, torn);
+                    var entry = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, DateTimeOffset.UtcNow);
+                    using (var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path))
+                    {
+                        Assert(!journal.HasStaleEntries, "a torn journal has no usable entries");
+                        Assert(journal.Add(entry).IsSuccess, "the journal still takes new entries");
+                    }
+
+                    var kept = Directory.GetFiles(directory, "muffle-restore.json.corrupt-*");
+                    Assert(kept.Length == 1 && File.ReadAllText(kept[0]) == torn, "the torn file is kept, byte for byte");
+                    Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(File.ReadAllText(path), out var fresh, out _)
+                        && fresh.Count == 1 && fresh[0] == entry, "the new journal holds only the new entry");
+                }
+                finally
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+            });
+
+            // A journal held open by someone else (an antivirus scan) is not read as empty: nothing
+            // is written over it until it can be read, and its entries are found then.
+            Run("Muffle restore journal waits out a file it cannot read", () =>
+            {
+                var directory = Path.Combine(Path.GetTempPath(), $"hw-muffle-locked-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(directory);
+                var path = Path.Combine(directory, "muffle-restore.json");
+                try
+                {
+                    var created = DateTimeOffset.UtcNow;
+                    var leftover = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, created);
+                    var fresh = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|b.exe", "app|b.exe|2", 20, 1f, 1e-4f, created);
+                    var original = HyperWhisper.Services.Muffle.MuffleRestoreJournal.Serialize(new[] { leftover });
+                    File.WriteAllText(path, original);
+
+                    using var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path) { LoadRetryBackoff = TimeSpan.Zero };
+                    using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+                    {
+                        Assert(!journal.IsLoaded, "a locked journal is not taken as read");
+                        Assert(!journal.HasStaleEntries, "a locked journal shows no entries yet");
+                        Assert(journal.Add(fresh).IsFailure, "nothing is lowered while the journal cannot be read");
+                        Assert(journal.RecoverStale() == 0, "recovery of a locked journal restores nothing (and retries later)");
+                    }
+
+                    Assert(File.ReadAllText(path) == original, "the locked journal was left byte for byte");
+                    Assert(journal.IsLoaded && journal.HasStaleEntries, "the leftover is found once the file can be read");
+                    Assert(journal.Add(fresh).IsSuccess, "the journal takes new entries once read");
+                    Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.TryParse(File.ReadAllText(path), out var onDisk, out _)
+                        && onDisk.Count == 2 && onDisk.Contains(leftover) && onDisk.Contains(fresh),
+                        "the leftover is kept alongside the new entry");
+                }
+                finally
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+            });
+
+            // Recovery trusts only an instance-id match to say "the user changed it": a session of
+            // the same app found by session id alone may be another instance, so the entry stays.
+            Run("Muffle recovery keeps a leftover matched only by app", () =>
+            {
+                var created = new DateTimeOffset(2026, 10, 16, 9, 0, 0, TimeSpan.Zero);
+                var entry = new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, created);
+                var entries = new[] { entry };
+
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|a.exe|1", "app|a.exe", out var byInstance) == entry && byInstance,
+                    "an instance-id match is reported as such");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.FindMatch(entries, "app|a.exe|2", "app|a.exe", out var byApp) == entry && !byApp,
+                    "a session-id match is reported as app-only");
+
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, true, 0.8f * 1e-4f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Restore,
+                    "the very session at our volume is restored");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, false, 0.8f * 1e-4f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Restore,
+                    "a reopened app at our volume is restored");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, true, 0.5f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Drop,
+                    "the very session the user moved keeps their value and the entry goes");
+                Assert(HyperWhisper.Services.Muffle.MuffleRestoreJournal.DecideStale(entry, false, 0.5f) == HyperWhisper.Services.Muffle.MuffleRestoreJournal.StaleDecision.Keep,
+                    "another instance of the app not at our volume leaves the entry for the right one");
+            });
+
+            // App exit cancels a muffler start: a start that sees the exit lowers nothing, and the
+            // exit's journal restore has nothing to do when this run lowered nothing.
+            Run("Muffle start stops for app exit, and the exit restore needs no live entries", () =>
+            {
+                using var cancelled = new CancellationTokenSource();
+                cancelled.Cancel();
+                var path = Path.Combine(Path.GetTempPath(), $"hw-muffle-exit-{Guid.NewGuid():N}.json");
+                try
+                {
+                    using var journal = new HyperWhisper.Services.Muffle.MuffleRestoreJournal(path);
+                    var started = HyperWhisper.Services.Muffle.WindowsAudioMuffler.Start(journal, cancellation: cancelled.Token);
+                    Assert(started.IsFailure && started.Error == HyperWhisper.Services.Muffle.WindowsAudioMuffler.CancelledError,
+                        "a start cancelled by the exit fails without muffling");
+                    Assert(!File.Exists(path), "a cancelled start writes no journal");
+                    Assert(journal.RestoreLiveNow() == 0, "the exit restore has nothing to put back");
+                }
+                finally
+                {
+                    File.Delete(path);
+                }
+            });
+
+            // A tree capture covers a process's descendants, never its ancestors: a parent that
+            // opens a session after its child was captured gets its own capture, which replaces
+            // the child's.
+            Run("Muffle captures a parent that plays after its child", () =>
+            {
+                // 100 -> 200 -> 300 (browser -> renderer -> its child); 400 is unrelated.
+                var tree = HyperWhisper.Services.Muffle.ProcessTree.FromParents(new Dictionary<uint, uint> { [200] = 100, [300] = 200, [400] = 1 });
+                var (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(300, new HashSet<uint> { 200 }, tree);
+                Assert(covering == 200 && replaced.Count == 0, "a descendant of a captured process is covered by it");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(200, new HashSet<uint> { 200 }, tree);
+                Assert(covering == 200 && replaced.Count == 0, "a captured process's second session is covered");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(100, new HashSet<uint> { 200, 400 }, tree);
+                Assert(covering == null && replaced.Count == 1 && replaced[0] == 200, "a parent is captured and replaces its captured child");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(100, new HashSet<uint> { 300 }, tree);
+                Assert(covering == null && replaced.SequenceEqual(new uint[] { 300 }), "a grandchild's capture is replaced too");
+                (covering, replaced) = HyperWhisper.Services.Muffle.WindowsAudioMuffler.PlanCapture(400, new HashSet<uint> { 200 }, tree);
+                Assert(covering == null && replaced.Count == 0, "an unrelated process gets its own capture and replaces nothing");
+            });
+
+            // A second session of an app the muffler already lowered opens at the lowered
+            // per-app volume; its prior must be the app's own volume, not ours.
+            Run("Muffle remembers the app's own volume for a second session", () =>
+            {
+                var created = new DateTimeOffset(2026, 10, 16, 9, 0, 0, TimeSpan.Zero);
+                var scaled = new[]
+                {
+                    new HyperWhisper.Services.Muffle.MuffleRestoreEntry("app|a.exe", "app|a.exe|1", 10, 0.8f, 0.8f * 1e-4f, created),
+                };
+
+                Assert(HyperWhisper.Services.Muffle.WindowsAudioMuffler.PriorVolumeFor(0.8f * 1e-4f, "app|a.exe", scaled) == 0.8f,
+                    "a session at our set volume takes the journaled prior");
+                Assert(HyperWhisper.Services.Muffle.WindowsAudioMuffler.PriorVolumeFor(0.5f, "app|a.exe", scaled) == 0.5f,
+                    "a session the user set elsewhere keeps its own volume");
+                Assert(HyperWhisper.Services.Muffle.WindowsAudioMuffler.PriorVolumeFor(0.8f * 1e-4f, "app|b.exe", scaled) == 0.8f * 1e-4f,
+                    "another app's session is not matched");
+                Assert(HyperWhisper.Services.Muffle.WindowsAudioMuffler.PriorVolumeFor(0.8f * 1e-4f, string.Empty, scaled) == 0.8f * 1e-4f,
+                    "a session with no identifier is not matched");
             });
 
             // #1535. The Transcribe File dialog has no owner, so the tray stays live
@@ -1221,25 +1500,27 @@ internal static class Program
                 Assert(!described.Contains("quarterly", StringComparison.OrdinalIgnoreCase), "path description leaked the file name");
             });
 
-            Run("Whisper non-speech markers never become a transcript — issue #1449", () =>
+            Run("Whisper non-speech markers never become a transcript — issues #1449, #1811", () =>
             {
                 // The issue's silent file and silent dictation: only markers come back,
                 // so the text is empty and the orchestrator raises NoSpeechDetected.
-                Assert(TranscriptionService.StripNonSpeechMarkers(" [BLANK_AUDIO] [BLANK_AUDIO]") == "",
-                    "a transcript of only [BLANK_AUDIO] markers must strip to empty");
-                Assert(TranscriptionService.StripNonSpeechMarkers("[BLANK_AUDIO] ") == "",
-                    "the dictation case ('[BLANK_AUDIO] ') must strip to empty");
-                Assert(TranscriptionService.StripNonSpeechMarkers("[ Silence ] (music) [no speech]") == "",
-                    "Whisper's other non-speech annotations must strip too");
+                // The cases are the cross-platform contract: Rust, Linux and macOS
+                // replay this very file, so the three heads strip the same markers.
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "whisper-marker-vectors.json");
+                Assert(File.Exists(vectorsPath), $"whisper-marker-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var cases = vectors.RootElement.GetProperty("cases");
+                Assert(cases.GetArrayLength() >= 20, "whisper-marker-vectors.json looks truncated");
+                foreach (var vector in cases.EnumerateArray())
+                {
+                    var name = vector.GetProperty("name").GetString()!;
+                    var input = vector.GetProperty("input").GetString()!;
+                    var expected = vector.GetProperty("expected").GetString()!;
+                    var actual = TranscriptionService.StripNonSpeechMarkers(input);
+                    Assert(actual == expected, $"{name}: got '{actual}', expected '{expected}'");
+                }
                 Assert(TranscriptionService.StripNonSpeechMarkers(null) == "", "null must strip to empty");
-
-                // Real speech around a marker survives, with one space where it was.
-                var mixed = TranscriptionService.StripNonSpeechMarkers(" Hello there. [BLANK_AUDIO] See you soon.");
-                Assert(mixed == "Hello there. See you soon.", $"speech around a marker was damaged: '{mixed}'");
-
-                // A bracket the speaker dictated is not a marker.
-                var dictated = TranscriptionService.StripNonSpeechMarkers(" Call the function [user id] (optional). ");
-                Assert(dictated == "Call the function [user id] (optional).", $"dictated brackets were removed: '{dictated}'");
             });
 
             Run("On-device transcript log lines carry metadata, never the words — issue #1645", () =>
@@ -2549,9 +2830,18 @@ internal static class Program
                 {
                     ("gpt-4.1-nano", "gpt-5.6-luna"),
                     ("gemini-3-pro-preview", "gemini-3.1-pro-preview"),
-                    ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
+                    ("gemini-3.1-flash-lite-preview", "gemini-3.5-flash-lite"),
                     ("gemini-2.0-flash", "gemini-3.6-flash"),
-                    ("gemini-2.0-flash-lite", "gemini-3.1-flash-lite"),
+                    ("gemini-2.0-flash-lite", "gemini-3.5-flash-lite"),
+                    // #798: Google shuts gemini-3.1-flash-lite down 2027-05-07.
+                    ("gemini-3.1-flash-lite", "gemini-3.5-flash-lite"),
+                    // #1209: OpenAI removes gpt-5.1 and gpt-5.4-nano 2027-04-01.
+                    ("gpt-5.1", "gpt-5.6-luna"),
+                    ("gpt-5.4-nano", "gpt-6-luna"),
+                    // OpenAI removes gpt-4.1 2027-01-14; Google deprecated 3.5 / 3.7 Flash 2026-10-08.
+                    ("gpt-4.1", "gpt-6-luna"),
+                    ("gemini-3.5-flash", "gemini-3.6-flash"),
+                    ("gemini-3.7-flash", "gemini-3.8-flash"),
                     // #1019: 3.8 Flash, not the 2.5 Flash that Google now gates to past users.
                     ("gemma-3-12b-it", "gemini-3.8-flash"),
                     ("gemma-3-27b-it", "gemini-3.8-flash"),
@@ -2584,6 +2874,8 @@ internal static class Program
 
                 Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.OpenAI)?.Id == "gpt-5.6-luna",
                     "new OpenAI modes should default to GPT-5.6 Luna");
+                Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.Gemini)?.Id == "gemini-3.8-flash",
+                    "new Gemini modes should default to Gemini 3.8 Flash (matches macOS)");
             });
 
             // #1018: OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11. The
@@ -12297,6 +12589,48 @@ internal static class Program
                 }
             });
 
+            Run("engine whisper with no model is INVALID_REQUEST with a send-model hint (#1493)", () =>
+            {
+                // ISSUE #1493 (Ray, inbox #295). A missing or blank Whisper
+                // `model` is a request mistake: INVALID_REQUEST, the portable
+                // head's message, and a hint to send `model`. It used to be
+                // ENGINE_UNAVAILABLE "Missing 'model' for whisperLocal engine",
+                // whose shared hint says "Try again later", so a client that
+                // branches on `code` retried a request that can never pass.
+                // No default model is picked.
+                foreach (var engine in new[] { "whisper", "whisperLocal", "libwhisper", " WhisperLocal " })
+                {
+                    foreach (var model in new string?[] { null, "", "  ", "\t\n" })
+                    {
+                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException? refusal = null;
+                        try
+                        {
+                            HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                                new Mode(), engine, model);
+                        }
+                        catch (HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException ex)
+                        {
+                            refusal = ex;
+                        }
+                        var label = $"engine '{engine}' with model {(model is null ? "null" : $"'{model}'")}";
+                        Assert(refusal is not null, $"{label} was not refused");
+                        Assert(refusal!.Code == LocalApiErrorCode.InvalidRequest,
+                            $"{label} answered {refusal.Code}, not INVALID_REQUEST");
+                        Assert(refusal.Message == "A Whisper model is required.",
+                            $"{label} answered message '{refusal.Message}'");
+                        Assert(refusal.Hint == "Send model, for example base.en.",
+                            $"{label} answered hint '{refusal.Hint}'");
+                    }
+                }
+
+                // A real model still runs: the refusal is scoped to a missing one.
+                var explicitModel = new Mode();
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    explicitModel, "whisper", "base.en");
+                Assert(explicitModel is { ProviderType: "local", LocalEngine: "whisper", ModelType: "base.en" },
+                    "engine whisper with model base.en no longer selects local Whisper base.en");
+            });
+
             Run("the transcription detail slot carries ex.Message, not the toast sentence", () =>
             {
                 // ISSUE #356 ITEM 4, REVIEW ROUND 1. `MapTranscriptionException`
@@ -12616,6 +12950,96 @@ internal static class Program
 
                 Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
                     "an unrelated Deepgram key edit discarded a valid Google outcome");
+            });
+
+            Run("issue #650: /health key_present for the HW-Cloud rows follows the account key /transcribe refuses on", () =>
+            {
+                var cloudTranscription = new[]
+                {
+                    CloudTranscriptionProvider.HyperWhisperCloud,
+                    CloudTranscriptionProvider.MicrosoftAzureSpeech,
+                    CloudTranscriptionProvider.GoogleSpeech,
+                };
+                var cloudTranscriptionIds = cloudTranscription.Select(p => p.GetIdentifier()).ToHashSet();
+                var cloudPostId = PostProcessingProvider.HyperWhisperCloud.ToStringValue();
+                // No BYOK key stored anywhere: only the account key can move these rows.
+                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
+
+                // The predicate /health reads is the one /transcribe and Cloud
+                // post-processing refuse on. This process never loads or
+                // activates a licence, so it is unlicensed, as a fresh profile is.
+                Assert(HealthEndpoints.CloudAccountKeyPresent()
+                        == LicenseManager.Instance.GetTranscriptionIdentifier().IsLicensed,
+                    "/health reads a different account-key predicate than /transcribe");
+                Assert(!HealthEndpoints.CloudAccountKeyPresent(),
+                    "a smoke process with no licence reads as holding an account key");
+
+                foreach (var keyPresent in new[] { false, true })
+                {
+                    var providers = HealthEndpoints.BuildTranscriptionProviders(apiKeys, health: null, keyPresent);
+                    var cloudRows = providers.Where(r => cloudTranscriptionIds.Contains(r.Id)).ToList();
+                    Assert(cloudRows.Count == cloudTranscription.Length,
+                        $"/health lost a HW-Cloud transcription row: {string.Join(",", cloudRows.Select(r => r.Id))}");
+                    foreach (var row in cloudRows)
+                    {
+                        Assert(row.KeyPresent == keyPresent,
+                            $"/health {row.Id} key_present={row.KeyPresent} with account key present={keyPresent}");
+                    }
+                    // The BYOK rows do not follow the account key.
+                    Assert(providers.Where(r => !cloudTranscriptionIds.Contains(r.Id)).All(r => !r.KeyPresent),
+                        "an account key made a BYOK transcription row claim a key");
+
+                    var post = HealthEndpoints.BuildPostProcessingProviders(apiKeys, health: null, keyPresent);
+                    var cloudPost = post.SingleOrDefault(r => r.Id == cloudPostId);
+                    Assert(cloudPost != null, "/health lost the HW-Cloud post-processing row");
+                    Assert(cloudPost!.KeyPresent == keyPresent,
+                        $"/health post-processing {cloudPostId} key_present={cloudPost.KeyPresent} with account key present={keyPresent}");
+                    Assert(post.Where(r => r.Id != cloudPostId).All(r => !r.KeyPresent),
+                        "an account key made a BYOK post-processing row claim a key");
+                }
+
+                // /models `installed` for the same HW-Cloud-routed rows (always
+                // Enabled in the library) follows the same account key; an
+                // Enabled BYOK row does not move with it.
+                LibraryModel Row(string id, object payload, LibraryModelKind kind) => new()
+                {
+                    Id = id,
+                    DisplayName = "row",
+                    ProviderName = "row",
+                    ProviderAssetName = "row",
+                    Kind = kind,
+                    LocationKind = LibraryModelLocationKind.Cloud,
+                    StatusKind = LibraryModelStatusKind.Enabled,
+                    Source = LibraryModelSource.CloudTranscription,
+                    SupportsCustomVocabulary = false,
+                    AvailableViaHyperWhisperCloud = false,
+                    Payload = payload
+                };
+                var cloudRowsForModels = cloudTranscription
+                    .Select(p => Row(
+                        p.GetIdentifier(),
+                        CloudTranscriptionModels.GetModelsForProvider(p).First(),
+                        LibraryModelKind.Voice))
+                    .Append(Row(
+                        cloudPostId,
+                        new LanguageModelInfo("hw-cloud", "HW Cloud", PostProcessingProvider.HyperWhisperCloud, "test"),
+                        LibraryModelKind.Text))
+                    .ToList();
+                var byokRow = Row(
+                    "deepgram",
+                    CloudTranscriptionModels.All.First(m => m.Provider == CloudTranscriptionProvider.Deepgram),
+                    LibraryModelKind.Voice);
+                foreach (var keyPresent in new[] { false, true })
+                {
+                    foreach (var row in cloudRowsForModels)
+                    {
+                        var entry = ModelsEndpoints.ToEntry(row, keyPresent);
+                        Assert(entry.Installed == keyPresent,
+                            $"/models {row.Id} installed={entry.Installed} with account key present={keyPresent}");
+                    }
+                    Assert(ModelsEndpoints.ToEntry(byokRow, keyPresent).Installed,
+                        $"an Enabled BYOK row read as not installed with account key present={keyPresent}");
+                }
             });
 
             Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
@@ -17398,6 +17822,87 @@ internal static class Program
                 Assert(list.ItemContainerGenerator.ContainerFromIndex(0) is null,
                     "scrolled to the end, the first card is still built - containers are not released");
                 Assert(Realized() <= 40, $"scrolled to the end, {Realized()} cards are built");
+            });
+
+            Run("tray: an active mode past the first 50 is listed and checked in Select Mode - issue #1870", () =>
+            {
+                // #1870. Since #1593 the tray Select Mode submenu lists the first 50 modes,
+                // then More... With the active mode at index 50 or later no item was
+                // checked, so the tray hid which mode was active. Ray (inbox #1293): add
+                // it as one extra checked item after the 50, before More... Drive the real
+                // RefreshModeMenu on a bare window with 10,000 modes.
+                const int count = 10_000;
+                var modes = Enumerable.Range(0, count).Select(i => new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = $"mode {i:D5}",
+                    SortOrder = i
+                }).ToList();
+
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                var window = (HyperWhisper.Views.Windows.MainWindow)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(HyperWhisper.Views.Windows.MainWindow));
+                var menu = new System.Windows.Forms.ToolStripMenuItem();
+                const BindingFlags field = BindingFlags.Instance | BindingFlags.NonPublic;
+                typeof(MainViewModel).GetField("_modes", field)!.SetValue(vm, modes);
+                typeof(HyperWhisper.Views.Windows.MainWindow).GetField("_viewModel", field)!.SetValue(window, vm);
+                typeof(HyperWhisper.Views.Windows.MainWindow).GetField("_modeMenu", field)!.SetValue(window, menu);
+                var refresh = typeof(HyperWhisper.Views.Windows.MainWindow).GetMethod("RefreshModeMenu", field)!;
+
+                List<System.Windows.Forms.ToolStripMenuItem> Rebuild(Mode? active)
+                {
+                    typeof(MainViewModel).GetField("_selectedMode", field)!.SetValue(vm, active);
+                    refresh.Invoke(window, null);
+                    return menu.DropDownItems.OfType<System.Windows.Forms.ToolStripMenuItem>().ToList();
+                }
+
+                var limit = HyperWhisper.Views.Windows.MainWindow.TrayModeMenuLimit;
+                var moreText = HyperWhisper.Localization.Loc.S("menu.mode.more");
+
+                // Active mode 00500: the 50 modes, then 00500 checked, then More...
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                var items = Rebuild(modes[500]);
+                clock.Stop();
+                var modeItems = items.Where(i => i.Tag is Mode).ToList();
+                Assert(modeItems.Count == limit + 1,
+                    $"the submenu lists {modeItems.Count} modes with mode 00500 active, not {limit + 1}");
+                var checkedItems = modeItems.Where(i => i.Checked).ToList();
+                Assert(checkedItems.Count == 1 && ReferenceEquals(checkedItems[0].Tag, modes[500]),
+                    $"{checkedItems.Count} items are checked and mode 00500 is not the checked one");
+                Assert(ReferenceEquals(modeItems[limit].Tag, modes[500]) && modeItems[limit].Text == "mode 00500",
+                    "the active mode is not the extra item right after the first 50");
+                Assert(ReferenceEquals(modeItems[limit - 1].Tag, modes[limit - 1]),
+                    "mode 50 was swapped out for the active mode");
+                Assert(items.Last().Text == moreText && menu.DropDownItems.IndexOf(modeItems[limit]) < menu.DropDownItems.IndexOf(items.Last()),
+                    "More... is not the last item, after the active mode");
+                Assert(clock.ElapsedMilliseconds < 2000,
+                    $"building the submenu for {count} modes took {clock.ElapsedMilliseconds} ms");
+
+                // The last mode active: same shape.
+                items = Rebuild(modes[count - 1]);
+                modeItems = items.Where(i => i.Tag is Mode).ToList();
+                Assert(modeItems.Count == limit + 1 && modeItems[limit].Checked && ReferenceEquals(modeItems[limit].Tag, modes[count - 1]),
+                    "the last mode, when active, is not listed and checked after the first 50");
+
+                // Active mode inside the first 50: no extra item, it is checked in place.
+                items = Rebuild(modes[7]);
+                modeItems = items.Where(i => i.Tag is Mode).ToList();
+                Assert(modeItems.Count == limit, $"an active mode inside the first 50 added an item: {modeItems.Count}");
+                Assert(modeItems.Count(i => i.Checked) == 1 && modeItems[7].Checked, "mode 00007 is not checked in place");
+
+                // No active mode, or one no longer in the list: the first 50 only.
+                Assert(Rebuild(null).Count(i => i.Tag is Mode) == limit, "no active mode still added an item");
+                var gone = new Mode { Id = Guid.NewGuid(), Name = "deleted" };
+                items = Rebuild(gone);
+                Assert(items.Count(i => i.Tag is Mode) == limit && !items.Any(i => i.Checked),
+                    "an active mode that is not in the list was added to the submenu");
+
+                // 50 modes or fewer: unchanged, no More...
+                typeof(MainViewModel).GetField("_modes", field)!.SetValue(vm, modes.Take(3).ToList());
+                items = Rebuild(modes[2]);
+                Assert(items.Count == 3 && items[2].Checked && items.All(i => i.Text != moreText),
+                    "a 3-mode submenu changed shape");
             });
 
             Run("modes: a long mode name never pushes the hint or the model out of the status bar", () =>

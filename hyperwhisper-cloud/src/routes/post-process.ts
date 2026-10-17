@@ -8,6 +8,8 @@ import { generateRequestId, getClientIP } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
 import { creditsForCost, formatUsd } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
+import { MAX_POST_PROCESS_BODY_BYTES } from '../lib/constants';
+import { validateContentLength } from '../lib/request-limits';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
 import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
@@ -52,6 +54,20 @@ export async function postProcessRoute(c: Context) {
   const contentType = c.req.header('Content-Type') || '';
   if (!contentType.includes('application/json')) {
     return invalidContentTypeResponse('application/json', contentType);
+  }
+
+  // Size gate BEFORE parsing: `c.req.json()` buffers the whole body, and auth
+  // runs only after it, so without this an anonymous caller could make the
+  // machine hold up to Bun's 128 MB default per request (same gate as /assistant).
+  const sizeCheck = validateContentLength(c.req.header('Content-Length'), MAX_POST_PROCESS_BODY_BYTES);
+  if (!sizeCheck.ok) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', {
+      reason: sizeCheck.response.status === 413 ? 'payload_too_large' : 'invalid_content_length',
+      status: sizeCheck.response.status,
+      contentLength: sizeCheck.contentLength,
+      maxBytes: MAX_POST_PROCESS_BODY_BYTES,
+    });
+    return sizeCheck.response;
   }
 
   let body: PostProcessBody;

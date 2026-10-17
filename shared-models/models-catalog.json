@@ -527,16 +527,6 @@
 
     {
       "provider": "gemini",
-      "id": "gemini-3.7-flash",
-      "kind": "text",
-      "displayName": "Gemini 3.7 Flash",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "platforms": ["macos", "windows"],
-      "notes": "Released 2026-08-13. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Distinct from the existing `kind: voice` gemini entries in this catalog; disambiguated by `kind`."
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-3.8-flash",
       "kind": "text",
       "displayName": "Gemini 3.8 Flash",
@@ -564,16 +554,6 @@
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
       "notes": "Replacement for gemini-3-pro-preview. BYOK-only native-app catalog entry."
-    },
-    {
-      "provider": "gemini",
-      "id": "gemini-3.1-flash-lite",
-      "kind": "text",
-      "displayName": "Gemini 3.1 Flash Lite",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "platforms": ["macos", "windows"],
-      "notes": "GA replacement for gemini-3.1-flash-lite-preview. BYOK-only native-app catalog entry."
     },
     {
       "provider": "gemini",

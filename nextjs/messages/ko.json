@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - macOS 및 Windows용 AI 음성 전사",
-    "description": "AI 음성 전사로 5배 더 빠르게 작성하세요. HyperWhisper는 macOS와 Windows에서 놀라운 정확도로 음성을 전사합니다. 자연스럽게 말하면 텍스트가 즉시 나타납니다."
+    "title": "HyperWhisper - macOS, Windows 및 Linux용 AI 음성 전사",
+    "description": "AI 음성 전사로 5배 더 빠르게 작성하세요. HyperWhisper는 macOS, Windows, Linux에서 놀라운 정확도로 음성을 전사합니다. 자연스럽게 말하면 텍스트가 즉시 나타납니다."
   },
   "navbar": {
     "features": "기능",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "인터넷 없이 사용할 수 있나요?",
-        "answer": "물론입니다. HyperWhisper는 로컬 AI 모델을 사용해 Mac 또는 Windows PC에서 완전히 오프라인으로 동작합니다. 인터넷이 필요 없습니다. 최대 정확도와 속도를 원하는 사용자를 위해 다양한 클라우드 제공업체를 통한 선택형 클라우드 처리도 제공합니다."
+        "answer": "물론입니다. HyperWhisper는 로컬 AI 모델을 사용해 Mac, Windows PC 또는 Linux PC에서 완전히 오프라인으로 동작합니다. 인터넷이 필요 없습니다. 최대 정확도와 속도를 원하는 사용자를 위해 다양한 클라우드 제공업체를 통한 선택형 클라우드 처리도 제공합니다."
       },
       "apiKey": {
         "question": "API 사용에 비용이 드나요?",
@@ -175,12 +175,12 @@
         "answer": "오프라인 전사용으로 Whisper 모델의 다양한 크기(제작: OpenAI, 99+ 언어 지원)를 제공합니다. 또한 NVIDIA의 Parakeet 모델(25+ 언어 지원)도 제공합니다.\n      \n      오프라인 후처리용으로는 Gemma 3 모델의 다양한 크기(제작: Google)를 제공합니다."
       },
       "compatibility": {
-        "question": "모든 Mac/Windows 앱에서 동작하나요?",
+        "question": "제가 쓰는 모든 앱에서 동작하나요?",
         "answer": "네, 입력할 수 있는 모든 곳에서 동작합니다. 이메일 작성, 문서 작성, 코딩, 채팅 등 어디서든 가능합니다. 단축키를 누르고 말하면 텍스트가 즉시 나타납니다."
       },
       "privacy": {
         "question": "개인정보는 어떻게 보호되나요?",
-        "answer": "로컬 모드를 사용할 때는 어떤 데이터도 Mac이나 Windows PC 밖으로 나가지 않습니다.\n\n클라우드 전사를 사용할 경우 데이터는 사용자가 선택한 클라우드 제공업체(OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, Google Gemini 등)로 전송됩니다.\n\n[Proxyman](https://proxyman.io) 같은 네트워크 검사 도구나 [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 같은 네트워크 모니터로, 또는 [GitHub의 소스 코드](https://github.com/ray-amjad/hyperwhisper-app)를 읽어 직접 확인할 수 있습니다."
+        "answer": "로컬 모드를 사용할 때는 어떤 데이터도 Mac, Windows PC, Linux PC 밖으로 나가지 않습니다.\n\n클라우드 전사를 사용할 경우 데이터는 사용자가 선택한 클라우드 제공업체(OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, Google Gemini 등)로 전송됩니다.\n\n[Proxyman](https://proxyman.io) 같은 네트워크 검사 도구나 [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 같은 네트워크 모니터로, 또는 [GitHub의 소스 코드](https://github.com/ray-amjad/hyperwhisper-app)를 읽어 직접 확인할 수 있습니다."
       },
       "cloud": {
         "question": "HyperWhisper Cloud란 무엇인가요?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "시스템 요구사항은 무엇인가요?",
-        "answer": "Mac: macOS 14 이상, Apple Silicon 및 Intel 지원. Windows: Windows 10/11, x64 또는 ARM64. 최적 성능을 위해 8GB RAM을 권장합니다."
+        "answer": "Mac: macOS 14 이상, Apple Silicon 및 Intel 지원. Windows: Windows 10/11, x64 또는 ARM64. Linux v1: amd64 기반 Ubuntu 22.04 이상 또는 Debian 12 이상. 최적 성능을 위해 8GB RAM을 권장합니다."
       },
       "madeBy": {
         "question": "누가 만들었나요?",
@@ -289,7 +289,7 @@
     "loading": "불러오는 중..."
   },
   "footer": {
-    "tagline": "macOS 및 Windows용 AI 음성 전사로 5배 더 빠르게 작성하세요.",
+    "tagline": "macOS, Windows 및 Linux용 AI 음성 전사로 5배 더 빠르게 작성하세요.",
     "product": "제품",
     "resources": "리소스",
     "company": "회사",

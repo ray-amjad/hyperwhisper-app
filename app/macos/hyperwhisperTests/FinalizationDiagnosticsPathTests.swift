@@ -63,10 +63,11 @@ struct FinalizationDiagnosticsPathTests {
         #expect(diagnostics["dstInDefaultRecordingsFolder"] as? Bool == true)
     }
 
-    /// `beforeSend` turns a String extra into `[redacted]` when its key contains
-    /// transcript/text/prompt. A key ending in "Extension" contains "text", so the
-    /// file kind reached Sentry as `[redacted]` (seen on a real Mac). Every key
-    /// here must reach Sentry with its value intact.
+    /// `beforeSend` turns a String extra into `[redacted]` when its key is not
+    /// on `SentryService.allowedExtraKeys` (issue #805). Under the old substring
+    /// rule a key ending in "Extension" contained "text", so the file kind
+    /// reached Sentry as `[redacted]` (seen on a real Mac). Every key here must
+    /// reach Sentry with its value intact.
     @Test func noKeyIsRedactedByBeforeSend() {
         let diagnostics = RecordingLifecycle.pathDiagnostics(
             rawURL: Self.rawURL,

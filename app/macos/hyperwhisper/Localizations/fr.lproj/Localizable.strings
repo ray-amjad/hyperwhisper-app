@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Désactivé";
 "settings.general.mediaControl.mode.mute" = "Couper l’audio";
+"settings.general.mediaControl.mode.muffle" = "Étouffer l’audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Jouer les effets sonores";
 "settings.sound.soundEffects.info" = "Émettre des signaux sonores au début et à la fin de l'enregistrement.";
 "settings.sound.mediaControl.title" = "Contrôle des médias pendant l’enregistrement";
-"settings.sound.mediaControl.info" = "Choisissez comment HyperWhisper gère les autres sons pendant l'enregistrement. 'Off' ne change rien, 'Mute Audio' coupe la sortie système pendant l'enregistrement et la restaure ensuite.";
+"settings.sound.mediaControl.info" = "Choisissez comment HyperWhisper gère les autres sons pendant l'enregistrement. 'Off' ne change rien, 'Mute Audio' coupe la sortie système pendant l'enregistrement et la restaure ensuite, et 'Étouffer l’audio' le laisse jouer doucement, comme depuis la pièce voisine.";
 "settings.sound.autoIncreaseMicVolume.title" = "Augmenter automatiquement le volume du micro";
 "settings.sound.autoIncreaseMicVolume.info" = "Règle automatiquement le volume d’entrée du micro au maximum au début de l’enregistrement, puis restaure le niveau d’origine à l’arrêt. S’applique uniquement avec le périphérique d’entrée système par défaut.";
 "settings.sound.vad.title" = "Supprimer les silences avant transcription";
@@ -798,6 +799,7 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "modes.field.name.placeholder" = "ex. : Notes de réunion";
 "modes.field.name.editPlaceholder" = "Nom du mode";
 "modes.field.name.defaultLocked" = "Il s'agit du mode par défaut, son nom ne peut donc pas être modifié. Vous pouvez renommer tout autre mode.";
+"modes.field.name.taken" = "Un mode portant ce nom existe déjà.";
 "modes.field.model" = "Modèle";
 "modes.field.provider" = "Fournisseur";
 "modes.provider.local" = "Local";
@@ -824,7 +826,7 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "transcripts.delete.single.message" = "Cela supprimera définitivement cet enregistrement et son fichier audio.";
 "transcripts.delete.multiple.title" = "Supprimer %d enregistrements ?";
 "transcripts.delete.multiple.message" = "Cela supprimera définitivement %d enregistrements et leurs fichiers audio.\n\nCette action est irréversible.";
-"transcripts.delete.multiple.confirm" = "Tout supprimer";
+"transcripts.delete.multiple.confirm" = "Supprimer %d enregistrements";
 "transcripts.retry.error.title" = "Nouvelle tentative échouée";
 "transcripts.retry.error.modeDeleted" = "Le mode qui a créé cet enregistrement a été supprimé, il n'a donc pas été relancé. Dans l'Historique, faites un clic droit sur l'enregistrement et choisissez \"Relancer avec...\" pour sélectionner un autre mode.";
 

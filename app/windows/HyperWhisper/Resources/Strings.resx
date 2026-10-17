@@ -1888,6 +1888,9 @@ You can re-download it later.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Muffle audio</value>
+  </data>
   <data name="settings.sound.autoIncreaseMicVolume.title" xml:space="preserve">
     <value>Auto-increase microphone volume</value>
   </data>

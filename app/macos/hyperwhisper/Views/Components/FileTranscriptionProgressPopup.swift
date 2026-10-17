@@ -44,6 +44,8 @@ struct FileTranscriptionProgressPopup: View {
     /// Callback when user clicks cancel
     let onCancel: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // MARK: - Size Configuration
 
     /// Popup width
@@ -118,24 +120,53 @@ struct FileTranscriptionProgressPopup: View {
                         .fill(Color.white.opacity(0.15))
                         .frame(height: 6)
 
-                    // Progress fill
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(progressGradient)
-                        .frame(
-                            width: max(0, min(geometry.size.width * CGFloat(progress.progress), geometry.size.width)),
-                            height: 6
-                        )
+                    if progress.isIndeterminate {
+                        indeterminateFill(trackWidth: geometry.size.width)
+                    } else {
+                        // Progress fill
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(progressGradient)
+                            .frame(
+                                width: max(0, min(geometry.size.width * CGFloat(progress.progress), geometry.size.width)),
+                                height: 6
+                            )
+                    }
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 3))
             }
             .frame(height: 6)
 
-            // Percentage text
-            Text("\(Int(progress.progress * 100))%")
+            // Percentage text. An indeterminate bar has no honest number to show.
+            Text(progress.isIndeterminate ? "" : "\(Int(progress.progress * 100))%")
                 .font(.system(size: 10, weight: .medium, design: .monospaced))
                 .foregroundColor(.white.opacity(0.6))
                 .frame(width: 32, alignment: .trailing)
         }
         .animation(.smooth(duration: 0.1), value: progress.progress)
+    }
+
+    /// Moving fill for a job whose real progress is unknown (#1437)
+    ///
+    /// A segment sweeps across the track so a long transcription reads as working.
+    /// With Reduce Motion on, the full track pulses in place instead.
+    private func indeterminateFill(trackWidth: CGFloat) -> some View {
+        TimelineView(.animation) { context in
+            let period = reduceMotion ? 2.0 : 1.4
+            let phase = context.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: period) / period
+            if reduceMotion {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(progressGradient)
+                    .frame(width: trackWidth, height: 6)
+                    .opacity(0.45 + 0.35 * (0.5 + 0.5 * cos(phase * 2 * .pi)))
+            } else {
+                let segmentWidth = trackWidth * 0.3
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(progressGradient)
+                    .frame(width: segmentWidth, height: 6)
+                    .offset(x: -segmentWidth + CGFloat(phase) * (trackWidth + segmentWidth))
+            }
+        }
     }
 
     /// Cancel button

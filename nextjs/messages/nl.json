@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI-spraaktranscriptie voor macOS en Windows",
-    "description": "Schrijf 5x sneller met AI-gestuurde spraaktranscriptie. HyperWhisper transcribeert je stem met ongelooflijke nauwkeurigheid op macOS en Windows. Spreek natuurlijk en zie je woorden direct verschijnen."
+    "title": "HyperWhisper - AI-spraaktranscriptie voor macOS, Windows en Linux",
+    "description": "Schrijf 5x sneller met AI-gestuurde spraaktranscriptie. HyperWhisper transcribeert je stem met ongelooflijke nauwkeurigheid op macOS, Windows en Linux. Spreek natuurlijk en zie je woorden direct verschijnen."
   },
   "navbar": {
     "features": "Functies",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Kan ik het zonder internet gebruiken?",
-        "answer": "Absoluut. HyperWhisper kan volledig offline op je Mac of Windows-pc worden gebruikt met lokale AI-modellen - geen internet vereist. Voor gebruikers die maximale nauwkeurigheid en snelheid willen, bieden we ook optionele cloudverwerking via verschillende cloudproviders."
+        "answer": "Absoluut. HyperWhisper kan volledig offline op je Mac, Windows-pc of Linux-computer worden gebruikt met lokale AI-modellen - geen internet vereist. Voor gebruikers die maximale nauwkeurigheid en snelheid willen, bieden we ook optionele cloudverwerking via verschillende cloudproviders."
       },
       "apiKey": {
         "question": "Moet ik betalen voor API-toegang?",
@@ -175,12 +175,12 @@
         "answer": "Voor offline transcriptie bieden we meerdere groottes van het Whisper-model (gemaakt door OpenAI, met ondersteuning voor 99+ talen). We bieden ook NVidia's Parakeet-modellen (met ondersteuning voor 25+ talen).\n      \n      Voor offline nabewerking bieden we meerdere groottes van het Gemma 3-model (gemaakt door Google)."
       },
       "compatibility": {
-        "question": "Werkt het met alle Mac- en Windows-apps?",
+        "question": "Werkt het met al mijn apps?",
         "answer": "Ja, het werkt overal waar je kunt typen. Of je nu e-mails schrijft, documenten maakt, codeert of chat. Druk op de sneltoets, spreek, en zie je woorden direct verschijnen."
       },
       "privacy": {
         "question": "Hoe wordt mijn privacy beschermd?",
-        "answer": "Wanneer je de lokale modus gebruikt, verlaat er geen data je Mac of Windows-pc.\n\nWanneer je cloudtranscriptie gebruikt, worden je gegevens verzonden naar de cloudprovider die je kiest (bijv. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox of Google Gemini).\n\nJe kunt dit zelf verifiëren met een netwerk-inspector zoals [Proxyman](https://proxyman.io), een netwerkmonitor zoals [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), of door de [broncode op GitHub](https://github.com/ray-amjad/hyperwhisper-app) te lezen."
+        "answer": "Wanneer je de lokale modus gebruikt, verlaat er geen data je Mac, Windows-pc of Linux-computer.\n\nWanneer je cloudtranscriptie gebruikt, worden je gegevens verzonden naar de cloudprovider die je kiest (bijv. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox of Google Gemini).\n\nJe kunt dit zelf verifiëren met een netwerk-inspector zoals [Proxyman](https://proxyman.io), een netwerkmonitor zoals [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), of door de [broncode op GitHub](https://github.com/ray-amjad/hyperwhisper-app) te lezen."
       },
       "cloud": {
         "question": "Wat is HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Wat zijn de systeemvereisten?",
-        "answer": "Voor Mac: macOS 14 of nieuwer, zowel Apple Silicon als Intel ondersteund. Voor Windows: Windows 10/11, x64 of ARM64. 8GB RAM aanbevolen voor optimale prestaties."
+        "answer": "Voor Mac: macOS 14 of nieuwer, zowel Apple Silicon als Intel ondersteund. Voor Windows: Windows 10/11, x64 of ARM64. Voor Linux v1: Ubuntu 22.04 of nieuwer of Debian 12 of nieuwer op amd64. 8GB RAM aanbevolen voor optimale prestaties."
       },
       "madeBy": {
         "question": "Door wie is dit gemaakt?",
@@ -289,7 +289,7 @@
     "loading": "Laden..."
   },
   "footer": {
-    "tagline": "Schrijf 5x sneller met AI-gestuurde spraaktranscriptie voor macOS en Windows.",
+    "tagline": "Schrijf 5x sneller met AI-gestuurde spraaktranscriptie voor macOS, Windows en Linux.",
     "product": "Product",
     "resources": "Resources",
     "company": "Bedrijf",

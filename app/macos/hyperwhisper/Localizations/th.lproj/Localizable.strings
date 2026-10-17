@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "ปิด";
 "settings.general.mediaControl.mode.mute" = "ปิดเสียง";
+"settings.general.mediaControl.mode.muffle" = "ทำให้เสียงอู้อี้";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "เล่นเอฟเฟกต์เสียง";
 "settings.sound.soundEffects.info" = "เล่นสัญญาณเสียงเมื่อเริ่มและหยุดการบันทึก";
 "settings.sound.mediaControl.title" = "การควบคุมมีเดียขณะบันทึก";
-"settings.sound.mediaControl.info" = "เลือกวิธีจัดการเสียงอื่นขณะบันทึก 'Off' ปล่อยเสียงไม่เปลี่ยนแปลง 'Mute Audio' ปิดเสียงเอาต์พุตระบบขณะบันทึกและเรียกคืนหลังจากนั้น";
+"settings.sound.mediaControl.info" = "เลือกวิธีจัดการเสียงอื่นขณะบันทึก 'Off' ปล่อยเสียงไม่เปลี่ยนแปลง 'Mute Audio' ปิดเสียงเอาต์พุตระบบขณะบันทึกและเรียกคืนหลังจากนั้น 'ทำให้เสียงอู้อี้' เล่นเสียงเบา ๆ เหมือนมาจากห้องข้าง ๆ";
 "settings.sound.autoIncreaseMicVolume.title" = "เพิ่มระดับเสียงไมโครโฟนโดยอัตโนมัติ";
 "settings.sound.autoIncreaseMicVolume.info" = "โดยอัตโนมัติตั้งค่าระดับเสียงอินพุตไมโครโฟนเป็นสูงสุดเมื่อเริ่มการบันทึก จากนั้นคืนค่าระดับต้นฉบับเมื่อหยุดการบันทึก ใช้ได้เฉพาะเมื่อใช้อุปกรณ์อินพุตเริ่มต้นของระบบเท่านั้น";
 "settings.sound.vad.title" = "ลบความเงียบก่อนการสัญลักษณ์";
@@ -798,6 +799,7 @@
 "modes.field.name.placeholder" = "เช่น บันทึกการประชุม";
 "modes.field.name.editPlaceholder" = "ชื่อโหมด";
 "modes.field.name.defaultLocked" = "นี่คือโหมดเริ่มต้น จึงไม่สามารถเปลี่ยนชื่อได้ คุณสามารถเปลี่ยนชื่อโหมดอื่นได้";
+"modes.field.name.taken" = "มีโหมดที่ใช้ชื่อนี้อยู่แล้ว";
 "modes.field.model" = "โมเดล";
 "modes.field.provider" = "ผู้ให้บริการ";
 "modes.provider.local" = "ท้องถิ่น";
@@ -824,7 +826,7 @@
 "transcripts.delete.single.message" = "สิ่งนี้จะลบการบันทึกนี้และไฟล์เสียงของมันอย่างถาวร";
 "transcripts.delete.multiple.title" = "ลบ %d การบันทึก?";
 "transcripts.delete.multiple.message" = "สิ่งนี้จะลบ %d การบันทึกและไฟล์เสียงของพวกเขาอย่างถาวร\n\nไม่สามารถเลิกทำการดำเนินการนี้ได้";
-"transcripts.delete.multiple.confirm" = "ลบทั้งหมด";
+"transcripts.delete.multiple.confirm" = "ลบ %d การบันทึก";
 "transcripts.retry.error.title" = "การลองใหม่ล้มเหลว";
 "transcripts.retry.error.modeDeleted" = "โหมดที่สร้างการบันทึกนี้ถูกลบไปแล้ว จึงไม่ได้ลองใหม่ ในประวัติ ให้คลิกขวาที่การบันทึกแล้วเลือก \"ลองใหม่ด้วย...\" เพื่อเลือกโหมดอื่น";
 

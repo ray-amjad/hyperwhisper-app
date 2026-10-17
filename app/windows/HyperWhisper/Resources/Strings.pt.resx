@@ -2011,6 +2011,9 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Silenciar o áudio</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Abafar o áudio</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Manter o microfone ativo</value>
   </data>

@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Изкл.";
 "settings.general.mediaControl.mode.mute" = "Заглушаване на звука";
+"settings.general.mediaControl.mode.muffle" = "Приглушаване на звука";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Възпроизвеждане на звукови ефекти";
 "settings.sound.soundEffects.info" = "Възпроизвеждане на звукови сигнали при стартиране и спиране на записа.";
 "settings.sound.mediaControl.title" = "Управление на медиите по време на запис";
-"settings.sound.mediaControl.info" = "Изберете как HyperWhisper обработва друго аудио, докато записвате. 'Изкл.' оставя аудиото непроменено, 'Заглушаване на звука' заглушава системния изход по време на запис и го възстановява след това.";
+"settings.sound.mediaControl.info" = "Изберете как HyperWhisper обработва друго аудио, докато записвате. 'Изкл.' оставя аудиото непроменено, 'Заглушаване на звука' заглушава системния изход по време на запис и го възстановява след това, а 'Приглушаване на звука' го оставя да звучи тихо, сякаш от съседната стая.";
 "settings.sound.autoIncreaseMicVolume.title" = "Автоматично увеличаване на силата на микрофона";
 "settings.sound.autoIncreaseMicVolume.info" = "Автоматично задава входната сила на микрофона на максимум при начало на запис, след което възстановява оригиналното ниво при спиране. Прилага се само при използване на системното входно устройство по подразбиране.";
 "settings.sound.vad.title" = "Премахване на тишината преди транскрипция";
@@ -798,6 +799,7 @@
 "modes.field.name.placeholder" = "напр. Бележки от среща";
 "modes.field.name.editPlaceholder" = "Име на режима";
 "modes.field.name.defaultLocked" = "Това е режимът по подразбиране, затова името му не може да бъде променено. Можете да преименувате всеки друг режим.";
+"modes.field.name.taken" = "Вече съществува режим с това име.";
 "modes.field.model" = "Модел";
 "modes.field.provider" = "Доставчик";
 "modes.provider.local" = "Локален";
@@ -824,7 +826,7 @@
 "transcripts.delete.single.message" = "Това ще изтрие окончателно този запис и неговия аудио файл.";
 "transcripts.delete.multiple.title" = "Изтриване на %d записа?";
 "transcripts.delete.multiple.message" = "Това ще изтрие окончателно %d записа и техните аудио файлове.\n\nТова действие не може да бъде отменено.";
-"transcripts.delete.multiple.confirm" = "Изтрий всички";
+"transcripts.delete.multiple.confirm" = "Изтрий %d записа";
 "transcripts.retry.error.title" = "Повторният опит е неуспешен";
 "transcripts.retry.error.modeDeleted" = "Режимът, създал този запис, е изтрит, затова не беше опитано отново. В Историята щракнете с десния бутон върху записа и изберете \"Повтори с...\", за да изберете друг режим.";
 

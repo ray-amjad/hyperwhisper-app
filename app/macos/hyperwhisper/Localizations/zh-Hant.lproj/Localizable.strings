@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "關閉";
 "settings.general.mediaControl.mode.mute" = "靜音";
+"settings.general.mediaControl.mode.muffle" = "柔化音頻";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "播放音效";
 "settings.sound.soundEffects.info" = "在錄音開始和停止時播放音訊提示。";
 "settings.sound.mediaControl.title" = "錄音時的媒體控制";
-"settings.sound.mediaControl.info" = "選擇 HyperWhisper 在您錄音時如何處理其他音頻。「關閉」保持音頻不變，「靜音」會在錄音期間將系統輸出靜音并在之後恢復。";
+"settings.sound.mediaControl.info" = "選擇 HyperWhisper 在您錄音時如何處理其他音頻。「關閉」保持音頻不變，「靜音」會在錄音期間將系統輸出靜音并在之後恢復，「柔化音頻」則讓音頻繼續輕聲播放，彷彿來自隔壁房間。";
 "settings.sound.autoIncreaseMicVolume.title" = "自動增加麥克風音量";
 "settings.sound.autoIncreaseMicVolume.info" = "錄音開始時自動將麥克風輸入音量設定為最大，錄音停止時恢復原始等級。僅在使用系統預設輸入裝置時適用。";
 "settings.sound.vad.title" = "在轉錄前移除靜音";
@@ -798,6 +799,7 @@
 "modes.field.name.placeholder" = "例如，會議筆記";
 "modes.field.name.editPlaceholder" = "模式名稱";
 "modes.field.name.defaultLocked" = "這是預設模式，因此無法變更其名稱。你可以重新命名其他任何模式。";
+"modes.field.name.taken" = "已存在同名模式。";
 "modes.field.model" = "模型";
 "modes.field.provider" = "提供商";
 "modes.provider.local" = "本地";
@@ -824,7 +826,7 @@
 "transcripts.delete.single.message" = "這將永久刪除此錄音及其音頻檔案。";
 "transcripts.delete.multiple.title" = "刪除 %d 個錄音？";
 "transcripts.delete.multiple.message" = "這將永久刪除 %d 個錄音及其音頻檔案。\n\n此操作無法復原。";
-"transcripts.delete.multiple.confirm" = "全部刪除";
+"transcripts.delete.multiple.confirm" = "刪除 %d 個錄音";
 "transcripts.retry.error.title" = "重試失敗";
 "transcripts.retry.error.modeDeleted" = "建立此錄音的模式已被刪除，因此未重試。請在歷史記錄中以右鍵點按該錄音，然後選擇\"重試...\"以選取其他模式。";
 

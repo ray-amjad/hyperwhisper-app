@@ -325,7 +325,7 @@ public sealed class SettingsViewModel : ViewModelBase
     /// Only meaningful while <see cref="StreamingProvider"/> is "hyperwhisper".
     /// </summary>
     public IReadOnlyList<string> StreamingCloudTiers { get; } = SharedCoreBridge.StreamingCloudSttTiers();
-    public IReadOnlyList<string> AudioEnvironmentPolicies { get; } = ["unchanged", "duck", "mute"];
+    public IReadOnlyList<string> AudioEnvironmentPolicies { get; } = ["unchanged", "duck", "mute", "muffle"];
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
     public ICommand ResetShortcutsCommand { get; }
@@ -613,6 +613,6 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private static string NormalizeAudioPolicy(string? value) => value?.Trim().ToLowerInvariant() switch
     {
-        "duck" => "duck", "mute" => "mute", _ => "unchanged",
+        "duck" => "duck", "mute" => "mute", "muffle" => "muffle", _ => "unchanged",
     };
 }

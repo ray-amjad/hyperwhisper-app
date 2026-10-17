@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI prepis hlasu pre macOS a Windows",
-    "description": "Píšte 5x rýchlejšie s AI prepisom hlasu. HyperWhisper prepisuje váš hlas s neuveriteľnou presnosťou na macOS aj Windows. Hovorte prirodzene a sledujte, ako sa vaše slová okamžite zobrazujú."
+    "title": "HyperWhisper - AI prepis hlasu pre macOS, Windows a Linux",
+    "description": "Píšte 5x rýchlejšie s AI prepisom hlasu. HyperWhisper prepisuje váš hlas s neuveriteľnou presnosťou na macOS, Windows aj Linux. Hovorte prirodzene a sledujte, ako sa vaše slová okamžite zobrazujú."
   },
   "navbar": {
     "features": "Funkcie",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Môžem to používať bez internetu?",
-        "answer": "Určite. HyperWhisper sa dá na Macu aj na počítači s Windows používať úplne offline pomocou lokálnych AI modelov - bez internetu. Pre používateľov, ktorí chcú maximálnu presnosť a rýchlosť, ponúkame aj voliteľné cloudové spracovanie cez rôznych poskytovateľov."
+        "answer": "Určite. HyperWhisper sa dá na Macu, na počítači s Windows aj na počítači s Linuxom používať úplne offline pomocou lokálnych AI modelov - bez internetu. Pre používateľov, ktorí chcú maximálnu presnosť a rýchlosť, ponúkame aj voliteľné cloudové spracovanie cez rôznych poskytovateľov."
       },
       "apiKey": {
         "question": "Musím platiť za API prístup?",
@@ -175,12 +175,12 @@
         "answer": "Pre offline prepis ponúkame viacero veľkostí modelu Whisper (od OpenAI, podpora 99+ jazykov). Ponúkame aj modely Parakeet od NVidia (podpora 25+ jazykov).\n      \n      Pre offline následné spracovanie ponúkame viacero veľkostí modelu Gemma 3 (od Google)."
       },
       "compatibility": {
-        "question": "Funguje to so všetkými aplikáciami na Macu a Windows?",
+        "question": "Funguje to so všetkými mojimi aplikáciami?",
         "answer": "Áno, funguje to všade, kde môžete písať. Či už píšete emaily, dokumenty, kód alebo chatujete. Stačí stlačiť skratku, hovoriť a sledovať, ako sa vaše slová okamžite objavia."
       },
       "privacy": {
         "question": "Ako je chránené moje súkromie?",
-        "answer": "Pri používaní lokálneho režimu žiadne dáta neopúšťajú váš Mac ani váš počítač s Windows.\n\nPri cloudovom prepise sa vaše dáta odosielajú cloudovému poskytovateľovi, ktorého si vyberiete (napr. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox alebo Google Gemini).\n\nMôžete si to overiť sami pomocou sieťového inšpektora, napríklad [Proxyman](https://proxyman.io), sieťového monitora, napríklad [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), alebo prečítaním [zdrojového kódu na GitHube](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Pri používaní lokálneho režimu žiadne dáta neopúšťajú váš Mac, váš počítač s Windows ani váš počítač s Linuxom.\n\nPri cloudovom prepise sa vaše dáta odosielajú cloudovému poskytovateľovi, ktorého si vyberiete (napr. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox alebo Google Gemini).\n\nMôžete si to overiť sami pomocou sieťového inšpektora, napríklad [Proxyman](https://proxyman.io), sieťového monitora, napríklad [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), alebo prečítaním [zdrojového kódu na GitHube](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Čo je HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Aké sú systémové požiadavky?",
-        "answer": "Pre Mac: macOS 14 alebo novší, podpora Apple Silicon aj Intel. Pre Windows: Windows 10/11, x64 alebo ARM64. Pre optimálny výkon odporúčame 8 GB RAM."
+        "answer": "Pre Mac: macOS 14 alebo novší, podpora Apple Silicon aj Intel. Pre Windows: Windows 10/11, x64 alebo ARM64. Pre Linux v1: Ubuntu 22.04 alebo novší či Debian 12 alebo novší, na amd64. Pre optimálny výkon odporúčame 8 GB RAM."
       },
       "madeBy": {
         "question": "Kto to vytvoril?",
@@ -289,7 +289,7 @@
     "loading": "Načítava sa..."
   },
   "footer": {
-    "tagline": "Píšte 5x rýchlejšie s AI prepisom hlasu pre macOS a Windows.",
+    "tagline": "Píšte 5x rýchlejšie s AI prepisom hlasu pre macOS, Windows a Linux.",
     "product": "Produkt",
     "resources": "Zdroje",
     "company": "Spoločnosť",

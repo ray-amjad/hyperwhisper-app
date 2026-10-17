@@ -275,6 +275,12 @@ public partial class App : WpfApplication
         // sweep. StartSweep runs off the UI thread and logs every exception.
         _ = ModelDownloadLeftovers.StartSweep(DateTime.UtcNow);
 
+        // MUFFLE VOLUME RECOVERY
+        // A crash or kill mid-muffle leaves other apps' volumes lowered, and Windows
+        // remembers them per app. Put back what the restore journal still lists.
+        // ast-grep-ignore: no-discarded-task-run -- device enumeration must stay off the UI thread; the method logs every exception
+        _ = Task.Run(AudioEnvironmentService.Instance.RecoverMuffleVolumesFromEarlierRun);
+
         // LOCAL API SERVER
         // Off by default. When the user has enabled it via Settings → Local API,
         // bring up the loopback HTTP host so MCP/cURL scripts can talk to the
@@ -442,6 +448,11 @@ public partial class App : WpfApplication
         // partial if it gets the chance; start-up sweeps the rest (#1599). No wait:
         // a download's progress handler can need this UI thread.
         _ = ModelDownloadService.Instance.CancelAllAsync(TimeSpan.Zero);
+
+        // A muffle still running on a quit path that skipped the view model's
+        // restore must put the other apps' volumes back before the process ends.
+        // The teardown runs on the thread pool, so this wait cannot deadlock.
+        AudioEnvironmentService.Instance.ShutdownMuffle(TimeSpan.FromSeconds(3));
 
         // Release single-instance mutex
         SingleInstanceGuard.Release();

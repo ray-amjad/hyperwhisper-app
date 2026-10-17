@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI-stemmetransskription til macOS og Windows",
-    "description": "Skriv 5x hurtigere med AI-drevet stemmetransskription. HyperWhisper transskriberer din stemme med imponerende præcision på macOS og Windows. Tal naturligt og se dine ord vises med det samme."
+    "title": "HyperWhisper - AI-stemmetransskription til macOS, Windows og Linux",
+    "description": "Skriv 5x hurtigere med AI-drevet stemmetransskription. HyperWhisper transskriberer din stemme med imponerende præcision på macOS, Windows og Linux. Tal naturligt og se dine ord vises med det samme."
   },
   "navbar": {
     "features": "Funktioner",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Kan jeg bruge det uden internet?",
-        "answer": "Absolut. HyperWhisper kan bruges helt offline på din Mac eller Windows-pc med lokale AI-modeller - ingen internetforbindelse nødvendig. For brugere, der ønsker maksimal nøjagtighed og hastighed, tilbyder vi også valgfri cloudbehandling via forskellige cloududbydere."
+        "answer": "Absolut. HyperWhisper kan bruges helt offline på din Mac, Windows-pc eller Linux-computer med lokale AI-modeller - ingen internetforbindelse nødvendig. For brugere, der ønsker maksimal nøjagtighed og hastighed, tilbyder vi også valgfri cloudbehandling via forskellige cloududbydere."
       },
       "apiKey": {
         "question": "Skal jeg betale for API-adgang?",
@@ -175,12 +175,12 @@
         "answer": "Til offline-transskription tilbyder vi flere størrelser af Whisper-modellen (lavet af OpenAI, understøtter 99+ sprog). Vi tilbyder også NVidia's Parakeet-modeller (understøtter 25+ sprog).\n      \n      Til offline-efterbehandling tilbyder vi flere størrelser af Gemma 3-modellen (lavet af Google)."
       },
       "compatibility": {
-        "question": "Virker det med alle Mac- og Windows-apps?",
+        "question": "Virker det med alle mine apps?",
         "answer": "Ja, det virker overalt, hvor du kan skrive. Uanset om du skriver e-mails, dokumenter, kode eller chatter. Tryk på genvejen, tal, og se dine ord vises med det samme."
       },
       "privacy": {
         "question": "Hvordan beskyttes mit privatliv?",
-        "answer": "Når du bruger lokal tilstand, forlader ingen data din Mac eller Windows-pc.\n\nNår du bruger cloudtransskription, sendes dine data til den cloududbyder, du vælger (f.eks. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox eller Google Gemini).\n\nDu kan selv verificere dette med et netværksinspektionsværktøj som [Proxyman](https://proxyman.io), en netværksmonitor som [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) eller ved at læse [kildekoden på GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Når du bruger lokal tilstand, forlader ingen data din Mac, Windows-pc eller Linux-computer.\n\nNår du bruger cloudtransskription, sendes dine data til den cloududbyder, du vælger (f.eks. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox eller Google Gemini).\n\nDu kan selv verificere dette med et netværksinspektionsværktøj som [Proxyman](https://proxyman.io), en netværksmonitor som [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) eller ved at læse [kildekoden på GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Hvad er HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Hvad er systemkravene?",
-        "answer": "Til Mac: macOS 14 eller nyere, med støtte til både Apple Silicon og Intel. Til Windows: Windows 10/11, x64 eller ARM64. 8GB RAM anbefales for optimal ydeevne."
+        "answer": "Til Mac: macOS 14 eller nyere, med støtte til både Apple Silicon og Intel. Til Windows: Windows 10/11, x64 eller ARM64. Til Linux v1: Ubuntu 22.04 eller nyere eller Debian 12 eller nyere på amd64. 8GB RAM anbefales for optimal ydeevne."
       },
       "madeBy": {
         "question": "Hvem har lavet dette?",
@@ -289,7 +289,7 @@
     "loading": "Indlæser..."
   },
   "footer": {
-    "tagline": "Skriv 5x hurtigere med AI-drevet stemmetransskription til macOS og Windows.",
+    "tagline": "Skriv 5x hurtigere med AI-drevet stemmetransskription til macOS, Windows og Linux.",
     "product": "Produkt",
     "resources": "Ressourcer",
     "company": "Virksomhed",

@@ -524,9 +524,10 @@ class FileTranscriptionFlow {
             // STEP 6: Start transcription (15-85%)
             // Update progress to transcribing stage with slow animation
             progressState.updateStage(.transcribing)
-            // Start a slow animation that will be cut short when transcription completes
-            // Duration estimates: 60s covers most transcriptions, will jump to completion when done
-            progressState.animateProgress(to: 0.85, duration: 60.0)
+            // Start a slow animation that will be cut short when transcription completes.
+            // No engine reports real progress here, so a job longer than the 60 s ramp
+            // turns the bar indeterminate instead of freezing at 85% (#1437).
+            progressState.animateProgress(to: 0.85, duration: 60.0, thenIndeterminate: true)
 
             guard let transcriptionPipeline = transcriptionPipeline else {
                 AppLogger.transcription.error("❌ TranscriptionPipeline not available")
@@ -597,7 +598,7 @@ class FileTranscriptionFlow {
             // Reset state after completion
             appState?.recordingState = .idle
 
-        } catch is CancellationError {
+        } catch where Self.isCancel(error, taskCancelled: Task.isCancelled) {
             // User cancelled - cleanup was already done by cancelTranscription(),
             // which also resolved the row. This resolves it only when the task was
             // cancelled some other way.
@@ -942,6 +943,15 @@ class FileTranscriptionFlow {
         AppLogger.transcription.info("📝 [FileImport] Marked processing transcript failed (\(kind, privacy: .public))")
     }
 
+    /// Whether an import that stopped with `error` was a cancel, not a failure.
+    ///
+    /// A cancelled task is a cancel whatever the engine threw on the way out:
+    /// local Whisper reports its abort as `streamingInterrupted` (#1743), and
+    /// that must not show the error alert (#1871).
+    nonisolated static func isCancel(_ error: Error, taskCancelled: Bool) -> Bool {
+        error is CancellationError || taskCancelled
+    }
+
     /// The `failedReason` and row text for an import that stopped with `error`.
     ///
     /// The text is empty: a failed import has no transcript, and the reason
@@ -962,13 +972,20 @@ class FileTranscriptionFlow {
     ///
     /// A too-short file gets the file wording, with its length, instead of the
     /// engine's dictation wording ("record for longer"), which makes no sense
-    /// for a file the user picked (#1427).
+    /// for a file the user picked (#1427). A History Retry or "Retry with..."
+    /// re-runs a saved file too, so it says the same (Ray, #1836).
     static func failureMessage(for error: Error, audioDuration: TimeInterval?) -> String {
-        if case .audioTooShort? = error as? TranscriptionError {
+        if isTooShort(error) {
             let seconds = (audioDuration ?? 0).formatted(.number.precision(.fractionLength(1)))
             return "transcribe.file.error.tooShort".localized(arguments: seconds)
         }
         return error.localizedDescription
+    }
+
+    /// True when an engine refused the audio as too short to transcribe.
+    nonisolated static func isTooShort(_ error: Error) -> Bool {
+        if case .audioTooShort? = error as? TranscriptionError { return true }
+        return false
     }
 
     /// Handles file transcription errors with appropriate UI

@@ -46,6 +46,10 @@ struct ModeEditorView: View {
     /// EDIT only: the mode's stored local model when it is not installed. The
     /// picker lists it as not installed so the selection is kept (issue #1434).
     let missingLocalModelId: String?
+    /// Every mode in the store (id + stored name), so the editor can refuse a
+    /// name another mode already uses (issue #1435). The caller passes its live
+    /// fetch, so a mode added while the sheet is open is seen too.
+    let existingModes: [ModeNameEntry]
     let onSave: (ModeData) -> Void
 
     @Environment(\.dismiss) var dismiss
@@ -84,6 +88,23 @@ struct ModeEditorView: View {
 
     private var normalizedName: String? {
         ModeNamePolicy.normalized(name)
+    }
+
+    /// Set when Save/Create is pressed. A created mode reaches `existingModes`
+    /// while the sheet is still animating out, and would otherwise flash the
+    /// taken-name message under its own name.
+    @State private var hasSubmitted = false
+
+    /// True when another mode already uses this name (issue #1435): Save is
+    /// disabled and the field says why. Same rule as the Local API's
+    /// `MODE_NAME_TAKEN`; renaming a mode to its own name stays allowed.
+    private var nameIsTaken: Bool {
+        guard !hasSubmitted else { return false }
+        return ModeEditorDefaults.nameIsTaken(
+            name,
+            editing: configuration.mode.map { ModeNameEntry(id: $0.id, name: $0.name) },
+            existingModes: existingModes
+        )
     }
 
     // MARK: - Source-toggle memory
@@ -192,11 +213,13 @@ struct ModeEditorView: View {
     init(
         configuration: ModeEditorConfiguration,
         availableModelIds: [String],
+        existingModes: [ModeNameEntry] = [],
         licenseActive: Bool = false,
         onSave: @escaping (ModeData) -> Void
     ) {
         self.configuration = configuration
         self.availableModelIds = availableModelIds
+        self.existingModes = existingModes
         self.onSave = onSave
 
         if let mode = configuration.mode {
@@ -1150,6 +1173,16 @@ struct ModeEditorView: View {
                             .foregroundColor(.secondary)
                             .padding(.leading, 88)
                     }
+
+                    // Another mode already uses this name (issue #1435). Save
+                    // is disabled while it shows.
+                    if nameIsTaken {
+                        Text(localized: "modes.field.name.taken")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.leading, 88)
+                            .accessibilityIdentifier("modeEditor.nameTaken")
+                    }
                 }
             }
             .padding(12)
@@ -1644,7 +1677,8 @@ struct ModeEditorView: View {
 
             // Save/Create button
             Button {
-                guard hasValidDictationLanguage else { return }
+                guard hasValidDictationLanguage, !nameIsTaken else { return }
+                hasSubmitted = true
                 let chosenModel = ModeEditorDefaults.savedModel(
                     provider: provider,
                     model: model,
@@ -1691,7 +1725,7 @@ struct ModeEditorView: View {
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(normalizedName == nil || !hasValidDictationLanguage || (provider == .local && localPickerModelIds().isEmpty))
+            .disabled(normalizedName == nil || nameIsTaken || !hasValidDictationLanguage || (provider == .local && localPickerModelIds().isEmpty))
         }
         .padding(20)
         .background(Color(NSColor.controlBackgroundColor))

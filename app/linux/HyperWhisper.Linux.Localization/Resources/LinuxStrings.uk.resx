@@ -3,6 +3,9 @@
   <data name="linux.overlay.recording" xml:space="preserve">
     <value>Запис</value>
   </data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Приглушити звук</value>
+  </data>
   <data name="linux.ui.api.keys" xml:space="preserve">
     <value>Ключі API</value>
   </data>

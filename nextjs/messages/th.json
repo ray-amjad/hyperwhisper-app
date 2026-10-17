@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - ถอดเสียงด้วย AI สำหรับ macOS และ Windows",
-    "description": "เขียนได้เร็วขึ้น 5x ด้วยการถอดเสียงด้วย AI. HyperWhisper ถอดเสียงของคุณอย่างแม่นยำสูงบน macOS และ Windows. พูดอย่างเป็นธรรมชาติแล้วดูข้อความปรากฏทันที."
+    "title": "HyperWhisper - ถอดเสียงด้วย AI สำหรับ macOS, Windows และ Linux",
+    "description": "เขียนได้เร็วขึ้น 5x ด้วยการถอดเสียงด้วย AI. HyperWhisper ถอดเสียงของคุณอย่างแม่นยำสูงบน macOS, Windows และ Linux. พูดอย่างเป็นธรรมชาติแล้วดูข้อความปรากฏทันที."
   },
   "navbar": {
     "features": "ฟีเจอร์",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "ใช้งานโดยไม่ต่ออินเทอร์เน็ตได้ไหม?",
-        "answer": "ได้แน่นอน HyperWhisper ใช้งานแบบออฟไลน์เต็มรูปแบบบน Mac หรือพีซี Windows ได้ด้วยโมเดล AI ในเครื่อง โดยไม่ต้องใช้อินเทอร์เน็ต และสำหรับผู้ใช้ที่ต้องการความเร็วและความแม่นยำสูงสุด เรายังมีตัวเลือกประมวลผลผ่านคลาวด์จากผู้ให้บริการหลายราย"
+        "answer": "ได้แน่นอน HyperWhisper ใช้งานแบบออฟไลน์เต็มรูปแบบบน Mac, พีซี Windows หรือคอมพิวเตอร์ Linux ได้ด้วยโมเดล AI ในเครื่อง โดยไม่ต้องใช้อินเทอร์เน็ต และสำหรับผู้ใช้ที่ต้องการความเร็วและความแม่นยำสูงสุด เรายังมีตัวเลือกประมวลผลผ่านคลาวด์จากผู้ให้บริการหลายราย"
       },
       "apiKey": {
         "question": "ต้องจ่ายเพิ่มเพื่อใช้งาน API ไหม?",
@@ -175,12 +175,12 @@
         "answer": "สำหรับการถอดเสียงแบบออฟไลน์ เรามีโมเดล Whisper หลายขนาด (พัฒนาโดย OpenAI รองรับ 99+ ภาษา) และมีโมเดล Parakeet ของ NVidia (รองรับ 25+ ภาษา)\n      \n      สำหรับการปรับแต่งข้อความแบบออฟไลน์ เรามีโมเดล Gemma 3 หลายขนาด (พัฒนาโดย Google)"
       },
       "compatibility": {
-        "question": "ใช้ได้กับทุกแอปบน Mac และ Windows ไหม?",
+        "question": "ใช้ได้กับทุกแอปของฉันไหม?",
         "answer": "ใช้ได้ทุกที่ที่คุณพิมพ์ได้ ไม่ว่าจะเขียนอีเมล เอกสาร โค้ด หรือแชต แค่กดคีย์ลัด พูด แล้วดูข้อความปรากฏทันที"
       },
       "privacy": {
         "question": "ความเป็นส่วนตัวของฉันถูกปกป้องอย่างไร?",
-        "answer": "เมื่อใช้โหมดในเครื่อง ข้อมูลจะไม่ออกจาก Mac หรือพีซี Windows ของคุณ\n\nเมื่อใช้การถอดเสียงผ่านคลาวด์ ข้อมูลจะถูกส่งไปยังผู้ให้บริการคลาวด์ที่คุณเลือก (เช่น OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox หรือ Google Gemini)\n\nคุณสามารถตรวจสอบได้ด้วยตัวเองผ่านเครื่องมืออย่าง [Proxyman](https://proxyman.io) หรือโปรแกรมตรวจสอบเครือข่ายอย่าง [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) หรือโดยการอ่าน [ซอร์สโค้ดบน GitHub](https://github.com/ray-amjad/hyperwhisper-app)"
+        "answer": "เมื่อใช้โหมดในเครื่อง ข้อมูลจะไม่ออกจาก Mac, พีซี Windows หรือคอมพิวเตอร์ Linux ของคุณ\n\nเมื่อใช้การถอดเสียงผ่านคลาวด์ ข้อมูลจะถูกส่งไปยังผู้ให้บริการคลาวด์ที่คุณเลือก (เช่น OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox หรือ Google Gemini)\n\nคุณสามารถตรวจสอบได้ด้วยตัวเองผ่านเครื่องมืออย่าง [Proxyman](https://proxyman.io) หรือโปรแกรมตรวจสอบเครือข่ายอย่าง [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) หรือโดยการอ่าน [ซอร์สโค้ดบน GitHub](https://github.com/ray-amjad/hyperwhisper-app)"
       },
       "cloud": {
         "question": "HyperWhisper Cloud คืออะไร?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "สเปกระบบที่ต้องการคืออะไร?",
-        "answer": "สำหรับ Mac: macOS 14 ขึ้นไป รองรับทั้ง Apple Silicon และ Intel สำหรับ Windows: Windows 10/11, x64 หรือ ARM64 แนะนำ RAM 8GB เพื่อประสิทธิภาพที่ดีที่สุด"
+        "answer": "สำหรับ Mac: macOS 14 ขึ้นไป รองรับทั้ง Apple Silicon และ Intel สำหรับ Windows: Windows 10/11, x64 หรือ ARM64 สำหรับ Linux v1: Ubuntu 22.04 ขึ้นไป หรือ Debian 12 ขึ้นไป บน amd64 แนะนำ RAM 8GB เพื่อประสิทธิภาพที่ดีที่สุด"
       },
       "madeBy": {
         "question": "ใครเป็นผู้สร้าง?",
@@ -289,7 +289,7 @@
     "loading": "กำลังโหลด..."
   },
   "footer": {
-    "tagline": "เขียนได้เร็วขึ้น 5x ด้วยการถอดเสียงด้วย AI สำหรับ macOS และ Windows",
+    "tagline": "เขียนได้เร็วขึ้น 5x ด้วยการถอดเสียงด้วย AI สำหรับ macOS, Windows และ Linux",
     "product": "ผลิตภัณฑ์",
     "resources": "แหล่งข้อมูล",
     "company": "บริษัท",

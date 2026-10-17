@@ -1871,6 +1871,9 @@
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>静音音频</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>柔化音频</value>
+  </data>
   <!-- Synced fallback strings -->
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>保持麦克风就绪</value>

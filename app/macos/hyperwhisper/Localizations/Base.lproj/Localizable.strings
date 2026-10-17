@@ -459,6 +459,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Off";
 "settings.general.mediaControl.mode.mute" = "Mute Audio";
+"settings.general.mediaControl.mode.muffle" = "Muffle Audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -477,7 +478,7 @@
 "settings.sound.soundEffects.title" = "Play sound effects";
 "settings.sound.soundEffects.info" = "Play audio cues when recording starts and stops.";
 "settings.sound.mediaControl.title" = "Media control while recording";
-"settings.sound.mediaControl.info" = "Choose how HyperWhisper handles other audio while you record. 'Off' leaves audio unchanged, 'Mute Audio' silences your system output while recording and restores it afterward.";
+"settings.sound.mediaControl.info" = "Choose how HyperWhisper handles other audio while you record. 'Off' leaves audio unchanged, 'Mute Audio' silences your system output while recording and restores it afterward, and 'Muffle Audio' keeps it playing softly, as if from the next room.";
 "settings.sound.autoIncreaseMicVolume.title" = "Automatically increase microphone volume";
 "settings.sound.autoIncreaseMicVolume.info" = "Automatically sets microphone input volume to max when recording starts, then restores the original level when recording stops. Only applies when using the system default input device.";
 "settings.sound.keepWarmMicrophone.title" = "Keep microphone warm between recordings";
@@ -845,6 +846,7 @@
 "modes.field.name.placeholder" = "e.g., Meeting Notes";
 "modes.field.name.editPlaceholder" = "Mode name";
 "modes.field.name.defaultLocked" = "This is the default mode, so its name cannot be changed. You can rename any other mode.";
+"modes.field.name.taken" = "A mode with that name already exists.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Provider";
 "modes.field.engine" = "Engine";
@@ -879,7 +881,7 @@
 "transcripts.delete.single.message" = "This will permanently delete this recording and its audio file.";
 "transcripts.delete.multiple.title" = "Delete %d Recordings?";
 "transcripts.delete.multiple.message" = "This will permanently delete %d recordings and their audio files.\n\nThis action cannot be undone.";
-"transcripts.delete.multiple.confirm" = "Delete All";
+"transcripts.delete.multiple.confirm" = "Delete %d Recordings";
 "transcripts.retry.error.title" = "Retry Failed";
 "transcripts.retry.error.modeDeleted" = "The mode that made this recording was deleted, so it was not retried. In History, right-click the recording and choose \"Retry with...\" to pick another mode.";
 

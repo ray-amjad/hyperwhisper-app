@@ -162,6 +162,14 @@ class LicenseManager: ObservableObject {
         return result
     }
 
+    /// Drops the last activation or validation error once the key it named is
+    /// gone: the Cloud settings field was edited or cleared, or the page closed.
+    /// Kept while a check is in flight, so its own result is not wiped (#642).
+    func dismissLastError() {
+        guard !isValidating else { return }
+        lastError = nil
+    }
+
     /// Tests a key without changing the active account, persisted key, customer
     /// metadata, or validation cache. Used when UI presents testing separately
     /// from explicit activation.

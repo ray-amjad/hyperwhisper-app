@@ -145,6 +145,14 @@ enum LocalAPIResponder {
     /// (`RustRetry.swift`), which turns a Rust `HwTranscriptionError` into the
     /// `TranscriptionError` this function consumes, and is upstream of it.
     static func mapTranscriptionError(_ error: Error) -> (LocalAPIErrorCode, String, String?) {
+        // A request-shape error the head already worded (issue #1493: a
+        // missing Whisper model, a named Nemotron model that is not
+        // installed) passes through verbatim. The shared table has no row
+        // that carries those words: its INVALID_REQUEST row has no hint, and
+        // its MODEL_NOT_INSTALLED message ignores the `model` slot.
+        if let input = error as? TranscribeEndpoint.APIInputError {
+            return (input.code, input.message, input.hint)
+        }
         let (reason, params) = transcriptionFailure(for: error)
         let failure = localApiMapTranscriptionError(reason: reason, params: params)
         return (LocalAPIErrorCode(shared: failure.code), failure.message, failure.hint)

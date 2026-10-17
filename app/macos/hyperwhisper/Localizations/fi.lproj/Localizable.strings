@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Pois";
 "settings.general.mediaControl.mode.mute" = "Mykistä ääni";
+"settings.general.mediaControl.mode.muffle" = "Vaimenna ääni";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Toista äänitehosteet";
 "settings.sound.soundEffects.info" = "Toista äänimerkit nauhoituksen alkaessa ja päättyessä.";
 "settings.sound.mediaControl.title" = "Median hallinta nauhoituksen aikana";
-"settings.sound.mediaControl.info" = "Valitse, miten HyperWhisper käsittelee muuta ääntä nauhoituksen aikana. 'Pois' jättää äänen muuttumattomaksi, 'Mykistä ääni' hiljentää järjestelmän ulostulon nauhoituksen aikana ja palauttaa sen sen jälkeen.";
+"settings.sound.mediaControl.info" = "Valitse, miten HyperWhisper käsittelee muuta ääntä nauhoituksen aikana. 'Pois' jättää äänen muuttumattomaksi, 'Mykistä ääni' hiljentää järjestelmän ulostulon nauhoituksen aikana ja palauttaa sen sen jälkeen, ja 'Vaimenna ääni' pitää sen soimassa hiljaa, kuin viereisestä huoneesta.";
 "settings.sound.autoIncreaseMicVolume.title" = "Kasvata mikrofonin äänenvoimakkuutta automaattisesti";
 "settings.sound.autoIncreaseMicVolume.info" = "Asettaa mikrofonin tulon voimakkuuden automaattisesti maksimiin nauhoituksen alkaessa ja palauttaa alkuperäisen tason nauhoituksen päättyessä. Koskee vain järjestelmän oletuslaitetta.";
 "settings.sound.vad.title" = "Poista hiljaisuus ennen transkriptiota";
@@ -798,6 +799,7 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "modes.field.name.placeholder" = "esim. Kokouspöytäkirjat";
 "modes.field.name.editPlaceholder" = "Tilan nimi";
 "modes.field.name.defaultLocked" = "Tämä on oletustila, joten sen nimeä ei voi muuttaa. Voit nimetä minkä tahansa muun tilan uudelleen.";
+"modes.field.name.taken" = "Tämän niminen tila on jo olemassa.";
 "modes.field.model" = "Malli";
 "modes.field.provider" = "Palveluntarjoaja";
 "modes.provider.local" = "Paikallinen";
@@ -824,7 +826,7 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "transcripts.delete.single.message" = "Tämä poistaa pysyvästi tämän nauhoituksen ja sen äänitiedoston.";
 "transcripts.delete.multiple.title" = "Poista %d nauhoitusta?";
 "transcripts.delete.multiple.message" = "Tämä poistaa pysyvästi %d nauhoitusta ja niiden äänitiedostot.\n\nTätä toimintoa ei voi perua.";
-"transcripts.delete.multiple.confirm" = "Poista kaikki";
+"transcripts.delete.multiple.confirm" = "Poista %d nauhoitusta";
 "transcripts.retry.error.title" = "Uudelleenyritys epäonnistui";
 "transcripts.retry.error.modeDeleted" = "Tämän tallenteen tehnyt tila on poistettu, joten sitä ei yritetty uudelleen. Napsauta tallennetta hiiren oikealla painikkeella Historiassa ja valitse \"Yritä uudelleen...\" valitaksesi toisen tilan.";
 

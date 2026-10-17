@@ -177,6 +177,7 @@
   <data name="linux.settings.general.errorLogging.subtitle" xml:space="preserve"><value>Sends crash reports only. Your transcriptions are never sent.</value></data>
   <data name="linux.settings.sound.autoIncreaseMicVolume.subtitle" xml:space="preserve"><value>Boosts a quiet mic to 90% while recording, then restores it.</value></data>
   <data name="linux.settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve"><value>Keeps the mic open between recordings to cut startup delay.</value></data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve"><value>Muffle audio</value></data>
   <data name="linux.settings.storage.notice" xml:space="preserve"><value>A new folder affects new recordings only.</value></data>
   <data name="linux.settings.storage.storeAsM4A.subtitle" xml:space="preserve"><value>Converts recordings to smaller files after transcription.</value></data>
   <data name="linux.settings.backup.export.subtitle" xml:space="preserve"><value>Save settings, modes and vocabulary to a file you can restore later.</value></data>
