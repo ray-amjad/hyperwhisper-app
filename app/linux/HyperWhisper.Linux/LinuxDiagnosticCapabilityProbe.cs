@@ -35,7 +35,9 @@ internal static class LinuxDiagnosticCapabilityProbe
         var localInference = services.LocalWhisperCapability.IsAvailable
             || services.LocalParakeetCapability.IsAvailable;
         var cuda = services.LocalWhisperCapability.IsAvailable
-            && services.LocalWhisperCapability.DisplayName.Contains("CUDA", StringComparison.OrdinalIgnoreCase);
+            // "(CUDA 12" is the CUDA runtime label; a bare "CUDA" would also match
+            // the "CUDA is not installed" notice of a fallback (#1002).
+            && services.LocalWhisperCapability.DisplayName.Contains("(CUDA 12", StringComparison.Ordinal);
 
         return Create(new(
             audio,

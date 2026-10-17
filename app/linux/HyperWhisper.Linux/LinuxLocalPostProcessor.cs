@@ -4,6 +4,7 @@ using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.SharedCore;
+using HyperWhisper.Linux.Platform.SystemIntegration;
 
 namespace HyperWhisper.Linux;
 
@@ -27,12 +28,21 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
         _service = new LocalPostProcessingService(new LLamaSharpLocalLlmEngine());
     }
 
+    // Read once: LLamaSharp pins its native backend for the whole process, so a
+    // hyperwhisper-cuda installed while the app runs takes effect on restart.
+    private static readonly Lazy<INativeRuntimeLocator> Runtime = new(() => new LinuxNativeRuntimeLocator());
+
     public static string RuntimeStatus => string.Join(" · ", new[]
     {
         $"CPU: {Availability(LocalLlmBackend.Cpu, "ready")}",
         $"Vulkan runtime: {Availability(LocalLlmBackend.Vulkan, "packaged; GPU device checked during model load")}",
-        $"CUDA: {Availability(LocalLlmBackend.Cuda, "driver and runtime ready")}",
+        CudaPackageInstalled
+            ? $"CUDA: {Availability(LocalLlmBackend.Cuda, "driver and runtime ready")}"
+            : $"CUDA: {LinuxCudaPackage.MissingNotice}",
     });
+
+    private static bool CudaPackageInstalled =>
+        Runtime.Value.FindLibrary("llama", NativeComputeBackend.Cuda).IsSuccess;
 
     public async Task<PortablePostProcessingResult> ProcessAsync(
         string transcript,
@@ -66,14 +76,21 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
             100);
         var prompt = LinuxPostProcessingPromptFactory.Build(mode, applicationContext, vocabulary);
 
-        var backend = ParseBackend(_settings.Get("localLlmBackend", "cpu"));
+        var allowCpuFallback = _settings.Get("allowLocalLlmCpuFallback", true);
+        var backend = ResolveBackend(
+            ParseBackend(_settings.Get("localLlmBackend", "cpu")), allowCpuFallback, out var cudaMissing);
+        if (backend is null)
+        {
+            return PortablePostProcessingResult.Skipped(
+                transcript, "postprocessing.runtimeunavailable", cudaMissing!);
+        }
         var result = await _service.ProcessAsync(new LocalPostProcessingRequest(
             Path.Combine(_modelsDirectory, fileName),
-            backend,
+            backend.Value,
             prompt.SystemPrompt,
             prompt.SystemInfo,
             transcript,
-            _settings.Get("allowLocalLlmCpuFallback", true)), cancellationToken).ConfigureAwait(false);
+            allowCpuFallback), cancellationToken).ConfigureAwait(false);
         if (!result.IsSuccess)
         {
             return PortablePostProcessingResult.Skipped(
@@ -107,6 +124,30 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
 
     private static string Availability(LocalLlmBackend backend, string availableText) =>
         PackagedLlamaRuntime.IsAvailable(backend) ? availableText : "unavailable";
+
+    /// <summary>
+    /// CUDA 12 ships in hyperwhisper-cuda (#1002). Without it a CUDA choice runs on
+    /// Vulkan, then CPU when CPU fallback is allowed; with neither it returns null
+    /// and the install hint in <paramref name="failure"/>.
+    /// </summary>
+    private static LocalLlmBackend? ResolveBackend(LocalLlmBackend requested, bool allowCpuFallback, out string? failure)
+    {
+        failure = null;
+        if (requested != LocalLlmBackend.Cuda) return requested;
+        var choice = LinuxCudaPackage.Choose(Runtime.Value, "llama", NativeComputeBackend.Cuda, allowCpuFallback,
+            vulkanUsable: PackagedLlamaRuntime.IsAvailable(LocalLlmBackend.Vulkan));
+        if (choice.Unavailable)
+        {
+            failure = LinuxCudaPackage.MissingFailure;
+            return null;
+        }
+        return choice.Backend switch
+        {
+            NativeComputeBackend.Vulkan => LocalLlmBackend.Vulkan,
+            NativeComputeBackend.Cpu => LocalLlmBackend.Cpu,
+            _ => LocalLlmBackend.Cuda,
+        };
+    }
 
     private static LocalLlmBackend ParseBackend(string? value) => value?.Trim().ToLowerInvariant() switch
     {
