@@ -205,7 +205,7 @@ public sealed class HomeViewModel : ViewModelBase
         {
             var persistedTypingSpeed = NormalizeTypingSpeed(_settings.Get("advanced.typingSpeedWPM", 40));
             Set(ref _typingSpeedWordsPerMinute, persistedTypingSpeed, nameof(TypingSpeedWordsPerMinute));
-            HistoryCount = (await _history.ListAsync(cancellationToken)).Count;
+            HistoryCount = await _history.CountAsync(cancellationToken);
             VocabularyCount = (await _vocabulary.ListAsync(cancellationToken)).Count;
             ModeCount = (await _modes.ListAsync(cancellationToken)).Count;
             _statisticsSnapshot = await _statistics.GetAsync(
