@@ -117,7 +117,7 @@ held by the "legal copy" line of §2 when all of these hold:
   `Strings.resx`. It translates the sentence and adds no claim. A changed or new English sentence,
   or a translation that says more or less than the English, stays held.
 
-Such a PR is still logic tier: two review rounds and a verify that passes (§4), with §5 conditions
+Such a PR is still logic tier: the logic review rounds and a verify that passes (§4), with §5 conditions
 2 to 6. The `ar` and `he` batch is no different.
 
 ## 3. Tiers
