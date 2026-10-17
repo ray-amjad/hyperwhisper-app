@@ -533,8 +533,12 @@ class TranscriptionProviderRouter {
         let modelString: String
         switch resolvedEngine {
         case .whisperLocal:
+            // A request mistake, not an outage (issue #1493): INVALID_REQUEST
+            // with a hint to send `model`. No default model is picked (Ray,
+            // inbox #295). Only the Local API calls `resolveProvider`; dictation
+            // resolves a Mode through `selectProvider(for:)` and never gets here.
             guard let m = model?.trimmingCharacters(in: .whitespacesAndNewlines), !m.isEmpty else {
-                throw TranscriptionError.providerNotAvailable(provider: "Whisper", reason: "Missing 'model' for whisperLocal engine")
+                throw TranscribeEndpoint.APIInputError.whisperModelRequired
             }
             modelString = m
         case .parakeet:
@@ -562,6 +566,24 @@ class TranscriptionProviderRouter {
             modelString = Qwen3AsrModelManager.Constants.modelId
         case .appleSpeech:
             modelString = "apple-speech-analyzer"
+        }
+
+        // Nemotron keeps its default (an omitted `model` tries multilingual);
+        // only the not-installed error changes, to name the model that was
+        // tried and suggest the installed variant (issue #1493). The bare
+        // `.modelNotDownloaded` rendered "Required model is not installed.",
+        // which reads as false to a caller whose only Nemotron model is
+        // installed. Same throw site as before (`prepareIfNeeded`), so the
+        // routing and every other error are unchanged.
+        if case .nemotron = resolvedEngine {
+            do {
+                return try await selectLocalProvider(modelId: modelString, language: resolvedLanguage, stageWhisperModel: false)
+            } catch TranscriptionError.modelNotDownloaded {
+                throw TranscribeEndpoint.APIInputError.nemotronModelNotInstalled(
+                    modelString,
+                    isInstalled: NemotronModelManager.isVariantInstalled
+                )
+            }
         }
 
         return try await selectLocalProvider(modelId: modelString, language: resolvedLanguage, stageWhisperModel: false)
