@@ -636,7 +636,7 @@ struct RecordingDialog: View {
                     Button {
                         retryPendingAudio(with: mode)
                     } label: {
-                        Text(mode.name ?? "Unknown")
+                        Text(MenuItemText.bounded(mode.name ?? "Unknown")) // #1436
                     }
                 }
             } label: {

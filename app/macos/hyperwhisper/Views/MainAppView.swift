@@ -792,7 +792,9 @@ struct MenuBarItems: View {
                         appState.selectMode(mode, persist: true)
                     }) {
                         HStack {
-                            Text(mode.name)
+                            // An NSMenu grows to its widest item, so bound the
+                            // free-text name (#1436). Only the label is cut.
+                            Text(MenuItemText.bounded(mode.name))
                                 .fixedSize() // Prevent text truncation in menu
                             if appState.selectedModeId == mode.id.uuidString {
                                 Spacer()
@@ -817,7 +819,7 @@ struct MenuBarItems: View {
                     Button(action: {
                         transcribeFile(with: mode)
                     }) {
-                        Text(mode.name)
+                        Text(MenuItemText.bounded(mode.name)) // #1436
                             .fixedSize() // Prevent text truncation in menu
                     }
                 }
