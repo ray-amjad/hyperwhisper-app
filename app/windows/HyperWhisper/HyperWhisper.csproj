@@ -10,6 +10,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- Per-Monitor V2 DPI awareness (issue #1501); see app.manifest. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <RootNamespace>HyperWhisper</RootNamespace>
     <AssemblyName>HyperWhisper</AssemblyName>
 
