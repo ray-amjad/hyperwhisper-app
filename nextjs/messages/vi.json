@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - Chuyển giọng nói thành văn bản bằng AI cho macOS & Windows",
-    "description": "Viết nhanh hơn 5x với tính năng chuyển giọng nói thành văn bản bằng AI. HyperWhisper chuyển giọng nói của bạn với độ chính xác ấn tượng trên macOS và Windows. Nói tự nhiên và xem từ ngữ xuất hiện ngay lập tức."
+    "title": "HyperWhisper - Chuyển giọng nói thành văn bản bằng AI cho macOS, Windows & Linux",
+    "description": "Viết nhanh hơn 5x với tính năng chuyển giọng nói thành văn bản bằng AI. HyperWhisper chuyển giọng nói của bạn với độ chính xác ấn tượng trên macOS, Windows và Linux. Nói tự nhiên và xem từ ngữ xuất hiện ngay lập tức."
   },
   "navbar": {
     "features": "Tính năng",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Tôi có thể dùng khi không có internet không?",
-        "answer": "Chắc chắn. HyperWhisper có thể dùng hoàn toàn offline trên máy Mac hoặc máy tính Windows của bạn với mô hình AI cục bộ - không cần internet. Với người dùng muốn độ chính xác và tốc độ tối đa, chúng tôi cũng cung cấp xử lý đám mây tùy chọn qua nhiều nhà cung cấp khác nhau."
+        "answer": "Chắc chắn. HyperWhisper có thể dùng hoàn toàn offline trên máy Mac, máy tính Windows hoặc máy tính Linux của bạn với mô hình AI cục bộ - không cần internet. Với người dùng muốn độ chính xác và tốc độ tối đa, chúng tôi cũng cung cấp xử lý đám mây tùy chọn qua nhiều nhà cung cấp khác nhau."
       },
       "apiKey": {
         "question": "Tôi có cần trả phí để dùng API không?",
@@ -175,12 +175,12 @@
         "answer": "Cho chuyển giọng nói offline, chúng tôi cung cấp nhiều kích cỡ mô hình Whisper (do OpenAI phát triển, hỗ trợ 99+ ngôn ngữ). Chúng tôi cũng cung cấp các mô hình Parakeet của NVidia (hỗ trợ 25+ ngôn ngữ).\n      \n      Cho hậu xử lý offline, chúng tôi cung cấp nhiều kích cỡ mô hình Gemma 3 (do Google phát triển)."
       },
       "compatibility": {
-        "question": "Có hoạt động với mọi ứng dụng Mac và Windows không?",
+        "question": "Có hoạt động với mọi ứng dụng của tôi không?",
         "answer": "Có, hoạt động ở bất cứ đâu bạn có thể gõ. Dù bạn viết email, tài liệu, code hay chat. Chỉ cần nhấn phím tắt, nói và xem từ ngữ hiện ra ngay lập tức."
       },
       "privacy": {
         "question": "Quyền riêng tư của tôi được bảo vệ như thế nào?",
-        "answer": "Khi dùng chế độ cục bộ, không có dữ liệu nào rời khỏi máy Mac hoặc máy tính Windows của bạn.\n\nKhi dùng chuyển giọng nói trên cloud, dữ liệu của bạn sẽ được gửi đến nhà cung cấp cloud bạn chọn (ví dụ OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox hoặc Google Gemini).\n\nBạn có thể tự kiểm chứng bằng trình giám sát mạng như [Proxyman](https://proxyman.io), trình theo dõi mạng như [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), hoặc bằng cách đọc [mã nguồn trên GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Khi dùng chế độ cục bộ, không có dữ liệu nào rời khỏi máy Mac, máy tính Windows hoặc máy tính Linux của bạn.\n\nKhi dùng chuyển giọng nói trên cloud, dữ liệu của bạn sẽ được gửi đến nhà cung cấp cloud bạn chọn (ví dụ OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox hoặc Google Gemini).\n\nBạn có thể tự kiểm chứng bằng trình giám sát mạng như [Proxyman](https://proxyman.io), trình theo dõi mạng như [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), hoặc bằng cách đọc [mã nguồn trên GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "HyperWhisper Cloud là gì?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Yêu cầu hệ thống là gì?",
-        "answer": "Với Mac: macOS 14 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
+        "answer": "Với Mac: macOS 14 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Với Linux v1: Ubuntu 22.04 trở lên hoặc Debian 12 trở lên, trên amd64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
       },
       "madeBy": {
         "question": "Ai đã tạo ra sản phẩm này?",
@@ -289,7 +289,7 @@
     "loading": "Đang tải..."
   },
   "footer": {
-    "tagline": "Viết nhanh hơn 5x với chuyển giọng nói thành văn bản bằng AI cho macOS & Windows.",
+    "tagline": "Viết nhanh hơn 5x với chuyển giọng nói thành văn bản bằng AI cho macOS, Windows & Linux.",
     "product": "Sản phẩm",
     "resources": "Tài nguyên",
     "company": "Công ty",

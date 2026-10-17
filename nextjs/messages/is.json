@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI tal-í-texta umritun fyrir macOS og Windows",
-    "description": "Skrifaðu 5x hraðar með AI-knúinni tal-í-texta umritun. HyperWhisper umritar röddina þína með ótrúlegri nákvæmni á macOS og Windows. Talaðu eðlilega og sjáðu orðin birtast samstundis."
+    "title": "HyperWhisper - AI tal-í-texta umritun fyrir macOS, Windows og Linux",
+    "description": "Skrifaðu 5x hraðar með AI-knúinni tal-í-texta umritun. HyperWhisper umritar röddina þína með ótrúlegri nákvæmni á macOS, Windows og Linux. Talaðu eðlilega og sjáðu orðin birtast samstundis."
   },
   "navbar": {
     "features": "Eiginleikar",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Get ég notað þetta án internets?",
-        "answer": "Algjörlega. HyperWhisper er hægt að nota alveg offline á Mac eða Windows tölvu með staðbundnum AI líkönum - ekkert internet þarf. Fyrir notendur sem vilja hámarksnákvæmni og hraða bjóðum við einnig valfrjálsa skýjavinnslu í gegnum ýmsa veitendur."
+        "answer": "Algjörlega. HyperWhisper er hægt að nota alveg offline á Mac, Windows eða Linux tölvu með staðbundnum AI líkönum - ekkert internet þarf. Fyrir notendur sem vilja hámarksnákvæmni og hraða bjóðum við einnig valfrjálsa skýjavinnslu í gegnum ýmsa veitendur."
       },
       "apiKey": {
         "question": "Þarf ég að borga fyrir API aðgang?",
@@ -175,12 +175,12 @@
         "answer": "Fyrir offline umritun bjóðum við upp á margar stærðir af Whisper líkaninu (frá OpenAI, styður 99+ tungumál). Við bjóðum einnig Parakeet líkön frá NVidia (styðja 25+ tungumál).\n      \n      Fyrir offline eftirvinnslu bjóðum við upp á margar stærðir af Gemma 3 líkaninu (frá Google)."
       },
       "compatibility": {
-        "question": "Virkar þetta með öllum Mac og Windows öppum?",
+        "question": "Virkar þetta með öllum öppunum mínum?",
         "answer": "Já, þetta virkar alls staðar þar sem þú getur slegið inn texta. Hvort sem þú ert að semja tölvupóst, skrifa skjöl, kóða eða spjalla. Ýttu bara á flýtilykilinn, talaðu og sjáðu orðin birtast samstundis."
       },
       "privacy": {
         "question": "Hvernig er persónuvernd mín tryggð?",
-        "answer": "Þegar þú notar staðbundinn ham fara engin gögn af Mac tölvunni þinni eða Windows tölvunni þinni.\n\nÞegar þú notar skýjaumritun eru gögnin send til þess skýjaveitanda sem þú velur (t.d. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox eða Google Gemini).\n\nÞú getur sannreynt þetta sjálf(ur) með netgreiningartæki eins og [Proxyman](https://proxyman.io), netvöktunarforriti eins og [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), eða með því að lesa [frumkóðann á GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Þegar þú notar staðbundinn ham fara engin gögn af Mac tölvunni þinni, Windows tölvunni þinni eða Linux tölvunni þinni.\n\nÞegar þú notar skýjaumritun eru gögnin send til þess skýjaveitanda sem þú velur (t.d. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox eða Google Gemini).\n\nÞú getur sannreynt þetta sjálf(ur) með netgreiningartæki eins og [Proxyman](https://proxyman.io), netvöktunarforriti eins og [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), eða með því að lesa [frumkóðann á GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Hvað er HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Hverjar eru kerfiskröfurnar?",
-        "answer": "Fyrir Mac: macOS 14 eða nýrra, bæði Apple Silicon og Intel studd. Fyrir Windows: Windows 10/11, x64 eða ARM64. 8GB RAM mælt með fyrir bestu afköst."
+        "answer": "Fyrir Mac: macOS 14 eða nýrra, bæði Apple Silicon og Intel studd. Fyrir Windows: Windows 10/11, x64 eða ARM64. Fyrir Linux v1: Ubuntu 22.04 eða nýrra eða Debian 12 eða nýrra á amd64. 8GB RAM mælt með fyrir bestu afköst."
       },
       "madeBy": {
         "question": "Hver bjó þetta til?",
@@ -289,7 +289,7 @@
     "loading": "Hleð..."
   },
   "footer": {
-    "tagline": "Skrifaðu 5x hraðar með AI tal-í-texta umritun fyrir macOS og Windows.",
+    "tagline": "Skrifaðu 5x hraðar með AI tal-í-texta umritun fyrir macOS, Windows og Linux.",
     "product": "Vara",
     "resources": "Auðlindir",
     "company": "Fyrirtæki",
