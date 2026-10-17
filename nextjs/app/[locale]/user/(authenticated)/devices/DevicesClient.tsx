@@ -279,7 +279,15 @@ export function DeviceRow({
       placeholderData: keepPreviousData,
     },
   );
-  const loadedDevices = data?.pages.flatMap((page) => page.devices) ?? [];
+  // Offset paging over a live table: a device validated between two pages
+  // moves to the top, so the next page can repeat a row. Keep the first copy,
+  // so React never sees two rows with one key.
+  const seenIds = new Set<string>();
+  const loadedDevices = (
+    data?.pages.flatMap((page) => page.devices) ?? []
+  ).filter(
+    (device) => !seenIds.has(device.deviceId) && seenIds.add(device.deviceId),
+  );
   const total = data?.pages[data.pages.length - 1]?.total ?? 0;
   const nextCount = Math.min(DEVICE_PAGE_SIZE, total - loadedDevices.length);
   // A search refetch dims the rows it will replace; "Show more" does not.

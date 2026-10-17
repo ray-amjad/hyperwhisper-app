@@ -190,3 +190,13 @@ test("the last partial page offers only what is left", async () => {
 
   assert.match(html, />Show 20 more<\/button>/);
 });
+
+test("a row repeated across two pages renders once", async () => {
+  const first = page(50, 120);
+  const second = page(50, 120, 49); // device-49 moved down a slot
+  answer = { pages: [first, second], hasNextPage: true };
+  const html = await renderRow();
+
+  assert.equal(deviceCount(html), 99);
+  assert.equal(html.split(">Mac 49<").length - 1, 1);
+});
