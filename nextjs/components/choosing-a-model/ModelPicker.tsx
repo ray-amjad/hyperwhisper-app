@@ -185,6 +185,21 @@ function prefersReducedMotion(): boolean {
 }
 
 /**
+ * Weight changes closer together than this are one gesture: a slider drag, or
+ * a held arrow key (#766). Only the first change of a gesture replays the
+ * name swap and the stat pop; during the rest of it the text just updates, so
+ * a value the reader can already see is never pushed back to transparent.
+ * Above the pop's own 250 ms, so a pop that is still running is never
+ * restarted from opacity 0.
+ */
+export const SWAP_REST_MS = 300;
+
+/** Whether a weight change at `now` starts a gesture, and so may replay. */
+export function startsGesture(now: number, lastChangeAt: number | null) {
+  return lastChangeAt === null || now - lastChangeAt >= SWAP_REST_MS;
+}
+
+/**
  * Where everything stood just before a weight change, so the commit that
  * follows can animate from it. Taken only by the weight sliders and presets:
  * a platform / language / requirement toggle changes the row SET, and those
@@ -194,6 +209,8 @@ type MotionSnapshot = {
   rowTops: Map<string, number>;
   name: string | null;
   stats: string[];
+  /** False mid-gesture: the swap and the pop are not replayed. */
+  replay: boolean;
 };
 
 /**
@@ -226,6 +243,7 @@ export default function ModelPicker({ measured, regions }: Props) {
   const statsRef = useRef<HTMLDListElement>(null);
   const pendingMotion = useRef<MotionSnapshot | null>(null);
   const flipCleanup = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastWeightChangeAt = useRef<number | null>(null);
 
   const regionsKey = regions.join(",");
 
@@ -338,7 +356,10 @@ export default function ModelPicker({ measured, regions }: Props) {
       }, FLIP_CLEANUP_MS);
     }
 
-    // The best-match name and its stats swap in place: replay only what changed.
+    // The best-match name and its stats swap in place: replay only what
+    // changed, and only on the first change of a gesture (SWAP_REST_MS), so a
+    // drag never pushes a value the reader can see back to transparent.
+    if (!before.replay) return;
     const name = nameRef.current;
 
     if (
@@ -369,9 +390,13 @@ export default function ModelPicker({ measured, regions }: Props) {
   const deviceCount = ranked.length - cloudCount;
   const hasMeasurements = regions.length > 0;
 
-  function snapshotForMotion() {
+  /** `at` is the input event's timeStamp, on the performance.now() clock. */
+  function snapshotForMotion(at: number) {
     pendingMotion.current = null;
     const tbody = tbodyRef.current;
+    const replay = startsGesture(at, lastWeightChangeAt.current);
+
+    lastWeightChangeAt.current = at;
 
     if (tbody === null || prefersReducedMotion()) return;
     const base = tbody.getBoundingClientRect().top;
@@ -389,11 +414,12 @@ export default function ModelPicker({ measured, regions }: Props) {
         statsRef.current?.querySelectorAll("dd") ?? [],
         (dd) => dd.textContent ?? "",
       ),
+      replay,
     };
   }
 
-  function setPriority(priority: Priority, value: number) {
-    snapshotForMotion();
+  function setPriority(priority: Priority, value: number, at: number) {
+    snapshotForMotion(at);
     setWeights((current) => rebalance(current, priority, value));
   }
 
@@ -436,10 +462,10 @@ export default function ModelPicker({ measured, regions }: Props) {
                 key={preset.id}
                 className="rounded-md border border-dashed border-gray-700 px-2.5 py-1 text-xs text-gray-400 transition hover:border-solid hover:border-purple-500/60 hover:text-white"
                 type="button"
-                onClick={() => {
+                onClick={(event) => {
                   // Same preset again: no re-render, so no snapshot to leave behind.
                   if (preset.weights === weights) return;
-                  snapshotForMotion();
+                  snapshotForMotion(event.timeStamp);
                   setWeights(preset.weights);
                 }}
               >
@@ -473,7 +499,11 @@ export default function ModelPicker({ measured, regions }: Props) {
                   type="range"
                   value={Math.round(weights[priority])}
                   onChange={(event) =>
-                    setPriority(priority, Number(event.target.value))
+                    setPriority(
+                      priority,
+                      Number(event.target.value),
+                      event.timeStamp,
+                    )
                   }
                 />
               </div>

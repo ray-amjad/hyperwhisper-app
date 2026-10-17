@@ -21,7 +21,10 @@ import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import ModelPicker from "@/components/choosing-a-model/ModelPicker";
+import ModelPicker, {
+  SWAP_REST_MS,
+  startsGesture,
+} from "@/components/choosing-a-model/ModelPicker";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -81,4 +84,15 @@ test("globals.css times the swap and the pop from motion tokens, and guards redu
     return /\.t-text-swap,\s*\.t-number-pop\s*\{\s*transition:\s*none;/.test(rest);
   });
   assert.ok(guarded, "a prefers-reduced-motion block sets transition: none on both");
+});
+
+test("only the first weight change of a gesture replays the swap and the pop", () => {
+  // A drag fires a change every few tens of ms; replaying each one restarted
+  // the pop from opacity 0, so the Match value stayed dim for the whole drag.
+  assert.equal(startsGesture(1000, null), true, "the first change ever");
+  assert.equal(startsGesture(1000 + SWAP_REST_MS, 1000), true, "after a rest");
+  assert.equal(startsGesture(1050, 1000), false, "mid-drag");
+  assert.equal(startsGesture(1000 + SWAP_REST_MS - 1, 1000), false);
+  // Longer than the pop, so a pop still running is never restarted.
+  assert.ok(SWAP_REST_MS > 250);
 });
