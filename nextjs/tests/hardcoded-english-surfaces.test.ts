@@ -218,3 +218,13 @@ for (const surface of SURFACES) {
     }
   });
 }
+
+test("sr dates on /older-versions use the Latin script of the sr catalogue", async () => {
+  const { intlLocale } = await import("@/lib/format-date");
+  const formatted = new Date("2025-10-12T12:00:00Z").toLocaleDateString(
+    intlLocale("sr"),
+    { year: "numeric", month: "long", day: "numeric" },
+  );
+  assert.match(formatted, /oktobar/);
+  assert.equal(intlLocale("de"), "de");
+});

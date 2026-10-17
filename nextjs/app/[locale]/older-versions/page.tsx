@@ -6,6 +6,8 @@ import { Download, Calendar, HardDrive, Monitor, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { intlLocale } from "@/lib/format-date";
+
 type Platform = "mac" | "windows";
 
 /**
@@ -185,7 +187,7 @@ export default function DownloadsPage() {
     try {
       const date = new Date(dateString);
 
-      return date.toLocaleDateString(locale, {
+      return date.toLocaleDateString(intlLocale(locale), {
         year: "numeric",
         month: "long",
         day: "numeric",
