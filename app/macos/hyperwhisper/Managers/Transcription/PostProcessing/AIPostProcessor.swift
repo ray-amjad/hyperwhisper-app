@@ -253,46 +253,10 @@ class AIPostProcessor: ObservableObject {
         var languageModel = mode.languageModel ?? ""
 
         if provider == .localLLM {
-            guard let localManager = localModelManager else {
-                AppLogger.transcription.info("AIPostProcessor [non-streaming]: localModelManager is nil — skipping local LLM post-processing")
+            guard let resolvedId = await resolveLocalLLM(languageModel: languageModel, passLabel: "non-streaming") else {
                 return text
             }
-            let installedModels = localManager.downloadedModels
-            guard !installedModels.isEmpty else {
-                AppLogger.transcription.warning("Local LLM selected but no downloaded weights available; returning original text.")
-                return text
-            }
-            if !installedModels.contains(where: { $0.id == languageModel }) {
-                let fallback = installedModels.first!
-                AppLogger.transcription.info("Using installed local model fallback: \(fallback.id, privacy: .public)")
-                languageModel = fallback.id
-            }
-            guard let server = llamaServerController else {
-                AppLogger.transcription.error("Server controller unavailable for local LLM; returning original text.")
-                onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "controller unavailable"))
-                return text
-            }
-            do {
-                let resolved = installedModels.first(where: { $0.id == languageModel }) ?? installedModels.first!
-                guard let modelURL = resolved.localURL else {
-                    AppLogger.transcription.error("Local model file not found on disk; returning original text.")
-                    onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "model file missing on disk"))
-                    return text
-                }
-                let resolvedId = try await ensureLocalRuntimeRunning(
-                    server: server,
-                    resolved: resolved,
-                    modelURL: modelURL
-                )
-                if resolvedId != languageModel {
-                    AppLogger.transcription.info("Using available local model: \(resolvedId, privacy: .public)")
-                    languageModel = resolvedId
-                }
-            } catch {
-                AppLogger.transcription.error("Local LLM runtime not ready: \(error.localizedDescription, privacy: .public)")
-                onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: error.localizedDescription))
-                return text
-            }
+            languageModel = resolvedId
         }
 
         // Claim LLM residency for the rest of this pass so a memory-pressure
@@ -809,45 +773,10 @@ class AIPostProcessor: ObservableObject {
         // Use the language model from the mode, with provider-aware fallback
         var languageModel = mode.languageModel ?? ""
 
-        guard let localManager = localModelManager else {
-            AppLogger.transcription.info("AIPostProcessor [streaming]: localModelManager is nil — skipping local LLM post-processing")
+        guard let resolvedId = await resolveLocalLLM(languageModel: languageModel, passLabel: "streaming") else {
             return text
         }
-        let installedModels = localManager.downloadedModels
-        guard !installedModels.isEmpty else {
-            AppLogger.transcription.warning("Local LLM selected but no downloaded weights available; returning original text.")
-            return text
-        }
-        if !installedModels.contains(where: { $0.id == languageModel }) {
-            let fallback = installedModels.first!
-            AppLogger.transcription.info("Using installed local model fallback: \(fallback.id, privacy: .public)")
-            languageModel = fallback.id
-        }
-        guard let server = llamaServerController else {
-            AppLogger.transcription.error("Server controller unavailable for local LLM; returning original text.")
-            onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "controller unavailable"))
-            return text
-        }
-        do {
-            let resolved = installedModels.first(where: { $0.id == languageModel }) ?? installedModels.first!
-            guard let modelURL = resolved.localURL else {
-                AppLogger.transcription.error("Local model file not found on disk; returning original text.")
-                onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "model file missing on disk"))
-                return text
-            }
-            let resolvedId = try await server.ensureRunning(
-                modelId: resolved.id,
-                modelURL: modelURL
-            )
-            if resolvedId != languageModel {
-                AppLogger.transcription.info("Using available local model: \(resolvedId, privacy: .public)")
-                languageModel = resolvedId
-            }
-        } catch {
-            AppLogger.transcription.error("Local LLM runtime not ready: \(error.localizedDescription, privacy: .public)")
-            onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: error.localizedDescription))
-            return text
-        }
+        languageModel = resolvedId
 
         // Claim LLM residency for the rest of this streaming pass (including the
         // SSE stream and any non-streaming fallback) so a memory-pressure event
@@ -1518,6 +1447,57 @@ class AIPostProcessor: ObservableObject {
     }
 
     // MARK: - Local Runtime Launch
+
+    /// Resolves the local LLM both post-processing passes run on: picks an
+    /// installed model (falling back to the first one when the mode's model is
+    /// not installed), then starts llama-server through `ensureLocalRuntimeRunning`,
+    /// so both passes get the same single retry on a transient launch failure.
+    /// Returns the model id the runtime really loaded, or nil when the caller
+    /// must return the original text (`onPostProcessingError` already fired
+    /// where the user needs to hear about it).
+    private func resolveLocalLLM(languageModel: String, passLabel: String) async -> String? {
+        guard let localManager = localModelManager else {
+            AppLogger.transcription.info("AIPostProcessor [\(passLabel, privacy: .public)]: localModelManager is nil — skipping local LLM post-processing")
+            return nil
+        }
+        let installedModels = localManager.downloadedModels
+        guard !installedModels.isEmpty else {
+            AppLogger.transcription.warning("Local LLM selected but no downloaded weights available; returning original text.")
+            return nil
+        }
+        var languageModel = languageModel
+        if !installedModels.contains(where: { $0.id == languageModel }) {
+            let fallback = installedModels.first!
+            AppLogger.transcription.info("Using installed local model fallback: \(fallback.id, privacy: .public)")
+            languageModel = fallback.id
+        }
+        guard let server = llamaServerController else {
+            AppLogger.transcription.error("Server controller unavailable for local LLM; returning original text.")
+            onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "controller unavailable"))
+            return nil
+        }
+        do {
+            let resolved = installedModels.first(where: { $0.id == languageModel }) ?? installedModels.first!
+            guard let modelURL = resolved.localURL else {
+                AppLogger.transcription.error("Local model file not found on disk; returning original text.")
+                onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "model file missing on disk"))
+                return nil
+            }
+            let resolvedId = try await ensureLocalRuntimeRunning(
+                server: server,
+                resolved: resolved,
+                modelURL: modelURL
+            )
+            if resolvedId != languageModel {
+                AppLogger.transcription.info("Using available local model: \(resolvedId, privacy: .public)")
+            }
+            return resolvedId
+        } catch {
+            AppLogger.transcription.error("Local LLM runtime not ready: \(error.localizedDescription, privacy: .public)")
+            onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: error.localizedDescription))
+            return nil
+        }
+    }
 
     /// Ensures the embedded llama-server is up, retrying ONCE on a transient launch
     /// failure (OOM, launch race). Deterministic capability/asset errors — Intel,

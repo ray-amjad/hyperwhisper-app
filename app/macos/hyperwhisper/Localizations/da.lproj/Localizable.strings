@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Fra";
 "settings.general.mediaControl.mode.mute" = "Slå lyd fra";
+"settings.general.mediaControl.mode.muffle" = "Dæmp lyd";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Afspil lydeffekter";
 "settings.sound.soundEffects.info" = "Afspil lydsignaler, når optagelsen starter og stopper.";
 "settings.sound.mediaControl.title" = "Mediekontrol under optagelse";
-"settings.sound.mediaControl.info" = "Vælg, hvordan HyperWhisper håndterer anden lyd, mens du optager. 'Fra' efterlader lyd uændret, 'Slå lyd fra' dæmper systemoutput under optagelse og gendanner det bagefter.";
+"settings.sound.mediaControl.info" = "Vælg, hvordan HyperWhisper håndterer anden lyd, mens du optager. 'Fra' efterlader lyd uændret, 'Slå lyd fra' dæmper systemoutput under optagelse og gendanner det bagefter, og 'Dæmp lyd' lader den spille svagt, som fra rummet ved siden af.";
 "settings.sound.autoIncreaseMicVolume.title" = "Forøg automatisk mikrofonstyrken";
 "settings.sound.autoIncreaseMicVolume.info" = "Sætter automatisk mikrofonens lydstyrke til maks, når optagelse starter, og gendanner derefter det oprindelige niveau, når optagelse stopper. Gælder kun ved brug af systemets standardinputenhed.";
 "settings.sound.vad.title" = "Fjern stilhed før transskription";
@@ -798,6 +799,7 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.field.name.placeholder" = "f.eks. Mødenoter";
 "modes.field.name.editPlaceholder" = "Tilstandsnavn";
 "modes.field.name.defaultLocked" = "Dette er standardtilstanden, så dens navn kan ikke ændres. Du kan omdøbe alle andre tilstande.";
+"modes.field.name.taken" = "Der findes allerede en tilstand med det navn.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Udbyder";
 "modes.provider.local" = "Lokal";
@@ -824,7 +826,7 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "transcripts.delete.single.message" = "Dette vil permanent slette denne optagelse og dens lydfil.";
 "transcripts.delete.multiple.title" = "Slet %d optagelser?";
 "transcripts.delete.multiple.message" = "Dette vil permanent slette %d optagelser og deres lydfiler.\n\nDenne handling kan ikke fortrydes.";
-"transcripts.delete.multiple.confirm" = "Slet alle";
+"transcripts.delete.multiple.confirm" = "Slet %d optagelser";
 "transcripts.retry.error.title" = "Nyt forsøg mislykkedes";
 "transcripts.retry.error.modeDeleted" = "Den tilstand, der lavede denne optagelse, er slettet, så den blev ikke prøvet igen. Højreklik på optagelsen i Historik, og vælg \"Prøv igen med...\" for at vælge en anden tilstand.";
 

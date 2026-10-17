@@ -2011,6 +2011,9 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Geluid dempen</value>
   </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Geluid smoren</value>
+  </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Microfoon paraat houden</value>
   </data>

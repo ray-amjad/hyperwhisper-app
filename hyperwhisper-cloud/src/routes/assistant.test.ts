@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { convertMessages, countInlineImages, detectImageMediaType, validateAssistantContentLength } from './assistant';
+import { convertMessages, countInlineImages, detectImageMediaType } from './assistant';
+import { validateContentLength } from '../lib/request-limits';
 import {
   ASSISTANT_MAX_IMAGES,
   ASSISTANT_MAX_INLINE_IMAGE_BYTES,
@@ -149,27 +150,27 @@ describe('detectImageMediaType', () => {
   });
 });
 
-describe('validateAssistantContentLength', () => {
+describe('validateContentLength with the /assistant cap', () => {
   test('accepts a body at the cap', () => {
-    expect(validateAssistantContentLength(String(MAX_ASSISTANT_BODY_BYTES)).ok).toBe(true);
+    expect(validateContentLength(String(MAX_ASSISTANT_BODY_BYTES), MAX_ASSISTANT_BODY_BYTES).ok).toBe(true);
   });
 
   test('rejects a missing Content-Length header with 400', () => {
-    const result = validateAssistantContentLength(undefined);
+    const result = validateContentLength(undefined, MAX_ASSISTANT_BODY_BYTES);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.response.status).toBe(400);
   });
 
   test('rejects non-numeric and non-positive Content-Length with 400', () => {
     for (const header of ['abc', '0', '-5']) {
-      const result = validateAssistantContentLength(header);
+      const result = validateContentLength(header, MAX_ASSISTANT_BODY_BYTES);
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.response.status).toBe(400);
     }
   });
 
   test('rejects an oversized body with 413 before parsing', () => {
-    const result = validateAssistantContentLength(String(MAX_ASSISTANT_BODY_BYTES + 1));
+    const result = validateContentLength(String(MAX_ASSISTANT_BODY_BYTES + 1), MAX_ASSISTANT_BODY_BYTES);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.response.status).toBe(413);
   });

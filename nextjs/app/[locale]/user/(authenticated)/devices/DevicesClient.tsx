@@ -270,7 +270,7 @@ function DeviceRow({
                 ))}
               </div>
             ) : !data?.devices.length ? (
-              <p className="text-gray-500 text-sm">No devices found.</p>
+              <p className="text-gray-400 text-sm">No devices found.</p>
             ) : (
               <div className="space-y-2">
                 {data.devices.map((device) => (
@@ -301,7 +301,7 @@ function DeviceRow({
                           {device.deviceName || device.deviceId}
                         </bdi>
                         {device.deviceName && (
-                          <bdi className="text-gray-500 text-xs">
+                          <bdi className="text-gray-400 text-xs">
                             {device.deviceId}
                           </bdi>
                         )}

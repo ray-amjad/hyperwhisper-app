@@ -55,6 +55,53 @@ his approval. A bug fix in one of these areas is held too, however good its evid
 Read this from the PR's diff at the merge, not from the issue at pick time. A review round can pull
 a held path into a PR that did not touch one.
 
+### 2a. Model-catalog sync: merged without Ray
+
+Ray decided on 2026-10-16 that model-catalog updates land on their own, the way Percy's own CLI and
+model bumps do. The weekly model watch had filed every change as a `priority:low` issue, and none was
+built: #798 (gemini-3.1-flash-lite shutdown, no redirect) sat open from 2026-09-18. So a PR is NOT
+held by the "model id" line of §2 when all three of these hold:
+
+- Its branch starts with `chore/model-sync-`. Only the model-sync routine (routine 5) opens one.
+- Every file in its diff (`gh pr diff <n> --repo ray-amjad/hyperwhisper-app --name-only`, read from
+  the PR head) is one of:
+  - `shared-models/models-catalog.json`
+  - `app/macos/hyperwhisper/Models/CloudTranscriptionModels.swift`,
+    `app/macos/hyperwhisper/Models/PostProcessingModels.swift`,
+    `app/macos/hyperwhisper/Models/PostProcessingProvider.swift`
+  - `app/windows/HyperWhisper/Models/CloudTranscriptionModel.cs`,
+    `app/windows/HyperWhisper/Models/LanguageModelInfo.cs`,
+    `app/windows/HyperWhisper/Models/PostProcessingProvider.cs`
+  - `app/shared-dotnet/HyperWhisper.CloudPostProcessing/PostProcessingModelCatalog.cs` (the third
+    copy of the retired-model redirect table, `Migrate`, see #1083: a redirect must land in all three)
+  - a test or a golden vector: `app/macos/hyperwhisperTests/**`, `app/windows/HyperWhisper.SmokeTests/**`,
+    `app/shared-dotnet/HyperWhisper.CloudPostProcessing.Tests/**`,
+    `shared-conformance/**`
+- The diff only adds, removes or edits model entries and redirect mappings (`deprecatedModelMappings`
+  on macOS, `MigrateModelId` in `LanguageModelInfo.cs`, `Migrate` in `PostProcessingModelCatalog.cs`), on both heads alike. A new model ships
+  bring-your-own-key: `availableViaHyperWhisperCloud` stays `false` unless
+  `hyperwhisper-cloud/src/lib/stt-models.ts` already routes it.
+
+One server change is allowed too (Ray, 2026-10-16): **speech-to-text aliases** in
+`hyperwhisper-cloud/src/lib/stt-models.ts`, plus its test `hyperwhisper-cloud/src/lib/stt-models.test.ts`.
+The server sends a 400 for any retired id that no alias rewrites, so an old app on a retired model
+stops transcribing. A PR may only add or edit rows inside a provider's `aliases` map, and only when:
+
+- the target is a model row that already exists for that same provider, and
+- the target's `estimatedUsdPerMinute` is the same as or lower than the old id's row, or than the
+  provider's `defaultModel` row when the old id has no row. An alias must never make a request dearer.
+
+Adding, removing or repricing a model row, changing `defaultModel` or `fallbackChain`, or touching any
+other line of the file stays held.
+
+The rest of the cloud backend (`hyperwhisper-cloud/**`), `shared-app-classification/**`,
+`shared-core-rs/**` and every other line of §2 stay held: cloud routing spends money.
+
+Such a PR needs no review round and no device proof. Its proof is every workflow run on its head
+going green. A catalog change triggers `macos-ci`, `windows-ci` and `shared-core-tests`, and §5
+condition 4 reads them. §5 conditions 4 to 6 still apply. If any condition fails, it goes back under
+§2: leave it open and tag Ray.
+
 ## 3. Tiers
 
 Every PR is in one of two tiers, held by §2 or not. Decide the tier from the DIFF, after the build,

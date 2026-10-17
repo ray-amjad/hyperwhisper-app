@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Kapalı";
 "settings.general.mediaControl.mode.mute" = "Sesi Sustur";
+"settings.general.mediaControl.mode.muffle" = "Sesi Kıs";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Ses efektlerini çal";
 "settings.sound.soundEffects.info" = "Kayıt başladığında ve durduğunda sesli uyarılar çal.";
 "settings.sound.mediaControl.title" = "Kaydı sırasında ortam kontrolü";
-"settings.sound.mediaControl.info" = "Kayıt sırasında HyperWhisper'ın diğer sesleri nasıl yönettiğini seçin. 'Kapalı' sesi değişmez bırakır, 'Sesi Sustur' kayıt sırasında sistem sesini kapar ve sonrasında geri yükler.";
+"settings.sound.mediaControl.info" = "Kayıt sırasında HyperWhisper'ın diğer sesleri nasıl yönettiğini seçin. 'Kapalı' sesi değişmez bırakır, 'Sesi Sustur' kayıt sırasında sistem sesini kapar ve sonrasında geri yükler, 'Sesi Kıs' ise sesi bitişik odadan geliyormuş gibi yumuşak çalmaya devam ettirir.";
 "settings.sound.autoIncreaseMicVolume.title" = "Mikrofon sesini otomatik olarak artır";
 "settings.sound.autoIncreaseMicVolume.info" = "Kayıt başladığında mikrofon giriş sesini otomatik olarak maksimuma ayarlar, ardından kaydı durdurulduğunda orijinal seviyeye geri döndürür. Yalnızca sistem varsayılan giriş cihazı kullanıldığında geçerlidir.";
 "settings.sound.vad.title" = "Transkripsiyon öncesi sessizliği kaldır";
@@ -798,6 +799,7 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.field.name.placeholder" = "örn., Toplantı Notları";
 "modes.field.name.editPlaceholder" = "Mod adı";
 "modes.field.name.defaultLocked" = "Bu varsayılan moddur, bu nedenle adı değiştirilemez. Diğer tüm modları yeniden adlandırabilirsiniz.";
+"modes.field.name.taken" = "Bu ada sahip bir mod zaten var.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Sağlayıcı";
 "modes.provider.local" = "Yerel";
@@ -824,7 +826,7 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "transcripts.delete.single.message" = "Bu, kaydı ve ses dosyasını kalıcı olarak siler.";
 "transcripts.delete.multiple.title" = "%d Kaydı Sil?";
 "transcripts.delete.multiple.message" = "Bu, %d kaydı ve ses dosyalarını kalıcı olarak siler.\n\nBu işlem geri alınamaz.";
-"transcripts.delete.multiple.confirm" = "Tümünü Sil";
+"transcripts.delete.multiple.confirm" = "%d Kaydı Sil";
 "transcripts.retry.error.title" = "Yeniden Deneme Başarısız";
 "transcripts.retry.error.modeDeleted" = "Bu kaydı oluşturan mod silindi, bu yüzden yeniden denenmedi. Geçmiş'te kayda sağ tıklayın ve başka bir mod seçmek için \"İle Yeniden Dene...\" seçeneğini kullanın.";
 

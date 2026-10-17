@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "כבוי";
 "settings.general.mediaControl.mode.mute" = "השתק אודיו";
+"settings.general.mediaControl.mode.muffle" = "עמעם אודיו";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "השמעת אפקטים קוליים";
 "settings.sound.soundEffects.info" = "השמעת צלילים בעת תחילת ההקלטה ועצירתה.";
 "settings.sound.mediaControl.title" = "בקרת מדיה בזמן הקלטה";
-"settings.sound.mediaControl.info" = "בחר כיצד HyperWhisper מטפל באודיו אחר בזמן שאתה מקליט. 'כבוי' משאיר את האודיו ללא שינוי, 'השתק אודיו' משתיק את פלט המערכת בזמן ההקלטה ומשחזיר אותו לאחר מכן.";
+"settings.sound.mediaControl.info" = "בחר כיצד HyperWhisper מטפל באודיו אחר בזמן שאתה מקליט. 'כבוי' משאיר את האודיו ללא שינוי, 'השתק אודיו' משתיק את פלט המערכת בזמן ההקלטה ומשחזיר אותו לאחר מכן, ו'עמעם אודיו' משאיר אותו מתנגן בשקט, כאילו מהחדר השכן.";
 "settings.sound.autoIncreaseMicVolume.title" = "הגבר עוצמת מיקרופון אוטומטית";
 "settings.sound.autoIncreaseMicVolume.info" = "מגדיר אוטומטית את עוצמת קלט המיקרופון למקסימום כשההקלטה מתחילה, ואז משחזר את הרמה המקורית כשההקלטה מסתיימת. חל רק בעת שימוש בהתקן קלט ברירת מחדל של המערכת.";
 "settings.sound.vad.title" = "הסר שקט לפני תמלול";
@@ -798,6 +799,7 @@
 "modes.field.name.placeholder" = "למשל, הערות פגישה";
 "modes.field.name.editPlaceholder" = "שם מצב";
 "modes.field.name.defaultLocked" = "זהו מצב ברירת המחדל, ולכן לא ניתן לשנות את שמו. אפשר לשנות את השם של כל מצב אחר.";
+"modes.field.name.taken" = "כבר קיים מצב בשם הזה.";
 "modes.field.model" = "מודל";
 "modes.field.provider" = "ספק";
 "modes.provider.local" = "מקומי";
@@ -824,7 +826,7 @@
 "transcripts.delete.single.message" = "זה ימחק לצמיתות הקלטה זו וקובץ האודיו שלה.";
 "transcripts.delete.multiple.title" = "למחוק %d הקלטות?";
 "transcripts.delete.multiple.message" = "זה ימחק לצמיתות %d הקלטות וקבצי האודיו שלהן.\n\nלא ניתן לבטל פעולה זו.";
-"transcripts.delete.multiple.confirm" = "מחק הכל";
+"transcripts.delete.multiple.confirm" = "מחק %d הקלטות";
 "transcripts.retry.error.title" = "הניסיון החוזר נכשל";
 "transcripts.retry.error.modeDeleted" = "המצב שיצר את ההקלטה הזו נמחק, ולכן לא בוצע ניסיון חוזר. בהיסטוריה, לחץ לחיצה ימנית על ההקלטה ובחר \"נסה שוב עם...\" כדי לבחור מצב אחר.";
 

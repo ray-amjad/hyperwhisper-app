@@ -106,7 +106,7 @@ export default function HeroSection() {
           className="flex gap-4 justify-center items-center"
           variants={chunk}
         >
-          <span className="text-sm text-gray-500">{t("availableOn")}</span>
+          <span className="text-sm text-gray-400">{t("availableOn")}</span>
           <div className="flex gap-3 flex-wrap justify-center">
             <div className="px-3 py-1 bg-gray-800 rounded-lg border border-gray-700">
               <span className="text-sm text-gray-300">{t("macos")}</span>

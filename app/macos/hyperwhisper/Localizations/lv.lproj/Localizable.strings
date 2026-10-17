@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Izslēgts";
 "settings.general.mediaControl.mode.mute" = "Izslēgt audio";
+"settings.general.mediaControl.mode.muffle" = "Apslāpēt audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Atskaņot skaņas efektus";
 "settings.sound.soundEffects.info" = "Atskaņot audio signālus, kad ierakstīšana sākas un beidzas.";
 "settings.sound.mediaControl.title" = "Skaņas vadīšana ierakstīšanas laikā";
-"settings.sound.mediaControl.info" = "Izvēlieties, kā HyperWhisper apstrādā citu skaņu ieraķstīšanas laikā. 'Izslēgts' nemaina skaņu, 'Izslēgt audio' klusina sistēmas izeju ieraķstīšanas laikā un pēc tam to atjauno.";
+"settings.sound.mediaControl.info" = "Izvēlieties, kā HyperWhisper apstrādā citu skaņu ieraķstīšanas laikā. 'Izslēgts' nemaina skaņu, 'Izslēgt audio' klusina sistēmas izeju ieraķstīšanas laikā un pēc tam to atjauno, bet 'Apslāpēt audio' turpina to atskaņot klusi, it kā no blakus istabas.";
 "settings.sound.autoIncreaseMicVolume.title" = "Automātiski palielināt mikrofona skaļumu";
 "settings.sound.autoIncreaseMicVolume.info" = "Automātiski iestata mikrofona ievades skaļumu maksimāli, kad sākas ierakstīšana, un pēc tam atjauno sākotnējo līmeni, kad ierakstīšana beidzas. Piemērojams tikai, izmantojot sistēmas noklusējuma ievades ierīci.";
 "settings.sound.vad.title" = "Noņemt klusumu pirms transkripciijas";
@@ -798,6 +799,7 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "modes.field.name.placeholder" = "piem., sanāksmes piezīmes";
 "modes.field.name.editPlaceholder" = "Režīma nosaukums";
 "modes.field.name.defaultLocked" = "Šis ir noklusējuma režīms, tāpēc tā nosaukumu nevar mainīt. Jebkuru citu režīmu var pārdēvēt.";
+"modes.field.name.taken" = "Režīms ar šādu nosaukumu jau pastāv.";
 "modes.field.model" = "Modelis";
 "modes.field.provider" = "Sniedzējs";
 "modes.provider.local" = "Lokāls";
@@ -824,7 +826,7 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "transcripts.delete.single.message" = "Tas neatgriezenski dzēsīs šo ierakstu un tā audio failu.";
 "transcripts.delete.multiple.title" = "Dzēst %d ierakstus?";
 "transcripts.delete.multiple.message" = "Tas neatgriezenski dzēsīs %d ierakstus un to audio failus.\n\nŠo darbību nevar atsaukt.";
-"transcripts.delete.multiple.confirm" = "Dzēst visus";
+"transcripts.delete.multiple.confirm" = "Dzēst ierakstus: %d";
 "transcripts.retry.error.title" = "Atkārtošana neizdevās";
 "transcripts.retry.error.modeDeleted" = "Režīms, ar kuru tika veikts šis ieraksts, ir izdzēsts, tāpēc atkārtots mēģinājums netika veikts. Vēsturē ar peles labo pogu noklikšķiniet uz ieraksta un izvēlieties \"Atkārtot ar...\", lai izvēlētos citu režīmu.";
 

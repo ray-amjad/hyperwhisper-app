@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Aus";
 "settings.general.mediaControl.mode.mute" = "Audio stumm schalten";
+"settings.general.mediaControl.mode.muffle" = "Audio dämpfen";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Soundeffekte abspielen";
 "settings.sound.soundEffects.info" = "Akustische Signale beim Starten und Stoppen der Aufnahme abspielen.";
 "settings.sound.mediaControl.title" = "Medienkontrolle während der Aufnahme";
-"settings.sound.mediaControl.info" = "Wählen Sie aus, wie HyperWhisper während der Aufnahme mit anderen Audiodaten umgeht. „Aus“ lässt den Ton unverändert, „Mute Audio“ schaltet die Systemausgabe während der Aufnahme stumm und stellt sie danach wieder her.";
+"settings.sound.mediaControl.info" = "Wählen Sie aus, wie HyperWhisper während der Aufnahme mit anderen Audiodaten umgeht. „Aus“ lässt den Ton unverändert, „Mute Audio“ schaltet die Systemausgabe während der Aufnahme stumm und stellt sie danach wieder her, und „Audio dämpfen“ lässt ihn leise weiterlaufen, wie aus dem Nebenraum.";
 "settings.sound.autoIncreaseMicVolume.title" = "Mikrofonlautstärke automatisch erhöhen";
 "settings.sound.autoIncreaseMicVolume.info" = "Stellt die Mikrofoneingangslautstärke automatisch auf den Maximalwert ein, wenn die Aufnahme beginnt, und stellt dann den ursprünglichen Pegel wieder her, wenn die Aufnahme stoppt. Gilt nur, wenn das Standardeingabegerät des Systems verwendet wird.";
 "settings.sound.vad.title" = "Entfernen Sie die Stille vor der Transkription";
@@ -798,6 +799,7 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "modes.field.name.placeholder" = "z. B. Besprechungsnotizen";
 "modes.field.name.editPlaceholder" = "Modusname";
 "modes.field.name.defaultLocked" = "Dies ist der Standardmodus, daher kann sein Name nicht geändert werden. Jeden anderen Modus können Sie umbenennen.";
+"modes.field.name.taken" = "Es gibt bereits einen Modus mit diesem Namen.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Anbieter";
 "modes.provider.local" = "Lokal";
@@ -824,7 +826,7 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "transcripts.delete.single.message" = "Dadurch werden diese Aufnahme und ihre Audiodatei dauerhaft gelöscht.";
 "transcripts.delete.multiple.title" = "%d Aufnahmen löschen?";
 "transcripts.delete.multiple.message" = "Dadurch werden %d Aufnahmen und ihre Audiodateien dauerhaft gelöscht.\n\nDiese Aktion kann nicht rückgängig gemacht werden.";
-"transcripts.delete.multiple.confirm" = "Alle löschen";
+"transcripts.delete.multiple.confirm" = "%d Aufnahmen löschen";
 "transcripts.retry.error.title" = "Wiederholung fehlgeschlagen";
 "transcripts.retry.error.modeDeleted" = "Der Modus, mit dem diese Aufnahme erstellt wurde, wurde gelöscht, daher wurde sie nicht erneut versucht. Klicken Sie im Verlauf mit der rechten Maustaste auf die Aufnahme und wählen Sie \"Wiederholen Sie den Vorgang mit...\", um einen anderen Modus auszuwählen.";
 

@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Выключено";
 "settings.general.mediaControl.mode.mute" = "Отключить звук";
+"settings.general.mediaControl.mode.muffle" = "Приглушить звук";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Воспроизводить звуковые эффекты";
 "settings.sound.soundEffects.info" = "Воспроизводить звуковые сигналы при начале и остановке записи.";
 "settings.sound.mediaControl.title" = "Управление медиа при записи";
-"settings.sound.mediaControl.info" = "Выберите, как HyperWhisper обрабатывает другой звук при записи. 'Выключено' оставляет звук без изменений, 'Отключить звук' отключает системный вывод во время записи и восстанавливает его после.";
+"settings.sound.mediaControl.info" = "Выберите, как HyperWhisper обрабатывает другой звук при записи. 'Выключено' оставляет звук без изменений, 'Отключить звук' отключает системный вывод во время записи и восстанавливает его после, а 'Приглушить звук' оставляет его тихо играть, как из соседней комнаты.";
 "settings.sound.autoIncreaseMicVolume.title" = "Автоматически увеличивать громкость микрофона";
 "settings.sound.autoIncreaseMicVolume.info" = "Автоматически устанавливает громкость входного сигнала микрофона на максимум при начале записи, а затем восстанавливает исходный уровень при остановке. Применяется только при использовании устройства ввода по умолчанию системы.";
 "settings.sound.vad.title" = "Удалить тишину перед транскрипцией";
@@ -798,6 +799,7 @@
 "modes.field.name.placeholder" = "например, Заметки встречи";
 "modes.field.name.editPlaceholder" = "Имя режима";
 "modes.field.name.defaultLocked" = "Это режим по умолчанию, поэтому его имя нельзя изменить. Любой другой режим можно переименовать.";
+"modes.field.name.taken" = "Режим с таким названием уже существует.";
 "modes.field.model" = "Модель";
 "modes.field.provider" = "Провайдер";
 "modes.provider.local" = "Локально";
@@ -824,7 +826,7 @@
 "transcripts.delete.single.message" = "Это будет постоянно удалять эту запись и файл аудио.";
 "transcripts.delete.multiple.title" = "Удалить %d записей?";
 "transcripts.delete.multiple.message" = "Это будет постоянно удалять %d записей и их аудиофайлы.\n\nЭто действие невозможно отменить.";
-"transcripts.delete.multiple.confirm" = "Удалить все";
+"transcripts.delete.multiple.confirm" = "Удалить записи: %d";
 "transcripts.retry.error.title" = "Ошибка повтора";
 "transcripts.retry.error.modeDeleted" = "Режим, в котором была сделана эта запись, удалён, поэтому повтор не выполнен. В Истории щёлкните запись правой кнопкой мыши и выберите \"Повторить с...\", чтобы выбрать другой режим.";
 

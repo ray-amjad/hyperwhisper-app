@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Izključeno";
 "settings.general.mediaControl.mode.mute" = "Izklopi zvok";
+"settings.general.mediaControl.mode.muffle" = "Zamegli zvok";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Predvajaj zvočne učinke";
 "settings.sound.soundEffects.info" = "Predvajaj zvočne signale ob začetku in koncu snemanja.";
 "settings.sound.mediaControl.title" = "Nadzor medijev med snemanjem";
-"settings.sound.mediaControl.info" = "Izberi, kako HyperWhisper rokuje s programom audio med snemanjem. 'Izključeno' pusti zvok nespremenjen, 'Izklopi zvok' izklopi sistemski izhod med snemanjem in ga po tem obnovi.";
+"settings.sound.mediaControl.info" = "Izberi, kako HyperWhisper rokuje s programom audio med snemanjem. 'Izključeno' pusti zvok nespremenjen, 'Izklopi zvok' izklopi sistemski izhod med snemanjem in ga po tem obnovi, 'Zamegli zvok' pa ga pusti tiho predvajati, kot iz sosednje sobe.";
 "settings.sound.autoIncreaseMicVolume.title" = "Samodejno povečaj glasnost mikrofonskega vhoda";
 "settings.sound.autoIncreaseMicVolume.info" = "Samodejno nastavi glasnost mikrofonskega vhoda na maksimum, ko se snemanje prične, nato pa obnovi prvotno raven, ko se snemanje zaključi. Velja samo za privzeto vhodno napravo.";
 "settings.sound.vad.title" = "Odstrani tišino pred prepisom";
@@ -798,6 +799,7 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "modes.field.name.placeholder" = "npr. Zapiski sestanka";
 "modes.field.name.editPlaceholder" = "Ime načina";
 "modes.field.name.defaultLocked" = "To je privzeti način, zato njegovega imena ni mogoče spremeniti. Vsak drug način lahko preimenujete.";
+"modes.field.name.taken" = "Način s tem imenom že obstaja.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Ponudnik";
 "modes.provider.local" = "Lokalni";
@@ -824,7 +826,7 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "transcripts.delete.single.message" = "To bo trajno izbrisalo ta posnetek in njegovo zvočno datoteko.";
 "transcripts.delete.multiple.title" = "Izbriši %d posnetkov?";
 "transcripts.delete.multiple.message" = "To bo trajno izbrisalo %d posnetkov in njihove zvočne datoteke.\n\nTe akcije se ne da razveljaviti.";
-"transcripts.delete.multiple.confirm" = "Izbriši vse";
+"transcripts.delete.multiple.confirm" = "Izbriši posnetke: %d";
 "transcripts.retry.error.title" = "Ponovno ni uspelo";
 "transcripts.retry.error.modeDeleted" = "Način, ki je ustvaril ta posnetek, je bil izbrisan, zato ponovni poskus ni bil izveden. V Zgodovini z desno tipko kliknite posnetek in izberite \"Poskusi znova z...\", da izberete drug način.";
 

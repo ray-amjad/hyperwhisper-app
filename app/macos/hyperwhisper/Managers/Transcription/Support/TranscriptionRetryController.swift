@@ -232,27 +232,32 @@ class TranscriptionRetryController {
 
             // Perform transcription with the final audio URL (may be VAD-trimmed)
             // This maintains consistency with the original transcription attempt
-            let result = try await manager.transcribeWithDetails(
-                audioURL: finalAudioURL,
-                mode: mode,
-                recordingSession: transcript.recordingSession,
-                refuseDeletedMode: true
-            )
+            // The engine's error is held, not thrown, until the trim below is
+            // recorded: a failed row must own the trimmed WAV this run wrote,
+            // or its delete leaves the WAV on disk (#1815).
+            let engineOutcome: Result<TranscriptionResult, Error>
+            do {
+                engineOutcome = .success(try await manager.transcribeWithDetails(
+                    audioURL: finalAudioURL,
+                    mode: mode,
+                    recordingSession: transcript.recordingSession,
+                    refuseDeletedMode: true
+                ))
+            } catch {
+                engineOutcome = .failure(error)
+            }
 
             // The row was deleted while the engine finished: nothing to write to.
             if transcript.retryWasStoppedByDelete() {
                 throw CancellationError()
             }
 
-            // A retry that hears no speech keeps the row failed, with the
-            // "no speech" reason, instead of a blank completed row (#1429).
-            try result.throwIfNoSpeech()
-
             // SAVE TRIMMED AUDIO PATH:
-            // If VAD created a valid trimmed file, store the path in Core Data.
+            // If VAD created a valid trimmed file, store the path in Core Data,
+            // whether the engine succeeded or failed.
             // This allows users to toggle between original and trimmed audio in history view.
-            if vadResult.wasProcessed, let result = trimResult {
-                if await persistence.setTrimmedAudioPath(transcript, trimmedPath: result.outputURL.path) {
+            if vadResult.wasProcessed, let trim = trimResult {
+                if await persistence.setTrimmedAudioPath(transcript, trimmedPath: trim.outputURL.path) {
                     AppLogger.transcription.debug("📝 [Retry] Saved trimmed audio path to transcript")
                 }
             }
@@ -261,6 +266,14 @@ class TranscriptionRetryController {
             if transcript.retryWasStoppedByDelete() {
                 throw CancellationError()
             }
+
+            let result = try engineOutcome.get()
+
+            // A retry that hears no speech keeps the row failed, with the
+            // "no speech" reason, instead of a blank completed row (#1429).
+            // Checked after the trimmed path is saved, so the failed row owns
+            // the trimmed WAV this run wrote and its delete sweeps it (#1815).
+            try result.throwIfNoSpeech()
 
             // SUCCESS HANDLING: Update transcript with successful result
             // This marks the transcript as completed and stores the text
@@ -294,9 +307,10 @@ class TranscriptionRetryController {
 
             // FAILURE HANDLING: Update transcript with error information
             // This helps users understand why the retry failed
+            let failure = Self.failedRow(after: error, audioDuration: transcript.duration)
             transcript.setValue("failed", forKey: "status")
-            transcript.setValue(error.localizedDescription, forKey: "failedReason")
-            transcript.text = "Retry failed: \(error.localizedDescription)"
+            transcript.setValue(failure.failedReason, forKey: "failedReason")
+            transcript.text = failure.text
 
             // Save the failed state
             persistence.save()
@@ -308,6 +322,16 @@ class TranscriptionRetryController {
         }
     }
 
+    /// The `failedReason` and row text a failed Retry writes.
+    ///
+    /// A too-short file gets the file wording with its length, not "record for
+    /// longer", and its text stays empty, the reason only in Reason, as a
+    /// first import since #1427. A retry always re-runs a saved file, whatever
+    /// made the row (Ray, #1836). Other failures keep "Retry failed: …".
+    static func failedRow(after error: Error, audioDuration: TimeInterval) -> (failedReason: String, text: String) {
+        let reason = FileTranscriptionFlow.failureMessage(for: error, audioDuration: audioDuration)
+        return (reason, FileTranscriptionFlow.isTooShort(error) ? "" : "Retry failed: \(reason)")
+    }
 
     /// Check if a transcript can be retried
     /// ELIGIBILITY CRITERIA:

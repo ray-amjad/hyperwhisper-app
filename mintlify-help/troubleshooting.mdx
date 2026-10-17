@@ -396,6 +396,8 @@ The app log makes the diagnosis much faster:
 <Tabs>
   <Tab title="macOS">
     Open the **Debug** menu in the menu bar of the app. Select **Export Update Logs…**. For a more complete bundle, select **Export Diagnostics…**. Then attach the exported log file.
+
+    If HyperWhisper cannot read its system logs, **Export Diagnostics…** still saves the file. The alert "Diagnostics Exported Without System Logs" appears, and `system-logs.txt` in the file holds only the reason.
   </Tab>
   <Tab title="Windows">
     Press `Win + R`. Paste `%LOCALAPPDATA%\HyperWhisper\Logs` and press Enter. Then attach the most recent `hyperwhisper-YYYY-MM-DD.log` file.

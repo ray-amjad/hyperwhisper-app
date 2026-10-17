@@ -375,11 +375,9 @@ extension RecordingTranscriptionFlow {
         // 6.5. PLAY START SOUND EFFECT & APPLY MEDIA CONTROL
         if let settings = settingsManager, settings.enableSoundEffects {
             SoundEffectsManager.shared.playStartSound(volume: settings.soundEffectsVolume)
-            // Wait for chime to finish before muting other media, but don't block recording start
-            Task {
-                try? await Task.sleep(for: .milliseconds(350))
-                recordingLifecycle.applyMediaControl()
-            }
+            // Wait for chime to finish before muting other media, but don't block recording start.
+            // The lifecycle owns the delayed task: stopping the recording cancels it.
+            recordingLifecycle.applyMediaControl(after: .milliseconds(350))
         } else {
             recordingLifecycle.applyMediaControl()
         }

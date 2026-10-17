@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI balss transkripcija macOS un Windows",
-    "description": "Rakstiet 5x ātrāk ar AI balss transkripciju. HyperWhisper transkribē jūsu balsi ar neticamu precizitāti macOS un Windows vidē. Runājiet dabiski un skatieties, kā vārdi parādās uzreiz."
+    "title": "HyperWhisper - AI balss transkripcija macOS, Windows un Linux",
+    "description": "Rakstiet 5x ātrāk ar AI balss transkripciju. HyperWhisper transkribē jūsu balsi ar neticamu precizitāti macOS, Windows un Linux vidē. Runājiet dabiski un skatieties, kā vārdi parādās uzreiz."
   },
   "navbar": {
     "features": "Iespējas",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Vai varu lietot bez interneta?",
-        "answer": "Pilnīgi noteikti. HyperWhisper var lietot pilnībā bezsaistē uz jūsu Mac vai Windows datora ar lokāliem AI modeļiem - internets nav nepieciešams. Lietotājiem, kuri vēlas maksimālu precizitāti un ātrumu, piedāvājam arī izvēles mākoņa apstrādi caur dažādiem pakalpojumu sniedzējiem."
+        "answer": "Pilnīgi noteikti. HyperWhisper var lietot pilnībā bezsaistē uz jūsu Mac, Windows vai Linux datora ar lokāliem AI modeļiem - internets nav nepieciešams. Lietotājiem, kuri vēlas maksimālu precizitāti un ātrumu, piedāvājam arī izvēles mākoņa apstrādi caur dažādiem pakalpojumu sniedzējiem."
       },
       "apiKey": {
         "question": "Vai man jāmaksā par API piekļuvi?",
@@ -175,12 +175,12 @@
         "answer": "Bezsaistes transkripcijai piedāvājam vairākus Whisper modeļa izmērus (izstrādājis OpenAI, atbalsta 99+ valodas). Piedāvājam arī NVidia Parakeet modeļus (atbalsta 25+ valodas).\n      \n      Bezsaistes pēcapstrādei piedāvājam vairākus Gemma 3 modeļa izmērus (izstrādājis Google)."
       },
       "compatibility": {
-        "question": "Vai tas darbojas ar visām Mac un Windows lietotnēm?",
+        "question": "Vai tas darbojas ar visām manām lietotnēm?",
         "answer": "Jā, tas darbojas visur, kur varat rakstīt. Neatkarīgi no tā, vai rakstāt e-pastus, dokumentus, kodu vai tērzējat. Vienkārši nospiediet saīsni, runājiet un skatieties, kā vārdi parādās uzreiz."
       },
       "privacy": {
         "question": "Kā tiek aizsargāts mans privātums?",
-        "answer": "Izmantojot lokālo režīmu, nekādi dati nepamet jūsu Mac vai Windows datoru.\n\nIzmantojot cloud transkripciju, jūsu dati tiek nosūtīti cloud pakalpojumu sniedzējam, kuru izvēlaties (piemēram, OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox vai Google Gemini).\n\nTo varat pārbaudīt paši ar tīkla inspektoru, piemēram, [Proxyman](https://proxyman.io), tīkla monitoru, piemēram, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), vai izlasot [pirmkodu GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Izmantojot lokālo režīmu, nekādi dati nepamet jūsu Mac, Windows vai Linux datoru.\n\nIzmantojot cloud transkripciju, jūsu dati tiek nosūtīti cloud pakalpojumu sniedzējam, kuru izvēlaties (piemēram, OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox vai Google Gemini).\n\nTo varat pārbaudīt paši ar tīkla inspektoru, piemēram, [Proxyman](https://proxyman.io), tīkla monitoru, piemēram, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), vai izlasot [pirmkodu GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Kas ir HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Kādas ir sistēmas prasības?",
-        "answer": "Mac: macOS 14 vai jaunāka versija, atbalstīti Apple Silicon un Intel. Windows: Windows 10/11, x64 vai ARM64. Optimālai veiktspējai ieteicami 8GB RAM."
+        "answer": "Mac: macOS 14 vai jaunāka versija, atbalstīti Apple Silicon un Intel. Windows: Windows 10/11, x64 vai ARM64. Linux v1: Ubuntu 22.04 vai jaunāka versija vai Debian 12 vai jaunāka versija uz amd64. Optimālai veiktspējai ieteicami 8GB RAM."
       },
       "madeBy": {
         "question": "Kas to izveidoja?",
@@ -289,7 +289,7 @@
     "loading": "Notiek ielāde..."
   },
   "footer": {
-    "tagline": "Rakstiet 5x ātrāk ar AI balss transkripciju macOS un Windows.",
+    "tagline": "Rakstiet 5x ātrāk ar AI balss transkripciju macOS, Windows un Linux.",
     "product": "Produkts",
     "resources": "Resursi",
     "company": "Uzņēmums",

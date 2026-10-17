@@ -835,6 +835,18 @@ static void TestCredentials()
     Assert(routed?.LicenseKey == "account-value" && routed.ApiKey is null, "account credential mapping changed");
     Assert(meta?.ApiKey == "meta-value" && meta.LicenseKey is null, "Meta credential mapping changed");
     Assert(store.ReadAccounts.SequenceEqual(["OpenAIApiKey", "LicenseKey", "MetaApiKey"]), "credential account names changed");
+
+    // HasAccountKey is what Linux /health reads for key_present (issue #650); it
+    // must agree with the LicenseKey CloudTranscriptionService refuses on.
+    Assert(source.HasAccountKey(), "a stored account key reads as absent");
+    store.Values[("HyperWhisper", "LicenseKey")] = Encoding.UTF8.GetBytes("  ");
+    Assert(!source.HasAccountKey(), "a whitespace-only account key reads as present");
+    store.Values.Remove(("HyperWhisper", "LicenseKey"));
+    Assert(!source.HasAccountKey(), "a missing account key reads as present");
+    store.Values[("HyperWhisper", "LicenseKey")] = [0xFF, 0xFE];
+    Assert(!source.HasAccountKey()
+            && source.GetCredentialAsync(CloudTranscriptionProvider.HyperWhisperCloud, CancellationToken.None).Result?.LicenseKey is null,
+        "an undecodable account key reads as present");
 }
 
 // Replays shared-conformance/default-model-vectors.json through THIS head's own

@@ -52,6 +52,18 @@ public sealed class CredentialStoreCloudCredentialSource(
         _ => null,
     };
 
+    /// <summary>
+    /// Whether a usable HyperWhisper Cloud account key is stored, read exactly as
+    /// <see cref="GetCredentialAsync"/> reads it for the account-key providers
+    /// (HyperWhisperCloud, AzureMai, GoogleChirp). <c>CloudTranscriptionService</c>
+    /// refuses those providers with <c>CloudAccountRequired</c> (Local API
+    /// <c>MISSING_API_KEY</c>) when this is false, so <c>GET /health</c> reads it
+    /// for <c>key_present</c> (issue #650). Presence only: the value is cleared
+    /// and never returned.
+    /// </summary>
+    public bool HasAccountKey() =>
+        ReadUtf8(AccountFor(CloudTranscriptionProvider.HyperWhisperCloud)!) is not null;
+
     private static bool UsesAccountKey(CloudTranscriptionProvider provider) => provider is
         CloudTranscriptionProvider.AzureMai or CloudTranscriptionProvider.GoogleChirp
         or CloudTranscriptionProvider.HyperWhisperCloud;

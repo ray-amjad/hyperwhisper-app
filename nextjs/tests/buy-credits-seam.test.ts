@@ -358,9 +358,9 @@ test("the report names the operation and carries no licence key", async () => {
     status: 400,
   });
 
-  // The licence key is a credential, and this app's PostHog init has no
-  // `before_send` and no property redaction (#739) — anything passed ships
-  // verbatim. Serialising the whole payload catches a key nested anywhere,
+  // The licence key is a credential (#739). The PostHog init's `before_send`
+  // (#1897) is only a backstop for the URL, so nothing here may carry the
+  // key. Serialising the whole payload catches a key nested anywhere,
   // including a `data` or a request body someone adds later.
   const payload = JSON.stringify({
     message:

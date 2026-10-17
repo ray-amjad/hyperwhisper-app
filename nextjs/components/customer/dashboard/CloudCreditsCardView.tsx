@@ -153,7 +153,7 @@ export default function CloudCreditsCardView({
                         {tier.creditsLabel}
                       </span>
                       {tier.minutesLabel && (
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-400">
                           {tier.minutesLabel}
                         </span>
                       )}
@@ -186,7 +186,7 @@ export default function CloudCreditsCardView({
                   $
                 </span>
                 <input
-                  className="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-7 pr-3 text-white placeholder:text-gray-500 focus:border-white/30 focus:outline-none disabled:opacity-50"
+                  className="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-7 pr-3 text-white placeholder:text-gray-400 focus:border-white/30 focus:outline-none disabled:opacity-50"
                   disabled={loadingTier !== null}
                   inputMode="numeric"
                   max={maxAmount}

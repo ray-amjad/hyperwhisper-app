@@ -262,10 +262,32 @@ pub enum RetryDecision {
     GiveUp,
 }
 
+/// Why a provider health probe came out the way it did (issue #779).
+///
+/// Decided once, in [`crate::health::parse_health_response`], so no host keeps
+/// its own "which vendors answer a bad key with HTTP 400" list. The hosts map
+/// this onto their own UI states and add nothing to it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HealthReason {
+    /// Reachable, and the key was accepted.
+    Healthy,
+    /// The vendor rejected the key: 401 / 403 for every provider, and 400 for
+    /// the vendors that answer an invalid key with 400 (Gemini, Gemini 3.5
+    /// Transcribe in both batch and Live mode, and Grok).
+    Unauthorized,
+    /// Anything else: the probe got an answer that proves neither a valid nor
+    /// an invalid key (other 4xx, 429, 5xx, ...).
+    Unreachable,
+}
+
 /// Result of a provider health probe (WP-B5).
+///
+/// `healthy` is kept for callers that only need the yes/no answer; it is always
+/// `reason == HealthReason::Healthy`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderHealth {
     pub provider: Provider,
     pub healthy: bool,
     pub status: Option<u16>,
+    pub reason: HealthReason,
 }

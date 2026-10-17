@@ -51,12 +51,22 @@ function buildApp(): Hono {
   return app;
 }
 
-function postProcessRequest(body: Record<string, unknown>, headers: Record<string, string> = {}): Request {
+// A `new Request` built in-process carries no Content-Length, but every real
+// client's JSON POST does, and the route requires it (the pre-parse size gate).
+function jsonRequest(raw: string, headers: Record<string, string> = {}): Request {
   return new Request('http://localhost/post-process', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': String(Buffer.byteLength(raw)),
+      ...headers,
+    },
+    body: raw,
   });
+}
+
+function postProcessRequest(body: Record<string, unknown>, headers: Record<string, string> = {}): Request {
+  return jsonRequest(JSON.stringify(body), headers);
 }
 
 // Default fetch mock: any request to the license credits-recording endpoint
@@ -678,15 +688,118 @@ describe('postProcessRoute request gates', () => {
       },
     });
 
-    const response = await buildApp().fetch(new Request('http://localhost/post-process', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{"text": "hello wrld", "prompt":',
-    }));
+    const response = await buildApp().fetch(jsonRequest('{"text": "hello wrld", "prompt":'));
     const body = await response.json() as { error: string };
 
     expect(response.status).toBe(400);
     expect(body.error).toBe('Invalid JSON');
     expect(providerCalled).toBe(false);
   });
+});
+
+describe('postProcessRoute size gate', () => {
+  beforeEach(() => {
+    cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
+    ipBlocked = false;
+    cacheReads.length = 0;
+    process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  function trackProvider(): { called: boolean } {
+    const state = { called: false };
+    withProviders({
+      'api.cerebras.ai': () => {
+        state.called = true;
+        return Response.json(chatCompletion('Hello world.'));
+      },
+    });
+    return state;
+  }
+
+  test('a Content-Length over 2 MB gets 413 before the body is read or auth runs', async () => {
+    const provider = trackProvider();
+    const request = postProcessRequest(
+      { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-oversized' },
+      { 'Content-Length': '3000000' },
+    );
+
+    const response = await buildApp().fetch(request);
+    const body = await response.json() as { error: string; max_size_bytes: number; content_length: number };
+
+    expect(response.status).toBe(413);
+    expect(body.error).toBe('Request too large');
+    expect(body.max_size_bytes).toBe(2 * 1024 * 1024);
+    expect(body.content_length).toBe(3_000_000);
+    expect(request.bodyUsed).toBe(false);
+    expect(cacheReads).toEqual([]);
+    expect(provider.called).toBe(false);
+  });
+
+  test('a request with no Content-Length gets 400 and never reaches auth', async () => {
+    const provider = trackProvider();
+    const response = await buildApp().fetch(new Request('http://localhost/post-process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-noheader' }),
+    }));
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Missing Content-Length');
+    expect(cacheReads).toEqual([]);
+    expect(provider.called).toBe(false);
+  });
+
+  test('a non-numeric Content-Length gets 400', async () => {
+    const response = await buildApp().fetch(postProcessRequest(
+      { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-bad' },
+      { 'Content-Length': 'abc' },
+    ));
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Invalid Content-Length');
+    expect(cacheReads).toEqual([]);
+  });
+
+  test('a normal 1 KB body still reaches auth and the provider', async () => {
+    const provider = trackProvider();
+    const text = 'hello wrld '.repeat(90);
+    const response = await buildApp().fetch(
+      postProcessRequest({ text, prompt: 'fix grammar', account_key: 'lk-normal' })
+    );
+
+    expect(response.status).toBe(200);
+    expect(cacheReads).toEqual(['lk-normal']);
+    expect(provider.called).toBe(true);
+  });
+
+  test('a real body of exactly 2 MB passes the gate and is parsed', async () => {
+    const provider = trackProvider();
+    const limit = 2 * 1024 * 1024;
+    const base = { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-edge', pad: '' };
+    const raw = JSON.stringify({ ...base, pad: 'a'.repeat(limit - Buffer.byteLength(JSON.stringify(base))) });
+    expect(Buffer.byteLength(raw)).toBe(limit);
+
+    const response = await buildApp().fetch(jsonRequest(raw));
+
+    expect(response.status).toBe(200);
+    expect(cacheReads).toEqual(['lk-edge']);
+    expect(provider.called).toBe(true);
+  });
+
+  test('one byte over 2 MB gets 413', async () => {
+    const response = await buildApp().fetch(postProcessRequest(
+      { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk-over' },
+      { 'Content-Length': String(2 * 1024 * 1024 + 1) },
+    ));
+
+    expect(response.status).toBe(413);
+    expect(cacheReads).toEqual([]);
+  });
+
 });

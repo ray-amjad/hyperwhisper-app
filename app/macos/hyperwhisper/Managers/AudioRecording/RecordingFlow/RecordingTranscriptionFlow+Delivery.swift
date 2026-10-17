@@ -236,6 +236,49 @@ extension RecordingTranscriptionFlow {
         return newID
     }
 
+    /// Saves a failed pending-file Retry to History (#1815): an engine that
+    /// threw, or a result with no speech (some engines return `""` for
+    /// silence instead of throwing).
+    ///
+    /// The failed "Audio file could not be read" row stays failed, now with
+    /// the retry's reason, and counts the retry, as History's own Retry does.
+    /// With no such row (its write failed, or the user deleted it), a new
+    /// failed row records the attempt.
+    ///
+    /// - Parameter failedRowWrite: the failed row's write
+    ///   (`AppState.pendingRetryFailedRowWrite`), landed or not.
+    /// - Returns: the id of the failed row, or `nil` when no write was saved.
+    @discardableResult
+    static func savePendingRetryFailure(
+        _ error: Error,
+        failedRowWrite: Task<NSManagedObjectID?, Never>?,
+        audioURL: URL,
+        modeName: String?,
+        persistence: PersistenceController = .shared
+    ) async -> NSManagedObjectID? {
+        let reason = error.localizedDescription
+        let errorText = "Error: \(reason)"
+        if let failedTranscriptID = await failedRowWrite?.value,
+           await persistence.markTranscriptFailedInBackground(
+               transcriptID: failedTranscriptID,
+               failedReason: reason,
+               errorText: errorText,
+               countsRetry: true
+           ) {
+            return failedTranscriptID
+        }
+
+        AppLogger.audio.warning("Pending-file retry failed with no failed History row to update; saving a new failed row")
+        let duration = await audioDurationSeconds(of: audioURL)
+        return await persistence.createFailedTranscriptInBackground(
+            duration: duration,
+            mode: modeName,
+            audioFilePath: audioURL.path,
+            failedReason: reason,
+            errorText: errorText
+        )
+    }
+
     /// The length of the audio file in seconds, or 0 when it cannot be read.
     /// Off the main actor: `AVAudioFile(forReading:)` does synchronous file I/O.
     nonisolated static func audioDurationSeconds(of url: URL) async -> TimeInterval {

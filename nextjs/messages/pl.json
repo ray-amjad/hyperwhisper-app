@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - Transkrypcja głosu AI dla macOS i Windows",
-    "description": "Pisz 5x szybciej dzięki transkrypcji głosu opartej na AI. HyperWhisper transkrybuje Twój głos z niesamowitą dokładnością na macOS i Windows. Mów naturalnie i obserwuj, jak słowa pojawiają się natychmiast."
+    "title": "HyperWhisper - Transkrypcja głosu AI dla macOS, Windows i Linux",
+    "description": "Pisz 5x szybciej dzięki transkrypcji głosu opartej na AI. HyperWhisper transkrybuje Twój głos z niesamowitą dokładnością na macOS, Windows i Linux. Mów naturalnie i obserwuj, jak słowa pojawiają się natychmiast."
   },
   "navbar": {
     "features": "Funkcje",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Czy mogę używać tego bez internetu?",
-        "answer": "Oczywiście. HyperWhisper może działać całkowicie offline na Twoim Macu lub komputerze z Windows przy użyciu lokalnych modeli AI - bez internetu. Dla użytkowników, którzy chcą maksymalnej dokładności i szybkości, oferujemy też opcjonalne przetwarzanie w chmurze przez różnych dostawców."
+        "answer": "Oczywiście. HyperWhisper może działać całkowicie offline na Twoim Macu lub komputerze z Windows albo Linuxem przy użyciu lokalnych modeli AI - bez internetu. Dla użytkowników, którzy chcą maksymalnej dokładności i szybkości, oferujemy też opcjonalne przetwarzanie w chmurze przez różnych dostawców."
       },
       "apiKey": {
         "question": "Czy muszę płacić za dostęp do API?",
@@ -175,12 +175,12 @@
         "answer": "Do transkrypcji offline oferujemy kilka rozmiarów modelu Whisper (stworzonego przez OpenAI, obsługującego 99+ języków). Oferujemy też modele Parakeet firmy NVidia (obsługujące 25+ języków).\n      \n      Do post-processingu offline oferujemy kilka rozmiarów modelu Gemma 3 (stworzonego przez Google)."
       },
       "compatibility": {
-        "question": "Czy działa ze wszystkimi aplikacjami na Macu i Windowsie?",
+        "question": "Czy działa ze wszystkimi moimi aplikacjami?",
         "answer": "Tak, działa wszędzie tam, gdzie możesz pisać. Niezależnie od tego, czy tworzysz e-maile, piszesz dokumenty, kodujesz czy czatujesz. Po prostu naciśnij skrót, mów i obserwuj, jak Twoje słowa pojawiają się natychmiast."
       },
       "privacy": {
         "question": "Jak chroniona jest moja prywatność?",
-        "answer": "W trybie lokalnym żadne dane nigdy nie opuszczają Twojego Maca ani komputera z Windows.\n\nPrzy transkrypcji w chmurze Twoje dane są wysyłane do wybranego przez Ciebie dostawcy chmurowego (np. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox lub Google Gemini).\n\nMożesz to samodzielnie zweryfikować za pomocą monitora sieci, takiego jak [Proxyman](https://proxyman.io), monitora ruchu sieciowego, takiego jak [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), albo czytając [kod źródłowy na GitHubie](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "W trybie lokalnym żadne dane nigdy nie opuszczają Twojego Maca ani komputera z Windows lub Linuxem.\n\nPrzy transkrypcji w chmurze Twoje dane są wysyłane do wybranego przez Ciebie dostawcy chmurowego (np. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox lub Google Gemini).\n\nMożesz to samodzielnie zweryfikować za pomocą monitora sieci, takiego jak [Proxyman](https://proxyman.io), monitora ruchu sieciowego, takiego jak [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), albo czytając [kod źródłowy na GitHubie](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Czym jest HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Jakie są wymagania systemowe?",
-        "answer": "Dla Maca: macOS 14 lub nowszy, obsługiwane Apple Silicon i Intel. Dla Windows: Windows 10/11, x64 lub ARM64. Dla optymalnej wydajności zalecane 8 GB RAM."
+        "answer": "Dla Maca: macOS 14 lub nowszy, obsługiwane Apple Silicon i Intel. Dla Windows: Windows 10/11, x64 lub ARM64. Dla Linux v1: Ubuntu 22.04 lub nowszy albo Debian 12 lub nowszy, na amd64. Dla optymalnej wydajności zalecane 8 GB RAM."
       },
       "madeBy": {
         "question": "Kto to stworzył?",
@@ -289,7 +289,7 @@
     "loading": "Ładowanie..."
   },
   "footer": {
-    "tagline": "Pisz 5x szybciej dzięki transkrypcji głosu AI dla macOS i Windows.",
+    "tagline": "Pisz 5x szybciej dzięki transkrypcji głosu AI dla macOS, Windows i Linux.",
     "product": "Produkt",
     "resources": "Zasoby",
     "company": "Firma",

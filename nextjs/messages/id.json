@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - Transkripsi Suara AI untuk macOS & Windows",
-    "description": "Menulis 5x lebih cepat dengan transkripsi suara bertenaga AI. HyperWhisper mentranskripsikan suara Anda dengan akurasi luar biasa di macOS dan Windows. Bicara secara natural dan lihat kata-kata Anda muncul seketika."
+    "title": "HyperWhisper - Transkripsi Suara AI untuk macOS, Windows & Linux",
+    "description": "Menulis 5x lebih cepat dengan transkripsi suara bertenaga AI. HyperWhisper mentranskripsikan suara Anda dengan akurasi luar biasa di macOS, Windows, dan Linux. Bicara secara natural dan lihat kata-kata Anda muncul seketika."
   },
   "navbar": {
     "features": "Fitur",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Bisakah saya pakai tanpa internet?",
-        "answer": "Tentu saja. HyperWhisper bisa digunakan sepenuhnya offline di Mac atau PC Windows Anda dengan model AI lokal - tanpa internet. Untuk pengguna yang ingin akurasi dan kecepatan maksimal, kami juga menyediakan pemrosesan cloud opsional melalui berbagai penyedia."
+        "answer": "Tentu saja. HyperWhisper bisa digunakan sepenuhnya offline di Mac, PC Windows, atau komputer Linux Anda dengan model AI lokal - tanpa internet. Untuk pengguna yang ingin akurasi dan kecepatan maksimal, kami juga menyediakan pemrosesan cloud opsional melalui berbagai penyedia."
       },
       "apiKey": {
         "question": "Apakah saya perlu membayar untuk akses API?",
@@ -175,12 +175,12 @@
         "answer": "Untuk transkripsi offline, kami menawarkan beberapa ukuran model Whisper (dibuat oleh OpenAI, mendukung 99+ bahasa). Kami juga menawarkan model Parakeet dari NVidia (mendukung 25+ bahasa).\n      \n      Untuk pascapemrosesan offline, kami menawarkan beberapa ukuran model Gemma 3 (dibuat oleh Google)."
       },
       "compatibility": {
-        "question": "Apakah ini bekerja di semua aplikasi Mac dan Windows?",
+        "question": "Apakah ini bekerja di semua aplikasi saya?",
         "answer": "Ya, bekerja di mana pun Anda bisa mengetik. Baik menulis email, dokumen, kode, atau chatting. Cukup tekan shortcut, bicara, dan lihat kata-kata Anda muncul seketika."
       },
       "privacy": {
         "question": "Bagaimana privasi saya dilindungi?",
-        "answer": "Saat menggunakan mode lokal, tidak ada data yang keluar dari Mac atau PC Windows Anda.\n\nSaat menggunakan transkripsi cloud, data Anda dikirim ke penyedia cloud pilihan Anda (misalnya OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, atau Google Gemini).\n\nAnda bisa memverifikasi ini sendiri dengan network inspector seperti [Proxyman](https://proxyman.io), network monitor seperti [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), atau dengan membaca [kode sumber di GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Saat menggunakan mode lokal, tidak ada data yang keluar dari Mac, PC Windows, atau komputer Linux Anda.\n\nSaat menggunakan transkripsi cloud, data Anda dikirim ke penyedia cloud pilihan Anda (misalnya OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, atau Google Gemini).\n\nAnda bisa memverifikasi ini sendiri dengan network inspector seperti [Proxyman](https://proxyman.io), network monitor seperti [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), atau dengan membaca [kode sumber di GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Apa itu HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Apa persyaratan sistemnya?",
-        "answer": "Untuk Mac: macOS 14 atau lebih baru, mendukung Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. Disarankan 8GB RAM untuk performa optimal."
+        "answer": "Untuk Mac: macOS 14 atau lebih baru, mendukung Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. Untuk Linux v1: Ubuntu 22.04 atau lebih baru, atau Debian 12 atau lebih baru, pada amd64. Disarankan 8GB RAM untuk performa optimal."
       },
       "madeBy": {
         "question": "Siapa yang membuat ini?",
@@ -289,7 +289,7 @@
     "loading": "Memuat..."
   },
   "footer": {
-    "tagline": "Menulis 5x lebih cepat dengan transkripsi suara bertenaga AI untuk macOS & Windows.",
+    "tagline": "Menulis 5x lebih cepat dengan transkripsi suara bertenaga AI untuk macOS, Windows & Linux.",
     "product": "Produk",
     "resources": "Sumber daya",
     "company": "Perusahaan",

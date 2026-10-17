@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Desactivat";
 "settings.general.mediaControl.mode.mute" = "Silenciar àudio";
+"settings.general.mediaControl.mode.muffle" = "Esmorteir àudio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Reproduir efectes de so";
 "settings.sound.soundEffects.info" = "Reprodueix senyals sonors quan la gravació comença i s'atura.";
 "settings.sound.mediaControl.title" = "Control de mitjans durant la gravació";
-"settings.sound.mediaControl.info" = "Trieu com HyperWhisper gestiona altres àudios mentre graveu. 'Desactivat' deixa l'àudio sense canvis, 'Silenciar àudio' silencia la sortida del sistema mentre graveu i la restaura posteriorment.";
+"settings.sound.mediaControl.info" = "Trieu com HyperWhisper gestiona altres àudios mentre graveu. 'Desactivat' deixa l'àudio sense canvis, 'Silenciar àudio' silencia la sortida del sistema mentre graveu i la restaura posteriorment, i 'Esmorteir àudio' el manté sonant suaument, com si vingués de l'habitació del costat.";
 "settings.sound.autoIncreaseMicVolume.title" = "Augmentar automàticament el volum del micròfon";
 "settings.sound.autoIncreaseMicVolume.info" = "Estableix automàticament el volum d'entrada del micròfon al màxim quan comença la gravació i restaura el nivell original quan s'atura. Només s'aplica quan s'utilitza el dispositiu d'entrada predeterminat del sistema.";
 "settings.sound.vad.title" = "Eliminar silenci abans de la transcripció";
@@ -798,6 +799,7 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "modes.field.name.placeholder" = "p. ex., Notes de reunió";
 "modes.field.name.editPlaceholder" = "Nom del mode";
 "modes.field.name.defaultLocked" = "Aquest és el mode per defecte, així que no se'n pot canviar el nom. Podeu canviar el nom de qualsevol altre mode.";
+"modes.field.name.taken" = "Ja existeix un mode amb aquest nom.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Proveïdor";
 "modes.provider.local" = "Local";
@@ -824,7 +826,7 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "transcripts.delete.single.message" = "Això eliminarà permanentment aquesta gravació i el seu fitxer d'àudio.";
 "transcripts.delete.multiple.title" = "Eliminar %d gravacions?";
 "transcripts.delete.multiple.message" = "Això eliminarà permanentment %d gravacions i els seus fitxers d'àudio.\n\nAquesta acció no es pot desfer.";
-"transcripts.delete.multiple.confirm" = "Eliminar tot";
+"transcripts.delete.multiple.confirm" = "Eliminar %d gravacions";
 "transcripts.retry.error.title" = "Reintent fallat";
 "transcripts.retry.error.modeDeleted" = "El mode que va crear aquesta gravació s'ha suprimit, així que no s'ha tornat a provar. A l'Historial, fes clic amb el botó dret a la gravació i tria \"Reintentar amb...\" per escollir un altre mode.";
 

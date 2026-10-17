@@ -100,7 +100,7 @@ function PurchaseSuccessContent() {
           initial={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.5, delay: 0.5 }}
         >
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-[22px]">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-[22px]">
             {t("whatsNext")}
           </h2>
           <ul className="space-y-6">
@@ -113,7 +113,7 @@ function PurchaseSuccessContent() {
                   <p className="text-[15px] font-semibold text-gray-200 leading-snug">
                     {step.title}
                   </p>
-                  <p className="text-[13.5px] text-gray-500 mt-1.5 leading-relaxed">
+                  <p className="text-[13.5px] text-gray-400 mt-1.5 leading-relaxed">
                     {step.description}
                   </p>
                 </div>

@@ -3,6 +3,9 @@
   <data name="linux.overlay.recording" xml:space="preserve">
     <value>录音中</value>
   </data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>柔化音频</value>
+  </data>
   <data name="linux.ui.api.keys" xml:space="preserve">
     <value>API 密钥</value>
   </data>

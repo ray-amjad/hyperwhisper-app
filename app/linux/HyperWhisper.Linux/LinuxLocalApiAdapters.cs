@@ -6,6 +6,8 @@ using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.ModelReadiness;
+using HyperWhisper.SharedCore;
+using HyperWhisper.TranscriptionRouting;
 using System.Security.Cryptography;
 
 namespace HyperWhisper.Linux;
@@ -17,6 +19,18 @@ internal sealed class LinuxLocalApiCapabilityCatalog(
     IDeviceIdentityProvider deviceIdentity,
     PortableSettingsService settings) : ILocalApiCapabilityCatalog
 {
+    /// <summary>
+    /// The credential source `/transcribe` reads (LinuxModeAwareTranscriptionFactory
+    /// builds the same type over the same store), so `key_present` for the
+    /// HyperWhisper Cloud rows answers what a Cloud job will do. A property, not
+    /// a field initializer, so the primary-constructor parameters are not both
+    /// captured and copied (CS9124).
+    /// </summary>
+    private CredentialStoreCloudCredentialSource CloudCredentials => new(credentials, deviceIdentity);
+
+    private static readonly string AccountKeyAccount =
+        CredentialStoreCloudCredentialSource.AccountFor(CloudTranscriptionProvider.HyperWhisperCloud)!;
+
     private IReadOnlyList<ModelCapability> Capabilities => UnifiedModelCatalog.LoadBundled(
         (settings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", []) ?? [])
         .Where(endpoint => Uri.TryCreate(endpoint.EndpointUrl, UriKind.Absolute, out var uri)
@@ -71,6 +85,17 @@ internal sealed class LinuxLocalApiCapabilityCatalog(
         finally { if (result.Value is { } bytes) CryptographicOperations.ZeroMemory(bytes); }
     }
 
+    /// <summary>
+    /// A row's credential as `/transcribe` and Cloud post-processing see it. The
+    /// account-key slot goes through <see cref="CredentialStoreCloudCredentialSource.HasAccountKey"/>,
+    /// the read CloudTranscriptionService and CloudPostProcessingService refuse
+    /// on with MISSING_API_KEY; every BYOK slot keeps the plain presence read.
+    /// </summary>
+    private bool HasUsableCredential(string? account) =>
+        string.Equals(account, AccountKeyAccount, StringComparison.Ordinal)
+            ? CloudCredentials.HasAccountKey()
+            : HasCredential(account);
+
     private IReadOnlyList<ProviderStatus> BuildProviders(
         IEnumerable<ModelCapability> source,
         bool includeLocalRuntime)
@@ -90,10 +115,11 @@ internal sealed class LinuxLocalApiCapabilityCatalog(
                 continue;
             }
 
+            // No device-identity fallback for `hyperwhisper`: the Cloud backend
+            // no longer accepts a device id, and `/transcribe` refuses with
+            // MISSING_API_KEY when no account key is stored (issue #650).
             var keyPresent = rows.Any(row => !row.RequiresCredential)
-                || rows.Any(row => HasCredential(row.CredentialAccount))
-                || group.Key.Equals("hyperwhisper", StringComparison.OrdinalIgnoreCase)
-                    && deviceIdentity.GetDeviceIdentity().IsSuccess;
+                || rows.Any(row => HasUsableCredential(row.CredentialAccount));
             var snapshots = rows.Select(row => LinuxProviderReadinessSnapshot.Get(row.ProviderId, row.Surface))
                 .Where(value => value is not null).Cast<ProviderHealthResponse>().ToArray();
             var outcome = snapshots.Select(value => value.Outcome).FirstOrDefault(value =>
@@ -127,10 +153,12 @@ internal sealed class LinuxLocalApiCapabilityCatalog(
     {
         if (capability.Deployment == ModelDeployment.Local)
             return TryManagedModel(capability.ModelId, out var model) && models.IsInstalled(model);
+        // Same credential read as /health key_present (issue #650): the account
+        // key is trimmed and there is no device-identity fallback, so a Cloud
+        // model is enabled only when /transcribe would not refuse it with
+        // MISSING_API_KEY.
         var configured = !capability.RequiresCredential
-            || HasCredential(capability.CredentialAccount)
-            || capability.ProviderId.Equals("hyperwhisper", StringComparison.OrdinalIgnoreCase)
-                && deviceIdentity.GetDeviceIdentity().IsSuccess;
+            || HasUsableCredential(capability.CredentialAccount);
         if (!configured) return false;
         return LinuxProviderReadinessSnapshot.Get(capability.ProviderId, capability.Surface)?.Outcome
             is not (ProviderHealthOutcome.Unauthorized or ProviderHealthOutcome.Unreachable

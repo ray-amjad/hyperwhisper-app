@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Wyłączone";
 "settings.general.mediaControl.mode.mute" = "Wycisz audio";
+"settings.general.mediaControl.mode.muffle" = "Przytłum audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Odtwarzaj efekty dźwiękowe";
 "settings.sound.soundEffects.info" = "Odtwarzaj sygnały dźwiękowe po rozpoczęciu i zakończeniu nagrywania.";
 "settings.sound.mediaControl.title" = "Kontrola mediów podczas nagrywania";
-"settings.sound.mediaControl.info" = "Wybierz sposób, w jaki HyperWhisper obsługuje inne audio podczas nagrywania. 'Wyłączone' pozostawia audio bez zmian, 'Wycisz audio' wycisza wyjście systemowe podczas nagrywania i przywraca je potem.";
+"settings.sound.mediaControl.info" = "Wybierz sposób, w jaki HyperWhisper obsługuje inne audio podczas nagrywania. 'Wyłączone' pozostawia audio bez zmian, 'Wycisz audio' wycisza wyjście systemowe podczas nagrywania i przywraca je potem, a 'Przytłum audio' odtwarza je cicho, jakby z sąsiedniego pokoju.";
 "settings.sound.autoIncreaseMicVolume.title" = "Automatycznie zwiększ głośność mikrofonu";
 "settings.sound.autoIncreaseMicVolume.info" = "Automatycznie ustawia głośność wejścia mikrofonu na maksimum, gdy nagrywanie się zaczyna, a następnie przywraca oryginalny poziom po zatrzymaniu nagrywania. Dotyczy tylko domyślnego urządzenia wejściowego.";
 "settings.sound.vad.title" = "Usuń ciszę przed transkrypcją";
@@ -798,6 +799,7 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "modes.field.name.placeholder" = "na przykład Notatki ze spotkania";
 "modes.field.name.editPlaceholder" = "Nazwa trybu";
 "modes.field.name.defaultLocked" = "To jest tryb domyślny, więc jego nazwy nie można zmienić. Nazwę każdego innego trybu można zmienić.";
+"modes.field.name.taken" = "Tryb o tej nazwie już istnieje.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Dostawca";
 "modes.provider.local" = "Lokalny";
@@ -824,7 +826,7 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "transcripts.delete.single.message" = "Spowoduje to trwałe usunięcie tego nagrania i jego pliku audio.";
 "transcripts.delete.multiple.title" = "Usunąć %d nagrań?";
 "transcripts.delete.multiple.message" = "Spowoduje to trwałe usunięcie %d nagrań i ich plików audio.\n\nTej czynności nie można cofnąć.";
-"transcripts.delete.multiple.confirm" = "Usuń wszystko";
+"transcripts.delete.multiple.confirm" = "Usuń nagrania: %d";
 "transcripts.retry.error.title" = "Ponowienie nie powiodło się";
 "transcripts.retry.error.modeDeleted" = "Tryb, w którym powstało to nagranie, został usunięty, więc nie ponowiono próby. W Historii kliknij nagranie prawym przyciskiem myszy i wybierz \"Ponów z...\", aby wybrać inny tryb.";
 

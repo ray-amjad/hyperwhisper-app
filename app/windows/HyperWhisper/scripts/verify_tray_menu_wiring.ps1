@@ -93,7 +93,7 @@ Assert-Contains $refreshRecording "_viewModel.SelectedMode != null" "Recording m
 Assert-Contains $refreshMode "_modeMenu.DropDownItems.Clear();" "Mode submenu must rebuild from current modes."
 Assert-Contains $refreshMode 'Loc.S("menu.mode.none")' "Mode submenu must show a disabled empty state."
 Assert-Contains $refreshMode "modes.Count == 0" "Mode submenu must handle no modes."
-Assert-Contains $refreshMode "foreach (var mode in modes.Take(TrayModeMenuLimit))" "Mode submenu must list at most TrayModeMenuLimit modes (#1593)."
+Assert-Contains $refreshMode "foreach (var mode in TrayModeMenuModes(modes, selectedMode))" "Mode submenu must list at most TrayModeMenuLimit modes plus the active one (#1593, #1870)."
 Assert-Contains $refreshMode "selectedMode != null && selectedMode.Id == mode.Id" "Mode submenu must check the selected mode."
 Assert-Contains $refreshMode 'Loc.S("menu.mode.unnamed")' "Mode submenu must use unnamed-mode fallback."
 Assert-Contains $refreshMode "Checked = isSelected" "Mode submenu must display selected checkmark."

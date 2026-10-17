@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Desligado";
 "settings.general.mediaControl.mode.mute" = "Silenciar Áudio";
+"settings.general.mediaControl.mode.muffle" = "Abafar Áudio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Reproduzir efeitos sonoros";
 "settings.sound.soundEffects.info" = "Reproduzir sinais de áudio quando a gravação começa e termina.";
 "settings.sound.mediaControl.title" = "Controle de mídia durante a gravação";
-"settings.sound.mediaControl.info" = "Escolha como o HyperWhisper lida com outro áudio enquanto você grava. 'Desligado' deixa o áudio inalterado, 'Silenciar Áudio' silencia a saída do sistema durante a gravação e a restaura depois.";
+"settings.sound.mediaControl.info" = "Escolha como o HyperWhisper lida com outro áudio enquanto você grava. 'Desligado' deixa o áudio inalterado, 'Silenciar Áudio' silencia a saída do sistema durante a gravação e a restaura depois, e 'Abafar Áudio' o mantém tocando suavemente, como se viesse do cômodo ao lado.";
 "settings.sound.autoIncreaseMicVolume.title" = "Aumentar automaticamente o volume do microfone";
 "settings.sound.autoIncreaseMicVolume.info" = "Define automaticamente o volume de entrada do microfone ao máximo quando a gravação é iniciada e restaura o nível original quando a gravação é interrompida. Aplica-se apenas ao usar o dispositivo de entrada padrão do sistema.";
 "settings.sound.vad.title" = "Remover silêncio antes da transcrição";
@@ -798,6 +799,7 @@ Edite esses modos para selecionar um modelo diferente antes de removê-lo.";
 "modes.field.name.placeholder" = "ex: Notas da Reunião";
 "modes.field.name.editPlaceholder" = "Nome do modo";
 "modes.field.name.defaultLocked" = "Este é o modo predefinido, por isso o seu nome não pode ser alterado. Pode mudar o nome de qualquer outro modo.";
+"modes.field.name.taken" = "Já existe um modo com esse nome.";
 "modes.field.model" = "Modelo";
 "modes.field.provider" = "Provedor";
 "modes.provider.local" = "Local";
@@ -824,7 +826,7 @@ Edite esses modos para selecionar um modelo diferente antes de removê-lo.";
 "transcripts.delete.single.message" = "Isso excluirá permanentemente esta gravação e seu arquivo de áudio.";
 "transcripts.delete.multiple.title" = "Excluir %d Gravações?";
 "transcripts.delete.multiple.message" = "Isso excluirá permanentemente %d gravações e seus arquivos de áudio.\n\nEsta ação não pode ser desfeita.";
-"transcripts.delete.multiple.confirm" = "Excluir Tudo";
+"transcripts.delete.multiple.confirm" = "Excluir %d gravações";
 "transcripts.retry.error.title" = "Falha na Retentativa";
 "transcripts.retry.error.modeDeleted" = "O modo que criou esta gravação foi apagado, por isso não foi tentado novamente. No Histórico, clique com o botão direito na gravação e escolha \"Tentar novamente com...\" para selecionar outro modo.";
 

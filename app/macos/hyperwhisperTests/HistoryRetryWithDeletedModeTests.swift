@@ -162,7 +162,7 @@ struct HistoryRetryWithDeletedModeTests {
 
         let retry = try ProductionSource.slice(
             of: Self.retryControllerPath,
-            from: "let result = try await manager.transcribeWithDetails(",
+            from: "try await manager.transcribeWithDetails(",
             to: "transcript.retryWasStoppedByDelete()"
         )
         #expect(retry.contains("refuseDeletedMode: true"), "\(retry)")

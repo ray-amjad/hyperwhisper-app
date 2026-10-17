@@ -172,6 +172,11 @@ extension RecordingTranscriptionFlow {
                 ? appState.pendingRetryFailedRowWrite
                 : nil
 
+            // A retry that hears no speech keeps the row failed, with the
+            // "no speech" reason, instead of a blank completed row (#1815).
+            // Nothing is delivered; the catch below saves and shows the error.
+            try transcriptionResult.throwIfNoSpeech()
+
             // Deliver like a dictation (paste, clipboard fallback, the pill's
             // "Pasted!" only after a real paste), then save. Before #1636 the
             // retry only set the text: nothing was pasted, copied or saved.
@@ -217,6 +222,30 @@ extension RecordingTranscriptionFlow {
             // Superseded: the newer flow's own request cancelled this one (or it
             // failed while the newer flow ran). Its error is not the user's.
             guard !isPendingRetrySuperseded(identity) else { return }
+
+            // Every failure, an empty result or an engine that threw (Whisper
+            // throws `.noSpeechDetected` itself), fails the History row with
+            // its reason and counts the retry (#1815).
+            if !(error is CancellationError) {
+                let failedRowWrite = appState.pendingRetryAudioPath == path
+                    ? appState.pendingRetryFailedRowWrite
+                    : nil
+                let failedTranscriptID = await Self.savePendingRetryFailure(
+                    error,
+                    failedRowWrite: failedRowWrite,
+                    audioURL: audioURL,
+                    modeName: transcriptionMode.name
+                )
+
+                // The save suspends; a newer flow may own the dialog now.
+                guard !isPendingRetrySuperseded(identity) else { return }
+
+                // The next Retry of this file updates the row just saved, not
+                // a new one per attempt.
+                if let failedTranscriptID, appState.pendingRetryAudioPath == path {
+                    appState.pendingRetryFailedRowWrite = Task { failedTranscriptID }
+                }
+            }
 
             await MainActor.run {
                 appState.recordingState = .idle

@@ -368,7 +368,7 @@ export default function DownloadPage() {
         {selectedPlatform === "mac" && (
           <div className="flex items-center gap-4 mb-10">
             <div className="flex-1 h-px bg-gray-700" />
-            <span className="text-gray-500 text-sm font-medium uppercase tracking-wider">
+            <span className="text-gray-400 text-sm font-medium uppercase tracking-wider">
               {t("orDivider")}
             </span>
             <div className="flex-1 h-px bg-gray-700" />

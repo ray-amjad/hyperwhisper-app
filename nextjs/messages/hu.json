@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI hangátírás macOS-re és Windowsra",
-    "description": "Írj 5x gyorsabban AI-alapú hangátírással. A HyperWhisper elképesztő pontossággal írja át a hangodat macOS-en és Windowson. Beszélj természetesen, és nézd, ahogy a szavaid azonnal megjelennek."
+    "title": "HyperWhisper - AI hangátírás macOS-re, Windowsra és Linuxra",
+    "description": "Írj 5x gyorsabban AI-alapú hangátírással. A HyperWhisper elképesztő pontossággal írja át a hangodat macOS-en, Windowson és Linuxon. Beszélj természetesen, és nézd, ahogy a szavaid azonnal megjelennek."
   },
   "navbar": {
     "features": "Funkciók",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Használhatom internet nélkül?",
-        "answer": "Abszolút. A HyperWhisper teljesen offline használható a Maceden vagy a Windows PC-den helyi AI modellekkel - internet nélkül. Azoknak a felhasználóknak, akik maximális pontosságot és sebességet szeretnének, opcionális felhős feldolgozást is kínálunk különböző szolgáltatókon keresztül."
+        "answer": "Abszolút. A HyperWhisper teljesen offline használható a Maceden, a Windows PC-den vagy a Linuxos gépeden helyi AI modellekkel - internet nélkül. Azoknak a felhasználóknak, akik maximális pontosságot és sebességet szeretnének, opcionális felhős feldolgozást is kínálunk különböző szolgáltatókon keresztül."
       },
       "apiKey": {
         "question": "Kell fizetnem az API-hozzáférésért?",
@@ -175,12 +175,12 @@
         "answer": "Offline átíráshoz a Whisper modell több méretét kínáljuk (OpenAI fejlesztés, 99+ nyelv támogatása). Emellett az NVidia Parakeet modelljeit is kínáljuk (25+ nyelv támogatása).\n      \n      Offline utófeldolgozáshoz a Gemma 3 modell több méretét kínáljuk (Google fejlesztés)."
       },
       "compatibility": {
-        "question": "Minden Mac és Windows alkalmazással működik?",
+        "question": "Minden alkalmazásommal működik?",
         "answer": "Igen, bárhol működik, ahol gépelni tudsz. Akár emaileket írsz, dokumentumokat készítesz, kódolsz vagy csetelsz. Csak nyomd meg a gyorsbillentyűt, beszélj, és nézd, ahogy a szavaid azonnal megjelennek."
       },
       "privacy": {
         "question": "Hogyan véditek az adataimat?",
-        "answer": "Helyi mód használatakor semmilyen adat nem hagyja el a Mac-edet vagy a Windows PC-det.\n\nFelhős átírás használatakor az adataid az általad választott felhőszolgáltatóhoz kerülnek (pl. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox vagy Google Gemini).\n\nEzt magad is ellenőrizheted egy hálózati ellenőrző eszközzel, például a [Proxyman](https://proxyman.io), egy hálózati monitorral, például a [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), vagy a [forráskód elolvasásával a GitHubon](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Helyi mód használatakor semmilyen adat nem hagyja el a Mac-edet, a Windows PC-det vagy a Linuxos gépedet.\n\nFelhős átírás használatakor az adataid az általad választott felhőszolgáltatóhoz kerülnek (pl. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox vagy Google Gemini).\n\nEzt magad is ellenőrizheted egy hálózati ellenőrző eszközzel, például a [Proxyman](https://proxyman.io), egy hálózati monitorral, például a [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), vagy a [forráskód elolvasásával a GitHubon](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Mi az a HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Mik a rendszerkövetelmények?",
-        "answer": "Machez: macOS 14 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Az optimális teljesítményhez 8GB RAM ajánlott."
+        "answer": "Machez: macOS 14 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Linux v1-hez: Ubuntu 22.04 vagy újabb, illetve Debian 12 vagy újabb, amd64-en. Az optimális teljesítményhez 8GB RAM ajánlott."
       },
       "madeBy": {
         "question": "Ki készítette ezt?",
@@ -289,7 +289,7 @@
     "loading": "Betöltés..."
   },
   "footer": {
-    "tagline": "Írj 5x gyorsabban AI-alapú hangátírással macOS-re és Windowsra.",
+    "tagline": "Írj 5x gyorsabban AI-alapú hangátírással macOS-re, Windowsra és Linuxra.",
     "product": "Termék",
     "resources": "Erőforrások",
     "company": "Cég",

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using HyperWhisper.LocalInference;
 using Whisper.net.LibraryLoader;
 
@@ -58,24 +59,25 @@ await CheckAsync("runtime order preserves GPU fallback policy", () =>
         "CUDA 12 CPU fallback order changed");
     return Task.CompletedTask;
 });
-await CheckAsync("Whisper non-speech markers never become a transcript (issue #1742)", () =>
+await CheckAsync("Whisper non-speech markers never become a transcript (issues #1742, #1811)", () =>
 {
-    // The silent file Whisper answers with only markers strips to empty, so the
-    // workflow reports no speech instead of pasting "[BLANK_AUDIO]".
-    Assert(WhisperNonSpeechMarkers.Strip(" [BLANK_AUDIO] [BLANK_AUDIO]") == "",
-        "a transcript of only [BLANK_AUDIO] markers must strip to empty");
-    Assert(WhisperNonSpeechMarkers.Strip("[BLANK_AUDIO] ") == "", "a trailing space kept the marker");
-    Assert(WhisperNonSpeechMarkers.Strip("[ Silence ] (music) [no speech] (inaudible) [blank audio]") == "",
-        "Whisper's other non-speech annotations must strip too");
+    // The cases are the cross-platform contract: Rust, Windows and macOS run the
+    // same file, so a silent file Whisper answers with only markers strips to
+    // empty here exactly as it does on the other heads.
+    var vectorsPath = Path.Combine(AppContext.BaseDirectory, "whisper-marker-vectors.json");
+    Assert(File.Exists(vectorsPath), $"whisper-marker-vectors.json not found at {vectorsPath}");
+    using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+    var cases = vectors.RootElement.GetProperty("cases");
+    Assert(cases.GetArrayLength() >= 20, "whisper-marker-vectors.json looks truncated");
+    foreach (var vector in cases.EnumerateArray())
+    {
+        var name = vector.GetProperty("name").GetString()!;
+        var input = vector.GetProperty("input").GetString()!;
+        var expected = vector.GetProperty("expected").GetString()!;
+        var actual = WhisperNonSpeechMarkers.Strip(input);
+        Assert(actual == expected, $"{name}: got '{actual}', expected '{expected}'");
+    }
     Assert(WhisperNonSpeechMarkers.Strip(null) == "", "null must strip to empty");
-
-    // Real speech around a marker survives, with one space where it was.
-    var mixed = WhisperNonSpeechMarkers.Strip(" Hello there. [BLANK_AUDIO] See you soon.");
-    Assert(mixed == "Hello there. See you soon.", $"speech around a marker was damaged: '{mixed}'");
-
-    // A bracket the speaker dictated is not a marker.
-    var dictated = WhisperNonSpeechMarkers.Strip(" Call the function [user id] (optional). ");
-    Assert(dictated == "Call the function [user id] (optional).", $"dictated brackets were removed: '{dictated}'");
     return Task.CompletedTask;
 });
 

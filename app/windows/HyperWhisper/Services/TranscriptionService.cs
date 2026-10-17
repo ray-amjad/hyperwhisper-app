@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using Whisper.net;
@@ -793,7 +792,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 LoggingService.Warn($"  WARNING: Inference took {inferenceTimeMs}ms (>30s) - potential performance issue");
             }
 
-            // Whisper writes its own non-speech markers ([BLANK_AUDIO] and kin) as
+            // Whisper writes its own non-speech markers (a blank-audio tag and kin) as
             // segment text. A silent file or mic must come back empty, so the
             // orchestrator raises NoSpeechDetected instead of saving or pasting the
             // marker as a transcript (issue #1449).
@@ -1291,30 +1290,22 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     }
 
     /// <summary>
-    /// Whisper's non-speech annotations: a bracketed or parenthesised marker it
-    /// emits in place of words when it hears none. Only these fixed names match, so
-    /// a bracket the speaker dictated survives.
-    /// </summary>
-    private static readonly Regex NonSpeechMarker = new(
-        @"[\[(]\s*(?:BLANK[_ ]AUDIO|silence|no speech|inaudible|music)\s*[\])]",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
-    private static readonly Regex WhitespaceRun = new(@"\s{2,}", RegexOptions.Compiled);
-
-    /// <summary>
     /// Removes Whisper's non-speech markers from a transcript and trims it. A
-    /// transcript made only of markers comes back empty (issue #1449).
+    /// transcript made only of markers comes back empty (issue #1449). The rule is
+    /// the shared core's (issue #1811), so Windows, Linux and macOS strip the same
+    /// markers; its cases are shared-conformance/whisper-marker-vectors.json.
     /// </summary>
     internal static string StripNonSpeechMarkers(string? text)
     {
-        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
-
-        var trimmed = text.Trim();
-        if (!NonSpeechMarker.IsMatch(trimmed)) return trimmed;
-
-        var stripped = WhitespaceRun.Replace(NonSpeechMarker.Replace(trimmed, " "), " ").Trim();
-        LoggingService.Info(
-            $"  Removed Whisper non-speech markers ({trimmed.Length} → {stripped.Length} chars)");
+        // The core handles null, blank and surrounding whitespace itself; the
+        // trimmed length is read only for the log line.
+        var stripped = global::HyperWhisper.SharedCore.SharedCoreBridge.StripWhisperNonSpeechMarkers(text);
+        var trimmedLength = text?.Trim().Length ?? 0;
+        if (stripped.Length != trimmedLength)
+        {
+            LoggingService.Info(
+                $"  Removed Whisper non-speech markers ({trimmedLength} → {stripped.Length} chars)");
+        }
         return stripped;
     }
 
