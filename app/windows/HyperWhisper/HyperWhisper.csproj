@@ -12,6 +12,11 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- Per-Monitor V2 DPI awareness (issue #1501); see app.manifest. -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- WFO0003 asks for ApplicationHighDpiMode instead of a manifest. That
+         property only takes effect through a WinForms ApplicationConfiguration
+         .Initialize() Main; this is a WPF app (the WinForms tray menu runs in the
+         same process and follows its awareness), so the manifest is the setting. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
     <RootNamespace>HyperWhisper</RootNamespace>
     <AssemblyName>HyperWhisper</AssemblyName>
 
