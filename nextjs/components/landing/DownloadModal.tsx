@@ -99,7 +99,7 @@ export default function DownloadModal() {
               base: "w-full",
               inputWrapper:
                 "bg-black border-2 border-blue-500/50 hover:border-blue-500 focus-within:!border-blue-500",
-              input: "text-white placeholder:text-gray-500",
+              input: "text-white placeholder:text-gray-400",
             }}
             placeholder={t("emailPlaceholder")}
             size="lg"

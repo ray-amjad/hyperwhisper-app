@@ -152,7 +152,7 @@ function AccuracyNote({ model }: { model: Model }) {
 
   if (label === null) return null;
   return (
-    <span className="rounded-full border border-gray-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-gray-500">
+    <span className="rounded-full border border-gray-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-gray-400">
       {label}
     </span>
   );
@@ -252,7 +252,7 @@ export default function ModelPicker({ measured, regions }: Props) {
             <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400">
               Your 100 points
             </h2>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-400">
               {Math.round(weights.accuracy)} / {Math.round(weights.latency)} /{" "}
               {Math.round(weights.cost)} / {Math.round(weights.privacy)}
             </span>
@@ -295,7 +295,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                     {Math.round(weights[priority])}
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="mt-0.5 text-xs text-gray-400">
                   {PRIORITY_HINTS[priority]}
                 </p>
                 <input
@@ -315,7 +315,7 @@ export default function ModelPicker({ measured, regions }: Props) {
 
           <div className="mt-6 border-t border-gray-800 pt-5">
             <span
-              className="text-xs uppercase tracking-widest text-gray-500"
+              className="text-xs uppercase tracking-widest text-gray-400"
               id="picker-platform-label"
             >
               Your platform
@@ -345,7 +345,7 @@ export default function ModelPicker({ measured, regions }: Props) {
 
           <div className="mt-5">
             <span
-              className="text-xs uppercase tracking-widest text-gray-500"
+              className="text-xs uppercase tracking-widest text-gray-400"
               id="picker-languages-label"
             >
               Languages you dictate
@@ -375,7 +375,7 @@ export default function ModelPicker({ measured, regions }: Props) {
 
           <div className="mt-5">
             <span
-              className="text-xs uppercase tracking-widest text-gray-500"
+              className="text-xs uppercase tracking-widest text-gray-400"
               id="picker-requirements-label"
             >
               Must have
@@ -406,7 +406,7 @@ export default function ModelPicker({ measured, regions }: Props) {
           {hasMeasurements ? (
             <div className="mt-5">
               <span
-                className="text-xs uppercase tracking-widest text-gray-500"
+                className="text-xs uppercase tracking-widest text-gray-400"
                 id="picker-region-label"
               >
                 Closest region
@@ -445,7 +445,7 @@ export default function ModelPicker({ measured, regions }: Props) {
             <p className="text-lg text-gray-300">
               Nothing matches all of those requirements.
             </p>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-400">
               Turn one of the &ldquo;must have&rdquo; filters back off.
             </p>
           </div>
@@ -453,7 +453,7 @@ export default function ModelPicker({ measured, regions }: Props) {
           <>
             <div className="relative overflow-hidden rounded-lg border border-gray-800 bg-gray-900/50 p-6 backdrop-blur-xl">
               <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-purple-500 to-blue-500" />
-              <p className="text-xs uppercase tracking-widest text-gray-500">
+              <p className="text-xs uppercase tracking-widest text-gray-400">
                 Best match for how you spent your points
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -474,7 +474,7 @@ export default function ModelPicker({ measured, regions }: Props) {
 
               <dl className="mt-6 grid gap-3 sm:grid-cols-4">
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Word errors
                   </dt>
                   <dd className="mt-1 font-mono text-lg tabular-nums text-white">
@@ -482,7 +482,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                   </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Cost
                   </dt>
                   <dd className="mt-1 font-mono text-lg tabular-nums text-white">
@@ -491,12 +491,12 @@ export default function ModelPicker({ measured, regions }: Props) {
                   {/* A second <dd>, not a <p> in the first one: a <dl> wrapper may hold
                       only <dt>/<dd> (#890), and inside the first <dd> the note would
                       inherit its font-mono text-lg line box. */}
-                  <dd className="mt-0.5 text-[10px] text-gray-500">
+                  <dd className="mt-0.5 text-[10px] text-gray-400">
                     {formatDollars(best.model) ?? "no per-minute cost"}
                   </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Per audio minute
                   </dt>
                   <dd className="mt-1 font-mono text-lg tabular-nums text-white">
@@ -504,7 +504,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                   </dd>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
-                  <dt className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Match
                   </dt>
                   <dd className="mt-1 font-mono text-lg tabular-nums text-white">
@@ -531,7 +531,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                 <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400">
                   Every model, ranked
                 </h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   {cloudCount} cloud · {deviceCount} on-device
                 </p>
               </div>
@@ -546,28 +546,28 @@ export default function ModelPicker({ measured, regions }: Props) {
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-gray-800">
-                      <th className="px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-500">
+                      <th className="px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-400">
                         Model
                       </th>
-                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-500">
+                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-400">
                         WER
                       </th>
-                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-500">
+                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-400">
                         Cost
                       </th>
-                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-500">
+                      <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-400">
                         Per audio min
                       </th>
                       <th
-                        className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-500"
+                        className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-400"
                         title={MEASURED_HINT}
                       >
                         Measured clip
                       </th>
-                      <th className="hidden px-3 py-3 text-left text-xs uppercase tracking-widest text-gray-500 md:table-cell">
+                      <th className="hidden px-3 py-3 text-left text-xs uppercase tracking-widest text-gray-400 md:table-cell">
                         Why it scored
                       </th>
-                      <th className="px-4 py-3 text-right text-xs uppercase tracking-widest text-gray-500">
+                      <th className="px-4 py-3 text-right text-xs uppercase tracking-widest text-gray-400">
                         Match
                       </th>
                     </tr>
@@ -588,7 +588,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                             <PlacementBadge model={entry.model} />
                             <AccuracyNote model={entry.model} />
                           </div>
-                          <div className="mt-0.5 text-xs text-gray-500">
+                          <div className="mt-0.5 text-xs text-gray-400">
                             {entry.model.vendorLabel}
                             {isDevice(entry.model)
                               ? ` · ${
@@ -621,7 +621,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                           }
                         >
                           {entry.measuredClipMs === null ? (
-                            <span className="text-gray-600">—</span>
+                            <span className="text-gray-400">—</span>
                           ) : (
                             <>
                               <span className="mr-1 text-purple-400">●</span>
@@ -651,7 +651,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                 </table>
               </div>
 
-              <p className="mt-3 text-xs text-gray-500">
+              <p className="mt-3 text-xs text-gray-400">
                 The two speed columns are different questions.{" "}
                 <span className="text-gray-300">Per audio min</span> is how long
                 a minute of audio takes, from the leaderboard&apos;s published

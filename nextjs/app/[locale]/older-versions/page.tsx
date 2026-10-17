@@ -347,7 +347,7 @@ export default function DownloadsPage() {
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-400">
                             Build {version.buildNumber}
                           </p>
                         </div>
