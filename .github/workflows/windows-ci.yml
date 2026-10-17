@@ -172,6 +172,16 @@ jobs:
         run: dotnet run --project app/windows/HyperWhisper.SmokeTests -c Release
 
       # ----------------------------------------------------------------
+      # 6b. Whisper worker tests (issue #1194)
+      # ----------------------------------------------------------------
+      # On-device Whisper runs in HyperWhisper.WhisperWorker.exe, driven over
+      # stdio. This runs the protocol and client state-machine checks against a
+      # fake worker, then end-to-end checks against the real worker exe (built
+      # by the project reference; it needs the x64 shared-core DLL from step 4).
+      - name: Run Whisper worker tests
+        run: dotnet run --project app/windows/HyperWhisper.WhisperWorker.Tests -c Release
+
+      # ----------------------------------------------------------------
       # 7. Catalog conformance vectors
       # ----------------------------------------------------------------
       # shared-conformance/catalog-vectors.json is one file run by all three

@@ -93,6 +93,9 @@
                              Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](noavx|vulkan)[\\/](linux-[^\\/]+|win-x86)[\\/]'))" />
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
                              Condition="'$(RuntimeIdentifier)' == 'win-x64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]win-(arm64|x86)[\\/]'))" />
+      <!-- The Metal shader is a macOS-only asset of Whisper.net.Runtime. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(ResolvedFileToPublish.RelativePath)' == 'ggml-metal.metal'" />
       <!-- ARM64 runs the CPU runtime only: the NoAvx and Vulkan packages ship no win-arm64 payload. -->
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
                              Condition="'$(RuntimeIdentifier)' == 'win-arm64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](win-x64|win-x86|noavx|vulkan)[\\/]'))" />
