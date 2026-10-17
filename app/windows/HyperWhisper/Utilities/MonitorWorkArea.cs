@@ -146,8 +146,9 @@ internal static class MonitorWorkArea
 
                 var before = WindowScale(window);
                 var at = Rebase(place(monitor.Value.WorkAreaDip), monitor.Value.Scale, before);
-                if (Math.Abs(window.Left - at.X) > 0.5) window.Left = at.X;
-                if (Math.Abs(window.Top - at.Y) > 0.5) window.Top = at.Y;
+                // A window never placed yet has NaN Left/Top, and NaN compares false.
+                if (!(Math.Abs(window.Left - at.X) <= 0.5)) window.Left = at.X;
+                if (!(Math.Abs(window.Top - at.Y) <= 0.5)) window.Top = at.Y;
 
                 if (WindowScale(window) == before) return;
             }

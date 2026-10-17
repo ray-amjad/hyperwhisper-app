@@ -26,7 +26,7 @@ internal static class ToastWindowBehavior
     /// <summary>
     /// The overlay's bounds in the DIP of the monitor it is on: the unit
     /// <see cref="MonitorWorkArea.Place"/> hands a toast's placement. Left/Top
-    /// are in the overlay's own DIP, which is that monitor's once it has settled
+    /// and size are in the overlay's own DIP, which is that monitor's once it has settled
     /// there; they are rebased in case it has not (issue #1501).
     /// </summary>
     public static Rect OverlayBounds(Window overlay)
@@ -36,7 +36,13 @@ internal static class ToastWindowBehavior
         var topLeft = new System.Windows.Point(overlay.Left, overlay.Top);
 
         if (MonitorWorkArea.OfWindow(overlay) is { } monitor)
-            topLeft = MonitorWorkArea.Rebase(topLeft, MonitorWorkArea.WindowScale(overlay), monitor.Scale);
+        {
+            var from = MonitorWorkArea.WindowScale(overlay);
+            topLeft = MonitorWorkArea.Rebase(topLeft, from, monitor.Scale);
+            var size = MonitorWorkArea.Rebase(new System.Windows.Point(width, height), from, monitor.Scale);
+            width = size.X;
+            height = size.Y;
+        }
 
         return new Rect(topLeft.X, topLeft.Y, width, height);
     }
