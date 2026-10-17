@@ -358,10 +358,13 @@ internal static class WindowWorkAreaFit
     /// </summary>
     private static Rect CurrentWorkAreaDip(Window window) => MonitorWorkArea.WorkAreaDip(window);
 
+    // The same scale MonitorWorkArea divides the work area by: the one WPF converts
+    // this window's DIP with, which VisualTreeHelper.GetDpi can lag behind for a
+    // window created after a live scale change (#1501).
     private static (double X, double Y) DpiScale(Window window)
     {
-        var dpi = VisualTreeHelper.GetDpi(window);
-        return (dpi.DpiScaleX > 0 ? dpi.DpiScaleX : 1.0, dpi.DpiScaleY > 0 ? dpi.DpiScaleY : 1.0);
+        var scale = MonitorWorkArea.WindowScale(window);
+        return (scale.X, scale.Y);
     }
 
     private const uint SWP_NOZORDER = 0x0004;
