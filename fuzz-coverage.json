@@ -483,6 +483,23 @@
       ],
       "licensed": false,
       "note": "unlicensed (no HYPERWHISPER_ACCOUNT_KEY). vocabulary: re-adding an existing word wipes its replacement + case variant rewrites the word (shared-dotnet UpsertAsync) -> comment on #633. onboarding (--fresh-profile) + provider-settings clean; Groq API-key source shows no key field in mode editor (key entry not reached). Sidebar keeps Home highlighted after onboarding closes until Home is clicked; did not repro by clicks, not filed."
+    },
+    {
+      "at": "2026-10-17T02:58:53Z",
+      "platform": "mac",
+      "commit": "4120f976",
+      "routes": [
+        "local-api",
+        "streaming",
+        "onboarding"
+      ],
+      "status": "2-commented",
+      "issues": [
+        1919,
+        1100
+      ],
+      "licensed": false,
+      "note": "Unlicensed (Debug=staging, no HYPERWHISPER_ACCOUNT_KEY). Fresh profile via moving App Support aside. Onboarding: Codex's 'Start recording Completed' defect is the manual checklist toggle (HomeView.swift:242-246), by design; mic grant shows Not allowed = percy account TCC. local-api: curl battery found #1919 (unknown mode_id -> ENGINE_UNAVAILABLE) and #1100 (bare Invalid request.) still live; /recordings is 404 on macOS. Streaming: 22 steps, choices persist, nothing found."
     }
   ]
 }
