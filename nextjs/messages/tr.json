@@ -272,7 +272,31 @@
     "homebrewTitle": "Homebrew ile kur",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopyala",
-    "copied": "Kopyalandı!"
+    "copied": "Kopyalandı!",
+    "linuxSubtitle": "64 bit Intel/AMD sistemler için Debian paketi",
+    "downloadLinux": "Linux için indir",
+    "downloadLinuxVersion": "Linux için v{version} indir",
+    "linuxReleaseNotes": "Sağlama toplamları ve sürüm notları",
+    "linuxInstallTitle": "Debian paketini kur",
+    "linuxTargets": "Linux v1, amd64 üzerinde Ubuntu 22.04+ ve Debian 12+ sürümlerini hedefler.",
+    "linuxReplaceVersion": "VERSION ifadesini indirdiğiniz sürümle değiştirin.",
+    "linuxInstallCommandLabel": "Debian kurulum komutu",
+    "linuxInputGroupNote": "input grubuna katıldıktan sonra oturumu kapatıp yeniden açın. Üyelik isteğe bağlıdır, ancak genel kısayollar ve otomatik yapıştırma için gereklidir.",
+    "aptTitle": "Kendi APT deponuzu barındırın",
+    "aptBody": "Linux sürümleri ayrıca statik bir APT deposu arşivi içerir. HyperWhisper şu anda herkese açık bir APT uç noktası işletmiyor; imzalı ve kendi barındırdığınız kurulum, masaüstü yardımcı bileşenleri, gizlilik ayrıntıları ve kaldırma için Linux kurulum kılavuzuna bakın.",
+    "linuxGuideCta": "Linux kurulum kılavuzunu okuyun"
+  },
+  "olderVersions": {
+    "title": "Eski Sürümler",
+    "subtitle": "HyperWhisper'ın tüm sürümlerine göz atın ve indirin",
+    "errorLoading": "Sürümler yüklenirken hata oluştu: {error}",
+    "unknownError": "Bir hata oluştu",
+    "loading": "Sürümler yükleniyor...",
+    "latest": "En yeni",
+    "build": "Derleme {number}",
+    "downloadDmg": "DMG indir",
+    "downloadExe": "EXE indir",
+    "unknownSize": "Bilinmiyor"
   },
   "purchaseSuccess": {
     "title": "Her şey hazır!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Açık kaynak. Saklayacak hiçbir şey yok.",
     "body": "HyperWhisper, Apache-2.0 altında tamamen açık kaynaktır — hem masaüstü uygulamaları hem de Cloud arka ucu. Mikrofonunuzu dinleyen bir uygulama, yalnızca güveneceğiniz değil, doğrulayabileceğiniz bir şey olmalıdır: her satırı okuyun, sesinizin tam olarak nereye gittiğini denetleyin ve asla kilitlenmeyeceğinizi bilin — kod sizindir, sonsuza dek fork edip kendiniz barındırabilirsiniz. Bağımsız geliştirici Ray Amjad tarafından açıkta inşa edildi.",
-    "cta": "GitHub'da görüntüle"
+    "cta": "GitHub'da görüntüle",
+    "metaTitle": "Açık Kaynak | HyperWhisper",
+    "metaDescription": "HyperWhisper, Apache-2.0 altında tamamen açık kaynaktır — hem masaüstü uygulamaları hem de Cloud arka ucu. Kodu okuyun, sesinizin nereye gittiğini denetleyin, fork edin ve sonsuza dek kendiniz barındırın.",
+    "eyebrow": "Açık kaynak",
+    "lead": "HyperWhisper artık Apache-2.0 altında tamamen açık kaynak — hem masaüstü uygulamaları hem de Cloud arka ucu.",
+    "intro": "Mikrofonunuzu dinleyen bir uygulama, yalnızca güveneceğiniz değil, doğrulayabileceğiniz bir şey olmalıdır. Bu yüzden her şeyi açtık. HyperWhisper'ın her satırını — macOS, Windows ve Linux uygulamalarını ve Cloud transkripsiyon arka ucunu — okuyabilir, sesinizin tam olarak nereye gittiğini görebilir ve asla kilitlenmeyeceğinizi bilebilirsiniz. Projenin tamamı <license>Apache-2.0 lisansı</license> altında <github>GitHub'da</github> yer alıyor.",
+    "whyHeading": "Neden önemli",
+    "whyVerify": "<strong>Güvenmekle yetinmeyin, doğrulayın.</strong> Her satırı okuyun ve sesinizin tam olarak nereye gittiğini denetleyin. Mikrofon erişimi olan bir uygulama, körü körüne güvenilen değil, incelenebilen bir şey olmalıdır.",
+    "whyNoLockIn": "<strong>Kilitlenme yok.</strong> Kod Apache-2.0 lisanslıdır — saklamanız, uyarlamanız ve kendi koşullarınızda çalıştırmanız için sizindir. İş akışınız asla rehin tutulmaz.",
+    "whyFork": "<strong>Fork edin ve kendiniz barındırın.</strong> Depoyu klonlayın, kendiniz derleyin ya da kendi Cloud arka ucunuzu çalıştırın. İhtiyacınız olan her şey herkese açık.",
+    "whyOpen": "<strong>Açıkta inşa edildi.</strong> HyperWhisper, bağımsız geliştirici Ray Amjad tarafından herkesin gözü önünde geliştiriliyor. Issue'lar, tartışmalar ve sürümlerin hepsi açıkta gerçekleşir.",
+    "licenseHeading": "Zaten bir lisans satın aldınız mı?",
+    "licenseIntro": "HyperWhisper artık açık kaynak ve ücretli transkripsiyon HyperWhisper Cloud kredileriyle çalışıyor. Geçişten önce bir lisans satın aldıysanız, sizinle şöyle ilgileniyoruz — <mail>{email}</mail> adresine e-posta göndermeniz yeterli, gerisini elle halledeceğiz.",
+    "licenseRecent": "<strong>Son 30 gün içinde satın aldıysanız:</strong> iade süresi içindesiniz. Satın alma bedelinizin tamamını iade edeceğiz — soru sorulmadan. <refund>Bize bir not göndermeniz</refund> yeterli.",
+    "licenseOlder": "<strong>30 günden daha uzun süre önce satın aldıysanız:</strong> ödediğiniz tutarı HyperWhisper Cloud kredisine dönüştüreceğiz — satın alma bedelinin tamamı, hesabınıza zaten eklenmiş olan $5 kredi düşülerek. <credits>Bize e-posta gönderin</credits>, kalan bakiyeyi hesabınıza tanımlayalım.",
+    "contributeHeading": "Katkıda bulunmak ister misiniz?",
+    "contributeBody": "Hata bildirimleri, özellik fikirleri ve pull request'ler memnuniyetle karşılanır. <github>GitHub'da</github> bir issue açın veya bir tartışma başlatın."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper artık tamamen açık kaynak",
+    "shortText": "Artık açık kaynak",
+    "learnMore": "Daha fazla bilgi",
+    "dismiss": "Duyuruyu kapat"
   },
   "notFound": {
     "title": "Sayfa bulunamadı",

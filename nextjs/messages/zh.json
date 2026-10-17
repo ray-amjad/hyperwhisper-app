@@ -272,7 +272,31 @@
     "homebrewTitle": "通过 Homebrew 安装",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "复制",
-    "copied": "已复制！"
+    "copied": "已复制！",
+    "linuxSubtitle": "适用于 64 位 Intel/AMD 系统的 Debian 软件包",
+    "downloadLinux": "下载 Linux 版",
+    "downloadLinuxVersion": "下载 Linux 版 v{version}",
+    "linuxReleaseNotes": "校验和与发行说明",
+    "linuxInstallTitle": "安装 Debian 软件包",
+    "linuxTargets": "Linux v1 支持 amd64 架构上的 Ubuntu 22.04+ 和 Debian 12+。",
+    "linuxReplaceVersion": "请将 VERSION 替换为你下载的版本号。",
+    "linuxInstallCommandLabel": "Debian 安装命令",
+    "linuxInputGroupNote": "加入 input 组后，请注销并重新登录。加入该组是可选的，但全局快捷键和自动粘贴需要它。",
+    "aptTitle": "自行托管 APT 仓库",
+    "aptBody": "Linux 版本还附带一个静态 APT 仓库归档。HyperWhisper 目前不运营公共 APT 端点；有关签名的自托管设置、桌面配套组件、隐私详情和卸载方法，请参阅 Linux 安装指南。",
+    "linuxGuideCta": "阅读 Linux 安装指南"
+  },
+  "olderVersions": {
+    "title": "旧版本",
+    "subtitle": "浏览并下载 HyperWhisper 的所有版本",
+    "errorLoading": "加载版本时出错：{error}",
+    "unknownError": "发生错误",
+    "loading": "正在加载版本...",
+    "latest": "最新",
+    "build": "构建 {number}",
+    "downloadDmg": "下载 DMG",
+    "downloadExe": "下载 EXE",
+    "unknownSize": "未知"
   },
   "purchaseSuccess": {
     "title": "一切就绪！",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "开源，无所隐藏。",
     "body": "HyperWhisper 完全开源，采用 Apache-2.0 许可——桌面应用和 Cloud 后端皆是如此。一个会聆听你麦克风的应用，应该是你能够验证的，而不只是去信任：阅读每一行代码、审核你的音频究竟流向何处，并确信自己永远不会被锁定——代码归你所有，可以永远 fork 并自行托管。由独立开发者 Ray Amjad 公开打造。",
-    "cta": "在 GitHub 上查看"
+    "cta": "在 GitHub 上查看",
+    "metaTitle": "开源 | HyperWhisper",
+    "metaDescription": "HyperWhisper 采用 Apache-2.0 许可完全开源——桌面应用和 Cloud 后端皆是如此。阅读代码、审核你的音频流向何处、fork 它，并永远自行托管。",
+    "eyebrow": "开源",
+    "lead": "HyperWhisper 现已采用 Apache-2.0 许可完全开源——桌面应用和 Cloud 后端皆是如此。",
+    "intro": "一个会聆听你麦克风的应用，应该是你能够验证的，而不只是去信任。所以我们公开了一切。你可以阅读 HyperWhisper 的每一行代码——包括 macOS、Windows 和 Linux 应用，以及 Cloud 转录后端——清楚看到你的音频究竟流向何处，并确信自己永远不会被锁定。整个项目以 <license>Apache-2.0 许可</license>托管在 <github>GitHub</github> 上。",
+    "whyHeading": "为什么这很重要",
+    "whyVerify": "<strong>验证，而不是盲信。</strong>阅读每一行代码，审核你的音频究竟流向何处。一个拥有麦克风权限的应用，应该是你能亲自检查的，而不只是凭信任接受。",
+    "whyNoLockIn": "<strong>没有锁定。</strong>代码采用 Apache-2.0 许可——你可以保留、修改，并按自己的方式运行。你的工作流永远不会被绑架。",
+    "whyFork": "<strong>Fork 并自行托管。</strong>克隆仓库、自己构建，或运行你自己的 Cloud 后端。所需的一切都是公开的。",
+    "whyOpen": "<strong>公开打造。</strong>HyperWhisper 由独立开发者 Ray Amjad 公开开发。Issue、讨论和版本发布全部公开进行。",
+    "licenseHeading": "已经购买了许可证？",
+    "licenseIntro": "HyperWhisper 现已开源，付费转录改为使用 HyperWhisper Cloud 点数。如果你在转换之前购买了许可证，我们会这样照顾你——只需发送邮件至 <mail>{email}</mail>，我们会人工为你处理。",
+    "licenseRecent": "<strong>30 天内购买：</strong>你仍在退款期内。我们将全额退还你的购买款项，无需任何理由。只需<refund>给我们留言</refund>即可。",
+    "licenseOlder": "<strong>超过 30 天前购买：</strong>我们会将你支付的金额转换为 HyperWhisper Cloud 点数——即全部购买价格，减去已添加到你账户中的 $5 点数。<credits>给我们发邮件</credits>，我们会为你充入余额。",
+    "contributeHeading": "想要参与贡献？",
+    "contributeBody": "欢迎提交 Bug 报告、功能建议和 Pull Request。<github>在 GitHub 上</github>提交 Issue 或发起讨论吧。"
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper 现已完全开源",
+    "shortText": "现已开源",
+    "learnMore": "了解更多",
+    "dismiss": "关闭公告"
   },
   "notFound": {
     "title": "页面未找到",
