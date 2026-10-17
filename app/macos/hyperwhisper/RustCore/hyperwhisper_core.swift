@@ -5247,18 +5247,21 @@ public func FfiConverterTypeHwPhoneticMatch_lower(_ value: HwPhoneticMatch) -> R
 
 /**
  * Result of a provider health probe. Mirrors `hw_net::ProviderHealth`.
+ * `healthy` is always `reason == Healthy`; `reason` is the field to switch on.
  */
 public struct HwProviderHealth {
     public var provider: HwProvider
     public var healthy: Bool
     public var status: UInt16?
+    public var reason: HwHealthReason
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(provider: HwProvider, healthy: Bool, status: UInt16?) {
+    public init(provider: HwProvider, healthy: Bool, status: UInt16?, reason: HwHealthReason) {
         self.provider = provider
         self.healthy = healthy
         self.status = status
+        self.reason = reason
     }
 }
 
@@ -5275,6 +5278,9 @@ extension HwProviderHealth: Equatable, Hashable {
         if lhs.status != rhs.status {
             return false
         }
+        if lhs.reason != rhs.reason {
+            return false
+        }
         return true
     }
 
@@ -5282,6 +5288,7 @@ extension HwProviderHealth: Equatable, Hashable {
         hasher.combine(provider)
         hasher.combine(healthy)
         hasher.combine(status)
+        hasher.combine(reason)
     }
 }
 
@@ -5295,7 +5302,8 @@ public struct FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer {
             try HwProviderHealth(
                 provider: FfiConverterTypeHwProvider.read(from: &buf), 
                 healthy: FfiConverterBool.read(from: &buf), 
-                status: FfiConverterOptionUInt16.read(from: &buf)
+                status: FfiConverterOptionUInt16.read(from: &buf), 
+                reason: FfiConverterTypeHwHealthReason.read(from: &buf)
         )
     }
 
@@ -5303,6 +5311,7 @@ public struct FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer {
         FfiConverterTypeHwProvider.write(value.provider, into: &buf)
         FfiConverterBool.write(value.healthy, into: &buf)
         FfiConverterOptionUInt16.write(value.status, into: &buf)
+        FfiConverterTypeHwHealthReason.write(value.reason, into: &buf)
     }
 }
 
@@ -10810,6 +10819,82 @@ public func FfiConverterTypeHwEnglishSpelling_lower(_ value: HwEnglishSpelling) 
 
 
 extension HwEnglishSpelling: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Why a provider health probe came out the way it did. Mirrors
+ * `hw_net::HealthReason`. Hosts map this onto their own states (issue #779) —
+ * none of them re-derives it from the raw status.
+ */
+
+public enum HwHealthReason {
+    
+    case healthy
+    case unauthorized
+    case unreachable
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwHealthReason: FfiConverterRustBuffer {
+    typealias SwiftType = HwHealthReason
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwHealthReason {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .healthy
+        
+        case 2: return .unauthorized
+        
+        case 3: return .unreachable
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwHealthReason, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .healthy:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .unauthorized:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unreachable:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwHealthReason_lift(_ buf: RustBuffer) throws -> HwHealthReason {
+    return try FfiConverterTypeHwHealthReason.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwHealthReason_lower(_ value: HwHealthReason) -> RustBuffer {
+    return FfiConverterTypeHwHealthReason.lower(value)
+}
+
+
+
+extension HwHealthReason: Equatable, Hashable {}
 
 
 

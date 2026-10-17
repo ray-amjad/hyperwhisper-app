@@ -9073,11 +9073,13 @@ class FfiConverterTypeHwPhoneticMatch: FfiConverterRustBuffer<HwPhoneticMatch> {
 
 /// <summary>
 /// Result of a provider health probe. Mirrors `hw_net::ProviderHealth`.
+/// `healthy` is always `reason == Healthy`; `reason` is the field to switch on.
 /// </summary>
 internal record HwProviderHealth (
     HwProvider @provider, 
     bool @healthy, 
-    ushort? @status
+    ushort? @status, 
+    HwHealthReason @reason
 ) {
 }
 
@@ -9088,7 +9090,8 @@ class FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer<HwProviderHealth>
         return new HwProviderHealth(
             @provider: FfiConverterTypeHwProvider.INSTANCE.Read(stream),
             @healthy: FfiConverterBoolean.INSTANCE.Read(stream),
-            @status: FfiConverterOptionalUInt16.INSTANCE.Read(stream)
+            @status: FfiConverterOptionalUInt16.INSTANCE.Read(stream),
+            @reason: FfiConverterTypeHwHealthReason.INSTANCE.Read(stream)
         );
     }
 
@@ -9096,13 +9099,15 @@ class FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer<HwProviderHealth>
         return 0
             + FfiConverterTypeHwProvider.INSTANCE.AllocationSize(value.@provider)
             + FfiConverterBoolean.INSTANCE.AllocationSize(value.@healthy)
-            + FfiConverterOptionalUInt16.INSTANCE.AllocationSize(value.@status);
+            + FfiConverterOptionalUInt16.INSTANCE.AllocationSize(value.@status)
+            + FfiConverterTypeHwHealthReason.INSTANCE.AllocationSize(value.@reason);
     }
 
     public override void Write(HwProviderHealth value, BigEndianStream stream) {
             FfiConverterTypeHwProvider.INSTANCE.Write(value.@provider, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@healthy, stream);
             FfiConverterOptionalUInt16.INSTANCE.Write(value.@status, stream);
+            FfiConverterTypeHwHealthReason.INSTANCE.Write(value.@reason, stream);
     }
 }
 
@@ -12219,6 +12224,45 @@ class FfiConverterTypeHwEnglishSpelling: FfiConverterRustBuffer<HwEnglishSpellin
     }
 
     public override void Write(HwEnglishSpelling value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why a provider health probe came out the way it did. Mirrors
+/// `hw_net::HealthReason`. Hosts map this onto their own states (issue #779) —
+/// none of them re-derives it from the raw status.
+/// </summary>
+internal enum HwHealthReason: int {
+    
+    Healthy,
+    Unauthorized,
+    Unreachable
+}
+
+class FfiConverterTypeHwHealthReason: FfiConverterRustBuffer<HwHealthReason> {
+    public static FfiConverterTypeHwHealthReason INSTANCE = new FfiConverterTypeHwHealthReason();
+
+    public override HwHealthReason Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwHealthReason), value)) {
+            return (HwHealthReason)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwHealthReason.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwHealthReason value) {
+        return 4;
+    }
+
+    public override void Write(HwHealthReason value, BigEndianStream stream) {
         stream.WriteInt((int)value + 1);
     }
 }

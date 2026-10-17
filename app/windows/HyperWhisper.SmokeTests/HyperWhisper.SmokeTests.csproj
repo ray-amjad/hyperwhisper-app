@@ -28,6 +28,10 @@
          portable head and macOS replay this very file. -->
     <Content Include="../../../shared-conformance/default-model-vectors.json"
              Link="default-model-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- And for the provider health verdict (issue #779): Rust, the portable
+         head and macOS replay this very file. -->
+    <Content Include="../../../shared-conformance/health-vectors.json"
+             Link="health-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Whisper's non-speech marker vectors (issue #1811): Rust, the Linux
          local-inference harness and macOS replay this very file. -->
     <Content Include="../../../shared-conformance/whisper-marker-vectors.json"
