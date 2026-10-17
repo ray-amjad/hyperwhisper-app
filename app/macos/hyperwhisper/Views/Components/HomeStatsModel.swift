@@ -24,6 +24,7 @@
 //  The arithmetic is unchanged: the same rows go to `statsCalculateHome`.
 //
 
+import Combine
 import CoreData
 import Foundation
 
