@@ -176,9 +176,6 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     public bool IsUsingGpu => ActiveGpuName != null;
 
-    /// <summary>True while the worker process is up (diagnostics; the model may still be selected when it is not).</summary>
-    public bool IsWorkerRunning => _worker.IsRunning;
-
     /// <summary>
     /// Counter for transcriptions performed since service initialization.
     /// Used to log GPU diagnostics on first transcription.

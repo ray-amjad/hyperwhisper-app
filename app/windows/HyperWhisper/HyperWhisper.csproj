@@ -296,12 +296,25 @@
        whisper-worker\HyperWhisper.WhisperWorker.exe next to the app, so a plain
        `dotnet build` / `dotnet run` builds the worker project and copies its
        output there. build-release.ps1 publishes the worker itself (self-contained,
-       per RID) and passes -p:SkipWhisperWorkerCopy=true. -->
+       per RID) and passes -p:SkipWhisperWorkerCopy=true.
+       The worker is deliberately NOT a ProjectReference (that would pull its
+       Whisper.net / ggml natives into the app output), so it is outside the
+       app's restore graph: restore it here first. The unique
+       MSBuildRestoreSessionId makes the Restore call its own project instance,
+       so the Build call below evaluates fresh and sees the new
+       project.assets.json (a clean checkout otherwise fails NETSDK1004). -->
   <Target Name="BuildAndCopyWhisperWorker" AfterTargets="Build"
           Condition="'$(SkipWhisperWorkerCopy)' != 'true' And '$(DesignTimeBuild)' != 'true'">
-    <MSBuild Projects="$(MSBuildThisFileDirectory)..\HyperWhisper.WhisperWorker\HyperWhisper.WhisperWorker.csproj"
+    <PropertyGroup>
+      <_WhisperWorkerProject>$(MSBuildThisFileDirectory)..\HyperWhisper.WhisperWorker\HyperWhisper.WhisperWorker.csproj</_WhisperWorkerProject>
+      <_WhisperWorkerProperties>Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);EnableWindowsTargeting=$(EnableWindowsTargeting)</_WhisperWorkerProperties>
+    </PropertyGroup>
+    <MSBuild Projects="$(_WhisperWorkerProject)"
+             Targets="Restore"
+             Properties="$(_WhisperWorkerProperties);MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" />
+    <MSBuild Projects="$(_WhisperWorkerProject)"
              Targets="Build"
-             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);EnableWindowsTargeting=$(EnableWindowsTargeting)">
+             Properties="$(_WhisperWorkerProperties)">
       <Output TaskParameter="TargetOutputs" ItemName="_WhisperWorkerAssembly" />
     </MSBuild>
     <PropertyGroup>
