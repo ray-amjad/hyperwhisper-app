@@ -31,6 +31,12 @@ struct CatalogConformanceVectorTests {
         let vendorGroups: [VendorGroupVector]
         let pickerLanguageCodes: [PickerVector]
         let modelsEntries: [ModelsEntryVector]
+        let effectiveModeCloudProvider: [EffectiveCloudProviderVector]
+    }
+
+    struct EffectiveCloudProviderVector: Decodable {
+        let input: String?
+        let expected: String
     }
 
     struct EntryVector: Decodable {
@@ -458,6 +464,29 @@ struct CatalogConformanceVectorTests {
             #expect(support.supportsAll == want.supportsAllLanguages, "\(label).supportsAllLanguages")
             #expect(support.codes == Set(want.languageCodes), "\(label).languageCodes")
         }
+    }
+
+    @Test("A mode's effective cloud provider matches the shared vectors (#1709)")
+    func effectiveModeCloudProviderMatchesTheVectors() throws {
+        let vectors = try Self.vectors().effectiveModeCloudProvider
+        #expect(vectors.contains { $0.input == nil }, "no vector covers a nil cloudProvider")
+        for want in vectors {
+            let label = want.input.map { "\"\($0)\"" } ?? "nil"
+            #expect(
+                cloudSttEffectiveModeCloudProvider(value: want.input) == want.expected,
+                "\(label): shared core answer"
+            )
+            // This head takes the core's answer only for a blank value and
+            // keeps a non-blank value as stored.
+            let blank = want.input?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+            #expect(
+                CloudProvider.effectiveModeStorageValue(want.input) == (blank ? Optional(want.expected) : want.input),
+                "\(label): CloudProvider.effectiveModeStorageValue"
+            )
+        }
+        #expect(CloudProvider.forMode(nil) == .hyperwhisper)
+        #expect(CloudProvider.forMode("") == .hyperwhisper)
+        #expect(CloudProvider.forMode("deepgram") == .deepgram)
     }
 
     @Test("The vectors cover every polymorphic branch")

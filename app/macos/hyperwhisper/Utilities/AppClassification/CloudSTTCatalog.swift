@@ -195,7 +195,7 @@ struct CloudSTTCatalog {
             return nil
         }
 
-        let resolvedProvider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        let resolvedProvider = CloudProvider.forMode(cloudProvider)
         if resolvedProvider == .meta {
             return UploadDurationConstraint(
                 maximumSeconds: MetaMuseProvider.maxDurationSeconds,

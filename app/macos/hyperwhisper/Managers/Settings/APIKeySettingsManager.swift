@@ -372,7 +372,7 @@ class APIKeySettingsManager: ObservableObject {
 
         // Check transcription API key if using cloud
         if isCloudTranscription {
-            let cloudProviderString = mode.cloudProvider ?? "hyperwhisper"
+            let cloudProviderString = mode.cloudProvider ?? CloudProvider.effectiveModeStorageValue(nil)
             if let cloudProvider = CloudProvider.parse(cloudProviderString) {
                 if !hasAPIKey(for: cloudProvider) {
                     missingKeys.append(MissingAPIKey(context: .transcription(cloudProvider)))
