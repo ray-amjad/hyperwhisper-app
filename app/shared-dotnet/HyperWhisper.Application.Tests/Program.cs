@@ -1367,6 +1367,9 @@ try
     await statisticsHome.RefreshAsync();
     Assert(statisticsHome.AllTime.WordCount == 4 && statisticsHome.AllTime.DictatedDurationSeconds == 60,
         "home statistics projection did not filter status and preserve duration");
+    // The history count is a COUNT over every stored row, failed ones included, as the full list was (#1353).
+    Assert(statisticsHome.HistoryCount == 2 && await statisticsHistory.CountAsync() == (await statisticsHistory.ListAsync()).Count,
+        $"home history count was {statisticsHome.HistoryCount}, not the 2 stored rows");
     statisticsHome.TypingSpeedWordsPerMinute = 80;
     await statisticsHome.RefreshAsync();
     var reloadedStatisticsSettings = new PortableSettingsService(
@@ -2656,6 +2659,44 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     viewModel.UpdateSelection([viewModel.Items.Single(item => item.Id == lonely.Id)]);
     await viewModel.DeleteSelectedAsync();
     AssertHistoryGroups(viewModel, await repository.ListAsync(), today, "history delete");
+
+    // A bulk delete removes the whole selection with one rebuild, not one per row (#1353), and
+    // leaves the groups the remaining rows make: here every other row, across many days.
+    await viewModel.RefreshAsync();
+    var everyOther = viewModel.Items.Where((_, index) => index % 2 == 1).ToList();
+    viewModel.UpdateSelection(everyOther);
+    before = viewModel.GroupRebuildCount;
+    await viewModel.DeleteSelectedAsync();
+    rebuilds = viewModel.GroupRebuildCount - before;
+    Assert(rebuilds == 1, $"a {everyOther.Count}-row bulk delete rebuilt the day groups {rebuilds} times, not once");
+    expected = await repository.ListAsync();
+    Assert(expected.Count > 100 && expected.All(row => everyOther.All(gone => gone.Id != row.Id)),
+        "the bulk delete did not delete the selected rows");
+    AssertHistoryGroups(viewModel, expected, today, "history bulk delete");
+    Assert(viewModel.SelectedItems.Count == 0 && !viewModel.Status.HasError,
+        $"a bulk delete left {viewModel.SelectedItems.Count} selected, status '{viewModel.Status.Message}'");
+
+    // Deleting all rows of a 10,000-row History rebuilds the groups once and leaves nothing behind.
+    await using (var context = database.CreateContext())
+    {
+        context.Transcripts.AddRange(Enumerable.Range(0, 10_000 - expected.Count).Select(index => new Transcript
+        {
+            Text = $"bulk {index}",
+            Status = TranscriptStatus.Completed,
+            Date = DateTime.SpecifyKind(now.AddMinutes(-37 * index - 3), DateTimeKind.Utc),
+        }));
+        await context.SaveChangesAsync();
+    }
+    await viewModel.RefreshAsync();
+    Assert(viewModel.Items.Count == 10_000, $"the large history showed {viewModel.Items.Count} of 10000 rows");
+    viewModel.UpdateSelection(viewModel.Items.ToList());
+    before = viewModel.GroupRebuildCount;
+    await viewModel.DeleteSelectedAsync();
+    rebuilds = viewModel.GroupRebuildCount - before;
+    Assert(rebuilds == 1, $"deleting all 10000 rows rebuilt the day groups {rebuilds} times, not once");
+    Assert(viewModel.Items.Count == 0 && viewModel.GroupedItems.Count == 0 && viewModel.IsEmpty
+        && await repository.CountAsync() == 0,
+        $"deleting all rows left {viewModel.Items.Count} rows, {viewModel.GroupedItems.Count} grouped entries");
 }
 
 static IEnumerable<Transcript> ThrowAfter(IEnumerable<Transcript> rows, int count)

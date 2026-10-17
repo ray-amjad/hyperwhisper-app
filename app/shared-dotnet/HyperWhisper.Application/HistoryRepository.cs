@@ -52,6 +52,13 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>How many transcripts are stored, as one COUNT query rather than a full list (#1353).</summary>
+    public async Task<int> CountAsync(CancellationToken cancellationToken = default)
+    {
+        await using var context = _database.CreateContext();
+        return await context.Transcripts.CountAsync(cancellationToken);
+    }
+
     /// <summary>
     /// One Local API <c>/recordings</c> page, filtered, counted and limited in
     /// SQL rather than over the whole table (issue #1087). The match rule is

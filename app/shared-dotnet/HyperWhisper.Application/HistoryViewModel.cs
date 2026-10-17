@@ -371,7 +371,10 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             var deletion = await _repository.DeleteManyAsync(selected.Select(item => item.Id).ToArray(), DeleteAudio, cancellationToken);
             if (deletion.TranscriptsDeleted == 0)
             { Status.Failure("history.not_found", "The transcript no longer exists."); return; }
-            foreach (var transcript in selected) Items.Remove(transcript);
+            // One pass and one group rebuild for the whole selection (#1353). A Remove per row
+            // rebuilt every day group once per row, which was O(n²) on a large bulk delete.
+            var deletedIds = selected.Select(item => item.Id).ToHashSet();
+            ReplaceItems(Items.Where(item => !deletedIds.Contains(item.Id)).ToList());
             UpdateSelection([]);
             if (deletion.Warnings.Count == 0)
                 Status.Success(DeleteAudio
