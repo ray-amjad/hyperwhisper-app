@@ -17385,6 +17385,34 @@ internal static class Program
                     $"175 x 350 px is 100 x 200 DIP at 175%, got {back}");
             });
 
+            Run("per-monitor DPI: a hidden window re-placed after a live scale change gets its physical size back (#1501)", () =>
+            {
+                // Measured on the PC (PR #1936 verify): the 200 x 40 overlay, hidden at
+                // 100% and re-placed at 150%, got WM_DPICHANGED with its OLD 200 x 40 px
+                // rect, so WPF drew it at 1.5 inside 200 x 40 px. Place resizes the HWND
+                // to Width/Height at WPF's scale.
+                var s150 = new MonitorWorkArea.Scale(1.5, 1.5);
+                var fix = MonitorWorkArea.PhysicalSizeFix(200, 40, SizeToContent.Manual, s150, 200, 40);
+                Assert(fix == (300, 60), $"200 x 40 DIP at 150% must be 300 x 60 px, got {fix}");
+
+                // And back down: shown at 150%, hidden, re-placed at 100%.
+                var down = MonitorWorkArea.PhysicalSizeFix(200, 40, SizeToContent.Manual, MonitorWorkArea.Scale.Identity, 300, 60);
+                Assert(down == (200, 40), $"200 x 40 DIP at 100% must be 200 x 40 px, got {down}");
+
+                // Already right (a visible window Windows rescaled itself, or no change): no resize.
+                Assert(MonitorWorkArea.PhysicalSizeFix(200, 40, SizeToContent.Manual, s150, 300, 60) is null,
+                    "a window already at its size must not be resized");
+                // One pixel of rounding is not a mismatch: 125% of 93 is 116.25.
+                Assert(MonitorWorkArea.PhysicalSizeFix(300, 93, SizeToContent.Manual, new MonitorWorkArea.Scale(1.25, 1.25), 375, 117) is null,
+                    "a one-pixel rounding difference must not trigger a resize");
+
+                // The error toast sizes its height to its content: only the width is fixed.
+                var toast = MonitorWorkArea.PhysicalSizeFix(360, double.NaN, SizeToContent.Height, s150, 360, 62);
+                Assert(toast == (540, 62), $"a SizeToContent=Height window keeps its height and fixes its width, got {toast}");
+                Assert(MonitorWorkArea.PhysicalSizeFix(double.NaN, double.NaN, SizeToContent.WidthAndHeight, s150, 360, 62) is null,
+                    "a window sized to its content is WPF's to size");
+            });
+
             Run("per-monitor DPI: HyperWhisper carries a PerMonitorV2 manifest (#1501)", () =>
             {
                 // Without it the process is only system DPI aware and Windows

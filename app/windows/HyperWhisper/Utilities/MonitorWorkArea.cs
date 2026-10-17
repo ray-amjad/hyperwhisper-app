@@ -69,13 +69,46 @@ internal static class MonitorWorkArea
         return new Point(dip.X * f.X / t.X, dip.Y * f.Y / t.Y);
     }
 
+    /// <summary>
+    /// The physical size a window's HWND must have so that its fixed Width and
+    /// Height (DIP) fill it at <paramref name="scale"/>, or null when the current
+    /// size already does (within a pixel of rounding). An axis the window sizes to
+    /// its content, or with no fixed length (NaN), keeps its current size: WPF
+    /// owns that one.
+    /// </summary>
+    internal static (int Width, int Height)? PhysicalSizeFix(
+        double widthDip, double heightDip, SizeToContent sizeToContent, Scale scale, int currentWidthPx, int currentHeightPx)
+    {
+        var s = scale.Sanitized();
+        var fixedWidth = sizeToContent is not (SizeToContent.Width or SizeToContent.WidthAndHeight) && double.IsFinite(widthDip) && widthDip > 0;
+        var fixedHeight = sizeToContent is not (SizeToContent.Height or SizeToContent.WidthAndHeight) && double.IsFinite(heightDip) && heightDip > 0;
+
+        var width = fixedWidth ? (int)Math.Round(widthDip * s.X) : currentWidthPx;
+        var height = fixedHeight ? (int)Math.Round(heightDip * s.Y) : currentHeightPx;
+        if (Math.Abs(width - currentWidthPx) <= 1 && Math.Abs(height - currentHeightPx) <= 1) return null;
+        return (width, height);
+    }
+
     // ------------------------------------------------------------------
     // Queries
     // ------------------------------------------------------------------
 
-    /// <summary>The DPI scale WPF uses for <paramref name="window"/>'s Left/Top/Width/Height.</summary>
+    /// <summary>
+    /// The DPI scale WPF uses for <paramref name="window"/>'s Left/Top/Width/Height:
+    /// its HwndSource's device transform. <c>VisualTreeHelper.GetDpi</c> is not it
+    /// for a window that has a handle but was never shown: measured on a PMv2
+    /// process started at 100% and switched live to 150%, a new window read 1.0
+    /// there while its HwndSource already turned Left = 810 into 1215 px.
+    /// </summary>
     internal static Scale WindowScale(Window window)
     {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd != IntPtr.Zero && HwndSource.FromHwnd(hwnd)?.CompositionTarget is { } target)
+        {
+            var m = target.TransformToDevice;
+            return new Scale(m.M11, m.M22).Sanitized();
+        }
+
         var dpi = VisualTreeHelper.GetDpi(window);
         return new Scale(dpi.DpiScaleX, dpi.DpiScaleY).Sanitized();
     }
@@ -125,6 +158,15 @@ internal static class MonitorWorkArea
     /// onto a monitor with another DPI, WPF rescales it during the move
     /// (WM_DPICHANGED) and may shift it; the placement then runs again at the new
     /// DPI, which lands it exactly.
+    ///
+    /// Last, the HWND's physical size is made to match Width/Height at the DPI WPF
+    /// now uses. A HIDDEN window gets no WM_DPICHANGED for a live scale change
+    /// (GetDpiForWindow stays at the old DPI). The move here is what delivers it,
+    /// and Windows then suggests the OLD physical size: measured, a 200 x 40 overlay
+    /// hidden at 100%, re-placed at 150%, got WM_DPICHANGED 144 with a 200 x 40 px
+    /// rect. WPF applies that rect, so the window kept 200 x 40 px while it laid out
+    /// at 1.5: a clipped 133 x 27 DIP pill, 50 px left of centre (PR #1936 verify).
+    /// A visible window is not affected (Windows scales its rect itself).
     /// </summary>
     internal static void Place(Window window, Func<MonitorArea?> target, Func<Rect, Point> place)
     {
@@ -150,14 +192,35 @@ internal static class MonitorWorkArea
                 if (!(Math.Abs(window.Left - at.X) <= 0.5)) window.Left = at.X;
                 if (!(Math.Abs(window.Top - at.Y) <= 0.5)) window.Top = at.Y;
 
-                if (WindowScale(window) == before) return;
+                if (WindowScale(window) == before) break;
             }
+
+            FitPhysicalSize(window);
         }
         catch (Exception ex)
         {
             // A display query must never stop a toast or an overlay from showing.
             LoggingService.Debug($"MonitorWorkArea: could not place {window.GetType().Name}: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Resizes the HWND, keeping its top-left corner, when its physical size is not
+    /// its fixed Width/Height at WPF's current scale (see <see cref="Place"/>).
+    /// </summary>
+    private static void FitPhysicalSize(Window window)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd == IntPtr.Zero || !GetWindowRect(hwnd, out var rect)) return;
+
+        var currentWidth = rect.Right - rect.Left;
+        var currentHeight = rect.Bottom - rect.Top;
+        var scale = WindowScale(window);
+        if (PhysicalSizeFix(window.Width, window.Height, window.SizeToContent, scale, currentWidth, currentHeight) is not { } size)
+            return;
+
+        LoggingService.Debug($"MonitorWorkArea: {window.GetType().Name} was {currentWidth}x{currentHeight} px at scale {scale.X:0.##}; resized to {size.Width}x{size.Height} px");
+        SetWindowPos(hwnd, IntPtr.Zero, 0, 0, size.Width, size.Height, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
     private static MonitorArea? FromMonitor(IntPtr monitor)
@@ -182,6 +245,9 @@ internal static class MonitorWorkArea
     private const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
     private const uint MONITOR_DEFAULTTOPRIMARY = 0x00000001;
     private const int MDT_EFFECTIVE_DPI = 0;
+    private const uint SWP_NOMOVE = 0x0002;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT
@@ -217,6 +283,14 @@ internal static class MonitorWorkArea
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 
     [DllImport("shcore.dll")]
     private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
