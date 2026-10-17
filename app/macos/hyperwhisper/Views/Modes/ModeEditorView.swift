@@ -647,6 +647,15 @@ struct ModeEditorView: View {
         currentCloudProvider == .hyperwhisper ? selectedCloudTier.sttProvider : cloudProvider
     }
 
+    /// Shared-catalog entry id for the language picker. For HyperWhisper Cloud
+    /// it is the selected tier, so the picker offers the same set the core
+    /// gives Windows (#831); nil for BYOK, and for a model with its own
+    /// per-model set (`CloudAccuracyTier.languageCatalogEntryId(modelId:)`).
+    private var languageFilterCloudTierId: String? {
+        guard currentCloudProvider == .hyperwhisper else { return nil }
+        return selectedCloudTier.languageCatalogEntryId(modelId: languageFilterCloudModelId)
+    }
+
     /// Model id used to look up the supported-language set for the language picker.
     /// Normally the selected `cloudTranscriptionModel`, BUT when the AssemblyAI
     /// Medical Mode add-on is active the domain narrows transcription to EN/ES/DE/FR
@@ -1506,7 +1515,8 @@ struct ModeEditorView: View {
             provider: .cloud,
             model: cloudTranscriptionModel,
             cloudProviderId: languageFilterCloudProviderId,
-            cloudModelId: languageFilterCloudModelId
+            cloudModelId: languageFilterCloudModelId,
+            cloudTierId: languageFilterCloudTierId
         )
 
         // Show vocabulary warning for providers that don't support it

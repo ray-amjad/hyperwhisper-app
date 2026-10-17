@@ -284,3 +284,28 @@ struct LanguageSelectionView: View {
         }
     }
 }
+
+// MARK: - Mode editor language picker resolution
+
+extension CloudAccuracyTier {
+    /// The shared-catalog entry id whose language set the Mode editor picker
+    /// offers for this HyperWhisper Cloud tier and model, or nil when the
+    /// model carries its own vendor-confirmed set in `STTCapabilities`.
+    ///
+    /// The catalog keys languages on the tier, so a tier answer is the default:
+    /// a model `STTCapabilities` does not list (`gpt-transcribe`, the
+    /// `openaiWhisper` default) used to fall through to the full list (#831).
+    /// Three per-model sets are narrower than their tier and stay in front,
+    /// as on Windows (`ModeEditorWindow.UpdateLanguageItems`): AssemblyAI
+    /// Dictation, the medical models (`-medical`, including the AssemblyAI
+    /// Medical domain), and Azure MAI, whose two models do not share a set.
+    func languageCatalogEntryId(modelId: String) -> String? {
+        let perModel = modelId == "dictation"
+            || modelId.hasSuffix("-medical")
+            || self == .azureMaiTranscribe
+        if perModel, !STTCapabilities.languages(providerId: sttProvider, modelId: modelId).isEmpty {
+            return nil
+        }
+        return rawValue
+    }
+}

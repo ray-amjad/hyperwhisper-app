@@ -277,6 +277,67 @@ struct CatalogConformanceVectorTests {
         )
     }
 
+    /// The codes the Mode editor's language picker offers for a HyperWhisper
+    /// Cloud tier and model, built the way `ModeEditorView` builds them.
+    private static func modeEditorPickerCodes(_ tier: CloudAccuracyTier, modelId: String) -> [String] {
+        LanguageSelectionView.allowedLanguageInfos(
+            provider: .cloud,
+            model: modelId,
+            cloudProviderId: tier.sttProvider,
+            cloudModelId: modelId,
+            cloudTierId: tier.languageCatalogEntryId(modelId: modelId)
+        ).map(\.code)
+    }
+
+    @Test("The Mode editor picker offers each HyperWhisper Cloud tier's catalog set (#831)")
+    func modeEditorPickerFollowsTheTierVectors() throws {
+        var checked = 0
+        for want in try Self.vectors().pickerLanguageCodes {
+            guard let codes = want.codes, let tier = CloudAccuracyTier(rawValue: want.id) else { continue }
+            let allowed = Set(codes.map { $0.lowercased() })
+            let tierRows = LanguageData.allLanguages
+                .map(\.code)
+                .filter { allowed.contains(LanguageSelectionView.primarySubtag(of: $0)) }
+            for model in CloudSTTCatalog.shared.models(forEntryId: want.id) {
+                let label = "\(want.id)/\(model.id)"
+                let got = Self.modeEditorPickerCodes(tier, modelId: model.id)
+                if tier.languageCatalogEntryId(modelId: model.id) == nil {
+                    // A vendor-confirmed per-model set (Dictation, Azure MAI).
+                    let perModel = STTCapabilities.languages(providerId: tier.sttProvider, modelId: model.id)
+                    #expect(Set(perModel.map(\.code)).isSubset(of: Set(got)), "\(label): the picker must offer the per-model set")
+                    #expect(got.count < LanguageData.allLanguages.count, "\(label): a per-model set must not widen to the full list")
+                    continue
+                }
+                #expect(Set(got) == Set(tierRows), "\(label): the picker must offer the tier's catalog set")
+                checked += 1
+            }
+        }
+        #expect(checked > 0, "no tier with a declared language set was checked")
+
+        // The issue's case: GPT Transcribe, the OpenAI tier's default, has no
+        // STTCapabilities row and used to fall through to every language.
+        let gpt = Self.modeEditorPickerCodes(.openaiWhisper, modelId: "gpt-transcribe")
+        #expect(gpt.count == 101, "openaiWhisper/gpt-transcribe offers \(gpt.count) rows, want 101")
+        #expect(gpt.count < LanguageData.allLanguages.count)
+        #expect(gpt.first == LanguageData.automaticCode)
+    }
+
+    @Test("Medical and Dictation keep their narrower per-model sets on HyperWhisper Cloud")
+    func modeEditorPickerKeepsPerModelSets() {
+        #expect(CloudAccuracyTier.assemblyAI.languageCatalogEntryId(modelId: "universal-3-5-pro-medical") == nil)
+        #expect(CloudAccuracyTier.assemblyAI.languageCatalogEntryId(modelId: "dictation") == nil)
+        #expect(CloudAccuracyTier.deepgramNova3.languageCatalogEntryId(modelId: "nova-3-medical") == nil)
+        #expect(CloudAccuracyTier.azureMaiTranscribe.languageCatalogEntryId(modelId: "mai-transcribe-1.5") == nil)
+        #expect(CloudAccuracyTier.openaiWhisper.languageCatalogEntryId(modelId: "gpt-transcribe") == "openaiWhisper")
+        // A per-model id STTCapabilities does not know falls back to the tier.
+        #expect(CloudAccuracyTier.azureMaiTranscribe.languageCatalogEntryId(modelId: "no-such-model") == "azureMaiTranscribe")
+
+        let medical = Set(Self.modeEditorPickerCodes(.deepgramNova3, modelId: "nova-3-medical"))
+        let expected = Set(STTCapabilities.languages(providerId: "deepgram", modelId: "nova-3-medical").map(\.code))
+        #expect(!expected.isEmpty)
+        #expect(medical.isSubset(of: expected.union([LanguageData.automaticCode])))
+    }
+
     @Test("models-catalog lookups match the shared vectors")
     func modelsEntriesMatchTheVectors() throws {
         let expected = try Self.vectors().modelsEntries
