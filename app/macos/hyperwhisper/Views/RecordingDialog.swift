@@ -76,7 +76,6 @@ struct RecordingDialog: View {
     /// The modes the pending-file mode picker lists (#1617). Loaded when the
     /// picker opens, from the same list as History's "Retry with..." menu.
     @State private var pendingRetryModeChoices: [Mode] = []
-    @State private var transcriptActionHandler: TranscriptActionHandler?
     @State private var showSuccessState = false  // Brief success indicator
 
     // MARK: - Animation States
@@ -255,10 +254,6 @@ struct RecordingDialog: View {
             liveStreamingText.text = ""
             appState.isStreaming = false
             appState.transcriptionPasteFailed = false
-
-            if transcriptActionHandler == nil {
-                transcriptActionHandler = TranscriptActionHandler(transcriptionPipeline: transcriptionPipeline)
-            }
         }
         .onDisappear {
             // CRITICAL: Ensure any active event tap is cleaned up when dialog closes
@@ -894,70 +889,6 @@ struct RecordingDialog: View {
                 if window.title == windowTitle {
                     window.close()
                 }
-            }
-        }
-    }
-    
-    private func retryTranscription(_ transcript: Transcript) {
-        guard let handler = transcriptActionHandler else { return }
-        
-        guard handler.canRetry(transcript) else {
-            let message = "recording.retry.failed.missing".localized
-            hasError = true
-            showTranscription = true
-            transcribedText = message
-            appState.lastTranscription = message
-            return
-        }
-        
-        showTranscription = false
-        isRetrying = true
-        hasError = false
-        transcribedText = ""
-        appState.lastTranscription = ""
-
-        Task { @MainActor in
-            let outcome = await handler.retryTranscriptionOutcome(transcript)
-
-            // The row was deleted while it retried (#1743): a quiet cancel.
-            // Nothing to show, so close, unless a new recording has since
-            // taken the dialog over (it clears `isRetrying`).
-            if outcome == .stoppedByDelete {
-                if isRetrying {
-                    closeDialog()
-                }
-                return
-            }
-
-            let success = outcome == .succeeded
-            if !success {
-                isRetrying = false
-                showTranscription = true
-            }
-            
-            if success {
-                hasError = false
-                    let postProcessed = transcript.value(forKey: "postProcessedText") as? String
-                    let final = transcript.text
-                    let raw = transcript.value(forKey: "transcribedText") as? String
-                    let resolvedText: String
-                    if let postProcessed, !postProcessed.isEmpty {
-                        resolvedText = postProcessed
-                    } else if let final, !final.isEmpty {
-                        resolvedText = final
-                    } else if let raw, !raw.isEmpty {
-                        resolvedText = raw
-                    } else {
-                        resolvedText = ""
-                    }
-                    transcribedText = resolvedText
-                    appState.lastTranscription = resolvedText
-            } else {
-                hasError = true
-                let errorMessage = handler.lastError ?? "app.unknown.error".localized
-                let message = String(format: "recording.retry.failed.error".localized, errorMessage)
-                transcribedText = message
-                appState.lastTranscription = message
             }
         }
     }
