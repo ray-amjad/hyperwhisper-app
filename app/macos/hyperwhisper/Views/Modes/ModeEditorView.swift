@@ -640,20 +640,19 @@ struct ModeEditorView: View {
     /// `cloudProvider` (e.g. "deepgram", "assemblyai"). For HyperWhisper Cloud the
     /// outer `cloudProvider` is "hyperwhisper" — which STTCapabilities does not register — so we
     /// resolve the SELECTED accuracy tier's routed upstream provider id instead (the
-    /// same value sent in the X-STT-Provider header). Tiers whose upstream provider
-    /// isn't in `STTCapabilities` (azure-mai / gemini-transcribe / gemini) yield an empty
-    /// spec list, which falls back to the full language list.
+    /// same value sent in the X-STT-Provider header). A model with no
+    /// `STTCapabilities` row falls back to the tier's catalog set
+    /// (`languageFilterCloudTierId`), then to the full list when the catalog
+    /// leaves the tier unverified.
     private var languageFilterCloudProviderId: String {
         currentCloudProvider == .hyperwhisper ? selectedCloudTier.sttProvider : cloudProvider
     }
 
-    /// Shared-catalog entry id for the language picker. For HyperWhisper Cloud
-    /// it is the selected tier, so the picker offers the same set the core
-    /// gives Windows (#831); nil for BYOK, and for a model with its own
-    /// per-model set (`CloudAccuracyTier.languageCatalogEntryId(modelId:)`).
+    /// Shared-catalog entry id for the language picker: the selected tier on
+    /// HyperWhisper Cloud, nil for BYOK. The picker uses the tier's catalog set
+    /// when `STTCapabilities` has no row for the model (`gpt-transcribe`, #831).
     private var languageFilterCloudTierId: String? {
-        guard currentCloudProvider == .hyperwhisper else { return nil }
-        return selectedCloudTier.languageCatalogEntryId(modelId: languageFilterCloudModelId)
+        currentCloudProvider == .hyperwhisper ? selectedCloudTier.rawValue : nil
     }
 
     /// Model id used to look up the supported-language set for the language picker.

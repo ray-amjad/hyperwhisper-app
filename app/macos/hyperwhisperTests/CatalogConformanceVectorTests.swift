@@ -285,57 +285,68 @@ struct CatalogConformanceVectorTests {
             model: modelId,
             cloudProviderId: tier.sttProvider,
             cloudModelId: modelId,
-            cloudTierId: tier.languageCatalogEntryId(modelId: modelId)
+            cloudTierId: tier.rawValue
         ).map(\.code)
     }
 
-    @Test("The Mode editor picker offers each HyperWhisper Cloud tier's catalog set (#831)")
+    /// The picker rows a vector's codes keep, matched on primary subtag the
+    /// way `LanguageSelectionView.catalogLanguageInfos` matches them.
+    private static func tierRows(_ codes: [String]) -> Set<String> {
+        let allowed = Set(codes.map { $0.lowercased() })
+        return Set(LanguageData.allLanguages.map(\.code).filter {
+            allowed.contains(LanguageSelectionView.primarySubtag(of: $0))
+        })
+    }
+
+    @Test("The Mode editor picker never offers more than a HyperWhisper Cloud model supports (#831)")
     func modeEditorPickerFollowsTheTierVectors() throws {
-        var checked = 0
+        let auto = LanguageData.automaticCode
+        var tierChecked = 0
         for want in try Self.vectors().pickerLanguageCodes {
             guard let codes = want.codes, let tier = CloudAccuracyTier(rawValue: want.id) else { continue }
-            let allowed = Set(codes.map { $0.lowercased() })
-            let tierRows = LanguageData.allLanguages
-                .map(\.code)
-                .filter { allowed.contains(LanguageSelectionView.primarySubtag(of: $0)) }
+            let rows = Self.tierRows(codes)
             for model in CloudSTTCatalog.shared.models(forEntryId: want.id) {
                 let label = "\(want.id)/\(model.id)"
-                let got = Self.modeEditorPickerCodes(tier, modelId: model.id)
-                if tier.languageCatalogEntryId(modelId: model.id) == nil {
-                    // A vendor-confirmed per-model set (Dictation, Azure MAI).
-                    let perModel = STTCapabilities.languages(providerId: tier.sttProvider, modelId: model.id)
-                    #expect(Set(perModel.map(\.code)).isSubset(of: Set(got)), "\(label): the picker must offer the per-model set")
-                    #expect(got.count < LanguageData.allLanguages.count, "\(label): a per-model set must not widen to the full list")
-                    continue
+                let got = Set(Self.modeEditorPickerCodes(tier, modelId: model.id))
+                let perModel = STTCapabilities.languages(providerId: tier.sttProvider, modelId: model.id)
+                if perModel.isEmpty {
+                    // No per-model row: the tier's catalog set, never the full list.
+                    #expect(got == rows, "\(label): the picker must offer the tier's catalog set")
+                    tierChecked += 1
+                } else {
+                    // A vendor-confirmed per-model set wins, even when narrower.
+                    #expect(
+                        got.subtracting([auto]) == Set(perModel.map(\.code)).subtracting([auto]),
+                        "\(label): the picker must offer the model's own set"
+                    )
                 }
-                #expect(Set(got) == Set(tierRows), "\(label): the picker must offer the tier's catalog set")
-                checked += 1
             }
         }
-        #expect(checked > 0, "no tier with a declared language set was checked")
+        #expect(tierChecked > 0, "no tier model without a per-model row was checked")
 
         // The issue's case: GPT Transcribe, the OpenAI tier's default, has no
         // STTCapabilities row and used to fall through to every language.
+        let openai = try #require(try Self.vectors().pickerLanguageCodes.first { $0.id == "openaiWhisper" }?.codes)
         let gpt = Self.modeEditorPickerCodes(.openaiWhisper, modelId: "gpt-transcribe")
-        #expect(gpt.count == 101, "openaiWhisper/gpt-transcribe offers \(gpt.count) rows, want 101")
-        #expect(gpt.count < LanguageData.allLanguages.count)
+        #expect(STTCapabilities.languages(providerId: "openai", modelId: "gpt-transcribe").isEmpty)
+        #expect(Set(gpt) == Self.tierRows(openai))
+        #expect(gpt.count < LanguageData.allLanguages.count, "gpt-transcribe must not offer every language")
         #expect(gpt.first == LanguageData.automaticCode)
     }
 
-    @Test("Medical and Dictation keep their narrower per-model sets on HyperWhisper Cloud")
-    func modeEditorPickerKeepsPerModelSets() {
-        #expect(CloudAccuracyTier.assemblyAI.languageCatalogEntryId(modelId: "universal-3-5-pro-medical") == nil)
-        #expect(CloudAccuracyTier.assemblyAI.languageCatalogEntryId(modelId: "dictation") == nil)
-        #expect(CloudAccuracyTier.deepgramNova3.languageCatalogEntryId(modelId: "nova-3-medical") == nil)
-        #expect(CloudAccuracyTier.azureMaiTranscribe.languageCatalogEntryId(modelId: "mai-transcribe-1.5") == nil)
-        #expect(CloudAccuracyTier.openaiWhisper.languageCatalogEntryId(modelId: "gpt-transcribe") == "openaiWhisper")
-        // A per-model id STTCapabilities does not know falls back to the tier.
-        #expect(CloudAccuracyTier.azureMaiTranscribe.languageCatalogEntryId(modelId: "no-such-model") == "azureMaiTranscribe")
+    @Test("A per-model set narrower than its tier stays narrow on HyperWhisper Cloud")
+    func modeEditorPickerKeepsPerModelSets() throws {
+        let assembly = try #require(try Self.vectors().pickerLanguageCodes.first { $0.id == "assemblyAI" }?.codes)
+        let u35 = Set(Self.modeEditorPickerCodes(.assemblyAI, modelId: "universal-3-5-pro"))
+        let vendor = Set(STTCapabilities.languages(providerId: "assemblyai", modelId: "universal-3-5-pro").map(\.code))
+        #expect(!vendor.isEmpty)
+        #expect(u35.subtracting([LanguageData.automaticCode]) == vendor.subtracting([LanguageData.automaticCode]))
+        #expect(u35.count < Self.tierRows(assembly).count, "Universal 3.5 Pro must not widen to the AssemblyAI tier set")
 
-        let medical = Set(Self.modeEditorPickerCodes(.deepgramNova3, modelId: "nova-3-medical"))
-        let expected = Set(STTCapabilities.languages(providerId: "deepgram", modelId: "nova-3-medical").map(\.code))
-        #expect(!expected.isEmpty)
-        #expect(medical.isSubset(of: expected.union([LanguageData.automaticCode])))
+        let medical = Set(Self.modeEditorPickerCodes(.assemblyAI, modelId: "universal-3-5-pro-medical"))
+        let medicalVendor = Set(STTCapabilities.languages(providerId: "assemblyai", modelId: "universal-3-5-pro-medical").map(\.code))
+        #expect(!medicalVendor.isEmpty)
+        #expect(medical.subtracting([LanguageData.automaticCode]) == medicalVendor.subtracting([LanguageData.automaticCode]))
     }
 
     @Test("models-catalog lookups match the shared vectors")

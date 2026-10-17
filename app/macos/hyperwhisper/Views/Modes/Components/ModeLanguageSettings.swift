@@ -68,7 +68,7 @@ struct LanguageSelectionView: View {
     /// A shared-catalog entry id (`deepgramNova3`, `elevenLabsScribeV2`, …).
     /// When set on a cloud picker, the allowed set is the catalog's own answer
     /// for that entry (`CloudSTTCatalog.pickerLanguageCodes(forEntryId:)`),
-    /// checked before the `STTCapabilities` provider/model lookup.
+    /// unless the `STTCapabilities` provider/model lookup has its own set.
     var cloudTierId: String? = nil
     // When false, only shows the picker without the label row (for embedding in other layouts)
     var showLabel: Bool = true
@@ -128,11 +128,10 @@ struct LanguageSelectionView: View {
         cloudModelId: String?,
         cloudTierId: String? = nil
     ) -> [LanguageData.LanguageInfo] {
-        if provider == .cloud,
-           let tierId = cloudTierId,
-           let infos = catalogLanguageInfos(forEntryId: tierId) {
-            return infos
-        }
+        // A vendor-confirmed per-model set wins: it can be narrower than its
+        // tier (AssemblyAI Universal 3.5 Pro is 18 languages, its tier 99).
+        // The tier's catalog set answers for a model `STTCapabilities` does
+        // not list, which used to fall through to every language (#831).
         if provider == .cloud, let pid = cloudProviderId, let mid = cloudModelId {
             let languageSpecs = STTCapabilities.languages(providerId: pid, modelId: mid)
             if !languageSpecs.isEmpty {
@@ -141,6 +140,11 @@ struct LanguageSelectionView: View {
                 }
                 return LanguageData.prioritizeAutomatic(infos)
             }
+        }
+        if provider == .cloud,
+           let tierId = cloudTierId,
+           let infos = catalogLanguageInfos(forEntryId: tierId) {
+            return infos
         }
         if provider == .local, model == Self.parakeetModelIdentifier {
             let infos = LanguageData.languages(for: Self.parakeetLanguageCodes, context: "Parakeet language filter")
@@ -282,30 +286,5 @@ struct LanguageSelectionView: View {
         if !allowed.contains(language), let first = infos.first?.code {
             language = first
         }
-    }
-}
-
-// MARK: - Mode editor language picker resolution
-
-extension CloudAccuracyTier {
-    /// The shared-catalog entry id whose language set the Mode editor picker
-    /// offers for this HyperWhisper Cloud tier and model, or nil when the
-    /// model carries its own vendor-confirmed set in `STTCapabilities`.
-    ///
-    /// The catalog keys languages on the tier, so a tier answer is the default:
-    /// a model `STTCapabilities` does not list (`gpt-transcribe`, the
-    /// `openaiWhisper` default) used to fall through to the full list (#831).
-    /// Three per-model sets are narrower than their tier and stay in front,
-    /// as on Windows (`ModeEditorWindow.UpdateLanguageItems`): AssemblyAI
-    /// Dictation, the medical models (`-medical`, including the AssemblyAI
-    /// Medical domain), and Azure MAI, whose two models do not share a set.
-    func languageCatalogEntryId(modelId: String) -> String? {
-        let perModel = modelId == "dictation"
-            || modelId.hasSuffix("-medical")
-            || self == .azureMaiTranscribe
-        if perModel, !STTCapabilities.languages(providerId: sttProvider, modelId: modelId).isEmpty {
-            return nil
-        }
-        return rawValue
     }
 }
