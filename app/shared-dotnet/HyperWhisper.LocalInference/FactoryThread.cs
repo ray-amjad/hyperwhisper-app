@@ -35,6 +35,9 @@ internal sealed class FactoryThread<TFactory> : IDisposable
     /// <summary>How many factories this thread has made (a test seam).</summary>
     public int FactoriesBuilt => Volatile.Read(ref _factoriesBuilt);
 
+    /// <summary>Whether the thread holds a factory now (a test seam; read between calls).</summary>
+    public bool HoldsFactory => Volatile.Read(ref _factory) is not null;
+
     /// <summary>The managed id of the owning thread (a test seam).</summary>
     public int ThreadId => _thread.ManagedThreadId;
 

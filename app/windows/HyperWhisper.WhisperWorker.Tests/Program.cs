@@ -526,7 +526,8 @@ await CheckAsync("worker: ready first, then load with the Windows options", asyn
     Assert(reply is { Id: 1, Ok: true, Runtime: "cpu", Gpu: null }, $"reply {reply}");
     var load = service.Loads.Single();
     Assert(load.ModelPath == "/m.bin" && load.GpuDevice == 2 && load.UseFlashAttention == false
-        && load.VerifyModelOnLoad && load.Backend == LocalWhisperBackend.Vulkan && load.AllowCpuFallback, $"options {load}");
+        && load.VerifyModelOnLoad && load.Backend == LocalWhisperBackend.Vulkan && load.AllowCpuFallback
+        && !load.FactoryOnOwnThread, $"options {load}");
     Assert(load.RuntimeOrder!.SequenceEqual([RuntimeLibrary.Vulkan, RuntimeLibrary.Cpu, RuntimeLibrary.CpuNoAvx]), "runtime order");
 });
 
@@ -546,6 +547,8 @@ await CheckAsync("worker: transcribe passes the decoding switches and returns ra
     var request = service.Requests.Single();
     Assert(request == new LocalWhisperRequest("/a.wav", "de", 5, SingleSegment: false, IncludeWordTimestamps: false,
         MaxLastTextTokensZero: true, CreateFactoryOnRequestThread: true), $"request {request}");
+    // ARM64: the load makes the one factory on the rule's thread (one model copy).
+    Assert(service.Loads.Single().FactoryOnOwnThread, "the ARM64 load did not use the factory thread");
 });
 
 await CheckAsync("worker: failure codes keep the model-file / runtime split", async () =>

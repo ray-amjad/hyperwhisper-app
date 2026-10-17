@@ -25,6 +25,12 @@ public enum LocalWhisperBackend
 /// as <see cref="LocalWhisperErrorCode.ModelLoadFailed"/> instead of failing the
 /// first transcription.
 /// </param>
+/// <param name="FactoryOnOwnThread">
+/// The Windows ARM64 thread rule at load time: the one factory of this load is
+/// made (and verified) on a dedicated thread, and every transcription's builder
+/// runs on that thread too. The model is then held once, not once for the load
+/// and once more for the requests.
+/// </param>
 public sealed record LocalWhisperLoadOptions(
     string ModelPath,
     LocalWhisperBackend Backend,
@@ -32,7 +38,8 @@ public sealed record LocalWhisperLoadOptions(
     bool AllowCpuFallback = true,
     IReadOnlyList<RuntimeLibrary>? RuntimeOrder = null,
     bool? UseFlashAttention = null,
-    bool VerifyModelOnLoad = false);
+    bool VerifyModelOnLoad = false,
+    bool FactoryOnOwnThread = false);
 
 /// <summary>
 /// One transcription. The options after <paramref name="IncludeWordTimestamps"/>
@@ -47,7 +54,10 @@ public sealed record LocalWhisperLoadOptions(
 /// ARM64 when it ran on another thread than the one that created the factory, so
 /// the factory, its builder and the processor are made on one dedicated thread. That
 /// thread keeps the factory across requests until the model is reloaded or the
-/// service is disposed, so a file sent as many chunks reads the model once.
+/// service is disposed, so a file sent as many chunks reads the model once. A load
+/// with <see cref="LocalWhisperLoadOptions.FactoryOnOwnThread"/> already made that
+/// thread; without it, the first such request makes it and drops the load's
+/// factory, so the model is never held twice.
 /// </param>
 public sealed record LocalWhisperRequest(
     string AudioPath,

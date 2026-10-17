@@ -28,8 +28,9 @@ internal sealed class WorkerHost
     /// <param name="runtimeOrder">The Whisper.net runtime order, set before the first factory.</param>
     /// <param name="requestThreadFactory">
     /// The ARM64 thread rule (it used to live in the app's TranscriptionService):
-    /// the factory and each transcription's builder are made on one dedicated
-    /// thread, which keeps that factory across requests (one model read per load).
+    /// the load makes its one factory on a dedicated thread, and each
+    /// transcription's builder runs on that thread too (one model read and one
+    /// model copy per load).
     /// </param>
     /// <param name="log">
     /// The diagnostics writer. The stdin reader and the consumer both log, so it
@@ -228,7 +229,8 @@ internal sealed class WorkerHost
                 AllowCpuFallback: true,
                 RuntimeOrder: _runtimeOrder,
                 UseFlashAttention: load.FlashAttention,
-                VerifyModelOnLoad: true),
+                VerifyModelOnLoad: true,
+                FactoryOnOwnThread: _requestThreadFactory),
             cancellationToken).ConfigureAwait(false);
 
         if (!result.IsSuccess)

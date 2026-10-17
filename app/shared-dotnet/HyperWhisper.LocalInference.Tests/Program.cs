@@ -103,6 +103,7 @@ await CheckAsync("Windows-only load and request options default off (issue #1194
     Assert(load.RuntimeOrder is null, "a runtime order is set by default");
     Assert(load.UseFlashAttention is null, "flash attention is forced by default");
     Assert(!load.VerifyModelOnLoad, "the model is verified on load by default");
+    Assert(!load.FactoryOnOwnThread, "the ARM64 load thread is on by default");
     var request = new LocalWhisperRequest("audio.wav");
     Assert(!request.MaxLastTextTokensZero, "WithMaxLastTextTokens(0) is on by default");
     Assert(!request.CreateFactoryOnRequestThread, "the ARM64 thread rule is on by default");
@@ -163,6 +164,19 @@ await CheckAsync("a native runtime fault is not a model-file fault (issues #1598
     Assert(!LocalWhisperService.IsNativeRuntimeFault(new FileNotFoundException("x")), "an unrelated exception matched");
     return Task.CompletedTask;
 });
+await CheckAsync("an ARM64 request factory fault after a verified load is not the model file's (PR #1927)", () =>
+{
+    Assert(LocalWhisperService.ClassifyRequestFactoryFault(new OutOfMemoryException(), verifiedOnLoad: true)
+            == LocalWhisperErrorCode.RuntimeUnavailable,
+        "a fault rebuilding a verified model's factory was blamed on the file");
+    Assert(LocalWhisperService.ClassifyRequestFactoryFault(new InvalidOperationException("bad model"), verifiedOnLoad: false)
+            == LocalWhisperErrorCode.ModelLoadFailed,
+        "the first read of an unverified model must keep the load's split");
+    Assert(LocalWhisperService.ClassifyRequestFactoryFault(new DllNotFoundException("whisper.dll"), verifiedOnLoad: false)
+            == LocalWhisperErrorCode.RuntimeUnavailable,
+        "a native fault on the first read must be the runtime's");
+    return Task.CompletedTask;
+});
 await CheckAsync("a broken model file fails the load only when verification is on", async () =>
 {
     var model = Path.GetTempFileName();
@@ -189,6 +203,15 @@ await CheckAsync("a broken model file fails the load only when verification is o
         var perRequest = await lazy.TranscribeAsync(new LocalWhisperRequest(audio, "en", CreateFactoryOnRequestThread: true));
         Assert(perRequest.Failure?.Code == LocalWhisperErrorCode.ModelLoadFailed,
             $"the per-request factory should report ModelLoadFailed, got {perRequest.Failure?.Code.ToString() ?? "success"}");
+
+        // The ARM64 load: the one factory is made and verified on its own thread,
+        // and a broken file still fails the load as the model's.
+        await using var onThread = new LocalWhisperService();
+        var threadLoad = await onThread.LoadAsync(
+            new LocalWhisperLoadOptions(model, LocalWhisperBackend.Cpu, VerifyModelOnLoad: true, FactoryOnOwnThread: true));
+        Assert(threadLoad.Failure?.Code == LocalWhisperErrorCode.ModelLoadFailed,
+            $"the ARM64 load should report ModelLoadFailed, got {threadLoad.Failure?.Code.ToString() ?? "success"}");
+        Assert(!onThread.IsLoaded && onThread.FactoriesHeld == 0, "a failed ARM64 load left a factory behind");
     }
     finally
     {
@@ -307,11 +330,32 @@ if (args.Length is 2 or 3)
             Assert(!string.IsNullOrWhiteSpace(result.Text), $"chunk {chunk} transcript was empty");
         }
         Assert(service.RequestFactoriesBuilt == 1, $"3 requests built {service.RequestFactoriesBuilt} factories, expected 1");
+        Assert(service.FactoriesHeld == 1, $"the model is held {service.FactoriesHeld} times, expected once");
         var plain = await service.TranscribeAsync(new LocalWhisperRequest(args[1], "en"));
-        Assert(plain.IsSuccess && service.RequestFactoriesBuilt == 1, "the default path touched the ARM64 factory");
+        Assert(plain.IsSuccess && service.RequestFactoriesBuilt == 1, "the default path built another factory");
         Assert((await service.LoadAsync(options)).IsSuccess, "reload failed");
+        Assert(service.FactoriesHeld == 1, "a plain load holds the model other than once");
         var after = await service.TranscribeAsync(new LocalWhisperRequest(args[1], "en", CreateFactoryOnRequestThread: true));
         Assert(after.IsSuccess && service.RequestFactoriesBuilt == 2, "a reload did not drop the kept factory");
+        Assert(service.FactoriesHeld == 1, "the first ARM64 request kept the load's factory");
+    });
+    await CheckAsync("real model: the ARM64 load holds one verified copy for every chunk (PR #1927)", async () =>
+    {
+        await using var service = new LocalWhisperService();
+        var options = new LocalWhisperLoadOptions(args[0], LocalWhisperBackend.Cpu, VerifyModelOnLoad: true, FactoryOnOwnThread: true);
+        var loaded = await service.LoadAsync(options);
+        Assert(loaded.IsSuccess, loaded.Failure?.Message ?? "model load failed");
+        Assert(service.IsLoaded && service.RequestFactoriesBuilt == 1 && service.FactoriesHeld == 1,
+            $"after the load: built {service.RequestFactoriesBuilt}, held {service.FactoriesHeld}, expected 1 and 1");
+        for (var chunk = 0; chunk < 3; chunk++)
+        {
+            var result = await service.TranscribeAsync(new LocalWhisperRequest(args[1], "en", CreateFactoryOnRequestThread: true));
+            Assert(result.IsSuccess && !string.IsNullOrWhiteSpace(result.Text), result.Failure?.Message ?? $"chunk {chunk} transcript was empty");
+        }
+        Assert(service.RequestFactoriesBuilt == 1 && service.FactoriesHeld == 1,
+            $"3 chunks: built {service.RequestFactoriesBuilt}, held {service.FactoriesHeld}, expected 1 and 1");
+        Assert((await service.LoadAsync(options)).IsSuccess, "reload failed");
+        Assert(service.RequestFactoriesBuilt == 2 && service.FactoriesHeld == 1, "a reload did not replace the one copy");
     });
 }
 
