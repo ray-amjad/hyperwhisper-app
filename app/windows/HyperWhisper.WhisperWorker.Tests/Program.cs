@@ -730,6 +730,17 @@ else
     }
 }
 
+await CheckAsync("no fake worker loop or handler faulted", () =>
+{
+    foreach (var fault in FakeProcess.Faults)
+    {
+        Console.WriteLine($"  fake worker fault: {fault}");
+    }
+    return FakeProcess.Faults.IsEmpty
+        ? Task.CompletedTask
+        : throw new InvalidOperationException($"{FakeProcess.Faults.Count} fake worker task(s) faulted");
+});
+
 Console.WriteLine($"{checks - failures}/{checks} tests passed");
 return failures == 0 ? 0 : 1;
 

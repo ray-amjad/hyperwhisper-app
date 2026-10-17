@@ -48,12 +48,18 @@ internal sealed class FakeProcess : IWhisperWorkerProcess
     private int _busy;
     private int _exited;
 
+    /// <summary>
+    /// Exceptions thrown inside any fake's read loop or request handler. The
+    /// harness fails if this is not empty at the end, so no fault goes unseen.
+    /// </summary>
+    public static ConcurrentQueue<Exception> Faults { get; } = new();
+
     public FakeProcess(int id, FakeBehavior behavior, FakeLauncher owner)
     {
         Id = id;
         _behavior = behavior;
         _owner = owner;
-        _ = Task.Run(RunAsync);
+        Observe(Task.Run(RunAsync));
     }
 
     public int Id { get; }
@@ -120,6 +126,13 @@ internal sealed class FakeProcess : IWhisperWorkerProcess
     {
     }
 
+    private static void Observe(Task task) =>
+        task.ContinueWith(
+            t => Faults.Enqueue(t.Exception!.GetBaseException()),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+
     private async Task RunAsync()
     {
         if (_behavior.SendReady) Send(WhisperWorkerProtocol.BuildReady(null, Id));
@@ -144,7 +157,7 @@ internal sealed class FakeProcess : IWhisperWorkerProcess
             // cancel can still be read while it runs.
             // A new request while an earlier one has no reply yet is an overlap.
             if (Interlocked.Increment(ref _busy) > 1) SawOverlap = true;
-            _ = Task.Run(() => (_behavior.Handle ?? FakeBehavior.DefaultHandle)(this, command!));
+            Observe(Task.Run(() => (_behavior.Handle ?? FakeBehavior.DefaultHandle)(this, command!)));
         }
 
         // stdin EOF: the real worker exits.
