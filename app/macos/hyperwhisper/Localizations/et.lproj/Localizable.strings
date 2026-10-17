@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Väljas";
 "settings.general.mediaControl.mode.mute" = "Vaigista heli";
+"settings.general.mediaControl.mode.muffle" = "Summuta heli";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Esita heliefekte";
 "settings.sound.soundEffects.info" = "Esita helisignaale salvestamise alustamisel ja peatamisel.";
 "settings.sound.mediaControl.title" = "Meedia kontroll salvestamise ajal";
-"settings.sound.mediaControl.info" = "Valige, kuidas HyperWhisper käsitleb teist heli salvestamise ajal. 'Väljas' jätab heli muutmata, 'Vaigista heli' vaikib süsteemi väljundi salvestamise ajal ja taastab selle seejärel.";
+"settings.sound.mediaControl.info" = "Valige, kuidas HyperWhisper käsitleb teist heli salvestamise ajal. 'Väljas' jätab heli muutmata, 'Vaigista heli' vaikib süsteemi väljundi salvestamise ajal ja taastab selle seejärel, ja 'Summuta heli' hoiab selle vaikselt mängimas, justkui kõrvalruumist.";
 "settings.sound.autoIncreaseMicVolume.title" = "Suurenda mikrofoni helitugevust automaatselt";
 "settings.sound.autoIncreaseMicVolume.info" = "Seab mikrofoni sisendi helitugevuse automaatselt maksimumile, kui salvestamine algab, seejärel taastab algse taseme, kui salvestamine lõpeb. Kehtib ainult süsteemi vaikimisi sisendseadme kasutamisel.";
 "settings.sound.vad.title" = "Eemalda vaikus enne transkriptsiooni";

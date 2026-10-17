@@ -2201,14 +2201,15 @@ public partial class MainViewModel : ViewModelBase
     }
 
 
-    private void RestoreAudioEnvironment()
+    /// <param name="immediate">Cancel paths: end a muffle at once instead of gliding it open.</param>
+    private void RestoreAudioEnvironment(bool immediate = false)
     {
         var state = _audioEnvironmentState;
         if (state == null)
             return;
 
         _audioEnvironmentState = null;
-        AudioEnvironmentService.Instance.ScheduleRestoreAfterRecording(state);
+        AudioEnvironmentService.Instance.ScheduleRestoreAfterRecording(state, immediate);
     }
 
     private Task RestoreAudioEnvironmentImmediatelyAsync()
@@ -2800,7 +2801,7 @@ public partial class MainViewModel : ViewModelBase
             // Uses Result<T> pattern to handle both success and failure cases
             var stopResult = _recorderService.StopRecording();
             _recorderService.RestoreMicVolume();
-            RestoreAudioEnvironment();
+            RestoreAudioEnvironment(immediate: true);
             ResumeMicrophoneKeepWarm();
             IsRecording = false;
 
@@ -2849,7 +2850,7 @@ public partial class MainViewModel : ViewModelBase
         _durationTimer?.Stop();
         _streamingAudioCapture?.Stop();
         _recorderService.RestoreMicVolume();
-        RestoreAudioEnvironment();
+        RestoreAudioEnvironment(immediate: true);
         ResumeMicrophoneKeepWarm();
         IsRecording = false;
 

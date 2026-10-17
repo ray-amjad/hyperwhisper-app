@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Išjungta";
 "settings.general.mediaControl.mode.mute" = "Nutildyti audio";
+"settings.general.mediaControl.mode.muffle" = "Prislopinti audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Groti garso efektus";
 "settings.sound.soundEffects.info" = "Groti garso signalus, kai įrašymas pradedamas ir sustabdomas.";
 "settings.sound.mediaControl.title" = "Medijos valdymas įrašant";
-"settings.sound.mediaControl.info" = "Pasirinkite, kaip HyperWhisper valdys kitą audio įrašant. 'Išjungta' palieka audio nepakeitą, 'Nutildyti audio' nutildo sistemos išvestį įrašymo metu ir vėliau ją atkuria.";
+"settings.sound.mediaControl.info" = "Pasirinkite, kaip HyperWhisper valdys kitą audio įrašant. 'Išjungta' palieka audio nepakeitą, 'Nutildyti audio' nutildo sistemos išvestį įrašymo metu ir vėliau ją atkuria, o 'Prislopinti audio' leidžia jį tyliai, tarsi iš gretimo kambario.";
 "settings.sound.autoIncreaseMicVolume.title" = "Automatiškai padidinti mikrofo garsumą";
 "settings.sound.autoIncreaseMicVolume.info" = "Automatiškai nustatoma maksimali mikrofo įvesties garsumo lygi pradėjus įrašymą, tada atkuriamas pradinis lygis baigus įrašymui. Taikoma tik naudojant numatytąjį sistemos įvesties įrenginį.";
 "settings.sound.vad.title" = "Pašalinti tylos prieš transkripciją";

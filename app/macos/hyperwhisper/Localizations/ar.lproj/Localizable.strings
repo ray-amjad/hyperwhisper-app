@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "إيقاف";
 "settings.general.mediaControl.mode.mute" = "كتم الصوت";
+"settings.general.mediaControl.mode.muffle" = "إخماد الصوت";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "تشغيل المؤثرات الصوتية";
 "settings.sound.soundEffects.info" = "تشغيل إشارات صوتية عند بدء التسجيل وإيقافه.";
 "settings.sound.mediaControl.title" = "التحكم في الوسائط أثناء التسجيل";
-"settings.sound.mediaControl.info" = "اختر كيفية تعامل HyperWhisper مع الصوت الآخر أثناء التسجيل. 'إيقاف' يترك الصوت دون تغيير، 'كتم الصوت' يسكت مخرجات النظام أثناء التسجيل ويستعيدها بعد ذلك.";
+"settings.sound.mediaControl.info" = "اختر كيفية تعامل HyperWhisper مع الصوت الآخر أثناء التسجيل. 'إيقاف' يترك الصوت دون تغيير، 'كتم الصوت' يسكت مخرجات النظام أثناء التسجيل ويستعيدها بعد ذلك، و'إخماد الصوت' يبقيه يعمل بهدوء، كأنه من الغرفة المجاورة.";
 "settings.sound.autoIncreaseMicVolume.title" = "زيادة مستوى صوت الميكروفون تلقائياً";
 "settings.sound.autoIncreaseMicVolume.info" = "يضبط مستوى صوت إدخال الميكروفون تلقائياً على الحد الأقصى عند بدء التسجيل، ثم يستعيد المستوى الأصلي عند إيقاف التسجيل. ينطبق فقط عند استخدام جهاز الإدخال الافتراضي للنظام.";
 "settings.sound.vad.title" = "إزالة الصمت قبل النسخ";

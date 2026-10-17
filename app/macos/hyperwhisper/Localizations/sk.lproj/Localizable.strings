@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Vypnuté";
 "settings.general.mediaControl.mode.mute" = "Stíšiť zvuk";
+"settings.general.mediaControl.mode.muffle" = "Tlmiť zvuk";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Prehrávať zvukové efekty";
 "settings.sound.soundEffects.info" = "Prehrávať zvukové signály pri spustení a zastavení nahrávania.";
 "settings.sound.mediaControl.title" = "Kontrola médií počas nahrávania";
-"settings.sound.mediaControl.info" = "Zvolte, ako HyperWhisper spracúva iný zvuk počas nahravánia. \"Vypnuté\" zvuk nechá nezmenený, \"Stíšiť zvuk\" stíšuje systémový výstup počas nahravánia a potom ho obnoví.";
+"settings.sound.mediaControl.info" = "Zvolte, ako HyperWhisper spracúva iný zvuk počas nahravánia. \"Vypnuté\" zvuk nechá nezmenený, \"Stíšiť zvuk\" stíšuje systémový výstup počas nahravánia a potom ho obnoví, a \"Tlmiť zvuk\" ho nechá tiho znieť, ako z vedľajšej izby.";
 "settings.sound.autoIncreaseMicVolume.title" = "Automaticky zvýšiť hlasitosť mikrofónu";
 "settings.sound.autoIncreaseMicVolume.info" = "Automaticky nastaví úroveň vstupu mikrofónu na maximum pri spustení nahrávania a potom obnoví pôvodnú úroveň pri zastavení nahrávania. Platí iba pri používaní predvoleného vstupného zariadenia systému.";
 "settings.sound.vad.title" = "Odstrániť ticho pred prepisom";

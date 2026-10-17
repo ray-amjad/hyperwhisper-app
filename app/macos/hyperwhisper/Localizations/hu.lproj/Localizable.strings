@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Ki";
 "settings.general.mediaControl.mode.mute" = "Audio némítás";
+"settings.general.mediaControl.mode.muffle" = "Audio tompítás";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Hangeffektusok lejátszása";
 "settings.sound.soundEffects.info" = "Hangjelzések lejátszása a felvétel indításakor és leállításakor.";
 "settings.sound.mediaControl.title" = "Média vezérlés felvétel közben";
-"settings.sound.mediaControl.info" = "Válaszd ki, hogyan kezelje a HyperWhisper a többi audio-t felvétel közben. 'Ki' változatlanul hagyja az audio-t, 'Audio némítás' elnémítja a rendszer kimenetét felvétel közben és utána visszallítja.";
+"settings.sound.mediaControl.info" = "Válaszd ki, hogyan kezelje a HyperWhisper a többi audio-t felvétel közben. 'Ki' változatlanul hagyja az audio-t, 'Audio némítás' elnémítja a rendszer kimenetét felvétel közben és utána visszallítja, a 'Audio tompítás' halkan szólva hagyja, mintha a szomszéd szobából szólna.";
 "settings.sound.autoIncreaseMicVolume.title" = "Mikrofon hangerő automatikus növelése";
 "settings.sound.autoIncreaseMicVolume.info" = "Automatikusan maximumra állítja a mikrofon bemeneti hangerejét felvétel indításakor, majd visszaállítja az eredeti szintet felvétel leállásakor. Csak a rendszer alapértelmezett bemeneti eszköz használatakor érvényes.";
 "settings.sound.vad.title" = "Csend eltávolítása átírás előtt";

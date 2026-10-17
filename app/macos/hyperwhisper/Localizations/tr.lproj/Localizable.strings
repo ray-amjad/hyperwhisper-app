@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Kapalı";
 "settings.general.mediaControl.mode.mute" = "Sesi Sustur";
+"settings.general.mediaControl.mode.muffle" = "Sesi Kıs";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Ses efektlerini çal";
 "settings.sound.soundEffects.info" = "Kayıt başladığında ve durduğunda sesli uyarılar çal.";
 "settings.sound.mediaControl.title" = "Kaydı sırasında ortam kontrolü";
-"settings.sound.mediaControl.info" = "Kayıt sırasında HyperWhisper'ın diğer sesleri nasıl yönettiğini seçin. 'Kapalı' sesi değişmez bırakır, 'Sesi Sustur' kayıt sırasında sistem sesini kapar ve sonrasında geri yükler.";
+"settings.sound.mediaControl.info" = "Kayıt sırasında HyperWhisper'ın diğer sesleri nasıl yönettiğini seçin. 'Kapalı' sesi değişmez bırakır, 'Sesi Sustur' kayıt sırasında sistem sesini kapar ve sonrasında geri yükler, 'Sesi Kıs' ise sesi bitişik odadan geliyormuş gibi yumuşak çalmaya devam ettirir.";
 "settings.sound.autoIncreaseMicVolume.title" = "Mikrofon sesini otomatik olarak artır";
 "settings.sound.autoIncreaseMicVolume.info" = "Kayıt başladığında mikrofon giriş sesini otomatik olarak maksimuma ayarlar, ardından kaydı durdurulduğunda orijinal seviyeye geri döndürür. Yalnızca sistem varsayılan giriş cihazı kullanıldığında geçerlidir.";
 "settings.sound.vad.title" = "Transkripsiyon öncesi sessizliği kaldır";

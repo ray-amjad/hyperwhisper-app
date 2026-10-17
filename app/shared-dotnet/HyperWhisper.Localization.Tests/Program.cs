@@ -146,7 +146,9 @@ static void AllCatalogsLoad()
     // file is being transcribed instead of "Ready - Press Ctrl+Alt to record").
     // 861 -> 862 (#1754): `menu.mode.more` is new (the Windows tray mode menus cap at 50
     // modes and put the rest behind a "More" entry).
-    Equal(862, PortableLocalizer.BaseKeyCount, "base key count");
+    // 862 -> 863: `settings.sound.mediaControl.muffleAudio` is new (the Windows Sound
+    // settings "Muffle audio" media-control mode).
+    Equal(863, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

@@ -112,7 +112,9 @@ public enum AudioEnvironmentPolicy
 {
     Unchanged,
     DuckOtherAudio,
-    MuteOtherAudio
+    MuteOtherAudio,
+    /// <summary>Keeps other audio playing through a low-pass filter (<see cref="Audio.MuffleFilter"/>), as if from the next room.</summary>
+    MuffleOtherAudio
 }
 
 public interface IAudioEnvironmentSession : IAsyncDisposable

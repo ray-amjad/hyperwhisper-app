@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Aus";
 "settings.general.mediaControl.mode.mute" = "Audio stumm schalten";
+"settings.general.mediaControl.mode.muffle" = "Audio dämpfen";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Soundeffekte abspielen";
 "settings.sound.soundEffects.info" = "Akustische Signale beim Starten und Stoppen der Aufnahme abspielen.";
 "settings.sound.mediaControl.title" = "Medienkontrolle während der Aufnahme";
-"settings.sound.mediaControl.info" = "Wählen Sie aus, wie HyperWhisper während der Aufnahme mit anderen Audiodaten umgeht. „Aus“ lässt den Ton unverändert, „Mute Audio“ schaltet die Systemausgabe während der Aufnahme stumm und stellt sie danach wieder her.";
+"settings.sound.mediaControl.info" = "Wählen Sie aus, wie HyperWhisper während der Aufnahme mit anderen Audiodaten umgeht. „Aus“ lässt den Ton unverändert, „Mute Audio“ schaltet die Systemausgabe während der Aufnahme stumm und stellt sie danach wieder her, und „Audio dämpfen“ lässt ihn leise weiterlaufen, wie aus dem Nebenraum.";
 "settings.sound.autoIncreaseMicVolume.title" = "Mikrofonlautstärke automatisch erhöhen";
 "settings.sound.autoIncreaseMicVolume.info" = "Stellt die Mikrofoneingangslautstärke automatisch auf den Maximalwert ein, wenn die Aufnahme beginnt, und stellt dann den ursprünglichen Pegel wieder her, wenn die Aufnahme stoppt. Gilt nur, wenn das Standardeingabegerät des Systems verwendet wird.";
 "settings.sound.vad.title" = "Entfernen Sie die Stille vor der Transkription";

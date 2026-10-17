@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Pois";
 "settings.general.mediaControl.mode.mute" = "Mykistä ääni";
+"settings.general.mediaControl.mode.muffle" = "Vaimenna ääni";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Toista äänitehosteet";
 "settings.sound.soundEffects.info" = "Toista äänimerkit nauhoituksen alkaessa ja päättyessä.";
 "settings.sound.mediaControl.title" = "Median hallinta nauhoituksen aikana";
-"settings.sound.mediaControl.info" = "Valitse, miten HyperWhisper käsittelee muuta ääntä nauhoituksen aikana. 'Pois' jättää äänen muuttumattomaksi, 'Mykistä ääni' hiljentää järjestelmän ulostulon nauhoituksen aikana ja palauttaa sen sen jälkeen.";
+"settings.sound.mediaControl.info" = "Valitse, miten HyperWhisper käsittelee muuta ääntä nauhoituksen aikana. 'Pois' jättää äänen muuttumattomaksi, 'Mykistä ääni' hiljentää järjestelmän ulostulon nauhoituksen aikana ja palauttaa sen sen jälkeen, ja 'Vaimenna ääni' pitää sen soimassa hiljaa, kuin viereisestä huoneesta.";
 "settings.sound.autoIncreaseMicVolume.title" = "Kasvata mikrofonin äänenvoimakkuutta automaattisesti";
 "settings.sound.autoIncreaseMicVolume.info" = "Asettaa mikrofonin tulon voimakkuuden automaattisesti maksimiin nauhoituksen alkaessa ja palauttaa alkuperäisen tason nauhoituksen päättyessä. Koskee vain järjestelmän oletuslaitetta.";
 "settings.sound.vad.title" = "Poista hiljaisuus ennen transkriptiota";

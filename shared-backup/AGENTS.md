@@ -205,7 +205,7 @@ Linux-only settings go into `platformExtensions.linux.settings` (including `them
 | `pushToTalkDoublePressLock` | Linux push-to-talk latch preference | Bool. |
 | `autoIncreaseMicVolume` | Linux temporary microphone boost | Bool; restored after every recording. |
 | `keepMicrophoneWarm` | Linux microphone keep-warm preference | Bool. |
-| `audioEnvironmentPolicy` | Linux other-audio behavior | `unchanged`, `duck`, or `mute`. |
+| `audioEnvironmentPolicy` | Linux other-audio behavior | `unchanged`, `duck`, `mute`, or `muffle`. |
 | `autoDeleteEnabled` | Linux recording-history retention preference | Bool; enables startup/hourly transcript and app-owned audio cleanup. |
 | `autoDeleteDaysOld` | Linux recording-history retention age | Integer clamped to 1–365 days. |
 | `customEndpoints` | Linux custom post-processing endpoints | Windows-compatible array of `id`, `name`, `endpointURL`, and `modelName`; credentials remain in secure storage and are never exported. |

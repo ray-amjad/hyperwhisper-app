@@ -8,6 +8,8 @@
 	<string>bw+WKGOtnCqIDm0Q9FFlq1hSQnaw0RlIYcnY6uGp0e4=</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>HyperWhisper uses Apple Events to send your transcribed text to apps like Notes (Quick Capture) and to adjust audio routing while recording.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>HyperWhisper muffles other apps' audio while you record when Media control is set to Muffle Audio.</string>
 	<key>NSAccessibilityUsageDescription</key>
 	<string>HyperWhisper needs Accessibility access to support bare modifier keys (Control, Command, FN) for Push to Talk recording.</string>
 	<key>CFBundleLocalizations</key>

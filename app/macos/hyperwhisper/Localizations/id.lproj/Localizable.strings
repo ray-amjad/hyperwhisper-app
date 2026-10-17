@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Nonaktif";
 "settings.general.mediaControl.mode.mute" = "Bisukan Audio";
+"settings.general.mediaControl.mode.muffle" = "Redam Audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Putar efek suara";
 "settings.sound.soundEffects.info" = "Putar isyarat audio saat perekaman dimulai dan berhenti.";
 "settings.sound.mediaControl.title" = "Kontrol media saat merekam";
-"settings.sound.mediaControl.info" = "Pilih bagaimana HyperWhisper menangani audio lain saat Anda merekam. 'Nonaktif' membiarkan audio tidak berubah, 'Bisukan Audio' membungkam output sistem saat merekam dan memulihkannya setelahnya.";
+"settings.sound.mediaControl.info" = "Pilih bagaimana HyperWhisper menangani audio lain saat Anda merekam. 'Nonaktif' membiarkan audio tidak berubah, 'Bisukan Audio' membungkam output sistem saat merekam dan memulihkannya setelahnya, dan 'Redam Audio' tetap memutarnya dengan lembut, seolah dari ruangan sebelah.";
 "settings.sound.autoIncreaseMicVolume.title" = "Tingkatkan volume mikrofon secara otomatis";
 "settings.sound.autoIncreaseMicVolume.info" = "Secara otomatis menyetel volume input mikrofon ke maksimum saat perekaman dimulai, kemudian mengembalikan level asli saat perekaman berhenti. Hanya berlaku saat menggunakan perangkat input default sistem.";
 "settings.sound.vad.title" = "Hapus keheningan sebelum transkripsi";

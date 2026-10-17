@@ -102,6 +102,16 @@ class RecordingLifecycle {
     /// Stores original system volume and paused media players
     private var recordingAudioEnvironmentState: AudioEnvironmentState?
 
+    /// Whether this recording muffled other audio (Muffle Audio mode)
+    private var recordingMuffledAudio = false
+
+    /// Bumped each time a recording goes live and each time one stops, so a
+    /// delayed media-control apply can tell whether its recording is still live.
+    private var recordingGeneration: UInt64 = 0
+
+    /// The delayed media-control apply (after the start chime), if one is pending.
+    private var pendingMediaControlTask: Task<Void, Never>?
+
     /// Original microphone input volume for restoration after recording
     /// Used by the "Automatically increase microphone volume" feature.
     /// Stores the volume level (0.0 to 1.0) before it was increased to max.
@@ -164,12 +174,41 @@ class RecordingLifecycle {
     /// Apply media control settings (mute audio or pause media).
     /// Called AFTER recording starts and AFTER the start sound plays,
     /// so the sound remains audible.
-    func applyMediaControl() {
+    ///
+    /// With a `delay` (the start chime), the apply runs from a task this class
+    /// owns. `stopRecording()` cancels that task, and the apply re-checks that
+    /// the recording it was scheduled for is still the live one, so a quick
+    /// push-to-talk tap that stops inside the delay never mutes or muffles
+    /// other audio after the recording has already ended.
+    func applyMediaControl(after delay: Duration? = nil) {
+        pendingMediaControlTask?.cancel()
+        pendingMediaControlTask = nil
+
+        let generation = recordingGeneration
+        guard let delay else {
+            applyMediaControlIfLive(generation: generation)
+            return
+        }
+        pendingMediaControlTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self else { return }
+            self.pendingMediaControlTask = nil
+            self.applyMediaControlIfLive(generation: generation)
+        }
+    }
+
+    private func applyMediaControlIfLive(generation: UInt64) {
+        guard isRecording, generation == recordingGeneration else {
+            AppLogger.audio.debug("Media control skipped: the recording it was scheduled for has ended")
+            return
+        }
         let mediaControlMode = settingsManager?.audio.mediaControlMode ?? .off
         switch mediaControlMode {
         case .off:
             AppLogger.audio.debug("Media control mode: off - no audio changes")
         case .muteAudio:
+            // Never prepare twice: a second save would record the muted volume as the original.
+            guard recordingAudioEnvironmentState == nil else { return }
             let audioEnvironmentState = audioSessionManager.prepareAudioEnvironment()
             if audioEnvironmentState != nil {
                 self.recordingAudioEnvironmentState = audioEnvironmentState
@@ -177,6 +216,10 @@ class RecordingLifecycle {
             } else {
                 AppLogger.audio.warning("Failed to mute audio environment, continuing recording")
             }
+        case .muffleAudio:
+            guard !recordingMuffledAudio else { return }
+            audioSessionManager.startMuffle()
+            recordingMuffledAudio = true
         }
     }
 
@@ -580,6 +623,7 @@ class RecordingLifecycle {
         self.rawURL = wavURL
         self.finalURL = finalURL
         isRecording = true
+        recordingGeneration &+= 1
         recordingStartTime = Date()
         startDurationTimer()
 
@@ -742,6 +786,13 @@ class RecordingLifecycle {
         // stop that lands during it cannot run a second finalisation of the same file.
         self.isRecording = false
 
+        // A media-control apply still waiting out the start chime belongs to this
+        // recording: cancel it, and bump the generation so it is a no-op even if
+        // it is already past its sleep.
+        recordingGeneration &+= 1
+        pendingMediaControlTask?.cancel()
+        pendingMediaControlTask = nil
+
         // STEP 3 to 3.6 run BEFORE the recorder-stop wait (#1359): that wait can last
         // 5 s when a meter read is stuck, and the user's system audio, mic volume and
         // duration counter must not stay in their recording state for it.
@@ -755,6 +806,10 @@ class RecordingLifecycle {
             audioSessionManager.restoreAudioEnvironment(state)
             AppLogger.audio.info("Audio environment restored after recording")
             self.recordingAudioEnvironmentState = nil
+        }
+        if recordingMuffledAudio {
+            audioSessionManager.stopMuffle()
+            recordingMuffledAudio = false
         }
 
         // STEP 3.6: Restore microphone input volume if we increased it

@@ -305,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Uit";
 "settings.general.mediaControl.mode.mute" = "Audio dempen";
+"settings.general.mediaControl.mode.muffle" = "Audio smoren";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -323,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Geluidseffecten afspelen";
 "settings.sound.soundEffects.info" = "Geluidssignalen afspelen wanneer de opname start en stopt.";
 "settings.sound.mediaControl.title" = "Mediabesturing tijdens opnemen";
-"settings.sound.mediaControl.info" = "Kies hoe HyperWhisper andere audio afhandelt terwijl je opneemt. 'Uit' laat audio onveranderd, 'Audio dempen' zwijgt systeemuitvoer tijdens het opnemen en herstelt het daarna.";
+"settings.sound.mediaControl.info" = "Kies hoe HyperWhisper andere audio afhandelt terwijl je opneemt. 'Uit' laat audio onveranderd, 'Audio dempen' zwijgt systeemuitvoer tijdens het opnemen en herstelt het daarna, en 'Audio smoren' laat het zacht doorspelen, alsof het uit de kamer ernaast komt.";
 "settings.sound.autoIncreaseMicVolume.title" = "Volume microfoon automatisch verhogen";
 "settings.sound.autoIncreaseMicVolume.info" = "Stelt het microfooninvoervolume automatisch in op maximum wanneer opnamen wordt gestart, en herstelt vervolgens het originele niveau wanneer opnamen stopt. Geldt alleen bij gebruik van het standaardinvoerapparaat van het systeem.";
 "settings.sound.vad.title" = "Stilte voor transcriptie verwijderen";
