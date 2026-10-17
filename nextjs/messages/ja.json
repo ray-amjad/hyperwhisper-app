@@ -272,7 +272,31 @@
     "homebrewTitle": "Homebrewでインストール",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "コピー",
-    "copied": "コピーしました！"
+    "copied": "コピーしました！",
+    "linuxSubtitle": "64ビットIntel/AMDシステム向けDebianパッケージ",
+    "downloadLinux": "Linux版をダウンロード",
+    "downloadLinuxVersion": "Linux版 v{version}をダウンロード",
+    "linuxReleaseNotes": "チェックサムとリリースノート",
+    "linuxInstallTitle": "Debianパッケージをインストール",
+    "linuxTargets": "Linux v1は、amd64上のUbuntu 22.04+およびDebian 12+を対象としています。",
+    "linuxReplaceVersion": "VERSIONをダウンロードしたバージョンに置き換えてください。",
+    "linuxInstallCommandLabel": "Debianインストールコマンド",
+    "linuxInputGroupNote": "inputグループに参加した後は、一度ログアウトして再度ログインしてください。参加は任意ですが、グローバルショートカットと自動貼り付けには必要です。",
+    "aptTitle": "APTリポジトリをセルフホスト",
+    "aptBody": "Linuxのリリースには、静的なAPTリポジトリのアーカイブも含まれています。HyperWhisperは現在、公開APTエンドポイントを運用していません。署名付きのセルフホスト設定、デスクトップ連携機能、プライバシーの詳細、アンインストール方法については、Linuxインストールガイドをご覧ください。",
+    "linuxGuideCta": "Linuxインストールガイドを読む"
+  },
+  "olderVersions": {
+    "title": "過去のバージョン",
+    "subtitle": "HyperWhisperのすべてのリリースを閲覧・ダウンロードできます",
+    "errorLoading": "バージョンの読み込み中にエラーが発生しました：{error}",
+    "unknownError": "エラーが発生しました",
+    "loading": "バージョンを読み込み中...",
+    "latest": "最新",
+    "build": "ビルド {number}",
+    "downloadDmg": "DMGをダウンロード",
+    "downloadExe": "EXEをダウンロード",
+    "unknownSize": "不明"
   },
   "purchaseSuccess": {
     "title": "準備完了です！",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "オープンソース。隠すものは何もありません。",
     "body": "HyperWhisperは、デスクトップアプリもCloudバックエンドも含め、Apache-2.0のもとで完全にオープンソースです。マイクに耳を傾けるアプリは、ただ信頼するのではなく、自分で検証できるべきです。すべての行を読み、音声がどこへ行くのかを正確に監査し、決してロックインされないと確信できます。コードはあなたのもので、いつまでも自由にフォークして自分でホストできます。インディーメーカーのRay Amjadがオープンに開発しています。",
-    "cta": "GitHubで見る"
+    "cta": "GitHubで見る",
+    "metaTitle": "オープンソース | HyperWhisper",
+    "metaDescription": "HyperWhisperは、デスクトップアプリもCloudバックエンドも含め、Apache-2.0のもとで完全にオープンソースです。コードを読み、音声の行き先を監査し、フォークして、いつまでも自分でホストできます。",
+    "eyebrow": "オープンソース",
+    "lead": "HyperWhisperは、デスクトップアプリもCloudバックエンドも含め、Apache-2.0のもとで完全にオープンソースになりました。",
+    "intro": "マイクの音声を聞くアプリは、ただ信頼するのではなく、自分で検証できるべきです。だからこそ、私たちはすべてを公開しました。macOS、Windows、Linuxの各アプリからCloud文字起こしバックエンドまで、HyperWhisperのすべてのコードを読み、音声がどこへ送られるのかを正確に確認でき、ロックインされる心配もありません。プロジェクト全体は<license>Apache-2.0ライセンス</license>のもと、<github>GitHub</github>で公開されています。",
+    "whyHeading": "なぜ重要なのか",
+    "whyVerify": "<strong>信頼ではなく、検証を。</strong>すべてのコードを読み、音声がどこへ送られるのかを正確に監査できます。マイクにアクセスするアプリは、鵜呑みにするものではなく、自分で確かめられるものであるべきです。",
+    "whyNoLockIn": "<strong>ロックインなし。</strong>コードはApache-2.0ライセンスです。手元に残すのも、改変するのも、自分の条件で動かすのも自由です。あなたのワークフローが人質に取られることはありません。",
+    "whyFork": "<strong>フォークしてセルフホスト。</strong>リポジトリをクローンして自分でビルドすることも、独自のCloudバックエンドを運用することもできます。必要なものはすべて公開されています。",
+    "whyOpen": "<strong>オープンに開発。</strong>HyperWhisperはインディーメーカーのRay Amjadが公開の場で開発しています。Issue、ディスカッション、リリースはすべてオープンに行われています。",
+    "licenseHeading": "すでにライセンスをご購入済みですか？",
+    "licenseIntro": "HyperWhisperはオープンソースになり、有料の文字起こしはHyperWhisper Cloudのクレジットで利用する形になりました。切り替え前にライセンスをご購入いただいた方には、以下のとおり対応いたします。<mail>{email}</mail>までメールをお送りいただければ、個別に対応いたします。",
+    "licenseRecent": "<strong>購入から30日以内の方：</strong>返金期間内です。理由を問わず、購入代金を全額返金いたします。<refund>ご連絡</refund>いただくだけで大丈夫です。",
+    "licenseOlder": "<strong>購入から30日を超えている方：</strong>お支払いいただいた金額をHyperWhisper Cloudのクレジットに変換いたします。購入代金の全額から、すでにアカウントに追加されている$5分のクレジットを差し引いた額となります。<credits>メールでご連絡</credits>いただければ、残額を反映いたします。",
+    "contributeHeading": "コントリビュートしませんか？",
+    "contributeBody": "バグ報告、機能のアイデア、プルリクエストはいずれも大歓迎です。<github>GitHubで</github>Issueを作成するか、ディスカッションを始めてください。"
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisperが完全にオープンソースになりました",
+    "shortText": "オープンソースになりました",
+    "learnMore": "詳しく見る",
+    "dismiss": "お知らせを閉じる"
   },
   "notFound": {
     "title": "ページが見つかりません",

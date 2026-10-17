@@ -272,7 +272,31 @@
     "homebrewTitle": "Telepítés Homebrew-val",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Másolás",
-    "copied": "Kimásolva!"
+    "copied": "Kimásolva!",
+    "linuxSubtitle": "Debian-csomag 64 bites Intel/AMD rendszerekhez",
+    "downloadLinux": "Letöltés Linuxra",
+    "downloadLinuxVersion": "Letöltés Linuxra (v{version})",
+    "linuxReleaseNotes": "Ellenőrzőösszegek és kiadási megjegyzések",
+    "linuxInstallTitle": "A Debian-csomag telepítése",
+    "linuxTargets": "A Linux v1 az Ubuntu 22.04+ és a Debian 12+ rendszereket támogatja amd64 architektúrán.",
+    "linuxReplaceVersion": "Cseréld le a VERSION szót a letöltött verzióra.",
+    "linuxInstallCommandLabel": "Debian telepítési parancs",
+    "linuxInputGroupNote": "Az input csoporthoz való csatlakozás után jelentkezz ki, majd újra be. A tagság nem kötelező, de a globális billentyűparancsokhoz és az automatikus beillesztéshez szükséges.",
+    "aptTitle": "Saját APT-tároló üzemeltetése",
+    "aptBody": "A Linux-kiadások egy statikus APT-tárolóarchívumot is tartalmaznak. A HyperWhisper jelenleg nem üzemeltet nyilvános APT-végpontot; az aláírt, saját üzemeltetésű beállításról, az asztali integrációról, az adatvédelmi részletekről és az eltávolításról a Linux telepítési útmutatóban olvashatsz.",
+    "linuxGuideCta": "Olvasd el a Linux telepítési útmutatót"
+  },
+  "olderVersions": {
+    "title": "Korábbi verziók",
+    "subtitle": "Böngészd és töltsd le a HyperWhisper összes kiadását",
+    "errorLoading": "Hiba a verziók betöltésekor: {error}",
+    "unknownError": "Hiba történt",
+    "loading": "Verziók betöltése...",
+    "latest": "Legújabb",
+    "build": "Build {number}",
+    "downloadDmg": "DMG letöltése",
+    "downloadExe": "EXE letöltése",
+    "unknownSize": "Ismeretlen"
   },
   "purchaseSuccess": {
     "title": "Minden kész!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Nyilt forraskod. Nincs mit rejtegetni.",
     "body": "A HyperWhisper teljesen nyilt forraskodu az Apache-2.0 alatt — az asztali alkalmazasok es a Cloud hatter egyarant. Egy alkalmazas, amely a mikrofonjat hallgatja, olyan legyen, amelyet ellenorizni tud, nem csupan megbizni benne: olvasson el minden sort, ellenorizze pontosan, hova kerul a hangja, es tudja, hogy soha nem lesz bezarva — a kod az One, hogy orokre forkolja es sajat maga uzemeltesse. Nyiltan keszitette a fuggetlen fejleszto, Ray Amjad.",
-    "cta": "Megtekintes a GitHubon"
+    "cta": "Megtekintes a GitHubon",
+    "metaTitle": "Nyílt forráskód | HyperWhisper",
+    "metaDescription": "A HyperWhisper teljesen nyílt forráskódú az Apache-2.0 licenc alatt — az asztali alkalmazások és a Cloud háttérrendszer egyaránt. Olvassa el a kódot, ellenőrizze, hová kerül a hangja, forkolja, és üzemeltesse saját maga örökre.",
+    "eyebrow": "Nyílt forráskód",
+    "lead": "A HyperWhisper mostantól teljesen nyílt forráskódú az Apache-2.0 licenc alatt — az asztali alkalmazások és a Cloud háttérrendszer egyaránt.",
+    "intro": "Egy alkalmazás, amely a mikrofonját hallgatja, olyan legyen, amelyet ellenőrizni tud, nem csupán megbízni benne. Ezért mindent megnyitottunk. A HyperWhisper minden sorát elolvashatja — a macOS-, Windows- és Linux-alkalmazásokat, valamint a Cloud átírási háttérrendszert —, pontosan láthatja, hová kerül a hangja, és biztos lehet benne, hogy soha nem lesz bezárva. A teljes projekt a <github>GitHubon</github> érhető el, az <license>Apache-2.0 licenc</license> alatt.",
+    "whyHeading": "Miért fontos ez?",
+    "whyVerify": "<strong>Ellenőrizzen, ne vakon bízzon.</strong> Olvasson el minden sort, és ellenőrizze pontosan, hová kerül a hangja. Egy mikrofonhoz hozzáférő alkalmazást meg kell tudnia vizsgálni, nem pedig csak hinnie kell benne.",
+    "whyNoLockIn": "<strong>Nincs bezártság.</strong> A kód Apache-2.0 licencű — az Öné, megtarthatja, átalakíthatja és a saját feltételei szerint futtathatja. A munkafolyamata soha nem válik túszul ejtetté.",
+    "whyFork": "<strong>Forkolja és üzemeltesse saját maga.</strong> Klónozza a repót, buildelje le saját maga, vagy futtassa a saját Cloud háttérrendszerét. Minden, amire szüksége van, nyilvános.",
+    "whyOpen": "<strong>Nyíltan fejlesztve.</strong> A HyperWhispert nyilvánosan fejleszti a független fejlesztő, Ray Amjad. A hibajegyek, a beszélgetések és a kiadások mind nyíltan zajlanak.",
+    "licenseHeading": "Már vásárolt licencet?",
+    "licenseIntro": "A HyperWhisper mostantól nyílt forráskódú, a fizetős átírás pedig HyperWhisper Cloud kreditekkel működik. Ha a váltás előtt vásárolt licencet, így gondoskodunk Önről — csak írjon a <mail>{email}</mail> címre, és kézzel elintézzük.",
+    "licenseRecent": "<strong>Az elmúlt 30 napban vásárolt:</strong> még a visszatérítési időszakon belül van. A teljes vételárat visszatérítjük — kérdések nélkül. Csak <refund>küldjön nekünk egy üzenetet</refund>.",
+    "licenseOlder": "<strong>Több mint 30 napja vásárolt:</strong> a kifizetett összeget HyperWhisper Cloud kreditekre váltjuk — a teljes vételárat, levonva a fiókjához már hozzáadott $5 értékű kreditet. <credits>Írjon nekünk e-mailt</credits>, és jóváírjuk a fennmaradó összeget.",
+    "contributeHeading": "Szeretne hozzájárulni?",
+    "contributeBody": "Hibajelentéseket, funkcióötleteket és pull requesteket egyaránt szívesen fogadunk. Nyisson egy hibajegyet, vagy indítson beszélgetést <github>a GitHubon</github>."
+  },
+  "openSourceBanner": {
+    "text": "A HyperWhisper mostantól teljesen nyílt forráskódú",
+    "shortText": "Mostantól nyílt forráskódú",
+    "learnMore": "További információ",
+    "dismiss": "Közlemény elrejtése"
   },
   "notFound": {
     "title": "Az oldal nem található",
