@@ -220,11 +220,15 @@ public static class CloudTranscriptionProviderExtensions
     ///
     /// Call this only where the mode is a cloud mode. A local mode carries a
     /// null <c>CloudProvider</c> on purpose (<c>LocalModeModel.ApplyOnDevice</c>).
+    ///
+    /// The blank rule is the shared core's
+    /// (<c>cloud_stt_effective_mode_cloud_provider</c>, issue #1709), read through
+    /// <c>SharedCoreBridge.EffectiveModeCloudProvider</c> exactly as the Linux
+    /// head and macOS read it, so the three heads cannot drift apart. A
+    /// non-blank value is parsed as stored, as before.
     /// </summary>
     public static CloudTranscriptionProvider FromModeCloudProvider(string? identifier)
-        => string.IsNullOrWhiteSpace(identifier)
-            ? CloudTranscriptionProvider.HyperWhisperCloud
-            : FromIdentifier(identifier);
+        => FromIdentifier(global::HyperWhisper.SharedCore.SharedCoreBridge.EffectiveModeCloudProvider(identifier));
 
     /// <summary>
     /// Parses a <c>cloud-stt-catalog.json</c> <c>sttProvider</c> value — the
