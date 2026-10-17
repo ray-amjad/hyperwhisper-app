@@ -69,13 +69,39 @@ export function redactAccountKeyFromEvent<T extends RedactableEvent | null>(
   return event;
 }
 
+// The query parameters that carry the Account Key into a page: `licenseKey`
+// (`/user/sign-in`) and `license_key` (`/credits`, `/checkout`). Any other
+// parameter counts too when its decoded value holds a key, like the legacy
+// `/credits?id=HW-…` or a key nested in `returnTo`. Only the full key shape
+// counts there, so `utm_campaign=hw-launch` stays.
+const ACCOUNT_KEY_PARAMS = ["licenseKey", "license_key"];
+const HOLDS_ACCOUNT_KEY = new RegExp(ACCOUNT_KEY_PATTERN.source, "i");
+
+function accountKeyParamNames(searchParams: URLSearchParams): string[] {
+  return Array.from(new Set(searchParams.keys())).filter(
+    (name) =>
+      ACCOUNT_KEY_PARAMS.includes(name) ||
+      searchParams.getAll(name).some((value) => HOLDS_ACCOUNT_KEY.test(value)),
+  );
+}
+
+/** Whether `url` carries an Account Key query parameter. */
+export function hasAccountKeyParam(url: string): boolean {
+  return accountKeyParamNames(new URL(url).searchParams).length > 0;
+}
+
 /**
- * The same URL with the `licenseKey` query parameter removed, for
+ * The same URL with its Account Key query parameters removed (`licenseKey`,
+ * `license_key`, and any parameter whose value holds a key), for
  * `history.replaceState`, so the key leaves the address bar and the browser
  * history. Path, other parameters and fragment are kept.
  */
-export function withoutLicenseKeyParam(url: string): string {
+export function withoutAccountKeyParams(url: string): string {
   const parsed = new URL(url);
-  parsed.searchParams.delete("licenseKey");
+
+  for (const name of accountKeyParamNames(parsed.searchParams)) {
+    parsed.searchParams.delete(name);
+  }
+
   return parsed.pathname + parsed.search + parsed.hash;
 }
