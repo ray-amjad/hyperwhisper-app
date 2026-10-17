@@ -5,6 +5,8 @@ import { Button } from "@heroui/button";
 import { Download, Calendar, HardDrive, Monitor, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
+
 type Platform = "mac" | "windows";
 
 /**
@@ -51,20 +53,7 @@ export default function DownloadsPage() {
   const [listPlatform, setListPlatform] = useState<Platform>("mac");
   // Flips true two frames after loading ends, so the content paints at its
   // hidden/dimmed opacity first and the CSS transition has a start value.
-  const [revealed, setRevealed] = useState(false);
-
-  useEffect(() => {
-    if (loading) {
-      setRevealed(false);
-
-      return;
-    }
-    let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => setRevealed(true));
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [loading]);
+  const revealed = useRevealAfterLoad(loading);
 
   /**
    * Fetches and parses the appcast.xml file on component mount
