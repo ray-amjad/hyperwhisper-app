@@ -349,6 +349,84 @@ struct CatalogConformanceVectorTests {
         #expect(medical.subtracting([LanguageData.automaticCode]) == medicalVendor.subtracting([LanguageData.automaticCode]))
     }
 
+    /// The codes the Mode editor's language picker offers for a BYOK
+    /// provider and model, built the way `ModeEditorView` builds them.
+    private static func byokPickerCodes(_ provider: CloudProvider, modelId: String) -> [String] {
+        LanguageSelectionView.allowedLanguageInfos(
+            provider: .cloud,
+            model: modelId,
+            cloudProviderId: provider.rawValue,
+            cloudModelId: modelId,
+            cloudTierId: ModeEditorView.languageFilterCatalogEntryId(
+                cloudProvider: provider,
+                cloudTier: .fromStorageValue(nil), // ignored off HyperWhisper Cloud
+                modelId: modelId
+            )
+        ).map(\.code)
+    }
+
+    @Test("The BYOK Mode editor picker offers a catalogued model's catalog set, not every language (#1942)")
+    func byokPickerFollowsTheCatalog() throws {
+        let vectors = try Self.vectors().pickerLanguageCodes
+        let all = Set(LanguageData.allLanguages.map(\.code))
+
+        // The issue's two models: no STTCapabilities row, and every language before.
+        let openai = try #require(vectors.first { $0.id == "openaiWhisper" }?.codes)
+        for modelId in ["gpt-transcribe", "gpt-4o-mini-transcribe-2025-12-15"] {
+            #expect(STTCapabilities.languages(providerId: "openai", modelId: modelId).isEmpty)
+            #expect(
+                ModeEditorView.languageFilterCatalogEntryId(cloudProvider: .openai, cloudTier: .fromStorageValue(nil), modelId: modelId)
+                    == "openaiWhisper"
+            )
+            let got = Self.byokPickerCodes(.openai, modelId: modelId)
+            #expect(Set(got) == Self.tierRows(openai), "\(modelId): the picker must offer the catalog set")
+            #expect(got.count < LanguageData.allLanguages.count, "\(modelId) must not offer every language")
+            #expect(got.first == LanguageData.automaticCode)
+        }
+
+        // Every BYOK model the app lists: a per-model row wins; else a
+        // catalogued model gets its entry's set; else (not catalogued, or the
+        // catalog set is unverified) the full list, as before.
+        var catalogChecked = 0
+        for model in CloudTranscriptionModels.availableModels where model.provider != .hyperwhisper {
+            let label = "\(model.provider.rawValue)/\(model.id)"
+            let got = Set(Self.byokPickerCodes(model.provider, modelId: model.id))
+            let perModel = STTCapabilities.languages(providerId: model.provider.rawValue, modelId: model.id)
+            let entryId = CloudSTTCatalog.shared.byokEntryId(cloudProvider: model.provider.rawValue, modelId: model.id)
+            let codes = entryId.flatMap { id in vectors.first { $0.id == id }?.codes }
+            if !perModel.isEmpty {
+                #expect(
+                    got.subtracting([LanguageData.automaticCode])
+                        == Set(perModel.map(\.code)).subtracting([LanguageData.automaticCode]),
+                    "\(label): the picker must offer the model's own set"
+                )
+            } else if let codes {
+                #expect(got == Self.tierRows(codes), "\(label): the picker must offer the catalog set")
+                catalogChecked += 1
+            } else {
+                #expect(got == all, "\(label): an uncatalogued model keeps the full list")
+            }
+        }
+        #expect(catalogChecked >= 2, "the BYOK catalog path checked only \(catalogChecked) models")
+    }
+
+    @Test("A BYOK provider resolves only the catalog entry that lists its model (#1942)")
+    func byokEntryIdNeedsProviderAndModel() {
+        let catalog = CloudSTTCatalog.shared
+        #expect(catalog.byokEntryId(cloudProvider: "openai", modelId: "gpt-transcribe") == "openaiWhisper")
+        #expect(catalog.byokEntryId(cloudProvider: "OpenAI", modelId: "GPT-Transcribe") == "openaiWhisper")
+        // A model the catalog does not list for that provider resolves nothing.
+        #expect(catalog.byokEntryId(cloudProvider: "openai", modelId: "not-a-model") == nil)
+        #expect(catalog.byokEntryId(cloudProvider: "groq", modelId: "gpt-transcribe") == nil)
+        #expect(catalog.byokEntryId(cloudProvider: "", modelId: "gpt-transcribe") == nil)
+        // HyperWhisper Cloud keeps the selected tier.
+        #expect(
+            ModeEditorView.languageFilterCatalogEntryId(
+                cloudProvider: .hyperwhisper, cloudTier: .openaiWhisper, modelId: "gpt-transcribe"
+            ) == "openaiWhisper"
+        )
+    }
+
     @Test("models-catalog lookups match the shared vectors")
     func modelsEntriesMatchTheVectors() throws {
         let expected = try Self.vectors().modelsEntries
