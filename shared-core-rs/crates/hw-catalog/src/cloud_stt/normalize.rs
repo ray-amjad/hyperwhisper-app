@@ -60,6 +60,32 @@ impl CloudSttCatalog {
             accuracy_tier: None,
         }
     }
+
+    /// The STT provider a CLOUD mode actually runs on, given its stored
+    /// `cloudProvider`. This is the read-side rule every head shares (#1709):
+    ///
+    /// - `None`, `""` or whitespace only → `"hyperwhisper"` (HyperWhisper
+    ///   Cloud). `openapi.yaml` lets `POST /modes` omit `cloudProvider`, older
+    ///   builds stored null, and macOS and Windows (#1521) already read the
+    ///   omission as HyperWhisper Cloud.
+    /// - anything else → [`Self::normalize_cloud_provider`]'s `provider`
+    ///   unchanged: legacy aliases folded to `"hyperwhisper"`, everything else
+    ///   ASCII-lowercased. A non-blank unknown id stays what it is (a bad
+    ///   value, not an omitted one), so the caller's parser still rejects it.
+    ///
+    /// Call it only for a mode whose provider type is cloud: a local mode
+    /// carries a null `cloudProvider` on purpose. It is a READ rule — storage,
+    /// backup and `GET /modes` keep the blank value (`normalize_cloud_provider`
+    /// is the storage rule and deliberately passes blank through).
+    pub fn effective_mode_cloud_provider(&self, value: Option<&str>) -> String {
+        match value {
+            Some(v) if !v.trim().is_empty() => self
+                .normalize_cloud_provider(Some(v))
+                .provider
+                .unwrap_or_else(|| v.to_ascii_lowercase()),
+            _ => "hyperwhisper".to_string(),
+        }
+    }
 }
 
 /// Result of [`CloudSttCatalog::normalize_cloud_provider`]. `accuracy_tier` is

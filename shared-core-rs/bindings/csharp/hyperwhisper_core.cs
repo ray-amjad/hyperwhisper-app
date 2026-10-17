@@ -1338,6 +1338,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1656,6 +1658,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_default_model_id(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_effective_mode_cloud_provider(RustBuffer @value,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2947,6 +2953,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_effective_mode_cloud_provider(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_entries(
     );
 
@@ -4198,6 +4208,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id();
             if (checksum != 30462) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id` checksum `30462`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_effective_mode_cloud_provider();
+            if (checksum != 47299) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_effective_mode_cloud_provider` checksum `47299`, library returned `{checksum}`");
             }
         }
         {
@@ -17328,6 +17344,21 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterOptionalString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_default_model_id(FfiConverterString.INSTANCE.Lower(@id), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The STT provider a CLOUD mode runs on, given its stored `cloudProvider`:
+    /// null, empty or whitespace means `"hyperwhisper"` (HyperWhisper Cloud);
+    /// anything else is `cloud_stt_normalize_cloud_provider`'s folded, lowercased
+    /// provider. A read rule only: storage and `GET /modes` keep the blank value.
+    /// Call it only for a cloud mode — a local mode's null is deliberate.
+    /// </summary>
+    public static string CloudSttEffectiveModeCloudProvider(string? @value) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_effective_mode_cloud_provider(FfiConverterOptionalString.INSTANCE.Lower(@value), ref _status)
 ));
     }
 

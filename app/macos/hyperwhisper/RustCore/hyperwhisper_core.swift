@@ -16517,6 +16517,20 @@ public func cloudSttDefaultModelId(id: String) -> String? {
 })
 }
 /**
+ * The STT provider a CLOUD mode runs on, given its stored `cloudProvider`:
+ * null, empty or whitespace means `"hyperwhisper"` (HyperWhisper Cloud);
+ * anything else is `cloud_stt_normalize_cloud_provider`'s folded, lowercased
+ * provider. A read rule only: storage and `GET /modes` keep the blank value.
+ * Call it only for a cloud mode — a local mode's null is deliberate.
+ */
+public func cloudSttEffectiveModeCloudProvider(value: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_effective_mode_cloud_provider(
+        FfiConverterOptionString.lower(value),$0
+    )
+})
+}
+/**
  * Every cloud STT provider row, in catalog order.
  */
 public func cloudSttEntries() -> [SttEntry] {
@@ -19174,6 +19188,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id() != 30462) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_effective_mode_cloud_provider() != 47299) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_entries() != 14647) {
