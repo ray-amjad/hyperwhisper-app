@@ -543,11 +543,10 @@ class TranscriptionProviderRouter {
             modelString = m
         case .parakeet:
             let requestedModelId = ParakeetModelManager.Constants.modelIdForSelection(model)
+            // An unknown model is a request mistake, not an outage (issue
+            // #1919): MODEL_NOT_FOUND, not ENGINE_UNAVAILABLE "Try again later".
             guard let canonicalModelId = ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) else {
-                throw TranscriptionError.providerNotAvailable(
-                    provider: "Parakeet",
-                    reason: "Unknown Parakeet model '\(requestedModelId)'"
-                )
+                throw TranscribeEndpoint.APIInputError.unknownParakeetModel(requestedModelId)
             }
             modelString = canonicalModelId
         // The four `nemotron*` spellings live in the shared table now;
@@ -556,10 +555,7 @@ class TranscriptionProviderRouter {
         case .nemotron:
             let requestedModelId = NemotronModelManager.Constants.modelIdForSelection(model)
             guard let canonicalModelId = NemotronModelManager.Constants.canonicalModelId(for: requestedModelId) else {
-                throw TranscriptionError.providerNotAvailable(
-                    provider: "Nemotron",
-                    reason: "Unknown Nemotron model '\(requestedModelId)'"
-                )
+                throw TranscribeEndpoint.APIInputError.unknownNemotronModel(requestedModelId)
             }
             modelString = canonicalModelId
         case .qwen3Asr:
