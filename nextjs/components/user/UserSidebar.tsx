@@ -133,7 +133,7 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
       </div>
       <div>
         <h1 className="text-white font-semibold">HyperWhisper</h1>
-        <p className="text-gray-500 text-xs">
+        <p className="text-gray-400 text-xs">
           {isAdmin ? "Admin Dashboard" : "Dashboard"}
         </p>
       </div>

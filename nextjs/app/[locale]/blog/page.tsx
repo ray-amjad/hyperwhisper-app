@@ -73,7 +73,7 @@ export default async function BlogPage({ params }: Props) {
           >
             <div className="flex min-h-[320px] flex-col justify-between p-7 md:p-9">
               <div>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-400">
                   {formatLongUTCDate(featuredPost.frontMatter.date)}
                 </p>
                 <h2 className="mt-4 text-3xl font-semibold leading-tight text-white md:text-4xl">
@@ -119,7 +119,7 @@ export default async function BlogPage({ params }: Props) {
               key={`${post.locale}-${post.slug}`}
               className="rounded-lg border border-gray-800 bg-gray-900/40 p-6 transition hover:border-purple-500/50 hover:bg-gray-900/70"
             >
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-400">
                 {formatLongUTCDate(post.frontMatter.date)}
               </p>
               <h2 className="mt-3 text-xl font-semibold leading-snug text-white">

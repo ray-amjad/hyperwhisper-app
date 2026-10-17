@@ -261,7 +261,7 @@ export default function SignInClient() {
                   required
                   value={licenseKey}
                   onChange={(e) => setLicenseKey(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-mono tracking-wide"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-mono tracking-wide"
                   placeholder="HW-XXXX-XXXX-XXXX-XXXX"
                   /*
                     `off` is deliberate: the Account Key is a credential and we do not want a
@@ -272,7 +272,7 @@ export default function SignInClient() {
                   autoComplete="off"
                   spellCheck={false}
                 />
-                <p className="text-gray-500 text-xs mt-2">
+                <p className="text-gray-400 text-xs mt-2">
                   Enter the Account Key from your purchase confirmation
                 </p>
               </div>
@@ -324,10 +324,10 @@ export default function SignInClient() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       placeholder="your@email.com"
                     />
-                    <p className="text-gray-500 text-xs mt-2">
+                    <p className="text-gray-400 text-xs mt-2">
                       Use the same email you used to purchase your license
                     </p>
                   </div>

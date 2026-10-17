@@ -81,7 +81,7 @@ export default function PricingSection() {
                     {t("byo.title")}
                   </h3>
                 </div>
-                <p className="text-sm text-gray-500 mb-6">
+                <p className="text-sm text-gray-400 mb-6">
                   {t("byo.subtitle")}
                 </p>
                 <ul className="space-y-3 mb-8">
@@ -93,7 +93,7 @@ export default function PricingSection() {
                       {feature.included ? (
                         <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                       ) : (
-                        <X className="w-4 h-4 text-gray-600 mt-0.5 flex-shrink-0" />
+                        <X className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                       )}
                       <span
                         className={
