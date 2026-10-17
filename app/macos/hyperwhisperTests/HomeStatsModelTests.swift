@@ -169,6 +169,30 @@ struct HomeStatsModelTests {
         #expect(await waitUntil { model.figures.monthWords == 10 })
     }
 
+    @Test("leaving Home during the debounce waits for the next visit")
+    func leavingDuringTheDebounceSkipsTheReload() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        try insert(sampleRows, into: persistence.container)
+        let model = HomeStatsModel(container: persistence.container, debounce: .milliseconds(200))
+
+        model.homeAppeared(typingSpeed: 40)
+        #expect(await waitUntil { model.figures.monthWords == 7 })
+
+        try insert(
+            [Row(text: "ten eleven twelve", date: now, duration: 2, status: "completed")],
+            into: persistence.container)
+        // Let the save notification reach the main actor, then leave Home
+        // before the debounce ends.
+        try await Task.sleep(for: .milliseconds(50))
+        model.homeDisappeared()
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(model.loadCount == 1)
+
+        model.homeAppeared(typingSpeed: 40)
+        #expect(model.loadCount == 2)
+        #expect(await waitUntil { model.figures.monthWords == 10 })
+    }
+
     @Test("a save into another container does not wake the model")
     func saveIntoAnotherContainerIsIgnored() async throws {
         let persistence = PersistenceController(inMemory: true)

@@ -112,7 +112,9 @@ final class HomeStatsModel: ObservableObject {
         pendingRecompute?.cancel()
         pendingRecompute = Task { [weak self, debounce] in
             try? await Task.sleep(for: debounce)
-            guard !Task.isCancelled, let self, self.isStale else { return }
+            // Home may have closed during the debounce: then the next visit
+            // recomputes, as for any save while Home is hidden.
+            guard !Task.isCancelled, let self, self.isStale, self.visibleCount > 0 else { return }
             self.recompute(typingSpeed: self.lastTypingSpeed ?? 40)
         }
     }
