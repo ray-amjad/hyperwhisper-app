@@ -4,6 +4,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using HyperWhisper.Services;
+using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Views.Windows;
 
@@ -106,8 +107,14 @@ public partial class FileTranscriptionProgressWindow : Window
         _indeterminateTimer.Tick += (s, e) => UpdateIndeterminateUI();
         ProgressFill.RenderTransform = _fillOffset;
 
-        // Position window at center of screen
-        PositionWindow();
+        // Centred on the primary monitor when shown (ShowProgress), and again
+        // when its DPI changes: a long job can outlive a display-scale change, and
+        // this window cannot be dragged (issue #1501). Deferred, because WPF moves
+        // the window to the rectangle Windows suggests after it raises DpiChanged.
+        DpiChanged += (s, e) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (IsVisible) PositionWindow();
+        }));
 
         // Make window non-activating after it's loaded
         Loaded += (s, e) => MakeNonActivating();
@@ -146,6 +153,7 @@ public partial class FileTranscriptionProgressWindow : Window
             CancelRequested += (s, e) => onCancel();
         }
 
+        PositionWindow();
         Show();
         LoggingService.Debug($"FileTranscriptionProgressWindow: Shown - {fileName}");
     }
@@ -212,9 +220,10 @@ public partial class FileTranscriptionProgressWindow : Window
 
     private void PositionWindow()
     {
-        var screen = SystemParameters.WorkArea;
-        Left = (screen.Width - Width) / 2;
-        Top = (screen.Height - Height) / 2;
+        // The primary monitor's work area in its own DIP, not
+        // SystemParameters.WorkArea, which keeps the DPI the app started at.
+        MonitorWorkArea.Place(this, MonitorWorkArea.Primary, screen =>
+            new Point((screen.Width - Width) / 2, (screen.Height - Height) / 2));
     }
 
     private void MakeNonActivating()

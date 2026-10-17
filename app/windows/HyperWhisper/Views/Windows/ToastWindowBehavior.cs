@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Media.Animation;
+using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Views.Windows;
 
@@ -21,6 +22,33 @@ internal static class ToastWindowBehavior
 
         return null;
     }
+
+    /// <summary>
+    /// The overlay's bounds in the DIP of the monitor it is on: the unit
+    /// <see cref="MonitorWorkArea.Place"/> hands a toast's placement. Left/Top
+    /// are in the overlay's own DIP, which is that monitor's once it has settled
+    /// there; they are rebased in case it has not (issue #1501).
+    /// </summary>
+    public static Rect OverlayBounds(Window overlay)
+    {
+        var width = overlay.ActualWidth > 0 ? overlay.ActualWidth : overlay.Width;
+        var height = overlay.ActualHeight > 0 ? overlay.ActualHeight : overlay.Height;
+        var topLeft = new Point(overlay.Left, overlay.Top);
+
+        if (MonitorWorkArea.OfWindow(overlay) is { } monitor)
+            topLeft = MonitorWorkArea.Rebase(topLeft, MonitorWorkArea.WindowScale(overlay), monitor.Scale);
+
+        return new Rect(topLeft.X, topLeft.Y, width, height);
+    }
+
+    /// <summary>
+    /// Drops the slide animation's hold on <see cref="Window.TopProperty"/>.
+    /// AnimateIn and AnimateOut end with FillBehavior.HoldEnd, which keeps the
+    /// animated Top over any value set later, so a re-used toast would otherwise
+    /// reappear where it was first shown, in whatever DPI that was.
+    /// </summary>
+    public static void ReleasePosition(Window window) =>
+        window.BeginAnimation(Window.TopProperty, null);
 
     public static void AnimateIn(Window window, UIElement content, double slideDistance)
     {

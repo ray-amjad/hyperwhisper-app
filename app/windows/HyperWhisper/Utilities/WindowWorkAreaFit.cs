@@ -191,13 +191,13 @@ internal static class WindowWorkAreaFit
             // window is really shown and released when it closes. A window that is
             // built and never shown (the smoke suite builds several) holds nothing.
             //
-            // Two sources, because a display change arrives in two shapes:
-            //  * DisplaySettingsChanged: resolution, scale, a monitor added or
-            //    removed. The app is system-DPI aware (per-monitor awareness is
-            //    issue #1501), so a scale change raises no DpiChanged on the window.
+            // Three sources, because a display change arrives in three shapes:
+            //  * DpiChanged (wired in the constructor): the window's monitor
+            //    changed scale, or the window moved to a monitor with another one.
+            //    The app is per-monitor DPI aware, so WPF raises it.
+            //  * DisplaySettingsChanged: resolution, a monitor added or removed.
             //  * SystemParameters "WorkArea": the taskbar moved, resized or toggled
             //    auto-hide, which changes the work area and nothing else.
-            // DpiChanged is wired as well, for when #1501 lands.
             SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
             SystemParameters.StaticPropertyChanged += OnSystemParameterChanged;
             _subscribed = true;
@@ -351,22 +351,12 @@ internal static class WindowWorkAreaFit
     }
 
     /// <summary>
-    /// The work area of the monitor <paramref name="window"/> is on, in DIP (the
-    /// unit of <see cref="Window.Left"/> and <see cref="Window.Width"/>). Falls
-    /// back to the primary display before the window has a handle.
+    /// The work area of the monitor <paramref name="window"/> is on, in the
+    /// window's own DIP (the unit of <see cref="Window.Left"/> and
+    /// <see cref="Window.Width"/>). Falls back to the primary display before the
+    /// window has a handle.
     /// </summary>
-    private static Rect CurrentWorkAreaDip(Window window)
-    {
-        var hwnd = new WindowInteropHelper(window).Handle;
-        if (hwnd == IntPtr.Zero)
-            return SystemParameters.WorkArea; // already DIP, primary display only
-
-        // Fully qualified: the project uses WinForms alongside WPF.
-        var area = System.Windows.Forms.Screen.FromHandle(hwnd).WorkingArea; // physical pixels
-        var (scaleX, scaleY) = DpiScale(window);
-
-        return new Rect(area.Left / scaleX, area.Top / scaleY, area.Width / scaleX, area.Height / scaleY);
-    }
+    private static Rect CurrentWorkAreaDip(Window window) => MonitorWorkArea.WorkAreaDip(window);
 
     private static (double X, double Y) DpiScale(Window window)
     {
