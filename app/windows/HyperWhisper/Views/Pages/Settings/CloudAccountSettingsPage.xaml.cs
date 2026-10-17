@@ -18,6 +18,7 @@ using HyperWhisper.Services;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using LicenseManager = HyperWhisper.Services.LicenseManager;
+using AccountKeyFormat = HyperWhisper.CloudAccount.AccountKeyFormat;
 using LicenseStatus = HyperWhisper.Models.LicenseStatus;
 
 namespace HyperWhisper.Views.Pages.Settings;
@@ -73,6 +74,7 @@ public partial class CloudAccountSettingsPage : Page
         CreditsRefreshButton.Visibility = isLicensed ? Visibility.Visible : Visibility.Collapsed;
 
         LicenseErrorText.Visibility = Visibility.Collapsed;
+        UpdateActivateState();
 
         // Expired/Invalid: keep the activation view but explain WHY the customer
         // landed here instead of showing a fresh-install screen. The activation
@@ -396,7 +398,8 @@ public partial class CloudAccountSettingsPage : Page
 
     private async void ActivateLicense_Click(object sender, RoutedEventArgs e)
     {
-        var licenseKey = LicenseKeyBox.Text?.Trim();
+        // Trimmed: a key pasted from an email with a trailing newline is sent without it.
+        var licenseKey = AccountKeyFormat.Normalize(LicenseKeyBox.Text);
 
         if (string.IsNullOrEmpty(licenseKey))
         {
@@ -404,6 +407,14 @@ public partial class CloudAccountSettingsPage : Page
             return;
         }
 
+        // #1489: the button is already off for this text; a stray click sends nothing.
+        if (!AccountKeyFormat.IsPlausible(licenseKey))
+        {
+            UpdateActivateState();
+            return;
+        }
+
+        _isActivating = true;
         ActivateLicenseButton.IsEnabled = false;
         ActivateLicenseButton.Content = Loc.S("license.button.activating");
         LicenseErrorText.Visibility = Visibility.Collapsed;
@@ -431,8 +442,9 @@ public partial class CloudAccountSettingsPage : Page
         }
         finally
         {
-            ActivateLicenseButton.IsEnabled = true;
+            _isActivating = false;
             ActivateLicenseButton.Content = Loc.S("license.button.activate");
+            UpdateActivateState();
         }
     }
 
@@ -457,6 +469,24 @@ public partial class CloudAccountSettingsPage : Page
     private void LicenseKeyBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         LicenseErrorText.Visibility = Visibility.Collapsed;
+        UpdateActivateState();
+    }
+
+    /// <summary>True while an activation started from this page is in flight.</summary>
+    private bool _isActivating;
+
+    /// <summary>
+    /// #1489: Activate is on only for text that could be a key (<see cref="AccountKeyFormat"/>),
+    /// and the hint under the field shows for text that cannot be one. An empty field shows no
+    /// hint; the disabled button is enough there.
+    /// </summary>
+    private void UpdateActivateState()
+    {
+        var text = LicenseKeyBox.Text;
+        ActivateLicenseButton.IsEnabled = !_isActivating && AccountKeyFormat.IsPlausible(text);
+        LicenseKeyFormatHint.Visibility = AccountKeyFormat.ShowsHint(text)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void ShowLicenseError(string message)

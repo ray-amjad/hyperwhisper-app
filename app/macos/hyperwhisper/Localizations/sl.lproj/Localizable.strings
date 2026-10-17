@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Zlepi iz odložišča";
 "settings.license.clearInput" = "Počisti";
+"license.error.keyFormat" = "To ni videti kot ključ računa.";
 "settings.license.recovery.prompt" = "Pozabil si svoj ključ licence?";
 "settings.license.recovery.button" = "Pojdi na portal za stranke";
 "settings.license.daily.title" = "Dnevni prepis";

@@ -144,6 +144,13 @@ struct CloudAccountSettingsSection: View {
                             .onChange(of: licenseKeyInput) { _, _ in
                                 licenseManager.dismissLastError()
                             }
+                        // #1489: text that cannot be a key keeps Activate off and says so.
+                        if LicenseKeyFormat.showsHint(licenseKeyInput) {
+                            Text(LocalizedStringKey("license.error.keyFormat"))
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         HStack(spacing: 12) {
                             Button(action: pasteOrClearInput) {
                                 if licenseKeyInput.isEmpty {
@@ -478,6 +485,7 @@ struct CloudAccountSettingsSection: View {
         let titleKey = licenseManager.isValidating ? "license.button.activating" : "license.button.activate"
         return Button(LocalizedStringKey(titleKey)) {
             Task {
+                // LicenseManager trims the key and refuses text that cannot be one (#1489).
                 let result = await licenseManager.activateLicense(licenseKeyInput)
                 if result.isValid {
                     showLicenseSuccess = true
@@ -488,7 +496,7 @@ struct CloudAccountSettingsSection: View {
             }
         }
         .buttonStyle(.borderedProminent)
-        .disabled(licenseKeyInput.isEmpty || licenseManager.isValidating)
+        .disabled(!LicenseKeyFormat.isPlausible(licenseKeyInput) || licenseManager.isValidating)
     }
 
     private func pasteOrClearInput() {

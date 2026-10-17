@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Indsæt fra udklipsholder";
 "settings.license.clearInput" = "Ryd";
+"license.error.keyFormat" = "Det ligner ikke en kontonøgle.";
 "settings.license.recovery.prompt" = "Har du glemt din licensnøgle?";
 "settings.license.recovery.button" = "Gå til kundeportalen";
 "settings.license.daily.title" = "Daglig transskription";

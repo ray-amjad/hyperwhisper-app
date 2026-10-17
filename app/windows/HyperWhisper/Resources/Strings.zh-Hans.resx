@@ -1383,6 +1383,9 @@
   <data name="license.error.enterKey" xml:space="preserve">
     <value>请输入许可证密钥。</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>这看起来不像账户密钥。</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
