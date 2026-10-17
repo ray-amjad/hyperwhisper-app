@@ -2200,8 +2200,6 @@ internal static class Program
                 const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
                 var isReady = typeof(MainViewModel).GetMethod("IsLocalProviderReady", all, new[] { typeof(Mode) })
                     ?? throw new InvalidOperationException("MainViewModel.IsLocalProviderReady(Mode) is gone; update this test");
-                var factoryField = typeof(TranscriptionService).GetField("_whisperFactory", all)
-                    ?? throw new InvalidOperationException("TranscriptionService._whisperFactory is gone; update this test");
                 var loadedPath = typeof(TranscriptionService).GetProperty("LoadedModelPath", all)
                     ?? throw new InvalidOperationException("TranscriptionService.LoadedModelPath is gone; update this test");
 
@@ -2220,11 +2218,8 @@ internal static class Program
                     written.Add(path);
                 }
 
-                // A model A load that finished: a factory and A's path, no unload pending.
+                // Model A selected (the worker serves it on demand, #1194), no unload pending.
                 var service = new TranscriptionService();
-                var fakeFactory = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(factoryField.FieldType);
-                GC.SuppressFinalize(fakeFactory);
-                factoryField.SetValue(service, fakeFactory);
                 loadedPath.SetValue(service, pathA);
                 try
                 {
@@ -2246,7 +2241,6 @@ internal static class Program
                 }
                 finally
                 {
-                    factoryField.SetValue(service, null);
                     loadedPath.SetValue(service, null);
                     foreach (var path in written)
                     {
