@@ -4,9 +4,14 @@ using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.Linux.Platform.SystemIntegration;
+using System.Runtime.Versioning;
 
 namespace HyperWhisper.Linux;
 
+// This file is also compiled into HyperWhisper.Linux.E2E.Tests, which has no
+// assembly-level SupportedOSPlatform("linux"); the type-level attribute keeps
+// CA1416 satisfied there for the Linux-only CUDA package checks (#1002).
+[SupportedOSPlatform("linux")]
 internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, IDisposable
 {
     private readonly string _modelsDirectory;
@@ -271,6 +276,7 @@ internal sealed class EnvironmentWhisperRuntimePreferenceSource : ILinuxWhisperR
     };
 }
 
+[SupportedOSPlatform("linux")]
 internal sealed class LinuxWhisperRuntimePreferenceSource(
     IPrivateFileService files,
     IAppPaths paths,
