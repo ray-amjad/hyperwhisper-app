@@ -167,3 +167,15 @@ body {
     animation: none;
   }
 }
+
+/* Native buttons default to the arrow cursor, and Tailwind v4's preflight no
+   longer changes that, so hand-rolled controls read as non-clickable (#929).
+   In the base layer, so a cursor-* utility on an element still wins. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled):not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+}
