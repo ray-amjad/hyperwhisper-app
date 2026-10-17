@@ -196,6 +196,64 @@ await CheckAsync("a broken model file fails the load only when verification is o
         File.Delete(audio);
     }
 });
+await CheckAsync("the ARM64 rule's factory is built once on its own thread across requests", async () =>
+{
+    var built = 0;
+    var disposed = 0;
+    int? createdOn = null;
+    var usedOn = new List<int>();
+    var thread = new FactoryThread<FakeFactory>(
+        () =>
+        {
+            built++;
+            createdOn = Environment.CurrentManagedThreadId;
+            return new FakeFactory(() => disposed++);
+        },
+        "test factory thread");
+    try
+    {
+        var first = await thread.RunAsync(factory => { usedOn.Add(Environment.CurrentManagedThreadId); return factory; });
+        for (var chunk = 0; chunk < 4; chunk++)
+        {
+            var same = await thread.RunAsync(factory => { usedOn.Add(Environment.CurrentManagedThreadId); return factory; });
+            Assert(ReferenceEquals(same, first), $"request {chunk + 2} got a new factory");
+        }
+        Assert(built == 1 && thread.FactoriesBuilt == 1, $"5 requests built {built} factories, expected 1");
+        Assert(createdOn == thread.ThreadId, "the factory was not made on the factory thread");
+        Assert(usedOn.All(id => id == createdOn), "a builder ran on another thread than the factory's");
+        Assert(disposed == 0, "the kept factory was disposed between requests");
+
+        // A failed request drops the factory; the next one builds a fresh one.
+        var failed = false;
+        try
+        {
+            await thread.RunAsync<bool>(_ => throw new InvalidOperationException("builder failed"));
+        }
+        catch (InvalidOperationException)
+        {
+            failed = true;
+        }
+        Assert(failed, "the callback's exception did not reach the caller");
+        Assert(disposed == 1, "a failed request kept its factory");
+        await thread.RunAsync(_ => true);
+        Assert(built == 2, $"expected a fresh factory after a failure, built {built}");
+
+        await thread.ResetAsync();
+        Assert(disposed == 2, "reset did not dispose the factory");
+        await thread.ResetAsync();
+        Assert(built == 2 && disposed == 2, "a reset with no factory built or disposed one");
+    }
+    finally
+    {
+        thread.Dispose();
+    }
+    Assert(built == 2 && disposed == 2, "dispose touched a factory it no longer held");
+
+    var held = new FactoryThread<FakeFactory>(() => new FakeFactory(() => disposed++), "test factory thread");
+    await held.RunAsync(_ => true);
+    held.Dispose();
+    Assert(disposed == 3, "dispose did not dispose the kept factory");
+});
 await CheckAsync("a runtime that cannot load reports RuntimeUnavailable (issue #1194)", async () =>
 {
     var model = Path.GetTempFileName();
@@ -231,6 +289,29 @@ if (args.Length is 2 or 3)
                 $"expected runtime {expectedRuntime}, got {result.Runtime ?? "unknown"}");
         Console.WriteLine($"RUNTIME {result.Runtime}");
         Console.WriteLine($"TRANSCRIPT {result.Text}");
+    });
+}
+
+if (args.Length is 2 or 3)
+{
+    await CheckAsync("real model: the ARM64 rule reads the model once across chunk requests", async () =>
+    {
+        await using var service = new LocalWhisperService();
+        var options = new LocalWhisperLoadOptions(args[0], LocalWhisperBackend.Cpu);
+        var loaded = await service.LoadAsync(options);
+        Assert(loaded.IsSuccess, loaded.Failure?.Message ?? "model load failed");
+        for (var chunk = 0; chunk < 3; chunk++)
+        {
+            var result = await service.TranscribeAsync(new LocalWhisperRequest(args[1], "en", CreateFactoryOnRequestThread: true));
+            Assert(result.IsSuccess, result.Failure?.Message ?? "transcription failed");
+            Assert(!string.IsNullOrWhiteSpace(result.Text), $"chunk {chunk} transcript was empty");
+        }
+        Assert(service.RequestFactoriesBuilt == 1, $"3 requests built {service.RequestFactoriesBuilt} factories, expected 1");
+        var plain = await service.TranscribeAsync(new LocalWhisperRequest(args[1], "en"));
+        Assert(plain.IsSuccess && service.RequestFactoriesBuilt == 1, "the default path touched the ARM64 factory");
+        Assert((await service.LoadAsync(options)).IsSuccess, "reload failed");
+        var after = await service.TranscribeAsync(new LocalWhisperRequest(args[1], "en", CreateFactoryOnRequestThread: true));
+        Assert(after.IsSuccess && service.RequestFactoriesBuilt == 2, "a reload did not drop the kept factory");
     });
 }
 
@@ -304,4 +385,9 @@ static void Assert(bool value, string message)
     {
         throw new InvalidOperationException(message);
     }
+}
+
+sealed class FakeFactory(Action onDispose) : IDisposable
+{
+    public void Dispose() => onDispose();
 }

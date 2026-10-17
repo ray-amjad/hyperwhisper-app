@@ -28,7 +28,8 @@ internal sealed class WorkerHost
     /// <param name="runtimeOrder">The Whisper.net runtime order, set before the first factory.</param>
     /// <param name="requestThreadFactory">
     /// The ARM64 thread rule (it used to live in the app's TranscriptionService):
-    /// each transcription makes its own factory on its own thread.
+    /// the factory and each transcription's builder are made on one dedicated
+    /// thread, which keeps that factory across requests (one model read per load).
     /// </param>
     /// <param name="loadedRuntime">The protocol name of the native runtime that loaded.</param>
     public WorkerHost(

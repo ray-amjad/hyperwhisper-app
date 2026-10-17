@@ -45,7 +45,9 @@ public sealed record LocalWhisperLoadOptions(
 /// <param name="CreateFactoryOnRequestThread">
 /// The Windows ARM64 thread rule: Whisper.net's <c>CreateBuilder()</c> failed on
 /// ARM64 when it ran on another thread than the one that created the factory, so
-/// the request builds a factory of its own on its thread and disposes it after.
+/// the factory, its builder and the processor are made on one dedicated thread. That
+/// thread keeps the factory across requests until the model is reloaded or the
+/// service is disposed, so a file sent as many chunks reads the model once.
 /// </param>
 public sealed record LocalWhisperRequest(
     string AudioPath,

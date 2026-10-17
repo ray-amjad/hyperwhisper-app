@@ -15,6 +15,8 @@ public sealed class LocalWhisperService : ILocalWhisperService
     private string? _runtime;
     private string? _modelPath;
     private WhisperFactoryOptions? _factoryOptions;
+    private FactoryThread<WhisperFactory>? _requestFactoryThread;
+    private int _requestFactoriesBuilt;
     private bool _disposed;
 
     public bool IsLoaded => _factory is not null;
@@ -139,29 +141,8 @@ public sealed class LocalWhisperService : ILocalWhisperService
             var words = new List<LocalWhisperWordTimestamp>();
             var segmentCount = 0;
             string? detectedLanguage = null;
-            WhisperFactory? requestFactory = null;
-            WhisperProcessorBuilder? requestBuilder = null;
-            if (request.CreateFactoryOnRequestThread)
+            WhisperProcessor Configure(WhisperProcessorBuilder builder)
             {
-                // The ARM64 thread rule: this factory and its builder are made on
-                // the same thread, with nothing awaited in between.
-                try
-                {
-                    requestFactory = WhisperFactory.FromPath(_modelPath!, _factoryOptions!.Value);
-                    requestBuilder = requestFactory.CreateBuilder();
-                }
-                catch (Exception exception)
-                {
-                    requestFactory?.Dispose();
-                    return LocalWhisperResult.Failed(
-                        ClassifyLoadFault(exception, runtimeLoaded: true),
-                        "The Whisper model could not be loaded by the selected runtime.",
-                        _runtime);
-                }
-            }
-            try
-            {
-                var builder = requestBuilder ?? _factory.CreateBuilder();
                 builder.WithGreedySamplingStrategy();
                 builder.WithThreads(Math.Clamp(request.ThreadCount ?? Math.Max(1, Environment.ProcessorCount - 1), 1, 64));
                 builder.WithTemperature(0);
@@ -212,8 +193,29 @@ public sealed class LocalWhisperService : ILocalWhisperService
                 {
                     builder.WithLanguage(request.Language.Trim());
                 }
+                return builder.Build();
+            }
 
-                await using var processor = builder.Build();
+            try
+            {
+                // The ARM64 thread rule: the factory, its builder and the processor
+                // are all made on the one factory thread, which keeps the factory
+                // across requests (one model read per load, not one per chunk).
+                await using var processor = request.CreateFactoryOnRequestThread
+                    ? await RequestFactoryThread().RunAsync(factory =>
+                        {
+                            WhisperProcessorBuilder builder;
+                            try
+                            {
+                                builder = factory.CreateBuilder();
+                            }
+                            catch (Exception exception)
+                            {
+                                throw new RequestFactoryFault(exception);
+                            }
+                            return Configure(builder);
+                        }).ConfigureAwait(false)
+                    : Configure(_factory.CreateBuilder());
                 await using var stream = new FileStream(
                     Path.GetFullPath(request.AudioPath),
                     FileMode.Open,
@@ -250,17 +252,24 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     "Transcription was cancelled.",
                     _runtime);
             }
+            catch (RequestFactoryFault fault)
+            {
+                return LocalWhisperResult.Failed(
+                    ClassifyLoadFault(fault.InnerException!, runtimeLoaded: true),
+                    "The Whisper model could not be loaded by the selected runtime.",
+                    _runtime);
+            }
             catch (Exception)
             {
+                if (request.CreateFactoryOnRequestThread && _requestFactoryThread is { } thread)
+                {
+                    // The old code never reused a factory after a failed file.
+                    await thread.ResetAsync().ConfigureAwait(false);
+                }
                 return LocalWhisperResult.Failed(
                     LocalWhisperErrorCode.TranscriptionFailed,
                     "Local Whisper transcription failed.",
                     _runtime);
-            }
-            finally
-            {
-                // After the processor: `await using` disposed it when the try ended.
-                requestFactory?.Dispose();
             }
         }
         finally
@@ -345,8 +354,41 @@ public sealed class LocalWhisperService : ILocalWhisperService
             _ => [RuntimeLibrary.Cpu],
         };
 
+    /// <summary>
+    /// The ARM64 thread rule's factory thread for the loaded model, made on first
+    /// use. Off unless a request asks for it, so Linux and x64 never start it.
+    /// </summary>
+    private FactoryThread<WhisperFactory> RequestFactoryThread()
+    {
+        if (_requestFactoryThread is { } existing) return existing;
+        var modelPath = _modelPath!;
+        var factoryOptions = _factoryOptions!.Value;
+        return _requestFactoryThread = new FactoryThread<WhisperFactory>(
+            () =>
+            {
+                try
+                {
+                    Interlocked.Increment(ref _requestFactoriesBuilt);
+                    return WhisperFactory.FromPath(modelPath, factoryOptions);
+                }
+                catch (Exception exception)
+                {
+                    throw new RequestFactoryFault(exception);
+                }
+            },
+            "Whisper factory (ARM64 thread rule)");
+    }
+
+    /// <summary>Test seam: how many factories the ARM64 rule has built (or tried to) in this service's life.</summary>
+    internal int RequestFactoriesBuilt => Volatile.Read(ref _requestFactoriesBuilt);
+
+    /// <summary>A fault in making the ARM64 rule's factory or its builder: a load fault, not a transcription one.</summary>
+    private sealed class RequestFactoryFault(Exception inner) : Exception(inner.Message, inner);
+
     private Task DisposeFactoryAsync()
     {
+        _requestFactoryThread?.Dispose();
+        _requestFactoryThread = null;
         _factory?.Dispose();
         _factory = null;
         _runtime = null;
