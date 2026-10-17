@@ -379,6 +379,37 @@ enum TranscribeEndpoint {
                 hint: hint
             )
         }
+
+        /// A `mode_id` that names no saved Mode, on `/transcribe` and
+        /// `/post-process` (issue #1919). MODE_NOT_FOUND with the exact bytes
+        /// `GET /modes/<id>` sends (`ModesEndpoint`), and what Windows sends for
+        /// the same body. It used to be ENGINE_UNAVAILABLE "Try again later",
+        /// which a client that branches on `code` retried forever.
+        static func modeNotFound(_ modeId: String) -> APIInputError {
+            APIInputError(code: .modeNotFound, message: "No mode with id '\(modeId)'", hint: nil)
+        }
+
+        /// `engine: parakeet` with a `model` that is not a Parakeet variant
+        /// (issue #1919). MODEL_NOT_FOUND, not ENGINE_UNAVAILABLE: the request
+        /// fails the same way every time. The message keeps the router's old
+        /// reason; the hint names the ids that would work.
+        static func unknownParakeetModel(_ modelId: String) -> APIInputError {
+            APIInputError(
+                code: .modelNotFound,
+                message: "Unknown Parakeet model '\(modelId)'",
+                hint: "Send model: \(ParakeetModelManager.Constants.v3ModelId) or \(ParakeetModelManager.Constants.v2ModelId)."
+            )
+        }
+
+        /// `engine: nemotron` with a `model` that is not a Nemotron variant
+        /// (issue #1919). Same shape as `unknownParakeetModel`.
+        static func unknownNemotronModel(_ modelId: String) -> APIInputError {
+            APIInputError(
+                code: .modelNotFound,
+                message: "Unknown Nemotron model '\(modelId)'",
+                hint: "Send model: \(NemotronModelManager.Constants.multilingualModelId) or \(NemotronModelManager.Constants.latinModelId)."
+            )
+        }
     }
 
     /// The "audio is too big" input error, with its wording read off Rust.
@@ -1045,9 +1076,7 @@ enum TranscribeEndpoint {
             || (trimmedLanguage?.isEmpty == false)
 
         if let modeId = req.mode_id?.trimmingCharacters(in: .whitespacesAndNewlines), !modeId.isEmpty {
-            guard let stored = PersistenceController.shared.fetchMode(withId: modeId) else {
-                throw TranscriptionError.providerNotAvailable(provider: "mode", reason: "No mode with id '\(modeId)'")
-            }
+            let stored = try storedMode(forId: modeId, fetch: PersistenceController.shared.fetchMode(withId:))
 
             // Pure mode_id call → use saved Mode untouched.
             if !hasOverride {
@@ -1078,9 +1107,16 @@ enum TranscribeEndpoint {
             do {
                 selection = try await router.selectProvider(for: transient.mode, vocabulary: vocabulary, stageWhisperModel: false)
             } catch {
+                // Read before `end()`: the Mode belongs to the transient.
+                let triedModel = transient.mode.model
                 // `handle` never gets a resolution to end, so end it here.
                 transient.end()
-                throw error
+                throw mixedPathSelectionError(
+                    error,
+                    engine: trimmedEngine,
+                    modeModel: triedModel,
+                    isInstalled: NemotronModelManager.isVariantInstalled
+                )
             }
             return ProviderResolution(
                 provider: selection.provider,
@@ -1123,6 +1159,45 @@ enum TranscribeEndpoint {
             cloudProviderType: selection.cloudProviderType,
             whisperModel: selection.whisperModel
         )
+    }
+
+    /// The saved Mode `modeId` names, or MODE_NOT_FOUND "No mode with id
+    /// '<id>'" (issue #1919) — the answer `GET /modes/<id>` gives. Used by
+    /// `/transcribe` and `/post-process`, which used to throw
+    /// `providerNotAvailable(provider: "mode", …)`, mapped to ENGINE_UNAVAILABLE
+    /// "Try again later". `fetch` is `PersistenceController.shared
+    /// .fetchMode(withId:)` in the app and an in-memory store in the tests.
+    @MainActor
+    static func storedMode(forId modeId: String, fetch: (String) -> Mode?) throws -> Mode {
+        guard let stored = fetch(modeId) else {
+            throw APIInputError.modeNotFound(modeId)
+        }
+        return stored
+    }
+
+    /// The error the mixed mode_id + engine form throws when
+    /// `selectProvider(for: transient)` fails (issue #1919). With `engine`
+    /// naming Nemotron, a `.modelNotDownloaded` becomes the same named
+    /// MODEL_NOT_INSTALLED the engine-only form gives since #1493
+    /// (`APIInputError.nemotronModelNotInstalled`), naming the variant the
+    /// transient Mode tried. Every other error, and every other engine, passes
+    /// through unchanged.
+    @MainActor
+    static func mixedPathSelectionError(
+        _ error: Error,
+        engine: String?,
+        modeModel: String?,
+        isInstalled: (String) -> Bool
+    ) -> Error {
+        guard let transcriptionError = error as? TranscriptionError,
+              case .modelNotDownloaded = transcriptionError,
+              let engine,
+              case .nemotron? = localApiResolveEngineAlias(alias: engine),
+              let triedModelId = NemotronModelManager.Constants.canonicalModelId(for: modeModel ?? "")
+        else {
+            return error
+        }
+        return APIInputError.nemotronModelNotInstalled(triedModelId, isInstalled: isInstalled)
     }
 
     /// Build the per-request Mode. Seeded either from scratch
@@ -1452,7 +1527,8 @@ enum TranscribeEndpoint {
     ///
     /// PARAKEET mirrors `resolveProvider`'s parakeet arm (#1466 review round
     /// 2): a non-blank model that does not canonicalise to a Parakeet id throws
-    /// "Unknown Parakeet model '<id>'". Without this the mixed path ran
+    /// `APIInputError.unknownParakeetModel` (MODEL_NOT_FOUND "Unknown Parakeet
+    /// model '<id>'", issue #1919). Without this the mixed path ran
     /// `{engine: "parakeet", model: "cloud"}` on v3 with `ok: true` (the
     /// backstop below dropped "cloud" to nil), and `model: "base"` swapped to
     /// local Whisper, where the engine-only path refuses both. A nil or blank
@@ -1487,10 +1563,7 @@ enum TranscribeEndpoint {
             // The same two calls, in the same order, as `resolveProvider`.
             let requestedModelId = ParakeetModelManager.Constants.modelIdForSelection(model)
             if ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) == nil {
-                throw TranscriptionError.providerNotAvailable(
-                    provider: "Parakeet",
-                    reason: "Unknown Parakeet model '\(requestedModelId)'"
-                )
+                throw APIInputError.unknownParakeetModel(requestedModelId)
             }
         default:
             return

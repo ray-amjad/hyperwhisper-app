@@ -127,15 +127,16 @@ struct LocalEngineNeverRoutesToCloudTests {
     /// or another engine's id such as "base" — is refused on the mixed path
     /// exactly as `resolveProvider`'s parakeet arm refuses it, naming the
     /// trimmed id. Before, "cloud" ran v3 with `ok: true` and "base" swapped
-    /// to local Whisper.
+    /// to local Whisper. Since issue #1919 the refusal is MODEL_NOT_FOUND
+    /// (it was ENGINE_UNAVAILABLE "Try again later").
     @Test func anUnknownParakeetModelOnTheMixedPathIsRefusedLikeTheEngineOnlyPath() {
         for engine in ["parakeet", "Parakeet", " parakeet "] {
             for model in ["cloud", "CLOUD", " Cloud ", "base", "typo", "large-v3-turbo"] {
                 let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
-                let refused = Self.refusal(engine: engine, model: model)
+                let refused = Self.inputRefusal(engine: engine, model: model)
                 #expect(refused != nil, "engine '\(engine)' with model '\(model)' was not refused")
-                #expect(refused?.provider == "Parakeet")
-                #expect(refused?.reason == "Unknown Parakeet model '\(trimmed)'")
+                #expect(refused?.code == .modelNotFound)
+                #expect(refused?.message == "Unknown Parakeet model '\(trimmed)'")
             }
         }
     }
