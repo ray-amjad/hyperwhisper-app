@@ -487,7 +487,31 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             return !string.Equals(requested, loaded, StringComparison.Ordinal);
         }
 
-        return !string.Equals(ResolveJoinClass(requested), ResolveJoinClass(loaded), StringComparison.Ordinal);
+        return JoinNeedsRespawn(requested, loaded);
+    }
+
+    /// <summary>
+    /// Whether a Parakeet TDT daemon spawned for <paramref name="loaded"/> must be
+    /// respawned to join segments for <paramref name="requested"/> (both already
+    /// normalized): a change of <see cref="ResolveJoinClass"/>, or ANY change
+    /// between two no-space codes.
+    /// <para>
+    /// The second rule is for the committed x64 <c>parakeet-engine.exe</c>, which
+    /// predates <c>--segment-join</c> and still classes the code from its own
+    /// four-code table (#902): a daemon spawned for <c>th</c> joins with spaces
+    /// there, so it cannot be kept for <c>ja</c>. Over-classifying costs one extra
+    /// respawn and nothing else.
+    /// </para>
+    /// </summary>
+    internal static bool JoinNeedsRespawn(string requested, string loaded)
+    {
+        var requestedClass = ResolveJoinClass(requested);
+        if (!string.Equals(requestedClass, ResolveJoinClass(loaded), StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return requestedClass == "no-space" && !string.Equals(requested, loaded, StringComparison.Ordinal);
     }
 
     // =========================================================================

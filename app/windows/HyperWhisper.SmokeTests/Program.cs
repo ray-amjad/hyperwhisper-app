@@ -2373,8 +2373,22 @@ internal static class Program
                 Assert(Class("en") == Class("fr"), "en → fr must NOT change class");
             });
 
-            // The host decides the daemon's segment join and passes it as
-            // --segment-join (#902), so neither daemon reads its own table.
+            // The host decides the daemon's segment join from the core and passes
+            // it as --segment-join (#902); a daemon's own table is only the
+            // fallback for a daemon older than the flag.
+            // The committed x64 exe predates --segment-join and still joins th
+            // with spaces, so a th daemon cannot be kept for ja (#902).
+            Run("JoinNeedsRespawn respawns between two different no-space codes", () =>
+            {
+                Assert(ParakeetTranscriptionService.JoinNeedsRespawn("ja", "th"), "th → ja must respawn");
+                Assert(ParakeetTranscriptionService.JoinNeedsRespawn("zh", "ja"), "ja → zh must respawn");
+                Assert(ParakeetTranscriptionService.JoinNeedsRespawn("ja", "en"), "en → ja must respawn");
+                Assert(ParakeetTranscriptionService.JoinNeedsRespawn("auto", "en"), "en → auto must respawn");
+                Assert(!ParakeetTranscriptionService.JoinNeedsRespawn("ja", "ja"), "ja → ja must NOT respawn");
+                Assert(!ParakeetTranscriptionService.JoinNeedsRespawn("fr", "en"), "en → fr must NOT respawn");
+                Assert(!ParakeetTranscriptionService.JoinNeedsRespawn("auto", "auto"), "auto → auto must NOT respawn");
+            });
+
             Run("ResolveSegmentJoinArgument passes the core's join to the daemon", () =>
             {
                 foreach (var code in new[] { "ja", "JA", "zh", "ko", "yue", "th", "zh-TW", "zh-Hans", "zh-Hant", "zh-CN" })

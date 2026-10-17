@@ -142,10 +142,6 @@ internal static class DaemonTests
         Equal("これはtestです", JoinLikeDaemon("auto", ["これ", "はtest", "です"]));
     }
 
-    /// <summary>
-    /// The daemon's own join, not a copy of it — <c>EngineSession.JoinSegments</c>
-    /// is what <c>DecodeOfflineWithVad</c> calls.
-    /// </summary>
     // The Windows host decides the join from the core and passes it (#902), so
     // the daemon's own language lookup is only the fallback.
     private static void SegmentJoinArgument()
@@ -166,6 +162,10 @@ internal static class DaemonTests
         Equal("hello world", EngineSession.JoinSegments("en", null, new[] { "hello", "world" }));
     }
 
+    /// <summary>
+    /// The daemon's own join, not a copy of it — <c>EngineSession.JoinSegments</c>
+    /// is what <c>DecodeOfflineWithVad</c> calls.
+    /// </summary>
     private static string JoinLikeDaemon(string language, string[] parts)
         => EngineSession.JoinSegments(language, parts);
 
