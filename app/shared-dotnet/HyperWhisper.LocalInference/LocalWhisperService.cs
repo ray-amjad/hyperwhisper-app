@@ -13,6 +13,8 @@ public sealed class LocalWhisperService : ILocalWhisperService
     private readonly SemaphoreSlim _gate = new(1, 1);
     private WhisperFactory? _factory;
     private string? _runtime;
+    private string? _modelPath;
+    private WhisperFactoryOptions? _factoryOptions;
     private bool _disposed;
 
     public bool IsLoaded => _factory is not null;
@@ -43,18 +45,37 @@ public sealed class LocalWhisperService : ILocalWhisperService
         {
             await DisposeFactoryAsync().ConfigureAwait(false);
             ConfigureRuntime(options);
+            var modelPath = Path.GetFullPath(options.ModelPath);
+            var factoryOptions = FactoryOptionsFor(options);
+            // Set inside the load: true once the native library is up, so a
+            // fault before that point is the runtime's and not the model file's.
+            var runtimeLoaded = false;
             try
             {
                 _factory = await Task.Run(
-                    () => WhisperFactory.FromPath(
-                        Path.GetFullPath(options.ModelPath),
-                        new WhisperFactoryOptions
+                    () =>
+                    {
+                        // Loads the native library alone, before any model is read.
+                        _ = WhisperFactory.GetRuntimeInfo();
+                        runtimeLoaded = true;
+                        var factory = WhisperFactory.FromPath(modelPath, factoryOptions);
+                        if (options.VerifyModelOnLoad)
                         {
-                            UseGpu = options.Backend != LocalWhisperBackend.Cpu,
-                            UseFlashAttention = options.Backend != LocalWhisperBackend.Cpu,
-                            GpuDevice = Math.Max(0, options.GpuDevice),
-                        }),
+                            try
+                            {
+                                _ = factory.CreateBuilder();
+                            }
+                            catch
+                            {
+                                factory.Dispose();
+                                throw;
+                            }
+                        }
+                        return factory;
+                    },
                     cancellationToken).ConfigureAwait(false);
+                _modelPath = modelPath;
+                _factoryOptions = factoryOptions;
                 _runtime = $"{RuntimeOptions.LoadedLibrary?.ToString() ?? "unknown"}: "
                     + (WhisperFactory.GetRuntimeInfo() ?? "runtime information unavailable");
                 return LocalWhisperResult.Success(string.Empty, _runtime);
@@ -63,11 +84,13 @@ public sealed class LocalWhisperService : ILocalWhisperService
             {
                 return LocalWhisperResult.Failed(LocalWhisperErrorCode.Cancelled, "Model loading was cancelled.");
             }
-            catch (Exception)
+            catch (Exception exception)
             {
                 await DisposeFactoryAsync().ConfigureAwait(false);
+                // The message stays the same for both codes: the Linux head shows
+                // it, and only the code is new (#1598 across the worker boundary).
                 return LocalWhisperResult.Failed(
-                    LocalWhisperErrorCode.ModelLoadFailed,
+                    ClassifyLoadFault(exception, runtimeLoaded),
                     "The Whisper model could not be loaded by the selected runtime.");
             }
         }
@@ -114,18 +137,43 @@ public sealed class LocalWhisperService : ILocalWhisperService
             var text = new StringBuilder();
             var segments = new List<LocalWhisperSegmentTimestamp>();
             var words = new List<LocalWhisperWordTimestamp>();
+            var segmentCount = 0;
+            string? detectedLanguage = null;
+            WhisperFactory? requestFactory = null;
+            WhisperProcessorBuilder? requestBuilder = null;
+            if (request.CreateFactoryOnRequestThread)
+            {
+                // The ARM64 thread rule: this factory and its builder are made on
+                // the same thread, with nothing awaited in between.
+                try
+                {
+                    requestFactory = WhisperFactory.FromPath(_modelPath!, _factoryOptions!.Value);
+                    requestBuilder = requestFactory.CreateBuilder();
+                }
+                catch (Exception exception)
+                {
+                    requestFactory?.Dispose();
+                    return LocalWhisperResult.Failed(
+                        ClassifyLoadFault(exception, runtimeLoaded: true),
+                        "The Whisper model could not be loaded by the selected runtime.",
+                        _runtime);
+                }
+            }
             try
             {
-                var builder = _factory.CreateBuilder();
+                var builder = requestBuilder ?? _factory.CreateBuilder();
                 builder.WithGreedySamplingStrategy();
                 builder.WithThreads(Math.Clamp(request.ThreadCount ?? Math.Max(1, Environment.ProcessorCount - 1), 1, 64));
                 builder.WithTemperature(0);
                 builder.WithNoSpeechThreshold(0.6f);
                 builder.WithEntropyThreshold(2.4f);
                 builder.WithNoContext();
+                if (request.MaxLastTextTokensZero) builder.WithMaxLastTextTokens(0);
                 if (request.IncludeWordTimestamps) builder.WithTokenTimestamps();
                 builder.WithSegmentEventHandler(segment =>
                 {
+                    segmentCount++;
+                    detectedLanguage ??= segment.Language;
                     text.Append(segment.Text);
                     if (!request.IncludeWordTimestamps) return;
                     // A segment of only non-speech markers is not speech, so it
@@ -188,7 +236,12 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     && (segments.Count > 0 || words.Count > 0)
                     ? new LocalWhisperTimestamps(segments, words, rawText)
                     : null;
-                return LocalWhisperResult.Success(rawText, _runtime, timestamps);
+                return LocalWhisperResult.Success(rawText, _runtime, timestamps) with
+                {
+                    UnstrippedText = text.ToString(),
+                    DetectedLanguage = detectedLanguage,
+                    SegmentCount = segmentCount,
+                };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -203,6 +256,11 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     LocalWhisperErrorCode.TranscriptionFailed,
                     "Local Whisper transcription failed.",
                     _runtime);
+            }
+            finally
+            {
+                // After the processor: `await using` disposed it when the try ended.
+                requestFactory?.Dispose();
             }
         }
         finally
@@ -236,7 +294,42 @@ public sealed class LocalWhisperService : ILocalWhisperService
         {
             return;
         }
-        RuntimeOptions.RuntimeLibraryOrder = RuntimeOrderFor(options.Backend, options.AllowCpuFallback);
+        RuntimeOptions.RuntimeLibraryOrder = RuntimeOrderFor(options);
+    }
+
+    internal static List<RuntimeLibrary> RuntimeOrderFor(LocalWhisperLoadOptions options) =>
+        options.RuntimeOrder is { Count: > 0 } order
+            ? [.. order]
+            : RuntimeOrderFor(options.Backend, options.AllowCpuFallback);
+
+    internal static WhisperFactoryOptions FactoryOptionsFor(LocalWhisperLoadOptions options) => new()
+    {
+        UseGpu = options.Backend != LocalWhisperBackend.Cpu,
+        UseFlashAttention = options.UseFlashAttention ?? options.Backend != LocalWhisperBackend.Cpu,
+        GpuDevice = Math.Max(0, options.GpuDevice),
+    };
+
+    /// <summary>
+    /// A load that failed before the native library was up, or with a missing,
+    /// wrong-architecture or incomplete native DLL anywhere in the exception
+    /// chain, is the runtime's fault: a new model download cannot fix it, so it
+    /// must not read as a broken model file (#1598).
+    /// </summary>
+    internal static LocalWhisperErrorCode ClassifyLoadFault(Exception exception, bool runtimeLoaded) =>
+        !runtimeLoaded || IsNativeRuntimeFault(exception)
+            ? LocalWhisperErrorCode.RuntimeUnavailable
+            : LocalWhisperErrorCode.ModelLoadFailed;
+
+    internal static bool IsNativeRuntimeFault(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     internal static List<RuntimeLibrary> RuntimeOrderFor(
@@ -257,6 +350,8 @@ public sealed class LocalWhisperService : ILocalWhisperService
         _factory?.Dispose();
         _factory = null;
         _runtime = null;
+        _modelPath = null;
+        _factoryOptions = null;
         return Task.CompletedTask;
     }
 }

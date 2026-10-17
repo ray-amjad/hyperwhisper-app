@@ -1,6 +1,22 @@
+using System.Diagnostics;
+using System.Reflection;
 using System.Text.Json;
 using HyperWhisper.LocalInference;
 using Whisper.net.LibraryLoader;
+
+// Child-process probe for the runtime-fault split: Whisper.net caches a failed
+// native load for the whole process, so it cannot run beside the other checks.
+if (args is ["--probe-runtime-fault", var probeModel])
+{
+    await using var probe = new LocalWhisperService();
+    var probed = await probe.LoadAsync(new LocalWhisperLoadOptions(
+        probeModel,
+        LocalWhisperBackend.Cpu,
+        RuntimeOrder: [RuntimeLibrary.Cuda],
+        VerifyModelOnLoad: true));
+    Console.WriteLine($"PROBE {probed.Failure?.Code.ToString() ?? "Success"}");
+    return 0;
+}
 
 var failures = 0;
 var checks = 0;
@@ -81,6 +97,121 @@ await CheckAsync("Whisper non-speech markers never become a transcript (issues #
     return Task.CompletedTask;
 });
 
+await CheckAsync("Windows-only load and request options default off (issue #1194)", () =>
+{
+    var load = new LocalWhisperLoadOptions("model.bin", LocalWhisperBackend.Vulkan);
+    Assert(load.RuntimeOrder is null, "a runtime order is set by default");
+    Assert(load.UseFlashAttention is null, "flash attention is forced by default");
+    Assert(!load.VerifyModelOnLoad, "the model is verified on load by default");
+    var request = new LocalWhisperRequest("audio.wav");
+    Assert(!request.MaxLastTextTokensZero, "WithMaxLastTextTokens(0) is on by default");
+    Assert(!request.CreateFactoryOnRequestThread, "the ARM64 thread rule is on by default");
+    // The Linux transcriber compares load options by value to skip a reload.
+    Assert(load == new LocalWhisperLoadOptions("model.bin", LocalWhisperBackend.Vulkan),
+        "default load options no longer compare equal");
+    return Task.CompletedTask;
+});
+await CheckAsync("an explicit runtime order replaces the backend-derived one (issue #1194)", () =>
+{
+    var windows = new LocalWhisperLoadOptions(
+        "model.bin",
+        LocalWhisperBackend.Vulkan,
+        RuntimeOrder: [RuntimeLibrary.Vulkan, RuntimeLibrary.Cpu, RuntimeLibrary.CpuNoAvx]);
+    Assert(LocalWhisperService.RuntimeOrderFor(windows)
+            .SequenceEqual([RuntimeLibrary.Vulkan, RuntimeLibrary.Cpu, RuntimeLibrary.CpuNoAvx]),
+        "the Windows runtime order was not used");
+    Assert(LocalWhisperService.RuntimeOrderFor(new LocalWhisperLoadOptions("m", LocalWhisperBackend.Vulkan))
+            .SequenceEqual([RuntimeLibrary.Vulkan, RuntimeLibrary.Cpu]),
+        "no explicit order must keep the backend's order");
+    Assert(LocalWhisperService.RuntimeOrderFor(new LocalWhisperLoadOptions("m", LocalWhisperBackend.Cuda12, RuntimeOrder: []))
+            .SequenceEqual([RuntimeLibrary.Cuda12, RuntimeLibrary.Cpu]),
+        "an empty order must keep the backend's order");
+    return Task.CompletedTask;
+});
+await CheckAsync("factory options keep the backend rule unless flash attention is set", () =>
+{
+    var cpu = LocalWhisperService.FactoryOptionsFor(new LocalWhisperLoadOptions("m", LocalWhisperBackend.Cpu));
+    Assert(!cpu.UseGpu && !cpu.UseFlashAttention, "CPU options changed");
+    var vulkan = LocalWhisperService.FactoryOptionsFor(new LocalWhisperLoadOptions("m", LocalWhisperBackend.Vulkan, GpuDevice: 2));
+    Assert(vulkan.UseGpu && vulkan.UseFlashAttention && vulkan.GpuDevice == 2, "Vulkan options changed");
+    var noFlash = LocalWhisperService.FactoryOptionsFor(
+        new LocalWhisperLoadOptions("m", LocalWhisperBackend.Vulkan, GpuDevice: -3, UseFlashAttention: false));
+    Assert(noFlash.UseGpu && !noFlash.UseFlashAttention && noFlash.GpuDevice == 0, "flash attention override ignored");
+    return Task.CompletedTask;
+});
+await CheckAsync("a native runtime fault is not a model-file fault (issues #1598, #1194)", () =>
+{
+    Assert(LocalWhisperService.ClassifyLoadFault(new InvalidOperationException("bad model"), runtimeLoaded: true)
+            == LocalWhisperErrorCode.ModelLoadFailed,
+        "a plain load failure after the runtime loaded must be the model's");
+    Assert(LocalWhisperService.ClassifyLoadFault(new InvalidOperationException("no library"), runtimeLoaded: false)
+            == LocalWhisperErrorCode.RuntimeUnavailable,
+        "a failure before the runtime loaded must be the runtime's");
+    foreach (var inner in new Exception[]
+    {
+        new DllNotFoundException("whisper.dll"),
+        new BadImageFormatException("arch"),
+        new EntryPointNotFoundException("whisper_init"),
+    })
+    {
+        Assert(LocalWhisperService.ClassifyLoadFault(
+                new InvalidOperationException("load", new InvalidOperationException("wrap", inner)), runtimeLoaded: true)
+                == LocalWhisperErrorCode.RuntimeUnavailable,
+            $"a nested {inner.GetType().Name} must be the runtime's");
+        Assert(LocalWhisperService.IsNativeRuntimeFault(inner), $"a bare {inner.GetType().Name} must be the runtime's");
+    }
+    Assert(!LocalWhisperService.IsNativeRuntimeFault(new FileNotFoundException("x")), "an unrelated exception matched");
+    return Task.CompletedTask;
+});
+await CheckAsync("a broken model file fails the load only when verification is on", async () =>
+{
+    var model = Path.GetTempFileName();
+    var audio = Path.GetTempFileName();
+    try
+    {
+        await File.WriteAllTextAsync(model, "this is not a ggml model");
+        await using (var verifying = new LocalWhisperService())
+        {
+            var verified = await verifying.LoadAsync(
+                new LocalWhisperLoadOptions(model, LocalWhisperBackend.Cpu, VerifyModelOnLoad: true));
+            Assert(verified.Failure?.Code == LocalWhisperErrorCode.ModelLoadFailed,
+                $"expected ModelLoadFailed, got {verified.Failure?.Code.ToString() ?? "success"}");
+            Assert(!verifying.IsLoaded, "a failed load left a factory behind");
+        }
+        // Linux keeps today's behaviour: the load succeeds and the first
+        // transcription reports the broken file.
+        await using var lazy = new LocalWhisperService();
+        var loaded = await lazy.LoadAsync(new LocalWhisperLoadOptions(model, LocalWhisperBackend.Cpu));
+        Assert(loaded.IsSuccess, loaded.Failure?.Message ?? "unverified load failed");
+        var transcribed = await lazy.TranscribeAsync(new LocalWhisperRequest(audio, "en"));
+        Assert(transcribed.Failure?.Code == LocalWhisperErrorCode.TranscriptionFailed,
+            $"expected TranscriptionFailed, got {transcribed.Failure?.Code.ToString() ?? "success"}");
+        var perRequest = await lazy.TranscribeAsync(new LocalWhisperRequest(audio, "en", CreateFactoryOnRequestThread: true));
+        Assert(perRequest.Failure?.Code == LocalWhisperErrorCode.ModelLoadFailed,
+            $"the per-request factory should report ModelLoadFailed, got {perRequest.Failure?.Code.ToString() ?? "success"}");
+    }
+    finally
+    {
+        File.Delete(model);
+        File.Delete(audio);
+    }
+});
+await CheckAsync("a runtime that cannot load reports RuntimeUnavailable (issue #1194)", async () =>
+{
+    var model = Path.GetTempFileName();
+    try
+    {
+        await File.WriteAllTextAsync(model, "this is not a ggml model");
+        var output = await RunSelfAsync("--probe-runtime-fault", model);
+        Assert(output.Contains("PROBE RuntimeUnavailable", StringComparison.Ordinal),
+            $"expected RuntimeUnavailable, the probe said: {output.Trim()}");
+    }
+    finally
+    {
+        File.Delete(model);
+    }
+});
+
 if (args.Length is 2 or 3)
 {
     await CheckAsync("real Linux Whisper model loads and transcribes", async () =>
@@ -135,6 +266,28 @@ async Task CheckAsync(string name, Func<Task> run)
         failures++;
         Console.Error.WriteLine($"FAIL {name}: {exception.Message}");
     }
+}
+
+static async Task<string> RunSelfAsync(params string[] arguments)
+{
+    var host = Environment.ProcessPath!;
+    var start = new ProcessStartInfo(host)
+    {
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+    };
+    // Run as `dotnet <dll>` (dotnet run, the coverage collector) or as the apphost.
+    if (string.Equals(Path.GetFileNameWithoutExtension(host), "dotnet", StringComparison.OrdinalIgnoreCase))
+    {
+        start.ArgumentList.Add(Assembly.GetExecutingAssembly().Location);
+    }
+    foreach (var argument in arguments) start.ArgumentList.Add(argument);
+    using var process = Process.Start(start)!;
+    var stdout = process.StandardOutput.ReadToEndAsync();
+    var stderr = process.StandardError.ReadToEndAsync();
+    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(60));
+    return await stdout + await stderr;
 }
 
 static LocalWhisperBackend ParseBackend(string? value) =>
