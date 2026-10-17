@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Επικόλληση από Πρόχειρο";
 "settings.license.clearInput" = "Σαφή";
+"license.error.keyFormat" = "Αυτό δεν μοιάζει με κλειδί λογαριασμού.";
 "settings.license.recovery.prompt" = "Ξεχάσατε το κλειδί άδειας σας;";
 "settings.license.recovery.button" = "Πηγαίνετε στην πύλη πελάτη";
 "settings.license.daily.title" = "Καθημερινή Μεταγραφή";

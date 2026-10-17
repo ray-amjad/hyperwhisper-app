@@ -274,6 +274,13 @@
                                     Click="ActivateLicense_Click"/>
                         </Grid>
 
+                        <!-- #1489: the field holds text that cannot be any key. Activate is
+                             off for it; this says why. Shown and hidden from the code-behind. -->
+                        <TextBlock x:Name="LicenseKeyFormatHint" Visibility="Collapsed"
+                                   Text="{loc:Loc license.error.keyFormat}"
+                                   FontSize="12" Foreground="{DynamicResource ErrorForegroundBrush}" Margin="0,8,0,0"
+                                   TextWrapping="Wrap"/>
+
                         <!-- Activation Error Message -->
                         <TextBlock x:Name="LicenseErrorText" Visibility="Collapsed"
                                    FontSize="12" Foreground="{DynamicResource ErrorForegroundBrush}" Margin="0,8,0,0"

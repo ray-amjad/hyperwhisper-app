@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Kleebi lõikelaualt";
 "settings.license.clearInput" = "Tühjenda";
+"license.error.keyFormat" = "See ei näe välja nagu kontovõti.";
 "settings.license.recovery.prompt" = "Unustasid oma litsentsivõtme?";
 "settings.license.recovery.button" = "Mine kliendi portaali";
 "settings.license.daily.title" = "Igapäevane transkriptsioon";

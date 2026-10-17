@@ -1301,6 +1301,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Inserisci una chiave di licenza.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Questa non sembra una chiave dell'account.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 

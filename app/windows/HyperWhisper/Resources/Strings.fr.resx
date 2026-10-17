@@ -1301,6 +1301,9 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Veuillez saisir une clé de licence.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Cela ne ressemble pas à une clé de compte.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 

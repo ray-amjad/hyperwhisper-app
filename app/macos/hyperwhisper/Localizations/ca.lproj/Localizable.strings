@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Enganxar des del porta-retalls";
 "settings.license.clearInput" = "Netejar";
+"license.error.keyFormat" = "Això no sembla una clau del compte.";
 "settings.license.recovery.prompt" = "Heu oblidat la vostra clau de llicència?";
 "settings.license.recovery.button" = "Anar al portal del client";
 "settings.license.daily.title" = "Transcripció diària";

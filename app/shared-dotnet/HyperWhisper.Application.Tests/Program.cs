@@ -1107,11 +1107,14 @@ try
             "account operation gate allowed overlapping activation, removal, or refresh");
         blockingAccountHttp.Release.TrySetResult();
         await activation;
-        Assert(gatedAccount.ActivateCommand.CanExecute(null)
-            && gatedAccount.DeactivateCommand.CanExecute(null),
-            "account operation gate did not re-enable commands after completion");
         Assert(gatedAccount.HasAccount && gatedAccount.AccountKey.Length == 0,
             "a successful activation left a value typed during validation in the key field");
+        // #1489: the cleared field holds no key, so Activate stays off until one is typed.
+        Assert(gatedAccount.DeactivateCommand.CanExecute(null) && !gatedAccount.ActivateCommand.CanExecute(null),
+            "account operation gate did not re-enable commands after completion");
+        gatedAccount.AccountKey = "HW-0000-0000-0003";
+        Assert(gatedAccount.ActivateCommand.CanExecute(null),
+            "account operation gate did not re-enable Activate after completion");
     }
 
     // #670: a FAILED activation must leave the typed key in the field so the user can see and
@@ -1197,6 +1200,58 @@ try
         Assert(editedMidFlight.AccountKey == "HW-0000-0000-0001"
             && editedMidFlight.ActivationError == "License key not found",
             $"a rejected activation overwrote a key edited during validation (field: '{editedMidFlight.AccountKey}')");
+    }
+
+    // #1489: a loose format check. Text that cannot be any key turns Activate off, shows the
+    // hint, and never reaches the network; a pasted key is trimmed and then sent.
+    var formatHttp = new CloudAccountHttpHandler();
+    using (var formatService = NewAccountService(formatHttp, "/format-license-state.json"))
+    {
+        var format = new CloudAccountViewModel(
+            formatService, new StaticDeviceIdentity(), "Ray Linux", _ => PlatformResult.Success());
+        var changed = new List<string?>();
+        format.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Assert(!format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "an empty account key field left Activate on or showed the format hint");
+
+        format.AccountKey = "Thanks for your purchase!\nYour key is HW-ABCD-EFGH.";
+        Assert(!format.ActivateCommand.CanExecute(null) && !format.CanActivate,
+            "pasted prose left Activate on");
+        Assert(format.ShowsAccountKeyFormatHint && !format.IsAccountKeyPlausible,
+            "pasted prose did not show the format hint");
+        Assert(changed.Contains(nameof(CloudAccountViewModel.ShowsAccountKeyFormatHint))
+            && changed.Contains(nameof(CloudAccountViewModel.CanActivate)),
+            "an edit did not notify the hint and Activate state");
+        await format.ActivateAsync();
+        Assert(formatHttp.ValidateCalls == 0 && format.HasActivationError && !format.HasAccount,
+            "an implausible key was sent, or its refusal was silent");
+
+        foreach (var refused in new[] { new string('A', 65), "HW-ABCD EFGH", "HW-ÄBCD-EFGH", "HW-ABCD-\U0001F511" })
+        {
+            format.AccountKey = refused;
+            Assert(!format.ActivateCommand.CanExecute(null) && format.ShowsAccountKeyFormatHint,
+                $"'{refused}' left Activate on or showed no hint");
+        }
+
+        format.AccountKey = "  \t\n";
+        Assert(!format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a whitespace-only field left Activate on or showed the format hint");
+
+        format.AccountKey = new string('A', 64);
+        Assert(format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a 64-character key was refused");
+        var legacyShaped = Guid.NewGuid().ToString(); // a UUID-shaped legacy key
+        format.AccountKey = legacyShaped;
+        Assert(format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a legacy-looking key was refused");
+
+        format.AccountKey = "  HW-ABCD-EFGH-JKLM-NPQR\r\n";
+        Assert(format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a key pasted with a trailing newline was refused");
+        await format.ActivateAsync();
+        Assert(formatHttp.ValidateCalls == 1 && formatHttp.ValidateLicenseKey == "HW-ABCD-EFGH-JKLM-NPQR"
+            && format.HasAccount,
+            $"the pasted key was not trimmed before it was sent ('{formatHttp.ValidateLicenseKey}')");
     }
 
     var customModes = new HyperWhisper.PortableApplication.ViewModels.ModesViewModel(
@@ -3871,6 +3926,8 @@ file sealed class RejectingCloudAccountHttpHandler : HttpMessageHandler
 file sealed class CloudAccountHttpHandler : HttpMessageHandler
 {
     public string? ValidateDeviceName { get; private set; }
+    public string? ValidateLicenseKey { get; private set; }
+    public int ValidateCalls { get; private set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -3881,6 +3938,8 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
         {
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
             ValidateDeviceName = body.RootElement.GetProperty("device_name").GetString();
+            ValidateLicenseKey = body.RootElement.GetProperty("license_key").GetString();
+            ValidateCalls++;
             return Json("{\"valid\":true,\"customer_id\":\"customer-1\",\"customer_email\":\"ray@example.test\",\"expires_at\":\"2030-01-02T03:04:05Z\"}");
         }
         if (path == "/usage")
