@@ -100,10 +100,12 @@ final class BareModifierKeyMonitor {
 
     // MARK: - Properties
 
-    /// CGEventTap for monitoring modifier key changes (flagsChanged events)
-    /// This replaces the previous NSEvent monitors for more reliable event capture.
-    private var eventTap: CFMachPort?
-    private var runLoopSource: CFRunLoopSource?
+    /// The thread that owns the CGEventTap (flagsChanged + keyDown) and runs
+    /// its callback, on its own CFRunLoop — never the main one (issue #904).
+    /// Also the identity of the current tap: an event or re-enable hop from a
+    /// tap that has since been stopped finds a different (or nil) value here
+    /// and is dropped.
+    fileprivate var tapThread: EventTapThread?
 
     /// The current mode being monitored (fn, control, leftOption, rightOption)
     private var currentMode: ModifierKey?
@@ -226,50 +228,11 @@ final class BareModifierKeyMonitor {
         // - keyDown: Detects regular key presses for interference detection (e.g., Cmd+C)
         let eventMask = (1 << CGEventType.flagsChanged.rawValue) | (1 << CGEventType.keyDown.rawValue)
 
-        // C-style callback for CGEventTap - must be a static function or closure that doesn't capture self
-        // We pass self via userInfo and retrieve it in the callback
-        let callback: CGEventTapCallBack = { proxy, type, event, userInfo in
-            guard let userInfo = userInfo else {
-                return Unmanaged.passUnretained(event)
-            }
-
-            let monitor = Unmanaged<BareModifierKeyMonitor>.fromOpaque(userInfo).takeUnretainedValue()
-
-            // CRITICAL: Handle tap being disabled by system
-            // CGEventTap can be automatically disabled in two scenarios:
-            // 1. .tapDisabledByTimeout - callback took too long to return
-            // 2. .tapDisabledByUserInput - system disabled due to Secure Input (password fields, etc.)
-            // We must re-enable the tap in both cases to continue receiving events.
-            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                if let tap = monitor.eventTap {
-                    CGEvent.tapEnable(tap: tap, enable: true)
-                    let reason = type == .tapDisabledByTimeout ? "timeout" : "user input"
-                    AppLogger.audio.debug("BareModifierKeyMonitor: CGEventTap re-enabled after \(reason)")
-                }
-                // STATE RECONCILIATION: While the tap was disabled, the modifier's
-                // keyUp may have been delivered and dropped. No flagsChanged event will
-                // ever arrive for that already-completed release, so without reconciling
-                // we'd stay stuck in pttActive (recording + mic open) forever.
-                // Query the live modifier flags and synthesise the missed release.
-                Task { @MainActor in
-                    monitor.reconcileModifierStateAfterTapReEnable()
-                }
-                return Unmanaged.passUnretained(event)
-            }
-
-            // Dispatch to main actor for thread-safe state access
-            // We don't block the callback - just schedule the work
-            Task { @MainActor in
-                if type == .flagsChanged {
-                    monitor.handleFlagsChangedEvent(event)
-                } else if type == .keyDown {
-                    monitor.handleKeyDownEvent(event)
-                }
-            }
-
-            // Always pass the event through (we're observing, not blocking)
-            return Unmanaged.passUnretained(event)
-        }
+        // The callback is `bareModifierEventTapCallback` (file scope, below):
+        // it runs on the tap's own thread, not the main one, and gets the
+        // EventTapThread as its userInfo. The thread is created BEFORE the
+        // tap so the userInfo exists; it starts only once the tap does.
+        let tapThread = EventTapThread(name: "com.hyperwhisper.ptt-event-tap")
 
         // Create the event tap at session level with head insertion for higher priority
         // - tap: .cgSessionEventTap - Monitor events for this login session
@@ -280,23 +243,19 @@ final class BareModifierKeyMonitor {
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(eventMask),
-            callback: callback,
-            userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+            callback: bareModifierEventTapCallback,
+            userInfo: Unmanaged.passUnretained(tapThread).toOpaque()
         ) else {
             AppLogger.audio.error("BareModifierKeyMonitor: Failed to create CGEventTap - check Accessibility permissions")
             isMonitoring = false
             return
         }
 
-        eventTap = tap
-
-        // Add the tap to the run loop so it receives events
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        runLoopSource = source
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-
-        // Enable the tap
-        CGEvent.tapEnable(tap: tap, enable: true)
+        // Attach the tap to its own thread's run loop and enable it there.
+        // Returns at once; `self.tapThread` retains the userInfo for as long
+        // as the tap lives, and the thread retains itself until it exits.
+        self.tapThread = tapThread
+        tapThread.start(tap: tap)
 
         AppLogger.audio.debug("BareModifierKeyMonitor started for \(String(describing: mode)) using CGEventTap")
     }
@@ -317,16 +276,14 @@ final class BareModifierKeyMonitor {
         // Reset suspension state when fully stopped
         isSuspended = false
 
-        // Remove CGEventTap from run loop and clean up
-        if let source = runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
-            runLoopSource = nil
-        }
-
-        if let tap = eventTap {
-            CGEvent.tapEnable(tap: tap, enable: false)
-            CFMachPortInvalidate(tap)
-            eventTap = nil
+        // Tear the CGEventTap down. The tap's own thread removes the source
+        // from ITS run loop, disables and invalidates the tap, stops the run
+        // loop and exits; this call only asks, so it never waits on the
+        // WindowServer. Clearing `tapThread` first drops any event this tap
+        // already queued for the main actor.
+        if let tapThread {
+            self.tapThread = nil
+            tapThread.stop()
         }
 
         // Invalidate timers (no DispatchQueue wrapper needed - we're already @MainActor)
@@ -401,13 +358,37 @@ final class BareModifierKeyMonitor {
 
     // MARK: - Private Implementation (CGEvent Handlers)
 
+    /// What the tap callback hands to the main actor. Values only: the
+    /// callback reads `event.flags` on the tap thread, so no `CGEvent` (which
+    /// later taps may still modify) crosses threads.
+    fileprivate enum TapEvent {
+        case flagsChanged(CGEventFlags)
+        case keyDown
+        case reEnabledAfterSystemDisable
+    }
+
+    /// The main-actor half of `bareModifierEventTapCallback`. Every piece of
+    /// state work happens here, never on the tap thread.
+    fileprivate func receive(_ event: TapEvent, from source: EventTapThread) {
+        // The tap thread finishes asynchronously after `stop()`, so an event
+        // from a stopped (or replaced) tap can still arrive. Drop it, exactly
+        // as the old main-run-loop tap delivered nothing after `stop()`.
+        guard source === tapThread else { return }
+        switch event {
+        case .flagsChanged(let flags):
+            handleFlagsChangedEvent(flags)
+        case .keyDown:
+            handleKeyDownEvent()
+        case .reEnabledAfterSystemDisable:
+            reconcileModifierStateAfterTapReEnable()
+        }
+    }
+
     /// Handle flagsChanged events from CGEventTap
     /// This is called when modifier keys are pressed or released.
-    private func handleFlagsChangedEvent(_ event: CGEvent) {
+    private func handleFlagsChangedEvent(_ flags: CGEventFlags) {
         if isSuspended { return }
         guard let currentMode = currentMode else { return }
-
-        let flags = event.flags
 
         // If we're in activation or active PTT and see extra modifiers, treat as interference.
         if machine.state == .waitingForActivation || machine.state == .pttActive {
@@ -500,7 +481,7 @@ final class BareModifierKeyMonitor {
     /// Handle keyDown events from CGEventTap
     /// Used for interference detection to cancel activation/recording when the key
     /// is part of a shortcut (e.g., Cmd+C, Cmd+V).
-    private func handleKeyDownEvent(_ event: CGEvent) {
+    private func handleKeyDownEvent() {
         if isSuspended { return }
         guard currentMode != nil else { return }
 
@@ -854,4 +835,79 @@ final class BareModifierKeyMonitor {
 
         return interferingFlags.contains(where: { flags.contains($0) })
     }
+}
+
+// MARK: - CGEventTap callback (tap thread)
+
+/// The push-to-talk CGEventTap callback.
+///
+/// It runs on the tap's own thread (`EventTapThread`), NOT the main thread, so
+/// it is deliberately a file-scope function outside the `@MainActor` class:
+/// it reads no monitor state and decides nothing. Its `userInfo` is the
+/// `EventTapThread`, which owns the tap. It always passes the event through.
+///
+/// Issue #904: the re-enable after `.tapDisabledByTimeout` /
+/// `.tapDisabledByUserInput` is a synchronous WindowServer round trip
+/// (`SLEventTapEnable` -> `mach_msg`). Here it can only block the tap thread.
+func bareModifierEventTapCallback(
+    _ proxy: CGEventTapProxy,
+    _ type: CGEventType,
+    _ event: CGEvent,
+    _ userInfo: UnsafeMutableRawPointer?
+) -> Unmanaged<CGEvent>? {
+    guard let userInfo else {
+        return Unmanaged.passUnretained(event)
+    }
+    let tapThread = Unmanaged<EventTapThread>.fromOpaque(userInfo).takeUnretainedValue()
+
+    // CRITICAL: Handle tap being disabled by system
+    // CGEventTap can be automatically disabled in two scenarios:
+    // 1. .tapDisabledByTimeout - callback took too long to return
+    // 2. .tapDisabledByUserInput - system disabled due to Secure Input (password fields, etc.)
+    // We must re-enable the tap in both cases to continue receiving events.
+    if EventTapThread.DisableReason(type) != nil {
+        if let reEnable = tapThread.reEnableAfterSystemDisable(type) {
+            // Metadata only: the reason slug and how long the re-enable took.
+            // Never a key code, a modifier value or any text.
+            let phrase = reEnable.reason.phrase
+            let slug = reEnable.reason.rawValue
+            let elapsedMs = reEnable.elapsedMs
+            AppLogger.audio.debug("BareModifierKeyMonitor: CGEventTap re-enabled after \(phrase, privacy: .public) (reason=\(slug, privacy: .public), elapsed_ms=\(elapsedMs, privacy: .public))")
+            SentryService.addBreadcrumb(
+                message: "PTT CGEventTap re-enabled",
+                category: "ptt.tap",
+                data: ["reason": slug, "elapsedMs": elapsedMs]
+            )
+        }
+        // STATE RECONCILIATION: While the tap was disabled, the modifier's
+        // keyUp may have been delivered and dropped. No flagsChanged event will
+        // ever arrive for that already-completed release, so without reconciling
+        // we'd stay stuck in pttActive (recording + mic open) forever.
+        // Query the live modifier flags and synthesise the missed release.
+        // Ordered hop (FIFO with the key events below), not a `Task`.
+        EventTapThread.deliverOnMainInOrder {
+            BareModifierKeyMonitor.shared.receive(.reEnabledAfterSystemDisable, from: tapThread)
+        }
+        return Unmanaged.passUnretained(event)
+    }
+
+    let tapEvent: BareModifierKeyMonitor.TapEvent
+    switch type {
+    case .flagsChanged:
+        tapEvent = .flagsChanged(event.flags)
+    case .keyDown:
+        tapEvent = .keyDown
+    default:
+        return Unmanaged.passUnretained(event)
+    }
+
+    // Dispatch to main actor for thread-safe state access
+    // We don't block the callback - just schedule the work. The hop keeps
+    // the tap's event order: a press and its release must never swap.
+    EventTapThread.deliverOnMainInOrder {
+        BareModifierKeyMonitor.shared.receive(tapEvent, from: tapThread)
+    }
+
+    // Always pass the event through (we're observing, not blocking)
+    return Unmanaged.passUnretained(event)
 }
