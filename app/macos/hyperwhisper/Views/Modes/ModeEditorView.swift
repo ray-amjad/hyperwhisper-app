@@ -649,10 +649,29 @@ struct ModeEditorView: View {
     }
 
     /// Shared-catalog entry id for the language picker: the selected tier on
-    /// HyperWhisper Cloud, nil for BYOK. The picker uses the tier's catalog set
-    /// when `STTCapabilities` has no row for the model (`gpt-transcribe`, #831).
+    /// HyperWhisper Cloud, and for BYOK the catalog entry that lists this
+    /// provider's model (nil when the catalog does not list it). The picker
+    /// uses that entry's catalog set when `STTCapabilities` has no row for the
+    /// model (`gpt-transcribe`: #831 on Cloud, #1942 on BYOK).
     private var languageFilterCloudTierId: String? {
-        currentCloudProvider == .hyperwhisper ? selectedCloudTier.rawValue : nil
+        Self.languageFilterCatalogEntryId(
+            cloudProvider: currentCloudProvider,
+            cloudTier: selectedCloudTier,
+            modelId: cloudTranscriptionModel
+        )
+    }
+
+    /// `languageFilterCloudTierId` without the view state, so a test drives
+    /// the exact entry id the picker receives.
+    static func languageFilterCatalogEntryId(
+        cloudProvider: CloudProvider,
+        cloudTier: CloudAccuracyTier,
+        modelId: String
+    ) -> String? {
+        if cloudProvider == .hyperwhisper {
+            return cloudTier.rawValue
+        }
+        return CloudSTTCatalog.shared.byokEntryId(cloudProvider: cloudProvider.rawValue, modelId: modelId)
     }
 
     /// Model id used to look up the supported-language set for the language picker.
