@@ -56,14 +56,9 @@
   <!-- Existing dependencies -->
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="Whisper.net" Version="1.9.0" />
-    <!-- Whisper.net Runtimes:
-         - Runtime: Standard CPU runtime with AVX optimizations (x64)
-         - Runtime.NoAvx: For CPUs without AVX support (ARM64, older x64)
-         - Runtime.Vulkan: Vulkan GPU acceleration (vendor-agnostic: NVIDIA, AMD, Intel) -->
-    <PackageReference Include="Whisper.net.Runtime" Version="1.9.0" />
-    <PackageReference Include="Whisper.net.Runtime.NoAvx" Version="1.9.0" />
-    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.0" />
+    <!-- Whisper.net is not referenced here. On-device Whisper runs in
+         HyperWhisper.WhisperWorker.exe (issue #1194), so no Whisper or ggml-whisper
+         DLL loads in this process; the worker ships under whisper-worker\. -->
     <PackageReference Include="LLamaSharp" Version="0.27.0" />
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.27.0" />
     <PackageReference Include="LLamaSharp.Backend.Cuda12" Version="0.27.0" />
@@ -93,6 +88,8 @@
     <!-- The app-type classifier, shared with the Linux head since issue #279.
          It used to be Services\AppClassification\AppTypeClassifier.cs here. -->
     <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.AppClassification\HyperWhisper.AppClassification.csproj" />
+    <!-- The stdio client for the Whisper worker exe. Managed only: no Whisper.net. -->
+    <ProjectReference Include="..\HyperWhisper.WhisperWorker.Client\HyperWhisper.WhisperWorker.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -288,17 +285,34 @@
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
                              Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](linux|linux-musl|osx)-'))" />
 
-      <!-- Whisper.net nested runtime folders include non-target assets under noavx/vulkan. -->
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]noavx[\\/](linux-[^\\/]+|win-x86)[\\/]'))" />
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]vulkan[\\/]linux-[^\\/]+[\\/]'))" />
-
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
                              Condition="'$(RuntimeIdentifier)' == 'win-x64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]win-(arm64|x86)[\\/]'))" />
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
                              Condition="'$(RuntimeIdentifier)' == 'win-arm64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](win-x64|win-x86|noavx|vulkan)[\\/]'))" />
     </ItemGroup>
+  </Target>
+
+  <!-- Dev loop for the Whisper worker (issue #1194). TranscriptionService starts
+       whisper-worker\HyperWhisper.WhisperWorker.exe next to the app, so a plain
+       `dotnet build` / `dotnet run` builds the worker project and copies its
+       output there. build-release.ps1 publishes the worker itself (self-contained,
+       per RID) and passes -p:SkipWhisperWorkerCopy=true. -->
+  <Target Name="BuildAndCopyWhisperWorker" AfterTargets="Build"
+          Condition="'$(SkipWhisperWorkerCopy)' != 'true' And '$(DesignTimeBuild)' != 'true'">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\HyperWhisper.WhisperWorker\HyperWhisper.WhisperWorker.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);EnableWindowsTargeting=$(EnableWindowsTargeting)">
+      <Output TaskParameter="TargetOutputs" ItemName="_WhisperWorkerAssembly" />
+    </MSBuild>
+    <PropertyGroup>
+      <_WhisperWorkerOutDir>@(_WhisperWorkerAssembly->'%(RootDir)%(Directory)')</_WhisperWorkerOutDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_WhisperWorkerFile Include="$(_WhisperWorkerOutDir)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_WhisperWorkerFile)"
+          DestinationFiles="@(_WhisperWorkerFile->'$(OutDir)whisper-worker\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
   </Target>
 
   <!-- LLamaSharp's GPU backend packages ship WITHOUT ggml-cpu.dll in their
