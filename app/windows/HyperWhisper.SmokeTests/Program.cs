@@ -5156,6 +5156,73 @@ internal static class Program
                 }
             });
 
+            Run("CaptureDeviceNameCache: one FriendlyName read per endpoint ID, dropped on invalidate / clear (#980)", () =>
+            {
+                var cache = new CaptureDeviceNameCache();
+                var reads = 0;
+                Func<string> Reader(string name) => () => { reads++; return name; };
+
+                // A warm dictation start reads no name: the second lookup is a hit.
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{a}", Reader("Microphone (USB Mic)")) == "Microphone (USB Mic)",
+                    "the first lookup must return what the reader returned");
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{a}", Reader("WRONG")) == "Microphone (USB Mic)",
+                    "the second lookup for the same endpoint ID must return the cached name");
+                Assert(reads == 1, $"expected one name read for one endpoint, got {reads}");
+
+                // Keyed by endpoint ID: another device never gets the first one's name.
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{b}", Reader("Line In (VB-Audio)")) == "Line In (VB-Audio)",
+                    "a different endpoint ID was answered from another endpoint's entry");
+                Assert(reads == 2 && cache.Count == 2, $"expected 2 reads and 2 entries, got {reads} and {cache.Count}");
+
+                // Endpoint IDs are compared exactly.
+                cache.GetOrRead("{0.0.1.00000000}.{A}", Reader("Upper"));
+                Assert(reads == 3, "an ID differing only in case must not share an entry");
+
+                // A rename (property change) drops only that endpoint.
+                cache.Invalidate("{0.0.1.00000000}.{a}");
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{a}", Reader("Renamed Mic")) == "Renamed Mic",
+                    "an invalidated endpoint must be read again");
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{b}", Reader("WRONG")) == "Line In (VB-Audio)",
+                    "invalidating one endpoint must keep the others");
+                Assert(reads == 4, $"expected 4 reads after one invalidation, got {reads}");
+
+                // A device list change drops everything.
+                cache.Clear();
+                Assert(cache.Count == 0, $"Clear left {cache.Count} entries");
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{b}", Reader("Line In 2")) == "Line In 2",
+                    "after Clear the name must be read again");
+
+                // A failed read behaves like the direct property read: it throws, and
+                // nothing is cached, so the next lookup tries again.
+                var threw = false;
+                try { cache.GetOrRead("{0.0.1.00000000}.{gone}", () => throw new InvalidOperationException("unplugged")); }
+                catch (InvalidOperationException) { threw = true; }
+                Assert(threw, "a reader exception must propagate to the caller");
+                var before = reads;
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{gone}", Reader("Back")) == "Back" && reads == before + 1,
+                    "a failed read must not leave an entry behind");
+
+                // No endpoint ID: always read, never cached.
+                before = reads;
+                cache.GetOrRead(null, Reader("x"));
+                cache.GetOrRead(null, Reader("x"));
+                cache.GetOrRead("", Reader("x"));
+                Assert(reads == before + 3, $"a missing endpoint ID must read every time, got {reads - before} reads for 3 lookups");
+
+                // An invalidation that lands while a read is in flight wins: the
+                // (possibly pre-rename) result is returned but not stored.
+                before = reads;
+                var racing = cache.GetOrRead("{0.0.1.00000000}.{race}", () =>
+                {
+                    reads++;
+                    cache.Invalidate("{0.0.1.00000000}.{race}");
+                    return "Old Name";
+                });
+                Assert(racing == "Old Name", "the in-flight read still returns its own result");
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{race}", Reader("New Name")) == "New Name" && reads == before + 2,
+                    "a read that raced an invalidation must not be cached");
+            });
+
             Run("MainViewModel.EmptyCaptureMessage names the device, not the user's silence (#750)", () =>
             {
                 var message = MainViewModel.EmptyCaptureMessage;
