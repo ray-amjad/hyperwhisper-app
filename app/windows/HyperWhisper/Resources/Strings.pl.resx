@@ -321,7 +321,7 @@
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="settings.nav.storage" xml:space="preserve">
-    <value>Magazyn</value>
+    <value>Pamięć</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
     <value>Biblioteka modeli</value>
@@ -1177,7 +1177,7 @@ Możesz pobrać go ponownie później.</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
-    <value>Magazyn</value>
+    <value>Pamięć</value>
   </data>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
     <value>Nie można użyć wybranego folderu.</value>

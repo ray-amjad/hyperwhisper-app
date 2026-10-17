@@ -467,7 +467,7 @@
     <value>重新整理</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
-    <value>分鐘剩餘</value>
+    <value>剩餘分鐘數</value>
   </data>
   <data name="settings.credits.loading" xml:space="preserve">
     <value>載入額度餘額中...</value>
@@ -2104,7 +2104,7 @@
     <value>複製</value>
   </data>
   <data name="settings.localApi.reveal" xml:space="preserve">
-    <value>顯示位置</value>
+    <value>顯示</value>
   </data>
   <data name="settings.localApi.hide" xml:space="preserve">
     <value>隱藏</value>
@@ -2113,7 +2113,7 @@
     <value>重新產生</value>
   </data>
   <data name="settings.localApi.show" xml:space="preserve">
-    <value>顯示</value>
+    <value>顯示位置</value>
   </data>
   <data name="settings.localApi.helperAuth" xml:space="preserve">
     <value>以 Authorization: Bearer &lt;token&gt; 傳送。除了 /health 以外，每個端點都需要。</value>
