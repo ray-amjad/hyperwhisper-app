@@ -69,6 +69,7 @@ try
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
+    await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
@@ -1861,6 +1862,55 @@ static async Task RunCloudPostProcessingModelLoadTestsAsync(string root)
 /// that change: the rows are companies, a company that owns 2 tiers is ONE row whose
 /// model decides the tier, and the Model row is never blank.
 /// </summary>
+/// <summary>
+/// Issue #1709: a CLOUD mode with no stored provider opens the editor on
+/// HyperWhisper Cloud — the provider its card shows and the router runs — not on
+/// ElevenLabs. A local mode keeps the editor's BYOK default for when it is
+/// switched to cloud, and a non-blank provider is loaded as stored.
+/// </summary>
+static async Task RunBlankCloudProviderEditorLoadTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+
+    foreach (var blank in new string?[] { null, "", "   " })
+    {
+        var mode = new Mode
+        {
+            Name = $"Blank cloud {blank?.Length.ToString() ?? "null"}",
+            ProviderType = "cloud",
+            CloudProvider = blank,
+            CloudAccuracyTier = "elevenLabsScribeV2",
+            Language = "en",
+        };
+        await repository.UpsertAsync(mode);
+        editor.Selected = mode;
+        var label = blank is null ? "<null>" : $"'{blank}'";
+        Assert(editor.CloudProvider == "hyperwhisper",
+            $"a cloud mode with cloudProvider {label} opened the editor on '{editor.CloudProvider}', not hyperwhisper");
+        Assert(mode.CloudProvider == blank, "loading the editor rewrote the stored provider");
+    }
+
+    var byok = new Mode { Name = "BYOK cloud", ProviderType = "cloud", CloudProvider = "deepgram", Language = "en" };
+    await repository.UpsertAsync(byok);
+    editor.Selected = byok;
+    Assert(editor.CloudProvider == "deepgram", $"a deepgram mode opened on '{editor.CloudProvider}'");
+
+    var legacy = new Mode { Name = "Legacy cloud", ProviderType = "cloud", CloudProvider = "googlespeech", Language = "en" };
+    await repository.UpsertAsync(legacy);
+    editor.Selected = legacy;
+    Assert(editor.CloudProvider == "googlespeech",
+        $"a legacy googlespeech mode opened on '{editor.CloudProvider}'; only a BLANK provider changes meaning");
+
+    var local = new Mode { Name = "Local", ProviderType = "local", LocalEngine = "whisper", ModelType = "base", Language = "en" };
+    await repository.UpsertAsync(local);
+    editor.Selected = local;
+    Assert(editor.CloudProvider == "elevenlabs",
+        $"a local mode's editor BYOK default moved to '{editor.CloudProvider}'");
+}
+
 static async Task RunCloudVendorPickerTestsAsync(string root)
 {
     var db = new ApplicationDb(new TestPaths(root));

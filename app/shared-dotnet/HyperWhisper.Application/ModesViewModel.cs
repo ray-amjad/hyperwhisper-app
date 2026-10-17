@@ -24,7 +24,9 @@ public sealed class ModesViewModel : ViewModelBase
     private string _providerType = "local";
     private string _localEngine = "whisper";
     private string _transcriptionModel = "base";
-    private string _cloudProvider = "elevenlabs";
+    /// <summary>The provider the editor offers when a local mode is switched to cloud.</summary>
+    private const string DefaultByokCloudProvider = "elevenlabs";
+    private string _cloudProvider = DefaultByokCloudProvider;
     private string _cloudAccuracyTier = "elevenLabsScribeV2";
     private string _cloudDomain = string.Empty;
     private string _geminiPrompt = string.Empty;
@@ -194,7 +196,12 @@ public sealed class ModesViewModel : ViewModelBase
             ProviderType = value.ProviderType ?? "local";
             LocalEngine = value.LocalEngine;
             TranscriptionModel = value.ProviderType == "cloud" ? value.CloudTranscriptionModel ?? string.Empty : value.LocalEngine == "parakeet" ? value.LocalParakeetModel ?? "parakeet-v3" : value.ModelType ?? value.Model ?? "base";
-            CloudProvider = value.CloudProvider ?? "elevenlabs";
+            // A CLOUD mode with no stored provider IS a HyperWhisper Cloud mode (issue #1709), so
+            // the editor opens on the provider the card shows and the router runs. A local mode
+            // switched to cloud keeps the editor's own BYOK default.
+            CloudProvider = string.Equals(value.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+                ? SharedCoreBridge.EffectiveModeCloudProvider(value.CloudProvider)
+                : value.CloudProvider ?? DefaultByokCloudProvider;
             // Canonicalise on load, not just on save: a mode persisted by an older
             // build (or restored from a backup) can carry a retired tier id such as
             // `googleChirp3`. The shared core resolves it through the catalog's

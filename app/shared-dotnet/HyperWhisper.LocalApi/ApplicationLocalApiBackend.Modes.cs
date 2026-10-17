@@ -230,7 +230,10 @@ public sealed partial class ApplicationLocalApiBackend
         if (mode.PostProcessingMode != 0 && string.IsNullOrWhiteSpace(mode.PostProcessingProvider)) throw new ArgumentException("An enabled post-processing mode requires a provider.");
         if (mode.ProviderType == "cloud")
         {
-            if (string.IsNullOrWhiteSpace(mode.CloudProvider) || !CloudProviders.Contains(mode.CloudProvider))
+            // `openapi.yaml` lets a cloud mode omit `cloudProvider`; the shared rule reads that as
+            // HyperWhisper Cloud (issues #1689, #1709). The stored value stays as written, so
+            // GET /modes still answers without the key, as macOS and Windows do.
+            if (!CloudProviders.Contains(SharedCoreBridge.EffectiveModeCloudProvider(mode.CloudProvider)))
                 throw new ArgumentException("Cloud provider is invalid.");
         }
         else

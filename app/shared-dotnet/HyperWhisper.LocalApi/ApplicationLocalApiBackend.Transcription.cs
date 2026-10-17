@@ -611,7 +611,8 @@ public sealed partial class ApplicationLocalApiBackend
     {
         if (mode is null) return string.Empty;
         if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
-            return ModeAwareTranscriptionRouter.TryMapProvider(mode.CloudProvider, out var provider)
+            return ModeAwareTranscriptionRouter.TryMapProvider(
+                    SharedCoreBridge.EffectiveModeCloudProvider(mode.CloudProvider), out var provider)
                 ? ModeAwareTranscriptionRouter.DispatchedCloudModelId(
                     provider, mode.CloudAccuracyTier, mode.CloudTranscriptionModel)
                 : mode.CloudTranscriptionModel ?? string.Empty;
