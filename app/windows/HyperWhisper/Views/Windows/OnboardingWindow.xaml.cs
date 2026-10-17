@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Utilities;
 using HyperWhisper.ViewModels.Onboarding;
 using HyperWhisper.Views.Pages.Onboarding;
 
@@ -92,7 +93,10 @@ public partial class OnboardingWindow : Window
         // A window dragged onto a smaller monitor, or a scale change while the flow
         // is open, has to be clamped again. NoResize means the user cannot rescue it.
         //
-        // DpiChanged fires once, so it clamps inline. LocationChanged fires PER
+        // DpiChanged fires once per change, so it needs no debounce, but it is
+        // deferred: under per-monitor DPI (issue #1501) WPF moves the window to the
+        // rectangle Windows suggests after it raises the event, which would undo
+        // an inline clamp. LocationChanged fires PER
         // PIXEL of a caption drag - WindowChrome gives the 44px caption a system
         // drag - and clamping on every one of them did two bad things: it ran a
         // Screen.FromHandle and a VisualTreeHelper.GetDpi on the UI thread for
@@ -104,7 +108,7 @@ public partial class OnboardingWindow : Window
         //
         // Debounced per app/windows/AGENTS.md, and the same shape
         // RecordingOverlayWindow already uses for this same event.
-        DpiChanged += (_, _) => ClampToWorkArea();
+        DpiChanged += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(ClampToWorkArea));
         LocationChanged += (_, _) => ScheduleClamp();
 
         Loaded += (_, _) =>
@@ -273,22 +277,11 @@ public partial class OnboardingWindow : Window
     /// </summary>
     private (double Width, double Height, double Left, double Top) CurrentWorkAreaDip()
     {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero)
-        {
-            var primary = SystemParameters.WorkArea; // already DIP
-            return (primary.Width, primary.Height, primary.Left, primary.Top);
-        }
-
-        // Fully qualified: GlobalUsings pulls in System.Windows.Forms, and
-        // System.Windows.Controls has a Screen-free namespace of its own.
-        var screen = System.Windows.Forms.Screen.FromHandle(hwnd);
-        var dpi = VisualTreeHelper.GetDpi(this);
-        var scaleX = dpi.DpiScaleX > 0 ? dpi.DpiScaleX : 1.0;
-        var scaleY = dpi.DpiScaleY > 0 ? dpi.DpiScaleY : 1.0;
-
-        var area = screen.WorkingArea; // physical pixels
-        return (area.Width / scaleX, area.Height / scaleY, area.Left / scaleX, area.Top / scaleY);
+        // Physical work area / this window's own DPI; before the handle exists,
+        // the primary monitor's in its own DPI. Not SystemParameters.WorkArea,
+        // which keeps the DPI the app started at (issue #1501).
+        var area = MonitorWorkArea.WorkAreaDip(this);
+        return (area.Width, area.Height, area.Left, area.Top);
     }
 
     // =========================================================================
