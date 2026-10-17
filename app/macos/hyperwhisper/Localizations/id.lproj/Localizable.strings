@@ -879,7 +879,6 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "recording.retry.inProgress" = "Mencoba lagi…";
 "recording.retry.count" = "Coba Lagi (%d)";
 "recording.retry.failed.missing" = "Coba lagi gagal: File audio tidak ditemukan";
-"recording.retry.failed.error" = "Coba lagi gagal: %@";
 "recording.retry.pending" = "Siap untuk mencoba lagi – klik untuk metranskripsi";
 "recording.retry.modeDeleted" = "Mode telah dihapus";
 "recording.cancel.dialog.title" = "Batalkan Perekaman?";

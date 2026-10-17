@@ -879,7 +879,6 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "recording.retry.inProgress" = "Prøver igen…";
 "recording.retry.count" = "Prøv igen (%d)";
 "recording.retry.failed.missing" = "Nyt forsøg mislykkedes: Lydfil ikke fundet";
-"recording.retry.failed.error" = "Nyt forsøg mislykkedes: %@";
 "recording.retry.pending" = "Klar til nyt forsøg – klik for at transskribere";
 "recording.retry.modeDeleted" = "Tilstanden blev slettet";
 "recording.cancel.dialog.title" = "Annuller optagelse?";

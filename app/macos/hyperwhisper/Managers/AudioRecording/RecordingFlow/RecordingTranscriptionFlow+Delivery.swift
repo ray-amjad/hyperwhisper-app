@@ -258,8 +258,13 @@ extension RecordingTranscriptionFlow {
         modeName: String?,
         persistence: PersistenceController = .shared
     ) async -> NSManagedObjectID? {
-        let duration = await audioDurationSeconds(of: audioURL)
-        let failure = TranscriptionRetryController.failedRow(after: error, audioDuration: duration)
+        // Only a too-short file's wording reads the length, so only it opens
+        // the file before the row is updated.
+        var duration: TimeInterval?
+        if FileTranscriptionFlow.isTooShort(error) {
+            duration = await audioDurationSeconds(of: audioURL)
+        }
+        let failure = TranscriptionRetryController.failedRow(after: error, audioDuration: duration ?? 0)
         if let failedTranscriptID = await failedRowWrite?.value,
            await persistence.markTranscriptFailedInBackground(
                transcriptID: failedTranscriptID,
@@ -271,8 +276,14 @@ extension RecordingTranscriptionFlow {
         }
 
         AppLogger.audio.warning("Pending-file retry failed with no failed History row to update; saving a new failed row")
+        let rowDuration: TimeInterval
+        if let duration {
+            rowDuration = duration
+        } else {
+            rowDuration = await audioDurationSeconds(of: audioURL)
+        }
         return await persistence.createFailedTranscriptInBackground(
-            duration: duration,
+            duration: rowDuration,
             mode: modeName,
             audioFilePath: audioURL.path,
             failedReason: failure.failedReason,

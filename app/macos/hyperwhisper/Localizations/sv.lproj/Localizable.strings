@@ -879,7 +879,6 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "recording.retry.inProgress" = "Försöker igen...";
 "recording.retry.count" = "Försök igen (%d)";
 "recording.retry.failed.missing" = "Försök igen misslyckades: Ljudfilen hittades inte";
-"recording.retry.failed.error" = "Försök igen misslyckades: %@";
 "recording.retry.pending" = "Klar för att försöka igen – klicka för att transkribera";
 "recording.retry.modeDeleted" = "Läget har tagits bort";
 "recording.cancel.dialog.title" = "Avbryt inspelning?";

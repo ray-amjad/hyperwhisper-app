@@ -879,7 +879,6 @@
 "recording.retry.inProgress" = "กำลังลองใหม่…";
 "recording.retry.count" = "ลองใหม่ (%d)";
 "recording.retry.failed.missing" = "การลองใหม่ล้มเหลว: ไม่พบไฟล์เสียง";
-"recording.retry.failed.error" = "การลองใหม่ล้มเหลว: %@";
 "recording.retry.pending" = "พร้อมที่จะลองใหม่ – คลิกเพื่อสัญลักษณ์";
 "recording.retry.modeDeleted" = "โหมดถูกลบแล้ว";
 "recording.cancel.dialog.title" = "ยกเลิกการบันทึก?";

@@ -14,7 +14,8 @@
 //     "Retry failed: …" (and a too-short file's length). Both now share
 //     `TranscriptionRetryController.failedRow`.
 //  3. `RecordingDialog.retryTranscription(_:)` had no caller. Ray: delete it.
-//     Already gone on main; the guard below keeps it gone.
+//     This PR deletes it (and its now-unused string key); the guard below
+//     keeps it gone.
 //
 
 import CoreData
