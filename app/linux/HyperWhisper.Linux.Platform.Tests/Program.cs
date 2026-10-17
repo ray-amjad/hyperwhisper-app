@@ -119,6 +119,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("clipboard restore rejects snapshots above 32 MiB", ClipboardSnapshotBound),
     ("native X11 owner receives every MIME format", NativeX11Restore),
     ("native X11 owner serves every MIME format", NativeX11RoundTrip),
+    ("native X11 owner sleeps while it holds the clipboard", NativeX11IdleSleeps),
     ("XWayland owner bridges text HTML and PNG", XWaylandRoundTrip),
     ("external desktop helpers have a hard timeout", ExternalHelperTimeout),
     ("a helper with discarded output keeps the hard timeout", ExternalHelperDiscardedOutputTimeout),
@@ -2287,6 +2288,32 @@ static async Task NativeX11RoundTrip()
     }
     finally { owner.Dispose(); }
     owner.Dispose();
+}
+
+static async Task NativeX11IdleSleeps()
+{
+    if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY"))) return;
+    using var owner = new NativeX11ClipboardOwner(allowXWayland:
+        string.Equals(Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"), "wayland", StringComparison.OrdinalIgnoreCase));
+    Assert.True(owner.IsAvailable);
+    // Own the clipboard, as the app does after a paste, then leave it idle.
+    Assert.Success(await owner.OwnAsync(new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+        { ["text/plain"] = "idle"u8.ToArray() }), CancellationToken.None));
+    await Task.Delay(200);
+    // Linux truncates a thread name to 15 bytes in /proc.
+    var tasks = Directory.GetDirectories("/proc/self/task")
+        .Where(task => File.ReadAllText(Path.Combine(task, "comm")).Trim() == "HyperWhisper X1")
+        .ToArray();
+    Assert.True(tasks.Length > 0, "The X11 clipboard thread was not found in /proc/self/task.");
+    static long Switches(string[] tasks) => tasks.Sum(task => File.ReadLines(Path.Combine(task, "status"))
+        .Where(line => line.StartsWith("voluntary_ctxt_switches:", StringComparison.Ordinal))
+        .Select(line => long.Parse(line.Split(':')[1].Trim()))
+        .FirstOrDefault());
+    var before = Switches(tasks);
+    await Task.Delay(1000);
+    var wakeups = Switches(tasks) - before;
+    // The old loop woke every 10 ms, about 100 times in this second.
+    Assert.True(wakeups <= 5, $"The idle X11 clipboard thread woke {wakeups} times in 1 s.");
 }
 
 static async Task XWaylandRoundTrip()
