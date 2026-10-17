@@ -18,6 +18,7 @@
 //    cd shared-core-rs && cargo test -p hw-core --test catalog_vectors -- --ignored regenerate
 //
 
+import CoreData
 import Foundation
 import Testing
 @testable import HyperWhisper
@@ -31,6 +32,12 @@ struct CatalogConformanceVectorTests {
         let vendorGroups: [VendorGroupVector]
         let pickerLanguageCodes: [PickerVector]
         let modelsEntries: [ModelsEntryVector]
+        let effectiveModeCloudProvider: [EffectiveCloudProviderVector]
+    }
+
+    struct EffectiveCloudProviderVector: Decodable {
+        let input: String?
+        let expected: String
     }
 
     struct EntryVector: Decodable {
@@ -458,6 +465,58 @@ struct CatalogConformanceVectorTests {
             #expect(support.supportsAll == want.supportsAllLanguages, "\(label).supportsAllLanguages")
             #expect(support.codes == Set(want.languageCodes), "\(label).languageCodes")
         }
+    }
+
+    @Test("A mode's effective cloud provider matches the shared vectors (#1709)")
+    func effectiveModeCloudProviderMatchesTheVectors() throws {
+        let vectors = try Self.vectors().effectiveModeCloudProvider
+        #expect(vectors.contains { $0.input == nil }, "no vector covers a nil cloudProvider")
+        for want in vectors {
+            let label = want.input.map { "\"\($0)\"" } ?? "nil"
+            #expect(
+                cloudSttEffectiveModeCloudProvider(value: want.input) == want.expected,
+                "\(label): shared core answer"
+            )
+            // This head takes the core's answer only for a blank value and
+            // keeps a non-blank value as stored.
+            let blank = want.input?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+            #expect(
+                CloudProvider.effectiveModeStorageValue(want.input) == (blank ? Optional(want.expected) : want.input),
+                "\(label): CloudProvider.effectiveModeStorageValue"
+            )
+        }
+        #expect(CloudProvider.forMode(nil) == .hyperwhisper)
+        #expect(CloudProvider.forMode("") == .hyperwhisper)
+        #expect(CloudProvider.forMode("   ") == .hyperwhisper)
+        #expect(CloudProvider.forMode("deepgram") == .deepgram)
+        #expect(CloudProvider.effectiveModeStorageValue("") == CloudProvider.hyperwhisper.rawValue)
+        #expect(CloudProvider.effectiveModeStorageValue(" \t") == CloudProvider.hyperwhisper.rawValue)
+        // A non-blank id this build does not model passes through as stored.
+        #expect(CloudProvider.effectiveModeStorageValue("someFutureVendor") == "someFutureVendor")
+    }
+
+    /// Every blank spelling reads as HyperWhisper Cloud in the mode readers too
+    /// (card, snapshot, editor data), the same answer the router gives (#1709).
+    @MainActor
+    @Test("A blank stored cloudProvider reads as HyperWhisper Cloud in the mode readers (#1709)")
+    func blankStoredCloudProviderReadsAsHyperWhisperInModeReaders() {
+        let persistence = PersistenceController(inMemory: true)
+        for stored in [nil, "", "   "] as [String?] {
+            let mode = Mode(context: persistence.container.viewContext)
+            mode.id = UUID()
+            mode.model = "cloud"
+            mode.cloudProvider = stored
+            let label = stored.map { "\"\($0)\"" } ?? "nil"
+            #expect(ModeSnapshot(mode).cloudProvider == CloudProvider.hyperwhisper.rawValue, "\(label): ModeSnapshot")
+            #expect(ModeSnapshot(mode).rawCloudProvider == stored, "\(label): ModeSnapshot raw value")
+            #expect(ModeData(from: mode).cloudProvider == CloudProvider.hyperwhisper.rawValue, "\(label): ModeData")
+        }
+        let byok = Mode(context: persistence.container.viewContext)
+        byok.id = UUID()
+        byok.model = "cloud"
+        byok.cloudProvider = "deepgram"
+        #expect(ModeSnapshot(byok).cloudProvider == "deepgram")
+        #expect(ModeData(from: byok).cloudProvider == "deepgram")
     }
 
     @Test("The vectors cover every polymorphic branch")

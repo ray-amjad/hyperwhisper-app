@@ -143,11 +143,13 @@ public sealed class ModeProviderLineConverter : IValueConverter
         return string.IsNullOrWhiteSpace(model) ? provider : $"{provider} · {model}";
     }
 
-    internal static bool IsHyperWhisperCloud(string? id) => id?.ToLowerInvariant() switch
-    {
-        null or "" or "hyperwhisper" or "hyperwhispercloud" or "hyperwhisper_cloud" => true,
-        _ => false,
-    };
+    /// <summary>
+    /// Whether a cloud mode's stored <c>cloudProvider</c> means HyperWhisper Cloud. A blank value
+    /// does, by the shared rule the router and the Mode editor read too (issue #1709).
+    /// </summary>
+    internal static bool IsHyperWhisperCloud(string? id) =>
+        SharedCoreBridge.EffectiveModeCloudProvider(id).Trim().ToLowerInvariant()
+            is "hyperwhisper" or "hyperwhispercloud" or "hyperwhisper_cloud";
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();

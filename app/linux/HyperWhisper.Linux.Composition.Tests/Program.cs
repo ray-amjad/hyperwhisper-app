@@ -59,6 +59,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("live delivered final is not injected twice", LiveDeliveredFinalIsNotDuplicated),
     ("production live sink forwards partial and final updates", LiveSinkForwardsUpdates),
     ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
+    ("a cloud mode with a blank cloudProvider reads as HyperWhisper Cloud on its card", BlankCloudProviderReadsAsHyperWhisperCloud),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
     ("recording refuses every kind when no input device is selected", RecordingRefusesWithoutInputDevice),
     ("a silent recording reads No speech detected, not Transcription failed", SilentRecordingReadsNoSpeech),
@@ -1239,6 +1240,33 @@ static Task CloudProviderStorageRoutes()
         "custom endpoint provider was not resolved");
     Assert(!LinuxPostProcessingRouter.TryResolveProvider("unknown", out _, out _),
         "unknown cloud provider was accepted");
+    return Task.CompletedTask;
+}
+
+// #1709. The mode card, the status bar, the editor and the router used to give four answers for a
+// Cloud mode with no stored provider. The card and the status bar read it through the shared rule
+// now: blank (including whitespace) is HyperWhisper Cloud, and a non-blank id keeps its own meaning.
+static Task BlankCloudProviderReadsAsHyperWhisperCloud()
+{
+    foreach (var value in new string?[] { null, "", "   ", "hyperwhisper", "HyperWhisper", "hyperwhispercloud", "hyperwhisper_cloud" })
+        Assert(ModeProviderLineConverter.IsHyperWhisperCloud(value),
+            $"cloudProvider {(value is null ? "<null>" : $"'{value}'")} did not read as HyperWhisper Cloud");
+    foreach (var value in new[] { "deepgram", "elevenlabs", "googlespeech", "microsoftazurespeech" })
+        Assert(!ModeProviderLineConverter.IsHyperWhisperCloud(value),
+            $"cloudProvider '{value}' read as HyperWhisper Cloud; only a blank value changes meaning");
+
+    var statusBar = new StatusBarModelConverter();
+    var explicitLabel = statusBar.Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "elevenLabsScribeV2" },
+        typeof(string), null, CultureInfo.InvariantCulture) as string;
+    foreach (var blank in new string?[] { null, "", "   " })
+    {
+        var label = statusBar.Convert(
+            new Mode { ProviderType = "cloud", CloudProvider = blank, CloudAccuracyTier = "elevenLabsScribeV2" },
+            typeof(string), null, CultureInfo.InvariantCulture) as string;
+        Assert(label == explicitLabel && !string.IsNullOrWhiteSpace(label),
+            $"status bar read '{label}' for a blank-provider cloud mode, not the tier label '{explicitLabel}'");
+    }
     return Task.CompletedTask;
 }
 

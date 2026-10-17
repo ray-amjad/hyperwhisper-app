@@ -90,7 +90,7 @@ struct ModeSnapshot: Sendable {
         self.name = mode.name ?? "Default"
         self.model = mode.model ?? "base"
         self.language = mode.language
-        self.cloudProvider = mode.cloudProvider ?? "hyperwhisper"
+        self.cloudProvider = CloudProvider.effectiveModeStorageValue(mode.cloudProvider)
         self.rawCloudProvider = mode.cloudProvider
         self.postProcessingMode = mode.postProcessingMode
         self.postProcessingProvider = mode.postProcessingProvider ?? "hyperwhisper"
@@ -896,8 +896,8 @@ class PersistenceController: ObservableObject {
     /// has Google's `gemini-3.5-transcribe` stamped onto it — which the next
     /// dictation then POSTs to xAI.
     ///
-    /// A nil/empty provider counts as HyperWhisper Cloud, matching
-    /// `createOrUpdateMode`'s `?? "hyperwhisper"` default.
+    /// A nil/empty provider counts as HyperWhisper Cloud: the shared core's
+    /// blank-provider rule (`CloudProvider.forMode`, #1709).
     static func googleChirp3TierRewrite(
         cloudProvider: String?,
         cloudAccuracyTier: String?,
@@ -908,7 +908,7 @@ class PersistenceController: ObservableObject {
             .lowercased()
         guard retiredGoogleChirp3TierValues.contains(storedTier) else { return nil }
 
-        let resolvedProvider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        let resolvedProvider = CloudProvider.forMode(cloudProvider)
         guard resolvedProvider == .hyperwhisper else { return nil }
 
         var rewrite = GoogleChirp3TierRewrite(
@@ -2664,7 +2664,7 @@ class PersistenceController: ObservableObject {
         // camelCase id from a Windows/Linux backup — `geminiTranscribe` — is
         // stored in the lowercase form every reader and every picker tag below
         // expects. An id this build does not model passes through verbatim.
-        mode?.cloudProvider = CloudProvider.canonicalStorageValue(cloudProvider) ?? "hyperwhisper"
+        mode?.cloudProvider = CloudProvider.canonicalStorageValue(cloudProvider) ?? CloudProvider.effectiveModeStorageValue(nil)
         // cloudTranscriptionModel is assigned below, after the accuracy tier is
         // resolved, so an omitted model derives from the resolved tier's catalog
         // default (e.g. scribe_v2) instead of persisting a stale "whisper-1".
@@ -2707,7 +2707,7 @@ class PersistenceController: ObservableObject {
         // (openai / soniox / …) there is no accuracy tier — fall back to THAT
         // provider's own default model, otherwise a tier-derived id like
         // "scribe_v2" would be persisted and sent to e.g. OpenAI and rejected.
-        let resolvedCloudProvider = CloudProvider.parse(mode?.cloudProvider) ?? .hyperwhisper
+        let resolvedCloudProvider = CloudProvider.forMode(mode?.cloudProvider)
         mode?.cloudTranscriptionModel = cloudTranscriptionModel
             ?? (resolvedCloudProvider == .hyperwhisper
                 ? (CloudAccuracyTier(rawValue: resolvedAccuracyTier)?.defaultModelId ?? "")

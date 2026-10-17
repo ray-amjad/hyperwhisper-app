@@ -1,5 +1,5 @@
 {
-  "description": "Cross-platform conformance vectors for the shared catalog decoders. Source of truth: shared-core-rs/crates/hw-catalog/src/cloud_stt.rs and models.rs, read through shared-core-rs/crates/hw-core/src/ffi_catalog.rs. Three stacks run these vectors through their own UniFFI binding: Rust (shared-core-rs/crates/hw-core/tests/catalog_vectors.rs), Swift (app/macos/hyperwhisperTests/CatalogConformanceVectorTests.swift) and C# (app/shared-dotnet/HyperWhisper.CatalogConformance.Tests/Program.cs). Regenerate with: cargo test -p hw-core --test catalog_vectors -- --ignored regenerate. `languagesRawCodeCount` pins the size of the raw upstream code list rather than its contents; `pickerLanguageCodes` pins the fold applied to it. A null `codes` means the catalog declares the set \"unverified\", so a picker keeps its full list.",
+  "description": "Cross-platform conformance vectors for the shared catalog decoders. Source of truth: shared-core-rs/crates/hw-catalog/src/cloud_stt.rs and models.rs, read through shared-core-rs/crates/hw-core/src/ffi_catalog.rs. Three stacks run these vectors through their own UniFFI binding: Rust (shared-core-rs/crates/hw-core/tests/catalog_vectors.rs), Swift (app/macos/hyperwhisperTests/CatalogConformanceVectorTests.swift) and C# (app/shared-dotnet/HyperWhisper.CatalogConformance.Tests/Program.cs). Regenerate with: cargo test -p hw-core --test catalog_vectors -- --ignored regenerate. `languagesRawCodeCount` pins the size of the raw upstream code list rather than its contents; `pickerLanguageCodes` pins the fold applied to it. A null `codes` means the catalog declares the set \"unverified\", so a picker keeps its full list. `effectiveModeCloudProvider` pins the provider a CLOUD mode runs on for a stored cloudProvider (null = omitted): blank means \"hyperwhisper\" (#1709).",
   "cloudSttEntries": [
     {
       "id": "groqWhisper",
@@ -2884,6 +2884,44 @@
         "zh"
       ],
       "voiceCapabilities": null
+    }
+  ],
+  "effectiveModeCloudProvider": [
+    {
+      "input": null,
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "  ",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "hyperwhisper",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "deepgram",
+      "expected": "deepgram"
+    },
+    {
+      "input": "Deepgram",
+      "expected": "deepgram"
+    },
+    {
+      "input": "googlespeech",
+      "expected": "hyperwhisper"
+    },
+    {
+      "input": "geminiTranscribe",
+      "expected": "geminitranscribe"
+    },
+    {
+      "input": "not-a-provider",
+      "expected": "not-a-provider"
     }
   ]
 }

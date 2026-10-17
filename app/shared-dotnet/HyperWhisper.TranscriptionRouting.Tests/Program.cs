@@ -128,6 +128,29 @@ static async Task TestRouterAsync(string root)
     Assert(local.Provider == "parakeet" && parakeet.LastRequest?.SelectedMode == localMode,
         "router did not preserve the selected mode for Parakeet");
 
+    // Issue #1709: a Cloud mode with no stored provider (POST /modes may omit it,
+    // older builds stored null) runs on HyperWhisper Cloud, exactly like an
+    // explicit "hyperwhisper" mode. It used to fail here as "not supported".
+    var explicitCloud = new Mode { ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "elevenLabsScribeV2" };
+    var explicitResult = await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest("en", SelectedMode: explicitCloud));
+    var explicitRequest = cloud.LastRequest!;
+    Assert(explicitResult.IsSuccess && explicitRequest.Provider == CloudTranscriptionProvider.HyperWhisperCloud,
+        "an explicit hyperwhisper mode no longer routes to HyperWhisper Cloud");
+    foreach (var blank in new string?[] { null, "", "   " })
+    {
+        var blankMode = new Mode { ProviderType = "cloud", CloudProvider = blank, CloudAccuracyTier = "elevenLabsScribeV2" };
+        var blankResult = await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest("en", SelectedMode: blankMode));
+        var label = blank is null ? "<null>" : $"'{blank}'";
+        Assert(blankResult.IsSuccess, $"a cloud mode with cloudProvider {label} failed: {blankResult.Failure?.Message}");
+        Assert(cloud.LastRequest!.Provider == CloudTranscriptionProvider.HyperWhisperCloud,
+            $"a cloud mode with cloudProvider {label} routed to {cloud.LastRequest.Provider}, not HyperWhisper Cloud");
+        Assert(cloud.LastRequest.Model == explicitRequest.Model
+            && cloud.LastRequest.RoutedModel == explicitRequest.RoutedModel
+            && cloud.LastRequest.RoutedProvider == explicitRequest.RoutedProvider,
+            $"a cloud mode with cloudProvider {label} dispatched differently from an explicit hyperwhisper mode");
+        Assert(blankMode.CloudProvider == blank, "routing must not rewrite the stored provider");
+    }
+
     foreach (var providerId in new[]
     {
         "openai", "groq", "elevenlabs", "mistral", "grok", "deepgram",

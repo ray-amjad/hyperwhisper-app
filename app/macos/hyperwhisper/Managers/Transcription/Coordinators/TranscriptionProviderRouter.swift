@@ -234,7 +234,7 @@ class TranscriptionProviderRouter {
         // is a BILLING decision. A camelCase id restored from a Windows/Linux
         // backup would miss the case-sensitive lookup and silently move a BYOK
         // user onto paid credits.
-        let cloudProviderType = CloudProvider.parse(mode?.cloudProvider) ?? .hyperwhisper
+        let cloudProviderType = CloudProvider.forMode(mode?.cloudProvider)
 
         // Validate API key (except for HyperWhisper Cloud which uses license/device ID)
         guard let settings = settingsManager else {
@@ -696,7 +696,7 @@ class TranscriptionProviderRouter {
     func isHyperWhisperCloudActive(model: String?, cloudProvider: String?) -> Bool {
         let modelString = (model ?? "base").lowercased()
         guard modelString == "cloud" else { return false }
-        let resolved = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        let resolved = CloudProvider.forMode(cloudProvider)
         return resolved.routesViaHyperWhisperCloud
     }
 

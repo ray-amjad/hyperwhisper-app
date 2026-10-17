@@ -31,6 +31,7 @@ var checks = new (string Name, Action Run)[]
     ("the vectors cover every polymorphic branch", CheckCoverage),
     ("streaming cloud tiers are exactly the vendors we serve a WS route for", CheckStreamingCloudTiers),
     ("every head's live-only model set matches shared-conformance", CheckLiveOnlyModelIds),
+    ("a cloud mode's blank cloudProvider reads as HyperWhisper Cloud", CheckEffectiveModeCloudProvider),
 };
 
 foreach (var check in checks)
@@ -270,6 +271,29 @@ void CheckCoverage()
     True(root.GetProperty("vendorGroups").EnumerateArray()
             .Any(g => Strings(g, "entryIds").Count > 1),
         "no company owns two tiers, so the vendor merge is untested");
+}
+
+// Issue #1709: the read rule for a CLOUD mode's stored cloudProvider. The core
+// answers every row; SharedCoreBridge takes the core's answer for a blank value
+// and hands a non-blank one back as stored (its parsers still route the legacy
+// ids the core's storage fold rewrites).
+void CheckEffectiveModeCloudProvider()
+{
+    var rows = root.GetProperty("effectiveModeCloudProvider").EnumerateArray().ToArray();
+    True(rows.Length >= 7, "expected the full effectiveModeCloudProvider vector set");
+    True(rows.Any(r => r.GetProperty("input").ValueKind == JsonValueKind.Null),
+        "no vector exercises a null cloudProvider");
+    foreach (var row in rows)
+    {
+        var input = Str(row, "input");
+        var expected = Str(row, "expected");
+        var label = input is null ? "<null>" : $"\"{input}\"";
+        Equal(expected, HyperwhisperCoreMethods.CloudSttEffectiveModeCloudProvider(input),
+            $"effectiveModeCloudProvider({label})");
+        Equal(string.IsNullOrWhiteSpace(input) ? expected : input,
+            SharedCoreBridge.EffectiveModeCloudProvider(input),
+            $"SharedCoreBridge.EffectiveModeCloudProvider({label})");
+    }
 }
 
 /// <summary>

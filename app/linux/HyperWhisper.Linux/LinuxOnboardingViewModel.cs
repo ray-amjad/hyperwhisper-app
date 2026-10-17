@@ -3,6 +3,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.ModelReadiness;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.ViewModels;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.Linux;
 
@@ -313,9 +314,10 @@ internal sealed class LinuxOnboardingModeReadiness(
                 && await _localModels.IsInstalledAsync(capability, cancellationToken).ConfigureAwait(false);
         }
 
-        if (!string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
-            || string.IsNullOrWhiteSpace(mode.CloudProvider)) return false;
-        var providerId = NormalizeCloudProvider(mode.CloudProvider);
+        if (!string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)) return false;
+        // A cloud mode with no stored provider runs on HyperWhisper Cloud (issue #1709), so it is
+        // ready exactly when an explicit "hyperwhisper" mode would be.
+        var providerId = NormalizeCloudProvider(SharedCoreBridge.EffectiveModeCloudProvider(mode.CloudProvider));
         var knownProvider = string.Equals(providerId, "hyperwhisper", StringComparison.Ordinal)
             || _capabilities.Any(item => item.Deployment == ModelDeployment.Cloud
                 && item.Workload == ModelWorkload.Voice

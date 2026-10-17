@@ -73,6 +73,27 @@ enum CloudProvider: String, CaseIterable, Identifiable {
         return parse(value)?.rawValue ?? value
     }
 
+    /// The cloud provider a mode USES for transcription, as a stored string.
+    ///
+    /// A blank value (nil, empty or whitespace) takes the shared core's answer
+    /// (`cloudSttEffectiveModeCloudProvider`), which is HyperWhisper Cloud on
+    /// every head (#1709). A non-blank value is returned as stored: the core
+    /// also folds legacy aliases, and this head keeps its own routing for those.
+    static func effectiveModeStorageValue(_ stored: String?) -> String {
+        guard let stored,
+              !stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return cloudSttEffectiveModeCloudProvider(value: stored)
+        }
+        return stored
+    }
+
+    /// The parsed provider a mode uses for transcription. A blank value reads
+    /// the shared rule; an id this build does not model still falls back to
+    /// HyperWhisper Cloud, as before.
+    static func forMode(_ stored: String?) -> CloudProvider {
+        parse(effectiveModeStorageValue(stored)) ?? .hyperwhisper
+    }
+
     /// Display name for the provider
     var displayName: String {
         switch self {

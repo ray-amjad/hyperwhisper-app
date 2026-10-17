@@ -63,7 +63,7 @@ enum CloudAudioFormatRecovery {
     /// True for both ways Muse can be selected. The direct target must never be
     /// inferred from a stale cloud tier on another BYOK provider.
     static func isMuseTransportTarget(cloudProvider: String?, accuracyTier: String?) -> Bool {
-        let provider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        let provider = CloudProvider.forMode(cloudProvider)
         if provider == .meta { return true }
         return provider == .hyperwhisper
             && CloudAccuracyTier.fromStorageValue(accuracyTier) == .metaMuse
