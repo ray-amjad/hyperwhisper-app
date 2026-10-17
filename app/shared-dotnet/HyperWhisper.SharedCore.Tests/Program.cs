@@ -2445,7 +2445,10 @@ static async Task TestLiveCancelDuringDrainAsync()
 /// opposite, and this flag cannot give it: <c>Served</c> counts a frame handed to
 /// the receive loop, not one it has recorded, so on some schedules the audio loop
 /// ended first and the error landed after the verdict froze (#1930). That test
-/// uses <see cref="AudioUntilRefused"/> instead.
+/// uses <see cref="AudioUntilRefused"/> instead. The cancel-during-drain test still
+/// sets it and does not depend on that ordering: its cancel is armed by the close,
+/// so it fires inside the drain whether the transcript was recorded before the
+/// stop or during the drain.
 /// </summary>
 static async IAsyncEnumerable<ReadOnlyMemory<byte>> LateAudio(
     int byteCount,
@@ -2470,8 +2473,10 @@ static async IAsyncEnumerable<ReadOnlyMemory<byte>> LateAudio(
 /// it and record the verdict, and an audio loop that ran out of chunks in that gap
 /// stopped normally instead (#1930). So this keeps offering chunks, and the audio
 /// loop's own <c>state.Failure</c> check is what ends it — the session's real exit,
-/// not a timing guess. The bound only turns a verdict that never lands into a
-/// normal stop, which the test's assertions then report.
+/// not a timing guess. The 5 s bound only turns a verdict that never lands into a
+/// normal stop, which the test's assertions then report. It is a deadline and not
+/// a chunk count, because <c>Task.Delay(1)</c> sleeps a whole timer tick (about
+/// 15.6 ms on Windows) and a count would stretch with it.
 /// </summary>
 static async IAsyncEnumerable<ReadOnlyMemory<byte>> AudioUntilRefused(
     int byteCount,
@@ -2479,7 +2484,8 @@ static async IAsyncEnumerable<ReadOnlyMemory<byte>> AudioUntilRefused(
 {
     yield return new byte[byteCount];
     socket.MarkAudioDone();
-    for (var chunk = 0; chunk < 5000; chunk++)
+    var deadline = System.Diagnostics.Stopwatch.StartNew();
+    while (deadline.Elapsed < TimeSpan.FromSeconds(5))
     {
         await Task.Delay(1);
         yield return new byte[byteCount];
