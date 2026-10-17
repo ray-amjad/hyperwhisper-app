@@ -165,12 +165,14 @@ function AccuracyNote({ model }: { model: Model }) {
  */
 const FLIP_MAX_DISTANCE = 400;
 
-/** Mirrors --motion-duration-fast in globals.css, plus a margin. */
-const FLIP_CLEANUP_MS = 400;
-
-const FLIP_TRANSITION =
-  "transform var(--motion-duration-fast) var(--motion-ease-smooth-out), " +
-  "opacity var(--motion-duration-fast) var(--motion-ease-smooth-out)";
+/**
+ * The slide's timing: --motion-duration-fast and --motion-ease-smooth-out in
+ * globals.css (a test pins the two together). The rows run on the Web
+ * Animations API rather than an inline transition, so a re-rank writes no
+ * inline style and needs no forced reflow to set a start state.
+ */
+export const FLIP_DURATION_MS = 250;
+export const FLIP_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 /**
  * Read at event time, never during render, so the server markup and the first
@@ -213,17 +215,6 @@ type MotionSnapshot = {
   replay: boolean;
 };
 
-/**
- * Replay an element's CSS enter transition: jump to the `data-motion-from`
- * state with no transition, force a style flush, then drop the attribute so
- * the element's own `transition` (globals.css) carries it back.
- */
-function replayEnter(el: HTMLElement) {
-  el.setAttribute("data-motion-from", "");
-  void el.offsetWidth;
-  el.removeAttribute("data-motion-from");
-}
-
 export default function ModelPicker({ measured, regions }: Props) {
   const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS);
   const [platform, setPlatform] = useState<Platform>("macos");
@@ -242,7 +233,7 @@ export default function ModelPicker({ measured, regions }: Props) {
   const nameRef = useRef<HTMLHeadingElement>(null);
   const statsRef = useRef<HTMLDListElement>(null);
   const pendingMotion = useRef<MotionSnapshot | null>(null);
-  const flipCleanup = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rowSlides = useRef(new Map<string, Animation>());
   const lastWeightChangeAt = useRef<number | null>(null);
 
   const regionsKey = regions.join(",");
@@ -303,6 +294,12 @@ export default function ModelPicker({ measured, regions }: Props) {
   // FLIP the re-ranked rows (#766): each row is drawn back at the place it
   // held before the weight change, then let go so it slides to its new rank.
   // Runs after the DOM commit and before paint, so no frame shows the jump.
+  //
+  // One read pass, then writes that dirty nothing: offsetTop ignores the
+  // transform a slide in flight draws, so no slide has to be cancelled first,
+  // and a Web Animation needs no inline style and no reflow to start. Writing
+  // inline styles row by row and reading the next row forced a style + layout
+  // flush per row, about 50 per slider input, which made a drag stutter.
   useLayoutEffect(() => {
     const before = pendingMotion.current;
 
@@ -312,54 +309,66 @@ export default function ModelPicker({ measured, regions }: Props) {
     const tbody = tbodyRef.current;
     const rows = rowRefs.current;
     const sameSet =
+      tbody !== null &&
       rows.size === before.rowTops.size &&
       Array.from(rows.keys()).every((id) => before.rowTops.has(id));
 
-    if (tbody !== null && sameSet) {
-      if (flipCleanup.current !== null) clearTimeout(flipCleanup.current);
-      // Drop any slide still in flight, so the reads below are layout tops.
-      rows.forEach((row) => {
-        row.style.transition = "none";
-        row.style.transform = "";
-        row.style.opacity = "";
-      });
-      const base = tbody.getBoundingClientRect().top;
-      const moved: HTMLTableRowElement[] = [];
+    if (sameSet && typeof tbody.animate === "function") {
+      const base = tbody.offsetTop;
+      const viewTop = tbody.getBoundingClientRect().top;
+      const viewHeight = window.innerHeight;
+      const moved: {
+        id: string;
+        row: HTMLTableRowElement;
+        delta: number;
+        top: number;
+        height: number;
+      }[] = [];
 
       rows.forEach((row, id) => {
-        const delta =
-          (before.rowTops.get(id) ?? 0) -
-          (row.getBoundingClientRect().top - base);
+        const top = row.offsetTop - base;
+        const delta = (before.rowTops.get(id) ?? 0) - top;
 
-        if (Math.abs(delta) < 1) {
-          row.style.transition = "";
-
-          return;
+        if (Math.abs(delta) >= 1) {
+          moved.push({ id, row, delta, top, height: row.offsetHeight });
         }
+      });
+      for (const { id, row, delta, top, height } of moved) {
         const far = Math.abs(delta) > FLIP_MAX_DISTANCE;
         const shown = far ? Math.sign(delta) * FLIP_MAX_DISTANCE : delta;
+        // A row whose whole slide is off screen is not animated: nobody
+        // sees it, and each running slide costs a style pass every frame.
+        const from = viewTop + top + Math.min(0, shown);
+        const to = viewTop + top + Math.max(0, shown) + height;
 
-        row.style.transform = `translateY(${shown}px)`;
-        if (far) row.style.opacity = "0";
-        moved.push(row);
-      });
-      void tbody.offsetHeight;
-      for (const row of moved) {
-        row.style.transition = FLIP_TRANSITION;
-        row.style.transform = "";
-        row.style.opacity = "";
+        rowSlides.current.get(id)?.cancel();
+        if (to <= 0 || from >= viewHeight) {
+          rowSlides.current.delete(id);
+          continue;
+        }
+        rowSlides.current.set(
+          id,
+          row.animate(
+            far
+              ? [
+                  { transform: `translateY(${shown}px)`, opacity: 0 },
+                  { transform: "none", opacity: 1 },
+                ]
+              : [
+                  { transform: `translateY(${shown}px)` },
+                  { transform: "none" },
+                ],
+            { duration: FLIP_DURATION_MS, easing: FLIP_EASING },
+          ),
+        );
       }
-      // Hand the row back to its own hover transition once the slide ends.
-      flipCleanup.current = setTimeout(() => {
-        flipCleanup.current = null;
-        for (const row of moved) row.style.transition = "";
-      }, FLIP_CLEANUP_MS);
     }
 
     // The best-match name and its stats swap in place: replay only what
     // changed, and only on the first change of a gesture (SWAP_REST_MS), so a
     // drag never pushes a value the reader can see back to transparent.
     if (!before.replay) return;
+    const swapped: HTMLElement[] = [];
     const name = nameRef.current;
 
     if (
@@ -367,23 +376,21 @@ export default function ModelPicker({ measured, regions }: Props) {
       before.name !== null &&
       name.textContent !== before.name
     ) {
-      replayEnter(name);
+      swapped.push(name);
     }
-    const stats = statsRef.current?.querySelectorAll("dd") ?? [];
-
-    stats.forEach((dd, i) => {
+    statsRef.current?.querySelectorAll("dd").forEach((dd, i) => {
       if (before.stats[i] !== undefined && dd.textContent !== before.stats[i]) {
-        replayEnter(dd);
+        swapped.push(dd);
       }
     });
+    if (swapped.length === 0) return;
+    // A data-motion-from element sits at its enter state with no transition
+    // (globals.css); one flush for all of them, then dropping the attribute
+    // lets each element's own transition carry it back.
+    for (const el of swapped) el.setAttribute("data-motion-from", "");
+    void swapped[0].offsetWidth;
+    for (const el of swapped) el.removeAttribute("data-motion-from");
   }, [ranked]);
-
-  useEffect(
-    () => () => {
-      if (flipCleanup.current !== null) clearTimeout(flipCleanup.current);
-    },
-    [],
-  );
 
   const best = ranked[0] ?? null;
   const cloudCount = ranked.filter((entry) => isCloud(entry.model)).length;

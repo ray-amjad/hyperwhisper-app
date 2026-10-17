@@ -22,6 +22,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import ModelPicker, {
+  FLIP_DURATION_MS,
+  FLIP_EASING,
   SWAP_REST_MS,
   startsGesture,
 } from "@/components/choosing-a-model/ModelPicker";
@@ -95,4 +97,11 @@ test("only the first weight change of a gesture replays the swap and the pop", (
   assert.equal(startsGesture(1000 + SWAP_REST_MS - 1, 1000), false);
   // Longer than the pop, so a pop still running is never restarted.
   assert.ok(SWAP_REST_MS > 250);
+});
+
+test("the row slide uses the --motion-duration-fast / --motion-ease-smooth-out tokens", () => {
+  const css = readFileSync(join(ROOT, "styles/globals.css"), "utf8");
+
+  assert.ok(css.includes(`--motion-duration-fast: ${FLIP_DURATION_MS}ms;`));
+  assert.ok(css.includes(`--motion-ease-smooth-out: ${FLIP_EASING};`));
 });
