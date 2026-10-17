@@ -15203,6 +15203,78 @@ internal static class Program
                 Assert(flow.HasSetupError, "and the failure must be visible rather than swallowed");
             });
 
+            RunAsync("onboarding #1489: text that cannot be a key keeps Test and Activate off and is never sent", async () =>
+            {
+                var h = new OnboardingHarness();
+                h.Permissions.MicrophoneAuthorization = OnboardingMicrophoneAuthorization.Authorized;
+                h.Flow.RefreshPermissions();
+                Assert(h.Flow.Advance() && h.Flow.Advance(), "welcome and permissions must pass");
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                Assert(h.Flow.Advance(), "configure must be reachable");
+
+                Assert(!h.Flow.CanTestAccessKey && !h.Flow.CanActivateLicense && !h.Flow.ShowsLicenseKeyFormatHint,
+                    "an empty field must keep both buttons off without the hint");
+
+                var refusedTexts = new[]
+                {
+                    "Thanks for your purchase!\nYour key is HW-ABCD-EFGH.",
+                    new string('A', 65),
+                    "HW-ABCD EFGH",
+                    "HW-\u00C4BCD-EFGH",
+                    "HW-ABCD-\U0001F511",
+                };
+                foreach (var refused in refusedTexts)
+                {
+                    h.Flow.LicenseKeyInput = refused;
+                    Assert(!h.Flow.CanTestAccessKey && !h.Flow.CanActivateLicense,
+                        $"'{refused}' must keep Test and Activate off");
+                    Assert(h.Flow.ShowsLicenseKeyFormatHint && !h.Flow.IsLicenseKeyPlausible,
+                        $"'{refused}' must show the format hint");
+                    // A direct call (a stray command) must not send it either.
+                    h.Flow.TestAccessKey();
+                    h.Flow.ActivateCloudLicense();
+                }
+                Assert(h.License.ProbedKeys.Count == 0 && h.License.ActivatedKeys.Count == 0,
+                    "text that cannot be a key reached the licence service");
+
+                h.Flow.LicenseKeyInput = " \t\r\n";
+                Assert(!h.Flow.CanTestAccessKey && !h.Flow.ShowsLicenseKeyFormatHint,
+                    "a whitespace-only field must keep Test off without the hint");
+
+                h.Flow.LicenseKeyInput = "3f2a9c1e-7b4d-4e8a-9c2f-5d6e7f8a9b0c";
+                Assert(h.Flow.CanTestAccessKey && !h.Flow.ShowsLicenseKeyFormatHint,
+                    "a legacy-looking key must stay testable: there is no HW- pattern check");
+
+                h.Flow.LicenseKeyInput = "  HW-ABCD-EFGH-JKLM-NPQR\r\n";
+                Assert(h.Flow.CanTestAccessKey && !h.Flow.ShowsLicenseKeyFormatHint,
+                    "a key pasted with a trailing newline must be accepted");
+                h.Flow.TestAccessKey();
+                await h.Flow.LastAsyncTaskForTesting!;
+                Assert(h.License.ProbedKeys.SequenceEqual(new[] { "HW-ABCD-EFGH-JKLM-NPQR" }),
+                    $"the pasted key was not trimmed before it was sent ('{string.Join("|", h.License.ProbedKeys)}')");
+            });
+
+            RunAsync("licence #1489: LicenseManager refuses text that cannot be a key before the network", async () =>
+            {
+                var manager = LicenseManager.Instance;
+                var statusBefore = manager.LicenseStatus;
+                var expected = HyperWhisper.Localization.Loc.S("license.error.keyFormat");
+                Assert(expected != "license.error.keyFormat", "the hint string must be in the catalog");
+
+                foreach (var refused in new[] { "", "two words", new string('A', 65), "cl\u00E9-de-compte" })
+                {
+                    var activation = await manager.ActivateLicenseAsync(refused);
+                    Assert(!activation.IsValid && activation.ErrorMessage == expected,
+                        $"activation of '{refused}' was not refused with the format hint");
+                    var probe = await manager.ProbeLicenseAsync(refused);
+                    Assert(!probe.IsValid && probe.ErrorMessage == expected,
+                        $"probe of '{refused}' was not refused with the format hint");
+                }
+
+                Assert(manager.LicenseStatus == statusBefore && !manager.IsValidating,
+                    "a refused key must leave the licence state alone");
+            });
+
             RunAsync("onboarding F4: a throwing provider probe clears the spinner", async () =>
             {
                 // The sibling. It was already recoverable by leaving and re-entering
