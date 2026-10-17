@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Cloud, Laptop, MapPin } from "lucide-react";
 
 // The one place the credit rate is declared. This module is deliberately kept
@@ -158,6 +158,55 @@ function AccuracyNote({ model }: { model: Model }) {
   );
 }
 
+/**
+ * How far a re-ranked row may visibly travel (#766). A row that moves further
+ * (one model jumps ~4,400 px on a single slider move) starts this far from its
+ * new place and fades in, instead of flying across the whole table.
+ */
+const FLIP_MAX_DISTANCE = 400;
+
+/** Mirrors --motion-duration-fast in globals.css, plus a margin. */
+const FLIP_CLEANUP_MS = 400;
+
+const FLIP_TRANSITION =
+  "transform var(--motion-duration-fast) var(--motion-ease-smooth-out), " +
+  "opacity var(--motion-duration-fast) var(--motion-ease-smooth-out)";
+
+/**
+ * Read at event time, never during render, so the server markup and the first
+ * client render stay identical (no hydration mismatch).
+ */
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/**
+ * Where everything stood just before a weight change, so the commit that
+ * follows can animate from it. Taken only by the weight sliders and presets:
+ * a platform / language / requirement toggle changes the row SET, and those
+ * rows just appear.
+ */
+type MotionSnapshot = {
+  rowTops: Map<string, number>;
+  name: string | null;
+  stats: string[];
+};
+
+/**
+ * Replay an element's CSS enter transition: jump to the `data-motion-from`
+ * state with no transition, force a style flush, then drop the attribute so
+ * the element's own `transition` (globals.css) carries it back.
+ */
+function replayEnter(el: HTMLElement) {
+  el.setAttribute("data-motion-from", "");
+  void el.offsetWidth;
+  el.removeAttribute("data-motion-from");
+}
+
 export default function ModelPicker({ measured, regions }: Props) {
   const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS);
   const [platform, setPlatform] = useState<Platform>("macos");
@@ -170,6 +219,13 @@ export default function ModelPicker({ measured, regions }: Props) {
   const [region, setRegion] = useState<string | null>(regions[0] ?? null);
   const [detectedCity, setDetectedCity] = useState<string | null>(null);
   const regionPickedByUser = useRef(false);
+
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+  const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+  const nameRef = useRef<HTMLHeadingElement>(null);
+  const statsRef = useRef<HTMLDListElement>(null);
+  const pendingMotion = useRef<MotionSnapshot | null>(null);
+  const flipCleanup = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const regionsKey = regions.join(",");
 
@@ -226,12 +282,118 @@ export default function ModelPicker({ measured, regions }: Props) {
     });
   }, [weights, platform, language, requirements, region, measured]);
 
+  // FLIP the re-ranked rows (#766): each row is drawn back at the place it
+  // held before the weight change, then let go so it slides to its new rank.
+  // Runs after the DOM commit and before paint, so no frame shows the jump.
+  useLayoutEffect(() => {
+    const before = pendingMotion.current;
+
+    pendingMotion.current = null;
+    if (before === null || prefersReducedMotion()) return;
+
+    const tbody = tbodyRef.current;
+    const rows = rowRefs.current;
+    const sameSet =
+      rows.size === before.rowTops.size &&
+      Array.from(rows.keys()).every((id) => before.rowTops.has(id));
+
+    if (tbody !== null && sameSet) {
+      if (flipCleanup.current !== null) clearTimeout(flipCleanup.current);
+      // Drop any slide still in flight, so the reads below are layout tops.
+      rows.forEach((row) => {
+        row.style.transition = "none";
+        row.style.transform = "";
+        row.style.opacity = "";
+      });
+      const base = tbody.getBoundingClientRect().top;
+      const moved: HTMLTableRowElement[] = [];
+
+      rows.forEach((row, id) => {
+        const delta =
+          (before.rowTops.get(id) ?? 0) -
+          (row.getBoundingClientRect().top - base);
+
+        if (Math.abs(delta) < 1) {
+          row.style.transition = "";
+
+          return;
+        }
+        const far = Math.abs(delta) > FLIP_MAX_DISTANCE;
+        const shown = far ? Math.sign(delta) * FLIP_MAX_DISTANCE : delta;
+
+        row.style.transform = `translateY(${shown}px)`;
+        if (far) row.style.opacity = "0";
+        moved.push(row);
+      });
+      void tbody.offsetHeight;
+      for (const row of moved) {
+        row.style.transition = FLIP_TRANSITION;
+        row.style.transform = "";
+        row.style.opacity = "";
+      }
+      // Hand the row back to its own hover transition once the slide ends.
+      flipCleanup.current = setTimeout(() => {
+        flipCleanup.current = null;
+        for (const row of moved) row.style.transition = "";
+      }, FLIP_CLEANUP_MS);
+    }
+
+    // The best-match name and its stats swap in place: replay only what changed.
+    const name = nameRef.current;
+
+    if (
+      name !== null &&
+      before.name !== null &&
+      name.textContent !== before.name
+    ) {
+      replayEnter(name);
+    }
+    const stats = statsRef.current?.querySelectorAll("dd") ?? [];
+
+    stats.forEach((dd, i) => {
+      if (before.stats[i] !== undefined && dd.textContent !== before.stats[i]) {
+        replayEnter(dd);
+      }
+    });
+  }, [ranked]);
+
+  useEffect(
+    () => () => {
+      if (flipCleanup.current !== null) clearTimeout(flipCleanup.current);
+    },
+    [],
+  );
+
   const best = ranked[0] ?? null;
   const cloudCount = ranked.filter((entry) => isCloud(entry.model)).length;
   const deviceCount = ranked.length - cloudCount;
   const hasMeasurements = regions.length > 0;
 
+  function snapshotForMotion() {
+    pendingMotion.current = null;
+    const tbody = tbodyRef.current;
+
+    if (tbody === null || prefersReducedMotion()) return;
+    const base = tbody.getBoundingClientRect().top;
+    const rowTops = new Map<string, number>();
+
+    // The visual top, mid-slide included, so a drag that re-ranks again
+    // before the last slide ends carries on from where the row is drawn.
+    rowRefs.current.forEach((row, id) => {
+      rowTops.set(id, row.getBoundingClientRect().top - base);
+    });
+    pendingMotion.current = {
+      rowTops,
+      name: nameRef.current?.textContent ?? null,
+      stats: Array.from(
+        statsRef.current?.querySelectorAll("dd") ?? [],
+        (dd) => dd.textContent ?? "",
+      ),
+    };
+  }
+
   function setPriority(priority: Priority, value: number) {
+    snapshotForMotion();
     setWeights((current) => rebalance(current, priority, value));
   }
 
@@ -274,7 +436,12 @@ export default function ModelPicker({ measured, regions }: Props) {
                 key={preset.id}
                 className="rounded-md border border-dashed border-gray-700 px-2.5 py-1 text-xs text-gray-400 transition hover:border-solid hover:border-purple-500/60 hover:text-white"
                 type="button"
-                onClick={() => setWeights(preset.weights)}
+                onClick={() => {
+                  // Same preset again: no re-render, so no snapshot to leave behind.
+                  if (preset.weights === weights) return;
+                  snapshotForMotion();
+                  setWeights(preset.weights);
+                }}
               >
                 {preset.label}
               </button>
@@ -457,7 +624,10 @@ export default function ModelPicker({ measured, regions }: Props) {
                 Best match for how you spent your points
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
-                <h2 className="text-2xl font-bold text-white">
+                <h2
+                  ref={nameRef}
+                  className="t-text-swap text-2xl font-bold text-white"
+                >
                   {best.model.name}
                 </h2>
                 <PlacementBadge model={best.model} />
@@ -472,12 +642,12 @@ export default function ModelPicker({ measured, regions }: Props) {
                   : `${best.model.vendorLabel} · runs on HyperWhisper Cloud`}
               </p>
 
-              <dl className="mt-6 grid gap-3 sm:grid-cols-4">
+              <dl ref={statsRef} className="mt-6 grid gap-3 sm:grid-cols-4">
                 <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
                   <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Word errors
                   </dt>
-                  <dd className="mt-1 font-mono text-lg tabular-nums text-white">
+                  <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
                     {best.model.wer === null ? "—" : `${best.model.wer}%`}
                   </dd>
                 </div>
@@ -485,13 +655,13 @@ export default function ModelPicker({ measured, regions }: Props) {
                   <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Cost
                   </dt>
-                  <dd className="mt-1 font-mono text-lg tabular-nums text-white">
+                  <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
                     {formatCost(best.model)}
                   </dd>
                   {/* A second <dd>, not a <p> in the first one: a <dl> wrapper may hold
                       only <dt>/<dd> (#890), and inside the first <dd> the note would
                       inherit its font-mono text-lg line box. */}
-                  <dd className="mt-0.5 text-[10px] text-gray-400">
+                  <dd className="t-number-pop mt-0.5 text-[10px] text-gray-400">
                     {formatDollars(best.model) ?? "no per-minute cost"}
                   </dd>
                 </div>
@@ -499,7 +669,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                   <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Per audio minute
                   </dt>
-                  <dd className="mt-1 font-mono text-lg tabular-nums text-white">
+                  <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
                     {formatSeconds(best.estimatedSeconds)}
                   </dd>
                 </div>
@@ -507,7 +677,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                   <dt className="text-[10px] uppercase tracking-wider text-gray-400">
                     Match
                   </dt>
-                  <dd className="mt-1 font-mono text-lg tabular-nums text-white">
+                  <dd className="t-number-pop mt-1 font-mono text-lg tabular-nums text-white">
                     {Math.round(best.score * 100)}
                   </dd>
                 </div>
@@ -572,10 +742,15 @@ export default function ModelPicker({ measured, regions }: Props) {
                       </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody ref={tbodyRef}>
                     {ranked.map((entry, index) => (
                       <tr
                         key={entry.model.id}
+                        ref={(row) => {
+                          if (row === null)
+                            rowRefs.current.delete(entry.model.id);
+                          else rowRefs.current.set(entry.model.id, row);
+                        }}
                         className={`border-b border-gray-900 transition hover:bg-gray-900/40 ${
                           index === 0 ? "bg-purple-600/5" : ""
                         }`}
