@@ -214,6 +214,35 @@ test("before_send redacts strings in nested arrays, survives a cycle, and keeps 
   assert.equal(out.self, out);
 });
 
+test("a nested string loses only the key, so nested campaign values are kept (#1910)", () => {
+  const campaign =
+    "https://www.hyperwhisper.com/en?utm_campaign=hw-launch&ref=HW-blog#faq";
+  const event = {
+    event: "$web_vitals",
+    properties: {
+      $current_url: campaign,
+      $web_vitals_LCP_event: {
+        navigationURL: campaign,
+        oldKey: "https://www.hyperwhisper.com/credits?license_key=HW-OLD1-X",
+        keyedId: `https://www.hyperwhisper.com/credits?id=${KEY}&utm_campaign=hw-launch`,
+      },
+    },
+  };
+
+  const sent = redactAccountKeyFromEvent(event);
+
+  const lcp = sent.properties.$web_vitals_LCP_event;
+  assert.equal(lcp.navigationURL, campaign);
+  assert.equal(
+    lcp.oldKey,
+    "https://www.hyperwhisper.com/credits?license_key=[redacted]",
+  );
+  assert.equal(
+    lcp.keyedId,
+    "https://www.hyperwhisper.com/credits?id=[redacted]&utm_campaign=hw-launch",
+  );
+});
+
 test("the address bar URL loses only the Account Key parameters", () => {
   assert.equal(
     withoutAccountKeyParams(
