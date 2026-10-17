@@ -511,6 +511,166 @@ await CheckAsync("client: dispose stops the worker", async () =>
     await ThrowsAsync<ObjectDisposedException>(() => client.WarmUpAsync());
 });
 
+await CheckAsync("client: a silent transcribe trips the watchdog: killed, timeout, no retry, gate freed (PR #1927)", async () =>
+{
+    var launcher = new FakeLauncher(index => new FakeBehavior
+    {
+        Handle = (process, command) =>
+            index == 0 && command is WhisperWorkerTranscribeCommand
+                ? Task.CompletedTask // alive, never answers
+                : FakeBehavior.DefaultHandle(process, command),
+    });
+    await using var client = new WhisperWorkerClient(launcher, timings: fast with
+    {
+        IdleTimeout = TimeSpan.FromMinutes(1),
+        TranscribeTimeoutFloor = TimeSpan.FromMilliseconds(200),
+        TranscribeTimeoutPerAudioSecond = 0,
+    });
+    await client.SelectModelAsync(model);
+    var watch = Stopwatch.StartNew();
+    var error = await ThrowsAsync<WhisperWorkerException>(() => client.TranscribeAsync("/a.wav", null, options));
+    Assert(error.Code == WhisperWorkerErrorCodes.Timeout && !error.IsModelFileFault, error.Code);
+    Assert(watch.Elapsed < TimeSpan.FromSeconds(3), $"the watchdog took {watch.Elapsed}");
+    Assert(launcher[0].Killed, "the hung worker was not killed");
+    Assert(client.StartCount == 1 && launcher[0].Commands.OfType<WhisperWorkerTranscribeCommand>().Count() == 1,
+        "a timeout was retried");
+    // The gate is free: the next request runs, on a fresh worker.
+    var next = await client.TranscribeAsync("/a.wav", null, options).WaitAsync(TimeSpan.FromSeconds(5));
+    Assert(next.Text == "hello" && client.StartCount == 2, "the request after a timeout did not run on a fresh worker");
+});
+
+await CheckAsync("client: the transcribe watchdog scales with the audio length (PR #1927)", async () =>
+{
+    var defaults = new WhisperWorkerClientTimings();
+    var fiveMinutes = defaults.TranscribeTimeoutFor(TimeSpan.FromMinutes(5));
+    Assert(fiveMinutes >= TimeSpan.FromMinutes(50), $"a 5-min chunk only gets {fiveMinutes}");
+    Assert(defaults.TranscribeTimeoutFor(TimeSpan.Zero) == defaults.TranscribeTimeoutFloor, "no floor for empty audio");
+    Assert(defaults.LoadTimeout >= TimeSpan.FromMinutes(5), $"load watchdog {defaults.LoadTimeout}");
+
+    // Slower than the floor, inside the scaled budget: it must succeed.
+    var launcher = new FakeLauncher(_ => new FakeBehavior
+    {
+        Handle = async (process, command) =>
+        {
+            if (command is WhisperWorkerTranscribeCommand) await Task.Delay(500);
+            await FakeBehavior.DefaultHandle(process, command);
+        },
+    });
+    await using var client = new WhisperWorkerClient(launcher, timings: fast with
+    {
+        IdleTimeout = TimeSpan.FromMinutes(1),
+        TranscribeTimeoutFloor = TimeSpan.FromMilliseconds(150),
+        TranscribeTimeoutPerAudioSecond = 1,
+    });
+    await client.SelectModelAsync(model);
+    var told = await client.TranscribeAsync("/a.wav", null, options, audioDuration: TimeSpan.FromSeconds(1));
+    Assert(told.Text == "hello", "a slow answer inside the scaled budget failed");
+    var wav = Path.Combine(Path.GetTempPath(), $"hw-watchdog-{Guid.NewGuid():N}.wav");
+    try
+    {
+        WhisperWav.Write(wav, new float[WhisperWav.SampleRate]); // 1 s
+        var read = await client.TranscribeAsync(wav, null, options);
+        Assert(read.Text == "hello", "the length read from the WAV did not scale the watchdog");
+    }
+    finally
+    {
+        File.Delete(wav);
+    }
+    Assert(client.StartCount == 1 && !launcher[0].Killed, "a slow but answering worker was killed");
+});
+
+await CheckAsync("client: a silent load trips the load watchdog without a retry (PR #1927)", async () =>
+{
+    var launcher = new FakeLauncher(index => new FakeBehavior
+    {
+        Handle = (process, command) =>
+            index == 0 && command is WhisperWorkerLoadCommand
+                ? Task.CompletedTask
+                : FakeBehavior.DefaultHandle(process, command),
+    });
+    await using var client = new WhisperWorkerClient(launcher, timings: fast with
+    {
+        IdleTimeout = TimeSpan.FromMinutes(1),
+        LoadTimeout = TimeSpan.FromMilliseconds(200),
+    });
+    await client.SelectModelAsync(model);
+    var error = await ThrowsAsync<WhisperWorkerException>(() => client.WarmUpAsync());
+    Assert(error.Code == WhisperWorkerErrorCodes.Timeout, error.Code);
+    Assert(launcher[0].Killed && client.StartCount == 1, "the hung load was not killed, or was retried");
+    var next = await client.TranscribeAsync("/a.wav", null, options).WaitAsync(TimeSpan.FromSeconds(5));
+    Assert(next.Text == "hello" && client.StartCount == 2, "the request after a load timeout did not run");
+});
+
+await CheckAsync("client: a request queued at dispose starts no worker (PR #1927)", async () =>
+{
+    var release = new TaskCompletionSource();
+    var launcher = new FakeLauncher(_ => new FakeBehavior
+    {
+        Handle = async (process, command) =>
+        {
+            if (command is WhisperWorkerTranscribeCommand) await release.Task;
+            await FakeBehavior.DefaultHandle(process, command);
+        },
+    });
+    var client = new WhisperWorkerClient(launcher, timings: fast with { IdleTimeout = TimeSpan.FromMinutes(1) });
+    await client.SelectModelAsync(model);
+    var running = client.TranscribeAsync("/a.wav", null, options);
+    await WaitUntilAsync(() => launcher.Processes.Count == 1 && launcher[0].Commands.OfType<WhisperWorkerTranscribeCommand>().Any(), "the first request");
+    var queued = client.TranscribeAsync("/b.wav", null, options);
+    var watch = Stopwatch.StartNew();
+    await client.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+    Assert(watch.Elapsed < TimeSpan.FromSeconds(3), $"dispose waited {watch.Elapsed} on a running request");
+    release.TrySetResult();
+    var first = await ThrowsAsync<WhisperWorkerException>(() => running);
+    Assert(first.Code == WhisperWorkerErrorCodes.Crashed, $"the running request ended as {first.Code}");
+    await ThrowsAsync<ObjectDisposedException>(() => queued);
+    Assert(launcher.Processes.Count == 1 && launcher.Processes.All(p => p.HasExited),
+        $"{launcher.Processes.Count} workers started, alive: {launcher.Processes.Count(p => !p.HasExited)}");
+});
+
+await CheckAsync("client: an abandoned reply never becomes an UnobservedTaskException (PR #1927)", async () =>
+{
+    var unobserved = 0;
+    EventHandler<UnobservedTaskExceptionEventArgs> handler = (_, e) =>
+    {
+        if (e.Exception.InnerExceptions.Any(x => x.Message.Contains("Whisper worker", StringComparison.Ordinal)))
+            Interlocked.Increment(ref unobserved);
+    };
+    TaskScheduler.UnobservedTaskException += handler;
+    try
+    {
+        await AbandonLoadReplyAsync();
+        for (var i = 0; i < 3; i++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            await Task.Delay(50);
+        }
+        Assert(unobserved == 0, $"{unobserved} abandoned reply fault(s) went unobserved");
+    }
+    finally
+    {
+        TaskScheduler.UnobservedTaskException -= handler;
+    }
+
+    // A cancel during the load kills the worker, and the reader then faults the
+    // load's reply task that nobody waits on any more.
+    async Task AbandonLoadReplyAsync()
+    {
+        var launcher = new FakeLauncher(_ => new FakeBehavior
+        {
+            Handle = (process, command) => command is WhisperWorkerLoadCommand
+                ? Task.CompletedTask
+                : FakeBehavior.DefaultHandle(process, command),
+        });
+        await using var client = new WhisperWorkerClient(launcher, timings: fast);
+        await client.SelectModelAsync(model);
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+        await ThrowsAsync<OperationCanceledException>(() => client.WarmUpAsync(cts.Token));
+        await WaitUntilAsync(() => launcher[0].HasExited, "the cancelled load's worker to exit");
+    }
+});
+
 // =========================================================================
 // WORKER COMMAND LOOP (fake Whisper service)
 // =========================================================================

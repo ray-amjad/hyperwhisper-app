@@ -119,7 +119,16 @@ public sealed class WhisperWorkerProcessLauncher : IWhisperWorkerLauncher
                     string? line;
                     while ((line = await process.StandardError.ReadLineAsync().ConfigureAwait(false)) != null)
                     {
-                        stderr?.Invoke(line);
+                        // One failed callback must not end the pump: an undrained
+                        // stderr pipe fills and blocks the worker mid-request.
+                        try
+                        {
+                            stderr?.Invoke(line);
+                        }
+                        catch
+                        {
+                            // The line is lost; keep draining.
+                        }
                     }
                 }
                 catch

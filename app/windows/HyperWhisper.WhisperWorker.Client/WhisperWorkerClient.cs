@@ -33,6 +33,28 @@ public sealed record WhisperWorkerClientTimings
 
     /// <summary>How long a cancel waits for the worker's answer before it kills the worker.</summary>
     public TimeSpan CancelTimeout { get; init; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// The watchdog on a <c>load</c> reply. A large model from a slow disk loads
+    /// in about a minute; a worker silent for this long is hung (a driver stuck
+    /// in whisper_init) and is killed, so it cannot hold every later request.
+    /// </summary>
+    public TimeSpan LoadTimeout { get; init; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>The <c>transcribe</c> watchdog's floor, for short audio.</summary>
+    public TimeSpan TranscribeTimeoutFloor { get; init; } = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// The <c>transcribe</c> watchdog per second of audio, on top of the floor.
+    /// Ten times real time: a large model on a slow CPU (ARM64 runs on the CPU)
+    /// with temperature fallback stays well inside it, so only a hung worker
+    /// trips it. A 5-minute chunk gets 52 minutes.
+    /// </summary>
+    public double TranscribeTimeoutPerAudioSecond { get; init; } = 10;
+
+    /// <summary>The watchdog for a transcribe of <paramref name="audio"/>.</summary>
+    public TimeSpan TranscribeTimeoutFor(TimeSpan audio) =>
+        TranscribeTimeoutFloor + TimeSpan.FromSeconds(Math.Max(0, audio.TotalSeconds) * TranscribeTimeoutPerAudioSecond);
 }
 
 /// <summary>
@@ -140,18 +162,38 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     /// Transcribes one 16 kHz mono 16-bit WAV. Starts and loads the worker when it
     /// is down. Cancelling sends <c>cancel</c>; a worker that does not answer
     /// within <see cref="WhisperWorkerClientTimings.CancelTimeout"/> is killed.
+    /// A worker that does not answer within the watchdog for
+    /// <paramref name="audioDuration"/> (<see cref="WhisperWorkerClientTimings.TranscribeTimeoutFor"/>)
+    /// is killed and the request fails as <c>timeout</c>, with no retry.
     /// </summary>
+    /// <param name="audioDuration">The chunk's length; null reads it from the WAV's size.</param>
     public Task<WhisperWorkerTranscript> TranscribeAsync(
         string wavPath,
         string? language,
         WhisperWorkerTranscribeOptions options,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        TimeSpan? audioDuration = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(wavPath);
         ArgumentNullException.ThrowIfNull(options);
+        var timeout = _timings.TranscribeTimeoutFor(audioDuration ?? WavDuration(wavPath));
         return RunRequestAsync(
-            (session, token) => TranscribeOnAsync(session, wavPath, language, options, token),
+            (session, token) => TranscribeOnAsync(session, wavPath, language, options, timeout, token),
             cancellationToken);
+    }
+
+    /// <summary>The length of a WhisperWav file from its size; zero (the floor alone) if it cannot be read.</summary>
+    private static TimeSpan WavDuration(string wavPath)
+    {
+        try
+        {
+            var dataBytes = Math.Max(0, new FileInfo(wavPath).Length - 44);
+            return TimeSpan.FromSeconds(dataBytes / (2.0 * WhisperWav.SampleRate));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return TimeSpan.Zero;
+        }
     }
 
     /// <summary>Stops the worker now, keeping the selection. The next request starts it again.</summary>
@@ -188,7 +230,16 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             _disposed = true;
             CancelIdleLocked();
         }
-        await _gate.WaitAsync().ConfigureAwait(false);
+        // A request that holds the gate ends on its own watchdog at the latest.
+        // Dispose does not wait that long: after ShutdownTimeout it kills the
+        // worker, which fails the running request (no retry after dispose) and
+        // frees the gate.
+        if (!await _gate.WaitAsync(_timings.ShutdownTimeout).ConfigureAwait(false))
+        {
+            _warn("WhisperWorkerClient: A request still runs at dispose; killing the worker");
+            Volatile.Read(ref _session)?.Kill();
+            await _gate.WaitAsync().ConfigureAwait(false);
+        }
         try
         {
             if (_session is { } session)
@@ -222,7 +273,9 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
                 catch (WorkerLostException lost)
                 {
                     await DiscardSessionAsync().ConfigureAwait(false);
-                    if (attempt > 0)
+                    // A cancel that raced the exit is a cancel: no new worker for it.
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (attempt > 0 || IsDisposed)
                     {
                         throw new WhisperWorkerException(lost.Code, lost.Message, lost);
                     }
@@ -249,6 +302,9 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // Queued behind the gate while DisposeAsync ran: the client is shut
+                // down, and a worker started now would never be stopped.
+                ObjectDisposedException.ThrowIf(IsDisposed, this);
                 return await body().ConfigureAwait(false);
             }
             finally
@@ -298,7 +354,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         var replyTask = await session.SendRequestAsync(id, line).ConfigureAwait(false);
         try
         {
-            reply = await replyTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+            reply = await replyTask.WaitAsync(_timings.LoadTimeout, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -307,6 +363,10 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             _info("WhisperWorkerClient: Cancelled during the model load; stopping the worker");
             await DiscardSessionAsync().ConfigureAwait(false);
             throw;
+        }
+        catch (TimeoutException)
+        {
+            throw await HungAsync("load", _timings.LoadTimeout).ConfigureAwait(false);
         }
 
         if (!reply.Ok)
@@ -330,6 +390,8 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
 
     private async Task StartSessionAsync(CancellationToken cancellationToken)
     {
+        // The one place a worker starts: never after dispose, or nothing stops it.
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
         var process = _launcher.Start(); // throws WhisperWorkerException(start_failed)
         StartCount++;
         var session = new Session(process, _info);
@@ -359,6 +421,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         string wavPath,
         string? language,
         WhisperWorkerTranscribeOptions options,
+        TimeSpan timeout,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -370,12 +433,16 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         WhisperWorkerReply reply;
         try
         {
-            reply = await replyTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+            reply = await replyTask.WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             await CancelInFlightAsync(session, id, replyTask).ConfigureAwait(false);
             throw;
+        }
+        catch (TimeoutException)
+        {
+            throw await HungAsync("transcribe", timeout).ConfigureAwait(false);
         }
 
         if (reply.Ok)
@@ -431,6 +498,20 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         await DiscardSessionAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// A live worker that did not answer within the watchdog is hung: kill it so
+    /// the gate frees and the next request starts fresh. The error is
+    /// <c>timeout</c> and is not retried (a retry would likely hang again).
+    /// </summary>
+    private async Task<WhisperWorkerException> HungAsync(string request, TimeSpan timeout)
+    {
+        _warn($"WhisperWorkerClient: The worker did not answer {request} within {timeout.TotalSeconds:0} s; killing it");
+        await DiscardSessionAsync().ConfigureAwait(false);
+        return new WhisperWorkerException(
+            WhisperWorkerErrorCodes.Timeout,
+            $"The Whisper worker did not answer {request} within {timeout.TotalSeconds:0} s");
+    }
+
     // =====================================================================
     // WORKER LIFETIME (call with _gate held)
     // =====================================================================
@@ -477,6 +558,14 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     // =====================================================================
     // IDLE TIMER (call with _sync held)
     // =====================================================================
+
+    private bool IsDisposed
+    {
+        get
+        {
+            lock (_sync) return _disposed;
+        }
+    }
 
     private void CancelIdleLocked()
     {
@@ -608,6 +697,15 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         public async Task<Task<WhisperWorkerReply>> SendRequestAsync(long id, string line)
         {
             var pending = new TaskCompletionSource<WhisperWorkerReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+            // A caller that stopped waiting (cancel, watchdog, failed write) leaves
+            // this task behind, and the reader faults it with Lost() when the worker
+            // exits. Observe that here so it never surfaces as an
+            // UnobservedTaskException (which the app logs as an error).
+            _ = pending.Task.ContinueWith(
+                static t => _ = t.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
             lock (_pendingLock)
             {
                 if (_exited.Task.IsCompleted) throw Lost();

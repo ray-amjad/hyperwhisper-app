@@ -79,6 +79,15 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
 
     private readonly WhisperWorkerClient _worker;
 
+    /// <summary>
+    /// The most <see cref="Dispose"/> blocks its caller (often the UI thread) on
+    /// the worker's exit. The client kills a busy worker after its own shutdown
+    /// timeout, so this is only reached when something is badly stuck.
+    /// </summary>
+    private static readonly TimeSpan WorkerDisposeTimeout = TimeSpan.FromSeconds(10);
+
+    private bool _disposed;
+
     /// <summary>Held while a Whisper-mode recording runs, so the worker it warmed up stays.</summary>
     private IDisposable? _recordingHold;
     private readonly object _recordingHoldLock = new();
@@ -732,7 +741,9 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         try
         {
             WhisperWav.Write(wavPath, samples.Span);
-            return await _worker.TranscribeAsync(wavPath, language, options, cancellationToken).ConfigureAwait(false);
+            // The chunk's length scales the worker's watchdog for this request.
+            var duration = TimeSpan.FromSeconds(samples.Length / (double)WhisperWav.SampleRate);
+            return await _worker.TranscribeAsync(wavPath, language, options, cancellationToken, duration).ConfigureAwait(false);
         }
         finally
         {
@@ -1335,13 +1346,78 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             LoggingService.Debug("TranscriptionService: Dispose() called on shared instance — ignoring (use UnloadModelAsync)");
             return;
         }
+        if (_disposed) return;
+        _disposed = true;
         LoggingService.Info("TranscriptionService: Disposing...");
-        NotifyWhisperRecordingEnded();
-        DisposeModel();
-        // The client awaits with ConfigureAwait(false) throughout, so blocking here
-        // cannot deadlock a UI-thread caller.
-        _worker.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        _modelLock.Dispose();
+
+        // Reverse order of creation; one failure must not block the rest.
+        lock (_recordingHoldLock)
+        {
+            SafeDispose(ref _recordingHold);
+        }
+        try
+        {
+            DisposeModel();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"TranscriptionService: Clearing the model state failed: {ex.Message}");
+        }
+        if (DisposeWorker())
+        {
+            // Only once the worker is down: a request that outlived the bounded
+            // wait may still release this lock.
+            try
+            {
+                _modelLock.Dispose();
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Warn($"TranscriptionService: Dispose failed for the model lock: {ex.Message}");
+            }
+        }
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Stops the worker, waiting at most <see cref="WorkerDisposeTimeout"/>. The
+    /// client awaits with ConfigureAwait(false) throughout, so blocking here cannot
+    /// deadlock a UI-thread caller. Returns false if it did not finish in time
+    /// (the worker still exits when this process does: its stdin closes).
+    /// </summary>
+    private bool DisposeWorker()
+    {
+        try
+        {
+            var dispose = _worker.DisposeAsync().AsTask();
+            if (dispose.Wait(WorkerDisposeTimeout)) return true;
+            LoggingService.Warn($"TranscriptionService: The Whisper worker did not stop within {WorkerDisposeTimeout.TotalSeconds:0} s; not waiting longer");
+            _ = dispose.ContinueWith(
+                t => LoggingService.Warn($"TranscriptionService: Late worker dispose failed: {t.Exception?.GetBaseException().Message}"),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"TranscriptionService: Dispose failed for the Whisper worker: {(ex as AggregateException)?.GetBaseException().Message ?? ex.Message}");
+            return false;
+        }
+    }
+
+    private static void SafeDispose<T>(ref T? resource) where T : class, IDisposable
+    {
+        var temp = resource;
+        resource = null;
+
+        try
+        {
+            temp?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"TranscriptionService: Dispose failed for {typeof(T).Name}: {ex.Message}");
+        }
     }
 }
