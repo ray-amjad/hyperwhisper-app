@@ -350,12 +350,12 @@ public class AudioRecorderService : IDisposable
                 var ordinalMatch = activeEndpoints[deviceNumber];
 
                 if (!string.IsNullOrEmpty(targetName) &&
-                    !ordinalMatch.FriendlyName.StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
+                    !GetFriendlyName(ordinalMatch).StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
                 {
                     // Names don't line up - still trust the ordinal position (it's the
                     // more reliable signal) but log it so name-format drift is visible.
                     LoggingService.Debug(
-                        $"AudioRecorderService: Ordinal-resolved capture endpoint '{ordinalMatch.FriendlyName}' " +
+                        $"AudioRecorderService: Ordinal-resolved capture endpoint '{GetFriendlyName(ordinalMatch)}' " +
                         $"doesn't prefix-match WaveIn device #{deviceNumber} name '{targetName}'; using it anyway");
                 }
 
@@ -372,7 +372,7 @@ public class AudioRecorderService : IDisposable
             foreach (var device in activeEndpoints)
             {
                 if (string.IsNullOrEmpty(targetName) ||
-                    !device.FriendlyName.StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
+                    !GetFriendlyName(device).StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 if (nameMatch != null)
@@ -410,6 +410,32 @@ public class AudioRecorderService : IDisposable
         return enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
     }
 
+    /// <summary>
+    /// The endpoint's Core Audio <c>FriendlyName</c>, from
+    /// <see cref="CaptureDeviceNameCache"/> when this endpoint ID was read before.
+    /// A <c>FriendlyName</c> read is a ~50 ms property-store call, and the
+    /// dictation start runs on the UI thread (#980).
+    ///
+    /// Only the cache is new: a failed name read still throws, exactly as the
+    /// direct property read did. If the endpoint ID itself cannot be read, the
+    /// name is read directly and not cached.
+    /// </summary>
+    private static string GetFriendlyName(MMDevice device)
+    {
+        string? endpointId;
+        try
+        {
+            endpointId = device.ID;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"AudioRecorderService: Failed to read capture endpoint ID, reading its name uncached - {ex.Message}");
+            endpointId = null;
+        }
+
+        return CaptureDeviceNameCache.Shared.GetOrRead(endpointId, () => device.FriendlyName);
+    }
+
     private static void DisposeCaptureDevice(MMDevice? device, string context)
     {
         if (device == null)
@@ -433,6 +459,9 @@ public class AudioRecorderService : IDisposable
     /// <param name="deviceNumber">The NAudio WaveIn index of the device being recorded (-1 = system default).</param>
     public void BoostMicVolume(int deviceNumber)
     {
+        // Runs on the UI thread before the mic opens (#980): log its cost so a
+        // run on the PC can read it.
+        var timer = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             using var enumerator = new MMDeviceEnumerator();
@@ -441,7 +470,7 @@ public class AudioRecorderService : IDisposable
 
             if (currentVolume >= MicVolumeBoostThreshold)
             {
-                LoggingService.Debug($"AudioRecorderService: Mic volume already healthy ({currentVolume:P0}); skipping boost to avoid Windows volume OSD (device: {_captureDevice.FriendlyName})");
+                LoggingService.Debug($"AudioRecorderService: Mic volume already healthy ({currentVolume:P0}); skipping boost to avoid Windows volume OSD (device: {GetFriendlyName(_captureDevice)})");
                 _captureDevice.Dispose();
                 _captureDevice = null;
                 _originalMicVolume = null;
@@ -450,7 +479,7 @@ public class AudioRecorderService : IDisposable
 
             if (Math.Abs(currentVolume - MicVolumeBoostTarget) <= MicVolumeTolerance)
             {
-                LoggingService.Debug($"AudioRecorderService: Mic volume already near target ({currentVolume:P0}); skipping boost (device: {_captureDevice.FriendlyName})");
+                LoggingService.Debug($"AudioRecorderService: Mic volume already near target ({currentVolume:P0}); skipping boost (device: {GetFriendlyName(_captureDevice)})");
                 _captureDevice.Dispose();
                 _captureDevice = null;
                 _originalMicVolume = null;
@@ -458,7 +487,7 @@ public class AudioRecorderService : IDisposable
             }
 
             _originalMicVolume = currentVolume;
-            LoggingService.Info($"AudioRecorderService: Boosting low mic volume from {_originalMicVolume:P0} to {MicVolumeBoostTarget:P0} (device: {_captureDevice.FriendlyName})");
+            LoggingService.Info($"AudioRecorderService: Boosting low mic volume from {_originalMicVolume:P0} to {MicVolumeBoostTarget:P0} (device: {GetFriendlyName(_captureDevice)})");
             _captureDevice.AudioEndpointVolume.MasterVolumeLevelScalar = MicVolumeBoostTarget;
         }
         catch (Exception ex)
@@ -467,6 +496,10 @@ public class AudioRecorderService : IDisposable
             _originalMicVolume = null;
             _captureDevice?.Dispose();
             _captureDevice = null;
+        }
+        finally
+        {
+            LoggingService.Debug($"AudioRecorderService: BoostMicVolume took {timer.Elapsed.TotalMilliseconds:F1} ms (device #{deviceNumber})");
         }
     }
 
@@ -516,7 +549,7 @@ public class AudioRecorderService : IDisposable
         {
             using var enumerator = new MMDeviceEnumerator();
             using var device = ResolveCaptureDevice(enumerator, deviceNumber);
-            return (device.AudioEndpointVolume.MasterVolumeLevelScalar, device.FriendlyName);
+            return (device.AudioEndpointVolume.MasterVolumeLevelScalar, GetFriendlyName(device));
         }
         catch (Exception ex)
         {
