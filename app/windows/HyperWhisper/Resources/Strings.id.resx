@@ -118,7 +118,7 @@
 
   <!-- Home Page -->
   <data name="home.welcome.title" xml:space="preserve">
-    <value>Welcome to HyperWhisper</value>
+    <value>Selamat datang di HyperWhisper</value>
   </data>
 
   <!-- History Page -->
@@ -165,28 +165,28 @@
     <value>Tampilkan Asli</value>
   </data>
   <data name="history.action.deleteSelected" xml:space="preserve">
-    <value>Delete Selected</value>
+    <value>Hapus yang Dipilih</value>
   </data>
   <data name="history.selection.count" xml:space="preserve">
     <value>{0} rekaman dipilih</value>
   </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
-    <value>Audio file not available</value>
+    <value>File audio tidak tersedia</value>
   </data>
   <data name="history.audio.loadFailed" xml:space="preserve">
     <value>File audio tidak dapat dimuat</value>
   </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
-    <value>Original</value>
+    <value>Asli</value>
   </data>
   <data name="history.context.retryWith" xml:space="preserve">
     <value>Coba lagi dengan...</value>
   </data>
   <data name="history.empty.noRecordings" xml:space="preserve">
-    <value>No recordings yet</value>
+    <value>Belum ada rekaman</value>
   </data>
   <data name="history.status.retrying" xml:space="preserve">
-    <value>Retrying...</value>
+    <value>Mencoba lagi...</value>
   </data>
 
   <!-- Modes Page -->
@@ -217,22 +217,22 @@
 
   <!-- Mode Editor -->
   <data name="mode.editor.title.create" xml:space="preserve">
-    <value>Create New Mode</value>
+    <value>Buat Mode Baru</value>
   </data>
   <data name="mode.editor.title.edit" xml:space="preserve">
     <value>Edit Mode</value>
   </data>
   <data name="mode.editor.field.name" xml:space="preserve">
-    <value>Name</value>
+    <value>Nama</value>
   </data>
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>Ini adalah mode default, jadi namanya tidak dapat diubah. Anda dapat mengganti nama mode lainnya.</value>
   </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
-    <value>Provider</value>
+    <value>Penyedia</value>
   </data>
   <data name="mode.editor.field.language" xml:space="preserve">
-    <value>Language</value>
+    <value>Bahasa</value>
   </data>
   <data name="mode.editor.field.source" xml:space="preserve">
     <value>Sumber</value>
@@ -250,13 +250,13 @@
     <value>{0} (Direkomendasikan)</value>
   </data>
   <data name="mode.editor.section.basic" xml:space="preserve">
-    <value>Basic Settings</value>
+    <value>Pengaturan Dasar</value>
   </data>
   <data name="mode.editor.section.transcription" xml:space="preserve">
-    <value>Transcription Model</value>
+    <value>Model Transkripsi</value>
   </data>
   <data name="mode.editor.section.postProcessing" xml:space="preserve">
-    <value>Post Processing</value>
+    <value>Pascapemrosesan</value>
   </data>
   <data name="mode.editor.section.punctuation" xml:space="preserve">
     <value>Tanda Baca</value>
@@ -270,7 +270,7 @@
     <value>Ini membantu perangkat lunak mengenali nama, akronim, slang, atau kata dari bahasa lain saat mencampur bahasa.</value>
   </data>
   <data name="common.update" xml:space="preserve">
-    <value>Update</value>
+    <value>Perbarui</value>
   </data>
   <data name="vocabulary.word.column" xml:space="preserve">
     <value>Kata/Frasa</value>
@@ -308,35 +308,35 @@
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">
-    <value>Settings</value>
+    <value>Pengaturan</value>
   </data>
   <!-- Settings Navigation -->
   <data name="settings.nav.general" xml:space="preserve">
-    <value>General</value>
+    <value>Umum</value>
   </data>
   <data name="settings.nav.appearance" xml:space="preserve">
-    <value>Appearance</value>
+    <value>Tampilan</value>
   </data>
   <data name="settings.nav.cloud" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="settings.nav.storage" xml:space="preserve">
-    <value>Storage</value>
+    <value>Penyimpanan</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
     <value>Pustaka Model</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
-    <value>API Keys</value>
+    <value>Kunci API</value>
   </data>
   <data name="settings.nav.output" xml:space="preserve">
-    <value>Text Output</value>
+    <value>Output Teks</value>
   </data>
   <data name="settings.nav.shortcuts" xml:space="preserve">
-    <value>Shortcuts</value>
+    <value>Pintasan</value>
   </data>
   <data name="settings.nav.about" xml:space="preserve">
-    <value>About</value>
+    <value>Tentang</value>
   </data>
   <data name="settings.section.storage" xml:space="preserve">
     <value>Penyimpanan</value>
@@ -354,18 +354,18 @@
     <value>Output Teks</value>
   </data>
   <data name="settings.section.about" xml:space="preserve">
-    <value>About</value>
+    <value>Tentang</value>
   </data>
 
   <!-- Settings - General -->
   <data name="settings.general.title" xml:space="preserve">
-    <value>General</value>
+    <value>Umum</value>
   </data>
   <data name="settings.general.launchAtLogin.title" xml:space="preserve">
     <value>Luncurkan saat login</value>
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
-    <value>Start HyperWhisper automatically when you log in.</value>
+    <value>Jalankan HyperWhisper secara otomatis saat Anda masuk.</value>
   </data>
   <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
     <value>Tidak tersedia di profil uji. Build ini menggunakan folder data aplikasi terpisah, sehingga tidak mengubah entri login aplikasi yang terpasang.</value>
@@ -374,25 +374,25 @@
     <value>Luncurkan diminimalkan</value>
   </data>
   <data name="settings.general.launchMinimized.subtitle" xml:space="preserve">
-    <value>Start HyperWhisper hidden in the system tray.</value>
+    <value>Jalankan HyperWhisper tersembunyi di baki sistem.</value>
   </data>
   <data name="settings.general.minimizeToTray.title" xml:space="preserve">
-    <value>Minimize to system tray</value>
+    <value>Minimalkan ke baki sistem</value>
   </data>
   <data name="settings.general.minimizeToTray.subtitle" xml:space="preserve">
-    <value>Closing the window minimizes to tray instead of quitting</value>
+    <value>Menutup jendela akan meminimalkannya ke baki, bukan keluar dari aplikasi</value>
   </data>
   <data name="settings.general.showRecordingWindow.title" xml:space="preserve">
     <value>Tampilkan jendela perekaman</value>
   </data>
   <data name="settings.general.showRecordingWindow.subtitle" xml:space="preserve">
-    <value>Display the recording overlay with audio visualization</value>
+    <value>Tampilkan overlay perekaman dengan visualisasi audio</value>
   </data>
   <data name="settings.general.errorLogging.title" xml:space="preserve">
     <value>Pencatatan kesalahan</value>
   </data>
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
-    <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
+    <value>Kirim laporan kerusakan secara otomatis untuk membantu kami memperbaiki masalah. Transkripsi Anda tidak pernah dikirim.</value>
   </data>
   <data name="settings.general.shareSpeedData.title" xml:space="preserve">
     <value>Bagikan data kecepatan anonim</value>
@@ -407,36 +407,36 @@
     <value>Pembaruan otomatis</value>
   </data>
   <data name="settings.general.autoUpdate.subtitle" xml:space="preserve">
-    <value>Silently check for new versions on startup</value>
+    <value>Periksa versi baru secara diam-diam saat aplikasi dimulai</value>
   </data>
 
   <!-- Settings - Appearance -->
   <data name="settings.appearance.title" xml:space="preserve">
-    <value>Appearance</value>
+    <value>Tampilan</value>
   </data>
   <data name="settings.appearance.theme.title" xml:space="preserve">
-    <value>Theme</value>
+    <value>Tema</value>
   </data>
   <data name="settings.appearance.theme.subtitle" xml:space="preserve">
-    <value>Choose your preferred color scheme</value>
+    <value>Pilih skema warna pilihan Anda</value>
   </data>
   <data name="settings.appearance.theme.system" xml:space="preserve">
-    <value>System default</value>
+    <value>Default sistem</value>
   </data>
   <data name="settings.appearance.theme.system.subtitle" xml:space="preserve">
-    <value>Automatically switch between light and dark based on Windows settings</value>
+    <value>Beralih otomatis antara terang dan gelap berdasarkan pengaturan Windows</value>
   </data>
   <data name="settings.appearance.theme.light" xml:space="preserve">
-    <value>Light</value>
+    <value>Terang</value>
   </data>
   <data name="settings.appearance.theme.light.subtitle" xml:space="preserve">
-    <value>Always use light theme with bright backgrounds</value>
+    <value>Selalu gunakan tema terang dengan latar belakang cerah</value>
   </data>
   <data name="settings.appearance.theme.dark" xml:space="preserve">
-    <value>Dark</value>
+    <value>Gelap</value>
   </data>
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
-    <value>Always use dark theme for reduced eye strain</value>
+    <value>Selalu gunakan tema gelap agar mata tidak cepat lelah</value>
   </data>
   <data name="settings.appearance.theme.restart.title" xml:space="preserve">
     <value>Perlu Dimulai Ulang</value>
@@ -467,34 +467,34 @@
     <value>Segarkan</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
-    <value>minutes remaining</value>
+    <value>menit tersisa</value>
   </data>
   <data name="settings.credits.loading" xml:space="preserve">
     <value>Memuat saldo kredit...</value>
   </data>
   <data name="settings.credits.lowWarning" xml:space="preserve">
-    <value>Your credits are running low. Consider adding more credits to continue using HyperWhisper Cloud.</value>
+    <value>Kredit Anda hampir habis. Pertimbangkan untuk menambah kredit agar dapat terus menggunakan HyperWhisper Cloud.</value>
   </data>
   <data name="settings.credits.exhaustedWarning" xml:space="preserve">
-    <value>Your credits are exhausted. Add credits to continue using HyperWhisper Cloud transcription.</value>
+    <value>Kredit Anda telah habis. Tambahkan kredit untuk terus menggunakan transkripsi HyperWhisper Cloud.</value>
   </data>
   <data name="settings.credits.accountInfo.title" xml:space="preserve">
-    <value>Account Information</value>
+    <value>Informasi Akun</value>
   </data>
   <data name="settings.credits.accountInfo.credits" xml:space="preserve">
-    <value>Credits</value>
+    <value>Kredit</value>
   </data>
   <data name="settings.credits.accountInfo.costPerMinute" xml:space="preserve">
-    <value>Cost per Minute</value>
+    <value>Biaya per Menit</value>
   </data>
   <data name="settings.credits.accountInfo.accountType" xml:space="preserve">
-    <value>Account Type</value>
+    <value>Jenis Akun</value>
   </data>
   <data name="settings.credits.accountInfo.customerId" xml:space="preserve">
-    <value>Customer ID</value>
+    <value>ID Pelanggan</value>
   </data>
   <data name="settings.credits.accountInfo.dailyReset" xml:space="preserve">
-    <value>Daily Reset</value>
+    <value>Reset Harian</value>
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Tidak dapat memuat saldo kredit</value>
@@ -554,78 +554,78 @@
     <value>Kunci API untuk peningkatan teks dan pemformatan bertenaga AI.</value>
   </data>
   <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Invalid Key</value>
+    <value>Kunci Tidak Valid</value>
   </data>
   <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Invalid API key format. OpenAI keys should start with 'sk-'.</value>
+    <value>Format kunci API tidak valid. Kunci OpenAI harus dimulai dengan 'sk-'.</value>
   </data>
   <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Invalid API key format. Groq keys should start with 'gsk_'.</value>
+    <value>Format kunci API tidak valid. Kunci Groq harus dimulai dengan 'gsk_'.</value>
   </data>
   <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Invalid API key format. Anthropic keys should start with 'sk-ant-'.</value>
+    <value>Format kunci API tidak valid. Kunci Anthropic harus dimulai dengan 'sk-ant-'.</value>
   </data>
   <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Invalid API key format. Google API keys should start with 'AIza'.</value>
+    <value>Format kunci API tidak valid. Kunci API Google harus dimulai dengan 'AIza'.</value>
   </data>
   <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Invalid API key format. Cerebras keys should start with 'csk-'.</value>
+    <value>Format kunci API tidak valid. Kunci Cerebras harus dimulai dengan 'csk-'.</value>
   </data>
   <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Invalid API key format. Deepgram keys should be at least 32 characters.</value>
+    <value>Format kunci API tidak valid. Kunci Deepgram harus memiliki setidaknya 32 karakter.</value>
   </data>
   <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Invalid API key format. AssemblyAI keys should be at least 32 characters.</value>
+    <value>Format kunci API tidak valid. Kunci AssemblyAI harus memiliki setidaknya 32 karakter.</value>
   </data>
   <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Invalid API key format. ElevenLabs keys should start with 'sk_'.</value>
+    <value>Format kunci API tidak valid. Kunci ElevenLabs harus dimulai dengan 'sk_'.</value>
   </data>
   <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Invalid API key format. Mistral keys should be at least 20 characters.</value>
+    <value>Format kunci API tidak valid. Kunci Mistral harus memiliki setidaknya 20 karakter.</value>
   </data>
   <data name="settings.api.invalidKey.grok" xml:space="preserve">
     <value>Format kunci API tidak valid. Kunci Grok harus dimulai dengan "xai-" dan memiliki setidaknya 20 karakter.</value>
   </data>
   <data name="settings.api.show" xml:space="preserve">
-    <value>Show</value>
+    <value>Tampilkan</value>
   </data>
   <data name="settings.api.hide" xml:space="preserve">
-    <value>Hide</value>
+    <value>Sembunyikan</value>
   </data>
   <!-- API Provider Descriptions - Transcription -->
   <data name="settings.api.provider.openai.description" xml:space="preserve">
-    <value>OpenAI's Whisper API for cloud-based transcription</value>
+    <value>API Whisper dari OpenAI untuk transkripsi berbasis cloud</value>
   </data>
   <data name="settings.api.provider.groq.description" xml:space="preserve">
-    <value>Groq Cloud's fast Whisper API with low latency</value>
+    <value>API Whisper cepat dari Groq Cloud dengan latensi rendah</value>
   </data>
   <data name="settings.api.provider.deepgram.description" xml:space="preserve">
-    <value>Deepgram Nova family models with domain-specific tuning</value>
+    <value>Model keluarga Deepgram Nova dengan penyesuaian khusus domain</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
     <value>Model ucapan-ke-teks Universal-2 dan Universal-3 Pro dari AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
-    <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
+    <value>Transkripsi ElevenLabs Scribe dengan stempel waktu lengkap dan diarisasi</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
     <value>Transkripsi Voxtral dari Mistral dan model Mistral untuk penyempurnaan teks</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
-    <value>OpenAI's GPT models for text enhancement</value>
+    <value>Model GPT dari OpenAI untuk penyempurnaan teks</value>
   </data>
   <data name="settings.api.provider.anthropic.description" xml:space="preserve">
-    <value>Anthropic's Claude models for advanced text processing</value>
+    <value>Model Claude dari Anthropic untuk pemrosesan teks tingkat lanjut</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
     <value>Model Gemini dari Google untuk transkripsi dan penyempurnaan teks</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
-    <value>Groq's ultra-fast LLM inference for text enhancement</value>
+    <value>Inferensi LLM ultracepat dari Groq untuk penyempurnaan teks</value>
   </data>
   <data name="settings.api.provider.cerebras.description" xml:space="preserve">
-    <value>Cerebras ultra-fast inference for text enhancement</value>
+    <value>Inferensi ultracepat Cerebras untuk penyempurnaan teks</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
     <value>API ucapan ke teks SpaceXAI Grok</value>
@@ -654,10 +654,10 @@
     <value>Clipboard</value>
   </data>
   <data name="settings.output.restoreDelay.subtitle" xml:space="preserve">
-    <value>Delay before restoring clipboard contents</value>
+    <value>Jeda sebelum memulihkan konten clipboard</value>
   </data>
   <data name="settings.output.restoreDelay.title" xml:space="preserve">
-    <value>Restore Delay</value>
+    <value>Jeda Pemulihan</value>
   </data>
 
   <!-- Settings - Shortcuts -->
@@ -681,22 +681,22 @@
 
   <!-- Settings - About -->
   <data name="settings.about.checkUpdates" xml:space="preserve">
-    <value>Check for Updates</value>
+    <value>Periksa Pembaruan</value>
   </data>
   <data name="settings.about.checkingForUpdates" xml:space="preserve">
-    <value>Checking...</value>
+    <value>Memeriksa...</value>
   </data>
   <data name="settings.about.updateCheckFailed.title" xml:space="preserve">
-    <value>Update Check Failed</value>
+    <value>Pemeriksaan Pembaruan Gagal</value>
   </data>
   <data name="settings.about.updateCheckFailed.message" xml:space="preserve">
-    <value>Failed to check for updates: {0}</value>
+    <value>Gagal memeriksa pembaruan: {0}</value>
   </data>
   <data name="settings.about.appTitle" xml:space="preserve">
     <value>HyperWhisper</value>
   </data>
   <data name="settings.about.openLogFolder" xml:space="preserve">
-    <value>Open Log Folder</value>
+    <value>Buka Folder Log</value>
   </data>
 
   <!-- Recording Overlay -->
@@ -718,7 +718,7 @@
 
   <!-- Error Messages -->
   <data name="errors.noSpeechDetected" xml:space="preserve">
-    <value>No speech detected in the recording.</value>
+    <value>Tidak ada ucapan yang terdeteksi dalam rekaman.</value>
   </data>
   <data name="errors.microphoneSentNoAudio" xml:space="preserve">
     <value>Mikrofon yang dipilih tidak mengirim audio apa pun. Periksa perangkat input Anda, lalu coba lagi.</value>
@@ -749,16 +749,16 @@ Tindakan ini tidak dapat dibatalkan.</value>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">
-    <value>Not currently recording</value>
+    <value>Saat ini tidak sedang merekam</value>
   </data>
   <data name="audio.error.recordingPathNotSet" xml:space="preserve">
-    <value>Internal error: recording path not set</value>
+    <value>Kesalahan internal: jalur rekaman belum diatur</value>
   </data>
   <data name="audio.error.stopRecordingFailed" xml:space="preserve">
-    <value>Failed to stop recording</value>
+    <value>Gagal menghentikan perekaman</value>
   </data>
   <data name="audio.error.enumerationFailed" xml:space="preserve">
-    <value>Failed to enumerate audio devices</value>
+    <value>Gagal menampilkan perangkat audio</value>
   </data>
 
   <!-- Settings - Models -->
@@ -766,59 +766,59 @@ Tindakan ini tidak dapat dibatalkan.</value>
     <value>Unduh</value>
   </data>
   <data name="settings.models.download.cancelled" xml:space="preserve">
-    <value>Download was cancelled by the user</value>
+    <value>Unduhan dibatalkan oleh pengguna</value>
   </data>
   <data name="settings.models.download.failed" xml:space="preserve">
-    <value>Download failed: {0}</value>
+    <value>Unduhan gagal: {0}</value>
   </data>
 
   <!-- Post-Processing -->
   <data name="postprocessing.error.apiKeyNotSet" xml:space="preserve">
-    <value>Post-processing disabled - API key not set</value>
+    <value>Pascapemrosesan dinonaktifkan - kunci API belum diatur</value>
   </data>
   <data name="postprocessing.error.failed" xml:space="preserve">
-    <value>Post-processing failed, using original text</value>
+    <value>Pascapemrosesan gagal, menggunakan teks asli</value>
   </data>
 
   <!-- Status Messages -->
   <data name="status.ready.withHotkey" xml:space="preserve">
-    <value>Ready - Press {0} to record</value>
+    <value>Siap - Tekan {0} untuk merekam</value>
   </data>
   <data name="status.audio.enumerationFailed" xml:space="preserve">
-    <value>Failed to enumerate audio devices</value>
+    <value>Gagal menampilkan perangkat audio</value>
   </data>
   <data name="status.model.loading" xml:space="preserve">
-    <value>Loading {0}...</value>
+    <value>Memuat {0}...</value>
   </data>
   <data name="status.model.ready" xml:space="preserve">
-    <value>{0} (Ready)</value>
+    <value>{0} (Siap)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
-    <value>Load failed</value>
+    <value>Gagal memuat</value>
   </data>
   <data name="status.failed" xml:space="preserve">
-    <value>Failed: {0}</value>
+    <value>Gagal: {0}</value>
   </data>
   <data name="status.mode.none" xml:space="preserve">
-    <value>No mode</value>
+    <value>Tidak ada mode</value>
   </data>
   <data name="status.model.localReady" xml:space="preserve">
-    <value>Local: {0} ({1} Ready)</value>
+    <value>Lokal: {0} ({1} Siap)</value>
   </data>
   <data name="status.model.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>Tidak diketahui</value>
   </data>
   <data name="status.model.computeReady" xml:space="preserve">
-    <value>{0} ({1} Ready)</value>
+    <value>{0} ({1} Siap)</value>
   </data>
   <data name="status.model.downloaded" xml:space="preserve">
-    <value>{0} (Downloaded)</value>
+    <value>{0} (Telah Diunduh)</value>
   </data>
   <data name="status.model.notDownloaded" xml:space="preserve">
-    <value>{0} (Not downloaded)</value>
+    <value>{0} (Belum diunduh)</value>
   </data>
   <data name="status.recordingCancelled" xml:space="preserve">
-    <value>Recording cancelled</value>
+    <value>Perekaman dibatalkan</value>
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transkripsi file dibatalkan</value>
@@ -827,30 +827,30 @@ Tindakan ini tidak dapat dibatalkan.</value>
     <value>Mentranskripsikan file...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>Tidak diketahui</value>
   </data>
 
   <!-- Error Messages - ViewModel -->
   <data name="errors.noMicrophone" xml:space="preserve">
-    <value>No microphone available</value>
+    <value>Tidak ada mikrofon yang tersedia</value>
   </data>
   <data name="errors.noModeSelected" xml:space="preserve">
-    <value>No mode selected</value>
+    <value>Tidak ada mode yang dipilih</value>
   </data>
   <data name="errors.modelNotDownloaded" xml:space="preserve">
-    <value>Model '{0}' not downloaded</value>
+    <value>Model '{0}' belum diunduh</value>
   </data>
   <data name="errors.modelLoadFailed" xml:space="preserve">
-    <value>Failed to load transcription model</value>
+    <value>Gagal memuat model transkripsi</value>
   </data>
   <data name="errors.recordingStartFailed" xml:space="preserve">
-    <value>Failed to start recording</value>
+    <value>Gagal memulai perekaman</value>
   </data>
   <data name="errors.transcriptionFailed" xml:space="preserve">
-    <value>Transcription failed: {0}</value>
+    <value>Transkripsi gagal: {0}</value>
   </data>
   <data name="errors.retryFailed" xml:space="preserve">
-    <value>Retry failed: {0}</value>
+    <value>Percobaan ulang gagal: {0}</value>
   </data>
   <data name="errors.retryModeDeleted" xml:space="preserve">
     <value>Mode yang membuat rekaman ini telah dihapus, jadi rekaman ini tidak dicoba lagi. Di Riwayat, klik kanan rekaman dan pilih "Coba lagi dengan..." untuk memilih mode lain.</value>
@@ -864,24 +864,24 @@ Tindakan ini tidak dapat dibatalkan.</value>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
-    <value>Enhancing...</value>
+    <value>Menyempurnakan...</value>
   </data>
 
   <!-- History - Status -->
 
   <!-- History - Retry -->
   <data name="history.context.retryAgain" xml:space="preserve">
-    <value>Retry again</value>
+    <value>Coba lagi</value>
   </data>
 
   <!-- Modes -->
   <data name="modes.subtitle.local" xml:space="preserve">
-    <value>Local - {0}</value>
+    <value>Lokal - {0}</value>
   </data>
 
   <!-- Language -->
   <data name="language.automatic" xml:space="preserve">
-    <value>Automatic</value>
+    <value>Otomatis</value>
   </data>
 
   <!-- Status Bar -->
@@ -894,129 +894,129 @@ Tindakan ini tidak dapat dibatalkan.</value>
 
   <!-- Recording Overlay - Extended -->
   <data name="recording.cancel.prompt" xml:space="preserve">
-    <value>Cancel?</value>
+    <value>Batalkan?</value>
   </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
-    <value>Mode Settings</value>
+    <value>Pengaturan Mode</value>
   </data>
   <data name="mode.editor.arm64.info" xml:space="preserve">
-    <value>Local transcription is not available on ARM64 Windows. Please use a cloud provider.</value>
+    <value>Transkripsi lokal tidak tersedia di Windows ARM64. Gunakan penyedia cloud.</value>
   </data>
   <data name="mode.editor.field.preset" xml:space="preserve">
-    <value>Preset</value>
+    <value>Prasetel</value>
   </data>
   <data name="mode.editor.preset.hyper" xml:space="preserve">
-    <value>Hyper (Recommended)</value>
+    <value>Hyper (Direkomendasikan)</value>
   </data>
   <data name="mode.editor.preset.message" xml:space="preserve">
-    <value>Message</value>
+    <value>Pesan</value>
   </data>
   <data name="mode.editor.preset.mail" xml:space="preserve">
-    <value>Mail</value>
+    <value>Email</value>
   </data>
   <data name="mode.editor.preset.note" xml:space="preserve">
-    <value>Note</value>
+    <value>Catatan</value>
   </data>
   <data name="mode.editor.preset.meeting" xml:space="preserve">
-    <value>Meeting</value>
+    <value>Rapat</value>
   </data>
   <data name="mode.editor.preset.code" xml:space="preserve">
-    <value>Code</value>
+    <value>Kode</value>
   </data>
   <data name="mode.editor.preset.custom" xml:space="preserve">
-    <value>Custom</value>
+    <value>Kustom</value>
   </data>
   <data name="mode.editor.field.customInstructions" xml:space="preserve">
-    <value>Custom Instructions</value>
+    <value>Instruksi Khusus</value>
   </data>
   <data name="mode.editor.field.customInstructions.hint" xml:space="preserve">
-    <value>Define how the AI should process your transcription</value>
+    <value>Tentukan cara AI memproses transkripsi Anda</value>
   </data>
   <data name="mode.editor.field.localModel" xml:space="preserve">
-    <value>Local Model</value>
+    <value>Model Lokal</value>
   </data>
   <data name="mode.editor.field.cloudProvider" xml:space="preserve">
-    <value>Cloud Provider</value>
+    <value>Penyedia Cloud</value>
   </data>
   <data name="mode.editor.field.cloudModel" xml:space="preserve">
-    <value>Cloud Model</value>
+    <value>Model Cloud</value>
   </data>
   <data name="modes.cloudAccuracy.title" xml:space="preserve">
-    <value>Cloud Accuracy</value>
+    <value>Akurasi Cloud</value>
   </data>
   <data name="modes.cloudAccuracy.groqWhisper.description" xml:space="preserve">
-    <value>Groq Whisper - fastest transcription, lowest cost</value>
+    <value>Groq Whisper - transkripsi tercepat, biaya terendah</value>
   </data>
   <data name="modes.cloudAccuracy.deepgramNova3.description" xml:space="preserve">
-    <value>Deepgram Nova-3 - balanced speed and accuracy</value>
+    <value>Deepgram Nova-3 - kecepatan dan akurasi seimbang</value>
   </data>
   <data name="modes.cloudAccuracy.elevenLabsScribeV2.description" xml:space="preserve">
-    <value>ElevenLabs Scribe v2 - highest accuracy, slower</value>
+    <value>ElevenLabs Scribe v2 - akurasi tertinggi, lebih lambat</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
     <value>SpaceXAI Grok STT - akurasi tinggi, kosakata khusus sebagai istilah kunci</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
-    <value>Custom vocabulary is not supported with this provider.</value>
+    <value>Kosakata khusus tidak didukung oleh penyedia ini.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Parakeet models.</value>
+    <value>Kosakata khusus tidak didukung pada model Parakeet.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
+    <value>Kosakata khusus tidak didukung pada ElevenLabs Scribe V1.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
+    <value>Kosakata khusus tidak didukung pada model Deepgram Base.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
+    <value>Kosakata khusus tidak didukung pada model Deepgram Whisper.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
-    <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
+    <value>Kosakata khusus dinonaktifkan saat menggunakan deteksi otomatis dengan model Nova. Atur bahasa tertentu untuk mengaktifkan penguatan kosakata.</value>
   </data>
   <data name="mode.editor.postProcessing.enable" xml:space="preserve">
-    <value>Enable AI Post-Processing</value>
+    <value>Aktifkan Pascapemrosesan AI</value>
   </data>
   <data name="mode.editor.postProcessing.provider" xml:space="preserve">
-    <value>Provider</value>
+    <value>Penyedia</value>
   </data>
   <data name="mode.editor.postProcessing.model" xml:space="preserve">
-    <value>AI Model</value>
+    <value>Model AI</value>
   </data>
   <data name="mode.editor.postProcessing.englishSpelling" xml:space="preserve">
-    <value>English Spelling</value>
+    <value>Ejaan Bahasa Inggris</value>
   </data>
   <data name="mode.editor.spelling.american" xml:space="preserve">
-    <value>American English</value>
+    <value>Bahasa Inggris Amerika</value>
   </data>
   <data name="mode.editor.spelling.british" xml:space="preserve">
-    <value>British English</value>
+    <value>Bahasa Inggris Britania</value>
   </data>
   <data name="mode.editor.spelling.australian" xml:space="preserve">
-    <value>Australian English</value>
+    <value>Bahasa Inggris Australia</value>
   </data>
   <data name="mode.editor.spelling.canadian" xml:space="preserve">
-    <value>Canadian English</value>
+    <value>Bahasa Inggris Kanada</value>
   </data>
   <data name="mode.editor.spelling.hint" xml:space="preserve">
-    <value>Choose spelling variant for English text</value>
+    <value>Pilih varian ejaan untuk teks bahasa Inggris</value>
   </data>
   <data name="mode.editor.postProcessing.punctuation" xml:space="preserve">
-    <value>Add punctuation</value>
+    <value>Tambahkan tanda baca</value>
   </data>
   <data name="mode.editor.postProcessing.capitalization" xml:space="preserve">
-    <value>Capitalize text</value>
+    <value>Kapitalisasi teks</value>
   </data>
   <data name="mode.editor.postProcessing.profanityFilter" xml:space="preserve">
-    <value>Filter profanity</value>
+    <value>Saring kata kasar</value>
   </data>
   <data name="mode.editor.postProcessing.screenText" xml:space="preserve">
-    <value>Screen Text</value>
+    <value>Teks Layar</value>
   </data>
   <data name="mode.editor.postProcessing.screenText.hint" xml:space="preserve">
-    <value>Capture visible screen text to improve accuracy of names and terms</value>
+    <value>Rekam teks yang terlihat di layar untuk meningkatkan akurasi nama dan istilah</value>
   </data>  <data name="mode.editor.postProcessing.removeTrailingPeriod" xml:space="preserve">
     <value>Hapus titik di akhir</value>
   </data>
@@ -1027,49 +1027,49 @@ Tindakan ini tidak dapat dibatalkan.</value>
     <value>Tambahkan instruksi yang selalu berlaku di atas prasetel yang dipilih.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
-    <value>API Key Required</value>
+    <value>Kunci API Diperlukan</value>
   </data>
   <!-- Mode Editor - Provider Tooltips -->
   <data name="mode.editor.provider.openai.tooltip" xml:space="preserve">
-    <value>Industry-standard Whisper model with excellent accuracy</value>
+    <value>Model Whisper standar industri dengan akurasi sangat baik</value>
   </data>
   <data name="mode.editor.provider.groq.tooltip" xml:space="preserve">
-    <value>Ultra-fast inference on Whisper models</value>
+    <value>Inferensi ultracepat pada model Whisper</value>
   </data>
   <data name="mode.editor.provider.deepgram.tooltip" xml:space="preserve">
-    <value>Real-time transcription with custom vocabulary boosting</value>
+    <value>Transkripsi real-time dengan penguatan kosakata khusus</value>
   </data>
   <data name="mode.editor.provider.assemblyai.tooltip" xml:space="preserve">
-    <value>Accurate transcription with speaker diarization</value>
+    <value>Transkripsi akurat dengan diarisasi pembicara</value>
   </data>
   <data name="mode.editor.provider.elevenlabs.tooltip" xml:space="preserve">
-    <value>High-quality multilingual transcription</value>
+    <value>Transkripsi multibahasa berkualitas tinggi</value>
   </data>
   <data name="mode.editor.provider.mistral.tooltip" xml:space="preserve">
-    <value>European AI provider with multilingual support</value>
+    <value>Penyedia AI Eropa dengan dukungan multibahasa</value>
   </data>
   <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
     <value>SpaceXAI Grok ucapan ke teks (HTTP batch)</value>
   </data>
   <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
-    <value>Fast, accurate transcription - no API key required</value>
+    <value>Transkripsi cepat dan akurat - tanpa kunci API</value>
   </data>
   <!-- Mode Editor - Delete Dialogs -->
   <data name="mode.editor.delete.confirm.title" xml:space="preserve">
-    <value>Delete Mode</value>
+    <value>Hapus Mode</value>
   </data>
   <data name="mode.editor.delete.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to delete the mode "{0}"?
+    <value>Apakah Anda yakin ingin menghapus mode "{0}"?
 
-This action cannot be undone.</value>
+Tindakan ini tidak dapat dibatalkan.</value>
   </data>
   <data name="mode.editor.delete.cannotDelete.title" xml:space="preserve">
-    <value>Cannot Delete</value>
+    <value>Tidak Dapat Menghapus</value>
   </data>
   <data name="mode.editor.delete.cannotDelete.message" xml:space="preserve">
-    <value>Cannot delete the last remaining mode.
+    <value>Tidak dapat menghapus mode terakhir yang tersisa.
 
-You must have at least one mode.</value>
+Anda harus memiliki setidaknya satu mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
@@ -1116,49 +1116,49 @@ You must have at least one mode.</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
-    <value>Failed to initialize database: {0}</value>
+    <value>Gagal menginisialisasi database: {0}</value>
   </data>
   <data name="errors.database.title" xml:space="preserve">
-    <value>Database Error</value>
+    <value>Kesalahan Database</value>
   </data>
   <data name="errors.unhandled.title" xml:space="preserve">
-    <value>HyperWhisper Error</value>
+    <value>Kesalahan HyperWhisper</value>
   </data>
   <data name="errors.unhandled.message" xml:space="preserve">
-    <value>Error: {0}</value>
+    <value>Kesalahan: {0}</value>
   </data>
   <data name="errors.applicationControl.blocked" xml:space="preserve">
     <value>Kontrol Aplikasi Windows memblokir {0}, file yang diperlukan HyperWhisper. Minta administrator TI Anda untuk mengizinkan HyperWhisper, atau periksa Kontrol Aplikasi Cerdas di Keamanan Windows.</value>
   </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
-    <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
+    <value>Gagal mengaktifkan peluncuran saat startup. Periksa apakah Anda memiliki izin untuk mengubah pengaturan startup.</value>
   </data>
   <data name="settings.general.startup.disableFailed" xml:space="preserve">
-    <value>Failed to disable launch at startup. Please check if you have permission to modify startup settings.</value>
+    <value>Gagal menonaktifkan peluncuran saat startup. Periksa apakah Anda memiliki izin untuk mengubah pengaturan startup.</value>
   </data>
   <!-- Settings - Models -->
   <data name="settings.models.downloadFailed.title" xml:space="preserve">
-    <value>Download Failed</value>
+    <value>Unduhan Gagal</value>
   </data>
   <data name="settings.models.downloadFailed.message" xml:space="preserve">
-    <value>Failed to download {0}:
+    <value>Gagal mengunduh {0}:
 
 {1}</value>
   </data>
   <data name="settings.models.delete.confirm.title" xml:space="preserve">
-    <value>Delete Model</value>
+    <value>Hapus Model</value>
   </data>
   <data name="settings.models.delete.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to delete {0}?
+    <value>Apakah Anda yakin ingin menghapus {0}?
 
-You can re-download it later.</value>
+Anda dapat mengunduhnya lagi nanti.</value>
   </data>
   <data name="settings.models.deleteFailed.title" xml:space="preserve">
-    <value>Delete Failed</value>
+    <value>Penghapusan Gagal</value>
   </data>
   <data name="settings.models.deleteFailed.message" xml:space="preserve">
-    <value>Failed to delete {0}:
+    <value>Gagal menghapus {0}:
 
 {1}</value>
   </data>
@@ -1170,59 +1170,59 @@ You can re-download it later.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
-    <value>Deactivate License</value>
+    <value>Nonaktifkan Lisensi</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
     <value>Apakah Anda yakin ingin menonaktifkan perangkat ini? Transkripsi cloud akan berhenti bekerja sampai Anda memasukkan kunci akun lagi. Kredit Anda tetap ada di kunci Anda.</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
-    <value>Storage</value>
+    <value>Penyimpanan</value>
   </data>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
-    <value>Unable to use the selected folder.</value>
+    <value>Tidak dapat menggunakan folder yang dipilih.</value>
   </data>
   <data name="settings.storage.error.openFolder" xml:space="preserve">
     <value>Tidak dapat membuka folder rekaman. {0}</value>
   </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
-    <value>Choose a folder for new recordings</value>
+    <value>Pilih folder untuk rekaman baru</value>
   </data>
   <data name="settings.storage.autoDelete.title" xml:space="preserve">
-    <value>Automatic Cleanup</value>
+    <value>Pembersihan Otomatis</value>
   </data>
   <data name="settings.storage.autoDelete.subtitle" xml:space="preserve">
-    <value>Automatically delete old recordings to save disk space</value>
+    <value>Hapus rekaman lama secara otomatis untuk menghemat ruang disk</value>
   </data>
   <data name="settings.storage.autoDelete.deleteAfter" xml:space="preserve">
-    <value>Delete recordings older than</value>
+    <value>Hapus rekaman yang lebih lama dari</value>
   </data>
   <data name="settings.storage.autoDelete.days" xml:space="preserve">
-    <value>days</value>
+    <value>hari</value>
   </data>
   <data name="settings.storage.autoDelete.deleteNow" xml:space="preserve">
-    <value>Delete Now</value>
+    <value>Hapus Sekarang</value>
   </data>
   <data name="settings.storage.autoDelete.deleting" xml:space="preserve">
-    <value>Deleting...</value>
+    <value>Menghapus...</value>
   </data>
   <data name="settings.storage.autoDelete.lastCleanup" xml:space="preserve">
-    <value>Last cleanup: {0} - Deleted {1} recording(s)</value>
+    <value>Pembersihan terakhir: {0} - {1} rekaman dihapus</value>
   </data>
   <data name="settings.storage.autoDelete.noCleanupYet" xml:space="preserve">
-    <value>No cleanup has run yet</value>
+    <value>Belum ada pembersihan yang dijalankan</value>
   </data>
   <data name="settings.storage.autoDelete.confirmDelete.title" xml:space="preserve">
-    <value>Confirm Deletion</value>
+    <value>Konfirmasi Penghapusan</value>
   </data>
   <data name="settings.storage.autoDelete.confirmDelete.message" xml:space="preserve">
-    <value>This will permanently delete old recordings. Continue?</value>
+    <value>Tindakan ini akan menghapus rekaman lama secara permanen. Lanjutkan?</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.title" xml:space="preserve">
-    <value>Cleanup Complete</value>
+    <value>Pembersihan Selesai</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
-    <value>Deleted {0} recording(s)</value>
+    <value>{0} rekaman dihapus</value>
   </data>
   <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
     <value>Pembersihan Gagal</value>
@@ -1269,10 +1269,10 @@ You can re-download it later.</value>
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="provider.status.configured" xml:space="preserve">
-    <value>Configured ({0})</value>
+    <value>Terkonfigurasi ({0})</value>
   </data>
   <data name="provider.status.notConfigured" xml:space="preserve">
-    <value>Not configured</value>
+    <value>Belum dikonfigurasi</value>
   </data>
 
   <!-- Keyboard Keys -->
@@ -1282,13 +1282,13 @@ You can re-download it later.</value>
 
   <!-- Shortcut Modes -->
   <data name="settings.shortcuts.mode.disabled" xml:space="preserve">
-    <value>Disabled</value>
+    <value>Nonaktif</value>
   </data>
   <data name="settings.shortcuts.mode.modifier" xml:space="preserve">
-    <value>Modifier</value>
+    <value>Pengubah</value>
   </data>
   <data name="settings.shortcuts.mode.custom" xml:space="preserve">
-    <value>Custom</value>
+    <value>Kustom</value>
   </data>
 
   <!-- License Status Descriptions -->
@@ -1299,7 +1299,7 @@ You can re-download it later.</value>
     <value>Kunci lisensi Anda tidak lagi valid. Masukkan kunci baru di bawah, atau dapatkan kredit untuk membuat kunci baru.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
-    <value>Please enter a license key.</value>
+    <value>Masukkan kunci lisensi.</value>
   </data>
   <data name="license.error.keyFormat" xml:space="preserve">
     <value>Itu tidak terlihat seperti kunci akun.</value>
@@ -1309,26 +1309,26 @@ You can re-download it later.</value>
 
   <!-- Mode Editor - Additional -->
   <data name="mode.editor.model.notDownloaded" xml:space="preserve">
-    <value> - Not Downloaded</value>
+    <value> - Belum Diunduh</value>
   </data>
 
   <!-- Modes - ARM64 -->
   <data name="modes.arm64.notAvailable" xml:space="preserve">
-    <value>Not available (ARM64)</value>
+    <value>Tidak tersedia (ARM64)</value>
   </data>
 
   <!-- File Transcription -->
   <data name="file.transcribe.dialogTitle" xml:space="preserve">
-    <value>Select Audio File to Transcribe</value>
+    <value>Pilih File Audio untuk Ditranskripsi</value>
   </data>
   <data name="errors.fileNotFound" xml:space="preserve">
-    <value>File not found</value>
+    <value>File tidak ditemukan</value>
   </data>
   <data name="errors.fileTranscriptionBusy" xml:space="preserve">
     <value>Perekaman atau transkripsi file sedang berjalan. Coba file itu lagi setelah selesai.</value>
   </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
-    <value>File is too large for this provider. Maximum size: {0}</value>
+    <value>File terlalu besar untuk penyedia ini. Ukuran maksimum: {0}</value>
   </data>
   <data name="errors.fileEmpty" xml:space="preserve">
     <value>File ini kosong, jadi tidak ada audio untuk ditranskripsi.</value>
@@ -1590,13 +1590,13 @@ You can re-download it later.</value>
     <value>Tekan dua kali dengan cepat untuk merekam terus tanpa menahan</value>
   </data>
   <data name="settings.shortcuts.pushToTalk.modifier.label" xml:space="preserve">
-    <value>Modifier</value>
+    <value>Pengubah</value>
   </data>
   <data name="settings.shortcuts.pushToTalk.subtitle" xml:space="preserve">
     <value>Tahan tombol untuk merekam, lepaskan setelah selesai</value>
   </data>
   <data name="settings.shortcuts.pushToTalk.title" xml:space="preserve">
-    <value>Push to Talk</value>
+    <value>Tekan untuk Bicara</value>
   </data>
   <data name="settings.shortcuts.pushToTalk.unassigned" xml:space="preserve">
     <value>Tidak ditetapkan</value>
@@ -1619,22 +1619,22 @@ You can re-download it later.</value>
 
   <!-- Local LLM Post-Processing -->
   <data name="provider.localLlm" xml:space="preserve">
-    <value>Local LLM</value>
+    <value>LLM Lokal</value>
   </data>
   <data name="settings.api.provider.localLlm.description" xml:space="preserve">
-    <value>Runs on-device and does not need an API key.</value>
+    <value>Berjalan di perangkat dan tidak memerlukan kunci API.</value>
   </data>
   <data name="settings.api.provider.localLlm.status" xml:space="preserve">
-    <value>No API key required</value>
+    <value>Tidak memerlukan kunci API</value>
   </data>
   <data name="settings.api.provider.localLlm.manageModels" xml:space="preserve">
-    <value>Manage Models</value>
+    <value>Kelola Model</value>
   </data>
   <data name="settings.models.localLlm.hardware.cpuFallback" xml:space="preserve">
-    <value>Runtime: CPU fallback. No GPU acceleration device was detected.</value>
+    <value>Runtime: cadangan CPU. Tidak ada perangkat akselerasi GPU yang terdeteksi.</value>
   </data>
   <data name="settings.models.localLlm.hardware.cudaFirst" xml:space="preserve">
-    <value>CUDA will be tried first, with CPU fallback if loading fails</value>
+    <value>CUDA akan dicoba terlebih dahulu, dengan cadangan CPU jika pemuatan gagal</value>
   </data>
   <data name="settings.models.localLlm.hardware.vulkanFirst" xml:space="preserve">
     <value>Vulkan akan dicoba terlebih dahulu, dengan CPU sebagai cadangan jika pemuatan gagal</value>
@@ -1643,94 +1643,94 @@ You can re-download it later.</value>
     <value>Cadangan CPU. GPU ini tidak mendukung pascapemrosesan lokal yang dipercepat</value>
   </data>
   <data name="settings.models.localLlm.hardware.sharedGpu" xml:space="preserve">
-    <value>Local LLM and Whisper may share GPU memory; use a smaller model if transcription slows.</value>
+    <value>LLM Lokal dan Whisper mungkin berbagi memori GPU; gunakan model yang lebih kecil jika transkripsi melambat.</value>
   </data>
   <data name="settings.models.localLlm.hardware.runtimeFormat" xml:space="preserve">
     <value>Runtime: {0} ({1}). {2}.</value>
   </data>
   <data name="settings.models.localLlm.notDownloadedSuffix" xml:space="preserve">
-    <value> - Not downloaded</value>
+    <value> - Belum diunduh</value>
   </data>
   <data name="settings.models.localLlm.missingModel" xml:space="preserve">
-    <value>Local LLM model '{0}' is not downloaded. Download it in Model Library.</value>
+    <value>Model LLM Lokal '{0}' belum diunduh. Unduh di Pustaka Model.</value>
   </data>
   <data name="settings.models.localLlm.diskSpace" xml:space="preserve">
-    <value>Not enough disk space to download {0}. Need {1}, available {2}.</value>
+    <value>Ruang disk tidak cukup untuk mengunduh {0}. Diperlukan {1}, tersedia {2}.</value>
   </data>
   <data name="settings.models.localLlm.invalidModelFile" xml:space="preserve">
-    <value>Downloaded file is not a valid GGUF model.</value>
+    <value>File yang diunduh bukan model GGUF yang valid.</value>
   </data>
   <data name="mode.editor.localLlm.openModelsSettings" xml:space="preserve">
-    <value>Open Model Library</value>
+    <value>Buka Pustaka Model</value>
   </data>
   <data name="mode.editor.localLlm.readyDescription" xml:space="preserve">
-    <value>{0} Ready for offline post-processing.</value>
+    <value>{0} Siap untuk pascapemrosesan offline.</value>
   </data>
   <data name="mode.editor.localLlm.downloadDescription" xml:space="preserve">
-    <value>{0} Download it in Model Library first.</value>
+    <value>{0} Unduh terlebih dahulu di Pustaka Model.</value>
   </data>
   <data name="app.badge.pro" xml:space="preserve">
     <value>PRO</value>
   </data>
   <data name="window.caption.minimize" xml:space="preserve">
-    <value>Minimize</value>
+    <value>Minimalkan</value>
   </data>
   <data name="window.caption.maximize" xml:space="preserve">
-    <value>Maximize</value>
+    <value>Maksimalkan</value>
   </data>
   <data name="window.caption.close" xml:space="preserve">
-    <value>Close</value>
+    <value>Tutup</value>
   </data>
   <data name="common.clear" xml:space="preserve">
-    <value>Clear</value>
+    <value>Hapus</value>
   </data>
   <data name="common.off" xml:space="preserve">
-    <value>Off</value>
+    <value>Nonaktif</value>
   </data>
   <data name="menu.command.contact.support" xml:space="preserve">
-    <value>Contact Support</value>
+    <value>Hubungi Dukungan</value>
   </data>
   <data name="menu.history" xml:space="preserve">
-    <value>History...</value>
+    <value>Riwayat...</value>
   </data>
   <data name="menu.settings" xml:space="preserve">
-    <value>Settings...</value>
+    <value>Pengaturan...</value>
   </data>
   <data name="menu.recording.toggle" xml:space="preserve">
-    <value>Start/Stop Recording</value>
+    <value>Mulai/Hentikan Perekaman</value>
   </data>
   <data name="menu.recording.stop" xml:space="preserve">
-    <value>Stop Recording</value>
+    <value>Hentikan Perekaman</value>
   </data>
   <data name="menu.microphone" xml:space="preserve">
-    <value>Microphone</value>
+    <value>Mikrofon</value>
   </data>
   <data name="menu.microphone.none" xml:space="preserve">
-    <value>No microphones found</value>
+    <value>Tidak ada mikrofon ditemukan</value>
   </data>
   <data name="menu.select.mode" xml:space="preserve">
-    <value>Select Mode</value>
+    <value>Pilih Mode</value>
   </data>
   <data name="menu.mode.none" xml:space="preserve">
-    <value>No modes available</value>
+    <value>Tidak ada mode yang tersedia</value>
   </data>
   <data name="menu.mode.unnamed" xml:space="preserve">
-    <value>Unnamed</value>
+    <value>Tanpa Nama</value>
   </data>
   <data name="menu.mode.more" xml:space="preserve">
     <value>Lainnya...</value>
   </data>
   <data name="menu.transcribe.file" xml:space="preserve">
-    <value>Transcribe File</value>
+    <value>Transkripsikan File</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
     <value>Versi {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
-    <value>Quit</value>
+    <value>Keluar</value>
   </data>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
-    <value>Auto-learned</value>
+    <value>Dipelajari otomatis</value>
   </data>
   <data name="vocabulary.manual.badge" xml:space="preserve">
     <value>Manual</value>
@@ -1739,133 +1739,133 @@ You can re-download it later.</value>
     <value>Streaming</value>
   </data>
   <data name="settings.general.support.title" xml:space="preserve">
-    <value>Need help?</value>
+    <value>Butuh bantuan?</value>
   </data>
   <data name="settings.general.support.openFailed" xml:space="preserve">
-    <value>Could not open the support page: {0}</value>
+    <value>Tidak dapat membuka halaman dukungan: {0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
     <value>Versi {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
-    <value>Help Center</value>
+    <value>Pusat Bantuan</value>
   </data>
   <data name="settings.resources.contact.support" xml:space="preserve">
-    <value>Contact Support</value>
+    <value>Hubungi Dukungan</value>
   </data>
   <data name="settings.resources.feedback" xml:space="preserve">
-    <value>Send Feedback</value>
+    <value>Kirim Masukan</value>
   </data>
   <data name="settings.credits.subtitle" xml:space="preserve">
-    <value>Track your HyperWhisper Cloud balance and usage</value>
+    <value>Pantau saldo dan penggunaan HyperWhisper Cloud Anda</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>SpaceXAI Grok models for text enhancement</value>
+    <value>Model Grok dari SpaceXAI untuk penyempurnaan teks</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.title" xml:space="preserve">
-    <value>Autocapitalize Insert</value>
+    <value>Kapitalisasi Otomatis saat Menyisipkan</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.subtitle" xml:space="preserve">
-    <value>Match cursor context when inserting text</value>
+    <value>Sesuaikan dengan konteks kursor saat menyisipkan teks</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.permissionMessage" xml:space="preserve">
-    <value>Some applications (like web browsers and Electron apps) may not expose the focused text field. Autocapitalize Insert will pass through unchanged in those cases — the feature still works in most native editors and Office applications.</value>
+    <value>Beberapa aplikasi (seperti browser web dan aplikasi Electron) mungkin tidak mengekspos bidang teks yang sedang fokus. Dalam kasus tersebut, Kapitalisasi Otomatis saat Menyisipkan akan meneruskan teks tanpa perubahan — fitur ini tetap berfungsi di sebagian besar editor native dan aplikasi Office.</value>
   </data>
   <data name="settings.output.hideClipboardHistory.title" xml:space="preserve">
-    <value>Hide from clipboard history</value>
+    <value>Sembunyikan dari riwayat clipboard</value>
   </data>
   <data name="settings.output.hideClipboardHistory.subtitle" xml:space="preserve">
-    <value>Prevent transcriptions from appearing in Windows clipboard history</value>
+    <value>Cegah transkripsi muncul di riwayat clipboard Windows</value>
   </data>
   <data name="settings.storage.showFolder.title" xml:space="preserve">
-    <value>Show recordings folder</value>
+    <value>Tampilkan folder rekaman</value>
   </data>
   <data name="settings.storage.storeAsM4A.title" xml:space="preserve">
-    <value>Compress recordings to M4A</value>
+    <value>Kompres rekaman ke M4A</value>
   </data>
   <data name="settings.storage.storeAsM4A.subtitle" xml:space="preserve">
-    <value>Converts WAV recordings to smaller files after transcription. Turn off to keep original WAV files.</value>
+    <value>Mengonversi rekaman WAV menjadi file yang lebih kecil setelah transkripsi. Nonaktifkan untuk menyimpan file WAV asli.</value>
   </data>
   <data name="settings.about.checkUpdates.description" xml:space="preserve">
-    <value>Look for the latest release.</value>
+    <value>Cari rilis terbaru.</value>
   </data>
   <data name="settings.about.openLogFolder.description" xml:space="preserve">
-    <value>View local diagnostic files.</value>
+    <value>Lihat file diagnostik lokal.</value>
   </data>
   <data name="settings.about.openLogFolder.failed.title" xml:space="preserve">
-    <value>Could Not Open Log Folder</value>
+    <value>Tidak Dapat Membuka Folder Log</value>
   </data>
   <data name="settings.about.openLogFolder.failed.message" xml:space="preserve">
-    <value>HyperWhisper could not open the log folder. Please try again or export diagnostics instead. Details: {0}</value>
+    <value>HyperWhisper tidak dapat membuka folder log. Coba lagi atau ekspor diagnostik sebagai gantinya. Detail: {0}</value>
   </data>
   <data name="settings.about.exportDiagnostics" xml:space="preserve">
-    <value>Export Diagnostics</value>
+    <value>Ekspor Diagnostik</value>
   </data>
   <data name="settings.about.exportDiagnostics.description" xml:space="preserve">
-    <value>Create a support bundle.</value>
+    <value>Buat paket dukungan.</value>
   </data>
   <data name="settings.about.exportDiagnostics.dialogTitle" xml:space="preserve">
-    <value>Export HyperWhisper Diagnostics</value>
+    <value>Ekspor Diagnostik HyperWhisper</value>
   </data>
   <data name="settings.about.exportDiagnostics.fileFilter" xml:space="preserve">
-    <value>ZIP Archive (*.zip)|*.zip</value>
+    <value>Arsip ZIP (*.zip)|*.zip</value>
   </data>
   <data name="settings.about.exportDiagnostics.exporting" xml:space="preserve">
-    <value>Exporting...</value>
+    <value>Mengekspor...</value>
   </data>
   <data name="settings.about.exportDiagnostics.success.title" xml:space="preserve">
-    <value>Diagnostics Exported</value>
+    <value>Diagnostik Diekspor</value>
   </data>
   <data name="settings.about.exportDiagnostics.success.message" xml:space="preserve">
-    <value>Diagnostics were exported successfully.</value>
+    <value>Diagnostik berhasil diekspor.</value>
   </data>
   <data name="settings.about.exportDiagnostics.failed.title" xml:space="preserve">
-    <value>Diagnostics Export Failed</value>
+    <value>Ekspor Diagnostik Gagal</value>
   </data>
   <data name="settings.about.exportDiagnostics.failed.message" xml:space="preserve">
-    <value>Failed to export diagnostics: {0}</value>
+    <value>Gagal mengekspor diagnostik: {0}</value>
   </data>
   <data name="recording.state.streaming" xml:space="preserve">
-    <value>Live</value>
+    <value>Langsung</value>
   </data>
   <data name="settings.models.directory.show" xml:space="preserve">
-    <value>Show in Explorer</value>
+    <value>Tampilkan di Explorer</value>
   </data>
   <data name="settings.models.clearFilters" xml:space="preserve">
-    <value>Clear filters</value>
+    <value>Hapus filter</value>
   </data>
   <data name="settings.models.empty.noMatches" xml:space="preserve">
-    <value>No models match your filters.</value>
+    <value>Tidak ada model yang cocok dengan filter Anda.</value>
   </data>
   <data name="settings.models.empty.filtered" xml:space="preserve">
-    <value>No models match: {0}.</value>
+    <value>Tidak ada model yang cocok: {0}.</value>
   </data>
   <data name="settings.models.empty.noneAvailable" xml:space="preserve">
-    <value>No models are available.</value>
+    <value>Tidak ada model yang tersedia.</value>
   </data>
   <data name="settings.models.empty.filter.search" xml:space="preserve">
-    <value>search &quot;{0}&quot;</value>
+    <value>pencarian "{0}"</value>
   </data>
   <data name="settings.models.feature.vocabulary" xml:space="preserve">
-    <value>custom vocabulary</value>
+    <value>kosakata khusus</value>
   </data>
   <data name="statusbar.postProcessing" xml:space="preserve">
-    <value>Post: </value>
+    <value>Pasca: </value>
   </data>
   <data name="mode.editor.cloudModel.showAll" xml:space="preserve">
-    <value>Show all models</value>
+    <value>Tampilkan semua model</value>
   </data>
   <data name="mode.editor.cloudModel.popularLabel" xml:space="preserve">
-    <value>{0} (Popular)</value>
+    <value>{0} (Populer)</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - hingga 60 bahasa dengan bias frasa</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.description" xml:space="preserve">
-    <value>Google Gemini 3.5 Transcribe - dedicated speech model, 85+ languages, custom vocabulary</value>
+    <value>Google Gemini 3.5 Transcribe - model ucapan khusus, 85+ bahasa, kosakata khusus</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
-    <value>~{0} credits/min</value>
+    <value>~{0} kredit/mnt</value>
   </data>
   <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
     <value>Soniox - 60 bahasa, bias konteks</value>
@@ -1898,7 +1898,7 @@ You can re-download it later.</value>
     <value>Kosakata medis (add-on Mode Medis)</value>
   </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
-    <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
+    <value>Pascapemrosesan AI dapat menyesuaikan format dengan aplikasi aktif, seperti email, obrolan, dokumen, kode, atau jendela terminal. Pemanggil Local API dapat meneruskan applicationContext secara eksplisit; konteks ini tidak direkam otomatis untuk permintaan API.</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
     <value>Streaming</value>
@@ -1907,16 +1907,16 @@ You can re-download it later.</value>
     <value>Streaming</value>
   </data>
   <data name="settings.streaming.enable.title" xml:space="preserve">
-    <value>Enable streaming transcription</value>
+    <value>Aktifkan transkripsi streaming</value>
   </data>
   <data name="settings.streaming.enable.subtitle" xml:space="preserve">
-    <value>Use a separate hotkey to transcribe continuously and paste final speech segments into the active app.</value>
+    <value>Gunakan pintasan terpisah untuk mentranskripsi secara terus-menerus dan menempelkan segmen ucapan final ke aplikasi aktif.</value>
   </data>
   <data name="settings.streaming.shortcut.title" xml:space="preserve">
-    <value>Streaming shortcut</value>
+    <value>Pintasan streaming</value>
   </data>
   <data name="settings.streaming.provider.title" xml:space="preserve">
-    <value>Provider</value>
+    <value>Penyedia</value>
   </data>
   <data name="settings.streaming.provider.hyperwhisperCloud" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
@@ -1940,61 +1940,61 @@ You can re-download it later.</value>
     <value>Menggunakan kredit HyperWhisper Cloud Anda. Tidak diperlukan kunci API terpisah.</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
-    <value>Deepgram API key is configured.</value>
+    <value>Kunci API Deepgram sudah dikonfigurasi.</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.missingKey" xml:space="preserve">
-    <value>Deepgram streaming requires a Deepgram API key in the Model Library API keys manager.</value>
+    <value>Streaming Deepgram memerlukan kunci API Deepgram di pengelola kunci API Pustaka Model.</value>
   </data>
   <data name="settings.streaming.providerStatus.elevenLabs.configured" xml:space="preserve">
-    <value>ElevenLabs API key is configured.</value>
+    <value>Kunci API ElevenLabs sudah dikonfigurasi.</value>
   </data>
   <data name="settings.streaming.providerStatus.elevenLabs.missingKey" xml:space="preserve">
-    <value>ElevenLabs streaming requires an ElevenLabs API key in the Model Library API keys manager.</value>
+    <value>Streaming ElevenLabs memerlukan kunci API ElevenLabs di pengelola kunci API Pustaka Model.</value>
   </data>
   <data name="settings.streaming.providerStatus.openAI.configured" xml:space="preserve">
-    <value>OpenAI API key is configured.</value>
+    <value>Kunci API OpenAI sudah dikonfigurasi.</value>
   </data>
   <data name="settings.streaming.providerStatus.openAI.missingKey" xml:space="preserve">
-    <value>OpenAI streaming requires an OpenAI API key in the Model Library API keys manager.</value>
+    <value>Streaming OpenAI memerlukan kunci API OpenAI di pengelola kunci API Pustaka Model.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
-    <value>SpaceXAI API key is configured.</value>
+    <value>Kunci API SpaceXAI sudah dikonfigurasi.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
-    <value>SpaceXAI streaming requires a Grok API key in the Model Library API keys manager.</value>
+    <value>Streaming SpaceXAI memerlukan kunci API Grok di pengelola kunci API Pustaka Model.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
-    <value>Gemini API key is configured.</value>
+    <value>Kunci API Gemini sudah dikonfigurasi.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.missingKey" xml:space="preserve">
-    <value>Gemini 3.5 Transcribe streaming requires a Google Gemini API key in the Model Library API keys manager.</value>
+    <value>Streaming Gemini 3.5 Transcribe memerlukan kunci API Google Gemini di pengelola kunci API Pustaka Model.</value>
   </data>
   <data name="settings.streaming.cloudTier.title" xml:space="preserve">
-    <value>Live engine</value>
+    <value>Mesin langsung</value>
   </data>
   <data name="settings.streaming.cloudTier.subtitle" xml:space="preserve">
-    <value>Which speech engine HyperWhisper Cloud uses for live transcription.</value>
+    <value>Mesin ucapan yang digunakan HyperWhisper Cloud untuk transkripsi langsung.</value>
   </data>
   <data name="settings.streaming.warning.vocabularyUnsupported" xml:space="preserve">
-    <value>Custom vocabulary is not used with the selected streaming provider.</value>
+    <value>Kosakata khusus tidak digunakan dengan penyedia streaming yang dipilih.</value>
   </data>
   <data name="settings.streaming.warning.vocabularyAutoDetect" xml:space="preserve">
-    <value>Custom vocabulary is disabled for streaming when language is set to auto. Set a specific language to enable vocabulary boosting.</value>
+    <value>Kosakata khusus dinonaktifkan untuk streaming saat bahasa diatur ke otomatis. Atur bahasa tertentu untuk mengaktifkan penguatan kosakata.</value>
   </data>
   <data name="settings.streaming.language.title" xml:space="preserve">
-    <value>Language</value>
+    <value>Bahasa</value>
   </data>
   <data name="settings.streaming.deepgram.model.title" xml:space="preserve">
     <value>Model</value>
   </data>
   <data name="settings.streaming.fastFormatting.title" xml:space="preserve">
-    <value>Fast formatting</value>
+    <value>Pemformatan cepat</value>
   </data>
   <data name="settings.streaming.fastFormatting.subtitle" xml:space="preserve">
-    <value>Return formatted text with lower latency.</value>
+    <value>Kembalikan teks berformat dengan latensi lebih rendah.</value>
   </data>
   <data name="provider.none" xml:space="preserve">
-    <value>None</value>
+    <value>Tidak ada</value>
   </data>
   <data name="provider.microsoftAzureSpeech" xml:space="preserve">
     <value>Microsoft Azure Speech</value>
@@ -2003,70 +2003,70 @@ You can re-download it later.</value>
     <value>Google Cloud Speech</value>
   </data>
   <data name="settings.sound.mediaControl.title" xml:space="preserve">
-    <value>Media control</value>
+    <value>Kontrol media</value>
   </data>
   <data name="settings.sound.mediaControl.subtitle" xml:space="preserve">
-    <value>Control other audio while HyperWhisper is recording.</value>
+    <value>Kontrol audio lain saat HyperWhisper sedang merekam.</value>
   </data>
   <data name="settings.sound.mediaControl.off" xml:space="preserve">
-    <value>Off</value>
+    <value>Nonaktif</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
-    <value>Mute audio</value>
+    <value>Bisukan audio</value>
   </data>
   <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
     <value>Redam audio</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
-    <value>Keep microphone warm</value>
+    <value>Jaga mikrofon tetap siap</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
-    <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+    <value>Biarkan aliran input senyap tetap terbuka di antara rekaman untuk mengurangi jeda saat mulai, terutama dengan mikrofon Bluetooth.</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
-    <value>Average speed</value>
+    <value>Kecepatan rata-rata</value>
   </data>
   <data name="home.stats.wordsThisWeek" xml:space="preserve">
-    <value>Words this week</value>
+    <value>Kata minggu ini</value>
   </data>
   <data name="home.stats.wordsThisMonth" xml:space="preserve">
-    <value>Words this month</value>
+    <value>Kata bulan ini</value>
   </data>
   <data name="home.stats.savedThisWeek" xml:space="preserve">
-    <value>Saved this week</value>
+    <value>Dihemat minggu ini</value>
   </data>
   <data name="home.stats.minutesValue" xml:space="preserve">
-    <value>{0} minutes</value>
+    <value>{0} menit</value>
   </data>
   <data name="home.stats.typingSpeedHelp" xml:space="preserve">
-    <value>Adjust your assumed typing speed</value>
+    <value>Sesuaikan perkiraan kecepatan mengetik Anda</value>
   </data>
   <data name="providerApiKey.title" xml:space="preserve">
-    <value>Connect {0}</value>
+    <value>Hubungkan {0}</value>
   </data>
   <data name="providerApiKey.subtitle" xml:space="preserve">
-    <value>Add your {0} API key to unlock this provider in Model Library.</value>
+    <value>Tambahkan kunci API {0} Anda untuk membuka penyedia ini di Pustaka Model.</value>
   </data>
   <data name="providerApiKey.currentStatus.none" xml:space="preserve">
-    <value>No API key configured</value>
+    <value>Belum ada kunci API yang dikonfigurasi</value>
   </data>
   <data name="providerApiKey.currentStatus.configured" xml:space="preserve">
-    <value>Configured as {0}</value>
+    <value>Dikonfigurasi sebagai {0}</value>
   </data>
   <data name="providerApiKey.getKey" xml:space="preserve">
-    <value>Get key</value>
+    <value>Dapatkan kunci</value>
   </data>
   <data name="providerApiKey.apiKeyLabel" xml:space="preserve">
-    <value>API key</value>
+    <value>Kunci API</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>Disimpan dengan aman di Windows Credential Manager.</value>
   </data>
   <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Invalid API Key</value>
+    <value>Kunci API Tidak Valid</value>
   </data>
   <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>That does not look like a valid {0} API key.</value>
+    <value>Itu tidak tampak seperti kunci API {0} yang valid.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Local API</value>
@@ -2075,22 +2075,22 @@ You can re-download it later.</value>
     <value>Local API</value>
   </data>
   <data name="settings.localApi.blurb" xml:space="preserve">
-    <value>Localhost-only HTTP API for MCP clients, benchmark scripts, and shell automation. Off by default. When on, HyperWhisper listens on 127.0.0.1 and writes the port + bearer token to %LOCALAPPDATA%\HyperWhisper\local-api.json with restricted file permissions.</value>
+    <value>API HTTP khusus localhost untuk klien MCP, skrip benchmark, dan otomatisasi shell. Nonaktif secara default. Saat aktif, HyperWhisper mendengarkan di 127.0.0.1 dan menulis port + token bearer ke %LOCALAPPDATA%\HyperWhisper\local-api.json dengan izin file terbatas.</value>
   </data>
   <data name="settings.localApi.toggle.enabled" xml:space="preserve">
-    <value>Server enabled</value>
+    <value>Server aktif</value>
   </data>
   <data name="settings.localApi.toggle.disabled" xml:space="preserve">
-    <value>Server disabled</value>
+    <value>Server nonaktif</value>
   </data>
   <data name="settings.localApi.docs" xml:space="preserve">
-    <value>Docs</value>
+    <value>Dokumentasi</value>
   </data>
   <data name="settings.localApi.tab.connection" xml:space="preserve">
-    <value>Connection</value>
+    <value>Koneksi</value>
   </data>
   <data name="settings.localApi.tab.mcp" xml:space="preserve">
-    <value>MCP setup</value>
+    <value>Penyiapan MCP</value>
   </data>
   <data name="settings.localApi.tab.curl" xml:space="preserve">
     <value>cURL</value>
@@ -2099,37 +2099,37 @@ You can re-download it later.</value>
     <value>Port</value>
   </data>
   <data name="settings.localApi.row.token" xml:space="preserve">
-    <value>Bearer token</value>
+    <value>Token bearer</value>
   </data>
   <data name="settings.localApi.row.portFile" xml:space="preserve">
-    <value>Port file</value>
+    <value>File port</value>
   </data>
   <data name="settings.localApi.copy" xml:space="preserve">
-    <value>Copy</value>
+    <value>Salin</value>
   </data>
   <data name="settings.localApi.reveal" xml:space="preserve">
-    <value>Reveal</value>
+    <value>Tampilkan</value>
   </data>
   <data name="settings.localApi.hide" xml:space="preserve">
-    <value>Hide</value>
+    <value>Sembunyikan</value>
   </data>
   <data name="settings.localApi.regenerate" xml:space="preserve">
-    <value>Regenerate</value>
+    <value>Buat Ulang</value>
   </data>
   <data name="settings.localApi.show" xml:space="preserve">
-    <value>Show</value>
+    <value>Tampilkan</value>
   </data>
   <data name="settings.localApi.helperAuth" xml:space="preserve">
-    <value>Sent as Authorization: Bearer &lt;token&gt;. Required on every endpoint except /health.</value>
+    <value>Dikirim sebagai Authorization: Bearer &lt;token&gt;. Wajib di setiap endpoint kecuali /health.</value>
   </data>
   <data name="settings.localApi.mcp.caption" xml:space="preserve">
-    <value>Drop into Cursor, Claude Code, or Claude Desktop's mcpServers block. The wrapper auto-reads the port and token from the discovery file at startup — no secrets in client config.</value>
+    <value>Masukkan ke blok mcpServers di Cursor, Claude Code, atau Claude Desktop. Wrapper otomatis membaca port dan token dari file discovery saat startup — tanpa rahasia di konfigurasi klien.</value>
   </data>
   <data name="settings.localApi.mcp.guide" xml:space="preserve">
-    <value>MCP setup guide</value>
+    <value>Panduan penyiapan MCP</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
-    <value>Pre-filled with your port and token.</value>
+    <value>Sudah diisi dengan port dan token Anda.</value>
   </data>
   <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
     <value>Token belum tersedia.</value>
@@ -2159,10 +2159,10 @@ You can re-download it later.</value>
     <value>Disalin ke papan klip.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
-    <value>No network sockets bound.</value>
+    <value>Tidak ada soket jaringan yang terikat.</value>
   </data>
   <data name="settings.localApi.status.starting" xml:space="preserve">
-    <value>Starting…</value>
+    <value>Memulai…</value>
   </data>
   <data name="settings.localApi.status.running" xml:space="preserve">
     <value>127.0.0.1:{0} · token ••••{1}</value>
@@ -2228,13 +2228,13 @@ You can re-download it later.</value>
     <value>Meta</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
-    <value>Meta Muse Voice Transcribe 1.0 - batch transcription with your own Meta Model API key</value>
+    <value>Meta Muse Voice Transcribe 1.0 - transkripsi batch dengan kunci API Meta Model Anda sendiri</value>
   </data>
   <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Invalid Meta API key format. Enter the complete key from Meta for Developers.</value>
+    <value>Format kunci API Meta tidak valid. Masukkan kunci lengkap dari Meta for Developers.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
-    <value>Use your own Meta Model API key for Muse batch transcription</value>
+    <value>Gunakan kunci API Meta Model Anda sendiri untuk transkripsi batch Muse</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
     <value>Siapkan HyperWhisper</value>
@@ -2771,7 +2771,7 @@ You can re-download it later.</value>
     <value>Kunci API disimpan. Penyedia ini tidak punya cara memeriksa kunci tanpa mentranskripsi, jadi kunci akan diverifikasi saat Anda pertama kali mendikte.</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
-    <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
+    <value>HyperWhisper tidak dapat mengirimkan transkrip: transkrip tidak ditempel maupun disalin ke clipboard. Transkrip tersimpan di Riwayat.</value>
   </data>
   <data name="app.unknown.error" xml:space="preserve">
     <value>Terjadi kesalahan yang tidak diketahui</value>
