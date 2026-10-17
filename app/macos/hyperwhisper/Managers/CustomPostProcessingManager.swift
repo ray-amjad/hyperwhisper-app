@@ -28,6 +28,36 @@ import os
 enum CustomEndpointTestResult {
     case success(responsePreview: String)
     case failure(error: String)
+
+    var isSuccess: Bool {
+        if case .success = self { return true }
+        return false
+    }
+}
+
+/// The exact configuration an Add/Edit sheet test probed, and its verdict.
+///
+/// The sheet tests unsaved form values with a TYPED key, so the verdict cannot
+/// be written at test time: the user may still cancel, or edit and save other
+/// values. The sheet hands this to `addEndpoint` / `updateEndpoint`, which
+/// record the verdict only when the saved URL, model and key are the ones
+/// tested (issue #935).
+struct CustomEndpointTestedConfiguration: Equatable {
+    let endpointURL: String
+    let modelName: String
+    let apiKey: String
+    let success: Bool
+
+    init(endpointURL: String, modelName: String, apiKey: String, success: Bool) {
+        self.endpointURL = endpointURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.modelName = modelName.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.apiKey = apiKey
+        self.success = success
+    }
+
+    func matches(_ endpoint: CustomPostProcessingEndpoint, apiKey storedKey: String) -> Bool {
+        endpointURL == endpoint.endpointURL && modelName == endpoint.modelName && apiKey == storedKey
+    }
 }
 
 // MARK: - Manager
@@ -38,16 +68,13 @@ enum CustomEndpointTestResult {
 /// - Inject as @EnvironmentObject in SwiftUI views
 /// - Use `endpoints` property to display list of configured endpoints
 /// - Call CRUD methods to add/update/delete endpoints
-/// - Call `testEndpoint(id:)` to verify an endpoint works
+/// - Call `testEndpoint(_:apiKey:)` to probe an endpoint configuration
 @MainActor
 class CustomPostProcessingManager: ObservableObject {
     // MARK: - Published State
 
     /// All configured custom endpoints
     @Published private(set) var endpoints: [CustomPostProcessingEndpoint] = []
-
-    /// Currently testing endpoint IDs
-    @Published private(set) var testingEndpoints: Set<UUID> = []
 
     /// Error message for display (nil if no error)
     @Published var errorMessage: String?
@@ -74,6 +101,8 @@ class CustomPostProcessingManager: ObservableObject {
     ///   - endpointURL: Full URL to the chat completions endpoint
     ///   - modelName: Model identifier to use
     ///   - apiKey: Optional API key (stored in Keychain)
+    ///   - testedConfiguration: The sheet's last test; its verdict is recorded
+    ///     when it tested exactly this URL, model and key
     /// - Returns: The created endpoint
     /// - Throws: Validation error if configuration is invalid
     @discardableResult
@@ -81,7 +110,8 @@ class CustomPostProcessingManager: ObservableObject {
         name: String,
         endpointURL: String,
         modelName: String,
-        apiKey: String? = nil
+        apiKey: String? = nil,
+        testedConfiguration: CustomEndpointTestedConfiguration? = nil
     ) throws -> CustomPostProcessingEndpoint {
         // ADD ENDPOINT - STEP 1: Create the endpoint
         var endpoint = CustomPostProcessingEndpoint(
@@ -96,6 +126,10 @@ class CustomPostProcessingManager: ObservableObject {
         // STEP 3: Save API key to Keychain if provided
         if let apiKey = apiKey, !apiKey.isEmpty {
             try KeychainManager.shared.saveCustomEndpointAPIKey(apiKey, for: endpoint.id)
+        }
+
+        if let tested = testedConfiguration, tested.matches(endpoint, apiKey: apiKey ?? "") {
+            endpoint.updateTestStatus(success: tested.success)
         }
 
         // STEP 4: Add to list and save
@@ -113,13 +147,16 @@ class CustomPostProcessingManager: ObservableObject {
     ///   - endpointURL: New URL (optional)
     ///   - modelName: New model name (optional)
     ///   - apiKey: New API key (optional, pass empty string to clear)
+    ///   - testedConfiguration: The sheet's last test; its verdict is recorded
+    ///     when it tested exactly the URL, model and key saved
     /// - Throws: Error if endpoint not found or validation fails
     func updateEndpoint(
         id: UUID,
         name: String? = nil,
         endpointURL: String? = nil,
         modelName: String? = nil,
-        apiKey: String? = nil
+        apiKey: String? = nil,
+        testedConfiguration: CustomEndpointTestedConfiguration? = nil
     ) throws {
         // UPDATE ENDPOINT - STEP 1: Find the endpoint
         guard let index = endpoints.firstIndex(where: { $0.id == id }) else {
@@ -127,6 +164,12 @@ class CustomPostProcessingManager: ObservableObject {
         }
 
         // STEP 2: Apply updates
+        // A verdict belongs to one URL + model + key, so changing any of them
+        // clears it. A nil apiKey keeps the stored key, so the Keychain is
+        // read only when a new key could differ from it.
+        if let apiKey = apiKey, apiKey != getAPIKey(for: id) {
+            endpoints[index].clearTestStatus()
+        }
         if let name = name {
             endpoints[index].name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         }
@@ -134,12 +177,15 @@ class CustomPostProcessingManager: ObservableObject {
             let newURL = endpointURL.trimmingCharacters(in: .whitespacesAndNewlines)
             if newURL != endpoints[index].endpointURL {
                 endpoints[index].endpointURL = newURL
-                // Clear test status when URL changes
                 endpoints[index].clearTestStatus()
             }
         }
         if let modelName = modelName {
-            endpoints[index].modelName = modelName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let newModel = modelName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if newModel != endpoints[index].modelName {
+                endpoints[index].modelName = newModel
+                endpoints[index].clearTestStatus()
+            }
         }
 
         // STEP 3: Validate the updated endpoint
@@ -152,6 +198,11 @@ class CustomPostProcessingManager: ObservableObject {
             } else {
                 try KeychainManager.shared.saveCustomEndpointAPIKey(apiKey, for: id)
             }
+        }
+
+        if let tested = testedConfiguration,
+           tested.matches(endpoints[index], apiKey: apiKey ?? getAPIKey(for: id)) {
+            endpoints[index].updateTestStatus(success: tested.success)
         }
 
         // STEP 5: Save changes
@@ -272,22 +323,34 @@ class CustomPostProcessingManager: ObservableObject {
 
     // MARK: - Public API - Testing
 
-    /// Test a custom endpoint with a simple "Hello World" request
-    /// - Parameter id: ID of the endpoint to test
+    /// The failure text for a URL the shared rule refuses, with its repair
+    /// when the rule offers one.
+    private static func invalidURLMessage(_ message: String, suggestion: String?) -> String {
+        guard let suggestion = suggestion else { return message }
+        return "\(message) — did you mean \(suggestion)?"
+    }
+
+    /// Test a custom endpoint configuration with a simple "Hello World" request.
+    ///
+    /// The Add/Edit sheet calls this with its unsaved form values and the TYPED
+    /// key. The key is passed in, never read from or written to the Keychain
+    /// here: writing a typed key before a save would overwrite a live key the
+    /// user then cancels.
+    ///
+    /// No verdict is recorded here: the configuration may never be saved. The
+    /// sheet passes a `CustomEndpointTestedConfiguration` to its save instead.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The configuration to test (saved or not)
+    ///   - apiKey: The key to send; empty sends no Authorization header
+    ///   - session: The session to send the probe on (tests pass a stub)
     /// - Returns: Test result with success/failure details
-    func testEndpoint(id: UUID) async -> CustomEndpointTestResult {
-        // TEST ENDPOINT - STEP 1: Find the endpoint
-        guard let index = endpoints.firstIndex(where: { $0.id == id }) else {
-            return .failure(error: "Endpoint not found")
-        }
-
-        let endpoint = endpoints[index]
-
-        // STEP 2: Mark as testing
-        testingEndpoints.insert(id)
-        defer { testingEndpoints.remove(id) }
-
-        // STEP 3: Validate the URL and the model, then build the test request.
+    func testEndpoint(
+        _ endpoint: CustomPostProcessingEndpoint,
+        apiKey: String,
+        session: URLSession = CredentialNetworkCache.session
+    ) async -> CustomEndpointTestResult {
+        // STEP 1: Validate the URL and the model, then build the test request.
         // The rule, the Bearer header and the minimal "Say hello" body all come
         // from the shared core (issue #282), so the Windows test button sends
         // exactly the same request.
@@ -297,15 +360,10 @@ class CustomPostProcessingManager: ObservableObject {
         let verdict = llmValidateExistingCustomEndpoint(
             raw: endpoint.endpointURL, model: endpoint.modelName)
         guard !verdict.url.isEmpty else {
-            updateTestStatus(for: id, success: false)
-            let message = verdict.message ?? "Invalid URL"
-            if let suggestion = verdict.suggestion {
-                return .failure(error: "\(message) — did you mean \(suggestion)?")
-            }
-            return .failure(error: message)
+            return .failure(error: Self.invalidURLMessage(
+                verdict.message ?? "Invalid URL", suggestion: verdict.suggestion))
         }
 
-        let apiKey = getAPIKey(for: id)
         var request: URLRequest
         do {
             let built = try llmBuildCustomEndpointTestRequest(
@@ -313,65 +371,58 @@ class CustomPostProcessingManager: ObservableObject {
                 apiKey: apiKey.isEmpty ? nil : apiKey)
             request = try RustHTTPExecutor.buildInlineURLRequest(from: built)
         } catch {
-            updateTestStatus(for: id, success: false)
+            // The lenient rule keeps a URL carrying a username or password
+            // callable, but the probe builder applies the strict one and
+            // refuses it. Offer the repair rather than an encoding error.
+            if verdict.suggestion != nil, let message = verdict.message {
+                return .failure(error: Self.invalidURLMessage(message, suggestion: verdict.suggestion))
+            }
             return .failure(error: "Failed to encode request: \(error.localizedDescription)")
         }
         request.timeoutInterval = 30
 
-        // STEP 4: Send the request
+        // STEP 2: Send the request
         logger.info("Testing endpoint: \(endpoint.name, privacy: .public) at \(endpoint.displayURL, privacy: .public)")
 
         do {
-            let (data, response) = try await CredentialNetworkCache.session.data(for: request)
+            let (data, response) = try await session.data(for: request)
 
-            // STEP 5: Check HTTP response
+            // STEP 3: Check HTTP response
             guard let httpResponse = response as? HTTPURLResponse else {
-                updateTestStatus(for: id, success: false)
                 return .failure(error: "Invalid response type")
             }
 
-            // STEP 6: Handle error status codes
+            // STEP 4: Handle error status codes
             if httpResponse.statusCode != 200 {
                 let errorBody = String(data: data, encoding: .utf8) ?? "No error details"
                 logger.warning("Endpoint test failed with status \(httpResponse.statusCode, privacy: .public): \(errorBody, privacy: .public)")
-                updateTestStatus(for: id, success: false)
                 return .failure(error: "HTTP \(httpResponse.statusCode): \(parseErrorMessage(from: data) ?? "Unknown error")")
             }
 
-            // STEP 7: Parse successful response
+            // STEP 5: Parse successful response
             // RESPONSE PARSING:
             // OpenAI-compatible endpoints return: { "choices": [{ "message": { "content": "..." } }] }
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            // A body that is not JSON at all is the same shape failure, not a decode error.
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let choices = json["choices"] as? [[String: Any]],
                   let firstChoice = choices.first,
                   let message = firstChoice["message"] as? [String: Any],
                   let content = message["content"] as? String else {
-                updateTestStatus(for: id, success: false)
                 return .failure(error: "Invalid response format - expected OpenAI-compatible response")
             }
 
-            // STEP 8: Success!
+            // STEP 6: Success!
             let preview = String(content.prefix(50))
             logger.info("Endpoint test succeeded: \(endpoint.name, privacy: .public) - response: \(preview, privacy: .public)")
-            updateTestStatus(for: id, success: true)
             return .success(responsePreview: content)
 
         } catch let error as URLError {
             logger.error("Endpoint test network error: \(error.localizedDescription, privacy: .public)")
-            updateTestStatus(for: id, success: false)
             return .failure(error: "Network error: \(error.localizedDescription)")
         } catch {
             logger.error("Endpoint test error: \(error.localizedDescription, privacy: .public)")
-            updateTestStatus(for: id, success: false)
             return .failure(error: error.localizedDescription)
         }
-    }
-
-    /// Check if an endpoint is currently being tested
-    /// - Parameter id: ID of the endpoint
-    /// - Returns: true if the endpoint is being tested
-    func isTesting(id: UUID) -> Bool {
-        testingEndpoints.contains(id)
     }
 
     // MARK: - Private Methods
@@ -411,13 +462,6 @@ class CustomPostProcessingManager: ObservableObject {
             logger.error("Failed to encode custom endpoints: \(error.localizedDescription, privacy: .public)")
             errorMessage = "Failed to save endpoints: \(error.localizedDescription)"
         }
-    }
-
-    /// Update test status for an endpoint
-    private func updateTestStatus(for id: UUID, success: Bool) {
-        guard let index = endpoints.firstIndex(where: { $0.id == id }) else { return }
-        endpoints[index].updateTestStatus(success: success)
-        saveEndpoints()
     }
 
     /// Parse error message from API error response

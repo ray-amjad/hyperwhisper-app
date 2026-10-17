@@ -109,17 +109,24 @@ struct RustHTTPExecutorBase64Tests {
         try assertEncodes(size: RustHTTPExecutor.base64ChunkSize + offset)
     }
 
+    /// Typed and hoisted out of the `@Test` attribute on purpose: inline, the
+    /// literal arithmetic is solved together with the macro's generic
+    /// `Test.__function` overloads, and Xcode 27's type checker gives up
+    /// ("unable to type-check this expression in reasonable time"), which
+    /// fails the whole test target's build.
+    private static let multiChunkSizes: [Int] = [
+        // Two full reads plus a 1-byte tail, and plus a 2-byte tail.
+        2 * (3 * 512 * 1024) + 1,
+        2 * (3 * 512 * 1024) + 2,
+        // A size that is not chunk-aligned AND not divisible by 3, so the
+        // carry differs on every read.
+        3_000_001,
+        // Comfortably past the boundary, one byte short of a group.
+        2_000_000,
+    ]
+
     @Test("Multi-chunk sizes not divisible by 3 encode identically",
-          arguments: [
-            // Two full reads plus a 1-byte tail, and plus a 2-byte tail.
-            2 * (3 * 512 * 1024) + 1,
-            2 * (3 * 512 * 1024) + 2,
-            // A size that is not chunk-aligned AND not divisible by 3, so the
-            // carry differs on every read.
-            3_000_001,
-            // Comfortably past the boundary, one byte short of a group.
-            2_000_000,
-          ])
+          arguments: multiChunkSizes)
     func multiChunkSizesMatch(size: Int) throws {
         try assertEncodes(size: size)
     }
