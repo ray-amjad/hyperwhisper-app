@@ -48,6 +48,15 @@ if [[ "${dependencies%%,*}" != "hyperwhisper (= $EXPECTED_VERSION)" ]]; then
     echo "Depends must pin the main package exactly: got '$dependencies'" >&2
     exit 1
 fi
+# The CUDA files move here from older main packages, so dpkg must be allowed
+# to take them over on an upgrade (Debian policy 7.6.1).
+for field in Replaces Breaks; do
+    relation="$(dpkg-deb --field "$PACKAGE_PATH" "$field")"
+    if [[ "$relation" != "hyperwhisper (<< $EXPECTED_VERSION)" ]]; then
+        echo "$field must name older main packages: got '$relation'" >&2
+        exit 1
+    fi
+done
 
 # Whisper.net's CUDA 12 backend (LinuxNativeRuntimeLocator and Whisper.net
 # both read runtimes/cuda12/linux-x64) and LLamaSharp's CUDA 12 backend
