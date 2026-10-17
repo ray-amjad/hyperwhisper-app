@@ -44,7 +44,7 @@ public sealed class CloudAccountViewModel : ViewModelBase
         _deviceIdentity = deviceIdentity ?? throw new ArgumentNullException(nameof(deviceIdentity));
         _openUri = openUri ?? throw new ArgumentNullException(nameof(openUri));
         _deviceName = NormalizeDeviceName(deviceName);
-        ActivateCommand = new AsyncCommand(_ => ActivateAsync(), _ => CanRunOperation);
+        ActivateCommand = new AsyncCommand(_ => ActivateAsync(), _ => CanActivate);
         RefreshStatusCommand = new AsyncCommand(_ => RefreshStatusAsync(), _ => CanRunOperation);
         RefreshCreditsCommand = new AsyncCommand(_ => RefreshCreditsAsync(), _ => CanRunOperation);
         DeactivateCommand = new AsyncCommand(_ => DeactivateAsync(), _ => CanRunOperation);
@@ -58,8 +58,28 @@ public sealed class CloudAccountViewModel : ViewModelBase
     public string AccountKey
     {
         get => _accountKey;
-        set { if (Set(ref _accountKey, value)) ActivationError = null; }
+        set
+        {
+            if (!Set(ref _accountKey, value)) return;
+            ActivationError = null;
+            Notify(nameof(IsAccountKeyPlausible));
+            Notify(nameof(ShowsAccountKeyFormatHint));
+            Notify(nameof(CanActivate));
+            ((AsyncCommand)ActivateCommand).RaiseCanExecuteChanged();
+        }
     }
+
+    /// <summary>
+    /// #1489: the trimmed field text could be a key (<see cref="AccountKeyFormat"/>). Activate is
+    /// off until it is, so pasted prose, a second line or a non-ASCII character is never sent.
+    /// </summary>
+    public bool IsAccountKeyPlausible => AccountKeyFormat.IsPlausible(AccountKey);
+
+    /// <summary>The field holds text that cannot be a key, so the hint shows under it.</summary>
+    public bool ShowsAccountKeyFormatHint => AccountKeyFormat.ShowsHint(AccountKey);
+
+    /// <summary>What the Activate button's command reads: no other operation running, and a plausible key.</summary>
+    public bool CanActivate => CanRunOperation && IsAccountKeyPlausible;
     public string AccountState { get => _accountState; private set { if (Set(ref _accountState, value)) NotifyLicenseState(); } }
     public string? CustomerEmail { get => _customerEmail; private set { if (Set(ref _customerEmail, value)) Notify(nameof(HasCustomerEmail)); } }
     public string? CustomerId { get => _customerId; private set { if (Set(ref _customerId, value)) Notify(nameof(HasCustomerId)); } }
@@ -166,6 +186,8 @@ public sealed class CloudAccountViewModel : ViewModelBase
     /// </summary>
     public bool IsActivating { get => _isActivating; private set => Set(ref _isActivating, value); }
 
+    private const string InvalidKeyFormatMessage = "That doesn't look like an account key.";
+
     private const string ActivatedMessage =
         "Account activated; the key is stored securely and is never displayed.";
 
@@ -195,13 +217,23 @@ public sealed class CloudAccountViewModel : ViewModelBase
             EndOperation();
             return false;
         }
+        // #1489: the command is already off for this text; this covers a direct call.
+        if (!IsAccountKeyPlausible)
+        {
+            ActivationError = InvalidKeyFormatMessage;
+            Status.Failure("account.key_format", InvalidKeyFormatMessage);
+            IsActivating = false;
+            EndOperation();
+            return false;
+        }
 
         ActivationError = null;
         Status.Busy("Validating account…");
         // The field is NOT cleared here. A failed activation must leave the key the user typed on
         // screen so a one-character typo can be corrected rather than retyped (#670). Only a
         // successful activation clears it, in the finally below.
-        var submittedKey = AccountKey;
+        // Trimmed: a key pasted with a trailing newline is sent without it.
+        var submittedKey = AccountKeyFormat.Normalize(AccountKey);
         var activated = false;
         try
         {
@@ -398,6 +430,7 @@ public sealed class CloudAccountViewModel : ViewModelBase
     {
         if (Interlocked.CompareExchange(ref _operationRunning, 1, 0) != 0) return false;
         Notify(nameof(CanRunOperation));
+        Notify(nameof(CanActivate));
         RaiseCommandStates();
         return true;
     }
@@ -406,6 +439,7 @@ public sealed class CloudAccountViewModel : ViewModelBase
     {
         if (Interlocked.Exchange(ref _operationRunning, 0) == 0) return;
         Notify(nameof(CanRunOperation));
+        Notify(nameof(CanActivate));
         RaiseCommandStates();
     }
 
