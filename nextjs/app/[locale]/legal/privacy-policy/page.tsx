@@ -217,10 +217,11 @@ export default function PrivacyPolicyPage() {
           (words and replacements) in your iCloud account. iCloud Sync is
           off by default, and you turn it on separately on each Mac in the
           app&apos;s Vocabulary settings. When it is on, your vocabulary
-          entries (each word, its replacement, its position in your list, and
-          when you added it) are mirrored to your own iCloud account through
-          Apple&apos;s CloudKit service, not to a HyperWhisper account, and
-          Apple handles them under its{" "}
+          entries are mirrored to your own iCloud account through Apple&apos;s
+          CloudKit service, not to a HyperWhisper account. Along with each word
+          and its replacement, an entry carries its position in your list,
+          when and how it was added, and an entry ID. Apple handles this data
+          under its{" "}
           <a
             className="text-blue-400 hover:underline"
             href="https://www.apple.com/legal/privacy/"
@@ -229,8 +230,8 @@ export default function PrivacyPolicyPage() {
           >
             privacy policy
           </a>
-          . Transcripts, recordings, modes, and your other settings are never
-          mirrored to iCloud.
+          . This sync covers vocabulary only: it does not send your
+          transcripts, recordings, modes, or other settings to iCloud.
         </li>
       </ul>
 
