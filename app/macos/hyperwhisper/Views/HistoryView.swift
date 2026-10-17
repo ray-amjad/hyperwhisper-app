@@ -734,7 +734,7 @@ private struct HistoryScreen: View, Equatable {
                             Button {
                                 retryTranscript(item.objectID, with: mode)
                             } label: {
-                                Text(mode.name ?? "Unknown")
+                                Text(MenuItemText.bounded(mode.name ?? "Unknown")) // #1436
                             }
                         }
                     } label: {
