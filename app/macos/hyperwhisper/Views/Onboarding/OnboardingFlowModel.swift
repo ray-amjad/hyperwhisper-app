@@ -300,6 +300,11 @@ final class OnboardingFlowModel: ObservableObject {
             invalidateLicenseValidation()
         }
     }
+    /// #1489: true when the trimmed key field could hold an account key
+    /// (`LicenseKeyFormat`). Test and Activate stay off, and nothing is sent, otherwise.
+    var isLicenseKeyPlausible: Bool { LicenseKeyFormat.isPlausible(licenseKeyInput) }
+    /// #1489: true when the field holds text that cannot be a key, so the hint shows.
+    var showsLicenseKeyFormatHint: Bool { LicenseKeyFormat.showsHint(licenseKeyInput) }
     @Published private(set) var selectedProvider: CloudProvider = .openai
     @Published var apiKeyInput: String = "" {
         didSet {
@@ -701,8 +706,8 @@ final class OnboardingFlowModel: ObservableObject {
         // drops the result; the key would still have gone out over the wire for a
         // flow the user closed.
         guard isLive else { return }
-        let key = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { return }
+        guard isLicenseKeyPlausible else { return }
+        let key = LicenseKeyFormat.normalized(licenseKeyInput)
         isTestingKey = true
         licenseTestPassed = nil
         activationErrorMessage = nil
@@ -834,8 +839,8 @@ final class OnboardingFlowModel: ObservableObject {
         // check below covers an in-flight result landing late; this one covers the
         // call that would reach `license.activate` in the first place.
         guard isLive else { return }
-        let key = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty, !isActivatingLicense else { return }
+        guard isLicenseKeyPlausible, !isActivatingLicense else { return }
+        let key = LicenseKeyFormat.normalized(licenseKeyInput)
         isActivatingLicense = true
         activationErrorMessage = nil
         let task = Task { [weak self] in

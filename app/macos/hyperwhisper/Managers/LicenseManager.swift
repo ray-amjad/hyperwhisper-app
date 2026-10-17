@@ -110,7 +110,22 @@ class LicenseManager: ObservableObject {
     // MARK: - License Operations
 
     /// Activates a license key by validating it with the backend.
+    /// #1489: text that cannot be a key (`LicenseKeyFormat`) is refused here, before the
+    /// network and without touching the stored licence; otherwise the TRIMMED key is sent.
     func activateLicense(_ licenseKey: String) async -> LicenseValidationResult {
+        guard LicenseKeyFormat.isPlausible(licenseKey) else {
+            let message = "license.error.keyFormat".localized
+            lastError = message
+            return LicenseValidationResult(
+                isValid: false,
+                status: .invalid,
+                customerId: nil,
+                customerEmail: nil,
+                customerName: nil,
+                errorMessage: message
+            )
+        }
+        let licenseKey = LicenseKeyFormat.normalized(licenseKey)
         cancelLicenseStorageRetry()
         cancelNetworkFailureRetry()
         isValidating = true
@@ -173,8 +188,20 @@ class LicenseManager: ObservableObject {
     /// Tests a key without changing the active account, persisted key, customer
     /// metadata, or validation cache. Used when UI presents testing separately
     /// from explicit activation.
+    /// #1489: refuses text that cannot be a key before the network, and sends the
+    /// trimmed key otherwise. Unlike activation it leaves `lastError` alone.
     func probeLicense(_ licenseKey: String) async -> LicenseValidationResult {
-        await networkService.probeLicense(licenseKey)
+        guard LicenseKeyFormat.isPlausible(licenseKey) else {
+            return LicenseValidationResult(
+                isValid: false,
+                status: .invalid,
+                customerId: nil,
+                customerEmail: nil,
+                customerName: nil,
+                errorMessage: "license.error.keyFormat".localized
+            )
+        }
+        return await networkService.probeLicense(LicenseKeyFormat.normalized(licenseKey))
     }
 
     /// Loads the stored license from the secure store and revalidates if its
