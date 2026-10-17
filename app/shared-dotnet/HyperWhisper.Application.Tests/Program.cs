@@ -72,6 +72,7 @@ try
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
+    RunShellDatabaseOffUiThreadTests(Path.Combine(root, "shell-db-off-ui"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
 
     var history = new HistoryRepository(database);
@@ -1521,6 +1522,54 @@ static async Task RunShellMissingLocalModelStatusTestsAsync(string root)
     shell.Status.Failure("test.error", "Something failed");
     shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
     Assert(shell.Status.Message == "Something failed", $"a mode change overwrote an error with '{shell.Status.Message}' (was '{other}')");
+}
+
+// #1000: EF Core's SQLite provider runs its "async" migration synchronously, so a shell that awaits
+// it on the UI thread froze the window that had just opened. The first database context is held
+// until a callback posted to the UI thread runs; that only happens if the UI thread is free.
+static void RunShellDatabaseOffUiThreadTests(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    using var uiResponded = new ManualResetEventSlim();
+    var uiThreadId = 0;
+    var firstContextThreadId = 0;
+    var uiWasFree = false;
+    var first = 1;
+    var database = new ApplicationDb(() =>
+    {
+        if (Interlocked.Exchange(ref first, 0) == 1)
+        {
+            firstContextThreadId = Environment.CurrentManagedThreadId;
+            uiWasFree = uiResponded.Wait(TimeSpan.FromSeconds(5));
+        }
+        return new HyperWhisper.Data.HyperWhisperDbContext(paths);
+    });
+    var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "settings.json"));
+    using var shell = new ApplicationShellViewModel(database, settings);
+    var statusThreadIds = new List<int>();
+    shell.Status.PropertyChanged += (_, _) => statusThreadIds.Add(Environment.CurrentManagedThreadId);
+
+    var ui = new SingleThreadUiContext();
+    var thread = new Thread(() =>
+    {
+        uiThreadId = Environment.CurrentManagedThreadId;
+        ui.Run(async () =>
+        {
+            var init = shell.InitializeAsync();
+            ui.Post(_ => uiResponded.Set(), null);
+            await init;
+        });
+    });
+    thread.Start();
+    Assert(thread.Join(TimeSpan.FromSeconds(60)), "the shell's initialization never finished");
+
+    Assert(uiWasFree && firstContextThreadId != uiThreadId,
+        "the database migration ran on the UI thread, so the UI could not answer until it finished");
+    Assert(!shell.Status.HasError && shell.Status.Message == "Ready", $"the shell did not reach Ready: '{shell.Status.Message}'");
+    Assert(shell.Modes.Items.Count > 0, "the default modes were not seeded");
+    Assert(statusThreadIds.Count > 0 && statusThreadIds.All(id => id == uiThreadId),
+        "the status bar was updated off the UI thread");
 }
 
 static async Task RunShellLanguageRoutingTestsAsync(string root)
@@ -3586,6 +3635,28 @@ file sealed class BoundCloudModelCombo
         if (string.Equals(value, _bindingValue, StringComparison.Ordinal)) return;
         _bindingValue = value;
         SelectedItem = IsListed(value) ? value : null;
+    }
+}
+
+// A minimal UI thread: one queue, pumped by the thread that calls Run, like Avalonia's dispatcher.
+file sealed class SingleThreadUiContext : SynchronizationContext
+{
+    private readonly System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback Callback, object? State)> _queue = new();
+
+    public override void Post(SendOrPostCallback d, object? state) => _queue.Add((d, state));
+
+    public void Run(Func<Task> body)
+    {
+        var previous = Current;
+        SetSynchronizationContext(this);
+        try
+        {
+            var task = body();
+            task.ContinueWith(_ => _queue.CompleteAdding(), TaskScheduler.Default);
+            foreach (var (callback, state) in _queue.GetConsumingEnumerable()) callback(state);
+            task.GetAwaiter().GetResult();
+        }
+        finally { SetSynchronizationContext(previous); }
     }
 }
 

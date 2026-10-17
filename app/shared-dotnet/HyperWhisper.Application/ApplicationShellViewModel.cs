@@ -238,8 +238,15 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Status.Busy("Preparing local database…");
         try
         {
-            await _database.InitializeAsync(_lifetime.Token);
-            await new HistoryRepository(_database).FailOrphanedProcessingAsync(_lifetime.Token);
+            // EF Core's SQLite provider does its "async" work synchronously, so the model build and
+            // the migration would run on the UI thread and freeze the window that just opened (#1000).
+            // Only the database runs on the pool; the view models below load on the UI thread.
+            var token = _lifetime.Token;
+            await Task.Run(async () =>
+            {
+                await _database.InitializeAsync(token);
+                await new HistoryRepository(_database).FailOrphanedProcessingAsync(token);
+            }, token);
             Settings.Load();
             await Task.WhenAll(Home.RefreshAsync(_lifetime.Token), History.RefreshAsync(_lifetime.Token), Vocabulary.RefreshAsync(_lifetime.Token), Modes.RefreshAsync(_lifetime.Token));
             History.SetRetryModes(Modes.Items);
