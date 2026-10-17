@@ -4152,6 +4152,56 @@ internal static class Program
                 }
             });
 
+            // Issue #1911. No engine reports progress while it transcribes, so the
+            // Transcribe File bar ramps to 80% over 60 s and then sat there for the
+            // rest of a long job, which looked hung. A ramp started with
+            // thenIndeterminate now hands over to a moving bar with no percentage
+            // when it reaches its target, and the next real step clears it.
+            Run("the Transcribe File bar turns indeterminate when the transcribing ramp ends - issue #1911", () =>
+            {
+                EnsureSmokeApplication();
+                var window = new HyperWhisper.Views.Windows.FileTranscriptionProgressWindow();
+                var percent = (System.Windows.Controls.TextBlock)window.FindName("PercentageText")!;
+                try
+                {
+                    // The real 60 s transcribing ramp, its frames driven with a clock.
+                    window.AnimateProgress(0.15f, 0);
+                    window.AnimateProgress(HyperWhisper.ViewModels.MainViewModel.FileTranscribingRampTarget, 60.0,
+                        thenIndeterminate: true);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(30));
+                    Assert(!window.IsIndeterminate, "the bar went indeterminate halfway through its ramp");
+                    Assert(percent.Text.EndsWith('%'), $"a ramp in progress shows no percentage ({percent.Text})");
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(61));
+
+                    Assert(window.IsIndeterminate,
+                        "the transcribing ramp reached its target with the job still running, but the bar stayed determinate");
+                    Assert(percent.Text.Length == 0,
+                        $"an indeterminate bar still claims a percentage ({percent.Text})");
+
+                    // The job finishing moves the bar on: the percentage comes back.
+                    window.AnimateProgress(0.85f, 0.3);
+                    Assert(!window.IsIndeterminate, "the finishing step left the bar indeterminate");
+                    Assert(percent.Text == "80%", $"the finishing step did not restore the percentage ({percent.Text})");
+                    window.SetProgress(1.0f);
+                    Assert(percent.Text == "100%", $"the bar did not reach 100% ({percent.Text})");
+
+                    // Short steps never go indeterminate, and Dismiss clears the state.
+                    window.AnimateProgress(0.5f, 0);
+                    Assert(!window.IsIndeterminate, "a ramp without thenIndeterminate went indeterminate");
+                    window.AnimateProgress(0.80f, 0, thenIndeterminate: true);
+                    Assert(window.IsIndeterminate, "an instant ramp to its target did not go indeterminate");
+                    window.Dismiss();
+                    Assert(!window.IsIndeterminate, "Dismiss left the bar indeterminate for the next file");
+                    window.ShowProgress("next.mp3", () => { });
+                    Assert(!window.IsIndeterminate && percent.Text == "0%",
+                        $"the next file did not start at 0% ({percent.Text})");
+                }
+                finally
+                {
+                    window.Close();
+                }
+            });
+
             // Issue #511. "Your license key is no longer valid. Enter a new key
             // below, or get credits to create one." is a statement about a licence
             // this device once had. A fresh install that mistyped its first-ever
