@@ -82,7 +82,7 @@ impl CloudSttCatalog {
             Some(v) if !v.trim().is_empty() => self
                 .normalize_cloud_provider(Some(v))
                 .provider
-                .unwrap_or_else(|| v.to_ascii_lowercase()),
+                .expect("normalize_cloud_provider returns Some for a non-empty value"),
             _ => "hyperwhisper".to_string(),
         }
     }
