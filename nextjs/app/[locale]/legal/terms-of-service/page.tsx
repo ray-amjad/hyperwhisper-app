@@ -1,9 +1,10 @@
-import { Metadata } from "next";
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
-export const metadata: Metadata = {
+export const generateMetadata = localizedPageMetadata({
+  path: "/legal/terms-of-service",
   title: "Terms of Service | HyperWhisper",
   description: "HyperWhisper Terms of Service and User Agreement",
-};
+});
 
 export default function TermsOfServicePage() {
   return (

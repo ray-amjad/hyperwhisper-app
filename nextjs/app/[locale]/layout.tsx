@@ -27,29 +27,20 @@ import {
   getTranslations,
   setRequestLocale,
 } from "next-intl/server";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { Providers } from "./providers";
 
 import { fontSans } from "@/config/fonts";
+import HtmlDocument from "@/components/layout/HtmlDocument";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import {
-  OG_IMAGES,
-  SITE_NAME,
-  SITE_URL,
+  localeOpenGraph,
   TWITTER_CARD,
   TWITTER_CREATOR,
   TWITTER_IMAGES,
 } from "@/lib/site-metadata";
-import {
-  buildAlternateLanguageMap,
-  defaultLocale,
-  isSupportedLocale,
-  locales,
-  stripLocalePrefix,
-  toOpenGraphLocale,
-} from "@/src/i18n/locales";
+import { isSupportedLocale, locales } from "@/src/i18n/locales";
 
 type Props = {
   children: React.ReactNode;
@@ -68,18 +59,12 @@ export async function generateMetadata({ params }: Props) {
   // built from it.
   if (!isSupportedLocale(locale)) notFound();
 
-  const [t, headersList] = await Promise.all([
-    getTranslations({ locale, namespace: "metadata" }),
-    headers(),
-  ]);
-  const pathname = headersList.get("x-pathname") || "";
+  const t = await getTranslations({ locale, namespace: "metadata" });
 
-  // Remove locale prefix from pathname if present
-  const pathWithoutLocale = stripLocalePrefix(pathname);
-
-  const baseUrl = SITE_URL;
-  const alternateLanguages = buildAlternateLanguageMap(baseUrl, pathWithoutLocale);
-
+  // Only locale-derived fields. The canonical, the hreflang map and og:url
+  // depend on the child path, which a layout can only learn from headers(), and
+  // that made every route dynamic (#843). Each page sets them with
+  // localizedPageMetadata (or englishStaticPageMetadata) instead.
   return {
     title: {
       default: t("title"),
@@ -102,22 +87,7 @@ export async function generateMetadata({ params }: Props) {
     ],
     authors: [{ name: "HyperWhisper" }],
     creator: "HyperWhisper",
-    alternates: {
-      canonical: `${baseUrl}/${locale}${pathWithoutLocale}`,
-      languages: {
-        ...alternateLanguages,
-        "x-default": `${baseUrl}/${defaultLocale}${pathWithoutLocale}`,
-      },
-    },
-    openGraph: {
-      type: "website",
-      locale: toOpenGraphLocale(locale),
-      url: `${baseUrl}/${locale}${pathWithoutLocale}`,
-      title: t("title"),
-      description: t("description"),
-      siteName: SITE_NAME,
-      images: OG_IMAGES,
-    },
+    openGraph: localeOpenGraph(locale, t("title"), t("description")),
     twitter: {
       card: TWITTER_CARD,
       title: t("title"),
@@ -163,11 +133,15 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   // Providing all messages to the client
   // side is the easiest way to get started
-  const messages = await getMessages();
+  const messages = await getMessages({ locale });
 
   return (
-    <>
-      <NextIntlClientProvider messages={messages}>
+    <HtmlDocument locale={locale}>
+      {/* The locale is passed, not inferred: app/not-found.tsx renders this
+          layout with "en" on every page, its setRequestLocale("en") shares the
+          render's cache, and the inferred locale then hydrated as "en", so
+          Providers rewrote <html lang> to en (#843). */}
+      <NextIntlClientProvider locale={locale} messages={messages}>
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <div
             className={clsx(
@@ -180,6 +154,6 @@ export default async function LocaleLayout({ children, params }: Props) {
           </div>
         </Providers>
       </NextIntlClientProvider>
-    </>
+    </HtmlDocument>
   );
 }

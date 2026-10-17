@@ -1,10 +1,11 @@
-import { Metadata } from "next";
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
-export const metadata: Metadata = {
+export const generateMetadata = localizedPageMetadata({
+  path: "/legal/privacy-policy",
   title: "Privacy Policy | HyperWhisper",
   description:
     "HyperWhisper Privacy Policy - Local-first, no cloud storage of your audio or transcripts, except brief storage of recordings over about 55 seconds or 9.5 MB on the HyperWhisper Cloud Chirp route.",
-};
+});
 
 // The one storage exception, written once and rendered after every
 // no-storage claim below. The first sentence is Ray's approved wording

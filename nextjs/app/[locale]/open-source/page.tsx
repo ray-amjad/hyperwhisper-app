@@ -1,4 +1,4 @@
-import { Metadata } from "next";
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
 
 const GITHUB_URL = "https://github.com/ray-amjad/hyperwhisper-app";
 const LICENSE_URL =
@@ -11,11 +11,12 @@ const CREDITS_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
   "HyperWhisper — convert my license to Cloud credits"
 )}`;
 
-export const metadata: Metadata = {
+export const generateMetadata = localizedPageMetadata({
+  path: "/open-source",
   title: "Open Source | HyperWhisper",
   description:
     "HyperWhisper is fully open source under Apache-2.0 — desktop apps and Cloud backend alike. Read the code, audit where your audio goes, fork it, and self-host forever.",
-};
+});
 
 export default function OpenSourcePage() {
   return (

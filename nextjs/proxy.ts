@@ -30,11 +30,7 @@ function runIntlMiddleware(request: NextRequest, pathname: string) {
   const middleware = isEnglishOnlyPath(pathname)
     ? englishOnlyIntlMiddleware
     : intlMiddleware;
-  const response = middleware(request);
-
-  response.headers.set("x-pathname", pathname);
-
-  return response;
+  return middleware(request);
 }
 
 const getPathLocale = (pathname: string) => {

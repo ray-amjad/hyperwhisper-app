@@ -35,6 +35,12 @@ const nextConfig = {
     async redirects() {
         return blogLinkRedirects;
     },
+    experimental: {
+        // app/global-not-found.tsx serves unmatched URLs (/de/zzz) on their own
+        // route, so it can read the request locale. As app/not-found.tsx it ran
+        // on every page and its headers() read made every route dynamic (#843).
+        globalNotFound: true,
+    },
 };
 
 export default withNextIntl(nextConfig);
