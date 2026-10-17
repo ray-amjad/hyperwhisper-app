@@ -148,7 +148,9 @@ static void AllCatalogsLoad()
     // modes and put the rest behind a "More" entry).
     // 862 -> 863: `settings.sound.mediaControl.muffleAudio` is new (the Windows Sound
     // settings "Muffle audio" media-control mode).
-    Equal(863, PortableLocalizer.BaseKeyCount, "base key count");
+    // 863 -> 864 (#1489): `license.error.keyFormat` is new (the hint under the account key
+    // field when the text cannot be any key; Windows and Linux).
+    Equal(864, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

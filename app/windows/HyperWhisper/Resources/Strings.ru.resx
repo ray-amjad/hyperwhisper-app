@@ -1301,6 +1301,9 @@
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Введите лицензионный ключ.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Это не похоже на ключ учётной записи.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 

@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Вставить из буфера обмена";
 "settings.license.clearInput" = "Очистить";
+"license.error.keyFormat" = "Это не похоже на ключ учётной записи.";
 "settings.license.recovery.prompt" = "Забыли лицензионный ключ?";
 "settings.license.recovery.button" = "Перейти на портал клиента";
 "settings.license.daily.title" = "Ежедневная транскрипция";

@@ -1301,6 +1301,9 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Introduza uma chave de licença.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Isto não parece uma chave da conta.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 

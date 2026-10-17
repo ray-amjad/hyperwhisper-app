@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Aus der Zwischenablage einfügen";
 "settings.license.clearInput" = "Klar";
+"license.error.keyFormat" = "Das sieht nicht wie ein Kontoschlüssel aus.";
 "settings.license.recovery.prompt" = "Lizenzschlüssel vergessen?";
 "settings.license.recovery.button" = "Gehen Sie zum Kundenportal";
 "settings.license.daily.title" = "Tägliche Transkription";
