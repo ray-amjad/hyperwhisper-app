@@ -272,7 +272,31 @@
     "homebrewTitle": "Instalēt ar Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopēt",
-    "copied": "Nokopēts!"
+    "copied": "Nokopēts!",
+    "linuxSubtitle": "Debian pakotne 64 bitu Intel/AMD sistēmām",
+    "downloadLinux": "Lejupielādēt Linux",
+    "downloadLinuxVersion": "Lejupielādēt Linux v{version}",
+    "linuxReleaseNotes": "Kontrolsummas un laidiena piezīmes",
+    "linuxInstallTitle": "Instalējiet Debian pakotni",
+    "linuxTargets": "Linux v1 ir paredzēts Ubuntu 22.04+ un Debian 12+ sistēmām ar amd64.",
+    "linuxReplaceVersion": "Aizstājiet VERSION ar lejupielādēto versiju.",
+    "linuxInstallCommandLabel": "Debian instalēšanas komanda",
+    "linuxInputGroupNote": "Pēc pievienošanās input grupai izrakstieties un pierakstieties vēlreiz. Dalība nav obligāta, taču tā nepieciešama globālajiem īsinājumtaustiņiem un automātiskai ielīmēšanai.",
+    "aptTitle": "Mitiniet savu APT repozitoriju",
+    "aptBody": "Linux laidienos ir iekļauts arī statisks APT repozitorija arhīvs. HyperWhisper pašlaik neuztur publisku APT galapunktu; informāciju par parakstītu, pašmitinātu iestatīšanu, darbvirsmas integrāciju, privātumu un noņemšanu skatiet Linux instalēšanas rokasgrāmatā.",
+    "linuxGuideCta": "Lasīt Linux instalēšanas rokasgrāmatu"
+  },
+  "olderVersions": {
+    "title": "Vecākas versijas",
+    "subtitle": "Pārlūkojiet un lejupielādējiet visus HyperWhisper laidienus",
+    "errorLoading": "Kļūda, ielādējot versijas: {error}",
+    "unknownError": "Radās kļūda",
+    "loading": "Ielādē versijas...",
+    "latest": "Jaunākā",
+    "build": "Būvējums {number}",
+    "downloadDmg": "Lejupielādēt DMG",
+    "downloadExe": "Lejupielādēt EXE",
+    "unknownSize": "Nezināms"
   },
   "purchaseSuccess": {
     "title": "Viss gatavs!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Atvērtais kods. Nav ko slēpt.",
     "body": "HyperWhisper ir pilnībā atvērtā koda risinājums saskaņā ar Apache-2.0 — gan darbvirsmas lietotnes, gan Cloud aizmugursistēma. Lietotnei, kas klausās jūsu mikrofonu, vajadzētu būt kaut kam, ko varat pārbaudīt, nevis tikai uzticēties: izlasiet katru rindu, pārbaudiet tieši to, kurp nonāk jūsu audio, un esiet drošs, ka nekad netiksiet piesaistīts — kods pieder jums, lai to dakšotu un mitinātu pašam mūžīgi. Veidots atklāti, to radījis indie izstrādātājs Ray Amjad.",
-    "cta": "Skatīt vietnē GitHub"
+    "cta": "Skatīt vietnē GitHub",
+    "metaTitle": "Atvērtais kods | HyperWhisper",
+    "metaDescription": "HyperWhisper ir pilnībā atvērtā koda risinājums saskaņā ar Apache-2.0 — gan darbvirsmas lietotnes, gan Cloud aizmugursistēma. Lasiet kodu, pārbaudiet, kurp nonāk jūsu audio, dakšojiet to un mitiniet pats mūžīgi.",
+    "eyebrow": "Atvērtais kods",
+    "lead": "HyperWhisper tagad ir pilnībā atvērtā koda risinājums saskaņā ar Apache-2.0 — gan darbvirsmas lietotnes, gan Cloud aizmugursistēma.",
+    "intro": "Lietotnei, kas klausās jūsu mikrofonu, jābūt tādai, ko varat pārbaudīt, nevis tai tikai uzticēties. Tāpēc mēs atvērām visu. Varat izlasīt katru HyperWhisper koda rindu — macOS, Windows un Linux lietotnes, kā arī Cloud transkripcijas aizmugursistēmu —, redzēt, kurp tieši nonāk jūsu audio, un zināt, ka nekad netiksiet piesaistīts. Viss projekts atrodas vietnē <github>GitHub</github> saskaņā ar <license>Apache-2.0 licenci</license>.",
+    "whyHeading": "Kāpēc tas ir svarīgi",
+    "whyVerify": "<strong>Pārbaudiet, nevis uzticieties akli.</strong> Izlasiet katru rindu un pārbaudiet, kurp tieši nonāk jūsu audio. Lietotnei ar piekļuvi mikrofonam jābūt tādai, ko varat izpētīt, nevis pieņemt uz ticību.",
+    "whyNoLockIn": "<strong>Nekādas piesaistes.</strong> Kods ir licencēts ar Apache-2.0 — tas pieder jums, lai to paturētu, pielāgotu un darbinātu pēc saviem noteikumiem. Jūsu darbplūsma nekad netiek turēta ķīlnieka lomā.",
+    "whyFork": "<strong>Dakšojiet un mitiniet paši.</strong> Klonējiet repozitoriju, uzbūvējiet to paši vai darbiniet savu Cloud aizmugursistēmu. Viss nepieciešamais ir publiski pieejams.",
+    "whyOpen": "<strong>Veidots atklāti.</strong> HyperWhisper publiski izstrādā neatkarīgais izstrādātājs Ray Amjad. Problēmu pieteikumi, diskusijas un laidieni notiek atklāti.",
+    "licenseHeading": "Jau iegādājāties licenci?",
+    "licenseIntro": "HyperWhisper tagad ir atvērtā koda, un maksas transkripcija darbojas ar HyperWhisper Cloud kredītiem. Ja licenci iegādājāties pirms šīs pārejas, lūk, kā mēs par jums parūpēsimies — vienkārši rakstiet uz <mail>{email}</mail>, un mēs visu nokārtosim manuāli.",
+    "licenseRecent": "<strong>Iegādāts pēdējo 30 dienu laikā:</strong> jūs esat atmaksas periodā. Mēs atmaksāsim pirkumu pilnā apmērā — bez liekiem jautājumiem. Vienkārši <refund>uzrakstiet mums</refund>.",
+    "licenseOlder": "<strong>Iegādāts vairāk nekā pirms 30 dienām:</strong> mēs pārvērtīsim samaksāto summu HyperWhisper Cloud kredītos — pilnu pirkuma cenu, atskaitot $5 kredītos, kas jau pievienoti jūsu kontam. <credits>Rakstiet mums</credits>, un mēs ieskaitīsim atlikumu.",
+    "contributeHeading": "Vēlaties piedalīties?",
+    "contributeBody": "Kļūdu ziņojumi, funkciju idejas un pull request pieprasījumi ir laipni gaidīti. Atveriet problēmas pieteikumu vai sāciet diskusiju <github>vietnē GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper tagad ir pilnībā atvērtā koda",
+    "shortText": "Tagad atvērtā koda",
+    "learnMore": "Uzzināt vairāk",
+    "dismiss": "Aizvērt paziņojumu"
   },
   "notFound": {
     "title": "Lapa nav atrasta",

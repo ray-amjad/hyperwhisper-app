@@ -272,7 +272,31 @@
     "homebrewTitle": "Installera via Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopiera",
-    "copied": "Kopierad!"
+    "copied": "Kopierad!",
+    "linuxSubtitle": "Debian-paket för 64-bitars Intel/AMD-system",
+    "downloadLinux": "Ladda ner för Linux",
+    "downloadLinuxVersion": "Ladda ner för Linux v{version}",
+    "linuxReleaseNotes": "Kontrollsummor och versionsinformation",
+    "linuxInstallTitle": "Installera Debian-paketet",
+    "linuxTargets": "Linux v1 stöder Ubuntu 22.04+ och Debian 12+ på amd64.",
+    "linuxReplaceVersion": "Ersätt VERSION med versionen du laddade ner.",
+    "linuxInstallCommandLabel": "Installationskommando för Debian",
+    "linuxInputGroupNote": "Logga ut och in igen när du har gått med i gruppen input. Medlemskap är valfritt, men globala kortkommandon och automatisk inklistring kräver det.",
+    "aptTitle": "Kör ett eget APT-förråd",
+    "aptBody": "Linux-versionerna innehåller också ett statiskt APT-förrådsarkiv. HyperWhisper driver för närvarande ingen offentlig APT-slutpunkt; se installationsguiden för Linux för signerad installation i egen regi, kompletterande skrivbordsfiler, integritetsinformation och avinstallation.",
+    "linuxGuideCta": "Läs installationsguiden för Linux"
+  },
+  "olderVersions": {
+    "title": "Äldre versioner",
+    "subtitle": "Bläddra bland och ladda ner alla versioner av HyperWhisper",
+    "errorLoading": "Fel vid inläsning av versioner: {error}",
+    "unknownError": "Ett fel uppstod",
+    "loading": "Läser in versioner...",
+    "latest": "Senaste",
+    "build": "Bygge {number}",
+    "downloadDmg": "Ladda ner DMG",
+    "downloadExe": "Ladda ner EXE",
+    "unknownSize": "Okänd"
   },
   "purchaseSuccess": {
     "title": "Allt är klart!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Öppen källkod. Inget att dölja.",
     "body": "HyperWhisper är helt öppen källkod under Apache-2.0 — både skrivbordsapparna och Cloud-backenden. En app som lyssnar på din mikrofon bör vara något du kan verifiera, inte bara lita på: läs varje rad, granska exakt vart ditt ljud tar vägen och vet att du aldrig blir inlåst — koden är din att forka och köra i egen regi för alltid. Byggd i det öppna av den oberoende skaparen Ray Amjad.",
-    "cta": "Visa på GitHub"
+    "cta": "Visa på GitHub",
+    "metaTitle": "Öppen källkod | HyperWhisper",
+    "metaDescription": "HyperWhisper är helt öppen källkod under Apache-2.0 — både skrivbordsapparna och Cloud-backenden. Läs koden, granska vart ditt ljud tar vägen, forka den och kör den i egen regi för alltid.",
+    "eyebrow": "Öppen källkod",
+    "lead": "HyperWhisper är nu helt öppen källkod under Apache-2.0 — både skrivbordsapparna och Cloud-backenden.",
+    "intro": "En app som lyssnar på din mikrofon bör vara något du kan verifiera, inte bara lita på. Därför har vi öppnat upp allt. Du kan läsa varje rad i HyperWhisper — apparna för macOS, Windows och Linux samt backenden för Cloud-transkribering — se exakt vart ditt ljud tar vägen och veta att du aldrig blir inlåst. Hela projektet finns på <github>GitHub</github> under <license>Apache-2.0-licensen</license>.",
+    "whyHeading": "Därför spelar det roll",
+    "whyVerify": "<strong>Verifiera i stället för att lita blint.</strong> Läs varje rad och granska exakt vart ditt ljud tar vägen. En app med åtkomst till mikrofonen bör vara något du kan inspektera, inte bara ta på tro.",
+    "whyNoLockIn": "<strong>Ingen inlåsning.</strong> Koden är Apache-2.0 — din att behålla, anpassa och köra på dina egna villkor. Ditt arbetsflöde hålls aldrig som gisslan.",
+    "whyFork": "<strong>Forka och kör i egen regi.</strong> Klona repot, bygg själv eller kör din egen Cloud-backend. Allt du behöver är offentligt.",
+    "whyOpen": "<strong>Byggd i det öppna.</strong> HyperWhisper utvecklas offentligt av den oberoende skaparen Ray Amjad. Ärenden, diskussioner och releaser sker helt öppet.",
+    "licenseHeading": "Har du redan köpt en licens?",
+    "licenseIntro": "HyperWhisper är nu öppen källkod, och betald transkribering körs på HyperWhisper Cloud-krediter. Om du köpte en licens före bytet tar vi hand om dig så här — mejla bara <mail>{email}</mail> så ordnar vi det manuellt.",
+    "licenseRecent": "<strong>Köpt under de senaste 30 dagarna:</strong> du är inom återbetalningsperioden. Vi återbetalar hela ditt köp — inga frågor ställda. <refund>Skicka bara ett meddelande till oss</refund>.",
+    "licenseOlder": "<strong>Köpt för mer än 30 dagar sedan:</strong> vi omvandlar det du betalade till HyperWhisper Cloud-krediter — hela köpesumman, minus de $5 i krediter som redan har lagts till på ditt konto. <credits>Mejla oss</credits> så lägger vi in saldot.",
+    "contributeHeading": "Vill du bidra?",
+    "contributeBody": "Felrapporter, funktionsidéer och pull requests är alla välkomna. Öppna ett ärende eller starta en diskussion <github>på GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper är nu helt öppen källkod",
+    "shortText": "Nu öppen källkod",
+    "learnMore": "Läs mer",
+    "dismiss": "Stäng meddelandet"
   },
   "notFound": {
     "title": "Sidan hittades inte",
