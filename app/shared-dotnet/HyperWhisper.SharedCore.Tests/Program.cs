@@ -2345,7 +2345,7 @@ static async Task TestLiveRecordedFailureSurvivesCloseAsync()
     var result = await new LiveCloudTranscriptionService(new DirectWebSocketFactory(socket))
         .TranscribeAsync(
             new LiveTranscriptionConfig(LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw"),
-            LateAudio(320, socket, awaitFirstFrame: true));
+            AudioUntilRefused(320, socket));
     Assert.NotNull(result.Failure);
     Assert.Equal(LiveTranscriptionFailureCode.ProviderUnavailable, result.Failure!.Code);
     Assert.True(result.Failure.IsTerminal, "the recorded terminal verdict was overwritten by the close failure");
@@ -2441,9 +2441,11 @@ static async Task TestLiveCancelDuringDrainAsync()
 /// <paramref name="awaitFirstFrame"/> must stay FALSE for the late-transcript
 /// test. Waiting here would let the frame land while the audio loop is still
 /// running, which is a path that never needed the drain at all — the test would
-/// then pass without the fix and prove nothing. The failure test sets it, because
-/// its point is the opposite: the error frame has to be handled BEFORE the audio
-/// loop ends, so the session takes the skip-the-stop-sequence path.
+/// then pass without the fix and prove nothing. The failure test needs the
+/// opposite, and this flag cannot give it: <c>Served</c> counts a frame handed to
+/// the receive loop, not one it has recorded, so on some schedules the audio loop
+/// ended first and the error landed after the verdict froze (#1930). That test
+/// uses <see cref="AudioUntilRefused"/> instead.
 /// </summary>
 static async IAsyncEnumerable<ReadOnlyMemory<byte>> LateAudio(
     int byteCount,
@@ -2456,6 +2458,31 @@ static async IAsyncEnumerable<ReadOnlyMemory<byte>> LateAudio(
     for (var attempt = 0; awaitFirstFrame && socket.Served == 0 && attempt < 1000; attempt++)
     {
         await Task.Delay(2);
+    }
+}
+
+/// <summary>
+/// Audio that ends only when the SERVICE stops pulling it.
+///
+/// The recorded-failure test needs the error frame handled BEFORE the audio loop
+/// ends, so the session takes the skip-the-stop-sequence path. Waiting for the
+/// socket to hand the frame out is not enough: the receive loop still has to parse
+/// it and record the verdict, and an audio loop that ran out of chunks in that gap
+/// stopped normally instead (#1930). So this keeps offering chunks, and the audio
+/// loop's own <c>state.Failure</c> check is what ends it — the session's real exit,
+/// not a timing guess. The bound only turns a verdict that never lands into a
+/// normal stop, which the test's assertions then report.
+/// </summary>
+static async IAsyncEnumerable<ReadOnlyMemory<byte>> AudioUntilRefused(
+    int byteCount,
+    LateFrameStreamingWebSocket socket)
+{
+    yield return new byte[byteCount];
+    socket.MarkAudioDone();
+    for (var chunk = 0; chunk < 5000; chunk++)
+    {
+        await Task.Delay(1);
+        yield return new byte[byteCount];
     }
 }
 
