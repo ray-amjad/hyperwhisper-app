@@ -45,6 +45,15 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
 
     HyperWhisper reads the format from the content of the file, not only from its extension. For example, a WAV file named `.mp3`, or a file with no extension, still opens as a WAV file.
 
+    If HyperWhisper cannot use the file, the message names the file and gives the cause:
+
+    - The file is empty (0 bytes).
+    - The file is not valid audio. It may be damaged, or in a format that macOS cannot decode.
+    - You do not have permission to read the file, or to open a folder that holds it.
+    - macOS privacy settings block HyperWhisper from reading the file. Allow it in **System Settings → Privacy & Security → Full Disk Access**.
+
+    The Parakeet, Nemotron, and Qwen3 ASR local models refuse a very short file with the message "This file is too short to transcribe", followed by the length of the file in seconds.
+
     <Note>
       Each cloud provider supports a different set of audio formats. If you select a format that the provider does not accept, HyperWhisper stops before the upload. It shows the formats that the provider supports. You do not wait for a long upload and then get an unclear API error.
     </Note>

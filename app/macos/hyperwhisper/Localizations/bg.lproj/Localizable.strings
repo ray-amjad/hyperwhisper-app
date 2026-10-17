@@ -798,6 +798,7 @@
 "modes.field.name.placeholder" = "напр. Бележки от среща";
 "modes.field.name.editPlaceholder" = "Име на режима";
 "modes.field.name.defaultLocked" = "Това е режимът по подразбиране, затова името му не може да бъде променено. Можете да преименувате всеки друг режим.";
+"modes.field.name.taken" = "Вече съществува режим с това име.";
 "modes.field.model" = "Модел";
 "modes.field.provider" = "Доставчик";
 "modes.provider.local" = "Локален";
@@ -824,7 +825,7 @@
 "transcripts.delete.single.message" = "Това ще изтрие окончателно този запис и неговия аудио файл.";
 "transcripts.delete.multiple.title" = "Изтриване на %d записа?";
 "transcripts.delete.multiple.message" = "Това ще изтрие окончателно %d записа и техните аудио файлове.\n\nТова действие не може да бъде отменено.";
-"transcripts.delete.multiple.confirm" = "Изтрий всички";
+"transcripts.delete.multiple.confirm" = "Изтрий %d записа";
 "transcripts.retry.error.title" = "Повторният опит е неуспешен";
 "transcripts.retry.error.modeDeleted" = "Режимът, създал този запис, е изтрит, затова не беше опитано отново. В Историята щракнете с десния бутон върху записа и изберете \"Повтори с...\", за да изберете друг режим.";
 

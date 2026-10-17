@@ -798,6 +798,7 @@
 "modes.field.name.placeholder" = "مثل ملاحظات الاجتماع";
 "modes.field.name.editPlaceholder" = "اسم الوضع";
 "modes.field.name.defaultLocked" = "هذا هو الوضع الافتراضي، لذا لا يمكن تغيير اسمه. يمكنك إعادة تسمية أي وضع آخر.";
+"modes.field.name.taken" = "يوجد وضع بهذا الاسم بالفعل.";
 "modes.field.model" = "النموذج";
 "modes.field.provider" = "المزود";
 "modes.provider.local" = "محلي";
@@ -824,7 +825,7 @@
 "transcripts.delete.single.message" = "سيؤدي هذا إلى حذف هذا التسجيل وملف الصوت الخاص به بشكل دائم.";
 "transcripts.delete.multiple.title" = "حذف %d تسجيلات؟";
 "transcripts.delete.multiple.message" = "سيؤدي هذا إلى حذف %d تسجيلات وملفات الصوت الخاصة بها بشكل دائم.\n\nلا يمكن التراجع عن هذا الإجراء.";
-"transcripts.delete.multiple.confirm" = "حذف الكل";
+"transcripts.delete.multiple.confirm" = "حذف التسجيلات: %d";
 "transcripts.retry.error.title" = "فشلت المحاولة";
 "transcripts.retry.error.modeDeleted" = "تم حذف الوضع الذي أنشأ هذا التسجيل، لذلك لم تتم إعادة المحاولة. في السجل، انقر بزر الماوس الأيمن على التسجيل واختر \"إعادة محاولة مع...\" لاختيار وضع آخر.";
 

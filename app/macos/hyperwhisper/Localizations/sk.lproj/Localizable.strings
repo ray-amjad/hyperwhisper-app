@@ -798,6 +798,7 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "modes.field.name.placeholder" = "napr. Záznamy zo stretnutí";
 "modes.field.name.editPlaceholder" = "Meno režimu";
 "modes.field.name.defaultLocked" = "Toto je predvolený režim, preto jeho názov nemožno zmeniť. Ktorýkoľvek iný režim môžete premenovať.";
+"modes.field.name.taken" = "Režim s týmto názvom už existuje.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Poskytovateľ";
 "modes.provider.local" = "Lokálne";
@@ -824,7 +825,7 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "transcripts.delete.single.message" = "Toto natrvalo vymaže túto nahrávku a jej zvukový súbor.";
 "transcripts.delete.multiple.title" = "Vymazať %d nahrávok?";
 "transcripts.delete.multiple.message" = "Toto natrvalo vymaže %d nahrávok a ich zvukové súbory.\n\nTúto akciu sa nedá vrátiť.";
-"transcripts.delete.multiple.confirm" = "Vymazať všetko";
+"transcripts.delete.multiple.confirm" = "Vymazať nahrávky: %d";
 "transcripts.retry.error.title" = "Opakovný pokus zlyhal";
 "transcripts.retry.error.modeDeleted" = "Režim, ktorý vytvoril tento záznam, bol odstránený, preto sa opakovanie nevykonalo. V Histórii kliknite na záznam pravým tlačidlom a zvoľte \"Skúsiť znova s...\" na výber iného režimu.";
 

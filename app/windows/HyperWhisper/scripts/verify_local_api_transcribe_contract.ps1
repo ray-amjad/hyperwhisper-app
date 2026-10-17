@@ -106,8 +106,13 @@ Assert-Match `
 
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern "case `"whisperlocal`":.*?case `"whisper`":.*?case `"libwhisper`":.*?string\.IsNullOrWhiteSpace\(model\).*?Missing 'model' for whisperLocal engine.*?mode\.LocalEngine = `"whisper`";.*?mode\.ModelType = model;" `
-    -Label "Windows /transcribe rejects missing Whisper model instead of defaulting silently"
+    -Pattern "case HwLocalApiEngineId\.WhisperLocal:.*?string\.IsNullOrWhiteSpace\(model\).*?LocalApiErrorCode\.InvalidRequest,\s*WhisperModelRequiredMessage,\s*WhisperModelRequiredHint\);.*?mode\.LocalEngine = `"whisper`";.*?mode\.ModelType = model;" `
+    -Label "Windows /transcribe rejects missing Whisper model as INVALID_REQUEST instead of defaulting silently (#1493)"
+
+Assert-Match `
+    -Content $EndpointSource `
+    -Pattern "WhisperModelRequiredMessage = `"A Whisper model is required\.`";.*?WhisperModelRequiredHint = `"Send model, for example base\.en\.`";" `
+    -Label "Windows /transcribe words the missing Whisper model refusal like macOS and the portable head (#1493)"
 
 Assert-Match `
     -Content $EndpointSource `
@@ -187,7 +192,12 @@ Assert-Match `
 
 Assert-Match `
     -Content $MacRouterSource `
-    -Pattern "case `"whisperlocal`", `"whisper`", `"libwhisper`":.*?Missing 'model' for whisperLocal engine.*?default:\s*throw TranscriptionError\.providerNotAvailable\(provider: engine, reason: `"Unknown engine '\\\(engine\)'`"\)" `
-    -Label "macOS /transcribe rejects missing Whisper models and unknown engines"
+    -Pattern "throw TranscriptionError\.providerNotAvailable\(provider: engine, reason: `"Unknown engine '\\\(engine\)'`"\).*?case \.whisperLocal:.*?throw TranscribeEndpoint\.APIInputError\.whisperModelRequired" `
+    -Label "macOS /transcribe rejects missing Whisper models (#1493) and unknown engines"
+
+Assert-Match `
+    -Content $MacEndpointSource `
+    -Pattern "static let whisperModelRequired = APIInputError\(\s*code: \.invalidRequest,\s*message: `"A Whisper model is required\.`",\s*hint: `"Send model, for example base\.en\.`"" `
+    -Label "macOS /transcribe words the missing Whisper model refusal like Windows and the portable head (#1493)"
 
 Write-Host "Local API /transcribe contract verifier passed."

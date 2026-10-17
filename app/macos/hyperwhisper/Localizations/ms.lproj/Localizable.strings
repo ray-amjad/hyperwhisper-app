@@ -798,6 +798,7 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "modes.field.name.placeholder" = "cth. Nota Mesyuarat";
 "modes.field.name.editPlaceholder" = "Nama mod";
 "modes.field.name.defaultLocked" = "Ini ialah mod lalai, jadi namanya tidak boleh ditukar. Anda boleh menamakan semula mana-mana mod lain.";
+"modes.field.name.taken" = "Mod dengan nama itu sudah wujud.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Pembekal";
 "modes.provider.local" = "Tempatan";
@@ -824,7 +825,7 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "transcripts.delete.single.message" = "Ini akan memadam rakaman ini dan fail audionya secara kekal.";
 "transcripts.delete.multiple.title" = "Padam %d Rakaman?";
 "transcripts.delete.multiple.message" = "Ini akan memadam %d rakaman dan fail audio mereka secara kekal.\n\nTindakan ini tidak boleh dibuat asal.";
-"transcripts.delete.multiple.confirm" = "Padam Semua";
+"transcripts.delete.multiple.confirm" = "Padam %d Rakaman";
 "transcripts.retry.error.title" = "Cuba Semula Gagal";
 "transcripts.retry.error.modeDeleted" = "Mod yang membuat rakaman ini telah dipadam, jadi ia tidak dicuba semula. Dalam Sejarah, klik kanan rakaman dan pilih \"Cuba semula dengan...\" untuk memilih mod lain.";
 

@@ -798,6 +798,7 @@
 "modes.field.name.placeholder" = "например, Заметки встречи";
 "modes.field.name.editPlaceholder" = "Имя режима";
 "modes.field.name.defaultLocked" = "Это режим по умолчанию, поэтому его имя нельзя изменить. Любой другой режим можно переименовать.";
+"modes.field.name.taken" = "Режим с таким названием уже существует.";
 "modes.field.model" = "Модель";
 "modes.field.provider" = "Провайдер";
 "modes.provider.local" = "Локально";
@@ -824,7 +825,7 @@
 "transcripts.delete.single.message" = "Это будет постоянно удалять эту запись и файл аудио.";
 "transcripts.delete.multiple.title" = "Удалить %d записей?";
 "transcripts.delete.multiple.message" = "Это будет постоянно удалять %d записей и их аудиофайлы.\n\nЭто действие невозможно отменить.";
-"transcripts.delete.multiple.confirm" = "Удалить все";
+"transcripts.delete.multiple.confirm" = "Удалить записи: %d";
 "transcripts.retry.error.title" = "Ошибка повтора";
 "transcripts.retry.error.modeDeleted" = "Режим, в котором была сделана эта запись, удалён, поэтому повтор не выполнен. В Истории щёлкните запись правой кнопкой мыши и выберите \"Повторить с...\", чтобы выбрать другой режим.";
 

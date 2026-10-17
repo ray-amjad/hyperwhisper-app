@@ -66,6 +66,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
     ("Local API post-processing refuses a Cloud run with no account key", LocalApiPostProcessingCloudAccountRequired),
+    ("Local API /health key_present for hyperwhisper follows the account key", LocalApiHealthCloudKeyFollowsAccountKey),
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
@@ -1271,7 +1272,7 @@ static Task RecordingRefusesWithoutInputDevice()
 }
 
 // Issue #1742: the workflow reports a transcript that is empty after Whisper's
-// [BLANK_AUDIO] markers are stripped as workflow.no_speech. The batch stop path
+// non-speech markers are stripped as workflow.no_speech. The batch stop path
 // must hand that code to the overlay; every other failure stays one code.
 static Task SilentRecordingReadsNoSpeech()
 {
@@ -1463,6 +1464,78 @@ static async Task LocalApiPostProcessingCloudAccountRequired()
         catch (InvalidOperationException ex) when (ex.Message == "Local post-processing is unavailable for this request.")
         {
         }
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+// Issue #650: /health reported key_present:true for `hyperwhisper` (both
+// lists) on a profile with no account key, because a device identity counted as
+// a credential, while /transcribe refuses the same provider with
+// MISSING_API_KEY. Drives the real catalog the Local API backend serves.
+static async Task LocalApiHealthCloudKeyFollowsAccountKey()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-health-key-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        var store = new MemoryCredentialStore();
+        // A device identity that resolves: the old fallback answered true on it.
+        var identity = new FixedDeviceIdentity();
+        using var http = new HttpClient();
+        var catalog = new LinuxLocalApiCapabilityCatalog(
+            new HyperWhisper.ModelManagement.PortableModelManager(new StaticPaths(root), http),
+            new NoLocalTranscriber(),
+            store,
+            identity,
+            new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")));
+        // The source and the predicate /transcribe uses:
+        // CloudTranscriptionService.CreateParams refuses an account-key provider
+        // whose LicenseKey is null or whitespace.
+        var transcribeSource = new HyperWhisper.TranscriptionRouting.CredentialStoreCloudCredentialSource(store, identity);
+
+        static ProviderStatus Row(IReadOnlyList<ProviderStatus> rows, string id) =>
+            rows.SingleOrDefault(row => row.Id == id)
+                ?? throw new InvalidOperationException($"/health has no {id} row");
+
+        async Task Expect(bool present, string label)
+        {
+            var credential = await transcribeSource.GetCredentialAsync(
+                CloudTranscriptionProvider.HyperWhisperCloud, CancellationToken.None);
+            Assert(!string.IsNullOrWhiteSpace(credential?.LicenseKey) == present,
+                $"{label}: the /transcribe credential read disagrees with the test's expectation");
+            foreach (var (list, rows) in new[]
+            {
+                ("providers", catalog.TranscriptionProviders),
+                ("post_processing_providers", catalog.PostProcessingProviders),
+            })
+            {
+                var row = Row(rows, "hyperwhisper");
+                Assert(row.KeyPresent == present,
+                    $"{label}: {list} hyperwhisper key_present={row.KeyPresent}, /transcribe would {(present ? "run" : "refuse")}");
+                Assert((row.Status == "credential_required") == !present,
+                    $"{label}: {list} hyperwhisper status {row.Status}");
+            }
+            // /models: the hyperwhisper Cloud models are usable (`installed`, the
+            // Linux wire name for enabled) only when /transcribe would run them.
+            var cloudModels = catalog.Models
+                .Where(model => model.Provider.Equals("hyperwhisper", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            Assert(cloudModels.Length > 0, $"{label}: /models lists no hyperwhisper Cloud model");
+            foreach (var model in cloudModels)
+                Assert(model.Installed == present,
+                    $"{label}: /models {model.Id} enabled={model.Installed}, /transcribe would {(present ? "run" : "refuse")}");
+        }
+
+        await Expect(false, "no account key");
+        store.Values["LicenseKey"] = System.Text.Encoding.UTF8.GetBytes("   ");
+        await Expect(false, "whitespace-only account key");
+        store.Values["LicenseKey"] = System.Text.Encoding.UTF8.GetBytes("account-value");
+        await Expect(true, "stored account key");
+        store.Values.Remove("LicenseKey");
+        await Expect(false, "account key removed");
     }
     finally
     {
@@ -2066,6 +2139,30 @@ sealed class FixedSettingsFile(string json) : IPrivateFileService
     public PlatformResult<string?> ReadAllText(string path) => PlatformResult<string?>.Success(json);
     public PlatformResult Delete(string path) => PlatformResult.Success();
     public PlatformResult<bool> IsRestrictedToCurrentUser(string path) => PlatformResult<bool>.Success(true);
+}
+
+sealed class MemoryCredentialStore : ICredentialStore
+{
+    public Dictionary<string, byte[]> Values { get; } = [];
+    public PlatformResult<byte[]?> Read(string resource, string account) =>
+        PlatformResult<byte[]?>.Success(resource == "HyperWhisper" && Values.TryGetValue(account, out var value)
+            ? value.ToArray()
+            : null);
+    public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value) => PlatformResult.Success();
+    public PlatformResult Delete(string resource, string account) => PlatformResult.Success();
+}
+
+sealed class FixedDeviceIdentity : IDeviceIdentityProvider
+{
+    public PlatformResult<DeviceIdentity> GetDeviceIdentity() =>
+        PlatformResult<DeviceIdentity>.Success(new("device-id", DeviceIdentitySource.PlatformMachineId));
+}
+
+sealed class NoLocalTranscriber : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(false, "None", "Not configured");
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default) =>
+        Task.FromResult(PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.BackendUnavailable, "Not configured"));
 }
 
 sealed class MissingPrivateFiles : IPrivateFileService

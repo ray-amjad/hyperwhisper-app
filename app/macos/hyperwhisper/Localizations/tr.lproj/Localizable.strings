@@ -798,6 +798,7 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.field.name.placeholder" = "örn., Toplantı Notları";
 "modes.field.name.editPlaceholder" = "Mod adı";
 "modes.field.name.defaultLocked" = "Bu varsayılan moddur, bu nedenle adı değiştirilemez. Diğer tüm modları yeniden adlandırabilirsiniz.";
+"modes.field.name.taken" = "Bu ada sahip bir mod zaten var.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Sağlayıcı";
 "modes.provider.local" = "Yerel";
@@ -824,7 +825,7 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "transcripts.delete.single.message" = "Bu, kaydı ve ses dosyasını kalıcı olarak siler.";
 "transcripts.delete.multiple.title" = "%d Kaydı Sil?";
 "transcripts.delete.multiple.message" = "Bu, %d kaydı ve ses dosyalarını kalıcı olarak siler.\n\nBu işlem geri alınamaz.";
-"transcripts.delete.multiple.confirm" = "Tümünü Sil";
+"transcripts.delete.multiple.confirm" = "%d Kaydı Sil";
 "transcripts.retry.error.title" = "Yeniden Deneme Başarısız";
 "transcripts.retry.error.modeDeleted" = "Bu kaydı oluşturan mod silindi, bu yüzden yeniden denenmedi. Geçmiş'te kayda sağ tıklayın ve başka bir mod seçmek için \"İle Yeniden Dene...\" seçeneğini kullanın.";
 

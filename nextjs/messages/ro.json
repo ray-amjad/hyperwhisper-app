@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - Transcriere vocală AI pentru macOS și Windows",
-    "description": "Scrie de 5x mai rapid cu transcriere vocală bazată pe AI. HyperWhisper îți transcrie vocea cu o acuratețe incredibilă pe macOS și Windows. Vorbește natural și vezi cum cuvintele apar instant."
+    "title": "HyperWhisper - Transcriere vocală AI pentru macOS, Windows și Linux",
+    "description": "Scrie de 5x mai rapid cu transcriere vocală bazată pe AI. HyperWhisper îți transcrie vocea cu o acuratețe incredibilă pe macOS, Windows și Linux. Vorbește natural și vezi cum cuvintele apar instant."
   },
   "navbar": {
     "features": "Funcții",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Pot să o folosesc fără internet?",
-        "answer": "Absolut. HyperWhisper poate fi folosit complet offline pe Mac-ul tău sau pe PC-ul tău cu Windows cu modele AI locale - fără internet. Pentru utilizatorii care vor acuratețe și viteză maxime, oferim și procesare cloud opțională prin diverși furnizori."
+        "answer": "Absolut. HyperWhisper poate fi folosit complet offline pe Mac-ul tău, pe PC-ul tău cu Windows sau pe computerul tău cu Linux cu modele AI locale - fără internet. Pentru utilizatorii care vor acuratețe și viteză maxime, oferim și procesare cloud opțională prin diverși furnizori."
       },
       "apiKey": {
         "question": "Trebuie să plătesc pentru acces API?",
@@ -175,12 +175,12 @@
         "answer": "Pentru transcriere offline, oferim mai multe dimensiuni ale modelului Whisper (creat de OpenAI, cu suport pentru 99+ limbi). Oferim și modelele Parakeet de la NVidia (cu suport pentru 25+ limbi).\n      \n      Pentru post-procesare offline, oferim mai multe dimensiuni ale modelului Gemma 3 (creat de Google)."
       },
       "compatibility": {
-        "question": "Funcționează cu toate aplicațiile de Mac și Windows?",
+        "question": "Funcționează cu toate aplicațiile mele?",
         "answer": "Da, funcționează oriunde poți scrie. Fie că redactezi emailuri, documente, cod sau discuți pe chat. Apasă scurtătura, vorbește și vezi cum apar cuvintele instant."
       },
       "privacy": {
         "question": "Cum îmi este protejată confidențialitatea?",
-        "answer": "Când folosești modul local, niciun fel de date nu părăsesc Mac-ul tău sau PC-ul tău cu Windows.\n\nCând folosești transcriere în cloud, datele sunt trimise furnizorului cloud pe care îl alegi (ex.: OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox sau Google Gemini).\n\nPoți verifica asta chiar tu cu un inspector de rețea precum [Proxyman](https://proxyman.io), un monitor de rețea precum [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), sau citind [codul sursă pe GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Când folosești modul local, niciun fel de date nu părăsesc Mac-ul tău, PC-ul tău cu Windows sau computerul tău cu Linux.\n\nCând folosești transcriere în cloud, datele sunt trimise furnizorului cloud pe care îl alegi (ex.: OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox sau Google Gemini).\n\nPoți verifica asta chiar tu cu un inspector de rețea precum [Proxyman](https://proxyman.io), un monitor de rețea precum [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), sau citind [codul sursă pe GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Ce este HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Care sunt cerințele de sistem?",
-        "answer": "Pentru Mac: macOS 14 sau mai nou, cu suport pentru Apple Silicon și Intel. Pentru Windows: Windows 10/11, x64 sau ARM64. Pentru performanță optimă se recomandă 8GB RAM."
+        "answer": "Pentru Mac: macOS 14 sau mai nou, cu suport pentru Apple Silicon și Intel. Pentru Windows: Windows 10/11, x64 sau ARM64. Pentru Linux v1: Ubuntu 22.04 sau mai nou ori Debian 12 sau mai nou, pe amd64. Pentru performanță optimă se recomandă 8GB RAM."
       },
       "madeBy": {
         "question": "Cine a creat asta?",
@@ -289,7 +289,7 @@
     "loading": "Se încarcă..."
   },
   "footer": {
-    "tagline": "Scrie de 5x mai rapid cu transcriere vocală AI pentru macOS și Windows.",
+    "tagline": "Scrie de 5x mai rapid cu transcriere vocală AI pentru macOS, Windows și Linux.",
     "product": "Produs",
     "resources": "Resurse",
     "company": "Companie",

@@ -185,6 +185,7 @@ public class WhisperModelService
             var buffer = new byte[81920]; // 80 KB buffer
             long totalBytesRead = 0;
             int bytesRead;
+            var lastLoggedBand = DownloadProgressLog.NoBandLogged;
 
             using (var fileStream = File.Create(tempPath))
             {
@@ -197,9 +198,9 @@ public class WhisperModelService
                     double progressValue = (double)totalBytesRead / expectedSize;
                     progress?.Report(Math.Min(progressValue, 1.0)); // Cap at 100%
 
-                    // Log progress every 10%
+                    // Log progress once per 10% band
                     int currentPercent = (int)(progressValue * 100);
-                    if (currentPercent % 10 == 0)
+                    if (DownloadProgressLog.ShouldLog(currentPercent, ref lastLoggedBand))
                     {
                         LoggingService.Debug($"  Download progress: {currentPercent}% ({totalBytesRead:N0} / {expectedSize:N0} bytes)");
                     }

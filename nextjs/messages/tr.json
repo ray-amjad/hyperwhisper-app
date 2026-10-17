@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - macOS ve Windows için Yapay Zeka Sesli Transkripsiyon",
-    "description": "Yapay zeka destekli sesli transkripsiyonla 5x daha hızlı yazın. HyperWhisper, sesinizi macOS ve Windows'ta inanılmaz doğrulukla metne dönüştürür. Doğal konuşun ve kelimelerinizin anında ekrana geldiğini görün."
+    "title": "HyperWhisper - macOS, Windows ve Linux için Yapay Zeka Sesli Transkripsiyon",
+    "description": "Yapay zeka destekli sesli transkripsiyonla 5x daha hızlı yazın. HyperWhisper, sesinizi macOS, Windows ve Linux'ta inanılmaz doğrulukla metne dönüştürür. Doğal konuşun ve kelimelerinizin anında ekrana geldiğini görün."
   },
   "navbar": {
     "features": "Özellikler",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "İnternetsiz kullanabilir miyim?",
-        "answer": "Kesinlikle. HyperWhisper, Mac'inizde veya Windows bilgisayarınızda yerel yapay zeka modelleriyle tamamen çevrimdışı kullanılabilir - internet gerekmez. En yüksek doğruluk ve hız isteyen kullanıcılar için farklı bulut sağlayıcıları üzerinden isteğe bağlı bulut işleme de sunuyoruz."
+        "answer": "Kesinlikle. HyperWhisper, Mac'inizde, Windows veya Linux bilgisayarınızda yerel yapay zeka modelleriyle tamamen çevrimdışı kullanılabilir - internet gerekmez. En yüksek doğruluk ve hız isteyen kullanıcılar için farklı bulut sağlayıcıları üzerinden isteğe bağlı bulut işleme de sunuyoruz."
       },
       "apiKey": {
         "question": "API erişimi için ödeme yapmam gerekiyor mu?",
@@ -175,12 +175,12 @@
         "answer": "Çevrimdışı transkripsiyon için Whisper modelinin birden fazla boyutunu sunuyoruz (OpenAI tarafından geliştirilmiştir, 99+ dili destekler). Ayrıca NVidia'nın Parakeet modellerini de sunuyoruz (25+ dili destekler).\n      \n      Çevrimdışı son işleme için Gemma 3 modelinin birden fazla boyutunu sunuyoruz (Google tarafından geliştirilmiştir)."
       },
       "compatibility": {
-        "question": "Tüm Mac ve Windows uygulamalarında çalışıyor mu?",
+        "question": "Tüm uygulamalarımda çalışıyor mu?",
         "answer": "Evet, yazabildiğiniz her yerde çalışır. E-posta yazarken, belge oluştururken, kod yazarken veya sohbet ederken. Kısayola basın, konuşun ve kelimelerinizin anında göründüğünü izleyin."
       },
       "privacy": {
         "question": "Gizliliğim nasıl korunuyor?",
-        "answer": "Yerel mod kullanırken hiçbir veri Mac'inizden veya Windows bilgisayarınızdan çıkmaz.\n\nBulut transkripsiyonu kullanırken verileriniz seçtiğiniz bulut sağlayıcısına gönderilir (ör. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox veya Google Gemini).\n\nBunu [Proxyman](https://proxyman.io) gibi bir ağ denetleyicisi, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) gibi bir ağ monitoru ile veya [GitHub'daki kaynak kodu](https://github.com/ray-amjad/hyperwhisper-app) okuyarak kendiniz doğrulayabilirsiniz."
+        "answer": "Yerel mod kullanırken hiçbir veri Mac'inizden, Windows veya Linux bilgisayarınızdan çıkmaz.\n\nBulut transkripsiyonu kullanırken verileriniz seçtiğiniz bulut sağlayıcısına gönderilir (ör. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox veya Google Gemini).\n\nBunu [Proxyman](https://proxyman.io) gibi bir ağ denetleyicisi, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) gibi bir ağ monitoru ile veya [GitHub'daki kaynak kodu](https://github.com/ray-amjad/hyperwhisper-app) okuyarak kendiniz doğrulayabilirsiniz."
       },
       "cloud": {
         "question": "HyperWhisper Cloud nedir?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Sistem gereksinimleri nelerdir?",
-        "answer": "Mac için: macOS 14 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. En iyi performans için 8 GB RAM önerilir."
+        "answer": "Mac için: macOS 14 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. Linux v1 için: amd64 üzerinde Ubuntu 22.04 veya üzeri ya da Debian 12 veya üzeri. En iyi performans için 8 GB RAM önerilir."
       },
       "madeBy": {
         "question": "Bunu kim yaptı?",
@@ -289,7 +289,7 @@
     "loading": "Yükleniyor..."
   },
   "footer": {
-    "tagline": "macOS ve Windows için yapay zeka destekli sesli transkripsiyonla 5x daha hızlı yazın.",
+    "tagline": "macOS, Windows ve Linux için yapay zeka destekli sesli transkripsiyonla 5x daha hızlı yazın.",
     "product": "Ürün",
     "resources": "Kaynaklar",
     "company": "Şirket",

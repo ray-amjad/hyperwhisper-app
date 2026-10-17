@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 
 import { authClient } from "@/src/lib/auth-client";
+import { withoutLicenseKeyParam } from "@/src/lib/account-key-redaction";
 import { sanitizeReturnTo } from "@/src/lib/license-key-redirect";
 import { isRecord } from "@/src/lib/type-guards";
 
@@ -57,6 +58,13 @@ export default function SignInClient() {
 
   useEffect(() => {
     if (!licenseKeyParam) return;
+    // The key is a credential: take it out of the address bar and the browser
+    // history at once (#1897). `returnTo` stays, for getCallbackURL().
+    window.history.replaceState(
+      window.history.state,
+      "",
+      withoutLicenseKeyParam(window.location.href),
+    );
     setLicenseKey(licenseKeyParam);
     setAutoSigningIn(true);
     void handleLicenseKeySignInWithKey(licenseKeyParam);

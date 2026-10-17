@@ -798,6 +798,7 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "modes.field.name.placeholder" = "npr. Zapiski sestanka";
 "modes.field.name.editPlaceholder" = "Ime načina";
 "modes.field.name.defaultLocked" = "To je privzeti način, zato njegovega imena ni mogoče spremeniti. Vsak drug način lahko preimenujete.";
+"modes.field.name.taken" = "Način s tem imenom že obstaja.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Ponudnik";
 "modes.provider.local" = "Lokalni";
@@ -824,7 +825,7 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "transcripts.delete.single.message" = "To bo trajno izbrisalo ta posnetek in njegovo zvočno datoteko.";
 "transcripts.delete.multiple.title" = "Izbriši %d posnetkov?";
 "transcripts.delete.multiple.message" = "To bo trajno izbrisalo %d posnetkov in njihove zvočne datoteke.\n\nTe akcije se ne da razveljaviti.";
-"transcripts.delete.multiple.confirm" = "Izbriši vse";
+"transcripts.delete.multiple.confirm" = "Izbriši posnetke: %d";
 "transcripts.retry.error.title" = "Ponovno ni uspelo";
 "transcripts.retry.error.modeDeleted" = "Način, ki je ustvaril ta posnetek, je bil izbrisan, zato ponovni poskus ni bil izveden. V Zgodovini z desno tipko kliknite posnetek in izberite \"Poskusi znova z...\", da izberete drug način.";
 

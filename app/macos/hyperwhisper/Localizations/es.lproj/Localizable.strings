@@ -799,6 +799,7 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 "modes.field.name.placeholder" = "p. ej., Notas de reunión";
 "modes.field.name.editPlaceholder" = "Nombre del modo";
 "modes.field.name.defaultLocked" = "Este es el modo predeterminado, por lo que su nombre no se puede cambiar. Puede cambiar el nombre de cualquier otro modo.";
+"modes.field.name.taken" = "Ya existe un modo con ese nombre.";
 "modes.field.model" = "Modelo";
 "modes.field.provider" = "Proveedor";
 "modes.provider.local" = "Local";
@@ -825,7 +826,7 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 "transcripts.delete.single.message" = "Esto eliminará permanentemente esta grabación y su archivo de audio.";
 "transcripts.delete.multiple.title" = "¿Eliminar %d grabaciones?";
 "transcripts.delete.multiple.message" = "Esto eliminará permanentemente %d grabaciones y sus archivos de audio.\n\nEsta acción no se puede deshacer.";
-"transcripts.delete.multiple.confirm" = "Eliminar todas";
+"transcripts.delete.multiple.confirm" = "Eliminar %d grabaciones";
 "transcripts.retry.error.title" = "Reintento fallido";
 "transcripts.retry.error.modeDeleted" = "El modo que creó esta grabación se eliminó, así que no se volvió a intentar. En el Historial, haz clic derecho en la grabación y elige \"Reintentar con...\" para escoger otro modo.";
 

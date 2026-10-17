@@ -1,6 +1,7 @@
 import type { PostHog } from "posthog-js";
 
 import { env } from "@env/client.mjs";
+import { redactAccountKeyFromEvent } from "@/src/lib/account-key-redaction";
 
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 
@@ -19,6 +20,8 @@ async function importAndInit(apiKey: string): Promise<PostHog | null> {
     posthog.init(apiKey, {
       api_host: env.NEXT_PUBLIC_POSTHOG_HOST ?? DEFAULT_POSTHOG_HOST,
       person_profiles: "always",
+      // The Account Key can be in the page URL (#1897): never send it.
+      before_send: redactAccountKeyFromEvent,
     });
 
     return posthog;

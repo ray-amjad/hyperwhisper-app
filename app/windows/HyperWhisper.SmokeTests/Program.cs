@@ -111,6 +111,29 @@ internal static class Program
                 Assert(credits >= 0, $"expected credits/min >= 0, got {credits}");
             });
 
+            Run("model download logs one progress line per 10% band (#1600)", () =>
+            {
+                // A 488 MB Whisper download read 16 KB at a time, as the fuzz log
+                // showed: the old "percent % 10 == 0" rule wrote 2,977 lines.
+                const long expectedSize = 487_614_201;
+                const int chunk = 16_384;
+                var lastLoggedBand = DownloadProgressLog.NoBandLogged;
+                var logged = new List<int>();
+                long total = 0;
+                while (total < expectedSize)
+                {
+                    total = Math.Min(total + chunk, expectedSize);
+                    var currentPercent = (int)((double)total / expectedSize * 100);
+                    if (DownloadProgressLog.ShouldLog(currentPercent, ref lastLoggedBand))
+                    {
+                        logged.Add(currentPercent / 10);
+                    }
+                }
+
+                Assert(logged.SequenceEqual(Enumerable.Range(0, 11)),
+                    $"expected one line per band 0..10, got [{string.Join(",", logged)}]");
+            });
+
             Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
             {
                 const string privateUrl = "https://private.example.test/download";
@@ -1221,25 +1244,27 @@ internal static class Program
                 Assert(!described.Contains("quarterly", StringComparison.OrdinalIgnoreCase), "path description leaked the file name");
             });
 
-            Run("Whisper non-speech markers never become a transcript — issue #1449", () =>
+            Run("Whisper non-speech markers never become a transcript — issues #1449, #1811", () =>
             {
                 // The issue's silent file and silent dictation: only markers come back,
                 // so the text is empty and the orchestrator raises NoSpeechDetected.
-                Assert(TranscriptionService.StripNonSpeechMarkers(" [BLANK_AUDIO] [BLANK_AUDIO]") == "",
-                    "a transcript of only [BLANK_AUDIO] markers must strip to empty");
-                Assert(TranscriptionService.StripNonSpeechMarkers("[BLANK_AUDIO] ") == "",
-                    "the dictation case ('[BLANK_AUDIO] ') must strip to empty");
-                Assert(TranscriptionService.StripNonSpeechMarkers("[ Silence ] (music) [no speech]") == "",
-                    "Whisper's other non-speech annotations must strip too");
+                // The cases are the cross-platform contract: Rust, Linux and macOS
+                // replay this very file, so the three heads strip the same markers.
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "whisper-marker-vectors.json");
+                Assert(File.Exists(vectorsPath), $"whisper-marker-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var cases = vectors.RootElement.GetProperty("cases");
+                Assert(cases.GetArrayLength() >= 20, "whisper-marker-vectors.json looks truncated");
+                foreach (var vector in cases.EnumerateArray())
+                {
+                    var name = vector.GetProperty("name").GetString()!;
+                    var input = vector.GetProperty("input").GetString()!;
+                    var expected = vector.GetProperty("expected").GetString()!;
+                    var actual = TranscriptionService.StripNonSpeechMarkers(input);
+                    Assert(actual == expected, $"{name}: got '{actual}', expected '{expected}'");
+                }
                 Assert(TranscriptionService.StripNonSpeechMarkers(null) == "", "null must strip to empty");
-
-                // Real speech around a marker survives, with one space where it was.
-                var mixed = TranscriptionService.StripNonSpeechMarkers(" Hello there. [BLANK_AUDIO] See you soon.");
-                Assert(mixed == "Hello there. See you soon.", $"speech around a marker was damaged: '{mixed}'");
-
-                // A bracket the speaker dictated is not a marker.
-                var dictated = TranscriptionService.StripNonSpeechMarkers(" Call the function [user id] (optional). ");
-                Assert(dictated == "Call the function [user id] (optional).", $"dictated brackets were removed: '{dictated}'");
             });
 
             Run("On-device transcript log lines carry metadata, never the words — issue #1645", () =>
@@ -2549,9 +2574,18 @@ internal static class Program
                 {
                     ("gpt-4.1-nano", "gpt-5.6-luna"),
                     ("gemini-3-pro-preview", "gemini-3.1-pro-preview"),
-                    ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
+                    ("gemini-3.1-flash-lite-preview", "gemini-3.5-flash-lite"),
                     ("gemini-2.0-flash", "gemini-3.6-flash"),
-                    ("gemini-2.0-flash-lite", "gemini-3.1-flash-lite"),
+                    ("gemini-2.0-flash-lite", "gemini-3.5-flash-lite"),
+                    // #798: Google shuts gemini-3.1-flash-lite down 2027-05-07.
+                    ("gemini-3.1-flash-lite", "gemini-3.5-flash-lite"),
+                    // #1209: OpenAI removes gpt-5.1 and gpt-5.4-nano 2027-04-01.
+                    ("gpt-5.1", "gpt-5.6-luna"),
+                    ("gpt-5.4-nano", "gpt-6-luna"),
+                    // OpenAI removes gpt-4.1 2027-01-14; Google deprecated 3.5 / 3.7 Flash 2026-10-08.
+                    ("gpt-4.1", "gpt-6-luna"),
+                    ("gemini-3.5-flash", "gemini-3.6-flash"),
+                    ("gemini-3.7-flash", "gemini-3.8-flash"),
                     // #1019: 3.8 Flash, not the 2.5 Flash that Google now gates to past users.
                     ("gemma-3-12b-it", "gemini-3.8-flash"),
                     ("gemma-3-27b-it", "gemini-3.8-flash"),
@@ -2584,6 +2618,8 @@ internal static class Program
 
                 Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.OpenAI)?.Id == "gpt-5.6-luna",
                     "new OpenAI modes should default to GPT-5.6 Luna");
+                Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.Gemini)?.Id == "gemini-3.8-flash",
+                    "new Gemini modes should default to Gemini 3.8 Flash (matches macOS)");
             });
 
             // #1018: OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11. The
@@ -12297,6 +12333,48 @@ internal static class Program
                 }
             });
 
+            Run("engine whisper with no model is INVALID_REQUEST with a send-model hint (#1493)", () =>
+            {
+                // ISSUE #1493 (Ray, inbox #295). A missing or blank Whisper
+                // `model` is a request mistake: INVALID_REQUEST, the portable
+                // head's message, and a hint to send `model`. It used to be
+                // ENGINE_UNAVAILABLE "Missing 'model' for whisperLocal engine",
+                // whose shared hint says "Try again later", so a client that
+                // branches on `code` retried a request that can never pass.
+                // No default model is picked.
+                foreach (var engine in new[] { "whisper", "whisperLocal", "libwhisper", " WhisperLocal " })
+                {
+                    foreach (var model in new string?[] { null, "", "  ", "\t\n" })
+                    {
+                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException? refusal = null;
+                        try
+                        {
+                            HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                                new Mode(), engine, model);
+                        }
+                        catch (HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException ex)
+                        {
+                            refusal = ex;
+                        }
+                        var label = $"engine '{engine}' with model {(model is null ? "null" : $"'{model}'")}";
+                        Assert(refusal is not null, $"{label} was not refused");
+                        Assert(refusal!.Code == LocalApiErrorCode.InvalidRequest,
+                            $"{label} answered {refusal.Code}, not INVALID_REQUEST");
+                        Assert(refusal.Message == "A Whisper model is required.",
+                            $"{label} answered message '{refusal.Message}'");
+                        Assert(refusal.Hint == "Send model, for example base.en.",
+                            $"{label} answered hint '{refusal.Hint}'");
+                    }
+                }
+
+                // A real model still runs: the refusal is scoped to a missing one.
+                var explicitModel = new Mode();
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    explicitModel, "whisper", "base.en");
+                Assert(explicitModel is { ProviderType: "local", LocalEngine: "whisper", ModelType: "base.en" },
+                    "engine whisper with model base.en no longer selects local Whisper base.en");
+            });
+
             Run("the transcription detail slot carries ex.Message, not the toast sentence", () =>
             {
                 // ISSUE #356 ITEM 4, REVIEW ROUND 1. `MapTranscriptionException`
@@ -12616,6 +12694,96 @@ internal static class Program
 
                 Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
                     "an unrelated Deepgram key edit discarded a valid Google outcome");
+            });
+
+            Run("issue #650: /health key_present for the HW-Cloud rows follows the account key /transcribe refuses on", () =>
+            {
+                var cloudTranscription = new[]
+                {
+                    CloudTranscriptionProvider.HyperWhisperCloud,
+                    CloudTranscriptionProvider.MicrosoftAzureSpeech,
+                    CloudTranscriptionProvider.GoogleSpeech,
+                };
+                var cloudTranscriptionIds = cloudTranscription.Select(p => p.GetIdentifier()).ToHashSet();
+                var cloudPostId = PostProcessingProvider.HyperWhisperCloud.ToStringValue();
+                // No BYOK key stored anywhere: only the account key can move these rows.
+                var apiKeys = new ApiKeyService(new InMemoryCredentialBackend());
+
+                // The predicate /health reads is the one /transcribe and Cloud
+                // post-processing refuse on. This process never loads or
+                // activates a licence, so it is unlicensed, as a fresh profile is.
+                Assert(HealthEndpoints.CloudAccountKeyPresent()
+                        == LicenseManager.Instance.GetTranscriptionIdentifier().IsLicensed,
+                    "/health reads a different account-key predicate than /transcribe");
+                Assert(!HealthEndpoints.CloudAccountKeyPresent(),
+                    "a smoke process with no licence reads as holding an account key");
+
+                foreach (var keyPresent in new[] { false, true })
+                {
+                    var providers = HealthEndpoints.BuildTranscriptionProviders(apiKeys, health: null, keyPresent);
+                    var cloudRows = providers.Where(r => cloudTranscriptionIds.Contains(r.Id)).ToList();
+                    Assert(cloudRows.Count == cloudTranscription.Length,
+                        $"/health lost a HW-Cloud transcription row: {string.Join(",", cloudRows.Select(r => r.Id))}");
+                    foreach (var row in cloudRows)
+                    {
+                        Assert(row.KeyPresent == keyPresent,
+                            $"/health {row.Id} key_present={row.KeyPresent} with account key present={keyPresent}");
+                    }
+                    // The BYOK rows do not follow the account key.
+                    Assert(providers.Where(r => !cloudTranscriptionIds.Contains(r.Id)).All(r => !r.KeyPresent),
+                        "an account key made a BYOK transcription row claim a key");
+
+                    var post = HealthEndpoints.BuildPostProcessingProviders(apiKeys, health: null, keyPresent);
+                    var cloudPost = post.SingleOrDefault(r => r.Id == cloudPostId);
+                    Assert(cloudPost != null, "/health lost the HW-Cloud post-processing row");
+                    Assert(cloudPost!.KeyPresent == keyPresent,
+                        $"/health post-processing {cloudPostId} key_present={cloudPost.KeyPresent} with account key present={keyPresent}");
+                    Assert(post.Where(r => r.Id != cloudPostId).All(r => !r.KeyPresent),
+                        "an account key made a BYOK post-processing row claim a key");
+                }
+
+                // /models `installed` for the same HW-Cloud-routed rows (always
+                // Enabled in the library) follows the same account key; an
+                // Enabled BYOK row does not move with it.
+                LibraryModel Row(string id, object payload, LibraryModelKind kind) => new()
+                {
+                    Id = id,
+                    DisplayName = "row",
+                    ProviderName = "row",
+                    ProviderAssetName = "row",
+                    Kind = kind,
+                    LocationKind = LibraryModelLocationKind.Cloud,
+                    StatusKind = LibraryModelStatusKind.Enabled,
+                    Source = LibraryModelSource.CloudTranscription,
+                    SupportsCustomVocabulary = false,
+                    AvailableViaHyperWhisperCloud = false,
+                    Payload = payload
+                };
+                var cloudRowsForModels = cloudTranscription
+                    .Select(p => Row(
+                        p.GetIdentifier(),
+                        CloudTranscriptionModels.GetModelsForProvider(p).First(),
+                        LibraryModelKind.Voice))
+                    .Append(Row(
+                        cloudPostId,
+                        new LanguageModelInfo("hw-cloud", "HW Cloud", PostProcessingProvider.HyperWhisperCloud, "test"),
+                        LibraryModelKind.Text))
+                    .ToList();
+                var byokRow = Row(
+                    "deepgram",
+                    CloudTranscriptionModels.All.First(m => m.Provider == CloudTranscriptionProvider.Deepgram),
+                    LibraryModelKind.Voice);
+                foreach (var keyPresent in new[] { false, true })
+                {
+                    foreach (var row in cloudRowsForModels)
+                    {
+                        var entry = ModelsEndpoints.ToEntry(row, keyPresent);
+                        Assert(entry.Installed == keyPresent,
+                            $"/models {row.Id} installed={entry.Installed} with account key present={keyPresent}");
+                    }
+                    Assert(ModelsEndpoints.ToEntry(byokRow, keyPresent).Installed,
+                        $"an Enabled BYOK row read as not installed with account key present={keyPresent}");
+                }
             });
 
             Run("issue #742: a failed Credential Manager write is reported, and the log holds no ApiKeys: Saved for it", () =>
@@ -17398,6 +17566,87 @@ internal static class Program
                 Assert(list.ItemContainerGenerator.ContainerFromIndex(0) is null,
                     "scrolled to the end, the first card is still built - containers are not released");
                 Assert(Realized() <= 40, $"scrolled to the end, {Realized()} cards are built");
+            });
+
+            Run("tray: an active mode past the first 50 is listed and checked in Select Mode - issue #1870", () =>
+            {
+                // #1870. Since #1593 the tray Select Mode submenu lists the first 50 modes,
+                // then More... With the active mode at index 50 or later no item was
+                // checked, so the tray hid which mode was active. Ray (inbox #1293): add
+                // it as one extra checked item after the 50, before More... Drive the real
+                // RefreshModeMenu on a bare window with 10,000 modes.
+                const int count = 10_000;
+                var modes = Enumerable.Range(0, count).Select(i => new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = $"mode {i:D5}",
+                    SortOrder = i
+                }).ToList();
+
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                var window = (HyperWhisper.Views.Windows.MainWindow)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(HyperWhisper.Views.Windows.MainWindow));
+                var menu = new System.Windows.Forms.ToolStripMenuItem();
+                const BindingFlags field = BindingFlags.Instance | BindingFlags.NonPublic;
+                typeof(MainViewModel).GetField("_modes", field)!.SetValue(vm, modes);
+                typeof(HyperWhisper.Views.Windows.MainWindow).GetField("_viewModel", field)!.SetValue(window, vm);
+                typeof(HyperWhisper.Views.Windows.MainWindow).GetField("_modeMenu", field)!.SetValue(window, menu);
+                var refresh = typeof(HyperWhisper.Views.Windows.MainWindow).GetMethod("RefreshModeMenu", field)!;
+
+                List<System.Windows.Forms.ToolStripMenuItem> Rebuild(Mode? active)
+                {
+                    typeof(MainViewModel).GetField("_selectedMode", field)!.SetValue(vm, active);
+                    refresh.Invoke(window, null);
+                    return menu.DropDownItems.OfType<System.Windows.Forms.ToolStripMenuItem>().ToList();
+                }
+
+                var limit = HyperWhisper.Views.Windows.MainWindow.TrayModeMenuLimit;
+                var moreText = HyperWhisper.Localization.Loc.S("menu.mode.more");
+
+                // Active mode 00500: the 50 modes, then 00500 checked, then More...
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                var items = Rebuild(modes[500]);
+                clock.Stop();
+                var modeItems = items.Where(i => i.Tag is Mode).ToList();
+                Assert(modeItems.Count == limit + 1,
+                    $"the submenu lists {modeItems.Count} modes with mode 00500 active, not {limit + 1}");
+                var checkedItems = modeItems.Where(i => i.Checked).ToList();
+                Assert(checkedItems.Count == 1 && ReferenceEquals(checkedItems[0].Tag, modes[500]),
+                    $"{checkedItems.Count} items are checked and mode 00500 is not the checked one");
+                Assert(ReferenceEquals(modeItems[limit].Tag, modes[500]) && modeItems[limit].Text == "mode 00500",
+                    "the active mode is not the extra item right after the first 50");
+                Assert(ReferenceEquals(modeItems[limit - 1].Tag, modes[limit - 1]),
+                    "mode 50 was swapped out for the active mode");
+                Assert(items.Last().Text == moreText && menu.DropDownItems.IndexOf(modeItems[limit]) < menu.DropDownItems.IndexOf(items.Last()),
+                    "More... is not the last item, after the active mode");
+                Assert(clock.ElapsedMilliseconds < 2000,
+                    $"building the submenu for {count} modes took {clock.ElapsedMilliseconds} ms");
+
+                // The last mode active: same shape.
+                items = Rebuild(modes[count - 1]);
+                modeItems = items.Where(i => i.Tag is Mode).ToList();
+                Assert(modeItems.Count == limit + 1 && modeItems[limit].Checked && ReferenceEquals(modeItems[limit].Tag, modes[count - 1]),
+                    "the last mode, when active, is not listed and checked after the first 50");
+
+                // Active mode inside the first 50: no extra item, it is checked in place.
+                items = Rebuild(modes[7]);
+                modeItems = items.Where(i => i.Tag is Mode).ToList();
+                Assert(modeItems.Count == limit, $"an active mode inside the first 50 added an item: {modeItems.Count}");
+                Assert(modeItems.Count(i => i.Checked) == 1 && modeItems[7].Checked, "mode 00007 is not checked in place");
+
+                // No active mode, or one no longer in the list: the first 50 only.
+                Assert(Rebuild(null).Count(i => i.Tag is Mode) == limit, "no active mode still added an item");
+                var gone = new Mode { Id = Guid.NewGuid(), Name = "deleted" };
+                items = Rebuild(gone);
+                Assert(items.Count(i => i.Tag is Mode) == limit && !items.Any(i => i.Checked),
+                    "an active mode that is not in the list was added to the submenu");
+
+                // 50 modes or fewer: unchanged, no More...
+                typeof(MainViewModel).GetField("_modes", field)!.SetValue(vm, modes.Take(3).ToList());
+                items = Rebuild(modes[2]);
+                Assert(items.Count == 3 && items[2].Checked && items.All(i => i.Text != moreText),
+                    "a 3-mode submenu changed shape");
             });
 
             Run("modes: a long mode name never pushes the hint or the model out of the status bar", () =>

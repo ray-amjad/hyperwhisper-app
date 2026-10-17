@@ -15,9 +15,7 @@ public static class PostProcessingModelCatalog
             [
                 new("gpt-5.6-luna", "GPT-5.6 Luna"), new("gpt-6-luna", "GPT-6 Luna"),
                 new("gpt-4.1-mini", "GPT-4.1 Mini"),
-                new("gpt-4.1", "GPT-4.1"),
-                new("gpt-5.1", "GPT-5.1"), new("gpt-5.2", "GPT-5.2"),
-                new("gpt-5.4-nano", "GPT-5.4 Nano"), new("gpt-5.4-mini", "GPT-5.4 Mini"),
+                new("gpt-5.2", "GPT-5.2"), new("gpt-5.4-mini", "GPT-5.4 Mini"),
                 new("gpt-5.4", "GPT-5.4"),
             ],
             [CloudPostProcessingProvider.Anthropic] =
@@ -34,12 +32,11 @@ public static class PostProcessingModelCatalog
             [new("grok-4.3", "Grok 4.3"), new("grok-4.5", "Grok 4.5"), new("grok-4.6", "Grok 4.6")],
             [CloudPostProcessingProvider.Gemini] =
             [
-                new("gemini-3.5-flash", "Gemini 3.5 Flash"),
-                new("gemini-3.6-flash", "Gemini 3.6 Flash"), new("gemini-3.7-flash", "Gemini 3.7 Flash"),
-                new("gemini-3.8-flash", "Gemini 3.8 Flash"),
+                // 3.8 Flash first: ResolveModel falls back to the first row (matches macOS's default).
+                new("gemini-3.8-flash", "Gemini 3.8 Flash"), new("gemini-3.6-flash", "Gemini 3.6 Flash"),
                 new("gemini-2.5-flash", "Gemini 2.5 Flash"), new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite"),
                 new("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite"), new("gemini-2.5-pro", "Gemini 2.5 Pro"),
-                new("gemini-3.1-pro-preview", "Gemini 3.1 Pro"), new("gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite"),
+                new("gemini-3.1-pro-preview", "Gemini 3.1 Pro"),
             ],
             [CloudPostProcessingProvider.Cerebras] =
             [new("gpt-oss-120b", "GPT OSS 120B"), new("qwen-3.8-27b", "Qwen 3.8 27B")],
@@ -64,6 +61,14 @@ public static class PostProcessingModelCatalog
         // gpt-4.1-nano retires 2026-10-23; gpt-5 / -mini / -nano lose their only snapshots
         // 2026-12-11. All four go to gpt-5.6-luna (matches Windows and macOS).
         "gpt-4.1-nano" or "gpt-5-nano" or "gpt-5-mini" or "gpt-5" => "gpt-5.6-luna",
+        // OpenAI removes gpt-5.1 and gpt-5.4-nano 2027-04-01 (#1209). Matches Windows and macOS.
+        "gpt-5.1" => "gpt-5.6-luna",
+        "gpt-5.4-nano" => "gpt-6-luna",
+        // OpenAI removes gpt-4.1 2027-01-14 (notice 2026-10-14) and names gpt-6-luna.
+        "gpt-4.1" => "gpt-6-luna",
+        // Google deprecated both 2026-10-08 and routes them to these successors.
+        "gemini-3.5-flash" => "gemini-3.6-flash",
+        "gemini-3.7-flash" => "gemini-3.8-flash",
         // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10; every old id maps straight to
         // its 5.5 successor (matches Windows and macOS).
         "claude-3-haiku-20240307" or "claude-3-5-haiku-latest" or "claude-haiku-4.5" or
@@ -84,13 +89,14 @@ public static class PostProcessingModelCatalog
         // gates 2.5 to past users since 2026-09-18 (#1019). Matches Windows.
         "gemma-3-12b-it" or "gemma-3-27b-it" => "gemini-3.8-flash",
         "gemini-3-pro-preview" => "gemini-3.1-pro-preview",
-        "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
+        // gemini-3.1-flash-lite shuts down 2027-05-07 (#798). Matches Windows and macOS.
+        "gemini-3.1-flash-lite" or "gemini-3.1-flash-lite-preview" => "gemini-3.5-flash-lite",
         "gemini-2.0-flash" => "gemini-3.6-flash",
         // Left the picker 2026-10. 3.8 Flash on every route: HyperWhisper Cloud does not
         // serve 3.6 (PARITY: hw-catalog GEMINI_ALIASES, Windows, macOS).
         "gemini-3-flash-preview" => "gemini-3.8-flash",
         "qwen/qwen3.6-27b" => "qwen/qwen3.8-27b",
-        "gemini-2.0-flash-lite" => "gemini-3.1-flash-lite",
+        "gemini-2.0-flash-lite" => "gemini-3.5-flash-lite",
         _ => model,
     };
 }

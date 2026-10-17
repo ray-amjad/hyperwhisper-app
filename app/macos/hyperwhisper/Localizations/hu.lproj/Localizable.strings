@@ -798,6 +798,7 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.field.name.placeholder" = "pl., Találkozó jegyzetek";
 "modes.field.name.editPlaceholder" = "Mód neve";
 "modes.field.name.defaultLocked" = "Ez az alapértelmezett mód, ezért a neve nem módosítható. Bármelyik másik módot átnevezheti.";
+"modes.field.name.taken" = "Már létezik ilyen nevű mód.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Szolgáltató";
 "modes.provider.local" = "Helyi";
@@ -824,7 +825,7 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "transcripts.delete.single.message" = "Ez véglegesen törli ezt a felvételt és az audio fájlját.";
 "transcripts.delete.multiple.title" = "%d felvétel törlése?";
 "transcripts.delete.multiple.message" = "Ez véglegesen töröl %d felvételt és az audio fájljaikat.\n\nEz a művelet nem vonható vissza.";
-"transcripts.delete.multiple.confirm" = "Összes törlése";
+"transcripts.delete.multiple.confirm" = "%d felvétel törlése";
 "transcripts.retry.error.title" = "Újrapróbálás sikertelen";
 "transcripts.retry.error.modeDeleted" = "A felvételt készítő mód törölve lett, ezért nem történt újrapróbálás. Az Előzményekben kattintson jobb gombbal a felvételre, és válassza a(z) \"Újrapróbálás ezzel...\" lehetőséget egy másik mód kiválasztásához.";
 

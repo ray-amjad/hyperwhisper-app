@@ -2256,16 +2256,6 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-3.1-flash-lite",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "gemini",
       "id": "gemini-3.1-pro-preview",
       "kind": "text",
       "supportsCustomVocabulary": false,
@@ -2287,16 +2277,6 @@
     {
       "provider": "gemini",
       "id": "gemini-3.6-flash",
-      "kind": "text",
-      "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
-      "supportsAllLanguages": true,
-      "languageCodes": [],
-      "voiceCapabilities": null
-    },
-    {
-      "provider": "gemini",
-      "id": "gemini-3.7-flash",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,

@@ -798,6 +798,7 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "modes.field.name.placeholder" = "z. B. Besprechungsnotizen";
 "modes.field.name.editPlaceholder" = "Modusname";
 "modes.field.name.defaultLocked" = "Dies ist der Standardmodus, daher kann sein Name nicht geändert werden. Jeden anderen Modus können Sie umbenennen.";
+"modes.field.name.taken" = "Es gibt bereits einen Modus mit diesem Namen.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Anbieter";
 "modes.provider.local" = "Lokal";
@@ -824,7 +825,7 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "transcripts.delete.single.message" = "Dadurch werden diese Aufnahme und ihre Audiodatei dauerhaft gelöscht.";
 "transcripts.delete.multiple.title" = "%d Aufnahmen löschen?";
 "transcripts.delete.multiple.message" = "Dadurch werden %d Aufnahmen und ihre Audiodateien dauerhaft gelöscht.\n\nDiese Aktion kann nicht rückgängig gemacht werden.";
-"transcripts.delete.multiple.confirm" = "Alle löschen";
+"transcripts.delete.multiple.confirm" = "%d Aufnahmen löschen";
 "transcripts.retry.error.title" = "Wiederholung fehlgeschlagen";
 "transcripts.retry.error.modeDeleted" = "Der Modus, mit dem diese Aufnahme erstellt wurde, wurde gelöscht, daher wurde sie nicht erneut versucht. Klicken Sie im Verlauf mit der rechten Maustaste auf die Aufnahme und wählen Sie \"Wiederholen Sie den Vorgang mit...\", um einen anderen Modus auszuwählen.";
 

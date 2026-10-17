@@ -798,6 +798,7 @@
 "modes.field.name.placeholder" = "нпр., Белешке Састанка";
 "modes.field.name.editPlaceholder" = "Име режима";
 "modes.field.name.defaultLocked" = "Ово је подразумевани режим, па се његово име не може променити. Сваки други режим можете преименовати.";
+"modes.field.name.taken" = "Режим са тим називом већ постоји.";
 "modes.field.model" = "Модел";
 "modes.field.provider" = "Добављач";
 "modes.provider.local" = "Локално";
@@ -824,7 +825,7 @@
 "transcripts.delete.single.message" = "Ово ће трајно обрисати ово снимање и његову звучну датотеку.";
 "transcripts.delete.multiple.title" = "Обриши %d Снимања?";
 "transcripts.delete.multiple.message" = "Ово ће трајно обрисати %d снимања и њихове звучне датотеке.\n\nОва акција не може бити поништена.";
-"transcripts.delete.multiple.confirm" = "Обриши Све";
+"transcripts.delete.multiple.confirm" = "Обриши снимања: %d";
 "transcripts.retry.error.title" = "Покушај поново Неуспешан";
 "transcripts.retry.error.modeDeleted" = "Режим који је направио овај снимак је обрисан, па поновни покушај није изведен. У Историји кликните десним тастером на снимак и изаберите \"Покушај поново са...\" да бисте изабрали други режим.";
 

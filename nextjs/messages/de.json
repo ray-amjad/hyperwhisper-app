@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - KI-Sprachtranskription für macOS und Windows",
-    "description": "Schreiben Sie 5x schneller mit KI-gestützter Sprachtranskription. HyperWhisper transkribiert Ihre Stimme mit beeindruckender Genauigkeit auf macOS und Windows. Sprechen Sie natürlich und sehen Sie Ihre Wörter sofort auf dem Bildschirm."
+    "title": "HyperWhisper - KI-Sprachtranskription für macOS, Windows und Linux",
+    "description": "Schreiben Sie 5x schneller mit KI-gestützter Sprachtranskription. HyperWhisper transkribiert Ihre Stimme mit beeindruckender Genauigkeit auf macOS, Windows und Linux. Sprechen Sie natürlich und sehen Sie Ihre Wörter sofort auf dem Bildschirm."
   },
   "navbar": {
     "features": "Funktionen",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Kann ich es ohne Internet nutzen?",
-        "answer": "Absolut. HyperWhisper kann mithilfe lokaler KI-Modelle vollständig offline auf Ihrem Mac oder Windows-PC verwendet werden – keine Internetverbindung erforderlich. Für Anwender, die maximale Genauigkeit und Geschwindigkeit wünschen, bieten wir optional auch die Cloud-Verarbeitung über verschiedene Cloud-Anbieter an."
+        "answer": "Absolut. HyperWhisper kann mithilfe lokaler KI-Modelle vollständig offline auf Ihrem Mac, Windows-PC oder Linux-Rechner verwendet werden – keine Internetverbindung erforderlich. Für Anwender, die maximale Genauigkeit und Geschwindigkeit wünschen, bieten wir optional auch die Cloud-Verarbeitung über verschiedene Cloud-Anbieter an."
       },
       "apiKey": {
         "question": "Muss ich für den API-Zugriff bezahlen?",
@@ -175,12 +175,12 @@
         "answer": "Für die Offline-Transkription bieten wir verschiedene Größen des Whisper-Modells an (von OpenAI, mit Unterstützung für 99+ Sprachen). Außerdem bieten wir die Parakeet-Modelle von NVIDIA an (mit Unterstützung für 25+ Sprachen).\n \n Für die Offline-Nachbearbeitung bieten wir verschiedene Größen des Gemma-3-Modells (von Google) an."
       },
       "compatibility": {
-        "question": "Funktioniert es mit allen Mac- und Windows-Apps?",
+        "question": "Funktioniert es mit allen meinen Apps?",
         "answer": "Ja, es funktioniert überall, wo Sie tippen können. Ob E-Mails, Dokumente, Code oder Chat: Drücken Sie einfach die Tastenkombination, sprechen Sie und sehen Sie Ihre Wörter sofort erscheinen."
       },
       "privacy": {
         "question": "Wie wird meine Privatsphäre geschützt?",
-        "answer": "Im lokalen Modus verlassen niemals Daten Ihren Mac oder Windows-PC.\n\nBei Verwendung der Cloud-Transkription werden Ihre Daten an den von Ihnen gewählten Cloud-Anbieter gesendet (z. B. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox oder Google Gemini).\n\nSie können dies selbst mit einem Netzwerkinspektor wie [Proxyman](https://proxyman.io) oder einem Netzwerkmonitor wie [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) überprüfen – oder indem Sie den [Quellcode auf GitHub](https://github.com/ray-amjad/hyperwhisper-app) lesen."
+        "answer": "Im lokalen Modus verlassen niemals Daten Ihren Mac, Windows-PC oder Linux-Rechner.\n\nBei Verwendung der Cloud-Transkription werden Ihre Daten an den von Ihnen gewählten Cloud-Anbieter gesendet (z. B. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox oder Google Gemini).\n\nSie können dies selbst mit einem Netzwerkinspektor wie [Proxyman](https://proxyman.io) oder einem Netzwerkmonitor wie [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) überprüfen – oder indem Sie den [Quellcode auf GitHub](https://github.com/ray-amjad/hyperwhisper-app) lesen."
       },
       "cloud": {
         "question": "Was ist HyperWhisper Cloud?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Was sind die Systemvoraussetzungen?",
-        "answer": "Für Mac: macOS 14 oder neuer, sowohl Apple Silicon als auch Intel werden unterstützt. Für Windows: Windows 10/11, x64 oder ARM64. Für optimale Leistung werden 8 GB RAM empfohlen."
+        "answer": "Für Mac: macOS 14 oder neuer, sowohl Apple Silicon als auch Intel werden unterstützt. Für Windows: Windows 10/11, x64 oder ARM64. Für Linux v1: Ubuntu 22.04 oder neuer bzw. Debian 12 oder neuer, auf amd64. Für optimale Leistung werden 8 GB RAM empfohlen."
       },
       "madeBy": {
         "question": "Wer hat HyperWhisper entwickelt?",
@@ -289,7 +289,7 @@
     "loading": "Wird geladen..."
   },
   "footer": {
-    "tagline": "Schreiben Sie 5x schneller mit der KI-gestützten Sprachtranskription für macOS und Windows.",
+    "tagline": "Schreiben Sie 5x schneller mit der KI-gestützten Sprachtranskription für macOS, Windows und Linux.",
     "product": "Produkt",
     "resources": "Ressourcen",
     "company": "Unternehmen",

@@ -954,6 +954,15 @@ internal static class TranscribeEndpoints
     }
 
     /// <summary>
+    /// The refusal for <c>engine: whisper</c> with no or a blank <c>model</c>
+    /// (issue #1493). Internal so the smoke tests pin the exact wording.
+    /// </summary>
+    internal const string WhisperModelRequiredMessage = "A Whisper model is required.";
+
+    /// <summary>The hint that goes with <see cref="WhisperModelRequiredMessage"/>.</summary>
+    internal const string WhisperModelRequiredHint = "Send model, for example base.en.";
+
+    /// <summary>
     /// Encode an engine + (optional) model pair onto a Mode's provider/engine
     /// fields. Recognized engine strings are: any cloud-provider identifier
     /// ("openai", "groq", "deepgram", "hyperwhisper", "gemini", …) plus "cloud"
@@ -1069,9 +1078,16 @@ internal static class TranscribeEndpoints
             case HwLocalApiEngineId.WhisperLocal:
                 if (string.IsNullOrWhiteSpace(model))
                 {
+                    // A request mistake, not an outage (issue #1493, Ray via
+                    // inbox #295): INVALID_REQUEST with a hint to send
+                    // `model`, never a default model. ENGINE_UNAVAILABLE said
+                    // "try again later", which a client retries forever. Same
+                    // bytes as macOS (`APIInputError.whisperModelRequired`) and
+                    // the portable head's message.
                     throw new ApiInputException(
-                        LocalApiErrorCode.EngineUnavailable,
-                        "Missing 'model' for whisperLocal engine");
+                        LocalApiErrorCode.InvalidRequest,
+                        WhisperModelRequiredMessage,
+                        WhisperModelRequiredHint);
                 }
 
                 mode.ProviderType = "local";

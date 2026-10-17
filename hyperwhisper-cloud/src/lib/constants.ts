@@ -59,6 +59,11 @@ export const META_MUSE_SOURCE_MAX_BYTES = META_MUSE_MAX_BYTES * 2;
 // buffered by formData() on a 1 GB Fly machine). Finer per-image / per-messages
 // caps below bound Anthropic vision spend after buffering.
 export const MAX_ASSISTANT_BODY_BYTES = 25 * 1024 * 1024; // 25 MB
+// `/post-process` total-body guard, checked against Content-Length BEFORE
+// `c.req.json()` buffers the body, so an unauthenticated oversized request is
+// refused before it costs RAM. A real body is small: `text` is capped at
+// 100,000 characters, so 2 MB leaves room for JSON escaping and the prompt.
+export const MAX_POST_PROCESS_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
 // Multipart `image` file cap.
 export const MAX_ASSISTANT_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 

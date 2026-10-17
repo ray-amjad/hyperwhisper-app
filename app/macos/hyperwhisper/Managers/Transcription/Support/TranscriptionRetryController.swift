@@ -307,9 +307,10 @@ class TranscriptionRetryController {
 
             // FAILURE HANDLING: Update transcript with error information
             // This helps users understand why the retry failed
+            let failure = Self.failedRow(after: error, audioDuration: transcript.duration)
             transcript.setValue("failed", forKey: "status")
-            transcript.setValue(error.localizedDescription, forKey: "failedReason")
-            transcript.text = "Retry failed: \(error.localizedDescription)"
+            transcript.setValue(failure.failedReason, forKey: "failedReason")
+            transcript.text = failure.text
 
             // Save the failed state
             persistence.save()
@@ -321,6 +322,16 @@ class TranscriptionRetryController {
         }
     }
 
+    /// The `failedReason` and row text a failed Retry writes.
+    ///
+    /// A too-short file gets the file wording with its length, not "record for
+    /// longer", and its text stays empty, the reason only in Reason, as a
+    /// first import since #1427. A retry always re-runs a saved file, whatever
+    /// made the row (Ray, #1836). Other failures keep "Retry failed: …".
+    static func failedRow(after error: Error, audioDuration: TimeInterval) -> (failedReason: String, text: String) {
+        let reason = FileTranscriptionFlow.failureMessage(for: error, audioDuration: audioDuration)
+        return (reason, FileTranscriptionFlow.isTooShort(error) ? "" : "Retry failed: \(reason)")
+    }
 
     /// Check if a transcript can be retried
     /// ELIGIBILITY CRITERIA:

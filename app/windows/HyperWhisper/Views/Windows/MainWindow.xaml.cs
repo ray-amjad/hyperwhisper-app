@@ -925,7 +925,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        foreach (var mode in modes.Take(TrayModeMenuLimit))
+        foreach (var mode in TrayModeMenuModes(modes, selectedMode))
         {
             bool isSelected = selectedMode != null && selectedMode.Id == mode.Id;
 
@@ -961,6 +961,24 @@ public partial class MainWindow : Window
         }
 
         AddMoreModesItem(_modeMenu, modes.Count);
+    }
+
+    /// <summary>
+    /// The modes the tray Select Mode submenu lists: the first <see cref="TrayModeMenuLimit"/>,
+    /// then the active mode as one extra item when it sits past them, so the menu
+    /// still shows which mode is active (issue #1870; Ray, inbox #1293). The extra
+    /// item goes after the first 50 and before "More...", and never replaces mode 50.
+    /// </summary>
+    internal static IEnumerable<Mode> TrayModeMenuModes(IReadOnlyList<Mode> modes, Mode? selectedMode)
+    {
+        foreach (var mode in modes.Take(TrayModeMenuLimit))
+            yield return mode;
+
+        if (selectedMode == null) yield break;
+
+        var activePastLimit = modes.Skip(TrayModeMenuLimit).FirstOrDefault(m => m.Id == selectedMode.Id);
+        if (activePastLimit != null)
+            yield return activePastLimit;
     }
 
     /// <summary>

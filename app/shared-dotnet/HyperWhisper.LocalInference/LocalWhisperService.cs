@@ -179,7 +179,7 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     .ConfigureAwait(false))
                 {
                 }
-                // Whisper writes its own non-speech markers ([BLANK_AUDIO] and kin)
+                // Whisper writes its own non-speech markers (a blank-audio tag and kin)
                 // as segment text. A silent file or mic must come back empty, so
                 // the workflow reports no speech instead of saving or pasting the
                 // marker as a transcript (issue #1742, the Linux sibling of #1449).
