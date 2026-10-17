@@ -17315,6 +17315,99 @@ internal static class Program
                     "before the first fit a refit must start from the design");
             });
 
+            Run("per-monitor DPI: work areas convert per monitor, and the overlay lands on screen at 150% (#1501)", () =>
+            {
+                // The app is Per-Monitor V2 aware, so SystemParameters.WorkArea (in
+                // DIP at the DPI the process started at) no longer describes where a
+                // window goes after a live scale change. MonitorWorkArea works from
+                // the monitor's physical work area and that monitor's own DPI.
+                var s150 = MonitorWorkArea.Scale.FromDpi(144, 144);
+                Assert(s150 == new MonitorWorkArea.Scale(1.5, 1.5), $"144 DPI must be scale 1.5, got {s150}");
+                Assert(MonitorWorkArea.Scale.FromDpi(0, double.NaN) == MonitorWorkArea.Scale.Identity,
+                    "a missing DPI must fall back to 1.0, not divide by zero");
+
+                // 2560 x 1440 at 150% with a 48 px taskbar: 1706.7 x 928 DIP.
+                var primaryPx = new Rect(0, 0, 2560, 1392);
+                var primaryDip = MonitorWorkArea.ToDip(primaryPx, s150);
+                Assert(Math.Abs(primaryDip.Width - 2560 / 1.5) < 0.001 && Math.Abs(primaryDip.Height - 928) < 0.001,
+                    $"physical work area / 1.5 must be 1706.7 x 928 DIP, got {primaryDip}");
+
+                // A secondary monitor to the right, also at 150%.
+                var secondaryPx = new Rect(2560, 0, 1920, 1032);
+                var secondaryDip = MonitorWorkArea.ToDip(secondaryPx, s150);
+                Assert(Math.Abs(secondaryDip.Left - 2560 / 1.5) < 0.001,
+                    $"the origin scales with the rest of the rectangle, got {secondaryDip}");
+
+                bool InsidePx(Point topLeftPx, double widthDip, double heightDip, MonitorWorkArea.Scale scale, Rect areaPx) =>
+                    topLeftPx.X >= areaPx.Left - 0.5 && topLeftPx.Y >= areaPx.Top - 0.5 &&
+                    topLeftPx.X + widthDip * scale.X <= areaPx.Right + 0.5 &&
+                    topLeftPx.Y + heightDip * scale.Y <= areaPx.Bottom + 0.5;
+
+                // The 200 x 40 overlay's default spot, worked out in the 150%
+                // monitor's DIP, while the overlay's own HWND is still at 100%
+                // (created on a 96 DPI monitor): Rebase keeps the physical pixel.
+                var overlay = RecordingOverlayWindow.OverlayTopLeft(primaryDip, 200, 40, -1, -1);
+                var leftTopAt100 = MonitorWorkArea.Rebase(overlay, s150, MonitorWorkArea.Scale.Identity);
+                Assert(InsidePx(leftTopAt100, 200, 40, s150, primaryPx),
+                    $"overlay default on a 150% monitor must be inside it, top-left {leftTopAt100} px");
+                Assert(Math.Abs(leftTopAt100.Y + 40 * 1.5 + 20 * 1.5 - primaryPx.Bottom) < 0.5,
+                    $"overlay default keeps its 20 DIP bottom margin at 150%, top {leftTopAt100.Y} px");
+
+                // What the old SystemParameters.WorkArea arithmetic did after a live
+                // 100% -> 150% change: the work area still read 2560 x 1392 "DIP",
+                // and the window's 1.5 scale put the overlay below the screen.
+                var stale = RecordingOverlayWindow.OverlayTopLeft(new Rect(0, 0, 2560, 1392), 200, 40, -1, -1);
+                var stalePx = MonitorWorkArea.Rebase(stale, s150, MonitorWorkArea.Scale.Identity);
+                Assert(!InsidePx(stalePx, 200, 40, s150, primaryPx),
+                    "the stale-DPI case no longer reproduces the off-screen overlay; the check above proves nothing");
+
+                // A saved position is a ratio of the PHYSICAL position to the
+                // physical work area, so it restores to the same pixel at any scale.
+                var savedPx = new Point(1800, 1000);
+                var xRatio = savedPx.X / primaryPx.Width;
+                var yRatio = savedPx.Y / primaryPx.Height;
+                var restored = MonitorWorkArea.Rebase(
+                    RecordingOverlayWindow.OverlayTopLeft(primaryDip, 200, 40, xRatio, yRatio), s150, MonitorWorkArea.Scale.Identity);
+                Assert(Math.Abs(restored.X - savedPx.X) < 0.5 && Math.Abs(restored.Y - savedPx.Y) < 0.5,
+                    $"a saved overlay position must restore to the same pixel at 150%, got {restored}");
+
+                // A toast centred above an overlay on the 150% secondary, from a
+                // toast HWND still at 100%: lands inside the secondary.
+                var anchorDip = new Rect(secondaryDip.Left + 300, secondaryDip.Bottom - 60, 200, 40);
+                var toastDip = new Point(anchorDip.Left + (anchorDip.Width - 200) / 2, anchorDip.Top - 36 - 12);
+                var toastPx = MonitorWorkArea.Rebase(toastDip, s150, MonitorWorkArea.Scale.Identity);
+                Assert(InsidePx(toastPx, 200, 36, s150, secondaryPx),
+                    $"a toast above an overlay on a 150% secondary must be on it, top-left {toastPx} px");
+
+                // And back: 100% DIP on a window that is already at 175%.
+                var back = MonitorWorkArea.Rebase(new Point(175, 350), MonitorWorkArea.Scale.Identity, new MonitorWorkArea.Scale(1.75, 1.75));
+                Assert(Math.Abs(back.X - 100) < 0.001 && Math.Abs(back.Y - 200) < 0.001,
+                    $"175 x 350 px is 100 x 200 DIP at 175%, got {back}");
+            });
+
+            Run("per-monitor DPI: HyperWhisper carries a PerMonitorV2 manifest (#1501)", () =>
+            {
+                // Without it the process is only system DPI aware and Windows
+                // bitmap-stretches every window after a live scale change. The SDK
+                // embeds <ApplicationManifest> in the managed assembly and copies it
+                // into the apphost, HyperWhisper.exe, which is what Windows reads.
+                var dll = typeof(WindowWorkAreaFit).Assembly.Location;
+                var candidates = new[] { dll, Path.ChangeExtension(dll, ".exe") }.Where(File.Exists).ToList();
+                Assert(candidates.Count > 0, $"no HyperWhisper binary next to {dll}");
+                foreach (var path in candidates)
+                {
+                    var manifest = Win32ManifestReader.Read(path);
+                    Assert(manifest != null, $"{Path.GetFileName(path)} has no RT_MANIFEST resource");
+                    Assert(manifest!.Contains("<dpiAwareness", StringComparison.Ordinal) &&
+                           manifest.Contains("PerMonitorV2", StringComparison.Ordinal),
+                        $"{Path.GetFileName(path)} manifest does not declare PerMonitorV2:{Environment.NewLine}{manifest}");
+                    Assert(manifest.Contains("true/pm", StringComparison.Ordinal),
+                        $"{Path.GetFileName(path)} manifest lost the dpiAware true/pm fallback");
+                    Assert(manifest.Contains("level=\"asInvoker\"", StringComparison.Ordinal),
+                        $"{Path.GetFileName(path)} manifest must keep requestedExecutionLevel asInvoker");
+                }
+            });
+
             Run("work-area fit: a refit while minimised runs on restore (#1500)", () =>
             {
                 // A display change while the window sits minimised in the taskbar
@@ -25023,4 +25116,60 @@ internal static class Program
                 Array.Empty<HyperWhisper.Statistics.StatisticsTranscript>());
         }
     }
+}
+
+/// <summary>
+/// Reads a binary's Win32 manifest (RT_MANIFEST) without running it, for the
+/// PerMonitorV2 check (issue #1501).
+/// </summary>
+internal static class Win32ManifestReader
+{
+    private const uint LOAD_LIBRARY_AS_DATAFILE = 0x00000002;
+    private const uint LOAD_LIBRARY_AS_IMAGE_RESOURCE = 0x00000020;
+    private static readonly IntPtr RT_MANIFEST = 24;
+
+    internal static string? Read(string path)
+    {
+        var module = LoadLibraryEx(path, IntPtr.Zero, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+        if (module == IntPtr.Zero) return null;
+        try
+        {
+            // 1 is an application's manifest, 2 an isolation-aware DLL's.
+            for (var id = 1; id <= 3; id++)
+            {
+                var resource = FindResource(module, id, RT_MANIFEST);
+                if (resource == IntPtr.Zero) continue;
+                var size = (int)SizeofResource(module, resource);
+                var data = LockResource(LoadResource(module, resource));
+                if (data == IntPtr.Zero || size <= 0) continue;
+                var bytes = new byte[size];
+                System.Runtime.InteropServices.Marshal.Copy(data, bytes, 0, size);
+                return System.Text.Encoding.UTF8.GetString(bytes);
+            }
+            return null;
+        }
+        finally
+        {
+            FreeLibrary(module);
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hFile, uint dwFlags);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr FindResource(IntPtr hModule, IntPtr lpName, IntPtr lpType);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr LoadResource(IntPtr hModule, IntPtr hResInfo);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern IntPtr LockResource(IntPtr hResData);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint SizeofResource(IntPtr hModule, IntPtr hResInfo);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool FreeLibrary(IntPtr hModule);
 }
