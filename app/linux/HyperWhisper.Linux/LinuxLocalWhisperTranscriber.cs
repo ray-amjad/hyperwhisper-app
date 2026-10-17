@@ -112,6 +112,9 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
                     cancellationToken).ConfigureAwait(false);
                 if (!loaded.IsSuccess)
                     return MapFailure(loaded, preference.DisplayName);
+                // Once per load, like the head's other stderr notices; backend names only (#1002).
+                if (preference.Notice is not null)
+                    try { Console.Error.WriteLine($"HyperWhisper whisper: CUDA requested but hyperwhisper-cuda is not installed; using {preference.Backend}."); } catch { }
                 if (!preference.AllowCpuFallback
                     && preference.Backend != LocalWhisperBackend.Cpu
                     && !RuntimeMatches(preference.Backend, loaded.Runtime))
@@ -300,6 +303,13 @@ internal sealed class LinuxWhisperRuntimePreferenceSource(
             "1" => true,
             _ => settings.Get("allowLocalWhisperCpuFallback", true),
         };
+        return Resolve(configured, allowFallback);
+    }
+
+    /// <summary>What a picker choice resolves to on this machine, before it is saved.</summary>
+    internal LinuxWhisperRuntimePreference Resolve(string? configured, bool allowFallback)
+    {
+        configured ??= "auto";
         if (!string.Equals(configured, "auto", StringComparison.OrdinalIgnoreCase))
             return WithCudaPackage(EnvironmentWhisperRuntimePreferenceSource.Parse(configured), allowFallback);
         var detected = gpu.GetBestGpu();
@@ -310,6 +320,25 @@ internal sealed class LinuxWhisperRuntimePreferenceSource(
             _ => LocalWhisperBackend.Cpu,
         };
         return WithCudaPackage(backend, allowFallback);
+    }
+
+    /// <summary>
+    /// The Model Library's Whisper status line for the picker's choice: names the
+    /// missing hyperwhisper-cuda package and the backend Whisper uses instead (#1002).
+    /// Null when the choice runs as picked, and for "auto", whose GPU probe runs
+    /// subprocesses this UI-thread binding must not wait on.
+    /// </summary>
+    internal string? DescribeChoice(string? configured, bool allowFallback) =>
+        configured is null || string.Equals(configured, "auto", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : Describe(Resolve(configured, allowFallback));
+
+    internal static string? Describe(LinuxWhisperRuntimePreference preference)
+    {
+        if (preference.Notice is null) return null;
+        if (preference.Unavailable) return LinuxCudaPackage.MissingFailure;
+        var fallback = preference.Backend == LocalWhisperBackend.Vulkan ? "Vulkan" : "CPU";
+        return $"{preference.Notice}; Whisper falls back to {fallback}.";
     }
 
     /// <summary>CUDA 12 ships in hyperwhisper-cuda (#1002); without it, fall back.</summary>

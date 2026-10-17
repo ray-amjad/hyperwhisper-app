@@ -68,6 +68,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("local Whisper timestamps route through portable result", LocalWhisperTimestampsRoute),
     ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
+    ("Model Library Whisper line names a missing hyperwhisper-cuda package", ModelLibraryWhisperLineNamesMissingCudaPackage),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
     ("Local API post-processing refuses a Cloud run with no account key", LocalApiPostProcessingCloudAccountRequired),
     ("Local API /health key_present for hyperwhisper follows the account key", LocalApiHealthCloudKeyFollowsAccountKey),
@@ -1438,6 +1439,64 @@ static Task WhisperSettingsSelectBackends()
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", "0");
         Assert(detected.Resolve() == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Vulkan, false),
             "explicit strict Vulkan setting was not honored");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", previousBackend);
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", previousFallback);
+    }
+    return Task.CompletedTask;
+}
+
+// Issue #1002: picking CUDA 12 without hyperwhisper-cuda falls back silently unless the Model
+// Library's Whisper line (SettingsLocalWhisperRuntimeStatus, bound to LocalWhisperRuntimeStatus)
+// says so. Wired the way MainWindow wires it; the runtime has no cuda12 library.
+static Task ModelLibraryWhisperLineNamesMissingCudaPackage()
+{
+    var previousBackend = Environment.GetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND");
+    var previousFallback = Environment.GetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK");
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-whisper-line-{Guid.NewGuid():N}");
+    try
+    {
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", null);
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", null);
+        var nvidia = new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true });
+        LinuxWhisperRuntimePreferenceSource Source(params NativeComputeBackend[] backends) =>
+            new(new MissingPrivateFiles(), new StaticPaths(root), nvidia, new FixedRuntime(backends));
+        var settings = new SettingsViewModel(
+            new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")),
+            localWhisperRuntimeStatus: "Mode-selected transcription");
+        settings.LocalWhisperBackendNotice = Source(NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan).DescribeChoice;
+        var changes = new List<string?>();
+        settings.PropertyChanged += (_, e) => changes.Add(e.PropertyName);
+
+        settings.LocalWhisperBackend = "cuda12";
+        Assert(changes.Contains(nameof(SettingsViewModel.LocalWhisperRuntimeStatus)),
+            "picking CUDA 12 did not refresh the Whisper line");
+        Assert(settings.LocalWhisperRuntimeStatus.Contains(
+                "CUDA is not installed (install the hyperwhisper-cuda package); Whisper falls back to Vulkan.",
+                StringComparison.Ordinal),
+            $"the Whisper line did not name the missing package and the Vulkan fallback: {settings.LocalWhisperRuntimeStatus}");
+
+        settings.LocalWhisperBackend = "vulkan";
+        Assert(!settings.LocalWhisperRuntimeStatus.Contains("hyperwhisper-cuda", StringComparison.Ordinal),
+            "the CUDA notice stayed on the Whisper line after picking Vulkan");
+
+        settings.LocalWhisperBackendNotice = Source(NativeComputeBackend.Cpu).DescribeChoice;
+        settings.LocalWhisperBackend = "cuda12";
+        Assert(settings.LocalWhisperRuntimeStatus.EndsWith(
+                "CUDA is not installed (install the hyperwhisper-cuda package); Whisper falls back to CPU.",
+                StringComparison.Ordinal),
+            $"the Whisper line did not name the CPU fallback: {settings.LocalWhisperRuntimeStatus}");
+        settings.AllowLocalWhisperCpuFallback = false;
+        Assert(settings.LocalWhisperRuntimeStatus.EndsWith(
+                HyperWhisper.Linux.Platform.SystemIntegration.LinuxCudaPackage.MissingFailure, StringComparison.Ordinal),
+            $"the Whisper line did not say strict CUDA cannot run: {settings.LocalWhisperRuntimeStatus}");
+
+        settings.LocalWhisperBackendNotice = Source(
+            NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan, NativeComputeBackend.Cuda).DescribeChoice;
+        Assert(settings.LocalWhisperRuntimeStatus == "Current process capability: Mode-selected transcription.",
+            $"an installed hyperwhisper-cuda still got a notice: {settings.LocalWhisperRuntimeStatus}");
     }
     finally
     {
