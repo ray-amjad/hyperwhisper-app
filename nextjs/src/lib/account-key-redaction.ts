@@ -39,11 +39,27 @@ export function redactAccountKeyFromUrl(url: string): string {
 
 type Properties = Record<string, unknown>;
 
-function redactProperties(properties: Properties | undefined): void {
-  if (!properties) return;
-  for (const [name, value] of Object.entries(properties)) {
-    if (typeof value === "string" && /HW-/i.test(value)) {
-      properties[name] = redactAccountKeyFromUrl(value);
+// Redacts every string in `value`, at any depth, in place. PostHog nests the
+// page URL inside objects and arrays: `$web_vitals_*_event.navigationURL` and
+// its `$current_url`, and the session recording's network entries in
+// `$snapshot_data`, which are named with the URL the page was first loaded
+// with, key included (#1920). `seen` stops a cycle from recursing forever.
+function redactNested(value: unknown, seen: WeakSet<object>): void {
+  if (typeof value !== "object" || value === null || seen.has(value)) return;
+  seen.add(value);
+
+  const entries: [string | number, unknown][] = Array.isArray(value)
+    ? value.map((item, index) => [index, item])
+    : Object.entries(value);
+
+  for (const [name, item] of entries) {
+    if (typeof item === "string") {
+      if (/HW-/i.test(item)) {
+        (value as Record<string | number, unknown>)[name] =
+          redactAccountKeyFromUrl(item);
+      }
+    } else {
+      redactNested(item, seen);
     }
   }
 }
@@ -55,17 +71,23 @@ interface RedactableEvent {
 }
 
 /**
- * PostHog `before_send` hook: redacts an Account Key from every string
- * property of the event and of its `$set` / `$set_once` person properties.
- * Never drops an event.
+ * PostHog `before_send` hook: redacts an Account Key from every string in the
+ * event's properties and its `$set` / `$set_once` person properties, nested
+ * objects and arrays included. posthog-js sends session recording snapshots
+ * (`$snapshot`) through `capture`, so this covers them too. Never drops an
+ * event.
  */
 export function redactAccountKeyFromEvent<T extends RedactableEvent | null>(
   event: T,
 ): T {
   if (!event) return event;
-  redactProperties(event.properties);
-  redactProperties(event.$set);
-  redactProperties(event.$set_once);
+
+  const seen = new WeakSet<object>();
+
+  redactNested(event.properties, seen);
+  redactNested(event.$set, seen);
+  redactNested(event.$set_once, seen);
+
   return event;
 }
 

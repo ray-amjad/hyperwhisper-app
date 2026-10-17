@@ -92,6 +92,128 @@ test("before_send redacts every string property, $set and $set_once, and drops n
   assert.equal(redactAccountKeyFromEvent(null), null);
 });
 
+// The shapes posthog-js 1.438 sent on production (#1920): `history.replaceState`
+// had cleaned the address bar, but both of these read the Performance API's
+// navigation entry, which keeps the URL the page was first loaded with.
+const LOADED_URL = `https://www.hyperwhisper.com/en?licenseKey=${KEY}&utm_source=livecheck#faq`;
+
+test("before_send redacts the key nested in a $web_vitals event", () => {
+  const event = {
+    event: "$web_vitals",
+    properties: {
+      $current_url: LOADED_URL,
+      $web_vitals_FCP_value: 412.5,
+      $web_vitals_FCP_event: {
+        name: "FCP",
+        value: 412.5,
+        navigationType: "navigate",
+        navigationURL: LOADED_URL,
+        $current_url: LOADED_URL,
+        attribution: { navigationEntry: { name: LOADED_URL } },
+        entries: [{ name: "first-contentful-paint", startTime: 412.5 }],
+      },
+    },
+  };
+
+  const sent = redactAccountKeyFromEvent(event);
+
+  assert.doesNotMatch(JSON.stringify(sent), /HW-/i);
+  const fcp = sent.properties.$web_vitals_FCP_event;
+  assert.equal(
+    fcp.navigationURL,
+    "https://www.hyperwhisper.com/en?licenseKey=[redacted]&utm_source=livecheck#faq",
+  );
+  assert.equal(fcp.$current_url, fcp.navigationURL);
+  assert.equal(fcp.value, 412.5);
+  assert.equal(fcp.entries[0].name, "first-contentful-paint");
+  assert.equal(sent.properties.$web_vitals_FCP_value, 412.5);
+});
+
+test("before_send redacts the key from a session recording's network navigation entry", () => {
+  const navigation = {
+    name: LOADED_URL,
+    entryType: "navigation",
+    initiatorType: "navigation",
+    responseStatus: 200,
+    timestamp: 1792150000000,
+  };
+  const fetchUrl = "https://www.hyperwhisper.com/api/trpc/x?input=%7B%7D";
+  const fetch = {
+    name: fetchUrl,
+    entryType: "resource",
+    initiatorType: "fetch",
+  };
+  const meta = {
+    type: 4,
+    data: {
+      href: "https://www.hyperwhisper.com/en?utm_source=livecheck#faq",
+      width: 1280,
+      height: 800,
+    },
+    timestamp: 1,
+  };
+  const event = {
+    event: "$snapshot",
+    properties: {
+      $snapshot_bytes: 512,
+      $session_id: "session-1",
+      $window_id: "window-1",
+      $snapshot_data: [
+        meta,
+        {
+          type: 6,
+          data: {
+            plugin: "rrweb/network@1",
+            payload: { requests: [navigation, fetch] },
+          },
+          timestamp: 2,
+        },
+      ],
+    },
+  };
+
+  const sent = redactAccountKeyFromEvent(event);
+
+  assert.doesNotMatch(JSON.stringify(sent), /HW-/i);
+  // Redacted in place: the sent event holds these same objects.
+  assert.equal(
+    navigation.name,
+    "https://www.hyperwhisper.com/en?licenseKey=[redacted]&utm_source=livecheck#faq",
+  );
+  assert.equal(navigation.responseStatus, 200);
+  assert.equal(fetch.name, fetchUrl);
+  assert.equal(
+    meta.data.href,
+    "https://www.hyperwhisper.com/en?utm_source=livecheck#faq",
+  );
+  assert.equal(sent.properties.$snapshot_bytes, 512);
+});
+
+test("before_send redacts strings in nested arrays, survives a cycle, and keeps other values", () => {
+  const nested: Record<string, unknown> = {
+    urls: [LOADED_URL, ["deeper", `id=${KEY}`]],
+    count: 3,
+    flag: false,
+    missing: null,
+    utm: "hw-launch",
+  };
+  nested.self = nested;
+  const event = { properties: { nested }, $set: { nested } };
+
+  const sent = redactAccountKeyFromEvent(event);
+
+  const out = sent.properties.nested as typeof nested;
+  assert.deepEqual(out.urls, [
+    "https://www.hyperwhisper.com/en?licenseKey=[redacted]&utm_source=livecheck#faq",
+    ["deeper", "id=[redacted]"],
+  ]);
+  assert.equal(out.count, 3);
+  assert.equal(out.flag, false);
+  assert.equal(out.missing, null);
+  assert.equal(out.utm, "hw-launch");
+  assert.equal(out.self, out);
+});
+
 test("the address bar URL loses only the Account Key parameters", () => {
   assert.equal(
     withoutAccountKeyParams(
