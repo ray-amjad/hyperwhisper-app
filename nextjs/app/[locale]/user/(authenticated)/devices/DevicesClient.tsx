@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
 import { formatDate, formatDateTime } from "@/lib/format-date";
+import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 
 const TIME_RANGES = [
   { label: "7 days", value: 7 },
@@ -38,31 +39,19 @@ export default function DevicesClient() {
   );
 
   // A range switch shows the previous range's rows until the new ones land,
-  // so the caption and the empty-state copy follow the rows on screen, not
-  // the button just pressed.
+  // so the caption, the empty-state copy and an expanded row follow the rows
+  // on screen, not the button just pressed. Adjusted during render, so the
+  // render that brings the new rows already carries their range. A failed
+  // fetch is not placeholder data either, so the copy names the range asked
+  // for, as before.
   const [shownDays, setShownDays] = useState(days);
-  useEffect(() => {
-    if (data && !isPlaceholderData) setShownDays(days);
-  }, [data, isPlaceholderData, days]);
+  if (!isPlaceholderData && shownDays !== days) setShownDays(days);
 
   // In flight with rows already on screen: a range switch or a Refresh.
   const isTransitioning = isFetching && !loading;
 
-  // Flips true two frames after the first load ends, so the rows paint at
-  // opacity 0 first and the cross-fade has a start value.
-  const [revealed, setRevealed] = useState(false);
-  useEffect(() => {
-    if (loading) {
-      setRevealed(false);
-
-      return;
-    }
-    let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => setRevealed(true));
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [loading]);
+  // The first load's rows paint at opacity 0, then fade in.
+  const revealed = useRevealAfterLoad(loading);
 
   const devices = data?.devices ?? [];
   const error = queryError?.message ?? null;
