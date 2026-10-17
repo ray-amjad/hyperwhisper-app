@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 
@@ -24,9 +25,44 @@ export default function DevicesClient() {
   const {
     data,
     isLoading: loading,
+    isFetching,
+    isPlaceholderData,
     error: queryError,
     refetch,
-  } = api.admin.devices.list.useQuery({ days });
+  } = api.admin.devices.list.useQuery(
+    { days },
+    // Keep the previous range's rows on screen while a new range loads,
+    // instead of tearing the table down to the skeleton on every click
+    // (#863), as the Customers page does.
+    { placeholderData: keepPreviousData }
+  );
+
+  // A range switch shows the previous range's rows until the new ones land,
+  // so the caption and the empty-state copy follow the rows on screen, not
+  // the button just pressed.
+  const [shownDays, setShownDays] = useState(days);
+  useEffect(() => {
+    if (data && !isPlaceholderData) setShownDays(days);
+  }, [data, isPlaceholderData, days]);
+
+  // In flight with rows already on screen: a range switch or a Refresh.
+  const isTransitioning = isFetching && !loading;
+
+  // Flips true two frames after the first load ends, so the rows paint at
+  // opacity 0 first and the cross-fade has a start value.
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    if (loading) {
+      setRevealed(false);
+
+      return;
+    }
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => setRevealed(true));
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [loading]);
 
   const devices = data?.devices ?? [];
   const error = queryError?.message ?? null;
@@ -46,7 +82,7 @@ export default function DevicesClient() {
             Device Activations
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Unique devices per Account Key (active in last {days} days)
+            Unique devices per Account Key (active in last {shownDays} days)
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -103,7 +139,12 @@ export default function DevicesClient() {
       )}
 
       {/* Devices Table */}
-      <div className="bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden">
+      <div
+        aria-busy={loading || isTransitioning}
+        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden transition-opacity ${
+          isTransitioning ? "opacity-50" : "opacity-100"
+        }`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -119,28 +160,37 @@ export default function DevicesClient() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
+            {/* First load only: skeleton rows, then the real rows fade in.
+                A range switch keeps the previous rows mounted (above). */}
+            {loading && (
+              <tbody aria-hidden className="divide-y divide-white/5">
+                {Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
                     <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-48 animate-pulse" />
+                      <div className="h-4 bg-white/10 rounded w-48 animate-pulse motion-reduce:animate-none" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-28 animate-pulse" />
+                      <div className="h-4 bg-white/10 rounded w-28 animate-pulse motion-reduce:animate-none" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 bg-white/10 rounded w-12 animate-pulse" />
+                      <div className="h-4 bg-white/10 rounded w-12 animate-pulse motion-reduce:animate-none" />
                     </td>
                   </tr>
-                ))
-              ) : devices.length === 0 ? (
+                ))}
+              </tbody>
+            )}
+            <tbody
+              className={`t-skel-content divide-y divide-white/5 transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                revealed ? "opacity-100 blur-[0px]" : "opacity-0 blur-[2px]"
+              }`}
+            >
+              {loading ? null : devices.length === 0 ? (
                 <tr>
                   <td
                     colSpan={3}
                     className="px-6 py-12 text-center text-gray-400"
                   >
-                    No device activations found in the last {days} days.
+                    No device activations found in the last {shownDays} days.
                   </td>
                 </tr>
               ) : (
@@ -148,7 +198,7 @@ export default function DevicesClient() {
                   <DeviceRow
                     key={row.licenseKeyId}
                     row={row}
-                    days={days}
+                    days={shownDays}
                     truncateKey={truncateKey}
                     expanded={expandedId === row.licenseKeyId}
                     onToggle={() =>
