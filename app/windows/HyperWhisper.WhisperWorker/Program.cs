@@ -11,7 +11,10 @@ using Whisper.net.LibraryLoader;
 
 var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 var protocolOut = new StreamWriter(Console.OpenStandardOutput(), utf8) { AutoFlush = false, NewLine = "\n" };
-var log = new StreamWriter(Console.OpenStandardError(), utf8) { AutoFlush = true };
+// One synchronized writer for every log line: the host logs from its stdin
+// reader and its consumer thread, and libraries write through Console, so all
+// of them share this writer's one lock (a bare StreamWriter is not thread-safe).
+var log = TextWriter.Synchronized(new StreamWriter(Console.OpenStandardError(), utf8) { AutoFlush = true });
 Console.SetOut(log);
 Console.SetError(log);
 var input = new StreamReader(Console.OpenStandardInput(), utf8);

@@ -31,6 +31,10 @@ internal sealed class WorkerHost
     /// the factory and each transcription's builder are made on one dedicated
     /// thread, which keeps that factory across requests (one model read per load).
     /// </param>
+    /// <param name="log">
+    /// The diagnostics writer. The stdin reader and the consumer both log, so it
+    /// must be thread-safe (Program passes a <see cref="TextWriter.Synchronized"/> one).
+    /// </param>
     /// <param name="loadedRuntime">The protocol name of the native runtime that loaded.</param>
     public WorkerHost(
         ILocalWhisperService service,
