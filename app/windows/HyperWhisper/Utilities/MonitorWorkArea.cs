@@ -21,6 +21,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using HyperWhisper.Services;
+using Point = System.Windows.Point;
 
 namespace HyperWhisper.Utilities;
 

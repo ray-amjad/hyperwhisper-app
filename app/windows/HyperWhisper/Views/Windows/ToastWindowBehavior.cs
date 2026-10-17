@@ -33,7 +33,7 @@ internal static class ToastWindowBehavior
     {
         var width = overlay.ActualWidth > 0 ? overlay.ActualWidth : overlay.Width;
         var height = overlay.ActualHeight > 0 ? overlay.ActualHeight : overlay.Height;
-        var topLeft = new Point(overlay.Left, overlay.Top);
+        var topLeft = new System.Windows.Point(overlay.Left, overlay.Top);
 
         if (MonitorWorkArea.OfWindow(overlay) is { } monitor)
             topLeft = MonitorWorkArea.Rebase(topLeft, MonitorWorkArea.WindowScale(overlay), monitor.Scale);

@@ -223,7 +223,7 @@ public partial class FileTranscriptionProgressWindow : Window
         // The primary monitor's work area in its own DIP, not
         // SystemParameters.WorkArea, which keeps the DPI the app started at.
         MonitorWorkArea.Place(this, MonitorWorkArea.Primary, screen =>
-            new Point((screen.Width - Width) / 2, (screen.Height - Height) / 2));
+            new System.Windows.Point((screen.Width - Width) / 2, (screen.Height - Height) / 2));
     }
 
     private void MakeNonActivating()
