@@ -1,6 +1,6 @@
 # Spec: Windows on-device Whisper in an idle-exiting worker process
 
-Status: DRAFT 5. The interview is not done. Items marked *(open)* wait for Ray.
+Status: AGREED 2026-10-17. Every decision in §6 is made. Ready to build.
 
 - Repo: `ray-amjad/hyperwhisper-app`, base `main` (`4166f4b0` when this draft was written).
 - Issue: #1194 (follow-up of #1122; PR #1193 closed).
@@ -89,7 +89,7 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 - A broken model file (#1598) is found at the first `load`, not at selection. The client then reports it through the same `IsModelFileLoadFault` path, and `LocalModelHealth` marks it.
 - `IsInitialized` / `LoadedModelPath` mean "this model is selected and can serve", not "the process is alive". After an idle exit they stay true. The next transcribe starts the worker and loads again.
 - `UnloadModelAsync` sends `shutdown` and clears the selection.
-- Idle policy *(open, D2)*: after 5 minutes with no request, the client sends `shutdown`. A request during shutdown waits, then starts a new worker.
+- Idle policy (D2): a fixed constant, 5 minutes, in `WhisperWorkerClient`. No user setting. The timer starts when the last request ends. A running request or a Whisper-mode recording holds it. When it fires, the client sends `shutdown` and waits up to 5 s for the exit, then kills the process. A request during shutdown waits for the exit, then starts a new worker.
 - Keep-warm (D5): when a Whisper-mode recording starts, if the worker is down, start it and send `load` in parallel with the recording. So most of the start + load cost hides behind the speech. A Local API request or a file job starts it on demand. Nothing starts it at app launch.
 - Crash: if the worker dies during a request, restart once and retry, like Parakeet. A second failure returns the error.
 - `IsModelFileLoadFault` maps to the worker's `code`, so `LocalModelHealth` still sees a broken model file and not a runtime fault.
@@ -103,7 +103,7 @@ Process exit is the only safe, measured way to P8. So the Vulkan work must run i
 ## 6. Decisions
 
 - D1 *(decided 2026-10-16)*: Option A, a new console project `HyperWhisper.WhisperWorker`. Not B (re-launch `HyperWhisper.exe --whisper-worker`: WPF host starts in the child, Whisper DLLs stay in the app). Not C (accept P0).
-- D2 *(open)*: the idle exit — fixed 5 minutes, or a setting.
+- D2 *(decided 2026-10-17)*: a fixed 5-minute idle exit, no setting, so no Settings row, strings or shared-backup field. Not chosen: a user setting.
 - D3 *(decided 2026-10-16)*: every Whisper path runs in the worker (x64 GPU, x64 CPU, ARM64). One code path. The app drops Whisper.net. Not chosen: worker only for x64 with a discrete GPU.
 - D4 *(decided 2026-10-16)*: reuse `LocalWhisperService` from `HyperWhisper.LocalInference`. Move the runtime packages from the shared csproj to each head (Linux keeps Cuda12; the worker gets Runtime, NoAvx, Vulkan). Windows moves to Whisper.net 1.9.1. Not chosen: a worker-only copy of the code on 1.9.0.
 - D5 *(decided 2026-10-17)*: start the worker at recording start only (and on demand for the Local API and file jobs). Not at app launch. Not chosen: also at launch (5 minutes of P0 after every launch).
