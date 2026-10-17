@@ -758,7 +758,7 @@ Tindakan ini tidak dapat dibatalkan.</value>
     <value>Gagal menghentikan perekaman</value>
   </data>
   <data name="audio.error.enumerationFailed" xml:space="preserve">
-    <value>Gagal menghitung perangkat audio</value>
+    <value>Gagal menampilkan perangkat audio</value>
   </data>
 
   <!-- Settings - Models -->
@@ -785,7 +785,7 @@ Tindakan ini tidak dapat dibatalkan.</value>
     <value>Siap - Tekan {0} untuk merekam</value>
   </data>
   <data name="status.audio.enumerationFailed" xml:space="preserve">
-    <value>Gagal menghitung perangkat audio</value>
+    <value>Gagal menampilkan perangkat audio</value>
   </data>
   <data name="status.model.loading" xml:space="preserve">
     <value>Memuat {0}...</value>
@@ -850,7 +850,7 @@ Tindakan ini tidak dapat dibatalkan.</value>
     <value>Transkripsi gagal: {0}</value>
   </data>
   <data name="errors.retryFailed" xml:space="preserve">
-    <value>Coba lagi gagal: {0}</value>
+    <value>Percobaan ulang gagal: {0}</value>
   </data>
   <data name="errors.retryModeDeleted" xml:space="preserve">
     <value>Mode yang membuat rekaman ini telah dihapus, jadi rekaman ini tidak dicoba lagi. Di Riwayat, klik kanan rekaman dan pilih "Coba lagi dengan..." untuk memilih mode lain.</value>
@@ -1907,7 +1907,7 @@ Anda dapat mengunduhnya lagi nanti.</value>
     <value>Aktifkan transkripsi streaming</value>
   </data>
   <data name="settings.streaming.enable.subtitle" xml:space="preserve">
-    <value>Gunakan tombol pintas terpisah untuk mentranskripsi secara terus-menerus dan menempelkan segmen ucapan final ke aplikasi aktif.</value>
+    <value>Gunakan pintasan terpisah untuk mentranskripsi secara terus-menerus dan menempelkan segmen ucapan final ke aplikasi aktif.</value>
   </data>
   <data name="settings.streaming.shortcut.title" xml:space="preserve">
     <value>Pintasan streaming</value>

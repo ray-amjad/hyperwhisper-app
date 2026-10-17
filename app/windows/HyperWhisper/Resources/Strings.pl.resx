@@ -330,7 +330,7 @@
     <value>Klucze API</value>
   </data>
   <data name="settings.nav.output" xml:space="preserve">
-    <value>Wyjście tekstu</value>
+    <value>Wyjście tekstowe</value>
   </data>
   <data name="settings.nav.shortcuts" xml:space="preserve">
     <value>Skróty</value>
@@ -421,7 +421,7 @@
     <value>Wybierz preferowany schemat kolorów</value>
   </data>
   <data name="settings.appearance.theme.system" xml:space="preserve">
-    <value>Domyślny systemu</value>
+    <value>Systemowy</value>
   </data>
   <data name="settings.appearance.theme.system.subtitle" xml:space="preserve">
     <value>Automatycznie przełączaj między jasnym a ciemnym motywem zgodnie z ustawieniami systemu Windows</value>
@@ -788,13 +788,13 @@ Tej czynności nie można cofnąć.</value>
     <value>Nie udało się wyliczyć urządzeń audio</value>
   </data>
   <data name="status.model.loading" xml:space="preserve">
-    <value>Wczytywanie {0}...</value>
+    <value>Ładowanie {0}...</value>
   </data>
   <data name="status.model.ready" xml:space="preserve">
     <value>{0} (gotowy)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
-    <value>Wczytywanie nie powiodło się</value>
+    <value>Ładowanie nie powiodło się</value>
   </data>
   <data name="status.failed" xml:space="preserve">
     <value>Niepowodzenie: {0}</value>
@@ -841,7 +841,7 @@ Tej czynności nie można cofnąć.</value>
     <value>Model „{0}” nie został pobrany</value>
   </data>
   <data name="errors.modelLoadFailed" xml:space="preserve">
-    <value>Nie udało się wczytać modelu transkrypcji</value>
+    <value>Nie udało się załadować modelu transkrypcji</value>
   </data>
   <data name="errors.recordingStartFailed" xml:space="preserve">
     <value>Nie udało się rozpocząć nagrywania</value>
@@ -1631,7 +1631,7 @@ Możesz pobrać go ponownie później.</value>
     <value>Środowisko uruchomieniowe: tryb awaryjny CPU. Nie wykryto urządzenia do akceleracji GPU.</value>
   </data>
   <data name="settings.models.localLlm.hardware.cudaFirst" xml:space="preserve">
-    <value>Najpierw zostanie wypróbowana CUDA, z powrotem do CPU w przypadku niepowodzenia wczytywania</value>
+    <value>Najpierw zostanie wypróbowana CUDA, z powrotem do CPU w przypadku niepowodzenia ładowania</value>
   </data>
   <data name="settings.models.localLlm.hardware.vulkanFirst" xml:space="preserve">
     <value>Najpierw zostanie wypróbowany Vulkan, z powrotem do CPU w przypadku niepowodzenia wczytywania</value>

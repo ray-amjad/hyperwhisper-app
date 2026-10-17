@@ -1285,7 +1285,7 @@
     <value>사용 안 함</value>
   </data>
   <data name="settings.shortcuts.mode.modifier" xml:space="preserve">
-    <value>수정 키</value>
+    <value>수정자</value>
   </data>
   <data name="settings.shortcuts.mode.custom" xml:space="preserve">
     <value>사용자 지정</value>
