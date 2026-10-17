@@ -408,7 +408,7 @@ struct ModeEditorView: View {
 
     /// Current cloud provider enum
     private var currentCloudProvider: CloudProvider {
-        CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        CloudProvider.forMode(cloudProvider)
     }
 
     /// Cloud transcription providers shown in the picker. Always

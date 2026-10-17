@@ -18,6 +18,7 @@
 //    cd shared-core-rs && cargo test -p hw-core --test catalog_vectors -- --ignored regenerate
 //
 
+import CoreData
 import Foundation
 import Testing
 @testable import HyperWhisper
@@ -486,7 +487,36 @@ struct CatalogConformanceVectorTests {
         }
         #expect(CloudProvider.forMode(nil) == .hyperwhisper)
         #expect(CloudProvider.forMode("") == .hyperwhisper)
+        #expect(CloudProvider.forMode("   ") == .hyperwhisper)
         #expect(CloudProvider.forMode("deepgram") == .deepgram)
+        #expect(CloudProvider.effectiveModeStorageValue("") == CloudProvider.hyperwhisper.rawValue)
+        #expect(CloudProvider.effectiveModeStorageValue(" \t") == CloudProvider.hyperwhisper.rawValue)
+        // A non-blank id this build does not model passes through as stored.
+        #expect(CloudProvider.effectiveModeStorageValue("someFutureVendor") == "someFutureVendor")
+    }
+
+    /// Every blank spelling reads as HyperWhisper Cloud in the mode readers too
+    /// (card, snapshot, editor data), the same answer the router gives (#1709).
+    @MainActor
+    @Test("A blank stored cloudProvider reads as HyperWhisper Cloud in the mode readers (#1709)")
+    func blankStoredCloudProviderReadsAsHyperWhisperInModeReaders() {
+        let persistence = PersistenceController(inMemory: true)
+        for stored in [nil, "", "   "] as [String?] {
+            let mode = Mode(context: persistence.container.viewContext)
+            mode.id = UUID()
+            mode.model = "cloud"
+            mode.cloudProvider = stored
+            let label = stored.map { "\"\($0)\"" } ?? "nil"
+            #expect(ModeSnapshot(mode).cloudProvider == CloudProvider.hyperwhisper.rawValue, "\(label): ModeSnapshot")
+            #expect(ModeSnapshot(mode).rawCloudProvider == stored, "\(label): ModeSnapshot raw value")
+            #expect(ModeData(from: mode).cloudProvider == CloudProvider.hyperwhisper.rawValue, "\(label): ModeData")
+        }
+        let byok = Mode(context: persistence.container.viewContext)
+        byok.id = UUID()
+        byok.model = "cloud"
+        byok.cloudProvider = "deepgram"
+        #expect(ModeSnapshot(byok).cloudProvider == "deepgram")
+        #expect(ModeData(from: byok).cloudProvider == "deepgram")
     }
 
     @Test("The vectors cover every polymorphic branch")

@@ -90,7 +90,7 @@ struct ModeSnapshot: Sendable {
         self.name = mode.name ?? "Default"
         self.model = mode.model ?? "base"
         self.language = mode.language
-        self.cloudProvider = mode.cloudProvider ?? CloudProvider.effectiveModeStorageValue(nil)
+        self.cloudProvider = CloudProvider.effectiveModeStorageValue(mode.cloudProvider)
         self.rawCloudProvider = mode.cloudProvider
         self.postProcessingMode = mode.postProcessingMode
         self.postProcessingProvider = mode.postProcessingProvider ?? "hyperwhisper"

@@ -72,7 +72,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("a Parakeet upload converts whatever the caller named it", ParakeetUploadConvertsWhateverItsName)
     ,("a busy workflow refuses a Parakeet upload before converting it", ParakeetUploadRefusedBusyBeforeConversion)
     ,("a converted upload whose first delete fails is still deleted", ConvertedUploadDeleteIsRetried)
-    ,("a Cloud mode posted with no cloudProvider stores and runs on HyperWhisper Cloud", ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud)
+    ,("a Cloud mode posted with no cloudProvider stores and runs on HyperWhisper Cloud; an empty or whitespace one is refused", ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud)
 };
 foreach (var test in tests)
 {
@@ -2928,6 +2928,30 @@ static async Task ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud()
         using var envelope = JsonDocument.Parse(created);
         Assert(!(envelope.RootElement.TryGetProperty("ok", out var ok) && !ok.GetBoolean()),
             $"POST /modes with no cloudProvider was refused: {created}");
+    }
+
+    // Only an OMITTED provider is the blank case. An empty or whitespace string is
+    // refused exactly as before #1709: stored verbatim, another head could read it
+    // as an id rather than as blank and route the mode to a BYOK provider.
+    foreach (var (name, provider) in new[] { ("S8 Empty", ""), ("S8 Spaces", "   ") })
+    {
+        using var body = new StringContent(
+            ModeBody(name, extra: $$""" "cloudProvider":{{JsonSerializer.Serialize(provider)}} """, model: "cloud"),
+            Encoding.UTF8, "application/json");
+        var response = await fixture.Client.PostAsync("/modes", body);
+        var text = await response.Content.ReadAsStringAsync();
+        Assert(response.StatusCode == HttpStatusCode.BadRequest,
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} answered {(int)response.StatusCode}: {text}");
+        Assert(text.Contains("\"INVALID_REQUEST\"", StringComparison.Ordinal),
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} did not answer INVALID_REQUEST: {text}");
+        Assert((await modes.ListAsync()).All(mode => mode.Name != name),
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} stored a mode");
+        // The 400 is the cloud-provider check itself (the pre-#1709 refusal), not some other rule.
+        var refused = await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(
+            Json(ModeBody(name, extra: $$""" "cloudProvider":{{JsonSerializer.Serialize(provider)}} """, model: "cloud")),
+            CancellationToken.None).AsTask());
+        Assert(refused.Message == "Cloud provider is invalid.",
+            $"cloudProvider {JsonSerializer.Serialize(provider)} was refused for another reason: {refused.Message}");
     }
 
     var stored = (await modes.ListAsync()).Single(mode => mode.Name == "S8 Cloud");
