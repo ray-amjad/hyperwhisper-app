@@ -4,7 +4,7 @@
  * All database operations go through Drizzle ORM (Neon/PlanetScale).
  */
 
-import { eq, and, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
+import { eq, and, or, asc, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { db } from "@/src/db";
 import {
@@ -981,36 +981,78 @@ export async function upsertDeviceValidation(
     });
 }
 
+/** Rows per page of the admin per-key device list (#1661). */
+export const DEVICES_PAGE_SIZE = 50;
+
+/**
+ * Escapes `\`, `%` and `_` so a user's text matches itself literally inside
+ * a LIKE / ILIKE pattern (Postgres's default escape character is `\`).
+ */
+export function escapeLikePattern(text: string): string {
+  return text.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+/**
+ * One page of a key's devices, plus how many devices match in total (#1661).
+ * A key can hold over a thousand devices, so the admin Devices page asks for
+ * them 50 at a time instead of every row at once.
+ *
+ * - `sinceDays` keeps only devices validated inside that window.
+ * - `search` matches the device name or the device id, case-insensitive, as
+ *   literal text (LIKE wildcards in it are escaped).
+ * - Ordered most recently validated first, then by device id, so a page
+ *   boundary never shifts between two requests with tied timestamps.
+ */
 export async function getDevicesForLicense(
   licenseKeyId: string,
-  sinceDays?: number
-): Promise<
-  Array<{
+  sinceDays?: number,
+  page: { limit?: number; offset?: number; search?: string } = {}
+): Promise<{
+  devices: Array<{
     deviceId: string;
     deviceName: string | null;
     createdAt: Date;
     lastValidatedAt: Date;
-  }>
-> {
+  }>;
+  total: number;
+}> {
   const conditions = [eq(deviceValidations.licenseKeyId, licenseKeyId)];
   if (sinceDays) {
     const since = new Date();
     since.setDate(since.getDate() - sinceDays);
     conditions.push(gte(deviceValidations.lastValidatedAt, since));
   }
+  const search = page.search?.trim();
+  if (search) {
+    const pattern = `%${escapeLikePattern(search)}%`;
+    const match = or(
+      ilike(deviceValidations.deviceName, pattern),
+      ilike(deviceValidations.deviceId, pattern)
+    );
+    if (match) conditions.push(match);
+  }
+  const where = and(...conditions);
 
-  const rows = await db
-    .select({
-      deviceId: deviceValidations.deviceId,
-      deviceName: deviceValidations.deviceName,
-      createdAt: deviceValidations.createdAt,
-      lastValidatedAt: deviceValidations.lastValidatedAt,
-    })
-    .from(deviceValidations)
-    .where(and(...conditions))
-    .orderBy(desc(deviceValidations.lastValidatedAt));
+  const [devices, countRows] = await Promise.all([
+    db
+      .select({
+        deviceId: deviceValidations.deviceId,
+        deviceName: deviceValidations.deviceName,
+        createdAt: deviceValidations.createdAt,
+        lastValidatedAt: deviceValidations.lastValidatedAt,
+      })
+      .from(deviceValidations)
+      .where(where)
+      .orderBy(
+        desc(deviceValidations.lastValidatedAt),
+        asc(deviceValidations.deviceId)
+      )
+      .limit(page.limit ?? DEVICES_PAGE_SIZE)
+      .offset(page.offset ?? 0),
+    db.select({ total: count() }).from(deviceValidations).where(where),
+  ]);
 
-  return rows;
+  return { devices, total: Number(countRows[0]?.total ?? 0) };
 }
 
 export async function getDeviceCountsPerLicense(sinceDays?: number): Promise<

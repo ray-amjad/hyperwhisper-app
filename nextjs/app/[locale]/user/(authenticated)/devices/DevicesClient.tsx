@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
 import { formatDate, formatDateTime } from "@/lib/format-date";
@@ -11,6 +11,18 @@ const TIME_RANGES = [
   { label: "30 days", value: 30 },
   { label: "90 days", value: 90 },
 ] as const;
+
+/** Devices fetched per "Show more" in an expanded key (#1661). */
+export const DEVICE_PAGE_SIZE = 50;
+
+// The page's copy and dates are en-US (formatDate(..., "en-US") below), so
+// counts use the same locale: "1,284", never "1284" (#1661). One formatter
+// for server and client render, so hydration never disagrees.
+const countFormatter = new Intl.NumberFormat("en-US");
+
+export function formatCount(n: number): string {
+  return countFormatter.format(n);
+}
 
 /**
  * Devices Client Component
@@ -208,7 +220,7 @@ export default function DevicesClient() {
       {/* Row Count */}
       {!loading && devices.length > 0 && (
         <p className="text-gray-400 text-sm">
-          Showing {devices.length} Account Key
+          Showing {formatCount(devices.length)} Account Key
           {devices.length !== 1 ? "s" : ""} with active devices
         </p>
       )}
@@ -216,7 +228,7 @@ export default function DevicesClient() {
   );
 }
 
-function DeviceRow({
+export function DeviceRow({
   row,
   days,
   truncateKey,
@@ -234,10 +246,52 @@ function DeviceRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const { data, isLoading } = api.admin.devices.forLicense.useQuery(
-    { licenseKeyId: row.licenseKeyId, days },
-    { enabled: expanded }
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 250);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // One page of DEVICE_PAGE_SIZE devices at a time (#1661): a key can hold
+  // over a thousand, and rendering them all made the page 72,000 px tall. A
+  // new search is a new query key, so paging starts again from the top.
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = api.admin.devices.forLicense.useInfiniteQuery(
+    {
+      licenseKeyId: row.licenseKeyId,
+      days,
+      search: debouncedSearch || undefined,
+      limit: DEVICE_PAGE_SIZE,
+    },
+    {
+      enabled: expanded,
+      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      // Keep the current rows on screen while a search narrows them.
+      placeholderData: keepPreviousData,
+    },
   );
+  // Offset paging over a live table: a device validated between two pages
+  // moves to the top, so the next page can repeat a row. Keep the first copy,
+  // so React never sees two rows with one key.
+  const seenIds = new Set<string>();
+  const loadedDevices = (
+    data?.pages.flatMap((page) => page.devices) ?? []
+  ).filter(
+    (device) => !seenIds.has(device.deviceId) && seenIds.add(device.deviceId),
+  );
+  const total = data?.pages[data.pages.length - 1]?.total ?? 0;
+  const nextCount = Math.min(DEVICE_PAGE_SIZE, total - loadedDevices.length);
+  // A search refetch dims the rows it will replace; "Show more" does not.
+  const dimmed = isFetching && !isFetchingNextPage;
   // The row click stays for the mouse; this id lets the disclosure button
   // point aria-controls at the devices row it opens (#1307).
   const panelId = useId();
@@ -276,7 +330,7 @@ function DeviceRow({
         <td className="px-6 py-4">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm font-medium">
-              {row.deviceCount}
+              {formatCount(row.deviceCount)}
             </span>
             <svg
               className={`w-4 h-4 text-gray-400 transition-transform ${
@@ -299,6 +353,16 @@ function DeviceRow({
       {expanded && (
         <tr id={panelId}>
           <td colSpan={3} className="px-6 py-4 bg-white/[0.02]">
+            <div className="mb-3">
+              <input
+                aria-label="Search this key's devices by name or id"
+                className="w-full max-w-sm px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                placeholder="Search devices by name or id..."
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
             {isLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 2 }).map((_, i) => (
@@ -308,11 +372,20 @@ function DeviceRow({
                   />
                 ))}
               </div>
-            ) : !data?.devices.length ? (
-              <p className="text-gray-400 text-sm">No devices found.</p>
+            ) : loadedDevices.length === 0 ? (
+              <p className="text-gray-400 text-sm">
+                {debouncedSearch
+                  ? "No devices match that search."
+                  : "No devices found."}
+              </p>
             ) : (
-              <div className="space-y-2">
-                {data.devices.map((device) => (
+              <div
+                aria-busy={isFetching}
+                className={`space-y-2 transition-opacity ${
+                  dimmed ? "opacity-50" : "opacity-100"
+                }`}
+              >
+                {loadedDevices.map((device) => (
                   <div
                     key={device.deviceId}
                     className="flex items-center justify-between py-2 px-3 bg-white/5 rounded-lg"
@@ -354,6 +427,24 @@ function DeviceRow({
                     </div>
                   </div>
                 ))}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <p className="text-gray-400 text-xs">
+                    Showing {formatCount(loadedDevices.length)} of{" "}
+                    {formatCount(total)} device{total !== 1 ? "s" : ""}
+                  </p>
+                  {hasNextPage && (
+                    <button
+                      className="px-3 py-1.5 text-sm text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                      disabled={isFetchingNextPage}
+                      type="button"
+                      onClick={() => fetchNextPage()}
+                    >
+                      {isFetchingNextPage
+                        ? "Loading..."
+                        : `Show ${formatCount(nextCount)} more`}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </td>
