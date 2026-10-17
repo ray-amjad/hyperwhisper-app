@@ -299,6 +299,27 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Removes the deleted rows and rebuilds the groups once, not once per row (#1353): a Remove
+    /// per row rebuilt every day group each time, which was O(n²) on a large bulk delete. Only the
+    /// deleted rows are removed, so a partial delete never empties <see cref="Items"/> on the way
+    /// (the list's visibility binds to its count). Walking backwards keeps each index valid.
+    /// </summary>
+    private void RemoveItems(IReadOnlySet<Guid> ids)
+    {
+        _suspendGroupRebuild = true;
+        try
+        {
+            for (var index = Items.Count - 1; index >= 0; index--)
+                if (ids.Contains(Items[index].Id)) Items.RemoveAt(index);
+        }
+        finally
+        {
+            _suspendGroupRebuild = false;
+            RebuildGroups();
+        }
+    }
+
+    /// <summary>
     /// A failed or cancelled load leaves the list empty, as it did when the clear ran before the
     /// query. Clear raises a reset, which rebuilds the groups, so no stale group is left behind.
     /// </summary>
@@ -368,13 +389,11 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         try
         {
             StopPlayback();
-            var deletion = await _repository.DeleteManyAsync(selected.Select(item => item.Id).ToArray(), DeleteAudio, cancellationToken);
+            var ids = selected.Select(item => item.Id).ToArray();
+            var deletion = await _repository.DeleteManyAsync(ids, DeleteAudio, cancellationToken);
             if (deletion.TranscriptsDeleted == 0)
             { Status.Failure("history.not_found", "The transcript no longer exists."); return; }
-            // One pass and one group rebuild for the whole selection (#1353). A Remove per row
-            // rebuilt every day group once per row, which was O(n²) on a large bulk delete.
-            var deletedIds = selected.Select(item => item.Id).ToHashSet();
-            ReplaceItems(Items.Where(item => !deletedIds.Contains(item.Id)).ToList());
+            RemoveItems(ids.ToHashSet());
             UpdateSelection([]);
             if (deletion.Warnings.Count == 0)
                 Status.Success(DeleteAudio

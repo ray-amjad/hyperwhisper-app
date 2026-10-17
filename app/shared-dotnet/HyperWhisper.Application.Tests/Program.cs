@@ -2666,8 +2666,18 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     var everyOther = viewModel.Items.Where((_, index) => index % 2 == 1).ToList();
     viewModel.UpdateSelection(everyOther);
     before = viewModel.GroupRebuildCount;
+    var lowestCount = int.MaxValue;
+    var itemChanges = 0;
+    System.Collections.Specialized.NotifyCollectionChangedEventHandler watch = (_, _) =>
+    { itemChanges++; lowestCount = Math.Min(lowestCount, viewModel.Items.Count); };
+    viewModel.Items.CollectionChanged += watch;
     await viewModel.DeleteSelectedAsync();
+    viewModel.Items.CollectionChanged -= watch;
     rebuilds = viewModel.GroupRebuildCount - before;
+    // Only the deleted rows leave Items: the list never empties on the way (its visibility binds
+    // to the count), and the change count is the deleted rows, not a clear and a re-add of the rest.
+    Assert(lowestCount == viewModel.Items.Count && itemChanges == everyOther.Count,
+        $"a partial bulk delete dipped Items to {lowestCount} rows with {itemChanges} changes for {everyOther.Count} deleted");
     Assert(rebuilds == 1, $"a {everyOther.Count}-row bulk delete rebuilt the day groups {rebuilds} times, not once");
     expected = await repository.ListAsync();
     Assert(expected.Count > 100 && expected.All(row => everyOther.All(gone => gone.Id != row.Id)),
