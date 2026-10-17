@@ -879,7 +879,6 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "recording.retry.inProgress" = "Reyni aftur…";
 "recording.retry.count" = "Reyna aftur (%d)";
 "recording.retry.failed.missing" = "Endurtilraun mistókst: Hljóðskrá fannst ekki";
-"recording.retry.failed.error" = "Endurtilraun mistókst: %@";
 "recording.retry.pending" = "Tilbúið að reyna aftur – smelltu til að afrita";
 "recording.retry.modeDeleted" = "Hamnum var eytt";
 "recording.cancel.dialog.title" = "Hætta við upptöku?";

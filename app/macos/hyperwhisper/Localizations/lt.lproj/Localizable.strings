@@ -879,7 +879,6 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "recording.retry.inProgress" = "Bandau iš naujo…";
 "recording.retry.count" = "Bandyti iš naujo (%d)";
 "recording.retry.failed.missing" = "Pakartojimas nepavyko: audio failas nerastas";
-"recording.retry.failed.error" = "Pakartojimas nepavyko: %@";
 "recording.retry.pending" = "Paruošta pakartoti – spustelėkite, jei norite transkripcijos";
 "recording.retry.modeDeleted" = "Režimas ištrintas";
 "recording.cancel.dialog.title" = "Atšaukti įrašymą?";

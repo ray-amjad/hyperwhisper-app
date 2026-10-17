@@ -879,7 +879,6 @@
 "recording.retry.inProgress" = "Δοκιμή ξανά…";
 "recording.retry.count" = "Δοκιμή (%d)";
 "recording.retry.failed.missing" = "Η δοκιμή απέτυχε: Το αρχείο ήχου δεν βρέθηκε";
-"recording.retry.failed.error" = "Η δοκιμή απέτυχε: %@";
 "recording.retry.pending" = "Έτοιμη για δοκιμή – κάντε κλικ για μεταγραφή";
 "recording.retry.modeDeleted" = "Η λειτουργία διαγράφηκε";
 "recording.cancel.dialog.title" = "Ακύρωση Εγγραφής;";

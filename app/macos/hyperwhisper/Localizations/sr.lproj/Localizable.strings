@@ -879,7 +879,6 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "recording.retry.inProgress" = "Поново Покушавање…";
 "recording.retry.count" = "Покушај поново (%d)";
 "recording.retry.failed.missing" = "Поново Покушавање Неуспешно: Звучна датотека није пронађена";
-"recording.retry.failed.error" = "Поново Покушавање Неуспешно: %@";
 "recording.retry.pending" = "Спремно за поновно покушавање – кликни да транскрибујеш";
 "recording.retry.modeDeleted" = "Режим је обрисан";
 "recording.cancel.dialog.title" = "Отмени Снимање?";

@@ -359,6 +359,9 @@ extension RecordingTranscriptionFlow {
                 // Retry button, so a Retry that ends before the row lands
                 // awaits it instead of saving a second row.
                 appState?.pendingRetryFailedRowWrite = failedRowWrite
+                // #1643: the Quick Capture context ends with this session, so
+                // the Retry keeps its routing here: Notes, not a paste.
+                appState?.pendingRetryIsQuickCapture = quickCaptureContext != nil
                 appState?.showRecordingDialog = true
                 KeyboardShortcuts.disable(.cancelRecording)
             }

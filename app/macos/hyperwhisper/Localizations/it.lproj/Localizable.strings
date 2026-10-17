@@ -879,7 +879,6 @@ Aggiorna queste modalità per usare un modello diverso prima di eliminarlo.";
 "recording.retry.inProgress" = "Nuovo tentativo…";
 "recording.retry.count" = "Riprova (%d)";
 "recording.retry.failed.missing" = "Nuovo tentativo fallito: File audio non trovato";
-"recording.retry.failed.error" = "Nuovo tentativo fallito: %@";
 "recording.retry.pending" = "Pronto per riprovare – clicca per trascrivere";
 "recording.retry.modeDeleted" = "La modalità è stata eliminata";
 "recording.cancel.dialog.title" = "Annullare Registrazione?";

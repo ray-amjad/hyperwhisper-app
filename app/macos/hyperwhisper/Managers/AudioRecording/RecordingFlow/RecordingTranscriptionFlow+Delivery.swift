@@ -242,8 +242,10 @@ extension RecordingTranscriptionFlow {
     ///
     /// The failed "Audio file could not be read" row stays failed, now with
     /// the retry's reason, and counts the retry, as History's own Retry does.
-    /// With no such row (its write failed, or the user deleted it), a new
-    /// failed row records the attempt.
+    /// Its reason and text are History Retry's too ("Retry failed: …", a
+    /// too-short file's length), from `TranscriptionRetryController.failedRow`
+    /// (#1643). With no such row (its write failed, or the user deleted it),
+    /// a new failed row records the attempt, worded the same.
     ///
     /// - Parameter failedRowWrite: the failed row's write
     ///   (`AppState.pendingRetryFailedRowWrite`), landed or not.
@@ -256,26 +258,36 @@ extension RecordingTranscriptionFlow {
         modeName: String?,
         persistence: PersistenceController = .shared
     ) async -> NSManagedObjectID? {
-        let reason = error.localizedDescription
-        let errorText = "Error: \(reason)"
+        // Only a too-short file's wording reads the length, so only it opens
+        // the file before the row is updated.
+        var duration: TimeInterval?
+        if FileTranscriptionFlow.isTooShort(error) {
+            duration = await audioDurationSeconds(of: audioURL)
+        }
+        let failure = TranscriptionRetryController.failedRow(after: error, audioDuration: duration ?? 0)
         if let failedTranscriptID = await failedRowWrite?.value,
            await persistence.markTranscriptFailedInBackground(
                transcriptID: failedTranscriptID,
-               failedReason: reason,
-               errorText: errorText,
+               failedReason: failure.failedReason,
+               errorText: failure.text,
                countsRetry: true
            ) {
             return failedTranscriptID
         }
 
         AppLogger.audio.warning("Pending-file retry failed with no failed History row to update; saving a new failed row")
-        let duration = await audioDurationSeconds(of: audioURL)
+        let rowDuration: TimeInterval
+        if let duration {
+            rowDuration = duration
+        } else {
+            rowDuration = await audioDurationSeconds(of: audioURL)
+        }
         return await persistence.createFailedTranscriptInBackground(
-            duration: duration,
+            duration: rowDuration,
             mode: modeName,
             audioFilePath: audioURL.path,
-            failedReason: reason,
-            errorText: errorText
+            failedReason: failure.failedReason,
+            errorText: failure.text
         )
     }
 

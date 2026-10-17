@@ -171,6 +171,11 @@ extension RecordingTranscriptionFlow {
             let failedRowWrite = appState.pendingRetryAudioPath == path
                 ? appState.pendingRetryFailedRowWrite
                 : nil
+            // #1643: a Quick Capture recording's Retry goes to Notes, like a
+            // Quick Capture dictation, never pasted (Ray, inbox ask #490).
+            // Read with the row write, before the path is cleared below.
+            let isQuickCaptureRetry = appState.pendingRetryAudioPath == path
+                && appState.pendingRetryIsQuickCapture
 
             // A retry that hears no speech keeps the row failed, with the
             // "no speech" reason, instead of a blank completed row (#1815).
@@ -186,14 +191,15 @@ extension RecordingTranscriptionFlow {
                 appState.recordingState = .idle
                 appState.pendingRetryAudioPath = nil
                 // The recording's session ended at its stop: no onboarding
-                // gate or Quick Capture context of its own is left, and a
-                // newer session would have superseded this retry.
+                // gate of its own is left, and a newer session would have
+                // superseded this retry. Its Quick Capture routing was kept
+                // at the stop (#1643).
                 deliverBatchTranscript(
                     transcriptionResult,
                     transcriptionMode: transcriptionMode,
                     sessionStartedSuppressed: false,
                     trigger: .unknown,
-                    isQuickCaptureRouting: false,
+                    isQuickCaptureRouting: isQuickCaptureRetry,
                     pasteStart: pasteStart
                 )
             }

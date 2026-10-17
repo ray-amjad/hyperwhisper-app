@@ -879,7 +879,6 @@
 "recording.retry.inProgress" = "Повторен опит...";
 "recording.retry.count" = "Опитай отново (%d)";
 "recording.retry.failed.missing" = "Повторният опит е неуспешен: Аудио файлът не е намерен";
-"recording.retry.failed.error" = "Повторният опит е неуспешен: %@";
 "recording.retry.pending" = "Готов за повторен опит – натиснете за транскрибиране";
 "recording.retry.modeDeleted" = "Режимът е изтрит";
 "recording.cancel.dialog.title" = "Отмяна на записа?";
