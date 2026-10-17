@@ -2342,13 +2342,8 @@ internal static class Program
                 }
             });
 
-            Run("IsNoSpaceLanguage / NormalizeLanguage truth tables", () =>
+            Run("NormalizeLanguage truth table", () =>
             {
-                foreach (var code in new[] { "ja", "zh", "ko", "yue" })
-                    Assert(ParakeetTranscriptionService.IsNoSpaceLanguage(code), $"{code} should be no-space");
-                foreach (var code in new[] { "en", "fr", "auto" })
-                    Assert(!ParakeetTranscriptionService.IsNoSpaceLanguage(code), $"{code} should be spaced");
-
                 Assert(ParakeetTranscriptionService.NormalizeLanguage(null) == "auto", "null → auto");
                 Assert(ParakeetTranscriptionService.NormalizeLanguage("  ") == "auto", "whitespace → auto");
                 Assert(ParakeetTranscriptionService.NormalizeLanguage("AUTO") == "auto", "AUTO → auto");
@@ -2361,7 +2356,9 @@ internal static class Program
             // daemon joins Japanese VAD segments with no space at all.
             Run("ResolveJoinClass separates auto from a declared spaced language", () =>
             {
-                foreach (var code in new[] { "ja", "zh", "ko", "yue" })
+                // The shared core's table (#902), not the host's old four codes:
+                // th and the explicit/regional Chinese spellings are no-space too.
+                foreach (var code in new[] { "ja", "zh", "ko", "yue", "th", "zh-tw", "zh-hans", "zh-hant", "zh-cn" })
                     Assert(ParakeetTranscriptionService.ResolveJoinClass(code) == "no-space", $"{code} → no-space");
                 foreach (var code in new[] { "en", "fr", "de" })
                     Assert(ParakeetTranscriptionService.ResolveJoinClass(code) == "spaced", $"{code} → spaced");
@@ -2374,6 +2371,18 @@ internal static class Program
                 Assert(Class("en") != Class("ja"), "en → ja must change class");
                 Assert(Class("auto") != Class("ja"), "auto → ja must change class");
                 Assert(Class("en") == Class("fr"), "en → fr must NOT change class");
+            });
+
+            // The host decides the daemon's segment join and passes it as
+            // --segment-join (#902), so neither daemon reads its own table.
+            Run("ResolveSegmentJoinArgument passes the core's join to the daemon", () =>
+            {
+                foreach (var code in new[] { "ja", "JA", "zh", "ko", "yue", "th", "zh-TW", "zh-Hans", "zh-Hant", "zh-CN" })
+                    Assert(ParakeetTranscriptionService.ResolveSegmentJoinArgument(code) == "none", $"{code} → none");
+                foreach (var code in new[] { "en", " FR ", "de", "uk" })
+                    Assert(ParakeetTranscriptionService.ResolveSegmentJoinArgument(code) == "space", $"{code} → space");
+                foreach (var code in new[] { null, "", "  ", "auto", "AUTO" })
+                    Assert(ParakeetTranscriptionService.ResolveSegmentJoinArgument(code) == null, $"'{code}' → not passed");
             });
 
             Run("Grok GetRequestTimeout scales with file size", () =>
