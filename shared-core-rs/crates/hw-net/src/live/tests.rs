@@ -1428,10 +1428,13 @@ fn xai_connect_pins_the_model_and_honours_an_explicit_one() {
         );
     }
 
-    config.model = Some("grok-voice-transcribe-1.0".to_string());
+    // A synthetic id that is not the default, so the assertion proves the
+    // caller's choice reaches the wire. (It used to be grok-voice-transcribe-1.0,
+    // which xAI ended on 2026-10-02 — #1908.)
+    config.model = Some("grok-voice-transcribe-test".to_string());
     let url = LiveSession::new(config).connect().expect("connect").url;
     assert!(
-        url.contains("model=grok-voice-transcribe-1.0"),
+        url.contains("model=grok-voice-transcribe-test"),
         "an explicit model must reach the wire: {url}"
     );
 }

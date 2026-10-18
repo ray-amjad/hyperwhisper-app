@@ -293,9 +293,10 @@ impl ModelsCatalog {
 /// Providers that once had NO model parameter at all, so a user's stored model
 /// id can legitimately be the empty string. Grok is the only one: `/v1/stt`
 /// took no `model` until 2026-09-19, and xAI served exactly one model, which
-/// was Grok Voice Transcribe 1. Adding the 1.0 row to the catalog means the
-/// blank can no longer be resolved by "the provider has one row", so it is
-/// resolved explicitly here instead.
+/// was Grok Voice Transcribe 1. The blank is resolved explicitly here rather
+/// than by "the provider has one row". (The 1.0 row itself left the catalog when
+/// xAI ended it on 2026-10-02; a stored `grok-voice-transcribe-1.0` id is folded
+/// onto 2.0 by `model_alias::GROK_ALIASES`, not by this rule.)
 const LEGACY_BLANK_MODEL_PROVIDERS: &[(&str, Kind)] = &[("grok", Kind::Voice)];
 
 /// The id a legacy blank resolves to: the cloud-STT catalog's default model for
@@ -439,15 +440,18 @@ mod tests {
     }
 
     #[test]
-    fn grok_offers_both_transcribe_rows() {
+    fn grok_offers_only_the_2_0_transcribe_row() {
         let c = catalog();
-        for id in ["grok-voice-transcribe-1.0", "grok-voice-transcribe-2.0"] {
-            let e = c
-                .entry("grok", Kind::Voice, id)
-                .unwrap_or_else(|| panic!("{id} is catalogued"));
-            assert!(e.supports_custom_vocabulary, "{id} takes keyterms");
-            assert!(e.available_via_hyper_whisper_cloud, "{id} is cloud-routed");
-        }
+        let e = c
+            .entry("grok", Kind::Voice, "grok-voice-transcribe-2.0")
+            .expect("2.0 is catalogued");
+        assert!(e.supports_custom_vocabulary, "2.0 takes keyterms");
+        assert!(e.available_via_hyper_whisper_cloud, "2.0 is cloud-routed");
+        // xAI ended 1.0 on 2026-10-02 (#1908). Its row is gone; the stored id
+        // reaches 2.0 through the alias table, which lands on a catalogued row.
+        assert!(c.entry("grok", Kind::Voice, "grok-voice-transcribe-1.0").is_none());
+        let aliased = crate::resolve_model_alias("grok-voice-transcribe-1.0", Some("grok"));
+        assert!(c.entry("grok", Kind::Voice, &aliased).is_some(), "{aliased} is catalogued");
     }
 
     // --- Golden: language support yes/no -------------------------------------

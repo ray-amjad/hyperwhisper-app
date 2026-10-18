@@ -9,9 +9,10 @@
 //! - **`model` is sent explicitly.** xAI added the parameter with Grok Voice
 //!   Transcribe 2.0 (2026-09-19); before that `/v1/stt` took no model at all and
 //!   this builder dropped the id the platform passed. Upstream now defaults to
-//!   `grok-voice-transcribe-2.0` and also accepts `grok-voice-transcribe-1.0`,
-//!   so relying on the default would move a user's model on xAI's schedule
-//!   rather than on a release of ours. [`resolve_model`] therefore falls back to
+//!   `grok-voice-transcribe-2.0` (xAI ended 1.0 on 2026-10-02 and routes it to
+//!   2.0; the heads fold a stored 1.0 id onto 2.0 through `hw-catalog`'s alias
+//!   table), so relying on the default would move a user's model on xAI's
+//!   schedule rather than on a release of ours. [`resolve_model`] therefore falls back to
 //!   the catalog default for a blank id — which is what every mode saved before
 //!   this change carries.
 //! - **Vocabulary is `keyterm`, repeated** — xAI takes one `keyterm` field per

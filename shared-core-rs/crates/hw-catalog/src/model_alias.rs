@@ -107,6 +107,14 @@ const OPENAI_ALIASES: &[(&str, &str)] = &[
     ("gpt-4o-mini-transcribe", "gpt-4o-mini-transcribe-2025-12-15"),
 ];
 
+/// xAI Grok STT ids. xAI ended `grok-voice-transcribe-1.0` on 2026-10-02 and
+/// routes every request for it to `grok-voice-transcribe-2.0` at the same price
+/// (docs.x.ai release notes), so the 1.0 picker row is gone and a saved mode or
+/// backup still naming it moves to 2.0 instead of falling to the first row.
+/// The target is no dearer: both rows were $0.00167/min.
+const GROK_ALIASES: &[(&str, &str)] =
+    &[("grok-voice-transcribe-1.0", "grok-voice-transcribe-2.0")];
+
 /// Resolve a legacy AssemblyAI model id to its current equivalent. Non-AssemblyAI
 /// and already-current ids pass through unchanged.
 pub fn resolve_assemblyai_model_alias(model_id: &str) -> String {
@@ -136,6 +144,11 @@ pub fn resolve_gemini_model_alias(model_id: &str) -> String {
 /// Resolve a deprecated OpenAI STT model id to its current equivalent.
 pub fn resolve_openai_model_alias(model_id: &str) -> String {
     resolve_in(OPENAI_ALIASES, model_id)
+}
+
+/// Resolve a retired xAI Grok STT model id to its current equivalent.
+pub fn resolve_grok_model_alias(model_id: &str) -> String {
+    resolve_in(GROK_ALIASES, model_id)
 }
 
 fn resolve_in(table: &[(&str, &str)], model_id: &str) -> String {
@@ -191,6 +204,10 @@ const KNOWN_PROVIDER_IDS: &[&str] = &[
 /// direction. It is in the chain at all because a restored backup is exactly the
 /// case this module exists for, and a backup can carry a model id with no
 /// provider beside it.
+///
+/// Grok was added after OpenAI on the same terms and goes outside it: its one
+/// key and target are `grok-voice-transcribe-*` ids no other table names
+/// (`added_keys_collide_with_no_other_table` pins it).
 pub fn resolve_model_alias(model_id: &str, provider: Option<&str>) -> String {
     if model_id.is_empty() {
         return String::new();
@@ -204,14 +221,15 @@ pub fn resolve_model_alias(model_id: &str, provider: Option<&str>) -> String {
         Some("soniox") => resolve_soniox_model_alias(model_id),
         Some("gemini") => resolve_gemini_model_alias(model_id),
         Some("openai") => resolve_openai_model_alias(model_id),
+        Some("grok") => resolve_grok_model_alias(model_id),
         // Known provider with no alias table → pass through.
         Some(p) if KNOWN_PROVIDER_IDS.contains(&p) => model_id.to_string(),
         // `null` / `None` / unrecognized → chain everything, innermost first.
-        _ => resolve_openai_model_alias(&resolve_gemini_model_alias(
+        _ => resolve_grok_model_alias(&resolve_openai_model_alias(&resolve_gemini_model_alias(
             &resolve_soniox_model_alias(&resolve_deepgram_model_alias(
                 &resolve_assemblyai_model_alias(&resolve_elevenlabs_model_alias(model_id)),
             )),
-        )),
+        ))),
     }
 }
 
@@ -291,26 +309,61 @@ mod tests {
     }
 
     #[test]
-    fn openai_keys_collide_with_no_other_table() {
-        // The chain arm applies OPENAI_ALIASES outermost. That is only safe while
-        // its keys are absent from every other table and are no other table's
-        // target, so pin it rather than trusting a future edit to remember.
-        let others: &[&[(&str, &str)]] = &[
-            ASSEMBLYAI_ALIASES,
-            ELEVENLABS_ALIASES,
-            DEEPGRAM_ALIASES,
-            SONIOX_ALIASES,
-            GEMINI_ALIASES,
+    fn added_keys_collide_with_no_other_table() {
+        // The chain arm applies OPENAI_ALIASES and then GROK_ALIASES outermost.
+        // That is only safe while their keys are absent from every other table
+        // and are no other table's target, so pin it rather than trusting a
+        // future edit to remember.
+        let all: &[(&str, &[(&str, &str)])] = &[
+            ("assemblyai", ASSEMBLYAI_ALIASES),
+            ("elevenlabs", ELEVENLABS_ALIASES),
+            ("deepgram", DEEPGRAM_ALIASES),
+            ("soniox", SONIOX_ALIASES),
+            ("gemini", GEMINI_ALIASES),
+            ("openai", OPENAI_ALIASES),
+            ("grok", GROK_ALIASES),
         ];
-        for (key, target) in OPENAI_ALIASES {
-            for table in others {
-                for (other_key, other_target) in *table {
-                    assert_ne!(key, other_key, "{key} is also a key in another table");
-                    assert_ne!(key, other_target, "{key} is another table's target");
-                    assert_ne!(target, other_key, "{target} is another table's key");
+        for (name, outer) in [("openai", OPENAI_ALIASES), ("grok", GROK_ALIASES)] {
+            for (key, target) in outer {
+                for (other_name, table) in all {
+                    if *other_name == name {
+                        continue;
+                    }
+                    for (other_key, other_target) in *table {
+                        assert_ne!(key, other_key, "{key} is also a key in {other_name}");
+                        assert_ne!(key, other_target, "{key} is {other_name}'s target");
+                        assert_ne!(target, other_key, "{target} is {other_name}'s key");
+                    }
                 }
             }
         }
+    }
+
+    #[test]
+    fn retired_grok_stt_resolves_to_2_0() {
+        // xAI ended 1.0 on 2026-10-02 and reroutes it to 2.0 at the same price.
+        assert_eq!(
+            resolve_model_alias("grok-voice-transcribe-1.0", Some("grok")),
+            "grok-voice-transcribe-2.0"
+        );
+        // A backup can carry the id with no provider beside it.
+        assert_eq!(
+            resolve_model_alias("grok-voice-transcribe-1.0", None),
+            "grok-voice-transcribe-2.0"
+        );
+        assert_eq!(
+            resolve_model_alias("Grok-Voice-Transcribe-1.0", Some("Grok")),
+            "grok-voice-transcribe-2.0"
+        );
+        // 2.0 is current and must not hop again; the pre-2026-09-19 empty id
+        // stays empty (the catalog's legacy-blank rule owns it).
+        assert_eq!(
+            resolve_model_alias("grok-voice-transcribe-2.0", Some("grok")),
+            "grok-voice-transcribe-2.0"
+        );
+        assert_eq!(resolve_model_alias("", Some("grok")), "");
+        // Grok's table is scoped: another provider's id passes through.
+        assert_eq!(resolve_model_alias("nova-2", Some("grok")), "nova-2");
     }
 
     /// Every alias target, keyed by the catalog entry that sells that
@@ -325,6 +378,7 @@ mod tests {
             ("soniox", SONIOX_ALIASES),
             ("gemini", GEMINI_ALIASES),
             ("openaiWhisper", OPENAI_ALIASES),
+            ("grokStt", GROK_ALIASES),
         ]
     }
 
