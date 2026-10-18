@@ -239,6 +239,7 @@ var tests = new (string Name, Func<Task> Run)[]
     }),
     ("live protocol vocabulary keeps its own length drop and cap", TestLiveVocabularyAsync),
     ("inline base64 audio bodies assemble prefix + base64(file) + suffix", TestInlineBase64BodyAsync),
+    ("a Cloud upload asks for HTTP/2, falling back to HTTP/1.1", TestCloudUploadPrefersHttp2Async),
     ("typed multipart files survive the C# binding and keep audio file-backed", TestTypedMultipartFileAsync),
     ("live terminal-error policy comes from the shared core", () =>
     {
@@ -642,6 +643,37 @@ static async Task TestSingleShotProvidersAsync()
             Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
             Assert.True(handler.LastBodyLength > 0);
         }
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
+}
+
+/// <summary>
+/// Issue #982: <c>SendAsync</c> ignores <c>HttpClient.DefaultRequestVersion</c>,
+/// so a Rust-built request with no <c>Version</c> went out as HTTP/1.1. An
+/// HTTP/1.1 request cannot share a pooled HTTP/2 connection, so on Windows the
+/// first Cloud upload could not reuse the one its /warmup HEAD had opened.
+/// </summary>
+static async Task TestCloudUploadPrefersHttp2Async()
+{
+    var audio = TempWaveAudio();
+    try
+    {
+        var handler = new RecordingHandler((_, _) =>
+            Json("{\"text\":\"cloud text\",\"credits_remaining\":99}"));
+        using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+        var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.HyperWhisperCloud,
+            audio,
+            "",
+            Language: "en",
+            BaseUrl: "https://routing.test"));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(HttpVersion.Version20, handler.LastRequest!.Version);
+        Assert.Equal(HttpVersionPolicy.RequestVersionOrLower, handler.LastRequest.VersionPolicy);
     }
     finally
     {
@@ -2750,7 +2782,11 @@ sealed class RecordingHandler : HttpMessageHandler
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        LastRequest = new HttpRequestMessage(request.Method, request.RequestUri);
+        LastRequest = new HttpRequestMessage(request.Method, request.RequestUri)
+        {
+            Version = request.Version,
+            VersionPolicy = request.VersionPolicy,
+        };
         foreach (var header in request.Headers)
         {
             LastRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);
