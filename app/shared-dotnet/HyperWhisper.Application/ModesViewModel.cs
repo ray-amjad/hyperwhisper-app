@@ -34,7 +34,7 @@ public sealed class ModesViewModel : ViewModelBase
     private bool _enableScreenOcr;
     private string _postProcessingMode = "off";
     private string _postProcessingProvider = "openai";
-    private string _postProcessingModel = "gpt-4.1-mini";
+    private string _postProcessingModel = "gpt-5.6-luna";
     private string _hyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
     private string _customInstructions = string.Empty;
     private bool _punctuation = true;
@@ -89,7 +89,7 @@ public sealed class ModesViewModel : ViewModelBase
             CloudProvider = "hyperwhisper"; CloudAccuracyTier = "elevenLabsScribeV2"; CloudDomain = string.Empty;
             GeminiPrompt = string.Empty; CustomVocabulary = string.Empty; EnableScreenOcr = false;
             PostProcessingMode = "cloud"; PostProcessingProvider = "hyperwhispercloud";
-            PostProcessingModel = "gpt-4.1-mini"; HyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
+            PostProcessingModel = "gpt-5.6-luna"; HyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
             CustomInstructions = string.Empty; Punctuation = true; Capitalization = true;
             ProfanityFilter = false; RemoveTrailingPeriod = false; EnglishSpelling = string.Empty;
             Preset = "hyper"; UserPromptEnabled = false;
