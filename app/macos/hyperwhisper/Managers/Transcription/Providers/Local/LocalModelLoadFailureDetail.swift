@@ -24,13 +24,13 @@ enum LocalModelLoadFailureDetail {
     /// Why a load failed, as fixed identifiers only.
     struct Fields: Equatable, Sendable {
         /// `DownloadUtils.HuggingFaceDownloadError` case slug; nil for any other error.
-        var hfErrorCase: String?
+        var hfErrorCase: String? = nil
         /// HTTP status from `rateLimited(statusCode:)` or an `"HTTP"` underlying error.
-        var httpStatus: Int?
+        var httpStatus: Int? = nil
         /// Domain / code of the `downloadFailed` underlying error, or of the
         /// error's `NSUnderlyingErrorKey` (CoreML).
-        var underlyingErrorDomain: String?
-        var underlyingErrorCode: Int?
+        var underlyingErrorDomain: String? = nil
+        var underlyingErrorCode: Int? = nil
     }
 
     /// The load phase FluidAudio last reported through its progress handler.
