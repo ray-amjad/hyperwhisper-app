@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 17, 2026
+        Last Updated: October 18, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -319,6 +319,38 @@ export default function PrivacyPolicyPage() {
         <li>
           <a
             className="text-blue-400 hover:underline"
+            href="https://soniox.com/policies/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Soniox
+          </a>
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://x.ai/legal/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            SpaceXAI (Grok)
+          </a>
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://policies.google.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google (Gemini)
+          </a>
+          . Covers both Gemini key slots, Google Gemini and Gemini 3.5
+          Transcribe. Both send your audio to Google.
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
             href="https://dev.meta.ai/docs/speech-to-text/"
             target="_blank"
             rel="noopener noreferrer"
@@ -384,6 +416,26 @@ export default function PrivacyPolicyPage() {
             rel="noopener noreferrer"
           >
             Cerebras
+          </a>
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://x.ai/legal/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            SpaceXAI (Grok)
+          </a>
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://mistral.ai/terms/#privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Mistral
           </a>
         </li>
       </ul>
