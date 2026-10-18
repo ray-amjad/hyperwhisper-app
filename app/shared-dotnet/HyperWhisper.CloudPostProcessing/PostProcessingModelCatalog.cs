@@ -14,7 +14,6 @@ public static class PostProcessingModelCatalog
             [CloudPostProcessingProvider.OpenAi] =
             [
                 new("gpt-5.6-luna", "GPT-5.6 Luna"), new("gpt-6-luna", "GPT-6 Luna"),
-                new("gpt-4.1-mini", "GPT-4.1 Mini"),
                 new("gpt-5.2", "GPT-5.2"), new("gpt-5.4-mini", "GPT-5.4 Mini"),
                 new("gpt-5.4", "GPT-5.4"),
             ],
@@ -66,6 +65,8 @@ public static class PostProcessingModelCatalog
         "gpt-5.4-nano" => "gpt-6-luna",
         // OpenAI removes gpt-4.1 2027-01-14 (notice 2026-10-14) and names gpt-6-luna.
         "gpt-4.1" => "gpt-6-luna",
+        // Same notice for gpt-4.1-mini, same named replacement (#1907). Matches Windows and macOS.
+        "gpt-4.1-mini" => "gpt-6-luna",
         // Google deprecated both 2026-10-08 and routes them to these successors.
         "gemini-3.5-flash" => "gemini-3.6-flash",
         "gemini-3.7-flash" => "gemini-3.8-flash",
