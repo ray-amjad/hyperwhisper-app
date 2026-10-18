@@ -715,11 +715,12 @@ try
 
         // `grok` drew an empty combo too until 2026-09-19, because its single catalog model carried
         // an empty id. Grok Voice Transcribe 2.0 gave xAI a real `model` parameter, so the vendor
-        // now behaves like every other one: both of its ids listed, and the default selected.
+        // now behaves like every other one: its id listed, and the default selected. xAI ended
+        // 1.0 on 2026-10-02 (#1908), so 1.0 is no longer offered.
         shell.Modes.CloudProvider = "grok";
         Assert(shell.Modes.CloudModels.Contains("grok-voice-transcribe-2.0", StringComparer.Ordinal)
-            && shell.Modes.CloudModels.Contains("grok-voice-transcribe-1.0", StringComparer.Ordinal),
-            "the grok vendor must list both catalog models; it drew "
+            && !shell.Modes.CloudModels.Contains("grok-voice-transcribe-1.0", StringComparer.Ordinal),
+            "the grok vendor must list 2.0 and not the retired 1.0; it drew "
             + $"[{string.Join(", ", shell.Modes.CloudModels)}]");
         Assert(shell.Modes.CloudTranscriptionModel == "grok-voice-transcribe-2.0",
             "changing the vendor to grok did not select its default model");
@@ -882,6 +883,19 @@ try
             "a cloud model id that differs from the catalog's only in case was pinned beside the "
             + $"catalog row, so the combo offers one model twice [{string.Join(", ", shell.Modes.CloudModels)}]");
         AssertCloudSelectionIsListed("loading a mode whose model id differs from the catalog in case");
+
+        // #1908. A Grok mode saved on 1.0, which xAI ended on 2026-10-02, loads as 2.0 through the
+        // shared alias table: it is not pinned as an unknown id, and 1.0 is never offered.
+        legacyByokMode.CloudProvider = "grok";
+        legacyByokMode.CloudTranscriptionModel = "grok-voice-transcribe-1.0";
+        await new ModeRepository(database).UpsertAsync(legacyByokMode);
+        await shell.Modes.RefreshAsync();
+        shell.Modes.Selected = shell.Modes.Items.Single(item => item.Name == "Byok legacy model");
+        Assert(shell.Modes.CloudTranscriptionModel == "grok-voice-transcribe-2.0"
+            && !shell.Modes.CloudModels.Contains("grok-voice-transcribe-1.0", StringComparer.OrdinalIgnoreCase),
+            "a stored Grok 1.0 mode did not load as 2.0; it selected "
+            + $"'{shell.Modes.CloudTranscriptionModel}' from [{string.Join(", ", shell.Modes.CloudModels)}]");
+        AssertCloudSelectionIsListed("loading a mode saved on the retired Grok 1.0");
 
         // VERIFY ROUND. A field run on a real X screen drove this dialog and found the Cloud Model
         // combo BLANK after a vendor change, over a CloudTranscriptionModel that was correct and

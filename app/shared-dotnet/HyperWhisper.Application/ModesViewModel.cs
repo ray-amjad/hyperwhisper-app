@@ -550,8 +550,20 @@ public sealed class ModesViewModel : ViewModelBase
         // dictionary the catalog row drew its display name and the pinned row drew the raw id.
         // Folding the field onto the catalog's spelling is what Windows does through
         // ResolveModelAlias plus its OrdinalIgnoreCase tag match; both callers notify right after.
-        var listed = CloudVendorModelIds(_cloudProvider)
+        //
+        // An id the vendor no longer lists but the shared alias table (hw-catalog model_alias)
+        // names a successor for, such as Grok `grok-voice-transcribe-1.0` -> 2.0 (#1908), is that
+        // successor rather than an unknown id to pin. The alias is consulted only for an unlisted
+        // id: a deprecated id that is still a row (OpenAI `gpt-4o-transcribe`) stays as saved.
+        var vendorIds = CloudVendorModelIds(_cloudProvider);
+        var listed = vendorIds
             .FirstOrDefault(id => string.Equals(id, _transcriptionModel, StringComparison.OrdinalIgnoreCase));
+        if (listed is null)
+        {
+            var aliased = SharedCoreBridge.ResolveCloudSttModelAlias(_transcriptionModel, _cloudProvider);
+            listed = vendorIds
+                .FirstOrDefault(id => string.Equals(id, aliased, StringComparison.OrdinalIgnoreCase));
+        }
         if (listed is null) _cloudModelsPinnedId = _transcriptionModel;
         else _transcriptionModel = listed;
     }

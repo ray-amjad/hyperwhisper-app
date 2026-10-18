@@ -1273,6 +1273,15 @@ static Task BlankCloudProviderReadsAsHyperWhisperCloud()
         Assert(label == explicitLabel && !string.IsNullOrWhiteSpace(label),
             $"status bar read '{label}' for a blank-provider cloud mode, not the tier label '{explicitLabel}'");
     }
+    // #1908: a stored retired Grok 1.0 mode is named by its 2.0 successor, not drawn as a raw id.
+    var retired = statusBar.Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "grok", CloudTranscriptionModel = "grok-voice-transcribe-1.0" },
+        typeof(string), null, CultureInfo.InvariantCulture) as string;
+    var successor = statusBar.Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "grok", CloudTranscriptionModel = "grok-voice-transcribe-2.0" },
+        typeof(string), null, CultureInfo.InvariantCulture) as string;
+    Assert(retired == successor && retired != "grok-voice-transcribe-1.0",
+        $"status bar read '{retired}' for a stored Grok 1.0 mode, not the 2.0 label '{successor}'");
     return Task.CompletedTask;
 }
 

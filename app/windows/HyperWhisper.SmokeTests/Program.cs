@@ -3259,6 +3259,8 @@ internal static class Program
                     // #796: targets the Cloud catalog sells, not 3.1 Flash Lite / 3.6 Flash.
                     ("gemini-3.1-flash-lite-preview", CloudTranscriptionProvider.Gemini, "gemini-2.5-flash-lite"),
                     ("gemini-2.0-flash", CloudTranscriptionProvider.Gemini, "gemini-3.8-flash"),
+                    // #1908: xAI ended 1.0 on 2026-10-02 and reroutes it to 2.0.
+                    ("grok-voice-transcribe-1.0", CloudTranscriptionProvider.Grok, "grok-voice-transcribe-2.0"),
                 };
 
                 foreach (var (oldId, provider, replacement) in cases)

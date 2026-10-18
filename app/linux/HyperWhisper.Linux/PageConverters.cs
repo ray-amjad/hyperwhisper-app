@@ -211,6 +211,12 @@ public sealed class StatusBarModelConverter : IValueConverter
         id = mode.CloudTranscriptionModel ?? mode.Model;
         if (string.IsNullOrWhiteSpace(id)) return "None";
         var name = HyperWhisper.ModelReadiness.CloudSttModelCatalog.Label(id);
+        // A retired id the catalog no longer lists (Grok `grok-voice-transcribe-1.0`, #1908) is
+        // named by its successor, the model the editor shows and the request sends. Label hands an
+        // unknown id back unchanged.
+        if (string.IsNullOrWhiteSpace(name) || name == id)
+            name = HyperWhisper.ModelReadiness.CloudSttModelCatalog.Label(
+                HyperWhisper.SharedCore.SharedCoreBridge.ResolveCloudSttModelAlias(id, mode.CloudProvider));
         return string.IsNullOrWhiteSpace(name) ? id : name;
     }
 
