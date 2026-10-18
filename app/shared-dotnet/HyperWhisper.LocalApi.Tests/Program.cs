@@ -74,6 +74,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("a busy workflow refuses a Parakeet upload before converting it", ParakeetUploadRefusedBusyBeforeConversion)
     ,("a converted upload whose first delete fails is still deleted", ConvertedUploadDeleteIsRetried)
     ,("a Cloud mode posted with no cloudProvider stores and runs on HyperWhisper Cloud; an empty or whitespace one is refused", ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud)
+    ,("head hooks are off by default and run after the guard and the bearer check", HeadHooks)
 };
 foreach (var test in tests)
 {
@@ -806,6 +807,85 @@ static async Task JsonFileSecurity()
         }
     }
     finally { File.Delete(outside); }
+}
+
+/// <summary>
+/// The four optional head hooks on <see cref="PortableLocalApiOptions"/>
+/// (issue #356, Windows on the shared server). Linux sets none of them, so the
+/// first half pins that they default to null; the second half pins where each
+/// one runs when a head does set it.
+/// </summary>
+static async Task HeadHooks()
+{
+    var defaults = new PortableLocalApiOptions(Fixture.Token);
+    Assert(defaults.AuthorizedRequestGate is null && defaults.IsAdditionalAllowedFile is null
+        && defaults.VerifyOpenedFile is null && defaults.OriginRejected is null, "a head hook is on by default");
+
+    var gateCalls = new List<string>();
+    var rejected = 0;
+    var outside = Path.Combine(Path.GetTempPath(), $"hyperwhisper-extra-{Guid.NewGuid():N}.wav");
+    var refusedByHandle = Path.Combine(Path.GetTempPath(), $"hyperwhisper-refused-{Guid.NewGuid():N}.wav");
+    await File.WriteAllBytesAsync(outside, [1, 2]);
+    await File.WriteAllBytesAsync(refusedByHandle, [1, 2]);
+    try
+    {
+        await using var fixture = await Fixture.Create(adjust: options => options with
+        {
+            AuthorizedRequestGate = async context =>
+            {
+                gateCalls.Add($"{context.Request.Method} {context.Request.Path}");
+                if (context.Request.Method != "DELETE") return true;
+                context.Response.StatusCode = 200;
+                await Microsoft.AspNetCore.Http.HttpResponseWritingExtensions.WriteAsync(context.Response,
+                    """{"ok":false,"error":{"code":"ENGINE_UNAVAILABLE","message":"gated"}}""");
+                return false;
+            },
+            IsAdditionalAllowedFile = path => path == outside || path == refusedByHandle,
+            VerifyOpenedFile = stream => stream.Name != refusedByHandle,
+            OriginRejected = _ => rejected++,
+        });
+
+        // /health is public and never reaches the gate.
+        Assert((await fixture.Client.GetAsync("/health")).StatusCode == HttpStatusCode.OK, "health failed with hooks set");
+        Assert(gateCalls.Count == 0, "the gate ran on /health");
+
+        // An unauthenticated request stops at the bearer check, before the gate.
+        Assert((await fixture.Client.DeleteAsync("/modes/x")).StatusCode == HttpStatusCode.Unauthorized, "gate ran before auth");
+        Assert(gateCalls.Count == 0, "the gate saw an unauthenticated request");
+
+        // A rebound request stops at the guard, and the guard reports it.
+        using (var rebound = new HttpRequestMessage(HttpMethod.Get, "/models"))
+        {
+            rebound.Headers.Host = "attacker.example";
+            Assert((await fixture.Client.SendAsync(rebound)).StatusCode == HttpStatusCode.Forbidden, "rebound request passed");
+        }
+        Assert(rejected == 1 && gateCalls.Count == 0, "OriginRejected was not told, or the gate saw a rebound request");
+
+        fixture.Authenticate();
+        Assert((await fixture.Client.GetAsync("/models")).StatusCode == HttpStatusCode.OK, "the gate refused a read");
+        await AssertBusinessFailure(await fixture.Client.DeleteAsync("/modes/x"), LocalApiErrorCodes.EngineUnavailable, "gated delete");
+        Assert(gateCalls.SequenceEqual(["GET /models", "DELETE /modes/x"]), $"gate calls were {string.Join(", ", gateCalls)}");
+
+        // A file outside the roots that the head allows is read.
+        using (var extra = JsonContent($$"""{"file":{{JsonSerializer.Serialize(outside)}},"engine":"whisper","model":"base"}"""))
+            Assert((await fixture.Client.PostAsync("/transcribe", extra)).StatusCode == HttpStatusCode.OK, "an extra allowed file was refused");
+        Assert(fixture.Backend.Upload?.Content.Span.SequenceEqual(new byte[] { 1, 2 }) == true, "extra file bytes changed");
+
+        // The opened-file check refuses with the outside-the-roots answer.
+        using (var refused = JsonContent($$"""{"file":{{JsonSerializer.Serialize(refusedByHandle)}},"engine":"whisper","model":"base"}"""))
+        {
+            var response = await fixture.Client.PostAsync("/transcribe", refused);
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert(response.StatusCode == HttpStatusCode.BadRequest
+                && document.RootElement.GetProperty("error").GetProperty("code").GetString() == LocalApiErrorCodes.FileNotAllowed,
+                "a file the opened-file check refused was read");
+        }
+    }
+    finally
+    {
+        File.Delete(outside);
+        File.Delete(refusedByHandle);
+    }
 }
 
 static async Task PostProcessContextContract()
@@ -3324,12 +3404,14 @@ sealed class Fixture : IAsyncDisposable
     public required FakeBackend Backend { get; init; }
     public required string AllowedRoot { get; init; }
     public void Authenticate() => Client.DefaultRequestHeaders.Authorization = new("Bearer", Token);
-    public static async Task<Fixture> Create(int maxUpload = 1024, ILocalApiBackend? backend = null)
+    public static async Task<Fixture> Create(int maxUpload = 1024, ILocalApiBackend? backend = null,
+        Func<PortableLocalApiOptions, PortableLocalApiOptions>? adjust = null)
     {
         backend ??= new FakeBackend();
         var allowedRoot = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-files-{Guid.NewGuid():N}");
         Directory.CreateDirectory(allowedRoot);
         var options = new PortableLocalApiOptions(Token, ConfiguredPort, MaxRequestBytes, maxUpload, AllowedFileRoots: [allowedRoot]);
+        if (adjust is not null) options = adjust(options);
         var app = PortableLocalApi.Build([], options, backend, builder => builder.WebHost.UseTestServer());
         await app.StartAsync();
         var client = app.GetTestClient();

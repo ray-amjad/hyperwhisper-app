@@ -22,6 +22,38 @@ public sealed record PortableLocalApiOptions(
     int MaxTextCharacters = 131_072,
     IReadOnlyList<string>? AllowedFileRoots = null)
 {
+    /// <summary>
+    /// Optional head hook, run on every request that passed the origin guard
+    /// and the bearer check (never on <c>/health</c>), before any route.
+    /// Return <c>false</c> after writing a response to stop the request there.
+    /// Null, the default, adds no step: Linux leaves it unset. Windows uses it
+    /// for its first-run gate (issue #356).
+    /// </summary>
+    public Func<HttpContext, ValueTask<bool>>? AuthorizedRequestGate { get; init; }
+
+    /// <summary>
+    /// Optional head hook: a fully qualified <c>file</c> path that is allowed
+    /// although it is under none of <see cref="AllowedFileRoots"/>. Null, the
+    /// default, allows nothing more. Windows uses it for its single-file
+    /// <c>%TEMP%\hyperwhisper_*.wav</c> recording fallback.
+    /// </summary>
+    public Func<string, bool>? IsAdditionalAllowedFile { get; init; }
+
+    /// <summary>
+    /// Optional head hook, run on the OPENED <c>file</c> before a byte is read.
+    /// <c>false</c> refuses it with the same <c>FILE_NOT_ALLOWED</c> answer an
+    /// outside path gets. It closes the gap between the path check and the
+    /// open: Windows asks the handle where it really landed. Null, the
+    /// default, adds no check.
+    /// </summary>
+    public Func<FileStream, bool>? VerifyOpenedFile { get; init; }
+
+    /// <summary>
+    /// Optional head hook, told about every request the origin guard refused,
+    /// after the refusal is written. For a head's own log only. Null by default.
+    /// </summary>
+    public Action<HttpContext>? OriginRejected { get; init; }
+
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(Token)) throw new ArgumentException("A bearer token is required.", nameof(Token));
@@ -82,6 +114,7 @@ public static class PortableLocalApi
             if (!LocalApiOriginGuard.IsAllowed(context, LocalApiOriginGuard.ResolvePort(context, options)))
             {
                 await LocalApiSharedFailure.WriteForbiddenOriginAsync(context);
+                options.OriginRejected?.Invoke(context);
                 return;
             }
             await next(context);
@@ -105,6 +138,7 @@ public static class PortableLocalApi
             }
             try
             {
+                if (options.AuthorizedRequestGate is { } gate && !await gate(context)) return;
                 await next(context);
             }
             // FIRST, and deliberately (issue #356). Everything below maps a CLR
@@ -353,13 +387,15 @@ public static class PortableLocalApi
         try { path = Path.GetFullPath(requestedPath.Trim()); }
         catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
         { return new(null, null, Failure(400, LocalApiErrorCodes.InvalidRequest, "The 'file' field is not a valid path.")); }
-        if (!Path.IsPathFullyQualified(requestedPath.Trim()) || !IsAllowedPath(path, options.AllowedFileRoots))
-            return new(null, null, Failure(400, LocalApiErrorCodes.FileNotAllowed,
-                "The 'file' path is outside HyperWhisper's private audio folders."));
+        if (!Path.IsPathFullyQualified(requestedPath.Trim())
+            || !(IsAllowedPath(path, options.AllowedFileRoots) || options.IsAdditionalAllowedFile?.Invoke(path) == true))
+            return new(null, null, OutsideAllowedFolders());
         try
         {
             await using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
                 81_920, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            if (options.VerifyOpenedFile is { } verify && !verify(input))
+                return new(null, null, OutsideAllowedFolders());
             if (input.Length <= 0)
                 return new(null, null, Failure(400, LocalApiErrorCodes.InvalidRequest, "Audio must not be empty."));
             if (input.Length > options.MaxUploadBytes)
@@ -373,6 +409,9 @@ public static class PortableLocalApi
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         { return new(null, null, Failure(400, LocalApiErrorCodes.FileNotAllowed, "The 'file' path is unavailable.")); }
     }
+
+    private static IResult OutsideAllowedFolders() => Failure(400, LocalApiErrorCodes.FileNotAllowed,
+        "The 'file' path is outside HyperWhisper's private audio folders.");
 
     private static bool IsAllowedPath(string path, IReadOnlyList<string>? roots)
     {
