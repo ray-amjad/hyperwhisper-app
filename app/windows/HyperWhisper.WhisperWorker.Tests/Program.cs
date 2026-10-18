@@ -174,6 +174,10 @@ await CheckAsync("client: a transcribe starts the worker, loads once, then reuse
 await CheckAsync("client: a cold request reports its worker start and model load; a warm one reports zero (#1932)", async () =>
 {
     var loadDelay = TimeSpan.FromMilliseconds(150);
+    // Task.Delay can finish up to one Windows timer tick (15.6 ms) before the
+    // Stopwatch says it should (#1996: 149.2-149.9 ms on CI), so the floor
+    // allows that much. It still fails a measurement that misses the load.
+    var loadFloor = loadDelay - TimeSpan.FromMilliseconds(20);
     var launcher = new FakeLauncher(_ => new FakeBehavior
     {
         Handle = async (process, command) =>
@@ -187,13 +191,13 @@ await CheckAsync("client: a cold request reports its worker start and model load
     await client.SelectModelAsync(model);
     var cold = await client.TranscribeAsync("/a.wav", null, options);
     var warm = await client.TranscribeAsync("/b.wav", null, options);
-    Assert(cold.StartAndLoad >= loadDelay, $"cold start and load {cold.StartAndLoad.TotalMilliseconds} ms");
+    Assert(cold.StartAndLoad >= loadFloor, $"cold start and load {cold.StartAndLoad.TotalMilliseconds} ms");
     Assert(warm.StartAndLoad == TimeSpan.Zero, $"warm start and load {warm.StartAndLoad.TotalMilliseconds} ms");
 
     await client.StopAsync(); // what the idle timer does
     Assert(client.LastLoadResult is { Runtime: "vulkan" } && client.LoadResult is null, "the last load result was not kept after the exit");
     var afterStop = await client.TranscribeAsync("/c.wav", null, options);
-    Assert(afterStop.StartAndLoad >= loadDelay, $"after the worker stopped {afterStop.StartAndLoad.TotalMilliseconds} ms");
+    Assert(afterStop.StartAndLoad >= loadFloor, $"after the worker stopped {afterStop.StartAndLoad.TotalMilliseconds} ms");
 });
 
 await CheckAsync("client: a worker killed while idle is logged as an unasked exit; an idle shutdown is not (#1932)", async () =>
