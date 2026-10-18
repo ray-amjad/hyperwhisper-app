@@ -43,14 +43,27 @@ final class NemotronProvider: TranscriptionProvider {
             if let cached = sharedByVariant[variant] { return cached }
             if let inFlight = loadTasks[variant] { return try await inFlight.value }
 
+            // The one load point for batch (`prepareIfNeeded` / `transcribe`) and
+            // live streaming (`sharedModels(for:)`), so the Sentry capture lives
+            // here (#1980): it fires once per failed load, inside the task, not
+            // once per caller awaiting it.
             let task = Task<SharedNemotronMultilingualModels, Error> {
-                try await StreamingNemotronMultilingualAsrManager.downloadAndPreloadShared(
-                    languageCode: variant.downloadLanguageHint,
-                    chunkMs: NemotronModelManager.Constants.chunkMs,
-                    to: nil,
-                    configuration: nil,
-                    progressHandler: nil
-                )
+                do {
+                    return try await StreamingNemotronMultilingualAsrManager.downloadAndPreloadShared(
+                        languageCode: variant.downloadLanguageHint,
+                        chunkMs: NemotronModelManager.Constants.chunkMs,
+                        to: nil,
+                        configuration: nil,
+                        progressHandler: nil
+                    )
+                } catch {
+                    // A load cancelled by reset() / invalidate() is not a failure,
+                    // whatever error FluidAudio surfaces once it is cancelled.
+                    if !NemotronProvider.isLoadCancellation(error), !Task.isCancelled {
+                        NemotronProvider.reportRuntimeLoadFailure(error, variant: variant)
+                    }
+                    throw error
+                }
             }
             loadTasks[variant] = task
             do {
@@ -142,28 +155,39 @@ final class NemotronProvider: TranscriptionProvider {
                 for: LocalModelLoadFailureDetail.fields(for: error)
             )
             logger.error("Failed to initialize Nemotron \(variant.rawValue, privacy: .public); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public) \(failureDetailSummary, privacy: .public)")
-            // Its own Sentry event (#1980), so a HYPERWHISPER-W2-style failure
-            // carries the CoreML domain/code without relying on recent_logs.
-            // A cancelled load (reset / invalidate) is not a failure.
-            if AppLogger.isErrorLoggingEnabled, !(error is CancellationError) {
-                SentryService.capture(
-                    error: SentryService.identifierOnlyError(error),
-                    message: "Nemotron runtime load failed",
-                    extras: Self.loadFailureExtras(for: error),
-                    tags: Self.loadFailureTags(variantSlug: variant.rawValue, errorDomain: nsError.domain),
-                    fingerprint: [
-                        "nemotron-runtime-load",
-                        variant.rawValue,
-                        nsError.domain,
-                        String(nsError.code),
-                    ],
-                    includeRecentLogs: false
-                )
-            }
             await runtime.reset()
             await flagBroken(for: modelId)
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Failed to initialize Nemotron runtime")
         }
+    }
+
+    /// A cancelled load (reset / invalidate, or a cancelled download) is not a
+    /// failure. Mirrors ParakeetProvider's load-failure check.
+    static func isLoadCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        let nsError = error as NSError
+        return nsError.domain == NSURLErrorDomain && nsError.code == URLError.cancelled.rawValue
+    }
+
+    /// Its own Sentry event (#1980), so a HYPERWHISPER-W2-style failure carries
+    /// the CoreML domain/code without relying on recent_logs. Called from the
+    /// Runtime load task only, so batch and live loads both report, once each.
+    fileprivate static func reportRuntimeLoadFailure(_ error: Error, variant: NemotronModelManager.Variant) {
+        guard AppLogger.isErrorLoggingEnabled else { return }
+        let nsError = error as NSError
+        SentryService.capture(
+            error: SentryService.identifierOnlyError(error),
+            message: "Nemotron runtime load failed",
+            extras: loadFailureExtras(for: error),
+            tags: loadFailureTags(variantSlug: variant.rawValue, errorDomain: nsError.domain),
+            fingerprint: [
+                "nemotron-runtime-load",
+                variant.rawValue,
+                nsError.domain,
+                String(nsError.code),
+            ],
+            includeRecentLogs: false
+        )
     }
 
     /// Extras for the "Nemotron runtime load failed" event (#1980). Pure, so a

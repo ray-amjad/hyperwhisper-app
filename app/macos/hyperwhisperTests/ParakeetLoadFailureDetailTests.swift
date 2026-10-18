@@ -280,6 +280,18 @@ struct ParakeetLoadFailureDetailTests {
         expectAllowListedAndPathFree(extras)
     }
 
+    /// A cancelled load (reset / invalidate, a cancelled download) sends no
+    /// "Nemotron runtime load failed" event; a real failure does.
+    @Test func nemotronLoadCancellationClassification() {
+        #expect(NemotronProvider.isLoadCancellation(CancellationError()))
+        #expect(NemotronProvider.isLoadCancellation(URLError(.cancelled)))
+        #expect(NemotronProvider.isLoadCancellation(
+            NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
+        ))
+        #expect(!NemotronProvider.isLoadCancellation(URLError(.timedOut)))
+        #expect(!NemotronProvider.isLoadCancellation(Self.nemotronCoreMLError))
+    }
+
     // MARK: - Public log summary (#1980)
 
     @Test func publicSummaryOfNSErrorWithPathIsPathFree() {
