@@ -94,6 +94,10 @@
     <!-- The app-type classifier, shared with the Linux head since issue #279.
          It used to be Services\AppClassification\AppTypeClassifier.cs here. -->
     <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.AppClassification\HyperWhisper.AppClassification.csproj" />
+    <!-- The shared Local API server, hosted by this head since issue #356 item 6.
+         It used to be Services\LocalApi\Endpoints\ here, a second
+         implementation of the same routes. -->
+    <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.LocalApi\HyperWhisper.LocalApi.csproj" />
     <!-- The stdio client for the Whisper worker exe. Managed only: no Whisper.net. -->
     <ProjectReference Include="..\HyperWhisper.WhisperWorker.Client\HyperWhisper.WhisperWorker.Client.csproj" />
   </ItemGroup>

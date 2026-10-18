@@ -2,11 +2,9 @@ using System.Runtime.Versioning;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
+using SharedApi = HyperWhisper.LocalApi;
 
-namespace HyperWhisper.Services.LocalApi.Endpoints;
+namespace HyperWhisper.Services.LocalApi;
 
 /// <summary>
 /// `POST /post-process` — run free-form text through the same post-processing
@@ -16,200 +14,127 @@ namespace HyperWhisper.Services.LocalApi.Endpoints;
 /// orchestrator, since the orchestrator's wrapping (vocabulary replacements,
 /// filler-word removal) is transcription-specific and stays out of scope here.
 /// Dictated paragraph breaks ("new line" / "new paragraph") ARE preserved,
-/// matching the GUI pipeline (<see cref="Services.Transcription.TranscriptionOrchestrator"/>):
-/// the LLM can't be trusted to keep a mid-body break, so the text is pre-split
-/// on dictated commands, each segment is post-processed independently, and the
-/// breaks are restored afterwards — see <see cref="PostProcessingService.ProcessPreservingBreaksAsync"/>
-/// for the full rationale. Core wire shape matches macOS `PostProcessEndpoint`;
-/// Windows additionally accepts optional `applicationContext` and never gathers
-/// foreground app context automatically for API requests.
+/// matching the GUI pipeline: the text is pre-split on dictated commands, each
+/// segment is post-processed independently, and the breaks are restored
+/// afterwards. Windows additionally accepts optional `applicationContext` and
+/// never gathers foreground app context automatically for API requests.
 /// </summary>
-[SupportedOSPlatform("windows")]
-internal static class PostProcessEndpoints
+/// <remarks>
+/// The shared server validates the body first: non-empty text within its
+/// length cap, <c>preset</c> and <c>prompt</c> not both, and at least one of
+/// <c>mode_id</c>, <c>preset</c> or <c>prompt</c>.
+/// </remarks>
+internal sealed partial class WindowsLocalApiBackend
 {
-    public static void Map(IEndpointRouteBuilder app, LocalApiServer server)
+    public async ValueTask<SharedApi.PostProcessResult> PostProcessAsync(
+        SharedApi.PostProcessRequest request, CancellationToken cancellationToken)
     {
-        app.MapPost("/post-process", async (HttpContext ctx) =>
+        ArgumentNullException.ThrowIfNull(request);
+        var trimmedText = (request.Text ?? "").Trim();
+        var workingMode = BuildWorkingMode(request);
+
+        using var svc = new PostProcessingService();
+        string? capturedWarning = null;
+        EventHandler<ErrorToastEventArgs> warningHandler = (_, e) => capturedWarning = e.Message;
+        svc.WarningOccurred += warningHandler;
+
+        try
         {
-            // Over-limit bodies answer 200 + INVALID_REQUEST here too; only a
-            // genuine JSON error still gets the 400. See LocalApiLimits.
-            var (req, bodyFailure) = await LocalApiLimits.ReadJsonBodyAsync<PostProcessRequest>(
-                ctx,
-                "Required: 'text' plus one of mode_id / preset / prompt.");
-            if (bodyFailure != null)
-            {
-                return bodyFailure;
-            }
-            if (req == null)
-            {
-                return LocalApiResponder.BadRequest("Empty request body");
-            }
-
-            // VALIDATION — matches macOS PostProcessEndpoint
-            var trimmedText = (req.Text ?? "").Trim();
-            if (trimmedText.Length == 0)
-            {
-                return LocalApiResponder.Failure(
-                    LocalApiErrorCode.InvalidRequest,
-                    "'text' cannot be empty");
-            }
-
-            var hasPreset = !string.IsNullOrWhiteSpace(req.Preset);
-            var hasPrompt = !string.IsNullOrWhiteSpace(req.Prompt);
-            var hasModeId = !string.IsNullOrWhiteSpace(req.ModeId);
-
-            if (hasPreset && hasPrompt)
-            {
-                return LocalApiResponder.Failure(
-                    LocalApiErrorCode.InvalidRequest,
-                    "'preset' and 'prompt' are mutually exclusive");
-            }
-
-            if (!hasModeId && !hasPreset && !hasPrompt)
-            {
-                return LocalApiResponder.Failure(
-                    LocalApiErrorCode.InvalidRequest,
-                    "Provide at least one of 'mode_id', 'preset', or 'prompt'");
-            }
-
-            Mode workingMode;
+            var started = DateTime.UtcNow;
+            PostProcessingResult result;
             try
             {
-                workingMode = BuildWorkingMode(req);
+                result = await svc.ProcessPreservingBreaksAsync(
+                    trimmedText,
+                    workingMode,
+                    LocalApiApplicationContext.From(request.ApplicationContext)?.ToApplicationContext(),
+                    cancellationToken);
             }
-            catch (ApiInputException aiex)
+            catch (OperationCanceledException)
             {
-                return LocalApiResponder.Failure(aiex.Code, aiex.Message, aiex.Hint);
+                throw WindowsLocalApiFailure.Business(LocalApiErrorCode.Timeout, "Post-processing was cancelled");
             }
-
-            using var svc = new PostProcessingService();
-            string? capturedWarning = null;
-            EventHandler<ErrorToastEventArgs> warningHandler = (_, e) => capturedWarning = e.Message;
-            svc.WarningOccurred += warningHandler;
-
-            try
+            catch (Exception ex)
             {
-                var started = DateTime.UtcNow;
-                PostProcessingResult result;
-                try
-                {
-                    result = await svc.ProcessPreservingBreaksAsync(
-                        trimmedText,
-                        workingMode,
-                        req.ApplicationContext?.ToApplicationContext(),
-                        ctx.RequestAborted);
-                }
-                catch (OperationCanceledException)
-                {
-                    return LocalApiResponder.Failure(
-                        LocalApiErrorCode.Timeout,
-                        "Post-processing was cancelled");
-                }
-                catch (Exception ex)
-                {
-                    LoggingService.Error("LocalAPI /post-process: PostProcessingService threw", ex);
-                    return LocalApiResponder.Failure(
-                        LocalApiErrorCode.TranscriptionFailed,
-                        ex.Message);
-                }
-                var latencyMs = (int)Math.Round((DateTime.UtcNow - started).TotalMilliseconds);
-
-                // No account key on a HyperWhisper Cloud run: refuse with the
-                // envelope `/transcribe` gives for the same mode (issue #1487),
-                // not the generic TRANSCRIPTION_FAILED the captured warning
-                // below would produce.
-                if (!result.WasApplied && result.CloudAccountMissing)
-                {
-                    var (code, message, hint) = LocalApiResponder.MapTranscriptionException(
-                        new TranscriptionException(
-                            TranscriptionErrorCode.CloudAccountRequired,
-                            "HyperWhisper Cloud requires an account key",
-                            "HyperWhisper Cloud"));
-                    return LocalApiResponder.Failure(code, message, hint);
-                }
-
-                // `result.AnyPartialFailure` covers the multi-segment case where
-                // some segments applied and at least one did not — `WasApplied`
-                // alone is OR-aggregated across segments and would otherwise
-                // report `ok: true` with a response that's silently a mix of
-                // correctly-processed and raw/unprocessed segment text. Several
-                // genuine per-segment failure paths inside PostProcessingService
-                // (empty HyperWhisperCloud response, unknown model, cancellation)
-                // never raise `WarningOccurred`, so this branch must not depend on
-                // `capturedWarning` being set — report failure whenever
-                // `AnyPartialFailure` is true regardless, falling back to a
-                // generic message when no specific warning was captured.
-                if (result.AnyPartialFailure)
-                {
-                    return LocalApiResponder.Failure(
-                        LocalApiErrorCode.TranscriptionFailed,
-                        !string.IsNullOrEmpty(capturedWarning)
-                            ? capturedWarning
-                            : "Post-processing partially failed: some segments were processed and at least one was not.");
-                }
-
-                if (!result.WasApplied)
-                {
-                    if (!string.IsNullOrEmpty(capturedWarning))
-                    {
-                        return LocalApiResponder.Failure(
-                            LocalApiErrorCode.TranscriptionFailed,
-                            capturedWarning);
-                    }
-                    // Post-processing silently skipped (PostProcessingMode == 0
-                    // slipped past BuildWorkingMode, or empty system prompt).
-                    // Treat as no-op success — return the input text labelled
-                    // `provider: "none"` so callers can distinguish. Nothing ran,
-                    // so the stored `LanguageModel` is the only label there is and
-                    // is not a claim about a run (#314) — it can legitimately be
-                    // `""`, and `provider: "none"` is what tells the caller.
-                    return LocalApiResponder.Ok(new PostProcessResponse
-                    {
-                        Text = result.Text,
-                        Provider = "none",
-                        Model = workingMode.LanguageModel ?? "",
-                        Preset = workingMode.Preset ?? "hyper",
-                        LatencyMs = latencyMs,
-                        // Nothing ran; `result.Text` is the caller's own input
-                        // echoed back. `provider: "none"` above is this head's
-                        // OWN signal for that and is Windows-only — macOS
-                        // reports the configured provider here and leans on
-                        // `post_processed` alone, so the two fields are not
-                        // interchangeable across platforms and a client must
-                        // read this one. Not unified here: changing the
-                        // `provider` value is a wire break for existing
-                        // Windows callers and is not what #499 asks for.
-                        PostProcessed = false
-                    });
-                }
-
-                // Report the provider and model that ACTUALLY ran (issue #314),
-                // not the ones stored on the Mode — every fallback inside
-                // PostProcessingService happens after the Mode was read. `preset`
-                // is not remapped anywhere, so it still comes off the Mode.
-                var labels = ResponseLabels(
-                    workingMode.PostProcessingProvider,
-                    workingMode.LanguageModel,
-                    result.ResolvedProvider,
-                    result.ResolvedModel);
-
-                return LocalApiResponder.Ok(new PostProcessResponse
-                {
-                    Text = result.Text,
-                    Provider = labels.Provider,
-                    Model = labels.Model,
-                    Preset = workingMode.Preset ?? "hyper",
-                    LatencyMs = latencyMs,
-                    // Reached only past the `!result.WasApplied` guard above, so
-                    // an LLM ran and this text is its output.
-                    PostProcessed = true
-                });
+                LoggingService.Error("LocalAPI /post-process: PostProcessingService threw", ex);
+                throw WindowsLocalApiFailure.Business(LocalApiErrorCode.TranscriptionFailed, ex.Message);
             }
-            finally
+            var latencyMs = (int)Math.Round((DateTime.UtcNow - started).TotalMilliseconds);
+
+            // No account key on a HyperWhisper Cloud run: refuse with the
+            // envelope `/transcribe` gives for the same mode (issue #1487),
+            // not the generic TRANSCRIPTION_FAILED the captured warning
+            // below would produce.
+            if (!result.WasApplied && result.CloudAccountMissing)
             {
-                svc.WarningOccurred -= warningHandler;
+                throw WindowsLocalApiFailure.Transcription(new TranscriptionException(
+                    TranscriptionErrorCode.CloudAccountRequired,
+                    "HyperWhisper Cloud requires an account key",
+                    "HyperWhisper Cloud"));
             }
-        });
+
+            // `result.AnyPartialFailure` covers the multi-segment case where
+            // some segments applied and at least one did not — `WasApplied`
+            // alone is OR-aggregated across segments and would otherwise
+            // report `ok: true` with a response that's silently a mix of
+            // correctly-processed and raw/unprocessed segment text. Several
+            // genuine per-segment failure paths never raise `WarningOccurred`,
+            // so this branch must not depend on `capturedWarning` being set.
+            if (result.AnyPartialFailure)
+            {
+                throw WindowsLocalApiFailure.Business(
+                    LocalApiErrorCode.TranscriptionFailed,
+                    !string.IsNullOrEmpty(capturedWarning)
+                        ? capturedWarning
+                        : "Post-processing partially failed: some segments were processed and at least one was not.");
+            }
+
+            if (!result.WasApplied)
+            {
+                if (!string.IsNullOrEmpty(capturedWarning))
+                {
+                    throw WindowsLocalApiFailure.Business(LocalApiErrorCode.TranscriptionFailed, capturedWarning);
+                }
+                // Post-processing silently skipped (PostProcessingMode == 0
+                // slipped past BuildWorkingMode, or empty system prompt).
+                // Treat as no-op success — return the input text labelled
+                // `provider: "none"` so callers can distinguish. Nothing ran,
+                // so the stored `LanguageModel` is the only label there is and
+                // is not a claim about a run (#314). `post_processed: false`
+                // says the same thing in the field every head shares (#499).
+                return new SharedApi.PostProcessResult(
+                    result.Text,
+                    "none",
+                    workingMode.LanguageModel ?? "",
+                    workingMode.Preset ?? "hyper",
+                    latencyMs,
+                    PostProcessed: false);
+            }
+
+            // Report the provider and model that ACTUALLY ran (issue #314),
+            // not the ones stored on the Mode — every fallback inside
+            // PostProcessingService happens after the Mode was read. `preset`
+            // is not remapped anywhere, so it still comes off the Mode.
+            var labels = ResponseLabels(
+                workingMode.PostProcessingProvider,
+                workingMode.LanguageModel,
+                result.ResolvedProvider,
+                result.ResolvedModel);
+
+            return new SharedApi.PostProcessResult(
+                result.Text,
+                labels.Provider,
+                labels.Model,
+                workingMode.Preset ?? "hyper",
+                latencyMs,
+                // Reached only past the `!result.WasApplied` guard above, so
+                // an LLM ran and this text is its output.
+                PostProcessed: true);
+        }
+        finally
+        {
+            svc.WarningOccurred -= warningHandler;
+        }
     }
 
     // =========================================================================
@@ -318,7 +243,7 @@ internal static class PostProcessEndpoints
     /// other two need <see cref="ModeService"/>.
     /// </para>
     /// </summary>
-    internal static Mode BuildWorkingMode(PostProcessRequest req)
+    internal static Mode BuildWorkingMode(SharedApi.PostProcessRequest req)
     {
         var preset = req.Preset?.Trim();
         var prompt = req.Prompt?.Trim();
@@ -336,20 +261,20 @@ internal static class PostProcessEndpoints
         {
             if (!Guid.TryParse(modeId, out var guid))
             {
-                throw new ApiInputException(
+                throw WindowsLocalApiFailure.Business(
                     LocalApiErrorCode.InvalidRequest,
                     $"'{modeId}' is not a valid mode id");
             }
             var stored = ModeService.Instance.GetMode(guid);
             if (stored == null)
             {
-                throw new ApiInputException(
+                throw WindowsLocalApiFailure.Business(
                     LocalApiErrorCode.ModeNotFound,
                     $"No mode with id '{modeId}'");
             }
             if (stored.PostProcessingMode == 0)
             {
-                throw new ApiInputException(
+                throw WindowsLocalApiFailure.Business(
                     LocalApiErrorCode.InvalidRequest,
                     $"Mode '{stored.Name}' has post-processing disabled. Supply an explicit 'provider' or 'preset' to override.");
             }
@@ -362,14 +287,14 @@ internal static class PostProcessEndpoints
         {
             if (!Guid.TryParse(modeId, out var guid))
             {
-                throw new ApiInputException(
+                throw WindowsLocalApiFailure.Business(
                     LocalApiErrorCode.InvalidRequest,
                     $"'{modeId}' is not a valid mode id");
             }
             var stored = ModeService.Instance.GetMode(guid);
             if (stored == null)
             {
-                throw new ApiInputException(
+                throw WindowsLocalApiFailure.Business(
                     LocalApiErrorCode.ModeNotFound,
                     $"No mode with id '{modeId}'");
             }
@@ -475,16 +400,5 @@ internal static class PostProcessEndpoints
             CreatedDate = DateTime.UtcNow,
             ModifiedDate = DateTime.UtcNow
         };
-    }
-
-    private sealed class ApiInputException : Exception
-    {
-        public string Code { get; }
-        public string? Hint { get; }
-        public ApiInputException(string code, string message, string? hint = null) : base(message)
-        {
-            Code = code;
-            Hint = hint;
-        }
     }
 }

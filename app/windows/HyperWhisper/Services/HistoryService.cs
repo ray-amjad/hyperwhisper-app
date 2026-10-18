@@ -739,7 +739,7 @@ public class HistoryService
         }
     }
 
-    private static IEnumerable<string> GetTrustedAudioRoots()
+    internal static IEnumerable<string> GetTrustedAudioRoots()
     {
         yield return StorageService.Instance.GetRecordingsFolder();
         yield return SettingsService.GetLegacyAudioFolder();
@@ -753,7 +753,7 @@ public class HistoryService
             : Path.Combine(Path.GetTempPath(), "HyperWhisper", "recordings");
     }
 
-    private static bool IsTempRecordingFallbackFile(string fullPath)
+    internal static bool IsTempRecordingFallbackFile(string fullPath)
     {
         var tempRoot = Path.GetFullPath(Path.GetTempPath());
         var fileName = Path.GetFileName(fullPath);
