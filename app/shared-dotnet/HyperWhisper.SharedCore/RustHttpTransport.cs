@@ -33,7 +33,16 @@ internal static class RustHttpTransport
     /// </summary>
     internal static HttpRequestMessage BuildRequestMessage(HttpRequest request)
     {
-        var message = new HttpRequestMessage(MapMethod(request.@method), request.@url);
+        // Prefer HTTP/2, falling back to 1.1 when the server does not offer it.
+        // SendAsync ignores HttpClient.DefaultRequestVersion, so a message with
+        // no Version goes out as HTTP/1.1 and cannot reuse a connection the
+        // warmup already opened over HTTP/2: the first upload paid its own
+        // TCP + TLS handshake (#982).
+        var message = new HttpRequestMessage(MapMethod(request.@method), request.@url)
+        {
+            Version = HttpVersion.Version20,
+            VersionPolicy = HttpVersionPolicy.RequestVersionOrLower,
+        };
         switch (request.@body)
         {
             case Body.Empty:

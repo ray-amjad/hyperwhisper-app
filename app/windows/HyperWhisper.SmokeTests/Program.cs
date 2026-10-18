@@ -11544,6 +11544,13 @@ internal static class Program
                             new HwPart.FileRef("audio", path, "audio/wav", "audio.wav"),
                         })));
 
+                    // #982: SendAsync ignores HttpClient.DefaultRequestVersion, so a
+                    // message with no Version goes out as HTTP/1.1 and cannot reuse
+                    // the HTTP/2 connection the /warmup HEAD opened.
+                    Assert(message.Version == System.Net.HttpVersion.Version20,
+                        $"the Cloud upload asks for HTTP/{message.Version}, not HTTP/2");
+                    Assert(message.VersionPolicy == HttpVersionPolicy.RequestVersionOrLower,
+                        $"the Cloud upload's version policy is {message.VersionPolicy}, not RequestVersionOrLower");
                     Assert(message.Content is MultipartFormDataContent,
                         "typed multipart request produced no multipart content");
                     var parts = ((MultipartFormDataContent)message.Content!).ToList();
