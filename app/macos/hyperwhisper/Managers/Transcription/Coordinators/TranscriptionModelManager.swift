@@ -623,6 +623,12 @@ class TranscriptionModelManager: ObservableObject {
         } catch is CancellationError {
             AppLogger.models.info("Model switch cancelled")
             onStateChange?(.idle)
+        } catch TranscriptionError.modelNotDownloaded {
+            // A missing model file is an expected state (a restored mode, a
+            // deleted cache), not a load fault: show the Download prompt the
+            // Parakeet path shows, and send no Sentry event (#1985).
+            AppLogger.models.warning("Whisper \(target.rawValue, privacy: .public) is not downloaded")
+            modelReadyState = .unavailable(name: target.name)
         } catch {
             AppLogger.models.error("Failed to load model \(target.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
             modelReadyState = .none
