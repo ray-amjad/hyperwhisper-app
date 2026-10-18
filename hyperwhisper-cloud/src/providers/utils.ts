@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, ProviderUnavailableKind, TranscriptionResult } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 
@@ -466,8 +466,9 @@ export interface ProviderHttpErrorPolicy {
   /** Name used in the thrown error messages ('OpenAI', 'Grok', 'Deepgram', …). */
   label: string;
   /**
-   * Statuses that mean OUR credentials are wrong. These throw a plain `Error`
-   * (not a fallback signal) because retrying siblings can't fix a bad key.
+   * Statuses that mean OUR credentials are wrong. These throw a
+   * `ProviderAuthError`: a sibling has its own key, so the route tries it when
+   * the chain has one, and fails the request when it does not.
    * Defaults to `[401]`; adapters whose upstream also returns 403 for a bad or
    * unauthorized key pass `[401, 403]`.
    */
@@ -576,7 +577,7 @@ export async function providerHttpError(
     return new ProviderUnavailableError(label, `insufficient funds (${quotaReason})`, details('unknown'));
   }
   if ((policy.authStatuses ?? [401]).includes(status)) {
-    return new Error(policy.authMessage);
+    return new ProviderAuthError(policy.authMessage, status);
   }
   if (status === 429) {
     return new ProviderUnavailableError(label, 'rate limit exceeded', details('rate_limit'));

@@ -17,7 +17,7 @@ import {
   splitVocabularyTerms,
   upstreamDurationOrNull,
 } from './utils';
-import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { TranscriptionResult } from './types';
 
 describe('computeUploadTimeoutMs (size-scaled audio-upload budget)', () => {
@@ -300,9 +300,10 @@ describe('providerHttpError (shared non-2xx classification for the sync STT adap
   const policy = { label: 'TestProvider', authMessage: 'TestProvider API key is invalid' };
   const at = (status: number, body = 'boom') => new Response(body, { status });
 
-  test('auth statuses throw a plain Error (a sibling retry cannot fix a bad key)', async () => {
+  test('auth statuses throw a ProviderAuthError (the route decides whether a sibling can try)', async () => {
     const err = await providerHttpError('test', at(401), performance.now(), {}, policy);
-    expect(err).toBeInstanceOf(Error);
+    expect(err).toBeInstanceOf(ProviderAuthError);
+    expect((err as ProviderAuthError).status).toBe(401);
     expect(err).not.toBeInstanceOf(ProviderUnavailableError);
     expect(err.message).toBe('TestProvider API key is invalid');
   });

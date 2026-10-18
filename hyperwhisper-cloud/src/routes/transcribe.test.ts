@@ -180,8 +180,7 @@ describe('transcribeRoute provider fallback', () => {
     expect(attemptFail).toContain('"upstreamStatus":401');
   });
 
-  test('still short-circuits with 500 on an auth (401) failure without trying fallbacks', async () => {
-    let deepgramCalled = false;
+  test('a rejected key on one provider is served by the next, which has its own key', async () => {
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
       const url = String(input);
 
@@ -190,10 +189,9 @@ describe('transcribeRoute provider fallback', () => {
       }
 
       if (url.includes('api.deepgram.com')) {
-        deepgramCalled = true;
         return Response.json({
-          results: { channels: [{ alternatives: [{ transcript: 'should not reach here' }] }] },
-          metadata: { duration: 1 },
+          results: { channels: [{ alternatives: [{ transcript: 'hello from deepgram' }], detected_language: 'en' }] },
+          metadata: { duration: 1, request_id: 'dg-req-1' },
         });
       }
 
@@ -201,9 +199,32 @@ describe('transcribeRoute provider fallback', () => {
     }) as unknown as typeof fetch;
 
     const response = await buildApp().fetch(transcribeRequest('elevenlabs'));
+    const body = await response.json() as { text: string; metadata: { stt_provider: string } };
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('hello from deepgram');
+    expect(body.metadata.stt_provider).toContain('fallback from');
+  });
+
+  test('a rejected key on the last provider in the chain still ends the request with 500', async () => {
+    const called: string[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes('api.elevenlabs.io') || url.includes('api.deepgram.com') || url.includes('api.groq.com')) {
+        called.push(new URL(url).hostname);
+        return new Response('unauthorized', { status: 401 });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(transcribeRequest('elevenlabs'));
+    const body = await response.json() as { message: string };
 
     expect(response.status).toBe(500);
-    expect(deepgramCalled).toBe(false);
+    expect(called).toEqual(['api.elevenlabs.io', 'api.deepgram.com', 'api.groq.com']);
+    expect(body.message).toBe('Groq API key is invalid');
   });
 
   test('preserves a literal + in initial_prompt end-to-end (no plus-to-space decode)', async () => {

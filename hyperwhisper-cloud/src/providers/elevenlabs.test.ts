@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithElevenLabs } from './elevenlabs';
-import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 
 const originalFetch = globalThis.fetch;
 
@@ -202,10 +202,12 @@ describe('transcribeWithElevenLabs — successful response handling', () => {
 });
 
 describe('transcribeWithElevenLabs — upstream error mapping', () => {
-  test('401 maps to a plain (non-fallback) Error', async () => {
+  test('401 maps to a ProviderAuthError, not a failover signal', async () => {
     mockFetchOnce(() => new Response('unauthorized', { status: 401 }));
-    await expect(transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US'))
-      .rejects.toThrow('ElevenLabs API key is invalid');
+    const error = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderAuthError);
+    expect(error).not.toBeInstanceOf(ProviderUnavailableError);
+    expect((error as Error).message).toBe('ElevenLabs API key is invalid');
   });
 
   test('a 401 quota_exceeded (out of credits) fails over as insufficient funds, keeping the status', async () => {
