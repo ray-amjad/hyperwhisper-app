@@ -87,9 +87,14 @@ final class ParakeetProvider: TranscriptionProvider {
             // the load is in flight makes us discard the result below.
             let loadGeneration = generation
             let coldLoadStart = Date()
+            // Last FluidAudio load phase, for the failure report only (#1017).
+            let phaseRecorder = LocalModelLoadPhaseRecorder()
             let task = Task<AsrManager, Error> {
                 // Use version-specific loading API from FluidAudio
-                let models = try await AsrModels.downloadAndLoad(version: version)
+                let models = try await AsrModels.downloadAndLoad(
+                    version: version,
+                    progressHandler: { progress in phaseRecorder.record(progress) }
+                )
                 // FluidAudio 0.15.x: AsrManager became an `actor`; legacy
                 // `initialize(models:)` and `resetDecoderState()` are gone. Pass
                 // models at init and clear the shared ML array cache via reset().
@@ -143,6 +148,8 @@ final class ParakeetProvider: TranscriptionProvider {
                 }
                 let requestedVersion = String(describing: version)
                 let previousVersion = activeVersionBeforeLoad.map { String(describing: $0) } ?? "none"
+                let failureDetail = LocalModelLoadFailureDetail.fields(for: error)
+                let lastPhase = phaseRecorder.lastPhase
 
                 if isCancellation {
                     memoryLog.info(
@@ -161,7 +168,9 @@ final class ParakeetProvider: TranscriptionProvider {
                                 generation: loadGeneration,
                                 anotherVersionWasLoading: anotherVersionWasLoading,
                                 cachePresent: cachePresentAfterFailure,
-                                errorCode: nsError.code
+                                errorCode: nsError.code,
+                                failureDetail: failureDetail,
+                                lastPhase: lastPhase
                             ),
                             tags: Self.failureTags(
                                 requestedVersion: requestedVersion,
@@ -172,8 +181,10 @@ final class ParakeetProvider: TranscriptionProvider {
                         )
                     }
                 } else {
+                    let failureDetailSummary = LocalModelLoadFailureDetail.logSummary(for: failureDetail)
+                    let lastPhaseSummary = LocalModelLoadFailureDetail.logSummary(for: lastPhase)
                     memoryLog.error(
-                        "model.load.failed id=\(parakeetResidencyId, privacy: .public) stage=\(failureStage, privacy: .public) version=\(requestedVersion, privacy: .public) previousVersion=\(previousVersion, privacy: .public) durationMs=\(elapsedMs, privacy: .public) errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)"
+                        "model.load.failed id=\(parakeetResidencyId, privacy: .public) stage=\(failureStage, privacy: .public) version=\(requestedVersion, privacy: .public) previousVersion=\(previousVersion, privacy: .public) durationMs=\(elapsedMs, privacy: .public) errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public) \(failureDetailSummary, privacy: .public) \(lastPhaseSummary, privacy: .public)"
                     )
                     if AppLogger.isErrorLoggingEnabled {
                         let cachePresentAfterFailure = AsrModels.modelsExist(
@@ -188,7 +199,9 @@ final class ParakeetProvider: TranscriptionProvider {
                                 generation: loadGeneration,
                                 anotherVersionWasLoading: anotherVersionWasLoading,
                                 cachePresent: cachePresentAfterFailure,
-                                errorCode: nsError.code
+                                errorCode: nsError.code,
+                                failureDetail: failureDetail,
+                                lastPhase: lastPhase
                             ),
                             tags: Self.failureTags(
                                 requestedVersion: requestedVersion,
@@ -215,9 +228,11 @@ final class ParakeetProvider: TranscriptionProvider {
             generation: Int,
             anotherVersionWasLoading: Bool,
             cachePresent: Bool,
-            errorCode: Int
+            errorCode: Int,
+            failureDetail: LocalModelLoadFailureDetail.Fields,
+            lastPhase: LocalModelLoadFailureDetail.LoadPhase?
         ) -> [String: Any] {
-            [
+            var extras: [String: Any] = [
                 "parakeet_load_stage": stage,
                 "parakeet_load_duration_ms": elapsedMs,
                 "parakeet_load_generation": generation,
@@ -225,6 +240,16 @@ final class ParakeetProvider: TranscriptionProvider {
                 "parakeet_cache_present_after_failure": cachePresent,
                 "parakeet_error_code": errorCode,
             ]
+            // Why it failed (#1017): fixed slugs and numbers only, never a path.
+            extras.merge(
+                LocalModelLoadFailureDetail.extras(for: failureDetail, keyPrefix: "parakeet"),
+                uniquingKeysWith: { current, _ in current }
+            )
+            extras.merge(
+                LocalModelLoadFailureDetail.extras(for: lastPhase, keyPrefix: "parakeet"),
+                uniquingKeysWith: { current, _ in current }
+            )
+            return extras
         }
 
         private static func failureTags(
