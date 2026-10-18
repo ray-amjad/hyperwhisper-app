@@ -282,3 +282,15 @@ jobs:
       # all.
       - name: Run first-run mode seed conformance vectors
         run: dotnet run --project app/shared-dotnet/HyperWhisper.ModeDefaults.Tests -c Release
+
+      # ----------------------------------------------------------------
+      # 14. Shared Local API server
+      # ----------------------------------------------------------------
+      # Issue #356 item 6: the Windows head no longer has its own Local API
+      # route table. It hosts the shared PortableLocalApi through a Windows
+      # ILocalApiBackend, so this suite — the server's own contract tests,
+      # the same project Linux CI's shared-dotnet sweep runs — is what proves
+      # the routes, the origin guard, bearer auth, the body limits and the
+      # `file` path policy on this platform too.
+      - name: Run shared Local API server tests
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.LocalApi.Tests -c Release
