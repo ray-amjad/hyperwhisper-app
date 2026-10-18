@@ -409,26 +409,11 @@ public sealed class ModelLibraryManager
         // "configured" from the library's perspective.
         if (!provider.RequiresApiKey()) return true;
 
-        var paired = provider.GetApiKeyProvider();
-        if (paired != PostProcessingProvider.None)
-        {
-            return _apiKeys.HasApiKey(paired);
-        }
-
-        // Explicit `_ => false` fallthrough: a newly added keyed provider that
-        // forgets to wire up its TranscriptionApiKeyType lookup here will
-        // correctly report "not configured" instead of silently true.
-        return provider switch
-        {
-            CloudTranscriptionProvider.Deepgram => _apiKeys.HasApiKey(TranscriptionApiKeyType.Deepgram),
-            CloudTranscriptionProvider.AssemblyAI => _apiKeys.HasApiKey(TranscriptionApiKeyType.AssemblyAI),
-            CloudTranscriptionProvider.ElevenLabs => _apiKeys.HasApiKey(TranscriptionApiKeyType.ElevenLabs),
-            CloudTranscriptionProvider.Mistral => _apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
-            CloudTranscriptionProvider.Soniox => _apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
-            CloudTranscriptionProvider.GeminiTranscribe => _apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
-            CloudTranscriptionProvider.Meta => _apiKeys.HasApiKey(TranscriptionApiKeyType.Meta),
-            _ => false
-        };
+        // The shared key map (issue #1220): the paired post-processing key,
+        // else the provider's own slot. A newly added keyed provider with no
+        // slot in GetTranscriptionApiKeyType() reads as "not configured"
+        // instead of silently true.
+        return _apiKeys.HasApiKey(provider);
     }
 
     // Single-sourced on CloudTranscriptionProviderExtensions.GetAssetName so the

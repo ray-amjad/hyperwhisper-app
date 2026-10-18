@@ -90,28 +90,13 @@ internal static class HealthEndpoints
     private static bool HasKeyForTranscriptionProvider(
         ApiKeyService apiKeys, CloudTranscriptionProvider provider, bool cloudAccountKeyPresent)
     {
-        // OpenAI / Groq / Gemini / Grok share keys with PostProcessingProvider;
-        // Deepgram / AssemblyAI / ElevenLabs / Mistral / Soniox are
-        // transcription-only. The HW-Cloud-routed three hold no BYOK key: they
-        // need the HyperWhisper Cloud account key (CloudAccountKeyPresent).
-        return provider switch
-        {
-            CloudTranscriptionProvider.OpenAI => apiKeys.HasApiKey(PostProcessingProvider.OpenAI),
-            CloudTranscriptionProvider.Groq => apiKeys.HasApiKey(PostProcessingProvider.Groq),
-            CloudTranscriptionProvider.Gemini => apiKeys.HasApiKey(PostProcessingProvider.Gemini),
-            CloudTranscriptionProvider.Grok => apiKeys.HasApiKey(PostProcessingProvider.Grok),
-            CloudTranscriptionProvider.Deepgram => apiKeys.HasApiKey(TranscriptionApiKeyType.Deepgram),
-            CloudTranscriptionProvider.AssemblyAI => apiKeys.HasApiKey(TranscriptionApiKeyType.AssemblyAI),
-            CloudTranscriptionProvider.ElevenLabs => apiKeys.HasApiKey(TranscriptionApiKeyType.ElevenLabs),
-            CloudTranscriptionProvider.Mistral => apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
-            CloudTranscriptionProvider.Soniox => apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
-            CloudTranscriptionProvider.GeminiTranscribe => apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
-            CloudTranscriptionProvider.Meta => apiKeys.HasApiKey(TranscriptionApiKeyType.Meta),
-            // HW-Cloud-routed providers: /transcribe refuses them with
-            // MISSING_API_KEY when no account key is stored, so report that.
-            _ when UsesCloudAccountKey(provider) => cloudAccountKeyPresent,
-            _ => false
-        };
+        // HW-Cloud-routed providers hold no BYOK key: /transcribe refuses them
+        // with MISSING_API_KEY when no HyperWhisper Cloud account key is stored,
+        // so report that (CloudAccountKeyPresent). Every other provider answers
+        // from the shared key map (issue #1220); None has no slot, so false.
+        return UsesCloudAccountKey(provider)
+            ? cloudAccountKeyPresent
+            : apiKeys.HasApiKey(provider);
     }
 
     internal static List<HealthProviderStatus> BuildPostProcessingProviders(
