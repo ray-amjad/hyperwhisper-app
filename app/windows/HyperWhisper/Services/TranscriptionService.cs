@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
 using HyperWhisper.WhisperWorker;
 
@@ -186,15 +187,16 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     public bool IsUsingGpu => ActiveGpuName != null;
 
     /// <summary>
-    /// The backend for the log (#1932). The worker's last load says what really
-    /// ran, which is the CPU when Vulkan fell back. Before a load, a CPU-only
+    /// The backend for the log (#1932). The worker's last load of this model says
+    /// what really ran, which is the CPU when Vulkan fell back; it outlives an idle
+    /// exit, since the next worker loads the same way. Before a load, a CPU-only
     /// <c>HW_WHISPER_WORKER_RUNTIMES</c> (a diagnostics override the worker
     /// inherits) means the CPU even on a GPU machine. The model is still sent the
     /// GPU's device index; the CPU runtime ignores it.
     /// </summary>
     internal string DescribeBackend()
     {
-        if (_worker.LoadResult is { } load)
+        if (_worker.LastLoadResult is { } load)
         {
             return load.Runtime == "vulkan"
                 ? $"GPU ({load.Gpu ?? ActiveGpuName ?? "Vulkan"})"

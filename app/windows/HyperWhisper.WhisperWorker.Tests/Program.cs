@@ -182,16 +182,18 @@ await CheckAsync("client: a cold request reports its worker start and model load
             await FakeBehavior.DefaultHandle(process, command);
         },
     });
-    await using var client = new WhisperWorkerClient(launcher, timings: fast);
+    // No idle exit between the two: a slow runner must not turn "warm" cold.
+    await using var client = new WhisperWorkerClient(launcher, timings: fast with { IdleTimeout = TimeSpan.FromMinutes(1) });
     await client.SelectModelAsync(model);
     var cold = await client.TranscribeAsync("/a.wav", null, options);
     var warm = await client.TranscribeAsync("/b.wav", null, options);
     Assert(cold.StartAndLoad >= loadDelay, $"cold start and load {cold.StartAndLoad.TotalMilliseconds} ms");
     Assert(warm.StartAndLoad == TimeSpan.Zero, $"warm start and load {warm.StartAndLoad.TotalMilliseconds} ms");
 
-    await WaitUntilAsync(() => !client.IsRunning, "the idle shutdown");
-    var afterIdle = await client.TranscribeAsync("/c.wav", null, options);
-    Assert(afterIdle.StartAndLoad >= loadDelay, $"after the idle exit {afterIdle.StartAndLoad.TotalMilliseconds} ms");
+    await client.StopAsync(); // what the idle timer does
+    Assert(client.LastLoadResult is { Runtime: "vulkan" } && client.LoadResult is null, "the last load result was not kept after the exit");
+    var afterStop = await client.TranscribeAsync("/c.wav", null, options);
+    Assert(afterStop.StartAndLoad >= loadDelay, $"after the worker stopped {afterStop.StartAndLoad.TotalMilliseconds} ms");
 });
 
 await CheckAsync("client: a worker killed while idle is logged as an unasked exit; an idle shutdown is not (#1932)", async () =>

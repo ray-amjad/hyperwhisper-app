@@ -99,6 +99,9 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     private Session? _session;
     private WhisperWorkerModel? _model;
     private long _nextId;
+
+    /// <summary>Worker starts plus model loads begun; read and written with <c>_gate</c> held.</summary>
+    private long _coldWork;
     private int _holds;
     private int _active;
     private long _idleGeneration;
@@ -129,6 +132,14 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     /// <summary>What the running worker's last successful load reported.</summary>
     public WhisperWorkerLoadResult? LoadResult => Volatile.Read(ref _session)?.LoadResult;
 
+    /// <summary>
+    /// What the last successful load of the selected model reported, kept after
+    /// the worker exits (an idle exit) and cleared when the selection changes.
+    /// </summary>
+    public WhisperWorkerLoadResult? LastLoadResult => Volatile.Read(ref _lastLoadResult);
+
+    private WhisperWorkerLoadResult? _lastLoadResult;
+
     /// <summary>How many worker processes this client has started.</summary>
     public int StartCount { get; private set; }
 
@@ -149,6 +160,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     {
         await RunExclusiveAsync(async () =>
         {
+            if (!Equals(Volatile.Read(ref _model), model)) Volatile.Write(ref _lastLoadResult, null);
             Volatile.Write(ref _model, model);
             var session = _session;
             if (session is not null && (model is null || !Equals(session.LoadedModel, model)))
@@ -282,9 +294,9 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             {
                 try
                 {
-                    // A warm worker with the model costs nothing here, and counts as zero.
-                    var warm = _session is { HasExited: false } current
-                        && Equals(current.LoadedModel, Volatile.Read(ref _model));
+                    // A warm worker with the model costs nothing here, and counts as
+                    // zero: only a start or a load sent inside this call is counted.
+                    var coldWorkBefore = _coldWork;
                     var loading = System.Diagnostics.Stopwatch.StartNew();
                     Session session;
                     try
@@ -293,7 +305,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
                     }
                     finally
                     {
-                        if (!warm) startAndLoad += loading.Elapsed;
+                        if (_coldWork != coldWorkBefore) startAndLoad += loading.Elapsed;
                     }
                     return await operation(session, startAndLoad, cancellationToken).ConfigureAwait(false);
                 }
@@ -372,6 +384,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             return session;
         }
 
+        _coldWork++;
         var id = Interlocked.Increment(ref _nextId);
         var line = WhisperWorkerProtocol.BuildCommand(new WhisperWorkerLoadCommand(
             id, model.Path, model.GpuDevice, model.FlashAttention, model.GpuName));
@@ -410,6 +423,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
 
         session.LoadedModel = model;
         session.LoadResult = new WhisperWorkerLoadResult(reply.Runtime ?? "unknown", reply.Gpu, reply.Info);
+        Volatile.Write(ref _lastLoadResult, session.LoadResult);
         _info($"WhisperWorkerClient: Model loaded (runtime {session.LoadResult.Runtime}"
               + (reply.Gpu is null ? ")" : $", GPU {reply.Gpu})"));
         return session;
@@ -419,6 +433,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     {
         // The one place a worker starts: never after dispose, or nothing stops it.
         ObjectDisposedException.ThrowIf(IsDisposed, this);
+        _coldWork++;
         var process = _launcher.Start(); // throws WhisperWorkerException(start_failed)
         StartCount++;
         var session = new Session(process, _info, _warn);
@@ -875,9 +890,16 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
                 // outside or crashed, so the log tells it from a clean exit (#1932).
                 if (Volatile.Read(ref _stopRequested) == 0)
                 {
-                    _warn(orphan is null
+                    try
+                    {
+                        _warn(orphan is null
                         ? $"WhisperWorkerClient: The worker (pid {ProcessId}) exited while idle without being asked to stop (killed or crashed)"
                         : $"WhisperWorkerClient: The worker (pid {ProcessId}) exited during request {orphanId} without being asked to stop (killed or crashed)");
+                    }
+                    catch
+                    {
+                        // A failing logger must not keep the request below from failing over.
+                    }
                 }
                 orphan?.TrySetException(Lost());
                 _ready.TrySetException(Lost());
