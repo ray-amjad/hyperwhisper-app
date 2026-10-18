@@ -227,6 +227,26 @@ describe('transcribeRoute provider fallback', () => {
     expect(body.message).toBe('Groq API key is invalid');
   });
 
+  for (const [sibling, siblingAnswer] of [
+    ['a 400 input rejection', () => new Response('{"detail":"bad input"}', { status: 400 })],
+    ['an outage', () => new Response('boom', { status: 503 })],
+  ] as const) {
+    test(`a rejected key followed by ${sibling} on every sibling is the key's 500, not a 400 or 429`, async () => {
+      globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('api.elevenlabs.io')) return new Response('unauthorized', { status: 401 });
+        if (url.includes('api.deepgram.com') || url.includes('api.groq.com')) return siblingAnswer();
+        throw new Error(`Unexpected fetch: ${url}`);
+      }) as unknown as typeof fetch;
+
+      const response = await buildApp().fetch(transcribeRequest('elevenlabs'));
+      const body = await response.json() as { message: string };
+
+      expect(response.status).toBe(500);
+      expect(body.message).toBe('ElevenLabs API key is invalid');
+    });
+  }
+
   test('preserves a literal + in initial_prompt end-to-end (no plus-to-space decode)', async () => {
     let deepgramUrl = '';
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {

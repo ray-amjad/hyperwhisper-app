@@ -95,6 +95,7 @@ export async function transcribeRoute(c: Context) {
   const chain = reachableFromRegion(fallbackChainFor(provider));
   let lastError: Error | undefined;
   let lastInputError: ProviderInputError | undefined;
+  let lastAuthError: ProviderAuthError | undefined;
   let sawUnavailable = false;
   // Chain position of the one attempt that refused an empty transcript
   // (EmptyTranscriptError), if any. It is the single piece of state that makes
@@ -380,6 +381,7 @@ export async function transcribeRoute(c: Context) {
             attemptMs: Math.round(performance.now() - attemptStart),
           });
           lastError = error;
+          lastAuthError = error;
           continue;
         }
         // Everything below this line ENDS the request with an error. None of them
@@ -489,6 +491,7 @@ export async function transcribeRoute(c: Context) {
       attemptFailures,
       lastError,
       lastInputError,
+      lastAuthError,
       sawUnavailable,
     });
   }

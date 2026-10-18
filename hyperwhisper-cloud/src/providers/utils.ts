@@ -574,7 +574,7 @@ export async function providerHttpError(
   // account can still serve the request — even when the upstream sends it as a
   // 401 or 403. (issue #1228)
   if (quotaReason) {
-    return new ProviderUnavailableError(label, `insufficient funds (${quotaReason})`, details('unknown'));
+    return new ProviderUnavailableError(label, `insufficient funds (${quotaReason})`, details(status === 429 ? 'rate_limit' : 'unknown'));
   }
   if ((policy.authStatuses ?? [401]).includes(status)) {
     return new ProviderAuthError(policy.authMessage, status);
