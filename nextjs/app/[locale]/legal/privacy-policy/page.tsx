@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 17, 2026
+        Last Updated: October 18, 2026
       </p>
 
       <h1>Privacy Policy</h1>
