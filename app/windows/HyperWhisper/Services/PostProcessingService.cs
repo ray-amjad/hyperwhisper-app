@@ -37,6 +37,19 @@ public class PostProcessingService : IDisposable
     // =========================================================================
 
     private readonly HttpClient _httpClient;
+
+    // ONE HyperWhisper Cloud client for every post-process call in the process,
+    // never disposed. Building a new HyperWhisperCloudService per call built a
+    // new SocketsHttpHandler, so each dictation paid a fresh TCP+TLS handshake
+    // (35-50 ms warm DNS, ~305 ms cold) and the dispose threw 4 first-chance
+    // IOExceptions + 1 TaskCanceledException inside the runtime (#981). Shared
+    // across instances because the Local API builds a PostProcessingService per
+    // request. Safe to share: PostProcessAsync reads its credentials per request
+    // and touches no per-call state, and its handler recycles pooled connections
+    // every 10 min, so a DNS change is still picked up.
+    private static readonly Lazy<HyperWhisperCloudService> SharedCloudService =
+        new(() => new HyperWhisperCloudService(), LazyThreadSafetyMode.ExecutionAndPublication);
+
     private readonly LocalLlmModelService _localLlmModelService = new();
     private readonly LocalLlmService _localLlmService = new();
     private bool _disposed;
@@ -239,7 +252,7 @@ public class PostProcessingService : IDisposable
 
                 LoggingService.Info("PostProcessingService: Processing with HyperWhisper Cloud");
 
-                using var cloudService = new HyperWhisperCloudService();
+                var cloudService = SharedCloudService.Value;
                 var cloudModel = CloudPostProcessingModelExtensions.FromString(mode.CloudPostProcessingModel);
                 var response = await cloudService.PostProcessAsync(
                     text,

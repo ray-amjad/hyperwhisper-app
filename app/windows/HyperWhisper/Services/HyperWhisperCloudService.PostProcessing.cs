@@ -88,7 +88,7 @@ public partial class HyperWhisperCloudService
 
                 // Snapshot the current client so a concurrent rebuild can't dispose it mid-flight.
                 var client = Volatile.Read(ref _httpClient);
-                var response = await client.SendAsync(request, cancellationToken);
+                using var response = await client.SendAsync(request, cancellationToken);
                 LoggingService.Debug($"  Post-process response: status={(int)response.StatusCode} · httpVersion={response.Version}");
 
                 if (!response.IsSuccessStatusCode)
