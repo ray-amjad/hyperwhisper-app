@@ -147,7 +147,8 @@ export default function DownloadPage() {
         const data: unknown = response.ok ? await response.json() : null;
         if (!cancelled && isLinuxLatest(data)) setLinuxLatest(data);
       } catch (error) {
-        void reportClientError("download.linux_latest", error);
+        // A fetch the cleanup abandoned is nobody's failure.
+        if (!cancelled) void reportClientError("download.linux_latest", error);
         // Fall back to LINUX_RELEASES_URL below.
       }
     };

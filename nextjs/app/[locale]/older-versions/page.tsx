@@ -12,6 +12,10 @@ import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 
 type Platform = "mac" | "windows";
 
+// `formatDate` runs in render, once per row: report its failure once per page
+// load, not once per row per render (#739).
+let formatDateFailureReported = false;
+
 /**
  * Interface representing a single download variant (one per architecture)
  */
@@ -185,7 +189,10 @@ export default function DownloadsPage() {
         day: "numeric",
       });
     } catch (error) {
-      void reportClientError("older_versions.format_date", error);
+      if (!formatDateFailureReported) {
+        formatDateFailureReported = true;
+        void reportClientError("older_versions.format_date", error);
+      }
       return dateString;
     }
   };
