@@ -234,6 +234,30 @@ public class ApiKeyService
     }
 
     /// <summary>
+    /// Gets the API key a cloud transcription provider reads (issue #1220): the
+    /// shared post-processing key when it has one (<c>GetApiKeyProvider()</c>),
+    /// else its own transcription slot (<c>GetTranscriptionApiKeyType()</c>).
+    /// Null for a provider with neither - None and the HyperWhisper-Cloud-routed
+    /// providers - or when nothing is stored.
+    /// </summary>
+    public string? GetApiKey(CloudTranscriptionProvider provider)
+    {
+        var shared = provider.GetApiKeyProvider();
+        if (shared != PostProcessingProvider.None) return GetApiKey(shared);
+
+        return provider.GetTranscriptionApiKeyType() is { } type ? GetApiKey(type) : null;
+    }
+
+    /// <summary>
+    /// Whether the key <see cref="GetApiKey(CloudTranscriptionProvider)"/> reads
+    /// is stored. False for a provider with no key slot.
+    /// </summary>
+    public bool HasApiKey(CloudTranscriptionProvider provider)
+    {
+        return !string.IsNullOrEmpty(GetApiKey(provider));
+    }
+
+    /// <summary>
     /// Validates the format of an API key for a transcription provider without a primary post-processing provider.
     /// </summary>
     /// <param name="type">The transcription API key type to validate against.</param>
@@ -331,17 +355,10 @@ public class ApiKeyService
         TranscriptionApiKeyType type,
         string? apiKey)
     {
-        var transcriptionProvider = type switch
-        {
-            TranscriptionApiKeyType.Deepgram => CloudTranscriptionProvider.Deepgram,
-            TranscriptionApiKeyType.AssemblyAI => CloudTranscriptionProvider.AssemblyAI,
-            TranscriptionApiKeyType.ElevenLabs => CloudTranscriptionProvider.ElevenLabs,
-            TranscriptionApiKeyType.Mistral => CloudTranscriptionProvider.Mistral,
-            TranscriptionApiKeyType.Soniox => CloudTranscriptionProvider.Soniox,
-            TranscriptionApiKeyType.Grok => CloudTranscriptionProvider.Grok,
-            TranscriptionApiKeyType.GeminiTranscribe => CloudTranscriptionProvider.GeminiTranscribe,
-            _ => CloudTranscriptionProvider.None
-        };
+        // The shared inverse map (issue #1220). It has a Meta arm: the old
+        // hand-written copy here had none, so a Meta key save or delete never
+        // reached RegisterApiKeyChange.
+        var transcriptionProvider = type.ToCloudTranscriptionProvider();
 
         if (transcriptionProvider != CloudTranscriptionProvider.None)
         {

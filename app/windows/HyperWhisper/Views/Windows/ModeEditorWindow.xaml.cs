@@ -1477,26 +1477,9 @@ public partial class ModeEditorWindow : Window
             return;
         }
 
-        // Check if API key is configured for this provider
-        bool hasKey = cloudProvider switch
-        {
-            // These share API keys with post-processing providers
-            CloudTranscriptionProvider.OpenAI => ApiKeyService.Instance.HasApiKey(PostProcessingProvider.OpenAI),
-            CloudTranscriptionProvider.Groq => ApiKeyService.Instance.HasApiKey(PostProcessingProvider.Groq),
-            CloudTranscriptionProvider.Gemini => ApiKeyService.Instance.HasApiKey(PostProcessingProvider.Gemini),
-            CloudTranscriptionProvider.Grok => ApiKeyService.Instance.HasApiKey(PostProcessingProvider.Grok),
-
-            // These have their own transcription API keys
-            CloudTranscriptionProvider.Deepgram => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Deepgram),
-            CloudTranscriptionProvider.AssemblyAI => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.AssemblyAI),
-            CloudTranscriptionProvider.ElevenLabs => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.ElevenLabs),
-            CloudTranscriptionProvider.Mistral => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Mistral),
-            CloudTranscriptionProvider.Soniox => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Soniox),
-            CloudTranscriptionProvider.GeminiTranscribe => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
-            CloudTranscriptionProvider.Meta => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Meta),
-
-            _ => false
-        };
+        // Check if API key is configured for this provider (the shared key
+        // map, issue #1220: shared post-processing key or own slot).
+        bool hasKey = cloudProvider is { } provider && ApiKeyService.Instance.HasApiKey(provider);
 
         if (!hasKey)
         {

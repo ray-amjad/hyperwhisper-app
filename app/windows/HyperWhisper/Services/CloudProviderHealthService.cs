@@ -597,29 +597,10 @@ public class CloudProviderHealthService : IDisposable
     /// </returns>
     private string? GetTranscriptionApiKey(CloudTranscriptionProvider provider)
     {
-        return provider switch
-        {
-            // These share keys with post-processing providers
-            CloudTranscriptionProvider.OpenAI => ApiKeyService.Instance.GetApiKey(PostProcessingProvider.OpenAI),
-            CloudTranscriptionProvider.Groq => ApiKeyService.Instance.GetApiKey(PostProcessingProvider.Groq),
-            CloudTranscriptionProvider.Gemini => ApiKeyService.Instance.GetApiKey(PostProcessingProvider.Gemini),
-            CloudTranscriptionProvider.Grok => ApiKeyService.Instance.GetApiKey(PostProcessingProvider.Grok),
-
-            // These have their own keys
-            CloudTranscriptionProvider.Deepgram => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Deepgram),
-            CloudTranscriptionProvider.AssemblyAI => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.AssemblyAI),
-            CloudTranscriptionProvider.ElevenLabs => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.ElevenLabs),
-            CloudTranscriptionProvider.Mistral => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Mistral),
-            CloudTranscriptionProvider.Soniox => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Soniox),
-            // Own key slot — Google, but NOT the Gemini post-processing key.
-            CloudTranscriptionProvider.GeminiTranscribe => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe),
-            CloudTranscriptionProvider.Meta => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Meta),
-
-            // HyperWhisper Cloud doesn't need API key
-            CloudTranscriptionProvider.HyperWhisperCloud => null,
-
-            _ => null
-        };
+        // The shared map (issue #1220): the post-processing key for OpenAI /
+        // Groq / Gemini / Grok, the provider's own slot for the rest, and null
+        // for HyperWhisper Cloud, the HW-Cloud-routed providers and None.
+        return ApiKeyService.Instance.GetApiKey(provider);
     }
 
     private void UpdateCache(string key, ProviderHealth status)

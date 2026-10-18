@@ -13813,6 +13813,89 @@ internal static class Program
                     "the Deepgram key write changed Gemini's generation");
             });
 
+            Run("issue #1220: a Meta key write advances Meta transcription health", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                var metaBefore = health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Meta);
+                var deepgramBefore = health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Deepgram);
+
+                // The reverse map used to have no Meta arm, so a Meta key save or
+                // delete landed on None and never reached RegisterApiKeyChange.
+                ApiKeyService.RegisterTranscriptionApiKeyChange(health, TranscriptionApiKeyType.Meta, "k");
+
+                Assert(health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Meta) == metaBefore + 1,
+                    "the Meta transcription-key write did not advance Meta health");
+                Assert(health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Deepgram) == deepgramBefore,
+                    "the Meta key write changed Deepgram's generation");
+            });
+
+            Run("issue #1220: every transcription key slot round-trips through its provider", () =>
+            {
+                foreach (var t in Enum.GetValues<TranscriptionApiKeyType>())
+                {
+                    var provider = t.ToCloudTranscriptionProvider();
+                    Assert(provider != CloudTranscriptionProvider.None,
+                        $"TranscriptionApiKeyType.{t} has no provider, so a write to it never notifies health");
+
+                    // Grok is the one slot read through the shared
+                    // PostProcessingProvider.Grok key (the same GrokApiKey slot),
+                    // so the forward map answers null for it on purpose.
+                    if (t == TranscriptionApiKeyType.Grok)
+                    {
+                        Assert(provider == CloudTranscriptionProvider.Grok
+                                && provider.GetTranscriptionApiKeyType() is null
+                                && provider.GetApiKeyProvider() == PostProcessingProvider.Grok,
+                            "Grok must map to Grok and read through PostProcessingProvider.Grok");
+                        continue;
+                    }
+
+                    Assert(provider.GetTranscriptionApiKeyType() == t,
+                        $"TranscriptionApiKeyType.{t} -> {provider} -> {provider.GetTranscriptionApiKeyType()?.ToString() ?? "null"}");
+                }
+            });
+
+            Run("issue #1220: the provider -> API-key slot map answers as pinned for every provider", () =>
+            {
+                // (shared post-processing key, own transcription slot). A new
+                // CloudTranscriptionProvider value fails here until someone decides
+                // where its key lives.
+                var expected = new Dictionary<CloudTranscriptionProvider, (PostProcessingProvider Shared, TranscriptionApiKeyType? Own)>
+                {
+                    [CloudTranscriptionProvider.None] = (PostProcessingProvider.None, null),
+                    [CloudTranscriptionProvider.OpenAI] = (PostProcessingProvider.OpenAI, null),
+                    [CloudTranscriptionProvider.Groq] = (PostProcessingProvider.Groq, null),
+                    [CloudTranscriptionProvider.Deepgram] = (PostProcessingProvider.None, TranscriptionApiKeyType.Deepgram),
+                    [CloudTranscriptionProvider.AssemblyAI] = (PostProcessingProvider.None, TranscriptionApiKeyType.AssemblyAI),
+                    [CloudTranscriptionProvider.ElevenLabs] = (PostProcessingProvider.None, TranscriptionApiKeyType.ElevenLabs),
+                    [CloudTranscriptionProvider.Mistral] = (PostProcessingProvider.None, TranscriptionApiKeyType.Mistral),
+                    [CloudTranscriptionProvider.Soniox] = (PostProcessingProvider.None, TranscriptionApiKeyType.Soniox),
+                    [CloudTranscriptionProvider.HyperWhisperCloud] = (PostProcessingProvider.None, null),
+                    [CloudTranscriptionProvider.Gemini] = (PostProcessingProvider.Gemini, null),
+                    [CloudTranscriptionProvider.Grok] = (PostProcessingProvider.Grok, null),
+                    [CloudTranscriptionProvider.MicrosoftAzureSpeech] = (PostProcessingProvider.None, null),
+                    [CloudTranscriptionProvider.GoogleSpeech] = (PostProcessingProvider.None, null),
+                    [CloudTranscriptionProvider.GeminiTranscribe] = (PostProcessingProvider.None, TranscriptionApiKeyType.GeminiTranscribe),
+                    [CloudTranscriptionProvider.Meta] = (PostProcessingProvider.None, TranscriptionApiKeyType.Meta),
+                };
+
+                foreach (var provider in Enum.GetValues<CloudTranscriptionProvider>())
+                {
+                    Assert(expected.TryGetValue(provider, out var want),
+                        $"{provider} has no pinned key slot; add it to this table");
+                    var shared = provider.GetApiKeyProvider();
+                    var own = provider.GetTranscriptionApiKeyType();
+                    Assert(shared == want.Shared && own == want.Own,
+                        $"{provider}: expected ({want.Shared}, {want.Own?.ToString() ?? "null"}), got ({shared}, {own?.ToString() ?? "null"})");
+                    Assert(shared == PostProcessingProvider.None || own is null,
+                        $"{provider} has both a shared key and its own slot");
+                    // Keyed providers have exactly one slot; keyless ones have none.
+                    Assert(provider.RequiresApiKey() == (shared != PostProcessingProvider.None || own is not null),
+                        $"{provider}: RequiresApiKey() disagrees with the key map");
+                }
+            });
+
             Run("issue #379 (d): only a definitive provider-down verdict sets the override", () =>
             {
                 var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -16104,7 +16187,7 @@ internal static class Program
             // running the suite. LiveOnboardingProviderKeyGateway.Persist puts a
             // secret in Windows Credential Manager and LiveOnboardingPermissions
             // reads HKCU, so those are exercised through their pure halves
-            // (TranscriptionKeyType, BuildState, Evaluate) instead of by
+            // (GetTranscriptionApiKeyType, BuildState, Evaluate) instead of by
             // touching real state.
             // =================================================================
 
@@ -16304,7 +16387,7 @@ internal static class Program
                 foreach (var provider in offered)
                 {
                     var routed = provider.GetApiKeyProvider() != PostProcessingProvider.None
-                        || LiveOnboardingProviderKeyGateway.TranscriptionKeyType(provider) is not null;
+                        || provider.GetTranscriptionApiKeyType() is not null;
                     Assert(routed,
                         $"{provider} is offered on the BYOK branch but Persist() has no slot for its key, "
                         + "so the setup step would fail with 'could not save'");
@@ -17253,7 +17336,7 @@ internal static class Program
                 // Merely listing it is not enough: with no key slot, Persist takes
                 // its failure branch and rejects a correctly typed key with the
                 // generic "could not save" string.
-                Assert(LiveOnboardingProviderKeyGateway.TranscriptionKeyType(CloudTranscriptionProvider.Meta)
+                Assert(CloudTranscriptionProvider.Meta.GetTranscriptionApiKeyType()
                         == TranscriptionApiKeyType.Meta,
                     "Meta needs its own key slot, or saving one lands in Persist's failure branch");
             });
