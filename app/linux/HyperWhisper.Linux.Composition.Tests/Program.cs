@@ -76,6 +76,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Model Library Whisper line names a missing hyperwhisper-cuda package", ModelLibraryWhisperLineNamesMissingCudaPackage),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
     ("Local API post-processing refuses a Cloud run with no account key", LocalApiPostProcessingCloudAccountRequired),
+    ("Local API post-processing answers a deleted mode_id as MODE_NOT_FOUND", LocalApiPostProcessingDeletedModeNotFound),
     ("Local API /health key_present for hyperwhisper follows the account key", LocalApiHealthCloudKeyFollowsAccountKey),
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
@@ -1604,6 +1605,53 @@ static async Task LocalApiPostProcessingCloudAccountRequired()
             throw new InvalidOperationException("a BYOK missing key was reported as the Cloud account refusal");
         }
         catch (InvalidOperationException ex) when (ex.Message == "Local post-processing is unavailable for this request.")
+        {
+        }
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+// Issue #1935: a well-formed mode_id that names no stored mode was an
+// ArgumentException here, which the middleware answers HTTP 400
+// INVALID_REQUEST. Windows, and this head's own GET /modes/<id>, answer HTTP
+// 200 MODE_NOT_FOUND with "No mode with id '<id>'".
+static async Task LocalApiPostProcessingDeletedModeNotFound()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-pp-mode-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        var database = new ApplicationDb(new StaticPaths(root));
+        await database.MigrateAsync();
+        var processor = new CapturingPostProcessor();
+        var adapter = new LinuxLocalApiPostProcessor(processor, new ModeRepository(database));
+        var deleted = Guid.NewGuid().ToString("D");
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", $" {deleted} ", null, null, null, null),
+                CancellationToken.None);
+            throw new InvalidOperationException("a deleted mode_id was not refused");
+        }
+        catch (LocalApiFailureException failure)
+        {
+            Assert(failure.Code == "MODE_NOT_FOUND", $"expected MODE_NOT_FOUND, got {failure.Code}");
+            Assert(failure.HttpStatus == 200, $"a business failure must be HTTP 200, got {failure.HttpStatus}");
+            Assert(failure.Message == $"No mode with id '{deleted}'", $"unexpected message: {failure.Message}");
+        }
+
+        // A malformed id is still a malformed request.
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", "not-a-guid", null, null, null, null),
+                CancellationToken.None);
+            throw new InvalidOperationException("a malformed mode_id was not refused");
+        }
+        catch (ArgumentException)
         {
         }
     }

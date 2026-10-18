@@ -70,7 +70,14 @@ public sealed partial class ApplicationLocalApiBackend
             upload.Engine, upload.Model, upload.ApplicationContext?.ToSnapshot(),
             RequestsTimestamps(upload.TimestampGranularities)).ConfigureAwait(false);
         var mode = request.SelectedMode;
-        var convert = _audioImport is not null && IsLocalParakeet(mode) && !IsWave(upload.Content.Span);
+        // An unknown Parakeet-family model is the caller's mistake, answered
+        // before any work (issue #1935). The daemon refused it too, but only
+        // after the upload was staged and a failed History row written, and as
+        // INVALID_REQUEST where Windows answers MODEL_NOT_FOUND.
+        var localParakeet = IsLocalParakeet(mode);
+        if (localParakeet && ParakeetDaemonTranscriber.FindModel(mode!.LocalParakeetModel) is null)
+            throw LocalApiFailureException.ParakeetModelNotFound(mode.LocalParakeetModel?.Trim() ?? string.Empty);
+        var convert = _audioImport is not null && localParakeet && !IsWave(upload.Content.Span);
         var extension = Path.GetExtension(upload.FileName);
         if (extension.Length > 12 || extension.Any(ch => !char.IsAsciiLetterOrDigit(ch) && ch != '.')) extension = ".audio";
         if (convert) extension = ConversionStagingExtension;
@@ -264,7 +271,7 @@ public sealed partial class ApplicationLocalApiBackend
             if (!Guid.TryParse(requestedModeId, out var parsed))
                 throw new ArgumentException("The requested mode ID is invalid.", nameof(requestedModeId));
             mode = modes.SingleOrDefault(item => item.Id == parsed)
-                ?? throw new ArgumentException("The requested mode does not exist.", nameof(requestedModeId));
+                ?? throw LocalApiFailureException.ModeNotFound(requestedModeId.Trim());
         }
         else if (string.IsNullOrWhiteSpace(engineOverride))
         {
