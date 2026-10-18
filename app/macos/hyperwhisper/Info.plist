@@ -12,6 +12,48 @@
 	<string>HyperWhisper muffles other apps' audio while you record when Media control is set to Muffle Audio.</string>
 	<key>NSAccessibilityUsageDescription</key>
 	<string>HyperWhisper needs Accessibility access to support bare modifier keys (Control, Command, FN) for Push to Talk recording.</string>
+	<!-- Open With / `open -a HyperWhisper <file>` (issue #656). The same types the
+	     Transcribe File picker accepts: keep in sync with
+	     FileTranscriptionFlow.supportedAudioTypes (OpenedFileRouterTests checks it).
+	     Viewer + Alternate only, so HyperWhisper never becomes the default app for
+	     .m4a/.mp4 or any other of these types. org.xiph.* are listed for the
+	     .ogg/.flac extensions; public.audio covers them where the system declares
+	     them as audio. Handled by AppDelegate.application(_:open:). -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Audio File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.audio</string>
+				<string>com.microsoft.waveform-audio</string>
+				<string>public.mp3</string>
+				<string>public.mpeg-4-audio</string>
+				<string>public.aiff-audio</string>
+				<string>org.xiph.ogg</string>
+				<string>org.xiph.ogg-audio</string>
+				<string>org.xiph.flac</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Video File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.mpeg-4</string>
+				<string>com.apple.quicktime-movie</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>en</string>
