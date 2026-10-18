@@ -1,8 +1,8 @@
 // #919: a post body is stored as raw Outrank HTML, so its <img> tags loaded
 // eagerly and a phone fetched every full-size picture on page load. getBlogPost()
-// passes every stored body through lazyLoadBodyImages(). src/content/blog.ts
-// imports "server-only", which resolves only inside a Next build, so the
-// transform is tested here and the page itself in the PR's verify run.
+// passes the body of the post it returns through lazyLoadBodyImages().
+// src/content/blog.ts imports "server-only", which resolves only inside a Next
+// build, so the transform is tested here and the page in the PR's verify run.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -54,5 +54,5 @@ test("HTML with no image is returned unchanged", () => {
 
 test("src/content/blog.ts sends the stored body through the transform", async () => {
   const source = await readFile(new URL("../src/content/blog.ts", import.meta.url), "utf8");
-  assert.match(source, /html:\s*lazyLoadBodyImages\(row\.contentHtml\)/);
+  assert.match(source, /html:\s*lazyLoadBodyImages\(post\.html\)/);
 });

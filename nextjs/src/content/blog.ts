@@ -49,7 +49,7 @@ function rowToPost(row: BlogPostRow): BlogPost {
     slug: normalizeSlug(row.slug),
     frontMatter,
     content: row.contentMarkdown,
-    html: lazyLoadBodyImages(row.contentHtml),
+    html: row.contentHtml,
   };
 }
 
@@ -80,7 +80,10 @@ export async function getBlogPosts(): Promise<BlogPostSummary[]> {
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   const normalizedSlug = normalizeSlug(slug);
   const posts = await readAllPosts();
-  return posts.find((item) => item.slug === normalizedSlug) ?? null;
+  const post = posts.find((item) => item.slug === normalizedSlug);
+  if (!post) return null;
+  // Only the post being shown needs its stored body rewritten (#919).
+  return { ...post, html: lazyLoadBodyImages(post.html) };
 }
 
 export async function getAllBlogPosts(): Promise<BlogPostSummary[]> {
