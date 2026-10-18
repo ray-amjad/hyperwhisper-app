@@ -34,6 +34,7 @@
 //
 
 import Foundation
+import os
 
 /// Language data for speech-to-text providers (Whisper-compatible + extensions)
 struct LanguageData {
@@ -143,11 +144,30 @@ struct LanguageData {
     }
 
     /// Ensure "Automatic" stays at the top of picker lists
+    ///
+    /// Memoized by its input (issue #989). The core call is a pure function of
+    /// the rows it is given, but each call lifts and lowers every string across
+    /// UniFFI, and `ModelLibraryManager.rebuild()` asks for the same few lists
+    /// once per local model row, at launch and on every model state change:
+    /// about 100 ms of main-thread CPU before this cache. The inputs come from a
+    /// fixed catalog, so the map stays small; the cap is only a backstop.
     static func prioritizeAutomatic(_ languages: [LanguageInfo]) -> [LanguageInfo] {
+        if let cached = prioritizedCache.withLock({ $0[languages] }) {
+            return cached
+        }
         let ordered = languagePrioritizeAutomatic(
-            languages: languages.map { HwLanguage(code: $0.code, displayName: $0.displayName) })
-        return ordered.map { info(from: $0) }
+            languages: languages.map { HwLanguage(code: $0.code, displayName: $0.displayName) }
+        ).map { info(from: $0) }
+        prioritizedCache.withLock { cache in
+            if cache.count >= prioritizedCacheLimit { cache.removeAll() }
+            cache[languages] = ordered
+        }
+        return ordered
     }
+
+    private static let prioritizedCacheLimit = 64
+    private static let prioritizedCache = OSAllocatedUnfairLock(
+        initialState: [[LanguageInfo]: [LanguageInfo]]())
 
     /// Canonical BCP-47 language code for storage
     static func canonicalLanguageCode(_ code: String?) -> String {
