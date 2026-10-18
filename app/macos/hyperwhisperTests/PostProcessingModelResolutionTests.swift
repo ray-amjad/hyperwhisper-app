@@ -105,6 +105,56 @@ struct PostProcessingModelResolutionTests {
         #expect(PostProcessingModels.models(for: .gemini).contains(where: { $0.id == "gemini-2.5-flash" }))
     }
 
+    struct RedirectDocument: Decodable {
+        let vectors: [RedirectVector]
+    }
+
+    struct RedirectVector: Decodable {
+        let provider: String
+        let from: String
+        let to: String
+        let platforms: [String]?
+    }
+
+    /// Replays `shared-conformance/pp-model-redirect-vectors.json` through THIS
+    /// head's `deprecatedModelMappings` (#1083). Windows (`HyperWhisper.SmokeTests`)
+    /// and shared-dotnet (`HyperWhisper.CloudPostProcessing.Tests`) replay the same
+    /// file through their own tables; before it, the 3 copies had drifted and one
+    /// saved Mode ran a different model per platform. The file is repo data, not a
+    /// bundled resource, so it is read from the source tree the way
+    /// `DefaultModelConformanceVectorTests` reads its own.
+    @Test func retiredIdsMatchTheSharedRedirectVectors() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("shared-conformance/pp-model-redirect-vectors.json")
+        let document = try JSONDecoder().decode(RedirectDocument.self, from: Data(contentsOf: url))
+        #expect(document.vectors.count >= 40, "pp-model-redirect-vectors.json looks truncated")
+
+        var checkedRows = 0
+        for vector in document.vectors {
+            if let platforms = vector.platforms, !platforms.contains("macos") { continue }
+            guard let provider = PostProcessingProvider(rawValue: vector.provider) else {
+                Issue.record("\(vector.from): macOS has no provider '\(vector.provider)'")
+                continue
+            }
+            // resolvedModelId drops a mapping whose target is not a live row, so this
+            // also proves `to` is a live picker row of that provider.
+            #expect(
+                PostProcessingModels.resolvedModelId(vector.from, provider: provider) == vector.to,
+                "\(vector.from) should resolve to \(vector.to) for \(vector.provider)"
+            )
+            #expect(
+                PostProcessingModels.model(withId: vector.from, provider: provider) == nil,
+                "retired \(vector.from) is still a \(vector.provider) picker row"
+            )
+            checkedRows += 1
+        }
+        #expect(checkedRows >= 40, "only \(checkedRows) macOS redirect rows were checked")
+    }
+
     @Test func unknownIdIsLeftUnresolvedSoCallersFallBackToOptionsFirst() {
         // A truly unmapped id must come back unchanged — this is what tells
         // `ensureValidLanguageModelSelection()` to fall through to its
