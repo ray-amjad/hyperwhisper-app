@@ -11096,6 +11096,53 @@ internal static class Program
                     "a real model set DisplayNameOverride - names belong in the catalog");
             });
 
+            Run("the Mode editor's BYOK vocabulary warning reads the shared catalog", () =>
+            {
+                // #681: UpdateVocabularyWarning used to hard-code ElevenLabs
+                // scribe_v1 and Deepgram base*/whisper*, a second copy of what
+                // shared-models/models-catalog.json says, and every id it named
+                // had been retired. The predicate now reads the catalog; this
+                // pins it to the catalog for every BYOK model the picker offers.
+                // macOS counterpart: ModeEditorByokVocabularyWarningTests.
+                foreach (var model in CloudTranscriptionModels.All)
+                {
+                    var key = SharedModelsCatalog.CatalogKey(model.Provider);
+                    // Every picker model has a row, so none silently loses its warning.
+                    Assert(SharedModelsCatalog.DisplayName(key, CatalogKind.Voice, model.Id) != null,
+                        $"{key}/{model.Id} has no voice row in shared-models/models-catalog.json");
+
+                    var expected = !SharedModelsCatalog.SupportsCustomVocabulary(key, CatalogKind.Voice, model.Id);
+                    Assert(ModeEditorWindow.ByokVocabularyUnsupported(model.Provider, model.Id) == expected,
+                        $"{key}/{model.Id}: the Mode editor warning disagrees with the catalog");
+                    // The combo Tag is the storage id (GetIdentifier); it must map back.
+                    var fromTag = CloudTranscriptionProviderExtensions.FromIdentifier(model.Provider.GetIdentifier());
+                    Assert(ModeEditorWindow.ByokVocabularyUnsupported(fromTag, model.Id) == expected,
+                        $"{model.Provider.GetIdentifier()}/{model.Id}: the combo tag does not map back to its provider");
+                }
+
+                Assert(ModeEditorWindow.ByokVocabularyUnsupported(CloudTranscriptionProvider.ElevenLabs, "scribe_v1"),
+                    "ElevenLabs scribe_v1 must warn: the catalog says it has no custom vocabulary");
+                Assert(!ModeEditorWindow.ByokVocabularyUnsupported(CloudTranscriptionProvider.ElevenLabs, "scribe_v2"),
+                    "ElevenLabs scribe_v2 supports keyterms and must not warn");
+                Assert(!ModeEditorWindow.ByokVocabularyUnsupported(CloudTranscriptionProvider.Deepgram, "nova-3-general"),
+                    "Deepgram nova-3-general supports keyterms and must not warn");
+
+                // A catalog miss answers SupportsCustomVocabulary == false; the
+                // warning must suppress it rather than guess.
+                Assert(!SharedModelsCatalog.SupportsCustomVocabulary("elevenLabs", CatalogKind.Voice, "not-a-model"),
+                    "a catalog miss is expected to answer false");
+                Assert(!ModeEditorWindow.ByokVocabularyUnsupported(CloudTranscriptionProvider.ElevenLabs, "not-a-model"),
+                    "an uncatalogued model id must not warn");
+                Assert(!ModeEditorWindow.ByokVocabularyUnsupported(CloudTranscriptionProvider.Deepgram, ""),
+                    "an empty model id must not warn");
+                Assert(!ModeEditorWindow.ByokVocabularyUnsupported(CloudTranscriptionProvider.Deepgram, null),
+                    "a null model id must not warn");
+                Assert(!ModeEditorWindow.ByokVocabularyUnsupported(CloudTranscriptionProvider.HyperWhisperCloud, "scribe_v1"),
+                    "HyperWhisper Cloud has its own branch and is never a BYOK warning");
+                Assert(!ModeEditorWindow.ByokVocabularyUnsupported(CloudTranscriptionProvider.None, "scribe_v1"),
+                    "an unknown provider tag must not warn");
+            });
+
             Run("AssemblyAI Dictation stays selected on the cloud send path", () =>
             {
                 Assert(HyperWhisperCloudService.ResolveDictationModelId("assemblyAI", "dictation") == "dictation", "Dictation was replaced by the provider default");
