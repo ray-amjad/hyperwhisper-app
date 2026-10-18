@@ -9,6 +9,9 @@
 //  the underlying-error paths, the phase box, and that no returned value ever
 //  carries the error's path, message or snippet.
 //
+//  #1980 adds the Nemotron runtime-load Sentry extras/tags, the public
+//  one-line error summary, and a guard on the live streaming log lines.
+//
 
 import Foundation
 import Testing
@@ -211,6 +214,121 @@ struct ParakeetLoadFailureDetailTests {
         #expect(keys.count == 8)
         for key in keys {
             #expect(SentryService.allowedExtraKeys.contains(key), "\(key)")
+        }
+    }
+
+    // MARK: - Nemotron runtime load failure event (#1980)
+
+    /// HYPERWHISPER-W2 shape: CoreML code 0 with a path in the description,
+    /// in `NSFilePathErrorKey`, and in the underlying error.
+    private static var nemotronCoreMLError: NSError {
+        NSError(domain: "com.apple.CoreML", code: 0, userInfo: [
+            NSUnderlyingErrorKey: NSError(domain: NSCocoaErrorDomain, code: 260, userInfo: [
+                NSFilePathErrorKey: secretPath,
+                NSLocalizedDescriptionKey: "The file \(secretPath) couldn't be opened.",
+            ]),
+            NSFilePathErrorKey: secretPath,
+            NSLocalizedDescriptionKey: "Unable to load model at \(secretPath)",
+        ])
+    }
+
+    private func expectAllowListedAndPathFree(_ values: [String: Any]) {
+        for (key, value) in values {
+            #expect(SentryService.allowedExtraKeys.contains(key), "\(key)")
+            let text = String(describing: value)
+            for secret in Self.secrets {
+                #expect(!text.contains(secret), "leaked \(secret) in \(key)=\(text)")
+            }
+            #expect(!text.contains("/Users/"), "path in \(key)=\(text)")
+        }
+    }
+
+    @Test func nemotronFailureExtrasFromCoreMLErrorWithPaths() {
+        let extras = NemotronProvider.loadFailureExtras(for: Self.nemotronCoreMLError)
+        #expect(Set(extras.keys) == [
+            "nemotron_error_code",
+            "nemotron_underlying_error_domain",
+            "nemotron_underlying_error_code",
+        ])
+        #expect(extras["nemotron_error_code"] as? Int == 0)
+        #expect(extras["nemotron_underlying_error_domain"] as? String == NSCocoaErrorDomain)
+        #expect(extras["nemotron_underlying_error_code"] as? Int == 260)
+        expectAllowListedAndPathFree(extras)
+
+        let tags = NemotronProvider.loadFailureTags(
+            variantSlug: "multilingual",
+            errorDomain: Self.nemotronCoreMLError.domain
+        )
+        #expect(tags["nemotron_variant"] == "multilingual")
+        #expect(tags["nemotron_error_domain"] == "com.apple.CoreML")
+        expectAllowListedAndPathFree(tags)
+    }
+
+    @Test func nemotronFailureExtrasFromDownloadFailedWithPath() {
+        let error = HFError.downloadFailed(
+            path: Self.secretPath,
+            underlying: NSError(domain: "HTTP", code: 403, userInfo: [
+                NSLocalizedDescriptionKey: "GET \(Self.secretPath) returned 403",
+            ])
+        )
+        let extras = NemotronProvider.loadFailureExtras(for: error)
+        #expect(extras["nemotron_hf_error_case"] as? String == "download_failed")
+        #expect(extras["nemotron_http_status"] as? Int == 403)
+        #expect(extras["nemotron_underlying_error_domain"] as? String == "HTTP")
+        #expect(extras["nemotron_underlying_error_code"] as? Int == 403)
+        #expect(extras.count == 5)
+        expectAllowListedAndPathFree(extras)
+    }
+
+    /// A cancelled load (reset / invalidate, a cancelled download) sends no
+    /// "Nemotron runtime load failed" event; a real failure does.
+    @Test func nemotronLoadCancellationClassification() {
+        #expect(NemotronProvider.isLoadCancellation(CancellationError()))
+        #expect(NemotronProvider.isLoadCancellation(URLError(.cancelled)))
+        #expect(NemotronProvider.isLoadCancellation(
+            NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
+        ))
+        #expect(!NemotronProvider.isLoadCancellation(URLError(.timedOut)))
+        #expect(!NemotronProvider.isLoadCancellation(Self.nemotronCoreMLError))
+    }
+
+    // MARK: - Public log summary (#1980)
+
+    @Test func publicSummaryOfNSErrorWithPathIsPathFree() {
+        let summary = Detail.publicSummary(for: Self.nemotronCoreMLError)
+        #expect(summary == "errorDomain=com.apple.CoreML errorCode=0 hfErrorCase=none httpStatus=none underlyingErrorDomain=\(NSCocoaErrorDomain) underlyingErrorCode=260")
+        for secret in Self.secrets {
+            #expect(!summary.contains(secret), "leaked \(secret) in \(summary)")
+        }
+    }
+
+    @Test func publicSummaryOfHuggingFaceDownloadFailedIsPathFree() {
+        let error = HFError.downloadFailed(path: Self.secretPath, underlying: URLError(.timedOut))
+        // The description this replaces in the streaming logs holds the path.
+        let summary = Detail.publicSummary(for: error)
+        #expect(summary.hasPrefix("errorDomain="))
+        #expect(summary.contains("hfErrorCase=download_failed httpStatus=none underlyingErrorDomain=\(NSURLErrorDomain) underlyingErrorCode=\(URLError.timedOut.rawValue)"))
+        #expect(!summary.contains("/Users/"))
+        for secret in Self.secrets {
+            #expect(!summary.contains(secret), "leaked \(secret) in \(summary)")
+        }
+    }
+
+    // MARK: - Live streaming log lines (#1980)
+
+    /// The live local-streaming files must not put an error's description in a
+    /// public os_log interpolation. Comments are stripped before the scan.
+    @Test func liveStreamingFilesLogNoPublicErrorDescription() throws {
+        let directory = "app/macos/hyperwhisper/Managers/AudioRecording/Streaming/Local/"
+        for file in [
+            "LocalParakeetStreamingClient.swift",
+            "LocalNemotronStreamingClient.swift",
+            "ParakeetStreamingSession.swift",
+            "NemotronStreamingSession.swift",
+        ] {
+            let code = try ProductionSource.code(of: directory + file)
+            #expect(!code.contains("localizedDescription, privacy: .public"), "\(file)")
+            #expect(code.contains("LocalModelLoadFailureDetail.publicSummary(for: error)"), "\(file)")
         }
     }
 }

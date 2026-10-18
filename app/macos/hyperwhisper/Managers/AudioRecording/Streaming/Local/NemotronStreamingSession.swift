@@ -222,7 +222,9 @@ actor NemotronStreamingSession {
         } catch is CancellationError {
             return ""
         } catch {
-            logger.error("finish() failed: \(error.localizedDescription, privacy: .public)")
+            // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
+            let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
+            logger.error("finish() failed: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             onError?(error)
             return ""
         }
@@ -298,7 +300,9 @@ actor NemotronStreamingSession {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            logger.error("process() failed: \(error.localizedDescription, privacy: .public)")
+            // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
+            let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
+            logger.error("process() failed: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             onError?(error)
         }
         return true

@@ -161,6 +161,16 @@ enum LocalModelLoadFailureDetail {
         return "hfErrorCase=\(hfErrorCase) httpStatus=\(httpStatus) underlyingErrorDomain=\(underlyingDomain) underlyingErrorCode=\(underlyingCode)"
     }
 
+    /// One public-safe line for ANY error (#1980): the NSError domain and code
+    /// plus `logSummary(for: fields(for:))`. Use it instead of
+    /// `localizedDescription` in a `.public` os_log interpolation, because a
+    /// FluidAudio `downloadFailed` description holds a `/Users/<name>/…` path.
+    /// The domain is the error's type or a developer-fixed NSError domain.
+    static func publicSummary(for error: Error) -> String {
+        let nsError = error as NSError
+        return "errorDomain=\(nsError.domain) errorCode=\(nsError.code) \(logSummary(for: fields(for: error)))"
+    }
+
     static func logSummary(for phase: LoadPhase?) -> String {
         switch phase {
         case .downloading(let completedFiles, let totalFiles):
