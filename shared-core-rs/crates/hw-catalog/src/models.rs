@@ -449,9 +449,14 @@ mod tests {
         assert!(e.available_via_hyper_whisper_cloud, "2.0 is cloud-routed");
         // xAI ended 1.0 on 2026-10-02 (#1908). Its row is gone; the stored id
         // reaches 2.0 through the alias table, which lands on a catalogued row.
-        assert!(c.entry("grok", Kind::Voice, "grok-voice-transcribe-1.0").is_none());
+        assert!(c
+            .entry("grok", Kind::Voice, "grok-voice-transcribe-1.0")
+            .is_none());
         let aliased = crate::resolve_model_alias("grok-voice-transcribe-1.0", Some("grok"));
-        assert!(c.entry("grok", Kind::Voice, &aliased).is_some(), "{aliased} is catalogued");
+        assert!(
+            c.entry("grok", Kind::Voice, &aliased).is_some(),
+            "{aliased} is catalogued"
+        );
     }
 
     // --- Golden: language support yes/no -------------------------------------

@@ -59,12 +59,17 @@ pub fn default_model() -> &'static str {
 /// before xAI exposed the parameter carries an empty `cloudTranscriptionModel`
 /// for Grok, and so does any mode whose user never opened the Model row. Those
 /// resolve to the catalog default rather than to "send nothing".
-pub fn resolve_model(model: &str) -> &str {
+///
+/// A retired id is folded onto its successor through the shared alias table,
+/// as `deepgram::resolve_model` and `soniox::resolve_model` fold theirs: xAI
+/// ended `grok-voice-transcribe-1.0` on 2026-10-02, so a mode still naming it
+/// sends 2.0 (#1908).
+pub fn resolve_model(model: &str) -> String {
     let trimmed = model.trim();
     if trimmed.is_empty() {
-        default_model()
+        default_model().to_string()
     } else {
-        trimmed
+        hw_catalog::resolve_model_alias(trimmed, Some("grok"))
     }
 }
 
@@ -235,6 +240,19 @@ mod tests {
             } else {
                 panic!("expected multipart");
             }
+        }
+    }
+
+    /// #1908: xAI ended 1.0 on 2026-10-02. A mode still naming it sends 2.0.
+    #[test]
+    fn a_retired_1_0_model_is_sent_as_2_0() {
+        let mut p = params();
+        p.model = " grok-voice-transcribe-1.0 ".to_string();
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(field(parts, "model"), Some("grok-voice-transcribe-2.0"));
+        } else {
+            panic!("expected multipart");
         }
     }
 

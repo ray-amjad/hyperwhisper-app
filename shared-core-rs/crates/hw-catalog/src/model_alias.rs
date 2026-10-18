@@ -112,8 +112,7 @@ const OPENAI_ALIASES: &[(&str, &str)] = &[
 /// (docs.x.ai release notes), so the 1.0 picker row is gone and a saved mode or
 /// backup still naming it moves to 2.0 instead of falling to the first row.
 /// The target is no dearer: both rows were $0.00167/min.
-const GROK_ALIASES: &[(&str, &str)] =
-    &[("grok-voice-transcribe-1.0", "grok-voice-transcribe-2.0")];
+const GROK_ALIASES: &[(&str, &str)] = &[("grok-voice-transcribe-1.0", "grok-voice-transcribe-2.0")];
 
 /// Resolve a legacy AssemblyAI model id to its current equivalent. Non-AssemblyAI
 /// and already-current ids pass through unchanged.
