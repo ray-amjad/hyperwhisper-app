@@ -239,7 +239,7 @@ var tests = new (string Name, Func<Task> Run)[]
     }),
     ("live protocol vocabulary keeps its own length drop and cap", TestLiveVocabularyAsync),
     ("inline base64 audio bodies assemble prefix + base64(file) + suffix", TestInlineBase64BodyAsync),
-    ("a Cloud upload asks for HTTP/2 so it can reuse the warmed connection", TestCloudUploadPrefersHttp2Async),
+    ("a Cloud upload asks for HTTP/2, falling back to HTTP/1.1", TestCloudUploadPrefersHttp2Async),
     ("typed multipart files survive the C# binding and keep audio file-backed", TestTypedMultipartFileAsync),
     ("live terminal-error policy comes from the shared core", () =>
     {
@@ -651,18 +651,10 @@ static async Task TestSingleShotProvidersAsync()
 }
 
 /// <summary>
-/// The <c>Body.JsonWithBase64File</c> transport: the platform, not Rust, splices
-/// the base64 of the audio between the two JSON fragments Rust produced. It is
-/// the only body variant where the audio bytes are assembled on this side, and
-/// <c>RustHttpTransport.BuildRequestMessage</c>'s switch is not exhaustive — a
-/// missing arm would send a body-less request rather than fail to compile. This
-/// test is the guard for that.
-/// </summary>
-/// <summary>
 /// Issue #982: <c>SendAsync</c> ignores <c>HttpClient.DefaultRequestVersion</c>,
-/// so a Rust-built request with no <c>Version</c> went out as HTTP/1.1 and could
-/// not reuse the HTTP/2 connection the /warmup HEAD had opened. The first Cloud
-/// upload after launch paid a second TCP + TLS handshake.
+/// so a Rust-built request with no <c>Version</c> went out as HTTP/1.1. An
+/// HTTP/1.1 request cannot share a pooled HTTP/2 connection, so on Windows the
+/// first Cloud upload could not reuse the one its /warmup HEAD had opened.
 /// </summary>
 static async Task TestCloudUploadPrefersHttp2Async()
 {
@@ -689,6 +681,14 @@ static async Task TestCloudUploadPrefersHttp2Async()
     }
 }
 
+/// <summary>
+/// The <c>Body.JsonWithBase64File</c> transport: the platform, not Rust, splices
+/// the base64 of the audio between the two JSON fragments Rust produced. It is
+/// the only body variant where the audio bytes are assembled on this side, and
+/// <c>RustHttpTransport.BuildRequestMessage</c>'s switch is not exhaustive — a
+/// missing arm would send a body-less request rather than fail to compile. This
+/// test is the guard for that.
+/// </summary>
 static async Task TestInlineBase64BodyAsync()
 {
     // Deliberately 7 bytes: not a multiple of 3, so a wrong encoder that drops
