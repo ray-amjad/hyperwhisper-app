@@ -137,7 +137,11 @@ final class NemotronProvider: TranscriptionProvider {
             await clearBrokenFlag(for: modelId)
         } catch {
             let nsError = error as NSError
-            logger.error("Failed to initialize Nemotron \(variant.rawValue, privacy: .public); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
+            // Fixed identifiers from the error chain (#1017); never a path.
+            let failureDetailSummary = LocalModelLoadFailureDetail.logSummary(
+                for: LocalModelLoadFailureDetail.fields(for: error)
+            )
+            logger.error("Failed to initialize Nemotron \(variant.rawValue, privacy: .public); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public) \(failureDetailSummary, privacy: .public)")
             await runtime.reset()
             await flagBroken(for: modelId)
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Failed to initialize Nemotron runtime")
