@@ -392,12 +392,25 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     public bool IsInitialized => _isReady;
 
     /// <summary>
-    /// Whether the daemon joins transcription segments for <paramref name="code"/>
-    /// without spaces. KEEP IN SYNC with tools/parakeet-engine/main.cpp
-    /// <c>is_no_space_language</c>.
+    /// The <c>--segment-join</c> value for a daemon spawned with
+    /// <paramref name="language"/> (raw mode value; null/"auto" mean auto-detect):
+    /// <c>"none"</c> for a no-space language, <c>"space"</c> for any other declared
+    /// language, and null for auto, which leaves the join to the daemon.
+    /// <para>
+    /// The host decides the join from the shared core
+    /// (<see cref="SharedCoreBridge.IsNoSpaceLanguage"/>) and sends the answer, so
+    /// the x64 C++ daemon and the ARM64 managed daemon can no longer answer it from
+    /// two different tables (#902). It goes through <see cref="ResolveJoinClass"/>,
+    /// so the respawn predictor and the spawned daemon read the same rule.
+    /// </para>
     /// </summary>
-    internal static bool IsNoSpaceLanguage(string code) =>
-        code is "ja" or "zh" or "ko" or "yue";
+    internal static string? ResolveSegmentJoinArgument(string? language) =>
+        ResolveJoinClass(NormalizeLanguage(language)) switch
+        {
+            "no-space" => "none",
+            "spaced" => "space",
+            _ => null,
+        };
 
     /// <summary>
     /// Canonicalizes a mode/request language for reload comparison:
@@ -420,7 +433,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     /// </summary>
     /// <remarks>
     /// The daemon's join used to have two outcomes, so comparing
-    /// <see cref="IsNoSpaceLanguage"/> across a mode switch was enough. Since
+    /// <see cref="SharedCoreBridge.IsNoSpaceLanguage"/> across a mode switch was enough. Since
     /// issue #286 it has three: a no-space code joins with <c>""</c>, any other
     /// declared code joins with <c>" "</c>, and <c>"auto"</c> decides per boundary
     /// from the segment text. <c>"en"</c> and <c>"auto"</c> therefore produce
@@ -436,7 +449,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     internal static string ResolveJoinClass(string normalizedLanguage) => normalizedLanguage switch
     {
         "auto" => "auto",
-        var code when IsNoSpaceLanguage(code) => "no-space",
+        var code when SharedCoreBridge.IsNoSpaceLanguage(code) => "no-space",
         _ => "spaced",
     };
 
@@ -474,7 +487,31 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             return !string.Equals(requested, loaded, StringComparison.Ordinal);
         }
 
-        return !string.Equals(ResolveJoinClass(requested), ResolveJoinClass(loaded), StringComparison.Ordinal);
+        return JoinNeedsRespawn(requested, loaded);
+    }
+
+    /// <summary>
+    /// Whether a Parakeet TDT daemon spawned for <paramref name="loaded"/> must be
+    /// respawned to join segments for <paramref name="requested"/> (both already
+    /// normalized): a change of <see cref="ResolveJoinClass"/>, or ANY change
+    /// between two no-space codes.
+    /// <para>
+    /// The second rule is for the committed x64 <c>parakeet-engine.exe</c>, which
+    /// predates <c>--segment-join</c> and still classes the code from its own
+    /// four-code table (#902): a daemon spawned for <c>th</c> joins with spaces
+    /// there, so it cannot be kept for <c>ja</c>. Over-classifying costs one extra
+    /// respawn and nothing else.
+    /// </para>
+    /// </summary>
+    internal static bool JoinNeedsRespawn(string requested, string loaded)
+    {
+        var requestedClass = ResolveJoinClass(requested);
+        if (!string.Equals(requestedClass, ResolveJoinClass(loaded), StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return requestedClass == "no-space" && !string.Equals(requested, loaded, StringComparison.Ordinal);
     }
 
     // =========================================================================
@@ -1019,8 +1056,19 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             }
             else if (!string.IsNullOrWhiteSpace(language))
             {
+                // Read only by a daemon older than --segment-join below: the
+                // committed x64 parakeet-engine.exe predates it, and skips an
+                // unknown flag and its value. Drop it once that exe is rebuilt.
                 startInfo.ArgumentList.Add("--join-language");
                 startInfo.ArgumentList.Add(language);
+            }
+            // The host, not the daemon, decides the segment join (#902). Nothing is
+            // sent for auto: the daemon resolves an auto join itself.
+            var segmentJoin = ResolveSegmentJoinArgument(language);
+            if (segmentJoin != null)
+            {
+                startInfo.ArgumentList.Add("--segment-join");
+                startInfo.ArgumentList.Add(segmentJoin);
             }
             startInfo.ArgumentList.Add("--vad-model");
             startInfo.ArgumentList.Add(vadModelPath);
@@ -1036,6 +1084,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
                 $"ParakeetTranscriptionService: Starting daemon (engine={engineArg}, " +
                 $"language_hint={(supportsLanguageHint ? daemonLanguage : "n/a")}, " +
                 $"join_language={(!supportsLanguageHint && !string.IsNullOrWhiteSpace(language) ? language : "n/a")}, " +
+                $"segment_join={segmentJoin ?? "n/a"}, " +
                 $"arg_count={startInfo.ArgumentList.Count})");
 
             process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
