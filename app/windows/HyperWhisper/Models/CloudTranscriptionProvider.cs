@@ -273,6 +273,32 @@ public static class CloudTranscriptionProviderExtensions
     };
 
     /// <summary>
+    /// The transcription-only key slot for a provider that does NOT share a
+    /// post-processing key (issue #1220). This is the ONE Windows copy of the
+    /// provider -> <see cref="TranscriptionApiKeyType"/> map; callers that read
+    /// or write a key go through <see cref="GetApiKeyProvider"/> first, then this
+    /// (<c>ApiKeyService.GetApiKey/HasApiKey(CloudTranscriptionProvider)</c>).
+    ///
+    /// Returns null for the four shared-key providers (OpenAI, Groq, Gemini,
+    /// Grok — Grok's reads use <c>PostProcessingProvider.Grok</c>, the same
+    /// GrokApiKey slot), for the HyperWhisper-Cloud-routed providers and for
+    /// <see cref="CloudTranscriptionProvider.None"/>. The inverse is
+    /// <c>TranscriptionApiKeyType.ToCloudTranscriptionProvider()</c>.
+    /// </summary>
+    public static TranscriptionApiKeyType? GetTranscriptionApiKeyType(this CloudTranscriptionProvider provider) => provider switch
+    {
+        CloudTranscriptionProvider.Deepgram => TranscriptionApiKeyType.Deepgram,
+        CloudTranscriptionProvider.AssemblyAI => TranscriptionApiKeyType.AssemblyAI,
+        CloudTranscriptionProvider.ElevenLabs => TranscriptionApiKeyType.ElevenLabs,
+        CloudTranscriptionProvider.Mistral => TranscriptionApiKeyType.Mistral,
+        CloudTranscriptionProvider.Soniox => TranscriptionApiKeyType.Soniox,
+        // Own key slot — Google, but NOT the Gemini post-processing key.
+        CloudTranscriptionProvider.GeminiTranscribe => TranscriptionApiKeyType.GeminiTranscribe,
+        CloudTranscriptionProvider.Meta => TranscriptionApiKeyType.Meta,
+        _ => null
+    };
+
+    /// <summary>
     /// Whether this provider requires an API key.
     /// HyperWhisper Cloud uses device_id/license_key instead.
     /// </summary>
