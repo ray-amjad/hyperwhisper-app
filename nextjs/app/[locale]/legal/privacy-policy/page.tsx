@@ -900,14 +900,16 @@ export default function PrivacyPolicyPage() {
         the name on your account, your Account Key, your order and customer
         ids, your HyperWhisper Cloud credit balance and the history of the
         credits you bought or were granted (amounts, refunds, expiry dates,
-        and the payment or grant they came from), the hostname and the hashed
-        hardware identifier of each device you activate with the dates it was
-        first and last validated, the email addresses submitted for the
+        and the payment or grant they came from), the name of each device you
+        activate (on macOS the computer name, which often includes your first
+        name; on Windows and Linux the computer&apos;s network name), its
+        hashed device identifier, and the dates it was first and last
+        validated, the email addresses submitted for the
         download link, the records of the transactional emails we send you,
         your sign-in session records, which include the IP address and
-        browser user agent of the sign-in, and a pending sign-in link record
-        (your email address and the link&apos;s token) until the link
-        expires.
+        browser user agent of the sign-in, and a record of each sign-in link you
+        request (your email address and the link&apos;s token), which can
+        remain after the link expires.
       </p>
 
       <h2>International Transfers</h2>
