@@ -375,8 +375,39 @@ final class RustLicenseStore: KeyValueStore {
         ) else {
             return .unavailable
         }
-        guard let key = record?.key?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
+        return Self.storedKeyRead(from: record)
+    }
+
+    /// Reads the Keychain record now, even when this session already holds a
+    /// cached copy. `readStoredLicenseKey` answers from the committed snapshot
+    /// once a read succeeded, so it cannot prove what the Keychain holds after
+    /// a failed write or delete (#1490). A successful read refreshes the
+    /// snapshot. A failed read answers `.unavailable` and leaves it as it was.
+    ///
+    /// Blocking: call it off the main thread. It holds `transactionLock`
+    /// across the Keychain read, so it waits for an in-flight writer and sees
+    /// that writer's outcome, and no writer can commit while it reads. It never
+    /// holds `snapshotLock` across the read, so snapshot readers
+    /// (`readStoredLicenseKey`, `get`) do not wait on it (#1424).
+    func readStoredLicenseKeyFromSecureStore() -> StoredLicenseKeyRead {
+        withTransactionLock {
+            do {
+                let record = try licenseStore.readRecord()
+                // Bumps the generation, so a lazy snapshot load that started
+                // before this read cannot install its older record over it.
+                commitLicenseRecordSnapshot(record)
+                return Self.storedKeyRead(from: record)
+            } catch {
+                AppLogger.network.error(
+                    "License Keychain fresh read failed: \(error.localizedDescription, privacy: .public)"
+                )
+                return .unavailable
+            }
+        }
+    }
+
+    private static func storedKeyRead(from record: LicenseKeychainRecord?) -> StoredLicenseKeyRead {
+        guard let key = record?.key?.trimmingCharacters(in: .whitespacesAndNewlines),
               !key.isEmpty else {
             return .missing
         }

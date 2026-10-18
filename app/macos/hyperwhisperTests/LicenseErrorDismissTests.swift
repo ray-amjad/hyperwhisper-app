@@ -71,6 +71,7 @@ private final class NotFoundLicenseNetwork: LicenseNetworkServing {
     func getCachedLicenseStatus() -> LicenseStatus? { nil }
     func getStoredLicenseKey() -> String? { nil }
     func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
+    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead { .missing }
     func clearStoredLicense() -> Bool { true }
     func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
 }

@@ -52,6 +52,9 @@ protocol LicenseNetworkServing {
     func getCachedLicenseStatus() -> LicenseStatus?
     func getStoredLicenseKey() -> String?
     func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead
+    /// Reads the secure store itself, never this session's cached record.
+    /// Async so the blocking Keychain read stays off the main actor (#1408).
+    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead
     func clearStoredLicense() -> Bool
     func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool
 }
@@ -586,6 +589,12 @@ class LicenseNetworkService: LicenseNetworkServing {
         retryAfterFailure: Bool = false
     ) -> RustLicenseStore.StoredLicenseKeyRead {
         store.readStoredLicenseKey(retryAfterFailure: retryAfterFailure)
+    }
+
+    /// A fresh Keychain read for a decision that must match what the next
+    /// launch sees (a failed Deactivate, #1490).
+    func readStoredLicenseKeyFromSecureStore() async -> RustLicenseStore.StoredLicenseKeyRead {
+        store.readStoredLicenseKeyFromSecureStore()
     }
 
     // MARK: - License Data Management
