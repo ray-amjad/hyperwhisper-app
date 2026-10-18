@@ -141,6 +141,11 @@ class FileTranscriptionFlow {
     /// Video files are supported by extracting the audio track locally before
     /// transcription. This allows transcribing video content using any provider,
     /// including local Whisper models.
+    ///
+    /// **Keep in sync with `CFBundleDocumentTypes` in `Info.plist` (issue #656):** files
+    /// opened with Finder "Open With" or `open -a HyperWhisper` are claimed by those
+    /// document types and filtered by this list in `OpenedFileRouter`.
+    /// `OpenedFileRouterTests` checks that every type here is declared there.
     static let supportedAudioTypes: [UTType] = [
         // Audio formats
         .audio,           // Umbrella type for all audio
@@ -326,6 +331,44 @@ class FileTranscriptionFlow {
                 await self.processSelectedFile(selectedURL, mode: mode)
             }
         }
+    }
+
+    /// Transcribes a file the app was asked to open, without showing a picker (issue #656).
+    ///
+    /// The second entry point into file import: Finder "Open With" and
+    /// `open -a HyperWhisper <file>` reach it through `OpenedFileRouter`. Everything after
+    /// the file is chosen is the same `processSelectedFile` the picker runs — the same
+    /// validation, copy, History row, popup, cancel and error handling — so this path
+    /// proves the picker's path too.
+    ///
+    /// Returns once the import has finished, failed or been cancelled, so the caller can
+    /// run several opened files one after another: they all share the one progress popup.
+    ///
+    /// **Object lifetime:** as in `openFilePickerAndTranscribe(for:)`, the Task's operation
+    /// closure captures `self` strongly and is what keeps the flow alive;
+    /// `currentTranscriptionTask` is only the cancellation handle. The caller awaiting
+    /// this method also holds the flow until the import ends.
+    ///
+    /// - Parameters:
+    ///   - fileURL: The opened file (outside the recordings folder; it is copied in)
+    ///   - mode: The transcription mode to use
+    func transcribeOpenedFile(_ fileURL: URL, mode: Mode) async {
+        // The same guard the picker applies after its panel closes: a Mode deleted and
+        // saved meanwhile raises NSObjectInaccessibleException on the first property read.
+        guard !mode.isDeleted, mode.managedObjectContext != nil else {
+            AppLogger.transcription.error("❌ Mode was deleted before the opened file could be imported — aborting import")
+            return
+        }
+
+        AppLogger.transcription.info("📂 Importing opened file: \(fileURL.lastPathComponent) · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public)")
+
+        let task: Task<Void, Error> = Task {
+            await self.processSelectedFile(fileURL, mode: mode)
+        }
+        currentTranscriptionTask = task
+        // processSelectedFile handles every error itself, so this never throws; a
+        // cancel resolves through its own catch and returns normally.
+        _ = try? await task.value
     }
 
     // MARK: - Private Methods
