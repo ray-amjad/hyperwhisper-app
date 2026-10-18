@@ -8,6 +8,7 @@ using HyperWhisper.SharedCore;
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("Windows-parity model registry", TestModelRegistry),
+    ("retired model redirects match shared-conformance", TestRedirectVectors),
     ("OpenAI request and shared evaluation", TestOpenAi),
     ("Anthropic request and shared evaluation", TestAnthropic),
     ("OpenAI-compatible provider routes", TestOpenAiCompatibleRoutes),
@@ -128,6 +129,51 @@ static Task TestModelRegistry()
     // An unknown Gemini id falls back to the first row, which is 3.8 Flash (the macOS default).
     Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "no-such-model") == "gemini-3.8-flash",
         "Gemini fallback is not gemini-3.8-flash");
+    return Task.CompletedTask;
+}
+
+// Replays shared-conformance/pp-model-redirect-vectors.json through THIS head's
+// redirect table (#1083). macOS and Windows replay the same file through theirs:
+//   app/macos/hyperwhisperTests/PostProcessingModelResolutionTests.swift
+//   app/windows/HyperWhisper.SmokeTests/Program.cs
+// Each row is checked twice. Migrate itself must name `to`, because ResolveModel
+// falls back to the provider's first row, so a missing arm whose target IS the
+// first row (gpt-5.6-luna, claude-haiku-5-5, ...) would still pass through
+// ResolveModel alone. ResolveModel must then land on that same live row.
+static Task TestRedirectVectors()
+{
+    var repoRoot = new DirectoryInfo(AppContext.BaseDirectory);
+    while (repoRoot is not null && !Directory.Exists(Path.Combine(repoRoot.FullName, "shared-conformance")))
+        repoRoot = repoRoot.Parent;
+    Assert(repoRoot is not null, "the repo root is locatable from the test output directory");
+    var path = Path.Combine(repoRoot!.FullName, "shared-conformance", "pp-model-redirect-vectors.json");
+    using var document = JsonDocument.Parse(File.ReadAllText(path));
+    var vectors = document.RootElement.GetProperty("vectors");
+    Assert(vectors.GetArrayLength() >= 40, "pp-model-redirect-vectors.json looks truncated");
+
+    var migrate = typeof(PostProcessingModelCatalog).GetMethod("Migrate",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+        ?? throw new InvalidOperationException("PostProcessingModelCatalog.Migrate not found");
+    var checkedRows = 0;
+    foreach (var row in vectors.EnumerateArray())
+    {
+        if (row.TryGetProperty("platforms", out var platforms)
+            && platforms.EnumerateArray().All(item => item.GetString() != "linux"))
+            continue;
+        var providerName = row.GetProperty("provider").GetString()!;
+        var from = row.GetProperty("from").GetString()!;
+        var to = row.GetProperty("to").GetString()!;
+        Assert(Enum.TryParse<CloudPostProcessingProvider>(providerName, ignoreCase: true, out var provider),
+            $"{from}: provider '{providerName}' is not a Linux BYOK provider");
+        Assert((string?)migrate.Invoke(null, [from]) == to, $"Migrate does not redirect {from} to {to}");
+        Assert(PostProcessingModelCatalog.ForProvider(provider).Any(model => model.Id == to),
+            $"{from}: target {to} is not a live {provider} row");
+        Assert(PostProcessingModelCatalog.ForProvider(provider).All(model => model.Id != from),
+            $"retired {from} is still a {provider} row");
+        Assert(PostProcessingModelCatalog.ResolveModel(provider, from) == to, $"{from} did not resolve to {to}");
+        checkedRows++;
+    }
+    Console.WriteLine($"  read {path}: {checkedRows} Linux redirect rows checked");
     return Task.CompletedTask;
 }
 
