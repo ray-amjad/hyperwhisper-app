@@ -295,6 +295,7 @@ public static class PortableLocalApi
             byte[] content;
             string fileName;
             string contentType;
+            string? declaredMimeType = null;
             if (hasBase64)
             {
                 var encoded = request.AudioBase64!.Trim();
@@ -308,6 +309,7 @@ public static class PortableLocalApi
                     return Failure(200, LocalApiErrorCodes.InvalidRequest, "Audio exceeds the configured upload limit.");
                 contentType = NormalizeMime(request.MimeType);
                 fileName = "local-api-upload" + ExtensionForMime(contentType);
+                declaredMimeType = string.IsNullOrWhiteSpace(request.MimeType) ? null : request.MimeType;
             }
             else
             {
@@ -322,7 +324,7 @@ public static class PortableLocalApi
             var result = await backend.TranscribeAsync(new(
                 fileName, contentType, content, request.ModeId,
                 request.Engine ?? request.Provider, request.Model, request.Language,
-                request.ApplicationContext, request.TimestampGranularities), ct).ConfigureAwait(false);
+                request.ApplicationContext, request.TimestampGranularities, declaredMimeType), ct).ConfigureAwait(false);
             return TranscriptionSuccess(result);
         }
 

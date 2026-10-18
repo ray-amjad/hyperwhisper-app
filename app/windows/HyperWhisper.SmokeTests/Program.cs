@@ -12457,6 +12457,52 @@ internal static class Program
                 inFlightLock.Dispose();
             });
 
+            Run("an audio_base64 scratch file keeps the caller's mime_type extension on the shared server — issue #356", () =>
+            {
+                // Each upload is built the way PortableLocalApi builds it (pinned
+                // in LocalApi.Tests): for audio_base64 the shared table folds an
+                // alias it does not know, or a ";codecs=" parameter, into
+                // "local-api-upload.wav" / "audio/wav", and carries the caller's
+                // raw mime_type in DeclaredMimeType. Old Windows named the scratch
+                // file from that raw type, so a WebM/Opus or AAC upload must not
+                // reach the decoder as ".wav".
+                static HyperWhisper.LocalApi.AudioUpload Base64(string? mime) => new(
+                    "local-api-upload.wav", "audio/wav", new byte[] { 1, 2, 3 },
+                    null, "parakeet", null, null, DeclaredMimeType: mime);
+
+                (HyperWhisper.LocalApi.AudioUpload Upload, string Expected)[] cases =
+                [
+                    (Base64("audio/webm;codecs=opus"), ".webm"),
+                    (Base64("audio/aac"), ".aac"),
+                    (Base64("audio/x-ogg"), ".ogg"),
+                    (Base64("audio/vorbis"), ".ogg"),
+                    (Base64("audio/m4a"), ".m4a"),
+                    (Base64("audio/wave"), ".wav"),
+                    (Base64(" AUDIO/MPEG "), ".mp3"),
+                    (Base64("application/octet-stream"), ".wav"),
+                    (Base64(null), ".wav"),
+                    // A file path or multipart part still names itself.
+                    (new("meeting.flac", "audio/flac", new byte[] { 1 }, null, "parakeet", null, null), ".flac"),
+                    (new("clip.bin", "audio/webm", new byte[] { 1 }, null, "parakeet", null, null), ".webm"),
+                ];
+                foreach (var (upload, expected) in cases)
+                {
+                    var (path, readLock) = WindowsLocalApiBackend.WriteScratchAudio(upload);
+                    try
+                    {
+                        Assert(string.Equals(Path.GetExtension(path), expected, StringComparison.Ordinal),
+                            $"mime_type '{upload.DeclaredMimeType}' / file '{upload.FileName}' wrote '{Path.GetFileName(path)}', expected {expected}");
+                        Assert(File.ReadAllBytes(path).AsSpan().SequenceEqual(upload.Content.Span),
+                            "the scratch file does not hold the upload's bytes");
+                    }
+                    finally
+                    {
+                        readLock.Dispose();
+                        File.Delete(path);
+                    }
+                }
+            });
+
             Run("the /transcribe response projects FinalText, not RawText — issues #495, #498", () =>
             {
                 var mode = new Mode

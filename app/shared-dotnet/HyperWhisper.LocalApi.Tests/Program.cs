@@ -32,6 +32,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("error codes match the shared closed set", ErrorCodeParity),
     ("bounded multipart transcription", Multipart),
     ("Windows JSON transcription contract", JsonTranscriptionContract),
+    ("audio_base64 keeps the shared mime table and passes the raw mime_type on", Base64DeclaredMimeType),
     ("Windows JSON file source is private and bounded", JsonFileSecurity),
     ("Windows post-process application context contract", PostProcessContextContract),
     ("Windows endpoint contract snapshots and overrides", EndpointContractSnapshots),
@@ -691,6 +692,7 @@ static async Task InTokyo(Func<Task> test)
     var previous = Environment.GetEnvironmentVariable("TZ");
     Environment.SetEnvironmentVariable("TZ", "Asia/Tokyo");
     TimeZoneInfo.ClearCachedData();
+    if (OperatingSystem.IsWindows()) ForceWindowsLocalZone("Tokyo Standard Time");
     try
     {
         Assert(TimeZoneInfo.Local.BaseUtcOffset == TimeSpan.FromHours(9),
@@ -702,6 +704,53 @@ static async Task InTokyo(Func<Task> test)
         Environment.SetEnvironmentVariable("TZ", previous);
         TimeZoneInfo.ClearCachedData();
     }
+}
+
+// Issue #356: the shared table folds an alias it does not know, and any
+// ";codecs=" parameter, into "audio/wav". That stays as it is, because Linux
+// reads ContentType and FileName. The caller's raw mime_type rides along in the
+// additive DeclaredMimeType, which only the Windows backend reads.
+static async Task Base64DeclaredMimeType()
+{
+    await using var fixture = await Fixture.Create();
+    fixture.Authenticate();
+    (string? Mime, string FileName, string ContentType)[] cases =
+    [
+        ("audio/webm;codecs=opus", "local-api-upload.wav", "audio/wav"),
+        ("audio/aac", "local-api-upload.wav", "audio/wav"),
+        ("audio/webm", "local-api-upload.webm", "audio/webm"),
+        ("audio/x-m4a", "local-api-upload.m4a", "audio/mp4"),
+        (null, "local-api-upload.wav", "audio/wav"),
+    ];
+    foreach (var (mime, fileName, contentType) in cases)
+    {
+        var mimeField = mime is null ? "" : $",\"mime_type\":{JsonSerializer.Serialize(mime)}";
+        using var body = new StringContent(
+            $"{{\"audio_base64\":\"AQIDBA==\",\"engine\":\"whisper\",\"model\":\"base\"{mimeField}}}",
+            Encoding.UTF8, "application/json");
+        using var response = await fixture.Client.PostAsync("/transcribe", body);
+        var upload = fixture.Backend.Upload;
+        Assert(response.StatusCode == HttpStatusCode.OK && upload is not null, $"mime_type '{mime}' was not transcribed");
+        Assert(upload!.FileName == fileName && upload.ContentType == contentType,
+            $"mime_type '{mime}' changed the shared name/type: {upload.FileName} {upload.ContentType}");
+        Assert(upload.DeclaredMimeType == mime,
+            $"mime_type '{mime}' reached the backend as DeclaredMimeType '{upload.DeclaredMimeType}'");
+    }
+}
+
+// Windows reads the local zone from the OS, not from TZ, so a runner in UTC
+// stays in UTC. Plant the zone in the runtime's own local-zone cache instead.
+// It is process-only, never touches the machine's zone, and the caller's
+// ClearCachedData drops it again. If the runtime renames the cache, the
+// offset Assert in InTokyo fails loudly rather than passing under UTC.
+static void ForceWindowsLocalZone(string windowsZoneId)
+{
+    if (TimeZoneInfo.Local.BaseUtcOffset == TimeZoneInfo.FindSystemTimeZoneById(windowsZoneId).BaseUtcOffset) return;
+    const System.Reflection.BindingFlags privateStatic = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+    const System.Reflection.BindingFlags privateInstance = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+    var cache = typeof(TimeZoneInfo).GetField("s_cachedData", privateStatic)?.GetValue(null);
+    var local = cache?.GetType().GetField("_localTimeZone", privateInstance);
+    local?.SetValue(cache, TimeZoneInfo.FindSystemTimeZoneById(windowsZoneId));
 }
 
 static void AssertProperties(JsonElement element, params string[] expected)

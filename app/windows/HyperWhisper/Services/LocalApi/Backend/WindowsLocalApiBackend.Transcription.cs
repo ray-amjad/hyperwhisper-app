@@ -155,7 +155,7 @@ internal sealed partial class WindowsLocalApiBackend
         ArgumentNullException.ThrowIfNull(upload);
         var tempPath = Path.Combine(
             LocalApiScratchFiles.UploadDirectory(Path.GetTempPath()),
-            $"{LocalApiScratchFiles.UploadPrefix}{Guid.NewGuid():N}.{ScratchExtension(upload.FileName, upload.ContentType)}");
+            $"{LocalApiScratchFiles.UploadPrefix}{Guid.NewGuid():N}.{ScratchExtension(upload)}");
         try
         {
             using (var output = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
@@ -189,12 +189,27 @@ internal sealed partial class WindowsLocalApiBackend
     }
 
     /// <summary>
-    /// The scratch file's extension, without the dot. The upload's own file
-    /// name wins when it carries a known audio extension (a <c>file</c> path or
-    /// a multipart part); otherwise the content type decides, as it did for
-    /// <c>audio_base64</c>.
+    /// The scratch file's extension, without the dot.
     /// </summary>
-    internal static string ScratchExtension(string? fileName, string? contentType)
+    /// <remarks>
+    /// An <c>audio_base64</c> upload is named from the caller's own
+    /// <c>mime_type</c> (<see cref="SharedApi.AudioUpload.DeclaredMimeType"/>),
+    /// through the old Windows table, so <c>audio/webm;codecs=opus</c> stays
+    /// <c>.webm</c> and <c>audio/aac</c> stays <c>.aac</c>. The shared server's
+    /// synthetic <c>local-api-upload.wav</c> name cannot be trusted for that:
+    /// its table folds every alias it does not know to <c>audio/wav</c>.
+    /// Otherwise the upload's own file name wins when it carries a known audio
+    /// extension (a <c>file</c> path or a multipart part), then the content type.
+    /// </remarks>
+    internal static string ScratchExtension(SharedApi.AudioUpload upload)
+    {
+        ArgumentNullException.ThrowIfNull(upload);
+        return string.IsNullOrWhiteSpace(upload.DeclaredMimeType)
+            ? ScratchExtension(upload.FileName, upload.ContentType)
+            : ExtensionForMime(upload.DeclaredMimeType);
+    }
+
+    private static string ScratchExtension(string? fileName, string? contentType)
     {
         var extension = Path.GetExtension(fileName ?? "").TrimStart('.').ToLowerInvariant();
         return extension is "wav" or "m4a" or "mp3" or "flac" or "ogg" or "webm" or "aac" or "mp4"
