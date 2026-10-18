@@ -4,6 +4,7 @@ import { desc } from "drizzle-orm";
 
 import { db } from "@/src/db";
 import { blogPosts, type BlogPostRow } from "@/src/db/schema/blog-posts";
+import { lazyLoadBodyImages } from "@/src/content/blog-html";
 
 const BLOG_LOCALE = "en";
 
@@ -79,7 +80,10 @@ export async function getBlogPosts(): Promise<BlogPostSummary[]> {
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   const normalizedSlug = normalizeSlug(slug);
   const posts = await readAllPosts();
-  return posts.find((item) => item.slug === normalizedSlug) ?? null;
+  const post = posts.find((item) => item.slug === normalizedSlug);
+  if (!post) return null;
+  // Only the post being shown needs its stored body rewritten (#919).
+  return { ...post, html: lazyLoadBodyImages(post.html) };
 }
 
 export async function getAllBlogPosts(): Promise<BlogPostSummary[]> {
