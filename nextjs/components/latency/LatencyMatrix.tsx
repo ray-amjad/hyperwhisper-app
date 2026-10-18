@@ -14,6 +14,7 @@ import {
   type LatencyVendorRow,
 } from "@/lib/latency/types";
 import { regionCity } from "@/lib/latency/fly-regions";
+import { TEXT_LINK } from "@/components/text-link";
 import { isRecord } from "@/src/lib/type-guards";
 
 const METRICS = [
@@ -412,7 +413,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
               <span className="text-gray-400">Pick the region closest to you</span>
             )}
             <button
-              className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
+              className={TEXT_LINK}
               type="button"
               onClick={() => setPickingRegion((open) => !open)}
             >
