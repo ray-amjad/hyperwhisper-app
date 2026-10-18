@@ -36,6 +36,10 @@ if (args is [MediaControlComboRenderTests.ProbeArgument])
 {
     Environment.Exit(await MediaControlComboRenderTests.RunProbeAsync());
 }
+if (args is [BackendPickerPageLeaveRenderTests.ProbeArgument])
+{
+    Environment.Exit(BackendPickerPageLeaveRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -59,6 +63,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("live delivered final is not injected twice", LiveDeliveredFinalIsNotDuplicated),
     ("production live sink forwards partial and final updates", LiveSinkForwardsUpdates),
     ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
+    ("a cloud mode with a blank cloudProvider reads as HyperWhisper Cloud on its card", BlankCloudProviderReadsAsHyperWhisperCloud),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
     ("recording refuses every kind when no input device is selected", RecordingRefusesWithoutInputDevice),
     ("a silent recording reads No speech detected, not Transcription failed", SilentRecordingReadsNoSpeech),
@@ -68,6 +73,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("local Whisper timestamps route through portable result", LocalWhisperTimestampsRoute),
     ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
+    ("Model Library Whisper line names a missing hyperwhisper-cuda package", ModelLibraryWhisperLineNamesMissingCudaPackage),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
     ("Local API post-processing refuses a Cloud run with no account key", LocalApiPostProcessingCloudAccountRequired),
     ("Local API /health key_present for hyperwhisper follows the account key", LocalApiHealthCloudKeyFollowsAccountKey),
@@ -99,6 +105,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the mode editor's local model combo shows the engine's model after an engine change (#1629)", ModeEditorEngineSwitchRenderTests.RunAsync),
     ("every Source segment in the mode editor shows its whole label (#635)", ModeEditorSourceSegmentRenderTests.RunAsync),
     ("the Sound page's media-control ComboBox shows its whole label in every long culture", MediaControlComboRenderTests.RunAsync),
+    ("leaving Model Library keeps the Whisper and LLM backend picks in the view model and settings.json (#1967)", BackendPickerPageLeaveRenderTests.RunAsync),
 };
 
 foreach (var test in tests)
@@ -1242,6 +1249,33 @@ static Task CloudProviderStorageRoutes()
     return Task.CompletedTask;
 }
 
+// #1709. The mode card, the status bar, the editor and the router used to give four answers for a
+// Cloud mode with no stored provider. The card and the status bar read it through the shared rule
+// now: blank (including whitespace) is HyperWhisper Cloud, and a non-blank id keeps its own meaning.
+static Task BlankCloudProviderReadsAsHyperWhisperCloud()
+{
+    foreach (var value in new string?[] { null, "", "   ", "hyperwhisper", "HyperWhisper", "hyperwhispercloud", "hyperwhisper_cloud" })
+        Assert(ModeProviderLineConverter.IsHyperWhisperCloud(value),
+            $"cloudProvider {(value is null ? "<null>" : $"'{value}'")} did not read as HyperWhisper Cloud");
+    foreach (var value in new[] { "deepgram", "elevenlabs", "googlespeech", "microsoftazurespeech" })
+        Assert(!ModeProviderLineConverter.IsHyperWhisperCloud(value),
+            $"cloudProvider '{value}' read as HyperWhisper Cloud; only a blank value changes meaning");
+
+    var statusBar = new StatusBarModelConverter();
+    var explicitLabel = statusBar.Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "elevenLabsScribeV2" },
+        typeof(string), null, CultureInfo.InvariantCulture) as string;
+    foreach (var blank in new string?[] { null, "", "   " })
+    {
+        var label = statusBar.Convert(
+            new Mode { ProviderType = "cloud", CloudProvider = blank, CloudAccuracyTier = "elevenLabsScribeV2" },
+            typeof(string), null, CultureInfo.InvariantCulture) as string;
+        Assert(label == explicitLabel && !string.IsNullOrWhiteSpace(label),
+            $"status bar read '{label}' for a blank-provider cloud mode, not the tier label '{explicitLabel}'");
+    }
+    return Task.CompletedTask;
+}
+
 static async Task AudioRestorationIsNonCancelable()
 {
     var environment = new FakeAudioEnvironmentSession();
@@ -1392,16 +1426,110 @@ static Task WhisperSettingsSelectBackends()
     {
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", null);
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", null);
+        var nvidia = new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true });
         var detected = new LinuxWhisperRuntimePreferenceSource(
-            new MissingPrivateFiles(), new StaticPaths(root),
-            new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true }));
+            new MissingPrivateFiles(), new StaticPaths(root), nvidia,
+            new FixedRuntime(NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan, NativeComputeBackend.Cuda));
         Assert(detected.Resolve() == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Cuda12, true),
             "automatic selection did not prefer detected CUDA 12");
+
+        // Issue #1002: without the hyperwhisper-cuda package, CUDA falls back to
+        // Vulkan and the status names the package.
+        var noCudaPackage = new LinuxWhisperRuntimePreferenceSource(
+            new MissingPrivateFiles(), new StaticPaths(root), nvidia,
+            new FixedRuntime(NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan));
+        var fallback = noCudaPackage.Resolve();
+        Assert(fallback == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Vulkan, true,
+                Notice: HyperWhisper.Linux.Platform.SystemIntegration.LinuxCudaPackage.MissingNotice),
+            "a CUDA choice without hyperwhisper-cuda did not fall back to Vulkan");
+        using (var fixture = new WhisperTranscriberFixture(fallback, "Vulkan"))
+        {
+            var capability = fixture.Transcriber.Capability;
+            Assert(capability.IsAvailable
+                    && capability.DisplayName.Contains("install the hyperwhisper-cuda package", StringComparison.Ordinal),
+                "the Whisper status did not name the hyperwhisper-cuda package");
+        }
+
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", "cuda12");
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", "0");
+        var strict = new LinuxWhisperRuntimePreferenceSource(
+            new MissingPrivateFiles(), new StaticPaths(root), nvidia,
+            new FixedRuntime(NativeComputeBackend.Cpu)).Resolve();
+        Assert(strict.Unavailable && strict.Backend == LocalWhisperBackend.Cuda12,
+            "strict CUDA without hyperwhisper-cuda or Vulkan was not reported unavailable");
+        using (var fixture = new WhisperTranscriberFixture(strict, "Cpu"))
+        {
+            Assert(!fixture.Transcriber.Capability.IsAvailable, "strict missing CUDA still reported available");
+            var failed = fixture.Transcriber.TranscribeAsync(fixture.AudioPath, "en").GetAwaiter().GetResult();
+            Assert(!failed.IsSuccess
+                    && failed.Failure?.Code == PortableTranscriptionErrorCode.BackendUnavailable
+                    && failed.Failure.Message.Contains("hyperwhisper-cuda", StringComparison.Ordinal)
+                    && fixture.Service.LoadOptions is null,
+                "strict missing CUDA did not fail with the install hint before loading");
+        }
 
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", "vulkan");
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", "0");
         Assert(detected.Resolve() == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Vulkan, false),
             "explicit strict Vulkan setting was not honored");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", previousBackend);
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", previousFallback);
+    }
+    return Task.CompletedTask;
+}
+
+// Issue #1002: picking CUDA 12 without hyperwhisper-cuda falls back silently unless the Model
+// Library's Whisper line (SettingsLocalWhisperRuntimeStatus, bound to LocalWhisperRuntimeStatus)
+// says so. Wired the way MainWindow wires it; the runtime has no cuda12 library.
+static Task ModelLibraryWhisperLineNamesMissingCudaPackage()
+{
+    var previousBackend = Environment.GetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND");
+    var previousFallback = Environment.GetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK");
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-whisper-line-{Guid.NewGuid():N}");
+    try
+    {
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", null);
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", null);
+        var nvidia = new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true });
+        LinuxWhisperRuntimePreferenceSource Source(params NativeComputeBackend[] backends) =>
+            new(new MissingPrivateFiles(), new StaticPaths(root), nvidia, new FixedRuntime(backends));
+        var settings = new SettingsViewModel(
+            new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")),
+            localWhisperRuntimeStatus: "Mode-selected transcription");
+        settings.LocalWhisperBackendNotice = Source(NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan).DescribeChoice;
+        var changes = new List<string?>();
+        settings.PropertyChanged += (_, e) => changes.Add(e.PropertyName);
+
+        settings.LocalWhisperBackend = "cuda12";
+        Assert(changes.Contains(nameof(SettingsViewModel.LocalWhisperRuntimeStatus)),
+            "picking CUDA 12 did not refresh the Whisper line");
+        Assert(settings.LocalWhisperRuntimeStatus.Contains(
+                "CUDA is not installed (install the hyperwhisper-cuda package); Whisper falls back to Vulkan.",
+                StringComparison.Ordinal),
+            $"the Whisper line did not name the missing package and the Vulkan fallback: {settings.LocalWhisperRuntimeStatus}");
+
+        settings.LocalWhisperBackend = "vulkan";
+        Assert(!settings.LocalWhisperRuntimeStatus.Contains("hyperwhisper-cuda", StringComparison.Ordinal),
+            "the CUDA notice stayed on the Whisper line after picking Vulkan");
+
+        settings.LocalWhisperBackendNotice = Source(NativeComputeBackend.Cpu).DescribeChoice;
+        settings.LocalWhisperBackend = "cuda12";
+        Assert(settings.LocalWhisperRuntimeStatus.EndsWith(
+                "CUDA is not installed (install the hyperwhisper-cuda package); Whisper falls back to CPU.",
+                StringComparison.Ordinal),
+            $"the Whisper line did not name the CPU fallback: {settings.LocalWhisperRuntimeStatus}");
+        settings.AllowLocalWhisperCpuFallback = false;
+        Assert(settings.LocalWhisperRuntimeStatus.EndsWith(
+                HyperWhisper.Linux.Platform.SystemIntegration.LinuxCudaPackage.MissingFailure, StringComparison.Ordinal),
+            $"the Whisper line did not say strict CUDA cannot run: {settings.LocalWhisperRuntimeStatus}");
+
+        settings.LocalWhisperBackendNotice = Source(
+            NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan, NativeComputeBackend.Cuda).DescribeChoice;
+        Assert(settings.LocalWhisperRuntimeStatus == "Current process capability: Mode-selected transcription.",
+            $"an installed hyperwhisper-cuda still got a notice: {settings.LocalWhisperRuntimeStatus}");
     }
     finally
     {
@@ -2045,6 +2173,11 @@ sealed class WhisperTranscriberFixture : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-whisper-route-{Guid.NewGuid():N}");
     public WhisperTranscriberFixture(LocalWhisperBackend backend, bool allowFallback, string runtime)
+        : this(new LinuxWhisperRuntimePreference(backend, allowFallback), runtime)
+    {
+    }
+
+    public WhisperTranscriberFixture(LinuxWhisperRuntimePreference preference, string runtime)
     {
         Directory.CreateDirectory(_root);
         File.WriteAllBytes(Path.Combine(_root, "ggml-test.bin"), [1]);
@@ -2052,7 +2185,7 @@ sealed class WhisperTranscriberFixture : IDisposable
         File.WriteAllBytes(AudioPath, [1]);
         Service = new FakeLocalWhisperService(runtime);
         Transcriber = new LinuxLocalWhisperTranscriber(
-            _root, Service, new FixedWhisperPreferences(new(backend, allowFallback)));
+            _root, Service, new FixedWhisperPreferences(preference));
     }
     public string AudioPath { get; }
     public FakeLocalWhisperService Service { get; }
@@ -2128,6 +2261,19 @@ sealed class CapturingPostProcessor : ITranscriptionPostProcessor
         return Task.FromResult(
             Result ?? PortablePostProcessingResult.Applied($"processed {transcript}", "test-provider", ResolvedModel));
     }
+}
+
+/// <summary>Reports a packaged Whisper library for exactly the given backends.</summary>
+sealed class FixedRuntime(params NativeComputeBackend[] backends) : INativeRuntimeLocator
+{
+    public NativeRuntimeCapabilities Capabilities =>
+        new("linux-x64", "X64", true, false, true, backends.ToHashSet());
+    public PlatformResult<string> FindLibrary(string component, NativeComputeBackend backend) =>
+        backends.Contains(backend)
+            ? PlatformResult<string>.Success($"/opt/test/{backend}/lib{component}.so")
+            : PlatformResult<string>.Failure("native_runtime.library_not_found", "missing");
+    public PlatformResult<string> FindExecutable(string component) =>
+        PlatformResult<string>.Failure("native_runtime.executable_not_found", "missing");
 }
 
 sealed class FixedGpu(GpuInfo? gpu) : IGpuInfoProvider

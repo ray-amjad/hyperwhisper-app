@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Klistra in från urklipp";
 "settings.license.clearInput" = "Rensa";
+"license.error.keyFormat" = "Det ser inte ut som en kontonyckel.";
 "settings.license.recovery.prompt" = "Glömt din licensnyckel?";
 "settings.license.recovery.button" = "Gå till kundportal";
 "settings.license.daily.title" = "Daglig transkription";
@@ -879,7 +880,6 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "recording.retry.inProgress" = "Försöker igen...";
 "recording.retry.count" = "Försök igen (%d)";
 "recording.retry.failed.missing" = "Försök igen misslyckades: Ljudfilen hittades inte";
-"recording.retry.failed.error" = "Försök igen misslyckades: %@";
 "recording.retry.pending" = "Klar för att försöka igen – klicka för att transkribera";
 "recording.retry.modeDeleted" = "Läget har tagits bort";
 "recording.cancel.dialog.title" = "Avbryt inspelning?";

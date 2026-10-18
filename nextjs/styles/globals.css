@@ -167,3 +167,77 @@ body {
     animation: none;
   }
 }
+
+/* Native buttons default to the arrow cursor, and Tailwind v4's preflight no
+   longer changes that, so hand-rolled controls read as non-clickable (#929).
+   In the base layer, so a cursor-* utility on an element still wins. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled):not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Motion tokens (#766). Prefixed --motion-* because Tailwind v4 already owns
+   the --ease-* and --blur-* theme namespaces; a bare --ease-in-out here would
+   retime every ease-in-out utility on the site. */
+:root {
+  --motion-duration-micro: 150ms;
+  --motion-duration-fast: 250ms;
+  --motion-ease-in-out: cubic-bezier(0.42, 0, 0.58, 1);
+  --motion-ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-distance-micro: 4px;
+  --motion-distance-small: 6px;
+  --motion-blur-small: 2px;
+}
+
+/* Text swapping in place: the /choosing-a-model best-match name. The script
+   sets data-motion-from for one frame on a change; the transition carries the
+   new text back from a small blurred offset. */
+.t-text-swap {
+  transition:
+    opacity var(--motion-duration-micro) var(--motion-ease-in-out),
+    transform var(--motion-duration-micro) var(--motion-ease-in-out),
+    filter var(--motion-duration-micro) var(--motion-ease-in-out);
+}
+
+.t-text-swap[data-motion-from] {
+  opacity: 0;
+  transform: translateY(var(--motion-distance-micro));
+  filter: blur(var(--motion-blur-small));
+  transition: none;
+}
+
+/* A number that updates: the best-match stat values pop in with a blurred
+   slide up. */
+.t-number-pop {
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-smooth-out),
+    transform var(--motion-duration-fast) var(--motion-ease-smooth-out),
+    filter var(--motion-duration-fast) var(--motion-ease-smooth-out);
+}
+
+.t-number-pop[data-motion-from] {
+  opacity: 0;
+  transform: translateY(var(--motion-distance-small));
+  filter: blur(var(--motion-blur-small));
+  transition: none;
+}
+
+/* Reduce motion: the new name and numbers are shown in one frame. The row
+   re-rank checks the same query in ModelPicker.tsx and skips its slide. */
+@media (prefers-reduced-motion: reduce) {
+  .t-text-swap,
+  .t-number-pop {
+    transition: none;
+  }
+
+  .t-text-swap[data-motion-from],
+  .t-number-pop[data-motion-from] {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}

@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Lipeți din clipboard";
 "settings.license.clearInput" = "Ștergeți";
+"license.error.keyFormat" = "Aceasta nu pare a fi o cheie de cont.";
 "settings.license.recovery.prompt" = "Ați uitat cheia de licență?";
 "settings.license.recovery.button" = "Accesați portalul clienților";
 "settings.license.daily.title" = "Transcriere zilnică";
@@ -879,7 +880,6 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "recording.retry.inProgress" = "Se reîncearcă...";
 "recording.retry.count" = "Reîncercați (%d)";
 "recording.retry.failed.missing" = "Reîncercare eșuată: Fișier audio nu a fost găsit";
-"recording.retry.failed.error" = "Reîncercare eșuată: %@";
 "recording.retry.pending" = "Pregătit pentru reîncercare – faceți clic pentru a transcrie";
 "recording.retry.modeDeleted" = "Modul a fost șters";
 "recording.cancel.dialog.title" = "Anulați înregistrare?";

@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "क्लिपबोर्ड से पेस्ट करें";
 "settings.license.clearInput" = "साफ़ करें";
+"license.error.keyFormat" = "यह खाता कुंजी जैसा नहीं दिखता।";
 "settings.license.recovery.prompt" = "अपनी लाइसेंस कुंजी भूल गए?";
 "settings.license.recovery.button" = "ग्राहक पोर्टल पर जाएं";
 "settings.license.daily.title" = "दैनिक ट्रांसक्रिप्शन";
@@ -879,7 +880,6 @@
 "recording.retry.inProgress" = "पुनः प्रयास किया जा रहा है…";
 "recording.retry.count" = "पुनः प्रयास (%d)";
 "recording.retry.failed.missing" = "पुनः प्रयास विफल: ऑडियो फ़ाइल नहीं मिली";
-"recording.retry.failed.error" = "पुनः प्रयास विफल: %@";
 "recording.retry.pending" = "फिर से प्रयास करने के लिए तैयार – ट्रांसक्राइब करने के लिए क्लिक करें";
 "recording.retry.modeDeleted" = "मोड हटा दिया गया";
 "recording.cancel.dialog.title" = "रिकॉर्डिंग रद्द करें?";

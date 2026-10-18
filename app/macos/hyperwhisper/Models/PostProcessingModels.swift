@@ -325,6 +325,14 @@ struct PostProcessingModels {
             "claude-sonnet-4-5-20250929": "claude-sonnet-5-5",
             // Alias for claude-sonnet-4-20250514, retired 2026-06-15
             "claude-sonnet-4-0": "claude-sonnet-5-5",
+            // #1083: these five were redirected on Windows and shared-dotnet only, so a
+            // Mode restored from either ran the Anthropic default here instead.
+            // PARITY: shared-conformance/pp-model-redirect-vectors.json.
+            "claude-3-haiku-20240307": "claude-haiku-5-5",
+            "claude-haiku-4-5-latest": "claude-haiku-5-5",
+            "claude-sonnet-4-20250514": "claude-sonnet-5-5",
+            "claude-sonnet-4-5-latest": "claude-sonnet-5-5",
+            "claude-sonnet-4-6-latest": "claude-sonnet-4-6",
         ],
         .cerebras: [
             // Deprecated 2026-02-16: llama-3.3-70b → gpt-oss-120b
@@ -384,6 +392,9 @@ struct PostProcessingModels {
             "meta-llama/llama-4-maverick-17b-128e-instruct": "openai/gpt-oss-120b",
             // Left the picker 2026-10 for its successor (matches Windows)
             "qwen/qwen3.6-27b": "qwen/qwen3.8-27b",
+            // Decommissioned by Groq 2026-07-17 (#1083: Windows and shared-dotnet
+            // already mapped it; macOS ran the Groq default instead).
+            "mixtral-8x7b-32768": "openai/gpt-oss-120b",
         ],
         .grok: [
             // Retired 2026-05-15 — all grok-4-* fast variants redirect to grok-4.3.
@@ -395,6 +406,9 @@ struct PostProcessingModels {
         ],
         .localLLM: [
             // Migrated from Qwen 3.5 to Gemma 4 (2026-04)
+            // No arm for the uppercase `gemma-4-12B-it-Q4_K_M.gguf` (Windows has one):
+            // macOS rewrites it once at launch (hyperwhisperApp.swift) and the mode
+            // editor matches it case-insensitively (#1083 keeps that as is).
             "Qwen3.5-4B-Q4_K_M.gguf": "gemma-4-E2B-it-Q4_K_M.gguf",
             "Qwen3.5-9B-Q4_K_M.gguf": "gemma-4-E4B-it-Q4_K_M.gguf",
         ],

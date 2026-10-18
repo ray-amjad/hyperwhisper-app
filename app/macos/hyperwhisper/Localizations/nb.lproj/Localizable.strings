@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Lim inn fra utklippstavle";
 "settings.license.clearInput" = "Tøm";
+"license.error.keyFormat" = "Dette ser ikke ut som en kontonøkkel.";
 "settings.license.recovery.prompt" = "Glemt lisensnøkkelen din?";
 "settings.license.recovery.button" = "Gå til kundeportal";
 "settings.license.daily.title" = "Daglig transkripsjon";
@@ -879,7 +880,6 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "recording.retry.inProgress" = "Prøver på nytt…";
 "recording.retry.count" = "Prøv igjen (%d)";
 "recording.retry.failed.missing" = "Nytt forsøk mislyktes: Lydfil ikke funnet";
-"recording.retry.failed.error" = "Nytt forsøk mislyktes: %@";
 "recording.retry.pending" = "Klar til å prøve på nytt – klikk for å transkribere";
 "recording.retry.modeDeleted" = "Modusen ble slettet";
 "recording.cancel.dialog.title" = "Avbryt opptak?";

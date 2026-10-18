@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "لصق من الحافظة";
 "settings.license.clearInput" = "مسح";
+"license.error.keyFormat" = "هذا لا يبدو مفتاح حساب.";
 "settings.license.recovery.prompt" = "هل نسيت مفتاح الترخيص الخاص بك؟";
 "settings.license.recovery.button" = "انتقل إلى بوابة العملاء";
 "settings.license.daily.title" = "النسخ اليومي";
@@ -879,7 +880,6 @@
 "recording.retry.inProgress" = "جارٍ المحاولة…";
 "recording.retry.count" = "إعادة المحاولة (%d)";
 "recording.retry.failed.missing" = "فشلت المحاولة: لم يتم العثور على ملف الصوت";
-"recording.retry.failed.error" = "فشلت المحاولة: %@";
 "recording.retry.pending" = "جاهز لإعادة المحاولة – انقر للنسخ";
 "recording.retry.modeDeleted" = "تم حذف الوضع";
 "recording.cancel.dialog.title" = "إلغاء التسجيل؟";

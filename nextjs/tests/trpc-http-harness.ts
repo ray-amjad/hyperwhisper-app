@@ -47,7 +47,11 @@ export interface DeviceRow {
 export const calls = {
   getSession: [] as Headers[],
   deviceCounts: [] as Array<number | undefined>,
-  devicesForLicense: [] as Array<{ licenseKeyId: string; days?: number }>,
+  devicesForLicense: [] as Array<{
+    licenseKeyId: string;
+    days?: number;
+    page?: { limit?: number; offset?: number; search?: string };
+  }>,
   stripeCustomersList: [] as Array<Record<string, unknown>>,
   /** Any other db-layer function a test did not expect to be reached. */
   otherDb: [] as string[],
@@ -58,6 +62,8 @@ export const behaviour = {
   session: null as { user: Record<string, unknown> } | null,
   deviceCounts: [] as DeviceCountRow[],
   devices: [] as DeviceRow[],
+  /** The total `getDevicesForLicense` reports; null means `devices.length`. */
+  deviceTotal: null as number | null,
   dbError: null as unknown,
   /** The one other db-layer function that throws `dbError` instead of refusing. */
   dbErrorOn: null as string | null,
@@ -72,6 +78,7 @@ export function resetHarness(): void {
   behaviour.session = null;
   behaviour.deviceCounts = [];
   behaviour.devices = [];
+  behaviour.deviceTotal = null;
   behaviour.dbError = null;
   behaviour.dbErrorOn = null;
   behaviour.stripeCustomers = [];
@@ -135,10 +142,18 @@ moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
       if (behaviour.dbError) throw behaviour.dbError;
       return behaviour.deviceCounts;
     },
-    getDevicesForLicense: async (licenseKeyId: string, days?: number) => {
-      calls.devicesForLicense.push({ licenseKeyId, days });
+    DEVICES_PAGE_SIZE: 50,
+    getDevicesForLicense: async (
+      licenseKeyId: string,
+      days?: number,
+      page?: { limit?: number; offset?: number; search?: string },
+    ) => {
+      calls.devicesForLicense.push({ licenseKeyId, days, page });
       if (behaviour.dbError) throw behaviour.dbError;
-      return behaviour.devices;
+      return {
+        devices: behaviour.devices,
+        total: behaviour.deviceTotal ?? behaviour.devices.length,
+      };
     },
     ...Object.fromEntries(
       [

@@ -527,9 +527,9 @@ struct DeleteCancelsPlainRetryTests {
     }
 
     /// R6-4: a retry the delete stopped is its own outcome, with no error
-    /// text, and the recording dialog closes quietly on it instead of
-    /// showing an empty error.
-    @Test func theRecordingDialogTreatsAStopByDeleteAsAQuietCancel() throws {
+    /// text. (The recording dialog's own History-row Retry, which closed
+    /// quietly on it, had no caller and was deleted in #1643.)
+    @Test func aStopByDeleteIsItsOwnOutcomeWithNoError() throws {
         let handler = try ProductionSource.slice(
             of: "app/macos/hyperwhisper/Managers/Transcription/Support/TranscriptActionHandler.swift",
             from: "if transcript.retryWasStoppedByDelete(taskCancelled: retryTask.isCancelled) {",
@@ -538,17 +538,6 @@ struct DeleteCancelsPlainRetryTests {
         let stopped = try #require(handler.range(of: "return .stoppedByDelete"))
         let setsError = try #require(handler.range(of: "lastError = errorMessage"))
         #expect(stopped.lowerBound < setsError.lowerBound, "a stop by delete returns before any error is set")
-
-        let dialog = try ProductionSource.slice(
-            of: "app/macos/hyperwhisper/Views/RecordingDialog.swift",
-            from: "let outcome = await handler.retryTranscriptionOutcome(transcript)",
-            to: "VisualEffectBackground"
-        )
-        let quiet = try #require(dialog.range(of: "if outcome == .stoppedByDelete {"))
-        let leave = try #require(dialog.range(of: "return", range: quiet.upperBound..<dialog.endIndex))
-        let error = try #require(dialog.range(of: "hasError = true"))
-        #expect(leave.lowerBound < error.lowerBound, "no error state for a stop by delete")
-        #expect(dialog[quiet.upperBound..<leave.lowerBound].contains("closeDialog()"))
     }
 
     /// R6-3: the store's own single delete stops the row's running retry,

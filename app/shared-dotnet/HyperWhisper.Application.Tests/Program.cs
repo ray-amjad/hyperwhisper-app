@@ -69,9 +69,11 @@ try
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
+    await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
+    RunShellDatabaseOffUiThreadTests(Path.Combine(root, "shell-db-off-ui"));
     await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
 
     var history = new HistoryRepository(database);
@@ -1012,6 +1014,12 @@ try
             && shell.Settings.WhisperRestartRequired
             && shell.Settings.LocalWhisperRuntimeStatus.Contains("Restart HyperWhisper", StringComparison.Ordinal),
             "settings did not normalize or report a restart-required Whisper backend change");
+        // The Linux Model Library pickers write a null back as they leave the tree (#1967).
+        shell.Settings.LocalWhisperBackend = null!;
+        shell.Settings.LocalLlmBackend = null!;
+        Assert(shell.Settings.LocalWhisperBackend == "cuda12" && shell.Settings.LocalLlmBackend == "vulkan"
+            && shell.Settings.WhisperRestartRequired,
+            "a null backend selection overwrote the chosen local Whisper or LLM backend");
         shell.Settings.Save();
         Assert(!shell.Settings.Status.HasError,
             "settings did not persist local inference backend configuration");
@@ -1106,11 +1114,14 @@ try
             "account operation gate allowed overlapping activation, removal, or refresh");
         blockingAccountHttp.Release.TrySetResult();
         await activation;
-        Assert(gatedAccount.ActivateCommand.CanExecute(null)
-            && gatedAccount.DeactivateCommand.CanExecute(null),
-            "account operation gate did not re-enable commands after completion");
         Assert(gatedAccount.HasAccount && gatedAccount.AccountKey.Length == 0,
             "a successful activation left a value typed during validation in the key field");
+        // #1489: the cleared field holds no key, so Activate stays off until one is typed.
+        Assert(gatedAccount.DeactivateCommand.CanExecute(null) && !gatedAccount.ActivateCommand.CanExecute(null),
+            "account operation gate did not re-enable commands after completion");
+        gatedAccount.AccountKey = "HW-0000-0000-0003";
+        Assert(gatedAccount.ActivateCommand.CanExecute(null),
+            "account operation gate did not re-enable Activate after completion");
     }
 
     // #670: a FAILED activation must leave the typed key in the field so the user can see and
@@ -1196,6 +1207,58 @@ try
         Assert(editedMidFlight.AccountKey == "HW-0000-0000-0001"
             && editedMidFlight.ActivationError == "License key not found",
             $"a rejected activation overwrote a key edited during validation (field: '{editedMidFlight.AccountKey}')");
+    }
+
+    // #1489: a loose format check. Text that cannot be any key turns Activate off, shows the
+    // hint, and never reaches the network; a pasted key is trimmed and then sent.
+    var formatHttp = new CloudAccountHttpHandler();
+    using (var formatService = NewAccountService(formatHttp, "/format-license-state.json"))
+    {
+        var format = new CloudAccountViewModel(
+            formatService, new StaticDeviceIdentity(), "Ray Linux", _ => PlatformResult.Success());
+        var changed = new List<string?>();
+        format.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Assert(!format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "an empty account key field left Activate on or showed the format hint");
+
+        format.AccountKey = "Thanks for your purchase!\nYour key is HW-ABCD-EFGH.";
+        Assert(!format.ActivateCommand.CanExecute(null) && !format.CanActivate,
+            "pasted prose left Activate on");
+        Assert(format.ShowsAccountKeyFormatHint && !format.IsAccountKeyPlausible,
+            "pasted prose did not show the format hint");
+        Assert(changed.Contains(nameof(CloudAccountViewModel.ShowsAccountKeyFormatHint))
+            && changed.Contains(nameof(CloudAccountViewModel.CanActivate)),
+            "an edit did not notify the hint and Activate state");
+        await format.ActivateAsync();
+        Assert(formatHttp.ValidateCalls == 0 && format.HasActivationError && !format.HasAccount,
+            "an implausible key was sent, or its refusal was silent");
+
+        foreach (var refused in new[] { new string('A', 65), "HW-ABCD EFGH", "HW-ÄBCD-EFGH", "HW-ABCD-\U0001F511" })
+        {
+            format.AccountKey = refused;
+            Assert(!format.ActivateCommand.CanExecute(null) && format.ShowsAccountKeyFormatHint,
+                $"'{refused}' left Activate on or showed no hint");
+        }
+
+        format.AccountKey = "  \t\n";
+        Assert(!format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a whitespace-only field left Activate on or showed the format hint");
+
+        format.AccountKey = new string('A', 64);
+        Assert(format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a 64-character key was refused");
+        var legacyShaped = Guid.NewGuid().ToString(); // a UUID-shaped legacy key
+        format.AccountKey = legacyShaped;
+        Assert(format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a legacy-looking key was refused");
+
+        format.AccountKey = "  HW-ABCD-EFGH-JKLM-NPQR\r\n";
+        Assert(format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a key pasted with a trailing newline was refused");
+        await format.ActivateAsync();
+        Assert(formatHttp.ValidateCalls == 1 && formatHttp.ValidateLicenseKey == "HW-ABCD-EFGH-JKLM-NPQR"
+            && format.HasAccount,
+            $"the pasted key was not trimmed before it was sent ('{formatHttp.ValidateLicenseKey}')");
     }
 
     var customModes = new HyperWhisper.PortableApplication.ViewModels.ModesViewModel(
@@ -1366,6 +1429,9 @@ try
     await statisticsHome.RefreshAsync();
     Assert(statisticsHome.AllTime.WordCount == 4 && statisticsHome.AllTime.DictatedDurationSeconds == 60,
         "home statistics projection did not filter status and preserve duration");
+    // The history count is a COUNT over every stored row, failed ones included, as the full list was (#1353).
+    Assert(statisticsHome.HistoryCount == 2 && await statisticsHistory.CountAsync() == (await statisticsHistory.ListAsync()).Count,
+        $"home history count was {statisticsHome.HistoryCount}, not the 2 stored rows");
     statisticsHome.TypingSpeedWordsPerMinute = 80;
     await statisticsHome.RefreshAsync();
     var reloadedStatisticsSettings = new PortableSettingsService(
@@ -1521,6 +1587,54 @@ static async Task RunShellMissingLocalModelStatusTestsAsync(string root)
     shell.Status.Failure("test.error", "Something failed");
     shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
     Assert(shell.Status.Message == "Something failed", $"a mode change overwrote an error with '{shell.Status.Message}' (was '{other}')");
+}
+
+// #1000: EF Core's SQLite provider runs its "async" migration synchronously, so a shell that awaits
+// it on the UI thread froze the window that had just opened. The first database context is held
+// until a callback posted to the UI thread runs; that only happens if the UI thread is free.
+static void RunShellDatabaseOffUiThreadTests(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    using var uiResponded = new ManualResetEventSlim();
+    var uiThreadId = 0;
+    var firstContextThreadId = 0;
+    var uiWasFree = false;
+    var first = 1;
+    var database = new ApplicationDb(() =>
+    {
+        if (Interlocked.Exchange(ref first, 0) == 1)
+        {
+            firstContextThreadId = Environment.CurrentManagedThreadId;
+            uiWasFree = uiResponded.Wait(TimeSpan.FromSeconds(5));
+        }
+        return new HyperWhisper.Data.HyperWhisperDbContext(paths);
+    });
+    var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "settings.json"));
+    using var shell = new ApplicationShellViewModel(database, settings);
+    var statusThreadIds = new List<int>();
+    shell.Status.PropertyChanged += (_, _) => statusThreadIds.Add(Environment.CurrentManagedThreadId);
+
+    var ui = new SingleThreadUiContext();
+    var thread = new Thread(() =>
+    {
+        uiThreadId = Environment.CurrentManagedThreadId;
+        ui.Run(async () =>
+        {
+            var init = shell.InitializeAsync();
+            ui.Post(_ => uiResponded.Set(), null);
+            await init;
+        });
+    });
+    thread.Start();
+    Assert(thread.Join(TimeSpan.FromSeconds(60)), "the shell's initialization never finished");
+
+    Assert(uiWasFree && firstContextThreadId != uiThreadId,
+        "the database migration ran on the UI thread, so the UI could not answer until it finished");
+    Assert(!shell.Status.HasError && shell.Status.Message == "Ready", $"the shell did not reach Ready: '{shell.Status.Message}'");
+    Assert(shell.Modes.Items.Count > 0, "the default modes were not seeded");
+    Assert(statusThreadIds.Count > 0 && statusThreadIds.All(id => id == uiThreadId),
+        "the status bar was updated off the UI thread");
 }
 
 static async Task RunShellLanguageRoutingTestsAsync(string root)
@@ -1809,6 +1923,55 @@ static async Task RunCloudPostProcessingModelLoadTestsAsync(string root)
 /// that change: the rows are companies, a company that owns 2 tiers is ONE row whose
 /// model decides the tier, and the Model row is never blank.
 /// </summary>
+/// <summary>
+/// Issue #1709: a CLOUD mode with no stored provider opens the editor on
+/// HyperWhisper Cloud — the provider its card shows and the router runs — not on
+/// ElevenLabs. A local mode keeps the editor's BYOK default for when it is
+/// switched to cloud, and a non-blank provider is loaded as stored.
+/// </summary>
+static async Task RunBlankCloudProviderEditorLoadTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+
+    foreach (var blank in new string?[] { null, "", "   " })
+    {
+        var mode = new Mode
+        {
+            Name = $"Blank cloud {blank?.Length.ToString() ?? "null"}",
+            ProviderType = "cloud",
+            CloudProvider = blank,
+            CloudAccuracyTier = "elevenLabsScribeV2",
+            Language = "en",
+        };
+        await repository.UpsertAsync(mode);
+        editor.Selected = mode;
+        var label = blank is null ? "<null>" : $"'{blank}'";
+        Assert(editor.CloudProvider == "hyperwhisper",
+            $"a cloud mode with cloudProvider {label} opened the editor on '{editor.CloudProvider}', not hyperwhisper");
+        Assert(mode.CloudProvider == blank, "loading the editor rewrote the stored provider");
+    }
+
+    var byok = new Mode { Name = "BYOK cloud", ProviderType = "cloud", CloudProvider = "deepgram", Language = "en" };
+    await repository.UpsertAsync(byok);
+    editor.Selected = byok;
+    Assert(editor.CloudProvider == "deepgram", $"a deepgram mode opened on '{editor.CloudProvider}'");
+
+    var legacy = new Mode { Name = "Legacy cloud", ProviderType = "cloud", CloudProvider = "googlespeech", Language = "en" };
+    await repository.UpsertAsync(legacy);
+    editor.Selected = legacy;
+    Assert(editor.CloudProvider == "googlespeech",
+        $"a legacy googlespeech mode opened on '{editor.CloudProvider}'; only a BLANK provider changes meaning");
+
+    var local = new Mode { Name = "Local", ProviderType = "local", LocalEngine = "whisper", ModelType = "base", Language = "en" };
+    await repository.UpsertAsync(local);
+    editor.Selected = local;
+    Assert(editor.CloudProvider == "elevenlabs",
+        $"a local mode's editor BYOK default moved to '{editor.CloudProvider}'");
+}
+
 static async Task RunCloudVendorPickerTestsAsync(string root)
 {
     var db = new ApplicationDb(new TestPaths(root));
@@ -2607,6 +2770,54 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     viewModel.UpdateSelection([viewModel.Items.Single(item => item.Id == lonely.Id)]);
     await viewModel.DeleteSelectedAsync();
     AssertHistoryGroups(viewModel, await repository.ListAsync(), today, "history delete");
+
+    // A bulk delete removes the whole selection with one rebuild, not one per row (#1353), and
+    // leaves the groups the remaining rows make: here every other row, across many days.
+    await viewModel.RefreshAsync();
+    var everyOther = viewModel.Items.Where((_, index) => index % 2 == 1).ToList();
+    viewModel.UpdateSelection(everyOther);
+    before = viewModel.GroupRebuildCount;
+    var lowestCount = int.MaxValue;
+    var itemChanges = 0;
+    System.Collections.Specialized.NotifyCollectionChangedEventHandler watch = (_, _) =>
+    { itemChanges++; lowestCount = Math.Min(lowestCount, viewModel.Items.Count); };
+    viewModel.Items.CollectionChanged += watch;
+    await viewModel.DeleteSelectedAsync();
+    viewModel.Items.CollectionChanged -= watch;
+    rebuilds = viewModel.GroupRebuildCount - before;
+    // Only the deleted rows leave Items: the list never empties on the way (its visibility binds
+    // to the count), and the change count is the deleted rows, not a clear and a re-add of the rest.
+    Assert(lowestCount == viewModel.Items.Count && itemChanges == everyOther.Count,
+        $"a partial bulk delete dipped Items to {lowestCount} rows with {itemChanges} changes for {everyOther.Count} deleted");
+    Assert(rebuilds == 1, $"a {everyOther.Count}-row bulk delete rebuilt the day groups {rebuilds} times, not once");
+    expected = await repository.ListAsync();
+    Assert(expected.Count > 100 && expected.All(row => everyOther.All(gone => gone.Id != row.Id)),
+        "the bulk delete did not delete the selected rows");
+    AssertHistoryGroups(viewModel, expected, today, "history bulk delete");
+    Assert(viewModel.SelectedItems.Count == 0 && !viewModel.Status.HasError,
+        $"a bulk delete left {viewModel.SelectedItems.Count} selected, status '{viewModel.Status.Message}'");
+
+    // Deleting all rows of a 10,000-row History rebuilds the groups once and leaves nothing behind.
+    await using (var context = database.CreateContext())
+    {
+        context.Transcripts.AddRange(Enumerable.Range(0, 10_000 - expected.Count).Select(index => new Transcript
+        {
+            Text = $"bulk {index}",
+            Status = TranscriptStatus.Completed,
+            Date = DateTime.SpecifyKind(now.AddMinutes(-37 * index - 3), DateTimeKind.Utc),
+        }));
+        await context.SaveChangesAsync();
+    }
+    await viewModel.RefreshAsync();
+    Assert(viewModel.Items.Count == 10_000, $"the large history showed {viewModel.Items.Count} of 10000 rows");
+    viewModel.UpdateSelection(viewModel.Items.ToList());
+    before = viewModel.GroupRebuildCount;
+    await viewModel.DeleteSelectedAsync();
+    rebuilds = viewModel.GroupRebuildCount - before;
+    Assert(rebuilds == 1, $"deleting all 10000 rows rebuilt the day groups {rebuilds} times, not once");
+    Assert(viewModel.Items.Count == 0 && viewModel.GroupedItems.Count == 0 && viewModel.IsEmpty
+        && await repository.CountAsync() == 0,
+        $"deleting all rows left {viewModel.Items.Count} rows, {viewModel.GroupedItems.Count} grouped entries");
 }
 
 static IEnumerable<Transcript> ThrowAfter(IEnumerable<Transcript> rows, int count)
@@ -3589,6 +3800,28 @@ file sealed class BoundCloudModelCombo
     }
 }
 
+// A minimal UI thread: one queue, pumped by the thread that calls Run, like Avalonia's dispatcher.
+file sealed class SingleThreadUiContext : SynchronizationContext
+{
+    private readonly System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback Callback, object? State)> _queue = new();
+
+    public override void Post(SendOrPostCallback d, object? state) => _queue.Add((d, state));
+
+    public void Run(Func<Task> body)
+    {
+        var previous = Current;
+        SetSynchronizationContext(this);
+        try
+        {
+            var task = body();
+            task.ContinueWith(_ => _queue.CompleteAdding(), TaskScheduler.Default);
+            foreach (var (callback, state) in _queue.GetConsumingEnumerable()) callback(state);
+            task.GetAwaiter().GetResult();
+        }
+        finally { SetSynchronizationContext(previous); }
+    }
+}
+
 file sealed class TestPaths(string root) : IAppPaths
 {
     public string DataDirectory => root;
@@ -3749,6 +3982,8 @@ file sealed class RejectingCloudAccountHttpHandler : HttpMessageHandler
 file sealed class CloudAccountHttpHandler : HttpMessageHandler
 {
     public string? ValidateDeviceName { get; private set; }
+    public string? ValidateLicenseKey { get; private set; }
+    public int ValidateCalls { get; private set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -3759,6 +3994,8 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
         {
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
             ValidateDeviceName = body.RootElement.GetProperty("device_name").GetString();
+            ValidateLicenseKey = body.RootElement.GetProperty("license_key").GetString();
+            ValidateCalls++;
             return Json("{\"valid\":true,\"customer_id\":\"customer-1\",\"customer_email\":\"ray@example.test\",\"expires_at\":\"2030-01-02T03:04:05Z\"}");
         }
         if (path == "/usage")

@@ -272,7 +272,31 @@
     "homebrewTitle": "Instaliraj putem Homebrewa",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopiraj",
-    "copied": "Kopirano!"
+    "copied": "Kopirano!",
+    "linuxSubtitle": "Debian paket za 64-bitne Intel/AMD sustave",
+    "downloadLinux": "Preuzmi za Linux",
+    "downloadLinuxVersion": "Preuzmi za Linux v{version}",
+    "linuxReleaseNotes": "Kontrolni zbrojevi i bilješke o izdanju",
+    "linuxInstallTitle": "Instalirajte Debian paket",
+    "linuxTargets": "Linux v1 namijenjen je za Ubuntu 22.04+ i Debian 12+ na amd64.",
+    "linuxReplaceVersion": "Zamijenite VERSION verzijom koju ste preuzeli.",
+    "linuxInstallCommandLabel": "Naredba za instalaciju na Debianu",
+    "linuxInputGroupNote": "Nakon pridruživanja grupi input odjavite se i ponovno prijavite. Članstvo nije obavezno, ali ga trebaju globalni prečaci i automatsko lijepljenje.",
+    "aptTitle": "Vlastiti APT repozitorij",
+    "aptBody": "Linux izdanja uključuju i arhivu statičnog APT repozitorija. HyperWhisper trenutačno ne održava javni APT poslužitelj; za potpisano, samostalno hostano postavljanje, desktop dodatke, pojedinosti o privatnosti i uklanjanje pogledajte vodič za instalaciju na Linuxu.",
+    "linuxGuideCta": "Pročitajte vodič za instalaciju na Linuxu"
+  },
+  "olderVersions": {
+    "title": "Starije verzije",
+    "subtitle": "Pregledajte i preuzmite sva izdanja HyperWhispera",
+    "errorLoading": "Pogreška pri učitavanju verzija: {error}",
+    "unknownError": "Došlo je do pogreške",
+    "loading": "Učitavanje verzija...",
+    "latest": "Najnovija",
+    "build": "Build {number}",
+    "downloadDmg": "Preuzmi DMG",
+    "downloadExe": "Preuzmi EXE",
+    "unknownSize": "Nepoznato"
   },
   "purchaseSuccess": {
     "title": "Sve je spremno!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Otvoreni kod. Nista za skrivati.",
     "body": "HyperWhisper je potpuno otvorenog koda pod Apache-2.0 — i desktop aplikacije i Cloud pozadina. Aplikacija koja slusa vas mikrofon trebala bi biti nesto sto mozete provjeriti, a ne samo vjerovati: procitajte svaki redak, provjerite tocno kamo ide vas zvuk i znajte da nikada necete biti zakljucani — kod je vas da ga forkate i samostalno hostate zauvijek. Izradeno otvoreno od strane nezavisnog kreatora Ray Amjada.",
-    "cta": "Pogledajte na GitHubu"
+    "cta": "Pogledajte na GitHubu",
+    "metaTitle": "Otvoreni kod | HyperWhisper",
+    "metaDescription": "HyperWhisper je potpuno otvorenog koda pod licencom Apache-2.0 — i desktop aplikacije i Cloud pozadina. Čitajte kod, provjerite kamo ide vaš zvuk, forkajte ga i hostajte sami zauvijek.",
+    "eyebrow": "Otvoreni kod",
+    "lead": "HyperWhisper je sada potpuno otvorenog koda pod licencom Apache-2.0 — i desktop aplikacije i Cloud pozadina.",
+    "intro": "Aplikacija koja sluša vaš mikrofon trebala bi biti nešto što možete provjeriti, a ne samo vjerovati. Zato smo sve otvorili. Možete pročitati svaki redak HyperWhispera — aplikacije za macOS, Windows i Linux te pozadinu za transkripciju u oblaku — vidjeti točno kamo ide vaš zvuk i znati da nikada nećete biti zaključani. Cijeli projekt nalazi se na <github>GitHubu</github> pod <license>licencom Apache-2.0</license>.",
+    "whyHeading": "Zašto je to važno",
+    "whyVerify": "<strong>Provjerite, ne vjerujte na riječ.</strong> Pročitajte svaki redak i provjerite točno kamo ide vaš zvuk. Aplikacija s pristupom mikrofonu trebala bi biti nešto što možete pregledati, a ne samo prihvatiti na vjeru.",
+    "whyNoLockIn": "<strong>Bez zaključavanja.</strong> Kod je pod Apache-2.0 — vaš je da ga zadržite, prilagodite i pokrećete pod svojim uvjetima. Vaš način rada nikada neće biti talac.",
+    "whyFork": "<strong>Forkajte i hostajte sami.</strong> Klonirajte repozitorij, sami ga izgradite ili pokrenite vlastitu Cloud pozadinu. Sve što vam treba javno je dostupno.",
+    "whyOpen": "<strong>Izrađeno otvoreno.</strong> HyperWhisper javno razvija nezavisni kreator Ray Amjad. Prijave problema, rasprave i izdanja odvijaju se otvoreno.",
+    "licenseHeading": "Već ste kupili licencu?",
+    "licenseIntro": "HyperWhisper je sada otvorenog koda, a plaćena transkripcija radi na kreditima HyperWhisper Cloud. Ako ste kupili licencu prije prelaska, evo kako ćemo se pobrinuti za vas — samo pišite na <mail>{email}</mail> i sve ćemo riješiti ručno.",
+    "licenseRecent": "<strong>Kupljeno u zadnjih 30 dana:</strong> unutar ste roka za povrat novca. Vratit ćemo vam puni iznos kupnje — bez ikakvih pitanja. Samo nam <refund>pošaljite poruku</refund>.",
+    "licenseOlder": "<strong>Kupljeno prije više od 30 dana:</strong> plaćeni iznos pretvorit ćemo u kredite HyperWhisper Cloud — punu kupovnu cijenu umanjenu za $5 u kreditima koji su već dodani na vaš račun. <credits>Pišite nam</credits> i dodat ćemo vam ostatak.",
+    "contributeHeading": "Želite doprinijeti?",
+    "contributeBody": "Prijave grešaka, ideje za značajke i pull requestovi su dobrodošli. Otvorite issue ili započnite raspravu <github>na GitHubu</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper je sada potpuno otvorenog koda",
+    "shortText": "Sada otvorenog koda",
+    "learnMore": "Saznajte više",
+    "dismiss": "Zatvori obavijest"
   },
   "notFound": {
     "title": "Stranica nije pronađena",

@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Colar da Área de Transferência";
 "settings.license.clearInput" = "Limpar";
+"license.error.keyFormat" = "Isto não parece uma chave da conta.";
 "settings.license.recovery.prompt" = "Esqueceu sua chave de licença?";
 "settings.license.recovery.button" = "Ir para portal do cliente";
 "settings.license.daily.title" = "Transcrição Diária";
@@ -879,7 +880,6 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "recording.retry.inProgress" = "Tentando novamente…";
 "recording.retry.count" = "Tentar Novamente (%d)";
 "recording.retry.failed.missing" = "Falha na retentativa: Arquivo de áudio não encontrado";
-"recording.retry.failed.error" = "Falha na retentativa: %@";
 "recording.retry.pending" = "Pronto para tentar novamente – clique para transcrever";
 "recording.retry.modeDeleted" = "O modo foi eliminado";
 "recording.cancel.dialog.title" = "Cancelar Gravação?";

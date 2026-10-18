@@ -204,4 +204,25 @@ struct LanguageConformanceVectorTests {
         let expected = document.catalog.filter { $0.decision != "macos" }.map { $0.code }
         #expect(LanguageData.whisperUniversalCodes == expected)
     }
+
+    // Issue #989: `prioritizeAutomatic` is memoized by its input. A cached
+    // answer must be the core's answer for THAT input, never a neighbour's.
+    @Test("prioritizeAutomatic answers from its cache exactly as the core does")
+    func prioritizeAutomaticCacheMatchesCore() {
+        func core(_ rows: [LanguageData.LanguageInfo]) -> [String] {
+            languagePrioritizeAutomatic(
+                languages: rows.map { HwLanguage(code: $0.code, displayName: $0.displayName) }
+            ).map(\.code)
+        }
+        let all = LanguageData.allLanguages
+        // Automatic last, so the core has to move it.
+        let subset = Array(all.filter { ["fr", "de", "ja"].contains($0.code) })
+            + all.filter { $0.code == LanguageData.automaticCode }
+
+        for rows in [all, subset, all, subset] {
+            #expect(LanguageData.prioritizeAutomatic(rows).map(\.code) == core(rows))
+        }
+        #expect(LanguageData.prioritizeAutomatic(subset).first?.code == LanguageData.automaticCode)
+        #expect(LanguageData.prioritizeAutomatic(subset).count == subset.count)
+    }
 }

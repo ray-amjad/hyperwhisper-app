@@ -272,7 +272,31 @@
     "homebrewTitle": "Pasang melalui Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Salin",
-    "copied": "Disalin!"
+    "copied": "Disalin!",
+    "linuxSubtitle": "Pakej Debian untuk sistem Intel/AMD 64-bit",
+    "downloadLinux": "Muat turun untuk Linux",
+    "downloadLinuxVersion": "Muat turun untuk Linux v{version}",
+    "linuxReleaseNotes": "Checksum dan nota keluaran",
+    "linuxInstallTitle": "Pasang pakej Debian",
+    "linuxTargets": "Linux v1 menyasarkan Ubuntu 22.04+ dan Debian 12+ pada amd64.",
+    "linuxReplaceVersion": "Gantikan VERSION dengan versi yang anda muat turun.",
+    "linuxInstallCommandLabel": "Arahan pemasangan Debian",
+    "linuxInputGroupNote": "Log keluar dan log masuk semula selepas menyertai kumpulan input. Keahlian adalah pilihan, tetapi pintasan global dan tampal automatik memerlukannya.",
+    "aptTitle": "Hos sendiri repositori APT",
+    "aptBody": "Keluaran Linux juga disertakan dengan arkib repositori APT statik. HyperWhisper buat masa ini tidak mengendalikan endpoint APT awam; lihat panduan pemasangan Linux untuk persediaan hos sendiri yang ditandatangani, komponen pendamping desktop, butiran privasi dan cara menyahpasang.",
+    "linuxGuideCta": "Baca panduan pemasangan Linux"
+  },
+  "olderVersions": {
+    "title": "Versi Lama",
+    "subtitle": "Layari dan muat turun semua keluaran HyperWhisper",
+    "errorLoading": "Ralat memuatkan versi: {error}",
+    "unknownError": "Ralat telah berlaku",
+    "loading": "Memuatkan versi...",
+    "latest": "Terkini",
+    "build": "Binaan {number}",
+    "downloadDmg": "Muat turun DMG",
+    "downloadExe": "Muat turun EXE",
+    "unknownSize": "Tidak diketahui"
   },
   "purchaseSuccess": {
     "title": "Semuanya sedia!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Sumber terbuka. Tiada apa-apa untuk disembunyikan.",
     "body": "HyperWhisper sepenuhnya sumber terbuka di bawah Apache-2.0 — kedua-dua aplikasi desktop dan backend Cloud. Aplikasi yang mendengar mikrofon anda sepatutnya sesuatu yang boleh anda sahkan, bukan sekadar percaya: baca setiap baris, audit dengan tepat ke mana audio anda pergi, dan ketahui yang anda tidak akan sekali-kali terkurung — kod itu milik anda untuk difork dan dihos sendiri selamanya. Dibina secara terbuka oleh pereka indie Ray Amjad.",
-    "cta": "Lihat di GitHub"
+    "cta": "Lihat di GitHub",
+    "metaTitle": "Sumber Terbuka | HyperWhisper",
+    "metaDescription": "HyperWhisper sepenuhnya sumber terbuka di bawah Apache-2.0 — kedua-dua aplikasi desktop dan backend Cloud. Baca kodnya, audit ke mana audio anda pergi, fork, dan hos sendiri selamanya.",
+    "eyebrow": "Sumber Terbuka",
+    "lead": "HyperWhisper kini sepenuhnya sumber terbuka di bawah Apache-2.0 — kedua-dua aplikasi desktop dan backend Cloud.",
+    "intro": "Aplikasi yang mendengar mikrofon anda sepatutnya sesuatu yang boleh anda sahkan, bukan sekadar percaya. Oleh itu, kami membuka segala-galanya. Anda boleh membaca setiap baris HyperWhisper — aplikasi macOS, Windows dan Linux, serta backend transkripsi Cloud — melihat dengan tepat ke mana audio anda pergi, dan tahu bahawa anda tidak akan sekali-kali terkurung. Keseluruhan projek ini berada di <github>GitHub</github> di bawah <license>lesen Apache-2.0</license>.",
+    "whyHeading": "Mengapa ia penting",
+    "whyVerify": "<strong>Sahkan, jangan sekadar percaya.</strong> Baca setiap baris dan audit dengan tepat ke mana audio anda pergi. Aplikasi dengan akses mikrofon sepatutnya sesuatu yang boleh anda periksa, bukan sekadar diterima bulat-bulat.",
+    "whyNoLockIn": "<strong>Tiada kurungan.</strong> Kod ini berlesen Apache-2.0 — milik anda untuk disimpan, diubah suai dan dijalankan mengikut cara anda sendiri. Aliran kerja anda tidak akan sekali-kali dijadikan tebusan.",
+    "whyFork": "<strong>Fork dan hos sendiri.</strong> Klon repo, bina sendiri, atau jalankan backend Cloud anda sendiri. Semua yang anda perlukan tersedia secara awam.",
+    "whyOpen": "<strong>Dibina secara terbuka.</strong> HyperWhisper dibangunkan secara awam oleh pereka indie Ray Amjad. Isu, perbincangan dan keluaran semuanya berlaku secara terbuka.",
+    "licenseHeading": "Sudah membeli lesen?",
+    "licenseIntro": "HyperWhisper kini sumber terbuka, dan transkripsi berbayar menggunakan kredit HyperWhisper Cloud. Jika anda membeli lesen sebelum peralihan ini, beginilah cara kami menjaga anda — hanya hantar e-mel ke <mail>{email}</mail> dan kami akan menguruskannya secara manual.",
+    "licenseRecent": "<strong>Dibeli dalam 30 hari yang lalu:</strong> anda masih dalam tempoh bayaran balik. Kami akan membayar balik pembelian anda sepenuhnya — tanpa sebarang soalan. Hanya <refund>hantar mesej kepada kami</refund>.",
+    "licenseOlder": "<strong>Dibeli lebih daripada 30 hari yang lalu:</strong> kami akan menukar jumlah yang anda bayar kepada kredit HyperWhisper Cloud — harga pembelian penuh, tolak kredit $5 yang telah ditambah ke akaun anda. <credits>Hantar e-mel kepada kami</credits> dan kami akan memasukkan bakinya.",
+    "contributeHeading": "Ingin menyumbang?",
+    "contributeBody": "Laporan pepijat, idea ciri dan pull request semuanya dialu-alukan. Buka isu atau mulakan perbincangan <github>di GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper kini sepenuhnya sumber terbuka",
+    "shortText": "Kini sumber terbuka",
+    "learnMore": "Ketahui lebih lanjut",
+    "dismiss": "Tutup pengumuman"
   },
   "notFound": {
     "title": "Halaman tidak ditemui",

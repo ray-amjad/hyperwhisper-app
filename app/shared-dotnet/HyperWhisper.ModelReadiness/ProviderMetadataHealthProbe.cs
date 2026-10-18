@@ -1,7 +1,9 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using HyperWhisper.SharedCore;
-// Rust shared-core binding: the provider enum the health table is keyed on.
+// Rust shared-core binding: the provider enum the health table is keyed on, and the reason
+// the core gives for a probe's answer.
+using HwHealthReason = uniffi.hyperwhisper_core.HwHealthReason;
 using HwProvider = uniffi.hyperwhisper_core.HwProvider;
 
 namespace HyperWhisper.ModelReadiness;
@@ -36,10 +38,13 @@ public sealed class ProviderMetadataHealthProbe(HttpMessageInvoker transport) : 
 
         using var response = await _transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
         var status = (int)response.StatusCode;
-        var healthy = coreProvider is { } graded
-            ? SharedCoreBridge.ParseHealthResponse(graded, status)
+        HwHealthReason? reason = coreProvider is { } graded
+            ? SharedCoreBridge.GradeHealthResponse(graded, status)
+            : null;
+        var healthy = reason is { } coreReason
+            ? coreReason == HwHealthReason.Healthy
             : response.IsSuccessStatusCode;
-        if (!healthy) return Failure(coreProvider, status);
+        if (!healthy) return Failure(reason, status);
 
         // ElevenLabs probes STT with an empty body: the core grades a 400/422 for that body as
         // healthy, because only a key that can reach STT gets that far. There is no metadata to read.
@@ -67,27 +72,24 @@ public sealed class ProviderMetadataHealthProbe(HttpMessageInvoker transport) : 
     }
 
     /// <summary>
-    /// Why a probe the core graded unhealthy failed. <c>RateLimited</c> is a Linux-only state the
-    /// core does not carry, so the raw status still decides it here.
+    /// Why a failed probe failed. For a speech provider the core's <paramref name="reason"/>
+    /// decides whether the key was rejected, including the vendors (Gemini, Gemini 3.5
+    /// Transcribe, xAI) that answer a bad key with HTTP 400 (issue #779). The post-processing-only
+    /// vendors have no core probe (<paramref name="reason"/> is null), and they answer a bad key
+    /// with 401/403. <c>RateLimited</c> is a Linux-only state the core does not carry, so the raw
+    /// status still decides it.
     /// </summary>
-    private static ProviderHealthResponse Failure(HwProvider? provider, int status)
+    private static ProviderHealthResponse Failure(HwHealthReason? reason, int status)
     {
-        if (status is 401 or 403 || (status == 400 && RejectsKeyWith400(provider)))
+        var rejected = reason is { } coreReason
+            ? coreReason == HwHealthReason.Unauthorized
+            : status is 401 or 403;
+        if (rejected)
             return new(ProviderHealthOutcome.Unauthorized, "Provider rejected the credential.");
         if (status == 429)
             return new(ProviderHealthOutcome.RateLimited, "Provider readiness check was rate limited.");
         return new(ProviderHealthOutcome.Unreachable, "Provider metadata endpoint returned an unexpected status.");
     }
-
-    /// <summary>
-    /// The Gemini models endpoint and xAI answer an invalid key with HTTP 400. The core folds that
-    /// 400 into "not healthy" but leaves the reason to the host (hw_net::health module note).
-    /// Only the providers <see cref="CoreProvider"/> returns are listed: every Gemini id probes
-    /// as <c>GeminiTranscribe</c>. Remove this once the core's verdict carries the reason
-    /// (issue #779) and read it from there.
-    /// </summary>
-    private static bool RejectsKeyWith400(HwProvider? provider) => provider is
-        HwProvider.GeminiTranscribe or HwProvider.Grok;
 
     /// <summary>
     /// The core provider for a catalog provider id, or null when the core has no vendor probe

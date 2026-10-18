@@ -395,6 +395,7 @@ jobs:
             app/linux/scripts/run-ui-smoke.sh \
             packaging/linux/scripts/build-deb.sh \
             packaging/linux/scripts/test-package.sh \
+            packaging/linux/scripts/test-cuda-package.sh \
             packaging/linux/scripts/generate-apt-repository.sh \
             packaging/linux/scripts/test-apt-repository.sh \
             packaging/linux/debian/postinst \
@@ -416,12 +417,21 @@ jobs:
               --architecture amd64
           )"
 
+          # build-deb.sh writes the optional CUDA 12 package next to the main
+          # one (issue #1002).
+          cuda_package_path="$(dirname "$package_path")/hyperwhisper-cuda_${version}_amd64.deb"
+
           test -s "$package_path"
+          test -s "$cuda_package_path"
           HYPERWHISPER_PACKAGE_VERSION="$version" \
             packaging/linux/scripts/test-package.sh "$package_path"
-          packaging/linux/scripts/test-apt-repository.sh "$package_path"
+          HYPERWHISPER_PACKAGE_VERSION="$version" \
+            packaging/linux/scripts/test-cuda-package.sh "$cuda_package_path" "$package_path"
+          packaging/linux/scripts/test-apt-repository.sh "$package_path" "$cuda_package_path"
           lintian --fail-on warning "$package_path"
+          lintian --fail-on warning "$cuda_package_path"
           dpkg-deb --info "$package_path"
+          dpkg-deb --info "$cuda_package_path"
 
       - name: Verify release policy and exact tested commit
         id: verified

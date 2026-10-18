@@ -1200,6 +1200,93 @@ internal static class Program
                     "PushToTalkMonitor does not implement the portable contract");
             });
 
+            Run("Push-to-talk skips SmartPaste's marked Ctrl+V and nothing else (#1851)", () =>
+            {
+                // SmartPaste's Ctrl+V uses the generic VK_CONTROL, which push-to-talk
+                // reads as Ctrl since #694. The records below are the very INPUTs
+                // SmartPaste hands to SendInput; each is fed to the hook as Windows
+                // delivers it (LLKHF_INJECTED, the INPUT's dwExtraInfo).
+                var paste = SyntheticKeyboard.BuildInputs(SyntheticKeyboard.CtrlV);
+                Assert(paste.Length == 4 && paste[0].u.ki.wVk == 0x11 && paste[3].u.ki.wVk == 0x11,
+                    "SmartPaste's Ctrl+V uses the generic VK_CONTROL");
+                Assert(paste.All(i => i.u.ki.dwExtraInfo == SyntheticKeyboard.InjectedKeyMarker),
+                    "every SmartPaste key carries the HyperWhisper marker");
+                Assert(System.Runtime.InteropServices.Marshal.SizeOf<SyntheticKeyboard.INPUT>() == (IntPtr.Size == 8 ? 40 : 28),
+                    "INPUT has the size SendInput checks");
+
+                static void Feed(LowLevelKeyboardHook hook, SyntheticKeyboard.INPUT[] inputs, IntPtr extraInfo)
+                {
+                    foreach (var input in inputs)
+                    {
+                        var ki = input.u.ki;
+                        var msg = (ki.dwFlags & SyntheticKeyboard.KEYEVENTF_KEYUP) != 0
+                            ? LowLevelKeyboardHook.WM_KEYUP
+                            : LowLevelKeyboardHook.WM_KEYDOWN;
+                        hook.HandleKeyEvent(msg, ki.wVk, SyntheticKeyboard.LLKHF_INJECTED, extraInfo);
+                    }
+                }
+
+                static PushToTalkMonitor CtrlMonitor()
+                {
+                    var monitor = new PushToTalkMonitor();
+                    monitor.Configure(new PushToTalkSettings { Mode = PushToTalkMode.Modifier, Modifier = "Ctrl" });
+                    return monitor;
+                }
+
+                // 1. HyperWhisper's own paste: no state change, nothing tracked.
+                using (var monitor = CtrlMonitor())
+                {
+                    Feed(monitor.Hook, paste, SyntheticKeyboard.InjectedKeyMarker);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.Idle,
+                        $"SmartPaste's Ctrl+V moved push-to-talk to {monitor.State}");
+                    Assert(monitor.Hook.PressedKeys.Count == 0, "SmartPaste's keys were tracked as pressed");
+
+                    // ...and while the user holds Ctrl, the paste is no interference.
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, 0xA2, 0, IntPtr.Zero);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        "a physical LCtrl starts the activation wait");
+                    Feed(monitor.Hook, paste, SyntheticKeyboard.InjectedKeyMarker);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        $"SmartPaste's Ctrl+V during a hold moved push-to-talk to {monitor.State}");
+                    Assert(monitor.Hook.PressedKeys.SetEquals(new[] { 0xA2 }), "the held LCtrl must stay tracked");
+                }
+
+                // 2. A physical generic Ctrl still drives push-to-talk (#694).
+                using (var monitor = CtrlMonitor())
+                {
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, 0x11, 0, IntPtr.Zero);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        $"a physical generic Ctrl left push-to-talk in {monitor.State}");
+                }
+
+                // 3. Another program's injected Ctrl (AutoHotkey, Stream Deck) still drives it.
+                using (var monitor = CtrlMonitor())
+                {
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, 0x11,
+                        SyntheticKeyboard.LLKHF_INJECTED, IntPtr.Zero);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        $"an unmarked injected Ctrl left push-to-talk in {monitor.State}");
+                }
+
+                // 4. The marker alone, without LLKHF_INJECTED, is not ours.
+                using (var monitor = CtrlMonitor())
+                {
+                    monitor.Hook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, 0x11, 0, SyntheticKeyboard.InjectedKeyMarker);
+                    Assert(monitor.State == HyperWhisper.SharedCore.PortablePttState.WaitingForActivation,
+                        "a non-injected key is never skipped");
+                }
+
+                // 5. Named shortcuts keep the unfiltered hook: they still see the paste.
+                using var shortcuts = new KeyboardShortcutService();
+                var hookField = typeof(KeyboardShortcutService).GetField(
+                    "_hook", BindingFlags.NonPublic | BindingFlags.Instance)
+                    ?? throw new InvalidOperationException("KeyboardShortcutService._hook is gone");
+                var shortcutHook = (LowLevelKeyboardHook)hookField.GetValue(shortcuts)!;
+                shortcutHook.HandleKeyEvent(LowLevelKeyboardHook.WM_KEYDOWN, 0x11,
+                    SyntheticKeyboard.LLKHF_INJECTED, SyntheticKeyboard.InjectedKeyMarker);
+                Assert(shortcutHook.PressedKeys.Contains(0x11), "named shortcuts must still track SmartPaste's Ctrl");
+            });
+
             // Issue #1497: the default toggle Ctrl+Alt fired the moment Ctrl and Alt
             // were both down, so Ctrl+Alt+Left started a hidden recording. A
             // modifier-only chord now triggers on a clean release. The sequences
@@ -2200,8 +2287,6 @@ internal static class Program
                 const BindingFlags all = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
                 var isReady = typeof(MainViewModel).GetMethod("IsLocalProviderReady", all, new[] { typeof(Mode) })
                     ?? throw new InvalidOperationException("MainViewModel.IsLocalProviderReady(Mode) is gone; update this test");
-                var factoryField = typeof(TranscriptionService).GetField("_whisperFactory", all)
-                    ?? throw new InvalidOperationException("TranscriptionService._whisperFactory is gone; update this test");
                 var loadedPath = typeof(TranscriptionService).GetProperty("LoadedModelPath", all)
                     ?? throw new InvalidOperationException("TranscriptionService.LoadedModelPath is gone; update this test");
 
@@ -2220,11 +2305,8 @@ internal static class Program
                     written.Add(path);
                 }
 
-                // A model A load that finished: a factory and A's path, no unload pending.
+                // Model A selected (the worker serves it on demand, #1194), no unload pending.
                 var service = new TranscriptionService();
-                var fakeFactory = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(factoryField.FieldType);
-                GC.SuppressFinalize(fakeFactory);
-                factoryField.SetValue(service, fakeFactory);
                 loadedPath.SetValue(service, pathA);
                 try
                 {
@@ -2246,7 +2328,6 @@ internal static class Program
                 }
                 finally
                 {
-                    factoryField.SetValue(service, null);
                     loadedPath.SetValue(service, null);
                     foreach (var path in written)
                     {
@@ -2255,13 +2336,8 @@ internal static class Program
                 }
             });
 
-            Run("IsNoSpaceLanguage / NormalizeLanguage truth tables", () =>
+            Run("NormalizeLanguage truth table", () =>
             {
-                foreach (var code in new[] { "ja", "zh", "ko", "yue" })
-                    Assert(ParakeetTranscriptionService.IsNoSpaceLanguage(code), $"{code} should be no-space");
-                foreach (var code in new[] { "en", "fr", "auto" })
-                    Assert(!ParakeetTranscriptionService.IsNoSpaceLanguage(code), $"{code} should be spaced");
-
                 Assert(ParakeetTranscriptionService.NormalizeLanguage(null) == "auto", "null → auto");
                 Assert(ParakeetTranscriptionService.NormalizeLanguage("  ") == "auto", "whitespace → auto");
                 Assert(ParakeetTranscriptionService.NormalizeLanguage("AUTO") == "auto", "AUTO → auto");
@@ -2274,7 +2350,9 @@ internal static class Program
             // daemon joins Japanese VAD segments with no space at all.
             Run("ResolveJoinClass separates auto from a declared spaced language", () =>
             {
-                foreach (var code in new[] { "ja", "zh", "ko", "yue" })
+                // The shared core's table (#902), not the host's old four codes:
+                // th and the explicit/regional Chinese spellings are no-space too.
+                foreach (var code in new[] { "ja", "zh", "ko", "yue", "th", "zh-tw", "zh-hans", "zh-hant", "zh-cn" })
                     Assert(ParakeetTranscriptionService.ResolveJoinClass(code) == "no-space", $"{code} → no-space");
                 foreach (var code in new[] { "en", "fr", "de" })
                     Assert(ParakeetTranscriptionService.ResolveJoinClass(code) == "spaced", $"{code} → spaced");
@@ -2287,6 +2365,32 @@ internal static class Program
                 Assert(Class("en") != Class("ja"), "en → ja must change class");
                 Assert(Class("auto") != Class("ja"), "auto → ja must change class");
                 Assert(Class("en") == Class("fr"), "en → fr must NOT change class");
+            });
+
+            // The host decides the daemon's segment join from the core and passes
+            // it as --segment-join (#902); a daemon's own table is only the
+            // fallback for a daemon older than the flag.
+            // The committed x64 exe predates --segment-join and still joins th
+            // with spaces, so a th daemon cannot be kept for ja (#902).
+            Run("JoinNeedsRespawn respawns between two different no-space codes", () =>
+            {
+                Assert(ParakeetTranscriptionService.JoinNeedsRespawn("ja", "th"), "th → ja must respawn");
+                Assert(ParakeetTranscriptionService.JoinNeedsRespawn("zh", "ja"), "ja → zh must respawn");
+                Assert(ParakeetTranscriptionService.JoinNeedsRespawn("ja", "en"), "en → ja must respawn");
+                Assert(ParakeetTranscriptionService.JoinNeedsRespawn("auto", "en"), "en → auto must respawn");
+                Assert(!ParakeetTranscriptionService.JoinNeedsRespawn("ja", "ja"), "ja → ja must NOT respawn");
+                Assert(!ParakeetTranscriptionService.JoinNeedsRespawn("fr", "en"), "en → fr must NOT respawn");
+                Assert(!ParakeetTranscriptionService.JoinNeedsRespawn("auto", "auto"), "auto → auto must NOT respawn");
+            });
+
+            Run("ResolveSegmentJoinArgument passes the core's join to the daemon", () =>
+            {
+                foreach (var code in new[] { "ja", "JA", "zh", "ko", "yue", "th", "zh-TW", "zh-Hans", "zh-Hant", "zh-CN" })
+                    Assert(ParakeetTranscriptionService.ResolveSegmentJoinArgument(code) == "none", $"{code} → none");
+                foreach (var code in new[] { "en", " FR ", "de", "uk" })
+                    Assert(ParakeetTranscriptionService.ResolveSegmentJoinArgument(code) == "space", $"{code} → space");
+                foreach (var code in new[] { null, "", "  ", "auto", "AUTO" })
+                    Assert(ParakeetTranscriptionService.ResolveSegmentJoinArgument(code) == null, $"'{code}' → not passed");
             });
 
             Run("Grok GetRequestTimeout scales with file size", () =>
@@ -2878,6 +2982,51 @@ internal static class Program
                     "new Gemini modes should default to Gemini 3.8 Flash (matches macOS)");
             });
 
+            // Replays shared-conformance/pp-model-redirect-vectors.json through THIS
+            // head's MigrateModelId (#1083). macOS and shared-dotnet replay the same
+            // file through their own tables:
+            //   app/macos/hyperwhisperTests/PostProcessingModelResolutionTests.swift
+            //   app/shared-dotnet/HyperWhisper.CloudPostProcessing.Tests/Program.cs
+            // The 3 copies had drifted, so one saved Mode ran a different model per
+            // platform. The file is found by walking up to the repo root, the way the
+            // shared-dotnet catalog conformance test finds shared-conformance.
+            Run("retired post-processing redirects match shared-conformance vectors", () =>
+            {
+                var repoRoot = new DirectoryInfo(AppContext.BaseDirectory);
+                while (repoRoot is not null && !Directory.Exists(Path.Combine(repoRoot.FullName, "shared-conformance")))
+                    repoRoot = repoRoot.Parent;
+                Assert(repoRoot is not null, "shared-conformance not found above " + AppContext.BaseDirectory);
+                var vectorsPath = Path.Combine(repoRoot!.FullName, "shared-conformance", "pp-model-redirect-vectors.json");
+                Assert(File.Exists(vectorsPath), $"pp-model-redirect-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var rows = vectors.RootElement.GetProperty("vectors");
+                Assert(rows.GetArrayLength() >= 40, "pp-model-redirect-vectors.json looks truncated");
+
+                var checkedRows = 0;
+                foreach (var row in rows.EnumerateArray())
+                {
+                    if (row.TryGetProperty("platforms", out var platforms)
+                        && platforms.EnumerateArray().All(platform => platform.GetString() != "windows"))
+                        continue;
+                    var providerName = row.GetProperty("provider").GetString()!;
+                    var from = row.GetProperty("from").GetString()!;
+                    var to = row.GetProperty("to").GetString()!;
+
+                    Assert(LanguageModelInfo.MigrateModelId(from) == to,
+                        $"MigrateModelId does not redirect {from} to {to}");
+                    var target = LanguageModelInfo.GetById(to);
+                    Assert(target != null, $"{from}: target {to} is not a live picker row");
+                    // The vector names the macOS raw value (local_llm); Windows says LocalLlm.
+                    Assert(string.Equals(target!.Provider.ToString(), providerName.Replace("_", ""),
+                            StringComparison.OrdinalIgnoreCase),
+                        $"{from}: target {to} is a {target.Provider} row, the vector says {providerName}");
+                    Assert(LanguageModelInfo.GetById(from) == null, $"retired {from} is still a picker row");
+                    checkedRows++;
+                }
+                Assert(checkedRows >= 40, $"only {checkedRows} Windows redirect rows were checked");
+            });
+
             // #1018: OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11. The
             // rows are deleted and every id migrates to gpt-5.6-luna, so a mode card for a
             // stored id names luna, the model that runs.
@@ -3163,6 +3312,61 @@ internal static class Program
                     Assert(CloudTranscriptionModels.GetById(want, provider) != null,
                         $"{entryId}: the default model '{want}' is not in the Windows picker");
                 }
+            });
+
+            // Replays shared-conformance/health-vectors.json through THIS head's
+            // own mapping of the core's verdict (issue #779). The other heads
+            // replay the same file:
+            //   shared-core-rs/crates/hw-net/tests/health_vectors.rs
+            //   app/shared-dotnet/HyperWhisper.SharedCore.Tests
+            //   app/macos/hyperwhisperTests/HealthConformanceVectorTests.swift
+            //
+            // MapHealthVerdict used to keep its own "which vendors answer a bad
+            // key with 400" list and left out Gemini 3.5 Transcribe, so the same
+            // bad key read "Provider unreachable" here and "Key invalid" on macOS.
+            // The rows are asserted against the LITERAL reason in the file.
+            Run("provider health vectors match this head's verdict mapping", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "health-vectors.json");
+                Assert(File.Exists(vectorsPath), $"health-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var rows = vectors.RootElement.GetProperty("cases");
+                Assert(rows.GetArrayLength() >= 15 * 6, "health-vectors.json looks truncated");
+
+                foreach (var row in rows.EnumerateArray())
+                {
+                    var providerName = row.GetProperty("provider").GetString()!;
+                    var status = row.GetProperty("status").GetUInt16();
+                    var reason = row.GetProperty("reason").GetString()!;
+                    var label = $"{providerName} {status}";
+
+                    Assert(Enum.TryParse<HwProvider>(providerName, out var hwProvider),
+                        $"{label}: the binding has no HwProvider named '{providerName}'");
+                    var want = reason switch
+                    {
+                        "healthy" => ProviderHealth.Healthy,
+                        "unauthorized" => ProviderHealth.Unauthorized,
+                        "unreachable" => ProviderHealth.Unreachable,
+                        _ => throw new InvalidOperationException($"{label}: unknown reason '{reason}'"),
+                    };
+
+                    var verdict = HyperwhisperCoreMethods.ParseHealthResponse(
+                        hwProvider,
+                        new uniffi.hyperwhisper_core.HttpResponse(status, new List<Header>(), Array.Empty<byte>()));
+                    Assert(verdict.@healthy == row.GetProperty("healthy").GetBoolean(),
+                        $"{label}: core healthy flag disagrees with the vectors");
+                    var got = CloudProviderHealthService.MapHealthVerdict(verdict);
+                    Assert(got == want, $"{label}: Windows reads {got}, the vectors say {want}");
+                }
+
+                // The row the issue was filed for, through the provider mapping the
+                // shipping probe uses rather than through the vector's own name.
+                var geminiTranscribe = HyperwhisperCoreMethods.ParseHealthResponse(
+                    RustCoreMapping.HwProviderFor(CloudTranscriptionProvider.GeminiTranscribe),
+                    new uniffi.hyperwhisper_core.HttpResponse(400, new List<Header>(), Array.Empty<byte>()));
+                Assert(CloudProviderHealthService.MapHealthVerdict(geminiTranscribe) == ProviderHealth.Unauthorized,
+                    "a Gemini 3.5 Transcribe key rejected with HTTP 400 must read as Unauthorized");
             });
 
             // NATIVE CAPTURE (issue #277, phase 1a). Drives every
@@ -4097,6 +4301,56 @@ internal static class Program
                 }
             });
 
+            // Issue #1911. No engine reports progress while it transcribes, so the
+            // Transcribe File bar ramps to 80% over 60 s and then sat there for the
+            // rest of a long job, which looked hung. A ramp started with
+            // thenIndeterminate now hands over to a moving bar with no percentage
+            // when it reaches its target, and the next real step clears it.
+            Run("the Transcribe File bar turns indeterminate when the transcribing ramp ends - issue #1911", () =>
+            {
+                EnsureSmokeApplication();
+                var window = new HyperWhisper.Views.Windows.FileTranscriptionProgressWindow();
+                var percent = (System.Windows.Controls.TextBlock)window.FindName("PercentageText")!;
+                try
+                {
+                    // The real 60 s transcribing ramp, its frames driven with a clock.
+                    window.AnimateProgress(0.15f, 0);
+                    window.AnimateProgress(HyperWhisper.ViewModels.MainViewModel.FileTranscribingRampTarget, 60.0,
+                        thenIndeterminate: true);
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(30));
+                    Assert(!window.IsIndeterminate, "the bar went indeterminate halfway through its ramp");
+                    Assert(percent.Text.EndsWith('%'), $"a ramp in progress shows no percentage ({percent.Text})");
+                    window.AdvanceAnimation(DateTime.Now.AddSeconds(61));
+
+                    Assert(window.IsIndeterminate,
+                        "the transcribing ramp reached its target with the job still running, but the bar stayed determinate");
+                    Assert(percent.Text.Length == 0,
+                        $"an indeterminate bar still claims a percentage ({percent.Text})");
+
+                    // The job finishing moves the bar on: the percentage comes back.
+                    window.AnimateProgress(0.85f, 0.3);
+                    Assert(!window.IsIndeterminate, "the finishing step left the bar indeterminate");
+                    Assert(percent.Text == "80%", $"the finishing step did not restore the percentage ({percent.Text})");
+                    window.SetProgress(1.0f);
+                    Assert(percent.Text == "100%", $"the bar did not reach 100% ({percent.Text})");
+
+                    // Short steps never go indeterminate, and Dismiss clears the state.
+                    window.AnimateProgress(0.5f, 0);
+                    Assert(!window.IsIndeterminate, "a ramp without thenIndeterminate went indeterminate");
+                    window.AnimateProgress(0.80f, 0, thenIndeterminate: true);
+                    Assert(window.IsIndeterminate, "an instant ramp to its target did not go indeterminate");
+                    window.Dismiss();
+                    Assert(!window.IsIndeterminate, "Dismiss left the bar indeterminate for the next file");
+                    window.ShowProgress("next.mp3", () => { });
+                    Assert(!window.IsIndeterminate && percent.Text == "0%",
+                        $"the next file did not start at 0% ({percent.Text})");
+                }
+                finally
+                {
+                    window.Close();
+                }
+            });
+
             // Issue #511. "Your license key is no longer valid. Enter a new key
             // below, or get credits to create one." is a statement about a licence
             // this device once had. A fresh install that mistyped its first-ever
@@ -4964,6 +5218,73 @@ internal static class Program
                 }
             });
 
+            Run("CaptureDeviceNameCache: one FriendlyName read per endpoint ID, dropped on invalidate / clear (#980)", () =>
+            {
+                var cache = new CaptureDeviceNameCache();
+                var reads = 0;
+                Func<string> Reader(string name) => () => { reads++; return name; };
+
+                // A warm dictation start reads no name: the second lookup is a hit.
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{a}", Reader("Microphone (USB Mic)")) == "Microphone (USB Mic)",
+                    "the first lookup must return what the reader returned");
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{a}", Reader("WRONG")) == "Microphone (USB Mic)",
+                    "the second lookup for the same endpoint ID must return the cached name");
+                Assert(reads == 1, $"expected one name read for one endpoint, got {reads}");
+
+                // Keyed by endpoint ID: another device never gets the first one's name.
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{b}", Reader("Line In (VB-Audio)")) == "Line In (VB-Audio)",
+                    "a different endpoint ID was answered from another endpoint's entry");
+                Assert(reads == 2 && cache.Count == 2, $"expected 2 reads and 2 entries, got {reads} and {cache.Count}");
+
+                // Endpoint IDs are compared exactly.
+                cache.GetOrRead("{0.0.1.00000000}.{A}", Reader("Upper"));
+                Assert(reads == 3, "an ID differing only in case must not share an entry");
+
+                // A rename (property change) drops only that endpoint.
+                cache.Invalidate("{0.0.1.00000000}.{a}");
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{a}", Reader("Renamed Mic")) == "Renamed Mic",
+                    "an invalidated endpoint must be read again");
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{b}", Reader("WRONG")) == "Line In (VB-Audio)",
+                    "invalidating one endpoint must keep the others");
+                Assert(reads == 4, $"expected 4 reads after one invalidation, got {reads}");
+
+                // A device list change drops everything.
+                cache.Clear();
+                Assert(cache.Count == 0, $"Clear left {cache.Count} entries");
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{b}", Reader("Line In 2")) == "Line In 2",
+                    "after Clear the name must be read again");
+
+                // A failed read behaves like the direct property read: it throws, and
+                // nothing is cached, so the next lookup tries again.
+                var threw = false;
+                try { cache.GetOrRead("{0.0.1.00000000}.{gone}", () => throw new InvalidOperationException("unplugged")); }
+                catch (InvalidOperationException) { threw = true; }
+                Assert(threw, "a reader exception must propagate to the caller");
+                var before = reads;
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{gone}", Reader("Back")) == "Back" && reads == before + 1,
+                    "a failed read must not leave an entry behind");
+
+                // No endpoint ID: always read, never cached.
+                before = reads;
+                cache.GetOrRead(null, Reader("x"));
+                cache.GetOrRead(null, Reader("x"));
+                cache.GetOrRead("", Reader("x"));
+                Assert(reads == before + 3, $"a missing endpoint ID must read every time, got {reads - before} reads for 3 lookups");
+
+                // An invalidation that lands while a read is in flight wins: the
+                // (possibly pre-rename) result is returned but not stored.
+                before = reads;
+                var racing = cache.GetOrRead("{0.0.1.00000000}.{race}", () =>
+                {
+                    reads++;
+                    cache.Invalidate("{0.0.1.00000000}.{race}");
+                    return "Old Name";
+                });
+                Assert(racing == "Old Name", "the in-flight read still returns its own result");
+                Assert(cache.GetOrRead("{0.0.1.00000000}.{race}", Reader("New Name")) == "New Name" && reads == before + 2,
+                    "a read that raced an invalidation must not be cached");
+            });
+
             Run("MainViewModel.EmptyCaptureMessage names the device, not the user's silence (#750)", () =>
             {
                 var message = MainViewModel.EmptyCaptureMessage;
@@ -5313,6 +5634,117 @@ internal static class Program
                     "the x64 engine's Nemotron validation error must not mark the model broken");
                 Assert(!ParakeetTranscriptionService.IsModelFileLoadFailure(fail, null, dir),
                     "no stderr capture must not mark the model broken");
+            });
+
+            Run("Parakeet start-failure stderr tail drops the user's identifiers and is capped (#854)", () =>
+            {
+                // The Parakeet scrub IS SentryService.RedactUserIdentifiers (no second
+                // scanner); the seam overload pins the three identifiers.
+                const string profile = @"C:\Users\percy.tester";
+                const string localAppData = @"D:\percy.tester\AppData";
+                const string user = "percy.tester";
+                const string token = "%USERPROFILE%";
+                string Scrub(string? text) => SentryService.RedactUserIdentifiers(text, profile, localAppData, user);
+
+                var underProfile = Scrub(@"Load model from C:\Users\percy.tester\Documents\m\encoder.int8.onnx failed");
+                Assert(underProfile == $@"Load model from {token}\Documents\m\encoder.int8.onnx failed",
+                    $"the profile path must become {token}, got '{underProfile}'");
+                var redirected = Scrub(@"Load model from D:\percy.tester\AppData\HyperWhisper\Models\m\encoder.int8.onnx failed");
+                Assert(redirected == @"Load model from %LOCALAPPDATA%\HyperWhisper\Models\m\encoder.int8.onnx failed",
+                    $"a redirected local-app-data path must become %LOCALAPPDATA%, got '{redirected}'");
+                var bareName = Scrub("[WARN] running as percy.tester on DESKTOP");
+                Assert(bareName == "[WARN] running as %USER% on DESKTOP", $"the bare account name must become %USER%, got '{bareName}'");
+                var forward = Scrub("transducer encoder: 'C:/USERS/PERCY.TESTER/AppData/x.onnx' does not exist");
+                Assert(!forward.Contains("percy.tester", StringComparison.OrdinalIgnoreCase) && forward.Contains("%USER%", StringComparison.Ordinal),
+                    $"a forward-slash path must lose the account name, got '{forward}'");
+                var twice = Scrub(@"c:\users\percy.tester\a and C:\Users\percy.tester\b");
+                Assert(twice == $@"{token}\a and {token}\b", $"every occurrence must be scrubbed, case-insensitively, got '{twice}'");
+                // Segment boundary: another account whose name starts with this one keeps
+                // its folder name whole instead of turning into "%USERPROFILE%X".
+                var sibling = Scrub(@"C:\Users\percy.testerX\m");
+                Assert(sibling == @"C:\Users\percy.testerX\m",
+                    $"a longer folder name must not be cut at the profile path, got '{sibling}'");
+                Assert(!sibling.Contains(token, StringComparison.Ordinal), "no profile token inside another account's folder");
+                Assert(Scrub("[INFO] provider: directml") == "[INFO] provider: directml", "a line with no path must stay as it is");
+                Assert(Scrub(null) == "", "a null line scrubs to empty");
+                Assert(SentryService.RedactUserIdentifiers(@"C:\Users\x", "", null, null) == @"C:\Users\x",
+                    "unreadable identifiers leave the text alone");
+                Assert(SentryService.RedactUserIdentifiers(@"C:\Users\percy.tester\m", profile + @"\", null, null) == $@"{token}\m",
+                    "a trailing separator on the profile directory must not stop the match");
+
+                // The tail: the last 20 lines, redacted, joined, capped at 2,000 chars.
+                Assert(ParakeetTranscriptionService.BuildStderrTail(Array.Empty<string>(), Scrub) == "(none)", "empty stderr is (none)");
+                Assert(ParakeetTranscriptionService.BuildStderrTail(null, Scrub) == "(none)", "no stderr is (none)");
+                var lines = Enumerable.Range(1, 30).Select(i => $@"line {i} C:\Users\percy.tester\m").ToArray();
+                var tail = ParakeetTranscriptionService.BuildStderrTail(lines, Scrub);
+                Assert(!tail.Contains("percy.tester", StringComparison.OrdinalIgnoreCase), $"the tail leaked the profile path: '{tail}'");
+                Assert(tail.Split('\n').Length == ParakeetTranscriptionService.StartFailureTailLines,
+                    "the tail must hold the last 20 lines");
+                Assert(tail.StartsWith("line 11 ", StringComparison.Ordinal) && tail.EndsWith($@"line 30 {token}\m", StringComparison.Ordinal),
+                    $"the tail must be the LAST lines in order, got '{tail}'");
+
+                var longLines = Enumerable.Range(0, 20).Select(i => (i == 19 ? "CAUSE " : "") + new string('x', 300) + $@" C:\Users\percy.tester\m{i}").ToArray();
+                var capped = ParakeetTranscriptionService.BuildStderrTail(longLines, Scrub);
+                Assert(capped.Length <= ParakeetTranscriptionService.StartFailureTailMaxChars,
+                    $"the tail must be capped at {ParakeetTranscriptionService.StartFailureTailMaxChars} chars, got {capped.Length}");
+                Assert(capped.StartsWith("…", StringComparison.Ordinal) && capped.EndsWith($@"{token}\m19", StringComparison.Ordinal) && capped.Contains("CAUSE"),
+                    "a capped tail keeps its END (the cause) and marks the cut");
+                Assert(!capped.Contains("percy.tester", StringComparison.OrdinalIgnoreCase), "the scrub runs before the cap");
+            });
+
+            Run("Parakeet start-failure fields carry the issue's names, survive Sentry's key filter, and format as one line (#854)", () =>
+            {
+                string Redact(string? text) => SentryService.RedactUserIdentifiers(text, @"C:\Users\percy.tester", null, "percy.tester");
+                var fields = ParakeetTranscriptionService.BuildStartFailureFields(
+                    ParakeetTranscriptionService.StartFailureStdoutClosed,
+                    unchecked((int)0xC0000409),
+                    "nemo_transducer",
+                    "parakeet-tdt-0.6b-v2",
+                    null,
+                    30,
+                    1234,
+                    2,
+                    new[] { @"[INFO] Model directory: C:\Users\percy.tester\Models\parakeet-tdt-0.6b-v2", "[ERROR] boom" },
+                    Redact);
+
+                var expectedKeys = new[]
+                {
+                    "parakeet_failure", "parakeet_exit_code", "parakeet_engine", "parakeet_model_id",
+                    "parakeet_language_hint", "parakeet_ready_timeout_s", "parakeet_elapsed_ms",
+                    "parakeet_stderr_line_count", "parakeet_stderr_tail",
+                };
+                Assert(fields.Select(f => f.Key).SequenceEqual(expectedKeys),
+                    $"the field names must be the issue's, got {string.Join(",", fields.Select(f => f.Key))}");
+                foreach (var key in expectedKeys)
+                {
+                    Assert(!SentryService.IsRedactedExtraKey(key), $"Sentry's key filter would replace '{key}' with [redacted]");
+                }
+
+                var byKey = fields.ToDictionary(f => f.Key, f => f.Value);
+                Assert(byKey["parakeet_failure"] is "stdout_closed", "the failure slug");
+                Assert(byKey["parakeet_exit_code"] is int code && code == unchecked((int)0xC0000409), "the exit code is an int");
+                Assert(byKey["parakeet_language_hint"] is "none", "no language hint reads as none");
+                Assert(byKey["parakeet_ready_timeout_s"] is 30, "the ready timeout");
+                Assert(byKey["parakeet_elapsed_ms"] is 1234L, "elapsed ms");
+                Assert(byKey["parakeet_stderr_line_count"] is 2, "the stderr line count");
+                Assert(byKey["parakeet_stderr_tail"] is string t && !t.Contains("percy.tester", StringComparison.OrdinalIgnoreCase)
+                        && t.Contains("%USERPROFILE%", StringComparison.Ordinal),
+                    "the tail field must already be scrubbed");
+
+                var stillRunning = ParakeetTranscriptionService.BuildStartFailureFields(
+                    ParakeetTranscriptionService.StartFailureReadyTimeout, null, "qwen3", "qwen3-asr", "en", 90, 90500, 0,
+                    Array.Empty<string>(), Redact).ToDictionary(f => f.Key, f => f.Value);
+                Assert(stillRunning["parakeet_exit_code"] is -1, "a daemon that had not exited reports -1");
+                Assert(stillRunning["parakeet_language_hint"] is "en", "a language hint is kept");
+                Assert(stillRunning["parakeet_stderr_tail"] is "(none)", "an empty stderr reads as (none)");
+
+                var line = ParakeetTranscriptionService.FormatStartFailureFields(fields);
+                Assert(!line.Contains('\n'), $"the log fields must stay on one line: '{line}'");
+                Assert(line.StartsWith("parakeet_failure=stdout_closed, parakeet_exit_code=-1073740791, ", StringComparison.Ordinal)
+                        && line.Contains("parakeet_stderr_tail=", StringComparison.Ordinal)
+                        && line.Contains(" | [ERROR] boom", StringComparison.Ordinal),
+                    $"the log fields lost a value: '{line}'");
+                Assert(!line.Contains("percy.tester", StringComparison.OrdinalIgnoreCase), "the log fields leaked the profile path");
             });
 
             Run("MainViewModel.LocalLibraryModelId matches the Model Library row ids (#1598)", () =>
@@ -14944,6 +15376,79 @@ internal static class Program
                 Assert(flow.HasSetupError, "and the failure must be visible rather than swallowed");
             });
 
+            RunAsync("onboarding #1489: text that cannot be a key keeps Test and Activate off and is never sent", async () =>
+            {
+                var h = new OnboardingHarness();
+                h.Permissions.MicrophoneAuthorization = OnboardingMicrophoneAuthorization.Authorized;
+                h.Flow.RefreshPermissions();
+                Assert(h.Flow.Advance() && h.Flow.Advance(), "welcome and permissions must pass");
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                Assert(h.Flow.Advance(), "configure must be reachable");
+
+                Assert(!h.Flow.CanTestAccessKey && !h.Flow.CanActivateLicense && !h.Flow.ShowsLicenseKeyFormatHint,
+                    "an empty field must keep both buttons off without the hint");
+
+                var refusedTexts = new[]
+                {
+                    "Thanks for your purchase!\nYour key is HW-ABCD-EFGH.",
+                    new string('A', 65),
+                    "HW-ABCD EFGH",
+                    "HW-\u00C4BCD-EFGH",
+                    "HW-ABCD-\U0001F511",
+                };
+                foreach (var refused in refusedTexts)
+                {
+                    h.Flow.LicenseKeyInput = refused;
+                    Assert(!h.Flow.CanTestAccessKey && !h.Flow.CanActivateLicense,
+                        $"'{refused}' must keep Test and Activate off");
+                    Assert(h.Flow.ShowsLicenseKeyFormatHint && !h.Flow.IsLicenseKeyPlausible,
+                        $"'{refused}' must show the format hint");
+                    // A direct call (a stray command) must not send it either.
+                    h.Flow.TestAccessKey();
+                    h.Flow.ActivateCloudLicense();
+                }
+                Assert(h.License.ProbedKeys.Count == 0 && h.License.ActivatedKeys.Count == 0,
+                    "text that cannot be a key reached the licence service");
+
+                h.Flow.LicenseKeyInput = " \t\r\n";
+                Assert(!h.Flow.CanTestAccessKey && !h.Flow.ShowsLicenseKeyFormatHint,
+                    "a whitespace-only field must keep Test off without the hint");
+
+                var legacyShaped = Guid.NewGuid().ToString(); // a UUID-shaped legacy key
+                h.Flow.LicenseKeyInput = legacyShaped;
+                Assert(h.Flow.CanTestAccessKey && !h.Flow.ShowsLicenseKeyFormatHint,
+                    "a legacy-looking key must stay testable: there is no HW- pattern check");
+
+                h.Flow.LicenseKeyInput = "  HW-ABCD-EFGH-JKLM-NPQR\r\n";
+                Assert(h.Flow.CanTestAccessKey && !h.Flow.ShowsLicenseKeyFormatHint,
+                    "a key pasted with a trailing newline must be accepted");
+                h.Flow.TestAccessKey();
+                await h.Flow.LastAsyncTaskForTesting!;
+                Assert(h.License.ProbedKeys.SequenceEqual(new[] { "HW-ABCD-EFGH-JKLM-NPQR" }),
+                    $"the pasted key was not trimmed before it was sent ('{string.Join("|", h.License.ProbedKeys)}')");
+            });
+
+            RunAsync("licence #1489: LicenseManager refuses text that cannot be a key before the network", async () =>
+            {
+                var manager = LicenseManager.Instance;
+                var statusBefore = manager.LicenseStatus;
+                var expected = HyperWhisper.Localization.Loc.S("license.error.keyFormat");
+                Assert(expected != "license.error.keyFormat", "the hint string must be in the catalog");
+
+                foreach (var refused in new[] { "", "two words", new string('A', 65), "cl\u00E9-de-compte" })
+                {
+                    var activation = await manager.ActivateLicenseAsync(refused);
+                    Assert(!activation.IsValid && activation.ErrorMessage == expected,
+                        $"activation of '{refused}' was not refused with the format hint");
+                    var probe = await manager.ProbeLicenseAsync(refused);
+                    Assert(!probe.IsValid && probe.ErrorMessage == expected,
+                        $"probe of '{refused}' was not refused with the format hint");
+                }
+
+                Assert(manager.LicenseStatus == statusBefore && !manager.IsValidating,
+                    "a refused key must leave the licence state alone");
+            });
+
             RunAsync("onboarding F4: a throwing provider probe clears the spinner", async () =>
             {
                 // The sibling. It was already recoverable by leaving and re-entering
@@ -17054,6 +17559,127 @@ internal static class Program
                 // No fit yet (NaN) means the design.
                 Assert(WindowWorkAreaFit.WantedLength(760, 600, double.NaN, userCanResize: true) == 760,
                     "before the first fit a refit must start from the design");
+            });
+
+            Run("per-monitor DPI: work areas convert per monitor, and the overlay lands on screen at 150% (#1501)", () =>
+            {
+                // The app is Per-Monitor V2 aware, so SystemParameters.WorkArea (in
+                // DIP at the DPI the process started at) no longer describes where a
+                // window goes after a live scale change. MonitorWorkArea works from
+                // the monitor's physical work area and that monitor's own DPI.
+                var s150 = MonitorWorkArea.Scale.FromDpi(144, 144);
+                Assert(s150 == new MonitorWorkArea.Scale(1.5, 1.5), $"144 DPI must be scale 1.5, got {s150}");
+                Assert(MonitorWorkArea.Scale.FromDpi(0, double.NaN) == MonitorWorkArea.Scale.Identity,
+                    "a missing DPI must fall back to 1.0, not divide by zero");
+
+                // 2560 x 1440 at 150% with a 48 px taskbar: 1706.7 x 928 DIP.
+                var primaryPx = new Rect(0, 0, 2560, 1392);
+                var primaryDip = MonitorWorkArea.ToDip(primaryPx, s150);
+                Assert(Math.Abs(primaryDip.Width - 2560 / 1.5) < 0.001 && Math.Abs(primaryDip.Height - 928) < 0.001,
+                    $"physical work area / 1.5 must be 1706.7 x 928 DIP, got {primaryDip}");
+
+                // A secondary monitor to the right, also at 150%.
+                var secondaryPx = new Rect(2560, 0, 1920, 1032);
+                var secondaryDip = MonitorWorkArea.ToDip(secondaryPx, s150);
+                Assert(Math.Abs(secondaryDip.Left - 2560 / 1.5) < 0.001,
+                    $"the origin scales with the rest of the rectangle, got {secondaryDip}");
+
+                bool InsidePx(Point topLeftPx, double widthDip, double heightDip, MonitorWorkArea.Scale scale, Rect areaPx) =>
+                    topLeftPx.X >= areaPx.Left - 0.5 && topLeftPx.Y >= areaPx.Top - 0.5 &&
+                    topLeftPx.X + widthDip * scale.X <= areaPx.Right + 0.5 &&
+                    topLeftPx.Y + heightDip * scale.Y <= areaPx.Bottom + 0.5;
+
+                // The 200 x 40 overlay's default spot, worked out in the 150%
+                // monitor's DIP, while the overlay's own HWND is still at 100%
+                // (created on a 96 DPI monitor): Rebase keeps the physical pixel.
+                var overlay = RecordingOverlayWindow.OverlayTopLeft(primaryDip, 200, 40, -1, -1);
+                var leftTopAt100 = MonitorWorkArea.Rebase(overlay, s150, MonitorWorkArea.Scale.Identity);
+                Assert(InsidePx(leftTopAt100, 200, 40, s150, primaryPx),
+                    $"overlay default on a 150% monitor must be inside it, top-left {leftTopAt100} px");
+                Assert(Math.Abs(leftTopAt100.Y + 40 * 1.5 + 20 * 1.5 - primaryPx.Bottom) < 0.5,
+                    $"overlay default keeps its 20 DIP bottom margin at 150%, top {leftTopAt100.Y} px");
+
+                // What the old SystemParameters.WorkArea arithmetic did after a live
+                // 100% -> 150% change: the work area still read 2560 x 1392 "DIP",
+                // and the window's 1.5 scale put the overlay below the screen.
+                var stale = RecordingOverlayWindow.OverlayTopLeft(new Rect(0, 0, 2560, 1392), 200, 40, -1, -1);
+                var stalePx = MonitorWorkArea.Rebase(stale, s150, MonitorWorkArea.Scale.Identity);
+                Assert(!InsidePx(stalePx, 200, 40, s150, primaryPx),
+                    "the stale-DPI case no longer reproduces the off-screen overlay; the check above proves nothing");
+
+                // A saved position is a ratio of the PHYSICAL position to the
+                // physical work area, so it restores to the same pixel at any scale.
+                var savedPx = new Point(1800, 1000);
+                var xRatio = savedPx.X / primaryPx.Width;
+                var yRatio = savedPx.Y / primaryPx.Height;
+                var restored = MonitorWorkArea.Rebase(
+                    RecordingOverlayWindow.OverlayTopLeft(primaryDip, 200, 40, xRatio, yRatio), s150, MonitorWorkArea.Scale.Identity);
+                Assert(Math.Abs(restored.X - savedPx.X) < 0.5 && Math.Abs(restored.Y - savedPx.Y) < 0.5,
+                    $"a saved overlay position must restore to the same pixel at 150%, got {restored}");
+
+                // A toast centred above an overlay on the 150% secondary, from a
+                // toast HWND still at 100%: lands inside the secondary.
+                var anchorDip = new Rect(secondaryDip.Left + 300, secondaryDip.Bottom - 60, 200, 40);
+                var toastDip = new Point(anchorDip.Left + (anchorDip.Width - 200) / 2, anchorDip.Top - 36 - 12);
+                var toastPx = MonitorWorkArea.Rebase(toastDip, s150, MonitorWorkArea.Scale.Identity);
+                Assert(InsidePx(toastPx, 200, 36, s150, secondaryPx),
+                    $"a toast above an overlay on a 150% secondary must be on it, top-left {toastPx} px");
+
+                // And back: 100% DIP on a window that is already at 175%.
+                var back = MonitorWorkArea.Rebase(new Point(175, 350), MonitorWorkArea.Scale.Identity, new MonitorWorkArea.Scale(1.75, 1.75));
+                Assert(Math.Abs(back.X - 100) < 0.001 && Math.Abs(back.Y - 200) < 0.001,
+                    $"175 x 350 px is 100 x 200 DIP at 175%, got {back}");
+            });
+
+            Run("per-monitor DPI: a hidden window re-placed after a live scale change gets its physical size back (#1501)", () =>
+            {
+                // Measured on the PC (PR #1936 verify): the 200 x 40 overlay, hidden at
+                // 100% and re-placed at 150%, got WM_DPICHANGED with its OLD 200 x 40 px
+                // rect, so WPF drew it at 1.5 inside 200 x 40 px. Place resizes the HWND
+                // to Width/Height at WPF's scale.
+                var s150 = new MonitorWorkArea.Scale(1.5, 1.5);
+                var fix = MonitorWorkArea.PhysicalSizeFix(200, 40, SizeToContent.Manual, s150, 200, 40);
+                Assert(fix == (300, 60), $"200 x 40 DIP at 150% must be 300 x 60 px, got {fix}");
+
+                // And back down: shown at 150%, hidden, re-placed at 100%.
+                var down = MonitorWorkArea.PhysicalSizeFix(200, 40, SizeToContent.Manual, MonitorWorkArea.Scale.Identity, 300, 60);
+                Assert(down == (200, 40), $"200 x 40 DIP at 100% must be 200 x 40 px, got {down}");
+
+                // Already right (a visible window Windows rescaled itself, or no change): no resize.
+                Assert(MonitorWorkArea.PhysicalSizeFix(200, 40, SizeToContent.Manual, s150, 300, 60) is null,
+                    "a window already at its size must not be resized");
+                // One pixel of rounding is not a mismatch: 125% of 93 is 116.25.
+                Assert(MonitorWorkArea.PhysicalSizeFix(300, 93, SizeToContent.Manual, new MonitorWorkArea.Scale(1.25, 1.25), 375, 117) is null,
+                    "a one-pixel rounding difference must not trigger a resize");
+
+                // The error toast sizes its height to its content: only the width is fixed.
+                var toast = MonitorWorkArea.PhysicalSizeFix(360, double.NaN, SizeToContent.Height, s150, 360, 62);
+                Assert(toast == (540, 62), $"a SizeToContent=Height window keeps its height and fixes its width, got {toast}");
+                Assert(MonitorWorkArea.PhysicalSizeFix(double.NaN, double.NaN, SizeToContent.WidthAndHeight, s150, 360, 62) is null,
+                    "a window sized to its content is WPF's to size");
+            });
+
+            Run("per-monitor DPI: HyperWhisper carries a PerMonitorV2 manifest (#1501)", () =>
+            {
+                // Without it the process is only system DPI aware and Windows
+                // bitmap-stretches every window after a live scale change. The SDK
+                // embeds <ApplicationManifest> in the managed assembly and copies it
+                // into the apphost, HyperWhisper.exe, which is what Windows reads.
+                var dll = typeof(WindowWorkAreaFit).Assembly.Location;
+                var candidates = new[] { dll, Path.ChangeExtension(dll, ".exe") }.Where(File.Exists).ToList();
+                Assert(candidates.Count > 0, $"no HyperWhisper binary next to {dll}");
+                foreach (var path in candidates)
+                {
+                    var manifest = Win32ManifestReader.Read(path);
+                    Assert(manifest != null, $"{Path.GetFileName(path)} has no RT_MANIFEST resource");
+                    Assert(manifest!.Contains("<dpiAwareness", StringComparison.Ordinal) &&
+                           manifest.Contains("PerMonitorV2", StringComparison.Ordinal),
+                        $"{Path.GetFileName(path)} manifest does not declare PerMonitorV2:{Environment.NewLine}{manifest}");
+                    Assert(manifest.Contains("true/pm", StringComparison.Ordinal),
+                        $"{Path.GetFileName(path)} manifest lost the dpiAware true/pm fallback");
+                    Assert(manifest.Contains("level=\"asInvoker\"", StringComparison.Ordinal),
+                        $"{Path.GetFileName(path)} manifest must keep requestedExecutionLevel asInvoker");
+                }
             });
 
             Run("work-area fit: a refit while minimised runs on restore (#1500)", () =>
@@ -24764,4 +25390,60 @@ internal static class Program
                 Array.Empty<HyperWhisper.Statistics.StatisticsTranscript>());
         }
     }
+}
+
+/// <summary>
+/// Reads a binary's Win32 manifest (RT_MANIFEST) without running it, for the
+/// PerMonitorV2 check (issue #1501).
+/// </summary>
+internal static class Win32ManifestReader
+{
+    private const uint LOAD_LIBRARY_AS_DATAFILE = 0x00000002;
+    private const uint LOAD_LIBRARY_AS_IMAGE_RESOURCE = 0x00000020;
+    private static readonly IntPtr RT_MANIFEST = 24;
+
+    internal static string? Read(string path)
+    {
+        var module = LoadLibraryEx(path, IntPtr.Zero, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+        if (module == IntPtr.Zero) return null;
+        try
+        {
+            // 1 is an application's manifest, 2 an isolation-aware DLL's.
+            for (var id = 1; id <= 3; id++)
+            {
+                var resource = FindResource(module, id, RT_MANIFEST);
+                if (resource == IntPtr.Zero) continue;
+                var size = (int)SizeofResource(module, resource);
+                var data = LockResource(LoadResource(module, resource));
+                if (data == IntPtr.Zero || size <= 0) continue;
+                var bytes = new byte[size];
+                System.Runtime.InteropServices.Marshal.Copy(data, bytes, 0, size);
+                return System.Text.Encoding.UTF8.GetString(bytes);
+            }
+            return null;
+        }
+        finally
+        {
+            FreeLibrary(module);
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hFile, uint dwFlags);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr FindResource(IntPtr hModule, IntPtr lpName, IntPtr lpType);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr LoadResource(IntPtr hModule, IntPtr hResInfo);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern IntPtr LockResource(IntPtr hResData);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint SizeofResource(IntPtr hModule, IntPtr hResInfo);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool FreeLibrary(IntPtr hModule);
 }

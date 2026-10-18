@@ -72,6 +72,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("a Parakeet upload converts whatever the caller named it", ParakeetUploadConvertsWhateverItsName)
     ,("a busy workflow refuses a Parakeet upload before converting it", ParakeetUploadRefusedBusyBeforeConversion)
     ,("a converted upload whose first delete fails is still deleted", ConvertedUploadDeleteIsRetried)
+    ,("a Cloud mode posted with no cloudProvider stores and runs on HyperWhisper Cloud; an empty or whitespace one is refused", ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud)
 };
 foreach (var test in tests)
 {
@@ -2888,6 +2889,105 @@ static JsonElement Json(string value)
 /// non-optional, and that is the set the published contract carries — so two
 /// heads are catching up to the third rather than the doc being weakened.
 /// </remarks>
+/// <summary>
+/// Issues #1689 and #1709: <c>openapi.yaml</c> lets <c>POST /modes</c> omit
+/// <c>cloudProvider</c>, and macOS and Windows read that omission as HyperWhisper
+/// Cloud. This head refused the write ("Cloud provider is invalid."), and had it
+/// stored, its router would have failed every transcription with "The selected
+/// cloud transcription provider is not supported."
+/// </summary>
+/// <remarks>
+/// Driven end to end: the body goes through the real HTTP pipeline into the real
+/// backend and database, and the stored mode is then dictated through
+/// <c>POST /transcribe</c> into the real <see cref="ModeAwareTranscriptionRouter"/>,
+/// with only the network client faked. The stored value stays null — the rule is
+/// a READ rule — so <c>GET /modes</c> keeps answering without a provider.
+/// </remarks>
+static async Task ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var cloud = new RecordingBatchCloud();
+    using var router = new ModeAwareTranscriptionRouter(new UnavailableTranscriber(), new UnavailableTranscriber(), cloud);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), router, history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    await using var fixture = await Fixture.Create(backend: backend);
+    fixture.Authenticate();
+
+    // The issue's body, verbatim.
+    using (var body = new StringContent(
+        """{"name":"S8 Cloud","preset":"hyper","language":"en","model":"cloud","punctuation":true,"capitalization":true,"profanityFilter":false,"postProcessingMode":0}""",
+        Encoding.UTF8, "application/json"))
+    {
+        var response = await fixture.Client.PostAsync("/modes", body);
+        Assert(response.StatusCode == HttpStatusCode.OK, $"POST /modes with no cloudProvider answered {(int)response.StatusCode}");
+        var created = await response.Content.ReadAsStringAsync();
+        using var envelope = JsonDocument.Parse(created);
+        Assert(!(envelope.RootElement.TryGetProperty("ok", out var ok) && !ok.GetBoolean()),
+            $"POST /modes with no cloudProvider was refused: {created}");
+    }
+
+    // Only an OMITTED provider is the blank case. An empty or whitespace string is
+    // refused exactly as before #1709: stored verbatim, another head could read it
+    // as an id rather than as blank and route the mode to a BYOK provider.
+    foreach (var (name, provider) in new[] { ("S8 Empty", ""), ("S8 Spaces", "   ") })
+    {
+        using var body = new StringContent(
+            ModeBody(name, extra: $$""" "cloudProvider":{{JsonSerializer.Serialize(provider)}} """, model: "cloud"),
+            Encoding.UTF8, "application/json");
+        var response = await fixture.Client.PostAsync("/modes", body);
+        var text = await response.Content.ReadAsStringAsync();
+        Assert(response.StatusCode == HttpStatusCode.BadRequest,
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} answered {(int)response.StatusCode}: {text}");
+        Assert(text.Contains("\"INVALID_REQUEST\"", StringComparison.Ordinal),
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} did not answer INVALID_REQUEST: {text}");
+        Assert((await modes.ListAsync()).All(mode => mode.Name != name),
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} stored a mode");
+        // The 400 is the cloud-provider check itself (the pre-#1709 refusal), not some other rule.
+        var refused = await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(
+            Json(ModeBody(name, extra: $$""" "cloudProvider":{{JsonSerializer.Serialize(provider)}} """, model: "cloud")),
+            CancellationToken.None).AsTask());
+        Assert(refused.Message == "Cloud provider is invalid.",
+            $"cloudProvider {JsonSerializer.Serialize(provider)} was refused for another reason: {refused.Message}");
+    }
+
+    var stored = (await modes.ListAsync()).Single(mode => mode.Name == "S8 Cloud");
+    Assert(stored.ProviderType == "cloud", $"the posted mode stored providerType '{stored.ProviderType}', not cloud");
+    Assert(string.IsNullOrEmpty(stored.CloudProvider),
+        $"the blank provider must stay blank in storage (a read rule only), got '{stored.CloudProvider}'");
+
+    // GET /modes still answers without a provider, as macOS and Windows do.
+    using (var listed = JsonDocument.Parse(await fixture.Client.GetStringAsync("/modes")))
+    {
+        var text = listed.RootElement.GetRawText();
+        Assert(text.Contains("S8 Cloud", StringComparison.Ordinal), "GET /modes does not list the posted mode");
+        Assert(!text.Contains("\"cloudProvider\":\"hyperwhisper\"", StringComparison.Ordinal),
+            "GET /modes now reports a cloudProvider the caller never stored");
+    }
+
+    // The router's own parse, through the shared rule.
+    Assert(ModeAwareTranscriptionRouter.TryMapProvider(
+            SharedCoreBridge.EffectiveModeCloudProvider(stored.CloudProvider), out var mapped)
+        && mapped == CloudTranscriptionProvider.HyperWhisperCloud,
+        $"the router maps the posted mode to {mapped}, not HyperWhisperCloud");
+
+    // And the real dispatch: dictate with that mode over HTTP.
+    using var upload = new MultipartFormDataContent();
+    upload.Add(new ByteArrayContent([1, 2, 3, 4]), "audio", "s8.wav");
+    upload.Add(new StringContent(stored.Id.ToString("D")), "mode_id");
+    var transcribed = await fixture.Client.PostAsync("/transcribe", upload);
+    var transcribedBody = await transcribed.Content.ReadAsStringAsync();
+    Assert(cloud.LastRequest is not null,
+        $"the blank-provider mode never reached the cloud client: {(int)transcribed.StatusCode} {transcribedBody}");
+    Assert(cloud.LastRequest!.Provider == CloudTranscriptionProvider.HyperWhisperCloud,
+        $"the blank-provider mode was dispatched to {cloud.LastRequest.Provider}, not HyperWhisperCloud");
+    Assert(transcribed.StatusCode == HttpStatusCode.OK && transcribedBody.Contains("cloud words", StringComparison.Ordinal),
+        $"/transcribe did not return the cloud transcript: {(int)transcribed.StatusCode} {transcribedBody}");
+}
+
 static string ModeBody(string name, string? extra = null, string model = "base") =>
     $$"""
     {"name":{{JsonSerializer.Serialize(name)}},"preset":"hyper","language":"en","model":{{JsonSerializer.Serialize(model)}},"punctuation":true,"capitalization":true,"profanityFilter":false{{(extra is null ? "" : "," + extra)}}}
@@ -3465,4 +3565,14 @@ sealed class ThrowOnStopService : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StopAsync(CancellationToken cancellationToken) => Task.FromException(new InvalidOperationException("expected stop failure"));
+}
+
+sealed class RecordingBatchCloud : IBatchCloudTranscriptionClient
+{
+    public CloudTranscriptionRequest? LastRequest { get; private set; }
+    public Task<CloudTranscriptionResult> TranscribeAsync(CloudTranscriptionRequest request, CancellationToken token = default)
+    {
+        LastRequest = request;
+        return Task.FromResult(CloudTranscriptionResult.Success(new("cloud words", null, null, "upstream"), 1));
+    }
 }

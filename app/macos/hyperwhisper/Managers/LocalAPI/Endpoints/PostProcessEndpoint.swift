@@ -295,10 +295,13 @@ enum PostProcessEndpoint {
         // Stored mode (optional).
         var baseline: Mode?
         if let modeId = req.mode_id?.trimmingCharacters(in: .whitespacesAndNewlines), !modeId.isEmpty {
-            guard let stored = PersistenceController.shared.fetchMode(withId: modeId) else {
-                throw TranscriptionError.providerNotAvailable(provider: "mode", reason: "No mode with id '\(modeId)'")
-            }
-            baseline = stored
+            // MODE_NOT_FOUND, not ENGINE_UNAVAILABLE (issue #1919). `handle`
+            // renders it through `mapTranscriptionError`, which passes an
+            // `APIInputError` through verbatim.
+            baseline = try TranscribeEndpoint.storedMode(
+                forId: modeId,
+                fetch: PersistenceController.shared.fetchMode(withId:)
+            )
         }
 
         // Are any overrides present?

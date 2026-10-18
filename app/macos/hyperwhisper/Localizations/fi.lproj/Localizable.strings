@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Liitä leikepöydältä";
 "settings.license.clearInput" = "Tyhjennä";
+"license.error.keyFormat" = "Tämä ei näytä tiliavaimelta.";
 "settings.license.recovery.prompt" = "Unohditko lisenssisi?";
 "settings.license.recovery.button" = "Siirry asiakasportaaliin";
 "settings.license.daily.title" = "Päivittäinen transkriptio";
@@ -879,7 +880,6 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "recording.retry.inProgress" = "Yritetään uudelleen…";
 "recording.retry.count" = "Yritä uudelleen (%d)";
 "recording.retry.failed.missing" = "Uudelleenyritys epäonnistui: Äänitiedostoa ei löydy";
-"recording.retry.failed.error" = "Uudelleenyritys epäonnistui: %@";
 "recording.retry.pending" = "Valmis uudelleenyritykseen – napsauta transkriboidaksesi";
 "recording.retry.modeDeleted" = "Tila poistettiin";
 "recording.cancel.dialog.title" = "Peruuta nauhoitus?";

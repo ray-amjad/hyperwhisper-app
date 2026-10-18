@@ -272,7 +272,31 @@
     "homebrewTitle": "Paigalda Homebrew abil",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopeeri",
-    "copied": "Kopeeritud!"
+    "copied": "Kopeeritud!",
+    "linuxSubtitle": "Debiani pakett 64-bitistele Intel/AMD süsteemidele",
+    "downloadLinux": "Laadi alla Linuxi jaoks",
+    "downloadLinuxVersion": "Laadi alla Linuxi jaoks v{version}",
+    "linuxReleaseNotes": "Kontrollsummad ja väljalaskemärkmed",
+    "linuxInstallTitle": "Paigalda Debiani pakett",
+    "linuxTargets": "Linux v1 on mõeldud Ubuntu 22.04+ ja Debian 12+ süsteemidele amd64 arhitektuuril.",
+    "linuxReplaceVersion": "Asenda VERSION allalaaditud versiooniga.",
+    "linuxInstallCommandLabel": "Debiani paigalduskäsk",
+    "linuxInputGroupNote": "Pärast input-grupiga liitumist logi välja ja uuesti sisse. Liikmesus on valikuline, kuid globaalsed kiirklahvid ja automaatne kleepimine vajavad seda.",
+    "aptTitle": "Majuta oma APT-hoidla",
+    "aptBody": "Linuxi väljalasked sisaldavad ka staatilist APT-hoidla arhiivi. HyperWhisper ei halda praegu avalikku APT-lõpp-punkti; allkirjastatud ja ise majutatud seadistuse, töölauaintegratsiooni, privaatsusteabe ja eemaldamise kohta vaata Linuxi paigaldusjuhendit.",
+    "linuxGuideCta": "Loe Linuxi paigaldusjuhendit"
+  },
+  "olderVersions": {
+    "title": "Vanemad versioonid",
+    "subtitle": "Sirvi ja laadi alla kõik HyperWhisperi väljalasked",
+    "errorLoading": "Viga versioonide laadimisel: {error}",
+    "unknownError": "Tekkis viga",
+    "loading": "Versioonide laadimine...",
+    "latest": "Uusim",
+    "build": "Järk {number}",
+    "downloadDmg": "Laadi alla DMG",
+    "downloadExe": "Laadi alla EXE",
+    "unknownSize": "Teadmata"
   },
   "purchaseSuccess": {
     "title": "Kõik valmis!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Avatud lähtekood. Midagi pole varjata.",
     "body": "HyperWhisper on täielikult avatud lähtekoodiga Apache-2.0 litsentsi all — nii töölauarakendused kui ka Cloudi backend. Rakendus, mis kuulab sinu mikrofoni, peaks olema midagi, mida saad kontrollida, mitte lihtsalt usaldada: loe iga rida, auditeeri täpselt, kuhu su heli läheb, ja tea, et sind ei lukustata kunagi sisse — kood on sinu oma, et seda igavesti forkida ja ise majutada. Ehitatud avatult indie-tegija Ray Amjadi poolt.",
-    "cta": "Vaata GitHubis"
+    "cta": "Vaata GitHubis",
+    "metaTitle": "Avatud lähtekood | HyperWhisper",
+    "metaDescription": "HyperWhisper on täielikult avatud lähtekoodiga Apache-2.0 litsentsi all — nii töölauarakendused kui ka Cloudi backend. Loe koodi, kontrolli, kuhu su heli läheb, forgi seda ja majuta seda igavesti ise.",
+    "eyebrow": "Avatud lähtekood",
+    "lead": "HyperWhisper on nüüd täielikult avatud lähtekoodiga Apache-2.0 litsentsi all — nii töölauarakendused kui ka Cloudi backend.",
+    "intro": "Rakendus, mis kuulab sinu mikrofoni, peaks olema midagi, mida saad kontrollida, mitte lihtsalt usaldada. Seepärast avasime kõik. Saad lugeda HyperWhisperi iga rida — macOS-i, Windowsi ja Linuxi rakendusi ning Cloudi transkriptsiooni backendi —, näha täpselt, kuhu su heli läheb, ja teada, et sind ei lukustata kunagi sisse. Kogu projekt asub <github>GitHubis</github> <license>Apache-2.0 litsentsi</license> all.",
+    "whyHeading": "Miks see oluline on",
+    "whyVerify": "<strong>Kontrolli, ära usalda pimesi.</strong> Loe iga rida ja auditeeri täpselt, kuhu su heli läheb. Mikrofonile ligipääsuga rakendust peaks saama üle vaadata, mitte lihtsalt usu peale võtta.",
+    "whyNoLockIn": "<strong>Ei mingit sisselukustamist.</strong> Kood on Apache-2.0 litsentsiga — sinu oma, et seda hoida, kohandada ja käitada omadel tingimustel. Sinu töövoogu ei võeta kunagi pantvangi.",
+    "whyFork": "<strong>Forgi ja majuta ise.</strong> Klooni repo, ehita see ise või käita oma Cloudi backendi. Kõik vajalik on avalik.",
+    "whyOpen": "<strong>Ehitatud avalikult.</strong> HyperWhisperit arendab avalikult indie-tegija Ray Amjad. Probleemid, arutelud ja väljalasked toimuvad kõik avalikult.",
+    "licenseHeading": "Kas ostsid juba litsentsi?",
+    "licenseIntro": "HyperWhisper on nüüd avatud lähtekoodiga ja tasuline transkriptsioon töötab HyperWhisper Cloudi krediitidega. Kui ostsid litsentsi enne muudatust, hoolitseme sinu eest nii — kirjuta lihtsalt aadressile <mail>{email}</mail> ja lahendame asja käsitsi.",
+    "licenseRecent": "<strong>Ostetud viimase 30 päeva jooksul:</strong> oled tagastusperioodi sees. Hüvitame sinu ostu täies ulatuses — küsimusi esitamata. <refund>Saada meile lihtsalt sõnum</refund>.",
+    "licenseOlder": "<strong>Ostetud rohkem kui 30 päeva tagasi:</strong> muudame makstud summa HyperWhisper Cloudi krediitideks — kogu ostuhinna, millest on maha arvatud sinu kontole juba lisatud $5 väärtuses krediite. <credits>Kirjuta meile</credits> ja kanname jäägi sinu kontole.",
+    "contributeHeading": "Soovid kaasa aidata?",
+    "contributeBody": "Veateated, funktsiooniideed ja pull requestid on kõik teretulnud. Ava probleem või alusta arutelu <github>GitHubis</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper on nüüd täielikult avatud lähtekoodiga",
+    "shortText": "Nüüd avatud lähtekoodiga",
+    "learnMore": "Loe lähemalt",
+    "dismiss": "Sulge teadaanne"
   },
   "notFound": {
     "title": "Lehte ei leitud",

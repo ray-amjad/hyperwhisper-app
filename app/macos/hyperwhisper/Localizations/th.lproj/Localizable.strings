@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "วางจากคลิปบอร์ด";
 "settings.license.clearInput" = "ล้าง";
+"license.error.keyFormat" = "ข้อความนี้ดูไม่เหมือนคีย์บัญชี";
 "settings.license.recovery.prompt" = "ลืมคีย์ลัทธิของคุณ?";
 "settings.license.recovery.button" = "ไปที่พอร์ทัลลูกค้า";
 "settings.license.daily.title" = "การสัญลักษณ์รายวัน";
@@ -879,7 +880,6 @@
 "recording.retry.inProgress" = "กำลังลองใหม่…";
 "recording.retry.count" = "ลองใหม่ (%d)";
 "recording.retry.failed.missing" = "การลองใหม่ล้มเหลว: ไม่พบไฟล์เสียง";
-"recording.retry.failed.error" = "การลองใหม่ล้มเหลว: %@";
 "recording.retry.pending" = "พร้อมที่จะลองใหม่ – คลิกเพื่อสัญลักษณ์";
 "recording.retry.modeDeleted" = "โหมดถูกลบแล้ว";
 "recording.cancel.dialog.title" = "ยกเลิกการบันทึก?";

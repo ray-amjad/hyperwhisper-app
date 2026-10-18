@@ -272,7 +272,31 @@
     "homebrewTitle": "Installer via Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Copier",
-    "copied": "Copié !"
+    "copied": "Copié !",
+    "linuxSubtitle": "Paquet Debian pour systèmes Intel/AMD 64 bits",
+    "downloadLinux": "Télécharger pour Linux",
+    "downloadLinuxVersion": "Télécharger pour Linux v{version}",
+    "linuxReleaseNotes": "Sommes de contrôle et notes de version",
+    "linuxInstallTitle": "Installer le paquet Debian",
+    "linuxTargets": "Linux v1 prend en charge Ubuntu 22.04+ et Debian 12+ sur amd64.",
+    "linuxReplaceVersion": "Remplacez VERSION par la version que vous avez téléchargée.",
+    "linuxInstallCommandLabel": "Commande d'installation Debian",
+    "linuxInputGroupNote": "Déconnectez-vous puis reconnectez-vous après avoir rejoint le groupe input. L'adhésion est facultative, mais elle est nécessaire pour les raccourcis globaux et le collage automatique.",
+    "aptTitle": "Auto-héberger un dépôt APT",
+    "aptBody": "Les versions Linux incluent aussi une archive de dépôt APT statique. HyperWhisper n'exploite actuellement aucun point de terminaison APT public ; consultez le guide d'installation Linux pour une configuration signée et auto-hébergée, les composants de bureau complémentaires, les informations de confidentialité et la désinstallation.",
+    "linuxGuideCta": "Lire le guide d'installation Linux"
+  },
+  "olderVersions": {
+    "title": "Anciennes versions",
+    "subtitle": "Parcourez et téléchargez toutes les versions de HyperWhisper",
+    "errorLoading": "Erreur lors du chargement des versions : {error}",
+    "unknownError": "Une erreur est survenue",
+    "loading": "Chargement des versions...",
+    "latest": "Dernière",
+    "build": "Build {number}",
+    "downloadDmg": "Télécharger le DMG",
+    "downloadExe": "Télécharger l'EXE",
+    "unknownSize": "Inconnue"
   },
   "purchaseSuccess": {
     "title": "Tout est prêt !",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Open source. Rien à cacher.",
     "body": "HyperWhisper est entièrement open source sous licence Apache-2.0 — applications de bureau comme backend Cloud. Une application qui écoute votre microphone devrait être quelque chose que vous pouvez vérifier, pas seulement croire sur parole : lisez chaque ligne, auditez exactement où va votre audio, et sachez que vous ne serez jamais verrouillé — le code vous appartient, à forker et auto-héberger pour toujours. Conçu en toute transparence par le créateur indépendant Ray Amjad.",
-    "cta": "Voir sur GitHub"
+    "cta": "Voir sur GitHub",
+    "metaTitle": "Open source | HyperWhisper",
+    "metaDescription": "HyperWhisper est entièrement open source sous licence Apache-2.0 — applications de bureau comme backend Cloud. Lisez le code, vérifiez où va votre audio, forkez-le et auto-hébergez-le pour toujours.",
+    "eyebrow": "Open source",
+    "lead": "HyperWhisper est désormais entièrement open source sous licence Apache-2.0 — applications de bureau comme backend Cloud.",
+    "intro": "Une application qui écoute votre microphone devrait pouvoir être vérifiée, pas seulement crue sur parole. Alors nous avons tout ouvert. Vous pouvez lire chaque ligne de HyperWhisper — les applications macOS, Windows et Linux, ainsi que le backend de transcription Cloud —, voir exactement où va votre audio et savoir que vous ne serez jamais captif. L'ensemble du projet est disponible sur <github>GitHub</github> sous <license>licence Apache-2.0</license>.",
+    "whyHeading": "Pourquoi c'est important",
+    "whyVerify": "<strong>Vérifiez au lieu de croire.</strong> Lisez chaque ligne et auditez exactement où va votre audio. Une application qui a accès au microphone devrait pouvoir être inspectée, pas seulement acceptée de bonne foi.",
+    "whyNoLockIn": "<strong>Aucun verrouillage.</strong> Le code est sous Apache-2.0 — à vous de le conserver, de l'adapter et de l'exécuter selon vos propres conditions. Votre flux de travail n'est jamais pris en otage.",
+    "whyFork": "<strong>Forkez et auto-hébergez.</strong> Clonez le dépôt, compilez-le vous-même ou exécutez votre propre backend Cloud. Tout ce dont vous avez besoin est public.",
+    "whyOpen": "<strong>Développé en toute transparence.</strong> HyperWhisper est développé publiquement par le créateur indépendant Ray Amjad. Tickets, discussions et versions : tout se passe au grand jour.",
+    "licenseHeading": "Vous avez déjà acheté une licence ?",
+    "licenseIntro": "HyperWhisper est désormais open source, et la transcription payante fonctionne avec des crédits HyperWhisper Cloud. Si vous avez acheté une licence avant ce changement, voici comment nous prenons soin de vous — écrivez simplement à <mail>{email}</mail> et nous réglerons cela manuellement.",
+    "licenseRecent": "<strong>Acheté au cours des 30 derniers jours :</strong> vous êtes dans la période de remboursement. Nous vous remboursons intégralement, sans poser de questions. <refund>Envoyez-nous simplement un message</refund>.",
+    "licenseOlder": "<strong>Acheté il y a plus de 30 jours :</strong> nous convertirons le montant payé en crédits HyperWhisper Cloud — le prix d'achat total, moins les $5 de crédits déjà ajoutés à votre compte. <credits>Écrivez-nous</credits> et nous appliquerons le solde.",
+    "contributeHeading": "Envie de contribuer ?",
+    "contributeBody": "Rapports de bugs, idées de fonctionnalités et pull requests sont les bienvenus. Ouvrez un ticket ou lancez une discussion <github>sur GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper est désormais entièrement open source",
+    "shortText": "Désormais open source",
+    "learnMore": "En savoir plus",
+    "dismiss": "Fermer l'annonce"
   },
   "notFound": {
     "title": "Page introuvable",

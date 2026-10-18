@@ -375,6 +375,7 @@ jobs:
           shellcheck \
             packaging/linux/scripts/build-deb.sh \
             packaging/linux/scripts/test-package.sh \
+            packaging/linux/scripts/test-cuda-package.sh \
             packaging/linux/scripts/generate-apt-repository.sh \
             packaging/linux/scripts/test-apt-repository.sh \
             packaging/linux/debian/postinst \
@@ -389,11 +390,19 @@ jobs:
               --version "$VERSION" \
               --architecture amd64
           )"
+          # The optional CUDA 12 backends ship as their own package, written
+          # next to the main one (issue #1002).
+          cuda_package_path="$(dirname "$package_path")/hyperwhisper-cuda_${VERSION}_amd64.deb"
+          test -s "$cuda_package_path"
           HYPERWHISPER_PACKAGE_VERSION="$VERSION" \
             packaging/linux/scripts/test-package.sh "$package_path"
-          packaging/linux/scripts/test-apt-repository.sh "$package_path"
+          HYPERWHISPER_PACKAGE_VERSION="$VERSION" \
+            packaging/linux/scripts/test-cuda-package.sh "$cuda_package_path" "$package_path"
+          packaging/linux/scripts/test-apt-repository.sh "$package_path" "$cuda_package_path"
           lintian --fail-on warning "$package_path"
+          lintian --fail-on warning "$cuda_package_path"
           echo "path=$package_path" >> "$GITHUB_OUTPUT"
+          echo "cuda_path=$cuda_package_path" >> "$GITHUB_OUTPUT"
 
       - name: Generate static APT repository
         id: apt
@@ -403,6 +412,7 @@ jobs:
           REQUIRE_APT_SIGNATURE: ${{ steps.release.outputs.require_apt_signature }}
           SOURCE_DATE_EPOCH: ${{ steps.release.outputs.source_date_epoch }}
           PACKAGE_PATH: ${{ steps.package.outputs.path }}
+          CUDA_PACKAGE_PATH: ${{ steps.package.outputs.cuda_path }}
         run: |
           set -euo pipefail
           key_file=""
@@ -430,6 +440,7 @@ jobs:
 
           packaging/linux/scripts/generate-apt-repository.sh \
             --deb "$PACKAGE_PATH" \
+            --deb "$CUDA_PACKAGE_PATH" \
             --output-dir artifacts/apt-repository \
             --suite stable \
             --codename stable \
@@ -459,7 +470,7 @@ jobs:
 
           (
             cd artifacts/release
-            checksum_files=("hyperwhisper_${VERSION}_amd64.deb")
+            checksum_files=("hyperwhisper_${VERSION}_amd64.deb" "hyperwhisper-cuda_${VERSION}_amd64.deb")
             # A published release lists the APT archive only when it is signed,
             # because that is the only case where the archive ships next to
             # SHA256SUMS. A dry run always lists it, so local testing is whole.
@@ -486,6 +497,7 @@ jobs:
           name: hyperwhisper-linux-${{ steps.release.outputs.version }}-${{ github.sha }}
           path: |
             artifacts/release/hyperwhisper_${{ steps.release.outputs.version }}_amd64.deb
+            artifacts/release/hyperwhisper-cuda_${{ steps.release.outputs.version }}_amd64.deb
             artifacts/release/hyperwhisper-apt-${{ steps.release.outputs.version }}.tar.gz
             artifacts/release/SHA256SUMS
           if-no-files-found: error
@@ -502,11 +514,11 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
-          # The package and its checksums always ship. The APT archive ships
+          # Both packages and their checksums always ship. The APT archive ships
           # only when it is signed, because anyone who adds that repository
           # trusts it. The evidence manifest ships when a reviewer checked one
           # in for this version.
-          assets=("hyperwhisper_${VERSION}_amd64.deb")
+          assets=("hyperwhisper_${VERSION}_amd64.deb" "hyperwhisper-cuda_${VERSION}_amd64.deb")
           if [[ "$REQUIRE_APT_SIGNATURE" == "true" ]]; then
             assets+=("hyperwhisper-apt-${VERSION}.tar.gz")
           fi
@@ -552,7 +564,7 @@ jobs:
 
           # Mirror exactly what the GitHub Release carries, so the two hosts
           # never disagree about what a version contains.
-          mirrored=("hyperwhisper_${VERSION}_amd64.deb")
+          mirrored=("hyperwhisper_${VERSION}_amd64.deb" "hyperwhisper-cuda_${VERSION}_amd64.deb")
           if [[ "$REQUIRE_APT_SIGNATURE" == "true" ]]; then
             mirrored+=("hyperwhisper-apt-${VERSION}.tar.gz")
           fi
@@ -583,6 +595,7 @@ jobs:
           APT_SSH_KNOWN_HOSTS: ${{ secrets.LINUX_APT_SSH_KNOWN_HOSTS }}
           APT_SIGNING_KEY: ${{ secrets.LINUX_APT_SIGNING_KEY }}
           PACKAGE_PATH: ${{ steps.package.outputs.path }}
+          CUDA_PACKAGE_PATH: ${{ steps.package.outputs.cuda_path }}
           SOURCE_DATE_EPOCH: ${{ steps.release.outputs.source_date_epoch }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
@@ -651,12 +664,14 @@ jobs:
             exit 1
           fi
 
-          package_args=(--deb "$PACKAGE_PATH")
+          package_args=(--deb "$PACKAGE_PATH" --deb "$CUDA_PACKAGE_PATH")
           while IFS= read -r -d '' prior_package; do
             test ! -L "$prior_package"
-            test "$(dpkg-deb --field "$prior_package" Package)" = hyperwhisper
+            prior_name="$(dpkg-deb --field "$prior_package" Package)"
+            test "$prior_name" = hyperwhisper || test "$prior_name" = hyperwhisper-cuda
             test "$(dpkg-deb --field "$prior_package" Architecture)" = amd64
-            if [[ "$(basename "$prior_package")" != "$(basename "$PACKAGE_PATH")" ]]; then
+            if [[ "$(basename "$prior_package")" != "$(basename "$PACKAGE_PATH")" \
+                && "$(basename "$prior_package")" != "$(basename "$CUDA_PACKAGE_PATH")" ]]; then
               package_args+=(--deb "$prior_package")
             fi
           done < <(find "$prior_dir" -maxdepth 1 -type f -name '*.deb' -print0 | sort -z)
@@ -710,12 +725,14 @@ jobs:
             --output "${RUNNER_TEMP}/apt-keyring.gpg" "${RUNNER_TEMP}/apt-key.asc"
           gpgv --keyring "${RUNNER_TEMP}/apt-keyring.gpg" "${RUNNER_TEMP}/InRelease"
           gzip -dc "${RUNNER_TEMP}/Packages.gz" > "${RUNNER_TEMP}/Packages"
-          awk -v version="$VERSION" '
-            $1 == "Package:" && $2 == "hyperwhisper" { package = 1; next }
-            package && $1 == "Version:" && $2 == version { found = 1 }
-            /^$/ { package = 0 }
-            END { exit(found ? 0 : 1) }
-          ' "${RUNNER_TEMP}/Packages"
+          for package_name in hyperwhisper hyperwhisper-cuda; do
+            awk -v version="$VERSION" -v name="$package_name" '
+              $1 == "Package:" && $2 == name { package = 1; next }
+              package && $1 == "Version:" && $2 == version { found = 1 }
+              /^$/ { package = 0 }
+              END { exit(found ? 0 : 1) }
+            ' "${RUNNER_TEMP}/Packages"
+          done
           echo "Signed APT repository deployed and read back from $origin"
 
       # The website's Linux download button reads this file. macOS and Windows
@@ -827,6 +844,13 @@ jobs:
             package_size="$(stat -c '%s' "$package") bytes"
             package_sha="$(sha256sum "$package" | awk '{print $1}')"
           fi
+          cuda_package="artifacts/release/hyperwhisper-cuda_${VERSION}_amd64.deb"
+          cuda_package_size="unavailable"
+          cuda_package_sha="unavailable"
+          if [[ -f "$cuda_package" ]]; then
+            cuda_package_size="$(stat -c '%s' "$cuda_package") bytes"
+            cuda_package_sha="$(sha256sum "$cuda_package" | awk '{print $1}')"
+          fi
           {
             echo "## Linux release ${VERSION:-unresolved}"
             echo
@@ -837,6 +861,9 @@ jobs:
             echo "| Package | \`hyperwhisper_${VERSION:-unknown}_amd64.deb\` |"
             echo "| Package size | $package_size |"
             echo "| Package SHA-256 | \`$package_sha\` |"
+            echo "| CUDA package | \`hyperwhisper-cuda_${VERSION:-unknown}_amd64.deb\` |"
+            echo "| CUDA package size | $cuda_package_size |"
+            echo "| CUDA package SHA-256 | \`$cuda_package_sha\` |"
             echo "| APT signed | ${SIGN_APT:-false} |"
             echo "| GitHub published | ${PUBLISH:-false} |"
             echo "| APT deployed | ${DEPLOY_APT:-false} |"

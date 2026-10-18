@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Líma frá klippispjaldi";
 "settings.license.clearInput" = "Hreinsa";
+"license.error.keyFormat" = "Þetta lítur ekki út eins og reikningslykill.";
 "settings.license.recovery.prompt" = "Gleymdirðu leyfislyklinum þínum?";
 "settings.license.recovery.button" = "Fara í viðskiptavinasvæði";
 "settings.license.daily.title" = "Dagleg afritun";
@@ -879,7 +880,6 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "recording.retry.inProgress" = "Reyni aftur…";
 "recording.retry.count" = "Reyna aftur (%d)";
 "recording.retry.failed.missing" = "Endurtilraun mistókst: Hljóðskrá fannst ekki";
-"recording.retry.failed.error" = "Endurtilraun mistókst: %@";
 "recording.retry.pending" = "Tilbúið að reyna aftur – smelltu til að afrita";
 "recording.retry.modeDeleted" = "Hamnum var eytt";
 "recording.cancel.dialog.title" = "Hætta við upptöku?";

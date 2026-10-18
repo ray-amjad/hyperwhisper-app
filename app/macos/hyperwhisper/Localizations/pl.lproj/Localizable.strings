@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Wklej ze schowka";
 "settings.license.clearInput" = "Wyczyść";
+"license.error.keyFormat" = "To nie wygląda na klucz konta.";
 "settings.license.recovery.prompt" = "Zapomniałeś klucza licencji?";
 "settings.license.recovery.button" = "Przejdź do portalu klienta";
 "settings.license.daily.title" = "Transkrypcja dziennie";
@@ -879,7 +880,6 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "recording.retry.inProgress" = "Ponawianie…";
 "recording.retry.count" = "Spróbuj ponownie (%d)";
 "recording.retry.failed.missing" = "Ponowienie nie powiodło się: Plik audio nie znaleziony";
-"recording.retry.failed.error" = "Ponowienie nie powiodło się: %@";
 "recording.retry.pending" = "Gotowy do ponowienia – kliknij, aby transkrybować";
 "recording.retry.modeDeleted" = "Tryb został usunięty";
 "recording.cancel.dialog.title" = "Anulować nagrywanie?";

@@ -272,7 +272,31 @@
     "homebrewTitle": "التثبيت عبر Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "نسخ",
-    "copied": "تم النسخ!"
+    "copied": "تم النسخ!",
+    "linuxSubtitle": "حزمة Debian لأنظمة Intel/AMD بمعمارية 64 بت",
+    "downloadLinux": "تنزيل لنظام Linux",
+    "downloadLinuxVersion": "تنزيل لنظام Linux v{version}",
+    "linuxReleaseNotes": "المجاميع الاختبارية وملاحظات الإصدار",
+    "linuxInstallTitle": "تثبيت حزمة Debian",
+    "linuxTargets": "يستهدف Linux v1 نظامَي Ubuntu 22.04+ وDebian 12+ على amd64.",
+    "linuxReplaceVersion": "استبدل VERSION بالإصدار الذي نزّلته.",
+    "linuxInstallCommandLabel": "أمر التثبيت على Debian",
+    "linuxInputGroupNote": "سجّل الخروج ثم سجّل الدخول مجددًا بعد الانضمام إلى مجموعة input. العضوية اختيارية، لكن الاختصارات العامة واللصق التلقائي يتطلبانها.",
+    "aptTitle": "استضف مستودع APT ذاتيًا",
+    "aptBody": "تتضمن إصدارات Linux أيضًا أرشيفًا لمستودع APT ثابت. لا يشغّل HyperWhisper حاليًا نقطة APT عامة؛ راجع دليل تثبيت Linux لمعرفة الإعداد الموقّع والمستضاف ذاتيًا، والمكوّنات المرافقة لسطح المكتب، وتفاصيل الخصوصية، وطريقة الإزالة.",
+    "linuxGuideCta": "اقرأ دليل تثبيت Linux"
+  },
+  "olderVersions": {
+    "title": "الإصدارات الأقدم",
+    "subtitle": "تصفّح جميع إصدارات HyperWhisper ونزّلها",
+    "errorLoading": "خطأ في تحميل الإصدارات: {error}",
+    "unknownError": "حدث خطأ",
+    "loading": "جارٍ تحميل الإصدارات...",
+    "latest": "الأحدث",
+    "build": "البنية {number}",
+    "downloadDmg": "تنزيل DMG",
+    "downloadExe": "تنزيل EXE",
+    "unknownSize": "غير معروف"
   },
   "purchaseSuccess": {
     "title": "كل شيء جاهز!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "مفتوح المصدر. لا شيء نخفيه.",
     "body": "HyperWhisper مفتوح المصدر بالكامل بموجب Apache-2.0 — تطبيقات سطح المكتب وخادم Cloud على حد سواء. التطبيق الذي يستمع إلى ميكروفونك يجب أن يكون شيئًا يمكنك التحقق منه، لا مجرد الوثوق به: اقرأ كل سطر، ودقّق بالضبط أين يذهب صوتك، واطمئن إلى أنك لن تُحتجز أبدًا — الكود ملكك لتنسخه وتستضيفه ذاتيًا إلى الأبد. مبنيّ بشكل مفتوح على يد المطوّر المستقل Ray Amjad.",
-    "cta": "عرض على GitHub"
+    "cta": "عرض على GitHub",
+    "metaTitle": "مفتوح المصدر | HyperWhisper",
+    "metaDescription": "HyperWhisper مفتوح المصدر بالكامل بموجب Apache-2.0 — تطبيقات سطح المكتب وخادم Cloud على حد سواء. اقرأ الكود، ودقّق أين يذهب صوتك، وانسخه (fork) واستضفه ذاتيًا إلى الأبد.",
+    "eyebrow": "مفتوح المصدر",
+    "lead": "أصبح HyperWhisper الآن مفتوح المصدر بالكامل بموجب Apache-2.0 — تطبيقات سطح المكتب وخادم Cloud على حد سواء.",
+    "intro": "التطبيق الذي يستمع إلى ميكروفونك يجب أن يكون شيئًا يمكنك التحقق منه، لا مجرد الوثوق به. لذلك فتحنا كل شيء. يمكنك قراءة كل سطر من HyperWhisper — تطبيقات macOS وWindows وLinux، وخادم النسخ في Cloud — ومعرفة أين يذهب صوتك بالضبط، والاطمئنان إلى أنك لن تُحتجز أبدًا. المشروع بأكمله متاح على <github>GitHub</github> بموجب <license>رخصة Apache-2.0</license>.",
+    "whyHeading": "لماذا يهم ذلك",
+    "whyVerify": "<strong>تحقّق، لا تكتفِ بالثقة.</strong> اقرأ كل سطر ودقّق بالضبط أين يذهب صوتك. التطبيق الذي يصل إلى الميكروفون يجب أن يكون شيئًا يمكنك فحصه، لا شيئًا تصدّقه على ثقة فحسب.",
+    "whyNoLockIn": "<strong>لا احتجاز.</strong> الكود مرخّص بموجب Apache-2.0 — ملكك لتحتفظ به وتعدّله وتشغّله بشروطك. لن يكون سير عملك رهينة أبدًا.",
+    "whyFork": "<strong>انسخه واستضفه ذاتيًا.</strong> استنسخ المستودع، أو ابنِه بنفسك، أو شغّل خادم Cloud الخاص بك. كل ما تحتاجه متاح للعموم.",
+    "whyOpen": "<strong>مبنيّ بشكل مفتوح.</strong> يطوّر المطوّر المستقل Ray Amjad تطبيق HyperWhisper علنًا. البلاغات والنقاشات والإصدارات كلها تجري على الملأ.",
+    "licenseHeading": "هل اشتريت ترخيصًا بالفعل؟",
+    "licenseIntro": "أصبح HyperWhisper الآن مفتوح المصدر، ويعمل النسخ المدفوع برصيد HyperWhisper Cloud. إذا اشتريت ترخيصًا قبل هذا التحول، فإليك كيف سنعتني بك — ما عليك سوى مراسلتنا على <mail>{email}</mail> وسنعالج الأمر يدويًا.",
+    "licenseRecent": "<strong>اشتريت خلال آخر 30 يومًا:</strong> أنت ضمن فترة الاسترداد. سنردّ لك ثمن الشراء كاملًا — دون أي أسئلة. فقط <refund>أرسل لنا رسالة</refund>.",
+    "licenseOlder": "<strong>اشتريت قبل أكثر من 30 يومًا:</strong> سنحوّل ما دفعته إلى رصيد في HyperWhisper Cloud — سعر الشراء الكامل، مطروحًا منه رصيد $5 المضاف بالفعل إلى حسابك. <credits>راسلنا</credits> وسنضيف الرصيد المتبقي.",
+    "contributeHeading": "هل تريد المساهمة؟",
+    "contributeBody": "نرحّب بتقارير الأخطاء وأفكار الميزات وطلبات الدمج (pull requests). افتح بلاغًا أو ابدأ نقاشًا <github>على GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "أصبح HyperWhisper الآن مفتوح المصدر بالكامل",
+    "shortText": "الآن مفتوح المصدر",
+    "learnMore": "اعرف المزيد",
+    "dismiss": "إغلاق الإعلان"
   },
   "notFound": {
     "title": "الصفحة غير موجودة",

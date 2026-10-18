@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Поставяне от клипборда";
 "settings.license.clearInput" = "Изчисти";
+"license.error.keyFormat" = "Това не прилича на ключ на акаунт.";
 "settings.license.recovery.prompt" = "Забравили сте лицензния си ключ?";
 "settings.license.recovery.button" = "Отидете в клиентския портал";
 "settings.license.daily.title" = "Дневна транскрипция";
@@ -879,7 +880,6 @@
 "recording.retry.inProgress" = "Повторен опит...";
 "recording.retry.count" = "Опитай отново (%d)";
 "recording.retry.failed.missing" = "Повторният опит е неуспешен: Аудио файлът не е намерен";
-"recording.retry.failed.error" = "Повторният опит е неуспешен: %@";
 "recording.retry.pending" = "Готов за повторен опит – натиснете за транскрибиране";
 "recording.retry.modeDeleted" = "Режимът е изтрит";
 "recording.cancel.dialog.title" = "Отмяна на записа?";

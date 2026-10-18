@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Coller depuis le presse-papiers";
 "settings.license.clearInput" = "Effacer";
+"license.error.keyFormat" = "Cela ne ressemble pas à une clé de compte.";
 "settings.license.recovery.prompt" = "Vous avez oublié votre clé de licence ?";
 "settings.license.recovery.button" = "Aller au portail client";
 "settings.license.daily.title" = "Transcription quotidienne";
@@ -879,7 +880,6 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "recording.retry.inProgress" = "Nouvelle tentative…";
 "recording.retry.count" = "Réessayer (%d)";
 "recording.retry.failed.missing" = "Nouvelle tentative échouée : fichier audio introuvable";
-"recording.retry.failed.error" = "Nouvelle tentative échouée : %@";
 "recording.retry.pending" = "Prêt à réessayer - cliquez pour transcrire";
 "recording.retry.modeDeleted" = "Le mode a été supprimé";
 "recording.cancel.dialog.title" = "Annuler l'enregistrement ?";

@@ -61,6 +61,7 @@ const dispatcher = {
   },
   // Effects never run here: the picker is called, not mounted.
   useEffect() {},
+  useLayoutEffect() {},
 };
 
 interface Element {

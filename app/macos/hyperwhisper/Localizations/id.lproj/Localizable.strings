@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Tempel dari Clipboard";
 "settings.license.clearInput" = "Hapus";
+"license.error.keyFormat" = "Itu tidak terlihat seperti kunci akun.";
 "settings.license.recovery.prompt" = "Lupa kunci lisensi Anda?";
 "settings.license.recovery.button" = "Buka portal pelanggan";
 "settings.license.daily.title" = "Transkripsi Harian";
@@ -879,7 +880,6 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "recording.retry.inProgress" = "Mencoba lagi…";
 "recording.retry.count" = "Coba Lagi (%d)";
 "recording.retry.failed.missing" = "Coba lagi gagal: File audio tidak ditemukan";
-"recording.retry.failed.error" = "Coba lagi gagal: %@";
 "recording.retry.pending" = "Siap untuk mencoba lagi – klik untuk metranskripsi";
 "recording.retry.modeDeleted" = "Mode telah dihapus";
 "recording.cancel.dialog.title" = "Batalkan Perekaman?";

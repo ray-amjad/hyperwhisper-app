@@ -1,20 +1,21 @@
 ---
 title: Mute Audio While Recording
-description: Mute other audio on your computer while you dictate, then restore it when you stop.
+description: Mute or muffle other audio on your computer while you dictate, then restore it when you stop.
 ---
 
-If music, a video, or a call plays while you dictate, the background audio can leak into your microphone. This audio decreases the quality of the transcription. The **Media control** setting in HyperWhisper mutes your system output when you start a recording. HyperWhisper restores your previous volume when you stop.
+If music, a video, or a call plays while you dictate, the background audio can leak into your microphone. This audio decreases the quality of the transcription. The **Media control** setting in HyperWhisper mutes or muffles your system output when you start a recording. HyperWhisper restores your audio when you stop.
 
 ## How it works
 
 When you set media control to **Mute Audio**, HyperWhisper mutes the output volume of your computer during a recording. At the end of the recording, HyperWhisper restores the volume to its previous level. Media control changes the system output **volume** only. It does not pause, skip, or control individual media apps.
 
-On macOS and Windows the setting has two options:
+The setting has three options on macOS, Windows, and Linux:
 
 - **Off** — HyperWhisper does not change your audio (default).
 - **Mute Audio** — HyperWhisper mutes the system output during a recording, then restores it.
+- **Muffle Audio** — Other apps keep playing, but through a low-pass filter, so they sound like they play in the next room. See [Muffle audio](#muffle-audio) below.
 
-Linux shows the same two options. It also keeps a third policy from older versions. See [Lower other audio (Linux)](#lower-other-audio-linux) below.
+Linux also keeps a fourth policy from older versions. See [Lower other audio (Linux)](#lower-other-audio-linux) below.
 
 ## Turn it on
 
@@ -28,7 +29,7 @@ Linux shows the same two options. It also keeps a third policy from older versio
         Find the **Media control while recording** option.
       </Step>
       <Step title="Choose Mute Audio">
-        Set the mode to **Mute Audio**. HyperWhisper now mutes the system output each time you record, then restores it.
+        Set the mode to **Mute Audio**. HyperWhisper now mutes the system output each time you record, then restores it. To keep other audio playing softly instead, select **Muffle Audio**.
       </Step>
     </Steps>
   </Tab>
@@ -41,7 +42,7 @@ Linux shows the same two options. It also keeps a third policy from older versio
         Find the **Media control** setting.
       </Step>
       <Step title="Choose Mute audio">
-        Select **Mute audio**. HyperWhisper now mutes the system output during a recording, then restores it.
+        Select **Mute audio**. HyperWhisper now mutes the system output during a recording, then restores it. To keep other audio playing softly instead, select **Muffle audio**.
       </Step>
     </Steps>
   </Tab>
@@ -54,7 +55,7 @@ Linux shows the same two options. It also keeps a third policy from older versio
         Find the **Media control** setting.
       </Step>
       <Step title="Choose Mute audio">
-        Select **Mute audio**. HyperWhisper now mutes the system output during a recording, then restores it. Linux saves the change automatically.
+        Select **Mute audio**. HyperWhisper now mutes the system output during a recording, then restores it. To keep other audio playing softly instead, select **Muffle audio**. Linux saves the change automatically.
       </Step>
     </Steps>
   </Tab>
@@ -64,15 +65,40 @@ Linux shows the same two options. It also keeps a third policy from older versio
   Media control mutes the **output volume** of your computer, not your microphone. HyperWhisper records your dictation as usual. It mutes only the audio from your speakers or headphones.
 </Note>
 
+## Muffle audio
+
+With **Muffle Audio**, the audio of other apps does not stop. HyperWhisper sends it through a low-pass filter for the recording. The filter removes most of the speech range, and the beat and the bass stay audible. HyperWhisper does not muffle its own sounds. The filter closes gradually when the recording starts, and opens gradually when it stops, so there is no click.
+
+<Tabs>
+  <Tab title="macOS">
+    HyperWhisper captures the audio of every other app with a Core Audio process tap, and plays the filtered audio on your default output. If you change the output device during a recording, the muffle moves to the new device.
+
+    The first time you record with **Muffle Audio**, macOS asks for the **System Audio Recording** permission. If you deny it, other audio is silent for the recording instead of muffled. If the muffle cannot start, the recording continues and your audio plays as usual.
+  </Tab>
+  <Tab title="Windows">
+    HyperWhisper lowers the volume of every other app on the default output. It captures the audio of each app, filters it, and plays the filtered audio. An app that starts to play during the recording is muffled too.
+
+    Muffle needs Windows 10 build 20348 or later, or Windows 11. On an older build, or if the muffle cannot start, HyperWhisper mutes the output for the recording instead.
+
+    HyperWhisper records the volume of each app before it lowers it. If HyperWhisper closes unexpectedly during a recording, it restores these volumes the next time it starts.
+  </Tab>
+  <Tab title="Linux">
+    HyperWhisper moves the audio streams of other apps to a private null sink. It filters the audio and plays it on your real output. The default output does not change. A stream that starts during the recording moves too. When the recording stops, HyperWhisper moves back only the streams that it moved. Linux uses `pactl`, `parec`, and `pacat` for this, with PulseAudio or PipeWire.
+
+    If the muffle cannot start, HyperWhisper lowers other audio for the recording instead, as with the `duck` policy below. If HyperWhisper closes unexpectedly, it removes the leftover null sink the next time it starts.
+  </Tab>
+</Tabs>
+
 ## Lower other audio (Linux)
 
-Linux stores the setting as one of three policies. **Off** stores `unchanged` and **Mute audio** stores `mute`. The third policy, `duck`, has no item in the picker. Older Linux versions offered it, and a settings file that already holds `duck` still uses it. The picker then shows **Off**, but HyperWhisper keeps `duck` until you select an item.
+Linux stores the setting as one of four policies. **Off** stores `unchanged`, **Mute audio** stores `mute`, and **Muffle audio** stores `muffle`. The fourth policy, `duck`, has no item in the picker. Older Linux versions offered it, and a settings file that already holds `duck` still uses it. The picker then shows **Off**, but HyperWhisper keeps `duck` until you select an item.
 
 | Policy | What HyperWhisper does |
 |---|---|
 | `unchanged` | Nothing. This is the default |
 | `duck` | Lowers the volume of the default output to a maximum of 35% for the recording, then restores each channel to its previous percentage |
 | `mute` | Mutes the default output for the recording, then restores the previous mute state |
+| `muffle` | Plays other apps through a low-pass filter for the recording. See [Muffle audio](#muffle-audio) |
 
 Linux reads and writes the state of the default output with `pactl`, so PipeWire or PulseAudio must be running. If `pactl` is not on your `PATH`, HyperWhisper reports `audio_environment.unsupported` and leaves your audio unchanged.
 

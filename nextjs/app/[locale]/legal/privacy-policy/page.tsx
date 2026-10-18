@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 16, 2026
+        Last Updated: October 17, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -215,7 +215,24 @@ export default function PrivacyPolicyPage() {
           both transcription and post-processing, no transcription or
           post-processing provider receives your vocabulary. On macOS, if you
           turn on iCloud Sync for vocabulary, Apple stores your vocabulary
-          (words and replacements) in your iCloud account.
+          (words and replacements) in your iCloud account. iCloud Sync is
+          off by default, and you turn it on separately on each Mac in the
+          app&apos;s Vocabulary settings. When it is on, your vocabulary
+          entries are mirrored to your own iCloud account through Apple&apos;s
+          CloudKit service, not to a HyperWhisper account. Along with each word
+          and its replacement, an entry carries its position in your list,
+          when and how it was added, and an entry ID. Apple handles this data
+          under its{" "}
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://www.apple.com/legal/privacy/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            privacy policy
+          </a>
+          . This sync covers vocabulary only: it does not send your
+          transcripts, recordings, modes, or other settings to iCloud.
         </li>
       </ul>
 

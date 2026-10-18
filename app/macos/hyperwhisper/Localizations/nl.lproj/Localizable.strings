@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Plakken uit klembord";
 "settings.license.clearInput" = "Wissen";
+"license.error.keyFormat" = "Dat lijkt geen accountsleutel.";
 "settings.license.recovery.prompt" = "Licentiesleutel vergeten?";
 "settings.license.recovery.button" = "Ga naar klantportaal";
 "settings.license.daily.title" = "Dagelijkse transcriptie";
@@ -879,7 +880,6 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "recording.retry.inProgress" = "Opnieuw proberen…";
 "recording.retry.count" = "Opnieuw proberen (%d)";
 "recording.retry.failed.missing" = "Opnieuw proberen mislukt: Audiobestand niet gevonden";
-"recording.retry.failed.error" = "Opnieuw proberen mislukt: %@";
 "recording.retry.pending" = "Klaar om opnieuw te proberen – klik om te transcriberen";
 "recording.retry.modeDeleted" = "Modus is verwijderd";
 "recording.cancel.dialog.title" = "Opnamen annuleren?";

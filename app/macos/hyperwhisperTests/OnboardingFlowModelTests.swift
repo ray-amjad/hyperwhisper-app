@@ -488,6 +488,40 @@ struct OnboardingSourceBranchTests {
         #expect(!h.flow.isSelectedSourceUsable)
     }
 
+    /// #1489: text that cannot be a key keeps Test and Activate off, shows the
+    /// hint, and is never sent; a plausible key with a trailing newline is sent trimmed.
+    @Test func textThatCannotBeAKeyIsNeverSentAndAPlausibleKeyIsSentTrimmed() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.flow.select(source: .hyperwhisperCloud)
+
+        for text in ["not a key", String(repeating: "A", count: 65), "مفتاح", "HW-🔑"] {
+            h.flow.licenseKeyInput = text
+            #expect(!h.flow.isLicenseKeyPlausible)
+            #expect(h.flow.showsLicenseKeyFormatHint)
+            h.flow.testAccessKey()
+            await h.flow.lastAsyncTaskForTesting?.value
+            h.flow.activateCloudLicense()
+            await h.flow.lastAsyncTaskForTesting?.value
+        }
+        #expect(h.license.probedKeys.isEmpty)
+        #expect(h.license.activatedKeys.isEmpty)
+
+        h.flow.licenseKeyInput = "   "
+        #expect(!h.flow.isLicenseKeyPlausible)
+        #expect(!h.flow.showsLicenseKeyFormatHint)
+
+        h.flow.licenseKeyInput = "  HW-ABCD-EFGH-JKLM-NPQR\n"
+        #expect(h.flow.isLicenseKeyPlausible)
+        #expect(!h.flow.showsLicenseKeyFormatHint)
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        #expect(h.license.probedKeys == ["HW-ABCD-EFGH-JKLM-NPQR"])
+        h.flow.activateCloudLicense()
+        await h.flow.lastAsyncTaskForTesting?.value
+        #expect(h.license.activatedKeys == ["HW-ABCD-EFGH-JKLM-NPQR"])
+    }
+
     @Test func providerBranchStagesTheChosenProvider() async {
         let h = Harness()
         h.grantMicrophone()

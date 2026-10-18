@@ -272,7 +272,31 @@
     "homebrewTitle": "Instal·la via Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Copia",
-    "copied": "Copiat!"
+    "copied": "Copiat!",
+    "linuxSubtitle": "Paquet Debian per a sistemes Intel/AMD de 64 bits",
+    "downloadLinux": "Descarrega per a Linux",
+    "downloadLinuxVersion": "Descarrega per a Linux v{version}",
+    "linuxReleaseNotes": "Sumes de verificació i notes de la versió",
+    "linuxInstallTitle": "Instal·la el paquet Debian",
+    "linuxTargets": "Linux v1 és compatible amb Ubuntu 22.04+ i Debian 12+ en amd64.",
+    "linuxReplaceVersion": "Substitueix VERSION per la versió que has descarregat.",
+    "linuxInstallCommandLabel": "Ordre d'instal·lació de Debian",
+    "linuxInputGroupNote": "Tanca la sessió i torna a iniciar-la després d'unir-te al grup input. Ser-ne membre és opcional, però les dreceres globals i l'enganxament automàtic ho necessiten.",
+    "aptTitle": "Allotja el teu propi repositori APT",
+    "aptBody": "Les versions de Linux també inclouen un arxiu estàtic de repositori APT. Actualment HyperWhisper no ofereix cap endpoint APT públic; consulta la guia d'instal·lació de Linux per a la configuració signada i autoallotjada, els complements d'escriptori, els detalls de privadesa i la desinstal·lació.",
+    "linuxGuideCta": "Llegeix la guia d'instal·lació de Linux"
+  },
+  "olderVersions": {
+    "title": "Versions antigues",
+    "subtitle": "Explora i descarrega totes les versions de HyperWhisper",
+    "errorLoading": "Error en carregar les versions: {error}",
+    "unknownError": "S'ha produït un error",
+    "loading": "S'estan carregant les versions...",
+    "latest": "La més recent",
+    "build": "Build {number}",
+    "downloadDmg": "Descarrega el DMG",
+    "downloadExe": "Descarrega l'EXE",
+    "unknownSize": "Desconeguda"
   },
   "purchaseSuccess": {
     "title": "Ja ho tens tot a punt!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Codi obert. Res a amagar.",
     "body": "HyperWhisper és totalment de codi obert sota Apache-2.0 — tant les aplicacions d'escriptori com el backend de Cloud. Una aplicació que escolta el teu micròfon hauria de ser quelcom que puguis verificar, no només confiar-hi: llegeix cada línia, audita exactament on va el teu àudio i tingues la certesa que mai no quedaràs lligat — el codi és teu per fer-ne un fork i allotjar-lo tu mateix per sempre. Creat de manera oberta pel creador independent Ray Amjad.",
-    "cta": "Mostra a GitHub"
+    "cta": "Mostra a GitHub",
+    "metaTitle": "Codi obert | HyperWhisper",
+    "metaDescription": "HyperWhisper és totalment de codi obert sota Apache-2.0 — tant les aplicacions d'escriptori com el backend de Cloud. Llegeix el codi, audita on va el teu àudio, fes-ne un fork i allotja'l tu mateix per sempre.",
+    "eyebrow": "Codi obert",
+    "lead": "HyperWhisper ja és totalment de codi obert sota Apache-2.0 — tant les aplicacions d'escriptori com el backend de Cloud.",
+    "intro": "Una aplicació que escolta el teu micròfon hauria de ser quelcom que puguis verificar, no només confiar-hi. Per això ho hem obert tot. Pots llegir cada línia de HyperWhisper — les aplicacions per a macOS, Windows i Linux, i el backend de transcripció de Cloud —, veure exactament on va el teu àudio i saber que mai no quedaràs lligat. Tot el projecte és a <github>GitHub</github> sota la <license>llicència Apache-2.0</license>.",
+    "whyHeading": "Per què és important",
+    "whyVerify": "<strong>Verifica, no et limitis a confiar.</strong> Llegeix cada línia i audita exactament on va el teu àudio. Una aplicació amb accés al micròfon s'hauria de poder inspeccionar, no acceptar a ulls clucs.",
+    "whyNoLockIn": "<strong>Sense dependències.</strong> El codi és Apache-2.0 — teu per conservar-lo, adaptar-lo i executar-lo a la teva manera. El teu flux de treball mai no queda segrestat.",
+    "whyFork": "<strong>Fes-ne un fork i allotja'l tu mateix.</strong> Clona el repositori, compila'l tu mateix o executa el teu propi backend de Cloud. Tot el que necessites és públic.",
+    "whyOpen": "<strong>Desenvolupat en obert.</strong> HyperWhisper el desenvolupa públicament el creador independent Ray Amjad. Les incidències, els debats i les versions es fan a la vista de tothom.",
+    "licenseHeading": "Ja has comprat una llicència?",
+    "licenseIntro": "HyperWhisper ara és de codi obert, i la transcripció de pagament funciona amb crèdits de HyperWhisper Cloud. Si vas comprar una llicència abans del canvi, així és com en tenim cura — només cal que escriguis a <mail>{email}</mail> i ho resoldrem manualment.",
+    "licenseRecent": "<strong>Comprada en els darrers 30 dies:</strong> ets dins del termini de reemborsament. Et reemborsarem la compra íntegrament, sense preguntes. Només cal que <refund>ens enviïs un missatge</refund>.",
+    "licenseOlder": "<strong>Comprada fa més de 30 dies:</strong> convertirem el que vas pagar en crèdits de HyperWhisper Cloud — el preu de compra complet, menys els $5 en crèdits ja afegits al teu compte. <credits>Escriu-nos</credits> i aplicarem el saldo.",
+    "contributeHeading": "Vols contribuir?",
+    "contributeBody": "Els informes d'errors, les idees de funcions i les pull requests són benvinguts. Obre una incidència o inicia un debat <github>a GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper ja és totalment de codi obert",
+    "shortText": "Ara de codi obert",
+    "learnMore": "Més informació",
+    "dismiss": "Tanca l'anunci"
   },
   "notFound": {
     "title": "Pàgina no trobada",

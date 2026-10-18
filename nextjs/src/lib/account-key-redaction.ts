@@ -39,11 +39,58 @@ export function redactAccountKeyFromUrl(url: string): string {
 
 type Properties = Record<string, unknown>;
 
-function redactProperties(properties: Properties | undefined): void {
+// A `licenseKey` or `license_key` parameter whose value starts with `HW-`.
+const NAMED_KEY_PARAM_PATTERN = /([?&#]license_?key=)HW-[^&#]*/gi;
+
+// The narrow redaction for a string nested inside a property: the full key
+// shape, and the two key parameters. The broad any-parameter match stays on
+// top-level strings (#1910), so a nested `utm_campaign=hw-launch` is kept;
+// and the narrow one cannot match by chance in the gzipped strings that
+// posthog-js puts in `$snapshot_data`, so it never corrupts them.
+function redactAccountKeyFromNestedString(value: string): string {
+  return value
+    .replace(NAMED_KEY_PARAM_PATTERN, `$1${REDACTED}`)
+    .replace(ACCOUNT_KEY_PATTERN, REDACTED);
+}
+
+// Redacts every string in `value`, at any depth, in place. PostHog nests the
+// page URL inside objects and arrays: `$web_vitals_*_event.navigationURL` and
+// its `$current_url`, and the session recording's network entries in
+// `$snapshot_data`, which are named with the URL the page was first loaded
+// with, key included (#1920). `seen` stops a cycle from recursing forever.
+function redactNested(value: unknown, seen: WeakSet<object>): void {
+  if (typeof value !== "object" || value === null || seen.has(value)) return;
+  seen.add(value);
+
+  const entries: [string | number, unknown][] = Array.isArray(value)
+    ? value.map((item, index) => [index, item])
+    : Object.entries(value);
+
+  for (const [name, item] of entries) {
+    if (typeof item === "string") {
+      if (/HW-/i.test(item)) {
+        (value as Record<string | number, unknown>)[name] =
+          redactAccountKeyFromNestedString(item);
+      }
+    } else {
+      redactNested(item, seen);
+    }
+  }
+}
+
+function redactProperties(
+  properties: Properties | undefined,
+  seen: WeakSet<object>,
+): void {
   if (!properties) return;
+
   for (const [name, value] of Object.entries(properties)) {
-    if (typeof value === "string" && /HW-/i.test(value)) {
-      properties[name] = redactAccountKeyFromUrl(value);
+    if (typeof value === "string") {
+      if (/HW-/i.test(value)) {
+        properties[name] = redactAccountKeyFromUrl(value);
+      }
+    } else {
+      redactNested(value, seen);
     }
   }
 }
@@ -55,27 +102,61 @@ interface RedactableEvent {
 }
 
 /**
- * PostHog `before_send` hook: redacts an Account Key from every string
- * property of the event and of its `$set` / `$set_once` person properties.
- * Never drops an event.
+ * PostHog `before_send` hook: redacts an Account Key from every string in the
+ * event's properties and its `$set` / `$set_once` person properties, nested
+ * objects and arrays included. posthog-js sends session recording snapshots
+ * (`$snapshot`) through `capture`, so this covers their network entries too,
+ * but not page text, which posthog-js gzips before `capture`. Drops nothing
+ * itself. If it ever throws (a frozen object), posthog-js drops the event,
+ * which keeps a key it could not redact out of PostHog.
  */
 export function redactAccountKeyFromEvent<T extends RedactableEvent | null>(
   event: T,
 ): T {
   if (!event) return event;
-  redactProperties(event.properties);
-  redactProperties(event.$set);
-  redactProperties(event.$set_once);
+
+  const seen = new WeakSet<object>();
+
+  redactProperties(event.properties, seen);
+  redactProperties(event.$set, seen);
+  redactProperties(event.$set_once, seen);
+
   return event;
 }
 
+// The query parameters that carry the Account Key into a page: `licenseKey`
+// (`/user/sign-in`) and `license_key` (`/credits`, `/checkout`). Any other
+// parameter counts too when its decoded value holds a key, like the legacy
+// `/credits?id=HW-…` or a key nested in `returnTo`. Only the full key shape
+// counts there, so `utm_campaign=hw-launch` stays.
+const ACCOUNT_KEY_PARAMS = ["licenseKey", "license_key"];
+const HOLDS_ACCOUNT_KEY = new RegExp(ACCOUNT_KEY_PATTERN.source, "i");
+
+function accountKeyParamNames(searchParams: URLSearchParams): string[] {
+  return Array.from(new Set(searchParams.keys())).filter(
+    (name) =>
+      ACCOUNT_KEY_PARAMS.includes(name) ||
+      searchParams.getAll(name).some((value) => HOLDS_ACCOUNT_KEY.test(value)),
+  );
+}
+
+/** Whether `url` carries an Account Key query parameter. */
+export function hasAccountKeyParam(url: string): boolean {
+  return accountKeyParamNames(new URL(url).searchParams).length > 0;
+}
+
 /**
- * The same URL with the `licenseKey` query parameter removed, for
+ * The same URL with its Account Key query parameters removed (`licenseKey`,
+ * `license_key`, and any parameter whose value holds a key), for
  * `history.replaceState`, so the key leaves the address bar and the browser
  * history. Path, other parameters and fragment are kept.
  */
-export function withoutLicenseKeyParam(url: string): string {
+export function withoutAccountKeyParams(url: string): string {
   const parsed = new URL(url);
-  parsed.searchParams.delete("licenseKey");
+
+  for (const name of accountKeyParamNames(parsed.searchParams)) {
+    parsed.searchParams.delete(name);
+  }
+
   return parsed.pathname + parsed.search + parsed.hash;
 }

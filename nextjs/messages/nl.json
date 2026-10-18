@@ -272,7 +272,31 @@
     "homebrewTitle": "Installeer via Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopiëren",
-    "copied": "Gekopieerd!"
+    "copied": "Gekopieerd!",
+    "linuxSubtitle": "Debian-pakket voor 64-bits Intel/AMD-systemen",
+    "downloadLinux": "Download voor Linux",
+    "downloadLinuxVersion": "Download voor Linux v{version}",
+    "linuxReleaseNotes": "Checksums en release notes",
+    "linuxInstallTitle": "Het Debian-pakket installeren",
+    "linuxTargets": "Linux v1 ondersteunt Ubuntu 22.04+ en Debian 12+ op amd64.",
+    "linuxReplaceVersion": "Vervang VERSION door de versie die je hebt gedownload.",
+    "linuxInstallCommandLabel": "Debian-installatieopdracht",
+    "linuxInputGroupNote": "Log uit en weer in nadat je lid bent geworden van de groep input. Lidmaatschap is optioneel, maar is nodig voor globale sneltoetsen en automatisch plakken.",
+    "aptTitle": "Host zelf een APT-repository",
+    "aptBody": "Linux-releases bevatten ook een statisch APT-repositoryarchief. HyperWhisper beheert momenteel geen openbaar APT-endpoint; zie de Linux-installatiehandleiding voor een ondertekende, zelf gehoste installatie, desktopcomponenten, privacydetails en verwijdering.",
+    "linuxGuideCta": "Lees de Linux-installatiehandleiding"
+  },
+  "olderVersions": {
+    "title": "Oudere versies",
+    "subtitle": "Blader door alle releases van HyperWhisper en download ze",
+    "errorLoading": "Fout bij het laden van versies: {error}",
+    "unknownError": "Er is een fout opgetreden",
+    "loading": "Versies laden...",
+    "latest": "Nieuwste",
+    "build": "Build {number}",
+    "downloadDmg": "DMG downloaden",
+    "downloadExe": "EXE downloaden",
+    "unknownSize": "Onbekend"
   },
   "purchaseSuccess": {
     "title": "Helemaal klaar!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "Open source. Niets te verbergen.",
     "body": "HyperWhisper is volledig open source onder Apache-2.0 — zowel de desktop-apps als de Cloud-backend. Een app die naar je microfoon luistert, moet iets zijn dat je kunt verifiëren, niet alleen vertrouwen: lees elke regel, controleer precies waar je audio naartoe gaat en weet zeker dat je nooit vastzit — de code is van jou om voor altijd te forken en zelf te hosten. Gemaakt in de openbaarheid door indie maker Ray Amjad.",
-    "cta": "Bekijk op GitHub"
+    "cta": "Bekijk op GitHub",
+    "metaTitle": "Open source | HyperWhisper",
+    "metaDescription": "HyperWhisper is volledig open source onder Apache-2.0 — zowel de desktop-apps als de Cloud-backend. Lees de code, controleer waar je audio naartoe gaat, fork hem en host hem voor altijd zelf.",
+    "eyebrow": "Open source",
+    "lead": "HyperWhisper is nu volledig open source onder Apache-2.0 — zowel de desktop-apps als de Cloud-backend.",
+    "intro": "Een app die naar je microfoon luistert, moet iets zijn dat je kunt verifiëren, niet alleen vertrouwen. Daarom hebben we alles opengesteld. Je kunt elke regel van HyperWhisper lezen — de apps voor macOS, Windows en Linux en de Cloud-transcriptiebackend —, precies zien waar je audio naartoe gaat en weten dat je nooit vastzit. Het hele project staat op <github>GitHub</github> onder de <license>Apache-2.0-licentie</license>.",
+    "whyHeading": "Waarom dit belangrijk is",
+    "whyVerify": "<strong>Verifiëren, niet blind vertrouwen.</strong> Lees elke regel en controleer precies waar je audio naartoe gaat. Een app met toegang tot je microfoon moet je kunnen inspecteren, niet alleen op goed vertrouwen aannemen.",
+    "whyNoLockIn": "<strong>Geen lock-in.</strong> De code valt onder Apache-2.0 — van jou om te houden, aan te passen en op je eigen voorwaarden te draaien. Je workflow wordt nooit gegijzeld.",
+    "whyFork": "<strong>Fork en host zelf.</strong> Kloon de repository, bouw hem zelf of draai je eigen Cloud-backend. Alles wat je nodig hebt is openbaar.",
+    "whyOpen": "<strong>Openlijk gebouwd.</strong> HyperWhisper wordt publiek ontwikkeld door indie maker Ray Amjad. Issues, discussies en releases gebeuren allemaal in de openbaarheid.",
+    "licenseHeading": "Al een licentie gekocht?",
+    "licenseIntro": "HyperWhisper is nu open source en betaalde transcriptie werkt met HyperWhisper Cloud-tegoed. Heb je vóór de overstap een licentie gekocht? Zo zorgen we voor je — mail gewoon naar <mail>{email}</mail> en we regelen het handmatig.",
+    "licenseRecent": "<strong>In de afgelopen 30 dagen gekocht:</strong> je valt binnen de terugbetalingstermijn. We betalen je aankoop volledig terug, zonder vragen. <refund>Stuur ons gewoon een berichtje</refund>.",
+    "licenseOlder": "<strong>Meer dan 30 dagen geleden gekocht:</strong> we zetten wat je hebt betaald om in HyperWhisper Cloud-tegoed — de volledige aankoopprijs, min de $5 aan tegoed die al aan je account is toegevoegd. <credits>Mail ons</credits> en we schrijven het resterende bedrag bij.",
+    "contributeHeading": "Wil je bijdragen?",
+    "contributeBody": "Bugmeldingen, ideeën voor functies en pull requests zijn allemaal welkom. Open een issue of start een discussie <github>op GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper is nu volledig open source",
+    "shortText": "Nu open source",
+    "learnMore": "Meer informatie",
+    "dismiss": "Aankondiging sluiten"
   },
   "notFound": {
     "title": "Pagina niet gevonden",

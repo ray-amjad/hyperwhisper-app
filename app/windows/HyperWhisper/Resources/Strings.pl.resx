@@ -118,7 +118,7 @@
 
   <!-- Home Page -->
   <data name="home.welcome.title" xml:space="preserve">
-    <value>Welcome to HyperWhisper</value>
+    <value>Witamy w HyperWhisper</value>
   </data>
 
   <!-- History Page -->
@@ -165,28 +165,28 @@
     <value>Pokaż oryginalny</value>
   </data>
   <data name="history.action.deleteSelected" xml:space="preserve">
-    <value>Delete Selected</value>
+    <value>Usuń zaznaczone</value>
   </data>
   <data name="history.selection.count" xml:space="preserve">
     <value>Wybrano {0} nagrań</value>
   </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
-    <value>Audio file not available</value>
+    <value>Plik audio jest niedostępny</value>
   </data>
   <data name="history.audio.loadFailed" xml:space="preserve">
     <value>Nie można załadować pliku audio</value>
   </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
-    <value>Original</value>
+    <value>Oryginał</value>
   </data>
   <data name="history.context.retryWith" xml:space="preserve">
     <value>Ponów z...</value>
   </data>
   <data name="history.empty.noRecordings" xml:space="preserve">
-    <value>No recordings yet</value>
+    <value>Brak nagrań</value>
   </data>
   <data name="history.status.retrying" xml:space="preserve">
-    <value>Retrying...</value>
+    <value>Ponawianie...</value>
   </data>
 
   <!-- Modes Page -->
@@ -217,22 +217,22 @@
 
   <!-- Mode Editor -->
   <data name="mode.editor.title.create" xml:space="preserve">
-    <value>Create New Mode</value>
+    <value>Utwórz nowy tryb</value>
   </data>
   <data name="mode.editor.title.edit" xml:space="preserve">
-    <value>Edit Mode</value>
+    <value>Edytuj tryb</value>
   </data>
   <data name="mode.editor.field.name" xml:space="preserve">
-    <value>Name</value>
+    <value>Nazwa</value>
   </data>
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>To jest tryb domyślny, więc jego nazwy nie można zmienić. Nazwę każdego innego trybu można zmienić.</value>
   </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
-    <value>Provider</value>
+    <value>Dostawca</value>
   </data>
   <data name="mode.editor.field.language" xml:space="preserve">
-    <value>Language</value>
+    <value>Język</value>
   </data>
   <data name="mode.editor.field.source" xml:space="preserve">
     <value>Źródło</value>
@@ -250,13 +250,13 @@
     <value>{0} (Rekomendowany)</value>
   </data>
   <data name="mode.editor.section.basic" xml:space="preserve">
-    <value>Basic Settings</value>
+    <value>Ustawienia podstawowe</value>
   </data>
   <data name="mode.editor.section.transcription" xml:space="preserve">
-    <value>Transcription Model</value>
+    <value>Model transkrypcji</value>
   </data>
   <data name="mode.editor.section.postProcessing" xml:space="preserve">
-    <value>Post Processing</value>
+    <value>Przetwarzanie końcowe</value>
   </data>
   <data name="mode.editor.section.punctuation" xml:space="preserve">
     <value>Interpunkcja</value>
@@ -270,7 +270,7 @@
     <value>Pomaga oprogramowaniu rozpoznawać imiona, akronimy, slang lub słowa z innych języków podczas mieszania języków.</value>
   </data>
   <data name="common.update" xml:space="preserve">
-    <value>Update</value>
+    <value>Aktualizuj</value>
   </data>
   <data name="vocabulary.word.column" xml:space="preserve">
     <value>Słowo/Zwrot</value>
@@ -308,35 +308,35 @@
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">
-    <value>Settings</value>
+    <value>Ustawienia</value>
   </data>
   <!-- Settings Navigation -->
   <data name="settings.nav.general" xml:space="preserve">
-    <value>General</value>
+    <value>Ogólne</value>
   </data>
   <data name="settings.nav.appearance" xml:space="preserve">
-    <value>Appearance</value>
+    <value>Wygląd</value>
   </data>
   <data name="settings.nav.cloud" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="settings.nav.storage" xml:space="preserve">
-    <value>Storage</value>
+    <value>Pamięć</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
     <value>Biblioteka modeli</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
-    <value>API Keys</value>
+    <value>Klucze API</value>
   </data>
   <data name="settings.nav.output" xml:space="preserve">
-    <value>Text Output</value>
+    <value>Wyjście tekstowe</value>
   </data>
   <data name="settings.nav.shortcuts" xml:space="preserve">
-    <value>Shortcuts</value>
+    <value>Skróty</value>
   </data>
   <data name="settings.nav.about" xml:space="preserve">
-    <value>About</value>
+    <value>Informacje</value>
   </data>
   <data name="settings.section.storage" xml:space="preserve">
     <value>Pamięć</value>
@@ -354,18 +354,18 @@
     <value>Wyjście tekstowe</value>
   </data>
   <data name="settings.section.about" xml:space="preserve">
-    <value>About</value>
+    <value>Informacje</value>
   </data>
 
   <!-- Settings - General -->
   <data name="settings.general.title" xml:space="preserve">
-    <value>General</value>
+    <value>Ogólne</value>
   </data>
   <data name="settings.general.launchAtLogin.title" xml:space="preserve">
     <value>Uruchom przy logowaniu</value>
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
-    <value>Start HyperWhisper automatically when you log in.</value>
+    <value>Uruchamiaj HyperWhisper automatycznie po zalogowaniu.</value>
   </data>
   <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
     <value>Niedostępne w profilu testowym. Ta kompilacja używa osobnego folderu danych aplikacji, więc nie zmienia wpisu logowania zainstalowanej aplikacji.</value>
@@ -374,25 +374,25 @@
     <value>Uruchom zminimalizowany</value>
   </data>
   <data name="settings.general.launchMinimized.subtitle" xml:space="preserve">
-    <value>Start HyperWhisper hidden in the system tray.</value>
+    <value>Uruchamiaj HyperWhisper ukryty w zasobniku systemowym.</value>
   </data>
   <data name="settings.general.minimizeToTray.title" xml:space="preserve">
-    <value>Minimize to system tray</value>
+    <value>Minimalizuj do zasobnika systemowego</value>
   </data>
   <data name="settings.general.minimizeToTray.subtitle" xml:space="preserve">
-    <value>Closing the window minimizes to tray instead of quitting</value>
+    <value>Zamknięcie okna minimalizuje aplikację do zasobnika zamiast ją kończyć</value>
   </data>
   <data name="settings.general.showRecordingWindow.title" xml:space="preserve">
     <value>Pokaż okno nagrywania</value>
   </data>
   <data name="settings.general.showRecordingWindow.subtitle" xml:space="preserve">
-    <value>Display the recording overlay with audio visualization</value>
+    <value>Wyświetlaj nakładkę nagrywania z wizualizacją dźwięku</value>
   </data>
   <data name="settings.general.errorLogging.title" xml:space="preserve">
     <value>Rejestrowanie błędów</value>
   </data>
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
-    <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
+    <value>Automatycznie wysyłaj raporty o awariach, aby pomóc nam naprawiać problemy. Twoje transkrypcje nigdy nie są wysyłane.</value>
   </data>
   <data name="settings.general.shareSpeedData.title" xml:space="preserve">
     <value>Udostępnij anonimowe dane o szybkości</value>
@@ -407,36 +407,36 @@
     <value>Automatyczna aktualizacja</value>
   </data>
   <data name="settings.general.autoUpdate.subtitle" xml:space="preserve">
-    <value>Silently check for new versions on startup</value>
+    <value>Sprawdzaj w tle dostępność nowych wersji przy uruchamianiu</value>
   </data>
 
   <!-- Settings - Appearance -->
   <data name="settings.appearance.title" xml:space="preserve">
-    <value>Appearance</value>
+    <value>Wygląd</value>
   </data>
   <data name="settings.appearance.theme.title" xml:space="preserve">
-    <value>Theme</value>
+    <value>Motyw</value>
   </data>
   <data name="settings.appearance.theme.subtitle" xml:space="preserve">
-    <value>Choose your preferred color scheme</value>
+    <value>Wybierz preferowany schemat kolorów</value>
   </data>
   <data name="settings.appearance.theme.system" xml:space="preserve">
-    <value>System default</value>
+    <value>Systemowy</value>
   </data>
   <data name="settings.appearance.theme.system.subtitle" xml:space="preserve">
-    <value>Automatically switch between light and dark based on Windows settings</value>
+    <value>Automatycznie przełączaj między jasnym a ciemnym motywem zgodnie z ustawieniami systemu Windows</value>
   </data>
   <data name="settings.appearance.theme.light" xml:space="preserve">
-    <value>Light</value>
+    <value>Jasny</value>
   </data>
   <data name="settings.appearance.theme.light.subtitle" xml:space="preserve">
-    <value>Always use light theme with bright backgrounds</value>
+    <value>Zawsze używaj jasnego motywu z jasnym tłem</value>
   </data>
   <data name="settings.appearance.theme.dark" xml:space="preserve">
-    <value>Dark</value>
+    <value>Ciemny</value>
   </data>
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
-    <value>Always use dark theme for reduced eye strain</value>
+    <value>Zawsze używaj ciemnego motywu, aby mniej męczyć oczy</value>
   </data>
   <data name="settings.appearance.theme.restart.title" xml:space="preserve">
     <value>Wymagane ponowne uruchomienie</value>
@@ -467,34 +467,34 @@
     <value>Odśwież</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
-    <value>minutes remaining</value>
+    <value>pozostało minut</value>
   </data>
   <data name="settings.credits.loading" xml:space="preserve">
     <value>Ładowanie salda kredytów...</value>
   </data>
   <data name="settings.credits.lowWarning" xml:space="preserve">
-    <value>Your credits are running low. Consider adding more credits to continue using HyperWhisper Cloud.</value>
+    <value>Kończą Ci się kredyty. Rozważ dodanie kredytów, aby dalej korzystać z HyperWhisper Cloud.</value>
   </data>
   <data name="settings.credits.exhaustedWarning" xml:space="preserve">
-    <value>Your credits are exhausted. Add credits to continue using HyperWhisper Cloud transcription.</value>
+    <value>Twoje kredyty zostały wyczerpane. Dodaj kredyty, aby dalej korzystać z transkrypcji HyperWhisper Cloud.</value>
   </data>
   <data name="settings.credits.accountInfo.title" xml:space="preserve">
-    <value>Account Information</value>
+    <value>Informacje o koncie</value>
   </data>
   <data name="settings.credits.accountInfo.credits" xml:space="preserve">
-    <value>Credits</value>
+    <value>Kredyty</value>
   </data>
   <data name="settings.credits.accountInfo.costPerMinute" xml:space="preserve">
-    <value>Cost per Minute</value>
+    <value>Koszt za minutę</value>
   </data>
   <data name="settings.credits.accountInfo.accountType" xml:space="preserve">
-    <value>Account Type</value>
+    <value>Typ konta</value>
   </data>
   <data name="settings.credits.accountInfo.customerId" xml:space="preserve">
-    <value>Customer ID</value>
+    <value>Identyfikator klienta</value>
   </data>
   <data name="settings.credits.accountInfo.dailyReset" xml:space="preserve">
-    <value>Daily Reset</value>
+    <value>Dzienne odnowienie</value>
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Nie można załadować salda kredytów</value>
@@ -554,78 +554,78 @@
     <value>Klucze API dla wzbogacania tekstu opartego na sztucznej inteligencji i formatowania.</value>
   </data>
   <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Invalid Key</value>
+    <value>Nieprawidłowy klucz</value>
   </data>
   <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Invalid API key format. OpenAI keys should start with 'sk-'.</value>
+    <value>Nieprawidłowy format klucza API. Klucze OpenAI powinny zaczynać się od „sk-”.</value>
   </data>
   <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Invalid API key format. Groq keys should start with 'gsk_'.</value>
+    <value>Nieprawidłowy format klucza API. Klucze Groq powinny zaczynać się od „gsk_”.</value>
   </data>
   <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Invalid API key format. Anthropic keys should start with 'sk-ant-'.</value>
+    <value>Nieprawidłowy format klucza API. Klucze Anthropic powinny zaczynać się od „sk-ant-”.</value>
   </data>
   <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Invalid API key format. Google API keys should start with 'AIza'.</value>
+    <value>Nieprawidłowy format klucza API. Klucze Google API powinny zaczynać się od „AIza”.</value>
   </data>
   <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Invalid API key format. Cerebras keys should start with 'csk-'.</value>
+    <value>Nieprawidłowy format klucza API. Klucze Cerebras powinny zaczynać się od „csk-”.</value>
   </data>
   <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Invalid API key format. Deepgram keys should be at least 32 characters.</value>
+    <value>Nieprawidłowy format klucza API. Klucze Deepgram powinny mieć co najmniej 32 znaki.</value>
   </data>
   <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Invalid API key format. AssemblyAI keys should be at least 32 characters.</value>
+    <value>Nieprawidłowy format klucza API. Klucze AssemblyAI powinny mieć co najmniej 32 znaki.</value>
   </data>
   <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Invalid API key format. ElevenLabs keys should start with 'sk_'.</value>
+    <value>Nieprawidłowy format klucza API. Klucze ElevenLabs powinny zaczynać się od „sk_”.</value>
   </data>
   <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Invalid API key format. Mistral keys should be at least 20 characters.</value>
+    <value>Nieprawidłowy format klucza API. Klucze Mistral powinny mieć co najmniej 20 znaków.</value>
   </data>
   <data name="settings.api.invalidKey.grok" xml:space="preserve">
     <value>Nieprawidłowy format klucza API. Klucze Grok muszą zaczynać się od „xai-" i mieć co najmniej 20 znaków.</value>
   </data>
   <data name="settings.api.show" xml:space="preserve">
-    <value>Show</value>
+    <value>Pokaż</value>
   </data>
   <data name="settings.api.hide" xml:space="preserve">
-    <value>Hide</value>
+    <value>Ukryj</value>
   </data>
   <!-- API Provider Descriptions - Transcription -->
   <data name="settings.api.provider.openai.description" xml:space="preserve">
-    <value>OpenAI's Whisper API for cloud-based transcription</value>
+    <value>Whisper API od OpenAI do transkrypcji w chmurze</value>
   </data>
   <data name="settings.api.provider.groq.description" xml:space="preserve">
-    <value>Groq Cloud's fast Whisper API with low latency</value>
+    <value>Szybki interfejs Whisper API od Groq Cloud z niskim opóźnieniem</value>
   </data>
   <data name="settings.api.provider.deepgram.description" xml:space="preserve">
-    <value>Deepgram Nova family models with domain-specific tuning</value>
+    <value>Modele z rodziny Deepgram Nova dostrojone do konkretnych dziedzin</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
     <value>Modele zamiany mowy na tekst Universal-2 i Universal-3 Pro od AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
-    <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
+    <value>Transkrypcja ElevenLabs Scribe z dokładnymi znacznikami czasu i rozpoznawaniem mówców</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
     <value>Transkrypcja Voxtral od Mistral i modele Mistral do ulepszania tekstu</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
-    <value>OpenAI's GPT models for text enhancement</value>
+    <value>Modele GPT od OpenAI do ulepszania tekstu</value>
   </data>
   <data name="settings.api.provider.anthropic.description" xml:space="preserve">
-    <value>Anthropic's Claude models for advanced text processing</value>
+    <value>Modele Claude firmy Anthropic do zaawansowanego przetwarzania tekstu</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
     <value>Modele Gemini od Google do transkrypcji i ulepszania tekstu</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
-    <value>Groq's ultra-fast LLM inference for text enhancement</value>
+    <value>Ultraszybkie wnioskowanie LLM od Groq do ulepszania tekstu</value>
   </data>
   <data name="settings.api.provider.cerebras.description" xml:space="preserve">
-    <value>Cerebras ultra-fast inference for text enhancement</value>
+    <value>Ultraszybkie wnioskowanie Cerebras do ulepszania tekstu</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
     <value>API SpaceXAI Grok zamiany mowy na tekst</value>
@@ -651,13 +651,13 @@
     <value>Przywróć poprzednią zawartość schowka po wklejeniu</value>
   </data>
   <data name="settings.output.clipboard.section" xml:space="preserve">
-    <value>Clipboard</value>
+    <value>Schowek</value>
   </data>
   <data name="settings.output.restoreDelay.subtitle" xml:space="preserve">
-    <value>Delay before restoring clipboard contents</value>
+    <value>Opóźnienie przed przywróceniem zawartości schowka</value>
   </data>
   <data name="settings.output.restoreDelay.title" xml:space="preserve">
-    <value>Restore Delay</value>
+    <value>Opóźnienie przywracania</value>
   </data>
 
   <!-- Settings - Shortcuts -->
@@ -681,22 +681,22 @@
 
   <!-- Settings - About -->
   <data name="settings.about.checkUpdates" xml:space="preserve">
-    <value>Check for Updates</value>
+    <value>Sprawdź aktualizacje</value>
   </data>
   <data name="settings.about.checkingForUpdates" xml:space="preserve">
-    <value>Checking...</value>
+    <value>Sprawdzanie...</value>
   </data>
   <data name="settings.about.updateCheckFailed.title" xml:space="preserve">
-    <value>Update Check Failed</value>
+    <value>Sprawdzanie aktualizacji nie powiodło się</value>
   </data>
   <data name="settings.about.updateCheckFailed.message" xml:space="preserve">
-    <value>Failed to check for updates: {0}</value>
+    <value>Nie udało się sprawdzić aktualizacji: {0}</value>
   </data>
   <data name="settings.about.appTitle" xml:space="preserve">
     <value>HyperWhisper</value>
   </data>
   <data name="settings.about.openLogFolder" xml:space="preserve">
-    <value>Open Log Folder</value>
+    <value>Otwórz folder dzienników</value>
   </data>
 
   <!-- Recording Overlay -->
@@ -718,7 +718,7 @@
 
   <!-- Error Messages -->
   <data name="errors.noSpeechDetected" xml:space="preserve">
-    <value>No speech detected in the recording.</value>
+    <value>Nie wykryto mowy w nagraniu.</value>
   </data>
   <data name="errors.microphoneSentNoAudio" xml:space="preserve">
     <value>Wybrany mikrofon nie przesłał żadnego dźwięku. Sprawdź urządzenie wejściowe i spróbuj ponownie.</value>
@@ -749,16 +749,16 @@ Tej czynności nie można cofnąć.</value>
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">
-    <value>Not currently recording</value>
+    <value>Nagrywanie nie jest aktualnie prowadzone</value>
   </data>
   <data name="audio.error.recordingPathNotSet" xml:space="preserve">
-    <value>Internal error: recording path not set</value>
+    <value>Błąd wewnętrzny: nie ustawiono ścieżki nagrania</value>
   </data>
   <data name="audio.error.stopRecordingFailed" xml:space="preserve">
-    <value>Failed to stop recording</value>
+    <value>Nie udało się zatrzymać nagrywania</value>
   </data>
   <data name="audio.error.enumerationFailed" xml:space="preserve">
-    <value>Failed to enumerate audio devices</value>
+    <value>Nie udało się wyliczyć urządzeń audio</value>
   </data>
 
   <!-- Settings - Models -->
@@ -766,59 +766,59 @@ Tej czynności nie można cofnąć.</value>
     <value>Pobierz</value>
   </data>
   <data name="settings.models.download.cancelled" xml:space="preserve">
-    <value>Download was cancelled by the user</value>
+    <value>Pobieranie zostało anulowane przez użytkownika</value>
   </data>
   <data name="settings.models.download.failed" xml:space="preserve">
-    <value>Download failed: {0}</value>
+    <value>Pobieranie nie powiodło się: {0}</value>
   </data>
 
   <!-- Post-Processing -->
   <data name="postprocessing.error.apiKeyNotSet" xml:space="preserve">
-    <value>Post-processing disabled - API key not set</value>
+    <value>Przetwarzanie końcowe wyłączone - nie ustawiono klucza API</value>
   </data>
   <data name="postprocessing.error.failed" xml:space="preserve">
-    <value>Post-processing failed, using original text</value>
+    <value>Przetwarzanie końcowe nie powiodło się, użyto oryginalnego tekstu</value>
   </data>
 
   <!-- Status Messages -->
   <data name="status.ready.withHotkey" xml:space="preserve">
-    <value>Ready - Press {0} to record</value>
+    <value>Gotowe - naciśnij {0}, aby nagrywać</value>
   </data>
   <data name="status.audio.enumerationFailed" xml:space="preserve">
-    <value>Failed to enumerate audio devices</value>
+    <value>Nie udało się wyliczyć urządzeń audio</value>
   </data>
   <data name="status.model.loading" xml:space="preserve">
-    <value>Loading {0}...</value>
+    <value>Ładowanie {0}...</value>
   </data>
   <data name="status.model.ready" xml:space="preserve">
-    <value>{0} (Ready)</value>
+    <value>{0} (gotowy)</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
-    <value>Load failed</value>
+    <value>Ładowanie nie powiodło się</value>
   </data>
   <data name="status.failed" xml:space="preserve">
-    <value>Failed: {0}</value>
+    <value>Niepowodzenie: {0}</value>
   </data>
   <data name="status.mode.none" xml:space="preserve">
-    <value>No mode</value>
+    <value>Brak trybu</value>
   </data>
   <data name="status.model.localReady" xml:space="preserve">
-    <value>Local: {0} ({1} Ready)</value>
+    <value>Lokalnie: {0} ({1} gotowy)</value>
   </data>
   <data name="status.model.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>Nieznany</value>
   </data>
   <data name="status.model.computeReady" xml:space="preserve">
-    <value>{0} ({1} Ready)</value>
+    <value>{0} ({1} gotowy)</value>
   </data>
   <data name="status.model.downloaded" xml:space="preserve">
-    <value>{0} (Downloaded)</value>
+    <value>{0} (pobrany)</value>
   </data>
   <data name="status.model.notDownloaded" xml:space="preserve">
-    <value>{0} (Not downloaded)</value>
+    <value>{0} (nie pobrano)</value>
   </data>
   <data name="status.recordingCancelled" xml:space="preserve">
-    <value>Recording cancelled</value>
+    <value>Anulowano nagrywanie</value>
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Anulowano transkrypcję pliku</value>
@@ -827,30 +827,30 @@ Tej czynności nie można cofnąć.</value>
     <value>Transkrypcja pliku...</value>
   </data>
   <data name="status.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>Nieznany</value>
   </data>
 
   <!-- Error Messages - ViewModel -->
   <data name="errors.noMicrophone" xml:space="preserve">
-    <value>No microphone available</value>
+    <value>Brak dostępnego mikrofonu</value>
   </data>
   <data name="errors.noModeSelected" xml:space="preserve">
-    <value>No mode selected</value>
+    <value>Nie wybrano trybu</value>
   </data>
   <data name="errors.modelNotDownloaded" xml:space="preserve">
-    <value>Model '{0}' not downloaded</value>
+    <value>Model „{0}” nie został pobrany</value>
   </data>
   <data name="errors.modelLoadFailed" xml:space="preserve">
-    <value>Failed to load transcription model</value>
+    <value>Nie udało się załadować modelu transkrypcji</value>
   </data>
   <data name="errors.recordingStartFailed" xml:space="preserve">
-    <value>Failed to start recording</value>
+    <value>Nie udało się rozpocząć nagrywania</value>
   </data>
   <data name="errors.transcriptionFailed" xml:space="preserve">
-    <value>Transcription failed: {0}</value>
+    <value>Transkrypcja nie powiodła się: {0}</value>
   </data>
   <data name="errors.retryFailed" xml:space="preserve">
-    <value>Retry failed: {0}</value>
+    <value>Ponowienie nie powiodło się: {0}</value>
   </data>
   <data name="errors.retryModeDeleted" xml:space="preserve">
     <value>Tryb, którym wykonano to nagranie, został usunięty, więc nie ponowiono próby. W Historii kliknij nagranie prawym przyciskiem myszy i wybierz „Ponów z...”, aby wybrać inny tryb.</value>
@@ -864,29 +864,29 @@ Tej czynności nie można cofnąć.</value>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
-    <value>Enhancing...</value>
+    <value>Ulepszanie...</value>
   </data>
 
   <!-- History - Status -->
 
   <!-- History - Retry -->
   <data name="history.context.retryAgain" xml:space="preserve">
-    <value>Retry again</value>
+    <value>Ponów jeszcze raz</value>
   </data>
 
   <!-- Modes -->
   <data name="modes.subtitle.local" xml:space="preserve">
-    <value>Local - {0}</value>
+    <value>Lokalnie - {0}</value>
   </data>
 
   <!-- Language -->
   <data name="language.automatic" xml:space="preserve">
-    <value>Automatic</value>
+    <value>Automatyczny</value>
   </data>
 
   <!-- Status Bar -->
   <data name="statusbar.mode" xml:space="preserve">
-    <value>Mode: </value>
+    <value>Tryb: </value>
   </data>
   <data name="statusbar.model" xml:space="preserve">
     <value>Model: </value>
@@ -894,129 +894,129 @@ Tej czynności nie można cofnąć.</value>
 
   <!-- Recording Overlay - Extended -->
   <data name="recording.cancel.prompt" xml:space="preserve">
-    <value>Cancel?</value>
+    <value>Anulować?</value>
   </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
-    <value>Mode Settings</value>
+    <value>Ustawienia trybu</value>
   </data>
   <data name="mode.editor.arm64.info" xml:space="preserve">
-    <value>Local transcription is not available on ARM64 Windows. Please use a cloud provider.</value>
+    <value>Lokalna transkrypcja nie jest dostępna w systemie Windows na ARM64. Użyj dostawcy chmurowego.</value>
   </data>
   <data name="mode.editor.field.preset" xml:space="preserve">
-    <value>Preset</value>
+    <value>Ustawienie wstępne</value>
   </data>
   <data name="mode.editor.preset.hyper" xml:space="preserve">
-    <value>Hyper (Recommended)</value>
+    <value>Hyper (zalecany)</value>
   </data>
   <data name="mode.editor.preset.message" xml:space="preserve">
-    <value>Message</value>
+    <value>Wiadomość</value>
   </data>
   <data name="mode.editor.preset.mail" xml:space="preserve">
-    <value>Mail</value>
+    <value>E-mail</value>
   </data>
   <data name="mode.editor.preset.note" xml:space="preserve">
-    <value>Note</value>
+    <value>Notatka</value>
   </data>
   <data name="mode.editor.preset.meeting" xml:space="preserve">
-    <value>Meeting</value>
+    <value>Spotkanie</value>
   </data>
   <data name="mode.editor.preset.code" xml:space="preserve">
-    <value>Code</value>
+    <value>Kod</value>
   </data>
   <data name="mode.editor.preset.custom" xml:space="preserve">
-    <value>Custom</value>
+    <value>Niestandardowy</value>
   </data>
   <data name="mode.editor.field.customInstructions" xml:space="preserve">
-    <value>Custom Instructions</value>
+    <value>Instrukcje niestandardowe</value>
   </data>
   <data name="mode.editor.field.customInstructions.hint" xml:space="preserve">
-    <value>Define how the AI should process your transcription</value>
+    <value>Określ, jak AI ma przetwarzać Twoją transkrypcję</value>
   </data>
   <data name="mode.editor.field.localModel" xml:space="preserve">
-    <value>Local Model</value>
+    <value>Model lokalny</value>
   </data>
   <data name="mode.editor.field.cloudProvider" xml:space="preserve">
-    <value>Cloud Provider</value>
+    <value>Dostawca chmurowy</value>
   </data>
   <data name="mode.editor.field.cloudModel" xml:space="preserve">
-    <value>Cloud Model</value>
+    <value>Model w chmurze</value>
   </data>
   <data name="modes.cloudAccuracy.title" xml:space="preserve">
-    <value>Cloud Accuracy</value>
+    <value>Dokładność w chmurze</value>
   </data>
   <data name="modes.cloudAccuracy.groqWhisper.description" xml:space="preserve">
-    <value>Groq Whisper - fastest transcription, lowest cost</value>
+    <value>Groq Whisper - najszybsza transkrypcja, najniższy koszt</value>
   </data>
   <data name="modes.cloudAccuracy.deepgramNova3.description" xml:space="preserve">
-    <value>Deepgram Nova-3 - balanced speed and accuracy</value>
+    <value>Deepgram Nova-3 - zrównoważona szybkość i dokładność</value>
   </data>
   <data name="modes.cloudAccuracy.elevenLabsScribeV2.description" xml:space="preserve">
-    <value>ElevenLabs Scribe v2 - highest accuracy, slower</value>
+    <value>ElevenLabs Scribe v2 - najwyższa dokładność, wolniejszy</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
     <value>SpaceXAI Grok STT - wysoka dokładność, własny słownik jako terminy kluczowe</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
-    <value>Custom vocabulary is not supported with this provider.</value>
+    <value>Ten dostawca nie obsługuje niestandardowego słownictwa.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Parakeet models.</value>
+    <value>Modele Parakeet nie obsługują niestandardowego słownictwa.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
+    <value>ElevenLabs Scribe V1 nie obsługuje niestandardowego słownictwa.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
+    <value>Modele Deepgram Base nie obsługują niestandardowego słownictwa.</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
+    <value>Modele Deepgram Whisper nie obsługują niestandardowego słownictwa.</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
-    <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
+    <value>Niestandardowe słownictwo jest wyłączone przy automatycznym wykrywaniu języka w modelach Nova. Ustaw konkretny język, aby włączyć wzmacnianie słownictwa.</value>
   </data>
   <data name="mode.editor.postProcessing.enable" xml:space="preserve">
-    <value>Enable AI Post-Processing</value>
+    <value>Włącz przetwarzanie końcowe AI</value>
   </data>
   <data name="mode.editor.postProcessing.provider" xml:space="preserve">
-    <value>Provider</value>
+    <value>Dostawca</value>
   </data>
   <data name="mode.editor.postProcessing.model" xml:space="preserve">
-    <value>AI Model</value>
+    <value>Model AI</value>
   </data>
   <data name="mode.editor.postProcessing.englishSpelling" xml:space="preserve">
-    <value>English Spelling</value>
+    <value>Pisownia angielska</value>
   </data>
   <data name="mode.editor.spelling.american" xml:space="preserve">
-    <value>American English</value>
+    <value>Angielski amerykański</value>
   </data>
   <data name="mode.editor.spelling.british" xml:space="preserve">
-    <value>British English</value>
+    <value>Angielski brytyjski</value>
   </data>
   <data name="mode.editor.spelling.australian" xml:space="preserve">
-    <value>Australian English</value>
+    <value>Angielski australijski</value>
   </data>
   <data name="mode.editor.spelling.canadian" xml:space="preserve">
-    <value>Canadian English</value>
+    <value>Angielski kanadyjski</value>
   </data>
   <data name="mode.editor.spelling.hint" xml:space="preserve">
-    <value>Choose spelling variant for English text</value>
+    <value>Wybierz wariant pisowni dla tekstu angielskiego</value>
   </data>
   <data name="mode.editor.postProcessing.punctuation" xml:space="preserve">
-    <value>Add punctuation</value>
+    <value>Dodaj interpunkcję</value>
   </data>
   <data name="mode.editor.postProcessing.capitalization" xml:space="preserve">
-    <value>Capitalize text</value>
+    <value>Wielkie litery</value>
   </data>
   <data name="mode.editor.postProcessing.profanityFilter" xml:space="preserve">
-    <value>Filter profanity</value>
+    <value>Filtruj wulgaryzmy</value>
   </data>
   <data name="mode.editor.postProcessing.screenText" xml:space="preserve">
-    <value>Screen Text</value>
+    <value>Tekst na ekranie</value>
   </data>
   <data name="mode.editor.postProcessing.screenText.hint" xml:space="preserve">
-    <value>Capture visible screen text to improve accuracy of names and terms</value>
+    <value>Przechwytuj widoczny tekst na ekranie, aby poprawić dokładność nazw i terminów</value>
   </data>  <data name="mode.editor.postProcessing.removeTrailingPeriod" xml:space="preserve">
     <value>Usuń kropkę na końcu</value>
   </data>
@@ -1027,49 +1027,49 @@ Tej czynności nie można cofnąć.</value>
     <value>Dodaj instrukcje, które zawsze obowiązują ponad wybranym ustawieniem wstępnym.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
-    <value>API Key Required</value>
+    <value>Wymagany klucz API</value>
   </data>
   <!-- Mode Editor - Provider Tooltips -->
   <data name="mode.editor.provider.openai.tooltip" xml:space="preserve">
-    <value>Industry-standard Whisper model with excellent accuracy</value>
+    <value>Standardowy w branży model Whisper o doskonałej dokładności</value>
   </data>
   <data name="mode.editor.provider.groq.tooltip" xml:space="preserve">
-    <value>Ultra-fast inference on Whisper models</value>
+    <value>Ultraszybkie wnioskowanie na modelach Whisper</value>
   </data>
   <data name="mode.editor.provider.deepgram.tooltip" xml:space="preserve">
-    <value>Real-time transcription with custom vocabulary boosting</value>
+    <value>Transkrypcja w czasie rzeczywistym ze wzmacnianiem niestandardowego słownictwa</value>
   </data>
   <data name="mode.editor.provider.assemblyai.tooltip" xml:space="preserve">
-    <value>Accurate transcription with speaker diarization</value>
+    <value>Dokładna transkrypcja z rozpoznawaniem mówców</value>
   </data>
   <data name="mode.editor.provider.elevenlabs.tooltip" xml:space="preserve">
-    <value>High-quality multilingual transcription</value>
+    <value>Wysokiej jakości transkrypcja wielojęzyczna</value>
   </data>
   <data name="mode.editor.provider.mistral.tooltip" xml:space="preserve">
-    <value>European AI provider with multilingual support</value>
+    <value>Europejski dostawca AI z obsługą wielu języków</value>
   </data>
   <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
     <value>SpaceXAI Grok zamiana mowy na tekst (HTTP wsadowy)</value>
   </data>
   <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
-    <value>Fast, accurate transcription - no API key required</value>
+    <value>Szybka, dokładna transkrypcja - bez klucza API</value>
   </data>
   <!-- Mode Editor - Delete Dialogs -->
   <data name="mode.editor.delete.confirm.title" xml:space="preserve">
-    <value>Delete Mode</value>
+    <value>Usuń tryb</value>
   </data>
   <data name="mode.editor.delete.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to delete the mode "{0}"?
+    <value>Czy na pewno chcesz usunąć tryb „{0}”?
 
-This action cannot be undone.</value>
+Tej operacji nie można cofnąć.</value>
   </data>
   <data name="mode.editor.delete.cannotDelete.title" xml:space="preserve">
-    <value>Cannot Delete</value>
+    <value>Nie można usunąć</value>
   </data>
   <data name="mode.editor.delete.cannotDelete.message" xml:space="preserve">
-    <value>Cannot delete the last remaining mode.
+    <value>Nie można usunąć ostatniego pozostałego trybu.
 
-You must have at least one mode.</value>
+Musisz mieć co najmniej jeden tryb.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
@@ -1116,49 +1116,49 @@ You must have at least one mode.</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
-    <value>Failed to initialize database: {0}</value>
+    <value>Nie udało się zainicjować bazy danych: {0}</value>
   </data>
   <data name="errors.database.title" xml:space="preserve">
-    <value>Database Error</value>
+    <value>Błąd bazy danych</value>
   </data>
   <data name="errors.unhandled.title" xml:space="preserve">
-    <value>HyperWhisper Error</value>
+    <value>Błąd HyperWhisper</value>
   </data>
   <data name="errors.unhandled.message" xml:space="preserve">
-    <value>Error: {0}</value>
+    <value>Błąd: {0}</value>
   </data>
   <data name="errors.applicationControl.blocked" xml:space="preserve">
     <value>Kontrola aplikacji systemu Windows zablokowała plik {0}, którego potrzebuje HyperWhisper. Poproś administratora IT o zezwolenie na HyperWhisper albo sprawdź Inteligentną kontrolę aplikacji w Zabezpieczeniach Windows.</value>
   </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
-    <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
+    <value>Nie udało się włączyć uruchamiania przy starcie systemu. Sprawdź, czy masz uprawnienia do zmiany ustawień autostartu.</value>
   </data>
   <data name="settings.general.startup.disableFailed" xml:space="preserve">
-    <value>Failed to disable launch at startup. Please check if you have permission to modify startup settings.</value>
+    <value>Nie udało się wyłączyć uruchamiania przy starcie systemu. Sprawdź, czy masz uprawnienia do zmiany ustawień autostartu.</value>
   </data>
   <!-- Settings - Models -->
   <data name="settings.models.downloadFailed.title" xml:space="preserve">
-    <value>Download Failed</value>
+    <value>Pobieranie nie powiodło się</value>
   </data>
   <data name="settings.models.downloadFailed.message" xml:space="preserve">
-    <value>Failed to download {0}:
+    <value>Nie udało się pobrać {0}:
 
 {1}</value>
   </data>
   <data name="settings.models.delete.confirm.title" xml:space="preserve">
-    <value>Delete Model</value>
+    <value>Usuń model</value>
   </data>
   <data name="settings.models.delete.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to delete {0}?
+    <value>Czy na pewno chcesz usunąć {0}?
 
-You can re-download it later.</value>
+Możesz pobrać go ponownie później.</value>
   </data>
   <data name="settings.models.deleteFailed.title" xml:space="preserve">
-    <value>Delete Failed</value>
+    <value>Usuwanie nie powiodło się</value>
   </data>
   <data name="settings.models.deleteFailed.message" xml:space="preserve">
-    <value>Failed to delete {0}:
+    <value>Nie udało się usunąć {0}:
 
 {1}</value>
   </data>
@@ -1170,59 +1170,59 @@ You can re-download it later.</value>
   </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
-    <value>Deactivate License</value>
+    <value>Dezaktywuj licencję</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
     <value>Czy na pewno chcesz dezaktywować to urządzenie? Transkrypcja w chmurze przestanie działać do momentu ponownego wprowadzenia klucza konta. Twoje kredyty pozostają na kluczu.</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
-    <value>Storage</value>
+    <value>Pamięć</value>
   </data>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
-    <value>Unable to use the selected folder.</value>
+    <value>Nie można użyć wybranego folderu.</value>
   </data>
   <data name="settings.storage.error.openFolder" xml:space="preserve">
     <value>Nie można otworzyć folderu nagrań. {0}</value>
   </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
-    <value>Choose a folder for new recordings</value>
+    <value>Wybierz folder na nowe nagrania</value>
   </data>
   <data name="settings.storage.autoDelete.title" xml:space="preserve">
-    <value>Automatic Cleanup</value>
+    <value>Automatyczne czyszczenie</value>
   </data>
   <data name="settings.storage.autoDelete.subtitle" xml:space="preserve">
-    <value>Automatically delete old recordings to save disk space</value>
+    <value>Automatycznie usuwaj stare nagrania, aby oszczędzać miejsce na dysku</value>
   </data>
   <data name="settings.storage.autoDelete.deleteAfter" xml:space="preserve">
-    <value>Delete recordings older than</value>
+    <value>Usuwaj nagrania starsze niż</value>
   </data>
   <data name="settings.storage.autoDelete.days" xml:space="preserve">
-    <value>days</value>
+    <value>dni</value>
   </data>
   <data name="settings.storage.autoDelete.deleteNow" xml:space="preserve">
-    <value>Delete Now</value>
+    <value>Usuń teraz</value>
   </data>
   <data name="settings.storage.autoDelete.deleting" xml:space="preserve">
-    <value>Deleting...</value>
+    <value>Usuwanie...</value>
   </data>
   <data name="settings.storage.autoDelete.lastCleanup" xml:space="preserve">
-    <value>Last cleanup: {0} - Deleted {1} recording(s)</value>
+    <value>Ostatnie czyszczenie: {0} - usunięto nagrania: {1}</value>
   </data>
   <data name="settings.storage.autoDelete.noCleanupYet" xml:space="preserve">
-    <value>No cleanup has run yet</value>
+    <value>Czyszczenie nie zostało jeszcze uruchomione</value>
   </data>
   <data name="settings.storage.autoDelete.confirmDelete.title" xml:space="preserve">
-    <value>Confirm Deletion</value>
+    <value>Potwierdź usunięcie</value>
   </data>
   <data name="settings.storage.autoDelete.confirmDelete.message" xml:space="preserve">
-    <value>This will permanently delete old recordings. Continue?</value>
+    <value>Spowoduje to trwałe usunięcie starych nagrań. Kontynuować?</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.title" xml:space="preserve">
-    <value>Cleanup Complete</value>
+    <value>Czyszczenie zakończone</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
-    <value>Deleted {0} recording(s)</value>
+    <value>Usunięto nagrania: {0}</value>
   </data>
   <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
     <value>Czyszczenie nie powiodło się</value>
@@ -1269,10 +1269,10 @@ You can re-download it later.</value>
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="provider.status.configured" xml:space="preserve">
-    <value>Configured ({0})</value>
+    <value>Skonfigurowano ({0})</value>
   </data>
   <data name="provider.status.notConfigured" xml:space="preserve">
-    <value>Not configured</value>
+    <value>Nie skonfigurowano</value>
   </data>
 
   <!-- Keyboard Keys -->
@@ -1282,13 +1282,13 @@ You can re-download it later.</value>
 
   <!-- Shortcut Modes -->
   <data name="settings.shortcuts.mode.disabled" xml:space="preserve">
-    <value>Disabled</value>
+    <value>Wyłączony</value>
   </data>
   <data name="settings.shortcuts.mode.modifier" xml:space="preserve">
-    <value>Modifier</value>
+    <value>Modyfikator</value>
   </data>
   <data name="settings.shortcuts.mode.custom" xml:space="preserve">
-    <value>Custom</value>
+    <value>Niestandardowy</value>
   </data>
 
   <!-- License Status Descriptions -->
@@ -1299,33 +1299,36 @@ You can re-download it later.</value>
     <value>Twój klucz licencji jest już nieważny. Wprowadź nowy klucz poniżej lub zdobądź kredyty, aby go utworzyć.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
-    <value>Please enter a license key.</value>
+    <value>Wprowadź klucz licencyjny.</value>
+  </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>To nie wygląda na klucz konta.</value>
   </data>
 
   <!-- Models - ARM64 and GPU -->
 
   <!-- Mode Editor - Additional -->
   <data name="mode.editor.model.notDownloaded" xml:space="preserve">
-    <value> - Not Downloaded</value>
+    <value> - Nie pobrano</value>
   </data>
 
   <!-- Modes - ARM64 -->
   <data name="modes.arm64.notAvailable" xml:space="preserve">
-    <value>Not available (ARM64)</value>
+    <value>Niedostępne (ARM64)</value>
   </data>
 
   <!-- File Transcription -->
   <data name="file.transcribe.dialogTitle" xml:space="preserve">
-    <value>Select Audio File to Transcribe</value>
+    <value>Wybierz plik audio do transkrypcji</value>
   </data>
   <data name="errors.fileNotFound" xml:space="preserve">
-    <value>File not found</value>
+    <value>Nie znaleziono pliku</value>
   </data>
   <data name="errors.fileTranscriptionBusy" xml:space="preserve">
     <value>Trwa już nagrywanie lub transkrypcja pliku. Spróbuj ponownie z plikiem, gdy się zakończy.</value>
   </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
-    <value>File is too large for this provider. Maximum size: {0}</value>
+    <value>Plik jest za duży dla tego dostawcy. Maksymalny rozmiar: {0}</value>
   </data>
   <data name="errors.fileEmpty" xml:space="preserve">
     <value>Ten plik jest pusty, więc nie ma dźwięku do transkrypcji.</value>
@@ -1593,7 +1596,7 @@ You can re-download it later.</value>
     <value>Przytrzymaj klawisz, aby nagrywać, puść po zakończeniu</value>
   </data>
   <data name="settings.shortcuts.pushToTalk.title" xml:space="preserve">
-    <value>Push to Talk</value>
+    <value>Naciśnij i mów</value>
   </data>
   <data name="settings.shortcuts.pushToTalk.unassigned" xml:space="preserve">
     <value>Nieprzypisane</value>
@@ -1616,22 +1619,22 @@ You can re-download it later.</value>
 
   <!-- Local LLM Post-Processing -->
   <data name="provider.localLlm" xml:space="preserve">
-    <value>Local LLM</value>
+    <value>Lokalny LLM</value>
   </data>
   <data name="settings.api.provider.localLlm.description" xml:space="preserve">
-    <value>Runs on-device and does not need an API key.</value>
+    <value>Działa na urządzeniu i nie wymaga klucza API.</value>
   </data>
   <data name="settings.api.provider.localLlm.status" xml:space="preserve">
-    <value>No API key required</value>
+    <value>Klucz API nie jest wymagany</value>
   </data>
   <data name="settings.api.provider.localLlm.manageModels" xml:space="preserve">
-    <value>Manage Models</value>
+    <value>Zarządzaj modelami</value>
   </data>
   <data name="settings.models.localLlm.hardware.cpuFallback" xml:space="preserve">
-    <value>Runtime: CPU fallback. No GPU acceleration device was detected.</value>
+    <value>Środowisko uruchomieniowe: tryb awaryjny CPU. Nie wykryto urządzenia do akceleracji GPU.</value>
   </data>
   <data name="settings.models.localLlm.hardware.cudaFirst" xml:space="preserve">
-    <value>CUDA will be tried first, with CPU fallback if loading fails</value>
+    <value>Najpierw zostanie wypróbowana CUDA, z powrotem do CPU w przypadku niepowodzenia ładowania</value>
   </data>
   <data name="settings.models.localLlm.hardware.vulkanFirst" xml:space="preserve">
     <value>Najpierw zostanie wypróbowany Vulkan, z powrotem do CPU w przypadku niepowodzenia wczytywania</value>
@@ -1640,229 +1643,229 @@ You can re-download it later.</value>
     <value>Tryb awaryjny CPU. Ta karta graficzna (GPU) nie obsługuje przyspieszonego lokalnego przetwarzania końcowego</value>
   </data>
   <data name="settings.models.localLlm.hardware.sharedGpu" xml:space="preserve">
-    <value>Local LLM and Whisper may share GPU memory; use a smaller model if transcription slows.</value>
+    <value>Lokalny LLM i Whisper mogą współdzielić pamięć GPU; użyj mniejszego modelu, jeśli transkrypcja zwalnia.</value>
   </data>
   <data name="settings.models.localLlm.hardware.runtimeFormat" xml:space="preserve">
-    <value>Runtime: {0} ({1}). {2}.</value>
+    <value>Środowisko uruchomieniowe: {0} ({1}). {2}.</value>
   </data>
   <data name="settings.models.localLlm.notDownloadedSuffix" xml:space="preserve">
-    <value> - Not downloaded</value>
+    <value> - Nie pobrano</value>
   </data>
   <data name="settings.models.localLlm.missingModel" xml:space="preserve">
-    <value>Local LLM model '{0}' is not downloaded. Download it in Model Library.</value>
+    <value>Model lokalnego LLM „{0}” nie został pobrany. Pobierz go w Bibliotece modeli.</value>
   </data>
   <data name="settings.models.localLlm.diskSpace" xml:space="preserve">
-    <value>Not enough disk space to download {0}. Need {1}, available {2}.</value>
+    <value>Za mało miejsca na dysku, aby pobrać {0}. Wymagane: {1}, dostępne: {2}.</value>
   </data>
   <data name="settings.models.localLlm.invalidModelFile" xml:space="preserve">
-    <value>Downloaded file is not a valid GGUF model.</value>
+    <value>Pobrany plik nie jest prawidłowym modelem GGUF.</value>
   </data>
   <data name="mode.editor.localLlm.openModelsSettings" xml:space="preserve">
-    <value>Open Model Library</value>
+    <value>Otwórz Bibliotekę modeli</value>
   </data>
   <data name="mode.editor.localLlm.readyDescription" xml:space="preserve">
-    <value>{0} Ready for offline post-processing.</value>
+    <value>{0} Gotowy do przetwarzania końcowego offline.</value>
   </data>
   <data name="mode.editor.localLlm.downloadDescription" xml:space="preserve">
-    <value>{0} Download it in Model Library first.</value>
+    <value>{0} Najpierw pobierz go w Bibliotece modeli.</value>
   </data>
   <data name="app.badge.pro" xml:space="preserve">
     <value>PRO</value>
   </data>
   <data name="window.caption.minimize" xml:space="preserve">
-    <value>Minimize</value>
+    <value>Minimalizuj</value>
   </data>
   <data name="window.caption.maximize" xml:space="preserve">
-    <value>Maximize</value>
+    <value>Maksymalizuj</value>
   </data>
   <data name="window.caption.close" xml:space="preserve">
-    <value>Close</value>
+    <value>Zamknij</value>
   </data>
   <data name="common.clear" xml:space="preserve">
-    <value>Clear</value>
+    <value>Wyczyść</value>
   </data>
   <data name="common.off" xml:space="preserve">
-    <value>Off</value>
+    <value>Wył.</value>
   </data>
   <data name="menu.command.contact.support" xml:space="preserve">
-    <value>Contact Support</value>
+    <value>Skontaktuj się z pomocą techniczną</value>
   </data>
   <data name="menu.history" xml:space="preserve">
-    <value>History...</value>
+    <value>Historia...</value>
   </data>
   <data name="menu.settings" xml:space="preserve">
-    <value>Settings...</value>
+    <value>Ustawienia...</value>
   </data>
   <data name="menu.recording.toggle" xml:space="preserve">
-    <value>Start/Stop Recording</value>
+    <value>Rozpocznij/zatrzymaj nagrywanie</value>
   </data>
   <data name="menu.recording.stop" xml:space="preserve">
-    <value>Stop Recording</value>
+    <value>Zatrzymaj nagrywanie</value>
   </data>
   <data name="menu.microphone" xml:space="preserve">
-    <value>Microphone</value>
+    <value>Mikrofon</value>
   </data>
   <data name="menu.microphone.none" xml:space="preserve">
-    <value>No microphones found</value>
+    <value>Nie znaleziono mikrofonów</value>
   </data>
   <data name="menu.select.mode" xml:space="preserve">
-    <value>Select Mode</value>
+    <value>Wybierz tryb</value>
   </data>
   <data name="menu.mode.none" xml:space="preserve">
-    <value>No modes available</value>
+    <value>Brak dostępnych trybów</value>
   </data>
   <data name="menu.mode.unnamed" xml:space="preserve">
-    <value>Unnamed</value>
+    <value>Bez nazwy</value>
   </data>
   <data name="menu.mode.more" xml:space="preserve">
     <value>Więcej...</value>
   </data>
   <data name="menu.transcribe.file" xml:space="preserve">
-    <value>Transcribe File</value>
+    <value>Transkrybuj plik</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
     <value>Wersja {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
-    <value>Quit</value>
+    <value>Zakończ</value>
   </data>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
-    <value>Auto-learned</value>
+    <value>Nauczone automatycznie</value>
   </data>
   <data name="vocabulary.manual.badge" xml:space="preserve">
     <value>Ręcznie</value>
   </data>
   <data name="settings.nav.streaming" xml:space="preserve">
-    <value>Streaming</value>
+    <value>Strumieniowanie</value>
   </data>
   <data name="settings.general.support.title" xml:space="preserve">
-    <value>Need help?</value>
+    <value>Potrzebujesz pomocy?</value>
   </data>
   <data name="settings.general.support.openFailed" xml:space="preserve">
-    <value>Could not open the support page: {0}</value>
+    <value>Nie można otworzyć strony pomocy technicznej: {0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
     <value>Wersja {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
-    <value>Help Center</value>
+    <value>Centrum pomocy</value>
   </data>
   <data name="settings.resources.contact.support" xml:space="preserve">
-    <value>Contact Support</value>
+    <value>Skontaktuj się z pomocą techniczną</value>
   </data>
   <data name="settings.resources.feedback" xml:space="preserve">
-    <value>Send Feedback</value>
+    <value>Wyślij opinię</value>
   </data>
   <data name="settings.credits.subtitle" xml:space="preserve">
-    <value>Track your HyperWhisper Cloud balance and usage</value>
+    <value>Śledź saldo i użycie HyperWhisper Cloud</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>SpaceXAI Grok models for text enhancement</value>
+    <value>Modele SpaceXAI Grok do ulepszania tekstu</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.title" xml:space="preserve">
-    <value>Autocapitalize Insert</value>
+    <value>Automatyczna wielka litera przy wstawianiu</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.subtitle" xml:space="preserve">
-    <value>Match cursor context when inserting text</value>
+    <value>Dopasuj do kontekstu kursora przy wstawianiu tekstu</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.permissionMessage" xml:space="preserve">
-    <value>Some applications (like web browsers and Electron apps) may not expose the focused text field. Autocapitalize Insert will pass through unchanged in those cases — the feature still works in most native editors and Office applications.</value>
+    <value>Niektóre aplikacje (np. przeglądarki internetowe i aplikacje Electron) mogą nie udostępniać aktywnego pola tekstowego. W takich przypadkach automatyczna wielka litera przy wstawianiu przekaże tekst bez zmian — funkcja nadal działa w większości natywnych edytorów i aplikacji pakietu Office.</value>
   </data>
   <data name="settings.output.hideClipboardHistory.title" xml:space="preserve">
-    <value>Hide from clipboard history</value>
+    <value>Ukryj w historii schowka</value>
   </data>
   <data name="settings.output.hideClipboardHistory.subtitle" xml:space="preserve">
-    <value>Prevent transcriptions from appearing in Windows clipboard history</value>
+    <value>Nie pokazuj transkrypcji w historii schowka systemu Windows</value>
   </data>
   <data name="settings.storage.showFolder.title" xml:space="preserve">
-    <value>Show recordings folder</value>
+    <value>Pokaż folder nagrań</value>
   </data>
   <data name="settings.storage.storeAsM4A.title" xml:space="preserve">
-    <value>Compress recordings to M4A</value>
+    <value>Kompresuj nagrania do M4A</value>
   </data>
   <data name="settings.storage.storeAsM4A.subtitle" xml:space="preserve">
-    <value>Converts WAV recordings to smaller files after transcription. Turn off to keep original WAV files.</value>
+    <value>Konwertuje nagrania WAV na mniejsze pliki po transkrypcji. Wyłącz, aby zachować oryginalne pliki WAV.</value>
   </data>
   <data name="settings.about.checkUpdates.description" xml:space="preserve">
-    <value>Look for the latest release.</value>
+    <value>Wyszukaj najnowszą wersję.</value>
   </data>
   <data name="settings.about.openLogFolder.description" xml:space="preserve">
-    <value>View local diagnostic files.</value>
+    <value>Wyświetl lokalne pliki diagnostyczne.</value>
   </data>
   <data name="settings.about.openLogFolder.failed.title" xml:space="preserve">
-    <value>Could Not Open Log Folder</value>
+    <value>Nie można otworzyć folderu dzienników</value>
   </data>
   <data name="settings.about.openLogFolder.failed.message" xml:space="preserve">
-    <value>HyperWhisper could not open the log folder. Please try again or export diagnostics instead. Details: {0}</value>
+    <value>HyperWhisper nie mógł otworzyć folderu dzienników. Spróbuj ponownie lub zamiast tego wyeksportuj diagnostykę. Szczegóły: {0}</value>
   </data>
   <data name="settings.about.exportDiagnostics" xml:space="preserve">
-    <value>Export Diagnostics</value>
+    <value>Eksportuj diagnostykę</value>
   </data>
   <data name="settings.about.exportDiagnostics.description" xml:space="preserve">
-    <value>Create a support bundle.</value>
+    <value>Utwórz pakiet dla pomocy technicznej.</value>
   </data>
   <data name="settings.about.exportDiagnostics.dialogTitle" xml:space="preserve">
-    <value>Export HyperWhisper Diagnostics</value>
+    <value>Eksportuj diagnostykę HyperWhisper</value>
   </data>
   <data name="settings.about.exportDiagnostics.fileFilter" xml:space="preserve">
-    <value>ZIP Archive (*.zip)|*.zip</value>
+    <value>Archiwum ZIP (*.zip)|*.zip</value>
   </data>
   <data name="settings.about.exportDiagnostics.exporting" xml:space="preserve">
-    <value>Exporting...</value>
+    <value>Eksportowanie...</value>
   </data>
   <data name="settings.about.exportDiagnostics.success.title" xml:space="preserve">
-    <value>Diagnostics Exported</value>
+    <value>Wyeksportowano diagnostykę</value>
   </data>
   <data name="settings.about.exportDiagnostics.success.message" xml:space="preserve">
-    <value>Diagnostics were exported successfully.</value>
+    <value>Diagnostyka została pomyślnie wyeksportowana.</value>
   </data>
   <data name="settings.about.exportDiagnostics.failed.title" xml:space="preserve">
-    <value>Diagnostics Export Failed</value>
+    <value>Eksport diagnostyki nie powiódł się</value>
   </data>
   <data name="settings.about.exportDiagnostics.failed.message" xml:space="preserve">
-    <value>Failed to export diagnostics: {0}</value>
+    <value>Nie udało się wyeksportować diagnostyki: {0}</value>
   </data>
   <data name="recording.state.streaming" xml:space="preserve">
-    <value>Live</value>
+    <value>Na żywo</value>
   </data>
   <data name="settings.models.directory.show" xml:space="preserve">
-    <value>Show in Explorer</value>
+    <value>Pokaż w Eksploratorze plików</value>
   </data>
   <data name="settings.models.clearFilters" xml:space="preserve">
-    <value>Clear filters</value>
+    <value>Wyczyść filtry</value>
   </data>
   <data name="settings.models.empty.noMatches" xml:space="preserve">
-    <value>No models match your filters.</value>
+    <value>Brak modeli pasujących do filtrów.</value>
   </data>
   <data name="settings.models.empty.filtered" xml:space="preserve">
-    <value>No models match: {0}.</value>
+    <value>Brak modeli pasujących do: {0}.</value>
   </data>
   <data name="settings.models.empty.noneAvailable" xml:space="preserve">
-    <value>No models are available.</value>
+    <value>Brak dostępnych modeli.</value>
   </data>
   <data name="settings.models.empty.filter.search" xml:space="preserve">
-    <value>search &quot;{0}&quot;</value>
+    <value>wyszukiwanie „{0}”</value>
   </data>
   <data name="settings.models.feature.vocabulary" xml:space="preserve">
-    <value>custom vocabulary</value>
+    <value>niestandardowe słownictwo</value>
   </data>
   <data name="statusbar.postProcessing" xml:space="preserve">
-    <value>Post: </value>
+    <value>Przetw. końcowe: </value>
   </data>
   <data name="mode.editor.cloudModel.showAll" xml:space="preserve">
-    <value>Show all models</value>
+    <value>Pokaż wszystkie modele</value>
   </data>
   <data name="mode.editor.cloudModel.popularLabel" xml:space="preserve">
-    <value>{0} (Popular)</value>
+    <value>{0} (popularny)</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - do 60 języków z wyróżnianiem fraz</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.description" xml:space="preserve">
-    <value>Google Gemini 3.5 Transcribe - dedicated speech model, 85+ languages, custom vocabulary</value>
+    <value>Google Gemini 3.5 Transcribe - dedykowany model mowy, ponad 85 języków, niestandardowe słownictwo</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
-    <value>~{0} credits/min</value>
+    <value>~{0} kredytów/min</value>
   </data>
   <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
     <value>Soniox - 60 języków, uwzględnianie kontekstu</value>
@@ -1895,25 +1898,25 @@ You can re-download it later.</value>
     <value>Słownictwo medyczne (dodatek trybu medycznego)</value>
   </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
-    <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
+    <value>Przetwarzanie końcowe AI może dostosować formatowanie do aktywnej aplikacji, np. poczty e-mail, czatu, dokumentów, kodu lub okien terminala. Klienci Local API mogą jawnie przekazać applicationContext; dla żądań API nie jest on przechwytywany automatycznie.</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
     <value>Strumieniowanie</value>
   </data>
   <data name="settings.streaming.title" xml:space="preserve">
-    <value>Streaming</value>
+    <value>Strumieniowanie</value>
   </data>
   <data name="settings.streaming.enable.title" xml:space="preserve">
-    <value>Enable streaming transcription</value>
+    <value>Włącz transkrypcję strumieniową</value>
   </data>
   <data name="settings.streaming.enable.subtitle" xml:space="preserve">
-    <value>Use a separate hotkey to transcribe continuously and paste final speech segments into the active app.</value>
+    <value>Użyj osobnego skrótu klawiszowego, aby transkrybować w sposób ciągły i wklejać końcowe fragmenty mowy do aktywnej aplikacji.</value>
   </data>
   <data name="settings.streaming.shortcut.title" xml:space="preserve">
-    <value>Streaming shortcut</value>
+    <value>Skrót strumieniowania</value>
   </data>
   <data name="settings.streaming.provider.title" xml:space="preserve">
-    <value>Provider</value>
+    <value>Dostawca</value>
   </data>
   <data name="settings.streaming.provider.hyperwhisperCloud" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
@@ -1937,61 +1940,61 @@ You can re-download it later.</value>
     <value>Używa Twoich kredytów HyperWhisper Cloud. Nie jest wymagany oddzielny klucz API.</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
-    <value>Deepgram API key is configured.</value>
+    <value>Klucz API Deepgram jest skonfigurowany.</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.missingKey" xml:space="preserve">
-    <value>Deepgram streaming requires a Deepgram API key in the Model Library API keys manager.</value>
+    <value>Strumieniowanie Deepgram wymaga klucza API Deepgram w menedżerze kluczy API w Bibliotece modeli.</value>
   </data>
   <data name="settings.streaming.providerStatus.elevenLabs.configured" xml:space="preserve">
-    <value>ElevenLabs API key is configured.</value>
+    <value>Klucz API ElevenLabs jest skonfigurowany.</value>
   </data>
   <data name="settings.streaming.providerStatus.elevenLabs.missingKey" xml:space="preserve">
-    <value>ElevenLabs streaming requires an ElevenLabs API key in the Model Library API keys manager.</value>
+    <value>Strumieniowanie ElevenLabs wymaga klucza API ElevenLabs w menedżerze kluczy API w Bibliotece modeli.</value>
   </data>
   <data name="settings.streaming.providerStatus.openAI.configured" xml:space="preserve">
-    <value>OpenAI API key is configured.</value>
+    <value>Klucz API OpenAI jest skonfigurowany.</value>
   </data>
   <data name="settings.streaming.providerStatus.openAI.missingKey" xml:space="preserve">
-    <value>OpenAI streaming requires an OpenAI API key in the Model Library API keys manager.</value>
+    <value>Strumieniowanie OpenAI wymaga klucza API OpenAI w menedżerze kluczy API w Bibliotece modeli.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
-    <value>SpaceXAI API key is configured.</value>
+    <value>Klucz API SpaceXAI jest skonfigurowany.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
-    <value>SpaceXAI streaming requires a Grok API key in the Model Library API keys manager.</value>
+    <value>Strumieniowanie SpaceXAI wymaga klucza API Grok w menedżerze kluczy API w Bibliotece modeli.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
-    <value>Gemini API key is configured.</value>
+    <value>Klucz API Gemini jest skonfigurowany.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.missingKey" xml:space="preserve">
-    <value>Gemini 3.5 Transcribe streaming requires a Google Gemini API key in the Model Library API keys manager.</value>
+    <value>Strumieniowanie Gemini 3.5 Transcribe wymaga klucza API Google Gemini w menedżerze kluczy API w Bibliotece modeli.</value>
   </data>
   <data name="settings.streaming.cloudTier.title" xml:space="preserve">
-    <value>Live engine</value>
+    <value>Silnik na żywo</value>
   </data>
   <data name="settings.streaming.cloudTier.subtitle" xml:space="preserve">
-    <value>Which speech engine HyperWhisper Cloud uses for live transcription.</value>
+    <value>Którego silnika mowy HyperWhisper Cloud używa do transkrypcji na żywo.</value>
   </data>
   <data name="settings.streaming.warning.vocabularyUnsupported" xml:space="preserve">
-    <value>Custom vocabulary is not used with the selected streaming provider.</value>
+    <value>Niestandardowe słownictwo nie jest używane z wybranym dostawcą strumieniowania.</value>
   </data>
   <data name="settings.streaming.warning.vocabularyAutoDetect" xml:space="preserve">
-    <value>Custom vocabulary is disabled for streaming when language is set to auto. Set a specific language to enable vocabulary boosting.</value>
+    <value>Niestandardowe słownictwo jest wyłączone dla strumieniowania, gdy język jest ustawiony na automatyczny. Ustaw konkretny język, aby włączyć wzmacnianie słownictwa.</value>
   </data>
   <data name="settings.streaming.language.title" xml:space="preserve">
-    <value>Language</value>
+    <value>Język</value>
   </data>
   <data name="settings.streaming.deepgram.model.title" xml:space="preserve">
     <value>Model</value>
   </data>
   <data name="settings.streaming.fastFormatting.title" xml:space="preserve">
-    <value>Fast formatting</value>
+    <value>Szybkie formatowanie</value>
   </data>
   <data name="settings.streaming.fastFormatting.subtitle" xml:space="preserve">
-    <value>Return formatted text with lower latency.</value>
+    <value>Zwracaj sformatowany tekst z mniejszym opóźnieniem.</value>
   </data>
   <data name="provider.none" xml:space="preserve">
-    <value>None</value>
+    <value>Brak</value>
   </data>
   <data name="provider.microsoftAzureSpeech" xml:space="preserve">
     <value>Microsoft Azure Speech</value>
@@ -2000,70 +2003,70 @@ You can re-download it later.</value>
     <value>Google Cloud Speech</value>
   </data>
   <data name="settings.sound.mediaControl.title" xml:space="preserve">
-    <value>Media control</value>
+    <value>Sterowanie multimediami</value>
   </data>
   <data name="settings.sound.mediaControl.subtitle" xml:space="preserve">
-    <value>Control other audio while HyperWhisper is recording.</value>
+    <value>Steruj innym dźwiękiem podczas nagrywania w HyperWhisper.</value>
   </data>
   <data name="settings.sound.mediaControl.off" xml:space="preserve">
-    <value>Off</value>
+    <value>Wył.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
-    <value>Mute audio</value>
+    <value>Wycisz dźwięk</value>
   </data>
   <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
     <value>Przytłum audio</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
-    <value>Keep microphone warm</value>
+    <value>Utrzymuj mikrofon w gotowości</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
-    <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+    <value>Utrzymuj otwarty cichy strumień wejściowy między nagraniami, aby skrócić opóźnienie startu, zwłaszcza w przypadku mikrofonów Bluetooth.</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
-    <value>Average speed</value>
+    <value>Średnia szybkość</value>
   </data>
   <data name="home.stats.wordsThisWeek" xml:space="preserve">
-    <value>Words this week</value>
+    <value>Słowa w tym tygodniu</value>
   </data>
   <data name="home.stats.wordsThisMonth" xml:space="preserve">
-    <value>Words this month</value>
+    <value>Słowa w tym miesiącu</value>
   </data>
   <data name="home.stats.savedThisWeek" xml:space="preserve">
-    <value>Saved this week</value>
+    <value>Zaoszczędzono w tym tygodniu</value>
   </data>
   <data name="home.stats.minutesValue" xml:space="preserve">
-    <value>{0} minutes</value>
+    <value>{0} min</value>
   </data>
   <data name="home.stats.typingSpeedHelp" xml:space="preserve">
-    <value>Adjust your assumed typing speed</value>
+    <value>Dostosuj przyjętą szybkość pisania</value>
   </data>
   <data name="providerApiKey.title" xml:space="preserve">
-    <value>Connect {0}</value>
+    <value>Połącz {0}</value>
   </data>
   <data name="providerApiKey.subtitle" xml:space="preserve">
-    <value>Add your {0} API key to unlock this provider in Model Library.</value>
+    <value>Dodaj klucz API {0}, aby odblokować tego dostawcę w Bibliotece modeli.</value>
   </data>
   <data name="providerApiKey.currentStatus.none" xml:space="preserve">
-    <value>No API key configured</value>
+    <value>Nie skonfigurowano klucza API</value>
   </data>
   <data name="providerApiKey.currentStatus.configured" xml:space="preserve">
-    <value>Configured as {0}</value>
+    <value>Skonfigurowano jako {0}</value>
   </data>
   <data name="providerApiKey.getKey" xml:space="preserve">
-    <value>Get key</value>
+    <value>Uzyskaj klucz</value>
   </data>
   <data name="providerApiKey.apiKeyLabel" xml:space="preserve">
-    <value>API key</value>
+    <value>Klucz API</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>Przechowywany bezpiecznie w Menedżerze poświadczeń systemu Windows.</value>
   </data>
   <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Invalid API Key</value>
+    <value>Nieprawidłowy klucz API</value>
   </data>
   <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>That does not look like a valid {0} API key.</value>
+    <value>To nie wygląda na prawidłowy klucz API {0}.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Local API</value>
@@ -2072,22 +2075,22 @@ You can re-download it later.</value>
     <value>Local API</value>
   </data>
   <data name="settings.localApi.blurb" xml:space="preserve">
-    <value>Localhost-only HTTP API for MCP clients, benchmark scripts, and shell automation. Off by default. When on, HyperWhisper listens on 127.0.0.1 and writes the port + bearer token to %LOCALAPPDATA%\HyperWhisper\local-api.json with restricted file permissions.</value>
+    <value>Interfejs HTTP API dostępny tylko przez localhost dla klientów MCP, skryptów testów wydajności i automatyzacji powłoki. Domyślnie wyłączony. Po włączeniu HyperWhisper nasłuchuje na 127.0.0.1 i zapisuje port oraz token bearer w %LOCALAPPDATA%\HyperWhisper\local-api.json z ograniczonymi uprawnieniami do pliku.</value>
   </data>
   <data name="settings.localApi.toggle.enabled" xml:space="preserve">
-    <value>Server enabled</value>
+    <value>Serwer włączony</value>
   </data>
   <data name="settings.localApi.toggle.disabled" xml:space="preserve">
-    <value>Server disabled</value>
+    <value>Serwer wyłączony</value>
   </data>
   <data name="settings.localApi.docs" xml:space="preserve">
-    <value>Docs</value>
+    <value>Dokumentacja</value>
   </data>
   <data name="settings.localApi.tab.connection" xml:space="preserve">
-    <value>Connection</value>
+    <value>Połączenie</value>
   </data>
   <data name="settings.localApi.tab.mcp" xml:space="preserve">
-    <value>MCP setup</value>
+    <value>Konfiguracja MCP</value>
   </data>
   <data name="settings.localApi.tab.curl" xml:space="preserve">
     <value>cURL</value>
@@ -2096,37 +2099,37 @@ You can re-download it later.</value>
     <value>Port</value>
   </data>
   <data name="settings.localApi.row.token" xml:space="preserve">
-    <value>Bearer token</value>
+    <value>Token bearer</value>
   </data>
   <data name="settings.localApi.row.portFile" xml:space="preserve">
-    <value>Port file</value>
+    <value>Plik portu</value>
   </data>
   <data name="settings.localApi.copy" xml:space="preserve">
-    <value>Copy</value>
+    <value>Kopiuj</value>
   </data>
   <data name="settings.localApi.reveal" xml:space="preserve">
-    <value>Reveal</value>
+    <value>Odkryj</value>
   </data>
   <data name="settings.localApi.hide" xml:space="preserve">
-    <value>Hide</value>
+    <value>Ukryj</value>
   </data>
   <data name="settings.localApi.regenerate" xml:space="preserve">
-    <value>Regenerate</value>
+    <value>Wygeneruj ponownie</value>
   </data>
   <data name="settings.localApi.show" xml:space="preserve">
-    <value>Show</value>
+    <value>Pokaż</value>
   </data>
   <data name="settings.localApi.helperAuth" xml:space="preserve">
-    <value>Sent as Authorization: Bearer &lt;token&gt;. Required on every endpoint except /health.</value>
+    <value>Wysyłany jako Authorization: Bearer &lt;token&gt;. Wymagany na każdym punkcie końcowym z wyjątkiem /health.</value>
   </data>
   <data name="settings.localApi.mcp.caption" xml:space="preserve">
-    <value>Drop into Cursor, Claude Code, or Claude Desktop's mcpServers block. The wrapper auto-reads the port and token from the discovery file at startup — no secrets in client config.</value>
+    <value>Wklej do bloku mcpServers w Cursor, Claude Code lub Claude Desktop. Wrapper przy uruchomieniu automatycznie odczytuje port i token z pliku wykrywania — bez sekretów w konfiguracji klienta.</value>
   </data>
   <data name="settings.localApi.mcp.guide" xml:space="preserve">
-    <value>MCP setup guide</value>
+    <value>Przewodnik konfiguracji MCP</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
-    <value>Pre-filled with your port and token.</value>
+    <value>Wstępnie wypełnione Twoim portem i tokenem.</value>
   </data>
   <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
     <value>Token nie jest jeszcze dostępny.</value>
@@ -2156,10 +2159,10 @@ You can re-download it later.</value>
     <value>Skopiowano do schowka.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
-    <value>No network sockets bound.</value>
+    <value>Brak powiązanych gniazd sieciowych.</value>
   </data>
   <data name="settings.localApi.status.starting" xml:space="preserve">
-    <value>Starting…</value>
+    <value>Uruchamianie…</value>
   </data>
   <data name="settings.localApi.status.running" xml:space="preserve">
     <value>127.0.0.1:{0} · token ••••{1}</value>
@@ -2225,13 +2228,13 @@ You can re-download it later.</value>
     <value>Meta</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
-    <value>Meta Muse Voice Transcribe 1.0 - batch transcription with your own Meta Model API key</value>
+    <value>Meta Muse Voice Transcribe 1.0 - transkrypcja wsadowa z własnym kluczem Meta Model API</value>
   </data>
   <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Invalid Meta API key format. Enter the complete key from Meta for Developers.</value>
+    <value>Nieprawidłowy format klucza Meta API. Wprowadź pełny klucz z Meta for Developers.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
-    <value>Use your own Meta Model API key for Muse batch transcription</value>
+    <value>Użyj własnego klucza Meta Model API do transkrypcji wsadowej Muse</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
     <value>Konfiguracja HyperWhisper</value>
@@ -2768,7 +2771,7 @@ You can re-download it later.</value>
     <value>Klucz API zapisany. Ten dostawca nie ma jak sprawdzić klucza bez transkrypcji, więc zostanie on zweryfikowany przy pierwszym dyktowaniu.</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
-    <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
+    <value>HyperWhisper nie mógł dostarczyć transkrypcji: nie została ani wklejona, ani skopiowana do schowka. Jest zapisana w Historii.</value>
   </data>
   <data name="app.unknown.error" xml:space="preserve">
     <value>Wystąpił nieznany błąd</value>

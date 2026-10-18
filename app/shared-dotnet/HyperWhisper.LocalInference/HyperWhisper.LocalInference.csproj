@@ -6,11 +6,12 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- Only the managed API. Each head picks its own native runtimes (issue
+       #1194): Linux adds Runtime, Vulkan and Cuda12; the Windows Whisper worker
+       adds Runtime, NoAvx and Vulkan. A test project that loads a model adds
+       the runtimes it needs itself. -->
   <ItemGroup>
     <PackageReference Include="Whisper.net" Version="1.9.1" />
-    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
-    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.1" />
-    <PackageReference Include="Whisper.net.Runtime.Cuda12" Version="1.9.1" />
   </ItemGroup>
 
   <!-- Whisper's non-speech marker rule is the shared core's (issue #1811), so

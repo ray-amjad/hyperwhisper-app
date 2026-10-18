@@ -457,7 +457,8 @@ public class CloudProviderHealthService : IDisposable
         }
         // WAVE 3 / Win-2: the health request + verdict now run through the Rust
         // shared core (BuildHealthRequest(WithBase) + ParseHealthResponse). The
-        // core owns the per-provider endpoint/auth + the Gemini/Grok 400 fold and
+        // core owns the per-provider endpoint/auth, the reason a probe failed
+        // (including which vendors answer a bad key with 400, issue #779) and
         // the routed-always-reachable short-circuit. We preserve the routed
         // short-circuit and the native missing-key gate (the latter lives in
         // RefreshAsync, which returns Unknown before calling here). The
@@ -482,12 +483,10 @@ public class CloudProviderHealthService : IDisposable
 
             var captured = await RustHttpExecutor.ExecuteAsync(request, _httpClient, cancellationToken);
 
-            // The core's verdict collapses healthy vs unauthorized into a bool +
-            // raw status; expand it back into the app's 3-state enum, preserving
-            // the Gemini/Grok 400 -> unauthorized special-case the core already
-            // folds into healthy=false.
+            // The core decides WHY the probe failed (verdict.reason); this head
+            // only maps that onto its own enum.
             var verdict = HyperwhisperCoreMethods.ParseHealthResponse(hwProvider, captured);
-            return MapHealthVerdict(provider, verdict);
+            return MapHealthVerdict(verdict);
         }
         catch (TaskCanceledException)
         {
@@ -505,25 +504,21 @@ public class CloudProviderHealthService : IDisposable
     }
 
     /// <summary>
-    /// Expand the core's <see cref="HwProviderHealth"/> (healthy bool + raw status)
-    /// into the app's 3-state <see cref="ProviderHealth"/>. Mirrors the deleted
-    /// native status switch, including the Gemini/Grok 400 -> Unauthorized case.
+    /// Map the core's <see cref="HwProviderHealth"/> onto the app's
+    /// <see cref="ProviderHealth"/>. The core's <c>reason</c> already says why a
+    /// probe failed, including the vendors (Gemini, Gemini 3.5 Transcribe batch + Live, Grok)
+    /// that answer a bad key with HTTP 400. This head used to keep its own copy of
+    /// that vendor list and left out Gemini 3.5 Transcribe, so a bad key read
+    /// "Provider unreachable" here and "Key invalid" on macOS (issue #779). Do
+    /// not re-derive the reason from the raw status. Internal so the smoke suite
+    /// can replay shared-conformance/health-vectors.json through it.
     /// </summary>
-    private static ProviderHealth MapHealthVerdict(CloudTranscriptionProvider provider, HwProviderHealth verdict)
+    internal static ProviderHealth MapHealthVerdict(HwProviderHealth verdict) => verdict.@reason switch
     {
-        if (verdict.@healthy)
-        {
-            return ProviderHealth.Healthy;
-        }
-
-        var status = verdict.@status;
-        var isUnauthorized =
-            status is 401 or 403
-            || (provider == CloudTranscriptionProvider.Gemini && status == 400)
-            || (provider == CloudTranscriptionProvider.Grok && status == 400);
-
-        return isUnauthorized ? ProviderHealth.Unauthorized : ProviderHealth.Unreachable;
-    }
+        HwHealthReason.Healthy => ProviderHealth.Healthy,
+        HwHealthReason.Unauthorized => ProviderHealth.Unauthorized,
+        _ => ProviderHealth.Unreachable,
+    };
 
     private async Task<ProviderHealth> PerformPostProcessingHealthCheckAsync(PostProcessingProvider provider, string apiKey)
     {

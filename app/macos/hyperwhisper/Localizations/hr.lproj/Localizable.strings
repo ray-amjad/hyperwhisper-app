@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Umetni iz međuspremnika";
 "settings.license.clearInput" = "Očisti";
+"license.error.keyFormat" = "To ne izgleda kao ključ računa.";
 "settings.license.recovery.prompt" = "Zaboravili ste licencni ključ?";
 "settings.license.recovery.button" = "Idi na portal za kupce";
 "settings.license.daily.title" = "Dnevna transkripcija";
@@ -879,7 +880,6 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "recording.retry.inProgress" = "Ponovno pokušavanje…";
 "recording.retry.count" = "Pokušaj ponovno (%d)";
 "recording.retry.failed.missing" = "Ponovno pokušavanje nije uspjelo: audio datoteka nije pronađena";
-"recording.retry.failed.error" = "Ponovno pokušavanje nije uspjelo: %@";
 "recording.retry.pending" = "Spremno za ponovno pokušavanje – kliknite za transkripciju";
 "recording.retry.modeDeleted" = "Način je izbrisan";
 "recording.cancel.dialog.title" = "Otkazati snimanje?";

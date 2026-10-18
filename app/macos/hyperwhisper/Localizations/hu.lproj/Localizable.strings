@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Beillesztés vágólapról";
 "settings.license.clearInput" = "Törlés";
+"license.error.keyFormat" = "Ez nem tűnik fiókkulcsnak.";
 "settings.license.recovery.prompt" = "Elfelejtetted a licenckulcsot?";
 "settings.license.recovery.button" = "Ugrás az ügyfél portálra";
 "settings.license.daily.title" = "Napi átírás";
@@ -879,7 +880,6 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "recording.retry.inProgress" = "Újrapróbálás…";
 "recording.retry.count" = "Újra (%d)";
 "recording.retry.failed.missing" = "Újrapróbálás sikertelen: Audio fájl nem található";
-"recording.retry.failed.error" = "Újrapróbálás sikertelen: %@";
 "recording.retry.pending" = "Kész az újrapróbálásra – kattints az átíráshoz";
 "recording.retry.modeDeleted" = "A mód törölve lett";
 "recording.cancel.dialog.title" = "Felvétel megszakítása?";

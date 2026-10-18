@@ -4,6 +4,11 @@ import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Download, Calendar, HardDrive, Monitor, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+
+import { intlLocale } from "@/lib/format-date";
+
+import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 
 type Platform = "mac" | "windows";
 
@@ -42,6 +47,8 @@ interface Version {
  * - Matches the support page width and design pattern
  */
 export default function DownloadsPage() {
+  const t = useTranslations("olderVersions");
+  const locale = useLocale();
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,20 +58,7 @@ export default function DownloadsPage() {
   const [listPlatform, setListPlatform] = useState<Platform>("mac");
   // Flips true two frames after loading ends, so the content paints at its
   // hidden/dimmed opacity first and the CSS transition has a start value.
-  const [revealed, setRevealed] = useState(false);
-
-  useEffect(() => {
-    if (loading) {
-      setRevealed(false);
-
-      return;
-    }
-    let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => setRevealed(true));
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [loading]);
+  const revealed = useRevealAfterLoad(loading);
 
   /**
    * Fetches and parses the appcast.xml file on component mount
@@ -159,7 +153,8 @@ export default function DownloadsPage() {
         if (ignore || (err instanceof DOMException && err.name === "AbortError")) {
           return;
         }
-        setError(err instanceof Error ? err.message : "An error occurred");
+        // "" = no message to show; the render puts the translated fallback in.
+        setError(err instanceof Error ? err.message : "");
         setLoading(false);
       }
     }
@@ -174,13 +169,14 @@ export default function DownloadsPage() {
 
   /**
    * Formats a date string from RFC 2822 format to a readable format
-   * Example: "Sun, 12 Oct 2025 11:52:35 +0900" -> "October 12, 2025"
+   * Example: "Sun, 12 Oct 2025 11:52:35 +0900" -> "October 12, 2025" on /en;
+   * every other locale gets its own date format
    */
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
 
-      return date.toLocaleDateString("en-US", {
+      return date.toLocaleDateString(intlLocale(locale), {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -195,7 +191,7 @@ export default function DownloadsPage() {
    * Example: 16926355 -> "16.14 MB"
    */
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "Unknown";
+    if (bytes === 0) return t("unknownSize");
     const mb = bytes / (1024 * 1024);
 
     return `${mb.toFixed(2)} MB`;
@@ -208,7 +204,7 @@ export default function DownloadsPage() {
 
   const platformLabel = listPlatform === "mac" ? "macOS" : "Windows";
   const downloadLabel =
-    listPlatform === "mac" ? "Download DMG" : "Download EXE";
+    listPlatform === "mac" ? t("downloadDmg") : t("downloadExe");
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 py-20">
@@ -216,11 +212,9 @@ export default function DownloadsPage() {
         {/* Page Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            Older Versions
+            {t("title")}
           </h1>
-          <p className="text-lg text-gray-400">
-            Browse and download all releases of HyperWhisper
-          </p>
+          <p className="text-lg text-gray-400">{t("subtitle")}</p>
           <div className="mt-4 inline-flex items-center gap-2 bg-gray-800/70 border border-gray-700 rounded-full px-2 py-1">
             <Button
               aria-pressed={selectedPlatform === "mac"}
@@ -252,12 +246,12 @@ export default function DownloadsPage() {
         </div>
 
         {/* Error State */}
-        {error && (
+        {error !== null && (
           <div className="text-center">
             <Card className="bg-red-900/20 backdrop-blur-xl border-red-800">
               <CardBody className="p-8">
                 <p className="text-red-400 text-lg" role="alert">
-                  Error loading versions: {error}
+                  {t("errorLoading", { error: error || t("unknownError") })}
                 </p>
               </CardBody>
             </Card>
@@ -267,12 +261,12 @@ export default function DownloadsPage() {
         {/* The skeleton is aria-hidden, so this always-mounted live region
             announces the first load and every platform-switch refetch. */}
         <p className="sr-only" role="status">
-          {loading ? "Loading versions..." : ""}
+          {loading ? t("loading") : ""}
         </p>
 
         {/* Versions List: skeleton and content share one slot and cross-fade.
             A platform switch keeps the previous list mounted, dimmed. */}
-        {!error && (
+        {error === null && (
           <div className="t-skel grid mb-12">
             <div
               aria-hidden
@@ -343,12 +337,12 @@ export default function DownloadsPage() {
                             </h3>
                             {isLatestVersion(index) && (
                               <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full">
-                                Latest
+                                {t("latest")}
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-500">
-                            Build {version.buildNumber}
+                          <p className="text-sm text-gray-400">
+                            {t("build", { number: version.buildNumber })}
                           </p>
                         </div>
                       </div>

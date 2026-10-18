@@ -2311,6 +2311,12 @@
                   </Panel>
                 </Button>
               </Grid>
+              <!-- #1489: text that cannot be any key (too long, whitespace inside, non-ASCII).
+                   ActivateCommand is already off for it; this says why. -->
+              <TextBlock x:Name="AccountKeyFormatHint"
+                         Text="{ReflectionBinding [license.error.keyFormat], Source={StaticResource Localization}}"
+                         IsVisible="{Binding ShowsAccountKeyFormatHint}" FontSize="12"
+                         Foreground="{DynamicResource HwErrorForegroundBrush}" Margin="0,8,0,0" TextWrapping="Wrap"/>
               <TextBlock Text="{Binding ActivationError}" IsVisible="{Binding HasActivationError}" FontSize="12"
                          Foreground="{DynamicResource HwErrorForegroundBrush}" Margin="0,8,0,0" TextWrapping="Wrap"/>
             </StackPanel></Border>

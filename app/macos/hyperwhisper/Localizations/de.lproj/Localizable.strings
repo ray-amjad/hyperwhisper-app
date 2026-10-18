@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Aus der Zwischenablage einfügen";
 "settings.license.clearInput" = "Klar";
+"license.error.keyFormat" = "Das sieht nicht wie ein Kontoschlüssel aus.";
 "settings.license.recovery.prompt" = "Lizenzschlüssel vergessen?";
 "settings.license.recovery.button" = "Gehen Sie zum Kundenportal";
 "settings.license.daily.title" = "Tägliche Transkription";
@@ -879,7 +880,6 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "recording.retry.inProgress" = "Erneuter Versuch…";
 "recording.retry.count" = "Wiederholen (%d)";
 "recording.retry.failed.missing" = "Wiederholen fehlgeschlagen: Audiodatei nicht gefunden";
-"recording.retry.failed.error" = "Wiederholen fehlgeschlagen: %@";
 "recording.retry.pending" = "Bereit zum erneuten Versuch – zum Transkribieren klicken";
 "recording.retry.modeDeleted" = "Modus wurde gelöscht";
 "recording.cancel.dialog.title" = "Aufzeichnung abbrechen?";

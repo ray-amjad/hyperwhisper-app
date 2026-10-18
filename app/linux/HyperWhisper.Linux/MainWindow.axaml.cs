@@ -229,6 +229,10 @@ public partial class MainWindow : Window
         Closing += OnClosing;
         Closed += OnClosed;
         PropertyChanged += OnWindowPropertyChanged;
+        // The Model Library's Whisper line names a missing hyperwhisper-cuda package and the
+        // backend used instead; it re-reads the picker each time the picker changes (#1002).
+        _viewModel.Settings.LocalWhisperBackendNotice = new LinuxWhisperRuntimePreferenceSource(
+            _platformServices.PrivateFiles, _platformServices.Paths, new LinuxGpuInfoProvider()).DescribeChoice;
         _viewModel.Settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
         _viewModel.Settings.PropertyChanged += OnLocalApiEnabledChanged;
         _viewModel.Settings.DesktopSettingsChanged += OnDesktopSettingsChanged;

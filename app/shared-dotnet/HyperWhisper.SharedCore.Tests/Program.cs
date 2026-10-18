@@ -512,6 +512,44 @@ var tests = new (string Name, Func<Task> Run)[]
             new PortableModeIdentity("local", null, "  ")));
         return Task.CompletedTask;
     }),
+    // Replays shared-conformance/health-vectors.json through the C# binding
+    // (issue #779). The core decides why a provider health probe failed; the
+    // Linux probe (ProviderMetadataHealthProbe) reads that reason through
+    // SharedCoreBridge.GradeHealthResponse. Rust, Windows and macOS replay the
+    // same file through their own mapping.
+    ("provider health vectors match the core's reason across the binding", () =>
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "health-vectors.json");
+        Assert.True(File.Exists(path), $"health-vectors.json not found at {path}");
+        using var vectors = JsonDocument.Parse(File.ReadAllText(path));
+        var rows = vectors.RootElement.GetProperty("cases");
+        Assert.True(rows.GetArrayLength() >= 15 * 6, "health-vectors.json looks truncated");
+
+        foreach (var row in rows.EnumerateArray())
+        {
+            var providerName = row.GetProperty("provider").GetString()!;
+            var status = row.GetProperty("status").GetUInt16();
+            var label = $"{providerName} {status}";
+            Assert.True(
+                Enum.TryParse<uniffi.hyperwhisper_core.HwProvider>(providerName, out var provider),
+                $"{label}: the binding has no HwProvider named '{providerName}'");
+            var want = row.GetProperty("reason").GetString() switch
+            {
+                "healthy" => uniffi.hyperwhisper_core.HwHealthReason.Healthy,
+                "unauthorized" => uniffi.hyperwhisper_core.HwHealthReason.Unauthorized,
+                "unreachable" => uniffi.hyperwhisper_core.HwHealthReason.Unreachable,
+                var other => throw new InvalidOperationException($"{label}: unknown reason '{other}'"),
+            };
+
+            var verdict = uniffi.hyperwhisper_core.HyperwhisperCoreMethods.ParseHealthResponse(
+                provider, new uniffi.hyperwhisper_core.HttpResponse(status, [], []));
+            Assert.True(verdict.@reason == want, $"{label}: binding reason {verdict.@reason}, vectors say {want}");
+            Assert.True(verdict.@healthy == row.GetProperty("healthy").GetBoolean(), $"{label}: healthy flag");
+            Assert.True(SharedCoreBridge.GradeHealthResponse(provider, status) == want,
+                $"{label}: SharedCoreBridge.GradeHealthResponse disagrees");
+        }
+        return Task.CompletedTask;
+    }),
 };
 
 var failures = 0;
@@ -2307,7 +2345,7 @@ static async Task TestLiveRecordedFailureSurvivesCloseAsync()
     var result = await new LiveCloudTranscriptionService(new DirectWebSocketFactory(socket))
         .TranscribeAsync(
             new LiveTranscriptionConfig(LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw"),
-            LateAudio(320, socket, awaitFirstFrame: true));
+            AudioUntilRefused(320, socket));
     Assert.NotNull(result.Failure);
     Assert.Equal(LiveTranscriptionFailureCode.ProviderUnavailable, result.Failure!.Code);
     Assert.True(result.Failure.IsTerminal, "the recorded terminal verdict was overwritten by the close failure");
@@ -2403,9 +2441,14 @@ static async Task TestLiveCancelDuringDrainAsync()
 /// <paramref name="awaitFirstFrame"/> must stay FALSE for the late-transcript
 /// test. Waiting here would let the frame land while the audio loop is still
 /// running, which is a path that never needed the drain at all — the test would
-/// then pass without the fix and prove nothing. The failure test sets it, because
-/// its point is the opposite: the error frame has to be handled BEFORE the audio
-/// loop ends, so the session takes the skip-the-stop-sequence path.
+/// then pass without the fix and prove nothing. The failure test needs the
+/// opposite, and this flag cannot give it: <c>Served</c> counts a frame handed to
+/// the receive loop, not one it has recorded, so on some schedules the audio loop
+/// ended first and the error landed after the verdict froze (#1930). That test
+/// uses <see cref="AudioUntilRefused"/> instead. The cancel-during-drain test still
+/// sets it and does not depend on that ordering: its cancel is armed by the close,
+/// so it fires inside the drain whether the transcript was recorded before the
+/// stop or during the drain.
 /// </summary>
 static async IAsyncEnumerable<ReadOnlyMemory<byte>> LateAudio(
     int byteCount,
@@ -2418,6 +2461,34 @@ static async IAsyncEnumerable<ReadOnlyMemory<byte>> LateAudio(
     for (var attempt = 0; awaitFirstFrame && socket.Served == 0 && attempt < 1000; attempt++)
     {
         await Task.Delay(2);
+    }
+}
+
+/// <summary>
+/// Audio that ends only when the SERVICE stops pulling it.
+///
+/// The recorded-failure test needs the error frame handled BEFORE the audio loop
+/// ends, so the session takes the skip-the-stop-sequence path. Waiting for the
+/// socket to hand the frame out is not enough: the receive loop still has to parse
+/// it and record the verdict, and an audio loop that ran out of chunks in that gap
+/// stopped normally instead (#1930). So this keeps offering chunks, and the audio
+/// loop's own <c>state.Failure</c> check is what ends it — the session's real exit,
+/// not a timing guess. The 5 s bound only turns a verdict that never lands into a
+/// normal stop, which the test's assertions then report. It is a deadline and not
+/// a chunk count, because <c>Task.Delay(1)</c> sleeps a whole timer tick (about
+/// 15.6 ms on Windows) and a count would stretch with it.
+/// </summary>
+static async IAsyncEnumerable<ReadOnlyMemory<byte>> AudioUntilRefused(
+    int byteCount,
+    LateFrameStreamingWebSocket socket)
+{
+    yield return new byte[byteCount];
+    socket.MarkAudioDone();
+    var deadline = System.Diagnostics.Stopwatch.StartNew();
+    while (deadline.Elapsed < TimeSpan.FromSeconds(5))
+    {
+        await Task.Delay(1);
+        yield return new byte[byteCount];
     }
 }
 

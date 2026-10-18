@@ -272,7 +272,31 @@
     "homebrewTitle": "התקנה דרך Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "העתקה",
-    "copied": "הועתק!"
+    "copied": "הועתק!",
+    "linuxSubtitle": "חבילת Debian למערכות Intel/AMD של 64 סיביות",
+    "downloadLinux": "הורדה ל-Linux",
+    "downloadLinuxVersion": "הורדה ל-Linux v{version}",
+    "linuxReleaseNotes": "סכומי ביקורת והערות גרסה",
+    "linuxInstallTitle": "התקנת חבילת Debian",
+    "linuxTargets": "Linux v1 מיועדת ל-Ubuntu 22.04+ ול-Debian 12+ על amd64.",
+    "linuxReplaceVersion": "החליפו את VERSION בגרסה שהורדתם.",
+    "linuxInstallCommandLabel": "פקודת ההתקנה ל-Debian",
+    "linuxInputGroupNote": "אחרי ההצטרפות לקבוצה input, התנתקו והתחברו מחדש. החברות בקבוצה אינה חובה, אבל קיצורי מקלדת גלובליים והדבקה אוטומטית דורשים אותה.",
+    "aptTitle": "אירוח עצמי של מאגר APT",
+    "aptBody": "גרסאות Linux כוללות גם ארכיון של מאגר APT סטטי. HyperWhisper לא מפעיל כרגע נקודת קצה ציבורית של APT; עיינו במדריך ההתקנה של Linux להגדרה חתומה באירוח עצמי, לרכיבים נלווים לשולחן העבודה, לפרטי פרטיות ולהסרה.",
+    "linuxGuideCta": "קראו את מדריך ההתקנה של Linux"
+  },
+  "olderVersions": {
+    "title": "גרסאות ישנות",
+    "subtitle": "עיינו בכל הגרסאות של HyperWhisper והורידו אותן",
+    "errorLoading": "שגיאה בטעינת הגרסאות: {error}",
+    "unknownError": "אירעה שגיאה",
+    "loading": "טוען גרסאות...",
+    "latest": "האחרונה",
+    "build": "Build {number}",
+    "downloadDmg": "הורדת DMG",
+    "downloadExe": "הורדת EXE",
+    "unknownSize": "לא ידוע"
   },
   "purchaseSuccess": {
     "title": "הכול מוכן!",
@@ -389,7 +413,29 @@
   "openSource": {
     "heading": "קוד פתוח. אין מה להסתיר.",
     "body": "HyperWhisper הוא קוד פתוח לחלוטין תחת Apache-2.0 — גם אפליקציות שולחן העבודה וגם ה-backend של Cloud. אפליקציה שמאזינה למיקרופון שלכם צריכה להיות משהו שתוכלו לאמת, לא רק לסמוך עליו: קראו כל שורה, בדקו בדיוק לאן הולך האודיו שלכם, ודעו שלעולם לא תהיו נעולים — הקוד שלכם, לעשות לו fork ולהריץ בעצמכם לנצח. נבנה בגלוי על ידי היוצר העצמאי Ray Amjad.",
-    "cta": "צפו ב-GitHub"
+    "cta": "צפו ב-GitHub",
+    "metaTitle": "קוד פתוח | HyperWhisper",
+    "metaDescription": "HyperWhisper הוא קוד פתוח לחלוטין תחת Apache-2.0 — גם אפליקציות שולחן העבודה וגם ה-backend של Cloud. קראו את הקוד, בדקו לאן הולך האודיו שלכם, עשו לו fork והריצו אותו בעצמכם לנצח.",
+    "eyebrow": "קוד פתוח",
+    "lead": "HyperWhisper הוא עכשיו קוד פתוח לחלוטין תחת Apache-2.0 — גם אפליקציות שולחן העבודה וגם ה-backend של Cloud.",
+    "intro": "אפליקציה שמאזינה למיקרופון שלכם צריכה להיות משהו שתוכלו לאמת, לא רק לסמוך עליו. לכן פתחנו הכול. אתם יכולים לקרוא כל שורה ב-HyperWhisper — אפליקציות macOS, Windows ו-Linux, וה-backend של התמלול ב-Cloud — לראות בדיוק לאן הולך האודיו שלכם, ולדעת שלעולם לא תהיו נעולים. הפרויקט כולו נמצא ב-<github>GitHub</github> תחת <license>רישיון Apache-2.0</license>.",
+    "whyHeading": "למה זה חשוב",
+    "whyVerify": "<strong>לאמת, לא רק לסמוך.</strong> קראו כל שורה ובדקו בדיוק לאן הולך האודיו שלכם. אפליקציה עם גישה למיקרופון צריכה להיות משהו שאפשר לבדוק, לא רק להאמין לו.",
+    "whyNoLockIn": "<strong>בלי נעילה.</strong> הקוד הוא Apache-2.0 — שלכם לשמור, להתאים ולהריץ בתנאים שלכם. זרימת העבודה שלכם לעולם לא תוחזק כבת ערובה.",
+    "whyFork": "<strong>Fork ואירוח עצמי.</strong> שכפלו את המאגר, בנו אותו בעצמכם או הריצו backend משלכם של Cloud. כל מה שצריך זמין לציבור.",
+    "whyOpen": "<strong>נבנה בגלוי.</strong> HyperWhisper מפותח בפומבי על ידי היוצר העצמאי Ray Amjad. דיווחי תקלות, דיונים וגרסאות — הכול קורה בגלוי.",
+    "licenseHeading": "כבר קניתם רישיון?",
+    "licenseIntro": "HyperWhisper הוא עכשיו קוד פתוח, ותמלול בתשלום פועל על קרדיטים של HyperWhisper Cloud. אם קניתם רישיון לפני המעבר, כך אנחנו דואגים לכם — פשוט כתבו לנו ל-<mail>{email}</mail> ונטפל בזה ידנית.",
+    "licenseRecent": "<strong>קניתם ב-30 הימים האחרונים:</strong> אתם בתוך תקופת ההחזר. נחזיר לכם את מלוא סכום הרכישה — בלי לשאול שאלות. פשוט <refund>שלחו לנו הודעה</refund>.",
+    "licenseOlder": "<strong>קניתם לפני יותר מ-30 יום:</strong> נמיר את מה ששילמתם לקרדיטים של HyperWhisper Cloud — מלוא מחיר הרכישה, בניכוי $5 בקרדיטים שכבר נוספו לחשבון שלכם. <credits>כתבו לנו</credits> ונזכה אתכם ביתרה.",
+    "contributeHeading": "רוצים לתרום?",
+    "contributeBody": "דיווחי באגים, רעיונות לפיצ'רים ו-pull requests — כולם מתקבלים בברכה. פתחו issue או התחילו דיון <github>ב-GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper הוא עכשיו קוד פתוח לחלוטין",
+    "shortText": "עכשיו בקוד פתוח",
+    "learnMore": "למידע נוסף",
+    "dismiss": "סגירת ההודעה"
   },
   "notFound": {
     "title": "הדף לא נמצא",

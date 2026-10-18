@@ -300,9 +300,12 @@ Then perform and record all of the following:
 1. Download a supported Whisper model through the app and transcribe a known WAV
    with Vulkan selected. Evidence must include the redacted runtime line naming
    the Vulkan backend, transcript, wall time, model ID, and peak memory.
-2. On an NVIDIA CUDA 12 host, run local LLM post-processing once with CUDA and
-   record the backend/model/runtime line. Repeat with CUDA disabled and prove the
-   CPU fallback succeeds.
+2. On an NVIDIA CUDA 12 host, install `hyperwhisper-cuda_VERSION_amd64.deb`
+   next to the main package (the CUDA backends ship only there), run local LLM
+   post-processing once with CUDA and record the backend/model/runtime line.
+   Repeat with CUDA disabled and prove the CPU fallback succeeds. Then remove
+   `hyperwhisper-cuda`, keep CUDA selected, and confirm the run falls back to
+   Vulkan or CPU and the settings status says to install `hyperwhisper-cuda`.
 3. Restart the app and repeat one inference to catch native runtime/load-order
    failures.
 4. Record `PASS` only when actual inference completed on the named physical GPU.

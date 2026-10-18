@@ -621,6 +621,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Paste from Clipboard";
 "settings.license.clearInput" = "Clear";
+"license.error.keyFormat" = "That doesn't look like an account key.";
 "settings.license.recovery.prompt" = "Forgot your license key?";
 "settings.license.recovery.button" = "Go to customer portal";
 "settings.license.daily.title" = "Daily Transcription";
@@ -920,7 +921,6 @@
 "recording.retry.inProgress" = "Retrying…";
 "recording.retry.count" = "Retry (%d)";
 "recording.retry.failed.missing" = "Retry failed: Audio file not found";
-"recording.retry.failed.error" = "Retry failed: %@";
 "recording.retry.pending" = "Ready to retry – click to transcribe";
 "recording.retry.modeDeleted" = "Mode was deleted";
 "recording.cancel.dialog.title" = "Cancel Recording?";

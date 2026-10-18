@@ -102,6 +102,24 @@ going green. A catalog change triggers `macos-ci`, `windows-ci` and `shared-core
 condition 4 reads them. §5 conditions 4 to 6 still apply. If any condition fails, it goes back under
 §2: leave it open and tag Ray.
 
+### 2b. #552 translation batches: merged without Ray
+
+Ray decided on 2026-10-17 (inbox ask #1455, after PR #1943) that the #552 catalogue batches land on
+their own. Every batch translates the same data-use strings, for example
+`settings.general.errorLogging.subtitle` ("Your transcriptions are never sent"). So a PR is NOT
+held by the "legal copy" line of §2 when all of these hold:
+
+- It fills untranslated values for #552 (the PR says `Refs #552`).
+- Every file in its diff is `app/windows/HyperWhisper/Resources/Strings.<locale>.resx` or
+  `app/windows/HyperWhisper/Resources/translation-status.json`, and the `.json` change only lowers
+  the batch's own locale ceilings.
+- Every data-use sentence it touches is a straight translation of English that has already shipped in
+  `Strings.resx`. It translates the sentence and adds no claim. A changed or new English sentence,
+  or a translation that says more or less than the English, stays held.
+
+Such a PR is still logic tier: the logic review rounds and a verify that passes (§4), with §5 conditions
+2 to 6. The `ar` and `he` batch is no different.
+
 ## 3. Tiers
 
 Every PR is in one of two tiers, held by §2 or not. Decide the tier from the DIFF, after the build,

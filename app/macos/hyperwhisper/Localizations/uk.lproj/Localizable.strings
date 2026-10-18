@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Вставити з буфера обміну";
 "settings.license.clearInput" = "Очистити";
+"license.error.keyFormat" = "Це не схоже на ключ облікового запису.";
 "settings.license.recovery.prompt" = "Забули ліцензійний ключ?";
 "settings.license.recovery.button" = "Перейти на портал клієнта";
 "settings.license.daily.title" = "Щоденна транскрипція";
@@ -879,7 +880,6 @@
 "recording.retry.inProgress" = "Повторна спроба…";
 "recording.retry.count" = "Повторити (%d)";
 "recording.retry.failed.missing" = "Повторна спроба не вдалася: аудіо файл не знайдено";
-"recording.retry.failed.error" = "Повторна спроба не вдалася: %@";
 "recording.retry.pending" = "Готово для повторення – клацніть для транскрипції";
 "recording.retry.modeDeleted" = "Режим видалено";
 "recording.cancel.dialog.title" = "Скасувати запис?";

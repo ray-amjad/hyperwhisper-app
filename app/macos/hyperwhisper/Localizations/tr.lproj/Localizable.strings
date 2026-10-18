@@ -440,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Panodan Yapıştır";
 "settings.license.clearInput" = "Temizle";
+"license.error.keyFormat" = "Bu bir hesap anahtarına benzemiyor.";
 "settings.license.recovery.prompt" = "Lisans anahtarınızı unuttunuz mu?";
 "settings.license.recovery.button" = "Müşteri portalına git";
 "settings.license.daily.title" = "Günlük Transkripsiyon";
@@ -879,7 +880,6 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "recording.retry.inProgress" = "Yeniden deneniyor…";
 "recording.retry.count" = "Yeniden Dene (%d)";
 "recording.retry.failed.missing" = "Yeniden deneme başarısız: Ses dosyası bulunamadı";
-"recording.retry.failed.error" = "Yeniden deneme başarısız: %@";
 "recording.retry.pending" = "Yeniden denemeye hazır – transkribe etmek için tıklayın";
 "recording.retry.modeDeleted" = "Mod silindi";
 "recording.cancel.dialog.title" = "Kaydı İptal Et?";

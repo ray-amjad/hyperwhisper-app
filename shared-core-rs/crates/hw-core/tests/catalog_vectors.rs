@@ -32,7 +32,8 @@ use serde::{Deserialize, Serialize};
 // The crate's `[lib] name` is `hyperwhisper_core` (it drives the artifact
 // name), so that — not `hw_core` — is how an integration test imports it.
 use hyperwhisper_core::ffi_catalog::{
-    cloud_stt_cloud_tier_vendor_groups, cloud_stt_default_model_id, cloud_stt_entries,
+    cloud_stt_cloud_tier_vendor_groups, cloud_stt_default_model_id,
+    cloud_stt_effective_mode_cloud_provider, cloud_stt_entries,
     cloud_stt_language_codes, cloud_stt_picker_language_codes, models_all_entries,
     models_language_support, HwKind, SttEntry, VocabSupport,
 };
@@ -56,7 +57,33 @@ struct Document {
     vendor_groups: Vec<VendorGroupVector>,
     picker_language_codes: Vec<PickerVector>,
     models_entries: Vec<ModelsEntryVector>,
+    effective_mode_cloud_provider: Vec<EffectiveCloudProviderVector>,
 }
+
+/// One row of the cloud-mode provider read rule (#1709): a stored
+/// `cloudProvider` (`null` = the key was omitted) and the provider a CLOUD
+/// mode with that value runs on.
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+struct EffectiveCloudProviderVector {
+    input: Option<String>,
+    expected: String,
+}
+
+/// The inputs the `effectiveModeCloudProvider` vectors pin. Blank in every
+/// spelling, the HyperWhisper id itself, a BYOK id in two casings, a legacy
+/// alias that folds, a camelCase BYOK id, and an unknown id.
+const EFFECTIVE_CLOUD_PROVIDER_INPUTS: &[Option<&str>] = &[
+    None,
+    Some(""),
+    Some("  "),
+    Some("hyperwhisper"),
+    Some("deepgram"),
+    Some("Deepgram"),
+    Some("googlespeech"),
+    Some("geminiTranscribe"),
+    Some("not-a-provider"),
+];
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -255,7 +282,9 @@ fn build_document() -> Document {
             "Regenerate with: cargo test -p hw-core --test catalog_vectors -- --ignored regenerate. ",
             "`languagesRawCodeCount` pins the size of the raw upstream code list rather than its ",
             "contents; `pickerLanguageCodes` pins the fold applied to it. A null `codes` means the ",
-            "catalog declares the set \"unverified\", so a picker keeps its full list."
+            "catalog declares the set \"unverified\", so a picker keeps its full list. ",
+            "`effectiveModeCloudProvider` pins the provider a CLOUD mode runs on for a stored ",
+            "cloudProvider (null = omitted): blank means \"hyperwhisper\" (#1709)."
         )
         .to_string(),
         picker_language_codes: entries
@@ -308,6 +337,13 @@ fn build_document() -> Document {
             })
             .collect(),
         cloud_stt_entries: entries.iter().map(entry_vector).collect(),
+        effective_mode_cloud_provider: EFFECTIVE_CLOUD_PROVIDER_INPUTS
+            .iter()
+            .map(|input| EffectiveCloudProviderVector {
+                input: input.map(str::to_string),
+                expected: cloud_stt_effective_mode_cloud_provider(input.map(str::to_string)),
+            })
+            .collect(),
     }
 }
 
@@ -347,6 +383,10 @@ fn conformance_vectors_match_the_shared_core() {
         expected.picker_language_codes.len()
     );
     assert_eq!(actual.models_entries, expected.models_entries, "models-catalog drift");
+    assert_eq!(
+        actual.effective_mode_cloud_provider, expected.effective_mode_cloud_provider,
+        "cloud-mode provider read rule drift (#1709)"
+    );
 }
 
 /// Guards the vectors themselves: an empty or truncated file would make the
@@ -358,6 +398,11 @@ fn vectors_cover_every_domain() {
     assert!(doc.cloud_stt_entries.len() >= 10, "expected the full provider list");
     assert!(doc.vendor_groups.len() >= 9, "expected the full Provider dropdown");
     assert!(doc.models_entries.len() > 20, "expected the full models catalog");
+    assert!(
+        doc.effective_mode_cloud_provider.iter().any(|v| v.input.is_none())
+            && doc.effective_mode_cloud_provider.iter().any(|v| v.expected != "hyperwhisper"),
+        "the cloud-mode provider vectors must cover a null input and a non-HyperWhisper answer"
+    );
     // At least one provider must exercise each half of every polymorphic field,
     // or the vectors would not prove the decoding at all.
     assert!(
