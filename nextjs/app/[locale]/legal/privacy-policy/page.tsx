@@ -894,8 +894,8 @@ export default function PrivacyPolicyPage() {
         >
           PlanetScale
         </a>
-        . It holds the account and license records described above: your
-        email address and the name on your account, your Account Key, your
+        . It holds these account and license records: your email
+        address and the name on your account, your Account Key, your
         order and customer ids, your HyperWhisper Cloud credit balance, the
         hostname and the hashed hardware identifier of each device you
         activate, the email addresses submitted for the download link, the
