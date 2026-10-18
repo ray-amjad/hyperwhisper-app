@@ -586,6 +586,12 @@ enum SentryService {
         "parakeet_error_code", "parakeet_model_version", "parakeet_previous_version",
         "parakeet_error_domain", "parakeet_model_id_length", "parakeet_unknown_model_version",
         "parakeet_failure_kind", "parakeet_unknown_model_class",
+        // `LocalModelLoadFailureDetail` (#1017): fixed slugs, numbers and NSError
+        // domains only, never a path, server text or `localizedDescription`.
+        "parakeet_hf_error_case", "parakeet_http_status",
+        "parakeet_underlying_error_domain", "parakeet_underlying_error_code",
+        "parakeet_last_phase", "parakeet_files_completed", "parakeet_files_total",
+        "parakeet_compiling_model",
         "modelId", "target", "model_id",
         // Not `user_message`: LocalModelManager's message embeds a raw
         // `localizedDescription`.

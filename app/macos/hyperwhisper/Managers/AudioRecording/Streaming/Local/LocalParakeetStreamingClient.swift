@@ -88,7 +88,11 @@ final class LocalParakeetStreamingClient: NSObject, ObservableObject, StreamingC
             onConnectionStateChange?(.idle)
             throw CancellationError()
         } catch {
-            logger.error("Failed to load Parakeet models: \(error.localizedDescription, privacy: .public)")
+            // Fixed identifiers from the error chain (#1017); never a path.
+            let failureDetailSummary = LocalModelLoadFailureDetail.logSummary(
+                for: LocalModelLoadFailureDetail.fields(for: error)
+            )
+            logger.error("Failed to load Parakeet models: \(error.localizedDescription, privacy: .public) \(failureDetailSummary, privacy: .public)")
             onConnectionStateChange?(.error(error.localizedDescription))
             throw error
         }
