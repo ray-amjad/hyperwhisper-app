@@ -351,6 +351,18 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
     }
 
     /// <summary>
+    /// The catalog model a mode's Parakeet model id names, or null. The one
+    /// lookup, so the Local API's MODEL_NOT_FOUND check (issue #1935) refuses
+    /// exactly the ids this transcriber would refuse.
+    /// </summary>
+    public static ManagedModel? FindModel(string? modelId)
+    {
+        var trimmed = modelId?.Trim();
+        return PortableModelCatalog.Parakeet.FirstOrDefault(item =>
+            string.Equals(item.Id, trimmed, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// The one model/language resolution for a request and a prewarm (#1791), so a prewarm
     /// loads exactly the daemon the next request for the same mode will reuse.
     /// </summary>
@@ -361,9 +373,7 @@ public sealed class ParakeetDaemonTranscriber : IRecordedAudioTranscriber, IDisp
         out string? modelDirectory,
         out string language)
     {
-        var modelId = mode?.LocalParakeetModel?.Trim();
-        model = PortableModelCatalog.Parakeet.FirstOrDefault(item =>
-            string.Equals(item.Id, modelId, StringComparison.OrdinalIgnoreCase));
+        model = FindModel(mode?.LocalParakeetModel);
         modelDirectory = null;
         language = NormalizeLanguage(requestLanguage ?? mode?.Language);
         if (model is null)

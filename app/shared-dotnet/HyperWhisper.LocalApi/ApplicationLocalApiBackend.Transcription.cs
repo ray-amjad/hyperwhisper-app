@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
 using HyperWhisper.Data.Entities;
-using HyperWhisper.ModelManagement;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
@@ -75,13 +74,10 @@ public sealed partial class ApplicationLocalApiBackend
         // before any work (issue #1935). The daemon refused it too, but only
         // after the upload was staged and a failed History row written, and as
         // INVALID_REQUEST where Windows answers MODEL_NOT_FOUND.
-        if (IsLocalParakeet(mode))
-        {
-            var modelId = mode!.LocalParakeetModel?.Trim() ?? string.Empty;
-            if (!PortableModelCatalog.Parakeet.Any(item => string.Equals(item.Id, modelId, StringComparison.OrdinalIgnoreCase)))
-                throw LocalApiFailureException.ParakeetModelNotFound(modelId);
-        }
-        var convert =_audioImport is not null && IsLocalParakeet(mode) && !IsWave(upload.Content.Span);
+        var localParakeet = IsLocalParakeet(mode);
+        if (localParakeet && ParakeetDaemonTranscriber.FindModel(mode!.LocalParakeetModel) is null)
+            throw LocalApiFailureException.ParakeetModelNotFound(mode.LocalParakeetModel?.Trim() ?? string.Empty);
+        var convert = _audioImport is not null && localParakeet && !IsWave(upload.Content.Span);
         var extension = Path.GetExtension(upload.FileName);
         if (extension.Length > 12 || extension.Any(ch => !char.IsAsciiLetterOrDigit(ch) && ch != '.')) extension = ".audio";
         if (convert) extension = ConversionStagingExtension;
