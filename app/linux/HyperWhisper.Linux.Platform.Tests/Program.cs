@@ -144,6 +144,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Xvfb active-window integration", X11ApplicationContextIntegration),
     ("Linux runtime locator resolves packaged backend variants", RuntimeLocatorVariants),
     ("Linux runtime locator matches published app output", RuntimeLocatorPublishedOutput),
+    ("CUDA backend choice falls back without the hyperwhisper-cuda runtime", CudaChoiceFallsBackWithoutCudaPackage),
     ("child launcher preserves literal argv", ChildProcessLiteralArgv),
     ("child launcher terminates process tree", ChildProcessTermination),
     ("package update probe is read-only and parses bounded metadata", PackageUpdateProbe),
@@ -2663,6 +2664,58 @@ static Task RuntimeLocatorVariants() => WithTemporaryDirectory(directory =>
     Assert.True(locator.FindLibrary("llama", NativeComputeBackend.Cuda).IsSuccess);
     Assert.True(locator.FindExecutable("parakeet").IsSuccess);
     Assert.True(locator.Capabilities.ComputeBackends.Contains(NativeComputeBackend.Cuda));
+});
+
+// Issue #1002: the main .deb ships no runtimes/cuda12/linux-x64 (Whisper) and no
+// runtimes/linux-x64/native/cuda12 (LLama); hyperwhisper-cuda adds them at those
+// paths. Without them a CUDA choice falls back and names the package.
+static Task CudaChoiceFallsBackWithoutCudaPackage() => WithTemporaryDirectory(directory =>
+{
+    static void Touch(string path) { Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllBytes(path, [1]); }
+    // The main package's layout: CPU and Vulkan for both engines, no CUDA tree.
+    Touch(Path.Combine(directory, "runtimes", "linux-x64", "libwhisper.so"));
+    Touch(Path.Combine(directory, "runtimes", "vulkan", "linux-x64", "libwhisper.so"));
+    foreach (var isa in new[] { "noavx", "avx", "avx2", "avx512" })
+        Touch(Path.Combine(directory, "runtimes", "linux-x64", "native", isa, "libllama.so"));
+    Touch(Path.Combine(directory, "runtimes", "linux-x64", "native", "vulkan", "libllama.so"));
+    Assert.True(!Directory.Exists(Path.Combine(directory, "runtimes", "cuda12")));
+
+    var withoutCuda = new LinuxNativeRuntimeLocator(directory, System.Runtime.InteropServices.Architecture.X64);
+    Assert.True(!withoutCuda.Capabilities.ComputeBackends.Contains(NativeComputeBackend.Cuda));
+    Assert.True(withoutCuda.FindLibrary("whisper", NativeComputeBackend.Cuda).IsFailure);
+    Assert.True(withoutCuda.FindLibrary("llama", NativeComputeBackend.Cuda).IsFailure);
+
+    // CUDA falls back to the packaged Vulkan backend, and says which package to install.
+    foreach (var component in new[] { "whisper", "llama" })
+    {
+        var choice = LinuxCudaPackage.Choose(withoutCuda, component, NativeComputeBackend.Cuda, allowCpuFallback: true);
+        Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Vulkan, true, false), choice);
+        Assert.True(choice.Notice?.Contains("install the hyperwhisper-cuda package", StringComparison.Ordinal) == true);
+    }
+    // No usable Vulkan: CPU, when CPU fallback is allowed.
+    Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Cpu, true, false),
+        LinuxCudaPackage.Choose(withoutCuda, "llama", NativeComputeBackend.Cuda, allowCpuFallback: true, vulkanUsable: false));
+    // Strict mode with nothing to fall back to: unavailable with the install hint, never a crash.
+    var strict = LinuxCudaPackage.Choose(withoutCuda, "llama", NativeComputeBackend.Cuda, allowCpuFallback: false, vulkanUsable: false);
+    Assert.True(strict.Unavailable && strict.CudaPackageMissing);
+    Assert.True(LinuxCudaPackage.MissingFailure.Contains("hyperwhisper-cuda", StringComparison.Ordinal));
+    // A non-CUDA choice is never touched.
+    Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Vulkan, false, false),
+        LinuxCudaPackage.Choose(withoutCuda, "whisper", NativeComputeBackend.Vulkan, allowCpuFallback: false));
+    Assert.Equal(null, LinuxCudaPackage.Choose(withoutCuda, "whisper", NativeComputeBackend.Cpu, true).Notice);
+
+    // Installing hyperwhisper-cuda adds exactly these two trees; CUDA is then used as chosen.
+    Touch(Path.Combine(directory, "runtimes", "cuda12", "linux-x64", "libwhisper.so"));
+    Touch(Path.Combine(directory, "runtimes", "linux-x64", "native", "cuda12", "libllama.so"));
+    var withCuda = new LinuxNativeRuntimeLocator(directory, System.Runtime.InteropServices.Architecture.X64);
+    Assert.True(withCuda.Capabilities.ComputeBackends.Contains(NativeComputeBackend.Cuda));
+    Assert.True(withCuda.FindLibrary("whisper", NativeComputeBackend.Cuda).Value?.EndsWith(
+        "runtimes/cuda12/linux-x64/libwhisper.so", StringComparison.Ordinal) == true);
+    Assert.True(withCuda.FindLibrary("llama", NativeComputeBackend.Cuda).Value?.EndsWith(
+        "runtimes/linux-x64/native/cuda12/libllama.so", StringComparison.Ordinal) == true);
+    foreach (var component in new[] { "whisper", "llama" })
+        Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Cuda, false, false),
+            LinuxCudaPackage.Choose(withCuda, component, NativeComputeBackend.Cuda, allowCpuFallback: false));
 });
 
 static Task RuntimeLocatorPublishedOutput()

@@ -66,6 +66,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _processWhisperCpuFallback = true;
     private bool _whisperBaselineCaptured;
     private readonly string _currentWhisperRuntimeStatus;
+    private Func<string, bool, string?>? _localWhisperBackendNotice;
     public SettingsViewModel(
         PortableSettingsService settings,
         string localLlmRuntimeStatus = "Local LLM runtime not connected",
@@ -317,9 +318,31 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool WhisperRestartRequired => _whisperBaselineCaptured
         && (LocalWhisperBackend != _processWhisperBackend
             || AllowLocalWhisperCpuFallback != _processWhisperCpuFallback);
-    public string LocalWhisperRuntimeStatus => WhisperRestartRequired
-        ? $"Current process capability: {_currentWhisperRuntimeStatus}. Restart HyperWhisper to activate this Whisper backend change."
-        : $"Current process capability: {_currentWhisperRuntimeStatus}.";
+    public string LocalWhisperRuntimeStatus
+    {
+        get
+        {
+            var status = WhisperRestartRequired
+                ? $"Current process capability: {_currentWhisperRuntimeStatus}. Restart HyperWhisper to activate this Whisper backend change."
+                : $"Current process capability: {_currentWhisperRuntimeStatus}.";
+            var notice = _localWhisperBackendNotice?.Invoke(LocalWhisperBackend, AllowLocalWhisperCpuFallback);
+            return string.IsNullOrEmpty(notice) ? status : $"{status} {notice}";
+        }
+    }
+    /// <summary>
+    /// A head's note on the picked Whisper backend and CPU-fallback choice, appended to
+    /// <see cref="LocalWhisperRuntimeStatus"/>; null when there is nothing to say. Linux
+    /// names the missing hyperwhisper-cuda package and the backend used instead (#1002).
+    /// </summary>
+    public Func<string, bool, string?>? LocalWhisperBackendNotice
+    {
+        get => _localWhisperBackendNotice;
+        set
+        {
+            _localWhisperBackendNotice = value;
+            Notify(nameof(LocalWhisperRuntimeStatus));
+        }
+    }
     public IReadOnlyList<string> LocalWhisperBackends { get; } = ["auto", "cpu", "vulkan", "cuda12"];
     public IReadOnlyList<string> LocalLlmBackends { get; } = ["cpu", "vulkan", "cuda"];
     public IReadOnlyList<string> PushToTalkModes { get; } = ["Disabled", "Modifier", "CustomShortcut"];
