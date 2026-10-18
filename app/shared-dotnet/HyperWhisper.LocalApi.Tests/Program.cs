@@ -64,6 +64,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
+    ,("a deleted mode_id is MODE_NOT_FOUND and an unknown Parakeet model is MODEL_NOT_FOUND, before any work", MissingModeAndModelAreNotFound)
     ,("exactly one default mode, and its name is fixed", DefaultModeInvariant)
     ,("SIGTERM and SIGINT end a process hosting the Local API", SignalsEndTheProcess)
     ,("/recordings filters, counts and pages in SQL with the old match rule", () => InTokyo(RecordingsQueryRunsInSql))
@@ -1580,6 +1581,112 @@ static async Task ApplicationBackendErrors()
 }
 
 /// <summary>
+/// A deleted <c>mode_id</c> and an unknown Parakeet-family model are the
+/// caller's mistakes, answered as Windows answers them and before any work
+/// (issue #1935).
+/// </summary>
+/// <remarks>
+/// This head answered a deleted <c>mode_id</c> on <c>/transcribe</c> and
+/// <c>/post-process</c> with HTTP 400 <c>INVALID_REQUEST</c> and a generic
+/// message, while <c>GET /modes/&lt;id&gt;</c> answered <c>MODE_NOT_FOUND</c>
+/// for the same id. <c>engine: parakeet</c> with an unknown model reached the
+/// daemon transcriber, which refused it as <c>INVALID_REQUEST</c> only after
+/// the upload was staged and a failed History row written.
+/// </remarks>
+static async Task MissingModeAndModelAreNotFound()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var transcriber = new FixedTextTranscriber("ran");
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), transcriber, history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+        postProcessor: new ModeLookupPostProcessor(modes));
+    await using var fixture = await Fixture.Create(backend: backend);
+    fixture.Authenticate();
+
+    async Task AssertNoWork(string what)
+    {
+        Assert(transcriber.Request is null, $"{what}: the transcriber ran");
+        Assert(!Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Any(), $"{what}: an upload was staged");
+        Assert((await history.ListAsync()).Count == 0, $"{what}: a History row was written");
+    }
+
+    async Task AssertNotFound(HttpResponseMessage response, string code, string message, string what)
+    {
+        await AssertBusinessFailure(response, code, what);
+        var actual = await FailureMessage(response);
+        Assert(actual == message, $"{what}: expected \"{message}\", got \"{actual}\"");
+    }
+
+    static MultipartFormDataContent Clip(params (string Name, string Value)[] fields)
+    {
+        var form = new MultipartFormDataContent();
+        form.Add(new ByteArrayContent([1, 2, 3]), "audio", "clip.wav");
+        foreach (var (name, value) in fields) form.Add(new StringContent(value), name);
+        return form;
+    }
+
+    var deleted = Guid.NewGuid().ToString("D");
+
+    using (var form = Clip(("mode_id", deleted)))
+        await AssertNotFound(await fixture.Client.PostAsync("/transcribe", form),
+            LocalApiErrorCodes.ModeNotFound, $"No mode with id '{deleted}'", "multipart /transcribe, deleted mode_id");
+    await AssertNoWork("multipart /transcribe, deleted mode_id");
+
+    using (var json = new StringContent($"{{\"audio_base64\":\"AQID\",\"mode_id\":\" {deleted} \"}}", Encoding.UTF8, "application/json"))
+        await AssertNotFound(await fixture.Client.PostAsync("/transcribe", json),
+            LocalApiErrorCodes.ModeNotFound, $"No mode with id '{deleted}'", "JSON /transcribe, deleted mode_id");
+    await AssertNoWork("JSON /transcribe, deleted mode_id");
+
+    // The GET route answered this code for the same id already; all three agree now.
+    await AssertBusinessFailure(await fixture.Client.GetAsync($"/modes/{deleted}"), LocalApiErrorCodes.ModeNotFound, "GET /modes, deleted id");
+
+    // Through the middleware, the post-processor's refusal is the same envelope.
+    using (var post = new StringContent($"{{\"text\":\"hello\",\"mode_id\":\"{deleted}\"}}", Encoding.UTF8, "application/json"))
+        await AssertNotFound(await fixture.Client.PostAsync("/post-process", post),
+            LocalApiErrorCodes.ModeNotFound, $"No mode with id '{deleted}'", "/post-process, deleted mode_id");
+
+    // A malformed id is still a malformed request, on both heads.
+    using (var form = Clip(("mode_id", "not-a-guid")))
+    {
+        var malformed = await fixture.Client.PostAsync("/transcribe", form);
+        Assert(malformed.StatusCode == HttpStatusCode.BadRequest && await FailureCode(malformed) == LocalApiErrorCodes.InvalidRequest,
+            "a malformed mode_id is no longer HTTP 400 INVALID_REQUEST");
+    }
+
+    using (var form = Clip(("engine", "parakeet"), ("model", "nope")))
+        await AssertNotFound(await fixture.Client.PostAsync("/transcribe", form),
+            LocalApiErrorCodes.ModelNotFound, "Parakeet-family model 'nope' is not recognized", "engine parakeet, unknown model");
+    await AssertNoWork("engine parakeet, unknown model");
+
+    // A stored local Parakeet mode with an unknown model, overridden by nothing.
+    using (var body = new StringContent(ModeBody("Stored Parakeet"), Encoding.UTF8, "application/json"))
+        Assert((await fixture.Client.PostAsync("/modes", body)).StatusCode == HttpStatusCode.OK, "mode create failed");
+    var stored = (await modes.ListAsync()).Single(item => item.Name == "Stored Parakeet");
+    stored.ProviderType = "local";
+    stored.LocalEngine = "parakeet";
+    stored.LocalParakeetModel = stored.Model = "gone-model";
+    await modes.UpsertAsync(stored);
+    using (var form = Clip(("mode_id", stored.Id.ToString("D"))))
+        await AssertNotFound(await fixture.Client.PostAsync("/transcribe", form),
+            LocalApiErrorCodes.ModelNotFound, "Parakeet-family model 'gone-model' is not recognized", "stored Parakeet mode, unknown model");
+    await AssertNoWork("stored Parakeet mode, unknown model");
+
+    // Control: a catalog model in any case still runs, so the check refuses
+    // only what the daemon would refuse.
+    using (var form = Clip(("engine", "parakeet"), ("model", "Parakeet-V2")))
+    {
+        var ran = await fixture.Client.PostAsync("/transcribe", form);
+        using var document = JsonDocument.Parse(await ran.Content.ReadAsStringAsync());
+        Assert(ran.StatusCode == HttpStatusCode.OK && document.RootElement.GetProperty("ok").GetBoolean(), "a catalog Parakeet model was refused");
+    }
+    Assert(transcriber.Request is not null, "a catalog Parakeet model did not reach the transcriber");
+}
+
+/// <summary>
 /// A transcription that failed reaches the wire as the code and the message it
 /// actually carried (issue #356 item 4).
 /// </summary>
@@ -1791,7 +1898,9 @@ static async Task ApplicationBackendModeRouting()
     await AssertThrowsAsync<ArgumentException>(() => backend.TranscribeAsync(new AudioUpload(
         "junk.wav", "audio/wav", new byte[] { 2 }, null, "vosk", null, "en"), CancellationToken.None).AsTask());
     var stagedBeforeInvalid = Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count();
-    await AssertThrowsAsync<ArgumentException>(() => backend.TranscribeAsync(new AudioUpload("bad.wav", "audio/wav", new byte[] { 3 }, Guid.NewGuid().ToString("D"), null, null, null), CancellationToken.None).AsTask());
+    // A missing mode is MODE_NOT_FOUND now, as on Windows (issue #1935); it was an ArgumentException.
+    var missingMode = await AssertThrowsAsync<LocalApiFailureException>(() => backend.TranscribeAsync(new AudioUpload("bad.wav", "audio/wav", new byte[] { 3 }, Guid.NewGuid().ToString("D"), null, null, null), CancellationToken.None).AsTask());
+    Assert(missingMode.Code == LocalApiErrorCodes.ModeNotFound, $"a missing mode was {missingMode.Code}, not {LocalApiErrorCodes.ModeNotFound}");
     Assert(Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count() == stagedBeforeInvalid, "invalid mode retained an orphaned upload");
     await using (var fixture = await Fixture.Create(backend: backend))
     {
@@ -3574,5 +3683,21 @@ sealed class RecordingBatchCloud : IBatchCloudTranscriptionClient
     {
         LastRequest = request;
         return Task.FromResult(CloudTranscriptionResult.Success(new("cloud words", null, null, "upstream"), 1));
+    }
+}
+
+/// <summary>
+/// The Linux post-processor's mode lookup in miniature: an id no stored mode
+/// has is refused with <see cref="LocalApiFailureException.ModeNotFound"/>
+/// (issue #1935). The real adapter is pinned in the Linux Composition tests.
+/// </summary>
+sealed class ModeLookupPostProcessor(ModeRepository modes) : ILocalApiPostProcessor
+{
+    public async ValueTask<PostProcessResult> ProcessAsync(PostProcessRequest request, CancellationToken cancellationToken)
+    {
+        var id = Guid.Parse(request.ModeId!.Trim());
+        if (!(await modes.ListAsync(cancellationToken)).Any(item => item.Id == id))
+            throw LocalApiFailureException.ModeNotFound(request.ModeId.Trim());
+        throw new InvalidOperationException("Post-processing is not configured.");
     }
 }

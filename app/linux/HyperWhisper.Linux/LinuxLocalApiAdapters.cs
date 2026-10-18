@@ -258,7 +258,7 @@ internal sealed class LinuxLocalApiPostProcessor(
                 throw new ArgumentException("The requested mode ID is invalid.", nameof(request));
             var stored = (await modes.ListAsync(cancellationToken).ConfigureAwait(false))
                 .SingleOrDefault(item => item.Id == id)
-                ?? throw new ArgumentException("The requested mode does not exist.", nameof(request));
+                ?? throw LocalApiFailureException.ModeNotFound(request.ModeId.Trim());
             if (!hasOverride && stored.PostProcessingMode == 0)
                 throw new ArgumentException("The requested mode has post-processing disabled.", nameof(request));
             mode = CloneMode(stored);
