@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 
 import CreditsPurchase from "@/components/credits/CreditsPurchase";
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
+
+export const generateMetadata = localizedPageMetadata({
+  path: "/credits",
+});
 
 /**
  * Credits Page

@@ -7,10 +7,15 @@
  * the only robots tag (a noindex here would be a second one). It must also carry a real title, in the URL's locale, and links back into the
  * site, so a 404 is not a dead end (#815).
  *
- * `app/not-found.tsx` serves every unmatched URL (/de/zzz). It must wrap that
- * same content in the [locale] layout, so the page gets the site chrome, and
- * set its own noindex on Vercel only: next start injects one there, Vercel
- * does not.
+ * `app/global-not-found.tsx` serves every unmatched URL (/de/zzz). It must
+ * wrap that same content in the [locale] layout, in the request locale, so the
+ * page gets the site chrome, and set its own noindex on Vercel only: next start
+ * injects one there, Vercel does not.
+ *
+ * `app/not-found.tsx` catches a first segment that is not a locale. It wraps
+ * the same content the same way, but must not read the request locale: Next
+ * renders it on every page, so that headers() read made every route dynamic
+ * (#843).
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -97,23 +102,26 @@ moduleMock.module("../app/[locale]/layout.tsx", {
 // Variable specifiers, imported after the mocks (see root-layout-direction).
 const LOCALE_NOT_FOUND_PATH = "../app/[locale]/not-found.tsx";
 const ROOT_NOT_FOUND_PATH = "../app/not-found.tsx";
+const GLOBAL_NOT_FOUND_PATH = "../app/global-not-found.tsx";
 
 type Metadata = { title: string; robots?: unknown };
 
 type LocaleNotFoundModule = {
-  default: () => Promise<React.ReactElement>;
+  default: (props?: { locale?: string }) => Promise<React.ReactElement>;
   generateMetadata: (props?: {
     params?: Promise<{ locale?: string }>;
   }) => Promise<Metadata>;
 };
 
+type RootNotFoundProps = {
+  params: Promise<{ locale: string }>;
+  children: React.ReactElement<{ locale?: string }>;
+};
+
 type RootNotFoundModule = {
-  default: () => Promise<
-    React.ReactElement<{
-      params: Promise<{ locale: string }>;
-      children: React.ReactElement;
-    }>
-  >;
+  default: () =>
+    | React.ReactElement<RootNotFoundProps>
+    | Promise<React.ReactElement<RootNotFoundProps>>;
   generateMetadata: () => Promise<Metadata>;
 };
 
@@ -145,6 +153,22 @@ test("[locale] not-found titles a thrown 404 in the segment's locale", async () 
   assert.equal(metadata.title, de.title);
 });
 
+test("[locale] not-found titles a non-locale segment in the default locale", async () => {
+  // /favicon.ico reaches [locale] with a param that is not a locale. The
+  // fallback must not be getLocale(): on a prerendered route that headers()
+  // read is a 500, not a 404 (#843).
+  request.locale = "de";
+  const { generateMetadata } = (await import(
+    LOCALE_NOT_FOUND_PATH
+  )) as LocaleNotFoundModule;
+
+  const metadata = await generateMetadata({
+    params: Promise.resolve({ locale: "favicon.ico" }),
+  });
+
+  assert.equal(metadata.title, en.title);
+});
+
 test("[locale] not-found links to the home page and the download page", async () => {
   request.locale = "en";
   browser.pathname = "/en/zzz";
@@ -174,7 +198,23 @@ test("[locale] not-found speaks the URL's locale when the request locale is the 
   assert.match(markup, new RegExp(`<a href="/ja/download">${ja.download}</a>`));
 });
 
-test("[locale] not-found falls back to the request locale off a locale path", async () => {
+test("[locale] not-found falls back to the locale it is given off a locale path", async () => {
+  // Only app/global-not-found.tsx passes the request locale; app/not-found.tsx
+  // passes the default locale. Under [locale] the boundary gets no props and
+  // must not read the request locale itself: that is a headers() call, and it
+  // made every route dynamic (#843).
+  request.locale = "en";
+  browser.pathname = null;
+  const { default: LocaleNotFound } = (await import(
+    LOCALE_NOT_FOUND_PATH
+  )) as LocaleNotFoundModule;
+  const markup = renderToStaticMarkup(await LocaleNotFound({ locale: "de" }));
+
+  assert.match(markup, new RegExp(`<h1[^>]*>${de.heading}</h1>`));
+  assert.match(markup, /<a href="\/de">/);
+});
+
+test("[locale] not-found reads no request locale when it gets no props", async () => {
   request.locale = "de";
   browser.pathname = null;
   const { default: LocaleNotFound } = (await import(
@@ -182,8 +222,8 @@ test("[locale] not-found falls back to the request locale off a locale path", as
   )) as LocaleNotFoundModule;
   const markup = renderToStaticMarkup(await LocaleNotFound());
 
-  assert.match(markup, new RegExp(`<h1[^>]*>${de.heading}</h1>`));
-  assert.match(markup, /<a href="\/de">/);
+  assert.match(markup, new RegExp(`<h1[^>]*>${en.heading}</h1>`));
+  assert.match(markup, /<a href="\/en">/);
 });
 
 test("the English-only pages throw their 404 from generateMetadata too", () => {
@@ -238,7 +278,24 @@ test("the [locale] layout 404s an unknown locale in its metadata and its render"
   }
 });
 
-test("the root not-found wraps the [locale] 404 in the [locale] layout", async () => {
+test("the global not-found wraps the [locale] 404 in the [locale] layout, in the request locale", async () => {
+  request.locale = "de";
+  const [{ default: GlobalNotFound, generateMetadata }, localeModule] =
+    await Promise.all([
+      import(GLOBAL_NOT_FOUND_PATH) as Promise<RootNotFoundModule>,
+      import(LOCALE_NOT_FOUND_PATH) as Promise<LocaleNotFoundModule>,
+    ]);
+  const element = await GlobalNotFound();
+
+  assert.equal(element.type, FakeLocaleLayout);
+  assert.deepEqual(await element.props.params, { locale: "de" });
+  assert.equal(element.props.children.type, localeModule.default);
+  assert.deepEqual(element.props.children.props, { locale: "de" });
+  assert.equal((await generateMetadata()).title, `${de.title} - HyperWhisper`);
+});
+
+test("the root not-found wraps the [locale] 404 in the default locale, never the request's", async () => {
+  // "de" here would leak into the result only through getLocale().
   request.locale = "de";
   const [{ default: RootNotFound, generateMetadata }, localeModule] =
     await Promise.all([
@@ -248,26 +305,30 @@ test("the root not-found wraps the [locale] 404 in the [locale] layout", async (
   const element = await RootNotFound();
 
   assert.equal(element.type, FakeLocaleLayout);
-  assert.deepEqual(await element.props.params, { locale: "de" });
+  assert.deepEqual(await element.props.params, { locale: "en" });
   assert.equal(element.props.children.type, localeModule.default);
-  assert.equal((await generateMetadata()).title, `${de.title} - HyperWhisper`);
+  assert.deepEqual(element.props.children.props, { locale: "en" });
+  assert.equal((await generateMetadata()).title, `${en.title} - HyperWhisper`);
 });
 
-test("the root not-found marks an unmatched URL noindex on Vercel only", async () => {
+test("both root 404s mark the page noindex on Vercel only", async () => {
   // Vercel served no noindex on an unmatched URL (/de/zzz); next start injects
   // one itself, so a second there would be a duplicate tag.
   request.locale = "de";
-  const { generateMetadata } = (await import(
-    ROOT_NOT_FOUND_PATH
-  )) as RootNotFoundModule;
+  const modules = (await Promise.all([
+    import(GLOBAL_NOT_FOUND_PATH),
+    import(ROOT_NOT_FOUND_PATH),
+  ])) as RootNotFoundModule[];
   const vercel = process.env.VERCEL;
 
   try {
-    process.env.VERCEL = "1";
-    assert.deepEqual((await generateMetadata()).robots, { index: false });
+    for (const { generateMetadata } of modules) {
+      process.env.VERCEL = "1";
+      assert.deepEqual((await generateMetadata()).robots, { index: false });
 
-    delete process.env.VERCEL;
-    assert.equal((await generateMetadata()).robots, undefined);
+      delete process.env.VERCEL;
+      assert.equal((await generateMetadata()).robots, undefined);
+    }
   } finally {
     if (vercel === undefined) delete process.env.VERCEL;
     else process.env.VERCEL = vercel;
