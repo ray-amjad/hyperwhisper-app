@@ -2988,6 +2988,51 @@ internal static class Program
                     "new Gemini modes should default to Gemini 3.8 Flash (matches macOS)");
             });
 
+            // Replays shared-conformance/pp-model-redirect-vectors.json through THIS
+            // head's MigrateModelId (#1083). macOS and shared-dotnet replay the same
+            // file through their own tables:
+            //   app/macos/hyperwhisperTests/PostProcessingModelResolutionTests.swift
+            //   app/shared-dotnet/HyperWhisper.CloudPostProcessing.Tests/Program.cs
+            // The 3 copies had drifted, so one saved Mode ran a different model per
+            // platform. The file is found by walking up to the repo root, the way the
+            // shared-dotnet catalog conformance test finds shared-conformance.
+            Run("retired post-processing redirects match shared-conformance vectors", () =>
+            {
+                var repoRoot = new DirectoryInfo(AppContext.BaseDirectory);
+                while (repoRoot is not null && !Directory.Exists(Path.Combine(repoRoot.FullName, "shared-conformance")))
+                    repoRoot = repoRoot.Parent;
+                Assert(repoRoot is not null, "shared-conformance not found above " + AppContext.BaseDirectory);
+                var vectorsPath = Path.Combine(repoRoot!.FullName, "shared-conformance", "pp-model-redirect-vectors.json");
+                Assert(File.Exists(vectorsPath), $"pp-model-redirect-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var rows = vectors.RootElement.GetProperty("vectors");
+                Assert(rows.GetArrayLength() >= 40, "pp-model-redirect-vectors.json looks truncated");
+
+                var checkedRows = 0;
+                foreach (var row in rows.EnumerateArray())
+                {
+                    if (row.TryGetProperty("platforms", out var platforms)
+                        && platforms.EnumerateArray().All(platform => platform.GetString() != "windows"))
+                        continue;
+                    var providerName = row.GetProperty("provider").GetString()!;
+                    var from = row.GetProperty("from").GetString()!;
+                    var to = row.GetProperty("to").GetString()!;
+
+                    Assert(LanguageModelInfo.MigrateModelId(from) == to,
+                        $"MigrateModelId does not redirect {from} to {to}");
+                    var target = LanguageModelInfo.GetById(to);
+                    Assert(target != null, $"{from}: target {to} is not a live picker row");
+                    // The vector names the macOS raw value (local_llm); Windows says LocalLlm.
+                    Assert(string.Equals(target!.Provider.ToString(), providerName.Replace("_", ""),
+                            StringComparison.OrdinalIgnoreCase),
+                        $"{from}: target {to} is a {target.Provider} row, the vector says {providerName}");
+                    Assert(LanguageModelInfo.GetById(from) == null, $"retired {from} is still a picker row");
+                    checkedRows++;
+                }
+                Assert(checkedRows >= 40, $"only {checkedRows} Windows redirect rows were checked");
+            });
+
             // #1018: OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11. The
             // rows are deleted and every id migrates to gpt-5.6-luna, so a mode card for a
             // stored id names luna, the model that runs.
