@@ -714,7 +714,7 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
             {
                 written = _apiKeys.SetApiKey(postProcessing, value);
             }
-            else if (TranscriptionKeyType(provider) is { } type)
+            else if (provider.GetTranscriptionApiKeyType() is { } type)
             {
                 written = _apiKeys.SetApiKey(type, value);
             }
@@ -768,7 +768,7 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
                 return _apiKeys.GetApiKey(postProcessing) ?? string.Empty;
             }
 
-            return TranscriptionKeyType(provider) is { } type
+            return provider.GetTranscriptionApiKeyType() is { } type
                 ? _apiKeys.GetApiKey(type) ?? string.Empty
                 : string.Empty;
         }
@@ -822,29 +822,6 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
         CloudTranscriptionProvider.HyperWhisperCloud,
         CloudTranscriptionProvider.MicrosoftAzureSpeech,
         CloudTranscriptionProvider.GoogleSpeech,
-    };
-
-    /// <summary>
-    /// The key slot for a provider that has no shared post-processing provider.
-    /// Mirrors the mapping CloudProviderHealthService.GetTranscriptionApiKey uses,
-    /// in the write direction, and must stay a superset-by-behaviour of
-    /// ProviderApiKeyWindow.ToTranscriptionKeyType: a provider offered on this
-    /// branch with no arm here lands in Persist's failure branch and rejects a
-    /// correctly typed key with the generic "could not save" string.
-    ///
-    /// Grok is absent on purpose - it routes through the shared
-    /// PostProcessingProvider.Grok key, which Persist checks first.
-    /// </summary>
-    internal static TranscriptionApiKeyType? TranscriptionKeyType(CloudTranscriptionProvider provider) => provider switch
-    {
-        CloudTranscriptionProvider.Deepgram => TranscriptionApiKeyType.Deepgram,
-        CloudTranscriptionProvider.AssemblyAI => TranscriptionApiKeyType.AssemblyAI,
-        CloudTranscriptionProvider.ElevenLabs => TranscriptionApiKeyType.ElevenLabs,
-        CloudTranscriptionProvider.Mistral => TranscriptionApiKeyType.Mistral,
-        CloudTranscriptionProvider.Soniox => TranscriptionApiKeyType.Soniox,
-        CloudTranscriptionProvider.GeminiTranscribe => TranscriptionApiKeyType.GeminiTranscribe,
-        CloudTranscriptionProvider.Meta => TranscriptionApiKeyType.Meta,
-        _ => null
     };
 }
 
