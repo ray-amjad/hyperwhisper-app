@@ -333,11 +333,16 @@ public sealed class LocalApiServer : INotifyPropertyChanged
     ///     warning this head logged for a refused Host/Origin.
     ///   </description></item>
     /// </list>
+    /// <para>
+    /// <paramref name="bearerToken"/> is for the smoke suite only, which drives
+    /// the real host with a throwaway token instead of the DPAPI one. Start()
+    /// never passes it.
+    /// </para>
     /// </remarks>
-    internal WebApplication BuildApp(int preferredPort)
+    internal WebApplication BuildApp(int preferredPort, string? bearerToken = null)
     {
         var options = new PortableLocalApiOptions(
-            BearerToken,
+            bearerToken ?? BearerToken,
             preferredPort,
             LocalApiLimits.MaxRequestBytes,
             checked((int)LocalApiLimits.MaxUploadBytes),

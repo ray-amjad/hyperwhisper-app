@@ -315,7 +315,7 @@ internal sealed partial class WindowsLocalApiBackend
     private static Mode? FindMode(string? id) =>
         Guid.TryParse(id?.Trim(), out var guid) ? ModeService.Instance.GetMode(guid) : null;
 
-    private static IReadOnlyList<string> KeysOf(JsonElement body) =>
+    internal static IReadOnlyList<string> KeysOf(JsonElement body) =>
         body.ValueKind == JsonValueKind.Object
             ? body.EnumerateObject().Select(property => property.Name).ToList()
             : [];

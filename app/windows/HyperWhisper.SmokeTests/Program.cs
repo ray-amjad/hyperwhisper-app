@@ -36,7 +36,6 @@ using HyperWhisper.Services;
 using HyperWhisper.AppClassification;
 using HyperWhisper.Services.AppClassification;
 using HyperWhisper.Services.LocalApi;
-using HyperWhisper.Services.LocalApi.Endpoints;
 using HyperWhisper.Services.Onboarding;
 using HyperWhisper.Services.Platform;
 using HyperWhisper.Services.Streaming;
@@ -2188,7 +2187,7 @@ internal static class Program
                 foreach (var method in new[]
                 {
                     Other("HyperWhisper.Services.Transcription.TranscriptionRetryHandler", "EnsureWhisperModelLoadedAsync"),
-                    Other("HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints", "EnsureWhisperModelLoadedAsync"),
+                    Other("HyperWhisper.Services.LocalApi.WindowsLocalApiBackend", "EnsureWhisperModelLoadedAsync"),
                     Other("HyperWhisper.Services.Onboarding.LiveOnboardingAudioGateway", "EnsureLocalEngineReadyAsync"),
                 })
                 {
@@ -3063,7 +3062,7 @@ internal static class Program
                 static (string Provider, string Model) Labels(
                     string? storedProvider, string? storedModel,
                     string? resolvedProvider, string? resolvedModel)
-                    => HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.ResponseLabels(
+                    => WindowsLocalApiBackend.ResponseLabels(
                         storedProvider, storedModel, resolvedProvider, resolvedModel);
 
                 // The reported case: the Mode names a model that belongs to
@@ -3197,13 +3196,14 @@ internal static class Program
             // report it. The portable head already writes both fields.
             Run("Local API /post-process applies a model override to the local GGUF field", () =>
             {
-                var local = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
-                    new PostProcessRequest
-                    {
-                        Text = "raw",
-                        Provider = "local_llm",
-                        Model = "gemma-4-31B-it-Q4_K_M.gguf",
-                    });
+                var local = WindowsLocalApiBackend.BuildWorkingMode(
+                    new HyperWhisper.LocalApi.PostProcessRequest(
+                        Text: "raw",
+                        ModeId: null,
+                        Preset: null,
+                        Prompt: null,
+                        Provider: "local_llm",
+                        Model: "gemma-4-31B-it-Q4_K_M.gguf"));
                 Assert(local.PostProcessingMode == 2 && local.PostProcessingProvider == "local_llm",
                     "a local_llm provider override did not switch the working mode to local post-processing");
                 Assert(local.LocalPostProcessingModel == "gemma-4-31B-it-Q4_K_M.gguf",
@@ -3212,13 +3212,14 @@ internal static class Program
                     "the caller's model override no longer reaches LanguageModel");
 
                 // A CLOUD run must not gain a local GGUF it never asked for.
-                var cloud = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
-                    new PostProcessRequest
-                    {
-                        Text = "raw",
-                        Provider = "openai",
-                        Model = "gpt-4.1-nano",
-                    });
+                var cloud = WindowsLocalApiBackend.BuildWorkingMode(
+                    new HyperWhisper.LocalApi.PostProcessRequest(
+                        Text: "raw",
+                        ModeId: null,
+                        Preset: null,
+                        Prompt: null,
+                        Provider: "openai",
+                        Model: "gpt-4.1-nano"));
                 Assert(cloud.PostProcessingMode == 1 && cloud.LocalPostProcessingModel == null,
                     "a cloud model override leaked into the local GGUF field");
 
@@ -3237,13 +3238,14 @@ internal static class Program
                 Assert(PostProcessingProviderExtensions.FromString("local") == PostProcessingProvider.LocalLlm
                         && PostProcessingProviderExtensions.FromString("local_llm") == PostProcessingProvider.LocalLlm,
                     "the local_llm spellings ProcessAsync routes on have drifted");
-                var altSpelling = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
-                    new PostProcessRequest
-                    {
-                        Text = "raw",
-                        Provider = "local",
-                        Model = "gemma-4-12b-it-Q4_K_M.gguf",
-                    });
+                var altSpelling = WindowsLocalApiBackend.BuildWorkingMode(
+                    new HyperWhisper.LocalApi.PostProcessRequest(
+                        Text: "raw",
+                        ModeId: null,
+                        Preset: null,
+                        Prompt: null,
+                        Provider: "local",
+                        Model: "gemma-4-12b-it-Q4_K_M.gguf"));
                 Assert(altSpelling.PostProcessingMode == 1,
                     "the PostProcessingMode this case depends on being 1 has changed");
                 Assert(altSpelling.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
@@ -10372,13 +10374,13 @@ internal static class Program
                         "muse-voice-transcribe-1.0", CloudTranscriptionProvider.Meta)?.Provider
                         == CloudTranscriptionProvider.Meta,
                     "Meta Muse direct model is missing");
-                Assert(HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.TranscriptionProviders
+                Assert(WindowsLocalApiBackend.TranscriptionProviders
                         .Any(provider => provider == CloudTranscriptionProvider.Meta),
                     "/health does not report direct Meta key status");
-                Assert(HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.StatusString(
+                Assert(WindowsLocalApiBackend.StatusString(
                         CloudTranscriptionProvider.Meta, keyPresent: true, ProviderHealth.Unknown) == "configured",
                     "/health does not distinguish a configured Meta key from an unknown probe");
-                Assert(!HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.IsReachable(
+                Assert(!WindowsLocalApiBackend.IsReachable(
                         CloudTranscriptionProvider.Meta, keyPresent: true, ProviderHealth.Healthy),
                     "/health claims the configured-only Meta key was probed");
                 Assert(ModelLibraryManager.CloudProviderAssetName(CloudTranscriptionProvider.Meta) == "providerMeta",
@@ -10388,7 +10390,7 @@ internal static class Program
                     "Windows Meta normalization source bound drifted");
 
                 var transient = new Mode();
-                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                WindowsLocalApiBackend.ApplyEngineModel(
                     transient, "meta", model: null);
                 Assert(transient.ProviderType == "cloud"
                         && transient.Model == "cloud"
@@ -10397,13 +10399,13 @@ internal static class Program
                     "Local API engine=meta did not select direct Muse");
 
                 var overridden = new Mode { CloudTranscriptionModel = "stale-other-provider-model" };
-                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                WindowsLocalApiBackend.ApplyEngineModel(
                     overridden, "meta", model: null);
                 Assert(overridden.CloudTranscriptionModel == "muse-voice-transcribe-1.0",
                     "Local API engine=meta retained a baseline provider model");
 
                 var savedOpenAi = new Mode { CloudTranscriptionModel = "gpt-4o-transcribe" };
-                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                WindowsLocalApiBackend.ApplyEngineModel(
                     savedOpenAi, "openai", model: null);
                 Assert(savedOpenAi.CloudTranscriptionModel == "gpt-4o-transcribe",
                     "Local API erased a saved provider model when model was omitted");
@@ -11819,7 +11821,7 @@ internal static class Program
                     CloudTranscriptionDomain = "cloud-domain-value"
                 };
 
-                var mode = TranscribeEndpoints.BuildTransientMode(
+                var mode = WindowsLocalApiBackend.BuildTransientMode(
                     source,
                     engine: null,
                     model: null,
@@ -12469,13 +12471,13 @@ internal static class Program
                     FinalText: "The estimated time of arrival is thirty minutes",
                     TranscriptionProvider: "Local");
 
-                var response = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 42);
+                var response = WindowsLocalApiBackend.BuildResponse(result, mode, latencyMs: 42);
 
                 Assert(response.Text == result.FinalText,
                     $"the /transcribe response must carry FinalText, got '{response.Text}'");
                 Assert(response.Text != result.RawText,
                     "the /transcribe response is still carrying the provider's raw text");
-                Assert(response.LatencyMs == 42 && response.Timings.DecodeMs == 42,
+                Assert(response.LatencyMs == 42 && response.DecodeMs == 42,
                     "the /transcribe response lost the measured latency");
             });
 
@@ -12484,16 +12486,16 @@ internal static class Program
                 var mode = new Mode { Name = "Local API timings", ProviderType = "local", Language = "en" };
                 var result = new TranscriptionResult(RawText: "hello", FinalText: "hello", TranscriptionProvider: "Local");
 
-                var cold = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 900, loadMs: 620);
-                Assert(cold.Timings.LoadMs == 620 && cold.Timings.DecodeMs == 280 && cold.LatencyMs == 900,
-                    $"cold: load {cold.Timings.LoadMs}, decode {cold.Timings.DecodeMs}, latency {cold.LatencyMs}");
+                var cold = WindowsLocalApiBackend.BuildResponse(result, mode, latencyMs: 900, loadMs: 620);
+                Assert(cold.LoadMs == 620 && cold.DecodeMs == 280 && cold.LatencyMs == 900,
+                    $"cold: load {cold.LoadMs}, decode {cold.DecodeMs}, latency {cold.LatencyMs}");
 
-                var warm = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 300);
-                Assert(warm.Timings.LoadMs == 0 && warm.Timings.DecodeMs == 300, "warm: the latency must all be decode");
+                var warm = WindowsLocalApiBackend.BuildResponse(result, mode, latencyMs: 300);
+                Assert(warm.LoadMs == 0 && warm.DecodeMs == 300, "warm: the latency must all be decode");
 
                 // Rounding can put the load a millisecond over the latency; never a negative decode.
-                var rounded = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 500, loadMs: 501);
-                Assert(rounded.Timings.LoadMs == 500 && rounded.Timings.DecodeMs == 0, "a load over the latency went negative");
+                var rounded = WindowsLocalApiBackend.BuildResponse(result, mode, latencyMs: 500, loadMs: 501);
+                Assert(rounded.LoadMs == 500 && rounded.DecodeMs == 0, "a load over the latency went negative");
             });
 
             RunAsync("WhisperLoadTiming adds only to the scope on its own async flow — issue #1932", async () =>
@@ -12551,38 +12553,6 @@ internal static class Program
             // reject.
             // =================================================================
 
-            Run("the origin guard allows a loopback client and denies DNS rebinding", () =>
-            {
-                static bool Allowed(string? host, string? origin, string? fetchSite, int port)
-                {
-                    // Fully qualified: `Microsoft.AspNetCore.Http` cannot be
-                    // imported here, because its `HttpRequest` collides with
-                    // the UniFFI binding's own `HttpRequest` record.
-                    var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-                    if (host != null) context.Request.Headers["Host"] = host;
-                    if (origin != null) context.Request.Headers["Origin"] = origin;
-                    if (fetchSite != null) context.Request.Headers["Sec-Fetch-Site"] = fetchSite;
-                    return LocalApiOriginGuard.IsAllowed(context, port);
-                }
-
-                Assert(Allowed("127.0.0.1:51671", null, null, 51671), "a loopback curl client must be served");
-                Assert(Allowed("localhost:51671", null, null, 51671), "the localhost spelling must be served");
-                Assert(Allowed("LocalHost:51671", null, null, 51671), "Host is case-insensitive");
-                Assert(Allowed("127.0.0.1:51671", "http://127.0.0.1:51671", "same-origin", 51671),
-                    "a same-origin browser fetch must be served");
-
-                // The attack. A rebound page still sends the attacker's Host.
-                Assert(!Allowed("attacker.com:51671", "http://attacker.com:51671", "cross-site", 51671),
-                    "a DNS-rebound request must be rejected");
-                Assert(!Allowed("127.0.0.1:51671", "http://attacker.com", null, 51671),
-                    "a cross-origin Origin must be rejected");
-                Assert(!Allowed("127.0.0.1:51671", null, "cross-site", 51671),
-                    "cross-site fetch metadata must be rejected");
-                Assert(!Allowed(null, null, null, 51671), "a request with no Host header must be rejected");
-                Assert(!Allowed("127.0.0.1:51672", null, null, 51671), "the wrong port must be rejected");
-                Assert(!Allowed("127.0.0.1:51671", null, null, 0), "an unbound server must serve nothing");
-            });
-
             Run("/transcribe names the cloud model that actually ran", () =>
             {
                 // Issue #500. `engine: "cloud"` / `"hyperwhisper"` with no
@@ -12601,8 +12571,8 @@ internal static class Program
                 // all inside the assertion. Hand-rolling a Mode here would pass
                 // even if `BuildTransientMode` stopped seeding a tier.
                 static string LabelFor(string? engine, string? model, Mode? baseline = null) =>
-                    TranscribeEndpoints.ModelLabel(
-                        TranscribeEndpoints.BuildTransientMode(baseline, engine, model, language: null));
+                    WindowsLocalApiBackend.ModelLabel(
+                        WindowsLocalApiBackend.BuildTransientMode(baseline, engine, model, language: null));
 
                 foreach (var alias in new[] { "cloud", "hyperwhisper" })
                 {
@@ -12630,7 +12600,7 @@ internal static class Program
                     CloudProvider = "hyperwhisper",
                     CloudAccuracyTier = "elevenLabsScribeV2",
                 };
-                Assert(TranscribeEndpoints.ModelLabel(storedNoModel) == tierDefault,
+                Assert(WindowsLocalApiBackend.ModelLabel(storedNoModel) == tierDefault,
                     "a stored HyperWhisper Cloud mode with no model reported an empty label");
 
                 // An id that does not belong to the tier is NOT what runs:
@@ -12644,9 +12614,9 @@ internal static class Program
                     CloudAccuracyTier = "elevenLabsScribeV2",
                     CloudTranscriptionModel = "nova-3-general",
                 };
-                Assert(TranscribeEndpoints.ModelLabel(staleInTier) == tierDefault,
+                Assert(WindowsLocalApiBackend.ModelLabel(staleInTier) == tierDefault,
                     "an out-of-tier model was reported instead of the model that runs");
-                Assert(TranscribeEndpoints.ModelLabel(new Mode
+                Assert(WindowsLocalApiBackend.ModelLabel(new Mode
                 {
                     ProviderType = "cloud",
                     Model = "cloud",
@@ -12659,7 +12629,7 @@ internal static class Program
                 // A legacy accuracy-tier spelling must still resolve. The label
                 // normalizes the tier the same way the send path does, so an
                 // unrecognised spelling cannot produce "".
-                Assert(!string.IsNullOrEmpty(TranscribeEndpoints.ModelLabel(new Mode
+                Assert(!string.IsNullOrEmpty(WindowsLocalApiBackend.ModelLabel(new Mode
                 {
                     ProviderType = "cloud",
                     Model = "cloud",
@@ -12724,51 +12694,12 @@ internal static class Program
                     "a legacy provider alias was treated as foreign and replaced");
             });
 
-            Run("/post-process emits the documented post_processed flag", () =>
-            {
-                // Issue #499. macOS declares `post_processed` a NON-OPTIONAL
-                // `Bool` (`LocalAPITypes.swift`, `PostProcessResponse`) and
-                // `openapi.yaml` documents it as the field that separates a
-                // real rewrite from a no-op. Windows omitted the key entirely,
-                // so a client sharing the macOS `Codable` model threw
-                // `keyNotFound` on every Windows reply.
-                //
-                // WHAT THIS PINS, AND WHAT IT DOES NOT. It pins the SERIALISED
-                // SHAPE: the `[JsonPropertyName]` spelling, the full key set,
-                // and that both boolean values survive the responder's own
-                // `JsonOptions` (the options are the thing that decides what
-                // reaches the wire, so a bare `JsonSerializer` here would test
-                // the wrong object). It does NOT pin which branch of
-                // `PostProcessEndpoints` picks which value — that needs
-                // `ModeService` and a live host, which this harness has no way
-                // to stand up. The `required` modifier on the property is what
-                // stops a new branch omitting the field: it is a compile error,
-                // not a test. The portable suite covers the endpoint wiring
-                // end-to-end over real HTTP for the head that can be hosted.
-                static JsonNode Wire(bool postProcessed) =>
-                    JsonSerializer.SerializeToNode(
-                        new PostProcessResponse
-                        {
-                            Text = "text",
-                            Provider = postProcessed ? "hyperwhispercloud" : "none",
-                            Model = "model",
-                            Preset = "note",
-                            LatencyMs = 7,
-                            PostProcessed = postProcessed
-                        },
-                        LocalApiResponder.JsonOptions)!;
-
-                string[] expected = ["ok", "text", "provider", "model", "preset", "latency_ms", "post_processed"];
-                foreach (var flag in new[] { true, false })
-                {
-                    var node = Wire(flag);
-                    var keys = node.AsObject().Select(pair => pair.Key).Order().ToArray();
-                    Assert(keys.SequenceEqual(expected.Order()),
-                        $"the /post-process body drifted from the documented shape (post_processed={flag}): got {string.Join(",", keys)}");
-                    Assert(node["post_processed"]!.GetValue<bool>() == flag,
-                        "post_processed must carry the value it was given");
-                }
-            });
+            // Issue #499's `post_processed` shape test lived here, serialising
+            // this head's own `PostProcessResponse`. Since issue #356 item 6 the
+            // shared server writes the /post-process body, so that type is gone
+            // and the shape is pinned once, over real HTTP, by
+            // HyperWhisper.LocalApi.Tests (the exact key set and a real boolean),
+            // which windows-ci.yml now runs.
 
             Run("the bearer check accepts only the real token", () =>
             {
@@ -12777,21 +12708,21 @@ internal static class Program
                 Assert(HyperwhisperCoreMethods.LocalApiIsWellFormedToken(token),
                     "the generated token is not in the base64url alphabet the DPAPI store expects");
 
-                Assert(LocalApiAuth.Authorize($"Bearer {token}", token), "the real token must authorize");
-                Assert(LocalApiAuth.Authorize($"bearer {token}", token), "the scheme is case-insensitive");
-                Assert(LocalApiAuth.Authorize($"  Bearer {token}  ", token), "the header is trimmed");
+                Assert(HyperWhisper.LocalApi.LocalApiTokenStore.Authorize($"Bearer {token}", token), "the real token must authorize");
+                Assert(HyperWhisper.LocalApi.LocalApiTokenStore.Authorize($"bearer {token}", token), "the scheme is case-insensitive");
+                Assert(HyperWhisper.LocalApi.LocalApiTokenStore.Authorize($"  Bearer {token}  ", token), "the header is trimmed");
 
-                Assert(!LocalApiAuth.Authorize("", token), "an absent header must not authorize");
-                Assert(!LocalApiAuth.Authorize(token, token), "a bare token with no scheme must not authorize");
-                Assert(!LocalApiAuth.Authorize($"Basic {token}", token), "another scheme must not authorize");
-                Assert(!LocalApiAuth.Authorize($"Bearer {token}x", token), "a longer token must not authorize");
+                Assert(!HyperWhisper.LocalApi.LocalApiTokenStore.Authorize("", token), "an absent header must not authorize");
+                Assert(!HyperWhisper.LocalApi.LocalApiTokenStore.Authorize(token, token), "a bare token with no scheme must not authorize");
+                Assert(!HyperWhisper.LocalApi.LocalApiTokenStore.Authorize($"Basic {token}", token), "another scheme must not authorize");
+                Assert(!HyperWhisper.LocalApi.LocalApiTokenStore.Authorize($"Bearer {token}x", token), "a longer token must not authorize");
                 for (var length = 0; length < token.Length; length++)
                 {
-                    Assert(!LocalApiAuth.Authorize($"Bearer {token[..length]}", token),
+                    Assert(!HyperWhisper.LocalApi.LocalApiTokenStore.Authorize($"Bearer {token[..length]}", token),
                         $"a {length}-character prefix of the token must not authorize");
                 }
                 // The gap #289 closed on every platform at once.
-                Assert(!LocalApiAuth.Authorize($"Bearer {token}", ""),
+                Assert(!HyperWhisper.LocalApi.LocalApiTokenStore.Authorize($"Bearer {token}", ""),
                     "an empty stored credential must authorize nothing");
             });
 
@@ -12884,8 +12815,11 @@ internal static class Program
                     $"LocalApiLimits.MaxRequestBytes is {LocalApiLimits.MaxRequestBytes}, the shared core says {maxRequest}");
                 Assert(LocalApiLimits.MaxUploadBytes == maxUpload,
                     $"LocalApiLimits.MaxUploadBytes is {LocalApiLimits.MaxUploadBytes}, the shared core says {maxUpload}");
-                Assert(LocalApiLimits.MaxBase64LengthForUpload == maxBase64,
-                    $"LocalApiLimits.MaxBase64LengthForUpload is {LocalApiLimits.MaxBase64LengthForUpload}, the shared core says {maxBase64}");
+                // The shared server derives the encoded audio_base64 cap from the
+                // upload cap itself (issue #356 item 6); it must stay the shared
+                // core's number.
+                Assert((maxUpload + 2) / 3 * 4 == maxBase64,
+                    $"the shared server's encoded cap is {(maxUpload + 2) / 3 * 4}, the shared core says {maxBase64}");
 
                 // The REAL host, not a look-alike built here: BuildApp is what
                 // Start() calls, and reading the limit back off its options is
@@ -12901,7 +12835,7 @@ internal static class Program
                     Assert(kestrel.Limits.MaxRequestBodySize == maxRequest,
                         $"the Local API host caps the body at {kestrel.Limits.MaxRequestBodySize?.ToString() ?? "null"}, "
                             + $"the shared core says {maxRequest}. Kestrel's own default is 30000000 — if that is the "
-                            + "number above, ConfigureKestrel lost its LocalApiLimits.ApplyRequestBodyLimit call.");
+                            + "number above, PortableLocalApi.Build lost its MaxRequestBodySize line.");
                 }
                 finally
                 {
@@ -12919,95 +12853,137 @@ internal static class Program
             var limitsPreviousContext = SynchronizationContext.Current;
             SynchronizationContext.SetSynchronizationContext(null);
 
-            RunAsync("an over-limit body answers 200 + INVALID_REQUEST, never 400 and never 413", async () =>
+            RunAsync("the origin guard allows a loopback client and denies DNS rebinding", async () =>
             {
-                var tooLarge = HyperwhisperCoreMethods.LocalApiRequestTooLargeFailure();
-                var cap = LocalApiLimits.MaxRequestBytes;
-
-                // A real Kestrel listener on an ephemeral loopback port,
-                // configured through the same ApplyRequestBodyLimit the server
-                // uses and answering through the same ReadJsonBodyAsync every
-                // route on this head now calls. A DefaultHttpContext could not
-                // prove any of this: the rejection is Kestrel's, raised from
-                // inside the body read.
-                var builder = WebApplication.CreateSlimBuilder();
-                builder.Logging.ClearProviders();
-                builder.WebHost.ConfigureKestrel(options =>
-                {
-                    LocalApiLimits.ApplyRequestBodyLimit(options);
-                    options.Listen(IPAddress.Loopback, 0);
-                });
-                await using var app = builder.Build();
-                app.MapPost("/probe", async (Microsoft.AspNetCore.Http.HttpContext ctx) =>
-                {
-                    var (dto, failure) = await LocalApiLimits.ReadJsonBodyAsync<ModeDto>(
-                        ctx, "Required: name. See /modes GET for the full shape.");
-                    return failure ?? LocalApiResponder.Ok(new { ok = true, name = dto?.Name ?? "" });
-                });
-                await app.StartAsync();
+                // Since issue #356 item 6 the guard is the SHARED server's, so this
+                // drives the real host (BuildApp) over a raw loopback socket instead
+                // of the deleted Windows copy. GET /modes with no token: the guard
+                // runs before the bearer check, so a request it lets through gets
+                // the bearer check's 401 and one it refuses gets its 403.
+                var (app, port, _) = await StartRealLocalApiAsync();
                 try
                 {
-                    var port = app.Services
-                        .GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
-                        .Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()!
-                        .Addresses.Select(address => new Uri(address).Port).First(p => p > 0);
-                    // The two refusals go over a RAW SOCKET rather than
-                    // HttpClient. A refused request is one the server answers
-                    // and then resets, because the rest of the body is still
-                    // coming; HttpClient reports that as
-                    // "Error while copying content to a stream" and loses the
-                    // response it already had. That is a fault in the test, not
-                    // in the head — a real client sees the envelope, because
-                    // this reads the socket WHILE it writes.
+                    async Task<bool> Allowed(string? host, string? origin = null, string? fetchSite = null)
+                    {
+                        // HTTP/1.0 for the no-Host case: Kestrel itself refuses an
+                        // HTTP/1.1 request without one, before the guard can.
+                        var head = new System.Text.StringBuilder(host is null ? "GET /modes HTTP/1.0\r\n" : "GET /modes HTTP/1.1\r\n");
+                        if (host != null) head.Append($"Host: {host}\r\n");
+                        if (origin != null) head.Append($"Origin: {origin}\r\n");
+                        if (fetchSite != null) head.Append($"Sec-Fetch-Site: {fetchSite}\r\n");
+                        head.Append("Connection: close\r\n\r\n");
+                        var status = await RawStatusAsync(port, head.ToString());
+                        Assert(status is 401 or 403,
+                            $"Host '{host}' answered HTTP {status}, neither the guard's 403 nor the bearer check's 401");
+                        return status == 401;
+                    }
+
+                    var otherPort = port == 65535 ? port - 1 : port + 1;
+                    Assert(await Allowed($"127.0.0.1:{port}"), "a loopback curl client must be served");
+                    Assert(await Allowed($"localhost:{port}"), "the localhost spelling must be served");
+                    Assert(await Allowed($"LocalHost:{port}"), "Host is case-insensitive");
+                    Assert(await Allowed($"127.0.0.1:{port}", $"http://127.0.0.1:{port}", "same-origin"),
+                        "a same-origin browser fetch must be served");
+
+                    // The attack. A rebound page still sends the attacker's Host.
+                    Assert(!await Allowed($"attacker.com:{port}", $"http://attacker.com:{port}", "cross-site"),
+                        "a DNS-rebound request must be rejected");
+                    Assert(!await Allowed($"127.0.0.1:{port}", "http://attacker.com"),
+                        "a cross-origin Origin must be rejected");
+                    Assert(!await Allowed($"127.0.0.1:{port}", fetchSite: "cross-site"),
+                        "cross-site fetch metadata must be rejected");
+                    Assert(!await Allowed(null), "a request with no Host header must be rejected");
+                    Assert(!await Allowed($"127.0.0.1:{otherPort}"), "the wrong port must be rejected");
+                    // The old "an unbound server (port 0) serves nothing" case has
+                    // no live-host form: the shared guard reads the port off the
+                    // accepted connection. The Rust crate's suite pins port 0.
+                }
+                finally
+                {
+                    await app.StopAsync();
+                    await app.DisposeAsync();
+                }
+            });
+
+            RunAsync("an over-limit body is refused before it is read, never as 413", async () =>
+            {
+                // Since issue #356 item 6 this is the REAL host (BuildApp, so the
+                // shared PortableLocalApi server with this head's hooks) on an
+                // ephemeral loopback port, and the SHARED server's answers apply.
+                // An over-limit /modes body is Kestrel's BadHttpRequestException,
+                // which the shared mapper answers 400 INVALID_REQUEST "The request
+                // body is invalid." (this head used to answer 200 with the
+                // request-limit envelope). /transcribe checks a declared
+                // Content-Length first and keeps that 200 envelope. Never 413:
+                // it wants a PAYLOAD_TOO_LARGE code outside the closed 14.
+                var tooLarge = HyperwhisperCoreMethods.LocalApiRequestTooLargeFailure();
+                var cap = LocalApiLimits.MaxRequestBytes;
+                var (app, port, token) = await StartRealLocalApiAsync();
+                var auth = $"Authorization: Bearer {token}\r\n";
+                try
+                {
+                    // The refusals go over a RAW SOCKET rather than HttpClient. A
+                    // refused request is one the server answers and then resets,
+                    // because the rest of the body is still coming; HttpClient
+                    // reports that as "Error while copying content to a stream"
+                    // and loses the response it already had.
                     //
-                    // 1. One byte over, declared in Content-Length. The head
-                    //    answers from the header without consuming the body, so
-                    //    only a slice of it is sent.
+                    // 1. One byte over, declared in Content-Length.
                     {
                         var (status, code, message) = await RawProbeAsync(
-                            port, $"Content-Length: {cap + 1}\r\n", PaddedJsonOfExactly(cap + 1), chunked: false);
-                        Assert(status == 200,
-                            $"an over-limit body answered HTTP {status}. It must be 200: 400 is what the old bare "
-                                + "catch sent, and 413 wants a PAYLOAD_TOO_LARGE code that is outside the closed 14.");
-                        Assert(code == "INVALID_REQUEST", $"an over-limit body answered code {code}");
+                            port, $"Content-Length: {cap + 1}\r\n", PaddedJsonOfExactly(cap + 1), chunked: false,
+                            path: "/modes", extraHeaders: auth);
+                        Assert(status == 400, $"an over-limit /modes body answered HTTP {status}, not the shared 400");
+                        Assert(code == "INVALID_REQUEST", $"an over-limit /modes body answered code {code}");
+                        Assert(message == "The request body is invalid.",
+                            $"an over-limit /modes body answered \"{message}\"");
+                    }
+
+                    // 2. The same overflow with NO Content-Length, so Kestrel's own
+                    //    counter is what refuses, from inside the body read.
+                    {
+                        var (status, code, message) = await RawProbeAsync(
+                            port, "Transfer-Encoding: chunked\r\n", PaddedJsonOfExactly(cap + 1), chunked: true,
+                            path: "/modes", extraHeaders: auth);
+                        Assert(status == 400, $"a chunked over-limit /modes body answered HTTP {status}; Kestrel's 413 must not reach the wire");
+                        Assert(code == "INVALID_REQUEST", $"a chunked over-limit /modes body answered code {code}");
+                        Assert(message == "The request body is invalid.",
+                            $"a chunked over-limit /modes body answered \"{message}\"");
+                    }
+
+                    // 3. /transcribe answers a declared overflow from the header,
+                    //    with the shared core's request-limit envelope.
+                    {
+                        var (status, code, message) = await RawProbeAsync(
+                            port, $"Content-Length: {cap + 1}\r\n", PaddedJsonOfExactly(cap + 1), chunked: false,
+                            path: "/transcribe", extraHeaders: auth);
+                        Assert(status == 200 && code == "INVALID_REQUEST",
+                            $"an over-limit /transcribe body answered HTTP {status} {code}");
                         Assert(message == tooLarge.message,
                             $"the request-limit message is \"{message}\", the shared core says \"{tooLarge.message}\"");
                     }
 
-                    // 2. The same overflow with NO Content-Length, so the
-                    //    pre-check cannot see it and Kestrel's own counter is
-                    //    what refuses: BadHttpRequestException with StatusCode
-                    //    413, raised from inside ReadFromJsonAsync. This is the
-                    //    exception the bare catch used to swallow, and this
-                    //    probe is the only proof that the head reads it right.
-                    {
-                        var (status, code, message) = await RawProbeAsync(
-                            port, "Transfer-Encoding: chunked\r\n", PaddedJsonOfExactly(cap + 1), chunked: true);
-                        Assert(status == 200,
-                            $"a chunked over-limit body answered HTTP {status}; Kestrel's 413 must not reach the wire");
-                        Assert(code == "INVALID_REQUEST", $"a chunked over-limit body answered code {code}");
-                        Assert(message == tooLarge.message,
-                            $"the chunked request-limit message is \"{message}\", the shared core says \"{tooLarge.message}\"");
-                    }
-
-                    // 3. The accepting side of the boundary. A body of EXACTLY
-                    //    the cap is read whole, so there is nothing left to
-                    //    reset and HttpClient is safe here.
+                    // 4. The accepting side of the boundary. A body of EXACTLY the
+                    //    cap is read whole and reaches the backend, which refuses
+                    //    it for its missing required keys (200), not for its size.
                     using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
-                    using (var response = await client.PostAsync("/probe", JsonBytes(PaddedJsonOfExactly(cap))))
+                    client.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    using (var response = await client.PostAsync("/modes", JsonBytes(PaddedJsonOfExactly(cap))))
                     {
                         var body = await response.Content.ReadAsStringAsync();
                         Assert((int)response.StatusCode == 200,
-                            $"a body of exactly {cap} bytes answered HTTP {(int)response.StatusCode}");
-                        Assert(!body.Contains(tooLarge.message, StringComparison.Ordinal),
+                            $"a body of exactly {cap} bytes answered HTTP {(int)response.StatusCode}: {body}");
+                        Assert(!body.Contains("The request body is invalid", StringComparison.Ordinal)
+                                && !body.Contains(tooLarge.message, StringComparison.Ordinal),
                             $"a body of exactly {cap} bytes was refused for its size; the cap is inclusive on every head");
                     }
 
-                    // 4. A genuinely malformed body keeps the answer it has
-                    //    always had. The point of the fix is that "too big" and
-                    //    "malformed" stopped being the same reply.
+                    // 5. A genuinely malformed body is the shared server's
+                    //    malformed-JSON 400, which a caller can tell apart from
+                    //    an over-limit one.
                     using (var response = await client.PostAsync(
-                        "/probe", new ByteArrayContent("{\"name\": "u8.ToArray())
+                        "/modes", new ByteArrayContent("{\"name\": "u8.ToArray())
                         {
                             Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") }
                         }))
@@ -13018,14 +12994,14 @@ internal static class Program
                             $"malformed JSON answered HTTP {(int)response.StatusCode}, it must stay 400");
                         Assert(error.GetProperty("code").GetString() == "INVALID_REQUEST",
                             $"malformed JSON answered code {error.GetProperty("code").GetString()}");
-                        Assert(error.GetProperty("message").GetString() == "Invalid JSON body",
-                            "malformed JSON no longer says \"Invalid JSON body\"; a caller can no longer tell it "
-                                + "from an over-limit body");
+                        Assert(error.GetProperty("message").GetString() == "The request body is invalid JSON.",
+                            $"malformed JSON answered \"{error.GetProperty("message").GetString()}\"");
                     }
                 }
                 finally
                 {
                     await app.StopAsync();
+                    await app.DisposeAsync();
                 }
 
                 // `{"name":"x"` followed by padding spaces and `}`. JSON allows
@@ -13050,7 +13026,7 @@ internal static class Program
                 };
             });
 
-            RunAsync("the mode wire contract comes from the shared core", async () =>
+            Run("the mode wire contract comes from the shared core", () =>
             {
                 // WHY A KEY READER EXISTS HERE AT ALL (issue #356). This head
                 // cannot infer which keys a caller sent from `ModeDto`:
@@ -13059,26 +13035,40 @@ internal static class Program
                 // deserialise to the same value. That is the whole reason
                 // `ReadJsonBodyWithKeysAsync` had to be added beside the
                 // existing reader instead of reusing it.
-                static Microsoft.AspNetCore.Http.HttpContext BodyContext(string json)
+                //
+                // Since issue #356 item 6 the shared route reads the body
+                // (`ReadFromJsonAsync<JsonElement>`, objects only) and hands the
+                // element to the backend, whose `KeysOf` and `Deserialize` with
+                // this head's options are what this drives, exactly as
+                // CreateModeAsync and PatchModeAsync call them. A parse failure
+                // there is the shared server's 400.
+                static (T? Dto, IReadOnlyList<string> Keys, Exception? Failure) ReadModeBody<T>(string json)
+                    where T : class
                 {
-                    var ctx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-                    var bytes = System.Text.Encoding.UTF8.GetBytes(json);
-                    ctx.Request.Body = new MemoryStream(bytes);
-                    ctx.Request.ContentLength = bytes.Length;
-                    ctx.Request.ContentType = "application/json";
-                    return ctx;
+                    try
+                    {
+                        var body = JsonSerializer.Deserialize<JsonElement>(json);
+                        if (body.ValueKind != JsonValueKind.Object)
+                        {
+                            return (null, [], new JsonException("the body is not a JSON object"));
+                        }
+                        var keys = WindowsLocalApiBackend.KeysOf(body);
+                        return (body.Deserialize<T>(LocalApiResponder.JsonOptions), keys, null);
+                    }
+                    catch (JsonException ex)
+                    {
+                        return (null, [], ex);
+                    }
                 }
 
-                var (full, fullKeys, fullFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
-                    BodyContext("""{"name":"Seven","preset":"hyper","language":"en","model":"base","punctuation":false,"capitalization":false,"profanityFilter":false}"""));
+                var (full, fullKeys, fullFailure) = ReadModeBody<ModeDto>("""{"name":"Seven","preset":"hyper","language":"en","model":"base","punctuation":false,"capitalization":false,"profanityFilter":false}""");
                 Assert(fullFailure == null && full != null, "a well-formed create body was refused");
                 Assert(fullKeys.Count == 7 && fullKeys.Contains("profanityFilter"),
                     $"the key reader lost keys: [{string.Join(", ", fullKeys)}]");
                 Assert(!full!.Punctuation,
                     "an explicit false did not survive the second parse; the reader must deserialise from the same document");
 
-                var (partial, partialKeys, partialFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
-                    BodyContext("""{"name":"Only"}"""));
+                var (partial, partialKeys, partialFailure) = ReadModeBody<ModeDto>("""{"name":"Only"}""");
                 Assert(partialFailure == null && partial != null && partialKeys.Count == 1,
                     "a one-key body did not read back as one key");
                 // An explicit `false` and an absent key are the SAME `ModeDto`
@@ -13087,8 +13077,7 @@ internal static class Program
                 Assert(!partial!.Punctuation && !full.Punctuation,
                     "the DTO stopped conflating an absent boolean with an explicit false; the key reader may no longer be needed");
 
-                var (_, brokenKeys, brokenFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
-                    BodyContext("""{"name": """));
+                var (_, brokenKeys, brokenFailure) = ReadModeBody<ModeDto>("""{"name": """);
                 Assert(brokenFailure != null && brokenKeys.Count == 0,
                     "malformed JSON did not answer the same 400 the existing reader answers");
 
@@ -13101,21 +13090,17 @@ internal static class Program
                 // with no body on a route whose contract is the 200 envelope.
                 // `NonNullStringListConverter` refuses it at the parse instead,
                 // with the same 400 every other wrong-typed value gets.
-                var (_, _, nullTermFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
-                    BodyContext("""{"name":"N","customVocabulary":["ok",null]}"""));
+                var (_, _, nullTermFailure) = ReadModeBody<ModeDto>("""{"name":"N","customVocabulary":["ok",null]}""");
                 Assert(nullTermFailure != null,
                     "a null customVocabulary term deserialised; it would throw inside FfiConverterSequenceString");
-                var (_, _, nullPatchFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModePatchDto>(
-                    BodyContext("""{"customVocabulary":[null]}"""));
+                var (_, _, nullPatchFailure) = ReadModeBody<ModePatchDto>("""{"customVocabulary":[null]}""");
                 Assert(nullPatchFailure != null,
                     "a null customVocabulary term deserialised on the patch DTO");
-                var (cleanVocabulary, _, cleanFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
-                    BodyContext("""{"name":"N","customVocabulary":["ok","fine"]}"""));
+                var (cleanVocabulary, _, cleanFailure) = ReadModeBody<ModeDto>("""{"name":"N","customVocabulary":["ok","fine"]}""");
                 Assert(cleanFailure == null && cleanVocabulary!.CustomVocabulary is { Count: 2 } terms
                         && terms[0] == "ok" && terms[1] == "fine",
                     "the converter broke a valid customVocabulary");
-                var (nullVocabulary, _, nullVocabularyFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
-                    BodyContext("""{"name":"N","customVocabulary":null}"""));
+                var (nullVocabulary, _, nullVocabularyFailure) = ReadModeBody<ModeDto>("""{"name":"N","customVocabulary":null}""");
                 Assert(nullVocabularyFailure == null && nullVocabulary!.CustomVocabulary == null,
                     "an explicit null customVocabulary stopped meaning 'absent'");
 
@@ -13174,13 +13159,13 @@ internal static class Program
                 // or a backup restore. A read-modify-write client PATCHing the
                 // whole object back must not be told its own unchanged name is
                 // taken — that mode would be patchable only by omitting `name`.
-                Assert(!HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("Work", "Work", ["Work", "Personal"]),
+                Assert(!WindowsLocalApiBackend.PatchNameCollides("Work", "Work", ["Work", "Personal"]),
                     "an unchanged name was reported as a collision with its own duplicate");
-                Assert(!HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("  WORK ", "Work", ["Work"]),
+                Assert(!WindowsLocalApiBackend.PatchNameCollides("  WORK ", "Work", ["Work"]),
                     "a name that is unchanged under the shared comparison key was treated as a rename");
-                Assert(HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("Personal", "Work", ["personal"]),
+                Assert(WindowsLocalApiBackend.PatchNameCollides("Personal", "Work", ["personal"]),
                     "a real rename onto a taken name stopped being refused");
-                Assert(!HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("Personal", "Work", ["Archive"]),
+                Assert(!WindowsLocalApiBackend.PatchNameCollides("Personal", "Work", ["Archive"]),
                     "a real rename onto a free name was refused");
 
                 // ITEM 3 — one alias table. `qwen3_asr` is this head's own
@@ -13189,7 +13174,7 @@ internal static class Program
                 foreach (var spelling in new[] { "qwen3_asr", " QWEN3-ASR ", "qwen", "Qwen3" })
                 {
                     var transient = new Mode();
-                    HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    WindowsLocalApiBackend.ApplyEngineModel(
                         transient, spelling, model: null);
                     Assert(transient is { ProviderType: "local", LocalEngine: "parakeet", LocalParakeetModel: "qwen3-asr-0.6b" },
                         $"engine spelling '{spelling}' did not resolve through the shared alias table");
@@ -13214,10 +13199,10 @@ internal static class Program
                     var caught = false;
                     try
                     {
-                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                        WindowsLocalApiBackend.ApplyEngineModel(
                             new Mode(), absent, model: null);
                     }
-                    catch (HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException ex)
+                    catch (HyperWhisper.LocalApi.LocalApiFailureException ex)
                     {
                         caught = ex.Code == LocalApiErrorCode.EngineUnavailable
                             && !ex.Message.StartsWith("Unknown engine", StringComparison.Ordinal);
@@ -13239,13 +13224,13 @@ internal static class Program
                 {
                     foreach (var model in new string?[] { null, "", "  ", "\t\n" })
                     {
-                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException? refusal = null;
+                        HyperWhisper.LocalApi.LocalApiFailureException? refusal = null;
                         try
                         {
-                            HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                            WindowsLocalApiBackend.ApplyEngineModel(
                                 new Mode(), engine, model);
                         }
-                        catch (HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException ex)
+                        catch (HyperWhisper.LocalApi.LocalApiFailureException ex)
                         {
                             refusal = ex;
                         }
@@ -13262,7 +13247,7 @@ internal static class Program
 
                 // A real model still runs: the refusal is scoped to a missing one.
                 var explicitModel = new Mode();
-                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                WindowsLocalApiBackend.ApplyEngineModel(
                     explicitModel, "whisper", "base.en");
                 Assert(explicitModel is { ProviderType: "local", LocalEngine: "whisper", ModelType: "base.en" },
                     "engine whisper with model base.en no longer selects local Whisper base.en");
@@ -13304,54 +13289,78 @@ internal static class Program
                     $"the generic row lost this head's own detail text: \"{generic.message}\"");
             });
 
-            SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
-
-            Run("the audio_base64 guards refuse an oversized clip before decoding it", () =>
+            RunAsync("an oversized audio_base64 body is refused before it is decoded", async () =>
             {
-                var tooLarge = HyperwhisperCoreMethods.LocalApiUploadTooLargeFailure();
+                // Since issue #356 item 6 the two decode guards (encoded length,
+                // then decoded length, both `>`) are the shared server's, pinned at
+                // their boundaries by HyperWhisper.LocalApi.Tests with a shrunken
+                // cap, and the encoded cap's number is pinned above. On this head
+                // neither is reachable over HTTP: the 50 MiB request cap is below
+                // the 64 MiB encoded cap, so an oversized clip is refused by the
+                // request cap before a byte of it is decoded — the amplification
+                // #375 is about. This drives exactly that, on the real host.
+                var tooLarge = HyperwhisperCoreMethods.LocalApiRequestTooLargeFailure();
+                var maxBase64 = (long)HyperwhisperCoreMethods.LocalApiMaxBase64LengthForUpload();
+                Assert(LocalApiLimits.MaxRequestBytes < maxBase64,
+                    "the encoded audio_base64 cap is now reachable over HTTP; drive it end to end here");
 
-                // Both comparisons are `>`, so exactly the cap is accepted.
-                Assert(!LocalApiLimits.ExceedsBase64UploadLimit(LocalApiLimits.MaxBase64LengthForUpload),
-                    "a base64 string of exactly the encoded cap must be accepted");
-                Assert(LocalApiLimits.ExceedsBase64UploadLimit(LocalApiLimits.MaxBase64LengthForUpload + 1),
-                    "one character over the encoded cap must be refused");
-                Assert(!LocalApiLimits.ExceedsUploadLimit(LocalApiLimits.MaxUploadBytes),
-                    "audio of exactly the upload cap must be accepted");
-                Assert(LocalApiLimits.ExceedsUploadLimit(LocalApiLimits.MaxUploadBytes + 1),
-                    "one byte over the upload cap must be refused");
-
-                // The encoded cap is derived from the decoded cap, so no string
-                // that clears the pre-check can decode past MaxUploadBytes —
-                // the post-decode guard is unreachable from here, exactly as
-                // PortableLocalApi.cs:251 is unreachable without a shrunken
-                // fixture cap. The boundary assertions above are its coverage.
-                Assert(LocalApiLimits.MaxBase64LengthForUpload / 4 * 3 <= LocalApiLimits.MaxUploadBytes,
-                    "the encoded cap now admits a string that decodes past the upload cap; the post-decode guard "
-                        + "in ResolveAudioSource is no longer unreachable and needs a round-trip test of its own");
-
-                // The production resolver, driven through the pre-check. If the
-                // guard were missing this would allocate the decoded buffer
-                // first — which is the amplification #375 is about.
-                var request = new TranscribeRequest
+                var payload = System.Text.Encoding.ASCII.GetBytes(
+                    "{\"engine\":\"whisper\",\"model\":\"base.en\",\"mime_type\":\"audio/wav\",\"audio_base64\":\""
+                    + new string('A', checked((int)LocalApiLimits.MaxRequestBytes)) + "\"}");
+                var (app, port, token) = await StartRealLocalApiAsync();
+                try
                 {
-                    AudioBase64 = new string('A', checked((int)LocalApiLimits.MaxBase64LengthForUpload) + 1),
-                    MimeType = "audio/wav"
-                };
-                var refusal = CaptureApiInputException(() =>
-                    HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ResolveAudioSource(request));
-                Assert(refusal.Code == LocalApiErrorCode.InvalidRequest,
-                    $"an oversized audio_base64 answered code {refusal.Code}; every size refusal is INVALID_REQUEST");
-                Assert(refusal.Message == tooLarge.message,
-                    $"the base64 upload-limit message is \"{refusal.Message}\", the shared core says \"{tooLarge.message}\"");
+                    var (status, code, message) = await RawProbeAsync(
+                        port, $"Content-Length: {payload.Length}\r\n", payload, chunked: false,
+                        path: "/transcribe", extraHeaders: $"Authorization: Bearer {token}\r\n");
+                    Assert(status == 200 && code == LocalApiErrorCode.InvalidRequest,
+                        $"an oversized audio_base64 body answered HTTP {status} {code}; every size refusal is INVALID_REQUEST");
+                    Assert(message == tooLarge.message,
+                        $"the oversized audio_base64 message is \"{message}\", the shared core says \"{tooLarge.message}\"");
+                }
+                finally
+                {
+                    await app.StopAsync();
+                    await app.DisposeAsync();
+                }
             });
 
-            Run("the file path is capped at the shared upload limit", () =>
+            RunAsync("the file path is capped at the shared upload limit", async () =>
             {
+                // Since issue #356 item 6 the cap is the shared server's, behind
+                // this head's path hooks, so this drives the real host.
                 var tooLarge = HyperwhisperCoreMethods.LocalApiUploadTooLargeFailure();
                 var root = AppPaths.ProfileTempRecordingsDirectory;
                 Directory.CreateDirectory(root);
                 var oversizedPath = Path.Combine(root, $"oversized-{Guid.NewGuid():N}.wav");
                 var atCapPath = Path.Combine(root, $"at-cap-{Guid.NewGuid():N}.wav");
+                var (app, port, token) = await StartRealLocalApiAsync();
+                using var client = new HttpClient
+                {
+                    BaseAddress = new Uri($"http://127.0.0.1:{port}"),
+                    Timeout = TimeSpan.FromMinutes(2),
+                };
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                async Task<(int Status, string? Code, string? Message)> TranscribeFile(string path)
+                {
+                    using var content = new StringContent(
+                        JsonSerializer.Serialize(new Dictionary<string, string>
+                        {
+                            ["file"] = path,
+                            ["engine"] = "whisper",
+                            ["model"] = "base.en",
+                        }),
+                        System.Text.Encoding.UTF8,
+                        "application/json");
+                    using var response = await client.PostAsync("/transcribe", content);
+                    using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                    return document.RootElement.TryGetProperty("error", out var error)
+                        ? ((int)response.StatusCode, error.GetProperty("code").GetString(), error.GetProperty("message").GetString())
+                        : ((int)response.StatusCode, null, null);
+                }
+
                 try
                 {
                     // SetLength moves the end-of-file marker; NTFS does not
@@ -13365,31 +13374,29 @@ internal static class Program
                         $"the fixture at {oversizedPath} is not inside a trusted recordings root, so this test would "
                             + "pass on the containment refusal rather than on the size cap");
 
-                    var refusal = CaptureApiInputException(() =>
-                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ResolveAudioSource(
-                            new TranscribeRequest { File = oversizedPath }));
+                    var (status, code, message) = await TranscribeFile(oversizedPath);
                     // FILE_NOT_ALLOWED here means the containment guard answered
                     // ahead of the size cap, which makes the test prove nothing.
                     // Report the whole path chain so that reads as a fixture
                     // fault rather than as a missing cap.
-                    Assert(refusal.Code == LocalApiErrorCode.InvalidRequest,
-                        $"an oversized file answered code {refusal.Code}; every size refusal is INVALID_REQUEST. "
+                    Assert(code == LocalApiErrorCode.InvalidRequest,
+                        $"an oversized file answered HTTP {status} {code} \"{message}\"; every size refusal is INVALID_REQUEST. "
                             + TrustedPathDiagnostics(oversizedPath));
-                    Assert(refusal.Message == tooLarge.message,
-                        $"the file upload-limit message is \"{refusal.Message}\", the shared core says \"{tooLarge.message}\"");
+                    Assert(status == 200 && message == tooLarge.message,
+                        $"the file upload-limit answer is HTTP {status} \"{message}\", the shared core says \"{tooLarge.message}\"");
 
-                    // The accepting side: exactly the cap still resolves.
+                    // The accepting side: exactly the cap is read and reaches the
+                    // backend. This harness never Configures LocalApiServer, so
+                    // the backend then answers ENGINE_UNAVAILABLE.
                     using (var file = new FileStream(atCapPath, FileMode.CreateNew, FileAccess.Write))
                         file.SetLength(LocalApiLimits.MaxUploadBytes);
 
-                    var (snapshotPath, isTemp, readLock) =
-                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ResolveAudioSource(
-                            new TranscribeRequest { File = atCapPath });
-                    readLock?.Dispose();
-                    Assert(isTemp && File.Exists(snapshotPath),
-                        $"a file of exactly {LocalApiLimits.MaxUploadBytes} bytes was refused for its size; "
+                    var (atStatus, atCode, atMessage) = await TranscribeFile(atCapPath);
+                    Assert(atCode != LocalApiErrorCode.FileNotAllowed && atMessage != tooLarge.message,
+                        $"a file of exactly {LocalApiLimits.MaxUploadBytes} bytes answered HTTP {atStatus} {atCode} \"{atMessage}\"; "
                             + "the cap is inclusive on every head");
-                    try { File.Delete(snapshotPath); } catch (IOException) { }
+                    Assert(atStatus == 200 && atCode == LocalApiErrorCode.EngineUnavailable,
+                        $"a file of exactly the cap answered HTTP {atStatus} {atCode} \"{atMessage}\", not the unconfigured backend's ENGINE_UNAVAILABLE");
                 }
                 finally
                 {
@@ -13397,8 +13404,12 @@ internal static class Program
                     {
                         try { File.Delete(path); } catch (IOException) { }
                     }
+                    await app.StopAsync();
+                    await app.DisposeAsync();
                 }
             });
+
+            SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
 
             // =================================================================
             // Issue #379 — real transcription outcomes feed the health cache.
@@ -13467,7 +13478,7 @@ internal static class Program
                     "a fresh healthy probe must not beat a real failure inside the window");
 
                 // /health derives `reachable` from exactly this value
-                // (HealthEndpoints.BuildTranscriptionProviders), so this is the
+                // (WindowsLocalApiBackend.BuildTranscriptionProviders), so this is the
                 // reported symptom, asserted at its source.
                 Assert(health.GetHealthStatus(healthProvider) != ProviderHealth.Healthy,
                     "/health would still report reachable:true");
@@ -13605,15 +13616,15 @@ internal static class Program
                 // The predicate /health reads is the one /transcribe and Cloud
                 // post-processing refuse on. This process never loads or
                 // activates a licence, so it is unlicensed, as a fresh profile is.
-                Assert(HealthEndpoints.CloudAccountKeyPresent()
+                Assert(WindowsLocalApiBackend.CloudAccountKeyPresent()
                         == LicenseManager.Instance.GetTranscriptionIdentifier().IsLicensed,
                     "/health reads a different account-key predicate than /transcribe");
-                Assert(!HealthEndpoints.CloudAccountKeyPresent(),
+                Assert(!WindowsLocalApiBackend.CloudAccountKeyPresent(),
                     "a smoke process with no licence reads as holding an account key");
 
                 foreach (var keyPresent in new[] { false, true })
                 {
-                    var providers = HealthEndpoints.BuildTranscriptionProviders(apiKeys, health: null, keyPresent);
+                    var providers = WindowsLocalApiBackend.BuildTranscriptionProviders(apiKeys, health: null, keyPresent);
                     var cloudRows = providers.Where(r => cloudTranscriptionIds.Contains(r.Id)).ToList();
                     Assert(cloudRows.Count == cloudTranscription.Length,
                         $"/health lost a HW-Cloud transcription row: {string.Join(",", cloudRows.Select(r => r.Id))}");
@@ -13626,7 +13637,7 @@ internal static class Program
                     Assert(providers.Where(r => !cloudTranscriptionIds.Contains(r.Id)).All(r => !r.KeyPresent),
                         "an account key made a BYOK transcription row claim a key");
 
-                    var post = HealthEndpoints.BuildPostProcessingProviders(apiKeys, health: null, keyPresent);
+                    var post = WindowsLocalApiBackend.BuildPostProcessingProviders(apiKeys, health: null, keyPresent);
                     var cloudPost = post.SingleOrDefault(r => r.Id == cloudPostId);
                     Assert(cloudPost != null, "/health lost the HW-Cloud post-processing row");
                     Assert(cloudPost!.KeyPresent == keyPresent,
@@ -13670,11 +13681,11 @@ internal static class Program
                 {
                     foreach (var row in cloudRowsForModels)
                     {
-                        var entry = ModelsEndpoints.ToEntry(row, keyPresent);
+                        var entry = WindowsLocalApiBackend.ToEntry(row, keyPresent);
                         Assert(entry.Installed == keyPresent,
                             $"/models {row.Id} installed={entry.Installed} with account key present={keyPresent}");
                     }
-                    Assert(ModelsEndpoints.ToEntry(byokRow, keyPresent).Installed,
+                    Assert(WindowsLocalApiBackend.ToEntry(byokRow, keyPresent).Installed,
                         $"an Enabled BYOK row read as not installed with account key present={keyPresent}");
                 }
             });
@@ -16654,7 +16665,7 @@ internal static class Program
                 Assert(parakeet.CloudProvider is null, "CloudProvider must be cleared");
                 Assert(parakeet.ModelType == "base", "ModelType (the Local API GET /modes model) is left alone");
                 // The Local API wire value a client reads is unchanged.
-                Assert(ModesEndpoints.ToDto(parakeet).Model == "base",
+                Assert(WindowsLocalApiBackend.ToDto(parakeet).Model == "base",
                     "GET /modes must keep reporting ModelType for a local mode");
 
                 var whisper = Seeded();
@@ -16679,7 +16690,7 @@ internal static class Program
                 // Whisper -> Parakeet with model in ONE PATCH: the Parakeet field the
                 // GUI reads gets the id, and ModelType keeps the prior Whisper model.
                 var toParakeet = WhisperSmall();
-                ModesEndpoints.ApplyPatch(new ModePatchDto { LocalEngine = "parakeet", Model = "parakeet-v2" }, toParakeet);
+                WindowsLocalApiBackend.ApplyPatch(new ModePatchDto { LocalEngine = "parakeet", Model = "parakeet-v2" }, toParakeet);
                 Assert(toParakeet.LocalEngine == "parakeet", $"engine must be parakeet, got \"{toParakeet.LocalEngine}\"");
                 Assert(toParakeet.LocalParakeetModel == "parakeet-v2",
                     $"localParakeetModel must be parakeet-v2, got \"{toParakeet.LocalParakeetModel}\"");
@@ -16689,29 +16700,29 @@ internal static class Program
                 // Parakeet -> Whisper with model in ONE PATCH (the issue's step 3):
                 // base lands in ModelType, not in LocalParakeetModel.
                 var toWhisper = toParakeet;
-                ModesEndpoints.ApplyPatch(new ModePatchDto { LocalEngine = "whisper", Model = "base" }, toWhisper);
+                WindowsLocalApiBackend.ApplyPatch(new ModePatchDto { LocalEngine = "whisper", Model = "base" }, toWhisper);
                 Assert(toWhisper.LocalEngine == "whisper", $"engine must be whisper, got \"{toWhisper.LocalEngine}\"");
                 Assert(toWhisper.ModelType == "base",
                     $"the Whisper model the caller sent must land in ModelType, got \"{toWhisper.ModelType}\"");
                 Assert(toWhisper.LocalParakeetModel == "parakeet-v2",
                     $"a Whisper id must not land in localParakeetModel, got \"{toWhisper.LocalParakeetModel}\"");
-                Assert(ModesEndpoints.ToDto(toWhisper).Model == "base",
-                    $"GET /modes must report base, got \"{ModesEndpoints.ToDto(toWhisper).Model}\"");
+                Assert(WindowsLocalApiBackend.ToDto(toWhisper).Model == "base",
+                    $"GET /modes must report base, got \"{WindowsLocalApiBackend.ToDto(toWhisper).Model}\"");
 
                 // The two-PATCH split keeps working in both directions.
                 var split = WhisperSmall();
-                ModesEndpoints.ApplyPatch(new ModePatchDto { LocalEngine = "parakeet" }, split);
-                ModesEndpoints.ApplyPatch(new ModePatchDto { Model = "parakeet-v2" }, split);
+                WindowsLocalApiBackend.ApplyPatch(new ModePatchDto { LocalEngine = "parakeet" }, split);
+                WindowsLocalApiBackend.ApplyPatch(new ModePatchDto { Model = "parakeet-v2" }, split);
                 Assert(split.LocalParakeetModel == "parakeet-v2" && split.ModelType == "small",
                     $"split to Parakeet: got localParakeetModel \"{split.LocalParakeetModel}\", ModelType \"{split.ModelType}\"");
-                ModesEndpoints.ApplyPatch(new ModePatchDto { LocalEngine = "whisper" }, split);
-                ModesEndpoints.ApplyPatch(new ModePatchDto { Model = "base" }, split);
+                WindowsLocalApiBackend.ApplyPatch(new ModePatchDto { LocalEngine = "whisper" }, split);
+                WindowsLocalApiBackend.ApplyPatch(new ModePatchDto { Model = "base" }, split);
                 Assert(split.ModelType == "base" && split.LocalParakeetModel == "parakeet-v2",
                     $"split to Whisper: got ModelType \"{split.ModelType}\", localParakeetModel \"{split.LocalParakeetModel}\"");
 
                 // An explicit localParakeetModel in the same PATCH still wins over model.
                 var explicitParakeet = WhisperSmall();
-                ModesEndpoints.ApplyPatch(
+                WindowsLocalApiBackend.ApplyPatch(
                     new ModePatchDto { LocalEngine = "parakeet", Model = "parakeet-v2", LocalParakeetModel = "parakeet-v3" },
                     explicitParakeet);
                 Assert(explicitParakeet.LocalParakeetModel == "parakeet-v3",
@@ -16727,13 +16738,13 @@ internal static class Program
                     ("cloud", "cloud"), ("Cloud", "cloud"), ("cLoUd", "cloud"),
                 })
                 {
-                    Assert(ModesEndpoints.TryNormalizeProviderType(raw, out var got) && got == want,
+                    Assert(WindowsLocalApiBackend.TryNormalizeProviderType(raw, out var got) && got == want,
                         $"providerType \"{raw}\" must be accepted as \"{want}\", got \"{got}\"");
                 }
                 // Every other value is refused with INVALID_REQUEST.
                 foreach (var raw in new[] { "zzz", "on-device", "", " local", "cloud ", "ondevice", "hwcloud" })
                 {
-                    Assert(!ModesEndpoints.TryNormalizeProviderType(raw, out _),
+                    Assert(!WindowsLocalApiBackend.TryNormalizeProviderType(raw, out _),
                         $"providerType \"{raw}\" must be refused");
                 }
 
@@ -16745,10 +16756,10 @@ internal static class Program
                     Assert(!LocalModeModel.IsCloud(odd), $"stored \"{stored}\" must read as on-device");
                     Assert(!TranscriptionProviderFactory.IsHyperWhisperCloudActive(odd),
                         $"stored \"{stored}\" must not pre-warm HyperWhisper Cloud");
-                    Assert(TranscribeEndpoints.ModelLabel(odd) == "base",
-                        $"/transcribe must report base for stored \"{stored}\", got \"{TranscribeEndpoints.ModelLabel(odd)}\"");
-                    Assert(ModesEndpoints.ToDto(odd).Model == "base",
-                        $"GET /modes must report base for stored \"{stored}\", got \"{ModesEndpoints.ToDto(odd).Model}\"");
+                    Assert(WindowsLocalApiBackend.ModelLabel(odd) == "base",
+                        $"/transcribe must report base for stored \"{stored}\", got \"{WindowsLocalApiBackend.ModelLabel(odd)}\"");
+                    Assert(WindowsLocalApiBackend.ToDto(odd).Model == "base",
+                        $"GET /modes must report base for stored \"{stored}\", got \"{WindowsLocalApiBackend.ToDto(odd).Model}\"");
                 }
             });
 
@@ -16791,8 +16802,8 @@ internal static class Program
                     "a Cloud mode with no cloudProvider must resolve to HyperWhisper Cloud");
                 var tierDefault = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
                     .DefaultModelIdForId("elevenLabsScribeV2");
-                Assert(TranscribeEndpoints.ModelLabel(posted) == tierDefault,
-                    $"/transcribe must report the tier's model for it, got \"{TranscribeEndpoints.ModelLabel(posted)}\"");
+                Assert(WindowsLocalApiBackend.ModelLabel(posted) == tierDefault,
+                    $"/transcribe must report the tier's model for it, got \"{WindowsLocalApiBackend.ModelLabel(posted)}\"");
                 var subtitle = new ModeToSubtitleConverter()
                     .Convert(posted, typeof(string), null!, CultureInfo.InvariantCulture) as string;
                 Assert(subtitle == CloudTranscriptionProvider.HyperWhisperCloud.GetDisplayName(),
@@ -16801,7 +16812,7 @@ internal static class Program
                     "the mode subtitle must not read None");
                 // The wire value is unchanged: GET /modes still reports no
                 // cloudProvider for this mode, like macOS.
-                Assert(ModesEndpoints.ToDto(posted).CloudProvider is null,
+                Assert(WindowsLocalApiBackend.ToDto(posted).CloudProvider is null,
                     "GET /modes must keep reporting the stored (absent) cloudProvider");
 
                 // PATCH {"model":"cloud"} on a local mode leaves cloudProvider
@@ -16815,7 +16826,7 @@ internal static class Program
                     CloudProvider = null,
                     CloudAccuracyTier = "elevenLabsScribeV2",
                 };
-                ModesEndpoints.ApplyPatch(new ModePatchDto { Model = "cloud" }, flipped);
+                WindowsLocalApiBackend.ApplyPatch(new ModePatchDto { Model = "cloud" }, flipped);
                 Assert(flipped.ProviderType == "cloud", $"PATCH model:cloud must make the mode cloud, got \"{flipped.ProviderType}\"");
                 Assert(TranscriptionProviderFactory.IsHyperWhisperCloudActive(flipped),
                     "a mode PATCHed to Cloud with no cloudProvider must resolve to HyperWhisper Cloud");
@@ -24308,27 +24319,48 @@ internal static class Program
     }
 
     /// <summary>
-    /// Run <paramref name="act"/> and return the <c>ApiInputException</c> it was
-    /// supposed to throw. Failing to throw is itself the failure, and says so —
-    /// a bare try/catch would report "the guard is missing" as a pass.
+    /// Start the REAL Windows Local API host on an ephemeral loopback port:
+    /// <see cref="LocalApiServer.BuildApp"/>, so the shared PortableLocalApi
+    /// server with this head's hooks, under a throwaway bearer token rather than
+    /// the DPAPI one (issue #356 item 6). The caller stops and disposes it.
     /// </summary>
-    private static HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException
-        CaptureApiInputException(Action act)
+    private static async Task<(WebApplication App, int Port, string Token)> StartRealLocalApiAsync()
     {
-        try
-        {
-            act();
-        }
-        catch (HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException ex)
-        {
-            return ex;
-        }
-        throw new InvalidOperationException(
-            "expected the size guard to refuse this input, but ResolveAudioSource returned normally");
+        var token = HyperwhisperCoreMethods.LocalApiGenerateToken(
+            System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        var app = LocalApiServer.Instance.BuildApp(0, token);
+        await app.StartAsync();
+        var port = app.Services
+            .GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
+            .Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()!
+            .Addresses.Select(address => new Uri(address).Port).First(p => p > 0);
+        return (app, port, token);
     }
 
     /// <summary>
-    /// POST <paramref name="payload"/> to <c>/probe</c> on a raw loopback
+    /// Send <paramref name="requestHead"/> verbatim on a raw loopback socket and
+    /// return the response status. Raw, because HttpClient always sends a Host
+    /// header of its own choosing; the request must say <c>Connection: close</c>.
+    /// </summary>
+    private static async Task<int> RawStatusAsync(int port, string requestHead)
+    {
+        using var socket = new System.Net.Sockets.TcpClient();
+        await socket.ConnectAsync(IPAddress.Loopback, port);
+        using var stream = socket.GetStream();
+        await stream.WriteAsync(System.Text.Encoding.ASCII.GetBytes(requestHead));
+        using var received = new MemoryStream();
+        await stream.CopyToAsync(received).WaitAsync(TimeSpan.FromSeconds(30));
+        var text = System.Text.Encoding.ASCII.GetString(received.ToArray());
+        var parts = text.Split(' ');
+        if (parts.Length < 2 || !int.TryParse(parts[1], out var status))
+        {
+            throw new InvalidOperationException($"the server sent no HTTP status line; got: {text}");
+        }
+        return status;
+    }
+
+    /// <summary>
+    /// POST <paramref name="payload"/> to <paramref name="path"/> on a raw loopback
     /// socket and return the status and failure envelope, reading the response
     /// CONCURRENTLY with the send.
     ///
@@ -24344,17 +24376,18 @@ internal static class Program
     ///
     /// <paramref name="chunked"/> frames the body with
     /// <c>Transfer-Encoding: chunked</c>, which is how a caller sends a body
-    /// whose length the head cannot pre-check.
+    /// whose length the head cannot pre-check. <paramref name="extraHeaders"/> is
+    /// raw header lines, each ending in CRLF (the bearer token, for the real host).
     /// </summary>
     private static async Task<(int Status, string? Code, string? Message)> RawProbeAsync(
-        int port, string framingHeader, byte[] payload, bool chunked)
+        int port, string framingHeader, byte[] payload, bool chunked, string path = "/probe", string extraHeaders = "")
     {
         using var socket = new System.Net.Sockets.TcpClient();
         await socket.ConnectAsync(IPAddress.Loopback, port);
         using var stream = socket.GetStream();
 
         await stream.WriteAsync(System.Text.Encoding.ASCII.GetBytes(
-            $"POST /probe HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\n"
+            $"POST {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n{extraHeaders}Content-Type: application/json\r\n"
             + $"Connection: close\r\n{framingHeader}\r\n"));
 
         var received = new MemoryStream();
