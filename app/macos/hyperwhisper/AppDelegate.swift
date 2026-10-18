@@ -143,6 +143,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    /// Files opened with Finder "Open With" or `open -a HyperWhisper <file>` (issue #656).
+    ///
+    /// `Info.plist` declares the Transcribe File picker's types as Viewer/Alternate
+    /// document types, so this receives them. On a cold launch it runs BEFORE
+    /// `applicationDidFinishLaunching` and before `HyperWhisperApp.bootstrapAppServices()`
+    /// has wired the pipeline, so the router queues the files and starts them once
+    /// bootstrap configures it. Each file is transcribed with the selected Mode.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        MainActor.assumeIsolated {
+            let accepted = OpenedFileRouter.shared.open(urls)
+            // A deliberate open: like a Dock click, `launchMinimized` must not take
+            // away the window this ends on (History).
+            if !accepted.isEmpty {
+                HyperWhisperApp.suppressLaunchMinimizedHide()
+            }
+        }
+    }
+
     /// Cleanly shut down the Local API server so the port file is removed
     /// and FlyingFox releases the bound port, and flush any Core Data writes
     /// still queued on the serial background writer (e.g. a completion write
