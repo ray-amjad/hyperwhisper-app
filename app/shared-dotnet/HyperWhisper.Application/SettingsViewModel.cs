@@ -78,7 +78,16 @@ public sealed class SettingsViewModel : ViewModelBase
         _currentWhisperRuntimeStatus = localWhisperRuntimeStatus;
     }
     public string Language { get => _language; set => Set(ref _language, value); }
-    public string LocalLlmBackend { get => _localLlmBackend; set => Set(ref _localLlmBackend, NormalizeBackend(value)); }
+    /// <summary>
+    /// A null is refused, not normalised to "cpu". The Linux Model Library picker binds this
+    /// two-way, and leaving the page writes a null selection back as the ComboBox leaves the tree;
+    /// saving that as the default dropped the user's GPU choice (#1967). Nothing else assigns null.
+    /// </summary>
+    public string LocalLlmBackend
+    {
+        get => _localLlmBackend;
+        set { if (value is not null) Set(ref _localLlmBackend, NormalizeBackend(value)); }
+    }
     public bool AllowLocalLlmCpuFallback { get => _allowLocalLlmCpuFallback; set => Set(ref _allowLocalLlmCpuFallback, value); }
     public bool LocalApiEnabled { get => _localApiEnabled; set => Set(ref _localApiEnabled, value); }
     public int LocalApiPort { get => _localApiPort; set => Set(ref _localApiPort, Math.Clamp(value, 0, 65535)); }
@@ -283,6 +292,8 @@ public sealed class SettingsViewModel : ViewModelBase
         get => _localWhisperBackend;
         set
         {
+            // A null is the Model Library picker leaving the tree, never a choice: see LocalLlmBackend (#1967).
+            if (value is null) return;
             if (Set(ref _localWhisperBackend, NormalizeWhisperBackend(value)))
             {
                 Notify(nameof(WhisperRestartRequired));

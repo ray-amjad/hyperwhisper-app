@@ -1014,6 +1014,12 @@ try
             && shell.Settings.WhisperRestartRequired
             && shell.Settings.LocalWhisperRuntimeStatus.Contains("Restart HyperWhisper", StringComparison.Ordinal),
             "settings did not normalize or report a restart-required Whisper backend change");
+        // The Linux Model Library pickers write a null back as they leave the tree (#1967).
+        shell.Settings.LocalWhisperBackend = null!;
+        shell.Settings.LocalLlmBackend = null!;
+        Assert(shell.Settings.LocalWhisperBackend == "cuda12" && shell.Settings.LocalLlmBackend == "vulkan"
+            && shell.Settings.WhisperRestartRequired,
+            "a null backend selection overwrote the chosen local Whisper or LLM backend");
         shell.Settings.Save();
         Assert(!shell.Settings.Status.HasError,
             "settings did not persist local inference backend configuration");

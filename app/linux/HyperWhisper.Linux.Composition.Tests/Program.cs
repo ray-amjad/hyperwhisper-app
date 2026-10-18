@@ -36,6 +36,10 @@ if (args is [MediaControlComboRenderTests.ProbeArgument])
 {
     Environment.Exit(await MediaControlComboRenderTests.RunProbeAsync());
 }
+if (args is [BackendPickerPageLeaveRenderTests.ProbeArgument])
+{
+    Environment.Exit(BackendPickerPageLeaveRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -100,6 +104,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the mode editor's local model combo shows the engine's model after an engine change (#1629)", ModeEditorEngineSwitchRenderTests.RunAsync),
     ("every Source segment in the mode editor shows its whole label (#635)", ModeEditorSourceSegmentRenderTests.RunAsync),
     ("the Sound page's media-control ComboBox shows its whole label in every long culture", MediaControlComboRenderTests.RunAsync),
+    ("leaving Model Library keeps the Whisper and LLM backend picks in the view model and settings.json (#1967)", BackendPickerPageLeaveRenderTests.RunAsync),
 };
 
 foreach (var test in tests)
