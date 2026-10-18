@@ -12432,6 +12432,62 @@ internal static class Program
                     "the /transcribe response lost the measured latency");
             });
 
+            Run("the /transcribe response splits a cold Whisper start into load_ms and decode_ms — issue #1932", () =>
+            {
+                var mode = new Mode { Name = "Local API timings", ProviderType = "local", Language = "en" };
+                var result = new TranscriptionResult(RawText: "hello", FinalText: "hello", TranscriptionProvider: "Local");
+
+                var cold = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 900, loadMs: 620);
+                Assert(cold.Timings.LoadMs == 620 && cold.Timings.DecodeMs == 280 && cold.LatencyMs == 900,
+                    $"cold: load {cold.Timings.LoadMs}, decode {cold.Timings.DecodeMs}, latency {cold.LatencyMs}");
+
+                var warm = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 300);
+                Assert(warm.Timings.LoadMs == 0 && warm.Timings.DecodeMs == 300, "warm: the latency must all be decode");
+
+                // Rounding can put the load a millisecond over the latency; never a negative decode.
+                var rounded = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 500, loadMs: 501);
+                Assert(rounded.Timings.LoadMs == 500 && rounded.Timings.DecodeMs == 0, "a load over the latency went negative");
+            });
+
+            RunAsync("WhisperLoadTiming adds only to the scope on its own async flow — issue #1932", async () =>
+            {
+                WhisperLoadTiming.Add(TimeSpan.FromMilliseconds(5)); // no scope open: dropped
+
+                using var outer = WhisperLoadTiming.Begin();
+                await Task.Run(() => WhisperLoadTiming.Add(TimeSpan.FromMilliseconds(400)));
+
+                // A concurrent caller with its own scope (the API) and one with none
+                // (a GUI dictation) do not add to this one.
+                var other = Task.Run(async () =>
+                {
+                    using var own = WhisperLoadTiming.Begin();
+                    await Task.Yield();
+                    WhisperLoadTiming.Add(TimeSpan.FromMilliseconds(70));
+                    return own.Elapsed;
+                });
+                var none = Task.Run(() =>
+                {
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        return Task.Run(() => WhisperLoadTiming.Add(TimeSpan.FromMilliseconds(900)));
+                    }
+                });
+                var otherElapsed = await other;
+                await none;
+
+                Assert(outer.Elapsed == TimeSpan.FromMilliseconds(400), $"outer scope {outer.Elapsed.TotalMilliseconds} ms");
+                Assert(otherElapsed == TimeSpan.FromMilliseconds(70), $"inner scope {otherElapsed.TotalMilliseconds} ms");
+            });
+
+            Run("a CPU-only HW_WHISPER_WORKER_RUNTIMES reads as the CPU backend — issue #1932", () =>
+            {
+                Assert(TranscriptionService.IsCpuOnlyRuntimeOrder("cpu"), "cpu");
+                Assert(TranscriptionService.IsCpuOnlyRuntimeOrder(" Cpu , CpuNoAvx "), "Cpu,CpuNoAvx");
+                Assert(!TranscriptionService.IsCpuOnlyRuntimeOrder(null), "unset");
+                Assert(!TranscriptionService.IsCpuOnlyRuntimeOrder("Vulkan,Cpu"), "Vulkan first");
+                Assert(!TranscriptionService.IsCpuOnlyRuntimeOrder("nonsense"), "unknown names keep the default (Vulkan) order");
+            });
+
             // =================================================================
             // Local API wire contract (issue #289)
             //

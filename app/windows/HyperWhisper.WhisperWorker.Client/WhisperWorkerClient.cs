@@ -15,7 +15,15 @@ public sealed record WhisperWorkerLoadResult(string Runtime, string? Gpu, string
 /// Whisper wrote it; <see cref="Text"/> has the non-speech markers stripped.
 /// A caller that splits a file into chunks joins the raw texts and strips once.
 /// </summary>
-public sealed record WhisperWorkerTranscript(string Text, string RawText, string? Language, int SegmentCount);
+public sealed record WhisperWorkerTranscript(string Text, string RawText, string? Language, int SegmentCount)
+{
+    /// <summary>
+    /// How long this request spent starting the worker and loading the model
+    /// before it could decode: zero when the worker was already up with the
+    /// model, and both loads when a lost worker was restarted (#1932).
+    /// </summary>
+    public TimeSpan StartAndLoad { get; init; }
+}
 
 /// <summary>The client's timings. Only tests change them; the app uses the defaults.</summary>
 public sealed record WhisperWorkerClientTimings
@@ -156,7 +164,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
 
     /// <summary>Starts the worker if it is down and loads the selected model.</summary>
     public Task<WhisperWorkerLoadResult> WarmUpAsync(CancellationToken cancellationToken = default) =>
-        RunRequestAsync((session, _) => Task.FromResult(session.LoadResult!), cancellationToken);
+        RunRequestAsync((session, _, _) => Task.FromResult(session.LoadResult!), cancellationToken);
 
     /// <summary>
     /// Transcribes one 16 kHz mono 16-bit WAV. Starts and loads the worker when it
@@ -178,7 +186,9 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(options);
         var timeout = _timings.TranscribeTimeoutFor(audioDuration ?? WavDuration(wavPath));
         return RunRequestAsync(
-            (session, token) => TranscribeOnAsync(session, wavPath, language, options, timeout, token),
+            async (session, startAndLoad, token) =>
+                await TranscribeOnAsync(session, wavPath, language, options, timeout, token).ConfigureAwait(false)
+                    with { StartAndLoad = startAndLoad },
             cancellationToken);
     }
 
@@ -257,18 +267,35 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     // REQUEST PIPELINE
     // =====================================================================
 
+    /// <param name="operation">
+    /// The request on a loaded worker. It is passed the time this request spent
+    /// so far in <see cref="EnsureLoadedAsync"/> (worker start and model load).
+    /// </param>
     private async Task<T> RunRequestAsync<T>(
-        Func<Session, CancellationToken, Task<T>> operation,
+        Func<Session, TimeSpan, CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken)
     {
         return await RunExclusiveAsync(async () =>
         {
+            var startAndLoad = TimeSpan.Zero;
             for (int attempt = 0; ; attempt++)
             {
                 try
                 {
-                    var session = await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
-                    return await operation(session, cancellationToken).ConfigureAwait(false);
+                    // A warm worker with the model costs nothing here, and counts as zero.
+                    var warm = _session is { HasExited: false } current
+                        && Equals(current.LoadedModel, Volatile.Read(ref _model));
+                    var loading = System.Diagnostics.Stopwatch.StartNew();
+                    Session session;
+                    try
+                    {
+                        session = await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (!warm) startAndLoad += loading.Elapsed;
+                    }
+                    return await operation(session, startAndLoad, cancellationToken).ConfigureAwait(false);
                 }
                 catch (WorkerLostException lost)
                 {
@@ -394,7 +421,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         ObjectDisposedException.ThrowIf(IsDisposed, this);
         var process = _launcher.Start(); // throws WhisperWorkerException(start_failed)
         StartCount++;
-        var session = new Session(process, _info);
+        var session = new Session(process, _info, _warn);
         Volatile.Write(ref _session, session);
         _info($"WhisperWorkerClient: Started the worker (pid {session.ProcessId})");
 
@@ -521,6 +548,8 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         if (!ReferenceEquals(_session, session)) return;
         if (!session.HasExited)
         {
+            // Before the write: the worker can exit before CloseInput below runs.
+            session.ExpectExit();
             try
             {
                 await session.WriteAsync(WhisperWorkerProtocol.BuildCommand(new WhisperWorkerShutdownCommand()))
@@ -662,6 +691,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     {
         private readonly IWhisperWorkerProcess _process;
         private readonly Action<string> _log;
+        private readonly Action<string> _warn;
         private readonly SemaphoreSlim _writeLock = new(1, 1);
         private readonly TaskCompletionSource<WhisperWorkerReady> _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _exited = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -670,10 +700,14 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         private long _pendingId;
         private TaskCompletionSource<WhisperWorkerReply>? _pending;
 
-        public Session(IWhisperWorkerProcess process, Action<string> log)
+        /// <summary>Set once the client asks the worker to stop: an exit after it is expected.</summary>
+        private int _stopRequested;
+
+        public Session(IWhisperWorkerProcess process, Action<string> log, Action<string> warn)
         {
             _process = process;
             _log = log;
+            _warn = warn;
             ProcessId = process.Id;
             _ready.Task.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
             _reader = Task.Run(ReadLoopAsync);
@@ -736,7 +770,14 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             }
         }
 
-        public void CloseInput() => _process.CloseInput();
+        /// <summary>Marks the exit that follows as asked for (shutdown, stdin close or kill).</summary>
+        public void ExpectExit() => Volatile.Write(ref _stopRequested, 1);
+
+        public void CloseInput()
+        {
+            ExpectExit();
+            _process.CloseInput();
+        }
 
         public async Task WaitForExitAsync(TimeSpan timeout)
         {
@@ -751,11 +792,15 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             }
         }
 
-        public void Kill() => _process.Kill();
+        public void Kill()
+        {
+            ExpectExit();
+            _process.Kill();
+        }
 
         public async ValueTask DisposeAsync()
         {
-            _process.CloseInput();
+            CloseInput();
             try
             {
                 await _reader.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
@@ -817,11 +862,22 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             finally
             {
                 TaskCompletionSource<WhisperWorkerReply>? orphan;
+                long orphanId;
                 lock (_pendingLock)
                 {
                     _exited.TrySetResult();
                     orphan = _pending;
+                    orphanId = _pendingId;
                     _pending = null;
+                }
+                // A shutdown the client asked for logs its own "Worker exited"
+                // line. This one is a worker that left unasked: killed from
+                // outside or crashed, so the log tells it from a clean exit (#1932).
+                if (Volatile.Read(ref _stopRequested) == 0)
+                {
+                    _warn(orphan is null
+                        ? $"WhisperWorkerClient: The worker (pid {ProcessId}) exited while idle without being asked to stop (killed or crashed)"
+                        : $"WhisperWorkerClient: The worker (pid {ProcessId}) exited during request {orphanId} without being asked to stop (killed or crashed)");
                 }
                 orphan?.TrySetException(Lost());
                 _ready.TrySetException(Lost());
