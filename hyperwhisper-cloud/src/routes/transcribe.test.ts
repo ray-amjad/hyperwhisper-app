@@ -139,6 +139,47 @@ describe('transcribeRoute provider fallback', () => {
     expect(body.error).toBe('Transcription input rejected');
   });
 
+  test('an ElevenLabs 401 quota_exceeded (out of credits) is served by the next provider (issue #1228)', async () => {
+    const logged: string[] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args.map(String).join(' ')); }) as typeof console.log;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes('api.elevenlabs.io')) {
+        return new Response(
+          '{"detail":{"type":"invalid_request","code":"quota_exceeded","message":"This request exceeds your quota of 248524. You have 211 credits remaining, while 530 credits are required for this request.","status":"quota_exceeded"}}',
+          { status: 401, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+
+      if (url.includes('api.deepgram.com')) {
+        return Response.json({
+          results: { channels: [{ alternatives: [{ transcript: 'hello from deepgram' }], detected_language: 'en' }] },
+          metadata: { duration: 1, request_id: 'dg-req-1' },
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    let response: Response;
+    try {
+      response = await buildApp().fetch(transcribeRequest('elevenlabs'));
+    } finally {
+      console.log = originalLog;
+    }
+    const body = await response.json() as { text: string; metadata: { stt_provider: string } };
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('hello from deepgram');
+    expect(body.metadata.stt_provider).toContain('fallback from');
+    // The root cause stays greppable in the logs: the reason and the upstream status.
+    const attemptFail = logged.find((line) => line.includes('transcribe.provider_attempt_fail'));
+    expect(attemptFail).toContain('insufficient funds (quota_exceeded)');
+    expect(attemptFail).toContain('"upstreamStatus":401');
+  });
+
   test('still short-circuits with 500 on an auth (401) failure without trying fallbacks', async () => {
     let deepgramCalled = false;
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {

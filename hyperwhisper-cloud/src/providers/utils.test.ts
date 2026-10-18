@@ -10,6 +10,7 @@ import {
   fetchWithTimeout,
   isExplicitLanguage,
   providerHttpError,
+  quotaExhaustedReason,
   readErrorBodyPreview,
   readRequiredJsonString,
   readPollJson,
@@ -338,6 +339,34 @@ describe('providerHttpError (shared non-2xx classification for the sync STT adap
     });
     expect(optedIn).toBeInstanceOf(ProviderUnavailableError);
     expect(optedIn.message).toBe('TestProvider unavailable: insufficient funds');
+  });
+
+  test('an out-of-credits body fails over as insufficient funds, whatever status carries it', async () => {
+    // ElevenLabs' real answer when the plan ran out of credits (issue #1228).
+    const elevenLabs = '{"detail":{"type":"invalid_request","code":"quota_exceeded","message":"This request exceeds your quota of 248524. You have 211 credits remaining, while 530 credits are required for this request.","status":"quota_exceeded"}}';
+    const quota = await providerHttpError('test', at(401, elevenLabs), performance.now(), {}, {
+      ...policy,
+      attachUnavailableDetails: true,
+    }) as ProviderUnavailableError;
+    expect(quota).toBeInstanceOf(ProviderUnavailableError);
+    expect(quota.message).toBe('TestProvider unavailable: insufficient funds (quota_exceeded)');
+    expect(quota.status).toBe(401);
+
+    const openAi = await providerHttpError('test', at(429, '{"error":{"code":"insufficient_quota"}}'), performance.now(), {}, policy);
+    expect(openAi.message).toBe('TestProvider unavailable: insufficient funds (insufficient_quota)');
+
+    const xai = await providerHttpError('test', at(403, '{"error":"Your team abc has either used all available credits or reached its monthly spending limit."}'), performance.now(), {}, {
+      ...policy,
+      authStatuses: [401, 403],
+    });
+    expect(xai.message).toBe('TestProvider unavailable: insufficient funds (credits_exhausted)');
+  });
+
+  test('a quota marker on a non-billing status is not read as out of credits', async () => {
+    const err = await providerHttpError('test', at(400, '{"detail":"quota_exceeded"}'), performance.now(), {}, policy);
+    expect(err).toBeInstanceOf(ProviderInputError);
+    expect(quotaExhaustedReason(500, 'quota_exceeded')).toBeNull();
+    expect(quotaExhaustedReason(401, 'unauthorized')).toBeNull();
   });
 
   test('other 4xx become a ProviderInputError carrying the body preview', async () => {

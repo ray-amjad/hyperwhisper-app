@@ -208,6 +208,21 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
       .rejects.toThrow('ElevenLabs API key is invalid');
   });
 
+  test('a 401 quota_exceeded (out of credits) fails over as insufficient funds, keeping the status', async () => {
+    mockFetchOnce(() => new Response(
+      '{"detail":{"type":"invalid_request","code":"quota_exceeded","message":"This request exceeds your quota of 248524. You have 211 credits remaining, while 530 credits are required for this request.","status":"quota_exceeded"}}',
+      { status: 401, headers: { 'Content-Type': 'application/json' } },
+    ));
+    try {
+      await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US');
+      throw new Error('expected transcribeWithElevenLabs to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProviderUnavailableError);
+      expect((error as ProviderUnavailableError).message).toBe('ElevenLabs unavailable: insufficient funds (quota_exceeded)');
+      expect((error as ProviderUnavailableError).status).toBe(401);
+    }
+  });
+
   test('429 maps to ProviderUnavailableError with kind rate_limit (fails over to a sibling)', async () => {
     mockFetchOnce(() => new Response('rate limited', { status: 429 }));
     try {
