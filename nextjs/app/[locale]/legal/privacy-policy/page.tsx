@@ -869,9 +869,45 @@ export default function PrivacyPolicyPage() {
         provider&apos;s terms.
       </p>
 
+      <h2>Hosting</h2>
+      <p>
+        Our website, the account area, and our licensing service are hosted by{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://vercel.com/legal/privacy-notice"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Vercel
+        </a>
+        . Vercel receives the IP address and the browser or app details of
+        each request to them, including each license activation and validation
+        request from the app.
+      </p>
+      <p>
+        Our database is hosted by{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://planetscale.com/legal/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          PlanetScale
+        </a>
+        . It holds the account and license records described above: your
+        email address and the name on your account, your Account Key, your
+        order and customer ids, your HyperWhisper Cloud credit balance, the
+        hostname and the hashed hardware identifier of each device you
+        activate, the email addresses submitted for the download link, the
+        records of the transactional emails we send you, and your sign-in
+        session records, which include the IP address and browser user agent
+        of the sign-in.
+      </p>
+
       <h2>International Transfers</h2>
       <p>
-        Our payment and licensing providers, Upstash, and Resend may process limited
+        Our payment and licensing providers, Upstash, Resend, Vercel, and
+        PlanetScale may process limited
         personal information in multiple countries, including the United
         Kingdom, the European Economic Area, and the United States. Upstash
         hosts our rate-limit store. It also holds a one-hour cache, keyed by
