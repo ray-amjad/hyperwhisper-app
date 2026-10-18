@@ -5597,34 +5597,47 @@ internal static class Program
                     "no stderr capture must not mark the model broken");
             });
 
-            Run("Parakeet start-failure stderr tail drops the user profile path and is capped (#854)", () =>
+            Run("Parakeet start-failure stderr tail drops the user's identifiers and is capped (#854)", () =>
             {
+                // The Parakeet scrub IS SentryService.RedactUserIdentifiers (no second
+                // scanner); the seam overload pins the three identifiers.
                 const string profile = @"C:\Users\percy.tester";
-                const string token = ParakeetTranscriptionService.UserProfileToken;
-                string Scrub(string? text) => ParakeetTranscriptionService.ScrubUserProfile(text, profile);
+                const string localAppData = @"D:\percy.tester\AppData";
+                const string user = "percy.tester";
+                const string token = "%USERPROFILE%";
+                string Scrub(string? text) => SentryService.RedactUserIdentifiers(text, profile, localAppData, user);
 
-                var backslash = Scrub(@"Load model from C:\Users\percy.tester\AppData\Local\HyperWhisper\Models\m\encoder.int8.onnx failed");
-                Assert(backslash == $@"Load model from {token}\AppData\Local\HyperWhisper\Models\m\encoder.int8.onnx failed",
-                    $"the profile path must become {token}, got '{backslash}'");
+                var underProfile = Scrub(@"Load model from C:\Users\percy.tester\Documents\m\encoder.int8.onnx failed");
+                Assert(underProfile == $@"Load model from {token}\Documents\m\encoder.int8.onnx failed",
+                    $"the profile path must become {token}, got '{underProfile}'");
+                var redirected = Scrub(@"Load model from D:\percy.tester\AppData\HyperWhisper\Models\m\encoder.int8.onnx failed");
+                Assert(redirected == @"Load model from %LOCALAPPDATA%\HyperWhisper\Models\m\encoder.int8.onnx failed",
+                    $"a redirected local-app-data path must become %LOCALAPPDATA%, got '{redirected}'");
+                var bareName = Scrub("[WARN] running as percy.tester on DESKTOP");
+                Assert(bareName == "[WARN] running as %USER% on DESKTOP", $"the bare account name must become %USER%, got '{bareName}'");
                 var forward = Scrub("transducer encoder: 'C:/USERS/PERCY.TESTER/AppData/x.onnx' does not exist");
-                Assert(forward == $"transducer encoder: '{token}/AppData/x.onnx' does not exist",
-                    $"a forward-slash, upper-case profile path must be scrubbed, got '{forward}'");
-                var twice = Scrub(@"c:\users\percy.tester\a and C:/Users\percy.tester/b");
-                Assert(twice == $@"{token}\a and {token}/b", $"every occurrence (mixed slashes) must be scrubbed, got '{twice}'");
-                Assert(!Scrub(@"C:\Users\percy.testerX\m").Contains("percy.tester", StringComparison.OrdinalIgnoreCase),
-                    "the profile path must not survive inside a longer folder name");
+                Assert(!forward.Contains("percy.tester", StringComparison.OrdinalIgnoreCase) && forward.Contains("%USER%", StringComparison.Ordinal),
+                    $"a forward-slash path must lose the account name, got '{forward}'");
+                var twice = Scrub(@"c:\users\percy.tester\a and C:\Users\percy.tester\b");
+                Assert(twice == $@"{token}\a and {token}\b", $"every occurrence must be scrubbed, case-insensitively, got '{twice}'");
+                // Segment boundary: another account whose name starts with this one keeps
+                // its folder name whole instead of turning into "%USERPROFILE%X".
+                var sibling = Scrub(@"C:\Users\percy.testerX\m");
+                Assert(sibling == @"C:\Users\percy.testerX\m",
+                    $"a longer folder name must not be cut at the profile path, got '{sibling}'");
+                Assert(!sibling.Contains(token, StringComparison.Ordinal), "no profile token inside another account's folder");
                 Assert(Scrub("[INFO] provider: directml") == "[INFO] provider: directml", "a line with no path must stay as it is");
                 Assert(Scrub(null) == "", "a null line scrubs to empty");
-                Assert(ParakeetTranscriptionService.ScrubUserProfile(@"C:\Users\x", "") == @"C:\Users\x",
-                    "an unreadable profile directory leaves the text alone");
-                Assert(ParakeetTranscriptionService.ScrubUserProfile(@"C:\Users\percy.tester\m", profile + @"\") == $@"{token}\m",
+                Assert(SentryService.RedactUserIdentifiers(@"C:\Users\x", "", null, null) == @"C:\Users\x",
+                    "unreadable identifiers leave the text alone");
+                Assert(SentryService.RedactUserIdentifiers(@"C:\Users\percy.tester\m", profile + @"\", null, null) == $@"{token}\m",
                     "a trailing separator on the profile directory must not stop the match");
 
-                // The tail: the last 20 lines, scrubbed, joined, capped at 2,000 chars.
-                Assert(ParakeetTranscriptionService.BuildStderrTail(Array.Empty<string>(), profile) == "(none)", "empty stderr is (none)");
-                Assert(ParakeetTranscriptionService.BuildStderrTail(null, profile) == "(none)", "no stderr is (none)");
+                // The tail: the last 20 lines, redacted, joined, capped at 2,000 chars.
+                Assert(ParakeetTranscriptionService.BuildStderrTail(Array.Empty<string>(), Scrub) == "(none)", "empty stderr is (none)");
+                Assert(ParakeetTranscriptionService.BuildStderrTail(null, Scrub) == "(none)", "no stderr is (none)");
                 var lines = Enumerable.Range(1, 30).Select(i => $@"line {i} C:\Users\percy.tester\m").ToArray();
-                var tail = ParakeetTranscriptionService.BuildStderrTail(lines, profile);
+                var tail = ParakeetTranscriptionService.BuildStderrTail(lines, Scrub);
                 Assert(!tail.Contains("percy.tester", StringComparison.OrdinalIgnoreCase), $"the tail leaked the profile path: '{tail}'");
                 Assert(tail.Split('\n').Length == ParakeetTranscriptionService.StartFailureTailLines,
                     "the tail must hold the last 20 lines");
@@ -5632,7 +5645,7 @@ internal static class Program
                     $"the tail must be the LAST lines in order, got '{tail}'");
 
                 var longLines = Enumerable.Range(0, 20).Select(i => (i == 19 ? "CAUSE " : "") + new string('x', 300) + $@" C:\Users\percy.tester\m{i}").ToArray();
-                var capped = ParakeetTranscriptionService.BuildStderrTail(longLines, profile);
+                var capped = ParakeetTranscriptionService.BuildStderrTail(longLines, Scrub);
                 Assert(capped.Length <= ParakeetTranscriptionService.StartFailureTailMaxChars,
                     $"the tail must be capped at {ParakeetTranscriptionService.StartFailureTailMaxChars} chars, got {capped.Length}");
                 Assert(capped.StartsWith("…", StringComparison.Ordinal) && capped.EndsWith($@"{token}\m19", StringComparison.Ordinal) && capped.Contains("CAUSE"),
@@ -5642,6 +5655,7 @@ internal static class Program
 
             Run("Parakeet start-failure fields carry the issue's names, survive Sentry's key filter, and format as one line (#854)", () =>
             {
+                string Redact(string? text) => SentryService.RedactUserIdentifiers(text, @"C:\Users\percy.tester", null, "percy.tester");
                 var fields = ParakeetTranscriptionService.BuildStartFailureFields(
                     ParakeetTranscriptionService.StartFailureStdoutClosed,
                     unchecked((int)0xC0000409),
@@ -5652,7 +5666,7 @@ internal static class Program
                     1234,
                     2,
                     new[] { @"[INFO] Model directory: C:\Users\percy.tester\Models\parakeet-tdt-0.6b-v2", "[ERROR] boom" },
-                    @"C:\Users\percy.tester");
+                    Redact);
 
                 var expectedKeys = new[]
                 {
@@ -5675,12 +5689,12 @@ internal static class Program
                 Assert(byKey["parakeet_elapsed_ms"] is 1234L, "elapsed ms");
                 Assert(byKey["parakeet_stderr_line_count"] is 2, "the stderr line count");
                 Assert(byKey["parakeet_stderr_tail"] is string t && !t.Contains("percy.tester", StringComparison.OrdinalIgnoreCase)
-                        && t.Contains(ParakeetTranscriptionService.UserProfileToken, StringComparison.Ordinal),
+                        && t.Contains("%USERPROFILE%", StringComparison.Ordinal),
                     "the tail field must already be scrubbed");
 
                 var stillRunning = ParakeetTranscriptionService.BuildStartFailureFields(
                     ParakeetTranscriptionService.StartFailureReadyTimeout, null, "qwen3", "qwen3-asr", "en", 90, 90500, 0,
-                    Array.Empty<string>(), @"C:\Users\percy.tester").ToDictionary(f => f.Key, f => f.Value);
+                    Array.Empty<string>(), Redact).ToDictionary(f => f.Key, f => f.Value);
                 Assert(stillRunning["parakeet_exit_code"] is -1, "a daemon that had not exited reports -1");
                 Assert(stillRunning["parakeet_language_hint"] is "en", "a language hint is kept");
                 Assert(stillRunning["parakeet_stderr_tail"] is "(none)", "an empty stderr reads as (none)");

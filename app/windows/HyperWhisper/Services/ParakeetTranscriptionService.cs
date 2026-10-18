@@ -1139,7 +1139,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
                     elapsedMilliseconds,
                     lineCount,
                     tail,
-                    ReadUserProfileDirectory());
+                    SentryService.RedactUserIdentifiers);
             }
 
             // WaitAsync, not only the read's token: a read on the daemon's pipe is not
@@ -2059,8 +2059,10 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
 
                 capture.Add(line);
                 // The capture keeps the raw line (the #1598 classifier matches the model
-                // directory in it); the log file gets it without the profile path (#854).
-                LoggingService.Debug($"ParakeetTranscriptionService [stderr]: {ScrubUserProfile(line, ReadUserProfileDirectory())}");
+                // directory in it); the log file gets it without the user's identifiers
+                // (#854): the profile directory becomes %USERPROFILE%, a redirected
+                // local-app-data directory %LOCALAPPDATA%, the bare account name %USER%.
+                LoggingService.Debug($"ParakeetTranscriptionService [stderr]: {SentryService.RedactUserIdentifiers(line)}");
             }
         }
         catch (ObjectDisposedException)
@@ -2260,9 +2262,6 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     /// <summary>The cap on the whole scrubbed stderr tail, in characters.</summary>
     internal const int StartFailureTailMaxChars = 2000;
 
-    /// <summary>What replaces the user's profile directory in daemon stderr.</summary>
-    internal const string UserProfileToken = "%USERPROFILE%";
-
     /// <summary>The <c>parakeet_failure</c> slugs, one per start-failure branch.</summary>
     internal const string StartFailureStdoutClosed = "stdout_closed";
     internal const string StartFailureReadyTimeout = "ready_timeout";
@@ -2273,76 +2272,20 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     /// its stderr to end, before it reports. Only the failure path waits.</summary>
     private const int StartFailureDiagnosticWaitMilliseconds = 500;
 
-    private static string ReadUserProfileDirectory()
-    {
-        try
-        {
-            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        }
-        catch (Exception)
-        {
-            return string.Empty;
-        }
-    }
-
     /// <summary>
-    /// Replaces every occurrence of <paramref name="userProfileDirectory"/> in
-    /// <paramref name="text"/> with <c>%USERPROFILE%</c>, case-insensitively and with
-    /// '\' and '/' treated as the same character, so the daemon's stderr (which can
-    /// print the model directory, under the profile) never carries the user's
-    /// Windows account name into the log file or Sentry. No boundary check after
-    /// the match: <c>C:\Users\bob</c> inside <c>C:\Users\bobby</c> is replaced too,
-    /// so the profile path itself can never survive. Total: never throws.
-    /// </summary>
-    internal static string ScrubUserProfile(string? text, string? userProfileDirectory)
-    {
-        if (string.IsNullOrEmpty(text)) return string.Empty;
-        var profile = userProfileDirectory?.TrimEnd('\\', '/');
-        if (string.IsNullOrEmpty(profile) || text.Length < profile.Length) return text;
-
-        StringBuilder? scrubbed = null;
-        var copiedUpTo = 0;
-        var i = 0;
-        while (i <= text.Length - profile.Length)
-        {
-            if (MatchesPathAt(text, i, profile))
-            {
-                scrubbed ??= new StringBuilder(text.Length);
-                scrubbed.Append(text, copiedUpTo, i - copiedUpTo).Append(UserProfileToken);
-                i += profile.Length;
-                copiedUpTo = i;
-            }
-            else
-            {
-                i++;
-            }
-        }
-
-        if (scrubbed == null) return text;
-        return scrubbed.Append(text, copiedUpTo, text.Length - copiedUpTo).ToString();
-    }
-
-    private static bool MatchesPathAt(string text, int start, string path)
-    {
-        for (var j = 0; j < path.Length; j++)
-        {
-            var a = text[start + j];
-            var b = path[j];
-            if (a == '/') a = '\\';
-            if (b == '/') b = '\\';
-            if (a != b && char.ToUpperInvariant(a) != char.ToUpperInvariant(b)) return false;
-        }
-        return true;
-    }
-
-    /// <summary>
-    /// The daemon's last stderr lines as one string: each line scrubbed of the
-    /// profile path FIRST, then the whole joined tail capped to its last
+    /// The daemon's last stderr lines as one string: each line passed through
+    /// <paramref name="redact"/> FIRST, then the whole joined tail capped to its last
     /// <see cref="StartFailureTailMaxChars"/> characters (a dying daemon writes its
-    /// cause last). Scrubbing before the cap means a cut can never leave a piece of
-    /// the profile path that no longer matches. <c>(none)</c> when stderr was empty.
+    /// cause last). Redacting before the cap means a cut can never leave a piece of
+    /// an identifier that no longer matches. <c>(none)</c> when stderr was empty.
     /// </summary>
-    internal static string BuildStderrTail(IReadOnlyList<string>? lines, string? userProfileDirectory)
+    /// <param name="redact">
+    /// <see cref="SentryService.RedactUserIdentifiers(string?)"/> in the app (the
+    /// profile directory becomes <c>%USERPROFILE%</c>, local-app-data
+    /// <c>%LOCALAPPDATA%</c>, the account name <c>%USER%</c>); the smoke tests pass
+    /// its seam overload with fixed identifiers.
+    /// </param>
+    internal static string BuildStderrTail(IReadOnlyList<string>? lines, Func<string?, string> redact)
     {
         if (lines == null || lines.Count == 0) return "(none)";
 
@@ -2350,7 +2293,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
         var scrubbedLines = new List<string>(lines.Count - start);
         for (var i = start; i < lines.Count; i++)
         {
-            scrubbedLines.Add(ScrubUserProfile(lines[i], userProfileDirectory));
+            scrubbedLines.Add(redact(lines[i]));
         }
 
         var tail = string.Join("\n", scrubbedLines);
@@ -2378,7 +2321,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
         long elapsedMilliseconds,
         int stderrLineCount,
         IReadOnlyList<string>? stderrTail,
-        string? userProfileDirectory)
+        Func<string?, string> redact)
     {
         return new KeyValuePair<string, object>[]
         {
@@ -2390,7 +2333,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             new("parakeet_ready_timeout_s", readyTimeoutSeconds),
             new("parakeet_elapsed_ms", elapsedMilliseconds),
             new("parakeet_stderr_line_count", stderrLineCount),
-            new("parakeet_stderr_tail", BuildStderrTail(stderrTail, userProfileDirectory)),
+            new("parakeet_stderr_tail", BuildStderrTail(stderrTail, redact)),
         };
     }
 
@@ -2412,8 +2355,8 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
         Exception? exception = null)
     {
         // The daemon's own error text can sit in the message (daemon_error), so it is
-        // scrubbed like the tail before it reaches the log.
-        logMessage = ScrubUserProfile(logMessage, ReadUserProfileDirectory());
+        // redacted like the tail before it reaches the log.
+        logMessage = SentryService.RedactUserIdentifiers(logMessage);
         try
         {
             var line = $"{logMessage} ({FormatStartFailureFields(fields)})";
