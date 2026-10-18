@@ -87,9 +87,14 @@ final class ParakeetProvider: TranscriptionProvider {
             // the load is in flight makes us discard the result below.
             let loadGeneration = generation
             let coldLoadStart = Date()
+            // Last FluidAudio load phase, for the failure report only (#1017).
+            let phaseRecorder = LocalModelLoadPhaseRecorder()
             let task = Task<AsrManager, Error> {
                 // Use version-specific loading API from FluidAudio
-                let models = try await AsrModels.downloadAndLoad(version: version)
+                let models = try await AsrModels.downloadAndLoad(
+                    version: version,
+                    progressHandler: { progress in phaseRecorder.record(progress) }
+                )
                 // FluidAudio 0.15.x: AsrManager became an `actor`; legacy
                 // `initialize(models:)` and `resetDecoderState()` are gone. Pass
                 // models at init and clear the shared ML array cache via reset().
@@ -143,6 +148,8 @@ final class ParakeetProvider: TranscriptionProvider {
                 }
                 let requestedVersion = String(describing: version)
                 let previousVersion = activeVersionBeforeLoad.map { String(describing: $0) } ?? "none"
+                let failureDetail = LocalModelLoadFailureDetail.fields(for: error)
+                let lastPhase = phaseRecorder.lastPhase
 
                 if isCancellation {
                     memoryLog.info(
@@ -161,7 +168,9 @@ final class ParakeetProvider: TranscriptionProvider {
                                 generation: loadGeneration,
                                 anotherVersionWasLoading: anotherVersionWasLoading,
                                 cachePresent: cachePresentAfterFailure,
-                                errorCode: nsError.code
+                                errorCode: nsError.code,
+                                failureDetail: failureDetail,
+                                lastPhase: lastPhase
                             ),
                             tags: Self.failureTags(
                                 requestedVersion: requestedVersion,
@@ -172,8 +181,10 @@ final class ParakeetProvider: TranscriptionProvider {
                         )
                     }
                 } else {
+                    let failureDetailSummary = LocalModelLoadFailureDetail.logSummary(for: failureDetail)
+                    let lastPhaseSummary = LocalModelLoadFailureDetail.logSummary(for: lastPhase)
                     memoryLog.error(
-                        "model.load.failed id=\(parakeetResidencyId, privacy: .public) stage=\(failureStage, privacy: .public) version=\(requestedVersion, privacy: .public) previousVersion=\(previousVersion, privacy: .public) durationMs=\(elapsedMs, privacy: .public) errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)"
+                        "model.load.failed id=\(parakeetResidencyId, privacy: .public) stage=\(failureStage, privacy: .public) version=\(requestedVersion, privacy: .public) previousVersion=\(previousVersion, privacy: .public) durationMs=\(elapsedMs, privacy: .public) errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public) \(failureDetailSummary, privacy: .public) \(lastPhaseSummary, privacy: .public)"
                     )
                     if AppLogger.isErrorLoggingEnabled {
                         let cachePresentAfterFailure = AsrModels.modelsExist(
@@ -188,7 +199,9 @@ final class ParakeetProvider: TranscriptionProvider {
                                 generation: loadGeneration,
                                 anotherVersionWasLoading: anotherVersionWasLoading,
                                 cachePresent: cachePresentAfterFailure,
-                                errorCode: nsError.code
+                                errorCode: nsError.code,
+                                failureDetail: failureDetail,
+                                lastPhase: lastPhase
                             ),
                             tags: Self.failureTags(
                                 requestedVersion: requestedVersion,
@@ -215,9 +228,11 @@ final class ParakeetProvider: TranscriptionProvider {
             generation: Int,
             anotherVersionWasLoading: Bool,
             cachePresent: Bool,
-            errorCode: Int
+            errorCode: Int,
+            failureDetail: LocalModelLoadFailureDetail.Fields,
+            lastPhase: LocalModelLoadFailureDetail.LoadPhase?
         ) -> [String: Any] {
-            [
+            var extras: [String: Any] = [
                 "parakeet_load_stage": stage,
                 "parakeet_load_duration_ms": elapsedMs,
                 "parakeet_load_generation": generation,
@@ -225,6 +240,16 @@ final class ParakeetProvider: TranscriptionProvider {
                 "parakeet_cache_present_after_failure": cachePresent,
                 "parakeet_error_code": errorCode,
             ]
+            // Why it failed (#1017): fixed slugs and numbers only, never a path.
+            extras.merge(
+                LocalModelLoadFailureDetail.extras(for: failureDetail, keyPrefix: "parakeet"),
+                uniquingKeysWith: { current, _ in current }
+            )
+            extras.merge(
+                LocalModelLoadFailureDetail.extras(for: lastPhase, keyPrefix: "parakeet"),
+                uniquingKeysWith: { current, _ in current }
+            )
+            return extras
         }
 
         private static func failureTags(
@@ -278,6 +303,11 @@ final class ParakeetProvider: TranscriptionProvider {
 
     private let runtime = Runtime()
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "ParakeetProvider")
+
+    /// Weak back-reference so a failed load of an installed version marks it
+    /// broken (Library row offers Re-download, #1632). Set by
+    /// `TranscriptionPipeline.setParakeetModelManager(_:)`.
+    weak var modelManager: ParakeetModelManager?
 
     init() {}
 
@@ -340,6 +370,31 @@ final class ParakeetProvider: TranscriptionProvider {
         return AsrModels.modelsExist(at: AsrModels.defaultCacheDirectory(for: targetVersion))
     }
 
+    /// A load that failed for any reason but cancellation means the installed
+    /// bundle could not be loaded: FluidAudio's `downloadAndLoad` already tried
+    /// to repair it by re-fetching, so the files are damaged or unreachable.
+    private func flagBrokenIfLoadFailed(_ error: Error, version: AsrModelVersion) async {
+        let nsError = error as NSError
+        let isCancellation = error is CancellationError
+            || (nsError.domain == NSURLErrorDomain && nsError.code == URLError.cancelled.rawValue)
+        guard !isCancellation else { return }
+        let modelId = Self.modelId(for: version)
+        await MainActor.run { [weak modelManager] in
+            modelManager?.markModelBroken(modelId)
+        }
+    }
+
+    private func clearBrokenFlag(for version: AsrModelVersion) async {
+        let modelId = Self.modelId(for: version)
+        await MainActor.run { [weak modelManager] in
+            modelManager?.clearModelBroken(modelId)
+        }
+    }
+
+    private static func modelId(for version: AsrModelVersion) -> String {
+        version == .v2 ? ParakeetModelManager.Constants.v2ModelId : ParakeetModelManager.Constants.v3ModelId
+    }
+
     /// Drop a version from the Runtime cache. Call after the on-disk install
     /// changes (delete, redownload) so the next transcription re-reads from
     /// disk instead of serving a stale in-memory `AsrManager`.
@@ -377,10 +432,12 @@ final class ParakeetProvider: TranscriptionProvider {
         do {
             _ = try await runtime.currentManager(for: targetVersion)
             logger.info("Parakeet \(String(describing: targetVersion)) runtime ready")
+            await clearBrokenFlag(for: targetVersion)
         } catch {
             let nsError = error as NSError
             logger.error("Failed to initialize Parakeet \(String(describing: targetVersion)); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await runtime.reset()
+            await flagBrokenIfLoadFailed(error, version: targetVersion)
             throw TranscriptionError.providerNotAvailable(
                 provider: "Parakeet",
                 reason: Self.ReportedFailureReason.initializeRuntime
@@ -428,7 +485,7 @@ final class ParakeetProvider: TranscriptionProvider {
         if let attrs = try? fm.attributesOfItem(atPath: audioURL.path),
            let size = attrs[.size] as? Int64, size < 5000 {
             logger.error("Audio file too small: \(size) bytes")
-            throw TranscriptionError.providerNotAvailable(provider: "Parakeet", reason: "Audio file is too small (\(size) bytes). Please record for longer.")
+            throw TranscriptionError.audioTooShort(fileSize: size)
         }
 
         // STEP 2.6: V2 LANGUAGE VALIDATION
@@ -454,6 +511,7 @@ final class ParakeetProvider: TranscriptionProvider {
             let nsError = error as NSError
             logger.error("Failed to initialize Parakeet \(String(describing: targetVersion)) runtime; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await runtime.reset()
+            await flagBrokenIfLoadFailed(error, version: targetVersion)
             throw TranscriptionError.providerNotAvailable(
                 provider: "Parakeet",
                 reason: Self.ReportedFailureReason.loadRuntime
@@ -510,18 +568,11 @@ final class ParakeetProvider: TranscriptionProvider {
         do {
             var decoderState = try TdtDecoderState()
             let result = try await manager.transcribe(audioURL, decoderState: &decoderState, language: nil)
-            var text = result.text
-
-            // STEP 4a: Phonetic vocabulary matching (Beider-Morse)
-            // Catches phonetically similar misrecognitions before exact matching
-            if !vocabulary.isEmpty {
-                text = VocabularyProcessor.applyPhoneticVocabulary(to: text, vocabulary: vocabulary)
-            }
-
-            // STEP 4b: Exact vocabulary replacements (case-insensitive string match)
-            if !vocabulary.isEmpty {
-                text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
-            }
+            // The engine's own text, untouched: it is the History row's raw
+            // transcript. The phonetic pass (`applyLocalVocabularyCorrection`
+            // below) and the `\b` replacement pass run once each, in the
+            // caller, after that raw text is kept (issue #1622).
+            let text = result.text
             if let parakeetToken {
                 await ModelResidencyRegistry.shared.markIdle(parakeetToken)
             }
@@ -598,5 +649,19 @@ final class ParakeetProvider: TranscriptionProvider {
                 reason: "Transcription failed: \(errorDescription)"
             )
         }
+    }
+}
+
+// MARK: - Local vocabulary correction (issue #1622)
+
+extension ParakeetProvider: LocalVocabularyCorrecting {
+    /// The phonetic (Beider-Morse) pass over the engine's raw text. It corrects
+    /// a misheard token towards a spelling-hint row (a vocabulary row with NO
+    /// replacement); the core skips every row that carries a replacement, so
+    /// this never applies a swap. The caller runs it once, after it has kept
+    /// the raw text, and then runs the `\b` replacement pass once
+    /// (`VocabularyProcessor.applyLocalEngineVocabularyCorrection`).
+    func applyLocalVocabularyCorrection(to rawText: String, vocabulary: [Vocabulary]) -> String {
+        VocabularyProcessor.applyPhoneticVocabulary(to: rawText, vocabulary: vocabulary)
     }
 }

@@ -823,6 +823,9 @@ Denna åtgärd kan inte ångras.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Filtranskribering avbruten</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkriberar fil...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -846,11 +849,11 @@ Denna åtgärd kan inte ångras.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Läget som gjorde den här inspelningen har tagits bort, så den försöktes inte igen. Högerklicka på inspelningen i Historik och välj ”Försök igen med...” för att välja ett annat läge.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Inspelning stoppad — 20-minutersgränsen för säkerhet nådd.</value>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modellen används</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} används av läget ”{1}”. Byt läget till en annan modell innan du tar bort den.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1292,6 +1301,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Det ser inte ut som en kontonyckel.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1312,8 +1324,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>En inspelning eller filtranskribering pågår redan. Försök med filen igen när den är klar.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Den här filen är tom, så det finns inget ljud att transkribera.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Den här filen är skadad eller är inte en ljudfil som HyperWhisper kan läsa.</value>
   </data>
 
 
@@ -1696,6 +1717,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Mer...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1989,6 +2013,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Dämpa ljud</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>

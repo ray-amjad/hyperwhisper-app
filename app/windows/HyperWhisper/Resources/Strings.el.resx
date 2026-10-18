@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Η μεταγραφή του αρχείου ακυρώθηκε</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Γίνεται απομαγνητοφώνηση αρχείου...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -846,11 +849,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Η λειτουργία που δημιούργησε αυτή την εγγραφή διαγράφηκε, οπότε δεν έγινε νέα προσπάθεια. Στο Ιστορικό, κάντε δεξί κλικ στην εγγραφή και επιλέξτε «Δοκιμάστε ξανά με...» για να διαλέξετε άλλη λειτουργία.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Η εγγραφή σταμάτησε — συμπληρώθηκε το όριο ασφαλείας 20 λεπτών.</value>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Το μοντέλο χρησιμοποιείται</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>Το {0} χρησιμοποιείται από τη λειτουργία «{1}». Αλλάξτε αυτή τη λειτουργία σε άλλο μοντέλο πριν το διαγράψετε.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1292,6 +1301,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Αυτό δεν μοιάζει με κλειδί λογαριασμού.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1312,8 +1324,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Μια εγγραφή ή μεταγραφή αρχείου βρίσκεται ήδη σε εξέλιξη. Δοκιμάστε ξανά το αρχείο όταν ολοκληρωθεί.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Αυτό το αρχείο είναι κενό, οπότε δεν υπάρχει ήχος για μεταγραφή.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Αυτό το αρχείο είναι κατεστραμμένο ή δεν είναι αρχείο ήχου που μπορεί να διαβάσει το HyperWhisper.</value>
   </data>
 
 
@@ -1696,6 +1717,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Περισσότερα...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1989,6 +2013,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Απόσβεση ήχου</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>

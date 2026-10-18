@@ -42,7 +42,10 @@ export async function isIPBlocked(store: RedisStoreFactory, ip: string): Promise
   try {
     const blockKey = `ip_blocked:${ip}`;
     const blocked = await store().get(blockKey);
-    return blocked === 'true';
+    // The client JSON-parses every read, so an entry stored as bare `true`
+    // (redis-cli, the Upstash console, or `set(key, 'true')`) reads back as
+    // the boolean; only one stored with literal quotes reads as the string.
+    return blocked === true || blocked === 'true';
   } catch (error) {
     // Keep failing open — a Redis outage must not lock every caller out. But
     // this is the only abuse gate the public endpoints have, so the fail-open

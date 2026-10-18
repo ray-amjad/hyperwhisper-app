@@ -141,7 +141,7 @@ struct PendingRetrySupersessionTests {
     /// also land on a newer session.
     @Test func theRetryChecksAgainAfterTheModeLookup() throws {
         let body = try Self.retryBody()
-        let lookup = try #require(body.range(of: "resolveTranscriptionModeInBackground("),
+        let lookup = try #require(body.range(of: "resolvePendingRetryMode("),
                                   "the retry no longer resolves its mode")
         let afterLookup = body[lookup.upperBound...]
         let check = try #require(afterLookup.range(of: Self.supersedeCheck),
@@ -155,7 +155,7 @@ struct PendingRetrySupersessionTests {
     @Test func eachRetryBeginsASession() throws {
         let body = try ProductionSource.slice(
             of: Self.errorHandlingPath,
-            from: "func retryPendingFile()",
+            from: "func retryPendingFile(",
             to: "private func retryTranscriptionFromPendingPath("
         )
         #expect(body.contains("beginTranscriptionSession()"), "\(body)")

@@ -7,6 +7,7 @@ import { api } from "@/lib/trpc/client";
 import { errorSentence } from "@/lib/trpc/input-error";
 import { formatDate } from "@/lib/format-date";
 import { ICON_SWAP } from "@/lib/icon-swap";
+import { CREDITS_PER_MINUTE } from "@/lib/credits-per-minute";
 
 /**
  * Windowed list of page numbers to render in the pager: always page 1,
@@ -38,8 +39,6 @@ function getPageNumbers(
   return result;
 }
 
-const CREDITS_PER_MINUTE = 6.3;
-
 // #1155: shown in place of a zod input failure's serialized issue array.
 const INVALID_EMAIL = "Enter a valid email address.";
 const INVALID_AMOUNT =
@@ -52,6 +51,14 @@ function formatCredits(credits: number) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
+}
+
+// #1663: account_keys.status is "granted" or "revoked"; show a word, not the enum.
+function licenseStatusLabel(status: string) {
+  if (status === "granted") return "Active";
+  if (status === "revoked") return "Revoked";
+
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -171,12 +178,12 @@ export default function CustomersClient() {
     },
   });
 
-  // Add-credits modal state. Targets a single license key directly, so no
-  // license selector is needed.
+  // Add-credits modal state. Credits are pooled per account, so the target is
+  // the customer: `id` is any one of their license ids, which the server maps
+  // to the owning user's single wallet.
   const [creditTarget, setCreditTarget] = useState<{
     id: string;
     email: string;
-    key: string;
     credits: number;
   } | null>(null);
   const [creditAmount, setCreditAmount] = useState("");
@@ -192,7 +199,6 @@ export default function CustomersClient() {
   function openAddCredits(target: {
     id: string;
     email: string;
-    key: string;
     credits: number;
   }) {
     setCreditTarget(target);
@@ -255,8 +261,9 @@ export default function CustomersClient() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
+      {/* Page Header. Wraps on a phone, so the buttons never push the page
+          wider than the viewport (#1330). */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">Customers</h1>
           <p className="text-gray-400 text-sm mt-1">
@@ -303,7 +310,7 @@ export default function CustomersClient() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by email..."
-          className="w-full max-w-md px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+          className="w-full max-w-md px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
         />
       </div>
 
@@ -327,7 +334,7 @@ export default function CustomersClient() {
               onChange={(e) => setGrantEmail(e.target.value)}
               placeholder="user@example.com"
               required
-              className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+              className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
             />
             <button
               type="submit"
@@ -365,7 +372,10 @@ export default function CustomersClient() {
         }`}
       >
         <div className="overflow-x-auto">
-          <table className="w-full">
+          {/* min-w (#1330): the email wraps anywhere, so without a floor a
+              phone-width column squeezes it to a letter or two per line. This
+              keeps the columns readable and lets the wrapper scroll instead. */}
+          <table className="w-full min-w-[48rem]">
             <thead>
               <tr className="border-b border-white/10">
                 {/* Fixed width (#914): the inline email editor fits inside it, so
@@ -478,49 +488,68 @@ export default function CustomersClient() {
                             </form>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-gray-300 wrap-anywhere">{customer.email}</span>
-                            {customer.licenseCount > 1 && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/20 text-blue-300">
-                                {customer.licenseCount} licenses
+                          <div className="flex flex-col items-start gap-1.5">
+                            {/* #1663: the pencil rides in the email's own text run,
+                                glued to its last character, so a wrap never leaves
+                                it alone on a line under the address. */}
+                            <p className="text-gray-300 wrap-anywhere">
+                              {customer.email.slice(0, -1)}
+                              <span className="whitespace-nowrap">
+                                {customer.email.slice(-1)}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    startEdit(customer.userId, customer.email)
+                                  }
+                                  disabled={isTransitioning}
+                                  title="Edit email"
+                                  aria-label="Edit email"
+                                  className="ml-1.5 inline-flex align-[-2px] text-gray-400 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400"
+                                >
+                                  <svg
+                                    className="h-3.5 w-3.5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={1.8}
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"
+                                    />
+                                  </svg>
+                                </button>
                               </span>
+                            </p>
+                            {(customer.licenseCount > 1 ||
+                              editedUserIds.has(customer.userId)) && (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {customer.licenseCount > 1 && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/20 text-blue-300">
+                                    {customer.licenseCount} licenses
+                                  </span>
+                                )}
+                                {editedUserIds.has(customer.userId) && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-gray-400">
+                                    Edited
+                                  </span>
+                                )}
+                              </div>
                             )}
-                            {editedUserIds.has(customer.userId) && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-gray-400">
-                                Edited
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => startEdit(customer.userId, customer.email)}
-                              disabled={isTransitioning}
-                              title="Edit email"
-                              aria-label="Edit email"
-                              className="text-gray-500 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-500"
-                            >
-                              <svg
-                                className="h-3.5 w-3.5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth={1.8}
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"
-                                />
-                              </svg>
-                            </button>
                           </div>
                         )}
                       </td>
 
-                      {/* License keys (one per license, each copyable + refundable) */}
+                      {/* License keys (one per license, each copyable + refundable).
+                          #1663: one shared grid, each license a `contents` row, so
+                          key / status / Refund line up in columns whether or not
+                          a row has a Refund. The balance is pooled per account,
+                          so it and Add credits show once, in Total, not per key. */}
                       <td className="px-6 py-4">
-                        <div className="flex flex-col gap-2">
+                        <div className="grid grid-cols-[repeat(3,max-content)] items-center gap-x-2 gap-y-2">
                           {customer.licenses.map((license) => (
-                            <div key={license.id} className="flex items-center gap-2 flex-wrap">
+                            <div key={license.id} className="contents">
                               <button
                                 type="button"
                                 onClick={() => copyKey(license.key)}
@@ -562,7 +591,7 @@ export default function CustomersClient() {
                                       </svg>
                                     ) : (
                                       <svg
-                                        className="h-3.5 w-3.5 text-gray-500 transition-colors group-hover:text-blue-300"
+                                        className="h-3.5 w-3.5 text-gray-400 transition-colors group-hover:text-blue-300"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         strokeWidth={1.8}
@@ -578,34 +607,17 @@ export default function CustomersClient() {
                                   </m.span>
                                 </AnimatePresence>
                               </button>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                                license.status === "revoked"
-                                  ? "bg-red-500/20 text-red-300"
-                                  : "bg-emerald-500/20 text-emerald-300"
-                              }`}>
-                                {license.status}
-                              </span>
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-300">
-                                {formatCredits(license.credits)}
-                                <span className="text-gray-500">
-                                  ({Math.floor(license.credits / CREDITS_PER_MINUTE)} min)
-                                </span>
-                              </span>
-                              <button
-                                onClick={() =>
-                                  openAddCredits({
-                                    id: license.id,
-                                    email: customer.email,
-                                    key: license.key,
-                                    credits: license.credits,
-                                  })
-                                }
-                                disabled={isTransitioning}
-                                className="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/20"
+                              <span
+                                className={`inline-flex items-center justify-self-start px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                                  license.status === "revoked"
+                                    ? "bg-red-500/20 text-red-300"
+                                    : "bg-emerald-500/20 text-emerald-300"
+                                }`}
                               >
-                                Add credits
-                              </button>
-                              {license.stripeSessionId && license.status !== "revoked" && (
+                                {licenseStatusLabel(license.status)}
+                              </span>
+                              {license.stripeSessionId &&
+                              license.status !== "revoked" ? (
                                 <button
                                   onClick={() =>
                                     setRefundTarget({
@@ -619,17 +631,42 @@ export default function CustomersClient() {
                                 >
                                   Refund
                                 </button>
+                              ) : (
+                                // Holds the Refund cell so the next license starts a new grid row.
+                                <span aria-hidden="true" />
                               )}
                             </div>
                           ))}
                         </div>
                       </td>
 
-                      {/* Total credits */}
+                      {/* Total credits. #1663: one Add credits per account, beside
+                          the pooled balance it changes; any license id reaches
+                          the same wallet on the server. */}
                       <td className="px-6 py-4">
-                        <span className="text-blue-300 text-sm font-medium">
-                          {customer.totalCredits.toLocaleString()}
-                        </span>
+                        <div className="flex flex-col items-start gap-1.5">
+                          <span className="inline-flex flex-wrap items-baseline gap-x-1 text-blue-300 text-sm font-medium">
+                            {formatCredits(customer.totalCredits)}
+                            <span className="text-gray-400 text-xs">
+                              ({Math.floor(customer.totalCredits / CREDITS_PER_MINUTE)} min)
+                            </span>
+                          </span>
+                          {customer.licenses[0] && (
+                            <button
+                              onClick={() =>
+                                openAddCredits({
+                                  id: customer.licenses[0].id,
+                                  email: customer.email,
+                                  credits: customer.totalCredits,
+                                })
+                              }
+                              disabled={isTransitioning}
+                              className="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/20"
+                            >
+                              Add credits
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Total Spend (net lifetime Stripe spend across all of this
@@ -647,7 +684,7 @@ export default function CustomersClient() {
                           (license) => license.stripeCustomerId
                         ) ? (
                           <span
-                            className="text-gray-500 text-sm font-medium"
+                            className="text-gray-400 text-sm font-medium"
                             title="No Stripe purchase on file (may have paid via another method)"
                           >
                             —
@@ -704,7 +741,7 @@ export default function CustomersClient() {
             </span>
             {isTransitioning && (
               <svg
-                className="w-3.5 h-3.5 animate-spin text-gray-500"
+                className="w-3.5 h-3.5 animate-spin text-gray-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 aria-label="Loading"
@@ -738,7 +775,7 @@ export default function CustomersClient() {
               </button>
               {getPageNumbers(page, data.totalPages).map((entry, i) =>
                 entry === "ellipsis" ? (
-                  <span key={`ellipsis-${i}`} className="text-gray-500 px-1">
+                  <span key={`ellipsis-${i}`} className="text-gray-400 px-1">
                     …
                   </span>
                 ) : (
@@ -867,12 +904,9 @@ export default function CustomersClient() {
               </button>
             </div>
 
-            {/* Key Info */}
+            {/* Account Info (the pooled balance) */}
             <div className="p-3 bg-white/5 rounded-lg space-y-1">
               <p className="text-white font-medium">{creditTarget.email}</p>
-              <p className="text-gray-300 font-mono text-sm">
-                {creditTarget.key.slice(0, 16)}...
-              </p>
               <p className="text-gray-400 text-sm">
                 Current balance: {formatCredits(creditTarget.credits)} credits
                 ({Math.floor(creditTarget.credits / CREDITS_PER_MINUTE)} minutes)
@@ -894,7 +928,7 @@ export default function CustomersClient() {
                   min="1"
                   step="1"
                   required
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
                 />
                 {creditAmount && parseFloat(creditAmount) > 0 && (
                   <p className="text-gray-400 text-xs mt-1">

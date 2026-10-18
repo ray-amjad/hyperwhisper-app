@@ -823,6 +823,9 @@ Tindakan ini tidak boleh dibuat asal.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transkripsi fail dibatalkan</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Mentranskripsi fail...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -846,11 +849,11 @@ Tindakan ini tidak boleh dibuat asal.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Mod yang membuat rakaman ini telah dipadam, jadi rakaman ini tidak dicuba semula. Dalam Sejarah, klik kanan rakaman dan pilih "Cuba semula dengan..." untuk memilih mod lain.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Rakaman dihentikan — had keselamatan 20 minit dicapai.</value>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model sedang digunakan</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} digunakan oleh mod "{1}". Tukar mod itu kepada model lain sebelum memadamkannya.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1292,6 +1301,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Itu tidak kelihatan seperti kunci akaun.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1312,8 +1324,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Rakaman atau transkripsi fail sedang berjalan. Cuba fail itu sekali lagi apabila ia selesai.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Fail ini kosong, jadi tiada audio untuk ditranskripsi.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Fail ini rosak atau bukan fail audio yang boleh dibaca oleh HyperWhisper.</value>
   </data>
 
   <!-- Mode Change Toast -->
@@ -1696,6 +1717,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Lagi...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1989,6 +2013,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Redamkan audio</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>

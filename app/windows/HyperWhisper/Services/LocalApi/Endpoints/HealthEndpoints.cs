@@ -25,30 +25,54 @@ internal static class HealthEndpoints
         app.MapGet("/health", () =>
         {
             var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0";
+            var cloudAccountKeyPresent = CloudAccountKeyPresent();
 
             var response = new HealthResponse
             {
                 AppVersion = version,
                 Port = server.ListeningPort,
                 Pid = Environment.ProcessId,
-                Providers = BuildTranscriptionProviders(server),
-                PostProcessingProviders = BuildPostProcessingProviders(server),
+                Providers = BuildTranscriptionProviders(server.ApiKeys, server.CloudHealth, cloudAccountKeyPresent),
+                PostProcessingProviders = BuildPostProcessingProviders(server.ApiKeys, server.CloudHealth, cloudAccountKeyPresent),
                 LocalModels = BuildLocalModels(server)
             };
             return LocalApiResponder.Ok(response);
         });
     }
 
-    private static List<HealthProviderStatus> BuildTranscriptionProviders(LocalApiServer server)
+    /// <summary>
+    /// Whether HyperWhisper Cloud holds an account key, read through the SAME
+    /// predicate `/transcribe` and Cloud post-processing refuse on with
+    /// MISSING_API_KEY: <see cref="LicenseManager.GetTranscriptionIdentifier"/>'s
+    /// IsLicensed (HyperWhisperCloudService.Transcription,
+    /// HyperWhisperRoutedTranscriptionClient, HyperWhisperCloudService.PostProcessing).
+    /// The HW-Cloud-routed rows used to be hard-coded true, so a profile with no
+    /// account key read key_present:true while every Cloud job was refused
+    /// (issue #650). Presence only: the identifier is discarded, never logged.
+    /// </summary>
+    internal static bool CloudAccountKeyPresent() =>
+        LicenseManager.Instance.GetTranscriptionIdentifier().IsLicensed;
+
+    /// <summary>
+    /// The HW-Cloud-routed transcription providers: they hold no BYOK key and
+    /// run only with the HyperWhisper Cloud account key
+    /// (<see cref="CloudAccountKeyPresent"/>). `/health` key_present and
+    /// `/models` installed both read this set.
+    /// </summary>
+    internal static bool UsesCloudAccountKey(CloudTranscriptionProvider provider) => provider is
+        CloudTranscriptionProvider.HyperWhisperCloud
+        or CloudTranscriptionProvider.MicrosoftAzureSpeech
+        or CloudTranscriptionProvider.GoogleSpeech;
+
+    internal static List<HealthProviderStatus> BuildTranscriptionProviders(
+        ApiKeyService? apiKeys, CloudProviderHealthService? health, bool cloudAccountKeyPresent)
     {
         var list = new List<HealthProviderStatus>();
-        var apiKeys = server.ApiKeys;
-        var health = server.CloudHealth;
         if (apiKeys == null) return list;
 
         foreach (var provider in TranscriptionProviders)
         {
-            var keyPresent = HasKeyForTranscriptionProvider(apiKeys, provider);
+            var keyPresent = HasKeyForTranscriptionProvider(apiKeys, provider, cloudAccountKeyPresent);
             var status = health?.GetHealthStatus(provider) ?? ProviderHealth.Unknown;
             var statusText = StatusString(provider, keyPresent, status);
 
@@ -63,11 +87,13 @@ internal static class HealthEndpoints
         return list;
     }
 
-    private static bool HasKeyForTranscriptionProvider(ApiKeyService apiKeys, CloudTranscriptionProvider provider)
+    private static bool HasKeyForTranscriptionProvider(
+        ApiKeyService apiKeys, CloudTranscriptionProvider provider, bool cloudAccountKeyPresent)
     {
         // OpenAI / Groq / Gemini / Grok share keys with PostProcessingProvider;
         // Deepgram / AssemblyAI / ElevenLabs / Mistral / Soniox are
-        // transcription-only. HyperWhisperCloud is keyless.
+        // transcription-only. The HW-Cloud-routed three hold no BYOK key: they
+        // need the HyperWhisper Cloud account key (CloudAccountKeyPresent).
         return provider switch
         {
             CloudTranscriptionProvider.OpenAI => apiKeys.HasApiKey(PostProcessingProvider.OpenAI),
@@ -81,20 +107,17 @@ internal static class HealthEndpoints
             CloudTranscriptionProvider.Soniox => apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
             CloudTranscriptionProvider.GeminiTranscribe => apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
             CloudTranscriptionProvider.Meta => apiKeys.HasApiKey(TranscriptionApiKeyType.Meta),
-            // HW-Cloud-routed providers are always "configured" — no API key
-            // is required (the Fly backend authenticates with license/device).
-            CloudTranscriptionProvider.HyperWhisperCloud => true,
-            CloudTranscriptionProvider.MicrosoftAzureSpeech => true,
-            CloudTranscriptionProvider.GoogleSpeech => true,
+            // HW-Cloud-routed providers: /transcribe refuses them with
+            // MISSING_API_KEY when no account key is stored, so report that.
+            _ when UsesCloudAccountKey(provider) => cloudAccountKeyPresent,
             _ => false
         };
     }
 
-    private static List<HealthProviderStatus> BuildPostProcessingProviders(LocalApiServer server)
+    internal static List<HealthProviderStatus> BuildPostProcessingProviders(
+        ApiKeyService? apiKeys, CloudProviderHealthService? health, bool cloudAccountKeyPresent)
     {
         var list = new List<HealthProviderStatus>();
-        var apiKeys = server.ApiKeys;
-        var health = server.CloudHealth;
         if (apiKeys == null) return list;
 
         foreach (PostProcessingProvider provider in Enum.GetValues<PostProcessingProvider>())
@@ -106,7 +129,11 @@ internal static class HealthEndpoints
             list.Add(new HealthProviderStatus
             {
                 Id = provider.ToStringValue(),
-                KeyPresent = apiKeys.HasApiKey(provider),
+                // HyperWhisperCloud has no BYOK slot (HasApiKey is always false
+                // for it); Cloud post-processing refuses on the account key.
+                KeyPresent = provider == PostProcessingProvider.HyperWhisperCloud
+                    ? cloudAccountKeyPresent
+                    : apiKeys.HasApiKey(provider),
                 Reachable = status == ProviderHealth.Healthy,
                 Status = StatusString(status)
             });

@@ -79,11 +79,11 @@ let package = Package(
         // MARK: - FlyingFox
         // Lightweight async/await native HTTP server. Powers the in-app
         // Local API Server (Settings → API Server).
+        // A patched copy of 0.27.1 lives in Vendor/FlyingFox: it bounds and
+        // linearises the request-head reader (issue #1463). See
+        // Vendor/FlyingFox/VENDORED.md.
         // Repository: https://github.com/swhitty/FlyingFox
-        .package(
-            url: "https://github.com/swhitty/FlyingFox.git",
-            from: "0.21.0"
-        ),
+        .package(path: "Vendor/FlyingFox"),
     ],
     
     // Targets are the basic building blocks of a package

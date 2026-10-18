@@ -9,9 +9,10 @@
 //! - **`model` is sent explicitly.** xAI added the parameter with Grok Voice
 //!   Transcribe 2.0 (2026-09-19); before that `/v1/stt` took no model at all and
 //!   this builder dropped the id the platform passed. Upstream now defaults to
-//!   `grok-voice-transcribe-2.0` and also accepts `grok-voice-transcribe-1.0`,
-//!   so relying on the default would move a user's model on xAI's schedule
-//!   rather than on a release of ours. [`resolve_model`] therefore falls back to
+//!   `grok-voice-transcribe-2.0` (xAI ended 1.0 on 2026-10-02 and routes it to
+//!   2.0; the heads fold a stored 1.0 id onto 2.0 through `hw-catalog`'s alias
+//!   table), so relying on the default would move a user's model on xAI's
+//!   schedule rather than on a release of ours. [`resolve_model`] therefore falls back to
 //!   the catalog default for a blank id — which is what every mode saved before
 //!   this change carries.
 //! - **Vocabulary is `keyterm`, repeated** — xAI takes one `keyterm` field per
@@ -58,12 +59,17 @@ pub fn default_model() -> &'static str {
 /// before xAI exposed the parameter carries an empty `cloudTranscriptionModel`
 /// for Grok, and so does any mode whose user never opened the Model row. Those
 /// resolve to the catalog default rather than to "send nothing".
-pub fn resolve_model(model: &str) -> &str {
+///
+/// A retired id is folded onto its successor through the shared alias table,
+/// as `deepgram::resolve_model` and `soniox::resolve_model` fold theirs: xAI
+/// ended `grok-voice-transcribe-1.0` on 2026-10-02, so a mode still naming it
+/// sends 2.0 (#1908).
+pub fn resolve_model(model: &str) -> String {
     let trimmed = model.trim();
     if trimmed.is_empty() {
-        default_model()
+        default_model().to_string()
     } else {
-        trimmed
+        hw_catalog::resolve_model_alias(trimmed, Some("grok"))
     }
 }
 
@@ -234,6 +240,19 @@ mod tests {
             } else {
                 panic!("expected multipart");
             }
+        }
+    }
+
+    /// #1908: xAI ended 1.0 on 2026-10-02. A mode still naming it sends 2.0.
+    #[test]
+    fn a_retired_1_0_model_is_sent_as_2_0() {
+        let mut p = params();
+        p.model = " grok-voice-transcribe-1.0 ".to_string();
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(field(parts, "model"), Some("grok-voice-transcribe-2.0"));
+        } else {
+            panic!("expected multipart");
         }
     }
 

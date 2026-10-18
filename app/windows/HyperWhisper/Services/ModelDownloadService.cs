@@ -9,6 +9,13 @@ public sealed class ModelDownloadChangedEventArgs : EventArgs
     public double Progress { get; init; }
     public bool IsCompleted { get; init; }
     public bool IsSuccess { get; init; }
+
+    /// <summary>
+    /// The download ended because it was cancelled (a Cancel press or Quit).
+    /// Check this, not the <see cref="Error"/> text, which is localized.
+    /// </summary>
+    public bool IsCancelled { get; init; }
+
     public string? Error { get; init; }
     public string? DisplayName { get; init; }
 }
@@ -80,9 +87,10 @@ public sealed class ModelDownloadService
             _downloads[model.Id] = download;
         }
 
-        RaiseChanged(model.Id, 0, isCompleted: false, isSuccess: false, error: null, model.DisplayName);
-        // ast-grep-ignore: no-discarded-task-run -- StartDownload returns bool to its caller, so the download must outlive the call
-        _ = Task.Run(() => RunDownloadAsync(download));
+        RaiseChanged(model.Id, 0, isCompleted: false, isSuccess: false, isCancelled: false, error: null, model.DisplayName);
+        // StartDownload returns bool to its caller, so the download must outlive
+        // the call; Quit awaits the task through CancelAllAsync.
+        download.Run = Task.Run(() => RunDownloadAsync(download));
         return true;
     }
 
@@ -97,14 +105,73 @@ public sealed class ModelDownloadService
         if (download == null) return;
 
         LoggingService.Info($"ModelDownloadService: Cancel requested for {download.Model.DisplayName}");
-        download.Cancellation.Cancel();
+        TryCancel(download);
+    }
+
+    /// <summary>
+    /// Cancel every running download and wait up to <paramref name="wait"/> for
+    /// each to delete its partial file or folder. Called at Quit: a download the
+    /// app exits under never reaches its own cleanup, so its partial stayed on
+    /// disk (#1599). A download that outlasts the wait is left to the next
+    /// start-up sweep (<see cref="ModelDownloadLeftovers"/>).
+    /// </summary>
+    public async Task CancelAllAsync(TimeSpan wait)
+    {
+        ActiveDownload[] downloads;
+        lock (_sync)
+        {
+            downloads = _downloads.Values.ToArray();
+        }
+
+        if (downloads.Length == 0) return;
+
+        LoggingService.Info($"ModelDownloadService: Quit cancels {downloads.Length} running download(s)");
+        foreach (var download in downloads)
+        {
+            TryCancel(download);
+        }
+
+        var runs = downloads
+            .Select(d => d.Run)
+            .OfType<Task>()
+            .ToArray();
+        if (runs.Length == 0 || wait <= TimeSpan.Zero) return;
+
+        try
+        {
+            await Task.WhenAll(runs).WaitAsync(wait).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            LoggingService.Warn("ModelDownloadService: A cancelled download had not cleaned up when Quit stopped waiting; the next start-up removes its partial");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"ModelDownloadService: Waiting for cancelled downloads failed: {ex.Message}");
+        }
+    }
+
+    private static void TryCancel(ActiveDownload download)
+    {
+        try
+        {
+            download.Cancellation.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The download finished between the lookup and the cancel.
+        }
     }
 
     private async Task RunDownloadAsync(ActiveDownload download)
     {
         Result<string> result;
+        var cancelRequested = false;
         try
         {
+            // A download clicked right after launch must not recreate a partial
+            // the start-up sweep is about to delete (#1599).
+            await ModelDownloadLeftovers.WhenSwept.ConfigureAwait(false);
             result = download.Model.Payload switch
             {
                 WhisperModelInfo whisper => await _whisperService.DownloadModelAsync(
@@ -137,6 +204,7 @@ public sealed class ModelDownloadService
                 _downloads.Remove(download.Model.Id);
             }
 
+            cancelRequested = download.Cancellation.IsCancellationRequested;
             download.Cancellation.Dispose();
         }
 
@@ -155,6 +223,7 @@ public sealed class ModelDownloadService
             download.Progress,
             isCompleted: true,
             isSuccess: result.IsSuccess,
+            isCancelled: !result.IsSuccess && cancelRequested,
             error: result.Error,
             displayName: download.Model.DisplayName);
     }
@@ -176,7 +245,7 @@ public sealed class ModelDownloadService
 
             if (shouldNotify)
             {
-                RaiseChanged(download.Model.Id, progress, isCompleted: false, isSuccess: false, error: null, download.Model.DisplayName);
+                RaiseChanged(download.Model.Id, progress, isCompleted: false, isSuccess: false, isCancelled: false, error: null, download.Model.DisplayName);
             }
         });
 
@@ -185,6 +254,7 @@ public sealed class ModelDownloadService
         double progress,
         bool isCompleted,
         bool isSuccess,
+        bool isCancelled,
         string? error,
         string? displayName)
     {
@@ -197,6 +267,7 @@ public sealed class ModelDownloadService
             Progress = progress,
             IsCompleted = isCompleted,
             IsSuccess = isSuccess,
+            IsCancelled = isCancelled,
             Error = error,
             DisplayName = displayName
         };
@@ -225,6 +296,7 @@ public sealed class ModelDownloadService
         public CancellationTokenSource Cancellation { get; } = new();
         public double Progress { get; set; }
         public double LastNotifiedProgress { get; set; }
+        public Task? Run { get; set; }
     }
 
     private sealed class DirectProgress<T> : IProgress<T>

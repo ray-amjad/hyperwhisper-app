@@ -1,4 +1,5 @@
 using HyperWhisper.Data.Entities;
+using HyperWhisper.Linux.Platform.Audio;
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.LiveStreaming;
 using HyperWhisper.Platform.Abstractions;
@@ -51,6 +52,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private const string RecordingStatus = "Recording…";
     private const string LiveRecordingStatus = "Live transcription recording…";
     private const string LiveReceivingStatus = "Live transcription receiving speech…";
+    internal const string BatchInjectionFailedStatus = "Transcription saved, but text injection failed";
 
     public LinuxInteractionRecordingSession(
         ApplicationShellViewModel viewModel,
@@ -104,8 +106,10 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         Volatile.Write(ref _liveCaptureActive, value);
         LiveCaptureChanged?.Invoke(this, EventArgs.Empty);
     }
-    /// <summary>PrepareAudio ran and no restore has taken it yet; true even before IsActive (#1038).</summary>
-    public bool HasAudioToRestore => Volatile.Read(ref _audioPrepared) != 0;
+    /// <summary>PrepareAudio ran and no restore has taken it yet, true even before IsActive (#1038); or a restore that was
+    /// taken is still waiting out its delay, which the quit must not outlive.</summary>
+    public bool HasAudioToRestore => Volatile.Read(ref _audioPrepared) != 0
+        || _services.AudioEnvironment is LinuxAudioEnvironmentService { HasPendingRestore: true };
 
     public async ValueTask<PlatformResult> StartAsync(
         InteractionRecordingKind kind,
@@ -274,12 +278,17 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             {
                 var result = await _workflow.StopAndTranscribeAsync(BuildRequest(), cancellationToken);
                 var status = result.IsSuccess ? PlatformResult.Success()
-                    : PlatformResult.Failure("workflow.transcription_failed", result.Failure?.Message ?? "Transcription failed.");
+                    : PlatformResult.Failure(FailureCodeFor(_workflow.Snapshot.ErrorCode), result.Failure?.Message ?? "Transcription failed.");
                 outcome = InteractionStopOutcome.FromInjection(
                     status, result.InjectionOutcome, _viewModel.Settings.RestoreClipboardAfterPaste);
                 _lastInjectionOutcome = result.InjectionOutcome;
                 if (result.IsSuccess && result.InjectionOutcome is { } injectionOutcome)
+                {
+                    // #1402: the live path names a failed paste in the status bar; the batch path said nothing.
+                    if (injectionOutcome == TextInjectionOutcome.Failed)
+                        _viewModel.Status.Success(BatchInjectionFailedStatus);
                     await ReportInjectionAsync(injectionOutcome);
+                }
             }
             if (outcome.Result.IsSuccess)
             {
@@ -526,12 +535,19 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         lock (_liveDeliveryGate) return _liveFinalText.ToString();
     }
 
-    private static LinuxRecordingOverlayCompletion MapCompletion(TextInjectionOutcome? outcome) => outcome switch
+    // A failed write must not read as "Copied!" while the diagnostics log says Clipboard Failed (#1703).
+    internal static LinuxRecordingOverlayCompletion MapCompletion(TextInjectionOutcome? outcome) => outcome switch
     {
         TextInjectionOutcome.Pasted => LinuxRecordingOverlayCompletion.Pasted,
         TextInjectionOutcome.SecureFieldSkipped => LinuxRecordingOverlayCompletion.SecureField,
+        TextInjectionOutcome.Failed => LinuxRecordingOverlayCompletion.CopyFailed,
         _ => LinuxRecordingOverlayCompletion.Copied,
     };
+
+    // A silent recording reads "No speech detected", not "Transcription failed" (#1742).
+    // Every other workflow failure keeps the one transcription-failed code.
+    internal static string FailureCodeFor(string? workflowErrorCode) =>
+        workflowErrorCode == "workflow.no_speech" ? workflowErrorCode : "workflow.transcription_failed";
 
     private Task ReportAsync(DiagnosticComponent component, DiagnosticOutcome outcome) =>
         _diagnostics?.ReportAsync(component, outcome) ?? Task.CompletedTask;
@@ -565,6 +581,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         {
             "duck" => AudioEnvironmentPolicy.DuckOtherAudio,
             "mute" => AudioEnvironmentPolicy.MuteOtherAudio,
+            "muffle" => AudioEnvironmentPolicy.MuffleOtherAudio,
             _ => AudioEnvironmentPolicy.Unchanged,
         };
         var environment = _services.AudioEnvironment.PrepareForRecording(policy, TimeSpan.FromMilliseconds(500));
@@ -573,12 +590,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     /// <summary>The quit puts the sink and the mic volume back before anything else (#1038). It never
     /// resumes keep-warm: a recording may still be capturing, and Dispose stops keep-warm anyway. The
-    /// session is taken once and the mic has no prior volume left, so a later restore is a no-op.</summary>
+    /// session is taken once and the mic has no prior volume left, so a later restore is a no-op. A restore a stop already
+    /// took (it waits 500 ms, then glides) is finished here at once too: otherwise the null sink outlives the app.</summary>
     public async ValueTask RestoreAudioEnvironmentForShutdownAsync()
     {
         Volatile.Write(ref _audioPrepared, 0);
         var environment = Interlocked.Exchange(ref _audioEnvironment, null);
         _ = _services.MicrophoneVolume.Restore();
+        if (_services.AudioEnvironment is LinuxAudioEnvironmentService linux)
+            try { await linux.FlushRestoresAsync(); } catch { }
         if (environment is null) return;
         try { await environment.RestoreAsync(CancellationToken.None); } catch { }
         try { await environment.DisposeAsync(); } catch { }

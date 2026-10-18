@@ -124,6 +124,10 @@ public class AudioDeviceService : IDisposable
     /// </summary>
     internal void OnDevicesChanged()
     {
+        // The endpoint set changed: drop every cached capture name now, before
+        // the debounced refresh re-reads them (#980).
+        CaptureDeviceNameCache.Shared.Clear();
+
         // Cancel any pending debounce timer
         _debounceTimer?.Stop();
         _debounceTimer?.Dispose();
@@ -239,11 +243,15 @@ public class AudioDeviceService : IDisposable
 
         /// <summary>
         /// Called when a property of an audio endpoint device changes.
-        /// We ignore property changes as they don't affect the device list.
+        /// The device list is unaffected, but a rename in the Sound control panel
+        /// arrives here, so the endpoint's cached name is dropped (#980).
         /// </summary>
         public void OnPropertyValueChanged(string deviceId, PropertyKey key)
         {
-            // Ignore property changes - they don't affect device availability
+            // Don't refresh the device list - property changes don't affect
+            // device availability. Any key: a rename can surface as more than
+            // one property, and a dropped entry only costs one re-read.
+            CaptureDeviceNameCache.Shared.Invalidate(deviceId);
         }
     }
 }

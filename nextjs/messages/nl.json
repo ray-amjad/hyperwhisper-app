@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI-spraaktranscriptie voor macOS en Windows",
-    "description": "Schrijf 5x sneller met AI-gestuurde spraaktranscriptie. HyperWhisper transcribeert je stem met ongelooflijke nauwkeurigheid op macOS en Windows. Spreek natuurlijk en zie je woorden direct verschijnen."
+    "title": "HyperWhisper - AI-spraaktranscriptie voor macOS, Windows en Linux",
+    "description": "Schrijf 5x sneller met AI-gestuurde spraaktranscriptie. HyperWhisper transcribeert je stem met ongelooflijke nauwkeurigheid op macOS, Windows en Linux. Spreek natuurlijk en zie je woorden direct verschijnen."
   },
   "navbar": {
     "features": "Functies",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Kan ik het zonder internet gebruiken?",
-        "answer": "Absoluut. HyperWhisper kan volledig offline op je Mac of Windows-pc worden gebruikt met lokale AI-modellen - geen internet vereist. Voor gebruikers die maximale nauwkeurigheid en snelheid willen, bieden we ook optionele cloudverwerking via verschillende cloudproviders."
+        "answer": "Absoluut. HyperWhisper kan volledig offline op je Mac, Windows-pc of Linux-computer worden gebruikt met lokale AI-modellen - geen internet vereist. Voor gebruikers die maximale nauwkeurigheid en snelheid willen, bieden we ook optionele cloudverwerking via verschillende cloudproviders."
       },
       "apiKey": {
         "question": "Moet ik betalen voor API-toegang?",
@@ -175,16 +175,16 @@
         "answer": "Voor offline transcriptie bieden we meerdere groottes van het Whisper-model (gemaakt door OpenAI, met ondersteuning voor 99+ talen). We bieden ook NVidia's Parakeet-modellen (met ondersteuning voor 25+ talen).\n      \n      Voor offline nabewerking bieden we meerdere groottes van het Gemma 3-model (gemaakt door Google)."
       },
       "compatibility": {
-        "question": "Werkt het met alle Mac- en Windows-apps?",
+        "question": "Werkt het met al mijn apps?",
         "answer": "Ja, het werkt overal waar je kunt typen. Of je nu e-mails schrijft, documenten maakt, codeert of chat. Druk op de sneltoets, spreek, en zie je woorden direct verschijnen."
       },
       "privacy": {
         "question": "Hoe wordt mijn privacy beschermd?",
-        "answer": "Wanneer je de lokale modus gebruikt, verlaat er geen data je Mac of Windows-pc.\n\nWanneer je cloudtranscriptie gebruikt, worden je gegevens verzonden naar de cloudprovider die je kiest (bijv. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox of Google Gemini).\n\nJe kunt dit zelf verifiëren met een netwerk-inspector zoals [Proxyman](https://proxyman.io), een netwerkmonitor zoals [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), of door de [broncode op GitHub](https://github.com/ray-amjad/hyperwhisper-app) te lezen."
+        "answer": "Wanneer je de lokale modus gebruikt, verlaat er geen data je Mac, Windows-pc of Linux-computer.\n\nWanneer je cloudtranscriptie gebruikt, worden je gegevens verzonden naar de cloudprovider die je kiest (bijv. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox of Google Gemini).\n\nJe kunt dit zelf verifiëren met een netwerk-inspector zoals [Proxyman](https://proxyman.io), een netwerkmonitor zoals [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), of door de [broncode op GitHub](https://github.com/ray-amjad/hyperwhisper-app) te lezen."
       },
       "cloud": {
         "question": "Wat is HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud is een ingebouwde cloudtranscriptie gericht op minder technische gebruikers die snel willen starten.\n\nHet werkt met pay-as-you-go-credits. Je vult je saldo op vanaf slechts $5 (1.000 credits per $1) en geeft ze alleen uit terwijl je transcribeert. Je eerste creditaankoop maakt automatisch je Account Key aan, dus er is verder niets te kopen.\n    \nWe bieden vier nauwkeurigheidsniveaus: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) en Highest (Grok STT, standaard voor nieuwe installaties en aangedreven door SpaceXAI Grok STT). Nabewerking gebeurt automatisch en gebruikt standaard Grok 4.1 Fast non-reasoning. We slaan niets op behalve hoeveel credits je hebt verbruikt, en we hebben je bij elke upstream-provider die we gebruiken afgemeld voor modeltraining. Zie onze [Data Privacy-gids](https://hyperwhisper.com/docs/data-privacy) voor details.\n\nCredits worden besteed tegen de eigen verwerkingskosten van de providers — geen opslag op transcriptie. Bij het afrekenen komt er een vaste verwerkingsfee van 6% bij, als aparte regel weergegeven. Ongebruikte credits verlopen na 12 maanden (zie hieronder).\n\nVoor de zekerheid is de hele app open source onder Apache-2.0 — inclusief de Cloud-backend. Je kunt elke regel code lezen die tussen je app en de providers waarnaar we proxyen draait [op GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud is een ingebouwde cloudtranscriptie gericht op minder technische gebruikers die snel willen starten.\n\nHet werkt met pay-as-you-go-credits. Je vult je saldo op vanaf slechts $5 (1.000 credits per $1) en geeft ze alleen uit terwijl je transcribeert. Je eerste creditaankoop maakt automatisch je Account Key aan, dus er is verder niets te kopen.\n    \nHyperWhisper Cloud geeft je 12 transcriptieproviders, van Groq Whisper tot ElevenLabs Scribe v2 (zie [de volledige lijst en tarieven](https://hyperwhisper.com/docs/cloud-credits)). Nieuwe installaties starten met ElevenLabs Scribe v2. Nabewerking gebeurt automatisch en nieuwe installaties starten met Claude Haiku 5.5. We slaan niets op behalve hoeveel credits je hebt verbruikt, en we hebben je bij elke upstream-provider die we gebruiken afgemeld voor modeltraining. Zie onze [Data Privacy-gids](https://hyperwhisper.com/docs/data-privacy) voor details.\n\nCredits worden besteed tegen de eigen verwerkingskosten van de providers — geen opslag op transcriptie. Bij het afrekenen komt er een vaste verwerkingsfee van 6% bij, als aparte regel weergegeven. Ongebruikte credits verlopen na 12 maanden (zie hieronder).\n\nVoor de zekerheid is de hele app open source onder Apache-2.0 — inclusief de Cloud-backend. Je kunt elke regel code lezen die tussen je app en de providers waarnaar we proxyen draait [op GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Worden mijn spraakgegevens gebruikt om AI-modellen te trainen?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Wat zijn de systeemvereisten?",
-        "answer": "Voor Mac: macOS 14 of nieuwer, zowel Apple Silicon als Intel ondersteund. Voor Windows: Windows 10/11, x64 of ARM64. 8GB RAM aanbevolen voor optimale prestaties."
+        "answer": "Voor Mac: macOS 14 of nieuwer, zowel Apple Silicon als Intel ondersteund. Voor Windows: Windows 10/11, x64 of ARM64. Voor Linux v1: Ubuntu 22.04 of nieuwer of Debian 12 of nieuwer op amd64. 8GB RAM aanbevolen voor optimale prestaties."
       },
       "madeBy": {
         "question": "Door wie is dit gemaakt?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Installeer via Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopiëren",
-    "copied": "Gekopieerd!"
+    "copied": "Gekopieerd!",
+    "linuxSubtitle": "Debian-pakket voor 64-bits Intel/AMD-systemen",
+    "downloadLinux": "Download voor Linux",
+    "downloadLinuxVersion": "Download voor Linux v{version}",
+    "linuxReleaseNotes": "Checksums en release notes",
+    "linuxInstallTitle": "Het Debian-pakket installeren",
+    "linuxTargets": "Linux v1 ondersteunt Ubuntu 22.04+ en Debian 12+ op amd64.",
+    "linuxReplaceVersion": "Vervang VERSION door de versie die je hebt gedownload.",
+    "linuxInstallCommandLabel": "Debian-installatieopdracht",
+    "linuxInputGroupNote": "Log uit en weer in nadat je lid bent geworden van de groep input. Lidmaatschap is optioneel, maar is nodig voor globale sneltoetsen en automatisch plakken.",
+    "aptTitle": "Host zelf een APT-repository",
+    "aptBody": "Linux-releases bevatten ook een statisch APT-repositoryarchief. HyperWhisper beheert momenteel geen openbaar APT-endpoint; zie de Linux-installatiehandleiding voor een ondertekende, zelf gehoste installatie, desktopcomponenten, privacydetails en verwijdering.",
+    "linuxGuideCta": "Lees de Linux-installatiehandleiding"
+  },
+  "olderVersions": {
+    "title": "Oudere versies",
+    "subtitle": "Blader door alle releases van HyperWhisper en download ze",
+    "errorLoading": "Fout bij het laden van versies: {error}",
+    "unknownError": "Er is een fout opgetreden",
+    "loading": "Versies laden...",
+    "latest": "Nieuwste",
+    "build": "Build {number}",
+    "downloadDmg": "DMG downloaden",
+    "downloadExe": "EXE downloaden",
+    "unknownSize": "Onbekend"
   },
   "purchaseSuccess": {
     "title": "Helemaal klaar!",
@@ -289,7 +313,7 @@
     "loading": "Laden..."
   },
   "footer": {
-    "tagline": "Schrijf 5x sneller met AI-gestuurde spraaktranscriptie voor macOS en Windows.",
+    "tagline": "Schrijf 5x sneller met AI-gestuurde spraaktranscriptie voor macOS, Windows en Linux.",
     "product": "Product",
     "resources": "Resources",
     "company": "Bedrijf",
@@ -389,6 +413,35 @@
   "openSource": {
     "heading": "Open source. Niets te verbergen.",
     "body": "HyperWhisper is volledig open source onder Apache-2.0 — zowel de desktop-apps als de Cloud-backend. Een app die naar je microfoon luistert, moet iets zijn dat je kunt verifiëren, niet alleen vertrouwen: lees elke regel, controleer precies waar je audio naartoe gaat en weet zeker dat je nooit vastzit — de code is van jou om voor altijd te forken en zelf te hosten. Gemaakt in de openbaarheid door indie maker Ray Amjad.",
-    "cta": "Bekijk op GitHub"
+    "cta": "Bekijk op GitHub",
+    "metaTitle": "Open source | HyperWhisper",
+    "metaDescription": "HyperWhisper is volledig open source onder Apache-2.0 — zowel de desktop-apps als de Cloud-backend. Lees de code, controleer waar je audio naartoe gaat, fork hem en host hem voor altijd zelf.",
+    "eyebrow": "Open source",
+    "lead": "HyperWhisper is nu volledig open source onder Apache-2.0 — zowel de desktop-apps als de Cloud-backend.",
+    "intro": "Een app die naar je microfoon luistert, moet iets zijn dat je kunt verifiëren, niet alleen vertrouwen. Daarom hebben we alles opengesteld. Je kunt elke regel van HyperWhisper lezen — de apps voor macOS, Windows en Linux en de Cloud-transcriptiebackend —, precies zien waar je audio naartoe gaat en weten dat je nooit vastzit. Het hele project staat op <github>GitHub</github> onder de <license>Apache-2.0-licentie</license>.",
+    "whyHeading": "Waarom dit belangrijk is",
+    "whyVerify": "<strong>Verifiëren, niet blind vertrouwen.</strong> Lees elke regel en controleer precies waar je audio naartoe gaat. Een app met toegang tot je microfoon moet je kunnen inspecteren, niet alleen op goed vertrouwen aannemen.",
+    "whyNoLockIn": "<strong>Geen lock-in.</strong> De code valt onder Apache-2.0 — van jou om te houden, aan te passen en op je eigen voorwaarden te draaien. Je workflow wordt nooit gegijzeld.",
+    "whyFork": "<strong>Fork en host zelf.</strong> Kloon de repository, bouw hem zelf of draai je eigen Cloud-backend. Alles wat je nodig hebt is openbaar.",
+    "whyOpen": "<strong>Openlijk gebouwd.</strong> HyperWhisper wordt publiek ontwikkeld door indie maker Ray Amjad. Issues, discussies en releases gebeuren allemaal in de openbaarheid.",
+    "licenseHeading": "Al een licentie gekocht?",
+    "licenseIntro": "HyperWhisper is nu open source en betaalde transcriptie werkt met HyperWhisper Cloud-tegoed. Heb je vóór de overstap een licentie gekocht? Zo zorgen we voor je — mail gewoon naar <mail>{email}</mail> en we regelen het handmatig.",
+    "licenseRecent": "<strong>In de afgelopen 30 dagen gekocht:</strong> je valt binnen de terugbetalingstermijn. We betalen je aankoop volledig terug, zonder vragen. <refund>Stuur ons gewoon een berichtje</refund>.",
+    "licenseOlder": "<strong>Meer dan 30 dagen geleden gekocht:</strong> we zetten wat je hebt betaald om in HyperWhisper Cloud-tegoed — de volledige aankoopprijs, min de $5 aan tegoed die al aan je account is toegevoegd. <credits>Mail ons</credits> en we schrijven het resterende bedrag bij.",
+    "contributeHeading": "Wil je bijdragen?",
+    "contributeBody": "Bugmeldingen, ideeën voor functies en pull requests zijn allemaal welkom. Open een issue of start een discussie <github>op GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper is nu volledig open source",
+    "shortText": "Nu open source",
+    "learnMore": "Meer informatie",
+    "dismiss": "Aankondiging sluiten"
+  },
+  "notFound": {
+    "title": "Pagina niet gevonden",
+    "heading": "Deze pagina bestaat niet",
+    "description": "De link is mogelijk defect of de pagina is verplaatst.",
+    "home": "Naar de startpagina",
+    "download": "HyperWhisper downloaden"
   }
 }

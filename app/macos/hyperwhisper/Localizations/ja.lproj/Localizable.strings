@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "診断情報を書き出しました";
 "alerts.export.diagnostics.success.message" = "すべての診断ログの書き出しに成功しました。";
 "alerts.export.diagnostics.saveFailed.message" = "選択した場所に診断情報を保存できませんでした: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "システムログなしで診断情報を書き出しました";
+"alerts.export.diagnostics.noSystemLogs.message" = "診断ファイルは保存されましたが、アプリのシステムログを読み取れなかったため、system-logs.txt には理由のみが記録されています。理由: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "サポート用に更新ログを書き出します";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "オンボーディングを完了";
 
 "onboarding.setupLater.button" = "あとで設定";
-"onboarding.error.microphone.denied" = "マイクの許可が拒否されました。システム設定で許可してください。";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "ログイン時に起動";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "オフ";
 "settings.general.mediaControl.mode.mute" = "オーディオをミュート";
+"settings.general.mediaControl.mode.muffle" = "オーディオをこもらせる";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,7 +324,7 @@
 "settings.sound.soundEffects.title" = "効果音を再生";
 "settings.sound.soundEffects.info" = "録音の開始時と停止時にオーディオキューを再生します。";
 "settings.sound.mediaControl.title" = "録音中のメディア制御";
-"settings.sound.mediaControl.info" = "録音中HyperWhisperが他のオーディオをどのように処理するかを選択します。「オフ」はオーディオを変更せず、「オーディオをミュート」は録音中にシステム出力をミュートし、その後復元します。";
+"settings.sound.mediaControl.info" = "録音中HyperWhisperが他のオーディオをどのように処理するかを選択します。「オフ」はオーディオを変更せず、「オーディオをミュート」は録音中にシステム出力をミュートし、その後復元します。「オーディオをこもらせる」は、隣の部屋から聞こえるように静かに再生し続けます。";
 "settings.sound.autoIncreaseMicVolume.title" = "録音開始時にマイク音量を自動で最大化";
 "settings.sound.autoIncreaseMicVolume.info" = "録音開始時にマイクの入力音量を自動的に最大に設定し、録音終了時に元の音量に戻します。システムのデフォルト入力デバイスを使用している場合のみ適用されます。";
 "settings.sound.vad.title" = "文字起こし前に無音を除去";
@@ -336,6 +338,9 @@
 "settings.storage.choose.button" = "選択...";
 "settings.storage.dialog.select" = "フォルダを選択";
 "settings.storage.dialog.message" = "録音を保存するフォルダを選択してください";
+"settings.storage.folderRefused.title" = "このフォルダは使用できません";
+"settings.storage.folderRefused.notWritable" = "「%@」への書き込み権限がないため、HyperWhisperはそこに録音を保存できません。録音フォルダは変更されていません。";
+"settings.storage.folderRefused.createFailed" = "HyperWhisperはこのフォルダを作成できませんでした: %@ 録音フォルダは変更されていません。";
 "settings.storage.storeAsM4A.title" = "録音をM4Aに圧縮";
 "settings.storage.storeAsM4A.subtitle" = "文字起こし後にWAV録音をより小さいファイルに変換します。オフにすると元のWAVファイルを保持します（容量は大きいがロスレス）。";
 
@@ -383,6 +388,7 @@
 
 "settings.shortcuts.changeMode.title" = "モードを切り替え";
 "settings.shortcuts.changeMode.subtitle" = "録音中のみ有効";
+"settings.shortcuts.conflict.alert" = "このキーボードショートカットは「%@」で既に使用されているため使用できません。";
 
 "settings.shortcuts.reset.button" = "デフォルトにリセット";
 "settings.shortcuts.reset.dialog.title" = "キーボードショートカットをリセット";
@@ -434,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "クリップボードから貼り付け";
 "settings.license.clearInput" = "クリア";
+"license.error.keyFormat" = "アカウントキーの形式ではないようです。";
 "settings.license.recovery.prompt" = "ライセンスキーをお忘れですか？";
 "settings.license.recovery.button" = "カスタマーポータルを開く";
 "settings.license.daily.title" = "1日の文字起こし制限";
@@ -576,6 +583,8 @@
 "onboarding.configure.cloud.note" = "クレジットは前払い制で、このキーでサインインしたすべてのMacで共有されます。何もしていない時間には料金がかかりません。";
 "onboarding.source.note" = "後で気が変わっても、やり直すのはこの1ステップだけです。他に設定した内容は失われません。";
 "onboarding.permissions.note" = "アクセシビリティをスキップすると、文字起こし結果はクリップボードに送られ、すぐに貼り付けられる状態になります。後から有効にするのはワンクリックです。";
+"onboarding.permissions.microphone.denied" = "許可されていません。システム設定で HyperWhisper をオンにしてから、ここに戻ってください。";
+"onboarding.permissions.continueNeedsMicrophone" = "続けるにはマイクが必要です。上で許可するか、「後で設定」を選んでください。";
 "onboarding.welcome.task1.title" = "文字起こしの実行方法を選ぶ";
 "onboarding.welcome.task1.caption" = "当社のクラウド、このMac上、またはすでに契約しているプロバイダーのアカウント経由のいずれかです。";
 "onboarding.welcome.task2.title" = "マイクを確認する";
@@ -683,6 +692,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "モードを削除しますか？";
 "modes.delete.confirm.message" = "選択したモードを削除します。この操作は元に戻せません。";
+"modes.editor.discard.title" = "保存されていない変更を破棄しますか？";
+"modes.editor.discard.message" = "このモードへの変更は保存されていません。";
+"modes.editor.discard.keepEditing" = "編集を続ける";
+"modes.editor.discard.button" = "破棄";
 "modes.header.title" = "モード";
 "modes.header.subtitle" = "用途に合わせたカスタムプロファイルを作成できます";
 "modes.header.create" = "モードを作成";
@@ -788,6 +801,7 @@
 "modes.field.name.placeholder" = "例: 会議メモ";
 "modes.field.name.editPlaceholder" = "モード名";
 "modes.field.name.defaultLocked" = "これは既定のモードのため、名前を変更できません。他のモードの名前は変更できます。";
+"modes.field.name.taken" = "その名前のモードは既に存在します。";
 "modes.field.model" = "モデル";
 "modes.field.provider" = "プロバイダー";
 "modes.provider.local" = "ローカル";
@@ -814,8 +828,9 @@
 "transcripts.delete.single.message" = "この録音と音声ファイルを完全に削除します。";
 "transcripts.delete.multiple.title" = "%d件の録音を削除しますか？";
 "transcripts.delete.multiple.message" = "選択した %d 件の録音と音声ファイルを完全に削除します。\n\nこの操作は元に戻せません。";
-"transcripts.delete.multiple.confirm" = "すべて削除";
+"transcripts.delete.multiple.confirm" = "%d件の録音を削除";
 "transcripts.retry.error.title" = "再試行に失敗しました";
+"transcripts.retry.error.modeDeleted" = "この録音を作成したモードは削除されたため、再試行しませんでした。履歴で録音を右クリックし、\"指定モードで再試行...\" を選んで別のモードを指定してください。";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "録音フォルダを選択";
@@ -866,8 +881,8 @@
 "recording.retry.inProgress" = "再試行中…";
 "recording.retry.count" = "再試行 (%d)";
 "recording.retry.failed.missing" = "再試行に失敗: 音声ファイルが見つかりません";
-"recording.retry.failed.error" = "再試行に失敗: %@";
 "recording.retry.pending" = "再試行できます – クリックして文字起こし";
+"recording.retry.modeDeleted" = "モードは削除されました";
 "recording.cancel.dialog.title" = "録音をキャンセルしますか？";
 "recording.cancel.dialog.message" = "現在の録音は破棄されます。";
 "recording.cancel.dialog.confirm" = "録音をキャンセル";
@@ -894,6 +909,7 @@
 "audio.error.microphonePermission" = "マイクの許可が付与されていません";
 "audio.error.microphoneInUse" = "他のアプリがマイクを使用しているため HyperWhisper はマイクにアクセスできません。他の録音や通話を一時停止するか、別の入力を選択してから再度お試しください。";
 "audio.error.audioSystemNotResponding" = "macOS のオーディオが応答しないため、マイクを開始できませんでした。しばらくしてからもう一度お試しください。繰り返し発生する場合は、Mac を再起動してください。";
+"audio.error.recorderStopTimedOut" = "録音の保存中に macOS のオーディオが応答しなくなったため、文字起こしは行われませんでした。音声は保持されています。次回の起動時に HyperWhisper が復元を試みます。";
 "audio.error.createEngine" = "オーディオエンジンの作成に失敗しました";
 "audio.error.noInput" = "利用できるオーディオ入力がありません";
 "audio.error.createFile" = "オーディオファイルの作成に失敗しました";
@@ -967,10 +983,15 @@
 "transcription.guidance.quotaExceeded" = "%@ のアカウントにクレジットを追加するか、請求設定を更新してください";
 "transcription.guidance.timeout" = "リクエストに時間がかかり過ぎました。ネットワーク速度を確認して再試行してください。";
 "transcription.error.noSpeechDetected" = "録音内に音声が検出されませんでした。";
+"transcription.error.audioTooShort" = "録音が短すぎるため文字起こしできません。もう少し長く録音してください。";
 "transcription.guidance.noSpeechDetected" = "ヒント:\n• マイクに向かってはっきり話してください\n• 話し始める前にキーを長めに押し続けてください\n• マイクが正常に動作しているか確認してください\n• 正しい入力デバイスが選択されているか確認してください";
 "transcription.guidance.needsNativeRelaunch" = "ローカル後処理を使用するには、HyperWhisper を終了し、ネイティブで開き直してください。";
 "transcription.guidance.localRuntimeUnavailable" = "もう一度お試しいただくか、モード設定でより小さいローカルモデルを選択してください。";
 "transcription.error.localRuntimeUnavailable" = "ローカル AI が処理を完了できませんでした — 未処理の文字起こしは保持されています。";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ が API キーを拒否しました — 未処理の文字起こしは保持されています。";
+"transcription.error.postProcessingPreflight.unreachable" = "%@ に接続できません — 未処理の文字起こしは保持されています。";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ がインストールされていません — 未処理の文字起こしは保持されています。";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ を利用できません — 未処理の文字起こしは保持されています。";
 "transcription.error.localSpeechModelEvicted" = "メモリを解放するため音声モデルが解放され、再読み込みできませんでした。ほかのアプリを閉じてもう一度お試しください。";
 "settings.backup.localDownload.title" = "ローカルモデルをダウンロードしますか？";
 "settings.backup.localDownload.message" = "復元したモードのうち %d 個は、まだダウンロードされていないオンデバイス AI モデルを使用します。";
@@ -1062,6 +1083,13 @@
 "settings.backup.import.error.decode.corruptedField" = "フィールドの値が破損しています: %@";
 "settings.backup.import.error.version" = "新しいバージョンで作成されたバックアップファイルです";
 "settings.backup.import.error.unknown" = "インポートに失敗しました";
+"settings.backup.import.error.storeModes" = "モードを保存できなかったため、変更されていません。";
+"settings.backup.import.error.storeModesAndVocabulary" = "モードを保存できなかったため、モードと語彙は変更されていません。";
+"settings.backup.import.error.storeVocabulary" = "語彙を保存できなかったため、変更されていません。";
+"settings.backup.import.error.storeVocabularyAfterModes" = "モードはインポートされましたが、語彙を保存できなかったため、語彙は変更されていません。";
+"settings.backup.import.error.storeLicense" = "ライセンスキーを安全にインポートできませんでした。";
+"settings.backup.import.error.storeSettingsRestored" = "設定は変更されていません。";
+"settings.backup.import.error.storeOtherSections" = "選択したその他の項目は適用されました。";
 "settings.backup.import.apiKeysFailed" = "次の API キーはキーチェーンに保存できず、復元されませんでした: %@。設定でもう一度入力してください。";
 "settings.backup.import.confirm.title" = "設定をインポートしますか？";
 "settings.backup.import.confirm.message" = "既存のモードと語彙がバックアップファイルの内容に置き換えられます。設定も更新されます。";
@@ -1098,6 +1126,13 @@
 "transcribe.file.error.format.title" = "サポートされていない形式";
 "transcribe.file.error.format.message" = ".%@ファイルは%@でサポートされていません。対応形式: %@";
 "transcribe.file.error.read" = "選択したファイルを読み込めません。";
+"transcribe.file.error.webm" = "WebM には対応していません。ファイルを MP3、M4A、WAV のいずれかに変換してから、もう一度お試しください。";
+"transcribe.file.error.notAudio" = "「%@」は有効な音声ファイルではありません。ファイルが破損しているか、macOS がデコードできない形式の可能性があります。";
+"transcribe.file.error.empty" = "「%@」は空のファイルです。文字起こしする音声が含まれていません。";
+"transcribe.file.error.permission" = "HyperWhisper はファイル「%@」を読み込めません。ファイルのアクセス権を確認してください。";
+"transcribe.file.error.folderPermission" = "HyperWhisper はファイル「%@」を含むフォルダを開けません。そのフォルダのアクセス権を確認してください。";
+"transcribe.file.error.privacy" = "macOS のプライバシー設定により、HyperWhisper はファイル「%@」を読み込めませんでした。システム設定 > プライバシーとセキュリティ > フルディスクアクセスで許可してください。";
+"transcribe.file.error.tooShort" = "このファイルは短すぎるため文字起こしできません（%@ 秒）。";
 "transcribe.file.error.copy" = "録音フォルダへのファイルコピーに失敗しました。";
 "transcribe.file.error.video.title" = "動画に音声がありません";
 "transcribe.file.error.video.noAudio" = "この動画ファイルには音声トラックが含まれていません。音声付きの動画または音声ファイルを選択してください。";

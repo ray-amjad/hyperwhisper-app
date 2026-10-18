@@ -823,6 +823,9 @@ Esta ação não pode ser desfeita.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transcrição do ficheiro cancelada</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>A transcrever ficheiro...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Desconhecido</value>
   </data>
@@ -846,11 +849,11 @@ Esta ação não pode ser desfeita.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>A transcrição falhou: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Não há nenhum modo disponível para tentar novamente.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>A nova tentativa falhou: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>O modo que fez esta gravação foi excluído, então ela não foi tentada novamente. Em Histórico, clique com o botão direito na gravação e escolha "Tentar novamente com..." para escolher outro modo.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Gravação parada — limite de segurança de 20 minutos atingido.</value>
@@ -1159,6 +1162,12 @@ Pode voltar a descarregá-lo mais tarde.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modelo em uso</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} é usado pelo modo "{1}". Mude esse modo para outro modelo antes de excluí-lo.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Desativar licença</value>
@@ -1292,6 +1301,9 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Introduza uma chave de licença.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Isto não parece uma chave da conta.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1312,8 +1324,17 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>Ficheiro não encontrado</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Já está em curso uma gravação ou transcrição de ficheiro. Tente o ficheiro novamente quando terminar.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>O ficheiro é demasiado grande para este fornecedor. Tamanho máximo: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Este ficheiro está vazio, por isso não há áudio para transcrever.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Este ficheiro está danificado ou não é um ficheiro de áudio que o HyperWhisper consiga ler.</value>
   </data>
 
   <!-- Mode Change Toast -->
@@ -1696,6 +1717,9 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Sem nome</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Mais...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcrever ficheiro</value>
   </data>
@@ -1989,6 +2013,9 @@ Pode voltar a descarregá-lo mais tarde.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Silenciar o áudio</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Abafar o áudio</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Manter o microfone ativo</value>

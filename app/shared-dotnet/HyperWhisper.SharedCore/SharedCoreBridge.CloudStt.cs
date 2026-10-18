@@ -15,6 +15,27 @@ public static partial class SharedCoreBridge
         HyperwhisperCoreMethods.CloudSttProvider(tierId);
 
     /// <summary>
+    /// The <c>cloudProvider</c> a CLOUD mode runs on (issue #1709). A missing value — null,
+    /// empty or whitespace — means HyperWhisper Cloud, and that answer comes from the shared
+    /// core (<c>cloud_stt_effective_mode_cloud_provider</c>), the one rule macOS and Windows
+    /// read too. <c>openapi.yaml</c> lets <c>POST /modes</c> omit the key, so such a mode is
+    /// stored with a null provider and every reader on this head must agree on what it means.
+    /// </summary>
+    /// <remarks>
+    /// A non-blank value is returned AS STORED. This head's parsers
+    /// (<c>ModeAwareTranscriptionRouter.TryMapProvider</c> and friends) already trim and
+    /// lower-case it, and they still route the legacy ids <c>googlespeech</c> and
+    /// <c>microsoftazurespeech</c> that the Mode editor offers. The core's non-blank branch
+    /// folds those onto <c>hyperwhisper</c> (it is <c>normalize_cloud_provider</c>'s storage
+    /// fold), which would move such a mode to a different vendor and price. #1709 changes the
+    /// blank case only. Call this only for a cloud mode: a local mode's null is deliberate.
+    /// </remarks>
+    public static string EffectiveModeCloudProvider(string? storedCloudProvider) =>
+        string.IsNullOrWhiteSpace(storedCloudProvider)
+            ? HyperwhisperCoreMethods.CloudSttEffectiveModeCloudProvider(storedCloudProvider)
+            : storedCloudProvider;
+
+    /// <summary>
     /// Cloud-tier entry ids HyperWhisper Cloud can also serve LIVE, in catalog
     /// order — the eligible set for the streaming cloud-tier picker.
     ///
@@ -239,11 +260,9 @@ public static partial class SharedCoreBridge
     ///
     /// It rescues an alias only when the alias TARGET is still catalogued.
     /// <c>universal</c> resolves to <c>universal-2</c>, which the
-    /// <c>assemblyAI</c> entry carries. Two of Gemini's aliases resolve to
-    /// <c>gemini-3.6-flash</c> and <c>gemini-3.1-flash-lite</c>, which the
-    /// <c>gemini</c> entry does not carry, so those ids are still judged foreign
-    /// — the alias table and the catalog disagree, which is a data question and
-    /// not this method's to answer.
+    /// <c>assemblyAI</c> entry carries. Keeping every alias target catalogued is
+    /// the alias table's job, not this method's: <c>hw-catalog</c>'s
+    /// <c>alias_targets_are_catalogued</c> test pins it (issue #796).
     ///
     /// The comparison is case-insensitive to match Windows
     /// <c>CloudTranscriptionModels.GetById</c>, whose final compare is

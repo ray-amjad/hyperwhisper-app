@@ -42,7 +42,7 @@ namespace HyperWhisper.Services.Onboarding;
 /// Microphone consent plus the "your shortcut works" row.
 ///
 /// Row 2 is the global shortcut rather than macOS's Accessibility grant, because
-/// Windows has no Accessibility analogue: RegisterHotKey, SetWindowsHookEx,
+/// Windows has no Accessibility analogue: RegisterHotKey, a low-level keyboard hook,
 /// SendInput and UI Automation all work here without a user grant. Registering
 /// the shortcut genuinely fails though - Win32 1409 "already registered by
 /// another application" is a daily occurrence - so the row is a real
@@ -979,11 +979,17 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
                 mode.Model = staged.Model;
                 mode.ModelType = staged.Model;
             }
+
+            // A Parakeet pick left Model as it was, which is "cloud" once a cloud
+            // source has been committed (the else arm below). Model is the portable
+            // routing field on macOS, so keep it local too (#1477).
+            LocalModeModel.ApplyOnDevice(mode);
         }
         else
         {
-            mode.ProviderType = "cloud";
-            mode.Model = staged.Model;
+            // staged.Model is always "cloud" for a cloud source (the flow's
+            // StagedSource); ApplyCloud writes the same sentinel by name.
+            LocalModeModel.ApplyCloud(mode);
             mode.ModelType = staged.Model;
         }
     }

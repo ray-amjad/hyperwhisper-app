@@ -160,6 +160,10 @@ public partial class TranscriptViewModel : ObservableObject
             _source.Text = updated.Text;
             _source.TranscribedText = updated.TranscribedText;
             _source.PostProcessedText = updated.PostProcessedText;
+            // A background compression re-points a row at its M4A with a re-read row
+            // (#1499). Without this, a later edit's ToEntity would write the deleted
+            // WAV path back.
+            _source.AudioFilePath = updated.AudioFilePath;
             _source.Status = updated.Status;
             _source.FailedReason = updated.FailedReason;
             _source.TranscriptionProvider = updated.TranscriptionProvider;

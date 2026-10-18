@@ -21,6 +21,18 @@
 import Foundation
 import SwiftUI
 
+// MARK: - UserDefaults Keys
+
+/// The `UserDefaults.standard` keys behind audio settings that are also read
+/// off the main actor (HYPERWHISPER-10D, #1648).
+///
+/// Shared by the `@AppStorage` property below and by the plain reader in
+/// `KeepWarmDefaultsObserver`, so the two can never read different keys.
+/// Deliberately not main-actor isolated.
+enum AudioDefaultsKey {
+    static let keepMicrophoneWarm = "keepMicrophoneWarm"
+}
+
 /// Manages audio-related application settings
 @MainActor
 class AudioSettingsManager: ObservableObject {
@@ -38,7 +50,7 @@ class AudioSettingsManager: ObservableObject {
 
     /// Whether HyperWhisper keeps an idle microphone session running between recordings.
     /// This reduces push-to-talk startup delay, especially on Bluetooth devices.
-    @AppStorage("keepMicrophoneWarm") var keepMicrophoneWarm: Bool = false
+    @AppStorage(AudioDefaultsKey.keepMicrophoneWarm) var keepMicrophoneWarm: Bool = false
 
     /// MEDIA CONTROL MODE SETTING
     /// Controls how HyperWhisper handles other audio sources during recording.
@@ -167,6 +179,8 @@ enum SoundTheme: String, CaseIterable {
 /// BEHAVIOR:
 /// - .off: No audio changes during recording (default)
 /// - .muteAudio: Mutes system output volume, restores after recording
+/// - .muffleAudio: Keeps other audio playing through a low-pass filter, so it
+///   sounds like it plays in the next room (Core Audio process tap)
 ///
 /// MIGRATION:
 /// - v2.30: Users with the old boolean "pauseOtherAudioDuringRecording" setting
@@ -176,6 +190,7 @@ enum SoundTheme: String, CaseIterable {
 enum MediaControlMode: String, CaseIterable, Codable {
     case off
     case muteAudio
+    case muffleAudio
 
     /// Localized display name for use in the settings UI
     /// Returns translated string based on current app locale
@@ -185,6 +200,8 @@ enum MediaControlMode: String, CaseIterable, Codable {
             return NSLocalizedString("settings.general.mediaControl.mode.off", value: "Off", comment: "Media control mode: disabled")
         case .muteAudio:
             return NSLocalizedString("settings.general.mediaControl.mode.mute", value: "Mute Audio", comment: "Media control mode: mute system audio")
+        case .muffleAudio:
+            return NSLocalizedString("settings.general.mediaControl.mode.muffle", value: "Muffle Audio", comment: "Media control mode: muffle other audio with a low-pass filter")
         }
     }
 

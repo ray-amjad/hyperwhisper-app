@@ -9,7 +9,8 @@
 //  Since transcription APIs don't provide real-time progress, we use discrete stages
 //  with smooth animated transitions between them:
 //  - Preparing (0-15%): File copy, video extraction, VAD processing
-//  - Transcribing (15-85%): API call (slow animated progress)
+//  - Transcribing (15-85%): API call (slow animated progress). A job that outlasts
+//    the timed ramp switches to an indeterminate bar instead of sitting at 85% (#1437).
 //  - Finishing (85-100%): Post-processing, saving
 //
 //  ANIMATION STRATEGY:
@@ -87,6 +88,13 @@ final class FileTranscriptionProgress: ObservableObject {
     /// Name of the transcription mode (for display)
     @Published var modeName: String = ""
 
+    /// Whether the bar no longer knows how far along the job is.
+    ///
+    /// Set when a ramp started with `thenIndeterminate: true` reaches its target
+    /// while the job is still running. The popup then draws a moving bar with no
+    /// percentage, so a long transcription does not look hung at 85% (#1437).
+    @Published var isIndeterminate: Bool = false
+
     // MARK: - Private Properties
 
     /// Timer for smooth progress animation
@@ -103,6 +111,9 @@ final class FileTranscriptionProgress: ObservableObject {
 
     /// Duration for current animation
     private var animationDuration: TimeInterval = 0.0
+
+    /// Whether the current animation hands over to the indeterminate state when it ends
+    private var becomesIndeterminateAtTarget = false
 
     // MARK: - Public Methods
 
@@ -157,9 +168,13 @@ final class FileTranscriptionProgress: ObservableObject {
     /// - Parameters:
     ///   - target: Target progress value (0.0 to 1.0)
     ///   - duration: Animation duration in seconds
-    func animateProgress(to target: Float, duration: TimeInterval) {
+    ///   - thenIndeterminate: Switch to `isIndeterminate` if the target is reached
+    ///     before a later call moves the bar on (the open-ended transcribing wait)
+    func animateProgress(to target: Float, duration: TimeInterval, thenIndeterminate: Bool = false) {
         // Stop any existing animation
         animationTimer?.invalidate()
+        isIndeterminate = false
+        becomesIndeterminateAtTarget = thenIndeterminate
 
         // Store animation parameters
         startProgress = progress
@@ -194,6 +209,7 @@ final class FileTranscriptionProgress: ObservableObject {
         isCancelled = true
         animationTimer?.invalidate()
         animationTimer = nil
+        becomesIndeterminateAtTarget = false
     }
 
     /// Reset state for next transcription
@@ -208,6 +224,8 @@ final class FileTranscriptionProgress: ObservableObject {
 
         stage = .preparing
         progress = 0.0
+        isIndeterminate = false
+        becomesIndeterminateAtTarget = false
         isActive = false
         isCancelled = false
         fileName = ""
@@ -246,6 +264,10 @@ final class FileTranscriptionProgress: ObservableObject {
             timer.invalidate()
             animationTimer = nil
             progress = targetProgress
+            if becomesIndeterminateAtTarget {
+                becomesIndeterminateAtTarget = false
+                isIndeterminate = true
+            }
         }
     }
 

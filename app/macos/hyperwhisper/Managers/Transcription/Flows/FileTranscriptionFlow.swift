@@ -130,8 +130,12 @@ class FileTranscriptionFlow {
     /// Supported audio and video file types for import
     ///
     /// **Audio Files:**
-    /// Most transcription providers accept: mp3, mp4, mpeg, mpga, m4a, wav, webm
+    /// Most transcription providers accept: mp3, mp4, mpeg, mpga, m4a, wav
     /// Audio files are sent directly to transcription providers.
+    ///
+    /// **Not WebM (issue #1426):** AVFoundation cannot open WebM/Opus, so the
+    /// duration read fails before any provider sees the file. A WebM picked anyway
+    /// (Cmd+Shift+G) is refused with `FileTranscriptionError.webmNotSupported`.
     ///
     /// **Video Files (MP4, MOV):**
     /// Video files are supported by extracting the audio track locally before
@@ -144,7 +148,6 @@ class FileTranscriptionFlow {
         .mp3,             // MPEG Audio Layer III
         .mpeg4Audio,      // M4A / AAC
         .aiff,            // Audio Interchange File Format
-        UTType(filenameExtension: "webm") ?? .audio,  // WebM audio
         UTType(filenameExtension: "ogg") ?? .audio,   // Ogg Vorbis
         UTType(filenameExtension: "flac") ?? .audio,  // Free Lossless Audio Codec
         // Video formats (audio will be extracted)
@@ -298,7 +301,10 @@ class FileTranscriptionFlow {
             Self.isFilePickerOpen = false
 
             guard response == .OK, let selectedURL = panel.url else {
-                AppLogger.transcription.info("📂 File picker cancelled")
+                // Which exit, so a silent close can be told from a cancel in
+                // the log (issue #1551 case B).
+                let reason = response == .OK ? "OK with no URL" : "response \(response.rawValue)"
+                AppLogger.transcription.info("📂 File picker cancelled (\(reason, privacy: .public))")
                 return
             }
 
@@ -352,26 +358,47 @@ class FileTranscriptionFlow {
             }
         )
 
+        // Read once STEP 4 knows it, so a too-short error from the engine can
+        // name the file's length (#1427).
+        var importDuration: TimeInterval?
+
         do {
-            // STEP 2a: Validate file size against provider limits (0-5%)
+            // STEP 2a: The source must be readable, and if it is not, the alert
+            // names it and the cause (issue #1551). Otherwise the first read is
+            // the copy below, whose Foundation error names the recordings folder.
             progressState.animateProgress(to: 0.03, duration: 0.2)
+            try Self.checkSourceReadable(fileURL)
+
+            // STEP 2b: Validate file size against provider limits (0-5%)
             try validateFileSize(fileURL, for: mode)
 
             // Check for cancellation
             guard !progressState.isCancelled else { throw CancellationError() }
 
-            // STEP 2b: Validate file format is supported by provider
+            // STEP 2c: Validate file format is supported by provider
             // This catches unsupported formats early with a helpful error message
             // rather than letting the API return a cryptic error after upload
             progressState.animateProgress(to: 0.05, duration: 0.2)
-            try validateFileFormat(fileURL, for: mode)
+            // The header, not the name, says what the file is: AVFoundation picks
+            // its parser by extension, so a WAV named .mp3 or with no extension
+            // fails to open. The copy below is named after the real format.
+            let detectedFormat = AudioContainerSniffer.detect(url: fileURL)
+            if detectedFormat == .webm
+                || (detectedFormat == nil && fileURL.pathExtension.lowercased() == "webm") {
+                throw FileTranscriptionError.webmNotSupported
+            }
+            let fileExtension = AudioContainerSniffer.effectiveExtension(for: fileURL, detected: detectedFormat)
+            if fileExtension != fileURL.pathExtension {
+                AppLogger.transcription.info("📄 Extension .\(fileURL.pathExtension.lowercased(), privacy: .public) does not match contents; reading as .\(fileExtension, privacy: .public)")
+            }
+            try validateFileFormat(fileExtension: fileExtension, for: mode)
 
             // Check for cancellation
             guard !progressState.isCancelled else { throw CancellationError() }
 
             // STEP 3: Copy file to recordings folder (5-8%)
             progressState.animateProgress(to: 0.08, duration: 0.3)
-            let copiedURL = try copyFileToRecordingsFolder(fileURL)
+            let copiedURL = try copyFileToRecordingsFolder(fileURL, fileExtension: fileExtension)
             currentCopiedFilePath = copiedURL.path
 
             // Check for cancellation
@@ -422,7 +449,8 @@ class FileTranscriptionFlow {
 
             // STEP 4: Get audio duration (12-13%)
             progressState.animateProgress(to: 0.13, duration: 0.2)
-            let duration = try await getAudioDuration(audioURL)
+            let duration = try await getAudioDuration(audioURL, fileName: fileURL.lastPathComponent)
+            importDuration = duration
 
             // STEP 4b: VAD SILENCE TRIMMING (Optional) (13-15%)
             // Uses VADProcessingService to analyze audio and trim leading/trailing silence.
@@ -451,7 +479,7 @@ class FileTranscriptionFlow {
             // Validate the artifact that will actually be uploaded. A long
             // source may become valid after VAD, while a stale cloud tier on a
             // BYOK mode must not apply another provider's limits.
-            let uploadDuration = try await getAudioDuration(finalAudioURL)
+            let uploadDuration = try await getAudioDuration(finalAudioURL, fileName: fileURL.lastPathComponent)
             if let constraint = CloudSTTCatalog.shared.uploadDurationConstraint(
                 model: mode.model,
                 cloudProvider: mode.cloudProvider,
@@ -496,9 +524,10 @@ class FileTranscriptionFlow {
             // STEP 6: Start transcription (15-85%)
             // Update progress to transcribing stage with slow animation
             progressState.updateStage(.transcribing)
-            // Start a slow animation that will be cut short when transcription completes
-            // Duration estimates: 60s covers most transcriptions, will jump to completion when done
-            progressState.animateProgress(to: 0.85, duration: 60.0)
+            // Start a slow animation that will be cut short when transcription completes.
+            // No engine reports real progress here, so a job longer than the 60 s ramp
+            // turns the bar indeterminate instead of freezing at 85% (#1437).
+            progressState.animateProgress(to: 0.85, duration: 60.0, thenIndeterminate: true)
 
             guard let transcriptionPipeline = transcriptionPipeline else {
                 AppLogger.transcription.error("❌ TranscriptionPipeline not available")
@@ -525,6 +554,10 @@ class FileTranscriptionFlow {
             // cancelled flag is the check that still holds here.
             guard !progressState.isCancelled, !Task.isCancelled else { throw CancellationError() }
 
+            // A file with no speech fails the row with the "no speech" reason and
+            // shows the error alert, instead of a blank completed row (#1429).
+            try result.throwIfNoSpeech()
+
             // STEP 7: Finishing stage (85-100%)
             progressState.updateStage(.finishing)
             progressState.animateProgress(to: 0.95, duration: 0.3)
@@ -533,7 +566,7 @@ class FileTranscriptionFlow {
             persistence.updateTranscriptWithTranscription(
                 processingTranscript,
                 transcribedText: result.rawText,
-                postProcessedText: result.wasPostProcessed ? result.text : nil,
+                postProcessedText: result.historyPostProcessedText,
                 transcriptionProvider: result.provider,
                 postProcessingProvider: result.postProcessingProvider
             )
@@ -556,14 +589,16 @@ class FileTranscriptionFlow {
             currentCopiedFilePath = nil
             currentTranscriptionTask = nil
 
-            // Navigate to History view
-            appState?.selectedNavigationItem = .history
+            // Navigate to History view. An automatic jump: an open mode editor
+            // keeps the page and its sheet; the row is in History either way
+            // (issue #1525).
+            appState?.requestNavigation(to: .history, trigger: .automatic)
             openMainWindowWithHistory()
 
             // Reset state after completion
             appState?.recordingState = .idle
 
-        } catch is CancellationError {
+        } catch where Self.isCancel(error, taskCancelled: Task.isCancelled) {
             // User cancelled - cleanup was already done by cancelTranscription(),
             // which also resolved the row. This resolves it only when the task was
             // cancelled some other way.
@@ -585,15 +620,40 @@ class FileTranscriptionFlow {
             progressState.reset()
             cleanupImportArtifacts(reason: "unexpected error")
             currentTranscriptionTask = nil
-            // Before the alert: it is modal, and History should already show
-            // the failed row with Retry behind it.
-            await markProcessingTranscriptFailed(after: error)
+            // Before the alert, so History already shows the failed row with
+            // Retry behind it.
+            await markProcessingTranscriptFailed(after: error, audioDuration: importDuration)
             AppLogger.transcription.error("❌ File transcription failed: \(error.localizedDescription)")
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
-                message: error.localizedDescription
+                message: Self.failureMessage(for: error, audioDuration: importDuration)
             )
             appState?.recordingState = .idle
+        }
+    }
+
+    /// Throws the error that names why `fileURL` cannot be read, if the cause
+    /// is one the user can act on (issue #1551). A missing file or another
+    /// errno passes, and the next step's own error reports it.
+    nonisolated static func checkSourceReadable(_ fileURL: URL) throws {
+        let access = SourceFileAccess.probe(path: fileURL.path)
+        if let error = sourceAccessError(for: access, fileName: fileURL.lastPathComponent) {
+            AppLogger.transcription.error("❌ Source file not readable: \(String(describing: access), privacy: .public)")
+            throw error
+        }
+    }
+
+    /// The alert error for a probe result, or `nil` when there is none to give.
+    nonisolated static func sourceAccessError(for access: SourceFileAccess, fileName: String) -> FileTranscriptionError? {
+        switch access {
+        case .fileDenied:
+            return .sourcePermissionDenied(fileName: fileName)
+        case .folderInPathDenied:
+            return .sourceFolderPermissionDenied(fileName: fileName)
+        case .privacyBlocked:
+            return .sourcePrivacyBlocked(fileName: fileName)
+        case .readable, .missing, .isFolder, .unreadable:
+            return nil
         }
     }
 
@@ -602,12 +662,19 @@ class FileTranscriptionFlow {
     /// - Parameters:
     ///   - fileURL: URL of the file to validate
     ///   - mode: The transcription mode (determines provider)
-    /// - Throws: FileTranscriptionError.fileTooLarge if file exceeds limit
-    private func validateFileSize(_ fileURL: URL, for mode: Mode) throws {
+    /// - Throws: FileTranscriptionError.emptyFile for a 0-byte file,
+    ///   FileTranscriptionError.fileTooLarge if file exceeds limit
+    func validateFileSize(_ fileURL: URL, for mode: Mode) throws {
         // Get file size
         let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
         guard let fileSize = attributes[.size] as? Int64 else {
             throw FileTranscriptionError.cannotReadFile
+        }
+
+        // A 0-byte file has no audio for any engine. Say so here, before
+        // AVFoundation fails on it with a bare "Operation Stopped" (#1428).
+        if fileSize == 0 {
+            throw FileTranscriptionError.emptyFile(fileName: fileURL.lastPathComponent)
         }
 
         // Determine if using cloud provider
@@ -667,11 +734,12 @@ class FileTranscriptionFlow {
     /// - If no provider is specified, validation is skipped
     ///
     /// - Parameters:
-    ///   - fileURL: URL of the file to validate
+    ///   - fileExtension: The file's extension as read from its header
+    ///     (`AudioContainerSniffer.effectiveExtension`), not its name
     ///   - mode: The transcription mode (determines provider)
     /// - Throws: FileTranscriptionError.unsupportedFormat if format not supported
-    private func validateFileFormat(_ fileURL: URL, for mode: Mode) throws {
-        let fileExtension = fileURL.pathExtension.lowercased()
+    private func validateFileFormat(fileExtension rawExtension: String, for mode: Mode) throws {
+        let fileExtension = rawExtension.lowercased()
 
         // STEP 1: Check if this is a cloud mode
         // Local providers (LibWhisper, Parakeet) support any format AVFoundation can decode
@@ -705,10 +773,12 @@ class FileTranscriptionFlow {
 
     /// Copies the selected file to the recordings folder with a unique name
     ///
-    /// - Parameter sourceURL: URL of the source file
+    /// - Parameters:
+    ///   - sourceURL: URL of the source file
+    ///   - fileExtension: Extension for the copy, matching the file's contents
     /// - Returns: URL of the copied file in the recordings folder
     /// - Throws: FileTranscriptionError if copy fails
-    private func copyFileToRecordingsFolder(_ sourceURL: URL) throws -> URL {
+    private func copyFileToRecordingsFolder(_ sourceURL: URL, fileExtension ext: String) throws -> URL {
         let recordingsDirectory = getRecordingsDirectory()
 
         // Ensure recordings directory exists
@@ -719,17 +789,56 @@ class FileTranscriptionFlow {
         )
 
         // Generate unique filename: imported_<timestamp>_<original_name>.<ext>
-        let timestamp = Int(Date().timeIntervalSince1970)
-        let originalName = sourceURL.deletingPathExtension().lastPathComponent
-        let ext = sourceURL.pathExtension
-        let newFileName = "imported_\(timestamp)_\(originalName).\(ext)"
+        let newFileName = Self.importedCopyFileName(
+            originalName: sourceURL.deletingPathExtension().lastPathComponent,
+            fileExtension: ext,
+            timestamp: Int(Date().timeIntervalSince1970)
+        )
         let destinationURL = recordingsDirectory.appendingPathComponent(newFileName)
 
-        // Copy file
-        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        // Copy file. Foundation's copy error names the destination folder even
+        // when the source is what cannot be read, so a failure re-checks the
+        // source first (issue #1551): it may have changed since STEP 2a.
+        do {
+            try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        } catch {
+            try Self.checkSourceReadable(sourceURL)
+            throw error
+        }
 
         AppLogger.transcription.info("📁 Copied file to: \(destinationURL.lastPathComponent)")
         return destinationURL
+    }
+
+    /// Longest name, in UTF-8 bytes, given to the copy of an imported file.
+    ///
+    /// APFS allows 255 bytes, and the prefix adds 20 to the source name, so a
+    /// long source name used to fail the copy (issue #1554). The files derived
+    /// from the copy add more: a video's extracted `.m4a`, then VAD's
+    /// `_m4a_trimmed.wav` (+17 bytes at most). 200 leaves room for all of them.
+    nonisolated static let importedCopyNameMaxBytes = 200
+
+    /// Name for the recordings-folder copy of an imported file:
+    /// `imported_<timestamp>_<original name>.<ext>`, with the original name
+    /// shortened (on a character boundary) so the whole name fits
+    /// `importedCopyNameMaxBytes`.
+    nonisolated static func importedCopyFileName(originalName: String, fileExtension ext: String, timestamp: Int) -> String {
+        // A file with no extension and an unknown header keeps no extension,
+        // rather than gaining a trailing dot.
+        func fileName(_ stem: Substring) -> String {
+            ext.isEmpty ? "imported_\(timestamp)_\(stem)" : "imported_\(timestamp)_\(stem).\(ext)"
+        }
+        // The file system stores names decomposed, which can take more bytes
+        // than the precomposed form (é is 2 bytes, e + U+0301 is 3).
+        func byteCount(_ name: String) -> Int {
+            max(name.utf8.count, name.decomposedStringWithCanonicalMapping.utf8.count)
+        }
+
+        var stem = Substring(originalName)
+        while !stem.isEmpty && byteCount(fileName(stem)) > importedCopyNameMaxBytes {
+            stem = stem.dropLast()
+        }
+        return fileName(stem)
     }
 
     /// Gets the configured recordings directory or the legacy fallback location.
@@ -761,27 +870,43 @@ class FileTranscriptionFlow {
 
     /// Gets the duration of an audio file
     ///
-    /// - Parameter url: URL of the audio file
+    /// - Parameters:
+    ///   - url: URL of the audio file
+    ///   - fileName: The name the user picked, for the alert. `url` is the
+    ///     renamed copy, or audio extracted from it.
     /// - Returns: Duration in seconds
     /// - Throws: Error if duration cannot be determined
-    private func getAudioDuration(_ url: URL) async throws -> TimeInterval {
+    func getAudioDuration(_ url: URL, fileName: String) async throws -> TimeInterval {
         let asset = AVURLAsset(url: url)
-        let duration = try await asset.load(.duration)
+        let duration: CMTime
+        do {
+            duration = try await asset.load(.duration)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // AVFoundation's own text here is a bare "Cannot Open" or
+            // "Operation Stopped" (issues #1426, #1428).
+            let nsError = error as NSError
+            AppLogger.transcription.error("❌ Cannot open audio: errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
+            throw FileTranscriptionError.unreadableAudio(fileName: fileName)
+        }
 
         // Reject invalid/indefinite durations so a non-finite value never escapes
         // this helper. For some files (fragmented/streamable MP4s, indefinite tracks)
         // AVFoundation cannot resolve the duration and CMTimeGetSeconds returns NaN
         // without throwing. That NaN would later trap at Int(duration.rounded()) and
         // corrupt persisted duration via max(_, NaN), so we surface a clean error here.
+        // Whichever way AVFoundation fails, the user hears the file is not
+        // audio it can read, by name (#1428).
         guard duration.isValid, !duration.flags.contains(.indefinite) else {
             AppLogger.transcription.error("❌ Audio duration is invalid/indefinite: \(url.lastPathComponent)")
-            throw FileTranscriptionError.cannotReadFile
+            throw FileTranscriptionError.unreadableAudio(fileName: fileName)
         }
 
         let seconds = CMTimeGetSeconds(duration)
         guard seconds.isFinite, seconds >= 0 else {
             AppLogger.transcription.error("❌ Audio duration is not finite or is negative: \(url.lastPathComponent)")
-            throw FileTranscriptionError.cannotReadFile
+            throw FileTranscriptionError.unreadableAudio(fileName: fileName)
         }
         return seconds
     }
@@ -792,18 +917,23 @@ class FileTranscriptionFlow {
     /// exists finds no ID and writes nothing. The ID is cleared before the write,
     /// so a second caller (a cancel racing an error) cannot write twice.
     ///
-    /// - Parameter error: Why the import stopped. `CancellationError` is a cancel.
-    func markProcessingTranscriptFailed(after error: Error) async {
+    /// - Parameters:
+    ///   - error: Why the import stopped. `CancellationError` is a cancel.
+    ///   - audioDuration: The file's length, when the import read it.
+    func markProcessingTranscriptFailed(after error: Error, audioDuration: TimeInterval? = nil) async {
         guard let transcriptID = processingTranscriptID else { return }
         processingTranscriptID = nil
-        await writeFailedStatus(transcriptID, after: error)
+        await writeFailedStatus(transcriptID, after: error, audioDuration: audioDuration)
     }
 
-    /// Writes the failed status with the same reason and text dictation uses
-    /// (`RecordingTranscriptionFlow`), so HistoryView shows the row as failed and
+    /// Writes the failed status, so HistoryView shows the row as failed and
     /// offers Retry (canRetry = failed + audio file on disk).
-    private func writeFailedStatus(_ transcriptID: NSManagedObjectID, after error: Error) async {
-        let outcome = Self.failureOutcome(for: error)
+    private func writeFailedStatus(
+        _ transcriptID: NSManagedObjectID,
+        after error: Error,
+        audioDuration: TimeInterval? = nil
+    ) async {
+        let outcome = Self.failureOutcome(for: error, audioDuration: audioDuration)
         await persistence.markTranscriptFailedInBackground(
             transcriptID: transcriptID,
             failedReason: outcome.failedReason,
@@ -813,13 +943,49 @@ class FileTranscriptionFlow {
         AppLogger.transcription.info("📝 [FileImport] Marked processing transcript failed (\(kind, privacy: .public))")
     }
 
+    /// Whether an import that stopped with `error` was a cancel, not a failure.
+    ///
+    /// A cancelled task is a cancel whatever the engine threw on the way out:
+    /// local Whisper reports its abort as `streamingInterrupted` (#1743), and
+    /// that must not show the error alert (#1871).
+    nonisolated static func isCancel(_ error: Error, taskCancelled: Bool) -> Bool {
+        error is CancellationError || taskCancelled
+    }
+
     /// The `failedReason` and row text for an import that stopped with `error`.
-    static func failureOutcome(for error: Error) -> (failedReason: String, errorText: String) {
+    ///
+    /// The text is empty: a failed import has no transcript, and the reason
+    /// lives only in `failedReason` (Ray, #1427). Writing the error as the text
+    /// made the row preview read as a transcript and Copy copy the error.
+    static func failureOutcome(
+        for error: Error,
+        audioDuration: TimeInterval? = nil
+    ) -> (failedReason: String, errorText: String) {
         if error is CancellationError {
-            return ("cancelled", "Transcription cancelled")
+            return ("cancelled", "")
         }
-        let description = error.localizedDescription
-        return (description, "Transcription failed: \(description)")
+        return (failureMessage(for: error, audioDuration: audioDuration), "")
+    }
+
+    /// What the alert and the row's Reason say for an import that failed with
+    /// `error`.
+    ///
+    /// A too-short file gets the file wording, with its length, instead of the
+    /// engine's dictation wording ("record for longer"), which makes no sense
+    /// for a file the user picked (#1427). A History Retry or "Retry with..."
+    /// re-runs a saved file too, so it says the same (Ray, #1836).
+    static func failureMessage(for error: Error, audioDuration: TimeInterval?) -> String {
+        if isTooShort(error) {
+            let seconds = (audioDuration ?? 0).formatted(.number.precision(.fractionLength(1)))
+            return "transcribe.file.error.tooShort".localized(arguments: seconds)
+        }
+        return error.localizedDescription
+    }
+
+    /// True when an engine refused the audio as too short to transcribe.
+    nonisolated static func isTooShort(_ error: Error) -> Bool {
+        if case .audioTooShort? = error as? TranscriptionError { return true }
+        return false
     }
 
     /// Handles file transcription errors with appropriate UI
@@ -883,6 +1049,19 @@ class FileTranscriptionFlow {
                 message: "transcribe.file.error.copy".localized
             )
 
+        case .webmNotSupported:
+            showErrorAlert(
+                title: "transcribe.file.error.format.title".localized,
+                message: "transcribe.file.error.webm".localized
+            )
+
+        case .unreadableAudio, .emptyFile, .sourcePermissionDenied,
+             .sourceFolderPermissionDenied, .sourcePrivacyBlocked:
+            showErrorAlert(
+                title: "transcribe.file.error.title".localized,
+                message: error.localizedDescription
+            )
+
         case .videoHasNoAudio:
             showErrorAlert(
                 title: "transcribe.file.error.video.title".localized,
@@ -910,6 +1089,11 @@ class FileTranscriptionFlow {
 
     /// Shows an error alert to the user
     ///
+    /// **Why ModelessAlert instead of runModal (issue #1539):** `runModal()` held the
+    /// main actor until OK, and the Local API (`@MainActor`) answered nothing — not even
+    /// `/health` — for as long as the alert stayed open. Same hazard as the open panel
+    /// above (HYPERWHISPER-SZ).
+    ///
     /// - Parameters:
     ///   - title: Alert title
     ///   - message: Alert message
@@ -919,7 +1103,7 @@ class FileTranscriptionFlow {
         alert.informativeText = message
         alert.alertStyle = .warning
         alert.addButton(withTitle: "common.ok".localized)
-        alert.runModal()
+        ModelessAlert.show(alert)
     }
 
     /// Opens the main window and navigates to History view
@@ -1052,6 +1236,29 @@ enum FileTranscriptionError: Error, LocalizedError {
     /// such as a screen recording without microphone input.
     case videoHasNoAudio
 
+    /// The file is WebM (by header or, failing that, by name). AVFoundation has
+    /// no WebM/Opus decoder, and none is added (issue #1426).
+    case webmNotSupported
+
+    /// AVFoundation could not open the audio, whatever the file is called.
+    /// `fileName` is the name the user picked.
+    case unreadableAudio(fileName: String)
+
+    /// The picked file is 0 bytes (#1428).
+    case emptyFile(fileName: String)
+
+    /// The picked file's own permissions forbid reading it (EACCES on open,
+    /// issue #1551).
+    case sourcePermissionDenied(fileName: String)
+
+    /// A folder in the picked file's path cannot be entered (EACCES on stat,
+    /// issue #1551).
+    case sourceFolderPermissionDenied(fileName: String)
+
+    /// macOS privacy protection blocked the read (EPERM, issue #1551). The one
+    /// case where Full Disk Access is the fix.
+    case sourcePrivacyBlocked(fileName: String)
+
     var errorDescription: String? {
         switch self {
         case .fileTooLarge(_, _, let providerName):
@@ -1066,6 +1273,18 @@ enum FileTranscriptionError: Error, LocalizedError {
             return "Failed to copy file"
         case .videoHasNoAudio:
             return "Video has no audio track"
+        case .webmNotSupported:
+            return "transcribe.file.error.webm".localized
+        case .unreadableAudio(let fileName):
+            return "transcribe.file.error.notAudio".localized(arguments: fileName)
+        case .emptyFile(let fileName):
+            return "transcribe.file.error.empty".localized(arguments: fileName)
+        case .sourcePermissionDenied(let fileName):
+            return "transcribe.file.error.permission".localized(arguments: fileName)
+        case .sourceFolderPermissionDenied(let fileName):
+            return "transcribe.file.error.folderPermission".localized(arguments: fileName)
+        case .sourcePrivacyBlocked(let fileName):
+            return "transcribe.file.error.privacy".localized(arguments: fileName)
         }
     }
 }

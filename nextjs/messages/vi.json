@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - Chuyển giọng nói thành văn bản bằng AI cho macOS & Windows",
-    "description": "Viết nhanh hơn 5x với tính năng chuyển giọng nói thành văn bản bằng AI. HyperWhisper chuyển giọng nói của bạn với độ chính xác ấn tượng trên macOS và Windows. Nói tự nhiên và xem từ ngữ xuất hiện ngay lập tức."
+    "title": "HyperWhisper - Chuyển giọng nói thành văn bản bằng AI cho macOS, Windows & Linux",
+    "description": "Viết nhanh hơn 5x với tính năng chuyển giọng nói thành văn bản bằng AI. HyperWhisper chuyển giọng nói của bạn với độ chính xác ấn tượng trên macOS, Windows và Linux. Nói tự nhiên và xem từ ngữ xuất hiện ngay lập tức."
   },
   "navbar": {
     "features": "Tính năng",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Tôi có thể dùng khi không có internet không?",
-        "answer": "Chắc chắn. HyperWhisper có thể dùng hoàn toàn offline trên máy Mac hoặc máy tính Windows của bạn với mô hình AI cục bộ - không cần internet. Với người dùng muốn độ chính xác và tốc độ tối đa, chúng tôi cũng cung cấp xử lý đám mây tùy chọn qua nhiều nhà cung cấp khác nhau."
+        "answer": "Chắc chắn. HyperWhisper có thể dùng hoàn toàn offline trên máy Mac, máy tính Windows hoặc máy tính Linux của bạn với mô hình AI cục bộ - không cần internet. Với người dùng muốn độ chính xác và tốc độ tối đa, chúng tôi cũng cung cấp xử lý đám mây tùy chọn qua nhiều nhà cung cấp khác nhau."
       },
       "apiKey": {
         "question": "Tôi có cần trả phí để dùng API không?",
@@ -175,16 +175,16 @@
         "answer": "Cho chuyển giọng nói offline, chúng tôi cung cấp nhiều kích cỡ mô hình Whisper (do OpenAI phát triển, hỗ trợ 99+ ngôn ngữ). Chúng tôi cũng cung cấp các mô hình Parakeet của NVidia (hỗ trợ 25+ ngôn ngữ).\n      \n      Cho hậu xử lý offline, chúng tôi cung cấp nhiều kích cỡ mô hình Gemma 3 (do Google phát triển)."
       },
       "compatibility": {
-        "question": "Có hoạt động với mọi ứng dụng Mac và Windows không?",
+        "question": "Có hoạt động với mọi ứng dụng của tôi không?",
         "answer": "Có, hoạt động ở bất cứ đâu bạn có thể gõ. Dù bạn viết email, tài liệu, code hay chat. Chỉ cần nhấn phím tắt, nói và xem từ ngữ hiện ra ngay lập tức."
       },
       "privacy": {
         "question": "Quyền riêng tư của tôi được bảo vệ như thế nào?",
-        "answer": "Khi dùng chế độ cục bộ, không có dữ liệu nào rời khỏi máy Mac hoặc máy tính Windows của bạn.\n\nKhi dùng chuyển giọng nói trên cloud, dữ liệu của bạn sẽ được gửi đến nhà cung cấp cloud bạn chọn (ví dụ OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox hoặc Google Gemini).\n\nBạn có thể tự kiểm chứng bằng trình giám sát mạng như [Proxyman](https://proxyman.io), trình theo dõi mạng như [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), hoặc bằng cách đọc [mã nguồn trên GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Khi dùng chế độ cục bộ, không có dữ liệu nào rời khỏi máy Mac, máy tính Windows hoặc máy tính Linux của bạn.\n\nKhi dùng chuyển giọng nói trên cloud, dữ liệu của bạn sẽ được gửi đến nhà cung cấp cloud bạn chọn (ví dụ OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox hoặc Google Gemini).\n\nBạn có thể tự kiểm chứng bằng trình giám sát mạng như [Proxyman](https://proxyman.io), trình theo dõi mạng như [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), hoặc bằng cách đọc [mã nguồn trên GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "HyperWhisper Cloud là gì?",
-        "answer": "HyperWhisper Cloud là dịch vụ phiên âm đám mây tích hợp sẵn, hướng đến những người dùng ít rành kỹ thuật muốn bắt đầu nhanh chóng.\n\nĐây là tín dụng trả theo mức dùng (pay-as-you-go). Bạn nạp chỉ từ $5 (1.000 tín dụng cho mỗi $1) và chỉ tiêu khi phiên âm. Lần mua tín dụng đầu tiên tự động tạo Account Key của bạn, nên không còn gì khác phải mua.\n    \nChúng tôi cung cấp bốn mức độ chính xác: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2), và Highest (Grok STT, mặc định cho các bản cài mới và được cung cấp bởi SpaceXAI Grok STT). Hậu xử lý là tự động và mặc định dùng Grok 4.1 Fast non-reasoning. Chúng tôi không lưu trữ gì ngoài số tín dụng bạn đã dùng, và chúng tôi đã chọn không tham gia huấn luyện mô hình thay cho bạn ở mọi nhà cung cấp thượng nguồn mà chúng tôi sử dụng. Xem [hướng dẫn Quyền riêng tư Dữ liệu](https://hyperwhisper.com/docs/data-privacy) của chúng tôi để biết chi tiết.\n\nTín dụng được tiêu theo đúng chi phí xử lý của chính các nhà cung cấp — không cộng thêm phí cho việc phiên âm. Khi thanh toán có thêm một khoản phí xử lý thanh toán cố định 6%, được hiển thị thành một mục riêng. Tín dụng chưa dùng sẽ hết hạn sau 12 tháng (xem bên dưới).\n\nĐể bạn yên tâm, toàn bộ ứng dụng là mã nguồn mở theo Apache-2.0 — bao gồm cả backend Cloud. Bạn có thể đọc từng dòng mã chạy giữa ứng dụng của bạn và các nhà cung cấp mà chúng tôi chuyển tiếp đến [trên GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud là dịch vụ phiên âm đám mây tích hợp sẵn, hướng đến những người dùng ít rành kỹ thuật muốn bắt đầu nhanh chóng.\n\nĐây là tín dụng trả theo mức dùng (pay-as-you-go). Bạn nạp chỉ từ $5 (1.000 tín dụng cho mỗi $1) và chỉ tiêu khi phiên âm. Lần mua tín dụng đầu tiên tự động tạo Account Key của bạn, nên không còn gì khác phải mua.\n    \nHyperWhisper Cloud cung cấp cho bạn 12 nhà cung cấp chuyển giọng nói thành văn bản, từ Groq Whisper đến ElevenLabs Scribe v2 (xem [danh sách đầy đủ và mức giá](https://hyperwhisper.com/docs/cloud-credits)). Các bản cài mới bắt đầu với ElevenLabs Scribe v2. Hậu xử lý là tự động và các bản cài mới bắt đầu với Claude Haiku 5.5. Chúng tôi không lưu trữ gì ngoài số tín dụng bạn đã dùng, và chúng tôi đã chọn không tham gia huấn luyện mô hình thay cho bạn ở mọi nhà cung cấp thượng nguồn mà chúng tôi sử dụng. Xem [hướng dẫn Quyền riêng tư Dữ liệu](https://hyperwhisper.com/docs/data-privacy) của chúng tôi để biết chi tiết.\n\nTín dụng được tiêu theo đúng chi phí xử lý của chính các nhà cung cấp — không cộng thêm phí cho việc phiên âm. Khi thanh toán có thêm một khoản phí xử lý thanh toán cố định 6%, được hiển thị thành một mục riêng. Tín dụng chưa dùng sẽ hết hạn sau 12 tháng (xem bên dưới).\n\nĐể bạn yên tâm, toàn bộ ứng dụng là mã nguồn mở theo Apache-2.0 — bao gồm cả backend Cloud. Bạn có thể đọc từng dòng mã chạy giữa ứng dụng của bạn và các nhà cung cấp mà chúng tôi chuyển tiếp đến [trên GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Dữ liệu giọng nói của tôi có được dùng để huấn luyện mô hình AI không?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Yêu cầu hệ thống là gì?",
-        "answer": "Với Mac: macOS 14 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
+        "answer": "Với Mac: macOS 14 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Với Linux v1: Ubuntu 22.04 trở lên hoặc Debian 12 trở lên, trên amd64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
       },
       "madeBy": {
         "question": "Ai đã tạo ra sản phẩm này?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Cài qua Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Sao chép",
-    "copied": "Đã sao chép!"
+    "copied": "Đã sao chép!",
+    "linuxSubtitle": "Gói Debian cho hệ thống Intel/AMD 64-bit",
+    "downloadLinux": "Tải cho Linux",
+    "downloadLinuxVersion": "Tải cho Linux v{version}",
+    "linuxReleaseNotes": "Checksum và ghi chú phát hành",
+    "linuxInstallTitle": "Cài đặt gói Debian",
+    "linuxTargets": "Linux v1 hỗ trợ Ubuntu 22.04+ và Debian 12+ trên amd64.",
+    "linuxReplaceVersion": "Thay VERSION bằng phiên bản bạn đã tải xuống.",
+    "linuxInstallCommandLabel": "Lệnh cài đặt Debian",
+    "linuxInputGroupNote": "Đăng xuất rồi đăng nhập lại sau khi tham gia nhóm input. Việc tham gia là tùy chọn, nhưng phím tắt toàn cục và tự động dán cần đến nó.",
+    "aptTitle": "Tự lưu trữ kho APT",
+    "aptBody": "Các bản phát hành Linux cũng kèm theo một tệp lưu trữ kho APT tĩnh. HyperWhisper hiện không vận hành endpoint APT công khai; hãy xem hướng dẫn cài đặt Linux để biết cách thiết lập tự lưu trữ có ký số, các thành phần đi kèm cho máy tính, chi tiết quyền riêng tư và cách gỡ cài đặt.",
+    "linuxGuideCta": "Đọc hướng dẫn cài đặt Linux"
+  },
+  "olderVersions": {
+    "title": "Phiên bản cũ",
+    "subtitle": "Duyệt và tải xuống tất cả các bản phát hành của HyperWhisper",
+    "errorLoading": "Lỗi khi tải danh sách phiên bản: {error}",
+    "unknownError": "Đã xảy ra lỗi",
+    "loading": "Đang tải các phiên bản...",
+    "latest": "Mới nhất",
+    "build": "Bản dựng {number}",
+    "downloadDmg": "Tải DMG",
+    "downloadExe": "Tải EXE",
+    "unknownSize": "Không rõ"
   },
   "purchaseSuccess": {
     "title": "Tất cả đã sẵn sàng!",
@@ -289,7 +313,7 @@
     "loading": "Đang tải..."
   },
   "footer": {
-    "tagline": "Viết nhanh hơn 5x với chuyển giọng nói thành văn bản bằng AI cho macOS & Windows.",
+    "tagline": "Viết nhanh hơn 5x với chuyển giọng nói thành văn bản bằng AI cho macOS, Windows & Linux.",
     "product": "Sản phẩm",
     "resources": "Tài nguyên",
     "company": "Công ty",
@@ -389,6 +413,35 @@
   "openSource": {
     "heading": "Mã nguồn mở. Không có gì để giấu.",
     "body": "HyperWhisper hoàn toàn mã nguồn mở theo giấy phép Apache-2.0 — cả ứng dụng máy tính lẫn backend Cloud. Một ứng dụng lắng nghe micro của bạn nên là thứ bạn có thể kiểm chứng, chứ không chỉ tin tưởng: hãy đọc từng dòng, kiểm tra chính xác âm thanh của bạn đi đâu, và biết rằng bạn sẽ không bao giờ bị khóa chân — mã nguồn là của bạn để fork và tự lưu trữ mãi mãi. Được xây dựng công khai bởi nhà phát triển độc lập Ray Amjad.",
-    "cta": "Xem trên GitHub"
+    "cta": "Xem trên GitHub",
+    "metaTitle": "Mã nguồn mở | HyperWhisper",
+    "metaDescription": "HyperWhisper hoàn toàn mã nguồn mở theo giấy phép Apache-2.0 — cả ứng dụng máy tính lẫn backend Cloud. Đọc mã nguồn, kiểm tra âm thanh của bạn đi đâu, fork và tự lưu trữ mãi mãi.",
+    "eyebrow": "Mã nguồn mở",
+    "lead": "HyperWhisper giờ đây đã hoàn toàn mã nguồn mở theo giấy phép Apache-2.0 — cả ứng dụng máy tính lẫn backend Cloud.",
+    "intro": "Một ứng dụng lắng nghe micro của bạn nên là thứ bạn có thể kiểm chứng, chứ không chỉ tin tưởng. Vì vậy, chúng tôi đã công khai mọi thứ. Bạn có thể đọc từng dòng mã của HyperWhisper — các ứng dụng macOS, Windows và Linux, cùng backend chuyển âm Cloud — thấy chính xác âm thanh của bạn đi đâu, và biết rằng bạn sẽ không bao giờ bị khóa chân. Toàn bộ dự án nằm trên <github>GitHub</github> theo <license>giấy phép Apache-2.0</license>.",
+    "whyHeading": "Vì sao điều này quan trọng",
+    "whyVerify": "<strong>Kiểm chứng, đừng chỉ tin.</strong> Đọc từng dòng và kiểm tra chính xác âm thanh của bạn đi đâu. Một ứng dụng có quyền truy cập micro nên là thứ bạn có thể tự kiểm tra, chứ không phải chỉ tin suông.",
+    "whyNoLockIn": "<strong>Không bị khóa chân.</strong> Mã nguồn theo giấy phép Apache-2.0 — bạn được giữ, chỉnh sửa và chạy theo cách của riêng mình. Quy trình làm việc của bạn không bao giờ bị kìm kẹp.",
+    "whyFork": "<strong>Fork và tự lưu trữ.</strong> Clone repo, tự build hoặc chạy backend Cloud của riêng bạn. Mọi thứ bạn cần đều công khai.",
+    "whyOpen": "<strong>Phát triển công khai.</strong> HyperWhisper được phát triển công khai bởi nhà phát triển độc lập Ray Amjad. Mọi issue, thảo luận và bản phát hành đều diễn ra công khai.",
+    "licenseHeading": "Bạn đã mua giấy phép?",
+    "licenseIntro": "HyperWhisper giờ đã là mã nguồn mở, và tính năng chuyển âm trả phí chạy bằng tín dụng HyperWhisper Cloud. Nếu bạn đã mua giấy phép trước khi chuyển đổi, đây là cách chúng tôi hỗ trợ bạn — chỉ cần gửi email tới <mail>{email}</mail> và chúng tôi sẽ xử lý thủ công cho bạn.",
+    "licenseRecent": "<strong>Mua trong 30 ngày gần đây:</strong> bạn vẫn trong thời hạn hoàn tiền. Chúng tôi sẽ hoàn lại toàn bộ số tiền mua — không cần lý do. Chỉ cần <refund>gửi cho chúng tôi một tin nhắn</refund>.",
+    "licenseOlder": "<strong>Mua cách đây hơn 30 ngày:</strong> chúng tôi sẽ chuyển số tiền bạn đã trả thành tín dụng HyperWhisper Cloud — toàn bộ giá mua, trừ đi $5 tín dụng đã được thêm vào tài khoản của bạn. <credits>Gửi email cho chúng tôi</credits> và chúng tôi sẽ cộng số dư cho bạn.",
+    "contributeHeading": "Bạn muốn đóng góp?",
+    "contributeBody": "Chúng tôi luôn hoan nghênh báo cáo lỗi, ý tưởng tính năng và pull request. Hãy mở một issue hoặc bắt đầu thảo luận <github>trên GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper giờ đã hoàn toàn mã nguồn mở",
+    "shortText": "Giờ đã là mã nguồn mở",
+    "learnMore": "Tìm hiểu thêm",
+    "dismiss": "Đóng thông báo"
+  },
+  "notFound": {
+    "title": "Không tìm thấy trang",
+    "heading": "Trang này không tồn tại",
+    "description": "Liên kết có thể bị hỏng, hoặc trang có thể đã được chuyển đi.",
+    "home": "Về trang chủ",
+    "download": "Tải xuống HyperWhisper"
   }
 }

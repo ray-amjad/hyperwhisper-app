@@ -228,6 +228,16 @@ struct LibraryModel: Identifiable, Hashable {
         providerKey != .appleSpeech
     }
 
+    /// An installed local model whose load failed (its manager flagged it broken,
+    /// #1632): the files are on disk but unusable, so the row offers Re-download
+    /// instead of Remove.
+    var needsRedownload: Bool {
+        guard case .offline(_, let installed, _) = location,
+              installed,
+              case .downloadable = status else { return false }
+        return true
+    }
+
     // MARK: Remove confirmation (#1527)
 
     /// The download size the Remove confirmation quotes, or nil when the row

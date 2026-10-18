@@ -96,6 +96,7 @@ public partial class ModelsSettingsPage : Page
         CloudProviderHealthService.Instance.TranscriptionProviderStatusChanged += OnTranscriptionProviderHealthChanged;
         CloudProviderHealthService.Instance.PostProcessingProviderStatusChanged += OnPostProcessingProviderHealthChanged;
         ModelDownloadService.Instance.DownloadChanged += OnModelDownloadChanged;
+        LocalModelHealth.Changed += OnLocalModelHealthChanged;
 
         RebuildLibrary();
         _ = RefreshProviderHealthAsync();
@@ -117,6 +118,7 @@ public partial class ModelsSettingsPage : Page
         CloudProviderHealthService.Instance.TranscriptionProviderStatusChanged -= OnTranscriptionProviderHealthChanged;
         CloudProviderHealthService.Instance.PostProcessingProviderStatusChanged -= OnPostProcessingProviderHealthChanged;
         ModelDownloadService.Instance.DownloadChanged -= OnModelDownloadChanged;
+        LocalModelHealth.Changed -= OnLocalModelHealthChanged;
 
         if (_mainViewModel != null)
         {
@@ -853,7 +855,7 @@ public partial class ModelsSettingsPage : Page
     private static void ShowModelInUse(string modelName, string modeName)
     {
         WpfMessageBox.Show(
-            $"{modelName} is used by the \"{modeName}\" mode. Switch that mode to another model before deleting it.",
+            Loc.S("settings.models.alert.cannotDelete.message", modelName, modeName),
             Loc.S("settings.models.alert.cannotDelete.title"),
             MessageBoxButton.OK,
             MessageBoxImage.Warning);
@@ -901,6 +903,8 @@ public partial class ModelsSettingsPage : Page
             }
         };
 
+        // 760 DIP is taller than a 1080p work area at 175% (issue #1500).
+        WindowWorkAreaFit.Attach(window);
         window.ShowDialog();
         RebuildLibrary();
         _ = RefreshProviderHealthAsync();
@@ -975,13 +979,23 @@ public partial class ModelsSettingsPage : Page
     private void OnPostProcessingProviderHealthChanged(object? sender, PostProcessingProvider e)
         => Dispatcher.Invoke(RebuildLibrary);
 
+    // A model that failed to load (#1598) turns from Installed into Download
+    // while the page is open. Raised on the failing transcription's thread.
+    private void OnLocalModelHealthChanged(object? sender, string modelPath)
+    {
+        if (Dispatcher.HasShutdownStarted) return;
+        Dispatcher.BeginInvoke(new Action(RebuildLibrary));
+    }
+
     private void OnModelDownloadChanged(object? sender, ModelDownloadChangedEventArgs e)
     {
         Dispatcher.Invoke(() =>
         {
             if (e.IsCompleted)
             {
-                if (!e.IsSuccess && !string.IsNullOrWhiteSpace(e.Error)
+                // IsCancelled covers the non-English cancel text: Quit cancels
+                // running downloads, and must not raise a failure box (#1599).
+                if (!e.IsSuccess && !e.IsCancelled && !string.IsNullOrWhiteSpace(e.Error)
                     && !e.Error.Contains("cancelled", StringComparison.OrdinalIgnoreCase))
                 {
                     WpfMessageBox.Show(

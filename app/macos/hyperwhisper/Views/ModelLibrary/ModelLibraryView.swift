@@ -189,6 +189,17 @@ struct ModelLibraryView: View {
         } message: { model in
             Text(model.removalConfirmationMessage())
         }
+        // Issue #1672: close every sheet and prompt (the API keys manager's
+        // own sheet goes with it) before a page change removes this view.
+        .closesPresentationsOnPageChange(
+            isPresenting: sheetTarget != nil || showAPIKeysManager || showCustomEndpointSheet || showingModelInUseAlert || pendingRemoval != nil
+        ) {
+            sheetTarget = nil
+            showAPIKeysManager = false
+            showCustomEndpointSheet = false
+            showingModelInUseAlert = false
+            pendingRemoval = nil
+        }
     }
 
     // MARK: - Sections
@@ -672,7 +683,10 @@ struct ModelLibraryView: View {
         case .cloud:
             break
         case .offline(_, let installed, _):
-            if installed {
+            if model.needsRedownload {
+                // A broken install (#1632): its manager wipes the damaged files first.
+                triggerDownload(for: model)
+            } else if installed {
                 triggerDelete(for: model)
             } else {
                 // Local model downloads are unlimited (open source) — no gate.

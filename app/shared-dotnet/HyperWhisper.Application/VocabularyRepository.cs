@@ -30,6 +30,9 @@ public sealed class VocabularyRepository(ApplicationDb database)
         ArgumentNullException.ThrowIfNull(item);
         var word = item.Word.Trim();
         if (word.Length == 0) throw new ArgumentException("A vocabulary word is required.", nameof(item));
+        // A word is one line (issue #1777); callers split a multi-line value with
+        // VocabularyWords.SplitLines first. The replacement may keep its line breaks.
+        if (VocabularyWords.HasLineBreak(word)) throw new ArgumentException("A vocabulary word must be one line.", nameof(item));
         await using var context = _database.CreateContext();
         var existing = await context.VocabularyItems.FirstOrDefaultAsync(candidate => candidate.Id == item.Id, cancellationToken)
             ?? (await context.VocabularyItems.ToListAsync(cancellationToken))

@@ -120,6 +120,16 @@ struct BackupSettingsSection: View {
                 pendingLocalDownloadIds.count
             ))
         }
+        // Issue #1672: close the import sheet and the alerts before a page
+        // change removes this view. The file picker is an AppKit panel, which
+        // the page change does not wait for.
+        .closesPresentationsOnPageChange(
+            isPresenting: importRequest != nil || showResultAlert || showLocalDownloadPrompt
+        ) {
+            importRequest = nil
+            showResultAlert = false
+            showLocalDownloadPrompt = false
+        }
     }
 
     // MARK: - Export Card

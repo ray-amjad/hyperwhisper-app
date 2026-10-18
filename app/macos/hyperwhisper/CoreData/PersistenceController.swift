@@ -17,6 +17,7 @@
 
 import CoreData
 import Foundation
+import SQLite3
 
 // MARK: - Mode Name Policy
 
@@ -89,7 +90,7 @@ struct ModeSnapshot: Sendable {
         self.name = mode.name ?? "Default"
         self.model = mode.model ?? "base"
         self.language = mode.language
-        self.cloudProvider = mode.cloudProvider ?? "hyperwhisper"
+        self.cloudProvider = CloudProvider.effectiveModeStorageValue(mode.cloudProvider)
         self.rawCloudProvider = mode.cloudProvider
         self.postProcessingMode = mode.postProcessingMode
         self.postProcessingProvider = mode.postProcessingProvider ?? "hyperwhisper"
@@ -142,6 +143,8 @@ struct AutoDeleteTransactionSnapshot: Sendable {
     let audioPaths: [String]
     let transcriptsDeleted: Int
     let hasMore: Bool
+    /// The deleted rows, whose running retries must stop (#1743).
+    var transcriptIDs: [UUID] = []
 }
 
 // MARK: - Persistence Controller
@@ -153,6 +156,25 @@ class PersistenceController: ObservableObject {
     
     /// Singleton instance for app-wide access
     static let shared = PersistenceController()
+
+    /// The one `HyperWhisper` model every container in this process uses (#1653).
+    ///
+    /// `NSPersistentContainer(name:)` loads a NEW model instance each time it is
+    /// called. With two or more loaded, `+[Transcript entity]` cannot tell them
+    /// apart, so `Transcript(context:)` can take another model's entity: the
+    /// insert then has no store, `obtainPermanentIDs` throws and the write
+    /// saves nothing. The unit tests build many in-memory controllers at once
+    /// and hit this; one shared model removes the ambiguity.
+    ///
+    /// Build every `HyperWhisper` container on this model, never by name. A
+    /// missing model stops the app here, as a failed store load already does.
+    static let managedObjectModel: NSManagedObjectModel = {
+        guard let url = Bundle.main.url(forResource: "HyperWhisper", withExtension: "momd"),
+              let model = NSManagedObjectModel(contentsOf: url) else {
+            fatalError("Core Data model HyperWhisper.momd is missing from the app bundle")
+        }
+        return model
+    }()
 
     /// True when THIS launch seeded the default modes — i.e. a genuine fresh
     /// install (no modes existed yet). Used to gate first-run onboarding so
@@ -261,7 +283,7 @@ class PersistenceController: ObservableObject {
     init(inMemory: Bool = false) {
         // Use NSPersistentCloudKitContainer so the Cloud store can mirror to iCloud.
         // The Local store is configured without `cloudKitContainerOptions` and stays on disk only.
-        container = NSPersistentCloudKitContainer(name: "HyperWhisper")
+        container = NSPersistentCloudKitContainer(name: "HyperWhisper", managedObjectModel: Self.managedObjectModel)
 
         if inMemory {
             // Single in-memory store for tests/previews. CloudKit mirroring is disabled.
@@ -702,7 +724,7 @@ class PersistenceController: ObservableObject {
     /// CloudKit mirroring is NOT enabled during this write — it happens on first launch
     /// of the main container, which will push the rows up from the local cloud store file.
     private static func writeVocabularySnapshots(_ snapshots: [VocabularySnapshot], to url: URL) throws {
-        let tempContainer = NSPersistentContainer(name: "HyperWhisper")
+        let tempContainer = NSPersistentContainer(name: "HyperWhisper", managedObjectModel: managedObjectModel)
         let desc = NSPersistentStoreDescription(url: url)
         desc.configuration = cloudConfigurationName
         desc.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
@@ -874,8 +896,8 @@ class PersistenceController: ObservableObject {
     /// has Google's `gemini-3.5-transcribe` stamped onto it — which the next
     /// dictation then POSTs to xAI.
     ///
-    /// A nil/empty provider counts as HyperWhisper Cloud, matching
-    /// `createOrUpdateMode`'s `?? "hyperwhisper"` default.
+    /// A nil/empty provider counts as HyperWhisper Cloud: the shared core's
+    /// blank-provider rule (`CloudProvider.forMode`, #1709).
     static func googleChirp3TierRewrite(
         cloudProvider: String?,
         cloudAccuracyTier: String?,
@@ -886,7 +908,7 @@ class PersistenceController: ObservableObject {
             .lowercased()
         guard retiredGoogleChirp3TierValues.contains(storedTier) else { return nil }
 
-        let resolvedProvider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        let resolvedProvider = CloudProvider.forMode(cloudProvider)
         guard resolvedProvider == .hyperwhisper else { return nil }
 
         var rewrite = GoogleChirp3TierRewrite(
@@ -1439,7 +1461,7 @@ class PersistenceController: ObservableObject {
     /// out only after the save commits. A fetch or save failure returns `nil`, so
     /// callers must not unlink any files or record successful cleanup state.
     func deleteTranscriptsOlderThanInBackground(_ cutoffDate: Date) async -> AutoDeleteTransactionSnapshot? {
-        return await performWriteRequiringSave(deleteWinsConflicts: true) { context -> AutoDeleteTransactionSnapshot? in
+        let snapshot = await performWriteRequiringSave(deleteWinsConflicts: true) { context -> AutoDeleteTransactionSnapshot? in
             let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
             request.predicate = NSPredicate(format: "date < %@", cutoffDate as NSDate)
             request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: true)]
@@ -1473,9 +1495,15 @@ class PersistenceController: ObservableObject {
             return AutoDeleteTransactionSnapshot(
                 audioPaths: paths,
                 transcriptsDeleted: batch.count,
-                hasMore: transcripts.count > batch.count
+                hasMore: transcripts.count > batch.count,
+                transcriptIDs: batch.compactMap(\.id)
             )
         }
+        // Only once the delete committed: stop the retries of the expired rows.
+        if let snapshot {
+            Self.stopRetries(ofDeleted: snapshot.transcriptIDs)
+        }
+        return snapshot
     }
 
     /// Debounced (cancel-previous) view-context re-faulting. After ~3s of write
@@ -1526,6 +1554,7 @@ class PersistenceController: ObservableObject {
                         for duplicate in existing.dropFirst() {
                             context.delete(duplicate)
                         }
+                        Self.stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
                         AppLogger.coreData.warning(
                             "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
                         )
@@ -1604,32 +1633,46 @@ class PersistenceController: ObservableObject {
     /// and near-now dedup as the `@MainActor` variant, but no `processPendingChanges()`
     /// and no view-context `refreshAllObjects()` — the merge notification refreshes
     /// HistoryView, and maintenance is debounced off the hot path.
+    ///
+    /// - Parameter completesFailedRowByRetry: the row was saved as FAILED and a
+    ///   retry is completing it (#1636). Clears `failedReason` (History reads
+    ///   any non-empty one as a failure, so a completed row that kept it would
+    ///   still show as failed; a processing row has none) and counts the retry
+    ///   (`retryCount` + 1, `lastRetryDate`) as History's own Retry does
+    ///   (`TranscriptionRetryController`).
+    /// - Returns: whether the row was found and the write was saved.
+    @discardableResult
     func updateTranscriptWithTranscriptionInBackground(
         transcriptID: NSManagedObjectID,
         transcribedText: String,
         postProcessedText: String? = nil,
         transcriptionProvider: String? = nil,
         postProcessingProvider: String? = nil,
-        wordTimestampsJSON: String? = nil
-    ) async {
-        await performWrite { context in
+        wordTimestampsJSON: String? = nil,
+        completesFailedRowByRetry: Bool = false
+    ) async -> Bool {
+        let result = await performWriteReportingSave { context -> Bool in
             guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
                 AppLogger.coreData.warning("updateTranscriptWithTranscriptionInBackground: transcript row not found (cancel race?) — skipping")
-                return
+                return false
             }
 
             transcript.text = postProcessedText ?? transcribedText
             transcript.setValue("completed", forKey: "status")
-            transcript.setValue(transcribedText, forKey: "transcribedText")
-            if let postProcessedText {
-                transcript.setValue(postProcessedText, forKey: "postProcessedText")
+            if completesFailedRowByRetry {
+                transcript.setValue(nil, forKey: "failedReason")
+                let currentRetryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
+                transcript.setValue(currentRetryCount + 1, forKey: "retryCount")
+                transcript.setValue(Date(), forKey: "lastRetryDate")
             }
+            transcript.setValue(transcribedText, forKey: "transcribedText")
+            // Always overwrite (including clearing to nil) — see the @MainActor variant.
+            transcript.setValue(postProcessedText, forKey: "postProcessedText")
             if let transcriptionProvider {
                 transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
             }
-            if let postProcessingProvider {
-                transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
-            }
+            // Always overwrite, in step with `postProcessedText` — see the @MainActor variant.
+            transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
             // Always overwrite (including clearing to nil) — see the @MainActor variant.
             transcript.setValue(wordTimestampsJSON, forKey: "wordTimestampsJSON")
 
@@ -1657,30 +1700,46 @@ class PersistenceController: ObservableObject {
 
                             if isNearInTime && (isNearInDuration || sameText) {
                                 context.delete(candidate)
+                                Self.stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
                                 AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
                             }
                         }
                     }
                 }
             }
+            return true
         }
+        return result.value && result.saved
     }
 
     /// Mark a transcript failed on the serial writer.
+    ///
+    /// - Parameter countsRetry: a retry failed this row (#1815). Counts it
+    ///   (`retryCount` + 1, `lastRetryDate`) as History's own Retry does.
+    /// - Returns: whether the row was found and the write was saved.
+    @discardableResult
     func markTranscriptFailedInBackground(
         transcriptID: NSManagedObjectID,
         failedReason: String,
-        errorText: String
-    ) async {
-        await performWrite { context in
+        errorText: String,
+        countsRetry: Bool = false
+    ) async -> Bool {
+        let result = await performWriteReportingSave { context -> Bool in
             guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
                 AppLogger.coreData.warning("markTranscriptFailedInBackground: transcript row not found — skipping")
-                return
+                return false
             }
             transcript.setValue("failed", forKey: "status")
             transcript.setValue(failedReason, forKey: "failedReason")
             transcript.text = errorText
+            if countsRetry {
+                let currentRetryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
+                transcript.setValue(currentRetryCount + 1, forKey: "retryCount")
+                transcript.setValue(Date(), forKey: "lastRetryDate")
+            }
+            return true
         }
+        return result.value && result.saved
     }
 
     /// Finalize a recording session on stop in ONE serial write — collapses the
@@ -1792,6 +1851,7 @@ class PersistenceController: ObservableObject {
                         for duplicate in existing.dropFirst() {
                             context.delete(duplicate)
                         }
+                        Self.stopRetries(ofDeleted: existing.dropFirst().compactMap(\.id))
                         AppLogger.coreData.warning(
                             "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
                         )
@@ -1840,7 +1900,9 @@ class PersistenceController: ObservableObject {
     /// - Parameters:
     ///   - transcript: The transcript to update (currently in "processing" state)
     ///   - transcribedText: The transcribed text (or error message if transcription failed)
-    ///   - postProcessedText: Optional AI-enhanced version of the text
+    ///   - postProcessedText: The delivered text when it differs from the raw text (AI
+    ///     post-processing, or with it off, filler removal, voice commands and
+    ///     Vocabulary swaps); nil clears the field. See `TranscriptionResult.historyPostProcessedText`.
     ///
     /// Auto-refresh mechanism:
     /// 1. Updates the transcript's text and status from "processing" to "completed"
@@ -1861,20 +1923,24 @@ class PersistenceController: ObservableObject {
         // Store the raw transcribed text
         transcript.setValue(transcribedText, forKey: "transcribedText")
 
-        // Store the post-processed text if available
-        if let postProcessedText = postProcessedText {
-            transcript.setValue(postProcessedText, forKey: "postProcessedText")
-        }
+        // Store the delivered text. Always overwrite, including clearing to
+        // nil: History, the Recording dialog and `GET /recordings/{id}` all
+        // read `postProcessedText` before `text`, so a Retry whose new text
+        // equals its raw text would otherwise keep showing the old run's
+        // text (issue #1638).
+        transcript.setValue(postProcessedText, forKey: "postProcessedText")
 
         // Store the transcription provider (e.g., "LibWhisper", "HyperWhisper Cloud", "OpenAI Whisper")
         if let provider = transcriptionProvider {
             transcript.setValue(provider, forKey: "transcriptionProvider")
         }
 
-        // Store the post-processing provider if available
-        if let provider = postProcessingProvider {
-            transcript.setValue(provider, forKey: "postProcessingProvider")
-        }
+        // Store the post-processing provider. Always overwrite, including
+        // clearing to nil, in step with `postProcessedText`: a Retry with AI
+        // off (or an AI step that left the text unchanged) has no provider,
+        // and keeping the old run's one would badge non-AI text as AI in
+        // History and in `GET /recordings/{id}`.
+        transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
 
         // Store segment/word timestamps JSON blob (basis: raw_text). Always
         // overwrite — including clearing to nil when the caller supplies none.
@@ -1912,6 +1978,7 @@ class PersistenceController: ObservableObject {
 
                         if isNearInTime && (isNearInDuration || sameText) {
                             container.viewContext.delete(candidate)
+                            Self.stopRetries(ofDeleted: [candidate.id].compactMap { $0 })
                             AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
                         }
                     }
@@ -2032,6 +2099,7 @@ class PersistenceController: ObservableObject {
             removeTranscriptAudioFile(atPath: path)
         }
 
+        Self.stopRetries(ofDeleted: [transcript.id].compactMap { $0 })
         context.delete(transcript)
         save()
     }
@@ -2060,8 +2128,27 @@ class PersistenceController: ObservableObject {
         for path in Self.audioFilePathsToDelete(for: transcriptsToDelete, in: context) {
             removeTranscriptAudioFile(atPath: path)
         }
+        Self.stopRetries(ofDeleted: transcriptsToDelete.compactMap(\.id))
         transcriptsToDelete.forEach { context.delete($0) }
         save()
+    }
+
+    /// Stops every running retry (plain Retry or "Retry with") of rows being
+    /// deleted, whichever path deletes them (#1743): History, auto-delete, a
+    /// duplicate collapse. Otherwise the engine runs on for a row that is gone.
+    /// Cancels at once on the main thread; from a background context it hops
+    /// there, and the retry's own deleted-row checks cover the gap.
+    static func stopRetries(ofDeleted transcriptIDs: [UUID]) {
+        guard !transcriptIDs.isEmpty else { return }
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                transcriptIDs.forEach(TranscriptActionHandler.cancelRetryTask(for:))
+            }
+        } else {
+            Task { @MainActor in
+                transcriptIDs.forEach(TranscriptActionHandler.cancelRetryTask(for:))
+            }
+        }
     }
 
     // MARK: - Transcript Audio Files
@@ -2112,6 +2199,34 @@ class PersistenceController: ObservableObject {
             return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: [])
         }
 
+        let protectedPaths = pathsOwnedBySurvivors(of: lookupPaths, excluding: transcripts, in: context)
+        return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: protectedPaths)
+    }
+
+    /// Of `paths`, the files no remaining transcript records or derives.
+    /// For files no row records, such as the VAD output of a retry its row's
+    /// delete cancelled (#1743): another row recorded from the same audio
+    /// shares those names and keeps its files.
+    ///
+    /// Must run on `context`'s queue, AFTER the row is deleted from it.
+    static func audioPathsNoTranscriptOwns(
+        _ paths: [String],
+        in context: NSManagedObjectContext
+    ) -> [String] {
+        guard !paths.isEmpty else { return [] }
+        let owned = pathsOwnedBySurvivors(of: paths, excluding: [], in: context)
+        return paths.filter { !owned.contains($0) }
+    }
+
+    /// Every path the transcripts outside `transcripts` that record any of
+    /// `lookupPaths` own or derive. If that fetch fails, every lookup path
+    /// counts as owned: a leaked file is recoverable, a deleted file another
+    /// row plays is not.
+    private static func pathsOwnedBySurvivors(
+        of lookupPaths: [String],
+        excluding transcripts: [Transcript],
+        in context: NSManagedObjectContext
+    ) -> Set<String> {
         let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
         request.predicate = NSPredicate(
             format: "NOT (SELF IN %@) AND (audioFilePath IN %@ OR trimmedAudioFilePath IN %@)",
@@ -2120,16 +2235,13 @@ class PersistenceController: ObservableObject {
             lookupPaths as NSArray
         )
 
-        let protectedPaths: Set<String>
         do {
             let survivors = try context.fetch(request)
-            protectedPaths = TranscriptAudioFiles.protectedPaths(for: survivors.map(Self.recordedAudioPaths(of:)))
+            return TranscriptAudioFiles.protectedPaths(for: survivors.map(Self.recordedAudioPaths(of:)))
         } catch {
             AppLogger.coreData.error("Could not check owners of derived audio files; keeping them: \(error.localizedDescription, privacy: .public)")
-            protectedPaths = Set(lookupPaths)
+            return Set(lookupPaths)
         }
-
-        return TranscriptAudioFiles.pathsToDelete(for: rows, protectedPaths: protectedPaths)
     }
 
     /// Removes one transcript audio file if it exists, logging the outcome.
@@ -2384,9 +2496,13 @@ class PersistenceController: ObservableObject {
     /// The stop/retry paths are called while SwiftUI is transitioning recording UI state.
     /// Keep the fallback chain equivalent to the recording hot-path logic:
     /// mode id -> mode name -> default mode.
+    ///
+    /// `allowNameFallback: false` resolves by id only: a mode the user picked
+    /// must never resolve to a different mode that happens to share its name.
     func resolveTranscriptionModeInBackground(
         id: String,
         fallbackName: String,
+        allowNameFallback: Bool = true,
         allowDefaultFallback: Bool = true
     ) async -> Mode? {
         let context = container.newBackgroundContext()
@@ -2399,6 +2515,8 @@ class PersistenceController: ObservableObject {
                     return mode.objectID
                 }
             }
+
+            guard allowNameFallback else { return nil }
 
             let byName: NSFetchRequest<Mode> = Mode.fetchRequest()
             byName.predicate = NSPredicate(format: "name == %@", fallbackName)
@@ -2463,13 +2581,17 @@ class PersistenceController: ObservableObject {
         foreignPlatformExtensions: String? = nil,
         persist: Bool = true,
         restoringFromBackup: Bool = false,
+        updating existingMode: Mode? = nil,
         in suppliedContext: NSManagedObjectContext? = nil
     ) -> Mode {
         let context = suppliedContext ?? container.viewContext
-        
-        // Check if mode exists (for update)
-        var mode: Mode?
-        if let id = id {
+
+        // Check if mode exists (for update). A caller that already holds the
+        // row (the backup restore's in-place `.replace`, issue #1479) passes it
+        // in, so the update never depends on a predicate fetch matching an
+        // unsaved `id` change.
+        var mode: Mode? = existingMode
+        if mode == nil, let id = id {
             let request: NSFetchRequest<Mode> = Mode.fetchRequest()
             request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             request.fetchLimit = 1
@@ -2525,7 +2647,7 @@ class PersistenceController: ObservableObject {
         if trimmedUserPrompt.isEmpty {
             mode?.userSystemPrompt = nil
         } else {
-            mode?.userSystemPrompt = String(trimmedUserPrompt.prefix(2000))
+            mode?.userSystemPrompt = String(trimmedUserPrompt.prefix(userSystemPromptCharacterLimit))
         }
 
         let modeEnum = PostProcessingMode(rawValue: postProcessingMode) ?? .cloud
@@ -2542,7 +2664,7 @@ class PersistenceController: ObservableObject {
         // camelCase id from a Windows/Linux backup — `geminiTranscribe` — is
         // stored in the lowercase form every reader and every picker tag below
         // expects. An id this build does not model passes through verbatim.
-        mode?.cloudProvider = CloudProvider.canonicalStorageValue(cloudProvider) ?? "hyperwhisper"
+        mode?.cloudProvider = CloudProvider.canonicalStorageValue(cloudProvider) ?? CloudProvider.effectiveModeStorageValue(nil)
         // cloudTranscriptionModel is assigned below, after the accuracy tier is
         // resolved, so an omitted model derives from the resolved tier's catalog
         // default (e.g. scribe_v2) instead of persisting a stale "whisper-1".
@@ -2585,7 +2707,7 @@ class PersistenceController: ObservableObject {
         // (openai / soniox / …) there is no accuracy tier — fall back to THAT
         // provider's own default model, otherwise a tier-derived id like
         // "scribe_v2" would be persisted and sent to e.g. OpenAI and rejected.
-        let resolvedCloudProvider = CloudProvider.parse(mode?.cloudProvider) ?? .hyperwhisper
+        let resolvedCloudProvider = CloudProvider.forMode(mode?.cloudProvider)
         mode?.cloudTranscriptionModel = cloudTranscriptionModel
             ?? (resolvedCloudProvider == .hyperwhisper
                 ? (CloudAccuracyTier(rawValue: resolvedAccuracyTier)?.defaultModelId ?? "")
@@ -2595,7 +2717,14 @@ class PersistenceController: ObservableObject {
         // Preserve a foreign (non-macOS) per-mode platformExtensions blob captured
         // on a v2 import (H4). Only assign when explicitly provided so an unrelated
         // GUI/API mode edit (which passes nil) never wipes a stored foreign slice.
-        if let foreignPlatformExtensions {
+        //
+        // A restore is the exception: it writes the backup row's slice even
+        // when that is nil. `.replace` updates the local row in place (issue
+        // #1479), and the row must end up exactly as a fresh create from the
+        // backup row would leave it — so a stale slice from an earlier foreign
+        // import must not survive a restore of a backup that has none, or
+        // `BackupMode(from:)` would re-emit it into every later export.
+        if restoringFromBackup || foreignPlatformExtensions != nil {
             mode?.foreignPlatformExtensions = foreignPlatformExtensions
         }
         let trimmedGeminiPrompt = geminiCustomPrompt?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -2627,6 +2756,13 @@ class PersistenceController: ObservableObject {
     /// - Parameter mode: The mode to delete
     /// - Note: The caller is responsible for ensuring at least one mode remains
     func deleteMode(_ mode: Mode) {
+        deleteModeWithoutSaving(mode)
+        save()
+    }
+
+    /// `deleteMode` without its save: the backup import (issue #1613) deletes
+    /// inside one transaction and saves once at the end.
+    private func deleteModeWithoutSaving(_ mode: Mode) {
         let context = container.viewContext
         let wasDefault = mode.isDefault
         context.delete(mode)
@@ -2636,7 +2772,6 @@ class PersistenceController: ObservableObject {
         if wasDefault {
             DefaultModePolicy.apply(to: fetchAllModes())
         }
-        save()
     }
 
     /// Deletes a mode the user asked to delete, then repairs the app state that
@@ -2715,7 +2850,17 @@ class PersistenceController: ObservableObject {
     // viewContext insert/save for RecordingSession here.
 
     // MARK: - Vocabulary Operations
-    
+
+    /// Splits a vocabulary add-field value into one word per non-empty line,
+    /// each trimmed (issue #1475). A pasted list becomes one word per line
+    /// instead of one word with newlines inside it. Single-line input comes
+    /// back as one trimmed word; blank input comes back empty.
+    nonisolated static func vocabularyWordLines(from text: String) -> [String] {
+        text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     /// Adds a new vocabulary item to Core Data
     /// - Parameters:
     ///   - word: The word/phrase to recognize
@@ -2737,6 +2882,13 @@ class PersistenceController: ObservableObject {
         // to the regex "\b\b" in VocabularyProcessor, matching every word
         // boundary and corrupting the entire transcript.
         guard !normalizedWord.isEmpty else {
+            return false
+        }
+
+        // A word is one line (issue #1475). Callers split a multi-line value
+        // with `vocabularyWordLines(from:)` first. The replacement may keep
+        // its line breaks: a multi-line snippet is allowed.
+        guard normalizedWord.rangeOfCharacter(from: .newlines) == nil else {
             return false
         }
 
@@ -2950,11 +3102,354 @@ class PersistenceController: ObservableObject {
     
     // MARK: - Bulk Import Operations (Backup/Restore)
 
-    /// Imports modes from backup data with conflict resolution
+    /// What one backup store import changed.
+    struct BackupStoreImportResult {
+        var modesImported = 0
+        var modesSkipped = 0
+        /// Old-to-new mode ids created by `.keepBoth`.
+        var modeIdRemap: [UUID: UUID] = [:]
+        var vocabularyImported = 0
+        var vocabularySkipped = 0
+    }
+
+    /// A backup store import whose save failed and was rolled back (#1613).
+    struct BackupStoreImportError: Error {
+        enum Section {
+            case modes
+            case vocabulary
+        }
+
+        /// The section whose save failed. `.modes`: nothing was written (the
+        /// vocabulary is not attempted after a failed modes save).
+        /// `.vocabulary`: the vocabulary was left as it was, and the modes in
+        /// `committed` (when modes were selected) were saved before it.
+        let failedSection: Section
+        /// What was saved before the failure: the modes counts and id remap
+        /// when the modes section committed; empty otherwise.
+        let committed: BackupStoreImportResult
+        let underlying: Error
+    }
+
+    /// Imports a backup's modes and vocabulary, each section as ONE store
+    /// transaction (issue #1613).
+    ///
+    /// Every row used to be saved on its own (`createOrUpdateMode`,
+    /// `deleteMode`, `addVocabularyItem` and the default-flag pass each
+    /// saved), so a crash, a kill or a failed save part-way left a silent
+    /// partial import. Now each section's rows are written to `viewContext`
+    /// with no save, and one `save()` commits that section. A failed save
+    /// rolls the context back and throws, so nothing half-applied stays
+    /// pending (the plain `save()` only logs, and its rejected row would
+    /// poison every later save) and the caller can tell the user exactly
+    /// which section failed.
+    ///
+    /// Why one save per section, not one for both: `Mode` lives in the
+    /// `Local` store and `Vocabulary` in the `Cloud` one. A single save writes
+    /// each store in its own SQLite transaction, with no two-phase commit, so
+    /// it could commit the modes, fail the vocabulary, and a rollback could
+    /// not undo the committed modes. Saving the sections one after the other
+    /// makes each outcome known: modes first (with the default-mode repair in
+    /// the same save), then the vocabulary only if the modes committed.
+    ///
+    /// Pass `nil` for a section the user did not select. An empty array still
+    /// runs that section (for modes, the default-mode repair).
+    ///
+    /// - Throws: `BackupStoreImportError`, after the rollback. Changes the
+    ///   context held BEFORE the import are saved first so the rollback cannot
+    ///   discard them; if that save fails, this throws (as a failure of the
+    ///   first selected section) before importing anything.
+    @MainActor
+    func importBackupStore(
+        modes backupModes: [BackupMode]?,
+        modeResolution: ModeConflictResolution,
+        vocabulary backupItems: [BackupVocabularyItem]?,
+        vocabularyResolution: VocabularyConflictResolution
+    ) throws -> BackupStoreImportResult {
+        let context = container.viewContext
+        let saveSite = "backup_import"
+
+        // The rollback below must undo the import and nothing else, so commit
+        // whatever was pending before it starts.
+        if context.hasChanges {
+            do {
+                try saveBackupImportChanges(context: context)
+            } catch {
+                AppLogger.logCoreData(
+                    .save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                    error: error as NSError,
+                    metadata: CoreDataSaveDiagnostics.contextShape(context)
+                )
+                throw BackupStoreImportError(
+                    failedSection: backupModes != nil ? .modes : .vocabulary,
+                    committed: BackupStoreImportResult(),
+                    underlying: error
+                )
+            }
+        }
+
+        var result = BackupStoreImportResult()
+
+        if let backupModes {
+            let modes = applyImportedModes(backupModes, resolution: modeResolution)
+            do {
+                try saveBackupImportSection(context: context, saveSite: saveSite)
+            } catch {
+                AppLogger.coreData.error("Backup import: the modes save failed and was rolled back · no mode or vocabulary row was changed")
+                throw BackupStoreImportError(failedSection: .modes, committed: BackupStoreImportResult(), underlying: error)
+            }
+            result.modesImported = modes.imported
+            result.modesSkipped = modes.skipped
+            result.modeIdRemap = modes.idRemap
+            AppLogger.coreData.info("Backup import: modes committed · \(modes.imported) imported, \(modes.skipped) skipped")
+        }
+
+        if let backupItems {
+            let vocabulary = applyImportedVocabulary(backupItems, resolution: vocabularyResolution)
+            do {
+                try saveBackupImportSection(context: context, saveSite: saveSite)
+            } catch {
+                AppLogger.coreData.error("Backup import: the vocabulary save failed and was rolled back · no vocabulary row was changed")
+                throw BackupStoreImportError(failedSection: .vocabulary, committed: result, underlying: error)
+            }
+            result.vocabularyImported = vocabulary.imported
+            result.vocabularySkipped = vocabulary.skipped
+            AppLogger.coreData.info("Backup import: vocabulary committed · \(vocabulary.imported) imported, \(vocabulary.skipped) skipped")
+        }
+
+        return result
+    }
+
+    /// Saves one staged backup-import section. A failed save rolls the whole
+    /// context back (the section's staged rows and nothing else: the import
+    /// saved everything else first) and rethrows.
+    @MainActor
+    private func saveBackupImportSection(context: NSManagedObjectContext, saveSite: String) throws {
+        do {
+            if context.hasChanges {
+                try saveBackupImportChanges(context: context)
+            }
+            AppLogger.logCoreData(.save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey))
+        } catch {
+            // Read the shape BEFORE the rollback empties the pending sets.
+            let shape = CoreDataSaveDiagnostics.contextShape(context)
+            context.rollback()
+            AppLogger.logCoreData(
+                .save(site: saveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                error: error as NSError,
+                metadata: shape
+            )
+            throw error
+        }
+    }
+
+    /// How long a backup import save waits for another process's write lock
+    /// on a store file before it fails (issue #1626; Ray chose 10 s).
+    nonisolated static let backupImportWriteLockTimeout: TimeInterval = 10
+
+    /// A backup import save that never started: another process held a
+    /// store's write lock for longer than `backupImportWriteLockTimeout`.
+    struct BackupImportStoreLockedError: Error {
+        /// The store file's name (not its path: the path holds the account name).
+        let storeFileName: String
+        /// The SQLite result code (`SQLITE_BUSY` or `SQLITE_LOCKED`).
+        let sqliteCode: Int32
+    }
+
+    /// Saves a backup import's changes in a bounded time, or throws (#1626).
+    ///
+    /// A plain `context.save()` has two ways to never come back when SQLite
+    /// itself refuses the write:
+    /// - Busy lock: Core Data waits for another process's write lock with no
+    ///   limit. Neither `NSPersistentStoreTimeoutOption` nor a `busy_timeout`
+    ///   pragma bounds that wait (measured on macOS 26). So before each
+    ///   `context.save()` take the write lock on every store the save writes,
+    ///   on our own connections within one 10 s deadline, hold them all until
+    ///   the line before the save, and let them go together (Core Data's own
+    ///   connection cannot take a lock ours hold, so they cannot be held
+    ///   through it). A lock another process takes in the short gap between
+    ///   that release and Core Data's own BEGIN still waits. The gap cannot be
+    ///   handed over either: on macOS 26 a raw `fcntl` lock this process takes
+    ///   on the WAL-index write byte blocks Core Data's own save too, because
+    ///   SQLite's locks there belong to its open file, not to the process.
+    /// - Constraint: a refused statement (`SQLITE_CONSTRAINT`, e.g. a trigger)
+    ///   reads to Core Data as an optimistic-locking failure. With a merging
+    ///   policy it retries, then ends the process ("Unable to recover from
+    ///   optimistic locking failure"). So save under `NSErrorMergePolicy`,
+    ///   which throws the conflicts instead. Real conflicts (a row another
+    ///   context changed since the import read it) are resolved ONCE with the
+    ///   context's own policy and the save is tried again; a failure with no
+    ///   conflict to resolve, or a second failure, is thrown.
+    @MainActor
+    private func saveBackupImportChanges(context: NSManagedObjectContext) throws {
+        try Self.saveWithoutRetryLoop(
+            context: context,
+            lockingStoresAt: Self.storeFileURLsWritten(by: context),
+            lockTimeout: Self.backupImportWriteLockTimeout
+        )
+    }
+
+    /// The on-disk SQLite files the context's pending changes are written to.
+    /// An in-memory (`/dev/null`) store has no file and no other writer.
+    @MainActor
+    private static func storeFileURLsWritten(by context: NSManagedObjectContext) -> [URL] {
+        guard let coordinator = context.persistentStoreCoordinator else { return [] }
+        let pending = context.insertedObjects.union(context.updatedObjects).union(context.deletedObjects)
+        let entityNames = Set(pending.compactMap { $0.entity.name })
+        return coordinator.persistentStores.compactMap { store in
+            guard store.type == NSSQLiteStoreType,
+                  let url = store.url,
+                  url.isFileURL,
+                  url.path != "/dev/null" else { return nil }
+            // A store with no named configuration holds every entity.
+            guard let entities = coordinator.managedObjectModel.entities(forConfigurationName: store.configurationName) else {
+                return url
+            }
+            return entities.contains { entityNames.contains($0.name ?? "") } ? url : nil
+        }
+    }
+
+    /// Write locks taken by `acquireStoreWriteLocks` on our own connections,
+    /// held until `release()`.
+    final class StoreWriteLocks {
+        private var connections: [OpaquePointer]
+
+        fileprivate init(connections: [OpaquePointer]) {
+            self.connections = connections
+        }
+
+        func release() {
+            for db in connections {
+                sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+                sqlite3_close_v2(db)
+            }
+            connections = []
+        }
+
+        deinit { release() }
+    }
+
+    /// Takes the write lock on every SQLite file in `urls`, all within one
+    /// `timeout`, and holds them until the result is released. Throws
+    /// `BackupImportStoreLockedError` (with every lock already taken let go)
+    /// when another connection still holds one at the deadline. Any other
+    /// SQLite failure skips that file and is left to the Core Data save,
+    /// which reports it.
+    nonisolated static func acquireStoreWriteLocks(at urls: [URL], timeout: TimeInterval) throws -> StoreWriteLocks {
+        var held: [OpaquePointer] = []
+        let deadline = Date().addingTimeInterval(timeout)
+        for url in urls {
+            var db: OpaquePointer?
+            guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK, let db else {
+                sqlite3_close_v2(db)
+                continue
+            }
+            let remaining = max(0, deadline.timeIntervalSinceNow)
+            sqlite3_busy_timeout(db, Int32(remaining * 1000))
+            let code = sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil)
+            if code == SQLITE_OK {
+                held.append(db)
+                continue
+            }
+            sqlite3_close_v2(db)
+            let primaryCode = code & 0xFF
+            if primaryCode == SQLITE_BUSY || primaryCode == SQLITE_LOCKED {
+                StoreWriteLocks(connections: held).release()
+                AppLogger.coreData.error("Backup import: \(url.lastPathComponent, privacy: .public) stayed write-locked by another connection for \(Int(timeout))s · not saving")
+                throw BackupImportStoreLockedError(storeFileName: url.lastPathComponent, sqliteCode: code)
+            }
+        }
+        return StoreWriteLocks(connections: held)
+    }
+
+    /// Waits up to `timeout` for the write lock on the SQLite file at `url`,
+    /// then releases it (see `acquireStoreWriteLocks`).
+    nonisolated static func waitForStoreWriteLock(at url: URL, timeout: TimeInterval) throws {
+        try acquireStoreWriteLocks(at: [url], timeout: timeout).release()
+    }
+
+    /// Saves under `NSErrorMergePolicy`, resolving real conflicts once with the
+    /// context's own policy (see `saveBackupImportChanges`). The context's
+    /// policy is put back afterwards. Each save, the retry included, first
+    /// takes and holds the write locks on `storeURLs` and lets them go on the
+    /// line before it.
+    @MainActor
+    static func saveWithoutRetryLoop(
+        context: NSManagedObjectContext,
+        lockingStoresAt storeURLs: [URL] = [],
+        lockTimeout: TimeInterval = backupImportWriteLockTimeout
+    ) throws {
+        let policy = context.mergePolicy
+        context.mergePolicy = NSErrorMergePolicy
+        defer { context.mergePolicy = policy }
+        func save() throws {
+            let locks = try acquireStoreWriteLocks(at: storeURLs, timeout: lockTimeout)
+            locks.release()
+            try context.save()
+        }
+        do {
+            try save()
+        } catch let error as NSError where error.domain == NSCocoaErrorDomain
+            && (error.code == NSManagedObjectMergeError || error.code == NSManagedObjectConstraintMergeError) {
+            let conflicts = error.userInfo[NSPersistentStoreSaveConflictsErrorKey] as? [Any] ?? []
+            let mergeConflicts = conflicts.compactMap { $0 as? NSMergeConflict }
+            let constraintConflicts = conflicts.compactMap { $0 as? NSConstraintConflict }
+            // No conflict to resolve: SQLite refused the statement itself.
+            guard let resolver = policy as? NSMergePolicy,
+                  resolver.mergeType != .errorMergePolicyType,
+                  !(mergeConflicts.isEmpty && constraintConflicts.isEmpty) else {
+                throw error
+            }
+            if !mergeConflicts.isEmpty {
+                try resolver.resolve(optimisticLockingConflicts: mergeConflicts)
+            }
+            if !constraintConflicts.isEmpty {
+                try resolver.resolve(constraintConflicts: constraintConflicts)
+            }
+            try save()
+        }
+    }
+
+    /// Imports modes from backup data with conflict resolution, as one
+    /// transaction (see `importBackupStore`).
+    ///
+    /// - Returns: the counts and `.keepBoth` id remap; all zero/empty when the
+    ///   save failed and the import was rolled back. `BackupManager` calls
+    ///   `importBackupStore` instead, which reports that failure.
+    @MainActor
+    func importModes(_ backupModes: [BackupMode], resolution: ModeConflictResolution) -> (imported: Int, skipped: Int, idRemap: [UUID: UUID]) {
+        guard let result = try? importBackupStore(
+            modes: backupModes,
+            modeResolution: resolution,
+            vocabulary: nil,
+            vocabularyResolution: .skip
+        ) else {
+            return (0, 0, [:])
+        }
+        return (result.modesImported, result.modesSkipped, result.modeIdRemap)
+    }
+
+    /// Imports vocabulary items from backup data, as one transaction (see
+    /// `importBackupStore`). All zero when the save failed and was rolled back.
+    @MainActor
+    func importVocabulary(_ backupItems: [BackupVocabularyItem], resolution: VocabularyConflictResolution) -> (imported: Int, skipped: Int) {
+        guard let result = try? importBackupStore(
+            modes: nil,
+            modeResolution: .skip,
+            vocabulary: backupItems,
+            vocabularyResolution: resolution
+        ) else {
+            return (0, 0)
+        }
+        return (result.vocabularyImported, result.vocabularySkipped)
+    }
+
+    /// Writes backup modes into `viewContext` with conflict resolution. Saves
+    /// NOTHING: `importBackupStore` commits or rolls back the whole section.
     ///
     /// CONFLICT RESOLUTION:
     /// - .skip: Don't import if mode with same name exists (case-insensitive)
-    /// - .replace: Delete existing mode, import new one
+    /// - .replace: Update the local counterpart in place (same id, else the
+    ///   first same-name row; issue #1479) and delete any other same-name row
     /// - .keepBoth: Import as "Mode Name (imported)"
     ///
     /// - Parameters:
@@ -2964,10 +3459,12 @@ class PersistenceController: ObservableObject {
     ///
     /// `@MainActor`: the entire import runs against `container.viewContext`, which is bound to
     /// the main queue. Pinning this method to the main actor enforces that queue confinement at
-    /// compile time so no caller can reach the fetch/save/delete work off-queue (Core Data
-    /// undefined behavior). The only caller today (`BackupManager`) is already main-actor isolated.
+    /// compile time so no caller can reach the fetch/delete work off-queue (Core Data
+    /// undefined behavior). Every fetch below includes the context's unsaved inserts and
+    /// excludes its unsaved deletes, so later rows see earlier ones exactly as they did when
+    /// each row was saved on its own.
     @MainActor
-    func importModes(_ backupModes: [BackupMode], resolution: ModeConflictResolution) -> (imported: Int, skipped: Int, idRemap: [UUID: UUID]) {
+    private func applyImportedModes(_ backupModes: [BackupMode], resolution: ModeConflictResolution) -> (imported: Int, skipped: Int, idRemap: [UUID: UUID]) {
         var imported = 0
         var skipped = 0
         var idRemap: [UUID: UUID] = [:]
@@ -2984,9 +3481,10 @@ class PersistenceController: ObservableObject {
             // #1481: a backup without enableScreenOCR / useStreamingTranscription
             // (one written before they were exported) keeps the value of the
             // local mode this row replaces or updates: the same id first, then
-            // the same-name row `.replace` deletes below. Read it BEFORE that
-            // delete. With no such row (a new mode, or `.keepBoth`'s copy) the
-            // value is `false`, which is what every restore wrote before.
+            // the first same-name row. That row is updated in place (issue
+            // #1479); `.replace` deletes any other same-name row below. With no
+            // such row (a new mode, or `.keepBoth`'s copy) the value is
+            // `false`, which is what every restore wrote before.
             let localCounterpart: Mode? = (hasConflict && resolution == .keepBoth)
                 ? nil
                 : (fetchAllModes().first { $0.id == backupMode.id } ?? conflicts.first)
@@ -3002,17 +3500,56 @@ class PersistenceController: ObservableObject {
                     continue
 
                 case .replace:
-                    // Replace every row whose stored canonical name conflicts.
-                    // Re-fetch on the next iteration so duplicate backup rows use
-                    // last-one-wins semantics without retaining deleted objects.
-                    for existingMode in conflicts where !existingMode.isDeleted {
-                        deleteMode(existingMode)
+                    // Issue #1479: the local counterpart is updated in place
+                    // below. Every OTHER same-name row is still deleted.
+                    // Re-fetch on the next iteration so duplicate backup rows
+                    // use last-one-wins semantics without retaining deleted
+                    // objects.
+                    for existingMode in conflicts where !existingMode.isDeleted && existingMode !== localCounterpart {
+                        deleteModeWithoutSaving(existingMode)
                     }
-                    // Fall through to create new mode
 
                 case .keepBoth:
                     // Will create with modified name below
                     break
+                }
+            }
+
+            // Issue #1479: ONE in-place path for every row that has a local
+            // counterpart (same id first, else — `.replace` only — the first
+            // same-name row; `.keepBoth` with a name conflict has none and
+            // makes a copy). The counterpart object is handed to
+            // `createOrUpdateMode` as `updating:`, so the update never depends
+            // on an `id ==` predicate fetch matching an id changed earlier in
+            // this same unsaved import. The row keeps its object (Z_PK),
+            // `sortOrder` and `createdDate`, so importing your own backup again
+            // changes nothing; every other column ends as a fresh create from
+            // this backup row would (`createOrUpdateMode` writes them all,
+            // including a nil `foreignPlatformExtensions`), bar the #1481
+            // fallbacks above.
+            let inPlaceTarget: Mode? = (localCounterpart?.isDeleted == false) ? localCounterpart : nil
+            if let keeper = inPlaceTarget {
+                if keeper.id != backupMode.id {
+                    // A same-name row with ANOTHER id is a different mode that
+                    // happens to share the name, so it takes what a create
+                    // gives: the backup's id (as the re-created row had) and
+                    // `isSystemProvided == false`. Only a row whose id IS the
+                    // backup row's keeps the seeded flag; otherwise a user mode
+                    // named like the seeded one would inherit it.
+                    keeper.id = backupMode.id
+                    keeper.isSystemProvided = false
+                }
+                if resolution == .replace {
+                    // A create starts with `isDefault == false` and is promoted
+                    // only by the `DefaultModePolicy.apply` below when the
+                    // backup row is the default, or by the final repair. The
+                    // flag is cleared the same way whether the counterpart was
+                    // found by id or by name, so which local row ends as the
+                    // default never depends on a row's name. `.skip` and
+                    // `.keepBoth` keep the local flag, as before #1479: they
+                    // only reach here for a same-id row with no name conflict,
+                    // and they never promised to restore the backup's default.
+                    keeper.isDefault = false
                 }
             }
 
@@ -3078,22 +3615,24 @@ class PersistenceController: ObservableObject {
                 cloudPostProcessingModel: backupMode.cloudPostProcessingModel,
                 cloudTranscriptionDomain: backupMode.cloudTranscriptionDomain,
                 foreignPlatformExtensions: backupMode.foreignPlatformExtensions,
-                restoringFromBackup: true
+                // One save for the whole import (issue #1613).
+                persist: false,
+                restoringFromBackup: true,
+                updating: inPlaceTarget
             )
 
             // Update isDefault flag if this mode should be default
             // Only set as default if the original was default AND we're not in keepBoth mode
             if backupMode.isDefault && !(hasConflict && resolution == .keepBoth) {
                 // Clear existing default(s) first. Re-fetch here rather than reusing
-                // `existingModes`: under `.replace`, `deleteMode` above deletes and
-                // saves managed objects on earlier iterations, so that captured array
-                // can hold invalidated objects (reading/writing them is a Core Data
+                // `existingModes`: under `.replace`, the delete above removes managed
+                // objects on earlier iterations, so that captured array can hold
+                // deleted objects (reading/writing them is a Core Data
                 // use-after-delete). The fresh fetch never returns deleted objects;
                 // `!mode.isDeleted` guards any in-flight, unsaved delete.
                 // One decision, three heads (issue #536): the flag moves onto the
                 // imported mode and off every other row in the same pass.
                 DefaultModePolicy.apply(to: fetchAllModes(), preferred: finalId)
-                save()
             }
 
             imported += 1
@@ -3103,14 +3642,20 @@ class PersistenceController: ObservableObject {
         // the field existed, or one whose default row was skipped as a conflict
         // — used to restore a store with NO default mode (issue #536). Nothing
         // repaired it: `initializeDefaultModes()` returns early whenever any
-        // mode exists.
-        enforceDefaultModeInvariant()
+        // mode exists. The same repair as `enforceDefaultModeInvariant()`,
+        // without its save.
+        if DefaultModePolicy.apply(to: fetchAllModes()) {
+            AppLogger.coreData.info(
+                "Repaired the default-mode flag · exactly one mode is the default again"
+            )
+        }
 
-        AppLogger.coreData.info("Mode import complete: \(imported) imported, \(skipped) skipped")
+        AppLogger.coreData.info("Mode import staged: \(imported) imported, \(skipped) skipped")
         return (imported, skipped, idRemap)
     }
 
-    /// Imports vocabulary items from backup data with conflict resolution
+    /// Writes backup vocabulary into `viewContext` with conflict resolution.
+    /// Saves NOTHING: `importBackupStore` commits or rolls back the whole section.
     ///
     /// CONFLICT RESOLUTION:
     /// - .skip: Don't import if word already exists (case-insensitive)
@@ -3121,16 +3666,27 @@ class PersistenceController: ObservableObject {
     ///   - resolution: How to handle conflicts
     /// - Returns: Tuple with counts of imported and skipped items
     ///
-    /// `@MainActor`: like `importModes`, all work runs against `container.viewContext` (main
+    /// `@MainActor`: like `applyImportedModes`, all work runs against `container.viewContext` (main
     /// queue). Pinning to the main actor enforces that queue confinement at compile time.
     @MainActor
-    func importVocabulary(_ backupItems: [BackupVocabularyItem], resolution: VocabularyConflictResolution) -> (imported: Int, skipped: Int) {
+    private func applyImportedVocabulary(_ backupItems: [BackupVocabularyItem], resolution: VocabularyConflictResolution) -> (imported: Int, skipped: Int) {
+        let context = container.viewContext
         var imported = 0
         var skipped = 0
+        // Highest sortOrder so far, read once and then advanced per insert —
+        // the same "add to end" order `addVocabularyItem` gives each row.
+        var maxSortOrder: Int16?
 
-        for item in backupItems {
-            let normalizedWord = item.word.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A backup made before #1475 can carry a word with line breaks inside it. It
+        // imports as one word per non-empty line, the way the add field saves a paste
+        // (#1777); each line carries the item's replacement and source. A blank word
+        // stays one empty entry, so it is still counted as skipped below.
+        let entries = backupItems.flatMap { item -> [(String, BackupVocabularyItem)] in
+            let lines = Self.vocabularyWordLines(from: item.word)
+            return lines.isEmpty ? [("", item)] : lines.map { ($0, item) }
+        }
 
+        for (normalizedWord, item) in entries {
             // Skip empty/whitespace-only words. An empty word would later compile
             // to the regex "\b\b" in VocabularyProcessor, matching every word
             // boundary and corrupting the entire transcript.
@@ -3139,8 +3695,11 @@ class PersistenceController: ObservableObject {
                 continue
             }
 
-            // Check for existing item
-            let exists = vocabularyItemExists(word: normalizedWord)
+            // Check for an existing item. A FETCH, not `vocabularyItemExists`'s
+            // count: nothing is saved until the end now, and a fetch evaluates
+            // the context's unsaved inserts too, so a word repeated in the same
+            // backup still finds the row an earlier entry staged.
+            let exists = importedVocabularyItemExists(word: normalizedWord)
 
             if exists {
                 switch resolution {
@@ -3158,25 +3717,54 @@ class PersistenceController: ObservableObject {
                         existing.word = normalizedWord
                         existing.replacement = normalizedReplacement?.isEmpty == true ? nil : normalizedReplacement
                         existing.setValue(item.source, forKey: "source")
-                        save()
                         imported += 1
                         continue
                     }
-                    // Fall through to add new item
+                    // A case-insensitive match the lowercase compare above missed.
+                    // `addVocabularyItem` refused these as duplicates, so they
+                    // stay skipped.
+                    skipped += 1
+                    continue
                 }
             }
 
-            // Add the vocabulary item. `addVocabularyItem` can return false (e.g. a
-            // duplicate that wasn't removed), in which case nothing was persisted — count
-            // it as skipped so the success summary doesn't overstate what was saved.
-            if addVocabularyItem(word: normalizedWord, replacement: item.replacement, source: item.source) {
-                imported += 1
-            } else {
-                skipped += 1
-            }
+            // Add the vocabulary item: `addVocabularyItem`'s insert, without its save.
+            let normalizedReplacement = item.replacement?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let vocabItem = Vocabulary(context: context)
+            vocabItem.id = UUID()
+            vocabItem.word = normalizedWord
+            vocabItem.replacement = normalizedReplacement?.isEmpty == true ? nil : normalizedReplacement
+            vocabItem.setValue(item.source, forKey: "source")
+            vocabItem.createdDate = Date()
+
+            let currentMax = maxSortOrder ?? (fetchAllVocabularyItems()
+                .filter { $0 !== vocabItem }
+                .map { $0.sortOrder }
+                .max() ?? 0)
+            // Int16: clamp at .max (as the mode path does) rather than trap on overflow.
+            vocabItem.sortOrder = currentMax == .max ? .max : currentMax + 1
+            maxSortOrder = vocabItem.sortOrder
+            imported += 1
         }
 
-        AppLogger.coreData.info("Vocabulary import complete: \(imported) imported, \(skipped) skipped")
+        AppLogger.coreData.info("Vocabulary import staged: \(imported) imported, \(skipped) skipped")
         return (imported, skipped)
+    }
+
+    /// Whether `word` (trimmed, case-insensitive) is already in the vocabulary,
+    /// counting rows this import staged but has not saved yet.
+    private func importedVocabularyItemExists(word: String) -> Bool {
+        let request: NSFetchRequest<Vocabulary> = Vocabulary.fetchRequest()
+        request.predicate = NSPredicate(format: "word ==[c] %@", word)
+        request.includesPendingChanges = true
+
+        do {
+            let matches = try container.viewContext.fetch(request)
+            return !matches.isEmpty
+        } catch {
+            AppLogger.coreData.error("Failed to check vocabulary existence: \(error, privacy: .public)")
+            SentryService.capture(error: error, message: "Failed to check vocabulary existence", tags: ["component": "PersistenceController", "operation": "importedVocabularyItemExists"])
+            return false
+        }
     }
 }

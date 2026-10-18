@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Link } from "@/src/i18n/navigation";
 import { getBlogPost, getBlogPosts } from "@/src/content/blog";
 import { formatLongUTCDate } from "@/lib/format-date";
+import { PROSE_TEXT_LINK } from "@/components/text-link";
 
 const BASE_URL = "https://hyperwhisper.com";
 
@@ -22,10 +23,12 @@ function toAbsoluteUrl(url: string) {
 
 export async function generateMetadata({ params }: Props) {
   const { locale, slug } = await params;
-  if (locale !== "en") return {};
+  // #815: throw the page's notFound() here too. Returning {} left the layout's
+  // home-page title and "index, follow" in the RSC payload the browser renders.
+  if (locale !== "en") notFound();
   const post = await getBlogPost(slug);
 
-  if (!post) return {};
+  if (!post) notFound();
 
   const title = post.frontMatter.title;
   const description = post.frontMatter.description;
@@ -156,7 +159,7 @@ export default async function BlogPostPage({ params }: Props) {
       ) : null}
 
       <div
-        className="prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-a:text-purple-300 prose-a:no-underline hover:prose-a:text-purple-200 prose-strong:text-white"
+        className={`prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-strong:text-white ${PROSE_TEXT_LINK}`}
         dangerouslySetInnerHTML={{ __html: post.html }}
       />
     </article>

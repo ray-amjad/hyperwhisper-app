@@ -26,15 +26,17 @@ internal static class ModelsEndpoints
                     "Model library not yet initialized.");
             }
 
+            // Read once per request: the account key /transcribe refuses on.
+            var cloudAccountKeyPresent = HealthEndpoints.CloudAccountKeyPresent();
             var models = library.Rebuild()
-                .Select(ToEntry)
+                .Select(row => ToEntry(row, cloudAccountKeyPresent))
                 .ToList();
 
             return LocalApiResponder.Ok(new ModelsListResponse { Models = models });
         });
     }
 
-    private static ModelEntry ToEntry(LibraryModel row)
+    internal static ModelEntry ToEntry(LibraryModel row, bool cloudAccountKeyPresent)
     {
         return new ModelEntry
         {
@@ -46,10 +48,23 @@ internal static class ModelsEndpoints
             // work". A custom endpoint that has never been tested is Untested
             // rather than Enabled since #509; it is still a usable row, so it
             // keeps reporting installed and the wire contract does not move.
-            Installed = row.StatusKind is LibraryModelStatusKind.Enabled or LibraryModelStatusKind.Untested,
+            // The HW-Cloud-routed rows are always Enabled in the library (no
+            // BYOK key), but /transcribe and Cloud post-processing refuse them
+            // with MISSING_API_KEY when no account key is stored, so they are
+            // installed only with one, the same check as /health key_present
+            // (issue #650).
+            Installed = (row.StatusKind is LibraryModelStatusKind.Enabled or LibraryModelStatusKind.Untested)
+                && (cloudAccountKeyPresent || !UsesCloudAccountKey(row)),
             SizeMb = ExtractSizeMb(row.SizeDescription)
         };
     }
+
+    private static bool UsesCloudAccountKey(LibraryModel row) => row.Payload switch
+    {
+        CloudTranscriptionModel model => HealthEndpoints.UsesCloudAccountKey(model.Provider),
+        LanguageModelInfo model => model.Provider == PostProcessingProvider.HyperWhisperCloud,
+        _ => false
+    };
 
     private static string ProviderId(LibraryModel row)
         => row.LocationKind == LibraryModelLocationKind.Offline

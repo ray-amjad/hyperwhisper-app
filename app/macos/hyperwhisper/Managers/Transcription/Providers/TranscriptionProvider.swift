@@ -84,3 +84,21 @@ extension TranscriptionProvider {
     var lastTimestamps: TranscriptionTimestamps? { nil }
     var lastAttemptDiagnostics: TranscriptionAttemptDiagnostics? { nil }
 }
+
+/// A local engine that has its own vocabulary correction to run over its raw
+/// output: the Parakeet family's phonetic (Beider-Morse) pass, issue #283.
+///
+/// The engine does NOT run it inside its own `transcribe(...)`. The caller
+/// (`TranscriptionPipeline.transcribeWithDetails`, and the Local API's
+/// `TranscribeEndpoint`) runs it once, through
+/// `VocabularyProcessor.applyLocalEngineVocabularyCorrection`, right after it
+/// has kept the engine's text as the raw transcript and before the `\b`-anchored
+/// `applyVocabularyReplacements` pass. So the History row's raw transcript is
+/// the engine's own text, as it is for Whisper, and each vocabulary pass runs
+/// exactly once per transcription (issue #1622, the macOS side of Windows #1596).
+protocol LocalVocabularyCorrecting {
+    /// Returns `rawText` with the engine's own vocabulary correction applied.
+    /// Must never write a vocabulary row's REPLACEMENT value: that is the `\b`
+    /// pass's job, and doing it here too would apply a swap twice.
+    func applyLocalVocabularyCorrection(to rawText: String, vocabulary: [Vocabulary]) -> String
+}

@@ -80,6 +80,8 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-unused-imports": "4.4.1",
     "globals": "17.9.0",
+    "ioredis": "^5.11.1",
+    "ioredis-mock": "^8.13.1",
     "prettier": "3.5.3",
     "tailwindcss": "4.1.11",
     "tsx": "^4.21.0",

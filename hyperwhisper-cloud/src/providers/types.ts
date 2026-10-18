@@ -226,6 +226,23 @@ export class ProviderInputError extends Error {
 }
 
 /**
+ * The upstream rejected OUR credentials for this provider (401, or 403 where
+ * the adapter opts in). The message is unchanged from the plain `Error` it
+ * replaces. Every provider has its own key, so the transcribe route tries the
+ * next sibling when the chain has one, and fails the request with today's 500
+ * when it does not. `status` is the upstream HTTP status.
+ */
+export class ProviderAuthError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ProviderAuthError';
+    this.status = status;
+  }
+}
+
+/**
  * Thrown when the audio payload exceeds an upstream provider's inline-content
  * cap and a long-file path (e.g. GCS upload) isn't available in v1. The
  * transcribe route turns this into a 413 to the client instead of retrying

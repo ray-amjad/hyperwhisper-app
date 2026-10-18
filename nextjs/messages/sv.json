@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI-rösttranskribering för macOS och Windows",
-    "description": "Skriv 5x snabbare med AI-driven rösttranskribering. HyperWhisper transkriberar din röst med imponerande noggrannhet på macOS och Windows. Prata naturligt och se orden visas direkt."
+    "title": "HyperWhisper - AI-rösttranskribering för macOS, Windows och Linux",
+    "description": "Skriv 5x snabbare med AI-driven rösttranskribering. HyperWhisper transkriberar din röst med imponerande noggrannhet på macOS, Windows och Linux. Prata naturligt och se orden visas direkt."
   },
   "navbar": {
     "features": "Funktioner",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Kan jag använda det utan internet?",
-        "answer": "Absolut. HyperWhisper kan användas helt offline på din Mac eller Windows-dator med lokala AI-modeller - inget internet krävs. För användare som vill ha maximal precision och hastighet erbjuder vi också valfri molnbearbetning via olika molnleverantörer."
+        "answer": "Absolut. HyperWhisper kan användas helt offline på din Mac, Windows-dator eller Linux-dator med lokala AI-modeller - inget internet krävs. För användare som vill ha maximal precision och hastighet erbjuder vi också valfri molnbearbetning via olika molnleverantörer."
       },
       "apiKey": {
         "question": "Måste jag betala för API-åtkomst?",
@@ -175,16 +175,16 @@
         "answer": "För offline-transkribering erbjuder vi flera storlekar av Whisper-modellen (skapad av OpenAI, stödjer 99+ språk). Vi erbjuder också NVidia's Parakeet-modeller (stödjer 25+ språk).\n      \n      För offline-efterbehandling erbjuder vi flera storlekar av Gemma 3-modellen (skapad av Google)."
       },
       "compatibility": {
-        "question": "Fungerar det med alla Mac- och Windows-appar?",
+        "question": "Fungerar det med alla mina appar?",
         "answer": "Ja, det fungerar överallt där du kan skriva. Oavsett om du skriver e-post, dokument, kod eller chattar. Tryck på genvägen, prata och se dina ord visas direkt."
       },
       "privacy": {
         "question": "Hur skyddas min integritet?",
-        "answer": "När du använder lokalt läge lämnar ingen data din Mac eller Windows-dator.\n\nNär du använder molntranskribering skickas din data till den molnleverantör du väljer (t.ex. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox eller Google Gemini).\n\nDu kan själv verifiera detta med ett nätverksinspektionsverktyg som [Proxyman](https://proxyman.io), en nätverksmonitor som [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), eller genom att läsa [källkoden på GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "När du använder lokalt läge lämnar ingen data din Mac, Windows-dator eller Linux-dator.\n\nNär du använder molntranskribering skickas din data till den molnleverantör du väljer (t.ex. OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox eller Google Gemini).\n\nDu kan själv verifiera detta med ett nätverksinspektionsverktyg som [Proxyman](https://proxyman.io), en nätverksmonitor som [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), eller genom att läsa [källkoden på GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Vad är HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud är en inbyggd molntranskribering riktad till mindre tekniska användare som vill komma igång snabbt.\n\nDet är krediter enligt pay-as-you-go. Du fyller på från så lite som $5 (1 000 krediter per $1) och förbrukar dem först när du transkriberar. Ditt första kreditköp skapar automatiskt din Account Key, så det finns inget annat att köpa.\n    \nVi erbjuder fyra noggrannhetsnivåer: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) och Highest (Grok STT, standard för nya installationer och drivs av SpaceXAI Grok STT). Efterbehandling sker automatiskt och använder som standard Grok 4.1 Fast utan resonemang. Vi lagrar inget annat än hur många krediter du förbrukat, och vi har valt bort dig från modellträning hos varje leverantör vi använder. Se vår [guide om dataintegritet](https://hyperwhisper.com/docs/data-privacy) för detaljer.\n\nKrediter förbrukas till leverantörernas egen bearbetningskostnad — inget påslag på transkribering. I kassan tillkommer en fast avgift på 6% för betalningshantering, som visas som en separat rad. Oanvända krediter förfaller efter 12 månader (se nedan).\n\nFör trygghetens skull är hela appen öppen källkod under Apache-2.0 — inklusive Cloud-backenden. Du kan läsa varje kodrad som körs mellan din app och leverantörerna vi vidarebefordrar till [på GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud är en inbyggd molntranskribering riktad till mindre tekniska användare som vill komma igång snabbt.\n\nDet är krediter enligt pay-as-you-go. Du fyller på från så lite som $5 (1 000 krediter per $1) och förbrukar dem först när du transkriberar. Ditt första kreditköp skapar automatiskt din Account Key, så det finns inget annat att köpa.\n    \nHyperWhisper Cloud ger dig 12 transkriberingsleverantörer, från Groq Whisper till ElevenLabs Scribe v2 (se [hela listan och priserna](https://hyperwhisper.com/docs/cloud-credits)). Nya installationer börjar med ElevenLabs Scribe v2. Efterbehandling sker automatiskt och nya installationer börjar med Claude Haiku 5.5. Vi lagrar inget annat än hur många krediter du förbrukat, och vi har valt bort dig från modellträning hos varje leverantör vi använder. Se vår [guide om dataintegritet](https://hyperwhisper.com/docs/data-privacy) för detaljer.\n\nKrediter förbrukas till leverantörernas egen bearbetningskostnad — inget påslag på transkribering. I kassan tillkommer en fast avgift på 6% för betalningshantering, som visas som en separat rad. Oanvända krediter förfaller efter 12 månader (se nedan).\n\nFör trygghetens skull är hela appen öppen källkod under Apache-2.0 — inklusive Cloud-backenden. Du kan läsa varje kodrad som körs mellan din app och leverantörerna vi vidarebefordrar till [på GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Kommer mina röstdata att användas för att träna AI-modeller?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Vilka är systemkraven?",
-        "answer": "För Mac: macOS 14 eller senare, stöd för både Apple Silicon och Intel. För Windows: Windows 10/11, x64 eller ARM64. 8GB RAM rekommenderas för bästa prestanda."
+        "answer": "För Mac: macOS 14 eller senare, stöd för både Apple Silicon och Intel. För Windows: Windows 10/11, x64 eller ARM64. För Linux v1: Ubuntu 22.04 eller senare eller Debian 12 eller senare på amd64. 8GB RAM rekommenderas för bästa prestanda."
       },
       "madeBy": {
         "question": "Vem har skapat detta?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Installera via Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopiera",
-    "copied": "Kopierad!"
+    "copied": "Kopierad!",
+    "linuxSubtitle": "Debian-paket för 64-bitars Intel/AMD-system",
+    "downloadLinux": "Ladda ner för Linux",
+    "downloadLinuxVersion": "Ladda ner för Linux v{version}",
+    "linuxReleaseNotes": "Kontrollsummor och versionsinformation",
+    "linuxInstallTitle": "Installera Debian-paketet",
+    "linuxTargets": "Linux v1 stöder Ubuntu 22.04+ och Debian 12+ på amd64.",
+    "linuxReplaceVersion": "Ersätt VERSION med versionen du laddade ner.",
+    "linuxInstallCommandLabel": "Installationskommando för Debian",
+    "linuxInputGroupNote": "Logga ut och in igen när du har gått med i gruppen input. Medlemskap är valfritt, men globala kortkommandon och automatisk inklistring kräver det.",
+    "aptTitle": "Kör ett eget APT-förråd",
+    "aptBody": "Linux-versionerna innehåller också ett statiskt APT-förrådsarkiv. HyperWhisper driver för närvarande ingen offentlig APT-slutpunkt; se installationsguiden för Linux för signerad installation i egen regi, kompletterande skrivbordsfiler, integritetsinformation och avinstallation.",
+    "linuxGuideCta": "Läs installationsguiden för Linux"
+  },
+  "olderVersions": {
+    "title": "Äldre versioner",
+    "subtitle": "Bläddra bland och ladda ner alla versioner av HyperWhisper",
+    "errorLoading": "Fel vid inläsning av versioner: {error}",
+    "unknownError": "Ett fel uppstod",
+    "loading": "Läser in versioner...",
+    "latest": "Senaste",
+    "build": "Bygge {number}",
+    "downloadDmg": "Ladda ner DMG",
+    "downloadExe": "Ladda ner EXE",
+    "unknownSize": "Okänd"
   },
   "purchaseSuccess": {
     "title": "Allt är klart!",
@@ -289,7 +313,7 @@
     "loading": "Laddar..."
   },
   "footer": {
-    "tagline": "Skriv 5x snabbare med AI-driven rösttranskribering för macOS och Windows.",
+    "tagline": "Skriv 5x snabbare med AI-driven rösttranskribering för macOS, Windows och Linux.",
     "product": "Produkt",
     "resources": "Resurser",
     "company": "Företag",
@@ -389,6 +413,35 @@
   "openSource": {
     "heading": "Öppen källkod. Inget att dölja.",
     "body": "HyperWhisper är helt öppen källkod under Apache-2.0 — både skrivbordsapparna och Cloud-backenden. En app som lyssnar på din mikrofon bör vara något du kan verifiera, inte bara lita på: läs varje rad, granska exakt vart ditt ljud tar vägen och vet att du aldrig blir inlåst — koden är din att forka och köra i egen regi för alltid. Byggd i det öppna av den oberoende skaparen Ray Amjad.",
-    "cta": "Visa på GitHub"
+    "cta": "Visa på GitHub",
+    "metaTitle": "Öppen källkod | HyperWhisper",
+    "metaDescription": "HyperWhisper är helt öppen källkod under Apache-2.0 — både skrivbordsapparna och Cloud-backenden. Läs koden, granska vart ditt ljud tar vägen, forka den och kör den i egen regi för alltid.",
+    "eyebrow": "Öppen källkod",
+    "lead": "HyperWhisper är nu helt öppen källkod under Apache-2.0 — både skrivbordsapparna och Cloud-backenden.",
+    "intro": "En app som lyssnar på din mikrofon bör vara något du kan verifiera, inte bara lita på. Därför har vi öppnat upp allt. Du kan läsa varje rad i HyperWhisper — apparna för macOS, Windows och Linux samt backenden för Cloud-transkribering — se exakt vart ditt ljud tar vägen och veta att du aldrig blir inlåst. Hela projektet finns på <github>GitHub</github> under <license>Apache-2.0-licensen</license>.",
+    "whyHeading": "Därför spelar det roll",
+    "whyVerify": "<strong>Verifiera i stället för att lita blint.</strong> Läs varje rad och granska exakt vart ditt ljud tar vägen. En app med åtkomst till mikrofonen bör vara något du kan inspektera, inte bara ta på tro.",
+    "whyNoLockIn": "<strong>Ingen inlåsning.</strong> Koden är Apache-2.0 — din att behålla, anpassa och köra på dina egna villkor. Ditt arbetsflöde hålls aldrig som gisslan.",
+    "whyFork": "<strong>Forka och kör i egen regi.</strong> Klona repot, bygg själv eller kör din egen Cloud-backend. Allt du behöver är offentligt.",
+    "whyOpen": "<strong>Byggd i det öppna.</strong> HyperWhisper utvecklas offentligt av den oberoende skaparen Ray Amjad. Ärenden, diskussioner och releaser sker helt öppet.",
+    "licenseHeading": "Har du redan köpt en licens?",
+    "licenseIntro": "HyperWhisper är nu öppen källkod, och betald transkribering körs på HyperWhisper Cloud-krediter. Om du köpte en licens före bytet tar vi hand om dig så här — mejla bara <mail>{email}</mail> så ordnar vi det manuellt.",
+    "licenseRecent": "<strong>Köpt under de senaste 30 dagarna:</strong> du är inom återbetalningsperioden. Vi återbetalar hela ditt köp — inga frågor ställda. <refund>Skicka bara ett meddelande till oss</refund>.",
+    "licenseOlder": "<strong>Köpt för mer än 30 dagar sedan:</strong> vi omvandlar det du betalade till HyperWhisper Cloud-krediter — hela köpesumman, minus de $5 i krediter som redan har lagts till på ditt konto. <credits>Mejla oss</credits> så lägger vi in saldot.",
+    "contributeHeading": "Vill du bidra?",
+    "contributeBody": "Felrapporter, funktionsidéer och pull requests är alla välkomna. Öppna ett ärende eller starta en diskussion <github>på GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper är nu helt öppen källkod",
+    "shortText": "Nu öppen källkod",
+    "learnMore": "Läs mer",
+    "dismiss": "Stäng meddelandet"
+  },
+  "notFound": {
+    "title": "Sidan hittades inte",
+    "heading": "Den här sidan finns inte",
+    "description": "Länken kan vara trasig, eller så har sidan flyttats.",
+    "home": "Gå till startsidan",
+    "download": "Ladda ner HyperWhisper"
   }
 }

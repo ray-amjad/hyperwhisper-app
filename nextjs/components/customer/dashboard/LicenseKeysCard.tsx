@@ -76,8 +76,10 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
             <div key={license.id}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  {/* Shown: wrap so a phone sees every character (#1325). Masked: one line. */}
+                  {/* Shown: wrap so a phone sees every character (#1325). Masked: one line.
+                      dir="ltr": an RTL page must not reverse the segments (#1659). */}
                   <code
+                    dir="ltr"
                     className={`font-mono text-white bg-white/10 px-3 py-1.5 rounded text-sm ${
                       isShown ? "break-all" : "truncate"
                     }`}

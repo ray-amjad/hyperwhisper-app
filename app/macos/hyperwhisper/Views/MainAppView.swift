@@ -214,9 +214,12 @@ struct MainAppView: View {
 
     // MARK: - Content View
 
+    /// Switches on the DISPLAYED page, not the selected one: a page that still
+    /// presents a sheet is removed only after its sheet has closed (issue
+    /// #1672, see `PageChangeGate`).
     @ViewBuilder
     private var contentView: some View {
-        switch appState.selectedNavigationItem {
+        switch appState.displayedNavigationItem {
         case .home:
             HomeView()
         case .modes:
@@ -723,18 +726,19 @@ struct MenuBarItems: View {
             
             Divider()
             
-            // History
+            // History. A user-chosen jump: an open mode editor with unsaved
+            // changes asks "Discard unsaved changes?" first (issue #1525).
             Button {
                 openMainWindow()
-                appState.selectedNavigationItem = .history
+                appState.requestNavigation(to: .history, trigger: .userChosen)
             } label: {
                 Text(localized: "menu.history")
             }
-            
-            // Settings
+
+            // Settings (user-chosen, as History above)
             Button {
                 openMainWindow()
-                appState.selectedNavigationItem = .settings
+                appState.requestNavigation(to: .settings, trigger: .userChosen)
             } label: {
                 Text(localized: "menu.settings")
             }
@@ -788,7 +792,9 @@ struct MenuBarItems: View {
                         appState.selectMode(mode, persist: true)
                     }) {
                         HStack {
-                            Text(mode.name)
+                            // An NSMenu grows to its widest item, so bound the
+                            // free-text name (#1436). Only the label is cut.
+                            Text(MenuItemText.bounded(mode.name))
                                 .fixedSize() // Prevent text truncation in menu
                             if appState.selectedModeId == mode.id.uuidString {
                                 Spacer()
@@ -813,7 +819,7 @@ struct MenuBarItems: View {
                     Button(action: {
                         transcribeFile(with: mode)
                     }) {
-                        Text(mode.name)
+                        Text(MenuItemText.bounded(mode.name)) // #1436
                             .fixedSize() // Prevent text truncation in menu
                     }
                 }

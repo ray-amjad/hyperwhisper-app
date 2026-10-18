@@ -145,7 +145,7 @@ public partial class ModesPage : Page
         {
             if (cloudText != null)
             {
-                var provider = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+                var provider = CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider);
                 var providerName = provider == CloudTranscriptionProvider.HyperWhisperCloud
                     ? "HyperWhisper"
                     : provider.GetDisplayName();

@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Chẩn đoán Được xuất";
 "alerts.export.diagnostics.success.message" = "Tất cả nhật ký chẩn đoán đã được xuất thành công.";
 "alerts.export.diagnostics.saveFailed.message" = "Không thể lưu chẩn đoán vào vị trí được chọn: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Đã xuất chẩn đoán nhưng thiếu nhật ký hệ thống";
+"alerts.export.diagnostics.noSystemLogs.message" = "Tệp chẩn đoán đã được lưu, nhưng không thể đọc nhật ký hệ thống của ứng dụng, nên system-logs.txt chỉ chứa lý do. Lý do: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Xuất nhật ký cập nhật để hỗ trợ";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Hoàn tất Onboarding";
 
 "onboarding.setupLater.button" = "Thiết lập sau";
-"onboarding.error.microphone.denied" = "Quyền micrô bị từ chối. Vui lòng cấp quyền trong Cài đặt Hệ thống.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Chạy khi đăng nhập";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Tắt";
 "settings.general.mediaControl.mode.mute" = "Tắt tiếng Âm thanh";
+"settings.general.mediaControl.mode.muffle" = "Làm nghẹt Âm thanh";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Phát hiệu ứng âm thanh";
 "settings.sound.soundEffects.info" = "Phát tín hiệu âm thanh khi bắt đầu và dừng ghi âm.";
 "settings.sound.mediaControl.title" = "Kiểm soát phương tiện trong khi ghi âm";
-"settings.sound.mediaControl.info" = "Chọn cách HyperWhisper xử lý âm thanh khác trong khi bạn ghi âm. 'Tắt' để giữ âm thanh không thay đổi, 'Tắt tiếng Âm thanh' để tắt tiếng đầu ra hệ thống khi ghi âm và khôi phục sau đó.";
+"settings.sound.mediaControl.info" = "Chọn cách HyperWhisper xử lý âm thanh khác trong khi bạn ghi âm. 'Tắt' để giữ âm thanh không thay đổi, 'Tắt tiếng Âm thanh' để tắt tiếng đầu ra hệ thống khi ghi âm và khôi phục sau đó, và 'Làm nghẹt Âm thanh' để âm thanh phát nhẹ nhàng, như từ phòng bên cạnh.";
 "settings.sound.autoIncreaseMicVolume.title" = "Tự động tăng âm lượng micrô";
 "settings.sound.autoIncreaseMicVolume.info" = "Tự động đặt âm lượng nhập liệu micrô ở mức tối đa khi ghi âm bắt đầu, sau đó khôi phục mức ban đầu khi ghi âm dừng. Chỉ áp dụng khi sử dụng thiết bị nhập liệu mặc định của hệ thống.";
 "settings.sound.vad.title" = "Loại bỏ Im lặng trước khi chuyển đổi";
@@ -336,6 +338,9 @@
 "settings.storage.choose.button" = "Chọn...";
 "settings.storage.dialog.select" = "Chọn Thư mục";
 "settings.storage.dialog.message" = "Chọn một thư mục để lưu trữ bản ghi âm";
+"settings.storage.folderRefused.title" = "Không thể dùng thư mục này";
+"settings.storage.folderRefused.notWritable" = "Bạn không có quyền ghi vào “%@”, nên HyperWhisper không thể lưu bản ghi âm ở đó. Thư mục Ghi âm không thay đổi.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper không thể tạo thư mục này: %@ Thư mục Ghi âm không thay đổi.";
 "settings.storage.storeAsM4A.title" = "Nén bản ghi âm thành M4A";
 "settings.storage.storeAsM4A.subtitle" = "Chuyển đổi các bản ghi âm WAV thành các tệp nhỏ hơn sau khi chuyển đổi. Tắt để giữ các tệp WAV gốc (lớn hơn nhưng không mất dữ liệu).";
 
@@ -383,6 +388,7 @@
 
 "settings.shortcuts.changeMode.title" = "Thay đổi Chế độ";
 "settings.shortcuts.changeMode.subtitle" = "Chỉ hoạt động khi ghi âm";
+"settings.shortcuts.conflict.alert" = "Không thể dùng phím tắt này vì “%@” đã dùng nó.";
 
 "settings.shortcuts.reset.button" = "Đặt lại thành Mặc định";
 "settings.shortcuts.reset.dialog.title" = "Đặt lại Phím tắt Bàn phím";
@@ -434,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Dán từ Bảng nhớ tạm";
 "settings.license.clearInput" = "Xóa";
+"license.error.keyFormat" = "Đây có vẻ không phải là khóa tài khoản.";
 "settings.license.recovery.prompt" = "Quên khóa giấy phép của bạn?";
 "settings.license.recovery.button" = "Đi đến cổng thông tin khách hàng";
 "settings.license.daily.title" = "Chuyển đổi Hàng ngày";
@@ -576,6 +583,8 @@
 "onboarding.configure.cloud.note" = "Tín dụng được trả trước và dùng chung cho mọi Mac đăng nhập bằng key này. Thời gian không dùng không tốn phí.";
 "onboarding.source.note" = "Nếu bạn đổi ý sau này, chỉ bước này sẽ chạy lại. Mọi thứ khác bạn đã thiết lập vẫn được giữ nguyên.";
 "onboarding.permissions.note" = "Bỏ qua Trợ năng thì bản ghi sẽ vào bảng nhớ tạm, sẵn sàng để dán. Bật lại sau chỉ mất một cú nhấp.";
+"onboarding.permissions.microphone.denied" = "Chưa được phép. Bật HyperWhisper trong Cài đặt hệ thống rồi quay lại đây.";
+"onboarding.permissions.continueNeedsMicrophone" = "Cần micrô để tiếp tục. Cho phép ở trên, hoặc chọn Thiết lập sau.";
 "onboarding.welcome.task1.title" = "Chọn cách chuyển giọng nói thành văn bản";
 "onboarding.welcome.task1.caption" = "Trên cloud của chúng tôi, trên Mac này, hoặc qua tài khoản nhà cung cấp bạn đã trả phí.";
 "onboarding.welcome.task2.title" = "Kiểm tra micrô của bạn";
@@ -683,6 +692,10 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 // MARK: - Modes
 "modes.delete.confirm.title" = "Xóa chế độ?";
 "modes.delete.confirm.message" = "Điều này sẽ xóa chế độ được chọn. Hành động này không thể được hoàn tác.";
+"modes.editor.discard.title" = "Hủy các thay đổi chưa lưu?";
+"modes.editor.discard.message" = "Các thay đổi của bạn đối với chế độ này chưa được lưu.";
+"modes.editor.discard.keepEditing" = "Tiếp tục chỉnh sửa";
+"modes.editor.discard.button" = "Hủy thay đổi";
 "modes.header.title" = "Chế độ";
 "modes.header.subtitle" = "Tạo hồ sơ tùy chỉnh cho các bối cảnh và quy trình công việc khác nhau";
 "modes.header.create" = "Tạo Chế độ";
@@ -787,6 +800,7 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.field.name.placeholder" = "ví dụ: Ghi chú Cuộc họp";
 "modes.field.name.editPlaceholder" = "Tên chế độ";
 "modes.field.name.defaultLocked" = "Đây là chế độ mặc định nên không thể đổi tên. Bạn có thể đổi tên bất kỳ chế độ nào khác.";
+"modes.field.name.taken" = "Đã có chế độ mang tên này.";
 "modes.field.model" = "Mô hình";
 "modes.field.provider" = "Nhà cung cấp";
 "modes.provider.local" = "Cục bộ";
@@ -813,8 +827,9 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "transcripts.delete.single.message" = "Điều này sẽ xóa vĩnh viễn bản ghi âm này và tệp âm thanh của nó.";
 "transcripts.delete.multiple.title" = "Xóa %d Bản ghi âm?";
 "transcripts.delete.multiple.message" = "Điều này sẽ xóa vĩnh viễn %d bản ghi âm và các tệp âm thanh của chúng.\n\nHành động này không thể được hoàn tác.";
-"transcripts.delete.multiple.confirm" = "Xóa Tất cả";
+"transcripts.delete.multiple.confirm" = "Xóa %d bản ghi âm";
 "transcripts.retry.error.title" = "Thử lại Không thành công";
+"transcripts.retry.error.modeDeleted" = "Chế độ đã tạo bản ghi này đã bị xóa, nên không thử lại. Trong Lịch sử, nhấp chuột phải vào bản ghi và chọn \"Thử lại với...\" để chọn chế độ khác.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Chọn Thư mục Bản ghi âm";
@@ -865,8 +880,8 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "recording.retry.inProgress" = "Đang thử lại…";
 "recording.retry.count" = "Thử lại (%d)";
 "recording.retry.failed.missing" = "Thử lại không thành công: Tệp âm thanh không tìm thấy";
-"recording.retry.failed.error" = "Thử lại không thành công: %@";
 "recording.retry.pending" = "Sẵn sàng để thử lại – nhấp để chuyển đổi";
+"recording.retry.modeDeleted" = "Chế độ đã bị xóa";
 "recording.cancel.dialog.title" = "Hủy Ghi âm?";
 "recording.cancel.dialog.message" = "Điều này sẽ loại bỏ bản ghi âm hiện tại.";
 "recording.cancel.dialog.confirm" = "Hủy Ghi âm";
@@ -893,6 +908,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "audio.error.microphonePermission" = "Quyền micrô không được cấp";
 "audio.error.microphoneInUse" = "HyperWhisper không thể truy cập micrô vì một ứng dụng khác hiện đang sử dụng nó. Tạm dừng ứng dụng khác hoặc chuyển đầu vào, sau đó thử lại.";
 "audio.error.audioSystemNotResponding" = "Âm thanh của macOS không phản hồi nên không thể bật micrô. Hãy thử lại sau giây lát. Nếu tình trạng này tiếp diễn, hãy khởi động lại máy Mac.";
+"audio.error.recorderStopTimedOut" = "Âm thanh của macOS ngừng phản hồi khi đang lưu bản ghi, nên bản ghi chưa được chuyển thành văn bản. Âm thanh vẫn được giữ lại: HyperWhisper sẽ thử khôi phục vào lần khởi động tiếp theo.";
 "audio.error.createEngine" = "Không thể tạo động cơ âm thanh";
 "audio.error.noInput" = "Không có đầu vào âm thanh nào có sẵn";
 "audio.error.createFile" = "Không thể tạo tệp âm thanh";
@@ -966,10 +982,15 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcription.guidance.quotaExceeded" = "Thêm tín dụ vào tài khoản %@ của bạn hoặc cập nhật chi tiết thanh toán";
 "transcription.guidance.timeout" = "Yêu cầu mất quá lâu. Kiểm tra tốc độ internet của bạn và thử lại.";
 "transcription.error.noSpeechDetected" = "Không phát hiện lời nói trong bản ghi âm.";
+"transcription.error.audioTooShort" = "Bản ghi quá ngắn để chép lời. Vui lòng ghi âm lâu hơn.";
 "transcription.guidance.noSpeechDetected" = "Mẹo:\n• Nói rõ ràng vào micrô\n• Giữ chìa khóa lâu hơn trước khi nói\n• Kiểm tra micrô của bạn đang hoạt động\n• Đảm bảo thiết bị đầu vào chính xác được chọn";
 "transcription.guidance.needsNativeRelaunch" = "Hãy thoát và mở lại HyperWhisper ở chế độ gốc để dùng hậu xử lý cục bộ.";
 "transcription.guidance.localRuntimeUnavailable" = "Hãy thử lại hoặc chọn một mô hình cục bộ nhỏ hơn trong cài đặt Chế độ.";
 "transcription.error.localRuntimeUnavailable" = "AI cục bộ không thể hoàn tất — bản chép lời gốc của bạn đã được giữ lại.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ đã từ chối khóa API của bạn — bản chép lời gốc của bạn đã được giữ lại.";
+"transcription.error.postProcessingPreflight.unreachable" = "Không thể kết nối với %@ — bản chép lời gốc của bạn đã được giữ lại.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ chưa được cài đặt — bản chép lời gốc của bạn đã được giữ lại.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ không khả dụng — bản chép lời gốc của bạn đã được giữ lại.";
 "transcription.error.localSpeechModelEvicted" = "Mô hình giọng nói đã được giải phóng để lấy lại bộ nhớ và không thể tải lại. Hãy đóng bớt ứng dụng rồi thử lại.";
 "settings.backup.localDownload.title" = "Tải xuống mô hình cục bộ?";
 "settings.backup.localDownload.message" = "%d chế độ đã khôi phục của bạn dùng mô hình AI trên thiết bị nhưng chưa được tải xuống.";
@@ -1061,6 +1082,13 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "settings.backup.import.error.decode.corruptedField" = "Giá trị bị hỏng cho trường: %@";
 "settings.backup.import.error.version" = "Tệp sao lưu từ một phiên bản mới hơn";
 "settings.backup.import.error.unknown" = "Nhập không thành công";
+"settings.backup.import.error.storeModes" = "Không thể lưu các chế độ, nên chúng được giữ nguyên.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Không thể lưu các chế độ, nên các chế độ và từ vựng được giữ nguyên.";
+"settings.backup.import.error.storeVocabulary" = "Không thể lưu từ vựng, nên từ vựng được giữ nguyên.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Các chế độ đã được nhập, nhưng không thể lưu từ vựng, nên từ vựng được giữ nguyên.";
+"settings.backup.import.error.storeLicense" = "Không thể nhập khóa bản quyền một cách an toàn.";
+"settings.backup.import.error.storeSettingsRestored" = "Cài đặt được giữ nguyên.";
+"settings.backup.import.error.storeOtherSections" = "Các phần đã chọn khác đã được áp dụng.";
 "settings.backup.import.apiKeysFailed" = "Không thể lưu các khóa API này vào Chuỗi khóa nên chúng chưa được khôi phục: %@. Hãy nhập lại trong Cài đặt.";
 "settings.backup.import.confirm.title" = "Nhập Cài đặt?";
 "settings.backup.import.confirm.message" = "Điều này sẽ thay thế các chế độ hiện có và từ vựng của bạn bằng những chế độ được nhập từ tệp sao lưu. Cài đặt cũng sẽ được cập nhật.";
@@ -1097,6 +1125,13 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcribe.file.error.format.title" = "Định dạng Không được hỗ trợ";
 "transcribe.file.error.format.message" = "Tệp .%@ không được %@ hỗ trợ. Định dạng được hỗ trợ: %@";
 "transcribe.file.error.read" = "Không thể đọc tệp được chọn.";
+"transcribe.file.error.webm" = "Không hỗ trợ WebM. Hãy chuyển tệp sang MP3, M4A hoặc WAV rồi thử lại.";
+"transcribe.file.error.notAudio" = "Tệp “%@” không phải là âm thanh hợp lệ. Tệp có thể bị hỏng hoặc ở định dạng mà macOS không giải mã được.";
+"transcribe.file.error.empty" = "Tệp “%@” trống. Không có âm thanh để chép lời.";
+"transcribe.file.error.permission" = "HyperWhisper không thể đọc tệp “%@”. Hãy kiểm tra quyền của tệp.";
+"transcribe.file.error.folderPermission" = "HyperWhisper không thể mở một thư mục chứa tệp “%@”. Hãy kiểm tra quyền của thư mục đó.";
+"transcribe.file.error.privacy" = "Cài đặt quyền riêng tư của macOS đã chặn HyperWhisper đọc tệp “%@”. Hãy cho phép trong Cài đặt hệ thống > Quyền riêng tư & Bảo mật > Truy cập toàn bộ ổ đĩa.";
+"transcribe.file.error.tooShort" = "Tệp này quá ngắn để chép lời (%@ giây).";
 "transcribe.file.error.copy" = "Không thể sao chép tệp vào thư mục bản ghi âm.";
 "transcribe.file.error.video.title" = "Không có Âm thanh trong Video";
 "transcribe.file.error.video.noAudio" = "Tệp video này không chứa bản nhạc âm thanh. Vui lòng chọn video có âm thanh hoặc tệp âm thanh.";

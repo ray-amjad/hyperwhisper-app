@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Failo transkripcija atšaukta</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkribuojamas failas...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -846,11 +849,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Režimas, kuriuo padarytas šis įrašas, buvo ištrintas, todėl bandymas nekartotas. Istorijoje dešiniuoju pelės mygtuku spustelėkite įrašą ir pasirinkite „Bandyti su...“, kad pasirinktumėte kitą režimą.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Įrašymas sustabdytas — pasiektas 20 minučių saugos limitas.</value>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modelis naudojamas</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} naudoja režimas „{1}“. Prieš ištrindami perjunkite tą režimą į kitą modelį.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1292,6 +1301,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Tai nepanašu į paskyros raktą.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1312,8 +1324,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Jau vyksta įrašymas arba failo transkribavimas. Bandykite failą dar kartą, kai baigsis.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Šis failas tuščias, todėl nėra garso, kurį būtų galima transkribuoti.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Šis failas sugadintas arba tai nėra garso failas, kurį HyperWhisper gali perskaityti.</value>
   </data>
 
 
@@ -1696,6 +1717,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Daugiau...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1989,6 +2013,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Prislopinti audio</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>

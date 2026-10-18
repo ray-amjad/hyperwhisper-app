@@ -200,7 +200,9 @@ class SilenceTrimmer {
     ///   - inputURL: URL of the audio file to trim
     ///   - outputURL: Optional custom output URL. If nil, creates a new file next to input.
     /// - Returns: TrimResult with output URL and statistics
-    /// - Throws: TrimError if trimming fails
+    /// - Throws: TrimError if trimming fails; `CancellationError` once the
+    ///   calling task is cancelled, before the next costly step and before any
+    ///   file is written (#1743)
     func trimSilence(from inputURL: URL, to outputURL: URL? = nil) async throws -> TrimResult {
         let inputFormat = AudioConstants.diagnosticAudioFormat(inputURL.pathExtension)
         logger.info("Starting silence trimming · inputFormat=\(inputFormat, privacy: .public) · outputFormat=wav")
@@ -214,6 +216,9 @@ class SilenceTrimmer {
         let (samples, originalDuration) = try await loadAudioSamples(from: inputURL)
         logger.debug("Loaded \(samples.count, privacy: .public) samples (\(String(format: "%.2f", originalDuration), privacy: .public)s)")
 
+        // A cancelled caller stops here and before each costly step below.
+        try Task.checkCancellation()
+
         // STEP 3: Ensure VAD is ready
         let vad = VoiceActivityDetector.shared
         if await !vad.isReady {
@@ -224,13 +229,16 @@ class SilenceTrimmer {
             }
         }
 
-        // STEP 4: Run VAD analysis
+        // STEP 4: Run VAD analysis (one C call that cannot be interrupted)
+        try Task.checkCancellation()
         let vadResult: VADResult
         do {
             vadResult = try await vad.analyzeAudio(samples: samples, sampleRate: Int(sampleRate))
         } catch {
             throw TrimError.vadAnalysisFailed(error)
         }
+
+        try Task.checkCancellation()
 
         // STEP 5: Handle no speech case
         guard vadResult.hasSpeech else {
@@ -255,7 +263,9 @@ class SilenceTrimmer {
         // STEP 8: Determine output URL
         let finalOutputURL = outputURL ?? generateOutputURL(for: inputURL)
 
-        // STEP 9: Write trimmed audio
+        // STEP 9: Write trimmed audio, unless cancelled: no file for a
+        // cancelled caller to clean up
+        try Task.checkCancellation()
         try await writeAudioFile(samples: speechSamples, to: finalOutputURL)
         logger.info("Wrote trimmed audio · outputFormat=wav · sampleCount=\(speechSamples.count, privacy: .public) · durationSeconds=\(trimmedDuration, privacy: .public)")
 
@@ -322,6 +332,8 @@ class SilenceTrimmer {
                     failOnPartialRead: true
                 )
             )
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw TrimError.audioLoadFailed(error)
         }

@@ -185,7 +185,9 @@ try
     using (var countViewModel = new ModelLibraryViewModel(countManager, countReadiness))
     {
         Assert(InstalledCount(countViewModel) == 0, "a fresh profile did not start at 0 Installed: " + countViewModel.LibrarySummary);
-        countViewModel.Selected = countViewModel.Items.Single(item => item.ModelId == "parakeet-v2");
+        // The smallest catalog model: every local model now has to arrive at its exact
+        // catalog size to count as installed (#1632), so the handler streams that many bytes.
+        countViewModel.Selected = countViewModel.Items.Single(item => item.ModelId == "tiny");
         await countViewModel.DownloadAsync();
         Assert(countViewModel.Selected!.Installed && InstalledCount(countViewModel) == 1,
             "a successful download left the installed count stale: " + countViewModel.LibrarySummary);
@@ -236,11 +238,40 @@ sealed class SettableLocalSource : ILocalModelReadinessSource
 /// </summary>
 sealed class TinyArtifactHandler : HttpMessageHandler
 {
+    // Serves a catalog artifact at its exact size (a ggml header, then zeros), so the
+    // byte-exact installed check accepts it; anything else gets a 4-byte stub.
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent("stub"u8.ToArray()),
-        });
+    {
+        var model = PortableModelCatalog.All.FirstOrDefault(m => m.Artifacts.Any(a => a.DownloadUri == request.RequestUri));
+        var artifact = model?.Artifacts.First(a => a.DownloadUri == request.RequestUri);
+        HttpContent content = artifact?.ExactSizeBytes is { } length
+            ? new StreamContent(new ZeroStream(model!.Kind == ManagedModelKind.Whisper ? "lmgg"u8.ToArray() : [], length))
+            : new ByteArrayContent("stub"u8.ToArray());
+        if (artifact?.ExactSizeBytes is { } declared) content.Headers.ContentLength = declared;
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = content });
+    }
+}
+
+sealed class ZeroStream(byte[] header, long length) : Stream
+{
+    private long _position;
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => length;
+    public override long Position { get => _position; set => throw new NotSupportedException(); }
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        var read = (int)Math.Min(count, length - _position);
+        Array.Clear(buffer, offset, read);
+        for (var i = 0; i < read && _position + i < header.Length; i++) buffer[offset + i] = header[_position + i];
+        _position += read;
+        return read;
+    }
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
 
 sealed class TestCredentials : IProviderCredentialSource

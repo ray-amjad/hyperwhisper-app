@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnosztika exportálva";
 "alerts.export.diagnostics.success.message" = "Minden diagnosztikai napló sikeresen exportálva lett.";
 "alerts.export.diagnostics.saveFailed.message" = "Nem sikerült a diagnosztika mentése a kiválasztott helyre: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnosztika exportálva rendszernaplók nélkül";
+"alerts.export.diagnostics.noSystemLogs.message" = "A diagnosztikai fájl mentve, de az alkalmazás rendszernaplóit nem sikerült beolvasni, ezért a system-logs.txt csak az okot tartalmazza. Ok: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Frissítési naplók exportálása támogatáshoz";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Bevezetés befejezése";
 
 "onboarding.setupLater.button" = "Beállítás később";
-"onboarding.error.microphone.denied" = "Mikrofon engedély megtagadva. Kérlek add meg az engedélyt a Rendszerbeállításokban.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Indítás bejelentkezéskor";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Ki";
 "settings.general.mediaControl.mode.mute" = "Audio némítás";
+"settings.general.mediaControl.mode.muffle" = "Audio tompítás";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Hangeffektusok lejátszása";
 "settings.sound.soundEffects.info" = "Hangjelzések lejátszása a felvétel indításakor és leállításakor.";
 "settings.sound.mediaControl.title" = "Média vezérlés felvétel közben";
-"settings.sound.mediaControl.info" = "Válaszd ki, hogyan kezelje a HyperWhisper a többi audio-t felvétel közben. 'Ki' változatlanul hagyja az audio-t, 'Audio némítás' elnémítja a rendszer kimenetét felvétel közben és utána visszallítja.";
+"settings.sound.mediaControl.info" = "Válaszd ki, hogyan kezelje a HyperWhisper a többi audio-t felvétel közben. 'Ki' változatlanul hagyja az audio-t, 'Audio némítás' elnémítja a rendszer kimenetét felvétel közben és utána visszallítja, a 'Audio tompítás' halkan szólva hagyja, mintha a szomszéd szobából szólna.";
 "settings.sound.autoIncreaseMicVolume.title" = "Mikrofon hangerő automatikus növelése";
 "settings.sound.autoIncreaseMicVolume.info" = "Automatikusan maximumra állítja a mikrofon bemeneti hangerejét felvétel indításakor, majd visszaállítja az eredeti szintet felvétel leállásakor. Csak a rendszer alapértelmezett bemeneti eszköz használatakor érvényes.";
 "settings.sound.vad.title" = "Csend eltávolítása átírás előtt";
@@ -336,6 +338,9 @@
 "settings.storage.choose.button" = "Választás...";
 "settings.storage.dialog.select" = "Mappa kiválasztása";
 "settings.storage.dialog.message" = "Válassz mappát a felvételek tárolásához";
+"settings.storage.folderRefused.title" = "Ez a mappa nem használható";
+"settings.storage.folderRefused.notWritable" = "Nincs írási jogosultsága a(z) „%@” mappához, ezért a HyperWhisper nem tud oda felvételeket menteni. A felvételek mappája nem változott.";
+"settings.storage.folderRefused.createFailed" = "A HyperWhisper nem tudta létrehozni ezt a mappát: %@ A felvételek mappája nem változott.";
 "settings.storage.storeAsM4A.title" = "Felvételek tömörítése M4A formátumba";
 "settings.storage.storeAsM4A.subtitle" = "WAV felvételeket kisebb fájlokká konvertálja átírás után. Kapcsold ki az eredeti WAV fájlok megtartásához (nagyobb, de veszteségmentes).";
 
@@ -383,6 +388,7 @@
 
 "settings.shortcuts.changeMode.title" = "Mód váltása";
 "settings.shortcuts.changeMode.subtitle" = "Csak felvétel közben működik";
+"settings.shortcuts.conflict.alert" = "Ez a billentyűparancs nem használható, mert már a(z) „%@” használja.";
 
 "settings.shortcuts.reset.button" = "Alaphelyzetbe állítás";
 "settings.shortcuts.reset.dialog.title" = "Billentyűparancsok alaphelyzetbe állítása";
@@ -434,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Beillesztés vágólapról";
 "settings.license.clearInput" = "Törlés";
+"license.error.keyFormat" = "Ez nem tűnik fiókkulcsnak.";
 "settings.license.recovery.prompt" = "Elfelejtetted a licenckulcsot?";
 "settings.license.recovery.button" = "Ugrás az ügyfél portálra";
 "settings.license.daily.title" = "Napi átírás";
@@ -576,6 +583,8 @@
 "onboarding.configure.cloud.note" = "A kreditek előre fizetettek, és minden, ezzel a kulccsal bejelentkezett Mac között megoszlanak. A tétlen idő semmibe nem kerül.";
 "onboarding.source.note" = "Ha később meggondolod magad, csak ez az egy lépés fut újra. Semmi más, amit beállítottál, nem vész el.";
 "onboarding.permissions.note" = "Hagyd ki a Kisegítő lehetőségeket, és az átiratok a vágólapra kerülnek, beillesztésre készen. A későbbi bekapcsolás egy kattintás.";
+"onboarding.permissions.microphone.denied" = "Nincs engedélyezve. Kapcsolja be a HyperWhispert a Rendszerbeállításokban, majd térjen vissza ide.";
+"onboarding.permissions.continueNeedsMicrophone" = "A folytatáshoz mikrofon kell. Engedélyezze fent, vagy válassza a Beállítás később lehetőséget.";
 "onboarding.welcome.task1.title" = "Válaszd ki, hogyan fusson az átírás";
 "onboarding.welcome.task1.caption" = "A felhőnkben, ezen a Macen, vagy egy már fizetett szolgáltatói fiókon keresztül.";
 "onboarding.welcome.task2.title" = "Ellenőrizd a mikrofonodat";
@@ -683,6 +692,10 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 // MARK: - Modes
 "modes.delete.confirm.title" = "Mód törlése?";
 "modes.delete.confirm.message" = "Ez eltávolítja a kiválasztott módot. Ez a művelet nem vonható vissza.";
+"modes.editor.discard.title" = "Elveti a nem mentett módosításokat?";
+"modes.editor.discard.message" = "Az ebben a módban végzett módosításai nincsenek mentve.";
+"modes.editor.discard.keepEditing" = "Szerkesztés folytatása";
+"modes.editor.discard.button" = "Elvetés";
 "modes.header.title" = "Módok";
 "modes.header.subtitle" = "Egyéni profilok létrehozása különböző kontextusokhoz és munkafolyamatokhoz";
 "modes.header.create" = "Mód létrehozása";
@@ -787,6 +800,7 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.field.name.placeholder" = "pl., Találkozó jegyzetek";
 "modes.field.name.editPlaceholder" = "Mód neve";
 "modes.field.name.defaultLocked" = "Ez az alapértelmezett mód, ezért a neve nem módosítható. Bármelyik másik módot átnevezheti.";
+"modes.field.name.taken" = "Már létezik ilyen nevű mód.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Szolgáltató";
 "modes.provider.local" = "Helyi";
@@ -813,8 +827,9 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "transcripts.delete.single.message" = "Ez véglegesen törli ezt a felvételt és az audio fájlját.";
 "transcripts.delete.multiple.title" = "%d felvétel törlése?";
 "transcripts.delete.multiple.message" = "Ez véglegesen töröl %d felvételt és az audio fájljaikat.\n\nEz a művelet nem vonható vissza.";
-"transcripts.delete.multiple.confirm" = "Összes törlése";
+"transcripts.delete.multiple.confirm" = "%d felvétel törlése";
 "transcripts.retry.error.title" = "Újrapróbálás sikertelen";
+"transcripts.retry.error.modeDeleted" = "A felvételt készítő mód törölve lett, ezért nem történt újrapróbálás. Az Előzményekben kattintson jobb gombbal a felvételre, és válassza a(z) \"Újrapróbálás ezzel...\" lehetőséget egy másik mód kiválasztásához.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Felvételek mappa kiválasztása";
@@ -865,8 +880,8 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "recording.retry.inProgress" = "Újrapróbálás…";
 "recording.retry.count" = "Újra (%d)";
 "recording.retry.failed.missing" = "Újrapróbálás sikertelen: Audio fájl nem található";
-"recording.retry.failed.error" = "Újrapróbálás sikertelen: %@";
 "recording.retry.pending" = "Kész az újrapróbálásra – kattints az átíráshoz";
+"recording.retry.modeDeleted" = "A mód törölve lett";
 "recording.cancel.dialog.title" = "Felvétel megszakítása?";
 "recording.cancel.dialog.message" = "Ez elveti a jelenlegi felvételt.";
 "recording.cancel.dialog.confirm" = "Felvétel megszakítása";
@@ -893,6 +908,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "audio.error.microphonePermission" = "Mikrofon engedély nincs megadva";
 "audio.error.microphoneInUse" = "A HyperWhisper nem fér hozzá a mikrofonhoz, mert egy másik alkalmazás használja. Szüneteltess a másik alkalmazást vagy válts bemenetet, majd próbáld újra.";
 "audio.error.audioSystemNotResponding" = "A macOS hangrendszere nem válaszol, ezért a mikrofont nem sikerült elindítani. Próbálja újra egy pillanat múlva. Ha ez továbbra is előfordul, indítsa újra a Macet.";
+"audio.error.recorderStopTimedOut" = "A macOS hangrendszere nem válaszolt a felvétel mentése közben, ezért az nem lett átírva. A hanganyag megmaradt: a HyperWhisper a következő indításkor megpróbálja helyreállítani.";
 "audio.error.createEngine" = "Nem sikerült az audio motor létrehozása";
 "audio.error.noInput" = "Nincs elérhető audio bemenet";
 "audio.error.createFile" = "Nem sikerült az audio fájl létrehozása";
@@ -966,10 +982,15 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.guidance.quotaExceeded" = "Adj hozzá krediteket a(z) %@ fiókodhoz vagy frissítsd a számlázási adatokat";
 "transcription.guidance.timeout" = "A kérés túl sokáig tartott. Ellenőrizd az internet sebességet és próbáld újra.";
 "transcription.error.noSpeechDetected" = "Nem észlelhető beszéd a felvételben.";
+"transcription.error.audioTooShort" = "A felvétel túl rövid az átíráshoz. Rögzíts hosszabban.";
 "transcription.guidance.noSpeechDetected" = "Tippek:\n• Beszélj tisztán a mikrofonba\n• Tartsd lenyomva a billentyűt hosszabb ideig beszélés előtt\n• Ellenőrizd, hogy a mikrofonod működik-e\n• Győződj meg róla, hogy a helyes bemeneti eszköz van kiválasztva";
 "transcription.guidance.needsNativeRelaunch" = "A helyi utófeldolgozáshoz lépjen ki, és indítsa újra a HyperWhispert natív módban.";
 "transcription.guidance.localRuntimeUnavailable" = "Próbálja újra, vagy válasszon kisebb helyi modellt a Mód beállításaiban.";
 "transcription.error.localRuntimeUnavailable" = "A helyi MI nem tudta befejezni — a nyers átirat megmaradt.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@: az API-kulcs elutasítva — a nyers átirat megmaradt.";
+"transcription.error.postProcessingPreflight.unreachable" = "%@: nincs kapcsolat — a nyers átirat megmaradt.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ nincs telepítve — a nyers átirat megmaradt.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ nem érhető el — a nyers átirat megmaradt.";
 "transcription.error.localSpeechModelEvicted" = "A beszédmodellt a memória felszabadításához eltávolítottuk, és nem sikerült újratölteni. Zárjon be néhány alkalmazást, és próbálja újra.";
 "settings.backup.localDownload.title" = "Letölti a helyi modelleket?";
 "settings.backup.localDownload.message" = "A visszaállított módok közül %d olyan helyi MI-modellt használ, amely még nincs letöltve.";
@@ -1061,6 +1082,13 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.import.error.decode.corruptedField" = "Sérült érték a mezőnél: %@";
 "settings.backup.import.error.version" = "A biztonsági mentés fájl újabb verzióból származik";
 "settings.backup.import.error.unknown" = "Importálás sikertelen";
+"settings.backup.import.error.storeModes" = "A módokat nem sikerült menteni, ezért változatlanok maradtak.";
+"settings.backup.import.error.storeModesAndVocabulary" = "A módokat nem sikerült menteni, ezért a módok és a szókincs változatlanok maradtak.";
+"settings.backup.import.error.storeVocabulary" = "A szókincset nem sikerült menteni, ezért változatlan maradt.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "A módok importálása megtörtént, de a szókincset nem sikerült menteni, ezért változatlan maradt.";
+"settings.backup.import.error.storeLicense" = "A licenckulcsot nem sikerült biztonságosan importálni.";
+"settings.backup.import.error.storeSettingsRestored" = "A beállítások változatlanok maradtak.";
+"settings.backup.import.error.storeOtherSections" = "A többi kiválasztott szakasz alkalmazva lett.";
 "settings.backup.import.apiKeysFailed" = "Ezeket az API-kulcsokat nem sikerült a kulcskarikába menteni, ezért nem lettek visszaállítva: %@. Add meg őket újra a Beállításokban.";
 "settings.backup.import.confirm.title" = "Beállítások importálása?";
 "settings.backup.import.confirm.message" = "Ez lecseréli a meglévő módokat és szókincset a biztonsági mentés fájlból származókra. A beállítások szintén frissítésre kerülnek.";
@@ -1097,6 +1125,13 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcribe.file.error.format.title" = "Nem támogatott formátum";
 "transcribe.file.error.format.message" = ".%@ fájlok nem támogatottak %@ által. Támogatott formátumok: %@";
 "transcribe.file.error.read" = "Nem lehet olvasni a kiválasztott fájlt.";
+"transcribe.file.error.webm" = "A WebM nem támogatott. Alakítsa át a fájlt MP3, M4A vagy WAV formátumba, majd próbálja újra.";
+"transcribe.file.error.notAudio" = "A(z) „%@” fájl nem érvényes hangfájl. Lehet, hogy sérült, vagy olyan formátumú, amelyet a macOS nem tud dekódolni.";
+"transcribe.file.error.empty" = "A(z) „%@” fájl üres. Nincs benne átírható hang.";
+"transcribe.file.error.permission" = "A HyperWhisper nem tudja olvasni a(z) „%@” fájlt. Ellenőrizze a fájl jogosultságait.";
+"transcribe.file.error.folderPermission" = "A HyperWhisper nem tud megnyitni egy mappát, amely a(z) „%@” fájlt tartalmazza. Ellenőrizze a mappa jogosultságait.";
+"transcribe.file.error.privacy" = "A macOS adatvédelmi beállításai megakadályozták, hogy a HyperWhisper olvassa a(z) „%@” fájlt. Engedélyezze a Rendszerbeállítások > Adatvédelem és biztonság > Teljes lemezhozzáférés menüpontban.";
+"transcribe.file.error.tooShort" = "Ez a fájl túl rövid az átíráshoz (%@ mp).";
 "transcribe.file.error.copy" = "Nem sikerült a fájl másolása a felvételek mappába.";
 "transcribe.file.error.video.title" = "Nincs audio a videóban";
 "transcribe.file.error.video.noAudio" = "Ez a videó fájl nem tartalmaz audio sávot. Kérlek válassz audio sávval rendelkező videót vagy audio fájlt.";

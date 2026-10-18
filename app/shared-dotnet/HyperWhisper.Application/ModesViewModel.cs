@@ -24,7 +24,9 @@ public sealed class ModesViewModel : ViewModelBase
     private string _providerType = "local";
     private string _localEngine = "whisper";
     private string _transcriptionModel = "base";
-    private string _cloudProvider = "elevenlabs";
+    /// <summary>The provider the editor offers when a local mode is switched to cloud.</summary>
+    private const string DefaultByokCloudProvider = "elevenlabs";
+    private string _cloudProvider = DefaultByokCloudProvider;
     private string _cloudAccuracyTier = "elevenLabsScribeV2";
     private string _cloudDomain = string.Empty;
     private string _geminiPrompt = string.Empty;
@@ -32,7 +34,7 @@ public sealed class ModesViewModel : ViewModelBase
     private bool _enableScreenOcr;
     private string _postProcessingMode = "off";
     private string _postProcessingProvider = "openai";
-    private string _postProcessingModel = "gpt-4.1-mini";
+    private string _postProcessingModel = "gpt-5.6-luna";
     private string _hyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
     private string _customInstructions = string.Empty;
     private bool _punctuation = true;
@@ -87,7 +89,7 @@ public sealed class ModesViewModel : ViewModelBase
             CloudProvider = "hyperwhisper"; CloudAccuracyTier = "elevenLabsScribeV2"; CloudDomain = string.Empty;
             GeminiPrompt = string.Empty; CustomVocabulary = string.Empty; EnableScreenOcr = false;
             PostProcessingMode = "cloud"; PostProcessingProvider = "hyperwhispercloud";
-            PostProcessingModel = "gpt-4.1-mini"; HyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
+            PostProcessingModel = "gpt-5.6-luna"; HyperWhisperCloudModel = "anthropic:claude-haiku-5-5";
             CustomInstructions = string.Empty; Punctuation = true; Capitalization = true;
             ProfanityFilter = false; RemoveTrailingPeriod = false; EnglishSpelling = string.Empty;
             Preset = "hyper"; UserPromptEnabled = false;
@@ -96,7 +98,58 @@ public sealed class ModesViewModel : ViewModelBase
             return Task.CompletedTask;
         });
         DeleteCommand = new AsyncCommand(_ => DeleteAsync());
+        PropertyChanged += (_, e) =>
+        {
+            if (!_loadingEditor && e.PropertyName is { } name && EditorFieldNames.Contains(name))
+                ClearStaleSuccessStatus();
+        };
     }
+
+    // The persisted editor fields — the same set ModeEditorSnapshot carries. A user edit to any of
+    // them makes the form dirty.
+    private static readonly HashSet<string> EditorFieldNames =
+    [
+        nameof(Name), nameof(Language), nameof(Preset), nameof(LocalPostProcessingEnabled),
+        nameof(LocalPostProcessingModel), nameof(UserSystemPrompt), nameof(UserPromptEnabled),
+        nameof(ProviderType), nameof(LocalEngine), nameof(TranscriptionModel), nameof(CloudProvider),
+        nameof(CloudAccuracyTier), nameof(CloudDomain), nameof(GeminiPrompt), nameof(CustomVocabulary),
+        nameof(EnableScreenOcr), nameof(PostProcessingMode), nameof(PostProcessingProvider),
+        nameof(PostProcessingModel), nameof(HyperWhisperCloudModel), nameof(CustomInstructions),
+        nameof(Punctuation), nameof(Capitalization), nameof(ProfanityFilter), nameof(RemoveTrailingPeriod),
+        nameof(EnglishSpelling), nameof(CustomEndpointName), nameof(CustomEndpointUrl),
+        nameof(CustomEndpointModel), nameof(CustomEndpointApiKey),
+    ];
+
+    /// <summary>
+    /// Issue #632: the editor footer binds <see cref="Status"/>, which is shared with the page and
+    /// outlives the dialog. A `Mode saved` left by the previous save read as confirmation of an
+    /// edit that is still pending. A success line describes state the form no longer shows once a
+    /// field changes, so it goes; an error stays, because it names what the user is fixing.
+    /// </summary>
+    private void ClearStaleSuccessStatus()
+    {
+        if (!Status.HasError && !Status.IsBusy && Status.Message.Length > 0) Status.Clear();
+    }
+
+    /// <summary>
+    /// Called when the mode editor opens, on both the edit and the create path. A success line
+    /// belongs to an earlier dialog — a fresh Create New Mode form used to open on the last edit's
+    /// `Mode saved` (issue #632) — so it goes. An error stays: the footer is the only place this
+    /// status shows, and the gear click that opens the editor sets <see cref="Selected"/>, whose
+    /// failure to persist is reported here. An earlier dialog's own errors are cleared by
+    /// <see cref="EndEditorSession"/> when that dialog is discarded.
+    /// </summary>
+    public void BeginEditorSession()
+    {
+        if (!Status.HasError) Status.Clear();
+    }
+
+    /// <summary>
+    /// Called when the mode editor is discarded (Cancel, Esc or the title bar), BEFORE the
+    /// pre-dialog state is restored. A validation error names a field of the form being thrown
+    /// away, so it must not greet the next dialog; a failure the restore itself raises still shows.
+    /// </summary>
+    public void EndEditorSession() => Status.Clear();
     public ObservableCollection<Mode> Items { get; } = new();
     public Mode? Selected
     {
@@ -143,7 +196,12 @@ public sealed class ModesViewModel : ViewModelBase
             ProviderType = value.ProviderType ?? "local";
             LocalEngine = value.LocalEngine;
             TranscriptionModel = value.ProviderType == "cloud" ? value.CloudTranscriptionModel ?? string.Empty : value.LocalEngine == "parakeet" ? value.LocalParakeetModel ?? "parakeet-v3" : value.ModelType ?? value.Model ?? "base";
-            CloudProvider = value.CloudProvider ?? "elevenlabs";
+            // A CLOUD mode with no stored provider IS a HyperWhisper Cloud mode (issue #1709), so
+            // the editor opens on the provider the card shows and the router runs. A local mode
+            // switched to cloud keeps the editor's own BYOK default.
+            CloudProvider = string.Equals(value.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+                ? SharedCoreBridge.EffectiveModeCloudProvider(value.CloudProvider)
+                : value.CloudProvider ?? DefaultByokCloudProvider;
             // Canonicalise on load, not just on save: a mode persisted by an older
             // build (or restored from a backup) can carry a retired tier id such as
             // `googleChirp3`. The shared core resolves it through the catalog's
@@ -260,6 +318,16 @@ public sealed class ModesViewModel : ViewModelBase
     /// reverse a cloud tier such as `scribe_v2` survived a switch to On-device and sat in the
     /// local model field, where it is not a catalog entry and silently blocks CanSave. Windows
     /// cannot show that state at all because its combo only lists entries for the engine.
+    ///
+    /// ORDER MATTERS, for the reason <see cref="NormalizeCloudModel"/> spells out (issue #1629).
+    /// An engine change swaps the model combo's ItemsSource for the other engine's list. Avalonia
+    /// clears a SelectedItem the new list lacks, the <see cref="LocalTranscriptionModel"/> proxy
+    /// refuses the null write-back, and the binding re-reads the property and records what it
+    /// finds as already delivered. If the incoming id is assigned first, that re-read records the
+    /// INCOMING id, the notification that follows is deduplicated, and the combo stays blank over
+    /// a correct field (Whisper -> Parakeet showed nothing while parakeet-v2 was saved). Handing
+    /// the combo the new list while the field still holds the OUTGOING id makes the incoming one a
+    /// change the binding delivers.
     /// </summary>
     private void NormalizeLocalModel()
     {
@@ -267,6 +335,10 @@ public sealed class ModesViewModel : ViewModelBase
         var kind = LocalModelKind;
         if (PortableModelCatalog.All.Any(model => model.Kind == kind
             && string.Equals(model.Id, _transcriptionModel, StringComparison.Ordinal))) return;
+        // The list BEFORE the selection — see the order note above. The getter rebuilds the cache
+        // for the new engine here; the LocalModels notification NotifyEditorReveals raises a moment
+        // later finds the same instance and is a no-op at the control.
+        Notify(nameof(LocalModels));
         TranscriptionModel = PortableModelCatalog.All.First(model => model.Kind == kind).Id;
     }
 
@@ -478,8 +550,20 @@ public sealed class ModesViewModel : ViewModelBase
         // dictionary the catalog row drew its display name and the pinned row drew the raw id.
         // Folding the field onto the catalog's spelling is what Windows does through
         // ResolveModelAlias plus its OrdinalIgnoreCase tag match; both callers notify right after.
-        var listed = CloudVendorModelIds(_cloudProvider)
+        //
+        // An id the vendor no longer lists but the shared alias table (hw-catalog model_alias)
+        // names a successor for, such as Grok `grok-voice-transcribe-1.0` -> 2.0 (#1908), is that
+        // successor rather than an unknown id to pin. The alias is consulted only for an unlisted
+        // id: a deprecated id that is still a row (OpenAI `gpt-4o-transcribe`) stays as saved.
+        var vendorIds = CloudVendorModelIds(_cloudProvider);
+        var listed = vendorIds
             .FirstOrDefault(id => string.Equals(id, _transcriptionModel, StringComparison.OrdinalIgnoreCase));
+        if (listed is null)
+        {
+            var aliased = SharedCoreBridge.ResolveCloudSttModelAlias(_transcriptionModel, _cloudProvider);
+            listed = vendorIds
+                .FirstOrDefault(id => string.Equals(id, aliased, StringComparison.OrdinalIgnoreCase));
+        }
         if (listed is null) _cloudModelsPinnedId = _transcriptionModel;
         else _transcriptionModel = listed;
     }
@@ -1139,7 +1223,7 @@ public sealed class ModesViewModel : ViewModelBase
             Selected = Guid.TryParse(selectedId, out var id)
                 ? Items.FirstOrDefault(item => item.Id == id) ?? FallbackSelection()
                 : FallbackSelection();
-            Status.Success($"{Items.Count} mode(s)");
+            Status.Success(Plural.Count(Items.Count, "mode", "modes"));
         }
         catch (Exception) { Status.Failure("modes.load_failed", "Could not load modes."); }
     }
@@ -1169,9 +1253,9 @@ public sealed class ModesViewModel : ViewModelBase
             Status.Failure("modes.local_llm_model_required", "Enter a GGUF model filename from the local LLM models directory.");
             return;
         }
-        if (UserSystemPrompt.Length > 2000)
+        if (UserSystemPrompt.Length > 8000)
         {
-            Status.Failure("modes.prompt_too_long", "The system prompt cannot exceed 2000 characters.");
+            Status.Failure("modes.prompt_too_long", "The system prompt cannot exceed 8000 characters.");
             return;
         }
         if (CustomInstructions.Length > 4000)

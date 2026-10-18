@@ -823,6 +823,9 @@ Questa azione non può essere annullata.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Trascrizione del file annullata</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Trascrizione del file...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Sconosciuto</value>
   </data>
@@ -846,11 +849,11 @@ Questa azione non può essere annullata.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Trascrizione non riuscita: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Nessuna modalità disponibile per riprovare.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Nuovo tentativo non riuscito: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>La modalità che ha creato questa registrazione è stata eliminata, quindi non è stato fatto un nuovo tentativo. In Cronologia, fai clic con il tasto destro sulla registrazione e scegli "Riprova con..." per selezionare un'altra modalità.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Registrazione interrotta — raggiunto il limite di sicurezza di 20 minuti.</value>
@@ -1159,6 +1162,12 @@ Potrai scaricarlo di nuovo in seguito.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Modello in uso</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} è usato dalla modalità "{1}". Passa quella modalità a un altro modello prima di eliminarlo.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Disattiva licenza</value>
@@ -1292,6 +1301,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Inserisci una chiave di licenza.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Questa non sembra una chiave dell'account.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1312,8 +1324,17 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File non trovato</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>È già in corso una registrazione o una trascrizione di file. Riprova con il file quando è terminata.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Il file è troppo grande per questo provider. Dimensione massima: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Questo file è vuoto, quindi non c'è audio da trascrivere.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Questo file è danneggiato o non è un file audio che HyperWhisper può leggere.</value>
   </data>
 
 
@@ -1696,6 +1717,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Senza nome</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Altro...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Trascrivi file</value>
   </data>
@@ -1989,6 +2013,9 @@ Potrai scaricarlo di nuovo in seguito.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Disattiva l'audio</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Attenua l'audio</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Mantieni il microfono pronto</value>

@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostika vyvezená";
 "alerts.export.diagnostics.success.message" = "Všetky diagnostické záznamy boli úspešne vyvezené.";
 "alerts.export.diagnostics.saveFailed.message" = "Nepodarilo sa uložiť diagnostiku na zvolené miesto: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostika exportovaná bez systémových záznamov";
+"alerts.export.diagnostics.noSystemLogs.message" = "Súbor s diagnostikou bol uložený, ale systémové záznamy aplikácie sa nepodarilo prečítať, takže system-logs.txt obsahuje iba dôvod. Dôvod: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Vyviezť záznamy aktualizácií pre podporu";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Ukončiť onboarding";
 
 "onboarding.setupLater.button" = "Nastaviť neskôr";
-"onboarding.error.microphone.denied" = "Povolenie mikrofónu odmietnuté. Prosím, udeľte povolenie v Nastaveniach systému.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Spustiť pri prihlásení";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Vypnuté";
 "settings.general.mediaControl.mode.mute" = "Stíšiť zvuk";
+"settings.general.mediaControl.mode.muffle" = "Tlmiť zvuk";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Prehrávať zvukové efekty";
 "settings.sound.soundEffects.info" = "Prehrávať zvukové signály pri spustení a zastavení nahrávania.";
 "settings.sound.mediaControl.title" = "Kontrola médií počas nahrávania";
-"settings.sound.mediaControl.info" = "Zvolte, ako HyperWhisper spracúva iný zvuk počas nahravánia. \"Vypnuté\" zvuk nechá nezmenený, \"Stíšiť zvuk\" stíšuje systémový výstup počas nahravánia a potom ho obnoví.";
+"settings.sound.mediaControl.info" = "Zvolte, ako HyperWhisper spracúva iný zvuk počas nahravánia. \"Vypnuté\" zvuk nechá nezmenený, \"Stíšiť zvuk\" stíšuje systémový výstup počas nahravánia a potom ho obnoví, a \"Tlmiť zvuk\" ho nechá tiho znieť, ako z vedľajšej izby.";
 "settings.sound.autoIncreaseMicVolume.title" = "Automaticky zvýšiť hlasitosť mikrofónu";
 "settings.sound.autoIncreaseMicVolume.info" = "Automaticky nastaví úroveň vstupu mikrofónu na maximum pri spustení nahrávania a potom obnoví pôvodnú úroveň pri zastavení nahrávania. Platí iba pri používaní predvoleného vstupného zariadenia systému.";
 "settings.sound.vad.title" = "Odstrániť ticho pred prepisom";
@@ -336,6 +338,9 @@
 "settings.storage.choose.button" = "Zvoľte...";
 "settings.storage.dialog.select" = "Vybrať zložku";
 "settings.storage.dialog.message" = "Vyberte zložku na uloženie nahrávok";
+"settings.storage.folderRefused.title" = "Tento priečinok nemožno použiť";
+"settings.storage.folderRefused.notWritable" = "Nemáte povolenie zapisovať do „%@“, takže HyperWhisper tam nemôže ukladať nahrávky. Priečinok nahrávok sa nezmenil.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nemohol vytvoriť tento priečinok: %@ Priečinok nahrávok sa nezmenil.";
 "settings.storage.storeAsM4A.title" = "Skomprimovať nahrávky na M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konvertuje WAV nahrávky na menšie súbory po prepise. Vypnutím si zachováte pôvodné WAV súbory (väčšie, ale bez straty.";
 
@@ -383,6 +388,7 @@
 
 "settings.shortcuts.changeMode.title" = "Zmeniť režim";
 "settings.shortcuts.changeMode.subtitle" = "Funguje len počas nahrávania";
+"settings.shortcuts.conflict.alert" = "Túto klávesovú skratku nemožno použiť, pretože ju už používa „%@“.";
 
 "settings.shortcuts.reset.button" = "Obnoviť na predvolené";
 "settings.shortcuts.reset.dialog.title" = "Obnoviť klávesové skratky";
@@ -434,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Vložiť zo schránky";
 "settings.license.clearInput" = "Vyčistiť";
+"license.error.keyFormat" = "Toto nevyzerá ako kľúč účtu.";
 "settings.license.recovery.prompt" = "Zabudli ste kľúč licencie?";
 "settings.license.recovery.button" = "Prejsť na zákaznícky portál";
 "settings.license.daily.title" = "Denný prepis";
@@ -576,6 +583,8 @@
 "onboarding.configure.cloud.note" = "Kredity sú predplatené a zdieľané medzi všetkými Macmi prihlásenými týmto kľúčom. Čas nečinnosti nič nestojí.";
 "onboarding.source.note" = "Ak si to neskôr rozmyslíte, zopakuje sa len tento jeden krok. Nič iné, čo ste nastavili, sa nestratí.";
 "onboarding.permissions.note" = "Preskočte Prístupnosť a prepisy pôjdu do schránky, pripravené na vloženie. Zapnutie neskôr trvá jedno kliknutie.";
+"onboarding.permissions.microphone.denied" = "Nepovolené. Zapnite HyperWhisper v Nastaveniach systému a vráťte sa sem.";
+"onboarding.permissions.continueNeedsMicrophone" = "Na pokračovanie je potrebný mikrofón. Povoľte ho vyššie alebo zvoľte Nastaviť neskôr.";
 "onboarding.welcome.task1.title" = "Vyberte, ako bude prebiehať prepis";
 "onboarding.welcome.task1.caption" = "V našom cloude, na tomto Macu, alebo cez účet poskytovateľa, za ktorý už platíte.";
 "onboarding.welcome.task2.title" = "Skontrolujte svoj mikrofón";
@@ -683,6 +692,10 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Odstrániť režim?";
 "modes.delete.confirm.message" = "Toto odstráni vybraný režim. Túto akciu sa nedá vrátiť.";
+"modes.editor.discard.title" = "Zahodiť neuložené zmeny?";
+"modes.editor.discard.message" = "Vaše zmeny tohto režimu neboli uložené.";
+"modes.editor.discard.keepEditing" = "Pokračovať v úpravách";
+"modes.editor.discard.button" = "Zahodiť";
 "modes.header.title" = "Režimy";
 "modes.header.subtitle" = "Vytvorte vlastné profily pre rôzne kontexty a pracovné postupy";
 "modes.header.create" = "Vytvoriť režim";
@@ -787,6 +800,7 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "modes.field.name.placeholder" = "napr. Záznamy zo stretnutí";
 "modes.field.name.editPlaceholder" = "Meno režimu";
 "modes.field.name.defaultLocked" = "Toto je predvolený režim, preto jeho názov nemožno zmeniť. Ktorýkoľvek iný režim môžete premenovať.";
+"modes.field.name.taken" = "Režim s týmto názvom už existuje.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Poskytovateľ";
 "modes.provider.local" = "Lokálne";
@@ -813,8 +827,9 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "transcripts.delete.single.message" = "Toto natrvalo vymaže túto nahrávku a jej zvukový súbor.";
 "transcripts.delete.multiple.title" = "Vymazať %d nahrávok?";
 "transcripts.delete.multiple.message" = "Toto natrvalo vymaže %d nahrávok a ich zvukové súbory.\n\nTúto akciu sa nedá vrátiť.";
-"transcripts.delete.multiple.confirm" = "Vymazať všetko";
+"transcripts.delete.multiple.confirm" = "Vymazať nahrávky: %d";
 "transcripts.retry.error.title" = "Opakovný pokus zlyhal";
+"transcripts.retry.error.modeDeleted" = "Režim, ktorý vytvoril tento záznam, bol odstránený, preto sa opakovanie nevykonalo. V Histórii kliknite na záznam pravým tlačidlom a zvoľte \"Skúsiť znova s...\" na výber iného režimu.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Zvoľte zložku nahrávok";
@@ -865,8 +880,8 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "recording.retry.inProgress" = "Pokúšam sa znova…";
 "recording.retry.count" = "Skúsiť znova (%d)";
 "recording.retry.failed.missing" = "Opakovný pokus zlyhal: Zvukový súbor sa nenašiel";
-"recording.retry.failed.error" = "Opakovný pokus zlyhal: %@";
 "recording.retry.pending" = "Pripravené na opakovný pokus – kliknite na prepis";
+"recording.retry.modeDeleted" = "Režim bol odstránený";
 "recording.cancel.dialog.title" = "Zrušiť nahrávanie?";
 "recording.cancel.dialog.message" = "Toto zahodí aktuálne nahrávanie.";
 "recording.cancel.dialog.confirm" = "Zrušiť nahrávanie";
@@ -893,6 +908,7 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "audio.error.microphonePermission" = "Povolenie mikrofónu neudelené";
 "audio.error.microphoneInUse" = "HyperWhisper nemôže pristupovať k mikrofónu, pretože ho v tejto chvíli používa ďalšia aplikácia. Pozastavte ďalšiu aplikáciu alebo prepnite vstupy a skúste znova.";
 "audio.error.audioSystemNotResponding" = "Zvuk v macOS nereaguje, takže mikrofón sa nepodarilo spustiť. Skúste to o chvíľu znova. Ak sa to opakuje, reštartujte Mac.";
+"audio.error.recorderStopTimedOut" = "Zvukový systém macOS prestal reagovať počas ukladania nahrávky, takže nebola prepísaná. Zvuk zostal zachovaný: HyperWhisper sa ho pokúsi obnoviť pri ďalšom spustení.";
 "audio.error.createEngine" = "Nepodarilo sa vytvoriť zvukový stroj";
 "audio.error.noInput" = "Žiadny dostupný zvukový vstup";
 "audio.error.createFile" = "Nepodarilo sa vytvoriť zvukový súbor";
@@ -966,10 +982,15 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "transcription.guidance.quotaExceeded" = "Pridajte kredity do svojho %@ konta alebo aktualizujte podrobnosti fakturácie";
 "transcription.guidance.timeout" = "Požiadavka trvala príliš dlho. Skontrolujte rýchlosť internetu a skúste znova.";
 "transcription.error.noSpeechDetected" = "V nahrávke nebola detekovaná reč.";
+"transcription.error.audioTooShort" = "Nahrávka je na prepis príliš krátka. Nahrávajte dlhšie.";
 "transcription.guidance.noSpeechDetected" = "Tipy:\n• Jasne rozprávajtea do mikrofónu\n• Držte kľúč dlhšie pred rozprávaním\n• Skontrolujte, či mikrofón funguje\n• Uistite sa, že je vybrané správne vstupné zariadenie";
 "transcription.guidance.needsNativeRelaunch" = "Ukončite a znova otvorte HyperWhisper natívne, aby ste mohli používať lokálne dodatočné spracovanie.";
 "transcription.guidance.localRuntimeUnavailable" = "Skúste to znova alebo v nastaveniach režimu vyberte menší lokálny model.";
 "transcription.error.localRuntimeUnavailable" = "Lokálna AI nedokázala dokončiť spracovanie — váš pôvodný prepis sa zachoval.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ odmietol váš kľúč API — váš pôvodný prepis sa zachoval.";
+"transcription.error.postProcessingPreflight.unreachable" = "Nedá sa pripojiť k %@ — váš pôvodný prepis sa zachoval.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ nie je nainštalovaný — váš pôvodný prepis sa zachoval.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ nie je k dispozícii — váš pôvodný prepis sa zachoval.";
 "transcription.error.localSpeechModelEvicted" = "Rečový model bol uvoľnený kvôli nedostatku pamäte a nepodarilo sa ho znova načítať. Zatvorte niektoré aplikácie a skúste to znova.";
 "settings.backup.localDownload.title" = "Stiahnuť lokálne modely?";
 "settings.backup.localDownload.message" = "%d z vašich obnovených režimov používa modely AI v zariadení, ktoré ešte nie sú stiahnuté.";
@@ -1061,6 +1082,13 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "settings.backup.import.error.decode.corruptedField" = "Poškodená hodnota poľa: %@";
 "settings.backup.import.error.version" = "Súbor zálohy pochádza z novšej verzie";
 "settings.backup.import.error.unknown" = "Import zlyhal";
+"settings.backup.import.error.storeModes" = "Režimy sa nepodarilo uložiť, preto zostali bez zmeny.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Režimy sa nepodarilo uložiť, preto režimy aj slovník zostali bez zmeny.";
+"settings.backup.import.error.storeVocabulary" = "Slovník sa nepodarilo uložiť, preto zostal bez zmeny.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Režimy boli importované, ale slovník sa nepodarilo uložiť, preto zostal bez zmeny.";
+"settings.backup.import.error.storeLicense" = "Licenčný kľúč sa nepodarilo bezpečne importovať.";
+"settings.backup.import.error.storeSettingsRestored" = "Nastavenia zostali bez zmeny.";
+"settings.backup.import.error.storeOtherSections" = "Ostatné vybrané časti boli použité.";
 "settings.backup.import.apiKeysFailed" = "Tieto kľúče API sa nepodarilo uložiť do Kľúčenky a neboli obnovené: %@. Zadajte ich znova v Nastaveniach.";
 "settings.backup.import.confirm.title" = "Importovať nastavenia?";
 "settings.backup.import.confirm.message" = "Toto nahradí vaše existujúce režimy a slovník tými zo súboru zálohy. Nastavenia budú tiež aktualizované.";
@@ -1097,6 +1125,13 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "transcribe.file.error.format.title" = "Nepodporovaný formát";
 "transcribe.file.error.format.message" = "Súbory .%@ nie sú podporované %@. Podporované formáty: %@";
 "transcribe.file.error.read" = "Vybraný súbor sa nedá prečítať.";
+"transcribe.file.error.webm" = "Formát WebM nie je podporovaný. Skonvertujte súbor do MP3, M4A alebo WAV a skúste to znova.";
+"transcribe.file.error.notAudio" = "Súbor „%@“ nie je platný zvuk. Môže byť poškodený alebo vo formáte, ktorý macOS nevie dekódovať.";
+"transcribe.file.error.empty" = "Súbor „%@“ je prázdny. Neobsahuje žiadny zvuk na prepis.";
+"transcribe.file.error.permission" = "HyperWhisper nemôže prečítať súbor „%@“. Skontrolujte povolenia súboru.";
+"transcribe.file.error.folderPermission" = "HyperWhisper nemôže otvoriť priečinok, ktorý obsahuje súbor „%@“. Skontrolujte povolenia tohto priečinka.";
+"transcribe.file.error.privacy" = "Nastavenia súkromia systému macOS zabránili HyperWhisperu prečítať súbor „%@“. Povoľte to v Nastaveniach systému > Súkromie a bezpečnosť > Úplný prístup k disku.";
+"transcribe.file.error.tooShort" = "Tento súbor je na prepis príliš krátky (%@ s).";
 "transcribe.file.error.copy" = "Nepodarilo sa skopírovať súbor do zložky nahrávok.";
 "transcribe.file.error.video.title" = "Žiadny zvuk vo videu";
 "transcribe.file.error.video.noAudio" = "Tento videosúbor neobsahuje zvukovú stopu. Vyberte si video so zvukom alebo zvukový súbor.";

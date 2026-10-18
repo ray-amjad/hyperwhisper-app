@@ -1336,6 +1336,10 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1654,6 +1658,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_default_model_id(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_effective_mode_cloud_provider(RustBuffer @value,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2493,6 +2501,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_strip_whisper_non_speech_markers(RustBuffer @text,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_strip_wrapper_markers(RustBuffer @text,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -2938,6 +2950,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_effective_mode_cloud_provider(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3777,6 +3793,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_strip_whisper_non_speech_markers(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers(
     );
 
@@ -4188,6 +4208,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id();
             if (checksum != 30462) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id` checksum `30462`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_effective_mode_cloud_provider();
+            if (checksum != 47299) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_effective_mode_cloud_provider` checksum `47299`, library returned `{checksum}`");
             }
         }
         {
@@ -5442,6 +5468,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling();
             if (checksum != 6847) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling` checksum `6847`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_strip_whisper_non_speech_markers();
+            if (checksum != 49359) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_strip_whisper_non_speech_markers` checksum `49359`, library returned `{checksum}`");
             }
         }
         {
@@ -9057,11 +9089,13 @@ class FfiConverterTypeHwPhoneticMatch: FfiConverterRustBuffer<HwPhoneticMatch> {
 
 /// <summary>
 /// Result of a provider health probe. Mirrors `hw_net::ProviderHealth`.
+/// `healthy` is always `reason == Healthy`; `reason` is the field to switch on.
 /// </summary>
 internal record HwProviderHealth (
     HwProvider @provider, 
     bool @healthy, 
-    ushort? @status
+    ushort? @status, 
+    HwHealthReason @reason
 ) {
 }
 
@@ -9072,7 +9106,8 @@ class FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer<HwProviderHealth>
         return new HwProviderHealth(
             @provider: FfiConverterTypeHwProvider.INSTANCE.Read(stream),
             @healthy: FfiConverterBoolean.INSTANCE.Read(stream),
-            @status: FfiConverterOptionalUInt16.INSTANCE.Read(stream)
+            @status: FfiConverterOptionalUInt16.INSTANCE.Read(stream),
+            @reason: FfiConverterTypeHwHealthReason.INSTANCE.Read(stream)
         );
     }
 
@@ -9080,13 +9115,15 @@ class FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer<HwProviderHealth>
         return 0
             + FfiConverterTypeHwProvider.INSTANCE.AllocationSize(value.@provider)
             + FfiConverterBoolean.INSTANCE.AllocationSize(value.@healthy)
-            + FfiConverterOptionalUInt16.INSTANCE.AllocationSize(value.@status);
+            + FfiConverterOptionalUInt16.INSTANCE.AllocationSize(value.@status)
+            + FfiConverterTypeHwHealthReason.INSTANCE.AllocationSize(value.@reason);
     }
 
     public override void Write(HwProviderHealth value, BigEndianStream stream) {
             FfiConverterTypeHwProvider.INSTANCE.Write(value.@provider, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@healthy, stream);
             FfiConverterOptionalUInt16.INSTANCE.Write(value.@status, stream);
+            FfiConverterTypeHwHealthReason.INSTANCE.Write(value.@reason, stream);
     }
 }
 
@@ -12203,6 +12240,45 @@ class FfiConverterTypeHwEnglishSpelling: FfiConverterRustBuffer<HwEnglishSpellin
     }
 
     public override void Write(HwEnglishSpelling value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why a provider health probe came out the way it did. Mirrors
+/// `hw_net::HealthReason`. Hosts map this onto their own states (issue #779) —
+/// none of them re-derives it from the raw status.
+/// </summary>
+internal enum HwHealthReason: int {
+    
+    Healthy,
+    Unauthorized,
+    Unreachable
+}
+
+class FfiConverterTypeHwHealthReason: FfiConverterRustBuffer<HwHealthReason> {
+    public static FfiConverterTypeHwHealthReason INSTANCE = new FfiConverterTypeHwHealthReason();
+
+    public override HwHealthReason Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwHealthReason), value)) {
+            return (HwHealthReason)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwHealthReason.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwHealthReason value) {
+        return 4;
+    }
+
+    public override void Write(HwHealthReason value, BigEndianStream stream) {
         stream.WriteInt((int)value + 1);
     }
 }
@@ -17273,6 +17349,21 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// The STT provider a CLOUD mode runs on, given its stored `cloudProvider`:
+    /// null, empty or whitespace means `"hyperwhisper"` (HyperWhisper Cloud);
+    /// anything else is `cloud_stt_normalize_cloud_provider`'s folded, lowercased
+    /// provider. A read rule only: storage and `GET /modes` keep the blank value.
+    /// Call it only for a cloud mode — a local mode's null is deliberate.
+    /// </summary>
+    public static string CloudSttEffectiveModeCloudProvider(string? @value) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_effective_mode_cloud_provider(FfiConverterOptionalString.INSTANCE.Lower(@value), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Every cloud STT provider row, in catalog order.
     /// </summary>
     public static List<SttEntry> CloudSttEntries() {
@@ -19865,6 +19956,20 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterInt32.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_stats_saved_minutes_ceiling( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Remove Whisper's non-speech markers (a blank-audio tag, `(silence)`,
+    /// `[inaudible]`, `[ Music ]`, `(applause)` and kin) and trim. Marker-only input
+    /// returns `""`; a bracket the speaker dictated survives. One rule for every
+    /// head (issue #1811); cases in `shared-conformance/whisper-marker-vectors.json`.
+    /// </summary>
+    public static string StripWhisperNonSpeechMarkers(string @text) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_strip_whisper_non_speech_markers(FfiConverterString.INSTANCE.Lower(@text), ref _status)
 ));
     }
 

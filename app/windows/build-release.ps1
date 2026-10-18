@@ -109,7 +109,9 @@ function Build-App {
     # setup-x64.iss / setup-arm64.iss. See the windows-release skill.
     # Disable Sentry symbol upload if credentials aren't configured
     $sentryEnabled = $env:SENTRY_AUTH_TOKEN -and $env:SENTRY_ORG -and $env:SENTRY_PROJECT
-    $publishArgs = @("-c", "Release", "-r", $rid, "--self-contained", "true")
+    # SkipWhisperWorkerCopy: the Debug dev-loop copy of the Whisper worker is
+    # not wanted here; the worker is published on its own below.
+    $publishArgs = @("-c", "Release", "-r", $rid, "--self-contained", "true", "-p:SkipWhisperWorkerCopy=true")
 
     if (-not $sentryEnabled) {
         $publishArgs += @("-p:SentryUploadSymbols=false", "-p:SentryUploadSources=false")
@@ -128,6 +130,24 @@ function Build-App {
     finally {
         Pop-Location
     }
+
+    # On-device Whisper runs in its own process (issue #1194): publish the worker,
+    # self-contained for the same RID, into whisper-worker\ next to the app.
+    # The installers pack the publish folder recursively, so it ships as is.
+    $workerProject = "$PSScriptRoot\HyperWhisper.WhisperWorker\HyperWhisper.WhisperWorker.csproj"
+    $workerDir = Join-Path $publishDir "whisper-worker"
+    $workerArgs = @("publish", $workerProject, "-c", "Release", "-r", $rid, "--self-contained", "true", "-o", $workerDir)
+    Write-Host "Running: dotnet $($workerArgs -join ' ')" -ForegroundColor Gray
+    & dotnet @workerArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "Whisper worker publish failed with exit code $LASTEXITCODE"
+    }
+    foreach ($required in @("HyperWhisper.WhisperWorker.exe", "hyperwhisper_core.dll", "Whisper.net.dll")) {
+        if (-not (Test-Path (Join-Path $workerDir $required))) {
+            throw "Whisper worker publish is missing $required ($workerDir)"
+        }
+    }
+    Write-Host "Whisper worker: $workerDir" -ForegroundColor Green
 
     Write-Host "Build complete: $publishDir" -ForegroundColor Green
 

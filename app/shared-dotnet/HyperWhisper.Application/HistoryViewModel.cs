@@ -219,7 +219,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             _lastQueryWasFiltered = false;
             ReplaceItems(await _repository.ListAsync(cancellationToken));
             UpdateSelection(Items.Take(1));
-            Status.Success(Items.Count == 0 ? "No transcripts yet" : $"{Items.Count} transcript(s)");
+            Status.Success(Items.Count == 0 ? "No transcripts yet" : Plural.Count(Items.Count, "transcript", "transcripts"));
         }
         catch (OperationCanceledException)
         {
@@ -249,7 +249,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             ReplaceItems(await _repository.SearchAsync(
                 SearchText, fromUtc, toUtcExclusive, cancellationToken));
             UpdateSelection(Items.Take(1));
-            Status.Success($"{Items.Count} matching transcript(s)");
+            Status.Success(Plural.Count(Items.Count, "matching transcript", "matching transcripts"));
         }
         catch (Exception)
         {
@@ -299,6 +299,27 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Removes the deleted rows and rebuilds the groups once, not once per row (#1353): a Remove
+    /// per row rebuilt every day group each time, which was O(n²) on a large bulk delete. Only the
+    /// deleted rows are removed, so a partial delete never empties <see cref="Items"/> on the way
+    /// (the list's visibility binds to its count). Walking backwards keeps each index valid.
+    /// </summary>
+    private void RemoveItems(IReadOnlySet<Guid> ids)
+    {
+        _suspendGroupRebuild = true;
+        try
+        {
+            for (var index = Items.Count - 1; index >= 0; index--)
+                if (ids.Contains(Items[index].Id)) Items.RemoveAt(index);
+        }
+        finally
+        {
+            _suspendGroupRebuild = false;
+            RebuildGroups();
+        }
+    }
+
+    /// <summary>
     /// A failed or cancelled load leaves the list empty, as it did when the clear ran before the
     /// query. Clear raises a reset, which rebuilds the groups, so no stale group is left behind.
     /// </summary>
@@ -306,6 +327,12 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
 
     /// <summary>How many times <see cref="GroupedItems"/> was rebuilt; the tests pin one per load.</summary>
     internal int GroupRebuildCount { get; private set; }
+
+    /// <summary>
+    /// The local clock that decides Today and Yesterday. Tests pin it so a run near local
+    /// midnight, or one that crosses it, groups the same way the test expects (#1354).
+    /// </summary>
+    internal Func<DateTime> LocalNow { get; set; } = () => DateTime.Now;
 
     /// <summary>
     /// Rebuilds <see cref="GroupedItems"/> from <see cref="Items"/>, inserting one
@@ -316,7 +343,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     {
         GroupRebuildCount++;
         GroupedItems.Clear();
-        var today = DateTime.Now.Date;
+        var today = LocalNow().Date;
         var yesterday = today.AddDays(-1);
         DateTime? currentDay = null;
         foreach (var item in Items)
@@ -362,15 +389,16 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         try
         {
             StopPlayback();
-            var deletion = await _repository.DeleteManyAsync(selected.Select(item => item.Id).ToArray(), DeleteAudio, cancellationToken);
+            var ids = selected.Select(item => item.Id).ToArray();
+            var deletion = await _repository.DeleteManyAsync(ids, DeleteAudio, cancellationToken);
             if (deletion.TranscriptsDeleted == 0)
             { Status.Failure("history.not_found", "The transcript no longer exists."); return; }
-            foreach (var transcript in selected) Items.Remove(transcript);
+            RemoveItems(ids.ToHashSet());
             UpdateSelection([]);
             if (deletion.Warnings.Count == 0)
                 Status.Success(DeleteAudio
-                    ? $"{deletion.TranscriptsDeleted} transcript(s) and {deletion.AudioFilesDeleted} audio file(s) deleted"
-                    : $"{deletion.TranscriptsDeleted} transcript(s) deleted; audio retained");
+                    ? $"{Plural.Count(deletion.TranscriptsDeleted, "transcript", "transcripts")} and {Plural.Count(deletion.AudioFilesDeleted, "audio file", "audio files")} deleted"
+                    : $"{Plural.Count(deletion.TranscriptsDeleted, "transcript", "transcripts")} deleted; audio retained");
             else Status.Failure("history.audio_delete_failed", string.Join(" ", deletion.Warnings.Distinct()));
         }
         catch (OperationCanceledException) { Status.Failure("history.cancelled", "Delete cancelled"); }

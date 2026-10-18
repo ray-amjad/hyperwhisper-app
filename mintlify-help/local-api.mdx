@@ -211,6 +211,8 @@ A `/transcribe` or a `/post-process` call is slow. A large local model, or a slo
 
 Set the timeout of your own HTTP client higher than its default value. Many clients apply a short default timeout. Such a client reports a failure while the transcription is still in progress.
 
+On macOS, `/transcribe` calls on a local Whisper model run one at a time, in the order they arrive. A later call waits for the earlier calls, so set your timeout to include that wait. A dictation in the app has priority over a running call. That call then returns `ok: false` with the code `TRANSCRIPTION_FAILED` and the message "Cancelled by a newer transcription request." Send the request again.
+
 ## Available endpoints
 
 | Method | Path | Auth | Purpose |
@@ -327,7 +329,7 @@ A local Mode on Linux names its engine in `localEngine`. The value is one of two
 
 A different `localEngine`, or a model that is not in the list of its engine, returns an **HTTP 400** with the code `INVALID_REQUEST`. The model must also be one of the voice models that `GET /models` reports.
 
-To write a cloud Mode instead, send `"providerType": "cloud"`. A `"model": "cloud"` sets the same thing.
+To write a cloud Mode instead, send `"providerType": "cloud"` and a `cloudProvider`. A `"model": "cloud"` sets the same thing. Linux refuses a cloud Mode with no `cloudProvider`, or with a `cloudProvider` that is not in its provider list. It returns an **HTTP 400** with the code `INVALID_REQUEST`. Windows runs a cloud Mode with no `cloudProvider` on HyperWhisper Cloud.
 
 Windows accepts the same two field names, but it applies no list of accepted values to them. Only Linux refuses an unknown `localEngine` or an unknown local model.
 
@@ -337,7 +339,7 @@ Windows accepts the same two field names, but it applies no list of accepted val
   Windows and Linux accept and return five more mode fields than macOS: `localEngine`, `localParakeetModel`, `localPostProcessingModel`, `customVocabulary`, and `providerType`. These fields hold the settings that have no macOS equivalent. macOS ignores these keys when you send them, and never returns them. On Linux, `localEngine` and `localParakeetModel` are the only way to select a local model — read [Local models on Linux](#local-models-on-linux).
 </Note>
 
-The `providers` array includes `key_present`, `reachable`, and `status`. A Meta key reports `status: "configured"` and `reachable: false`. Meta has no safe empty request for key validation. A transcription validates the key for that request, but the health endpoint stays conservative. macOS and Windows use the same status.
+The `providers` array includes `key_present`, `reachable`, and `status`. For HyperWhisper Cloud, `key_present` reports whether HyperWhisper has your Cloud account key. A Meta key reports `status: "configured"` and `reachable: false`. Meta has no safe empty request for key validation. A transcription validates the key for that request, but the health endpoint stays conservative. macOS and Windows use the same status.
 
 ## Next steps
 

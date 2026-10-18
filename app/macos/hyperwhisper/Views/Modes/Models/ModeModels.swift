@@ -175,7 +175,7 @@ func isEnglishOnlyModel(provider: ProviderType, model: String) -> Bool {
 }
 
 // Maximum number of characters allowed for user-supplied system prompts
-let userSystemPromptCharacterLimit = 2000
+let userSystemPromptCharacterLimit = 8000
 
 // Maximum number of characters allowed for Gemini custom transcription prompts
 let geminiCustomPromptCharacterLimit = 2000
@@ -286,7 +286,7 @@ struct ModeData {
         self.preset = isLegacyVoiceToText ? "hyper" : rawPreset
         self.language = LanguageData.canonicalLanguageCode(mode.language)
         self.model = mode.model ?? "base"
-        self.cloudProvider = mode.cloudProvider ?? "hyperwhisper"
+        self.cloudProvider = CloudProvider.effectiveModeStorageValue(mode.cloudProvider)
         self.cloudTranscriptionModel = CloudTranscriptionModels.resolveModelAlias(
             mode.cloudTranscriptionModel ?? "whisper-1",
             provider: CloudProvider.parse(self.cloudProvider)

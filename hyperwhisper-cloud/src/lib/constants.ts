@@ -1,7 +1,15 @@
 // SHARED CONSTANTS
 
 // Credit system
-export const CREDITS_PER_MINUTE = 6.3; // Derived from production usage logs
+// Credits per minute used to turn a balance into minutes (`minutes_remaining`,
+// `minutes_required`, `credits_per_minute` in /usage and the 402 body) and
+// for the size-based estimate in middleware/credits.ts. It is the rate of the
+// default Cloud STT route (Grok STT, $0.10/hour = 1.6667 credits/min at 1 credit
+// = $0.001), NOT a blended average: a pricier model burns credits faster than
+// this. The website's dashboard and admin pages use the same 1.67
+// (nextjs/lib/credits-per-minute.ts), so every surface shows the same minutes
+// for the same balance (#1657). Actual charges come from cost-calculator.ts.
+export const CREDITS_PER_MINUTE = 1.67;
 
 // License cache TTL (seconds)
 export const LICENSE_CACHE_TTL_SECONDS = 60 * 60; // 1 hour for valid and invalid keys
@@ -51,6 +59,11 @@ export const META_MUSE_SOURCE_MAX_BYTES = META_MUSE_MAX_BYTES * 2;
 // buffered by formData() on a 1 GB Fly machine). Finer per-image / per-messages
 // caps below bound Anthropic vision spend after buffering.
 export const MAX_ASSISTANT_BODY_BYTES = 25 * 1024 * 1024; // 25 MB
+// `/post-process` total-body guard, checked against Content-Length BEFORE
+// `c.req.json()` buffers the body, so an unauthenticated oversized request is
+// refused before it costs RAM. A real body is small: `text` is capped at
+// 100,000 characters, so 2 MB leaves room for JSON escaping and the prompt.
+export const MAX_POST_PROCESS_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
 // Multipart `image` file cap.
 export const MAX_ASSISTANT_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 

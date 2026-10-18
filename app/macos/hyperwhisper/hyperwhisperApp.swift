@@ -139,8 +139,12 @@ struct HyperWhisperApp: App {
     /// Aggregates cloud + local models into a single Library list
     @StateObject private var modelLibraryManager = ModelLibraryManager()
     
-    /// Core Data persistence controller
-    let persistenceController = PersistenceController.shared
+    /// Core Data persistence controller.
+    ///
+    /// Computed, not a stored `let`: a stored property's initial value runs
+    /// before `init()`'s body, which would open the store ahead of the
+    /// single-instance guard there (issue #1483).
+    var persistenceController: PersistenceController { PersistenceController.shared }
 
     /// Auto-delete cleanup service for automatic deletion of old recordings
     /// This service runs on app launch and periodically to clean up old transcripts
@@ -149,6 +153,11 @@ struct HyperWhisperApp: App {
     // MARK: - Initialization
     
     init() {
+        // ONE COPY PER DATA STORE (issue #1483): first, before anything opens
+        // the Core Data store or starts the Local API. A second launch on the
+        // same store brings the running copy forward and exits here.
+        SingleInstanceGuard.claimStoreOrHandOff()
+
         let sharedLicenseManager = LicenseManager()
         _licenseManager = StateObject(wrappedValue: sharedLicenseManager)
         _hyperWhisperCloudManager = StateObject(wrappedValue: HyperWhisperCloudManager(licenseManager: sharedLicenseManager))
@@ -312,6 +321,21 @@ struct MenuBarIconView: View {
                     // Update transcription manager when models change
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
+                // A finished Whisper download prepares the selected mode again, so a
+                // mode that launched on a missing or truncated file returns to Ready
+                // (#1632). Fires after the rescan above: same publisher, registered later.
+                .onReceive(
+                    whisperModelManager.$downloadedModels
+                        .dropFirst()
+                        .map { models in models.map(\.name) }
+                        .removeDuplicates()
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
+                }
                 .onReceive(parakeetModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
                 }
@@ -331,6 +355,26 @@ struct MenuBarIconView: View {
                 }
                 .onReceive(nemotronModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
+                }
+                // Prepare the selected Nemotron mode again once its install changes,
+                // or once a Re-download clears a broken flag: that leaves
+                // availableModels equal, so watch the flag too (#1632). A flag being
+                // set is skipped, or each failed load would retry the load.
+                .onReceive(
+                    nemotronModelManager.$availableModels
+                        .dropFirst()
+                        .removeDuplicates()
+                        .map { _ in () }
+                        .merge(with: nemotronModelManager.$brokenVariants
+                            .scan((Set<String>(), Set<String>())) { pair, next in (pair.1, next) }
+                            .filter { pair in !pair.0.isSubset(of: pair.1) }
+                            .map { _ in () })
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
                 }
                 .onReceive(localModelManager.$downloadedModels) { _ in
                     cloudProviderHealthManager.refreshAllPostProcessing(force: true)
@@ -649,6 +693,19 @@ struct MenuBarIconView: View {
         cloudProviderHealthManager.configure(apiKeyProvider: settingsManager)
         cloudProviderHealthManager.refreshAll()
         cloudProviderHealthManager.refreshAllPostProcessing()
+
+        // LOCAL API STAGING SWEEP (issue #1484): delete the per-request audio
+        // folders a killed or crashed process left in $TMPDIR. Runs whether
+        // or not the server is on, since an earlier run may have left them.
+        // Off the main actor; it never removes this process's own folders,
+        // so it cannot race a request the server below starts meanwhile.
+        // CLOUD TEMP AUDIO SWEEP (issue #1581): the same rule for the temp
+        // copies of the user's audio a cloud request writes (multipart and
+        // base64 bodies, re-encoded and Dictation WAVs).
+        Task.detached(priority: .utility) {
+            LocalAPIStagingSweep.sweep()
+            CloudTempAudioSweep.sweep()
+        }
 
         // LOCAL API SERVER: wire dependencies, then start the server if the
         // user toggle is on. The server stays off by default — Settings →
@@ -1182,6 +1239,10 @@ struct MenuBarIconView: View {
         // disabled, and keep OS-level registration in sync with the settings
         // toggles (settings change paths post .shortcutDidChange).
         syncFeatureGatedHotkeys()
+
+        // A recorder refuses a combo another action uses, and says which (#1474).
+        ShortcutConflictGuard.shared.start()
+
         NotificationCenter.default.addObserver(
             forName: .shortcutDidChange,
             object: nil,
@@ -1290,8 +1351,8 @@ struct MenuBarIconView: View {
     
     /// Exports all diagnostics (combines update logs and system logs)
     private func exportAllDiagnostics() {
-        AppLogger.exportDiagnostics { exportURL in
-            guard let exportURL = exportURL else {
+        AppLogger.exportDiagnostics { export in
+            guard let export else {
                 // Show error alert if export failed
                 let alert = NSAlert()
                 alert.messageText = "alerts.export.failed.title".localized
@@ -1300,6 +1361,8 @@ struct MenuBarIconView: View {
                 alert.runModal()
                 return
             }
+            
+            let exportURL = export.url
             
             // Open save panel for user to choose destination
             let savePanel = NSSavePanel()
@@ -1316,11 +1379,20 @@ struct MenuBarIconView: View {
                         }
                         try FileManager.default.moveItem(at: exportURL, to: destination)
                         
-                        // Show success alert
+                        // Only claim every log made it when system-logs.txt
+                        // holds real log lines (#1480). Otherwise the zip is
+                        // still worth sending, and the alert gives the reason.
                         let successAlert = NSAlert()
-                        successAlert.messageText = "alerts.export.diagnostics.success.title".localized
-                        successAlert.informativeText = "alerts.export.diagnostics.success.message".localized
-                        successAlert.alertStyle = .informational
+                        switch export.systemLogs {
+                        case .written:
+                            successAlert.messageText = "alerts.export.diagnostics.success.title".localized
+                            successAlert.informativeText = "alerts.export.diagnostics.success.message".localized
+                            successAlert.alertStyle = .informational
+                        case .unavailable(let reason):
+                            successAlert.messageText = "alerts.export.diagnostics.noSystemLogs.title".localized
+                            successAlert.informativeText = "alerts.export.diagnostics.noSystemLogs.message".localized(arguments: reason)
+                            successAlert.alertStyle = .warning
+                        }
                         successAlert.runModal()
                     } catch {
                         // Show error alert

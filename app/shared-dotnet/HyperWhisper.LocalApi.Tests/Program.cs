@@ -59,6 +59,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("/transcribe never runs another vendor's cloud model", ApplicationBackendForeignCloudModel)
     ,("legacy engine aliases fold onto a HyperWhisper Cloud tier", ApplicationBackendLegacyEngineAliases)
     ,("a written cloudProvider folds on create and on patch", ApplicationBackendModeWriteFoldsLegacyProvider)
+    ,("a mode body's model lands in the field of its engine", ApplicationBackendModelRoutesByEngine)
+    ,("a local mode matches the catalog's capability keys", ApplicationBackendLocalModeMatchesCatalogKeys)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
@@ -66,6 +68,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("SIGTERM and SIGINT end a process hosting the Local API", SignalsEndTheProcess)
     ,("/recordings filters, counts and pages in SQL with the old match rule", () => InTokyo(RecordingsQueryRunsInSql))
     ,("/recordings reads since and until as UTC in every time zone", () => InTokyo(RecordingsSinceUntilAreUtc))
+    ,("a non-WAV upload to a Parakeet mode reaches the daemon as a WAV whose wait scales", ParakeetNonWaveUploadIsConverted)
+    ,("a Parakeet upload converts whatever the caller named it", ParakeetUploadConvertsWhateverItsName)
+    ,("a busy workflow refuses a Parakeet upload before converting it", ParakeetUploadRefusedBusyBeforeConversion)
+    ,("a converted upload whose first delete fails is still deleted", ConvertedUploadDeleteIsRetried)
+    ,("a Cloud mode posted with no cloudProvider stores and runs on HyperWhisper Cloud; an empty or whitespace one is refused", ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud)
 };
 foreach (var test in tests)
 {
@@ -835,9 +842,19 @@ static async Task PostProcessContextContract()
         Assert(skippedJson.RootElement.GetProperty("post_processed").ValueKind == JsonValueKind.False,
             "post_processed must be false when no LLM ran, not dropped and not true");
         Assert(skippedJson.RootElement.GetProperty("ok").GetBoolean(),
-            "graceful degradation keeps ok:true — post_processed is the only signal");
+            "graceful degradation keeps ok:true for a provider failure — post_processed is the only signal");
     }
     fixture.Backend.PostProcessApplied = true;
+
+    // The one exception (issue #1487, Ray inbox #298): no account key on a
+    // HyperWhisper Cloud run is a configuration fault, refused with the same
+    // MISSING_API_KEY envelope /transcribe gives for that mode.
+    fixture.Backend.PostProcessCloudAccountMissing = true;
+    using (var noKey = await fixture.Client.PostAsync("/post-process", JsonContent("""{"text":"raw words","prompt":"Translate to French"}""")))
+    {
+        await AssertBusinessFailure(noKey, LocalApiErrorCodes.MissingApiKey, "a Cloud run with no account key");
+    }
+    fixture.Backend.PostProcessCloudAccountMissing = false;
 
     using var conflicting = JsonContent("""{"text":"raw","preset":"hyper","prompt":"custom"}""");
     Assert((await fixture.Client.PostAsync("/post-process", conflicting)).StatusCode == HttpStatusCode.BadRequest,
@@ -1181,6 +1198,310 @@ static async Task DefaultModeInvariant()
         "deleting the default mode left the remaining mode without the flag");
 }
 
+/// <summary>
+/// A long MP3 sent to a Parakeet mode reaches the transcriber as a WAV whose
+/// duration the daemon's own reader can see, so the reply wait scales instead
+/// of staying at the fixed floor (issue #1572).
+/// </summary>
+/// <remarks>
+/// Uses the REAL ffmpeg conversion (`DurableAudioImportService` over
+/// `FfmpegAudioNormalizationService`, the Linux Transcribe File path) and the
+/// REAL `WaveFileDuration` / `ComputeResponseTimeout` from
+/// `ParakeetDaemonTranscriber`. Before the fix the transcriber received the
+/// staged `local-api-<guid>.mp3`, whose duration reads as null, and the wait
+/// was the 180 s floor for a 10-minute file.
+/// </remarks>
+static async Task ParakeetNonWaveUploadIsConverted()
+{
+    const double seconds = 600;
+    var floor = ParakeetDaemonTimeouts.Default.Transcription;
+    var sourceDirectory = Path.Combine(Path.GetTempPath(), $"hyperwhisper-1572-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(sourceDirectory);
+    try
+    {
+        var mp3 = Path.Combine(sourceDirectory, "long.mp3");
+        using (var ffmpeg = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ffmpeg")
+        {
+            ArgumentList = { "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi",
+                "-i", $"sine=frequency=440:duration={seconds}", "-ac", "1", "-ar", "16000", "-b:a", "16k", mp3 },
+            RedirectStandardError = true,
+        })!)
+        {
+            var stderr = await ffmpeg.StandardError.ReadToEndAsync();
+            await ffmpeg.WaitForExitAsync();
+            Assert(ffmpeg.ExitCode == 0 && File.Exists(mp3), $"ffmpeg could not make the fixture MP3: {stderr}");
+        }
+        var mp3Bytes = await File.ReadAllBytesAsync(mp3);
+        // The defect, measured: the daemon's own reader cannot see an MP3's length.
+        Assert(ParakeetDaemonTranscriber.ComputeResponseTimeout(floor, WaveFileDuration.TryReadSeconds(mp3)) == floor,
+            "the fixture MP3 already scaled the wait; the test would prove nothing");
+
+        using var paths = new TempPaths();
+        var database = new ApplicationDb(paths);
+        await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+        var history = new HistoryRepository(database);
+        var modes = new ModeRepository(database);
+        string[] Leftovers() => [.. Directory.EnumerateFiles(paths.RecordingsDirectory)
+            .Select(Path.GetFileName)
+            .Where(name => name!.StartsWith("local-api-", StringComparison.Ordinal)
+                || name.StartsWith("import-", StringComparison.Ordinal)
+                || name.StartsWith(".normalize-", StringComparison.Ordinal))!];
+        static AudioUpload Upload(string name, byte[] bytes, string engine) =>
+            new(name, "audio/mpeg", bytes, null, engine, null, "en");
+
+        // 1. A long MP3 in a Parakeet mode: converted, the wait scales, the upload is gone.
+        var probe = new WaveProbeTranscriber();
+        using (var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), probe, history))
+        {
+            var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+                audioImport: new DurableAudioImportService(new DiskPrivateFiles(), paths));
+            var result = await backend.TranscribeAsync(Upload("meeting.mp3", mp3Bytes, "parakeet"), CancellationToken.None);
+            Assert(result.Text == "probed", "the converted upload did not transcribe");
+            Assert(probe.Path is not null && probe.Path.EndsWith(".wav", StringComparison.Ordinal)
+                && Path.GetFileName(probe.Path).StartsWith("import-", StringComparison.Ordinal),
+                $"the Parakeet transcriber did not receive the converted WAV: {probe.Path}");
+            Assert(probe.Seconds is { } read && Math.Abs(read - seconds) < 1,
+                $"the converted WAV's duration did not read as {seconds} s: {probe.Seconds}");
+            var wait = ParakeetDaemonTranscriber.ComputeResponseTimeout(floor, probe.Seconds);
+            Assert(wait > floor && wait == ParakeetDaemonTranscriber.ComputeResponseTimeout(floor, seconds),
+                $"the Parakeet wait did not scale with a {seconds} s upload: {wait}");
+            // The staged upload this backend created is deleted; the WAV is the
+            // history audio, as the raw upload was before and as Transcribe File keeps it.
+            var completed = (await history.ListAsync()).Single();
+            Assert(completed.AudioFilePath == probe.Path && File.Exists(probe.Path),
+                "the completed history row does not hold the converted WAV");
+            Assert(Leftovers().SequenceEqual([Path.GetFileName(probe.Path)]),
+                $"conversion left files behind: {string.Join(", ", Leftovers())}");
+            await history.DeleteAsync(completed.Id);
+            File.Delete(probe.Path!);
+        }
+
+        // 2. An undecodable "MP3": AUDIO_DECODE_FAILED at once, the transcriber never
+        // runs, and nothing the backend or the converter created is left behind.
+        var untouched = new WaveProbeTranscriber();
+        using (var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), untouched, history))
+        {
+            var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+                audioImport: new DurableAudioImportService(new DiskPrivateFiles(), paths));
+            var failure = await AssertThrowsAsync<LocalApiFailureException>(() =>
+                backend.TranscribeAsync(Upload("broken.mp3", [1, 2, 3, 4, 5, 6, 7, 8], "parakeet"), CancellationToken.None).AsTask());
+            Assert(failure.Code == LocalApiErrorCodes.AudioDecodeFailed && failure.HttpStatus == 200,
+                $"a failed conversion did not answer AUDIO_DECODE_FAILED: {failure.Code} {failure.HttpStatus}");
+            Assert(untouched.Path is null, "a failed conversion still reached the transcriber");
+            Assert(Leftovers().Length == 0, $"a failed conversion left files behind: {string.Join(", ", Leftovers())}");
+            Assert(!(await history.ListAsync()).Any(), "a failed conversion wrote a history row");
+        }
+
+        // 3. Cancelled mid-conversion: ffmpeg's caller sees the cancellation and the
+        // staged upload is deleted.
+        using (var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new WaveProbeTranscriber(), history))
+        {
+            var blocking = new BlockingNormalizer();
+            var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+                audioImport: new DurableAudioImportService(new DiskPrivateFiles(), paths, normalizer: blocking));
+            using var cancel = new CancellationTokenSource();
+            var call = backend.TranscribeAsync(Upload("slow.m4a", mp3Bytes, "parakeet"), cancel.Token).AsTask();
+            await blocking.Started.Task.WaitAsync(TimeSpan.FromSeconds(30));
+            Assert(Leftovers().Length == 1, "the upload was not staged before conversion");
+            cancel.Cancel();
+            await AssertThrowsAsync<OperationCanceledException>(() => call);
+            Assert(Leftovers().Length == 0, $"a cancelled conversion left the staged upload: {string.Join(", ", Leftovers())}");
+        }
+
+        // 4. Narrow scope: a WAV (by content, even under an odd name) in a Parakeet
+        // mode and an MP3 in a Whisper mode both reach the transcriber unconverted.
+        var wave = new byte[44 + 3200];
+        "RIFF"u8.CopyTo(wave); "WAVE"u8.CopyTo(wave.AsSpan(8));
+        foreach (var (name, bytes, engine) in new[] { ("clip.audio", wave, "parakeet"), ("song.mp3", mp3Bytes, "whisper") })
+        {
+            var passthrough = new WaveProbeTranscriber();
+            using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), passthrough, history);
+            var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+                audioImport: new DurableAudioImportService(new DiskPrivateFiles(), paths));
+            var upload = new AudioUpload(name, "audio/mpeg", bytes, null, engine, engine == "whisper" ? "base" : null, "en");
+            _ = await backend.TranscribeAsync(upload, CancellationToken.None);
+            Assert(passthrough.Path is not null && Path.GetFileName(passthrough.Path).StartsWith("local-api-", StringComparison.Ordinal)
+                && passthrough.Path.EndsWith(Path.GetExtension(name), StringComparison.Ordinal),
+                $"{name} in a {engine} mode was converted: {passthrough.Path}");
+            Assert(!Leftovers().Any(item => item.StartsWith("import-", StringComparison.Ordinal)), $"{name} produced a converted WAV");
+        }
+    }
+    finally { Directory.Delete(sourceDirectory, recursive: true); }
+}
+
+/// <summary>
+/// The caller's file name does not decide whether a Parakeet upload converts:
+/// an MP3 posted as a browser `FormData` `blob` or with no name, and Opus,
+/// AAC and MP4 audio, all reach the transcriber as a WAV whose length reads
+/// correctly (#1572 review round 2).
+/// </summary>
+/// <remarks>
+/// Real ffmpeg, as in <see cref="ParakeetNonWaveUploadIsConverted"/>. Before
+/// the fix each of these was staged under the caller's extension (or
+/// <c>.audio</c>/none) and `FfmpegAudioNormalizationService`'s Transcribe File
+/// allowlist refused it as AUDIO_DECODE_FAILED before ffmpeg ran. Bytes ffmpeg
+/// cannot decode must still fail with that code at once, under any name, and
+/// leave nothing behind.
+/// </remarks>
+static async Task ParakeetUploadConvertsWhateverItsName()
+{
+    const double seconds = 5;
+    var sourceDirectory = Path.Combine(Path.GetTempPath(), $"hyperwhisper-1572-names-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(sourceDirectory);
+    try
+    {
+        async Task<byte[]> Encode(string file, params string[] codec)
+        {
+            var output = Path.Combine(sourceDirectory, file);
+            var start = new System.Diagnostics.ProcessStartInfo("ffmpeg") { RedirectStandardError = true };
+            foreach (var argument in new[] { "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi",
+                "-i", $"sine=frequency=440:duration={seconds}", "-ac", "1", "-ar", "48000" }) start.ArgumentList.Add(argument);
+            foreach (var argument in codec) start.ArgumentList.Add(argument);
+            start.ArgumentList.Add(output);
+            using var ffmpeg = System.Diagnostics.Process.Start(start)!;
+            var stderr = await ffmpeg.StandardError.ReadToEndAsync();
+            await ffmpeg.WaitForExitAsync();
+            Assert(ffmpeg.ExitCode == 0 && File.Exists(output), $"ffmpeg could not make the fixture {file}: {stderr}");
+            return await File.ReadAllBytesAsync(output);
+        }
+        var mp3 = await Encode("fixture.mp3", "-c:a", "libmp3lame", "-b:a", "32k");
+        var opus = await Encode("fixture.opus", "-c:a", "libopus", "-b:a", "24k");
+        var aac = await Encode("fixture.aac", "-c:a", "aac", "-b:a", "32k", "-f", "adts");
+        var mp4 = await Encode("fixture.mp4", "-c:a", "aac", "-b:a", "32k");
+
+        using var paths = new TempPaths();
+        var database = new ApplicationDb(paths);
+        await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+        var history = new HistoryRepository(database);
+        var modes = new ModeRepository(database);
+        string[] Leftovers() => [.. Directory.EnumerateFiles(paths.RecordingsDirectory)
+            .Select(Path.GetFileName)
+            .Where(name => name!.StartsWith("local-api-", StringComparison.Ordinal)
+                || name.StartsWith("import-", StringComparison.Ordinal)
+                || name.StartsWith(".normalize-", StringComparison.Ordinal))!];
+
+        foreach (var (name, contentType, bytes) in new[]
+        {
+            ("blob", "application/octet-stream", mp3),
+            ("", "audio/mpeg", mp3),
+            ("voice.opus", "audio/ogg", opus),
+            ("rec.aac", "audio/aac", aac),
+            ("clip.mp4", "video/mp4", mp4),
+        })
+        {
+            var probe = new WaveProbeTranscriber();
+            using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), probe, history);
+            var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+                audioImport: new DurableAudioImportService(new DiskPrivateFiles(), paths));
+            var result = await backend.TranscribeAsync(
+                new AudioUpload(name, contentType, bytes, null, "parakeet", null, "en"), CancellationToken.None);
+            Assert(result.Text == "probed", $"'{name}' did not transcribe");
+            Assert(probe.Path is not null && probe.Path.EndsWith(".wav", StringComparison.Ordinal)
+                && Path.GetFileName(probe.Path).StartsWith("import-", StringComparison.Ordinal),
+                $"'{name}' did not reach the Parakeet transcriber as the converted WAV: {probe.Path}");
+            Assert(probe.Seconds is { } read && Math.Abs(read - seconds) < 0.5,
+                $"'{name}' converted to a WAV whose duration did not read as {seconds} s: {probe.Seconds}");
+            var completed = (await history.ListAsync()).Single();
+            Assert(completed.AudioFilePath == probe.Path && Leftovers().SequenceEqual([Path.GetFileName(probe.Path)]),
+                $"'{name}' left files other than the history WAV: {string.Join(", ", Leftovers())}");
+            await history.DeleteAsync(completed.Id);
+            File.Delete(probe.Path!);
+        }
+
+        // Bytes ffmpeg cannot decode still fail at once with AUDIO_DECODE_FAILED,
+        // under an odd extension and under no useful name, and leave nothing.
+        var garbage = new byte[4096];
+        new Random(1572).NextBytes(garbage);
+        foreach (var name in new[] { "junk.xyz", "blob", "voice.opus" })
+        {
+            var untouched = new WaveProbeTranscriber();
+            using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), untouched, history);
+            var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+                audioImport: new DurableAudioImportService(new DiskPrivateFiles(), paths));
+            var failure = await AssertThrowsAsync<LocalApiFailureException>(() => backend.TranscribeAsync(
+                new AudioUpload(name, "application/octet-stream", garbage, null, "parakeet", null, "en"), CancellationToken.None).AsTask());
+            Assert(failure.Code == LocalApiErrorCodes.AudioDecodeFailed && failure.HttpStatus == 200,
+                $"undecodable '{name}' did not answer AUDIO_DECODE_FAILED: {failure.Code} {failure.HttpStatus}");
+            Assert(untouched.Path is null, $"undecodable '{name}' reached the transcriber");
+            Assert(Leftovers().Length == 0, $"undecodable '{name}' left files behind: {string.Join(", ", Leftovers())}");
+            Assert(!(await history.ListAsync()).Any(), $"undecodable '{name}' wrote a history row");
+        }
+    }
+    finally { Directory.Delete(sourceDirectory, recursive: true); }
+}
+
+/// <summary>
+/// While dictation records, an MP3 to a Parakeet mode is refused busy at once,
+/// with the same answer the workflow gives, and ffmpeg never runs (#1572 review).
+/// </summary>
+/// <remarks>
+/// The expected answer is measured, not written down: the same busy workflow is
+/// asked through a backend with NO converter, which is exactly the pre-#1572
+/// path, and the two refusals must match field for field.
+/// </remarks>
+static async Task ParakeetUploadRefusedBusyBeforeConversion()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var transcriber = new WaveProbeTranscriber();
+    using var workflow = new TranscriptionWorkflow(new TestRecorder(paths), new TestDevices(), transcriber, history);
+    workflow.RefreshDevices();
+    var started = await workflow.StartRecordingAsync(CancellationToken.None);
+    Assert(started.IsSuccess && workflow.Snapshot.State == TranscriptionWorkflowState.Recording, "the workflow did not start recording");
+
+    static AudioUpload Mp3() => new("meeting.mp3", "audio/mpeg", new byte[] { 0xFF, 0xFB, 0x90, 0x64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, null, "parakeet", null, "en");
+    var unconverted = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    var expected = await AssertThrowsAsync<LocalApiFailureException>(() => unconverted.TranscribeAsync(Mp3(), CancellationToken.None).AsTask());
+
+    var normalizer = new FakeWaveNormalizer();
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0",
+        audioImport: new DurableAudioImportService(new DiskPrivateFiles(), paths, normalizer: normalizer));
+    var busy = await AssertThrowsAsync<LocalApiFailureException>(() => backend.TranscribeAsync(Mp3(), CancellationToken.None).AsTask());
+    Assert(busy.Code == expected.Code && busy.HttpStatus == expected.HttpStatus && busy.Message == expected.Message && busy.Hint == expected.Hint,
+        $"the busy refusal changed: {busy.Code} {busy.HttpStatus} '{busy.Message}' vs {expected.Code} {expected.HttpStatus} '{expected.Message}'");
+    Assert(normalizer.Calls == 0, "a busy workflow still converted the upload");
+    Assert(transcriber.Path is null, "a busy workflow still transcribed");
+    Assert(workflow.Snapshot.State == TranscriptionWorkflowState.Recording, "the busy refusal disturbed the running recording");
+    Assert(!Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Any(), "a busy refusal left the staged upload behind");
+
+    // Once the workflow is idle the same upload converts as before.
+    await workflow.CancelAsync();
+    var result = await backend.TranscribeAsync(Mp3(), CancellationToken.None);
+    Assert(result.Text == "probed" && normalizer.Calls == 1 && transcriber.Path is not null
+        && Path.GetFileName(transcriber.Path).StartsWith("import-", StringComparison.Ordinal),
+        $"an idle workflow did not convert the upload: {normalizer.Calls} {transcriber.Path}");
+}
+
+/// <summary>
+/// The staged <c>local-api-*</c> upload a conversion replaced is deleted even
+/// when the first delete fails, on success and on failure (#1572 review).
+/// </summary>
+static async Task ConvertedUploadDeleteIsRetried()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var upload = new AudioUpload("meeting.mp3", "audio/mpeg", new byte[] { 0xFF, 0xFB, 0x90, 0x64, 0, 0, 0, 0, 0, 0, 0, 0 }, null, "parakeet", null, "en");
+    foreach (var success in new[] { true, false })
+    {
+        var files = new FirstUploadDeleteFails();
+        var transcriber = new StaticTranscriber(success);
+        using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), transcriber, history);
+        var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), files, paths, "1.0",
+            audioImport: new DurableAudioImportService(files, paths, normalizer: new FakeWaveNormalizer()));
+        if (success) _ = await backend.TranscribeAsync(upload, CancellationToken.None);
+        else _ = await AssertThrowsAsync<LocalApiFailureException>(() => backend.TranscribeAsync(upload, CancellationToken.None).AsTask());
+        Assert(files.UploadDeletes == 2, $"the failed upload delete was not retried (success={success}): {files.UploadDeletes} attempts");
+        Assert(!Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Any(),
+            $"a converted upload was orphaned after a failed delete (success={success})");
+    }
+}
+
 static async Task ApplicationBackendErrors()
 {
     using var paths = new TempPaths();
@@ -1336,6 +1657,18 @@ static async Task PortableTranscriptionFailuresReachTheWire()
         LocalApiErrorCodes.Timeout,
         "Transcription was cancelled.",
         "cancelled transcription");
+
+    // No account key on a HyperWhisper Cloud run: MISSING_API_KEY, the exact
+    // envelope /post-process sends for the same mode (issue #1487, review R2-1).
+    // This head used to answer ENGINE_UNAVAILABLE here.
+    var cloudAccount = LocalApiFailureException.CloudAccountRequired();
+    await Assert357(
+        new CloudAccountRequiredTranscriber(),
+        new NoDevices(),
+        async client => { using var form = Clip(); return await client.PostAsync("/transcribe", form); },
+        LocalApiErrorCodes.MissingApiKey,
+        cloudAccount.Message,
+        "a Cloud transcription with no account key");
 
     // The `/recording/*` routes reach the same table through
     // `ThrowWorkflowFailure`, which did a partial two-way split of the SAME
@@ -2369,6 +2702,119 @@ static async Task ApplicationBackendModeWriteFoldsLegacyProvider()
         "an explicit null cloudProvider was not cleared");
 }
 
+// Issue #1687. `model` was written into `Model` and `ModelType` (the Whisper
+// field) for every engine, and `NormalizeMode` then put the stored Parakeet
+// model back into `Model`. So a PATCH that changed a Parakeet mode's model
+// answered ok, kept the old model, and overwrote the Whisper model.
+static async Task ApplicationBackendModelRoutesByEngine()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var modes = new ModeRepository(database);
+    var history = new HistoryRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0");
+
+    HyperWhisper.Data.Entities.Mode LocalMode(string name, int sortOrder, string engine, string? parakeet, string whisper) => new()
+    {
+        Id = Guid.NewGuid(), Name = name, SortOrder = sortOrder, Language = "en", Preset = "hyper",
+        ProviderType = "local", LocalEngine = engine, LocalParakeetModel = parakeet,
+        Model = engine == "parakeet" ? parakeet : whisper, ModelType = whisper,
+        IsDefault = sortOrder == 0, CloudAccuracyTier = "elevenLabsScribeV2",
+        CloudPostProcessingModel = "anthropic:claude-haiku-5-5",
+    };
+    async Task<HyperWhisper.Data.Entities.Mode> Stored(Guid id) => (await modes.ListAsync()).Single(item => item.Id == id);
+
+    // 1. The issue's case: a Parakeet mode on v3 (its Whisper model is `small`).
+    var parakeet = LocalMode("Parakeet", 0, "parakeet", "parakeet-v3", "small");
+    await modes.UpsertAsync(parakeet);
+    var patched = (await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"model":"parakeet-v2"} """), CancellationToken.None))!.Value;
+    var row = await Stored(parakeet.Id);
+    Assert(row.LocalParakeetModel == "parakeet-v2",
+        $"PATCH model on a Parakeet mode left localParakeetModel '{row.LocalParakeetModel}' (issue #1687)");
+    Assert(row.Model == "parakeet-v2", $"PATCH model on a Parakeet mode left Model '{row.Model}'");
+    Assert(row.ModelType == "small", $"PATCH model on a Parakeet mode overwrote the Whisper model with '{row.ModelType}'");
+    Assert(patched.GetProperty("localParakeetModel").GetString() == "parakeet-v2",
+        "the PATCH answer does not report the Parakeet model the mode now uses");
+
+    // 2. Engine and model in one PATCH on a Whisper Small mode: the model goes
+    //    to the engine the same PATCH asks for, and the Whisper model stays.
+    var whisper = LocalMode("Whisper", 1, "whisper", null, "small");
+    await modes.UpsertAsync(whisper);
+    _ = await backend.PatchModeAsync(whisper.Id.ToString(), Json(""" {"model":"parakeet-v2","localEngine":"parakeet"} """), CancellationToken.None);
+    row = await Stored(whisper.Id);
+    Assert(row.LocalEngine == "parakeet" && row.LocalParakeetModel == "parakeet-v2",
+        $"PATCH localEngine+model stored '{row.LocalEngine}'/'{row.LocalParakeetModel}' (issue #1687)");
+    Assert(row.ModelType == "small", $"PATCH localEngine+model overwrote the Whisper model with '{row.ModelType}'");
+
+    // 3. An explicit localParakeetModel wins over model, whatever the key order.
+    _ = await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"localParakeetModel":"parakeet-v3","model":"qwen3-asr-0.6b"} """), CancellationToken.None);
+    row = await Stored(parakeet.Id);
+    Assert(row.LocalParakeetModel == "parakeet-v3", $"model beat an explicit localParakeetModel: '{row.LocalParakeetModel}'");
+
+    // 4. A null model on a Parakeet mode keeps its Parakeet model.
+    _ = await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"model":null} """), CancellationToken.None);
+    row = await Stored(parakeet.Id);
+    Assert(row.LocalParakeetModel == "parakeet-v3" && row.Model == "parakeet-v3",
+        $"a null model changed the Parakeet mode to '{row.LocalParakeetModel}'/'{row.Model}'");
+
+    // 5. A Whisper id on a Parakeet mode is refused, not silently dropped.
+    await AssertThrowsAsync<ArgumentException>(() =>
+        backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"model":"medium"} """), CancellationToken.None).AsTask());
+    row = await Stored(parakeet.Id);
+    Assert(row.LocalParakeetModel == "parakeet-v3" && row.ModelType == "small", "a refused PATCH changed the stored mode");
+
+    // 6. Unchanged: a Whisper mode's model still goes to the Whisper field.
+    var other = LocalMode("Whisper two", 2, "whisper", null, "base");
+    await modes.UpsertAsync(other);
+    _ = await backend.PatchModeAsync(other.Id.ToString(), Json(""" {"model":"medium"} """), CancellationToken.None);
+    row = await Stored(other.Id);
+    Assert(row.ModelType == "medium" && row.Model == "medium", $"PATCH model on a Whisper mode stored '{row.ModelType}'/'{row.Model}'");
+
+    // 7. Create routes the same way: a Parakeet body's model is its Parakeet model.
+    var created = await backend.CreateModeAsync(Json(ModeBody("Created parakeet", model: "parakeet-v2",
+        extra: """ "providerType":"local","localEngine":"parakeet" """)), CancellationToken.None);
+    row = await Stored(Guid.Parse(created.GetProperty("id").GetString()!));
+    Assert(row.LocalParakeetModel == "parakeet-v2" && row.Model == "parakeet-v2",
+        $"POST a Parakeet mode with model stored '{row.LocalParakeetModel}'/'{row.Model}'");
+}
+
+// The Linux catalog advertises capability keys (`local/parakeet/parakeet-v3`),
+// and the catalog check compared them with the bare id a mode stores. So the
+// real app refused every local mode write, even a rename (found while proving
+// issue #1687).
+static async Task ApplicationBackendLocalModeMatchesCatalogKeys()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var modes = new ModeRepository(database);
+    var history = new HistoryRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new KeyedCatalog(), new DiskPrivateFiles(), paths, "1.0");
+
+    var parakeet = new HyperWhisper.Data.Entities.Mode
+    {
+        Id = Guid.NewGuid(), Name = "Parakeet", SortOrder = 0, IsDefault = false, Language = "en", Preset = "hyper",
+        ProviderType = "local", LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3", Model = "parakeet-v3",
+        ModelType = "small", CloudAccuracyTier = "elevenLabsScribeV2", CloudPostProcessingModel = "anthropic:claude-haiku-5-5",
+    };
+    await modes.UpsertAsync(parakeet);
+    var renamed = (await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"name":"Parakeet renamed"} """), CancellationToken.None))!.Value;
+    Assert(renamed.GetProperty("name").GetString() == "Parakeet renamed", "a rename of a local mode was refused");
+    var patched = (await backend.PatchModeAsync(parakeet.Id.ToString(), Json(""" {"model":"parakeet-v2"} """), CancellationToken.None))!.Value;
+    Assert(patched.GetProperty("localParakeetModel").GetString() == "parakeet-v2",
+        "PATCH model on a Parakeet mode did not land against the keyed catalog (issue #1687)");
+
+    _ = await backend.CreateModeAsync(Json(ModeBody("Whisper small", model: "small",
+        extra: """ "providerType":"local","localEngine":"whisper" """)), CancellationToken.None);
+    // The check still bites: `large-v3` is a known Whisper id the catalog does
+    // not advertise, and a cloud key ending in `-large-v3` is no match.
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json(ModeBody("Whisper large", model: "large-v3",
+        extra: """ "providerType":"local","localEngine":"whisper" """)), CancellationToken.None).AsTask());
+}
+
 static async Task ApplicationBackendModeValidation()
 {
     using var paths = new TempPaths();
@@ -2443,6 +2889,105 @@ static JsonElement Json(string value)
 /// non-optional, and that is the set the published contract carries — so two
 /// heads are catching up to the third rather than the doc being weakened.
 /// </remarks>
+/// <summary>
+/// Issues #1689 and #1709: <c>openapi.yaml</c> lets <c>POST /modes</c> omit
+/// <c>cloudProvider</c>, and macOS and Windows read that omission as HyperWhisper
+/// Cloud. This head refused the write ("Cloud provider is invalid."), and had it
+/// stored, its router would have failed every transcription with "The selected
+/// cloud transcription provider is not supported."
+/// </summary>
+/// <remarks>
+/// Driven end to end: the body goes through the real HTTP pipeline into the real
+/// backend and database, and the stored mode is then dictated through
+/// <c>POST /transcribe</c> into the real <see cref="ModeAwareTranscriptionRouter"/>,
+/// with only the network client faked. The stored value stays null — the rule is
+/// a READ rule — so <c>GET /modes</c> keeps answering without a provider.
+/// </remarks>
+static async Task ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var cloud = new RecordingBatchCloud();
+    using var router = new ModeAwareTranscriptionRouter(new UnavailableTranscriber(), new UnavailableTranscriber(), cloud);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), router, history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    await using var fixture = await Fixture.Create(backend: backend);
+    fixture.Authenticate();
+
+    // The issue's body, verbatim.
+    using (var body = new StringContent(
+        """{"name":"S8 Cloud","preset":"hyper","language":"en","model":"cloud","punctuation":true,"capitalization":true,"profanityFilter":false,"postProcessingMode":0}""",
+        Encoding.UTF8, "application/json"))
+    {
+        var response = await fixture.Client.PostAsync("/modes", body);
+        Assert(response.StatusCode == HttpStatusCode.OK, $"POST /modes with no cloudProvider answered {(int)response.StatusCode}");
+        var created = await response.Content.ReadAsStringAsync();
+        using var envelope = JsonDocument.Parse(created);
+        Assert(!(envelope.RootElement.TryGetProperty("ok", out var ok) && !ok.GetBoolean()),
+            $"POST /modes with no cloudProvider was refused: {created}");
+    }
+
+    // Only an OMITTED provider is the blank case. An empty or whitespace string is
+    // refused exactly as before #1709: stored verbatim, another head could read it
+    // as an id rather than as blank and route the mode to a BYOK provider.
+    foreach (var (name, provider) in new[] { ("S8 Empty", ""), ("S8 Spaces", "   ") })
+    {
+        using var body = new StringContent(
+            ModeBody(name, extra: $$""" "cloudProvider":{{JsonSerializer.Serialize(provider)}} """, model: "cloud"),
+            Encoding.UTF8, "application/json");
+        var response = await fixture.Client.PostAsync("/modes", body);
+        var text = await response.Content.ReadAsStringAsync();
+        Assert(response.StatusCode == HttpStatusCode.BadRequest,
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} answered {(int)response.StatusCode}: {text}");
+        Assert(text.Contains("\"INVALID_REQUEST\"", StringComparison.Ordinal),
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} did not answer INVALID_REQUEST: {text}");
+        Assert((await modes.ListAsync()).All(mode => mode.Name != name),
+            $"POST /modes with cloudProvider {JsonSerializer.Serialize(provider)} stored a mode");
+        // The 400 is the cloud-provider check itself (the pre-#1709 refusal), not some other rule.
+        var refused = await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(
+            Json(ModeBody(name, extra: $$""" "cloudProvider":{{JsonSerializer.Serialize(provider)}} """, model: "cloud")),
+            CancellationToken.None).AsTask());
+        Assert(refused.Message == "Cloud provider is invalid.",
+            $"cloudProvider {JsonSerializer.Serialize(provider)} was refused for another reason: {refused.Message}");
+    }
+
+    var stored = (await modes.ListAsync()).Single(mode => mode.Name == "S8 Cloud");
+    Assert(stored.ProviderType == "cloud", $"the posted mode stored providerType '{stored.ProviderType}', not cloud");
+    Assert(string.IsNullOrEmpty(stored.CloudProvider),
+        $"the blank provider must stay blank in storage (a read rule only), got '{stored.CloudProvider}'");
+
+    // GET /modes still answers without a provider, as macOS and Windows do.
+    using (var listed = JsonDocument.Parse(await fixture.Client.GetStringAsync("/modes")))
+    {
+        var text = listed.RootElement.GetRawText();
+        Assert(text.Contains("S8 Cloud", StringComparison.Ordinal), "GET /modes does not list the posted mode");
+        Assert(!text.Contains("\"cloudProvider\":\"hyperwhisper\"", StringComparison.Ordinal),
+            "GET /modes now reports a cloudProvider the caller never stored");
+    }
+
+    // The router's own parse, through the shared rule.
+    Assert(ModeAwareTranscriptionRouter.TryMapProvider(
+            SharedCoreBridge.EffectiveModeCloudProvider(stored.CloudProvider), out var mapped)
+        && mapped == CloudTranscriptionProvider.HyperWhisperCloud,
+        $"the router maps the posted mode to {mapped}, not HyperWhisperCloud");
+
+    // And the real dispatch: dictate with that mode over HTTP.
+    using var upload = new MultipartFormDataContent();
+    upload.Add(new ByteArrayContent([1, 2, 3, 4]), "audio", "s8.wav");
+    upload.Add(new StringContent(stored.Id.ToString("D")), "mode_id");
+    var transcribed = await fixture.Client.PostAsync("/transcribe", upload);
+    var transcribedBody = await transcribed.Content.ReadAsStringAsync();
+    Assert(cloud.LastRequest is not null,
+        $"the blank-provider mode never reached the cloud client: {(int)transcribed.StatusCode} {transcribedBody}");
+    Assert(cloud.LastRequest!.Provider == CloudTranscriptionProvider.HyperWhisperCloud,
+        $"the blank-provider mode was dispatched to {cloud.LastRequest.Provider}, not HyperWhisperCloud");
+    Assert(transcribed.StatusCode == HttpStatusCode.OK && transcribedBody.Contains("cloud words", StringComparison.Ordinal),
+        $"/transcribe did not return the cloud transcript: {(int)transcribed.StatusCode} {transcribedBody}");
+}
+
 static string ModeBody(string name, string? extra = null, string model = "base") =>
     $$"""
     {"name":{{JsonSerializer.Serialize(name)}},"preset":"hyper","language":"en","model":{{JsonSerializer.Serialize(model)}},"punctuation":true,"capitalization":true,"profanityFilter":false{{(extra is null ? "" : "," + extra)}}}
@@ -2725,8 +3270,17 @@ sealed class FakeBackend : ILocalApiBackend
     /// from one that writes a constant (issue #499).
     /// </summary>
     public bool PostProcessApplied { get; set; } = true;
+    /// <summary>
+    /// Makes <see cref="PostProcessAsync"/> refuse the way a head's adapter does
+    /// for a HyperWhisper Cloud run with no account key (issue #1487).
+    /// </summary>
+    public bool PostProcessCloudAccountMissing { get; set; }
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
-    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, PostProcessApplied)); }
+    {
+        PostProcess = request;
+        if (PostProcessCloudAccountMissing) throw LocalApiFailureException.CloudAccountRequired();
+        return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, PostProcessApplied));
+    }
     /// <summary>
     /// The full match set this fake holds. <see cref="GetRecordingsAsync"/> pages it
     /// with the query's limit, so a caller can set more rows than the limit and get
@@ -2802,9 +3356,37 @@ sealed class FailDiscoveryPrivateFiles : DiskPrivateFiles
             : base.WriteAllTextAtomically(path, contents);
 }
 
+/// <summary>Fails the first delete of a staged <c>local-api-*</c> upload, then deletes normally.</summary>
+sealed class FirstUploadDeleteFails : DiskPrivateFiles
+{
+    public int UploadDeletes { get; private set; }
+    public override PlatformResult Delete(string path)
+    {
+        if (!Path.GetFileName(path).StartsWith("local-api-", StringComparison.Ordinal)) return base.Delete(path);
+        return ++UploadDeletes == 1 ? PlatformResult.Failure("expected", "expected delete failure") : base.Delete(path);
+    }
+}
+
 sealed class EmptyCatalog : ILocalApiCapabilityCatalog
 {
     public IReadOnlyList<ModelEntry> Models => [];
+    public IReadOnlyList<ProviderStatus> TranscriptionProviders => [];
+    public IReadOnlyList<ProviderStatus> PostProcessingProviders => [];
+    public object LocalModels { get; } = new { };
+}
+
+// The ids the Linux head's `LinuxLocalApiCatalog` really advertises: capability
+// keys, not bare model ids. `large-v3` is left out on purpose.
+sealed class KeyedCatalog : ILocalApiCapabilityCatalog
+{
+    public IReadOnlyList<ModelEntry> Models { get; } =
+    [
+        new("local/localWhisper/small", "voice", "local", "Small", true),
+        new("local/parakeet/parakeet-v2", "voice", "local", "Parakeet v2", true),
+        new("local/streaming/parakeetLocal/parakeet-v2", "voice", "local", "Parakeet v2", true),
+        new("local/parakeet/parakeet-v3", "voice", "local", "Parakeet v3", true),
+        new("cloud/stt/groqWhisper/whisper-large-v3", "voice", "groq", "Whisper Large v3", true),
+    ];
     public IReadOnlyList<ProviderStatus> TranscriptionProviders => [];
     public IReadOnlyList<ProviderStatus> PostProcessingProviders => [];
     public object LocalModels { get; } = new { };
@@ -2868,6 +3450,15 @@ sealed class CancelledTranscriber : IRecordedAudioTranscriber
         => Task.FromResult(PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.Cancelled, "Transcription was cancelled.", "Cancelling"));
 }
 
+/// <summary>What the cloud router returns for a HyperWhisper Cloud mode with no account key.</summary>
+sealed class CloudAccountRequiredTranscriber : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(true, "HyperWhisper Cloud");
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
+        => Task.FromResult(PortableTranscriptionResult.Failed(
+            PortableTranscriptionErrorCode.CloudAccountRequired, "A HyperWhisper account key is required.", "HyperWhisper Cloud"));
+}
+
 /// <summary>Returns one fixed transcript and remembers the request it ran under.</summary>
 sealed class FixedTextTranscriber(string text) : IRecordedAudioTranscriber
 {
@@ -2879,6 +3470,56 @@ sealed class FixedTextTranscriber(string text) : IRecordedAudioTranscriber
     {
         Request = request;
         return Task.FromResult(PortableTranscriptionResult.Success(text, "FixedText"));
+    }
+}
+
+/// <summary>
+/// Records the path it was handed and reads its duration with the Parakeet
+/// daemon transcriber's own WAV reader, while the file still exists (#1572).
+/// </summary>
+sealed class WaveProbeTranscriber : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(true, "WaveProbe");
+    public string? Path { get; private set; }
+    public double? Seconds { get; private set; }
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
+    {
+        Path = audioPath;
+        Seconds = WaveFileDuration.TryReadSeconds(audioPath);
+        return Task.FromResult(PortableTranscriptionResult.Success("probed", "WaveProbe"));
+    }
+}
+
+/// <summary>Blocks until the call is cancelled, so a test can cancel mid-conversion.</summary>
+sealed class BlockingNormalizer : HyperWhisper.AudioNormalization.IAudioNormalizationService
+{
+    public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public async Task<PlatformResult<string>> NormalizeAsync(
+        string sourcePath, string destinationDirectory,
+        IProgress<HyperWhisper.AudioNormalization.AudioNormalizationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        Started.TrySetResult();
+        await Task.Delay(Timeout.Infinite, cancellationToken);
+        throw new InvalidOperationException("unreachable");
+    }
+}
+
+/// <summary>Counts its calls and writes a tiny owner-only WAV, so no ffmpeg runs.</summary>
+sealed class FakeWaveNormalizer : HyperWhisper.AudioNormalization.IAudioNormalizationService
+{
+    public int Calls { get; private set; }
+    public Task<PlatformResult<string>> NormalizeAsync(
+        string sourcePath, string destinationDirectory,
+        IProgress<HyperWhisper.AudioNormalization.AudioNormalizationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        var wave = new byte[44 + 320];
+        "RIFF"u8.CopyTo(wave); "WAVE"u8.CopyTo(wave.AsSpan(8));
+        var path = Path.Combine(destinationDirectory, $"import-{Guid.NewGuid():N}.wav");
+        new DiskPrivateFiles().WriteAllBytesAtomically(path, wave);
+        return Task.FromResult(PlatformResult<string>.Success(path));
     }
 }
 
@@ -2924,4 +3565,14 @@ sealed class ThrowOnStopService : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StopAsync(CancellationToken cancellationToken) => Task.FromException(new InvalidOperationException("expected stop failure"));
+}
+
+sealed class RecordingBatchCloud : IBatchCloudTranscriptionClient
+{
+    public CloudTranscriptionRequest? LastRequest { get; private set; }
+    public Task<CloudTranscriptionResult> TranscribeAsync(CloudTranscriptionRequest request, CancellationToken token = default)
+    {
+        LastRequest = request;
+        return Task.FromResult(CloudTranscriptionResult.Success(new("cloud words", null, null, "upstream"), 1));
+    }
 }

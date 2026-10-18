@@ -11,7 +11,7 @@
 //                    sherpa maps to the encoder prompt_index (>= v1.13.3 only).
 //
 // PROTOCOL:
-//   Args:    --model <dir> --vad-model <path> [--engine <name>] [--language <code>] [--join-language <code>]
+//   Args:    --model <dir> --vad-model <path> [--engine <name>] [--language <code>] [--segment-join none|space] [--join-language <code>]
 //   Ready:   stdout: {"status":"ready","provider":"directml"|"cpu"}
 //   Request: stdin:  {"audio_path":"/path/to/file.wav"}
 //   Result:  stdout: {"text":"Hello world","duration_ms":1234}
@@ -281,8 +281,9 @@ static std::string qwen3_language_name(const std::string& code) {
 
 // Languages whose segments should be concatenated with no ASCII space between
 // VAD chunks (CJK has no inter-word spaces).
-// KEEP IN SYNC with ParakeetTranscriptionService.IsNoSpaceLanguage (Windows) —
-// its reload-skip logic assumes this exact language set.
+// FALLBACK ONLY, for a host older than --segment-join. The Windows host decides
+// the join from the shared core (hw_text::is_no_space_language) and passes
+// --segment-join, which wins over this table (#902). Do not widen this copy.
 static bool is_no_space_language(const std::string& code) {
     return code == "ja" || code == "zh" || code == "ko" || code == "yue";
 }
@@ -456,6 +457,7 @@ struct DaemonArgs {
     std::string model_dir;
     std::string language = "en";
     std::string join_language;
+    std::string segment_join; // "none" | "space" | "" (not passed: use the table)
     std::string vad_model_path;
     std::string engine = "nemo_transducer"; // nemo_transducer | qwen3 | nemotron_ml
 };
@@ -468,6 +470,8 @@ static bool parse_args(int argc, char** argv, DaemonArgs& args) {
             args.language = argv[++i];
         } else if (strcmp(argv[i], "--join-language") == 0 && i + 1 < argc) {
             args.join_language = argv[++i];
+        } else if (strcmp(argv[i], "--segment-join") == 0 && i + 1 < argc) {
+            args.segment_join = argv[++i];
         } else if (strcmp(argv[i], "--vad-model") == 0 && i + 1 < argc) {
             args.vad_model_path = argv[++i];
         } else if (strcmp(argv[i], "--engine") == 0 && i + 1 < argc) {
@@ -483,6 +487,12 @@ static bool parse_args(int argc, char** argv, DaemonArgs& args) {
     if (args.engine != "nemo_transducer" && args.engine != "qwen3" &&
         args.engine != "nemotron_ml") {
         log_error(("Unknown --engine value: " + args.engine).c_str());
+        return false;
+    }
+
+    if (!args.segment_join.empty() && args.segment_join != "none" &&
+        args.segment_join != "space") {
+        log_error(("Unknown --segment-join value: " + args.segment_join).c_str());
         return false;
     }
 
@@ -541,9 +551,13 @@ int main(int argc, char** argv) {
 
     // Qwen3 language hint (English name; empty => auto)
     std::string qwen3_lang = is_qwen3 ? qwen3_language_name(args.language) : "";
-    // Inter-segment joiner: "" for CJK, " " otherwise
+    // Inter-segment joiner: "" for CJK, " " otherwise. The host's --segment-join
+    // decides it; the language table is the fallback for an older host (#902).
     const std::string join_language = args.join_language.empty() ? args.language : args.join_language;
-    const char* segment_join = is_no_space_language(join_language) ? "" : " ";
+    const char* segment_join =
+        args.segment_join == "none"  ? "" :
+        args.segment_join == "space" ? " " :
+        is_no_space_language(join_language) ? "" : " ";
 
     // ── Configure the offline recognizer (unused when --engine nemotron_ml,
     //    which builds an online recognizer below instead) ──

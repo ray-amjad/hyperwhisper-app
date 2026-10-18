@@ -139,6 +139,12 @@ public class StorageService
     /// Keeps the WAV file when conversion fails; deletes it on success.
     /// </summary>
     /// <returns>The M4A path if conversion succeeded, otherwise null.</returns>
+    /// <remarks>
+    /// Synchronous and slow (13 s for a 61-minute file, 42 s for a 3-hour one), so callers
+    /// must run it off the UI thread (#1499); see
+    /// <c>MainViewModel.StartRecordingCompression</c>. It is safe on a thread-pool (MTA)
+    /// thread: Media Foundation is free-threaded.
+    /// </remarks>
     public string? TryConvertWavToM4A(string wavPath)
     {
         if (!_settingsService.StoreAsM4A) return null;
@@ -153,18 +159,19 @@ public class StorageService
                 File.Delete(outputPath);
             }
 
+            // NAudio's Startup is a once-per-process, unsynchronised static flag, and
+            // MediaFoundationReader and MediaFoundationEncoder call it on their own. A
+            // Shutdown here would tear Media Foundation down under a reader or a second
+            // compression on another thread (a dictation's compression can overlap a file
+            // import), so Media Foundation stays up for the life of the process (#1499).
             MediaFoundationApi.Startup();
-            try
+
+            // AudioFileDecoder, not AudioFileReader: a cloud-mode file import keeps the
+            // user's own WAV, and a WAVE_FORMAT_EXTENSIBLE one would go to ACM and fail
+            // (#1450). Stream is the AudioFileReader itself for every other file.
+            using (var reader = AudioFileDecoder.Open(wavPath))
             {
-                // AudioFileDecoder, not AudioFileReader: a cloud-mode file import keeps the
-                // user's own WAV, and a WAVE_FORMAT_EXTENSIBLE one would go to ACM and fail
-                // (#1450). Stream is the AudioFileReader itself for every other file.
-                using var reader = AudioFileDecoder.Open(wavPath);
                 MediaFoundationEncoder.EncodeToAac(reader.Stream, outputPath);
-            }
-            finally
-            {
-                MediaFoundationApi.Shutdown();
             }
 
             try

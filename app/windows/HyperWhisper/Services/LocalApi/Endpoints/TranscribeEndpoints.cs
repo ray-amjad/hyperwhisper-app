@@ -67,9 +67,18 @@ internal static class TranscribeEndpoints
             string audioPath;
             bool tempFileCreated;
             FileStream? audioPathReadLock;
+            // Held from the Parakeet model check until this request's transcription has
+            // ended, so no other caller's idle reload swaps the model in between (#1608).
+            IDisposable? parakeetModelLease = null;
             try
             {
                 (audioPath, tempFileCreated, audioPathReadLock) = ResolveAudioSource(req);
+                if (tempFileCreated)
+                {
+                    // Quit and the start-up sweep reach this file through the
+                    // registry when this request never gets to its finally (#1476).
+                    LocalApiScratchFiles.Track(audioPath, audioPathReadLock);
+                }
             }
             catch (ApiInputException aiex)
             {
@@ -106,11 +115,11 @@ internal static class TranscribeEndpoints
                     : server.LocalTranscriptionProvider;
                 var applicationContext = req.ApplicationContext?.ToApplicationContext();
 
-                if (string.Equals(effectiveMode.ProviderType, "local", StringComparison.OrdinalIgnoreCase))
+                if (!LocalModeModel.IsCloud(effectiveMode))
                 {
                     try
                     {
-                        await EnsureLocalModelLoadedAsync(server, effectiveMode, localProvider, ctx.RequestAborted);
+                        parakeetModelLease = await EnsureLocalModelLoadedAsync(server, effectiveMode, localProvider, ctx.RequestAborted);
                     }
                     catch (ApiInputException aiex)
                     {
@@ -175,6 +184,7 @@ internal static class TranscribeEndpoints
             }
             finally
             {
+                parakeetModelLease?.Dispose();
                 audioPathReadLock?.Dispose();
 
                 if (tempFileCreated)
@@ -184,6 +194,7 @@ internal static class TranscribeEndpoints
                     {
                         LoggingService.Debug($"LocalAPI /transcribe: failed to delete temp file {audioPath}: {ex.Message}");
                     }
+                    LocalApiScratchFiles.Untrack(audioPath);
                 }
             }
         });
@@ -238,7 +249,11 @@ internal static class TranscribeEndpoints
         };
     }
 
-    private static async Task EnsureLocalModelLoadedAsync(
+    /// <returns>
+    /// For a Parakeet-family Mode, the model lease the caller holds until its
+    /// transcription has ended (#1608); null for Whisper.
+    /// </returns>
+    private static async Task<IDisposable?> EnsureLocalModelLoadedAsync(
         LocalApiServer server,
         Mode mode,
         ITranscriptionProvider? provider,
@@ -253,11 +268,11 @@ internal static class TranscribeEndpoints
 
         if (IsParakeetMode(mode))
         {
-            await EnsureParakeetModelLoadedAsync(server, mode, provider, cancellationToken);
-            return;
+            return await EnsureParakeetModelLoadedAsync(server, mode, provider, cancellationToken);
         }
 
         await EnsureWhisperModelLoadedAsync(server, mode, provider, cancellationToken);
+        return null;
     }
 
     private static async Task EnsureWhisperModelLoadedAsync(
@@ -299,7 +314,9 @@ internal static class TranscribeEndpoints
         }
 
         var modelPath = modelService.GetModelPath(modelInfo);
-        if (transcriptionService.IsInitialized &&
+        // Not while an unload is pending (#1609): the model is about to go, so
+        // queue behind the unload and load it again.
+        if (transcriptionService.IsLoadedAndStaying() &&
             string.Equals(transcriptionService.LoadedModelPath, modelPath, StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -309,7 +326,7 @@ internal static class TranscribeEndpoints
         await transcriptionService.InitializeAsync(modelPath, _ => { }, cancellationToken);
     }
 
-    private static async Task EnsureParakeetModelLoadedAsync(
+    private static async Task<IDisposable> EnsureParakeetModelLoadedAsync(
         LocalApiServer server,
         Mode mode,
         ITranscriptionProvider provider,
@@ -351,13 +368,21 @@ internal static class TranscribeEndpoints
 
         var language = mode.Language == "auto" ? null : mode.Language;
 
-        if (!parakeetService.NeedsReload(modelInfo.Id, mode.Language))
+        if (parakeetService.NeedsReload(modelInfo.Id, mode.Language))
         {
-            return;
+            LoggingService.Info($"LocalAPI /transcribe: Loading Parakeet-family model {modelInfo.DisplayName}");
         }
 
-        LoggingService.Info($"LocalAPI /transcribe: Loading Parakeet-family model {modelInfo.DisplayName}");
-        await parakeetService.InitializeAsync(modelService.GetModelDirectory(modelInfo), language);
+        // Never InitializeAsync here: that is the GUI's mode switch, and it cancels the
+        // transcription in flight, e.g. the user's Transcribe File job (#1608). This waits
+        // until the daemon is idle, then reloads (a warm daemon that fits returns at once);
+        // a client that disconnects stops waiting. The lease keeps this request's model
+        // loaded until its transcription has ended.
+        return await parakeetService.ReloadWhenIdleAsync(
+            modelInfo.Id,
+            modelService.GetModelDirectory(modelInfo),
+            language,
+            cancellationToken);
     }
 
     // =========================================================================
@@ -635,19 +660,38 @@ internal static class TranscribeEndpoints
 
         var ext = ExtensionForMime(req.MimeType);
         var tempPath = Path.Combine(
-            Path.GetTempPath(),
-            $"hyperwhisper-localapi-{Guid.NewGuid():N}.{ext}");
+            LocalApiScratchFiles.UploadDirectory(Path.GetTempPath()),
+            $"{LocalApiScratchFiles.UploadPrefix}{Guid.NewGuid():N}.{ext}");
         try
         {
             File.WriteAllBytes(tempPath, data);
+
+            // Held like the snapshot's lock: readers can still open the file,
+            // but another HyperWhisper process's start-up sweep cannot delete
+            // it while this request is live (#1476).
+            var readLock = new FileStream(
+                tempPath,
+                new FileStreamOptions
+                {
+                    Mode = FileMode.Open,
+                    Access = FileAccess.Read,
+                    Share = FileShare.Read,
+                    Options = FileOptions.SequentialScan
+                });
+            return (tempPath, true, readLock);
         }
         catch (Exception ex)
         {
+            try { File.Delete(tempPath); }
+            catch (Exception cleanupEx)
+            {
+                LoggingService.Debug($"LocalAPI /transcribe: failed to delete temp file {tempPath}: {cleanupEx.Message}");
+            }
+
             throw new ApiInputException(
                 LocalApiErrorCode.AudioDecodeFailed,
                 $"Failed to write decoded audio to temp file: {ex.Message}");
         }
-        return (tempPath, true, null);
     }
 
     /// <summary>
@@ -712,9 +756,9 @@ internal static class TranscribeEndpoints
             extension = ".wav";
         }
 
-        var snapshotDirectory = Path.Combine(Path.GetTempPath(), "HyperWhisper", "local-api-transcribe");
+        var snapshotDirectory = LocalApiScratchFiles.SnapshotDirectory(Path.GetTempPath());
         Directory.CreateDirectory(snapshotDirectory);
-        return Path.Combine(snapshotDirectory, $"snapshot-{Guid.NewGuid():N}{extension}");
+        return Path.Combine(snapshotDirectory, $"{LocalApiScratchFiles.SnapshotPrefix}{Guid.NewGuid():N}{extension}");
     }
 
     private static string GetFinalDosPath(SafeFileHandle handle)
@@ -890,7 +934,7 @@ internal static class TranscribeEndpoints
         else if (!string.IsNullOrEmpty(model))
         {
             // Engine implied by baseline — patch the right model field.
-            if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
+            if (LocalModeModel.IsCloud(mode))
             {
                 mode.CloudTranscriptionModel = model;
             }
@@ -908,6 +952,15 @@ internal static class TranscribeEndpoints
 
         return mode;
     }
+
+    /// <summary>
+    /// The refusal for <c>engine: whisper</c> with no or a blank <c>model</c>
+    /// (issue #1493). Internal so the smoke tests pin the exact wording.
+    /// </summary>
+    internal const string WhisperModelRequiredMessage = "A Whisper model is required.";
+
+    /// <summary>The hint that goes with <see cref="WhisperModelRequiredMessage"/>.</summary>
+    internal const string WhisperModelRequiredHint = "Send model, for example base.en.";
 
     /// <summary>
     /// Encode an engine + (optional) model pair onto a Mode's provider/engine
@@ -1025,9 +1078,16 @@ internal static class TranscribeEndpoints
             case HwLocalApiEngineId.WhisperLocal:
                 if (string.IsNullOrWhiteSpace(model))
                 {
+                    // A request mistake, not an outage (issue #1493, Ray via
+                    // inbox #295): INVALID_REQUEST with a hint to send
+                    // `model`, never a default model. ENGINE_UNAVAILABLE said
+                    // "try again later", which a client retries forever. Same
+                    // bytes as macOS (`APIInputError.whisperModelRequired`) and
+                    // the portable head's message.
                     throw new ApiInputException(
-                        LocalApiErrorCode.EngineUnavailable,
-                        "Missing 'model' for whisperLocal engine");
+                        LocalApiErrorCode.InvalidRequest,
+                        WhisperModelRequiredMessage,
+                        WhisperModelRequiredHint);
                 }
 
                 mode.ProviderType = "local";
@@ -1085,7 +1145,7 @@ internal static class TranscribeEndpoints
     /// </remarks>
     private static string EngineLabel(Mode mode)
     {
-        if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
+        if (LocalModeModel.IsCloud(mode))
         {
             return mode.CloudProvider ?? "cloud";
         }
@@ -1125,9 +1185,9 @@ internal static class TranscribeEndpoints
     /// </remarks>
     internal static string ModelLabel(Mode mode)
     {
-        if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
+        if (LocalModeModel.IsCloud(mode))
         {
-            var provider = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+            var provider = CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider);
             if (provider == CloudTranscriptionProvider.HyperWhisperCloud)
             {
                 return HyperWhisperCloudService.ResolveDictationModelId(

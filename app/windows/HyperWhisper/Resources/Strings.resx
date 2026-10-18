@@ -148,6 +148,9 @@
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>More...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1083,6 +1086,9 @@ Do you want to restart now?</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>File transcription cancelled</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transcribing file...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1106,11 +1112,11 @@ Do you want to restart now?</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>The mode that made this recording was deleted, so it was not retried. In History, right-click the recording and choose "Retry With..." to pick another mode.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Recording stopped — 20-minute safety limit reached.</value>
@@ -1492,6 +1498,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model In Use</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} is used by the "{1}" mode. Switch that mode to another model before deleting it.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1761,6 +1773,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>That doesn't look like an account key.</value>
+  </data>
 
 
   <!-- Mode Editor - Additional -->
@@ -1785,8 +1800,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>A recording or file transcription is already running. Try the file again when it finishes.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>This file is empty, so there is no audio to transcribe.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>This file is damaged or is not an audio file HyperWhisper can read.</value>
   </data>
 
   <!-- Update UI -->
@@ -1866,6 +1890,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Muffle audio</value>
   </data>
   <data name="settings.sound.autoIncreaseMicVolume.title" xml:space="preserve">
     <value>Auto-increase microphone volume</value>

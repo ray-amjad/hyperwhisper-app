@@ -36,7 +36,8 @@ extension TranscriptionPipeline {
         mode: Mode?,
         recordingSession: RecordingSession? = nil,
         applicationContext: ApplicationContext? = nil,
-        audioDurationSeconds: TimeInterval? = nil
+        audioDurationSeconds: TimeInterval? = nil,
+        refuseDeletedMode: Bool = false
     ) async throws -> TranscriptionResult {
         lastFailedAttemptDiagnostics = nil
 
@@ -142,7 +143,19 @@ extension TranscriptionPipeline {
             // while this request is in flight makes its later outcome stale.
             let healthManager = providerCoordinator.providerHealthManager
             let credentialGeneration = healthManager?.captureTranscriptionCredentialGeneration()
+            // A retry's mode can be deleted while this run waited (the cancel
+            // sleep, the MainActor hops). Its nil model would route the audio
+            // to Cloud (#1620), so check right before the router reads it (no
+            // suspension in between, both on the MainActor), and again after
+            // a slow local model load, before anything else reads the mode.
+            func refuseIfModeDeleted() throws {
+                if refuseDeletedMode, let mode, !RetryModeChoices.isLive(mode) {
+                    throw TranscriptionRetryError.modeDeletedDuringRetry
+                }
+            }
+            try refuseIfModeDeleted()
             let selection = try await providerCoordinator.selectProvider(for: mode, vocabulary: vocabulary)
+            try refuseIfModeDeleted()
             let provider = selection.provider
             // Health feedback (issue #379): the cloud identity comes out of the
             // router's own resolution — never re-derived from the Mode here,
@@ -276,6 +289,21 @@ extension TranscriptionPipeline {
             // filler-word removal when the requested language was "auto".
             let detectedLanguage = provider.detectedLanguage
 
+            // The local engine's own vocabulary correction (the Parakeet
+            // family's phonetic pass), run ONCE, here, after `text` is kept as
+            // the raw transcript (`rawText: text` below, the History row's
+            // `transcribedText`). It used to run inside the engine, together
+            // with an unanchored substring pass, so the raw transcript already
+            // held the swaps and every replacement row then ran a second time
+            // in `applyVocabularyReplacements` below (issue #1622, as Windows
+            // #1596). Everything below works on `correctedText`; the `\b` pass
+            // runs once over it in whichever branch is taken.
+            let correctedText = VocabularyProcessor.applyLocalEngineVocabularyCorrection(
+                to: text,
+                provider: provider,
+                vocabulary: vocabulary
+            )
+
             // Use server-provided AI-enhanced text when HyperWhisper Cloud returns it.
             let hyperwhisperCloudAIText: String?
             if let hwProvider = provider as? HyperWhisperCloudProvider,
@@ -300,12 +328,16 @@ extension TranscriptionPipeline {
             )
             capturedShouldRunPostProcessing = shouldRunPostProcessing
 
-            // Issue #1538: `text` already holds a finished transcript here. A
-            // pre-flight that says the LOCAL LLM runtime cannot start must not
-            // throw that transcript away — it skips the AI step instead, the same
-            // way `AIPostProcessor` does when the runtime fails mid-pass, and the
-            // user hears about it through the same non-fatal channel. Every other
-            // pre-flight failure still fails the run, exactly as before.
+            // Issues #1538 and #1547: `text` already holds a finished transcript
+            // here. A post-processing pre-flight that fails — the LOCAL LLM
+            // runtime cannot start (#1538), or a cloud / BYOK post-processing
+            // provider fails its health check (#1547: bad key, endpoint down) —
+            // must not throw that transcript away. It skips the AI step instead,
+            // the same way `AIPostProcessor` does when the provider fails
+            // mid-pass, and the user hears about it through the same non-fatal
+            // channel. Cancellation still ends the run. The SPEECH provider's
+            // health check is not here: it runs in `selectProvider` above,
+            // before any transcript exists, and still fails the run.
             var postProcessingPreflightFailure: TranscriptionError?
             if shouldRunPostProcessing {
                 markStage("post_processing_health_check")
@@ -319,13 +351,54 @@ extension TranscriptionPipeline {
             }
             if let postProcessingPreflightFailure {
                 AppLogger.transcription.warning(
-                    "Post-processing pre-flight failed with a non-fatal local runtime error; keeping the raw transcript and skipping AI post-processing · error=\(postProcessingPreflightFailure.localizedDescription, privacy: .public)"
+                    "Post-processing pre-flight failed with a non-fatal error; keeping the raw transcript and skipping AI post-processing · error=\(postProcessingPreflightFailure.localizedDescription, privacy: .public)"
                 )
-                // Only promise "your raw transcript was kept" when the raw
-                // transcript is what the user gets. Server-side AI text, when
-                // present, is used below and never needed the local runtime.
+                // Only report the skip when the raw transcript is what the user
+                // gets. Server-side AI text, when present, is used below and
+                // never needed the client-side post-processing provider.
                 if hyperwhisperCloudAIText == nil {
-                    reportNonFatalPostProcessingError(postProcessingPreflightFailure)
+                    reportNonFatalPostProcessingPreflightFailure(
+                        postProcessingPreflightFailure,
+                        providerDisplayName: resolvedPostProcessingProvider?.displayName ?? resolvedPostProcessingProviderId
+                    )
+                }
+                // Issue #1547: before the skip, a cloud / BYOK pre-flight failure
+                // left this function and reached the `catch` below, which
+                // captured it in Sentry when `shouldCaptureTranscriptionErrorInSentry`
+                // says so (a pre-flight `.unauthorized` is the HYPERWHISPER-T2
+                // signal). Absorbing it must not silence that. Same filter, same
+                // sanitised error, same fingerprint, so the events stay in the
+                // issue they always grouped into; the `post_processing_preflight`
+                // tag marks the ones where the transcript was kept. Only enum and
+                // category values are sent — never the transcript, the error
+                // text or the Mode's name.
+                if AppLogger.isErrorLoggingEnabled,
+                   shouldCaptureTranscriptionErrorInSentry(postProcessingPreflightFailure) {
+                    let classification = classifyTranscriptionError(postProcessingPreflightFailure)
+                    var preflightTags: [String: String] = [
+                        "component": "transcription",
+                        "error_class": classification.category,
+                        "error_stage": stage,
+                        "post_processing_preflight": "non_fatal"
+                    ]
+                    if let httpStatus = classification.httpStatus {
+                        preflightTags["error_http_status"] = String(httpStatus)
+                    }
+                    SentryService.capture(
+                        error: Self.sentrySafeTranscriptionError(postProcessingPreflightFailure),
+                        message: "TranscriptionPipeline post-processing pre-flight failed (non-fatal, raw transcript kept)",
+                        extras: [
+                            "errorCategory": classification.category,
+                            "errorKind": classification.kind,
+                            "postProcessingProvider": resolvedPostProcessingProvider?.rawValue ?? "unknown",
+                            "isHyperwhisperTranscription": isHyperwhisperTranscription
+                        ],
+                        tags: preflightTags,
+                        fingerprint: Self.sentryFingerprintForTranscriptionFailure(
+                            classification: classification,
+                            stage: stage
+                        )
+                    )
                 }
             }
             let runClientPostProcessing = shouldRunPostProcessing && postProcessingPreflightFailure == nil
@@ -363,32 +436,32 @@ extension TranscriptionPipeline {
                     let providerName = resolvedPostProcessingProvider?.displayName ?? resolvedPostProcessingProviderId
                     AppLogger.transcription.info("✅ Starting AI post-processing with provider: \(providerName, privacy: .public)")
                     aiProcessedText = try await processor.performAIPostProcessingPreservingBreaks(
-                        text: text,
+                        text: correctedText,
                         mode: mode,
                         applicationContext: applicationContext
                     )
                 } else {
                     AppLogger.transcription.warning("⚠️ Post-processing needed but aiPostProcessor is nil! Check initialization.")
-                    aiProcessedText = text
+                    aiProcessedText = correctedText
                 }
 
                 // Apply vocabulary replacements after AI processing.
                 finalText = vocabularyProcessor.applyVocabularyReplacements(aiProcessedText, mode: mode)
             } else {
                 // Branch: no post-processing — off, handled by HyperWhisper
-                // Cloud, or skipped because the local runtime cannot start
-                // (issue #1538). The kept transcript gets exactly the
-                // deterministic clean-up a post-processing-off run gets.
+                // Cloud, or skipped because the post-processing pre-flight
+                // failed (issues #1538, #1547). The kept transcript gets exactly
+                // the deterministic clean-up a post-processing-off run gets.
                 if postProcessingPreflightFailure != nil {
-                    AppLogger.transcription.info("ℹ️ AI post-processing skipped: the local runtime is unavailable; saving the raw transcript")
+                    AppLogger.transcription.info("ℹ️ AI post-processing skipped: the post-processing provider failed its pre-flight; saving the raw transcript")
                 } else if needsPostProcessing {
                     AppLogger.transcription.info("ℹ️ Post-processing handled by HyperWhisper Cloud; skipping client-side step")
                 } else {
                     AppLogger.transcription.info("ℹ️ Post-processing skipped (mode setting = \(mode?.postProcessingMode ?? -1) or nil mode)")
                 }
                 let withoutFillers = settingsManager?.removeFillerWords == false
-                    ? text
-                    : TranscriptionTextProcessing.removeFillerWords(text, language: detectedLanguage ?? languageArg)
+                    ? correctedText
+                    : TranscriptionTextProcessing.removeFillerWords(correctedText, language: detectedLanguage ?? languageArg)
                 // Honor dictated break commands ("new line" / "new paragraph")
                 // in the batch path too — they were streaming-only, so with AI
                 // post-processing off they were silently dropped (issue #1).
@@ -403,7 +476,6 @@ extension TranscriptionPipeline {
             }
 
             markStage("cache_result")
-            cache.cacheTranscription(finalText, for: audioURL)
             markStage("finalize")
 
             // Determine if post-processing occurred and by which provider.
@@ -459,8 +531,12 @@ extension TranscriptionPipeline {
         currentTask = task
 
         do {
-            let result = try await task.value
-            await MainActor.run { state = .idle }
+            let result = try await Self.value(of: task)
+            // As in the cancel branch below: a superseded run that still
+            // finishes must not idle the pipeline under the newer run (#1743).
+            if currentTask == task {
+                await MainActor.run { state = .idle }
+            }
 
             let now = Date()
             let totalElapsedMs = Int(now.timeIntervalSince(transcriptionStart) * 1000)
@@ -521,9 +597,22 @@ extension TranscriptionPipeline {
 
             return result
         } catch {
-            if error is CancellationError {
-                await MainActor.run { state = .idle }
+            // A cancelled run is not a failure, whatever the engine threw on the
+            // way out: local Whisper reports its abort as `streamingInterrupted`
+            // (#1743), which must not reach Sentry or the error state.
+            if error is CancellationError || task.isCancelled {
+                // Only the run that still owns the pipeline resets it. A run a
+                // newer dictation took over (#1425) now aborts within a window,
+                // so its cancel lands while the newer run is transcribing, and
+                // `.idle` there would let a third request skip the takeover.
+                if currentTask == task {
+                    await MainActor.run { state = .idle }
+                }
             } else {
+                // The phase the run was in when it failed, read before the
+                // `.error` overwrite below. Read after it, the Sentry extra
+                // would always say `error` (issue #805).
+                let stateAtFailure = state
                 await MainActor.run { state = .error(message: error.localizedDescription) }
                 if AppLogger.isErrorLoggingEnabled {
                     // Include audio + provider context for diagnostics.
@@ -557,7 +646,7 @@ extension TranscriptionPipeline {
                         stageElapsedMs: currentStageElapsedMs,
                         totalElapsedMs: totalElapsedMs,
                         stageTimeline: stageTimelineSnapshot,
-                        transcriptionState: String(describing: state),
+                        transcriptionState: stateAtFailure,
                         recordingSessionID: recordingSession?.id?.uuidString ?? "nil"
                     )
 
@@ -606,32 +695,58 @@ extension TranscriptionPipeline {
         }
     }
 
-    // MARK: - Post-processing pre-flight (issue #1538)
+    // MARK: - Post-processing pre-flight (issues #1538, #1547)
 
     /// Whether a post-processing pre-flight failure may be absorbed once a
     /// transcript exists: the transcript is kept and the AI step is skipped.
     ///
-    /// Only `.localRuntimeUnavailable` qualifies. It is what
-    /// `TranscriptionProviderRouter.runLocalLLMHealthCheck` throws for every way
-    /// the embedded llama-server can fail to start, and it is the error
-    /// `AIPostProcessor` already treats as non-fatal when the same runtime fails
-    /// during the pass — its user-facing copy says the raw transcript was kept.
-    /// Every other pre-flight failure (a cloud or BYOK provider that is
-    /// unauthorized, unreachable or unavailable, and cancellation) stays fatal,
-    /// as it was before.
+    /// Exactly the errors `TranscriptionProviderRouter.checkPostProcessingProviderHealth`
+    /// throws for an unhealthy post-processing provider qualify:
+    /// - `.localRuntimeUnavailable` — `runLocalLLMHealthCheck`, every way the
+    ///   embedded llama-server can fail to start (issue #1538).
+    /// - `.unauthorized`, `.transientNetwork`, `.modelNotDownloaded`,
+    ///   `.providerNotAvailable` — `errorForHealthStatus`, a cloud or BYOK
+    ///   post-processing provider that failed its health check (issue #1547).
+    ///   `AIPostProcessor` already keeps the raw transcript when the same
+    ///   provider fails during the pass; the pre-flight now agrees with it.
+    ///
+    /// Everything else stays fatal: cancellation (a user cancel is not a
+    /// provider failure), any error that is not a `TranscriptionError`, and
+    /// any `TranscriptionError` case the health check does not produce — a new
+    /// throw site has to opt in here, not inherit the skip by accident.
+    ///
+    /// The SPEECH provider's health check maps through the same
+    /// `errorForHealthStatus`, but it runs in `selectProvider` before any
+    /// transcript exists and never passes through this decision.
     nonisolated static func isNonFatalPostProcessingPreflightError(_ error: Error) -> Bool {
         guard let transcriptionError = error as? TranscriptionError else { return false }
-        if case .localRuntimeUnavailable = transcriptionError {
+        switch transcriptionError {
+        case .localRuntimeUnavailable,
+             .unauthorized,
+             .transientNetwork,
+             .modelNotDownloaded,
+             .providerNotAvailable:
             return true
+        default:
+            return false
         }
-        return false
     }
 
     /// Await a post-processing pre-flight after the transcript exists.
     ///
     /// - Returns: `nil` when the check passed, or the non-fatal error to report
     ///   when the run should keep its raw transcript and skip AI post-processing.
-    /// - Throws: every pre-flight error that is not non-fatal, unchanged.
+    /// - Throws: every pre-flight error that is not non-fatal, unchanged — and
+    ///   a `CancellationError` for ANY pre-flight failure when the run itself
+    ///   has been cancelled. A health probe that failed because the user
+    ///   cancelled (or the run was superseded) cannot turn the cancel into a
+    ///   saved `completed` row, and it cannot turn it into a provider failure
+    ///   either: callers' `catch is CancellationError` arms take the quiet
+    ///   cancel path, with no "API key rejected" toast, no failed row and no
+    ///   Sentry event. A `CancellationError` from the check itself is
+    ///   rethrown as is. The concurrent pre-flight is an unstructured `Task`
+    ///   the run does not cancel, so its `.value` can surface the provider's
+    ///   own error after a cancel — this is the place that catches that.
     static func awaitPostProcessingPreflight(
         _ check: () async throws -> Void
     ) async throws -> TranscriptionError? {
@@ -639,6 +754,10 @@ extension TranscriptionPipeline {
             try await check()
             return nil
         } catch {
+            if Task.isCancelled {
+                if error is CancellationError { throw error }
+                throw CancellationError()
+            }
             guard isNonFatalPostProcessingPreflightError(error),
                   let transcriptionError = error as? TranscriptionError else {
                 throw error
@@ -656,6 +775,63 @@ extension TranscriptionPipeline {
         } else {
             appState?.showInlineError(error)
         }
+    }
+
+    /// The inline toast text for a cloud / BYOK post-processing pre-flight
+    /// failure that was absorbed (issue #1547), or `nil` for any other error.
+    ///
+    /// The error's own `localizedDescription` is the copy for a FAILED
+    /// dictation ("Network error: Provider unreachable", "Please download a
+    /// model first"), and two of the four cases do not carry the provider at
+    /// all. Here the dictation succeeded, so the toast names the
+    /// post-processing provider and the problem, and says the raw transcript
+    /// was kept — the shape `transcription.error.localRuntimeUnavailable`
+    /// already uses for the local runtime. The four cases are exactly what
+    /// `TranscriptionProviderRouter.errorForHealthStatus` returns; that
+    /// function and the error enum are untouched, so the SPEECH provider's
+    /// health-check copy and the Local API mapping do not change.
+    ///
+    /// - Parameter localize: key → format string; tests pass the English Base
+    ///   values so the result does not depend on the test process's language.
+    nonisolated static func postProcessingPreflightToastMessage(
+        for error: TranscriptionError,
+        providerDisplayName: String,
+        localize: (String) -> String = { $0.localized }
+    ) -> String? {
+        let key: String
+        switch error {
+        case .unauthorized:
+            key = "transcription.error.postProcessingPreflight.unauthorized"
+        case .transientNetwork:
+            key = "transcription.error.postProcessingPreflight.unreachable"
+        case .modelNotDownloaded:
+            key = "transcription.error.postProcessingPreflight.notInstalled"
+        case .providerNotAvailable:
+            key = "transcription.error.postProcessingPreflight.unavailable"
+        default:
+            return nil
+        }
+        return String(format: localize(key), providerDisplayName)
+    }
+
+    /// Surface an absorbed post-processing pre-flight failure. A cloud / BYOK
+    /// health-check failure gets the provider-naming copy above, with the
+    /// error's own Open Settings rule (a rejected key offers Settings); every
+    /// other error (`.localRuntimeUnavailable`, whose copy already says the
+    /// transcript was kept) goes through `reportNonFatalPostProcessingError`
+    /// unchanged.
+    func reportNonFatalPostProcessingPreflightFailure(
+        _ error: TranscriptionError,
+        providerDisplayName: String
+    ) {
+        guard let message = Self.postProcessingPreflightToastMessage(
+            for: error,
+            providerDisplayName: providerDisplayName
+        ) else {
+            reportNonFatalPostProcessingError(error)
+            return
+        }
+        appState?.showInlineError(message: message, showSettingsButton: error.showSettingsButton)
     }
 
     /// Build the Sentry `extras` payload for a transcription failure.
@@ -679,6 +855,9 @@ extension TranscriptionPipeline {
     /// through here would swap one user-content field for another. This builder
     /// re-checks the value with `PresetType.sanitizedReportingValue(_:)` anyway,
     /// so a call site that forgets cannot put free text in a Sentry payload.
+    ///
+    /// Every key here must be on `SentryService.allowedExtraKeys`, or
+    /// `beforeSend` replaces its String value with `[redacted]` (issue #805).
     ///
     /// `nonisolated` on purpose: `TranscriptionPipeline` is `@MainActor`, and a
     /// pure payload builder must stay callable from a non-isolated test.
@@ -705,7 +884,7 @@ extension TranscriptionPipeline {
         stageElapsedMs: Int,
         totalElapsedMs: Int,
         stageTimeline: [String],
-        transcriptionState: String,
+        transcriptionState: TranscriptionState,
         recordingSessionID: String
     ) -> [String: Any] {
         var extras: [String: Any] = [
@@ -745,7 +924,11 @@ extension TranscriptionPipeline {
             "stageElapsedMs": stageElapsedMs,
             "totalElapsedMs": totalElapsedMs,
             "stageTimeline": stageTimeline,
-            "transcriptionState": transcriptionState,
+            // The case name only. An `.error(message:)` state carries an
+            // error's `localizedDescription`, and that text can hold a file
+            // name, a path or a provider's response (issue #805). `transcriptionState` is on Sentry's allow-list, so
+            // the value has to be safe on its own.
+            "transcriptionState": transcriptionState.reportingName,
             "recordingSessionID": recordingSessionID
         ]
         if let httpStatus = classification.httpStatus {
@@ -813,6 +996,20 @@ extension TranscriptionPipeline {
             "recordingSessionID": recordingSessionID
         ]
         return data
+    }
+
+    /// Awaits `task`, cancelling it when the awaiting task is cancelled.
+    ///
+    /// The pipeline's transcription task is unstructured, so it does not
+    /// inherit the caller's cancellation. Without this, cancelling the caller
+    /// (the Transcribe File HUD's Cancel) stopped only the wait: the provider
+    /// ran on through the whole file (issue #1507).
+    nonisolated static func value<T: Sendable>(of task: Task<T, Error>) async throws -> T {
+        try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
     }
 
     private static func elapsedMilliseconds(_ duration: Duration) -> Int {

@@ -73,7 +73,9 @@ struct RecordingDialog: View {
     @State private var hasError = false
     @State private var showCopiedFeedback = false
     @State private var isRetrying = false
-    @State private var transcriptActionHandler: TranscriptActionHandler?
+    /// The modes the pending-file mode picker lists (#1617). Loaded when the
+    /// picker opens, from the same list as History's "Retry with..." menu.
+    @State private var pendingRetryModeChoices: [Mode] = []
     @State private var showSuccessState = false  // Brief success indicator
 
     // MARK: - Animation States
@@ -165,6 +167,9 @@ struct RecordingDialog: View {
                 // Success state after transcription
                 successStateView
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            } else if shouldShowPendingRetry && appState.pendingRetryNeedsModePick {
+                pendingRetryModePickerView
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
             } else if shouldShowPendingRetry {
                 pendingRetryStateView
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -249,10 +254,6 @@ struct RecordingDialog: View {
             liveStreamingText.text = ""
             appState.isStreaming = false
             appState.transcriptionPasteFailed = false
-
-            if transcriptActionHandler == nil {
-                transcriptActionHandler = TranscriptActionHandler(transcriptionPipeline: transcriptionPipeline)
-            }
         }
         .onDisappear {
             // CRITICAL: Ensure any active event tap is cleaned up when dialog closes
@@ -320,6 +321,17 @@ struct RecordingDialog: View {
             default:
                 break
             }
+        }
+        .onChange(of: appState.pendingRetryNeedsModePick) { needsModePick in
+            // #1617: the retry's mode was deleted and nothing was sent. Leave
+            // the "Retrying…" spinner and show the mode picker instead.
+            guard needsModePick else { return }
+            pendingRetryModeChoices = RetryModeChoices.available(
+                from: PersistenceController.shared.fetchAllModes(),
+                isOnline: network.isOnline
+            )
+            isRetrying = false
+            isLoading = false
         }
         .onChange(of: appState.lastTranscription) { newText in
             // Monitor for transcription updates
@@ -601,6 +613,59 @@ struct RecordingDialog: View {
         .padding(.horizontal, 12)
     }
 
+    /// Pending retry whose mode was deleted (#1617): nothing was sent. The user
+    /// picks a mode from the same list as History's "Retry with..." menu, or
+    /// dismisses with the close button; the pending audio file is kept either way.
+    @ViewBuilder
+    private var pendingRetryModePickerView: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.yellow.opacity(0.9))
+
+            Text("recording.retry.modeDeleted".localized)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(.white.opacity(0.9))
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+
+            Spacer(minLength: 2)
+
+            Menu {
+                ForEach(pendingRetryModeChoices, id: \.objectID) { mode in
+                    Button {
+                        retryPendingAudio(with: mode)
+                    } label: {
+                        Text(MenuItemText.bounded(mode.name ?? "Unknown")) // #1436
+                    }
+                }
+            } label: {
+                Text("history.context.retryWith".localized)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(Color.blue.opacity(0.8)))
+            .disabled(pendingRetryModeChoices.isEmpty)
+
+            // Dismiss: back to the plain "Ready to retry" pill. No request,
+            // and `pendingRetryAudioPath` stays set.
+            Button {
+                appState.pendingRetryNeedsModePick = false
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+    }
+
     /// Cancel confirmation - inline view instead of overlay
     @ViewBuilder
     private var cancelConfirmationView: some View {
@@ -768,15 +833,20 @@ struct RecordingDialog: View {
         recordingDialogLogger.info("❌ Recording/transcription cancelled from dialog")
     }
 
-    private func retryPendingAudio() {
+    /// - Parameter mode: the mode picked after the recording's own mode was
+    ///   deleted (#1617); `nil` retries with the recording's mode.
+    private func retryPendingAudio(with mode: Mode? = nil) {
         guard appState.pendingRetryAudioPath != nil else { return }
+        let pickedMode = mode.map {
+            PendingRetryModeChoice(id: $0.id?.uuidString ?? "", name: $0.name ?? "")
+        }
         isRetrying = true
         isLoading = true
         hasError = false
         showTranscription = false
         transcribedText = ""
 
-        audioManager.retryTranscriptionFromPendingFile()
+        audioManager.retryTranscriptionFromPendingFile(with: pickedMode)
     }
 
     private func closeDialog() {
@@ -819,59 +889,6 @@ struct RecordingDialog: View {
                 if window.title == windowTitle {
                     window.close()
                 }
-            }
-        }
-    }
-    
-    private func retryTranscription(_ transcript: Transcript) {
-        guard let handler = transcriptActionHandler else { return }
-        
-        guard handler.canRetry(transcript) else {
-            let message = "recording.retry.failed.missing".localized
-            hasError = true
-            showTranscription = true
-            transcribedText = message
-            appState.lastTranscription = message
-            return
-        }
-        
-        showTranscription = false
-        isRetrying = true
-        hasError = false
-        transcribedText = ""
-        appState.lastTranscription = ""
-
-        Task { @MainActor in
-            let success = await handler.retryTranscription(transcript)
-            
-            if !success {
-                isRetrying = false
-                showTranscription = true
-            }
-            
-            if success {
-                hasError = false
-                    let postProcessed = transcript.value(forKey: "postProcessedText") as? String
-                    let final = transcript.text
-                    let raw = transcript.value(forKey: "transcribedText") as? String
-                    let resolvedText: String
-                    if let postProcessed, !postProcessed.isEmpty {
-                        resolvedText = postProcessed
-                    } else if let final, !final.isEmpty {
-                        resolvedText = final
-                    } else if let raw, !raw.isEmpty {
-                        resolvedText = raw
-                    } else {
-                        resolvedText = ""
-                    }
-                    transcribedText = resolvedText
-                    appState.lastTranscription = resolvedText
-            } else {
-                hasError = true
-                let errorMessage = handler.lastError ?? "app.unknown.error".localized
-                let message = String(format: "recording.retry.failed.error".localized, errorMessage)
-                transcribedText = message
-                appState.lastTranscription = message
             }
         }
     }

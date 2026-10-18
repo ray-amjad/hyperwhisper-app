@@ -118,9 +118,6 @@ class TranscriptionPipeline: ObservableObject {
     /// Handles custom vocabulary replacements.
     let vocabularyProcessor = VocabularyProcessor()
 
-    /// Manages transcription result caching.
-    let cache = TranscriptionResultCache()
-
     /// Handles retry logic for failed transcriptions.
     var retryHandler: TranscriptionRetryController!
 
@@ -386,6 +383,8 @@ class TranscriptionPipeline: ObservableObject {
             // matching cached AsrManager so the next transcription re-reads
             // from disk instead of serving the stale in-memory weights.
             let provider = parakeetProvider
+            // Weak back-reference so a failed load marks the version broken (#1632).
+            provider?.modelManager = modelManager
             modelManager.onVersionInvalidated = { [weak provider] version in
                 await provider?.invalidateRuntime(for: version)
             }

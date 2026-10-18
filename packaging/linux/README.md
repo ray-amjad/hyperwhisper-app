@@ -19,6 +19,18 @@ read/write access to `/dev/uinput`. It grants no world access and deliberately
 does not use `TAG+="uaccess"`. Maintainer scripts never inspect or write user
 home directories.
 
+The same run writes a second package next to the first,
+`hyperwhisper-cuda_1.0.0_amd64.deb`. It holds the ~1 GB of NVIDIA CUDA 12
+backends (`runtimes/cuda12/linux-x64` for Whisper and
+`runtimes/linux-x64/native/cuda12` for the local LLM) at the same
+`/usr/lib/hyperwhisper` paths, and `Depends: hyperwhisper (= VERSION)`. The main
+package ships no CUDA and only `Suggests:` it. Without it, a CUDA choice in the
+app falls back to Vulkan or CPU and the settings status says to install
+`hyperwhisper-cuda`. The script also removes Windows native DLLs (such as
+`onnxruntime.dll`) that NuGet drops into the publish root.
+`find-windows-native-dlls.py` tells them apart from managed .NET assemblies,
+which are also `*.dll`, by the CLR header.
+
 Desktop companions are never enabled by package maintainer scripts. The signed-in
 user may explicitly run `hyperwhisper-companionctl install-gnome` on GNOME 42+
 or `hyperwhisper-companionctl install-kde` on Plasma 5 or 6. Matching `remove-*`
@@ -28,6 +40,9 @@ Run the isolated package tests with:
 
 ```bash
 packaging/linux/scripts/test-package.sh
+packaging/linux/scripts/test-cuda-package.sh \
+  artifacts/linux/hyperwhisper-cuda_1.0.0_amd64.deb \
+  artifacts/linux/hyperwhisper_1.0.0_amd64.deb
 ```
 
 The tests extract the package into a temporary root and run `postinst`/`postrm`
@@ -40,12 +55,13 @@ Generate deterministic unsigned repository metadata from a built package:
 ```bash
 SOURCE_DATE_EPOCH=0 packaging/linux/scripts/generate-apt-repository.sh \
   --deb artifacts/linux/hyperwhisper_1.0.0_amd64.deb \
+  --deb artifacts/linux/hyperwhisper-cuda_1.0.0_amd64.deb \
   --output-dir artifacts/apt-repository
 ```
 
 Repeat `--deb` for every older package that must remain installable. The
-generator validates that each input is a regular `hyperwhisper` `amd64` Debian
-package, rejects duplicate filenames, and rebuilds metadata over the complete
+generator validates that each input is a regular `hyperwhisper` or
+`hyperwhisper-cuda` `amd64` Debian package, rejects duplicate filenames, and rebuilds metadata over the complete
 set. The release workflow's optional deployment job first downloads the current
 remote pool, adds the new package, signs the regenerated repository, uploads an
 immutable release directory, and atomically switches a `current` symlink.
@@ -73,4 +89,8 @@ Run the deterministic unsigned generator tests with:
 
 ```bash
 packaging/linux/scripts/test-apt-repository.sh
+# or, on built packages (both are required):
+packaging/linux/scripts/test-apt-repository.sh \
+  artifacts/linux/hyperwhisper_1.0.0_amd64.deb \
+  artifacts/linux/hyperwhisper-cuda_1.0.0_amd64.deb
 ```

@@ -14,6 +14,7 @@ import {
   type LatencyVendorRow,
 } from "@/lib/latency/types";
 import { regionCity } from "@/lib/latency/fly-regions";
+import { TEXT_LINK } from "@/components/text-link";
 import { isRecord } from "@/src/lib/type-guards";
 
 const METRICS = [
@@ -280,7 +281,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       <div className="flex flex-wrap items-center gap-6">
         <div className="flex flex-col gap-2">
           <span
-            className="text-xs uppercase tracking-widest text-gray-500"
+            className="text-xs uppercase tracking-widest text-gray-400"
             id="latency-metric-label"
           >
             Metric
@@ -310,7 +311,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
 
         <div className="flex flex-col gap-2">
           <span
-            className="text-xs uppercase tracking-widest text-gray-500"
+            className="text-xs uppercase tracking-widest text-gray-400"
             id="latency-bucket-label"
           >
             Clip length
@@ -341,7 +342,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
         {hasData ? (
           <>
             <div className="flex flex-col gap-2">
-              <span className="text-xs uppercase tracking-widest text-gray-500">
+              <span className="text-xs uppercase tracking-widest text-gray-400">
                 Detail
               </span>
               <button
@@ -364,7 +365,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className="text-xs uppercase tracking-widest text-gray-500">
+              <span className="text-xs uppercase tracking-widest text-gray-400">
                 Row order
               </span>
               <button
@@ -390,7 +391,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           <p className="text-lg text-gray-300">
             No measurements for this clip length yet.
           </p>
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-gray-400">
             Nothing has been recorded for &ldquo;{BUCKET_LABELS[bucket]}&rdquo; in
             the last {data.windowDays} days. Pick another clip length above — this
             page fills in as transcriptions run.
@@ -409,10 +410,10 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                 </span>
               </span>
             ) : (
-              <span className="text-gray-500">Pick the region closest to you</span>
+              <span className="text-gray-400">Pick the region closest to you</span>
             )}
             <button
-              className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
+              className={TEXT_LINK}
               type="button"
               onClick={() => setPickingRegion((open) => !open)}
             >
@@ -455,7 +456,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-20 bg-gray-950 px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-500">
+                  <th className="sticky left-0 z-20 bg-gray-950 px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-400">
                     {byModel ? "Provider / model" : "Provider"}
                   </th>
                   {regions.map((region) => (
@@ -477,7 +478,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                         }
                       >
                         {regionCity(region)}
-                        <span className="block text-[10px] uppercase tracking-wider text-gray-600">
+                        <span className="block text-[10px] uppercase tracking-wider text-gray-400">
                           {region}
                         </span>
                       </button>
@@ -587,7 +588,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             </table>
           </div>
 
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="mt-4 text-sm text-gray-400">
             {metric === "errorRate"
               ? "Share of attempts that failed, including ones a fallback provider rescued."
               : "Milliseconds, provider call only."}{" "}

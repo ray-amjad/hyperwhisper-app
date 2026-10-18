@@ -131,9 +131,11 @@ describe('estimateAudioSecondsFromSize', () => {
 });
 
 describe('estimateCreditsFromSize', () => {
-  test('applies the blended per-minute rate by default', () => {
+  test('applies the default-route per-minute rate by default', () => {
     const estimate = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
-    expect(estimate).toBeCloseTo(CREDITS_PER_MINUTE, 5);
+    // One minute at CREDITS_PER_MINUTE (1.67), rounded up to a tenth like every estimate.
+    expect(estimate).toBe(Math.ceil(CREDITS_PER_MINUTE * 10) / 10);
+    expect(estimate).toBe(1.7);
   });
 
   test('never returns below the 0.1 credit floor for a tiny upload', () => {
@@ -153,7 +155,7 @@ describe('estimateCreditsFromSize', () => {
     expect(estimate).toBe(creditsForCost(expensiveEstimator(100)));
   });
 
-  test('ignores an empty costEstimators list and falls back to the blended rate', () => {
+  test('ignores an empty costEstimators list and falls back to the default-route rate', () => {
     const withEmptyList = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE, { costEstimators: [] });
     const withNoOptions = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
     expect(withEmptyList).toBe(withNoOptions);

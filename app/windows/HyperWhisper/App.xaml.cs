@@ -61,7 +61,7 @@ public partial class App : WpfApplication
         if (!SingleInstanceGuard.TryAcquire())
         {
             SingleInstanceGuard.SignalExistingInstance();
-            Shutdown(0);
+            AbortStartup(0);
             return;
         }
 
@@ -84,6 +84,8 @@ public partial class App : WpfApplication
 
             // MainWindow is not loaded yet: the block hit while WPF built it (the
             // MainViewModel in its DataContext), so there is no app to keep running.
+            // An OnStartup exit never gets here from MainWindow: AbortStartup
+            // cancels the StartupUri load, so WPF does not build it at all.
             var duringStartup = MainWindow is not { IsLoaded: true };
             if (HandleApplicationControlBlock(
                     args.Exception,
@@ -164,12 +166,12 @@ public partial class App : WpfApplication
             // Control can block like any other file (#933).
             if (HandleApplicationControlBlock(ex, "database_init", showNotice: true))
             {
-                Shutdown(1);
+                AbortStartup(1);
                 return;
             }
 
             WpfMessageBox.Show(Loc.S("errors.database.initFailed", ex.Message), Loc.S("errors.database.title"), MessageBoxButton.OK, MessageBoxImage.Error);
-            Shutdown(1);
+            AbortStartup(1);
             return;
         }
 
@@ -266,6 +268,19 @@ public partial class App : WpfApplication
             }
         });
 
+        // MODEL DOWNLOAD LEFTOVERS
+        // A kill, crash or power loss mid-download left that model's partial
+        // file or folder in Models for good; remove it now (#1599).
+        // A download awaits ModelDownloadLeftovers.WhenSwept, so it never races the
+        // sweep. StartSweep runs off the UI thread and logs every exception.
+        _ = ModelDownloadLeftovers.StartSweep(DateTime.UtcNow);
+
+        // MUFFLE VOLUME RECOVERY
+        // A crash or kill mid-muffle leaves other apps' volumes lowered, and Windows
+        // remembers them per app. Put back what the restore journal still lists.
+        // ast-grep-ignore: no-discarded-task-run -- device enumeration must stay off the UI thread; the method logs every exception
+        _ = Task.Run(AudioEnvironmentService.Instance.RecoverMuffleVolumesFromEarlierRun);
+
         // LOCAL API SERVER
         // Off by default. When the user has enabled it via Settings → Local API,
         // bring up the loopback HTTP host so MCP/cURL scripts can talk to the
@@ -281,6 +296,16 @@ public partial class App : WpfApplication
                 localLlmModels,
                 ApiKeyService.Instance,
                 CloudProviderHealthService.Instance);
+
+            // A Quit that outran a request, or a hard kill, left that request's
+            // decoded upload or snapshot in %TEMP%; remove it now (#1476).
+            var scratchSweepCutoffUtc = DateTime.UtcNow;
+            // ast-grep-ignore: no-discarded-task-run -- start-up runs on the UI thread and %TEMP% can hold many files; the sweep catches its own IO errors and the catch inside the lambda logs anything else
+            _ = Task.Run(() =>
+            {
+                try { LocalApiScratchFiles.SweepLeftovers(scratchSweepCutoffUtc); }
+                catch (Exception ex) { LoggingService.Warn($"LocalAPI scratch sweep failed: {ex.Message}"); }
+            });
 
             // Phase 3: hand the API server the same orchestrator + local
             // provider that `MainViewModel` consumes via
@@ -309,6 +334,43 @@ public partial class App : WpfApplication
         {
             LoggingService.Warn($"Failed to initialize Local API server: {ex.Message}");
             // Continue — Local API failures must not block app startup.
+        }
+    }
+
+    /// <summary>
+    /// Ends the launch from inside OnStartup with <paramref name="exitCode"/>, and
+    /// keeps WPF from building MainWindow on the way out (#1588).
+    /// </summary>
+    /// <remarks>
+    /// Shutdown alone does not stop the launch. It only queues the shutdown, and
+    /// when OnStartup returns WPF goes on to load StartupUri (App.xaml) at once:
+    /// MainWindow and the MainViewModel in its DataContext, against whatever made
+    /// OnStartup give up (a broken database), which raised a second, raw error box.
+    /// StartupUri cannot be cleared (its setter refuses null), but WPF raises
+    /// Navigating for it first and honours Cancel, so cancelling that one
+    /// navigation is the whole fix. A launch that does not abort is untouched.
+    /// </remarks>
+    private void AbortStartup(int exitCode)
+    {
+        CancelStartupUriNavigation();
+        Shutdown(exitCode);
+    }
+
+    /// <summary>
+    /// Cancels the next navigation this Application raises, which during
+    /// OnStartup is the StartupUri load, then stops listening. Split from
+    /// <see cref="AbortStartup"/> so the smoke suite can prove it without
+    /// shutting its own Application down.
+    /// </summary>
+    internal void CancelStartupUriNavigation()
+    {
+        Navigating += CancelOnce;
+
+        void CancelOnce(object sender, System.Windows.Navigation.NavigatingCancelEventArgs args)
+        {
+            Navigating -= CancelOnce;
+            args.Cancel = true;
+            LoggingService.Info($"App: startup aborted, so the StartupUri load ({args.Uri}) is cancelled");
         }
     }
 
@@ -380,6 +442,17 @@ public partial class App : WpfApplication
         // the port frees up cleanly. The shared orchestrator + local provider
         // owned by TranscriptionRuntime are disposed implicitly by process exit.
         try { LocalApiServer.Instance.Shutdown(); } catch { /* best-effort on shutdown */ }
+
+        // Quit paths that skip MainWindow.ShutdownAsync (an update restart, a
+        // session end) still cancel running model downloads so each deletes its
+        // partial if it gets the chance; start-up sweeps the rest (#1599). No wait:
+        // a download's progress handler can need this UI thread.
+        _ = ModelDownloadService.Instance.CancelAllAsync(TimeSpan.Zero);
+
+        // A muffle still running on a quit path that skipped the view model's
+        // restore must put the other apps' volumes back before the process ends.
+        // The teardown runs on the thread pool, so this wait cannot deadlock.
+        AudioEnvironmentService.Instance.ShutdownMuffle(TimeSpan.FromSeconds(3));
 
         // Release single-instance mutex
         SingleInstanceGuard.Release();

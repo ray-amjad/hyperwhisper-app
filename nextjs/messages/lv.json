@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI balss transkripcija macOS un Windows",
-    "description": "Rakstiet 5x ātrāk ar AI balss transkripciju. HyperWhisper transkribē jūsu balsi ar neticamu precizitāti macOS un Windows vidē. Runājiet dabiski un skatieties, kā vārdi parādās uzreiz."
+    "title": "HyperWhisper - AI balss transkripcija macOS, Windows un Linux",
+    "description": "Rakstiet 5x ātrāk ar AI balss transkripciju. HyperWhisper transkribē jūsu balsi ar neticamu precizitāti macOS, Windows un Linux vidē. Runājiet dabiski un skatieties, kā vārdi parādās uzreiz."
   },
   "navbar": {
     "features": "Iespējas",
@@ -160,7 +160,7 @@
       },
       "offline": {
         "question": "Vai varu lietot bez interneta?",
-        "answer": "Pilnīgi noteikti. HyperWhisper var lietot pilnībā bezsaistē uz jūsu Mac vai Windows datora ar lokāliem AI modeļiem - internets nav nepieciešams. Lietotājiem, kuri vēlas maksimālu precizitāti un ātrumu, piedāvājam arī izvēles mākoņa apstrādi caur dažādiem pakalpojumu sniedzējiem."
+        "answer": "Pilnīgi noteikti. HyperWhisper var lietot pilnībā bezsaistē uz jūsu Mac, Windows vai Linux datora ar lokāliem AI modeļiem - internets nav nepieciešams. Lietotājiem, kuri vēlas maksimālu precizitāti un ātrumu, piedāvājam arī izvēles mākoņa apstrādi caur dažādiem pakalpojumu sniedzējiem."
       },
       "apiKey": {
         "question": "Vai man jāmaksā par API piekļuvi?",
@@ -175,16 +175,16 @@
         "answer": "Bezsaistes transkripcijai piedāvājam vairākus Whisper modeļa izmērus (izstrādājis OpenAI, atbalsta 99+ valodas). Piedāvājam arī NVidia Parakeet modeļus (atbalsta 25+ valodas).\n      \n      Bezsaistes pēcapstrādei piedāvājam vairākus Gemma 3 modeļa izmērus (izstrādājis Google)."
       },
       "compatibility": {
-        "question": "Vai tas darbojas ar visām Mac un Windows lietotnēm?",
+        "question": "Vai tas darbojas ar visām manām lietotnēm?",
         "answer": "Jā, tas darbojas visur, kur varat rakstīt. Neatkarīgi no tā, vai rakstāt e-pastus, dokumentus, kodu vai tērzējat. Vienkārši nospiediet saīsni, runājiet un skatieties, kā vārdi parādās uzreiz."
       },
       "privacy": {
         "question": "Kā tiek aizsargāts mans privātums?",
-        "answer": "Izmantojot lokālo režīmu, nekādi dati nepamet jūsu Mac vai Windows datoru.\n\nIzmantojot cloud transkripciju, jūsu dati tiek nosūtīti cloud pakalpojumu sniedzējam, kuru izvēlaties (piemēram, OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox vai Google Gemini).\n\nTo varat pārbaudīt paši ar tīkla inspektoru, piemēram, [Proxyman](https://proxyman.io), tīkla monitoru, piemēram, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), vai izlasot [pirmkodu GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
+        "answer": "Izmantojot lokālo režīmu, nekādi dati nepamet jūsu Mac, Windows vai Linux datoru.\n\nIzmantojot cloud transkripciju, jūsu dati tiek nosūtīti cloud pakalpojumu sniedzējam, kuru izvēlaties (piemēram, OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox vai Google Gemini).\n\nTo varat pārbaudīt paši ar tīkla inspektoru, piemēram, [Proxyman](https://proxyman.io), tīkla monitoru, piemēram, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), vai izlasot [pirmkodu GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Kas ir HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud ir iebūvēta mākoņa transkripcija, kas paredzēta mazāk tehniski zinošiem lietotājiem, kuri vēlas ātri sākt.\n\nTie ir kredīti, par kuriem maksā lietošanas laikā. Jūs papildināt sākot jau no $5 (1000 kredīti par $1) un tērējat tos tikai tad, kad transkribējat. Pirmais kredītu pirkums automātiski izveido jūsu Account Key, tāpēc nekas cits nav jāpērk.\n    \nMēs piedāvājam četrus precizitātes līmeņus: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) un Highest (Grok STT, noklusējums jaunām instalācijām un darbināts ar SpaceXAI Grok STT). Pēcapstrāde notiek automātiski, un pēc noklusējuma tiek izmantots Grok 4.1 Fast non-reasoning. Mēs neko neglabājam, izņemot to, cik kredītu patērējāt, un mēs esam jūs atteikuši no modeļu apmācības pie katra augšuptošā pakalpojumu sniedzēja, ko izmantojam. Sīkāku informāciju skatiet mūsu [Datu privātuma rokasgrāmatā](https://hyperwhisper.com/docs/data-privacy).\n\nKredīti tiek tērēti pēc pakalpojumu sniedzēju pašu apstrādes izmaksām — bez uzcenojuma transkripcijai. Norēķinoties tiek pievienota fiksēta 6% maksājumu apstrādes maksa, kas norādīta kā atsevišķa pozīcija. Neizmantotie kredīti zaudē spēku pēc 12 mēnešiem (skatiet zemāk).\n\nLai jūs būtu mierīgs, visa lietotne ir atvērtā koda risinājums saskaņā ar Apache-2.0 — ieskaitot Cloud aizmugursistēmu. Jūs varat izlasīt katru koda rindu, kas darbojas starp jūsu lietotni un pakalpojumu sniedzējiem, kuriem mēs novirzām pieprasījumus, [vietnē GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud ir iebūvēta mākoņa transkripcija, kas paredzēta mazāk tehniski zinošiem lietotājiem, kuri vēlas ātri sākt.\n\nTie ir kredīti, par kuriem maksā lietošanas laikā. Jūs papildināt sākot jau no $5 (1000 kredīti par $1) un tērējat tos tikai tad, kad transkribējat. Pirmais kredītu pirkums automātiski izveido jūsu Account Key, tāpēc nekas cits nav jāpērk.\n    \nHyperWhisper Cloud piedāvā 12 transkripcijas pakalpojumu sniedzējus — no Groq Whisper līdz ElevenLabs Scribe v2 (skatiet [pilno sarakstu un cenas](https://hyperwhisper.com/docs/cloud-credits)). Jaunas instalācijas sāk ar ElevenLabs Scribe v2. Pēcapstrāde notiek automātiski, un jaunas instalācijas sāk ar Claude Haiku 5.5. Mēs neko neglabājam, izņemot to, cik kredītu patērējāt, un mēs esam jūs atteikuši no modeļu apmācības pie katra augšuptošā pakalpojumu sniedzēja, ko izmantojam. Sīkāku informāciju skatiet mūsu [Datu privātuma rokasgrāmatā](https://hyperwhisper.com/docs/data-privacy).\n\nKredīti tiek tērēti pēc pakalpojumu sniedzēju pašu apstrādes izmaksām — bez uzcenojuma transkripcijai. Norēķinoties tiek pievienota fiksēta 6% maksājumu apstrādes maksa, kas norādīta kā atsevišķa pozīcija. Neizmantotie kredīti zaudē spēku pēc 12 mēnešiem (skatiet zemāk).\n\nLai jūs būtu mierīgs, visa lietotne ir atvērtā koda risinājums saskaņā ar Apache-2.0 — ieskaitot Cloud aizmugursistēmu. Jūs varat izlasīt katru koda rindu, kas darbojas starp jūsu lietotni un pakalpojumu sniedzējiem, kuriem mēs novirzām pieprasījumus, [vietnē GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Vai mani balss dati tiks izmantoti MI modeļu apmācībai?",
@@ -200,7 +200,7 @@
       },
       "requirements": {
         "question": "Kādas ir sistēmas prasības?",
-        "answer": "Mac: macOS 14 vai jaunāka versija, atbalstīti Apple Silicon un Intel. Windows: Windows 10/11, x64 vai ARM64. Optimālai veiktspējai ieteicami 8GB RAM."
+        "answer": "Mac: macOS 14 vai jaunāka versija, atbalstīti Apple Silicon un Intel. Windows: Windows 10/11, x64 vai ARM64. Linux v1: Ubuntu 22.04 vai jaunāka versija vai Debian 12 vai jaunāka versija uz amd64. Optimālai veiktspējai ieteicami 8GB RAM."
       },
       "madeBy": {
         "question": "Kas to izveidoja?",
@@ -272,7 +272,31 @@
     "homebrewTitle": "Instalēt ar Homebrew",
     "homebrewCommand": "brew install --cask hyperwhisper",
     "copy": "Kopēt",
-    "copied": "Nokopēts!"
+    "copied": "Nokopēts!",
+    "linuxSubtitle": "Debian pakotne 64 bitu Intel/AMD sistēmām",
+    "downloadLinux": "Lejupielādēt Linux",
+    "downloadLinuxVersion": "Lejupielādēt Linux v{version}",
+    "linuxReleaseNotes": "Kontrolsummas un laidiena piezīmes",
+    "linuxInstallTitle": "Instalējiet Debian pakotni",
+    "linuxTargets": "Linux v1 ir paredzēts Ubuntu 22.04+ un Debian 12+ sistēmām ar amd64.",
+    "linuxReplaceVersion": "Aizstājiet VERSION ar lejupielādēto versiju.",
+    "linuxInstallCommandLabel": "Debian instalēšanas komanda",
+    "linuxInputGroupNote": "Pēc pievienošanās input grupai izrakstieties un pierakstieties vēlreiz. Dalība nav obligāta, taču tā nepieciešama globālajiem īsinājumtaustiņiem un automātiskai ielīmēšanai.",
+    "aptTitle": "Mitiniet savu APT repozitoriju",
+    "aptBody": "Linux laidienos ir iekļauts arī statisks APT repozitorija arhīvs. HyperWhisper pašlaik neuztur publisku APT galapunktu; informāciju par parakstītu, pašmitinātu iestatīšanu, darbvirsmas integrāciju, privātumu un noņemšanu skatiet Linux instalēšanas rokasgrāmatā.",
+    "linuxGuideCta": "Lasīt Linux instalēšanas rokasgrāmatu"
+  },
+  "olderVersions": {
+    "title": "Vecākas versijas",
+    "subtitle": "Pārlūkojiet un lejupielādējiet visus HyperWhisper laidienus",
+    "errorLoading": "Kļūda, ielādējot versijas: {error}",
+    "unknownError": "Radās kļūda",
+    "loading": "Ielādē versijas...",
+    "latest": "Jaunākā",
+    "build": "Būvējums {number}",
+    "downloadDmg": "Lejupielādēt DMG",
+    "downloadExe": "Lejupielādēt EXE",
+    "unknownSize": "Nezināms"
   },
   "purchaseSuccess": {
     "title": "Viss gatavs!",
@@ -289,7 +313,7 @@
     "loading": "Notiek ielāde..."
   },
   "footer": {
-    "tagline": "Rakstiet 5x ātrāk ar AI balss transkripciju macOS un Windows.",
+    "tagline": "Rakstiet 5x ātrāk ar AI balss transkripciju macOS, Windows un Linux.",
     "product": "Produkts",
     "resources": "Resursi",
     "company": "Uzņēmums",
@@ -389,6 +413,35 @@
   "openSource": {
     "heading": "Atvērtais kods. Nav ko slēpt.",
     "body": "HyperWhisper ir pilnībā atvērtā koda risinājums saskaņā ar Apache-2.0 — gan darbvirsmas lietotnes, gan Cloud aizmugursistēma. Lietotnei, kas klausās jūsu mikrofonu, vajadzētu būt kaut kam, ko varat pārbaudīt, nevis tikai uzticēties: izlasiet katru rindu, pārbaudiet tieši to, kurp nonāk jūsu audio, un esiet drošs, ka nekad netiksiet piesaistīts — kods pieder jums, lai to dakšotu un mitinātu pašam mūžīgi. Veidots atklāti, to radījis indie izstrādātājs Ray Amjad.",
-    "cta": "Skatīt vietnē GitHub"
+    "cta": "Skatīt vietnē GitHub",
+    "metaTitle": "Atvērtais kods | HyperWhisper",
+    "metaDescription": "HyperWhisper ir pilnībā atvērtā koda risinājums saskaņā ar Apache-2.0 — gan darbvirsmas lietotnes, gan Cloud aizmugursistēma. Lasiet kodu, pārbaudiet, kurp nonāk jūsu audio, dakšojiet to un mitiniet pats mūžīgi.",
+    "eyebrow": "Atvērtais kods",
+    "lead": "HyperWhisper tagad ir pilnībā atvērtā koda risinājums saskaņā ar Apache-2.0 — gan darbvirsmas lietotnes, gan Cloud aizmugursistēma.",
+    "intro": "Lietotnei, kas klausās jūsu mikrofonu, jābūt tādai, ko varat pārbaudīt, nevis tai tikai uzticēties. Tāpēc mēs atvērām visu. Varat izlasīt katru HyperWhisper koda rindu — macOS, Windows un Linux lietotnes, kā arī Cloud transkripcijas aizmugursistēmu —, redzēt, kurp tieši nonāk jūsu audio, un zināt, ka nekad netiksiet piesaistīts. Viss projekts atrodas vietnē <github>GitHub</github> saskaņā ar <license>Apache-2.0 licenci</license>.",
+    "whyHeading": "Kāpēc tas ir svarīgi",
+    "whyVerify": "<strong>Pārbaudiet, nevis uzticieties akli.</strong> Izlasiet katru rindu un pārbaudiet, kurp tieši nonāk jūsu audio. Lietotnei ar piekļuvi mikrofonam jābūt tādai, ko varat izpētīt, nevis pieņemt uz ticību.",
+    "whyNoLockIn": "<strong>Nekādas piesaistes.</strong> Kods ir licencēts ar Apache-2.0 — tas pieder jums, lai to paturētu, pielāgotu un darbinātu pēc saviem noteikumiem. Jūsu darbplūsma nekad netiek turēta ķīlnieka lomā.",
+    "whyFork": "<strong>Dakšojiet un mitiniet paši.</strong> Klonējiet repozitoriju, uzbūvējiet to paši vai darbiniet savu Cloud aizmugursistēmu. Viss nepieciešamais ir publiski pieejams.",
+    "whyOpen": "<strong>Veidots atklāti.</strong> HyperWhisper publiski izstrādā neatkarīgais izstrādātājs Ray Amjad. Problēmu pieteikumi, diskusijas un laidieni notiek atklāti.",
+    "licenseHeading": "Jau iegādājāties licenci?",
+    "licenseIntro": "HyperWhisper tagad ir atvērtā koda, un maksas transkripcija darbojas ar HyperWhisper Cloud kredītiem. Ja licenci iegādājāties pirms šīs pārejas, lūk, kā mēs par jums parūpēsimies — vienkārši rakstiet uz <mail>{email}</mail>, un mēs visu nokārtosim manuāli.",
+    "licenseRecent": "<strong>Iegādāts pēdējo 30 dienu laikā:</strong> jūs esat atmaksas periodā. Mēs atmaksāsim pirkumu pilnā apmērā — bez liekiem jautājumiem. Vienkārši <refund>uzrakstiet mums</refund>.",
+    "licenseOlder": "<strong>Iegādāts vairāk nekā pirms 30 dienām:</strong> mēs pārvērtīsim samaksāto summu HyperWhisper Cloud kredītos — pilnu pirkuma cenu, atskaitot $5 kredītos, kas jau pievienoti jūsu kontam. <credits>Rakstiet mums</credits>, un mēs ieskaitīsim atlikumu.",
+    "contributeHeading": "Vēlaties piedalīties?",
+    "contributeBody": "Kļūdu ziņojumi, funkciju idejas un pull request pieprasījumi ir laipni gaidīti. Atveriet problēmas pieteikumu vai sāciet diskusiju <github>vietnē GitHub</github>."
+  },
+  "openSourceBanner": {
+    "text": "HyperWhisper tagad ir pilnībā atvērtā koda",
+    "shortText": "Tagad atvērtā koda",
+    "learnMore": "Uzzināt vairāk",
+    "dismiss": "Aizvērt paziņojumu"
+  },
+  "notFound": {
+    "title": "Lapa nav atrasta",
+    "heading": "Šī lapa neeksistē",
+    "description": "Iespējams, saite ir bojāta vai lapa ir pārvietota.",
+    "home": "Doties uz sākumlapu",
+    "download": "Lejupielādēt HyperWhisper"
   }
 }

@@ -21,6 +21,7 @@ using System.IO.Compression;
 using HyperWhisper.PortableApplication.Audio;
 using HyperWhisper.Platform.Abstractions.Audio;
 using HyperWhisper.TranscriptionRouting;
+using HyperWhisper.ModelManagement;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -68,8 +69,12 @@ try
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
+    await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
+    await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
+    RunShellDatabaseOffUiThreadTests(Path.Combine(root, "shell-db-off-ui"));
+    await RunLocalEngineVocabularyOnceTestsAsync(Path.Combine(root, "local-vocabulary-once"));
 
     var history = new HistoryRepository(database);
     var transcript = new Transcript
@@ -283,6 +288,13 @@ try
     Assert(fallbackModeSelection.Selected?.Id == mode.Id
         && reloadedSettings.Get<string>("selectedModeId") == mode.Id.ToString("D"),
         "missing selected mode did not fall back and repair device-local state");
+    // #630: status lines say "1 mode" / "2 modes", not the developer shorthand.
+    Assert(Plural.Count(1, "mode", "modes") == "1 mode"
+        && Plural.Count(2, "mode", "modes") == "2 modes"
+        && Plural.Count(0, "mode", "modes") == "0 modes",
+        "Plural.Count did not pick the singular for exactly one and the plural otherwise");
+    Assert(fallbackModeSelection.Items.Count == 1 && fallbackModeSelection.Status.Message == "1 mode",
+        $"the Modes status after loading one mode read '{fallbackModeSelection.Status.Message}' (#630)");
 
     var backupService = new ApplicationBackupService(database, reloadedSettings);
     var exported = await backupService.ExportAsync();
@@ -420,6 +432,57 @@ try
         shell.Vocabulary.Word = " ";
         await shell.Vocabulary.AddAsync();
         Assert(shell.Vocabulary.Status.ErrorCode == "vocabulary.word_required", "vocabulary accepted an empty term");
+        // #634: loading a row into the pill clears the empty-term error, and so does typing.
+        shell.Vocabulary.Selected = (await vocabulary.ListAsync()).First();
+        Assert(!shell.Vocabulary.HasInputError && shell.Vocabulary.InputError.Length == 0,
+            "the empty-term error survived editing a row (#634)");
+        shell.Vocabulary.Selected = null;
+        shell.Vocabulary.Word = string.Empty;
+        shell.Vocabulary.Replacement = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        shell.Vocabulary.Word = "a";
+        Assert(!shell.Vocabulary.HasInputError, "the empty-term error survived typing a word (#634)");
+        shell.Vocabulary.Word = string.Empty;
+        // #634: a failed save of an edited row leaves it selected; loading that same row again
+        // still clears the error and reloads its word.
+        var editedRow = (await vocabulary.ListAsync()).First();
+        shell.Vocabulary.Selected = editedRow;
+        shell.Vocabulary.Word = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        Assert(shell.Vocabulary.Status.ErrorCode == "vocabulary.word_required", "an emptied row was saved (#634)");
+        // The Linux page stays in edit mode on a refused save because the row stays selected:
+        // the next save is that row's update, never a silent rename from an "Add word" chip.
+        Assert(ReferenceEquals(shell.Vocabulary.Selected, editedRow), "a refused save dropped the edited row (#634)");
+        shell.Vocabulary.Selected = editedRow;
+        Assert(!shell.Vocabulary.HasInputError && shell.Vocabulary.Word == editedRow.Word,
+            "re-editing the same row kept the error or an empty pill (#634)");
+        shell.Vocabulary.Selected = null;
+        shell.Vocabulary.Word = string.Empty;
+        shell.Vocabulary.Replacement = string.Empty;
+
+        // #1777: a pasted multi-line text is one word per non-empty line, and a snippet's
+        // replacement keeps its line break. Read back from the database, then removed so the
+        // vocabulary checks below see the list they expect.
+        var pastedBefore = (await vocabulary.ListAsync()).Select(item => item.Id).ToHashSet();
+        shell.Vocabulary.Word = "alpha\nbeta\r\n\n  gamma ";
+        shell.Vocabulary.Replacement = string.Empty;
+        await shell.Vocabulary.AddAsync();
+        shell.Vocabulary.Word = "sig";
+        shell.Vocabulary.Replacement = "Best,\nRay";
+        await shell.Vocabulary.AddAsync();
+        var pasted = (await vocabulary.ListAsync()).Where(item => !pastedBefore.Contains(item.Id)).ToList();
+        Assert(!shell.Vocabulary.Status.HasError
+            && pasted.Select(item => item.Word).Order(StringComparer.Ordinal).SequenceEqual(["alpha", "beta", "gamma", "sig"])
+            && pasted.All(item => !VocabularyWords.HasLineBreak(item.Word)),
+            $"a pasted multi-line vocabulary text was not saved one word per line (#1777): {string.Join(" | ", pasted.Select(item => item.Word))}");
+        Assert(pasted.Single(item => item.Word == "sig").Replacement == "Best,\nRay",
+            "a snippet replacement lost its line break (#1777)");
+        var multiLineRefused = false;
+        try { _ = await vocabulary.UpsertAsync(new VocabularyItem { Word = "line1\nline2" }); }
+        catch (ArgumentException) { multiLineRefused = true; }
+        Assert(multiLineRefused, "the vocabulary store accepted a word with a line break inside it (#1777)");
+        foreach (var item in pasted) Assert(await vocabulary.DeleteAsync(item.Id), $"could not remove the pasted test word {item.Word}");
+        await shell.Vocabulary.RefreshAsync();
         shell.Modes.Selected = null;
         shell.Modes.Name = "";
         await shell.Modes.SaveAsync();
@@ -431,8 +494,43 @@ try
         Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
             "modes accepted a local LLM path outside the models directory");
         shell.Modes.LocalPostProcessingModel = "local-test.gguf";
+        Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
+            "editing a field cleared the error the user is fixing");
+        shell.Modes.UserSystemPrompt = new string('p', 8001);
+        await shell.Modes.SaveAsync();
+        Assert(shell.Modes.Status.ErrorCode == "modes.prompt_too_long",
+            "modes accepted a system prompt over the 8,000-character limit");
+        shell.Modes.UserSystemPrompt = new string('p', 8000);
+        await shell.Modes.SaveAsync();
+        Assert((await new ModeRepository(database).ListAsync()).Single().UserSystemPrompt?.Length == 8000,
+            "mode editor refused or cut a system prompt at the 8,000-character limit (#1488)");
         shell.Modes.UserSystemPrompt = "Keep the dictated wording.";
         await shell.Modes.SaveAsync();
+        // #632: the editor footer binds Modes.Status. A `Mode saved` must not sit beside a
+        // pending rename, nor greet the next dialog the editor opens.
+        Assert(shell.Modes.Status.Message == "Mode saved" && !shell.Modes.Status.HasError,
+            $"a valid save reported '{shell.Modes.Status.Message}'");
+        var savedName = shell.Modes.Name;
+        shell.Modes.Name = "Renamed Mode";
+        Assert(shell.Modes.Status.Message.Length == 0,
+            $"an unsaved rename still shows '{shell.Modes.Status.Message}' (#632)");
+        shell.Modes.Name = savedName;
+        await shell.Modes.SaveAsync();
+        Assert(shell.Modes.Status.Message == "Mode saved", "the re-save did not report Mode saved");
+        shell.Modes.ReloadSelected();
+        Assert(shell.Modes.Status.Message == "Mode saved", "reloading the saved mode counted as an edit");
+        shell.Modes.BeginEditorSession();
+        Assert(shell.Modes.Status.Message.Length == 0 && !shell.Modes.Status.HasError,
+            $"a freshly opened editor shows '{shell.Modes.Status.Message}' (#632)");
+        // The gear click sets Selected before the editor opens, and the footer is the only place a
+        // failure to remember that selection shows: opening the editor must keep it.
+        shell.Modes.Status.Failure("settings.write_failed", "The selected mode could not be remembered on this device.");
+        shell.Modes.BeginEditorSession();
+        Assert(shell.Modes.Status.ErrorCode == "settings.write_failed",
+            "opening the editor hid the error from persisting the selected mode");
+        shell.Modes.EndEditorSession();
+        Assert(shell.Modes.Status.Message.Length == 0 && !shell.Modes.Status.HasError,
+            $"a discarded editor left '{shell.Modes.Status.Message}' for the next dialog");
         var localMode = (await new ModeRepository(database).ListAsync()).Single();
         Assert(localMode.PostProcessingMode == 2
             && localMode.PostProcessingProvider == "local_llm"
@@ -617,11 +715,12 @@ try
 
         // `grok` drew an empty combo too until 2026-09-19, because its single catalog model carried
         // an empty id. Grok Voice Transcribe 2.0 gave xAI a real `model` parameter, so the vendor
-        // now behaves like every other one: both of its ids listed, and the default selected.
+        // now behaves like every other one: its id listed, and the default selected. xAI ended
+        // 1.0 on 2026-10-02 (#1908), so 1.0 is no longer offered.
         shell.Modes.CloudProvider = "grok";
         Assert(shell.Modes.CloudModels.Contains("grok-voice-transcribe-2.0", StringComparer.Ordinal)
-            && shell.Modes.CloudModels.Contains("grok-voice-transcribe-1.0", StringComparer.Ordinal),
-            "the grok vendor must list both catalog models; it drew "
+            && !shell.Modes.CloudModels.Contains("grok-voice-transcribe-1.0", StringComparer.Ordinal),
+            "the grok vendor must list 2.0 and not the retired 1.0; it drew "
             + $"[{string.Join(", ", shell.Modes.CloudModels)}]");
         Assert(shell.Modes.CloudTranscriptionModel == "grok-voice-transcribe-2.0",
             "changing the vendor to grok did not select its default model");
@@ -785,6 +884,19 @@ try
             + $"catalog row, so the combo offers one model twice [{string.Join(", ", shell.Modes.CloudModels)}]");
         AssertCloudSelectionIsListed("loading a mode whose model id differs from the catalog in case");
 
+        // #1908. A Grok mode saved on 1.0, which xAI ended on 2026-10-02, loads as 2.0 through the
+        // shared alias table: it is not pinned as an unknown id, and 1.0 is never offered.
+        legacyByokMode.CloudProvider = "grok";
+        legacyByokMode.CloudTranscriptionModel = "grok-voice-transcribe-1.0";
+        await new ModeRepository(database).UpsertAsync(legacyByokMode);
+        await shell.Modes.RefreshAsync();
+        shell.Modes.Selected = shell.Modes.Items.Single(item => item.Name == "Byok legacy model");
+        Assert(shell.Modes.CloudTranscriptionModel == "grok-voice-transcribe-2.0"
+            && !shell.Modes.CloudModels.Contains("grok-voice-transcribe-1.0", StringComparer.OrdinalIgnoreCase),
+            "a stored Grok 1.0 mode did not load as 2.0; it selected "
+            + $"'{shell.Modes.CloudTranscriptionModel}' from [{string.Join(", ", shell.Modes.CloudModels)}]");
+        AssertCloudSelectionIsListed("loading a mode saved on the retired Grok 1.0");
+
         // VERIFY ROUND. A field run on a real X screen drove this dialog and found the Cloud Model
         // combo BLANK after a vendor change, over a CloudTranscriptionModel that was correct and
         // saved correctly. AssertCloudSelectionIsListed above cannot see that: it asserts the view
@@ -916,6 +1028,12 @@ try
             && shell.Settings.WhisperRestartRequired
             && shell.Settings.LocalWhisperRuntimeStatus.Contains("Restart HyperWhisper", StringComparison.Ordinal),
             "settings did not normalize or report a restart-required Whisper backend change");
+        // The Linux Model Library pickers write a null back as they leave the tree (#1967).
+        shell.Settings.LocalWhisperBackend = null!;
+        shell.Settings.LocalLlmBackend = null!;
+        Assert(shell.Settings.LocalWhisperBackend == "cuda12" && shell.Settings.LocalLlmBackend == "vulkan"
+            && shell.Settings.WhisperRestartRequired,
+            "a null backend selection overwrote the chosen local Whisper or LLM backend");
         shell.Settings.Save();
         Assert(!shell.Settings.Status.HasError,
             "settings did not persist local inference backend configuration");
@@ -1010,11 +1128,14 @@ try
             "account operation gate allowed overlapping activation, removal, or refresh");
         blockingAccountHttp.Release.TrySetResult();
         await activation;
-        Assert(gatedAccount.ActivateCommand.CanExecute(null)
-            && gatedAccount.DeactivateCommand.CanExecute(null),
-            "account operation gate did not re-enable commands after completion");
         Assert(gatedAccount.HasAccount && gatedAccount.AccountKey.Length == 0,
             "a successful activation left a value typed during validation in the key field");
+        // #1489: the cleared field holds no key, so Activate stays off until one is typed.
+        Assert(gatedAccount.DeactivateCommand.CanExecute(null) && !gatedAccount.ActivateCommand.CanExecute(null),
+            "account operation gate did not re-enable commands after completion");
+        gatedAccount.AccountKey = "HW-0000-0000-0003";
+        Assert(gatedAccount.ActivateCommand.CanExecute(null),
+            "account operation gate did not re-enable Activate after completion");
     }
 
     // #670: a FAILED activation must leave the typed key in the field so the user can see and
@@ -1042,6 +1163,18 @@ try
             "a rejected activation reported success or echoed the key into the status line");
         Assert(rejected.ActivateCommand.CanExecute(null),
             "a rejected activation did not re-enable Activate for the corrected key");
+        // #1889: the error belongs to the key that failed. Re-assigning the same value is not an
+        // edit and keeps it; editing the key or clearing the field removes it.
+        rejected.AccountKey = typedKey;
+        Assert(rejected.HasActivationError, "re-assigning the unchanged key cleared the activation error");
+        rejected.AccountKey = "HW-0000-0000-0002";
+        Assert(!rejected.HasActivationError && rejected.ActivationError is null,
+            $"editing the key after a failed activation left the error on screen ('{rejected.ActivationError}')");
+        await rejected.ActivateAsync();
+        Assert(rejected.HasActivationError, "a second rejected activation did not show its error");
+        rejected.AccountKey = string.Empty;
+        Assert(!rejected.HasActivationError,
+            $"clearing the key after a failed activation left the error on screen ('{rejected.ActivationError}')");
     }
 
     using (var identityService = NewAccountService(new CloudAccountHttpHandler(), "/identity-license-state.json"))
@@ -1088,6 +1221,58 @@ try
         Assert(editedMidFlight.AccountKey == "HW-0000-0000-0001"
             && editedMidFlight.ActivationError == "License key not found",
             $"a rejected activation overwrote a key edited during validation (field: '{editedMidFlight.AccountKey}')");
+    }
+
+    // #1489: a loose format check. Text that cannot be any key turns Activate off, shows the
+    // hint, and never reaches the network; a pasted key is trimmed and then sent.
+    var formatHttp = new CloudAccountHttpHandler();
+    using (var formatService = NewAccountService(formatHttp, "/format-license-state.json"))
+    {
+        var format = new CloudAccountViewModel(
+            formatService, new StaticDeviceIdentity(), "Ray Linux", _ => PlatformResult.Success());
+        var changed = new List<string?>();
+        format.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Assert(!format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "an empty account key field left Activate on or showed the format hint");
+
+        format.AccountKey = "Thanks for your purchase!\nYour key is HW-ABCD-EFGH.";
+        Assert(!format.ActivateCommand.CanExecute(null) && !format.CanActivate,
+            "pasted prose left Activate on");
+        Assert(format.ShowsAccountKeyFormatHint && !format.IsAccountKeyPlausible,
+            "pasted prose did not show the format hint");
+        Assert(changed.Contains(nameof(CloudAccountViewModel.ShowsAccountKeyFormatHint))
+            && changed.Contains(nameof(CloudAccountViewModel.CanActivate)),
+            "an edit did not notify the hint and Activate state");
+        await format.ActivateAsync();
+        Assert(formatHttp.ValidateCalls == 0 && format.HasActivationError && !format.HasAccount,
+            "an implausible key was sent, or its refusal was silent");
+
+        foreach (var refused in new[] { new string('A', 65), "HW-ABCD EFGH", "HW-ÄBCD-EFGH", "HW-ABCD-\U0001F511" })
+        {
+            format.AccountKey = refused;
+            Assert(!format.ActivateCommand.CanExecute(null) && format.ShowsAccountKeyFormatHint,
+                $"'{refused}' left Activate on or showed no hint");
+        }
+
+        format.AccountKey = "  \t\n";
+        Assert(!format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a whitespace-only field left Activate on or showed the format hint");
+
+        format.AccountKey = new string('A', 64);
+        Assert(format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a 64-character key was refused");
+        var legacyShaped = Guid.NewGuid().ToString(); // a UUID-shaped legacy key
+        format.AccountKey = legacyShaped;
+        Assert(format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a legacy-looking key was refused");
+
+        format.AccountKey = "  HW-ABCD-EFGH-JKLM-NPQR\r\n";
+        Assert(format.ActivateCommand.CanExecute(null) && !format.ShowsAccountKeyFormatHint,
+            "a key pasted with a trailing newline was refused");
+        await format.ActivateAsync();
+        Assert(formatHttp.ValidateCalls == 1 && formatHttp.ValidateLicenseKey == "HW-ABCD-EFGH-JKLM-NPQR"
+            && format.HasAccount,
+            $"the pasted key was not trimmed before it was sent ('{formatHttp.ValidateLicenseKey}')");
     }
 
     var customModes = new HyperWhisper.PortableApplication.ViewModels.ModesViewModel(
@@ -1258,6 +1443,9 @@ try
     await statisticsHome.RefreshAsync();
     Assert(statisticsHome.AllTime.WordCount == 4 && statisticsHome.AllTime.DictatedDurationSeconds == 60,
         "home statistics projection did not filter status and preserve duration");
+    // The history count is a COUNT over every stored row, failed ones included, as the full list was (#1353).
+    Assert(statisticsHome.HistoryCount == 2 && await statisticsHistory.CountAsync() == (await statisticsHistory.ListAsync()).Count,
+        $"home history count was {statisticsHome.HistoryCount}, not the 2 stored rows");
     statisticsHome.TypingSpeedWordsPerMinute = 80;
     await statisticsHome.RefreshAsync();
     var reloadedStatisticsSettings = new PortableSettingsService(
@@ -1307,6 +1495,162 @@ finally
 // write paths applying it — the repository the Linux GUI saves through, the
 // startup repair, and the backup import that is the realistic way a broken set
 // arrives on a machine at all.
+// Issue #1622 (the Linux side of Windows #1596): a local engine applied every
+// Vocabulary swap twice, and the first pass matched inside words. The router
+// ran the phonetic pass and the unanchored substring pass over the engine's
+// text, TranscriptionWorkflow kept THAT as the raw transcript, and
+// SpeechOutputProcessor's \b pass then ran every replacement row again:
+// "fox" -> "fox terrier" gave "fox terrier terrier", "art" -> "ART" gave
+// "quARTerly", and History's TranscribedText held the swaps. This drives the
+// real workflow, the real router, the real \b pass and the real native core
+// (phonetic pass) with a fake engine, and reads the History row back.
+static async Task RunLocalEngineVocabularyOnceTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    var database = new ApplicationDb(paths);
+    await database.MigrateAsync();
+    var history = new HistoryRepository(database);
+    var audio = Path.Combine(root, "vocabulary.wav");
+    await File.WriteAllBytesAsync(audio, [1]);
+
+    var engines = new[]
+    {
+        new Mode { Name = "Parakeet", ProviderType = "local", LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3" },
+        new Mode { Name = "Whisper", ProviderType = "local", LocalEngine = "whisper", Model = "base" },
+    };
+
+    async Task<(PortableTranscriptionResult Result, Transcript Saved)> Run(
+        Mode mode, string engineText, IReadOnlyList<string> vocabulary, IReadOnlyList<PortableVocabularyReplacement> replacements)
+    {
+        var engine = new FakeTranscriber((_, _, _) => Task.FromResult(
+            PortableTranscriptionResult.Success(engineText, mode.Name!)));
+        using var router = new ModeAwareTranscriptionRouter(engine, engine, new LanguageRecordingCloud());
+        using var recorder = new FakeRecorder(audio);
+        using var devices = new FakeDevices();
+        using var workflow = new TranscriptionWorkflow(recorder, devices, router, history);
+        var result = await workflow.TranscribeFileAsync(audio, new TranscriptionWorkflowRequest(
+            "en", mode.Name, mode.Id, mode, vocabulary, VocabularyReplacements: replacements));
+        Assert(result.IsSuccess, $"{mode.Name}: the local transcription failed");
+        var saved = (await history.ListAsync()).OrderByDescending(item => item.Date).First();
+        return (result, saved);
+    }
+
+    foreach (var mode in engines)
+    {
+        var fox = await Run(mode, "the quick brown fox jumps", ["fox"],
+            [new PortableVocabularyReplacement("fox", "fox terrier")]);
+        Assert(fox.Result.Text == "the quick brown fox terrier jumps",
+            $"{mode.Name}: a swap whose output contains its word was not applied exactly once: '{fox.Result.Text}'");
+        Assert(fox.Result.RawText == "the quick brown fox jumps"
+            && fox.Saved.TranscribedText == "the quick brown fox jumps"
+            && fox.Saved.Text == "the quick brown fox terrier jumps",
+            $"{mode.Name}: History's raw transcript held a vocabulary swap: '{fox.Saved.TranscribedText}'");
+
+        var art = await Run(mode, "the quarterly art report", ["art"],
+            [new PortableVocabularyReplacement("art", "ART")]);
+        Assert(art.Result.Text == "the quarterly ART report",
+            $"{mode.Name}: a swap matched inside a word, or missed the whole word: '{art.Result.Text}'");
+        Assert(art.Saved.TranscribedText == "the quarterly art report",
+            $"{mode.Name}: History's raw transcript held a vocabulary swap: '{art.Saved.TranscribedText}'");
+
+        // The phonetic pass is kept, for parakeet only, and runs after the raw
+        // text is kept.
+        var hint = await Run(mode, "hyper wisper", ["Whisper"], []);
+        var expected = mode.LocalEngine == "parakeet" ? "hyper Whisper" : "hyper wisper";
+        Assert(hint.Result.Text == expected,
+            $"{mode.Name}: the phonetic pass changed: '{hint.Result.Text}'");
+        Assert(hint.Saved.TranscribedText == "hyper wisper",
+            $"{mode.Name}: History's raw transcript held a phonetic correction");
+    }
+}
+
+// #1632: the status bar must not say Ready while the selected mode's local model is missing or
+// truncated, and a download that lands makes it Ready again.
+static async Task RunShellMissingLocalModelStatusTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    var database = new ApplicationDb(paths);
+    await database.InitializeAsync();
+    var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "settings.json"));
+    using var http = new HttpClient();
+    var manager = new PortableModelManager(paths, http);
+    var baseModel = PortableModelCatalog.Whisper.Single(model => model.Id == "base");
+    var file = manager.GetInstalledPath(baseModel);
+    Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+    // The #1598 repro: Base cut to 96%.
+    using (var stream = File.Create(file)) { stream.Write("lmgg"u8); stream.SetLength(142_033_406); }
+    var mode = new Mode { Name = "Local Base", ProviderType = "local", Model = "base", Language = "en", PostProcessingMode = 0 };
+    await new ModeRepository(database).UpsertAsync(mode);
+    using var shell = new ApplicationShellViewModel(database, settings, modelManager: manager);
+    await shell.InitializeAsync();
+    shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
+    Assert(shell.Status.Message == "Model 'Base' not downloaded",
+        $"a truncated selected model left the status bar on '{shell.Status.Message}'");
+    shell.Navigate("home");
+    Assert(shell.Status.Message == "Model 'Base' not downloaded", "a page change said Ready over a truncated model");
+
+    using (var stream = File.OpenWrite(file)) stream.SetLength(baseModel.ApproximateSizeBytes);
+    var row = shell.Models!.Items.Single(item => item.Model?.Id == "base");
+    row.Installed = true;
+    Assert(shell.Status.Message == "Ready", $"a finished download left the status bar on '{shell.Status.Message}'");
+
+    shell.Modes.Selected = shell.Modes.Items.First(item => item.Id != mode.Id);
+    var other = shell.Status.Message;
+    shell.Status.Failure("test.error", "Something failed");
+    shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
+    Assert(shell.Status.Message == "Something failed", $"a mode change overwrote an error with '{shell.Status.Message}' (was '{other}')");
+}
+
+// #1000: EF Core's SQLite provider runs its "async" migration synchronously, so a shell that awaits
+// it on the UI thread froze the window that had just opened. The first database context is held
+// until a callback posted to the UI thread runs; that only happens if the UI thread is free.
+static void RunShellDatabaseOffUiThreadTests(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    using var uiResponded = new ManualResetEventSlim();
+    var uiThreadId = 0;
+    var firstContextThreadId = 0;
+    var uiWasFree = false;
+    var first = 1;
+    var database = new ApplicationDb(() =>
+    {
+        if (Interlocked.Exchange(ref first, 0) == 1)
+        {
+            firstContextThreadId = Environment.CurrentManagedThreadId;
+            uiWasFree = uiResponded.Wait(TimeSpan.FromSeconds(5));
+        }
+        return new HyperWhisper.Data.HyperWhisperDbContext(paths);
+    });
+    var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "settings.json"));
+    using var shell = new ApplicationShellViewModel(database, settings);
+    var statusThreadIds = new List<int>();
+    shell.Status.PropertyChanged += (_, _) => statusThreadIds.Add(Environment.CurrentManagedThreadId);
+
+    var ui = new SingleThreadUiContext();
+    var thread = new Thread(() =>
+    {
+        uiThreadId = Environment.CurrentManagedThreadId;
+        ui.Run(async () =>
+        {
+            var init = shell.InitializeAsync();
+            ui.Post(_ => uiResponded.Set(), null);
+            await init;
+        });
+    });
+    thread.Start();
+    Assert(thread.Join(TimeSpan.FromSeconds(60)), "the shell's initialization never finished");
+
+    Assert(uiWasFree && firstContextThreadId != uiThreadId,
+        "the database migration ran on the UI thread, so the UI could not answer until it finished");
+    Assert(!shell.Status.HasError && shell.Status.Message == "Ready", $"the shell did not reach Ready: '{shell.Status.Message}'");
+    Assert(shell.Modes.Items.Count > 0, "the default modes were not seeded");
+    Assert(statusThreadIds.Count > 0 && statusThreadIds.All(id => id == uiThreadId),
+        "the status bar was updated off the UI thread");
+}
+
 static async Task RunShellLanguageRoutingTestsAsync(string root)
 {
     Directory.CreateDirectory(root);
@@ -1593,6 +1937,55 @@ static async Task RunCloudPostProcessingModelLoadTestsAsync(string root)
 /// that change: the rows are companies, a company that owns 2 tiers is ONE row whose
 /// model decides the tier, and the Model row is never blank.
 /// </summary>
+/// <summary>
+/// Issue #1709: a CLOUD mode with no stored provider opens the editor on
+/// HyperWhisper Cloud — the provider its card shows and the router runs — not on
+/// ElevenLabs. A local mode keeps the editor's BYOK default for when it is
+/// switched to cloud, and a non-blank provider is loaded as stored.
+/// </summary>
+static async Task RunBlankCloudProviderEditorLoadTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+
+    foreach (var blank in new string?[] { null, "", "   " })
+    {
+        var mode = new Mode
+        {
+            Name = $"Blank cloud {blank?.Length.ToString() ?? "null"}",
+            ProviderType = "cloud",
+            CloudProvider = blank,
+            CloudAccuracyTier = "elevenLabsScribeV2",
+            Language = "en",
+        };
+        await repository.UpsertAsync(mode);
+        editor.Selected = mode;
+        var label = blank is null ? "<null>" : $"'{blank}'";
+        Assert(editor.CloudProvider == "hyperwhisper",
+            $"a cloud mode with cloudProvider {label} opened the editor on '{editor.CloudProvider}', not hyperwhisper");
+        Assert(mode.CloudProvider == blank, "loading the editor rewrote the stored provider");
+    }
+
+    var byok = new Mode { Name = "BYOK cloud", ProviderType = "cloud", CloudProvider = "deepgram", Language = "en" };
+    await repository.UpsertAsync(byok);
+    editor.Selected = byok;
+    Assert(editor.CloudProvider == "deepgram", $"a deepgram mode opened on '{editor.CloudProvider}'");
+
+    var legacy = new Mode { Name = "Legacy cloud", ProviderType = "cloud", CloudProvider = "googlespeech", Language = "en" };
+    await repository.UpsertAsync(legacy);
+    editor.Selected = legacy;
+    Assert(editor.CloudProvider == "googlespeech",
+        $"a legacy googlespeech mode opened on '{editor.CloudProvider}'; only a BLANK provider changes meaning");
+
+    var local = new Mode { Name = "Local", ProviderType = "local", LocalEngine = "whisper", ModelType = "base", Language = "en" };
+    await repository.UpsertAsync(local);
+    editor.Selected = local;
+    Assert(editor.CloudProvider == "elevenlabs",
+        $"a local mode's editor BYOK default moved to '{editor.CloudProvider}'");
+}
+
 static async Task RunCloudVendorPickerTestsAsync(string root)
 {
     var db = new ApplicationDb(new TestPaths(root));
@@ -2269,9 +2662,13 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     var repository = new HistoryRepository(database, paths);
 
     // A mixed dataset: today, yesterday, rows either side of a local midnight, and older days in
-    // two months, added out of order so the repository's sort is what orders them.
-    var now = DateTime.UtcNow;
-    var localMidnight = DateTime.Now.Date.AddDays(-3);
+    // two months, added out of order so the repository's sort is what orders them. One local clock
+    // reading seeds the rows and pins the view model's Today, so a run just after local midnight
+    // (where now - 5 min is Yesterday) or one that crosses it expects what the view model shows (#1354).
+    var localNow = DateTime.Now;
+    var today = localNow.Date;
+    var now = localNow.ToUniversalTime();
+    var localMidnight = today.AddDays(-3);
     var dates = new List<DateTime>
     {
         localMidnight.AddMinutes(-1).ToUniversalTime(), localMidnight.AddMinutes(1).ToUniversalTime(),
@@ -2287,7 +2684,7 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
             Date = DateTime.SpecifyKind(dates[(index * 7) % dates.Count], DateTimeKind.Utc),
         });
 
-    using var viewModel = new HistoryViewModel(repository);
+    using var viewModel = new HistoryViewModel(repository) { LocalNow = () => localNow };
     var before = viewModel.GroupRebuildCount;
     await viewModel.RefreshAsync();
     var expected = await repository.ListAsync();
@@ -2296,21 +2693,21 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     // dates.Count + 1, and a clear outside the region made it 2.
     var rebuilds = viewModel.GroupRebuildCount - before;
     Assert(rebuilds == 1, $"a {dates.Count}-row history load rebuilt the day groups {rebuilds} times, not once");
-    AssertHistoryGroups(viewModel, expected, "history load");
+    AssertHistoryGroups(viewModel, expected, today, "history load");
     var headers = viewModel.GroupedItems.OfType<HistoryDateGroup>().ToList();
-    Assert(headers.Count > 20 && headers[0].LocalizationKey == "history.section.today"
+    Assert(headers.Count > 20 && Equals(headers[0], ExpectedHistoryGroup(expected[0].Date.ToLocalTime().Date, today))
         && headers.Any(header => header.LocalizationKey == "history.section.yesterday"),
         $"the history dataset spans {headers.Count} days, too few for the grouping check to prove anything");
     Assert(viewModel.Selected?.Id == expected[0].Id && viewModel.SelectedItems.Count == 1,
         "history load did not select the newest transcript");
-    Assert(viewModel.Status.Message == $"{dates.Count} transcript(s)", $"history load status was '{viewModel.Status.Message}'");
+    Assert(viewModel.Status.Message == $"{dates.Count} transcripts", $"history load status was '{viewModel.Status.Message}'");
 
     // A second load over a full list is still one rebuild (the clear is inside the region too).
     before = viewModel.GroupRebuildCount;
     await viewModel.RefreshAsync();
     rebuilds = viewModel.GroupRebuildCount - before;
     Assert(rebuilds == 1, $"a reload of a full history list rebuilt the day groups {rebuilds} times, not once");
-    AssertHistoryGroups(viewModel, expected, "history reload");
+    AssertHistoryGroups(viewModel, expected, today, "history reload");
 
     viewModel.SearchText = term;
     before = viewModel.GroupRebuildCount;
@@ -2319,26 +2716,27 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     rebuilds = viewModel.GroupRebuildCount - before;
     Assert(matches.Count > 10 && rebuilds == 1,
         $"a {matches.Count}-row history search rebuilt the day groups {rebuilds} times, not once");
-    AssertHistoryGroups(viewModel, matches, "history search");
+    AssertHistoryGroups(viewModel, matches, today, "history search");
     Assert(viewModel.Selected?.Id == matches[0].Id, "history search did not select the newest match");
 
     // A save: ApplicationShellViewModel.OnTranscriptionSaved runs RefreshAsync, which drops the
-    // filter and shows the new row on top, under Today, with one rebuild.
-    var saved = new Transcript { Text = "just saved", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow.AddSeconds(1) };
+    // filter and shows the new row on top, under its own day's header, with one rebuild.
+    var saved = new Transcript { Text = "just saved", Status = TranscriptStatus.Completed, Date = now.AddSeconds(1) };
     await repository.AddAsync(saved);
     before = viewModel.GroupRebuildCount;
     await viewModel.RefreshAsync();
     expected = await repository.ListAsync();
     Assert(viewModel.GroupRebuildCount - before == 1, $"a save rebuilt the day groups {viewModel.GroupRebuildCount - before} times");
-    AssertHistoryGroups(viewModel, expected, "save");
-    Assert(viewModel.Items[0].Id == saved.Id && viewModel.GroupedItems[0] is HistoryDateGroup { LocalizationKey: "history.section.today" }
+    AssertHistoryGroups(viewModel, expected, today, "save");
+    Assert(viewModel.Items[0].Id == saved.Id
+        && Equals(viewModel.GroupedItems[0], ExpectedHistoryGroup(saved.Date.ToLocalTime().Date, today))
         && viewModel.GroupedItems[1] is Transcript { Id: var firstId } && firstId == saved.Id,
-        "a save did not show the new row first, under Today");
+        "a save did not show the new row first, under its day's header");
     Assert(viewModel.Selected?.Id == saved.Id && !viewModel.IsFilteredEmpty && !viewModel.Status.HasError,
         "a save did not reload the way RefreshAsync does");
 
     // A row changed in place (a retry, the Local API) shows its new state after the next save reload.
-    var processing = new Transcript { Text = "in progress", Status = TranscriptStatus.Processing, Date = DateTime.UtcNow.AddSeconds(4) };
+    var processing = new Transcript { Text = "in progress", Status = TranscriptStatus.Processing, Date = now.AddSeconds(4) };
     await repository.AddAsync(processing);
     await viewModel.RefreshAsync();
     processing.Status = TranscriptStatus.Completed;
@@ -2374,18 +2772,66 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
         Assert(false, "the throwing history result did not throw");
     }
     catch (InvalidOperationException exception) when (exception.Message == "history result failed") { }
-    AssertHistoryGroups(viewModel, expected.Take(3).ToList(), "history result that threw");
+    AssertHistoryGroups(viewModel, expected.Take(3).ToList(), today, "history result that threw");
     viewModel.Items.Add(expected[3]);
-    AssertHistoryGroups(viewModel, expected.Take(4).ToList(), "history edit after a result that threw");
+    AssertHistoryGroups(viewModel, expected.Take(4).ToList(), today, "history edit after a result that threw");
     await viewModel.RefreshAsync();
 
     // A single edit still rebuilds: deleting a row takes it and an emptied day header away.
-    var lonely = new Transcript { Text = "lonely day", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow.AddDays(-400) };
+    var lonely = new Transcript { Text = "lonely day", Status = TranscriptStatus.Completed, Date = now.AddDays(-400) };
     await repository.AddAsync(lonely);
     await viewModel.RefreshAsync();
     viewModel.UpdateSelection([viewModel.Items.Single(item => item.Id == lonely.Id)]);
     await viewModel.DeleteSelectedAsync();
-    AssertHistoryGroups(viewModel, await repository.ListAsync(), "history delete");
+    AssertHistoryGroups(viewModel, await repository.ListAsync(), today, "history delete");
+
+    // A bulk delete removes the whole selection with one rebuild, not one per row (#1353), and
+    // leaves the groups the remaining rows make: here every other row, across many days.
+    await viewModel.RefreshAsync();
+    var everyOther = viewModel.Items.Where((_, index) => index % 2 == 1).ToList();
+    viewModel.UpdateSelection(everyOther);
+    before = viewModel.GroupRebuildCount;
+    var lowestCount = int.MaxValue;
+    var itemChanges = 0;
+    System.Collections.Specialized.NotifyCollectionChangedEventHandler watch = (_, _) =>
+    { itemChanges++; lowestCount = Math.Min(lowestCount, viewModel.Items.Count); };
+    viewModel.Items.CollectionChanged += watch;
+    await viewModel.DeleteSelectedAsync();
+    viewModel.Items.CollectionChanged -= watch;
+    rebuilds = viewModel.GroupRebuildCount - before;
+    // Only the deleted rows leave Items: the list never empties on the way (its visibility binds
+    // to the count), and the change count is the deleted rows, not a clear and a re-add of the rest.
+    Assert(lowestCount == viewModel.Items.Count && itemChanges == everyOther.Count,
+        $"a partial bulk delete dipped Items to {lowestCount} rows with {itemChanges} changes for {everyOther.Count} deleted");
+    Assert(rebuilds == 1, $"a {everyOther.Count}-row bulk delete rebuilt the day groups {rebuilds} times, not once");
+    expected = await repository.ListAsync();
+    Assert(expected.Count > 100 && expected.All(row => everyOther.All(gone => gone.Id != row.Id)),
+        "the bulk delete did not delete the selected rows");
+    AssertHistoryGroups(viewModel, expected, today, "history bulk delete");
+    Assert(viewModel.SelectedItems.Count == 0 && !viewModel.Status.HasError,
+        $"a bulk delete left {viewModel.SelectedItems.Count} selected, status '{viewModel.Status.Message}'");
+
+    // Deleting all rows of a 10,000-row History rebuilds the groups once and leaves nothing behind.
+    await using (var context = database.CreateContext())
+    {
+        context.Transcripts.AddRange(Enumerable.Range(0, 10_000 - expected.Count).Select(index => new Transcript
+        {
+            Text = $"bulk {index}",
+            Status = TranscriptStatus.Completed,
+            Date = DateTime.SpecifyKind(now.AddMinutes(-37 * index - 3), DateTimeKind.Utc),
+        }));
+        await context.SaveChangesAsync();
+    }
+    await viewModel.RefreshAsync();
+    Assert(viewModel.Items.Count == 10_000, $"the large history showed {viewModel.Items.Count} of 10000 rows");
+    viewModel.UpdateSelection(viewModel.Items.ToList());
+    before = viewModel.GroupRebuildCount;
+    await viewModel.DeleteSelectedAsync();
+    rebuilds = viewModel.GroupRebuildCount - before;
+    Assert(rebuilds == 1, $"deleting all 10000 rows rebuilt the day groups {rebuilds} times, not once");
+    Assert(viewModel.Items.Count == 0 && viewModel.GroupedItems.Count == 0 && viewModel.IsEmpty
+        && await repository.CountAsync() == 0,
+        $"deleting all rows left {viewModel.Items.Count} rows, {viewModel.GroupedItems.Count} grouped entries");
 }
 
 static IEnumerable<Transcript> ThrowAfter(IEnumerable<Transcript> rows, int count)
@@ -2395,11 +2841,10 @@ static IEnumerable<Transcript> ThrowAfter(IEnumerable<Transcript> rows, int coun
 }
 
 /// <summary>The grouping the per-row rebuild produced, written out independently of the view model.</summary>
-static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transcript> rows, string what)
+static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transcript> rows, DateTime today, string what)
 {
     Assert(viewModel.Items.Select(item => item.Id).SequenceEqual(rows.Select(item => item.Id)),
         $"{what}: rows are not in repository order");
-    var today = DateTime.Now.Date;
     var expected = new List<object>();
     DateTime? currentDay = null;
     foreach (var row in rows)
@@ -2408,9 +2853,7 @@ static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transc
         if (currentDay != day)
         {
             currentDay = day;
-            expected.Add(day == today ? new HistoryDateGroup("history.section.today", "Today")
-                : day == today.AddDays(-1) ? new HistoryDateGroup("history.section.yesterday", "Yesterday")
-                : new HistoryDateGroup(null, day.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture)));
+            expected.Add(ExpectedHistoryGroup(day, today));
         }
         expected.Add(row.Id);
     }
@@ -2418,6 +2861,12 @@ static void AssertHistoryGroups(HistoryViewModel viewModel, IReadOnlyList<Transc
     Assert(actual.Count == expected.Count && actual.Zip(expected).All(pair => Equals(pair.First, pair.Second)),
         $"{what}: day groups differ ({actual.Count} entries, expected {expected.Count})");
 }
+
+/// <summary>The header a row's local day sits under, with <paramref name="today"/> as the view model's Today.</summary>
+static HistoryDateGroup ExpectedHistoryGroup(DateTime day, DateTime today) =>
+    day == today ? new HistoryDateGroup("history.section.today", "Today")
+    : day == today.AddDays(-1) ? new HistoryDateGroup("history.section.yesterday", "Yesterday")
+    : new HistoryDateGroup(null, day.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture));
 
 static void Assert(bool condition, string message)
 {
@@ -2740,6 +3189,30 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
             && failed.AudioFilePath == failureAudio,
             "backend failure did not persist a terminal retryable history row");
         Assert(File.Exists(failureAudio), "owned audio was deleted after a non-cancel failure");
+    }
+
+    // A backend that answers with no text (Whisper's markers-only silence,
+    // once stripped) is no speech, not a generic failure, and nothing is delivered (#1742).
+    var silentStore = await CreateStoreAsync(root, "workflow-no-speech");
+    var silentAudio = Path.Combine(root, "silent.wav");
+    await File.WriteAllBytesAsync(silentAudio, [1]);
+    using (var recorder = new FakeRecorder(silentAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("", "Test Whisper"))),
+        silentStore.History))
+    {
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var result = await workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest());
+        Assert(!result.IsSuccess && result.InjectionOutcome is null
+            && workflow.Snapshot.ErrorCode == "workflow.no_speech",
+            $"an empty transcript was not reported as no speech: {workflow.Snapshot.ErrorCode}");
+        var failed = (await silentStore.History.ListAsync()).Single();
+        Assert(failed.Status == TranscriptStatus.Failed && failed.FailedReason == "No speech was detected.",
+            "an empty transcript did not leave a no-speech history row");
     }
 
     var exceptionStore = await CreateStoreAsync(root, "workflow-exception");
@@ -3341,6 +3814,28 @@ file sealed class BoundCloudModelCombo
     }
 }
 
+// A minimal UI thread: one queue, pumped by the thread that calls Run, like Avalonia's dispatcher.
+file sealed class SingleThreadUiContext : SynchronizationContext
+{
+    private readonly System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback Callback, object? State)> _queue = new();
+
+    public override void Post(SendOrPostCallback d, object? state) => _queue.Add((d, state));
+
+    public void Run(Func<Task> body)
+    {
+        var previous = Current;
+        SetSynchronizationContext(this);
+        try
+        {
+            var task = body();
+            task.ContinueWith(_ => _queue.CompleteAdding(), TaskScheduler.Default);
+            foreach (var (callback, state) in _queue.GetConsumingEnumerable()) callback(state);
+            task.GetAwaiter().GetResult();
+        }
+        finally { SetSynchronizationContext(previous); }
+    }
+}
+
 file sealed class TestPaths(string root) : IAppPaths
 {
     public string DataDirectory => root;
@@ -3501,6 +3996,8 @@ file sealed class RejectingCloudAccountHttpHandler : HttpMessageHandler
 file sealed class CloudAccountHttpHandler : HttpMessageHandler
 {
     public string? ValidateDeviceName { get; private set; }
+    public string? ValidateLicenseKey { get; private set; }
+    public int ValidateCalls { get; private set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -3511,6 +4008,8 @@ file sealed class CloudAccountHttpHandler : HttpMessageHandler
         {
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
             ValidateDeviceName = body.RootElement.GetProperty("device_name").GetString();
+            ValidateLicenseKey = body.RootElement.GetProperty("license_key").GetString();
+            ValidateCalls++;
             return Json("{\"valid\":true,\"customer_id\":\"customer-1\",\"customer_email\":\"ray@example.test\",\"expires_at\":\"2030-01-02T03:04:05Z\"}");
         }
         if (path == "/usage")

@@ -16,7 +16,8 @@ usage() {
 Usage: generate-apt-repository.sh --deb PACKAGE.deb [--deb PACKAGE.deb ...] [options]
 
 Options:
-  --deb PACKAGE.deb         Package to retain; repeat for prior releases
+  --deb PACKAGE.deb         Package to retain (hyperwhisper or hyperwhisper-cuda);
+                            repeat for each package and prior release
   --output-dir DIR          New or empty output directory
   --suite NAME              Distribution suite (default: stable)
   --codename NAME           Distribution codename (default: stable)
@@ -79,7 +80,9 @@ for deb_path in "${DEB_PATHS[@]}"; do
         echo "--deb must name an existing regular Debian package: $deb_path" >&2
         exit 2
     fi
-    if [[ "$(dpkg-deb --field "$deb_path" Package)" != "hyperwhisper" ]] \
+    # hyperwhisper-cuda carries the optional CUDA 12 backends (issue #1002).
+    package_field="$(dpkg-deb --field "$deb_path" Package)"
+    if [[ "$package_field" != "hyperwhisper" && "$package_field" != "hyperwhisper-cuda" ]] \
         || [[ "$(dpkg-deb --field "$deb_path" Architecture)" != "amd64" ]]; then
         echo "Only amd64 HyperWhisper packages may enter this repository: $deb_path" >&2
         exit 2

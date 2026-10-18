@@ -18,6 +18,7 @@ use super::config::{
     bool_field, num_field, str_field, text_field, LiveConfig, LiveConnect, LiveError, LiveEvent,
     Query, StopStep,
 };
+use super::session::SessionState;
 use super::AudioFraming;
 use crate::helpers::keyword_boost_terms;
 
@@ -161,23 +162,35 @@ fn base_url(config: &LiveConfig) -> String {
     }
 }
 
-pub(super) fn stop_sequence() -> Vec<StopStep> {
-    vec![
-        StopStep::SendText {
-            text: r#"{"type":"stop"}"#.to_string(),
-        },
-        StopStep::WaitForSessionComplete {
+/// `stop`, then the wait for `session_complete`, then close.
+///
+/// The wait runs only when a `ready` frame arrived. A session that never
+/// started has no relay session to flush and no receive loop left to deliver
+/// `session_complete`, so the wait could only time out: 10 more seconds on top
+/// of the failed start, and a second Sentry report that reads like a flush
+/// fault (HYPERWHISPER-YD). `SendText` and `Close` stay unconditional — both
+/// are cheap and already no-op on a dead socket.
+pub(super) fn stop_sequence(state: &SessionState) -> Vec<StopStep> {
+    let mut steps = vec![StopStep::SendText {
+        text: r#"{"type":"stop"}"#.to_string(),
+    }];
+    if state.session_started {
+        steps.push(StopStep::WaitForSessionComplete {
             timeout_ms: SESSION_COMPLETE_TIMEOUT_MS,
-        },
-        StopStep::Close,
-    ]
+        });
+    }
+    steps.push(StopStep::Close);
+    steps
 }
 
-pub(super) fn parse(root: &serde_json::Value) -> LiveEvent {
+pub(super) fn parse(state: &mut SessionState, root: &serde_json::Value) -> LiveEvent {
     match str_field(root, "type") {
-        Some("ready") => LiveEvent::SessionStarted {
-            session_id: str_field(root, "sessionId").map(str::to_string),
-        },
+        Some("ready") => {
+            state.session_started = true;
+            LiveEvent::SessionStarted {
+                session_id: str_field(root, "sessionId").map(str::to_string),
+            }
+        }
         Some("transcript") => match text_field(root, "text") {
             Some(text) if bool_field(root, "is_final") == Some(true) => {
                 LiveEvent::FinalTranscript {

@@ -28,7 +28,9 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.Localization;
 using HyperWhisper.Models;
+using AccountKeyFormat = HyperWhisper.CloudAccount.AccountKeyFormat;
 
 namespace HyperWhisper.Services;
 
@@ -214,6 +216,27 @@ public sealed class LicenseManager : INotifyPropertyChanged
         string licenseKey,
         CancellationToken cancellationToken = default)
     {
+        // #1489: text that cannot be any key (empty, over 64 characters, whitespace inside,
+        // non-ASCII) is refused here, before the network, and the licence state is left
+        // alone. The fields already keep Activate off for it; this covers every other caller.
+        if (!AccountKeyFormat.IsPlausible(licenseKey))
+        {
+            LoggingService.Info("LicenseManager: refused text that cannot be an account key; nothing was sent");
+            return LicenseValidationResult.Failed(Loc.S("license.error.keyFormat"));
+        }
+
+        return await ValidateAndApplyAsync(AccountKeyFormat.Normalize(licenseKey), cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates a key with the server and applies the verdict. The stored-key revalidation
+    /// in <see cref="LoadStoredLicenseAsync"/> comes straight here: a key already on file is
+    /// the server's to judge, not the entry-field format check's.
+    /// </summary>
+    private async Task<LicenseValidationResult> ValidateAndApplyAsync(
+        string licenseKey,
+        CancellationToken cancellationToken)
+    {
         IsValidating = true;
         LastError = null;
 
@@ -270,7 +293,12 @@ public sealed class LicenseManager : INotifyPropertyChanged
         string licenseKey,
         CancellationToken cancellationToken = default)
     {
-        return LicenseNetworkService.Instance.ProbeLicenseAsync(licenseKey, cancellationToken);
+        // #1489: the probe sends the key too, so it gets the same refusal as activation.
+        if (!AccountKeyFormat.IsPlausible(licenseKey))
+            return Task.FromResult(LicenseValidationResult.Failed(Loc.S("license.error.keyFormat")));
+
+        return LicenseNetworkService.Instance.ProbeLicenseAsync(
+            AccountKeyFormat.Normalize(licenseKey), cancellationToken);
     }
 
     /// <summary>
@@ -328,7 +356,7 @@ public sealed class LicenseManager : INotifyPropertyChanged
         {
             // Check if we should revalidate (cache older than 24h)
             LoggingService.Info("LicenseManager: Cache expired, revalidating license...");
-            await ActivateLicenseAsync(storedKey, cancellationToken);
+            await ValidateAndApplyAsync(storedKey, cancellationToken);
         }
         else
         {
@@ -342,7 +370,7 @@ public sealed class LicenseManager : INotifyPropertyChanged
             else
             {
                 // Revalidate if no valid cache
-                await ActivateLicenseAsync(storedKey, cancellationToken);
+                await ValidateAndApplyAsync(storedKey, cancellationToken);
             }
         }
 

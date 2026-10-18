@@ -15,6 +15,7 @@ using System.Windows;
 using System.Windows.Threading;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
+using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Views.Windows;
 
@@ -68,20 +69,32 @@ public partial class ModeChangeToastWindow : Window
     private void PositionAboveRecordingDialog()
     {
         var recordingWindow = ToastWindowBehavior.FindVisibleRecordingOverlay();
+        var overlay = recordingWindow != null && recordingWindow.IsVisible ? recordingWindow : null;
 
-        if (recordingWindow != null && recordingWindow.IsVisible)
-        {
-            // Position 12 pixels above the recording dialog (matching macOS gap)
-            Left = recordingWindow.Left + (recordingWindow.Width - Width) / 2;
-            Top = recordingWindow.Top - Height - 12;
-        }
-        else
-        {
-            // Fallback: center on screen, position as if recording overlay is at bottom
-            var workArea = SystemParameters.WorkArea;
-            Left = (workArea.Width - Width) / 2;
-            Top = workArea.Bottom - Height - 80;
-        }
+        // A held slide animation would mask the Top set below (issue #1501).
+        ToastWindowBehavior.ReleasePosition(this);
+
+        // In the DIP of the overlay's monitor (or the primary one), not
+        // SystemParameters.WorkArea, which keeps the DPI the app started at.
+        MonitorWorkArea.Place(this,
+            () => overlay != null ? MonitorWorkArea.OfWindow(overlay) : MonitorWorkArea.Primary(),
+            workArea =>
+            {
+                if (overlay != null)
+                {
+                    var anchor = ToastWindowBehavior.OverlayBounds(overlay);
+
+                    // Position 12 pixels above the recording dialog (matching macOS gap)
+                    return new System.Windows.Point(
+                        anchor.Left + (anchor.Width - Width) / 2,
+                        anchor.Top - Height - 12);
+                }
+
+                // Fallback: center on screen, position as if recording overlay is at bottom
+                return new System.Windows.Point(
+                    (workArea.Width - Width) / 2,
+                    workArea.Bottom - Height - 80);
+            });
     }
 
     private void AnimateIn()

@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Транскрибация файла отменена</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Расшифровка файла...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Неизвестно</value>
   </data>
@@ -846,11 +849,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Ошибка транскрипции: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>Нет режима для повторной попытки.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Повторная попытка не удалась: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Режим, которым сделана эта запись, удалён, поэтому повторная попытка не выполнялась. В разделе История щёлкните запись правой кнопкой мыши и выберите «Повторить с...», чтобы выбрать другой режим.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Запись остановлена — достигнут 20-минутный лимит безопасности.</value>
@@ -1159,6 +1162,12 @@
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Модель используется</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} используется режимом «{1}». Переключите этот режим на другую модель, прежде чем удалять её.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Деактивировать лицензию</value>
@@ -1292,6 +1301,9 @@
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Введите лицензионный ключ.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>Это не похоже на ключ учётной записи.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1312,8 +1324,17 @@
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>Файл не найден</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Уже идёт запись или расшифровка файла. Попробуйте файл снова, когда она завершится.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>Файл слишком большой для этого провайдера. Максимальный размер: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Этот файл пуст, поэтому в нём нет аудио для расшифровки.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Этот файл повреждён или не является аудиофайлом, который может прочитать HyperWhisper.</value>
   </data>
 
 
@@ -1696,6 +1717,9 @@
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Без названия</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Ещё...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Транскрибировать файл</value>
   </data>
@@ -1989,6 +2013,9 @@
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Отключить звук</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Приглушить звук</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Держать микрофон наготове</value>

@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>תמלול הקובץ בוטל</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>מתמלל קובץ...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -846,11 +849,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>המצב שיצר את ההקלטה הזו נמחק, ולכן לא בוצע ניסיון חוזר. בהיסטוריה, לחץ לחיצה ימנית על ההקלטה ובחר "נסה שוב עם..." כדי לבחור מצב אחר.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>ההקלטה נעצרה — הגעת למגבלת הבטיחות של 20 דקות.</value>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>המודל בשימוש</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>המצב "{1}" משתמש ב-{0}. העבירו את המצב הזה למודל אחר לפני המחיקה.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1292,6 +1301,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>זה לא נראה כמו מפתח חשבון.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1312,8 +1324,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>הקלטה או תמלול קובץ כבר פועלים. נסו את הקובץ שוב כשהם יסתיימו.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>הקובץ הזה ריק, ולכן אין בו שמע לתמלול.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>הקובץ הזה פגום או שאינו קובץ שמע ש-HyperWhisper יכול לקרוא.</value>
   </data>
 
 
@@ -1696,6 +1717,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>עוד...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1989,6 +2013,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>עמעם אודיו</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>

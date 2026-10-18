@@ -3,6 +3,9 @@
   <data name="linux.overlay.recording" xml:space="preserve">
     <value>Merekam</value>
   </data>
+  <data name="linux.settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Redam Audio</value>
+  </data>
   <data name="linux.ui.api.keys" xml:space="preserve">
     <value>Kunci API</value>
   </data>

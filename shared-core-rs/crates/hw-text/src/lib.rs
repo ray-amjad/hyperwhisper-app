@@ -16,6 +16,7 @@ pub mod prompt;
 mod smart_spacing;
 mod text_processing;
 mod vocab;
+mod whisper_markers;
 
 pub use agreement::{
     AgreementError, BoundedAgreement, BoundedConfig, PairwiseAgreement, PairwiseConfig,
@@ -35,3 +36,4 @@ pub use text_processing::{
     strip_wrapper_markers,
 };
 pub use vocab::apply_hardened_replacement;
+pub use whisper_markers::strip_whisper_non_speech_markers;

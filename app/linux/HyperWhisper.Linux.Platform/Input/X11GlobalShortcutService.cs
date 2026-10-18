@@ -9,6 +9,15 @@ internal sealed record X11ShortcutBinding(
     IReadOnlyList<X11ShortcutTrigger> Triggers);
 internal readonly record struct X11HotkeyEvent(byte Keycode, uint State, bool Pressed);
 
+/// <summary>When a modifier-only shortcut (Ctrl+Alt) fires. See <see cref="X11GlobalShortcutService"/>.</summary>
+internal enum X11ModifierOnlyTrigger
+{
+    /// <summary>On its clean release, so Ctrl+Alt+Left is not taken for Ctrl+Alt (#1511).</summary>
+    OnCleanRelease,
+    /// <summary>On press, held until release. Push-to-talk needs the hold.</summary>
+    OnPress,
+}
+
 internal interface IX11HotkeyConnection : IDisposable
 {
     byte Keycode(uint keysym);
@@ -26,6 +35,14 @@ internal interface IX11HotkeyConnectionFactory
 /// True-Xorg global shortcuts. XGrabKey confines input at the X server to only
 /// registered combinations; raw/unrelated key events never cross this module.
 /// Wayland sessions deliberately retain the evdev privacy-filtered backend.
+///
+/// A modifier-only chord (Ctrl+Alt) is the prefix of every shortcut that starts
+/// with the same modifiers (Ctrl+Alt+Left), so by default it does not fire on
+/// press (#1511, the Linux sibling of #1497). Its press arms it. While the grab
+/// that press activated is held, the server sends this client every key, and
+/// any other key-down spoils the chord; only that fact is kept, never the key.
+/// The release that breaks a still-clean chord raises Pressed and Released back
+/// to back, so a handler that pairs them still sees a balanced pair.
 /// </summary>
 internal sealed class X11GlobalShortcutService : IGlobalShortcutService
 {
@@ -37,13 +54,33 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
     private IReadOnlyList<X11ShortcutBinding> _bindings = [];
     private Dictionary<byte, List<(X11ShortcutBinding Binding, uint Modifiers)>> _byKeycode = [];
     private HashSet<string> _active = new(StringComparer.Ordinal);
+    private readonly X11ModifierOnlyTrigger _modifierOnly;
+    /// <summary>The modifier-only chords that fire on release, by name, and where each stands.</summary>
+    private Dictionary<string, ChordState> _chords = new(StringComparer.Ordinal);
     private IX11HotkeyConnection? _connection;
     private CancellationTokenSource? _cancellation;
     private Task? _reader;
     private bool _disposed;
 
-    public X11GlobalShortcutService() : this(new X11HotkeyConnectionFactory()) { }
-    internal X11GlobalShortcutService(IX11HotkeyConnectionFactory factory) => _factory = factory;
+    public X11GlobalShortcutService() : this(X11ModifierOnlyTrigger.OnCleanRelease) { }
+    internal X11GlobalShortcutService(X11ModifierOnlyTrigger modifierOnly)
+        : this(new X11HotkeyConnectionFactory(), modifierOnly) { }
+    internal X11GlobalShortcutService(IX11HotkeyConnectionFactory factory,
+        X11ModifierOnlyTrigger modifierOnly = X11ModifierOnlyTrigger.OnCleanRelease)
+    {
+        _factory = factory;
+        _modifierOnly = modifierOnly;
+    }
+
+    private enum ChordState
+    {
+        /// <summary>The chord is not down.</summary>
+        Idle,
+        /// <summary>The chord is down and nothing else joined it. Its release fires.</summary>
+        Armed,
+        /// <summary>Another key went down with the chord. Its release does nothing.</summary>
+        Spoiled,
+    }
 
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutPressed;
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutReleased;
@@ -136,6 +173,10 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
             entries.Add((binding, trigger.Modifiers));
         }
         _byKeycode = byCode;
+        _chords = _modifierOnly == X11ModifierOnlyTrigger.OnCleanRelease
+            ? _bindings.Where(binding => binding.Shortcut.Shortcut.IsModifierOnly)
+                .ToDictionary(binding => binding.Shortcut.Name, _ => ChordState.Idle, StringComparer.Ordinal)
+            : new(StringComparer.Ordinal);
         return true;
     }
 
@@ -154,10 +195,12 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
         var signals = new List<(bool Pressed, NamedShortcut Shortcut)>();
         lock (_gate)
         {
-            if (!_byKeycode.TryGetValue(input.Keycode, out var candidates)) return;
+            var candidates = _byKeycode.GetValueOrDefault(input.Keycode) ?? [];
+            if (_chords.Count > 0) ProcessChords(input, candidates, signals);
             foreach (var candidate in candidates)
             {
                 var binding = candidate.Binding;
+                if (_chords.ContainsKey(binding.Shortcut.Name)) continue;
                 // A press must carry the exact modifiers. A release matches by keycode alone,
                 // because the user can let go of a modifier before the main key.
                 if (input.Pressed && (input.State & RelevantMask) != candidate.Modifiers) continue;
@@ -169,6 +212,39 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
             Raise(signal.Pressed ? ShortcutPressed : ShortcutReleased, signal.Shortcut);
     }
 
+    /// <summary>
+    /// Steps every release-fired chord on one key event. A press with the exact
+    /// modifiers on one of the chord's own keys arms it; a press of any other key spoils an
+    /// armed chord. A release of one of its keys ends it, and fires it when still
+    /// armed. Called under <see cref="_gate"/>.
+    /// </summary>
+    private void ProcessChords(X11HotkeyEvent input,
+        List<(X11ShortcutBinding Binding, uint Modifiers)> candidates,
+        List<(bool Pressed, NamedShortcut Shortcut)> signals)
+    {
+        var state = input.State & RelevantMask;
+        foreach (var binding in _bindings)
+        {
+            var name = binding.Shortcut.Name;
+            if (!_chords.TryGetValue(name, out var chord)) continue;
+            var ownKey = candidates.Where(candidate => ReferenceEquals(candidate.Binding, binding)).ToArray();
+            if (input.Pressed)
+            {
+                if (ownKey.Any(candidate => candidate.Modifiers == state))
+                { if (chord == ChordState.Idle) _chords[name] = ChordState.Armed; }
+                // A held chord key that auto-repeats arrives with its own bit set; it is not another key.
+                else if (chord == ChordState.Armed && ownKey.Length == 0) _chords[name] = ChordState.Spoiled;
+            }
+            else if (ownKey.Length > 0)
+            {
+                _chords[name] = ChordState.Idle;
+                if (chord != ChordState.Armed) continue;
+                signals.Add((true, binding.Shortcut));
+                signals.Add((false, binding.Shortcut));
+            }
+        }
+    }
+
     private void Raise(EventHandler<ShortcutTriggeredEventArgs>? handlers, NamedShortcut shortcut)
     {
         if (handlers is null) return;
@@ -177,8 +253,15 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
             try { handler(this, args); } catch { }
     }
 
-    public void Clear() { lock (_gate) { _bindings = []; _byKeycode.Clear(); _active.Clear(); _connection?.UngrabAll(); } }
-    public void ResetKeyboardState() { lock (_gate) _active.Clear(); }
+    public void Clear() { lock (_gate) { _bindings = []; _byKeycode.Clear(); _active.Clear(); _chords.Clear(); _connection?.UngrabAll(); } }
+    public void ResetKeyboardState()
+    {
+        lock (_gate)
+        {
+            _active.Clear();
+            foreach (var name in _chords.Keys.ToArray()) _chords[name] = ChordState.Idle;
+        }
+    }
     public void Dispose()
     {
         Task? reader;

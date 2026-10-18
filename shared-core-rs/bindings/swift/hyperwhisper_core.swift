@@ -5247,18 +5247,21 @@ public func FfiConverterTypeHwPhoneticMatch_lower(_ value: HwPhoneticMatch) -> R
 
 /**
  * Result of a provider health probe. Mirrors `hw_net::ProviderHealth`.
+ * `healthy` is always `reason == Healthy`; `reason` is the field to switch on.
  */
 public struct HwProviderHealth {
     public var provider: HwProvider
     public var healthy: Bool
     public var status: UInt16?
+    public var reason: HwHealthReason
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(provider: HwProvider, healthy: Bool, status: UInt16?) {
+    public init(provider: HwProvider, healthy: Bool, status: UInt16?, reason: HwHealthReason) {
         self.provider = provider
         self.healthy = healthy
         self.status = status
+        self.reason = reason
     }
 }
 
@@ -5275,6 +5278,9 @@ extension HwProviderHealth: Equatable, Hashable {
         if lhs.status != rhs.status {
             return false
         }
+        if lhs.reason != rhs.reason {
+            return false
+        }
         return true
     }
 
@@ -5282,6 +5288,7 @@ extension HwProviderHealth: Equatable, Hashable {
         hasher.combine(provider)
         hasher.combine(healthy)
         hasher.combine(status)
+        hasher.combine(reason)
     }
 }
 
@@ -5295,7 +5302,8 @@ public struct FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer {
             try HwProviderHealth(
                 provider: FfiConverterTypeHwProvider.read(from: &buf), 
                 healthy: FfiConverterBool.read(from: &buf), 
-                status: FfiConverterOptionUInt16.read(from: &buf)
+                status: FfiConverterOptionUInt16.read(from: &buf), 
+                reason: FfiConverterTypeHwHealthReason.read(from: &buf)
         )
     }
 
@@ -5303,6 +5311,7 @@ public struct FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer {
         FfiConverterTypeHwProvider.write(value.provider, into: &buf)
         FfiConverterBool.write(value.healthy, into: &buf)
         FfiConverterOptionUInt16.write(value.status, into: &buf)
+        FfiConverterTypeHwHealthReason.write(value.reason, into: &buf)
     }
 }
 
@@ -10810,6 +10819,82 @@ public func FfiConverterTypeHwEnglishSpelling_lower(_ value: HwEnglishSpelling) 
 
 
 extension HwEnglishSpelling: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Why a provider health probe came out the way it did. Mirrors
+ * `hw_net::HealthReason`. Hosts map this onto their own states (issue #779) —
+ * none of them re-derives it from the raw status.
+ */
+
+public enum HwHealthReason {
+    
+    case healthy
+    case unauthorized
+    case unreachable
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwHealthReason: FfiConverterRustBuffer {
+    typealias SwiftType = HwHealthReason
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwHealthReason {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .healthy
+        
+        case 2: return .unauthorized
+        
+        case 3: return .unreachable
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwHealthReason, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .healthy:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .unauthorized:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unreachable:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwHealthReason_lift(_ buf: RustBuffer) throws -> HwHealthReason {
+    return try FfiConverterTypeHwHealthReason.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwHealthReason_lower(_ value: HwHealthReason) -> RustBuffer {
+    return FfiConverterTypeHwHealthReason.lower(value)
+}
+
+
+
+extension HwHealthReason: Equatable, Hashable {}
 
 
 
@@ -16432,6 +16517,20 @@ public func cloudSttDefaultModelId(id: String) -> String? {
 })
 }
 /**
+ * The STT provider a CLOUD mode runs on, given its stored `cloudProvider`:
+ * null, empty or whitespace means `"hyperwhisper"` (HyperWhisper Cloud);
+ * anything else is `cloud_stt_normalize_cloud_provider`'s folded, lowercased
+ * provider. A read rule only: storage and `GET /modes` keep the blank value.
+ * Call it only for a cloud mode — a local mode's null is deliberate.
+ */
+public func cloudSttEffectiveModeCloudProvider(value: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_effective_mode_cloud_provider(
+        FfiConverterOptionString.lower(value),$0
+    )
+})
+}
+/**
  * Every cloud STT provider row, in catalog order.
  */
 public func cloudSttEntries() -> [SttEntry] {
@@ -18821,6 +18920,19 @@ public func statsSavedMinutesCeiling() -> Int32 {
 })
 }
 /**
+ * Remove Whisper's non-speech markers (a blank-audio tag, `(silence)`,
+ * `[inaudible]`, `[ Music ]`, `(applause)` and kin) and trim. Marker-only input
+ * returns `""`; a bracket the speaker dictated survives. One rule for every
+ * head (issue #1811); cases in `shared-conformance/whisper-marker-vectors.json`.
+ */
+public func stripWhisperNonSpeechMarkers(text: String) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_strip_whisper_non_speech_markers(
+        FfiConverterString.lower(text),$0
+    )
+})
+}
+/**
  * Lenient wrapper handling for plain transcription text: extract wrapped content
  * if present, else return the text (stray end-tags stripped). For raw-transcript
  * sites where the strict `extract_cleaned_from_wrapped` would wipe a valid result.
@@ -19076,6 +19188,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id() != 30462) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_effective_mode_cloud_provider() != 47299) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_entries() != 14647) {
@@ -19703,6 +19818,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling() != 6847) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_strip_whisper_non_speech_markers() != 49359) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers() != 55122) {

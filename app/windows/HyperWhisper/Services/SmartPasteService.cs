@@ -7,8 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Automation;
 using System.Windows.Media.Imaging;
-using GregsStack.InputSimulatorStandard;
-using GregsStack.InputSimulatorStandard.Native;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Platform;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
@@ -39,7 +37,7 @@ namespace HyperWhisper.Services;
 /// - Cancels pending restoration when new recording starts
 ///
 /// USES:
-/// - InputSimulator for reliable Ctrl+V simulation
+/// - SyntheticKeyboard (SendInput, stamped with the HyperWhisper marker) for Ctrl+V
 /// - Win32 SetForegroundWindow to reactivate previous app
 /// - AllowSetForegroundWindow to bypass foreground restrictions
 ///
@@ -173,7 +171,6 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     // INSTANCE FIELDS
     // =========================================================================
 
-    private readonly InputSimulator _inputSimulator;
     private IntPtr _previousForegroundWindow;
     private uint _previousThreadId;
     private IntPtr _previousFocusedChild;
@@ -199,6 +196,14 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     // treats the transcript as left on the clipboard on purpose (secure field,
     // restore off) and drops the mark and the snapshot.
     private uint _unscheduledTranscriptClipboardSequence;
+
+    // The clipboard sequence number a restore expects to find (#1583): the one
+    // read right after this service last wrote a transcript, or, before any
+    // write, the one read when the snapshot was taken. Any other number means
+    // something else wrote to the clipboard since (the user copied something
+    // new), so the restore must leave the clipboard alone. 0 = unknown (the
+    // number could not be read), which restores as before.
+    private uint _restoreExpectedClipboardSequence;
     private readonly object _clipboardLock = new();
     private bool _disposed;
 
@@ -225,8 +230,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
     public SmartPasteService()
     {
-        _inputSimulator = new InputSimulator();
-        SendModifierKeyEvent = SendModifierKeyEventWithInputSimulator;
+        SendModifierKeyEvent = SendModifierKeyEventWithSendInput;
     }
 
     void PlatformContracts.ITextInjectionService.CaptureTarget()
@@ -423,7 +427,9 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             {
                 // Keep _savedClipboardData as it is, null included: an empty
                 // clipboard before the first dictation stays "nothing to restore",
-                // exactly as after a single dictation.
+                // exactly as after a single dictation. The restore's expected
+                // sequence number stays the previous transcript's (#1583), so a
+                // copy made before this session writes anything still counts.
                 LoggingService.Info(
                     "SmartPasteService: Clipboard still holds the previous transcript; keeping the earlier clipboard snapshot");
                 _isInRecordingSession = true;
@@ -432,6 +438,12 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
             _savedClipboardData = null;
             _ownTranscriptClipboardSequence = 0;
+
+            // Read BEFORE the capture (#1583): a write that lands while the
+            // formats are being read moves the number, and the restore then
+            // leaves that newer content alone instead of trusting a snapshot
+            // that may be half old, half new.
+            _restoreExpectedClipboardSequence = GetClipboardSequenceNumber();
 
             try
             {
@@ -536,9 +548,28 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     {
         lock (_clipboardLock)
         {
+            var sequence = GetClipboardSequenceNumber();
             _ownTranscriptClipboardSequence = 0;
-            _unscheduledTranscriptClipboardSequence = GetClipboardSequenceNumber();
+            _unscheduledTranscriptClipboardSequence = sequence;
+            // Whatever restore runs next must find this transcript (#1583).
+            _restoreExpectedClipboardSequence = sequence;
         }
+    }
+
+    /// <summary>
+    /// Whether something other than this service has written to the clipboard
+    /// since its last transcript write (or since the snapshot, when nothing was
+    /// written), so the clipboard no longer holds what the restore would replace
+    /// (#1583). False when either number cannot be read: then the restore runs
+    /// as it did before. Callers hold _clipboardLock.
+    /// </summary>
+    private bool ClipboardChangedSinceOwnWrite()
+    {
+        if (_restoreExpectedClipboardSequence == 0)
+            return false;
+
+        var current = GetClipboardSequenceNumber();
+        return current != 0 && current != _restoreExpectedClipboardSequence;
     }
 
     /// <summary>
@@ -752,6 +783,20 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
                 return true;
             }
 
+            // #1583: put the snapshot back only over the app's own transcript.
+            // If the user (or anything) copied something after it, that copy is
+            // now the user's clipboard: keep it, and drop the stale snapshot so
+            // no later restore writes it back either. This is not a failure.
+            if (ClipboardChangedSinceOwnWrite())
+            {
+                _savedClipboardData = null;
+                _ownTranscriptClipboardSequence = 0;
+                _restoreExpectedClipboardSequence = 0;
+                LoggingService.Info(
+                    "SmartPasteService: Clipboard changed since the transcript was written; skipped the restore and dropped the clipboard snapshot");
+                return true;
+            }
+
             // Make a local copy of the data to restore
             var dataToRestore = _savedClipboardData;
 
@@ -810,6 +855,9 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
                     Clipboard.SetDataObject(dataObject, true);
                     // The clipboard holds the user's content again, not a transcript.
                     _ownTranscriptClipboardSequence = 0;
+                    // A snapshot kept for the rest of a recording session may be
+                    // restored again; that is fine only over this very write.
+                    _restoreExpectedClipboardSequence = GetClipboardSequenceNumber();
                     LoggingService.Info($"SmartPasteService: Restored clipboard with {restoredFormats.Count} format(s): {string.Join(", ", restoredFormats)}");
                     return true;
                 }
@@ -1109,9 +1157,9 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             // while this method reports Pasted (#1495). Release it first.
             ReleaseHeldModifiersBeforePaste();
 
-            _inputSimulator.Keyboard.ModifiedKeyStroke(
-                VirtualKeyCode.CONTROL,
-                VirtualKeyCode.VK_V);
+            // Stamped with HyperWhisper's marker, so push-to-talk bound to Ctrl
+            // does not read this generic VK_CONTROL as the user's press (#1851).
+            SyntheticKeyboard.Send(SyntheticKeyboard.CtrlV);
 
             LoggingService.Info("SmartPasteService: Sent Ctrl+V to paste text");
             ReportSmartPasteOutcome(PasteOutcome.Pasted, attempt);
@@ -1126,20 +1174,15 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     }
 
     /// <summary>
-    /// Sends one synthetic key event of a release plan. InputSimulator in
-    /// production (it sets the extended-key flag for Right Alt and the Win keys);
-    /// the smoke suite records the events instead of typing them.
+    /// Sends one synthetic key event of a release plan. SyntheticKeyboard in
+    /// production (it sets the extended-key flag for Right Alt and stamps the
+    /// HyperWhisper marker push-to-talk ignores); the smoke suite records the
+    /// events instead of typing them.
     /// </summary>
     internal Action<PasteKeyEvent> SendModifierKeyEvent { get; set; }
 
-    private void SendModifierKeyEventWithInputSimulator(PasteKeyEvent keyEvent)
-    {
-        var key = (VirtualKeyCode)keyEvent.Vk;
-        if (keyEvent.KeyUp)
-            _inputSimulator.Keyboard.KeyUp(key);
-        else
-            _inputSimulator.Keyboard.KeyDown(key);
-    }
+    private static void SendModifierKeyEventWithSendInput(PasteKeyEvent keyEvent)
+        => SyntheticKeyboard.Send(new[] { keyEvent });
 
     /// <summary>
     /// Releases any Shift, Alt or Win key that is still down, so the Ctrl+V that
@@ -1430,6 +1473,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             _savedClipboardData = null;
             _ownTranscriptClipboardSequence = 0;
             _unscheduledTranscriptClipboardSequence = 0;
+            _restoreExpectedClipboardSequence = 0;
 
             LoggingService.Debug("SmartPasteService: Disposed");
         }

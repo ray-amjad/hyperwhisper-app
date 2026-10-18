@@ -118,7 +118,7 @@
 
   <!-- Home Page -->
   <data name="home.welcome.title" xml:space="preserve">
-    <value>Welcome to HyperWhisper</value>
+    <value>歡迎使用 HyperWhisper</value>
   </data>
 
   <!-- History Page -->
@@ -165,28 +165,28 @@
     <value>顯示原始</value>
   </data>
   <data name="history.action.deleteSelected" xml:space="preserve">
-    <value>Delete Selected</value>
+    <value>刪除所選項目</value>
   </data>
   <data name="history.selection.count" xml:space="preserve">
     <value>已選取 {0} 筆錄音</value>
   </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
-    <value>Audio file not available</value>
+    <value>無法使用音訊檔案</value>
   </data>
   <data name="history.audio.loadFailed" xml:space="preserve">
     <value>無法載入音訊檔案</value>
   </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
-    <value>Original</value>
+    <value>原始</value>
   </data>
   <data name="history.context.retryWith" xml:space="preserve">
     <value>重試...</value>
   </data>
   <data name="history.empty.noRecordings" xml:space="preserve">
-    <value>No recordings yet</value>
+    <value>尚無錄音</value>
   </data>
   <data name="history.status.retrying" xml:space="preserve">
-    <value>Retrying...</value>
+    <value>正在重試...</value>
   </data>
 
   <!-- Modes Page -->
@@ -217,22 +217,22 @@
 
   <!-- Mode Editor -->
   <data name="mode.editor.title.create" xml:space="preserve">
-    <value>Create New Mode</value>
+    <value>建立新模式</value>
   </data>
   <data name="mode.editor.title.edit" xml:space="preserve">
-    <value>Edit Mode</value>
+    <value>編輯模式</value>
   </data>
   <data name="mode.editor.field.name" xml:space="preserve">
-    <value>Name</value>
+    <value>名稱</value>
   </data>
   <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
     <value>這是預設模式，因此無法變更其名稱。你可以重新命名其他任何模式。</value>
   </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
-    <value>Provider</value>
+    <value>服務商</value>
   </data>
   <data name="mode.editor.field.language" xml:space="preserve">
-    <value>Language</value>
+    <value>語言</value>
   </data>
   <data name="mode.editor.field.source" xml:space="preserve">
     <value>來源</value>
@@ -250,13 +250,13 @@
     <value>{0} (推薦)</value>
   </data>
   <data name="mode.editor.section.basic" xml:space="preserve">
-    <value>Basic Settings</value>
+    <value>基本設定</value>
   </data>
   <data name="mode.editor.section.transcription" xml:space="preserve">
-    <value>Transcription Model</value>
+    <value>轉錄模型</value>
   </data>
   <data name="mode.editor.section.postProcessing" xml:space="preserve">
-    <value>Post Processing</value>
+    <value>後處理</value>
   </data>
   <data name="mode.editor.section.punctuation" xml:space="preserve">
     <value>標點符號</value>
@@ -270,7 +270,7 @@
     <value>這有助於軟件識別名字、首字母縮寫詞、俚語或混合語言時使用的其他語言的詞語。</value>
   </data>
   <data name="common.update" xml:space="preserve">
-    <value>Update</value>
+    <value>更新</value>
   </data>
   <data name="vocabulary.word.column" xml:space="preserve">
     <value>詞彙/短語</value>
@@ -308,35 +308,35 @@
 
   <!-- Settings Page -->
   <data name="settings.title" xml:space="preserve">
-    <value>Settings</value>
+    <value>設定</value>
   </data>
   <!-- Settings Navigation -->
   <data name="settings.nav.general" xml:space="preserve">
-    <value>General</value>
+    <value>一般</value>
   </data>
   <data name="settings.nav.appearance" xml:space="preserve">
-    <value>Appearance</value>
+    <value>外觀</value>
   </data>
   <data name="settings.nav.cloud" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="settings.nav.storage" xml:space="preserve">
-    <value>Storage</value>
+    <value>儲存</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
     <value>模型庫</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
-    <value>API Keys</value>
+    <value>API 金鑰</value>
   </data>
   <data name="settings.nav.output" xml:space="preserve">
-    <value>Text Output</value>
+    <value>文字輸出</value>
   </data>
   <data name="settings.nav.shortcuts" xml:space="preserve">
-    <value>Shortcuts</value>
+    <value>快速鍵</value>
   </data>
   <data name="settings.nav.about" xml:space="preserve">
-    <value>About</value>
+    <value>關於</value>
   </data>
   <data name="settings.section.storage" xml:space="preserve">
     <value>儲存</value>
@@ -354,18 +354,18 @@
     <value>文字輸出</value>
   </data>
   <data name="settings.section.about" xml:space="preserve">
-    <value>About</value>
+    <value>關於</value>
   </data>
 
   <!-- Settings - General -->
   <data name="settings.general.title" xml:space="preserve">
-    <value>General</value>
+    <value>一般</value>
   </data>
   <data name="settings.general.launchAtLogin.title" xml:space="preserve">
     <value>登入時啟動</value>
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
-    <value>Start HyperWhisper automatically when you log in.</value>
+    <value>登入時自動啟動 HyperWhisper。</value>
   </data>
   <data name="settings.general.launchAtLogin.isolatedProfileNote" xml:space="preserve">
     <value>在測試設定檔中無法使用。此版本使用獨立的應用程式資料資料夾，因此不會變更已安裝應用程式的登入項目。</value>
@@ -374,25 +374,25 @@
     <value>最小化啟動</value>
   </data>
   <data name="settings.general.launchMinimized.subtitle" xml:space="preserve">
-    <value>Start HyperWhisper hidden in the system tray.</value>
+    <value>啟動 HyperWhisper 時隱藏在系統匣中。</value>
   </data>
   <data name="settings.general.minimizeToTray.title" xml:space="preserve">
-    <value>Minimize to system tray</value>
+    <value>最小化至系統匣</value>
   </data>
   <data name="settings.general.minimizeToTray.subtitle" xml:space="preserve">
-    <value>Closing the window minimizes to tray instead of quitting</value>
+    <value>關閉視窗時最小化至系統匣，而不是結束程式</value>
   </data>
   <data name="settings.general.showRecordingWindow.title" xml:space="preserve">
     <value>顯示錄音視窗</value>
   </data>
   <data name="settings.general.showRecordingWindow.subtitle" xml:space="preserve">
-    <value>Display the recording overlay with audio visualization</value>
+    <value>顯示含音訊視覺效果的錄音浮動視窗</value>
   </data>
   <data name="settings.general.errorLogging.title" xml:space="preserve">
     <value>錯誤日誌</value>
   </data>
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
-    <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
+    <value>自動傳送當機報告，協助我們修正問題。您的轉錄內容絕不會被傳送。</value>
   </data>
   <data name="settings.general.shareSpeedData.title" xml:space="preserve">
     <value>分享匿名速度資料</value>
@@ -407,36 +407,36 @@
     <value>自動更新</value>
   </data>
   <data name="settings.general.autoUpdate.subtitle" xml:space="preserve">
-    <value>Silently check for new versions on startup</value>
+    <value>啟動時在背景檢查新版本</value>
   </data>
 
   <!-- Settings - Appearance -->
   <data name="settings.appearance.title" xml:space="preserve">
-    <value>Appearance</value>
+    <value>外觀</value>
   </data>
   <data name="settings.appearance.theme.title" xml:space="preserve">
-    <value>Theme</value>
+    <value>主題</value>
   </data>
   <data name="settings.appearance.theme.subtitle" xml:space="preserve">
-    <value>Choose your preferred color scheme</value>
+    <value>選擇您偏好的色彩配置</value>
   </data>
   <data name="settings.appearance.theme.system" xml:space="preserve">
-    <value>System default</value>
+    <value>系統預設</value>
   </data>
   <data name="settings.appearance.theme.system.subtitle" xml:space="preserve">
-    <value>Automatically switch between light and dark based on Windows settings</value>
+    <value>根據 Windows 設定自動切換淺色與深色</value>
   </data>
   <data name="settings.appearance.theme.light" xml:space="preserve">
-    <value>Light</value>
+    <value>淺色</value>
   </data>
   <data name="settings.appearance.theme.light.subtitle" xml:space="preserve">
-    <value>Always use light theme with bright backgrounds</value>
+    <value>一律使用明亮背景的淺色主題</value>
   </data>
   <data name="settings.appearance.theme.dark" xml:space="preserve">
-    <value>Dark</value>
+    <value>深色</value>
   </data>
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
-    <value>Always use dark theme for reduced eye strain</value>
+    <value>一律使用深色主題，減輕眼睛疲勞</value>
   </data>
   <data name="settings.appearance.theme.restart.title" xml:space="preserve">
     <value>需要重新啟動</value>
@@ -467,34 +467,34 @@
     <value>重新整理</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
-    <value>minutes remaining</value>
+    <value>剩餘分鐘數</value>
   </data>
   <data name="settings.credits.loading" xml:space="preserve">
     <value>載入額度餘額中...</value>
   </data>
   <data name="settings.credits.lowWarning" xml:space="preserve">
-    <value>Your credits are running low. Consider adding more credits to continue using HyperWhisper Cloud.</value>
+    <value>您的額度即將用完。建議購買更多額度，以繼續使用 HyperWhisper Cloud。</value>
   </data>
   <data name="settings.credits.exhaustedWarning" xml:space="preserve">
-    <value>Your credits are exhausted. Add credits to continue using HyperWhisper Cloud transcription.</value>
+    <value>您的額度已用完。請購買額度以繼續使用 HyperWhisper Cloud 轉錄。</value>
   </data>
   <data name="settings.credits.accountInfo.title" xml:space="preserve">
-    <value>Account Information</value>
+    <value>帳戶資訊</value>
   </data>
   <data name="settings.credits.accountInfo.credits" xml:space="preserve">
-    <value>Credits</value>
+    <value>額度</value>
   </data>
   <data name="settings.credits.accountInfo.costPerMinute" xml:space="preserve">
-    <value>Cost per Minute</value>
+    <value>每分鐘費用</value>
   </data>
   <data name="settings.credits.accountInfo.accountType" xml:space="preserve">
-    <value>Account Type</value>
+    <value>帳戶類型</value>
   </data>
   <data name="settings.credits.accountInfo.customerId" xml:space="preserve">
-    <value>Customer ID</value>
+    <value>客戶 ID</value>
   </data>
   <data name="settings.credits.accountInfo.dailyReset" xml:space="preserve">
-    <value>Daily Reset</value>
+    <value>每日重設</value>
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>無法載入額度餘額</value>
@@ -554,78 +554,78 @@
     <value>AI 驅動的文字增強和格式化的 API 金鑰。</value>
   </data>
   <data name="settings.api.invalidKey.title" xml:space="preserve">
-    <value>Invalid Key</value>
+    <value>金鑰無效</value>
   </data>
   <data name="settings.api.invalidKey.openai" xml:space="preserve">
-    <value>Invalid API key format. OpenAI keys should start with 'sk-'.</value>
+    <value>API 金鑰格式無效。OpenAI 金鑰必須以「sk-」開頭。</value>
   </data>
   <data name="settings.api.invalidKey.groq" xml:space="preserve">
-    <value>Invalid API key format. Groq keys should start with 'gsk_'.</value>
+    <value>API 金鑰格式無效。Groq 金鑰必須以「gsk_」開頭。</value>
   </data>
   <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
-    <value>Invalid API key format. Anthropic keys should start with 'sk-ant-'.</value>
+    <value>API 金鑰格式無效。Anthropic 金鑰必須以「sk-ant-」開頭。</value>
   </data>
   <data name="settings.api.invalidKey.gemini" xml:space="preserve">
-    <value>Invalid API key format. Google API keys should start with 'AIza'.</value>
+    <value>API 金鑰格式無效。Google API 金鑰必須以「AIza」開頭。</value>
   </data>
   <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
-    <value>Invalid API key format. Cerebras keys should start with 'csk-'.</value>
+    <value>API 金鑰格式無效。Cerebras 金鑰必須以「csk-」開頭。</value>
   </data>
   <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
-    <value>Invalid API key format. Deepgram keys should be at least 32 characters.</value>
+    <value>API 金鑰格式無效。Deepgram 金鑰至少須包含 32 個字元。</value>
   </data>
   <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
-    <value>Invalid API key format. AssemblyAI keys should be at least 32 characters.</value>
+    <value>API 金鑰格式無效。AssemblyAI 金鑰至少須包含 32 個字元。</value>
   </data>
   <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
-    <value>Invalid API key format. ElevenLabs keys should start with 'sk_'.</value>
+    <value>API 金鑰格式無效。ElevenLabs 金鑰必須以「sk_」開頭。</value>
   </data>
   <data name="settings.api.invalidKey.mistral" xml:space="preserve">
-    <value>Invalid API key format. Mistral keys should be at least 20 characters.</value>
+    <value>API 金鑰格式無效。Mistral 金鑰至少須包含 20 個字元。</value>
   </data>
   <data name="settings.api.invalidKey.grok" xml:space="preserve">
     <value>API 金鑰格式無效。Grok 金鑰必須以 「xai-」 開頭，且至少包含 20 個字元。</value>
   </data>
   <data name="settings.api.show" xml:space="preserve">
-    <value>Show</value>
+    <value>顯示</value>
   </data>
   <data name="settings.api.hide" xml:space="preserve">
-    <value>Hide</value>
+    <value>隱藏</value>
   </data>
   <!-- API Provider Descriptions - Transcription -->
   <data name="settings.api.provider.openai.description" xml:space="preserve">
-    <value>OpenAI's Whisper API for cloud-based transcription</value>
+    <value>OpenAI 的 Whisper API，用於雲端轉錄</value>
   </data>
   <data name="settings.api.provider.groq.description" xml:space="preserve">
-    <value>Groq Cloud's fast Whisper API with low latency</value>
+    <value>Groq Cloud 的快速 Whisper API，延遲低</value>
   </data>
   <data name="settings.api.provider.deepgram.description" xml:space="preserve">
-    <value>Deepgram Nova family models with domain-specific tuning</value>
+    <value>Deepgram Nova 系列模型，具備特定領域調校</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
     <value>AssemblyAI 的 Universal-2 和 Universal-3 Pro 語音轉文字模型</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
-    <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
+    <value>ElevenLabs Scribe 轉錄，提供豐富的時間戳記與說話者辨識</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
     <value>Mistral 的 Voxtral 轉錄和用於文字增強的 Mistral 模型</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
-    <value>OpenAI's GPT models for text enhancement</value>
+    <value>OpenAI 的 GPT 模型，用於文字增強</value>
   </data>
   <data name="settings.api.provider.anthropic.description" xml:space="preserve">
-    <value>Anthropic's Claude models for advanced text processing</value>
+    <value>Anthropic 的 Claude 模型，用於進階文字處理</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
     <value>Google 的 Gemini 模型，用於轉錄和文字增強</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
-    <value>Groq's ultra-fast LLM inference for text enhancement</value>
+    <value>Groq 的超高速 LLM 推論，用於文字增強</value>
   </data>
   <data name="settings.api.provider.cerebras.description" xml:space="preserve">
-    <value>Cerebras ultra-fast inference for text enhancement</value>
+    <value>Cerebras 超高速推論，用於文字增強</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
     <value>SpaceXAI Grok 語音轉文字 API</value>
@@ -651,13 +651,13 @@
     <value>貼上後恢復先前的剪貼板內容</value>
   </data>
   <data name="settings.output.clipboard.section" xml:space="preserve">
-    <value>Clipboard</value>
+    <value>剪貼簿</value>
   </data>
   <data name="settings.output.restoreDelay.subtitle" xml:space="preserve">
-    <value>Delay before restoring clipboard contents</value>
+    <value>還原剪貼簿內容前的延遲時間</value>
   </data>
   <data name="settings.output.restoreDelay.title" xml:space="preserve">
-    <value>Restore Delay</value>
+    <value>還原延遲</value>
   </data>
 
   <!-- Settings - Shortcuts -->
@@ -681,22 +681,22 @@
 
   <!-- Settings - About -->
   <data name="settings.about.checkUpdates" xml:space="preserve">
-    <value>Check for Updates</value>
+    <value>檢查更新</value>
   </data>
   <data name="settings.about.checkingForUpdates" xml:space="preserve">
-    <value>Checking...</value>
+    <value>正在檢查...</value>
   </data>
   <data name="settings.about.updateCheckFailed.title" xml:space="preserve">
-    <value>Update Check Failed</value>
+    <value>檢查更新失敗</value>
   </data>
   <data name="settings.about.updateCheckFailed.message" xml:space="preserve">
-    <value>Failed to check for updates: {0}</value>
+    <value>無法檢查更新：{0}</value>
   </data>
   <data name="settings.about.appTitle" xml:space="preserve">
     <value>HyperWhisper</value>
   </data>
   <data name="settings.about.openLogFolder" xml:space="preserve">
-    <value>Open Log Folder</value>
+    <value>開啟記錄檔資料夾</value>
   </data>
 
   <!-- Recording Overlay -->
@@ -718,7 +718,7 @@
 
   <!-- Error Messages -->
   <data name="errors.noSpeechDetected" xml:space="preserve">
-    <value>No speech detected in the recording.</value>
+    <value>錄音中未偵測到語音。</value>
   </data>
   <data name="errors.microphoneSentNoAudio" xml:space="preserve">
     <value>所選麥克風沒有傳來任何音訊。請檢查輸入裝置後重試。</value>
@@ -749,16 +749,16 @@
 
   <!-- Audio Errors -->
   <data name="audio.error.notRecording" xml:space="preserve">
-    <value>Not currently recording</value>
+    <value>目前未在錄音</value>
   </data>
   <data name="audio.error.recordingPathNotSet" xml:space="preserve">
-    <value>Internal error: recording path not set</value>
+    <value>內部錯誤：未設定錄音路徑</value>
   </data>
   <data name="audio.error.stopRecordingFailed" xml:space="preserve">
-    <value>Failed to stop recording</value>
+    <value>無法停止錄音</value>
   </data>
   <data name="audio.error.enumerationFailed" xml:space="preserve">
-    <value>Failed to enumerate audio devices</value>
+    <value>無法列舉音訊裝置</value>
   </data>
 
   <!-- Settings - Models -->
@@ -766,91 +766,94 @@
     <value>下載</value>
   </data>
   <data name="settings.models.download.cancelled" xml:space="preserve">
-    <value>Download was cancelled by the user</value>
+    <value>使用者已取消下載</value>
   </data>
   <data name="settings.models.download.failed" xml:space="preserve">
-    <value>Download failed: {0}</value>
+    <value>下載失敗：{0}</value>
   </data>
 
   <!-- Post-Processing -->
   <data name="postprocessing.error.apiKeyNotSet" xml:space="preserve">
-    <value>Post-processing disabled - API key not set</value>
+    <value>後處理已停用 - 未設定 API 金鑰</value>
   </data>
   <data name="postprocessing.error.failed" xml:space="preserve">
-    <value>Post-processing failed, using original text</value>
+    <value>後處理失敗，改用原始文字</value>
   </data>
 
   <!-- Status Messages -->
   <data name="status.ready.withHotkey" xml:space="preserve">
-    <value>Ready - Press {0} to record</value>
+    <value>就緒 - 按 {0} 開始錄音</value>
   </data>
   <data name="status.audio.enumerationFailed" xml:space="preserve">
-    <value>Failed to enumerate audio devices</value>
+    <value>無法列舉音訊裝置</value>
   </data>
   <data name="status.model.loading" xml:space="preserve">
-    <value>Loading {0}...</value>
+    <value>正在載入 {0}...</value>
   </data>
   <data name="status.model.ready" xml:space="preserve">
-    <value>{0} (Ready)</value>
+    <value>{0}（已就緒）</value>
   </data>
   <data name="status.model.loadFailed" xml:space="preserve">
-    <value>Load failed</value>
+    <value>載入失敗</value>
   </data>
   <data name="status.failed" xml:space="preserve">
-    <value>Failed: {0}</value>
+    <value>失敗：{0}</value>
   </data>
   <data name="status.mode.none" xml:space="preserve">
-    <value>No mode</value>
+    <value>無模式</value>
   </data>
   <data name="status.model.localReady" xml:space="preserve">
-    <value>Local: {0} ({1} Ready)</value>
+    <value>本機：{0}（{1} 已就緒）</value>
   </data>
   <data name="status.model.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>未知</value>
   </data>
   <data name="status.model.computeReady" xml:space="preserve">
-    <value>{0} ({1} Ready)</value>
+    <value>{0}（{1} 已就緒）</value>
   </data>
   <data name="status.model.downloaded" xml:space="preserve">
-    <value>{0} (Downloaded)</value>
+    <value>{0}（已下載）</value>
   </data>
   <data name="status.model.notDownloaded" xml:space="preserve">
-    <value>{0} (Not downloaded)</value>
+    <value>{0}（未下載）</value>
   </data>
   <data name="status.recordingCancelled" xml:space="preserve">
-    <value>Recording cancelled</value>
+    <value>已取消錄音</value>
   </data>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>已取消檔案轉錄</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>正在轉錄檔案...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>未知</value>
   </data>
 
   <!-- Error Messages - ViewModel -->
   <data name="errors.noMicrophone" xml:space="preserve">
-    <value>No microphone available</value>
+    <value>沒有可用的麥克風</value>
   </data>
   <data name="errors.noModeSelected" xml:space="preserve">
-    <value>No mode selected</value>
+    <value>未選取任何模式</value>
   </data>
   <data name="errors.modelNotDownloaded" xml:space="preserve">
-    <value>Model '{0}' not downloaded</value>
+    <value>模型「{0}」尚未下載</value>
   </data>
   <data name="errors.modelLoadFailed" xml:space="preserve">
-    <value>Failed to load transcription model</value>
+    <value>無法載入轉錄模型</value>
   </data>
   <data name="errors.recordingStartFailed" xml:space="preserve">
-    <value>Failed to start recording</value>
+    <value>無法開始錄音</value>
   </data>
   <data name="errors.transcriptionFailed" xml:space="preserve">
-    <value>Transcription failed: {0}</value>
-  </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
+    <value>轉錄失敗：{0}</value>
   </data>
   <data name="errors.retryFailed" xml:space="preserve">
-    <value>Retry failed: {0}</value>
+    <value>重試失敗：{0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>建立此錄音的模式已被刪除，因此未重試。在歷史記錄中以滑鼠右鍵按一下該錄音，然後選擇「重試...」以選取其他模式。</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>錄音已停止 — 已達到 20 分鐘的安全限制。</value>
@@ -861,159 +864,159 @@
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
-    <value>Enhancing...</value>
+    <value>增強中...</value>
   </data>
 
   <!-- History - Status -->
 
   <!-- History - Retry -->
   <data name="history.context.retryAgain" xml:space="preserve">
-    <value>Retry again</value>
+    <value>再次重試</value>
   </data>
 
   <!-- Modes -->
   <data name="modes.subtitle.local" xml:space="preserve">
-    <value>Local - {0}</value>
+    <value>本機 - {0}</value>
   </data>
 
   <!-- Language -->
   <data name="language.automatic" xml:space="preserve">
-    <value>Automatic</value>
+    <value>自動</value>
   </data>
 
   <!-- Status Bar -->
   <data name="statusbar.mode" xml:space="preserve">
-    <value>Mode: </value>
+    <value>模式：</value>
   </data>
   <data name="statusbar.model" xml:space="preserve">
-    <value>Model: </value>
+    <value>模型：</value>
   </data>
 
   <!-- Recording Overlay - Extended -->
   <data name="recording.cancel.prompt" xml:space="preserve">
-    <value>Cancel?</value>
+    <value>取消？</value>
   </data>
 
   <!-- Mode Editor - Extended -->
   <data name="mode.editor.section.settings" xml:space="preserve">
-    <value>Mode Settings</value>
+    <value>模式設定</value>
   </data>
   <data name="mode.editor.arm64.info" xml:space="preserve">
-    <value>Local transcription is not available on ARM64 Windows. Please use a cloud provider.</value>
+    <value>ARM64 版 Windows 不支援本機轉錄。請使用雲端服務商。</value>
   </data>
   <data name="mode.editor.field.preset" xml:space="preserve">
-    <value>Preset</value>
+    <value>預設集</value>
   </data>
   <data name="mode.editor.preset.hyper" xml:space="preserve">
-    <value>Hyper (Recommended)</value>
+    <value>Hyper（建議）</value>
   </data>
   <data name="mode.editor.preset.message" xml:space="preserve">
-    <value>Message</value>
+    <value>訊息</value>
   </data>
   <data name="mode.editor.preset.mail" xml:space="preserve">
-    <value>Mail</value>
+    <value>郵件</value>
   </data>
   <data name="mode.editor.preset.note" xml:space="preserve">
-    <value>Note</value>
+    <value>筆記</value>
   </data>
   <data name="mode.editor.preset.meeting" xml:space="preserve">
-    <value>Meeting</value>
+    <value>會議</value>
   </data>
   <data name="mode.editor.preset.code" xml:space="preserve">
-    <value>Code</value>
+    <value>程式碼</value>
   </data>
   <data name="mode.editor.preset.custom" xml:space="preserve">
-    <value>Custom</value>
+    <value>自訂</value>
   </data>
   <data name="mode.editor.field.customInstructions" xml:space="preserve">
-    <value>Custom Instructions</value>
+    <value>自訂指令</value>
   </data>
   <data name="mode.editor.field.customInstructions.hint" xml:space="preserve">
-    <value>Define how the AI should process your transcription</value>
+    <value>定義 AI 應如何處理您的轉錄內容</value>
   </data>
   <data name="mode.editor.field.localModel" xml:space="preserve">
-    <value>Local Model</value>
+    <value>本機模型</value>
   </data>
   <data name="mode.editor.field.cloudProvider" xml:space="preserve">
-    <value>Cloud Provider</value>
+    <value>雲端服務商</value>
   </data>
   <data name="mode.editor.field.cloudModel" xml:space="preserve">
-    <value>Cloud Model</value>
+    <value>雲端模型</value>
   </data>
   <data name="modes.cloudAccuracy.title" xml:space="preserve">
-    <value>Cloud Accuracy</value>
+    <value>雲端準確度</value>
   </data>
   <data name="modes.cloudAccuracy.groqWhisper.description" xml:space="preserve">
-    <value>Groq Whisper - fastest transcription, lowest cost</value>
+    <value>Groq Whisper - 轉錄最快，成本最低</value>
   </data>
   <data name="modes.cloudAccuracy.deepgramNova3.description" xml:space="preserve">
-    <value>Deepgram Nova-3 - balanced speed and accuracy</value>
+    <value>Deepgram Nova-3 - 速度與準確度兼顧</value>
   </data>
   <data name="modes.cloudAccuracy.elevenLabsScribeV2.description" xml:space="preserve">
-    <value>ElevenLabs Scribe v2 - highest accuracy, slower</value>
+    <value>ElevenLabs Scribe v2 - 準確度最高，速度較慢</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
     <value>SpaceXAI Grok STT - 高準確度，自訂詞彙作為關鍵詞</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
-    <value>Custom vocabulary is not supported with this provider.</value>
+    <value>此服務商不支援自訂詞彙。</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Parakeet models.</value>
+    <value>Parakeet 模型不支援自訂詞彙。</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
-    <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
+    <value>ElevenLabs Scribe V1 不支援自訂詞彙。</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Base models.</value>
+    <value>Deepgram Base 模型不支援自訂詞彙。</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Deepgram Whisper models.</value>
+    <value>Deepgram Whisper 模型不支援自訂詞彙。</value>
   </data>
   <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
-    <value>Custom vocabulary is disabled when using auto-detect with Nova models. Set a specific language to enable vocabulary boosting.</value>
+    <value>Nova 模型使用自動偵測語言時，會停用自訂詞彙。請設定特定語言以啟用詞彙加權。</value>
   </data>
   <data name="mode.editor.postProcessing.enable" xml:space="preserve">
-    <value>Enable AI Post-Processing</value>
+    <value>啟用 AI 後處理</value>
   </data>
   <data name="mode.editor.postProcessing.provider" xml:space="preserve">
-    <value>Provider</value>
+    <value>服務商</value>
   </data>
   <data name="mode.editor.postProcessing.model" xml:space="preserve">
-    <value>AI Model</value>
+    <value>AI 模型</value>
   </data>
   <data name="mode.editor.postProcessing.englishSpelling" xml:space="preserve">
-    <value>English Spelling</value>
+    <value>英文拼字</value>
   </data>
   <data name="mode.editor.spelling.american" xml:space="preserve">
-    <value>American English</value>
+    <value>美式英文</value>
   </data>
   <data name="mode.editor.spelling.british" xml:space="preserve">
-    <value>British English</value>
+    <value>英式英文</value>
   </data>
   <data name="mode.editor.spelling.australian" xml:space="preserve">
-    <value>Australian English</value>
+    <value>澳洲英文</value>
   </data>
   <data name="mode.editor.spelling.canadian" xml:space="preserve">
-    <value>Canadian English</value>
+    <value>加拿大英文</value>
   </data>
   <data name="mode.editor.spelling.hint" xml:space="preserve">
-    <value>Choose spelling variant for English text</value>
+    <value>選擇英文文字的拼字變體</value>
   </data>
   <data name="mode.editor.postProcessing.punctuation" xml:space="preserve">
-    <value>Add punctuation</value>
+    <value>加入標點符號</value>
   </data>
   <data name="mode.editor.postProcessing.capitalization" xml:space="preserve">
-    <value>Capitalize text</value>
+    <value>大寫文字</value>
   </data>
   <data name="mode.editor.postProcessing.profanityFilter" xml:space="preserve">
-    <value>Filter profanity</value>
+    <value>過濾不雅用語</value>
   </data>
   <data name="mode.editor.postProcessing.screenText" xml:space="preserve">
-    <value>Screen Text</value>
+    <value>螢幕文字</value>
   </data>
   <data name="mode.editor.postProcessing.screenText.hint" xml:space="preserve">
-    <value>Capture visible screen text to improve accuracy of names and terms</value>
+    <value>擷取螢幕上可見的文字，以提高人名與術語的準確度</value>
   </data>  <data name="mode.editor.postProcessing.removeTrailingPeriod" xml:space="preserve">
     <value>刪除結尾句號</value>
   </data>
@@ -1024,49 +1027,49 @@
     <value>新增一律套用於所選預設集之上的指令。</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
-    <value>API Key Required</value>
+    <value>需要 API 金鑰</value>
   </data>
   <!-- Mode Editor - Provider Tooltips -->
   <data name="mode.editor.provider.openai.tooltip" xml:space="preserve">
-    <value>Industry-standard Whisper model with excellent accuracy</value>
+    <value>業界標準的 Whisper 模型，準確度極佳</value>
   </data>
   <data name="mode.editor.provider.groq.tooltip" xml:space="preserve">
-    <value>Ultra-fast inference on Whisper models</value>
+    <value>在 Whisper 模型上進行超高速推論</value>
   </data>
   <data name="mode.editor.provider.deepgram.tooltip" xml:space="preserve">
-    <value>Real-time transcription with custom vocabulary boosting</value>
+    <value>即時轉錄，支援自訂詞彙加權</value>
   </data>
   <data name="mode.editor.provider.assemblyai.tooltip" xml:space="preserve">
-    <value>Accurate transcription with speaker diarization</value>
+    <value>精確轉錄，支援說話者辨識</value>
   </data>
   <data name="mode.editor.provider.elevenlabs.tooltip" xml:space="preserve">
-    <value>High-quality multilingual transcription</value>
+    <value>高品質多語言轉錄</value>
   </data>
   <data name="mode.editor.provider.mistral.tooltip" xml:space="preserve">
-    <value>European AI provider with multilingual support</value>
+    <value>支援多語言的歐洲 AI 服務商</value>
   </data>
   <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
     <value>SpaceXAI Grok 語音轉文字（批次 HTTP）</value>
   </data>
   <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
-    <value>Fast, accurate transcription - no API key required</value>
+    <value>快速、準確的轉錄 - 不需要 API 金鑰</value>
   </data>
   <!-- Mode Editor - Delete Dialogs -->
   <data name="mode.editor.delete.confirm.title" xml:space="preserve">
-    <value>Delete Mode</value>
+    <value>刪除模式</value>
   </data>
   <data name="mode.editor.delete.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to delete the mode "{0}"?
+    <value>確定要刪除模式「{0}」嗎？
 
-This action cannot be undone.</value>
+此動作無法復原。</value>
   </data>
   <data name="mode.editor.delete.cannotDelete.title" xml:space="preserve">
-    <value>Cannot Delete</value>
+    <value>無法刪除</value>
   </data>
   <data name="mode.editor.delete.cannotDelete.message" xml:space="preserve">
-    <value>Cannot delete the last remaining mode.
+    <value>無法刪除僅剩的最後一個模式。
 
-You must have at least one mode.</value>
+您必須至少保留一個模式。</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
@@ -1113,107 +1116,113 @@ You must have at least one mode.</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
-    <value>Failed to initialize database: {0}</value>
+    <value>無法初始化資料庫：{0}</value>
   </data>
   <data name="errors.database.title" xml:space="preserve">
-    <value>Database Error</value>
+    <value>資料庫錯誤</value>
   </data>
   <data name="errors.unhandled.title" xml:space="preserve">
-    <value>HyperWhisper Error</value>
+    <value>HyperWhisper 錯誤</value>
   </data>
   <data name="errors.unhandled.message" xml:space="preserve">
-    <value>Error: {0}</value>
+    <value>錯誤：{0}</value>
   </data>
   <data name="errors.applicationControl.blocked" xml:space="preserve">
     <value>Windows 應用程式控制封鎖了 HyperWhisper 需要的檔案 {0}。請要求您的 IT 系統管理員允許 HyperWhisper，或在 Windows 安全性中檢查智慧型應用程式控制。</value>
   </data>
   <!-- Settings - General errors -->
   <data name="settings.general.startup.enableFailed" xml:space="preserve">
-    <value>Failed to enable launch at startup. Please check if you have permission to modify startup settings.</value>
+    <value>無法啟用開機時啟動。請確認您有權限修改啟動設定。</value>
   </data>
   <data name="settings.general.startup.disableFailed" xml:space="preserve">
-    <value>Failed to disable launch at startup. Please check if you have permission to modify startup settings.</value>
+    <value>無法停用開機時啟動。請確認您有權限修改啟動設定。</value>
   </data>
   <!-- Settings - Models -->
   <data name="settings.models.downloadFailed.title" xml:space="preserve">
-    <value>Download Failed</value>
+    <value>下載失敗</value>
   </data>
   <data name="settings.models.downloadFailed.message" xml:space="preserve">
-    <value>Failed to download {0}:
+    <value>無法下載 {0}：
 
 {1}</value>
   </data>
   <data name="settings.models.delete.confirm.title" xml:space="preserve">
-    <value>Delete Model</value>
+    <value>刪除模型</value>
   </data>
   <data name="settings.models.delete.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to delete {0}?
+    <value>確定要刪除 {0} 嗎？
 
-You can re-download it later.</value>
+您之後可以重新下載。</value>
   </data>
   <data name="settings.models.deleteFailed.title" xml:space="preserve">
-    <value>Delete Failed</value>
+    <value>刪除失敗</value>
   </data>
   <data name="settings.models.deleteFailed.message" xml:space="preserve">
-    <value>Failed to delete {0}:
+    <value>無法刪除 {0}：
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>模型使用中</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>「{1}」模式正在使用 {0}。請先將該模式切換至其他模型，再刪除它。</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
-    <value>Deactivate License</value>
+    <value>停用授權</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
     <value>確定要停用此裝置嗎？在重新輸入帳戶金鑰之前，雲端轉錄將停止運作。您的點數仍保留在金鑰中。</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
-    <value>Storage</value>
+    <value>儲存</value>
   </data>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
-    <value>Unable to use the selected folder.</value>
+    <value>無法使用所選的資料夾。</value>
   </data>
   <data name="settings.storage.error.openFolder" xml:space="preserve">
     <value>無法開啟錄音資料夾。{0}</value>
   </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
-    <value>Choose a folder for new recordings</value>
+    <value>選擇新錄音的資料夾</value>
   </data>
   <data name="settings.storage.autoDelete.title" xml:space="preserve">
-    <value>Automatic Cleanup</value>
+    <value>自動清理</value>
   </data>
   <data name="settings.storage.autoDelete.subtitle" xml:space="preserve">
-    <value>Automatically delete old recordings to save disk space</value>
+    <value>自動刪除舊的錄音以節省磁碟空間</value>
   </data>
   <data name="settings.storage.autoDelete.deleteAfter" xml:space="preserve">
-    <value>Delete recordings older than</value>
+    <value>刪除早於以下天數的錄音</value>
   </data>
   <data name="settings.storage.autoDelete.days" xml:space="preserve">
-    <value>days</value>
+    <value>天</value>
   </data>
   <data name="settings.storage.autoDelete.deleteNow" xml:space="preserve">
-    <value>Delete Now</value>
+    <value>立即刪除</value>
   </data>
   <data name="settings.storage.autoDelete.deleting" xml:space="preserve">
-    <value>Deleting...</value>
+    <value>正在刪除...</value>
   </data>
   <data name="settings.storage.autoDelete.lastCleanup" xml:space="preserve">
-    <value>Last cleanup: {0} - Deleted {1} recording(s)</value>
+    <value>上次清理：{0} - 已刪除 {1} 個錄音</value>
   </data>
   <data name="settings.storage.autoDelete.noCleanupYet" xml:space="preserve">
-    <value>No cleanup has run yet</value>
+    <value>尚未執行過清理</value>
   </data>
   <data name="settings.storage.autoDelete.confirmDelete.title" xml:space="preserve">
-    <value>Confirm Deletion</value>
+    <value>確認刪除</value>
   </data>
   <data name="settings.storage.autoDelete.confirmDelete.message" xml:space="preserve">
-    <value>This will permanently delete old recordings. Continue?</value>
+    <value>這將永久刪除舊的錄音。要繼續嗎？</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.title" xml:space="preserve">
-    <value>Cleanup Complete</value>
+    <value>清理完成</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
-    <value>Deleted {0} recording(s)</value>
+    <value>已刪除 {0} 個錄音</value>
   </data>
   <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
     <value>清理失敗</value>
@@ -1260,10 +1269,10 @@ You can re-download it later.</value>
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="provider.status.configured" xml:space="preserve">
-    <value>Configured ({0})</value>
+    <value>已設定（{0}）</value>
   </data>
   <data name="provider.status.notConfigured" xml:space="preserve">
-    <value>Not configured</value>
+    <value>未設定</value>
   </data>
 
   <!-- Keyboard Keys -->
@@ -1273,13 +1282,13 @@ You can re-download it later.</value>
 
   <!-- Shortcut Modes -->
   <data name="settings.shortcuts.mode.disabled" xml:space="preserve">
-    <value>Disabled</value>
+    <value>已停用</value>
   </data>
   <data name="settings.shortcuts.mode.modifier" xml:space="preserve">
-    <value>Modifier</value>
+    <value>修飾鍵</value>
   </data>
   <data name="settings.shortcuts.mode.custom" xml:space="preserve">
-    <value>Custom</value>
+    <value>自訂</value>
   </data>
 
   <!-- License Status Descriptions -->
@@ -1290,30 +1299,42 @@ You can re-download it later.</value>
     <value>您的授權金鑰已失效。請在下方輸入新金鑰，或儲值以建立新金鑰。</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
-    <value>Please enter a license key.</value>
+    <value>請輸入授權金鑰。</value>
+  </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>這看起來不像帳戶金鑰。</value>
   </data>
 
   <!-- Models - ARM64 and GPU -->
 
   <!-- Mode Editor - Additional -->
   <data name="mode.editor.model.notDownloaded" xml:space="preserve">
-    <value> - Not Downloaded</value>
+    <value> - 未下載</value>
   </data>
 
   <!-- Modes - ARM64 -->
   <data name="modes.arm64.notAvailable" xml:space="preserve">
-    <value>Not available (ARM64)</value>
+    <value>無法使用（ARM64）</value>
   </data>
 
   <!-- File Transcription -->
   <data name="file.transcribe.dialogTitle" xml:space="preserve">
-    <value>Select Audio File to Transcribe</value>
+    <value>選取要轉錄的音訊檔案</value>
   </data>
   <data name="errors.fileNotFound" xml:space="preserve">
-    <value>File not found</value>
+    <value>找不到檔案</value>
+  </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>已有錄音或檔案轉錄正在進行。完成後請重新嘗試該檔案。</value>
   </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
-    <value>File is too large for this provider. Maximum size: {0}</value>
+    <value>檔案過大，此服務商無法處理。檔案大小上限：{0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>此檔案是空的，沒有可轉錄的音訊。</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>此檔案已損毀，或不是 HyperWhisper 能讀取的音訊檔案。</value>
   </data>
 
   <!-- Mode Change Toast -->
@@ -1574,7 +1595,7 @@ You can re-download it later.</value>
     <value>按住按鍵錄音，完成後放開</value>
   </data>
   <data name="settings.shortcuts.pushToTalk.title" xml:space="preserve">
-    <value>Push to Talk</value>
+    <value>按住說話</value>
   </data>
   <data name="settings.shortcuts.pushToTalk.unassigned" xml:space="preserve">
     <value>未指定</value>
@@ -1597,22 +1618,22 @@ You can re-download it later.</value>
 
   <!-- Local LLM Post-Processing -->
   <data name="provider.localLlm" xml:space="preserve">
-    <value>Local LLM</value>
+    <value>本機 LLM</value>
   </data>
   <data name="settings.api.provider.localLlm.description" xml:space="preserve">
-    <value>Runs on-device and does not need an API key.</value>
+    <value>在裝置端執行，不需要 API 金鑰。</value>
   </data>
   <data name="settings.api.provider.localLlm.status" xml:space="preserve">
-    <value>No API key required</value>
+    <value>不需要 API 金鑰</value>
   </data>
   <data name="settings.api.provider.localLlm.manageModels" xml:space="preserve">
-    <value>Manage Models</value>
+    <value>管理模型</value>
   </data>
   <data name="settings.models.localLlm.hardware.cpuFallback" xml:space="preserve">
-    <value>Runtime: CPU fallback. No GPU acceleration device was detected.</value>
+    <value>執行環境：CPU 回退。未偵測到 GPU 加速裝置。</value>
   </data>
   <data name="settings.models.localLlm.hardware.cudaFirst" xml:space="preserve">
-    <value>CUDA will be tried first, with CPU fallback if loading fails</value>
+    <value>將優先嘗試 CUDA；如果載入失敗則回退到 CPU</value>
   </data>
   <data name="settings.models.localLlm.hardware.vulkanFirst" xml:space="preserve">
     <value>將優先嘗試 Vulkan；如果載入失敗則回退到 CPU</value>
@@ -1621,226 +1642,229 @@ You can re-download it later.</value>
     <value>CPU 回退。此 GPU 不支援本機後處理加速</value>
   </data>
   <data name="settings.models.localLlm.hardware.sharedGpu" xml:space="preserve">
-    <value>Local LLM and Whisper may share GPU memory; use a smaller model if transcription slows.</value>
+    <value>本機 LLM 與 Whisper 可能共用 GPU 記憶體；如果轉錄變慢，請使用較小的模型。</value>
   </data>
   <data name="settings.models.localLlm.hardware.runtimeFormat" xml:space="preserve">
-    <value>Runtime: {0} ({1}). {2}.</value>
+    <value>執行環境：{0}（{1}）。{2}。</value>
   </data>
   <data name="settings.models.localLlm.notDownloadedSuffix" xml:space="preserve">
-    <value> - Not downloaded</value>
+    <value> - 未下載</value>
   </data>
   <data name="settings.models.localLlm.missingModel" xml:space="preserve">
-    <value>Local LLM model '{0}' is not downloaded. Download it in Model Library.</value>
+    <value>本機 LLM 模型「{0}」尚未下載。請在模型庫中下載。</value>
   </data>
   <data name="settings.models.localLlm.diskSpace" xml:space="preserve">
-    <value>Not enough disk space to download {0}. Need {1}, available {2}.</value>
+    <value>磁碟空間不足，無法下載 {0}。需要 {1}，可用 {2}。</value>
   </data>
   <data name="settings.models.localLlm.invalidModelFile" xml:space="preserve">
-    <value>Downloaded file is not a valid GGUF model.</value>
+    <value>下載的檔案不是有效的 GGUF 模型。</value>
   </data>
   <data name="mode.editor.localLlm.openModelsSettings" xml:space="preserve">
-    <value>Open Model Library</value>
+    <value>開啟模型庫</value>
   </data>
   <data name="mode.editor.localLlm.readyDescription" xml:space="preserve">
-    <value>{0} Ready for offline post-processing.</value>
+    <value>{0} 已可進行離線後處理。</value>
   </data>
   <data name="mode.editor.localLlm.downloadDescription" xml:space="preserve">
-    <value>{0} Download it in Model Library first.</value>
+    <value>{0} 請先在模型庫中下載。</value>
   </data>
   <data name="app.badge.pro" xml:space="preserve">
     <value>PRO</value>
   </data>
   <data name="window.caption.minimize" xml:space="preserve">
-    <value>Minimize</value>
+    <value>最小化</value>
   </data>
   <data name="window.caption.maximize" xml:space="preserve">
-    <value>Maximize</value>
+    <value>最大化</value>
   </data>
   <data name="window.caption.close" xml:space="preserve">
-    <value>Close</value>
+    <value>關閉</value>
   </data>
   <data name="common.clear" xml:space="preserve">
-    <value>Clear</value>
+    <value>清除</value>
   </data>
   <data name="common.off" xml:space="preserve">
-    <value>Off</value>
+    <value>關閉</value>
   </data>
   <data name="menu.command.contact.support" xml:space="preserve">
-    <value>Contact Support</value>
+    <value>聯絡支援</value>
   </data>
   <data name="menu.history" xml:space="preserve">
-    <value>History...</value>
+    <value>歷史記錄...</value>
   </data>
   <data name="menu.settings" xml:space="preserve">
-    <value>Settings...</value>
+    <value>設定...</value>
   </data>
   <data name="menu.recording.toggle" xml:space="preserve">
-    <value>Start/Stop Recording</value>
+    <value>開始/停止錄音</value>
   </data>
   <data name="menu.recording.stop" xml:space="preserve">
-    <value>Stop Recording</value>
+    <value>停止錄音</value>
   </data>
   <data name="menu.microphone" xml:space="preserve">
-    <value>Microphone</value>
+    <value>麥克風</value>
   </data>
   <data name="menu.microphone.none" xml:space="preserve">
-    <value>No microphones found</value>
+    <value>找不到麥克風</value>
   </data>
   <data name="menu.select.mode" xml:space="preserve">
-    <value>Select Mode</value>
+    <value>選取模式</value>
   </data>
   <data name="menu.mode.none" xml:space="preserve">
-    <value>No modes available</value>
+    <value>沒有可用的模式</value>
   </data>
   <data name="menu.mode.unnamed" xml:space="preserve">
-    <value>Unnamed</value>
+    <value>未命名</value>
+  </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>更多...</value>
   </data>
   <data name="menu.transcribe.file" xml:space="preserve">
-    <value>Transcribe File</value>
+    <value>轉錄檔案</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
     <value>版本 {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
-    <value>Quit</value>
+    <value>結束</value>
   </data>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
-    <value>Auto-learned</value>
+    <value>自動學習</value>
   </data>
   <data name="vocabulary.manual.badge" xml:space="preserve">
     <value>手動</value>
   </data>
   <data name="settings.nav.streaming" xml:space="preserve">
-    <value>Streaming</value>
+    <value>串流</value>
   </data>
   <data name="settings.general.support.title" xml:space="preserve">
-    <value>Need help?</value>
+    <value>需要協助嗎？</value>
   </data>
   <data name="settings.general.support.openFailed" xml:space="preserve">
-    <value>Could not open the support page: {0}</value>
+    <value>無法開啟支援頁面：{0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
     <value>版本 {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
-    <value>Help Center</value>
+    <value>說明中心</value>
   </data>
   <data name="settings.resources.contact.support" xml:space="preserve">
-    <value>Contact Support</value>
+    <value>聯絡支援</value>
   </data>
   <data name="settings.resources.feedback" xml:space="preserve">
-    <value>Send Feedback</value>
+    <value>傳送意見回饋</value>
   </data>
   <data name="settings.credits.subtitle" xml:space="preserve">
-    <value>Track your HyperWhisper Cloud balance and usage</value>
+    <value>追蹤您的 HyperWhisper Cloud 餘額與使用量</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>SpaceXAI Grok models for text enhancement</value>
+    <value>SpaceXAI Grok 模型，用於文字增強</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.title" xml:space="preserve">
-    <value>Autocapitalize Insert</value>
+    <value>自動大小寫插入</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.subtitle" xml:space="preserve">
-    <value>Match cursor context when inserting text</value>
+    <value>插入文字時配合游標前後文</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.permissionMessage" xml:space="preserve">
-    <value>Some applications (like web browsers and Electron apps) may not expose the focused text field. Autocapitalize Insert will pass through unchanged in those cases — the feature still works in most native editors and Office applications.</value>
+    <value>部分應用程式（例如網頁瀏覽器與 Electron 應用程式）可能不會公開目前焦點所在的文字欄位。在這些情況下，自動大小寫插入會讓文字原樣通過 — 此功能在大多數原生編輯器與 Office 應用程式中仍可運作。</value>
   </data>
   <data name="settings.output.hideClipboardHistory.title" xml:space="preserve">
-    <value>Hide from clipboard history</value>
+    <value>不顯示於剪貼簿歷程記錄</value>
   </data>
   <data name="settings.output.hideClipboardHistory.subtitle" xml:space="preserve">
-    <value>Prevent transcriptions from appearing in Windows clipboard history</value>
+    <value>避免轉錄內容出現在 Windows 剪貼簿歷程記錄中</value>
   </data>
   <data name="settings.storage.showFolder.title" xml:space="preserve">
-    <value>Show recordings folder</value>
+    <value>顯示錄音資料夾</value>
   </data>
   <data name="settings.storage.storeAsM4A.title" xml:space="preserve">
-    <value>Compress recordings to M4A</value>
+    <value>將錄音壓縮為 M4A</value>
   </data>
   <data name="settings.storage.storeAsM4A.subtitle" xml:space="preserve">
-    <value>Converts WAV recordings to smaller files after transcription. Turn off to keep original WAV files.</value>
+    <value>轉錄後將 WAV 錄音轉換為較小的檔案。關閉此選項可保留原始 WAV 檔案。</value>
   </data>
   <data name="settings.about.checkUpdates.description" xml:space="preserve">
-    <value>Look for the latest release.</value>
+    <value>尋找最新版本。</value>
   </data>
   <data name="settings.about.openLogFolder.description" xml:space="preserve">
-    <value>View local diagnostic files.</value>
+    <value>檢視本機診斷檔案。</value>
   </data>
   <data name="settings.about.openLogFolder.failed.title" xml:space="preserve">
-    <value>Could Not Open Log Folder</value>
+    <value>無法開啟記錄檔資料夾</value>
   </data>
   <data name="settings.about.openLogFolder.failed.message" xml:space="preserve">
-    <value>HyperWhisper could not open the log folder. Please try again or export diagnostics instead. Details: {0}</value>
+    <value>HyperWhisper 無法開啟記錄檔資料夾。請再試一次，或改為匯出診斷資料。詳細資料：{0}</value>
   </data>
   <data name="settings.about.exportDiagnostics" xml:space="preserve">
-    <value>Export Diagnostics</value>
+    <value>匯出診斷資料</value>
   </data>
   <data name="settings.about.exportDiagnostics.description" xml:space="preserve">
-    <value>Create a support bundle.</value>
+    <value>建立支援資料包。</value>
   </data>
   <data name="settings.about.exportDiagnostics.dialogTitle" xml:space="preserve">
-    <value>Export HyperWhisper Diagnostics</value>
+    <value>匯出 HyperWhisper 診斷資料</value>
   </data>
   <data name="settings.about.exportDiagnostics.fileFilter" xml:space="preserve">
-    <value>ZIP Archive (*.zip)|*.zip</value>
+    <value>ZIP 壓縮檔 (*.zip)|*.zip</value>
   </data>
   <data name="settings.about.exportDiagnostics.exporting" xml:space="preserve">
-    <value>Exporting...</value>
+    <value>正在匯出...</value>
   </data>
   <data name="settings.about.exportDiagnostics.success.title" xml:space="preserve">
-    <value>Diagnostics Exported</value>
+    <value>已匯出診斷資料</value>
   </data>
   <data name="settings.about.exportDiagnostics.success.message" xml:space="preserve">
-    <value>Diagnostics were exported successfully.</value>
+    <value>已成功匯出診斷資料。</value>
   </data>
   <data name="settings.about.exportDiagnostics.failed.title" xml:space="preserve">
-    <value>Diagnostics Export Failed</value>
+    <value>診斷資料匯出失敗</value>
   </data>
   <data name="settings.about.exportDiagnostics.failed.message" xml:space="preserve">
-    <value>Failed to export diagnostics: {0}</value>
+    <value>無法匯出診斷資料：{0}</value>
   </data>
   <data name="recording.state.streaming" xml:space="preserve">
-    <value>Live</value>
+    <value>即時</value>
   </data>
   <data name="settings.models.directory.show" xml:space="preserve">
-    <value>Show in Explorer</value>
+    <value>在檔案總管中顯示</value>
   </data>
   <data name="settings.models.clearFilters" xml:space="preserve">
-    <value>Clear filters</value>
+    <value>清除篩選條件</value>
   </data>
   <data name="settings.models.empty.noMatches" xml:space="preserve">
-    <value>No models match your filters.</value>
+    <value>沒有符合篩選條件的模型。</value>
   </data>
   <data name="settings.models.empty.filtered" xml:space="preserve">
-    <value>No models match: {0}.</value>
+    <value>沒有符合的模型：{0}。</value>
   </data>
   <data name="settings.models.empty.noneAvailable" xml:space="preserve">
-    <value>No models are available.</value>
+    <value>沒有可用的模型。</value>
   </data>
   <data name="settings.models.empty.filter.search" xml:space="preserve">
-    <value>search &quot;{0}&quot;</value>
+    <value>搜尋「{0}」</value>
   </data>
   <data name="settings.models.feature.vocabulary" xml:space="preserve">
-    <value>custom vocabulary</value>
+    <value>自訂詞彙</value>
   </data>
   <data name="statusbar.postProcessing" xml:space="preserve">
-    <value>Post: </value>
+    <value>後處理：</value>
   </data>
   <data name="mode.editor.cloudModel.showAll" xml:space="preserve">
-    <value>Show all models</value>
+    <value>顯示所有模型</value>
   </data>
   <data name="mode.editor.cloudModel.popularLabel" xml:space="preserve">
-    <value>{0} (Popular)</value>
+    <value>{0}（熱門）</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - 最多 60 種語言，支援片語偏重</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.description" xml:space="preserve">
-    <value>Google Gemini 3.5 Transcribe - dedicated speech model, 85+ languages, custom vocabulary</value>
+    <value>Google Gemini 3.5 Transcribe - 專用語音模型，85 種以上語言，支援自訂詞彙</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
-    <value>~{0} credits/min</value>
+    <value>約 {0} 額度/分鐘</value>
   </data>
   <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
     <value>Soniox - 60 種語言、上下文偏詞</value>
@@ -1873,25 +1897,25 @@ You can re-download it later.</value>
     <value>醫療詞彙（醫療模式附加元件）</value>
   </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
-    <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
+    <value>AI 後處理可依使用中的應用程式調整格式，例如電子郵件、聊天、文件、程式碼或終端機視窗。Local API 呼叫端可明確傳入 applicationContext；API 要求不會自動擷取此資訊。</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
     <value>串流</value>
   </data>
   <data name="settings.streaming.title" xml:space="preserve">
-    <value>Streaming</value>
+    <value>串流</value>
   </data>
   <data name="settings.streaming.enable.title" xml:space="preserve">
-    <value>Enable streaming transcription</value>
+    <value>啟用串流轉錄</value>
   </data>
   <data name="settings.streaming.enable.subtitle" xml:space="preserve">
-    <value>Use a separate hotkey to transcribe continuously and paste final speech segments into the active app.</value>
+    <value>使用獨立的快速鍵進行連續轉錄，並將最終的語音片段貼入使用中的應用程式。</value>
   </data>
   <data name="settings.streaming.shortcut.title" xml:space="preserve">
-    <value>Streaming shortcut</value>
+    <value>串流快速鍵</value>
   </data>
   <data name="settings.streaming.provider.title" xml:space="preserve">
-    <value>Provider</value>
+    <value>服務商</value>
   </data>
   <data name="settings.streaming.provider.hyperwhisperCloud" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
@@ -1915,61 +1939,61 @@ You can re-download it later.</value>
     <value>使用您的 HyperWhisper Cloud 點數。不需要單獨的 API 金鑰。</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
-    <value>Deepgram API key is configured.</value>
+    <value>已設定 Deepgram API 金鑰。</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.missingKey" xml:space="preserve">
-    <value>Deepgram streaming requires a Deepgram API key in the Model Library API keys manager.</value>
+    <value>Deepgram 串流需要在模型庫的 API 金鑰管理員中設定 Deepgram API 金鑰。</value>
   </data>
   <data name="settings.streaming.providerStatus.elevenLabs.configured" xml:space="preserve">
-    <value>ElevenLabs API key is configured.</value>
+    <value>已設定 ElevenLabs API 金鑰。</value>
   </data>
   <data name="settings.streaming.providerStatus.elevenLabs.missingKey" xml:space="preserve">
-    <value>ElevenLabs streaming requires an ElevenLabs API key in the Model Library API keys manager.</value>
+    <value>ElevenLabs 串流需要在模型庫的 API 金鑰管理員中設定 ElevenLabs API 金鑰。</value>
   </data>
   <data name="settings.streaming.providerStatus.openAI.configured" xml:space="preserve">
-    <value>OpenAI API key is configured.</value>
+    <value>已設定 OpenAI API 金鑰。</value>
   </data>
   <data name="settings.streaming.providerStatus.openAI.missingKey" xml:space="preserve">
-    <value>OpenAI streaming requires an OpenAI API key in the Model Library API keys manager.</value>
+    <value>OpenAI 串流需要在模型庫的 API 金鑰管理員中設定 OpenAI API 金鑰。</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
-    <value>SpaceXAI API key is configured.</value>
+    <value>已設定 SpaceXAI API 金鑰。</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
-    <value>SpaceXAI streaming requires a Grok API key in the Model Library API keys manager.</value>
+    <value>SpaceXAI 串流需要在模型庫的 API 金鑰管理員中設定 Grok API 金鑰。</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
-    <value>Gemini API key is configured.</value>
+    <value>已設定 Gemini API 金鑰。</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.missingKey" xml:space="preserve">
-    <value>Gemini 3.5 Transcribe streaming requires a Google Gemini API key in the Model Library API keys manager.</value>
+    <value>Gemini 3.5 Transcribe 串流需要在模型庫的 API 金鑰管理員中設定 Google Gemini API 金鑰。</value>
   </data>
   <data name="settings.streaming.cloudTier.title" xml:space="preserve">
-    <value>Live engine</value>
+    <value>即時引擎</value>
   </data>
   <data name="settings.streaming.cloudTier.subtitle" xml:space="preserve">
-    <value>Which speech engine HyperWhisper Cloud uses for live transcription.</value>
+    <value>HyperWhisper Cloud 進行即時轉錄時使用的語音引擎。</value>
   </data>
   <data name="settings.streaming.warning.vocabularyUnsupported" xml:space="preserve">
-    <value>Custom vocabulary is not used with the selected streaming provider.</value>
+    <value>所選的串流服務商不會使用自訂詞彙。</value>
   </data>
   <data name="settings.streaming.warning.vocabularyAutoDetect" xml:space="preserve">
-    <value>Custom vocabulary is disabled for streaming when language is set to auto. Set a specific language to enable vocabulary boosting.</value>
+    <value>語言設為自動時，串流會停用自訂詞彙。請設定特定語言以啟用詞彙加權。</value>
   </data>
   <data name="settings.streaming.language.title" xml:space="preserve">
-    <value>Language</value>
+    <value>語言</value>
   </data>
   <data name="settings.streaming.deepgram.model.title" xml:space="preserve">
-    <value>Model</value>
+    <value>模型</value>
   </data>
   <data name="settings.streaming.fastFormatting.title" xml:space="preserve">
-    <value>Fast formatting</value>
+    <value>快速格式化</value>
   </data>
   <data name="settings.streaming.fastFormatting.subtitle" xml:space="preserve">
-    <value>Return formatted text with lower latency.</value>
+    <value>以較低的延遲傳回已格式化的文字。</value>
   </data>
   <data name="provider.none" xml:space="preserve">
-    <value>None</value>
+    <value>無</value>
   </data>
   <data name="provider.microsoftAzureSpeech" xml:space="preserve">
     <value>Microsoft Azure Speech</value>
@@ -1978,67 +2002,70 @@ You can re-download it later.</value>
     <value>Google Cloud Speech</value>
   </data>
   <data name="settings.sound.mediaControl.title" xml:space="preserve">
-    <value>Media control</value>
+    <value>媒體控制</value>
   </data>
   <data name="settings.sound.mediaControl.subtitle" xml:space="preserve">
-    <value>Control other audio while HyperWhisper is recording.</value>
+    <value>HyperWhisper 錄音時控制其他音訊。</value>
   </data>
   <data name="settings.sound.mediaControl.off" xml:space="preserve">
-    <value>Off</value>
+    <value>關閉</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
-    <value>Mute audio</value>
+    <value>靜音</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>柔化音頻</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
-    <value>Keep microphone warm</value>
+    <value>保持麥克風預備狀態</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
-    <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+    <value>在兩次錄音之間保持一個安靜的閒置輸入串流，以縮短啟動延遲，對 Bluetooth 麥克風特別有效。</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
-    <value>Average speed</value>
+    <value>平均速度</value>
   </data>
   <data name="home.stats.wordsThisWeek" xml:space="preserve">
-    <value>Words this week</value>
+    <value>本週字數</value>
   </data>
   <data name="home.stats.wordsThisMonth" xml:space="preserve">
-    <value>Words this month</value>
+    <value>本月字數</value>
   </data>
   <data name="home.stats.savedThisWeek" xml:space="preserve">
-    <value>Saved this week</value>
+    <value>本週節省</value>
   </data>
   <data name="home.stats.minutesValue" xml:space="preserve">
-    <value>{0} minutes</value>
+    <value>{0} 分鐘</value>
   </data>
   <data name="home.stats.typingSpeedHelp" xml:space="preserve">
-    <value>Adjust your assumed typing speed</value>
+    <value>調整您假設的打字速度</value>
   </data>
   <data name="providerApiKey.title" xml:space="preserve">
-    <value>Connect {0}</value>
+    <value>連接 {0}</value>
   </data>
   <data name="providerApiKey.subtitle" xml:space="preserve">
-    <value>Add your {0} API key to unlock this provider in Model Library.</value>
+    <value>新增您的 {0} API 金鑰，即可在模型庫中啟用此服務商。</value>
   </data>
   <data name="providerApiKey.currentStatus.none" xml:space="preserve">
-    <value>No API key configured</value>
+    <value>未設定 API 金鑰</value>
   </data>
   <data name="providerApiKey.currentStatus.configured" xml:space="preserve">
-    <value>Configured as {0}</value>
+    <value>已設定為 {0}</value>
   </data>
   <data name="providerApiKey.getKey" xml:space="preserve">
-    <value>Get key</value>
+    <value>取得金鑰</value>
   </data>
   <data name="providerApiKey.apiKeyLabel" xml:space="preserve">
-    <value>API key</value>
+    <value>API 金鑰</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>安全地儲存在 Windows 認證管理員中。</value>
   </data>
   <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Invalid API Key</value>
+    <value>API 金鑰無效</value>
   </data>
   <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>That does not look like a valid {0} API key.</value>
+    <value>這看起來不是有效的 {0} API 金鑰。</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
     <value>Local API</value>
@@ -2047,61 +2074,61 @@ You can re-download it later.</value>
     <value>Local API</value>
   </data>
   <data name="settings.localApi.blurb" xml:space="preserve">
-    <value>Localhost-only HTTP API for MCP clients, benchmark scripts, and shell automation. Off by default. When on, HyperWhisper listens on 127.0.0.1 and writes the port + bearer token to %LOCALAPPDATA%\HyperWhisper\local-api.json with restricted file permissions.</value>
+    <value>僅限 localhost 的 HTTP API，供 MCP 用戶端、效能測試指令碼與 Shell 自動化使用。預設為關閉。開啟後，HyperWhisper 會在 127.0.0.1 上接聽，並將連接埠與 Bearer 權杖寫入 %LOCALAPPDATA%\HyperWhisper\local-api.json，且限制該檔案的存取權限。</value>
   </data>
   <data name="settings.localApi.toggle.enabled" xml:space="preserve">
-    <value>Server enabled</value>
+    <value>伺服器已啟用</value>
   </data>
   <data name="settings.localApi.toggle.disabled" xml:space="preserve">
-    <value>Server disabled</value>
+    <value>伺服器已停用</value>
   </data>
   <data name="settings.localApi.docs" xml:space="preserve">
-    <value>Docs</value>
+    <value>說明文件</value>
   </data>
   <data name="settings.localApi.tab.connection" xml:space="preserve">
-    <value>Connection</value>
+    <value>連線</value>
   </data>
   <data name="settings.localApi.tab.mcp" xml:space="preserve">
-    <value>MCP setup</value>
+    <value>MCP 設定</value>
   </data>
   <data name="settings.localApi.tab.curl" xml:space="preserve">
     <value>cURL</value>
   </data>
   <data name="settings.localApi.row.port" xml:space="preserve">
-    <value>Port</value>
+    <value>連接埠</value>
   </data>
   <data name="settings.localApi.row.token" xml:space="preserve">
-    <value>Bearer token</value>
+    <value>Bearer 權杖</value>
   </data>
   <data name="settings.localApi.row.portFile" xml:space="preserve">
-    <value>Port file</value>
+    <value>連接埠檔案</value>
   </data>
   <data name="settings.localApi.copy" xml:space="preserve">
-    <value>Copy</value>
+    <value>複製</value>
   </data>
   <data name="settings.localApi.reveal" xml:space="preserve">
-    <value>Reveal</value>
+    <value>顯示</value>
   </data>
   <data name="settings.localApi.hide" xml:space="preserve">
-    <value>Hide</value>
+    <value>隱藏</value>
   </data>
   <data name="settings.localApi.regenerate" xml:space="preserve">
-    <value>Regenerate</value>
+    <value>重新產生</value>
   </data>
   <data name="settings.localApi.show" xml:space="preserve">
-    <value>Show</value>
+    <value>顯示位置</value>
   </data>
   <data name="settings.localApi.helperAuth" xml:space="preserve">
-    <value>Sent as Authorization: Bearer &lt;token&gt;. Required on every endpoint except /health.</value>
+    <value>以 Authorization: Bearer &lt;token&gt; 傳送。除了 /health 以外，每個端點都需要。</value>
   </data>
   <data name="settings.localApi.mcp.caption" xml:space="preserve">
-    <value>Drop into Cursor, Claude Code, or Claude Desktop's mcpServers block. The wrapper auto-reads the port and token from the discovery file at startup — no secrets in client config.</value>
+    <value>放入 Cursor、Claude Code 或 Claude Desktop 的 mcpServers 區塊。包裝程式會在啟動時自動從探索檔案讀取連接埠與權杖 — 用戶端設定中不含任何機密資訊。</value>
   </data>
   <data name="settings.localApi.mcp.guide" xml:space="preserve">
-    <value>MCP setup guide</value>
+    <value>MCP 設定指南</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
-    <value>Pre-filled with your port and token.</value>
+    <value>已預先填入您的連接埠與權杖。</value>
   </data>
   <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
     <value>權杖尚未可用。</value>
@@ -2131,13 +2158,13 @@ You can re-download it later.</value>
     <value>已複製到剪貼簿。</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
-    <value>No network sockets bound.</value>
+    <value>未繫結任何網路通訊端。</value>
   </data>
   <data name="settings.localApi.status.starting" xml:space="preserve">
-    <value>Starting…</value>
+    <value>正在啟動…</value>
   </data>
   <data name="settings.localApi.status.running" xml:space="preserve">
-    <value>127.0.0.1:{0} · token ••••{1}</value>
+    <value>127.0.0.1:{0} · 權杖 ••••{1}</value>
   </data>
   <data name="settings.backup.export.section.modes" xml:space="preserve">
     <value>模式</value>
@@ -2200,13 +2227,13 @@ You can re-download it later.</value>
     <value>Meta</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
-    <value>Meta Muse Voice Transcribe 1.0 - batch transcription with your own Meta Model API key</value>
+    <value>Meta Muse Voice Transcribe 1.0 - 使用您自己的 Meta Model API 金鑰進行批次轉錄</value>
   </data>
   <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Invalid Meta API key format. Enter the complete key from Meta for Developers.</value>
+    <value>Meta API 金鑰格式無效。請輸入 Meta for Developers 提供的完整金鑰。</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
-    <value>Use your own Meta Model API key for Muse batch transcription</value>
+    <value>使用您自己的 Meta Model API 金鑰進行 Muse 批次轉錄</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
     <value>設定 HyperWhisper</value>
@@ -2743,7 +2770,7 @@ You can re-download it later.</value>
     <value>API 金鑰已儲存。此服務商無法在不轉錄的情況下檢查金鑰，因此會在您第一次語音輸入時驗證。</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
-    <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
+    <value>HyperWhisper 無法送出轉錄文字：既未貼上，也未複製到剪貼簿。文字已儲存在歷史記錄中。</value>
   </data>
   <data name="app.unknown.error" xml:space="preserve">
     <value>發生未知錯誤</value>

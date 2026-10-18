@@ -61,6 +61,30 @@ enum WhisperError: Error, LocalizedError {
     }
 }
 
+/// Asks a running `whisper_full` to stop.
+///
+/// `whisper_full` is one blocking C call that ignores Swift cancellation, so a
+/// cancelled pass used to decode the rest of the file on the GPU (#1743: a
+/// deleted History row's Retry ran on for minutes). whisper.cpp polls this
+/// through `abort_callback` and `encoder_begin_callback`, from its own threads,
+/// hence the lock.
+final class WhisperAbortSignal: @unchecked Sendable {
+    private let lock = NSLock()
+    private var triggered = false
+
+    var isTriggered: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return triggered
+    }
+
+    func trigger() {
+        lock.lock()
+        triggered = true
+        lock.unlock()
+    }
+}
+
 /// Actor-based wrapper for whisper.cpp to ensure thread safety
 /// Uses an actor to meet Whisper's constraint: don't access from more than one thread at a time
 actor WhisperContext {
@@ -160,8 +184,10 @@ actor WhisperContext {
     ///                Used as a fallback for empty outputs or when forcing English output.
     ///   - beamSearch: If true, use beam search instead of greedy decoding (slower but more accurate)
     ///   - temperature: Temperature for sampling (0.0 = deterministic/greedy, higher = more random)
+    ///   - abortSignal: Stops the decode at the next window or graph once triggered;
+    ///                  the call then returns false (or true with partial text).
     /// - Returns: true if transcription succeeded
-    func fullTranscribe(samples: [Float], translate: Bool = false, beamSearch: Bool = false, temperature: Float = 0.0, wordTimestamps: Bool = false) -> Bool {
+    func fullTranscribe(samples: [Float], translate: Bool = false, beamSearch: Bool = false, temperature: Float = 0.0, wordTimestamps: Bool = false, abortSignal: WhisperAbortSignal? = nil) -> Bool {
         guard let context = context else { 
             logger.error("No context available for transcription")
             return false 
@@ -218,6 +244,23 @@ actor WhisperContext {
             params.split_on_word = true
         }
 
+        // CANCELLATION: whisper.cpp checks the encoder callback before each
+        // 30 s window and the abort callback after each graph. The caller keeps
+        // `abortSignal` alive for the whole call, so an unretained pointer is safe.
+        if let abortSignal {
+            let userData = Unmanaged.passUnretained(abortSignal).toOpaque()
+            params.abort_callback = { userData in
+                guard let userData else { return false }
+                return Unmanaged<WhisperAbortSignal>.fromOpaque(userData).takeUnretainedValue().isTriggered
+            }
+            params.abort_callback_user_data = userData
+            params.encoder_begin_callback = { _, _, userData in
+                guard let userData else { return true }
+                return !Unmanaged<WhisperAbortSignal>.fromOpaque(userData).takeUnretainedValue().isTriggered
+            }
+            params.encoder_begin_callback_user_data = userData
+        }
+
         // TEMPERATURE FALLBACK SCHEDULE: Could implement retry with higher temps
         // If output is empty/poor, retry with params.temperature = 0.4, 0.6, 0.8
         // Caller can implement this by calling with different temperatures
@@ -236,10 +279,16 @@ actor WhisperContext {
         // the transcription at the innermost level.
         func runTranscription() -> Bool {
             var ok = true
-            samples.withUnsafeBufferPointer { samplesBuffer in
-                if whisper_full(context, params, samplesBuffer.baseAddress, Int32(samplesBuffer.count)) != 0 {
-                    logger.error("whisper_full failed")
-                    ok = false
+            withExtendedLifetime(abortSignal) {
+                samples.withUnsafeBufferPointer { samplesBuffer in
+                    if whisper_full(context, params, samplesBuffer.baseAddress, Int32(samplesBuffer.count)) != 0 {
+                        if abortSignal?.isTriggered == true {
+                            logger.info("whisper_full aborted: the pass was cancelled")
+                        } else {
+                            logger.error("whisper_full failed")
+                        }
+                        ok = false
+                    }
                 }
             }
             return ok
@@ -420,7 +469,11 @@ actor WhisperContext {
     /// - Do not strip "..." to avoid removing genuine content from some languages.
     /// - Use `.letters` to treat non-Latin scripts as valid when filtering very short noise.
     private func cleanTranscription(_ text: String) -> String {
-        var cleaned = text
+        // Whisper's non-speech markers ([ Music ], (applause), (silence) and kin)
+        // are the shared core's rule, so this head strips exactly what Windows
+        // and Linux strip (issue #1811). Cases:
+        // shared-conformance/whisper-marker-vectors.json.
+        var cleaned = HyperWhisper.stripWhisperNonSpeechMarkers(text: text)
         
         // Common hallucination patterns to remove
         let hallucinationPatterns = [
@@ -428,10 +481,6 @@ actor WhisperContext {
             "Thanks for watching!",
             "Please subscribe",
             "Don't forget to like",
-            "[Music]",
-            "[Applause]",
-            "(applause)",
-            "(music)",
             "Transcribed by https://otter.ai",
             "Subtitles by",
             "♪♪♪",

@@ -2,7 +2,7 @@
  * Mutation proof for tests/customer-portal.test.ts.
  *
  * Each entry below does ONE exact string replace in `server/api/trpc.ts` or
- * `server/api/routers/customer.ts`, runs the one test file, then puts the
+ * `server/api/routers/customer.ts` (or the rate in `lib/credits-per-minute.ts`), runs the one test file, then puts the
  * source back. A mutant that still PASSES means the tests are hollow there.
  *
  * This file is a tool, not a test. `npm test` globs `tests/*.test.ts`, so it
@@ -17,6 +17,7 @@ const TEST = "tests/customer-portal.test.ts";
 
 const TRPC = "server/api/trpc.ts";
 const CUSTOMER = "server/api/routers/customer.ts";
+const RATE = "lib/credits-per-minute.ts";
 
 const MUTANTS = [
   // --- server/api/trpc.ts ---------------------------------------------------
@@ -101,10 +102,10 @@ const MUTANTS = [
     to: "        minutesRemaining: Math.ceil(credits / CREDITS_PER_MINUTE),",
   },
   {
-    file: CUSTOMER,
+    file: RATE,
     name: "change the credits-per-minute rate",
-    from: "const CREDITS_PER_MINUTE = 1.67;",
-    to: "const CREDITS_PER_MINUTE = 1.6667;",
+    from: "export const CREDITS_PER_MINUTE = 1.67;",
+    to: "export const CREDITS_PER_MINUTE = 1.6667;",
   },
   {
     file: CUSTOMER,

@@ -224,9 +224,10 @@ export async function buyCreditsAndRedirect({
   );
 
   // The properties are built HERE so a test can assert on what is NOT in
-  // them. `licenseKey` is a credential (#737, #739), and this app's PostHog
-  // init has no `before_send` and no redaction, so anything passed ships
-  // verbatim. Never add the licence key, the request body, or `data`.
+  // them. `licenseKey` is a credential (#737, #739). The PostHog init's
+  // `before_send` (#1897) only catches a key in its usual shapes, in
+  // top-level string properties, so do not rely on it: never add the
+  // licence key, the request body, or `data`.
   reportError(
     new Error(`${BUY_CREDITS_OPERATION} failed: ${response.status}`),
     {

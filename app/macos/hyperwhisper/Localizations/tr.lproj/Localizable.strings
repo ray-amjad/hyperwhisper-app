@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Tanılar Dışa Aktarıldı";
 "alerts.export.diagnostics.success.message" = "Tüm tanı günlükleri başarıyla dışa aktarıldı.";
 "alerts.export.diagnostics.saveFailed.message" = "Tanılar seçilen konuma kaydedilemedi: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Tanılama Sistem Günlükleri Olmadan Dışa Aktarıldı";
+"alerts.export.diagnostics.noSystemLogs.message" = "Tanılama dosyası kaydedildi, ancak uygulamanın sistem günlükleri okunamadı; bu yüzden system-logs.txt yalnızca nedeni içeriyor. Neden: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Destek için güncellemeler günlüğünü dışa aktarın";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Onboarding'i Tamamla";
 
 "onboarding.setupLater.button" = "Daha Sonra Ayarla";
-"onboarding.error.microphone.denied" = "Mikrofon izni reddedildi. Lütfen Sistem Ayarları'nda izin verin.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Giriş sırasında başlat";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Kapalı";
 "settings.general.mediaControl.mode.mute" = "Sesi Sustur";
+"settings.general.mediaControl.mode.muffle" = "Sesi Kıs";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Ses efektlerini çal";
 "settings.sound.soundEffects.info" = "Kayıt başladığında ve durduğunda sesli uyarılar çal.";
 "settings.sound.mediaControl.title" = "Kaydı sırasında ortam kontrolü";
-"settings.sound.mediaControl.info" = "Kayıt sırasında HyperWhisper'ın diğer sesleri nasıl yönettiğini seçin. 'Kapalı' sesi değişmez bırakır, 'Sesi Sustur' kayıt sırasında sistem sesini kapar ve sonrasında geri yükler.";
+"settings.sound.mediaControl.info" = "Kayıt sırasında HyperWhisper'ın diğer sesleri nasıl yönettiğini seçin. 'Kapalı' sesi değişmez bırakır, 'Sesi Sustur' kayıt sırasında sistem sesini kapar ve sonrasında geri yükler, 'Sesi Kıs' ise sesi bitişik odadan geliyormuş gibi yumuşak çalmaya devam ettirir.";
 "settings.sound.autoIncreaseMicVolume.title" = "Mikrofon sesini otomatik olarak artır";
 "settings.sound.autoIncreaseMicVolume.info" = "Kayıt başladığında mikrofon giriş sesini otomatik olarak maksimuma ayarlar, ardından kaydı durdurulduğunda orijinal seviyeye geri döndürür. Yalnızca sistem varsayılan giriş cihazı kullanıldığında geçerlidir.";
 "settings.sound.vad.title" = "Transkripsiyon öncesi sessizliği kaldır";
@@ -336,6 +338,9 @@
 "settings.storage.choose.button" = "Seç...";
 "settings.storage.dialog.select" = "Klasör Seç";
 "settings.storage.dialog.message" = "Kayıtları depolamak için bir klasör seçin";
+"settings.storage.folderRefused.title" = "Bu klasör kullanılamıyor";
+"settings.storage.folderRefused.notWritable" = "“%@” klasörüne yazma izniniz yok, bu yüzden HyperWhisper oraya kayıt kaydedemez. Kayıt Klasörü değiştirilmedi.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper bu klasörü oluşturamadı: %@ Kayıt Klasörü değiştirilmedi.";
 "settings.storage.storeAsM4A.title" = "Kayıtları M4A'ya sıkıştır";
 "settings.storage.storeAsM4A.subtitle" = "WAV kayıtlarını transkripsiyon sonrasında daha küçük dosyalara dönüştürür. Orijinal WAV dosyalarını (daha büyük ancak kayıpsız) tutmak için kapatın.";
 
@@ -383,6 +388,7 @@
 
 "settings.shortcuts.changeMode.title" = "Modu Değiştir";
 "settings.shortcuts.changeMode.subtitle" = "Yalnızca kayıt sırasında çalışır";
+"settings.shortcuts.conflict.alert" = "Bu klavye kısayolu, zaten “%@” tarafından kullanıldığı için kullanılamaz.";
 
 "settings.shortcuts.reset.button" = "Varsayılanlara Sıfırla";
 "settings.shortcuts.reset.dialog.title" = "Klavye Kısayollarını Sıfırla";
@@ -434,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Panodan Yapıştır";
 "settings.license.clearInput" = "Temizle";
+"license.error.keyFormat" = "Bu bir hesap anahtarına benzemiyor.";
 "settings.license.recovery.prompt" = "Lisans anahtarınızı unuttunuz mu?";
 "settings.license.recovery.button" = "Müşteri portalına git";
 "settings.license.daily.title" = "Günlük Transkripsiyon";
@@ -576,6 +583,8 @@
 "onboarding.configure.cloud.note" = "Krediler ön ödemelidir ve bu anahtarla oturum açan her Mac arasında paylaşılır. Boşta geçen süre hiçbir şeye mal olmaz.";
 "onboarding.source.note" = "Fikrinizi daha sonra değiştirirseniz yalnızca bu adım yeniden çalışır. Ayarladığınız başka hiçbir şey kaybolmaz.";
 "onboarding.permissions.note" = "Erişilebilirliği atlarsanız transkriptler yapıştırmaya hazır şekilde panoya gider. Daha sonra açmak tek tıkla olur.";
+"onboarding.permissions.microphone.denied" = "İzin verilmedi. Sistem Ayarları'nda HyperWhisper'ı açın, ardından buraya dönün.";
+"onboarding.permissions.continueNeedsMicrophone" = "Devam etmek için mikrofon gerekir. Yukarıdan izin verin veya Daha Sonra Ayarla'yı seçin.";
 "onboarding.welcome.task1.title" = "Transkripsiyonun nasıl çalışacağını seçin";
 "onboarding.welcome.task1.caption" = "Bulutumuzda, bu Mac'te veya zaten ödediğiniz bir sağlayıcı hesabı üzerinden.";
 "onboarding.welcome.task2.title" = "Mikrofonunuzu kontrol edin";
@@ -683,6 +692,10 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Modu sil?";
 "modes.delete.confirm.message" = "Bu, seçilen modu kaldıracaktır. Bu işlem geri alınamaz.";
+"modes.editor.discard.title" = "Kaydedilmemiş değişiklikler silinsin mi?";
+"modes.editor.discard.message" = "Bu modda yaptığınız değişiklikler kaydedilmedi.";
+"modes.editor.discard.keepEditing" = "Düzenlemeye Devam Et";
+"modes.editor.discard.button" = "Sil";
 "modes.header.title" = "Modlar";
 "modes.header.subtitle" = "Farklı bağlamlar ve iş akışları için özel profiller oluşturun";
 "modes.header.create" = "Mod Oluştur";
@@ -787,6 +800,7 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.field.name.placeholder" = "örn., Toplantı Notları";
 "modes.field.name.editPlaceholder" = "Mod adı";
 "modes.field.name.defaultLocked" = "Bu varsayılan moddur, bu nedenle adı değiştirilemez. Diğer tüm modları yeniden adlandırabilirsiniz.";
+"modes.field.name.taken" = "Bu ada sahip bir mod zaten var.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Sağlayıcı";
 "modes.provider.local" = "Yerel";
@@ -813,8 +827,9 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "transcripts.delete.single.message" = "Bu, kaydı ve ses dosyasını kalıcı olarak siler.";
 "transcripts.delete.multiple.title" = "%d Kaydı Sil?";
 "transcripts.delete.multiple.message" = "Bu, %d kaydı ve ses dosyalarını kalıcı olarak siler.\n\nBu işlem geri alınamaz.";
-"transcripts.delete.multiple.confirm" = "Tümünü Sil";
+"transcripts.delete.multiple.confirm" = "%d Kaydı Sil";
 "transcripts.retry.error.title" = "Yeniden Deneme Başarısız";
+"transcripts.retry.error.modeDeleted" = "Bu kaydı oluşturan mod silindi, bu yüzden yeniden denenmedi. Geçmiş'te kayda sağ tıklayın ve başka bir mod seçmek için \"İle Yeniden Dene...\" seçeneğini kullanın.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Kayıtlar Klasörünü Seç";
@@ -865,8 +880,8 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "recording.retry.inProgress" = "Yeniden deneniyor…";
 "recording.retry.count" = "Yeniden Dene (%d)";
 "recording.retry.failed.missing" = "Yeniden deneme başarısız: Ses dosyası bulunamadı";
-"recording.retry.failed.error" = "Yeniden deneme başarısız: %@";
 "recording.retry.pending" = "Yeniden denemeye hazır – transkribe etmek için tıklayın";
+"recording.retry.modeDeleted" = "Mod silindi";
 "recording.cancel.dialog.title" = "Kaydı İptal Et?";
 "recording.cancel.dialog.message" = "Bu, mevcut kaydı iptal edecektir.";
 "recording.cancel.dialog.confirm" = "Kaydı İptal Et";
@@ -893,6 +908,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "audio.error.microphonePermission" = "Mikrofon izni verilmedi";
 "audio.error.microphoneInUse" = "HyperWhisper, başka bir uygulama şu anda kullanıyor olduğu için mikrofonuna erişemez. Diğer uygulamayı duraklatın veya giriş değiştirin, ardından tekrar deneyin.";
 "audio.error.audioSystemNotResponding" = "macOS ses sistemi yanıt vermiyor, bu yüzden mikrofon başlatılamadı. Birazdan tekrar deneyin. Bu durum sürerse Mac'inizi yeniden başlatın.";
+"audio.error.recorderStopTimedOut" = "Kayıt kaydedilirken macOS ses sistemi yanıt vermeyi bıraktı, bu yüzden kayıt metne dönüştürülmedi. Ses korundu: HyperWhisper bir sonraki açılışta onu kurtarmayı deneyecek.";
 "audio.error.createEngine" = "Ses motoru oluşturulamadı";
 "audio.error.noInput" = "Ses girdisi yok";
 "audio.error.createFile" = "Ses dosyası oluşturulamadı";
@@ -966,10 +982,15 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcription.guidance.quotaExceeded" = "%@ hesabınıza kredi ekleyin veya fatura bilgilerinizi güncelleyin";
 "transcription.guidance.timeout" = "İstek çok uzun sürdü. İnternet hızınızı kontrol edin ve tekrar deneyin.";
 "transcription.error.noSpeechDetected" = "Kayıtta konuşma algılanmadı.";
+"transcription.error.audioTooShort" = "Kayıt yazıya dökülemeyecek kadar kısa. Lütfen daha uzun kaydedin.";
 "transcription.guidance.noSpeechDetected" = "İpuçları:\n• Mikrofonun içine açıkça konuş\n• Konuşmadan önce tuşu daha uzun basın\n• Mikrofonunuzun çalıştığını kontrol edin\n• Doğru giriş cihazının seçildiğinden emin olun";
 "transcription.guidance.needsNativeRelaunch" = "Yerel son işlemeyi kullanmak için HyperWhisper'dan çıkıp uygulamayı yerel mimaride yeniden açın.";
 "transcription.guidance.localRuntimeUnavailable" = "Tekrar deneyin veya Mod ayarlarınızda daha küçük bir yerel model seçin.";
 "transcription.error.localRuntimeUnavailable" = "Yerel yapay zeka işlemi tamamlayamadı — ham metniniz korundu.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ API anahtarınızı reddetti — ham metniniz korundu.";
+"transcription.error.postProcessingPreflight.unreachable" = "%@ ile bağlantı kurulamadı — ham metniniz korundu.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ yüklü değil — ham metniniz korundu.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ kullanılamıyor — ham metniniz korundu.";
 "transcription.error.localSpeechModelEvicted" = "Konuşma modeli belleği boşaltmak için kaldırıldı ve yeniden yüklenemedi. Bazı uygulamaları kapatıp yeniden deneyin.";
 "settings.backup.localDownload.title" = "Yerel modeller indirilsin mi?";
 "settings.backup.localDownload.message" = "Geri yüklenen modlarınızdan %d tanesi henüz indirilmemiş, cihaz üzerinde çalışan yapay zeka modellerini kullanıyor.";
@@ -1061,6 +1082,13 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "settings.backup.import.error.decode.corruptedField" = "Alan için bozuk değer: %@";
 "settings.backup.import.error.version" = "Yedekleme dosyası daha yeni bir sürümdendir";
 "settings.backup.import.error.unknown" = "İçe aktarma başarısız";
+"settings.backup.import.error.storeModes" = "Modlar kaydedilemedi, bu yüzden oldukları gibi bırakıldı.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Modlar kaydedilemedi, bu yüzden modlar ve kelime hazinesi oldukları gibi bırakıldı.";
+"settings.backup.import.error.storeVocabulary" = "Kelime hazinesi kaydedilemedi, bu yüzden olduğu gibi bırakıldı.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Modlar içe aktarıldı, ancak kelime hazinesi kaydedilemedi, bu yüzden olduğu gibi bırakıldı.";
+"settings.backup.import.error.storeLicense" = "Lisans anahtarı güvenli bir şekilde içe aktarılamadı.";
+"settings.backup.import.error.storeSettingsRestored" = "Ayarlar olduğu gibi bırakıldı.";
+"settings.backup.import.error.storeOtherSections" = "Seçilen diğer bölümler uygulandı.";
 "settings.backup.import.apiKeysFailed" = "Bu API anahtarları Anahtar Zinciri'ne kaydedilemedi ve geri yüklenmedi: %@. Bunları Ayarlar'da yeniden girin.";
 "settings.backup.import.confirm.title" = "Ayarları İçe Aktar?";
 "settings.backup.import.confirm.message" = "Bu, mevcut modları ve kelime hazinesini yedekleme dosyasından olanlarla değiştirecektir. Ayarlar da güncellenecektir.";
@@ -1097,6 +1125,13 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcribe.file.error.format.title" = "Desteklenmeyen Biçim";
 "transcribe.file.error.format.message" = ".%@ dosyaları %@ tarafından desteklenmez. Desteklenen biçimler: %@";
 "transcribe.file.error.read" = "Seçilen dosya okunamaz.";
+"transcribe.file.error.webm" = "WebM desteklenmiyor. Dosyayı MP3, M4A veya WAV biçimine dönüştürüp yeniden deneyin.";
+"transcribe.file.error.notAudio" = "“%@” dosyası geçerli bir ses değil. Dosya bozuk olabilir veya macOS'un çözemediği bir biçimde olabilir.";
+"transcribe.file.error.empty" = "“%@” dosyası boş. Yazıya dökülecek ses içermiyor.";
+"transcribe.file.error.permission" = "HyperWhisper “%@” dosyasını okuyamıyor. Dosyanın izinlerini kontrol edin.";
+"transcribe.file.error.folderPermission" = "HyperWhisper, “%@” dosyasını içeren bir klasörü açamıyor. O klasörün izinlerini kontrol edin.";
+"transcribe.file.error.privacy" = "macOS gizlilik ayarları HyperWhisper'ın “%@” dosyasını okumasını engelledi. Sistem Ayarları > Gizlilik ve Güvenlik > Tam Disk Erişimi bölümünden izin verin.";
+"transcribe.file.error.tooShort" = "Bu dosya yazıya dökülemeyecek kadar kısa (%@ sn).";
 "transcribe.file.error.copy" = "Dosya kayıtlar klasörüne kopyalanamadı.";
 "transcribe.file.error.video.title" = "Videoda Ses Yok";
 "transcribe.file.error.video.noAudio" = "Bu video dosyasında ses parçası yok. Lütfen ses içeren bir video veya ses dosyası seçin.";

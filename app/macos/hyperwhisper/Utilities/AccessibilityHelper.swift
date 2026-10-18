@@ -76,6 +76,13 @@ public class AccessibilityHelper {
     /// snapshotting the transcript. Consumed by that call; nil otherwise.
     var keptClipboardSnapshotChangeCount: Int?
 
+    /// `NSPasteboard.general.changeCount` the pending restore expects to find
+    /// (#1591): the count read right after the transcript write that armed it.
+    /// Any other count when the restore runs means something else wrote to the
+    /// clipboard since (the user's own copy), so the restore leaves that alone.
+    /// Set by `scheduleClipboardRestoration`; nil when no restore is pending.
+    var restoreExpectedChangeCount: Int?
+
     // MARK: - Async Paste Management
     /// The currently active paste task (if any)
     /// This allows us to cancel in-flight paste operations when starting a new one

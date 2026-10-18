@@ -180,6 +180,7 @@ public partial class MainViewModel : ViewModelBase
 
         _isStreamingSession = true;
         IsRecording = true;
+        ShowJobStatus("recording.state.recording");
         SoundEffectsService.Instance.PlayStartSound();
         _audioEnvironmentState = AudioEnvironmentService.Instance.PrepareForRecording(audioRestoreClaim!);
         SentryService.AddBreadcrumb(
@@ -216,6 +217,7 @@ public partial class MainViewModel : ViewModelBase
         _durationTimer?.Stop();
         _hotkeyBlocked = true;
         IsTranscribing = true;
+        AdvanceJobStatus("recording.state.transcribing");
         ShowTranscribingRequested?.Invoke(this, EventArgs.Empty);
 
         Transcript? transcript = null;
@@ -378,15 +380,7 @@ public partial class MainViewModel : ViewModelBase
             // misleading "transcription failed" toast/status on top of it.
             if (failureWritten)
             {
-                var isCredentialError = ex is TranscriptionException { Code: TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized };
-                // CloudAccountRequired routes to the HW Cloud settings page (where
-                // the account key is entered), NOT the BYOK API-keys manager.
-                var isCloudAccountError = ex is TranscriptionException { Code: TranscriptionErrorCode.CloudAccountRequired };
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    ex is TranscriptionException txEx ? txEx.GetUserMessage() : Loc.S("errors.transcriptionFailed", ex.Message),
-                    showSettingsButton: isCredentialError || isCloudAccountError,
-                    settingsSection: isCloudAccountError ? "Cloud" : null,
-                    openApiKeysManager: isCredentialError));
+                ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
 
                 StatusText = Loc.S("status.failed", ex.Message);
             }
@@ -407,6 +401,7 @@ public partial class MainViewModel : ViewModelBase
             finally
             {
                 _hotkeyBlocked = false;
+                EndJobStatus();
                 IsTranscribing = false;
                 _toggleShortcutHeld = false;
                 _pushToTalkMonitor.Reset();

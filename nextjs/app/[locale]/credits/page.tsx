@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 
 import CreditsPurchase from "@/components/credits/CreditsPurchase";
+import { localizedPageMetadata } from "@/lib/localized-page-metadata";
+
+export const generateMetadata = localizedPageMetadata({
+  path: "/credits",
+});
 
 /**
  * Credits Page
@@ -32,7 +37,7 @@ export default async function CreditsPage({
   }
 
   return (
-    <main className="min-h-screen bg-black px-6 py-24 md:py-28">
+    <main className="min-h-screen bg-black py-24 md:py-28">
       <CreditsPurchase locale={locale} />
     </main>
   );

@@ -823,6 +823,9 @@
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>फ़ाइल ट्रांसक्रिप्शन रद्द किया गया</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>फ़ाइल का ट्रांसक्रिप्शन हो रहा है...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -846,11 +849,11 @@
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>इस रिकॉर्डिंग को बनाने वाला मोड हटा दिया गया है, इसलिए इसे फिर से प्रयास नहीं किया गया। इतिहास में, रिकॉर्डिंग पर राइट-क्लिक करें और कोई दूसरा मोड चुनने के लिए "इसके साथ फिर से प्रयास करें..." चुनें।</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>रिकॉर्डिंग रुक गई — 20 मिनट की सुरक्षा सीमा पहुँच गई।</value>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>मॉडल उपयोग में है</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} का उपयोग "{1}" मोड कर रहा है। इसे हटाने से पहले उस मोड को किसी दूसरे मॉडल पर बदलें।</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1292,6 +1301,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>यह खाता कुंजी जैसा नहीं दिखता।</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1312,8 +1324,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>एक रिकॉर्डिंग या फ़ाइल ट्रांसक्रिप्शन पहले से चल रहा है। पूरा होने पर फ़ाइल फिर से आज़माएँ।</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>यह फ़ाइल खाली है, इसलिए ट्रांसक्राइब करने के लिए कोई ऑडियो नहीं है।</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>यह फ़ाइल क्षतिग्रस्त है या ऐसी ऑडियो फ़ाइल नहीं है जिसे HyperWhisper पढ़ सके।</value>
   </data>
 
 
@@ -1696,6 +1717,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>और...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1989,6 +2013,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>ऑडियो मंद करें</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>

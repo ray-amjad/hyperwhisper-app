@@ -795,6 +795,11 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // - ElevenLabs: just close WebSocket (no stop message needed)
         let stopSequence = strategy.stopSequence()
         let stopTask = Task {
+            // A provider only sends its completion event in answer to the stop
+            // frame, so a stop frame that never left makes the wait below a
+            // guaranteed timeout and a second Sentry report for one stop
+            // (HYPERWHISPER-ZX then -YD, issue #834).
+            var stopFrameSendFailed = false
             for step in stopSequence {
                 try Task.checkCancellation()
                 switch step {
@@ -815,10 +820,15 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                         // whatever it is still holding is lost. Same outcome as
                         // before — this only stops it happening in silence.
                         reportStopFailure(error, step: "send_stop_message")
+                        stopFrameSendFailed = true
                     }
                 case .wait(let seconds):
                     try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
                 case .waitForSessionComplete(let seconds):
+                    if stopFrameSendFailed {
+                        logger.debug("Skipping session completion wait: the stop message was not sent")
+                        continue
+                    }
                     do {
                         try await waitForSessionComplete(timeout: seconds)
                     } catch {
@@ -1886,8 +1896,17 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     }
 
     /// Wait for a provider completion event after graceful stop is requested.
+    ///
+    /// Returns at once when no session ever started: with no `sessionId` there
+    /// is no provider session to flush, so the wait could only time out
+    /// (HYPERWHISPER-YD, issue #834). The shared core already drops the step for
+    /// HyperWhisper Cloud; this guard covers every provider on this head.
     private func waitForSessionComplete(timeout: TimeInterval) async throws {
         if didReceiveSessionComplete { return }
+        guard sessionId != nil else {
+            logger.debug("Skipping session completion wait: no session started")
+            return
+        }
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {

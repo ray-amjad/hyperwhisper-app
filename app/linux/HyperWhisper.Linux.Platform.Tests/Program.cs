@@ -27,15 +27,27 @@ var tests = new (string Name, Func<Task> Run)[]
     ("evdev drops unrelated keys at boundary", DropsUnrelatedKeys),
     ("evdev emits configured logical shortcut", EmitsConfiguredShortcut),
     ("evdev session binding replacement preserves held actions", EvdevSessionBindingReplacement),
+    ("evdev Ctrl+Alt alone toggles on its release, either order", EvdevModifierChordAloneFiresOnRelease),
+    ("evdev Ctrl+Alt+Left never toggles, either release order", EvdevModifierChordWithKeyDoesNotFire),
+    ("evdev Ctrl+Alt+Shift never toggles", EvdevModifierChordWithModifierDoesNotFire),
+    ("evdev a key on another device spoils a held Ctrl+Alt", EvdevModifierChordSpoiledAcrossDevices),
+    ("evdev a same-name rebind drops a held Ctrl+Alt", EvdevModifierChordDroppedOnRebind),
+    ("evdev push-to-talk modifier-only chord fires on press", EvdevPushToTalkChordFiresOnPress),
+    ("evdev service toggles a modifier-only chord on its release", EvdevServiceModifierChordFiresOnRelease),
     ("evdev disposal is bounded for uncooperative devices", EvdevDisposalBounded),
     ("global shortcut capability probe is content-free and closes sources", ShortcutCapabilityProbe),
     ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
     ("X11 modifier-only shortcuts emit press and release", X11ModifierShortcut),
     ("X11 shortcut released modifier-first fires again", X11ModifierFirstRelease),
     ("X11 maps multi-modifier-only shortcuts in either order", X11MultiModifierShortcut),
+    ("X11 Ctrl+Alt alone toggles on its release, either order", X11ModifierChordAloneFiresOnRelease),
+    ("X11 Ctrl+Alt+Left never toggles, either release order", X11ModifierChordWithKeyDoesNotFire),
+    ("X11 Ctrl+Alt+Shift never toggles", X11ModifierChordWithModifierDoesNotFire),
+    ("X11 push-to-talk modifier chord still fires on press", X11PushToTalkChordFiresOnPress),
     ("true Xorg selects XGrabKey instead of evdev", XorgSelectsXGrabKey),
     ("X11 XGrabKey host integration", X11GrabIntegration),
     ("X11 Display mutation is serialized with reader", X11ConcurrentMutationIntegration),
+    ("X11 Ctrl+Alt toggle ignores Ctrl+Alt+Left on a real server", X11ModifierChordIntegration),
     ("StatusNotifierItem action protocol is bounded", StatusNotifierProtocol),
     ("StatusNotifierItem accepts every allowlisted action", StatusNotifierAllowlist),
     ("StatusNotifierItem rejects payload and casing variants", StatusNotifierRejectsPayloads),
@@ -83,6 +95,16 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a chained dictation that writes nothing keeps the user clipboard", InjectionNoWriteChainedDictationKeepsUserClipboard),
     ("own-transcript match reads every target a transcript write publishes", InjectionOwnTranscriptMatchByTargets),
     ("a restore that finishes after a chained session starts keeps its snapshot", InjectionInFlightRestoreKeepsChainedSnapshot),
+    ("a user copy in the restore window survives the scheduled restore", InjectionUserCopyInRestoreWindowSurvivesScheduledRestore),
+    ("with no copy in the restore window the snapshot is restored", InjectionNoCopyInRestoreWindowRestoresSnapshot),
+    ("a user copy survives the immediate restore", InjectionUserCopySurvivesImmediateRestore),
+    ("a cancelled dictation keeps a copy made while recording", InjectionCancelledDictationKeepsUserCopy),
+    ("chained dictations keep a user copy made after the last paste", InjectionChainedDictationsKeepUserCopyAfterLastPaste),
+    ("an unreadable clipboard restores as before", InjectionUnreadableClipboardRestoresAsBefore),
+    ("a clipboard too large to snapshot skips the restore", InjectionTooLargeClipboardSkipsRestore),
+    ("a clipboard with an undeliverable target restores as before", InjectionUndeliverableClipboardRestoresAsBefore),
+    ("a clipboard with excess targets skips the restore", InjectionExcessTargetsClipboardSkipsRestore),
+    ("a Copy button press in the restore window survives the restore", InjectionCopyButtonInRestoreWindowSurvivesRestore),
     ("Wayland AT-SPI target accepts stable focused identity", AtSpiTargetStable),
     ("Wayland AT-SPI target rejects changed identity", AtSpiTargetChanged),
     ("AT-SPI insertion context matches Windows terminators", AtSpiInsertionContextClassification),
@@ -91,12 +113,16 @@ var tests = new (string Name, Func<Task> Run)[]
     ("uinput exception preserves clipboard fallback", UInputExceptionFallsBack),
     ("Wayland fallback advertises partial multi-MIME restore", CommandClipboardCapability),
     ("Wayland capture reads with --no-newline", CommandClipboardReadArguments),
+    ("clipboard write returns when the helper forks a selection server", CommandClipboardWriteForkingHelper),
+    ("real wl-copy and xclip writes return at once", CommandClipboardRealWriteReturnsPromptly),
     ("Wayland native owner receives every MIME format", NativeWaylandRestore),
     ("clipboard restore rejects snapshots above 32 MiB", ClipboardSnapshotBound),
     ("native X11 owner receives every MIME format", NativeX11Restore),
     ("native X11 owner serves every MIME format", NativeX11RoundTrip),
+    ("native X11 owner sleeps while it holds the clipboard", NativeX11IdleSleeps),
     ("XWayland owner bridges text HTML and PNG", XWaylandRoundTrip),
     ("external desktop helpers have a hard timeout", ExternalHelperTimeout),
+    ("a helper with discarded output keeps the hard timeout", ExternalHelperDiscardedOutputTimeout),
     ("external desktop helper output is bounded promptly", ExternalHelperOutputBound),
     ("X11 application context parses active window safely", X11ApplicationContext),
     ("Wayland application context uses AT-SPI", WaylandApplicationContext),
@@ -118,6 +144,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Xvfb active-window integration", X11ApplicationContextIntegration),
     ("Linux runtime locator resolves packaged backend variants", RuntimeLocatorVariants),
     ("Linux runtime locator matches published app output", RuntimeLocatorPublishedOutput),
+    ("CUDA backend choice falls back without the hyperwhisper-cuda runtime", CudaChoiceFallsBackWithoutCudaPackage),
     ("child launcher preserves literal argv", ChildProcessLiteralArgv),
     ("child launcher terminates process tree", ChildProcessTermination),
     ("package update probe is read-only and parses bounded metadata", PackageUpdateProbe),
@@ -183,6 +210,26 @@ var tests = new (string Name, Func<Task> Run)[]
     ("audio environment mute restores exact prior state", AudioEnvironmentMuteRestore),
     ("audio environment unchanged requires no backend", AudioEnvironmentUnchanged),
     ("audio environment duck restores channel volumes", AudioEnvironmentDuckRestore),
+    ("muffle moves other apps' streams and restores only those", MuffleTests.MovesOtherStreamsAndRestoresOnlyThose),
+    ("muffle pump low-passes the monitor into the real sink", MuffleTests.PumpFiltersTheMonitorIntoTheRealSink),
+    ("muffle recovers a stale sink from a crashed run", MuffleTests.StaleSinkIsRecovered),
+    ("muffle falls back to duck when it cannot start", MuffleTests.FallsBackToDuck),
+    ("muffle restore retries after failure and honours cancel", MuffleTests.RestoreRetriesAndCancels),
+    ("muffle hands the sink to a recording that starts during restore", MuffleTests.NewRecordingTakesOverDuringRestore),
+    ("muffle puts streams back when a helper dies", MuffleTests.HelperDeathPutsStreamsBack),
+    ("muffle moves nothing into a sink that never carries audio", MuffleTests.SilentSinkMovesNothing),
+    ("muffle stopped before audio arrives moves nothing and stays open", MuffleTests.RestoreBeforeAudioArrives),
+    ("muffle quit flushes a pending restore at once", MuffleTests.QuitFlushesAPendingRestore),
+    ("muffle never hands a dead run to the next recording", MuffleTests.DeadRunIsNotClaimed),
+    ("muffle prepare does not block the caller", MuffleTests.PrepareDoesNotBlockTheCaller),
+    ("muffle moves a stream that starts right after the scan", MuffleTests.StreamBetweenScanAndSubscribeIsMoved),
+    ("muffle pactl subscribe dies with the app", MuffleTests.TiedChildDiesWithTheApp),
+    ("muffle restore of an overtaken generation leaves the new claim muffled", MuffleTests.StaleRestoreDoesNotReleaseANewClaim),
+    ("muffle helper death during a move strands no stream", MuffleTests.HelperDeathDuringAMoveStrandsNothing),
+    ("audio restore joiners share the owner's failure and honour their own cancel", MuffleTests.JoinedRestoreSharesTheOutcome),
+    ("muffle teardown stops the helpers and unloads when the move-back fails", MuffleTests.TeardownUnloadsWhenTheMoveBackFails),
+    ("muffle keeps a run whose claim-time teardown failed, for the quit", MuffleTests.FailedClaimTeardownKeepsTheRun),
+    ("muffle parses pactl JSON and parent pids", MuffleTests.ParsesPactlJson),
     ("UI dispatcher posts and invokes through context", UiDispatcherContext),
     ("UI dispatcher cancellation skips queued work", UiDispatcherCancellation),
 };
@@ -393,6 +440,181 @@ static Task EvdevSessionBindingReplacement()
     return Task.CompletedTask;
 }
 
+// Issue #1725. evdev codes: Ctrl_L 29, Alt_L 56, Shift_L 42, Left 105. Value 1 is a
+// press, 0 a release, 2 an auto-repeat. Only the toggle is registered, so Shift and
+// Left are irrelevant codes the filter drops after noting that they spoiled the chord.
+static string RunEvdevToggle(X11ModifierOnlyTrigger trigger, params (ushort Code, int Value)[] input)
+{
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var filter = new EvdevShortcutFilter(trigger);
+    filter.ReplaceBindings([toggle]);
+    var events = new List<string>();
+    foreach (var (code, value) in input)
+        foreach (var signal in filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals)
+            events.Add((signal.Pressed ? "down:" : "up:") + signal.Shortcut.Name);
+    return string.Join(',', events);
+}
+
+static Task EvdevModifierChordAloneFiresOnRelease()
+{
+    // Nothing fires while the chord is held; it fires on the release that breaks it.
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease, (29, 1), (56, 1)));
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (56, 0), (29, 0)));
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (56, 1), (29, 1), (56, 0), (29, 0)));
+    // A held Alt that auto-repeats is not another key joining the chord. It re-arms.
+    Assert.Equal("down:toggle,up:toggle,down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (56, 2), (56, 2), (29, 0), (56, 0),
+        (29, 1), (56, 1), (29, 0), (56, 0)));
+    // The other Ctrl joining the chord is still the chord.
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (97, 1), (97, 0), (29, 0), (56, 0)));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordWithKeyDoesNotFire()
+{
+    // Ctrl+Alt+Left, Left released first.
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (105, 0), (56, 0), (29, 0)));
+    // Ctrl+Alt+Left, a modifier released before Left (either one).
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (56, 0), (105, 0), (29, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (29, 0), (105, 0), (56, 0)));
+    // A spoiled chord does not leak into the next one: Ctrl+Alt+Left, then Ctrl+Alt alone.
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (105, 1), (105, 0), (56, 0),
+        (56, 1), (56, 0), (29, 0)));
+    // A registered key binding joining the chord spoils it the same way.
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var left = EvdevShortcutMapper.Map(new NamedShortcut("left",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("ArrowLeft")))).Value!;
+    var filter = new EvdevShortcutFilter();
+    filter.ReplaceBindings([toggle, left]);
+    var names = new List<string>();
+    foreach (var (code, value) in new (ushort, int)[] { (29, 1), (56, 1), (105, 1), (105, 0), (56, 0), (29, 0) })
+        names.AddRange(filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals
+            .Select(signal => signal.Shortcut.Name));
+    Assert.Equal("left,left", string.Join(',', names));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordWithModifierDoesNotFire()
+{
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (42, 1), (42, 0), (56, 0), (29, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (29, 1), (56, 1), (42, 1), (29, 0), (56, 0), (42, 0)));
+    // A key pressed before the chord is complete spoils it too: Shift (or Left, which
+    // then only auto-repeats) first, then Ctrl+Alt, then T.
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (42, 1), (29, 1), (56, 1), (20, 1), (20, 0), (56, 0), (29, 0), (42, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (42, 1), (29, 1), (56, 1), (56, 0), (29, 0), (42, 0)));
+    Assert.Equal("", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (105, 1), (29, 1), (56, 1), (105, 2), (105, 2), (105, 0), (56, 0), (29, 0)));
+    // ...and only that chord: once the key is up, a fresh Ctrl+Alt fires again.
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        (42, 1), (29, 1), (56, 1), (42, 0), (56, 0), (29, 0),
+        (29, 1), (56, 1), (56, 0), (29, 0)));
+
+    // ChangeMode = Ctrl+Alt+Shift with Shift pressed first: Shift is relevant here, and only
+    // change-mode, whose own key it is, fires.
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var changeMode = EvdevShortcutMapper.Map(new NamedShortcut("change",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt | ShortcutModifiers.Shift))).Value!;
+    var filter = new EvdevShortcutFilter();
+    filter.ReplaceBindings([toggle, changeMode]);
+    var names = new List<string>();
+    foreach (var (code, value) in new (ushort, int)[] { (42, 1), (29, 1), (56, 1), (56, 0), (29, 0), (42, 0) })
+        names.AddRange(filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals
+            .Select(signal => signal.Shortcut.Name));
+    Assert.Equal("change,change", string.Join(',', names));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordSpoiledAcrossDevices()
+{
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    string Run(params (string Device, ushort Code, int Value)[] input)
+    {
+        var filter = new EvdevShortcutFilter();
+        filter.ReplaceBindings([toggle]);
+        var names = new List<string>();
+        foreach (var (device, code, value) in input)
+            names.AddRange(filter.Process(device, new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals
+                .Select(signal => (signal.Pressed ? "down:" : "up:") + signal.Shortcut.Name));
+        return string.Join(',', names);
+    }
+
+    // Ctrl+Alt on keyboard A, Left on keyboard B while it is held.
+    Assert.Equal("", Run(("a", 29, 1), ("a", 56, 1), ("b", 105, 1), ("a", 56, 0), ("a", 29, 0), ("b", 105, 0)));
+    // Left held on keyboard B before the chord completes on keyboard A.
+    Assert.Equal("", Run(("b", 105, 1), ("a", 29, 1), ("a", 56, 1), ("a", 56, 0), ("a", 29, 0), ("b", 105, 0)));
+    // A clean chord on A still fires with a second keyboard idle.
+    Assert.Equal("down:toggle,up:toggle", Run(("b", 105, 1), ("b", 105, 0), ("a", 29, 1), ("a", 56, 1), ("a", 56, 0), ("a", 29, 0)));
+    return Task.CompletedTask;
+}
+
+static Task EvdevModifierChordDroppedOnRebind()
+{
+    var ctrlAlt = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))).Value!;
+    var ctrlShift = EvdevShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift))).Value!;
+    string Run(EvdevBinding rebound)
+    {
+        var filter = new EvdevShortcutFilter();
+        filter.ReplaceBindings([ctrlAlt]);
+        var names = new List<string>();
+        void Feed(ushort code, int value) => names.AddRange(filter.Process("keyboard",
+            new EvdevEvent(EvdevEvent.KeyType, code, value)).Signals.Select(signal => (signal.Pressed ? "down:" : "up:") + signal.Shortcut.Name));
+        Feed(29, 1);
+        Feed(56, 1);
+        filter.ReplaceBindings([rebound]);
+        Feed(29, 0);
+        Feed(56, 0);
+        return string.Join(',', names);
+    }
+
+    // Rebound to Ctrl+Shift under the same name: the old Ctrl+Alt release fires nothing.
+    Assert.Equal("", Run(ctrlShift));
+    // Re-registered with the same keys: the held chord still fires on its release.
+    Assert.Equal("down:toggle,up:toggle", Run(ctrlAlt));
+    return Task.CompletedTask;
+}
+
+static Task EvdevPushToTalkChordFiresOnPress()
+{
+    // Push-to-talk holds, so its filter keeps the press, even when another key joins.
+    Assert.Equal("down:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnPress, (29, 1), (56, 1)));
+    Assert.Equal("down:toggle,up:toggle", RunEvdevToggle(X11ModifierOnlyTrigger.OnPress,
+        (29, 1), (56, 1), (105, 1), (56, 0), (105, 0), (29, 0)));
+    return Task.CompletedTask;
+}
+
+static async Task EvdevServiceModifierChordFiresOnRelease()
+{
+    // The interaction service defaults to release; Ctrl+Alt+Left then Ctrl+Alt fires once.
+    var source = new FakeSource("keyboard", Frame(29, 1), Frame(56, 1), Frame(105, 1), Frame(105, 0),
+        Frame(56, 0), Frame(56, 1), Frame(56, 0), Frame(29, 0));
+    using var service = new LinuxGlobalShortcutService(new FakeSourceFactory(source), null);
+    service.RegisterShortcuts([new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))]);
+    var events = new List<string>();
+    service.ShortcutPressed += (_, args) => events.Add($"down:{args.Name}");
+    service.ShortcutReleased += (_, args) => events.Add($"up:{args.Name}");
+    Assert.Success(service.Start());
+    await source.Completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.Equal("down:toggle,up:toggle", string.Join(',', events));
+}
+
 static Task EvdevDisposalBounded()
 {
     var source = new UncooperativeSource();
@@ -451,7 +673,7 @@ static async Task X11ShortcutPrivacy()
 static async Task X11ModifierShortcut()
 {
     var connection = new FakeX11Connection(new X11HotkeyEvent(37, 0, true), new X11HotkeyEvent(37, 4, false));
-    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection));
+    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection), X11ModifierOnlyTrigger.OnPress);
     var events = 0;
     service.ShortcutPressed += (_, _) => events++;
     service.ShortcutReleased += (_, _) => events++;
@@ -487,6 +709,79 @@ static Task X11MultiModifierShortcut()
     Assert.True(mapped.Value.Triggers.Count(trigger => trigger.Modifiers == 4) == 2);
     Assert.True(mapped.Value.Triggers.Count(trigger => trigger.Modifiers == 8) == 2);
     return Task.CompletedTask;
+}
+
+// Issue #1511. Keycodes in FakeX11Connection: Ctrl_L 37, Alt_L 64, Shift_L 50,
+// Left 113 (unregistered, so it only arrives while the chord's grab is active).
+// X state bits: Shift 1, Control 4, Alt 8.
+static async Task<string> RunX11Toggle(X11ModifierOnlyTrigger trigger, params X11HotkeyEvent[] input)
+{
+    var connection = new FakeX11Connection(input);
+    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection), trigger);
+    var events = new List<string>();
+    service.ShortcutPressed += (_, args) => events.Add("down:" + args.Name);
+    service.ShortcutReleased += (_, args) => events.Add("up:" + args.Name);
+    var registered = service.RegisterShortcuts([new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))]);
+    Assert.Success(registered["toggle"]);
+    Assert.Success(service.Start());
+    await connection.Drained.Task.WaitAsync(TimeSpan.FromSeconds(2)); await Task.Delay(30);
+    return string.Join(',', events);
+}
+
+static async Task X11ModifierChordAloneFiresOnRelease()
+{
+    // Ctrl down, Alt down (arms: the grab on Alt with Control held), then nothing fires
+    // until a chord key comes up. Alt released first, then Ctrl first.
+    Assert.Equal("down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(64, 12, false), new X11HotkeyEvent(37, 4, false)));
+    Assert.Equal("down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(37, 12, false), new X11HotkeyEvent(64, 8, false)));
+    // Alt down first, then Ctrl arms through the grab on Ctrl with Alt held. Twice: it re-arms.
+    Assert.Equal("down:toggle,up:toggle,down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(37, 8, true), new X11HotkeyEvent(37, 12, false),
+        new X11HotkeyEvent(37, 8, true), new X11HotkeyEvent(64, 12, false)));
+    // A held Alt that auto-repeats (its own bit now set) is not another key joining the chord.
+    Assert.Equal("down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(64, 12, true), new X11HotkeyEvent(64, 12, true),
+        new X11HotkeyEvent(64, 12, false), new X11HotkeyEvent(37, 4, false)));
+}
+
+static async Task X11ModifierChordWithKeyDoesNotFire()
+{
+    // Ctrl+Alt+Left, Left released first.
+    Assert.Equal("", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(113, 12, true),
+        new X11HotkeyEvent(113, 12, false), new X11HotkeyEvent(64, 12, false), new X11HotkeyEvent(37, 4, false)));
+    // Ctrl+Alt+Left, a modifier released before Left.
+    Assert.Equal("", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(113, 12, true),
+        new X11HotkeyEvent(64, 12, false), new X11HotkeyEvent(113, 4, false), new X11HotkeyEvent(37, 4, false)));
+    Assert.Equal("", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(113, 12, true),
+        new X11HotkeyEvent(37, 12, false), new X11HotkeyEvent(64, 8, false)));
+    // A spoiled chord does not leak into the next one: Ctrl+Alt+Left, then Ctrl+Alt alone.
+    Assert.Equal("down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(113, 12, true),
+        new X11HotkeyEvent(113, 12, false), new X11HotkeyEvent(64, 12, false),
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(64, 12, false)));
+}
+
+static async Task X11ModifierChordWithModifierDoesNotFire()
+{
+    Assert.Equal("", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(50, 12, true),
+        new X11HotkeyEvent(50, 13, false), new X11HotkeyEvent(64, 12, false), new X11HotkeyEvent(37, 4, false)));
+    Assert.Equal("", await RunX11Toggle(X11ModifierOnlyTrigger.OnCleanRelease,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(50, 12, true),
+        new X11HotkeyEvent(37, 13, false), new X11HotkeyEvent(64, 9, false), new X11HotkeyEvent(50, 1, false)));
+}
+
+static async Task X11PushToTalkChordFiresOnPress()
+{
+    // Push-to-talk holds, so its service keeps the press, even when another key joins.
+    Assert.Equal("down:toggle,up:toggle", await RunX11Toggle(X11ModifierOnlyTrigger.OnPress,
+        new X11HotkeyEvent(64, 4, true), new X11HotkeyEvent(113, 12, true), new X11HotkeyEvent(64, 12, false)));
 }
 
 static Task XorgSelectsXGrabKey()
@@ -772,6 +1067,40 @@ static async Task X11ConcurrentMutationIntegration()
             if (index % 5 == 0) service.ResetKeyboardState();
         }
     });
+}
+
+// Issue #1511 on a real X server: the grab Ctrl+Alt activates must route the
+// joining key to this client, or the chord could not be spoiled.
+static async Task X11ModifierChordIntegration()
+{
+    if (Environment.GetEnvironmentVariable("HW_RUN_X11_GRAB_TEST") != "1") return;
+    using var service = new X11GlobalShortcutService();
+    var fired = 0;
+    service.ShortcutPressed += (_, args) => { if (args.Name == "chord") Interlocked.Increment(ref fired); };
+    var registered = service.RegisterShortcuts([new NamedShortcut("chord",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt))]);
+    Assert.Success(registered["chord"]); Assert.Success(service.Start());
+    try
+    {
+        async Task Xdotool(string arguments)
+        {
+            using var process = Process.Start(new ProcessStartInfo("xdotool", arguments) { UseShellExecute = false });
+            if (process is null) throw new InvalidOperationException("xdotool failed to start");
+            await process.WaitForExitAsync(); Assert.Equal(0, process.ExitCode);
+            await Task.Delay(150);
+        }
+        await Xdotool("keydown ctrl keydown alt keydown Left keyup Left keyup alt keyup ctrl");
+        await Xdotool("keydown ctrl keydown alt keydown Left keyup alt keyup Left keyup ctrl");
+        await Xdotool("keydown ctrl keydown alt keydown shift keyup shift keyup alt keyup ctrl");
+        Assert.Equal(0, Volatile.Read(ref fired));
+        await Xdotool("keydown ctrl keydown alt keyup alt keyup ctrl");
+        Assert.Equal(1, Volatile.Read(ref fired));
+    }
+    finally
+    {
+        service.Dispose();
+        await Task.Delay(100);
+    }
 }
 
 static async Task PulseRecorderWritesWave()
@@ -1444,6 +1773,212 @@ static async Task InjectionNoWriteChainedDictationKeepsUserClipboard()
     Assert.Equal("marker", clipboard.Text);
 }
 
+// #1590 (the Linux twin of #1583): a restore writes the snapshot back only over the app's own
+// transcript. A copy the user makes inside the restore window is their clipboard now.
+static TimeSpan SkipRestoreDelay() => TimeSpan.FromMilliseconds(200);
+
+// The scheduled restore has decided: it captured, and it dropped the snapshot, either by skipping
+// (#1590) or after RestoreAsync returned. So RestoreCalls is final once this returns, and a restore
+// that never decides fails here instead of passing an "== 0" check vacuously.
+static async Task WaitForRestoreDecisionAsync(LinuxTextInjectionService service, FakeClipboard clipboard, int captures)
+{
+    var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+    while ((clipboard.CaptureCalls < captures || service.HoldsSnapshot) && DateTime.UtcNow < deadline)
+        await Task.Delay(5);
+    Assert.Equal(captures, clipboard.CaptureCalls);
+    Assert.True(!service.HoldsSnapshot);
+}
+
+static async Task InjectionUserCopyInRestoreWindowSurvivesScheduledRestore()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(SkipRestoreDelay());
+    var captures = clipboard.CaptureCalls;
+    clipboard.UserCopy("user copy");
+    await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("user copy", clipboard.Text);
+
+    // The stale snapshot is dropped: a later restore has nothing to write.
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("user copy", clipboard.Text);
+}
+
+static async Task InjectionNoCopyInRestoreWindowRestoresSnapshot()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(SkipRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("marker", clipboard.Text);
+}
+
+static async Task InjectionUserCopySurvivesImmediateRestore()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(false));
+    service.StartSession();
+    Assert.Success(await service.CopyToClipboardAsync("transcript A"));
+    clipboard.UserCopy("user copy");
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("user copy", clipboard.Text);
+}
+
+static async Task InjectionCancelledDictationKeepsUserCopy()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    // The recording is cancelled before any transcript is written; the user copied meanwhile.
+    service.CaptureTarget();
+    service.StartSession();
+    clipboard.UserCopy("user copy");
+    service.EndSession();
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("user copy", clipboard.Text);
+
+    // The next dictation snapshots the copy and restores it.
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("user copy", clipboard.Text);
+}
+
+static async Task InjectionChainedDictationsKeepUserCopyAfterLastPaste()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(SkipRestoreDelay());
+    var captures = clipboard.CaptureCalls;
+    clipboard.UserCopy("user copy");
+    await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("user copy", clipboard.Text);
+
+    // A chained dictation cancelled after a copy made during its recording: the restore expects
+    // the previous transcript, finds the copy, and keeps it.
+    clipboard.UserCopy("marker");
+    await DictateAsync(service, "transcript C");
+    service.ScheduleClipboardRestore(ChainRestoreWindow());
+    service.CaptureTarget();
+    service.StartSession();
+    clipboard.UserCopy("copy while recording");
+    service.EndSession();
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("copy while recording", clipboard.Text);
+}
+
+static async Task InjectionUnreadableClipboardRestoresAsBefore()
+{
+    // No helper, the helper failed listing the targets, or a read of one target failed (incomplete):
+    // the content is unknown. null = a throw.
+    foreach (var code in new[] { "clipboard_unavailable", "clipboard_command_failed", "clipboard_capture_incomplete", null })
+    {
+        var clipboard = new FakeClipboard("marker");
+        using var service = NewInjection(clipboard, new FakeUInput(false));
+        service.StartSession();
+        Assert.Success(await service.CopyToClipboardAsync("transcript A"));
+        clipboard.UserCopy("user copy");
+        if (code is null) clipboard.ThrowOnCapture = true;
+        else clipboard.CaptureFailureCode = code;
+        Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+        Assert.Equal(1, clipboard.RestoreCalls);
+        Assert.Equal("marker", clipboard.Text);
+    }
+}
+
+static async Task InjectionTooLargeClipboardSkipsRestore()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(SkipRestoreDelay());
+    var captures = clipboard.CaptureCalls;
+    clipboard.UserCopy("a copy larger than any snapshot");
+    clipboard.CaptureFailureCode = "clipboard_snapshot_too_large";
+    await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+    Assert.Equal(0, clipboard.RestoreCalls);
+
+    clipboard.CaptureFailureCode = null;
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("a copy larger than any snapshot", clipboard.Text);
+}
+
+// #1590 round 2: a capture that fails because the owner advertises a target it cannot deliver
+// (incomplete) looks the same as a transient helper failure, so it is unknown and both restores
+// run as before.
+static Task InjectionUndeliverableClipboardRestoresAsBefore() =>
+    AssertCaptureFailureRestoreDecisionAsync("clipboard_capture_incomplete", skips: false);
+
+// #1590 review: more than 64 targets proves the clipboard is not a transcript write (it publishes
+// at most six): the user's copy, so neither restore writes over it.
+static Task InjectionExcessTargetsClipboardSkipsRestore() =>
+    AssertCaptureFailureRestoreDecisionAsync("clipboard_snapshot_invalid", skips: true);
+
+static async Task AssertCaptureFailureRestoreDecisionAsync(string code, bool skips)
+{
+    var expectedText = skips ? "an app copy with a broken target" : "marker";
+
+    // The scheduled restore.
+    var clipboard = new FakeClipboard("marker");
+    using (var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService()))
+    {
+        await DictateAsync(service, "transcript A");
+        service.ScheduleClipboardRestore(SkipRestoreDelay());
+        var captures = clipboard.CaptureCalls;
+        clipboard.UserCopy("an app copy with a broken target");
+        clipboard.CaptureFailureCode = code;
+        await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+        Assert.Equal(skips ? 0 : 1, clipboard.RestoreCalls);
+        Assert.Equal(expectedText, clipboard.Text);
+    }
+
+    // The immediate restore (a cancelled or failed dictation).
+    clipboard = new FakeClipboard("marker");
+    using (var service = NewInjection(clipboard, new FakeUInput(false)))
+    {
+        service.StartSession();
+        Assert.Success(await service.CopyToClipboardAsync("transcript A"));
+        clipboard.UserCopy("an app copy with a broken target");
+        clipboard.CaptureFailureCode = code;
+        Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+        Assert.Equal(skips ? 0 : 1, clipboard.RestoreCalls);
+        Assert.True(!service.HoldsSnapshot);
+        Assert.Equal(expectedText, clipboard.Text);
+    }
+}
+
+// #1590 review: CopyToClipboardAsync outside a dictation session is a Copy button (history, Local
+// API, account key): the user's copy. A pending restore leaves it and drops the snapshot.
+static async Task InjectionCopyButtonInRestoreWindowSurvivesRestore()
+{
+    var clipboard = new FakeClipboard("marker");
+    using var service = NewInjection(clipboard, new FakeUInput(true), targets: new FakeTargetService());
+    await DictateAsync(service, "transcript A");
+    service.ScheduleClipboardRestore(SkipRestoreDelay());
+    var captures = clipboard.CaptureCalls;
+    Assert.Success(await service.CopyToClipboardAsync("NEW"));
+    await WaitForRestoreDecisionAsync(service, clipboard, captures + 1);
+    Assert.Equal(0, clipboard.RestoreCalls);
+    Assert.Equal("NEW", clipboard.Text);
+
+    // A dictation started next snapshots NEW (not marked as ours) and restores it.
+    await DictateAsync(service, "transcript B");
+    service.ScheduleClipboardRestore(ShortRestoreDelay());
+    await WaitForRestoreCallsAsync(clipboard, 1);
+    Assert.Equal("NEW", clipboard.Text);
+}
+
 static async Task AtSpiTargetStable()
 {
     var query = new FakeAtSpiQuery(
@@ -1582,6 +2117,95 @@ static async Task CommandClipboardReadArguments()
         Assert.SequenceEqual("no newline"u8.ToArray(), value);
 }
 
+// wl-copy and xclip -in fork a child that keeps serving the selection and inherits the helper's
+// stdout and stderr. This fake does the same: it records what it was given, leaves a child holding
+// every inherited descriptor, and exits. A write must return on the helper's exit (#1528).
+static async Task CommandClipboardWriteForkingHelper()
+{
+    var directory = Directory.CreateTempSubdirectory("hyperwhisper-clipboard-fork-");
+    try
+    {
+        var record = Path.Combine(directory.FullName, "record");
+        var helper = Path.Combine(directory.FullName, "copy");
+        await File.WriteAllTextAsync(helper,
+            "#!/bin/sh\nprintf '%s|' \"$@\" > '" + record + "'\ncat >> '" + record + "'\nsleep 10 &\nexit 0\n");
+        File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        async Task AssertPromptAsync(Func<Task<PlatformResult>> write, string expected)
+        {
+            File.Delete(record);
+            var started = Stopwatch.StartNew();
+            Assert.Success(await write());
+            Assert.True(started.Elapsed < TimeSpan.FromSeconds(1), $"The write took {started.Elapsed}.");
+            Assert.Equal(expected, await File.ReadAllTextAsync(record));
+        }
+
+        using (var wayland = new CommandClipboardBackend(helper, "/bin/true", true, null))
+        {
+            await AssertPromptAsync(async () => await wayland.SetTextAsync("transcript",
+                ClipboardHistoryPrivacyPolicy.Disabled, CancellationToken.None), "|transcript");
+            await AssertPromptAsync(async () => await wayland.RestoreAsync(new ClipboardSnapshot(
+                new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["text/html"] = "<b>x</b>"u8.ToArray() }),
+                CancellationToken.None), "--type|text/html|<b>x</b>");
+        }
+        using (var x11 = new CommandClipboardBackend(helper, "/bin/true", false, null))
+        {
+            await AssertPromptAsync(async () => await x11.SetTextAsync("transcript",
+                ClipboardHistoryPrivacyPolicy.Disabled, CancellationToken.None), "-selection|clipboard|-in|transcript");
+            await AssertPromptAsync(async () => await x11.RestoreAsync(new ClipboardSnapshot(
+                new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["image/png"] = "PNG"u8.ToArray() }),
+                CancellationToken.None), "-selection|clipboard|-target|image/png|-in|PNG");
+        }
+
+        // The helper's own exit code still decides the result.
+        using var failing = new CommandClipboardBackend("/bin/false", "/bin/true", true, null);
+        var failed = await failing.SetTextAsync("transcript", ClipboardHistoryPrivacyPolicy.Disabled, CancellationToken.None);
+        Assert.True(failed.IsFailure && failed.Error!.Code == "clipboard_command_failed");
+    }
+    finally { directory.Delete(true); }
+}
+
+// With a real compositor (or X server) and its helper, a transcript write returns as soon as the
+// helper has taken the selection, and the text is on the clipboard (#1528).
+static async Task CommandClipboardRealWriteReturnsPromptly()
+{
+    var wlCopy = CommandClipboardBackend.FindExecutable("wl-copy");
+    var wlPaste = CommandClipboardBackend.FindExecutable("wl-paste");
+    if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")) && wlCopy is not null && wlPaste is not null)
+    {
+        using var wayland = new CommandClipboardBackend(wlCopy, wlPaste, true, null);
+        var started = Stopwatch.StartNew();
+        Assert.Success(await wayland.SetTextAsync("wayland transcript", ClipboardHistoryPrivacyPolicy.Disabled,
+            CancellationToken.None));
+        Assert.True(started.Elapsed < TimeSpan.FromSeconds(1), $"wl-copy took {started.Elapsed}.");
+        var pasted = await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "\"$0\" -n 2>/dev/null", wlPaste], null,
+            CancellationToken.None);
+        Assert.Equal(0, pasted.ExitCode);
+        Assert.Equal("wayland transcript", System.Text.Encoding.UTF8.GetString(pasted.Output));
+
+        started.Restart();
+        Assert.Success(await wayland.RestoreAsync(new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+            { ["text/html"] = "<p>restored</p>"u8.ToArray() }), CancellationToken.None));
+        Assert.True(started.Elapsed < TimeSpan.FromSeconds(1), $"wl-copy --type took {started.Elapsed}.");
+        pasted = await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "\"$0\" -n --type text/html 2>/dev/null", wlPaste],
+            null, CancellationToken.None);
+        Assert.Equal("<p>restored</p>", System.Text.Encoding.UTF8.GetString(pasted.Output));
+    }
+
+    var xclip = CommandClipboardBackend.FindExecutable("xclip");
+    if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY")) && xclip is not null)
+    {
+        using var x11 = new CommandClipboardBackend(xclip, xclip, false, null);
+        var started = Stopwatch.StartNew();
+        Assert.Success(await x11.SetTextAsync("x11 transcript", ClipboardHistoryPrivacyPolicy.Disabled,
+            CancellationToken.None));
+        Assert.True(started.Elapsed < TimeSpan.FromSeconds(1), $"xclip took {started.Elapsed}.");
+        var pasted = await ExternalProcessRunner.RunAsync(xclip, ["-selection", "clipboard", "-out"], null,
+            CancellationToken.None);
+        Assert.Equal("x11 transcript", System.Text.Encoding.UTF8.GetString(pasted.Output));
+    }
+}
+
 static async Task NativeWaylandRestore()
 {
     var owner = new FakeNativeClipboardOwner();
@@ -1667,6 +2291,32 @@ static async Task NativeX11RoundTrip()
     owner.Dispose();
 }
 
+static async Task NativeX11IdleSleeps()
+{
+    if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY"))) return;
+    using var owner = new NativeX11ClipboardOwner(allowXWayland:
+        string.Equals(Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"), "wayland", StringComparison.OrdinalIgnoreCase));
+    Assert.True(owner.IsAvailable);
+    // Own the clipboard, as the app does after a paste, then leave it idle.
+    Assert.Success(await owner.OwnAsync(new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+        { ["text/plain"] = "idle"u8.ToArray() }), CancellationToken.None));
+    await Task.Delay(200);
+    // Linux truncates a thread name to 15 bytes in /proc.
+    var tasks = Directory.GetDirectories("/proc/self/task")
+        .Where(task => File.ReadAllText(Path.Combine(task, "comm")).Trim() == "HyperWhisper X1")
+        .ToArray();
+    Assert.True(tasks.Length > 0, "The X11 clipboard thread was not found in /proc/self/task.");
+    static long Switches(string[] tasks) => tasks.Sum(task => File.ReadLines(Path.Combine(task, "status"))
+        .Where(line => line.StartsWith("voluntary_ctxt_switches:", StringComparison.Ordinal))
+        .Select(line => long.Parse(line.Split(':')[1].Trim()))
+        .FirstOrDefault());
+    var before = Switches(tasks);
+    await Task.Delay(1000);
+    var wakeups = Switches(tasks) - before;
+    // The old loop woke every 10 ms, about 100 times in this second.
+    Assert.True(wakeups <= 5, $"The idle X11 clipboard thread woke {wakeups} times in 1 s.");
+}
+
 static async Task XWaylandRoundTrip()
 {
     var required = string.Equals(Environment.GetEnvironmentVariable("HW_REQUIRE_XWAYLAND_CLIPBOARD_BRIDGE"), "1", StringComparison.Ordinal);
@@ -1723,6 +2373,15 @@ static async Task ExternalHelperTimeout()
     await Assert.ThrowsAsync<TimeoutException>(async () =>
         await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "sleep 30"], null,
             CancellationToken.None, TimeSpan.FromMilliseconds(50)));
+}
+
+static async Task ExternalHelperDiscardedOutputTimeout()
+{
+    var started = Stopwatch.StartNew();
+    await Assert.ThrowsAsync<TimeoutException>(async () =>
+        await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "sleep 30"], "input"u8.ToArray(),
+            CancellationToken.None, TimeSpan.FromMilliseconds(50), discardOutput: true));
+    Assert.True(started.Elapsed < TimeSpan.FromSeconds(2));
 }
 
 static async Task ExternalHelperOutputBound()
@@ -2005,6 +2664,58 @@ static Task RuntimeLocatorVariants() => WithTemporaryDirectory(directory =>
     Assert.True(locator.FindLibrary("llama", NativeComputeBackend.Cuda).IsSuccess);
     Assert.True(locator.FindExecutable("parakeet").IsSuccess);
     Assert.True(locator.Capabilities.ComputeBackends.Contains(NativeComputeBackend.Cuda));
+});
+
+// Issue #1002: the main .deb ships no runtimes/cuda12/linux-x64 (Whisper) and no
+// runtimes/linux-x64/native/cuda12 (LLama); hyperwhisper-cuda adds them at those
+// paths. Without them a CUDA choice falls back and names the package.
+static Task CudaChoiceFallsBackWithoutCudaPackage() => WithTemporaryDirectory(directory =>
+{
+    static void Touch(string path) { Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllBytes(path, [1]); }
+    // The main package's layout: CPU and Vulkan for both engines, no CUDA tree.
+    Touch(Path.Combine(directory, "runtimes", "linux-x64", "libwhisper.so"));
+    Touch(Path.Combine(directory, "runtimes", "vulkan", "linux-x64", "libwhisper.so"));
+    foreach (var isa in new[] { "noavx", "avx", "avx2", "avx512" })
+        Touch(Path.Combine(directory, "runtimes", "linux-x64", "native", isa, "libllama.so"));
+    Touch(Path.Combine(directory, "runtimes", "linux-x64", "native", "vulkan", "libllama.so"));
+    Assert.True(!Directory.Exists(Path.Combine(directory, "runtimes", "cuda12")));
+
+    var withoutCuda = new LinuxNativeRuntimeLocator(directory, System.Runtime.InteropServices.Architecture.X64);
+    Assert.True(!withoutCuda.Capabilities.ComputeBackends.Contains(NativeComputeBackend.Cuda));
+    Assert.True(withoutCuda.FindLibrary("whisper", NativeComputeBackend.Cuda).IsFailure);
+    Assert.True(withoutCuda.FindLibrary("llama", NativeComputeBackend.Cuda).IsFailure);
+
+    // CUDA falls back to the packaged Vulkan backend, and says which package to install.
+    foreach (var component in new[] { "whisper", "llama" })
+    {
+        var choice = LinuxCudaPackage.Choose(withoutCuda, component, NativeComputeBackend.Cuda, allowCpuFallback: true);
+        Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Vulkan, true, false), choice);
+        Assert.True(choice.Notice?.Contains("install the hyperwhisper-cuda package", StringComparison.Ordinal) == true);
+    }
+    // No usable Vulkan: CPU, when CPU fallback is allowed.
+    Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Cpu, true, false),
+        LinuxCudaPackage.Choose(withoutCuda, "llama", NativeComputeBackend.Cuda, allowCpuFallback: true, vulkanUsable: false));
+    // Strict mode with nothing to fall back to: unavailable with the install hint, never a crash.
+    var strict = LinuxCudaPackage.Choose(withoutCuda, "llama", NativeComputeBackend.Cuda, allowCpuFallback: false, vulkanUsable: false);
+    Assert.True(strict.Unavailable && strict.CudaPackageMissing);
+    Assert.True(LinuxCudaPackage.MissingFailure.Contains("hyperwhisper-cuda", StringComparison.Ordinal));
+    // A non-CUDA choice is never touched.
+    Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Vulkan, false, false),
+        LinuxCudaPackage.Choose(withoutCuda, "whisper", NativeComputeBackend.Vulkan, allowCpuFallback: false));
+    Assert.Equal(null, LinuxCudaPackage.Choose(withoutCuda, "whisper", NativeComputeBackend.Cpu, true).Notice);
+
+    // Installing hyperwhisper-cuda adds exactly these two trees; CUDA is then used as chosen.
+    Touch(Path.Combine(directory, "runtimes", "cuda12", "linux-x64", "libwhisper.so"));
+    Touch(Path.Combine(directory, "runtimes", "linux-x64", "native", "cuda12", "libllama.so"));
+    var withCuda = new LinuxNativeRuntimeLocator(directory, System.Runtime.InteropServices.Architecture.X64);
+    Assert.True(withCuda.Capabilities.ComputeBackends.Contains(NativeComputeBackend.Cuda));
+    Assert.True(withCuda.FindLibrary("whisper", NativeComputeBackend.Cuda).Value?.EndsWith(
+        "runtimes/cuda12/linux-x64/libwhisper.so", StringComparison.Ordinal) == true);
+    Assert.True(withCuda.FindLibrary("llama", NativeComputeBackend.Cuda).Value?.EndsWith(
+        "runtimes/linux-x64/native/cuda12/libllama.so", StringComparison.Ordinal) == true);
+    foreach (var component in new[] { "whisper", "llama" })
+        Assert.Equal(new LinuxComputeBackendChoice(NativeComputeBackend.Cuda, false, false),
+            LinuxCudaPackage.Choose(withCuda, component, NativeComputeBackend.Cuda, allowCpuFallback: false));
 });
 
 static Task RuntimeLocatorPublishedOutput()
@@ -3411,7 +4122,8 @@ sealed class FakeX11Connection(params X11HotkeyEvent[] events) : IX11HotkeyConne
     {
         0x20 => 65, 0x2e => 60, 0x41 => 38, 0xff1b => 9,
         0xffc5 => 74, 0xffc6 => 75, 0xffc7 => 76,
-        0xffe3 => 37, 0xffe4 => 105, _ => 0,
+        0xffe3 => 37, 0xffe4 => 105, 0xffe9 => 64, 0xffea => 108,
+        0xffe1 => 50, 0xffe2 => 62, 0xffeb => 133, 0xffec => 134, _ => 0,
     };
     public bool Grab(byte keycode, uint modifiers)
     {
@@ -3595,7 +4307,11 @@ sealed class FakeClipboard : ILinuxClipboardBackend
         ? System.Text.Encoding.UTF8.GetString(value) : string.Empty;
     public bool FailWrites { get; init; }
     public bool BlockWrites { get; init; }
-    public int RestoreCalls { get; private set; }
+    // #1582: counted only after the restored formats are written, with a full fence. A test polls
+    // RestoreCalls on another thread and then reads Formats; counting first let it read the
+    // transcript the restore was about to replace.
+    public int RestoreCalls => Volatile.Read(ref _restoreCalls);
+    private int _restoreCalls;
     public ClipboardHistoryPrivacyPolicy LastPrivacyPolicy { get; private set; }
     /// <summary>Another app (the user) puts new content on the clipboard.</summary>
     public void UserCopy(IReadOnlyDictionary<string, byte[]> formats) => Formats = Clone(formats);
@@ -3603,8 +4319,20 @@ sealed class FakeClipboard : ILinuxClipboardBackend
         { ["text/plain;charset=utf-8"] = System.Text.Encoding.UTF8.GetBytes(text) });
     public LinuxTextInjectionCapabilities GetCapabilities() => new(true, "fake", false, true, true, true,
         ClipboardHistoryPrivacyCapability.BestEffortAvailable);
-    public ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken cancellationToken) =>
-        ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Clone(Formats))));
+    public int CaptureCalls => Volatile.Read(ref _captureCalls);
+    private int _captureCalls;
+    /// <summary>When set, a capture fails with this error code (#1590).</summary>
+    public string? CaptureFailureCode { get; set; }
+    /// <summary>When set, a capture throws, as a helper that crashes does (#1590).</summary>
+    public bool ThrowOnCapture { get; set; }
+    public ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref _captureCalls);
+        if (ThrowOnCapture) throw new InvalidOperationException("test");
+        if (CaptureFailureCode is { } code)
+            return ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Failure(code, "test"));
+        return ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Clone(Formats))));
+    }
     /// <summary>When set, a restore waits for it and ignores cancellation, as a helper already writing does.</summary>
     public TaskCompletionSource? RestoreGate { get; set; }
     public TaskCompletionSource RestoreEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -3612,8 +4340,8 @@ sealed class FakeClipboard : ILinuxClipboardBackend
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (RestoreGate is { } gate) return GatedRestoreAsync(snapshot, gate);
-        RestoreCalls++;
         Formats = Clone(snapshot.Formats);
+        Interlocked.Increment(ref _restoreCalls);
         return ValueTask.FromResult(PlatformResult.Success());
     }
     public async ValueTask<PlatformResult> SetTextAsync(string text, ClipboardHistoryPrivacyPolicy privacyPolicy,
@@ -3633,8 +4361,8 @@ sealed class FakeClipboard : ILinuxClipboardBackend
     {
         RestoreEntered.TrySetResult();
         await gate.Task;
-        RestoreCalls++;
         Formats = Clone(snapshot.Formats);
+        Interlocked.Increment(ref _restoreCalls);
         return PlatformResult.Success();
     }
     private static Dictionary<string, byte[]> Clone(IReadOnlyDictionary<string, byte[]> source) =>
@@ -4047,9 +4775,9 @@ sealed class ThrowingUInput : IUInputPasteBackend
 
 static class Assert
 {
-    public static void True(bool condition)
+    public static void True(bool condition, string? message = null)
     {
-        if (!condition) throw new InvalidOperationException("Expected true.");
+        if (!condition) throw new InvalidOperationException(message ?? "Expected true.");
     }
     public static void Equal<T>(T expected, T actual)
     {

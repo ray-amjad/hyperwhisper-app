@@ -282,7 +282,7 @@ public partial class MainViewModel : ViewModelBase
             AudioLevel = level;
             AudioLevelChanged?.Invoke(this, level);
         };
-        _modeChangedHandler = (s, e) => RefreshModes();
+        _modeChangedHandler = (s, e) => OnModesChanged();
         _modeSelectedHandler = (s, mode) =>
         {
             SelectedMode = Modes.FirstOrDefault(m => m.Id == mode.Id) ?? mode;
@@ -400,6 +400,7 @@ public partial class MainViewModel : ViewModelBase
             RefreshModes();
             UpdateModelStatus();
             InitializeShortcuts();
+            InitializeLocalModelHealthMonitoring();
             _pasteService = new SmartPasteService();
             await AutoLoadModelAsync();
             InitializeGettingStarted();
@@ -595,6 +596,69 @@ public partial class MainViewModel : ViewModelBase
             ? "status.fileTranscriptionCancelled"
             : "status.recordingCancelled");
 
+    /// <summary>
+    /// The error toast for a failed transcription (issue #1842). Dictation, streaming and
+    /// Transcribe File all build their toast here, so a credential error routes to Settings
+    /// the same way on every path: ApiKeyMissing/Unauthorized open the API-keys manager,
+    /// CloudAccountRequired opens the HW Cloud page (account key entry, NOT the BYOK
+    /// manager). Any other failure shows its message with no button.
+    /// </summary>
+    internal static ErrorToastEventArgs TranscriptionFailureToast(Exception ex)
+    {
+        if (ex is not TranscriptionException txEx)
+        {
+            return new ErrorToastEventArgs(
+                Loc.S("errors.transcriptionFailed", ex.Message),
+                showSettingsButton: false);
+        }
+
+        var isCredentialError = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
+        var isCloudAccountError = txEx.Code == TranscriptionErrorCode.CloudAccountRequired;
+        return new ErrorToastEventArgs(
+            txEx.GetUserMessage(),
+            showSettingsButton: isCredentialError || isCloudAccountError,
+            settingsSection: isCloudAccountError ? "Cloud" : null,
+            openApiKeysManager: isCredentialError);
+    }
+
+    /// <summary>
+    /// The status line a job leaves when it ends (issue #1519). While a job runs the
+    /// bar shows its busy line. If that line is still there at the end, nothing put a
+    /// result up (a failure, a cancel, an undelivered transcript), so the bar goes back
+    /// to Ready. A result stays. Split out so the rule is pinnable without a MainViewModel.
+    /// </summary>
+    internal static string StatusTextAfterJob(string current, string? busy, string ready) =>
+        busy != null && current == busy ? ready : current;
+
+    // The busy line the running dictation or file job put on the status bar, or null.
+    private string? _jobStatusText;
+
+    /// <summary>Shows a job's busy line, over whatever the last job left (#1519).</summary>
+    private void ShowJobStatus(string key)
+    {
+        _jobStatusText = Loc.S(key);
+        StatusText = _jobStatusText;
+    }
+
+    /// <summary>Moves the busy line to the job's next stage, unless a result replaced it.</summary>
+    private void AdvanceJobStatus(string key)
+    {
+        if (_jobStatusText != null && StatusText == _jobStatusText)
+            ShowJobStatus(key);
+    }
+
+    /// <summary>
+    /// Ends the job's busy line: back to Ready, unless a result replaced it.
+    /// Returns true when a result stays, so a model load that follows must not overwrite it.
+    /// </summary>
+    private bool EndJobStatus()
+    {
+        var ready = Loc.S("status.ready.withHotkey", HotkeyText);
+        StatusText = StatusTextAfterJob(StatusText, _jobStatusText, ready);
+        _jobStatusText = null;
+        return StatusText != ready;
+    }
+
     private void ReportUndeliveredTranscript()
     {
         if (!ShouldReportUndeliveredTranscript())
@@ -712,6 +776,32 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    // A backup import raises ModeChanged from its Task.Run thread (#1592), and a
+    // SelectedMode change preloads a model and refreshes the status bar, so the
+    // reload runs on the UI thread. A raise that is already on it stays inline.
+    private void OnModesChanged()
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            RefreshModes();
+            return;
+        }
+        if (dispatcher.HasShutdownStarted) return;
+
+        dispatcher.BeginInvoke(() =>
+        {
+            try
+            {
+                RefreshModes();
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error("MainViewModel: Failed to reload modes after a change", ex);
+            }
+        });
+    }
+
     private void RefreshModes()
     {
         Modes = ModeService.Instance.GetAllModes();
@@ -743,6 +833,16 @@ public partial class MainViewModel : ViewModelBase
 
         var mode = ModeService.Instance.GetSelectedMode();
         if (mode == null || mode.ProviderType == "cloud") return;
+
+        // A missing, wrong-size or broken model is not loaded, and the status bar
+        // must not say Ready for it (#1598): a ggml file cut to 96% used to load
+        // "successfully" here and then fail every transcription.
+        if (!IsLocalModelDownloaded(mode))
+        {
+            LoggingService.Warn($"AutoLoadModelAsync: Model not installed - {LocalModelLabel(mode)}; skipping the preload");
+            StatusText = Loc.S("errors.modelNotDownloaded", LocalModelLabel(mode));
+            return;
+        }
 
         // A failed preload must not abort startup, so the error is reported and
         // dropped here. StartRecordingAsync retries the load and shows the toast.
@@ -793,6 +893,108 @@ public partial class MainViewModel : ViewModelBase
             dedupeKey: $"model-load:background:{engine}:{exceptionType}");
     }
 
+    // =========================================================================
+    // BROKEN LOCAL MODELS (#1598)
+    // =========================================================================
+
+    private void InitializeLocalModelHealthMonitoring()
+    {
+        LocalModelHealth.Changed += OnLocalModelHealthChanged;
+        ModelDownloadService.Instance.DownloadChanged += OnModelDownloadChanged;
+    }
+
+    /// <summary>The name StartRecordingAsync's "not downloaded" toast uses for a local mode's model.</summary>
+    private static string LocalModelLabel(Mode mode) => mode.LocalEngine == "parakeet"
+        ? mode.LocalParakeetModel ?? "Unknown"
+        : mode.ModelType ?? "Unknown";
+
+    /// <summary>The Model Library row id (ModelLibraryManager) of a local mode's model.</summary>
+    internal static string? LocalLibraryModelId(Mode mode)
+    {
+        if (mode.ProviderType == "cloud") return null;
+        return mode.LocalEngine == "parakeet"
+            ? (mode.LocalParakeetModel is { } p ? $"parakeet-{p}" : null)
+            : (mode.ModelType is { } w ? $"whisper-{w}" : null);
+    }
+
+    // Raised on the thread whose load failed, mid-transcription.
+    private void OnLocalModelHealthChanged(object? sender, string modelPath)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.HasShutdownStarted) return;
+
+        dispatcher.BeginInvoke(() => { _ = ApplyLocalModelHealthAsync(); });
+    }
+
+    /// <summary>
+    /// A model was marked broken (or the mark was cleared). Unload a broken
+    /// Whisper model, then refresh the status bar so it no longer says Ready.
+    ///
+    /// The unload matters for the way back: LoadWhisperModelAsync skips a path
+    /// that is already loaded, and Whisper.net keeps the failed lazy load, so a
+    /// re-downloaded file at the same path would never be read. UnloadModelAsync
+    /// waits for the failing transcription to leave, so this runs after it.
+    /// </summary>
+    private async Task ApplyLocalModelHealthAsync()
+    {
+        try
+        {
+            if (_transcriptionService.IsInitialized && LocalModelHealth.IsBroken(_transcriptionService.LoadedModelPath))
+            {
+                LoggingService.Info("MainViewModel: Unloading the Whisper model that failed to load");
+                await _transcriptionService.UnloadModelAsync();
+                IsModelLoaded = false;
+            }
+
+            UpdateModelStatus();
+
+            var mode = SelectedMode;
+            if (mode != null && mode.ProviderType != "cloud" && !IsLocalModelDownloaded(mode)
+                && !IsRecording && !IsTranscribing && !IsModelLoading)
+            {
+                StatusText = Loc.S("errors.modelNotDownloaded", LocalModelLabel(mode));
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error("MainViewModel: Failed to apply a local model health change", ex);
+        }
+    }
+
+    /// <summary>
+    /// A finished download of the selected mode's model makes it Ready again
+    /// (#1598): refresh the status bar and preload it, as a mode switch does.
+    /// Before this, the status bar kept "Not downloaded" until the next mode
+    /// switch or recording.
+    /// </summary>
+    private void OnModelDownloadChanged(object? sender, ModelDownloadChangedEventArgs e)
+    {
+        if (!e.IsCompleted || !e.IsSuccess) return;
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.HasShutdownStarted) return;
+
+        dispatcher.BeginInvoke(() =>
+        {
+            try
+            {
+                UpdateModelStatus();
+
+                var mode = SelectedMode;
+                if (mode == null || LocalLibraryModelId(mode) != e.ModelId) return;
+                if (!PlatformHelper.SupportsLocalTranscription || !IsLocalModelDownloaded(mode)) return;
+                if (IsRecording || IsTranscribing || IsModelLoading) return;
+
+                StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+                LoadModelInBackground(mode);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error("MainViewModel: Failed to refresh after a model download", ex);
+            }
+        });
+    }
+
     [RelayCommand] private void NavigateToHome() => CurrentPage = NavigationPage.Home;
     [RelayCommand] private void NavigateToModes() => CurrentPage = NavigationPage.Modes;
     [RelayCommand] private void NavigateToVocabulary() => CurrentPage = NavigationPage.Vocabulary;
@@ -800,6 +1002,42 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand] private void NavigateToModelLibrary() => CurrentPage = NavigationPage.ModelLibrary;
     [RelayCommand] private void NavigateToHistory() => CurrentPage = NavigationPage.History;
     [RelayCommand] private void NavigateToSettings() => CurrentPage = NavigationPage.Settings;
+
+    private string? _pendingSettingsSection;
+
+    /// <summary>
+    /// Opens Settings on one section, in a single navigation.
+    /// </summary>
+    /// <remarks>
+    /// #637. MainWindow navigates whenever CurrentPage changes, with no section, so
+    /// setting CurrentPage and then navigating again with the section made two
+    /// navigations, and from a page inside the Frame the section-less one won:
+    /// Settings opened on General. The section now rides along with the one
+    /// navigation the CurrentPage change raises; MainWindow takes it with
+    /// TakePendingSettingsSection. Already on Settings, the setter would raise
+    /// nothing, so the change is raised by hand to move to the section.
+    /// </remarks>
+    public void OpenSettingsSection(string sectionTag)
+    {
+        if (string.IsNullOrWhiteSpace(sectionTag))
+            throw new ArgumentException("A Settings section tag is required.", nameof(sectionTag));
+
+        _pendingSettingsSection = sectionTag;
+        if (CurrentPage == NavigationPage.Settings)
+            OnPropertyChanged(nameof(CurrentPage));
+        else
+            CurrentPage = NavigationPage.Settings;
+    }
+
+    /// <summary>
+    /// The section OpenSettingsSection asked for, once; null for any other navigation.
+    /// </summary>
+    internal string? TakePendingSettingsSection()
+    {
+        var section = _pendingSettingsSection;
+        _pendingSettingsSection = null;
+        return CurrentPage == NavigationPage.Settings ? section : null;
+    }
 
     // =========================================================================
     // RECENT RELEASES
@@ -844,6 +1082,7 @@ public partial class MainViewModel : ViewModelBase
         {
             ModeService.Instance.SetSelectedMode(value.Id);
             CurrentMode = value;
+            CancelWhisperUnloadIfNoLongerWanted(value);
             UpdateModelStatus();
 
             // If the newly selected mode does not use Parakeet, tear down the
@@ -868,6 +1107,21 @@ public partial class MainViewModel : ViewModelBase
 
     partial void OnIsRecordingChanged(bool value)
     {
+        // Keep-warm for local Whisper (issue #1194): the worker process starts and
+        // loads the model while the user speaks, and cannot idle out mid-recording.
+        if (value)
+        {
+            var mode = _activeRecordingMode;
+            if (mode != null && mode.ProviderType != "cloud" && mode.LocalEngine != "parakeet")
+            {
+                _transcriptionService.NotifyWhisperRecordingStarted();
+            }
+        }
+        else
+        {
+            _transcriptionService.NotifyWhisperRecordingEnded();
+        }
+
         if (!value && !IsTranscribing)
         {
             DisposeParakeetIfNotNeededForSelectedMode();
@@ -889,18 +1143,42 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        var modeUsesParakeet = SelectedMode != null
-            && SelectedMode.ProviderType != "cloud"
-            && SelectedMode.LocalEngine == "parakeet";
-
-        if (modeUsesParakeet)
+        if (SelectedModeUsesParakeet())
         {
             return;
         }
 
-        LoggingService.Info("MainViewModel: Disposing Parakeet daemon because selected mode does not use it");
-        _parakeetTranscriptionService.DisposeModel();
+        // A Transcribe File job on Parakeet is loading or using this daemon
+        // (#1609). IsTranscribing is not set yet while it loads, so a mode
+        // switch then would dispose the daemon the job just started.
+        if (_parakeetFileJobOwnsDaemon)
+        {
+            return;
+        }
+
+        // Housekeeping only (#1544): every mode write re-selects the current mode and
+        // lands here, on the Local API request thread or the UI thread. A Local API job
+        // may be on the daemon even though the GUI is idle; waiting it out held that
+        // thread for the whole job, then forced a cold start. A busy daemon is unloaded
+        // by the service once that job and its lease have left.
+        // The deferred unload asks again when the job ends: the user may have switched
+        // back to a Parakeet mode meanwhile, and that daemon must stay.
+        if (!_parakeetTranscriptionService.TryDisposeModelIfIdle(() => !SelectedModeUsesParakeet()))
+        {
+            LoggingService.Info("MainViewModel: Keeping Parakeet daemon until the transcription using it finishes");
+            return;
+        }
+
+        LoggingService.Info("MainViewModel: Disposed Parakeet daemon because selected mode does not use it");
         UpdateModelStatus();
+    }
+
+    private bool SelectedModeUsesParakeet()
+    {
+        var mode = SelectedMode;
+        return mode != null
+            && mode.ProviderType != "cloud"
+            && mode.LocalEngine == "parakeet";
     }
 
     private bool CycleMode()
@@ -990,7 +1268,11 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    private async Task LoadWhisperModelAsync()
+    /// <param name="keepStatusText">
+    /// Leave the status bar's Loading and Ready lines out, so a file job's result stays
+    /// up (#1519). A load failure still shows.
+    /// </param>
+    private async Task LoadWhisperModelAsync(bool keepStatusText = false)
     {
         if (!PlatformHelper.SupportsWhisperTranscription)
         {
@@ -1002,13 +1284,21 @@ public partial class MainViewModel : ViewModelBase
         var model = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == SelectedMode.ModelType);
         if (model == null) return;
         var modelPath = _modelService.GetModelPath(model);
-        if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath) return;
 
-        if (_parakeetTranscriptionService.IsInitialized)
+        // Never load a file that is not the exact catalog size or that already
+        // failed to load (#1598). Checked before the "already loaded" shortcut,
+        // because Whisper.net loads lazily: a broken file looks loaded.
+        if (!_modelService.IsModelDownloaded(model))
         {
-            LoggingService.Info("LoadWhisperModelAsync: Disposing Parakeet daemon before loading Whisper");
-            _parakeetTranscriptionService.DisposeModel();
+            LoggingService.Warn($"LoadWhisperModelAsync: Model not installed - {model.Type}; not loading it");
+            UpdateModelStatus();
+            return;
         }
+
+        // Not while an unload is pending (#1609): the model is about to go, so
+        // queue on the lock behind the unload and load it again.
+        if (_transcriptionService.IsLoadedAndStaying(modelPath)) return;
+        if (ParakeetFileJobKeepsWhisperOut()) return;
 
         // Serialize model loads — concurrent WhisperFactory.FromPath calls cause
         // native access violations (0xC0000005) in the whisper.cpp library.
@@ -1016,15 +1306,26 @@ public partial class MainViewModel : ViewModelBase
         try
         {
             // Re-check after acquiring lock (another caller may have loaded it)
-            if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath) return;
+            if (_transcriptionService.IsLoadedAndStaying(modelPath)) return;
+            if (ParakeetFileJobKeepsWhisperOut()) return;
+
+            // Inside the lock (#1534): a Parakeet load can hold the lock while it
+            // waits out a running Whisper job, and a Whisper load queued behind it
+            // must dispose the daemon THAT load started, not the one (if any) that
+            // was up before the wait.
+            if (_parakeetTranscriptionService.IsInitialized)
+            {
+                LoggingService.Info("LoadWhisperModelAsync: Disposing Parakeet daemon before loading Whisper");
+                _parakeetTranscriptionService.DisposeModel();
+            }
 
             IsModelLoading = true;
-            StatusText = Loc.S("status.model.loading", model.DisplayName);
+            if (!keepStatusText) StatusText = Loc.S("status.model.loading", model.DisplayName);
 
             await _transcriptionService.InitializeAsync(modelPath, p => { }, CancellationToken.None);
             IsModelLoaded = true;
             ModelStatus = Loc.S("status.model.ready", model.DisplayName);
-            StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+            if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
         }
         catch (Exception ex)
         {
@@ -1039,42 +1340,184 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    private async Task LoadParakeetModelAsync()
+    /// <summary>
+    /// Set while a Transcribe File job on a Parakeet mode loads its daemon and
+    /// runs on it (#1609). The Whisper unload that load starts cannot be
+    /// cancelled (the job asked for its mode), so a Whisper load that sees it
+    /// pending must not queue behind it and then dispose the daemon the job
+    /// just started.
+    /// </summary>
+    private volatile bool _parakeetFileJobOwnsDaemon;
+
+    /// <summary>Set when a Whisper load was held out by that file job, so it runs once the job ends.</summary>
+    private volatile bool _whisperLoadHeldForParakeetFileJob;
+
+    private bool ParakeetFileJobKeepsWhisperOut()
     {
-        if (SelectedMode == null) return;
-        var model = ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == SelectedMode.LocalParakeetModel);
+        if (!_parakeetFileJobOwnsDaemon) return false;
+
+        LoggingService.Info("LoadWhisperModelAsync: A Parakeet file transcription owns the engine; not loading Whisper");
+        _whisperLoadHeldForParakeetFileJob = true;
+        UpdateModelStatus();
+        return true;
+    }
+
+    /// <summary>
+    /// Call once the Parakeet file job no longer needs its daemon (it ended, or
+    /// its load failed). Clear <see cref="_parakeetFileJobOwnsDaemon"/> first, so
+    /// the idle housekeeping can dispose the daemon again. Pass keepStatusText when
+    /// the job left a result on the status bar (#1519): the load must not replace it
+    /// with Loading and then Ready.
+    /// </summary>
+    private void LoadWhisperHeldOutByParakeetFileJob(bool keepStatusText)
+    {
+        if (!_whisperLoadHeldForParakeetFileJob) return;
+        _whisperLoadHeldForParakeetFileJob = false;
+
+        var mode = SelectedMode;
+        if (mode == null || mode.ProviderType == "cloud" || mode.LocalEngine == "parakeet") return;
+
+        LoggingService.Info("MainViewModel: Parakeet file transcription ended; loading the Whisper model it held out");
+        LoadHeldWhisperModelInBackground(mode, keepStatusText);
+    }
+
+    // async void for the reason LoadModelInBackground gives. The mode is a Whisper
+    // mode (checked above), so this goes straight to the Whisper loader.
+    private async void LoadHeldWhisperModelInBackground(Mode mode, bool keepStatusText)
+    {
+        try { await LoadWhisperModelAsync(keepStatusText); }
+        catch (Exception ex) { ReportBackgroundModelLoadFailure("mode_switch", mode, ex); }
+    }
+
+    /// <param name="keepStatusText">As for <see cref="LoadWhisperModelAsync"/>.</param>
+    private async Task LoadParakeetModelAsync(bool keepStatusText = false)
+    {
+        var mode = SelectedMode;
+        if (mode == null) return;
+        var model = ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == mode.LocalParakeetModel);
         if (model == null) return;
 
-        string? language = SelectedMode.Language == "auto" ? null : SelectedMode.Language;
+        string? language = mode.Language == "auto" ? null : mode.Language;
 
         // The daemon's startup language/join hint affects some Parakeet-family
         // engines; NeedsReload owns the per-engine reload rules.
-        if (!_parakeetTranscriptionService.NeedsReload(model.Id, SelectedMode.Language))
+        if (!_parakeetTranscriptionService.NeedsReload(model.Id, mode.Language))
         {
             return;
         }
 
-        var modelDir = _parakeetModelService.GetModelDirectory(model);
         if (!_parakeetModelService.IsModelDownloaded(model)) return;
 
-        IsModelLoading = true;
-        StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
+        // #1534: the work under the model lock lives in its own method, so a
+        // `return` inside its try cannot skip the follow-up below. (It did: the
+        // superseded reload sat after the finally and never ran.)
+        var outcome = await LoadParakeetModelUnderLockAsync(mode, model, language, keepStatusText);
+        if (outcome != ParakeetLoadOutcome.SupersededAfterWhisperUnload)
+        {
+            return;
+        }
+
+        // The user switched away while the unload waited out a running job, and
+        // this call has since unloaded Whisper. The newest selection's own load
+        // may have returned early because Whisper was still loaded when it ran,
+        // so: reset the status that still says "loading Parakeet" and describes
+        // the unloaded model, then load for the selection as it stands now,
+        // outside the lock (LoadModelAsync takes it again), under the same rules
+        // as the mode-switch preload: local modes with a downloaded model only.
+        LoggingService.Info("LoadParakeetModelAsync: Mode changed during the Whisper unload; skipped the Parakeet daemon, reloading for the current mode");
+        IsModelLoaded = false;
+        UpdateModelStatus();
+        if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+        var current = SelectedMode;
+        if (current != null && current.ProviderType != "cloud" && IsLocalModelDownloaded(current))
+        {
+            await LoadModelAsync();
+        }
+    }
+
+    /// <summary>What <see cref="LoadParakeetModelUnderLockAsync"/> did (#1534).</summary>
+    internal enum ParakeetLoadOutcome
+    {
+        /// <summary>The daemon was already up for this model, or this call started it.</summary>
+        Ready,
+        /// <summary>The user switched away before anything was unloaded. Nothing to undo.</summary>
+        SupersededBeforeUnload,
+        /// <summary>The user switched away while the Whisper unload waited; Whisper is now unloaded.</summary>
+        SupersededAfterWhisperUnload,
+    }
+
+    /// <summary>
+    /// The part of <see cref="LoadParakeetModelAsync"/> that holds
+    /// <see cref="_modelLoadLock"/> (#1534). The Whisper unload can wait out a
+    /// whole running job with the UI thread free, so the lock stops a second
+    /// caller (a dictation start, another mode switch, Transcribe File) from
+    /// starting a second parakeet-engine daemon and orphaning the first, or
+    /// interleaving a Whisper load.
+    ///
+    /// Keep any follow-up work in the caller: a `return` here leaves through the
+    /// finally only.
+    /// </summary>
+    private async Task<ParakeetLoadOutcome> LoadParakeetModelUnderLockAsync(
+        Mode mode, ParakeetModelInfo model, string? language, bool keepStatusText = false)
+    {
+        await _modelLoadLock.WaitAsync();
         try
         {
-            // On systems with less than 32 GB RAM, unload the Whisper model
-            // first. Use UnloadModel (not Dispose) — the service is shared
-            // with the Local API server via TranscriptionRuntime, so
-            // disposing would leave the API with a dead factory pointer.
-            if (GetTotalSystemMemoryGB() < 32 && _transcriptionService.IsInitialized)
+            // Re-check after acquiring the lock: a load queued ahead of this one
+            // may already have started this daemon, or the user may have picked
+            // another mode while this call waited.
+            if (!_parakeetTranscriptionService.NeedsReload(model.Id, mode.Language))
             {
-                LoggingService.Info("LoadParakeetModelAsync: Unloading Whisper model to free memory (<32GB RAM)");
-                _transcriptionService.UnloadModel();
+                return ParakeetLoadOutcome.Ready;
             }
 
-            await _parakeetTranscriptionService.InitializeAsync(modelDir, language);
+            if (!IsParakeetLoadStillWanted(SelectedMode, model.Id, mode.Language))
+            {
+                // Nothing touched yet; the newest selection's own load handles it.
+                LoggingService.Info("LoadParakeetModelAsync: Mode changed while waiting for the model lock; skipped the Parakeet daemon");
+                return ParakeetLoadOutcome.SupersededBeforeUnload;
+            }
+
+            IsModelLoading = true;
+            if (!keepStatusText) StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
+
+            // #1609: a switch away from this mode cancels the unload while it
+            // waits, so the Whisper model the new mode may use stays loaded and a
+            // dictation started on it does not queue behind a whole file job.
+            bool unloaded;
+            var unloadCts = new CancellationTokenSource();
+            var pendingUnload = new PendingWhisperUnload(unloadCts, model.Id, mode.Language);
+            _pendingWhisperUnload = pendingUnload;
+            try
+            {
+                unloaded = await UnloadWhisperForParakeetIfLowMemoryAsync("LoadParakeetModelAsync", unloadCts.Token);
+            }
+            catch (OperationCanceledException) when (unloadCts.IsCancellationRequested)
+            {
+                LoggingService.Info("LoadParakeetModelAsync: Mode changed while the Whisper unload waited; kept Whisper loaded and skipped the Parakeet daemon");
+                UpdateModelStatus();
+                if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+                return ParakeetLoadOutcome.SupersededBeforeUnload;
+            }
+            finally
+            {
+                Interlocked.CompareExchange(ref _pendingWhisperUnload, null, pendingUnload);
+                unloadCts.Dispose();
+            }
+
+            if (unloaded && !IsParakeetLoadStillWanted(SelectedMode, model.Id, mode.Language))
+            {
+                // The unload waited out a running job, and the user switched away
+                // during it. Do not start a daemon the newest selection does not
+                // use; the caller resets the status and reloads.
+                return ParakeetLoadOutcome.SupersededAfterWhisperUnload;
+            }
+
+            await _parakeetTranscriptionService.InitializeAsync(_parakeetModelService.GetModelDirectory(model), language);
             IsModelLoaded = true;
             ModelStatus = Loc.S("status.model.parakeet.ready", model.DisplayName, _parakeetTranscriptionService.ActiveProvider ?? "CPU");
-            StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+            if (!keepStatusText) StatusText = Loc.S("status.ready.withHotkey", HotkeyText);
+            return ParakeetLoadOutcome.Ready;
         }
         catch (Exception ex)
         {
@@ -1082,7 +1525,77 @@ public partial class MainViewModel : ViewModelBase
             StatusText = Loc.S("status.failed", ex.Message);
             throw;
         }
-        finally { IsModelLoading = false; }
+        finally
+        {
+            IsModelLoading = false;
+            _modelLoadLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// The Whisper unload a mode-switch or dictation Parakeet load is waiting on
+    /// (#1609), with the load it is for. Transcribe File's unload is not here:
+    /// that job asked for its mode and keeps it.
+    /// </summary>
+    private sealed record PendingWhisperUnload(CancellationTokenSource Cts, string ModelId, string? Language);
+
+    private PendingWhisperUnload? _pendingWhisperUnload;
+
+    /// <summary>
+    /// Cancels the pending Whisper unload when <paramref name="selected"/> no
+    /// longer wants the Parakeet daemon it makes room for (#1609). Nothing has
+    /// been disposed while the unload waits, so Whisper simply stays loaded.
+    /// </summary>
+    private void CancelWhisperUnloadIfNoLongerWanted(Mode? selected)
+    {
+        var pending = Volatile.Read(ref _pendingWhisperUnload);
+        if (pending == null || IsParakeetLoadStillWanted(selected, pending.ModelId, pending.Language))
+        {
+            return;
+        }
+
+        LoggingService.Info("MainViewModel: Selected mode no longer uses the Parakeet daemon; cancelling the Whisper unload that waits for it");
+        try { pending.Cts.Cancel(); }
+        catch (ObjectDisposedException) { /* the unload already returned */ }
+    }
+
+    /// <summary>
+    /// True when <paramref name="selected"/> still asks for the Parakeet model
+    /// a queued load is about to start (#1534). The load waits on the model lock
+    /// and on the Whisper unload, which can last a whole file job, so the user
+    /// can change mode in between.
+    /// </summary>
+    internal static bool IsParakeetLoadStillWanted(Mode? selected, string modelId, string? language) =>
+        selected != null
+        && selected.ProviderType != "cloud"
+        && selected.LocalEngine == "parakeet"
+        && string.Equals(selected.LocalParakeetModel, modelId, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(selected.Language, language, StringComparison.Ordinal);
+
+    /// <summary>
+    /// On systems with less than 32 GB RAM, releases the Whisper model before a
+    /// Parakeet daemon starts. Call it holding <see cref="_modelLoadLock"/>.
+    ///
+    /// Awaited, never blocked on (#1534): the unload waits for every in-flight
+    /// Whisper transcription, which on a long Transcribe File job is 1-2 minutes,
+    /// and the old synchronous call froze the main window for all of it.
+    ///
+    /// Unload, not Dispose: the service is shared with the Local API server via
+    /// TranscriptionRuntime, so disposing would leave the API with a dead factory
+    /// pointer.
+    /// </summary>
+    /// <returns>True when a Whisper model was unloaded.</returns>
+    private async Task<bool> UnloadWhisperForParakeetIfLowMemoryAsync(string caller, CancellationToken cancellationToken = default)
+    {
+        if (GetTotalSystemMemoryGB() >= 32 || !_transcriptionService.IsInitialized)
+        {
+            return false;
+        }
+
+        LoggingService.Info($"{caller}: Unloading Whisper model to free memory (<32GB RAM); waits for any running Whisper job");
+        await _transcriptionService.UnloadModelAsync(cancellationToken);
+        LoggingService.Info($"{caller}: Whisper model unloaded");
+        return true;
     }
 
     private static double GetTotalSystemMemoryGB()
@@ -1120,7 +1633,7 @@ public partial class MainViewModel : ViewModelBase
                     _parakeetTranscriptionService.ActiveProvider ?? "CPU");
                 return;
             }
-            var provider = CloudTranscriptionProviderExtensions.FromIdentifier(SelectedMode.CloudProvider);
+            var provider = CloudTranscriptionProviderExtensions.FromModeCloudProvider(SelectedMode.CloudProvider);
             var providerName = provider.GetDisplayName();
             var model = CloudTranscriptionModels.GetById(SelectedMode.CloudTranscriptionModel, provider)
                         ?? CloudTranscriptionModels.GetDefault(provider);
@@ -1137,7 +1650,8 @@ public partial class MainViewModel : ViewModelBase
             var model = ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == SelectedMode.LocalParakeetModel);
             if (model == null) { ModelStatus = Loc.S("status.model.unknown"); return; }
             bool isLoaded = _parakeetTranscriptionService.IsInitialized &&
-                            _parakeetTranscriptionService.LoadedModelId == model.Id;
+                            _parakeetTranscriptionService.LoadedModelId == model.Id &&
+                            !LocalModelHealth.IsBroken(_parakeetModelService.GetModelDirectory(model));
             ModelStatus = isLoaded
                 ? Loc.S("status.model.parakeet.ready", model.DisplayName, _parakeetTranscriptionService.ActiveProvider ?? "CPU")
                 : _parakeetModelService.IsModelDownloaded(model)
@@ -1149,7 +1663,8 @@ public partial class MainViewModel : ViewModelBase
             var model = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == SelectedMode.ModelType);
             if (model == null) { ModelStatus = Loc.S("status.model.unknown"); return; }
             var modelPath = _modelService.GetModelPath(model);
-            bool isLoaded = _transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath;
+            bool isLoaded = _transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath &&
+                            !LocalModelHealth.IsBroken(modelPath);
             ModelStatus = isLoaded ? Loc.S("status.model.computeReady", model.DisplayName, computeMode) :
                           _modelService.IsModelDownloaded(model) ? Loc.S("status.model.downloaded", model.DisplayName) :
                           Loc.S("status.model.notDownloaded", model.DisplayName);
@@ -1452,33 +1967,20 @@ public partial class MainViewModel : ViewModelBase
         // Local modes need the Whisper model loaded into GPU memory
         if (recordingMode.ProviderType != "cloud" && !IsLocalProviderReady(recordingMode))
         {
-            // Check model is downloaded
-            bool modelDownloaded = IsLocalModelDownloaded(recordingMode);
-            if (!modelDownloaded)
+            var readyMode = await LoadModelForRecordingAsync(recordingMode);
+            if (readyMode == null)
             {
-                var modelName = recordingMode.LocalEngine == "parakeet"
-                    ? recordingMode.LocalParakeetModel ?? "Unknown"
-                    : recordingMode.ModelType ?? "Unknown";
-                LoggingService.Warn($"StartRecordingAsync: Model not downloaded - {modelName}");
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    Loc.S("errors.modelNotDownloaded", modelName),
-                    showSettingsButton: false));
                 CleanupFailedRecordingStart();
                 return;
             }
-            try
+
+            if (!ReferenceEquals(readyMode, recordingMode))
             {
-                await LoadModelAsync();
+                DropScreenOcrTheModeDoesNotWant(readyMode);
             }
-            catch (Exception ex)
-            {
-                LoggingService.Error($"StartRecordingAsync: Model load failed - {ex.Message}");
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    Loc.S("errors.modelLoadFailed"),
-                    showSettingsButton: false));
-                CleanupFailedRecordingStart();
-                return;
-            }
+
+            recordingMode = readyMode;
+            _activeRecordingMode = readyMode;
         }
 
         AudioEnvironmentService.AudioEnvironmentRestoreClaim? audioRestoreClaim = null;
@@ -1509,6 +2011,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         IsRecording = true;
+        ShowJobStatus("recording.state.recording");
         SoundEffectsService.Instance.PlayStartSound();
         _audioEnvironmentState = AudioEnvironmentService.Instance.PrepareForRecording(audioRestoreClaim!);
         ShowOverlayRequested?.Invoke(this, EventArgs.Empty);
@@ -1522,6 +2025,74 @@ public partial class MainViewModel : ViewModelBase
             CheckRecordingDurationLimit();
         };
         _durationTimer.Start();
+    }
+
+    /// <summary>How many loads a dictation start tries before it gives up (#1609).</summary>
+    private const int MaxRecordingModelLoadAttempts = 3;
+
+    /// <summary>
+    /// Loads the local model a dictation start needs, and returns the mode the
+    /// recording is for once that mode's engine is ready; null after a toast.
+    ///
+    /// The load can wait out a whole Whisper file job (#1534), and the user can
+    /// switch mode during it. <see cref="LoadModelAsync"/> loads for the mode
+    /// selected NOW, so the recording follows the selection: nothing has been
+    /// captured yet. The engine is then checked again, because a load can return
+    /// without one (#1609): a Parakeet load the switch superseded starts no
+    /// daemon, and recording anyway failed the transcription at stop. A switch
+    /// back mid-load can leave the engine down again, so it loads again, a few
+    /// times at most.
+    /// </summary>
+    private async Task<Mode?> LoadModelForRecordingAsync(Mode recordingMode)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            if (!IsLocalModelDownloaded(recordingMode))
+            {
+                var modelName = LocalModelLabel(recordingMode);
+                LoggingService.Warn($"StartRecordingAsync: Model not downloaded - {modelName}");
+                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                    Loc.S("errors.modelNotDownloaded", modelName),
+                    showSettingsButton: false));
+                return null;
+            }
+
+            try
+            {
+                await LoadModelAsync();
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error($"StartRecordingAsync: Model load failed - {ex.Message}");
+                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                    Loc.S("errors.modelLoadFailed"),
+                    showSettingsButton: false));
+                return null;
+            }
+
+            var selected = SelectedMode;
+            if (selected != null && !ReferenceEquals(selected, recordingMode))
+            {
+                LoggingService.Info("StartRecordingAsync: Mode changed while the model loaded; recording for the selected mode");
+                recordingMode = selected;
+            }
+
+            if (recordingMode.ProviderType == "cloud" || IsLocalProviderReady(recordingMode))
+            {
+                return recordingMode;
+            }
+
+            if (attempt >= MaxRecordingModelLoadAttempts)
+            {
+                LoggingService.Error($"StartRecordingAsync: Model still not ready after {attempt} loads - {LocalModelLabel(recordingMode)}");
+                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                    Loc.S("errors.modelLoadFailed"),
+                    showSettingsButton: false));
+                return null;
+            }
+
+            LoggingService.Info("StartRecordingAsync: Model not ready after the load; loading again");
+        }
     }
 
     // =========================================================================
@@ -1618,6 +2189,22 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// The context was captured for the mode selected at the hotkey, and the
+    /// recording can move to another mode while its model loads (#1609). Screen
+    /// OCR is the one part a mode gates, so a mode that did not ask for it must
+    /// not send it in its prompt. A mode that asks for it and had none gets none:
+    /// a capture now would read the window the user switched mode in.
+    /// </summary>
+    private void DropScreenOcrTheModeDoesNotWant(Mode recordingMode)
+    {
+        if (recordingMode.EnableScreenOCR && recordingMode.PostProcessingMode != 0) return;
+        if (_capturedApplicationContext?.ScreenOCRText == null) return;
+
+        LoggingService.Info("StartRecordingAsync: The selected mode does not use screen OCR; dropped the text captured for the previous mode");
+        _capturedApplicationContext.ScreenOCRText = null;
+    }
+
     private void CleanupFailedRecordingStart()
     {
         _recorderService.RestoreMicVolume();
@@ -1629,14 +2216,15 @@ public partial class MainViewModel : ViewModelBase
     }
 
 
-    private void RestoreAudioEnvironment()
+    /// <param name="immediate">Cancel paths: end a muffle at once instead of gliding it open.</param>
+    private void RestoreAudioEnvironment(bool immediate = false)
     {
         var state = _audioEnvironmentState;
         if (state == null)
             return;
 
         _audioEnvironmentState = null;
-        AudioEnvironmentService.Instance.ScheduleRestoreAfterRecording(state);
+        AudioEnvironmentService.Instance.ScheduleRestoreAfterRecording(state, immediate);
     }
 
     private Task RestoreAudioEnvironmentImmediatelyAsync()
@@ -1713,6 +2301,7 @@ public partial class MainViewModel : ViewModelBase
         try
         {
             IsTranscribing = true;
+            AdvanceJobStatus("recording.state.transcribing");
             LoggingService.LogPerformanceMarker("TranscriptionFlow", "Entered transcribing state");
             ShowTranscribingRequested?.Invoke(this, EventArgs.Empty);
 
@@ -1895,27 +2484,18 @@ public partial class MainViewModel : ViewModelBase
                 LoggingService.Warn($"History terminal update failed after paste; retrying from safety net: {ex.Message}");
             }
 
-            // Compress audio in background after the terminal status is durable.
-            // ast-grep-ignore: no-discarded-task-run -- compression is deliberately off the critical path, after the terminal status is durable
-            _ = Task.Run(() =>
+            // Compress audio in background after the terminal status is durable. The
+            // finish step writes only the row's audio path, from the thread pool, and
+            // never mutates `transcript`: the History page shares that instance (#1499).
+            if (_storageService.StoreAsM4A)
             {
-                try
-                {
-                    if (_storageService.StoreAsM4A)
-                    {
-                        var compressedPath = _storageService.TryConvertWavToM4A(permanentAudioPath);
-                        if (!string.IsNullOrEmpty(compressedPath))
-                        {
-                            transcript.AudioFilePath = compressedPath;
-                            HistoryService.Instance.UpdateTranscript(transcript);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LoggingService.Warn($"Background audio compression failed: {ex.Message}");
-                }
-            });
+                // FinishRecordingCompressionAsync never throws, so nothing is left unobserved.
+                _ = FinishRecordingCompressionAsync(
+                    StartRecordingCompression(_storageService.TryConvertWavToM4A, permanentAudioPath),
+                    transcript.Id,
+                    HistoryService.Instance.UpdateAudioFilePath,
+                    HistoryService.Instance.DeleteAudioFile);
+            }
             LoggingService.LogPerformanceMarker("TranscriptionFlow", "Paste done, history save attempted");
 
             switch (pasteResult)
@@ -1996,9 +2576,7 @@ public partial class MainViewModel : ViewModelBase
 
                     if (failureWritten)
                     {
-                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                            txEx.GetUserMessage(),
-                            showSettingsButton: false));
+                        ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
                         StatusText = Loc.S("status.failed", txEx.GetUserMessage());
                     }
                     return;
@@ -2007,15 +2585,7 @@ public partial class MainViewModel : ViewModelBase
                 var failureWrittenForTxEx = transcript == null || MarkTranscriptAsGenericFailure(transcript, txEx);
                 if (failureWrittenForTxEx)
                 {
-                    var showSettings = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
-                    // CloudAccountRequired routes to the HW Cloud settings page
-                    // (account key entry), NOT the BYOK API-keys manager.
-                    var isCloudAccountError = txEx.Code == TranscriptionErrorCode.CloudAccountRequired;
-                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                        txEx.GetUserMessage(),
-                        showSettingsButton: showSettings || isCloudAccountError,
-                        settingsSection: isCloudAccountError ? "Cloud" : null,
-                        openApiKeysManager: showSettings));
+                    ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
                     StatusText = Loc.S("status.failed", ex.Message);
                 }
             }
@@ -2024,9 +2594,7 @@ public partial class MainViewModel : ViewModelBase
                 var failureWritten = transcript == null || MarkTranscriptAsGenericFailure(transcript, ex);
                 if (failureWritten)
                 {
-                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                        Loc.S("errors.transcriptionFailed", ex.Message),
-                        showSettingsButton: false));
+                    ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
                     StatusText = Loc.S("status.failed", ex.Message);
                 }
             }
@@ -2044,6 +2612,7 @@ public partial class MainViewModel : ViewModelBase
 
             _hotkeyBlocked = false;
             LoggingService.LogPerformanceMarker("TranscriptionFlow", "Hotkey unblocked");
+            EndJobStatus();
             IsTranscribing = false;
             LoggingService.LogPerformanceMarker("TranscriptionFlow", $"Exit transcribing state after {hangWatch.ElapsedMilliseconds}ms");
             hangCts.Cancel();
@@ -2247,7 +2816,7 @@ public partial class MainViewModel : ViewModelBase
             // Uses Result<T> pattern to handle both success and failure cases
             var stopResult = _recorderService.StopRecording();
             _recorderService.RestoreMicVolume();
-            RestoreAudioEnvironment();
+            RestoreAudioEnvironment(immediate: true);
             ResumeMicrophoneKeepWarm();
             IsRecording = false;
 
@@ -2296,7 +2865,7 @@ public partial class MainViewModel : ViewModelBase
         _durationTimer?.Stop();
         _streamingAudioCapture?.Stop();
         _recorderService.RestoreMicVolume();
-        RestoreAudioEnvironment();
+        RestoreAudioEnvironment(immediate: true);
         ResumeMicrophoneKeepWarm();
         IsRecording = false;
 
@@ -2352,9 +2921,17 @@ public partial class MainViewModel : ViewModelBase
 
     private bool IsLocalProviderReady(Mode mode)
     {
+        // A loaded model that has since been marked broken (#1598) is not ready:
+        // StartRecordingAsync then reports it as not downloaded instead of
+        // recording into a load failure.
+        if (!IsLocalModelDownloaded(mode)) return false;
         if (mode.LocalEngine == "parakeet")
             return _parakeetTranscriptionService.IsAvailable;
-        return _transcriptionService.IsInitialized;
+        // A model a pending unload is about to dispose is not ready (#1609), and
+        // neither is another mode's model (#1809): a load for mode A that ends
+        // after a switch to mode B must not let B record with A's model.
+        var model = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == mode.ModelType);
+        return model != null && _transcriptionService.IsLoadedAndStaying(_modelService.GetModelPath(model));
     }
 
     /// <summary>
@@ -2486,8 +3063,11 @@ public partial class MainViewModel : ViewModelBase
     /// when we exit the flow (early return, swallowed exception, task abort),
     /// flip it to Failed so the History row stops spinning forever.
     /// See tasks/windows/phils-feedback/05-processing-audio-stuck-state.md
+    /// The in-memory copy can still name the WAV after a background compression deleted
+    /// it and re-pointed the row at the M4A, so the write keeps the row's live audio
+    /// path (#1603). Internal for HyperWhisper.SmokeTests.
     /// </summary>
-    private static void EnsureTranscriptTerminalStatus(Transcript? transcript)
+    internal static void EnsureTranscriptTerminalStatus(Transcript? transcript)
     {
         if (transcript == null) return;
 
@@ -2508,7 +3088,7 @@ public partial class MainViewModel : ViewModelBase
             if (persisted?.Status == TranscriptStatus.Processing &&
                 transcript.Status != TranscriptStatus.Processing)
             {
-                HistoryService.Instance.UpdateTranscript(transcript);
+                HistoryService.Instance.UpdateTranscript(transcript, keepLiveAudioPath: true);
                 LoggingService.Warn($"EnsureTranscriptTerminalStatus: Repaired persisted Processing transcript {transcript.Id} with in-memory {transcript.Status} status");
                 return;
             }
@@ -2521,7 +3101,7 @@ public partial class MainViewModel : ViewModelBase
                 ? reason
                 : transcript.FailedReason;
             transcript.Text = reason;
-            HistoryService.Instance.UpdateTranscript(transcript);
+            HistoryService.Instance.UpdateTranscript(transcript, keepLiveAudioPath: true);
             LoggingService.Warn($"EnsureTranscriptTerminalStatus: Flipped orphaned transcript {transcript.Id} from Processing to Failed");
         }
         catch (Exception ex)
@@ -2561,6 +3141,8 @@ public partial class MainViewModel : ViewModelBase
         _shortcutService.ShortcutPressed -= OnShortcutPressed;
         _shortcutService.ShortcutReleased -= OnShortcutReleased;
         _settingsService.SettingsChanged -= OnSettingsChanged;
+        LocalModelHealth.Changed -= OnLocalModelHealthChanged;
+        ModelDownloadService.Instance.DownloadChanged -= OnModelDownloadChanged;
         _transcriptionOrchestrator.PostProcessingWarning -= _orchestratorWarningHandler;
 
         // Use try-finally to ensure device service cleanup happens

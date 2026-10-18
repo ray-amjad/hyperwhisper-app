@@ -88,6 +88,104 @@ enum NavigationItem: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Page change gate wiring (issue #1672)
+//
+// An extension here, beside NavigationItem, so the setters of
+// `displayedNavigationItem` and `pageSheetDismissalRequest` stay private to
+// this file. The rules are in `PageChangeGate`; pages report and close their
+// presentations through `PagePresentations`.
+
+@MainActor
+extension AppState {
+
+    /// Whether a sheet that a page owns is up on the main window. A sheet no
+    /// page change removes (MainAppView's alerts, the auto-paste NSAlert, an
+    /// AppKit file panel) does not count, so it neither holds nor cancels
+    /// navigation.
+    var mainWindowHasPageSheet: Bool {
+        if let override = pageSheetPresenceOverride { return override() }
+        // The onboarding sheet belongs to MainAppView itself, not to a page,
+        // so a page change does not remove it. Holding the page for it would
+        // only delay onboarding's own page changes.
+        if showOnboarding { return false }
+        return PagePresentations.shared.pageOwnsAttachedSheet
+    }
+
+    /// Every write to `selectedNavigationItem` comes here (its `didSet`), so
+    /// the menu bar, the sidebar, `navigate(to:)` and every direct write are
+    /// all covered by one rule.
+    func routePageChange(to item: NavigationItem) {
+        switch pageChangeGate.request(item, sheetPresented: mainWindowHasPageSheet) {
+        case .show(let page):
+            // Inside the caller's transaction, so `navigate(to:)` still animates.
+            stopPageChangeWait()
+            displayedNavigationItem = page
+        case .waitForSheet:
+            AppLogger.ui.info("Page change to \(item.rawValue, privacy: .public) waits for the open sheet to close (#1672)")
+            pageSheetDismissalRequest &+= 1
+            PagePresentations.shared.requestClose()
+            startPageChangeWait()
+        case .cancelled:
+            // `request` never cancels; only `recheck` does.
+            stopPageChangeWait()
+        case .unchanged:
+            // The gate has dropped any held page (the shown page was asked for).
+            stopPageChangeWait()
+        }
+    }
+
+    /// Checks a held page change. Shows the page once the sheet has gone.
+    /// Never while the sheet is still attached: past the wait limit the held
+    /// page change is cancelled and the selection goes back to the shown page.
+    /// - Returns: true while the page is still held.
+    @discardableResult
+    func recheckPendingPageChange(now: Date = Date()) -> Bool {
+        let limitPassed = pageChangeWaitDeadline.map { now >= $0 } ?? true
+        let held = pageChangeGate.pending
+        switch pageChangeGate.recheck(sheetPresented: mainWindowHasPageSheet, waitLimitPassed: limitPassed) {
+        case .show(let page):
+            stopPageChangeWait()
+            displayedNavigationItem = page
+            return false
+        case .waitForSheet:
+            return true
+        case .cancelled(let shown):
+            let heldName = held?.rawValue ?? "none"
+            AppLogger.ui.warning("Page change to \(heldName, privacy: .public) cancelled: the sheet did not close within the wait limit, staying on \(shown.rawValue, privacy: .public) (#1672)")
+            stopPageChangeWait()
+            // Put the sidebar back on the page the window shows. The gate has
+            // already dropped the held page and still shows `shown`, so this
+            // write routes to `.unchanged` and is never held again.
+            selectedNavigationItem = shown
+            return false
+        case .unchanged:
+            stopPageChangeWait()
+            return false
+        }
+    }
+
+    /// Polls on later run-loop turns, never inside the update that closed the
+    /// sheet: the page is removed only after AppKit has detached the sheet.
+    private func startPageChangeWait() {
+        guard pageChangeWaitTask == nil else { return }
+        pageChangeWaitDeadline = Date().addingTimeInterval(PageChangeGate.sheetWaitLimit)
+        let interval = UInt64(PageChangeGate.sheetPollInterval * 1_000_000_000)
+        pageChangeWaitTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: interval)
+                guard let self, !Task.isCancelled else { return }
+                if !self.recheckPendingPageChange() { return }
+            }
+        }
+    }
+
+    private func stopPageChangeWait() {
+        pageChangeWaitTask?.cancel()
+        pageChangeWaitTask = nil
+        pageChangeWaitDeadline = nil
+    }
+}
+
 // MARK: - Recording State Enum
 
 /// Represents the different states of the recording process
@@ -284,7 +382,9 @@ class AppState: ObservableObject {
     // @Published creates a publisher that emits when the value changes
     // SwiftUI automatically re-renders views that depend on these values
     
-    /// Currently selected navigation item in the sidebar
+    /// Currently selected navigation item in the sidebar: the page the user or
+    /// the app ASKED FOR. The window shows `displayedNavigationItem`, which
+    /// follows this at once unless a sheet is up (issue #1672).
     @Published var selectedNavigationItem: NavigationItem = .home {
         willSet {
             MainActorHangTrace.shared.recordUIUpdateRequest(
@@ -292,8 +392,33 @@ class AppState: ObservableObject {
                 state: newValue.mainActorUIState
             )
         }
+        didSet { routePageChange(to: selectedNavigationItem) }
     }
-    
+
+    /// The page `MainAppView` shows. It lags `selectedNavigationItem` only
+    /// while the shown page still presents a sheet: removing a page in the
+    /// same update as its open sheet crashes AppKit (issue #1672). See
+    /// `PageChangeGate`.
+    @Published private(set) var displayedNavigationItem: NavigationItem = .home
+
+    /// Counts the page changes that waited for a page's sheet. Each one also
+    /// sends `PagePresentations.closeRequests`, which every page that presents
+    /// a sheet or alert closes it on (`closesPresentationsOnPageChange`).
+    private(set) var pageSheetDismissalRequest: Int = 0
+
+    /// Holds a page change while a sheet closes (issue #1672). Only
+    /// `routePageChange(to:)` and `recheckPendingPageChange(now:)` change it.
+    private(set) var pageChangeGate = PageChangeGate(displayed: .home)
+
+    /// The run-loop poll that shows a held page once the sheet has gone.
+    private var pageChangeWaitTask: Task<Void, Never>?
+
+    /// When the held page stops waiting for the sheet.
+    private var pageChangeWaitDeadline: Date?
+
+    /// Tests set this to stand in for the main window's sheet. nil in the app.
+    var pageSheetPresenceOverride: (() -> Bool)?
+
     /// Current state of the recording process
     @Published var recordingState: RecordingState = .idle {
         willSet {
@@ -508,7 +633,43 @@ class AppState: ObservableObject {
     @Published var lastFailedTranscript: Transcript?
 
     /// Pending audio file path to retry transcription if the initial attempt fails before processing
-    @Published var pendingRetryAudioPath: String?
+    @Published var pendingRetryAudioPath: String? {
+        didSet {
+            // A different pending file (or none) is a different question:
+            // never carry a mode picker over to it (#1617), nor the History
+            // row of the file before it (#1636).
+            if pendingRetryAudioPath != oldValue {
+                pendingRetryNeedsModePick = false
+                pendingRetryFailedRowWrite = nil
+                pendingRetryIsQuickCapture = false
+            }
+        }
+    }
+
+    /// The write of the History row ("Audio file could not be read") saved
+    /// for the file in `pendingRetryAudioPath`; its value is the row's id, or
+    /// `nil` when the write failed. A successful pending-file Retry awaits it
+    /// and completes THAT row in place, so the transcript is not lost and no
+    /// second row appears (#1636). Kept as the write itself, not its id, so a
+    /// Retry that finishes before the write lands still waits for it rather
+    /// than saving a row of its own beside the failed one. Set in the same
+    /// main-actor turn as `pendingRetryAudioPath`; dropped whenever the
+    /// pending file changes or is cleared (see its `didSet`).
+    /// Not `@Published`: no view reads it.
+    var pendingRetryFailedRowWrite: Task<NSManagedObjectID?, Never>?
+
+    /// Whether the recording in `pendingRetryAudioPath` was a Quick Capture
+    /// session. Its context ends at the stop, so the pill's Retry reads this
+    /// to send the transcript to Notes, not paste it (Ray, #1643). Set in the
+    /// same main-actor turn as the path; dropped with it (see its `didSet`).
+    /// Not `@Published`: no view reads it.
+    var pendingRetryIsQuickCapture = false
+
+    /// Set when a pending-file retry found that the mode which made the
+    /// recording was deleted (#1617). No request was sent; the recording dialog
+    /// shows a mode picker, and the retry runs again only with the user's pick.
+    /// The pending file is kept either way.
+    @Published var pendingRetryNeedsModePick = false
 
     /// Bumped by every flow that takes over `recordingState` and the recording
     /// dialog: a dictation start or stop, a pending-file retry, a file
@@ -586,23 +747,31 @@ class AppState: ObservableObject {
     
     /// Navigate to a specific section
     /// - Parameter item: The navigation item to select
-    func navigate(to item: NavigationItem) {
+    /// - Parameter trigger: who asked. Defaults to `.automatic`: a call that is
+    ///   not a click on the page itself must not close an open mode editor
+    ///   (issue #1525).
+    /// - Returns: false when an open mode editor kept the page where it is.
+    @discardableResult
+    func navigate(to item: NavigationItem, trigger: NavigationTrigger = .automatic) -> Bool {
+        guard modeEditorAllowsPageChange(to: item, trigger: trigger) else { return false }
+
         // Add animation for smooth transition
         withAnimation(.easeInOut(duration: 0.2)) {
             selectedNavigationItem = item
         }
-        
+
         // Log navigation for analytics (optional)
         logNavigation(to: item)
+        return true
     }
-    
+
     /// Navigate to a specific configuration section
     /// - Parameters:
     ///   - section: The configuration section to select (e.g., "apikeys", "general", "shortcuts")
     func navigateToSettings(section: String) {
         // First navigate to the settings view
-        navigate(to: .settings)
-        
+        guard navigate(to: .settings) else { return }
+
         // Then set the selected section
         withAnimation(.easeInOut(duration: 0.2)) {
             selectedSettingsSection = section
@@ -610,9 +779,12 @@ class AppState: ObservableObject {
     }
 
     /// Navigate to Model Library and open the centralized API keys manager.
-    func navigateToModelLibraryAPIKeys() {
+    func navigateToModelLibraryAPIKeys(trigger: NavigationTrigger = .automatic) {
+        // Checked first, so a kept page does not leave the flag set for the
+        // next Model Library visit.
+        guard modeEditorAllowsPageChange(to: .modelLibrary, trigger: trigger) else { return }
         shouldOpenModelLibraryAPIKeys = true
-        navigate(to: .modelLibrary)
+        navigate(to: .modelLibrary, trigger: trigger)
     }
     
     /// Show an error message to the user
@@ -842,8 +1014,114 @@ class AppState: ObservableObject {
 
     /// Expose a helper for the toast action to take the user to Settings.
     func openSettingsFromErrorToast() {
-        selectedNavigationItem = .settings
+        requestNavigation(to: .settings, trigger: .automatic)
         bringMainWindowToFront()
+    }
+
+    // MARK: - Mode editor page guard (issue #1525)
+    //
+    // The Edit and Create Mode sheets belong to `ModesView`, and
+    // `MainAppView.contentView` switches on `selectedNavigationItem`. So any
+    // page change drops the sheet and the unsaved edit with it. The open
+    // editor registers here, and page changes from outside the Modes page go
+    // through `requestNavigation(to:trigger:)` (or `navigate(to:)`), which
+    // applies `modeEditorNavigationDecision`.
+
+    /// Token of the open mode editor sheet (Edit or Create); nil when none is
+    /// open. A token, not a Bool, so a closing editor's late `onDisappear`
+    /// cannot clear the registration of an editor opened after it.
+    private(set) var openModeEditorSession: UUID?
+
+    /// Whether the open editor holds values that differ from what it opened with.
+    private(set) var modeEditorHasUnsavedChanges = false
+
+    /// A user-chosen page held back by the open editor's "Discard unsaved
+    /// changes?" prompt. The editor presents the prompt while this is set.
+    @Published private(set) var pendingModeEditorNavigation: NavigationItem?
+
+    var isModeEditorOpen: Bool { openModeEditorSession != nil }
+
+    func modeEditorDidOpen(session: UUID) {
+        openModeEditorSession = session
+        modeEditorHasUnsavedChanges = false
+        pendingModeEditorNavigation = nil
+    }
+
+    func modeEditorDidClose(session: UUID) {
+        guard openModeEditorSession == session else { return }
+        openModeEditorSession = nil
+        modeEditorHasUnsavedChanges = false
+        pendingModeEditorNavigation = nil
+    }
+
+    func modeEditor(session: UUID, hasUnsavedChanges: Bool) {
+        guard openModeEditorSession == session else { return }
+        modeEditorHasUnsavedChanges = hasUnsavedChanges
+    }
+
+    /// The rule Ray set for issue #1525. Pure, so tests call it directly.
+    nonisolated static func modeEditorNavigationDecision(
+        editorOpen: Bool,
+        hasUnsavedChanges: Bool,
+        trigger: NavigationTrigger
+    ) -> ModeEditorNavigationDecision {
+        guard editorOpen else { return .navigate }
+        switch trigger {
+        case .automatic:
+            // The user did not ask to leave: keep the sheet and the page.
+            return .keepEditor
+        case .userChosen:
+            // Honour the click, but never drop an edit without asking. A clean
+            // editor closes as it always has.
+            return hasUnsavedChanges ? .askToDiscard : .navigate
+        case .fromModeEditor:
+            // The editor's own link, which has already dismissed the sheet.
+            return .navigate
+        }
+    }
+
+    /// True when the page may change to `item` now. When it may not, this
+    /// either leaves everything as it is (automatic) or stages the page for the
+    /// editor's discard prompt (user-chosen, unsaved changes).
+    func modeEditorAllowsPageChange(to item: NavigationItem, trigger: NavigationTrigger) -> Bool {
+        // Staying on the current page does not rebuild ModesView.
+        if item == selectedNavigationItem { return true }
+        switch Self.modeEditorNavigationDecision(
+            editorOpen: isModeEditorOpen,
+            hasUnsavedChanges: modeEditorHasUnsavedChanges,
+            trigger: trigger
+        ) {
+        case .navigate:
+            return true
+        case .keepEditor:
+            logger.info("Page change to \(item.rawValue, privacy: .public) skipped: a mode editor is open")
+            return false
+        case .askToDiscard:
+            pendingModeEditorNavigation = item
+            return false
+        }
+    }
+
+    /// Change the page unless an open mode editor holds it (issue #1525).
+    /// - Returns: true when the page changed (or was already `item`).
+    @discardableResult
+    func requestNavigation(to item: NavigationItem, trigger: NavigationTrigger) -> Bool {
+        guard modeEditorAllowsPageChange(to: item, trigger: trigger) else { return false }
+        selectedNavigationItem = item
+        return true
+    }
+
+    /// "Discard" in the editor's prompt: go to the page that was held back.
+    /// The page change removes ModesView, which closes the sheet.
+    func discardModeEditorAndNavigate() {
+        guard let item = pendingModeEditorNavigation else { return }
+        pendingModeEditorNavigation = nil
+        selectedNavigationItem = item
+    }
+
+    /// "Keep Editing" in the editor's prompt: forget the held-back page.
+    func keepEditingModeEditor() {
+        pendingModeEditorNavigation = nil
     }
     
     // MARK: - API Key Alert Properties
@@ -1473,6 +1751,30 @@ class AppState: ObservableObject {
         // Clean up timers and subscriptions
         cancellables.removeAll()
     }
+}
+
+// MARK: - Mode editor page guard types (issue #1525)
+
+/// Who asked for a page change, for the open-mode-editor guard.
+enum NavigationTrigger: Equatable, Sendable {
+    /// The app moved the page on its own: a Transcribe File job ended, an error
+    /// toast's action, any `navigate(to:)` that is not a click on the page.
+    case automatic
+    /// The user picked a page from outside the main window (menu bar History…
+    /// / Settings…).
+    case userChosen
+    /// A link inside the open mode editor, which has already dismissed itself.
+    case fromModeEditor
+}
+
+/// What a page change does while a mode editor sheet may be open.
+enum ModeEditorNavigationDecision: Equatable, Sendable {
+    /// Change the page (no editor open, a clean editor, or the editor's own link).
+    case navigate
+    /// Skip the page change and keep the sheet.
+    case keepEditor
+    /// Ask "Discard unsaved changes?" first; change the page only on Discard.
+    case askToDiscard
 }
 
 // MARK: - Transcription Mode

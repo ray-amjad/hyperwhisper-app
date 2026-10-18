@@ -43,14 +43,27 @@ final class NemotronProvider: TranscriptionProvider {
             if let cached = sharedByVariant[variant] { return cached }
             if let inFlight = loadTasks[variant] { return try await inFlight.value }
 
+            // The one load point for batch (`prepareIfNeeded` / `transcribe`) and
+            // live streaming (`sharedModels(for:)`), so the Sentry capture lives
+            // here (#1980): it fires once per failed load, inside the task, not
+            // once per caller awaiting it.
             let task = Task<SharedNemotronMultilingualModels, Error> {
-                try await StreamingNemotronMultilingualAsrManager.downloadAndPreloadShared(
-                    languageCode: variant.downloadLanguageHint,
-                    chunkMs: NemotronModelManager.Constants.chunkMs,
-                    to: nil,
-                    configuration: nil,
-                    progressHandler: nil
-                )
+                do {
+                    return try await StreamingNemotronMultilingualAsrManager.downloadAndPreloadShared(
+                        languageCode: variant.downloadLanguageHint,
+                        chunkMs: NemotronModelManager.Constants.chunkMs,
+                        to: nil,
+                        configuration: nil,
+                        progressHandler: nil
+                    )
+                } catch {
+                    // A load cancelled by reset() / invalidate() is not a failure,
+                    // whatever error FluidAudio surfaces once it is cancelled.
+                    if !NemotronProvider.isLoadCancellation(error), !Task.isCancelled {
+                        NemotronProvider.reportRuntimeLoadFailure(error, variant: variant)
+                    }
+                    throw error
+                }
             }
             loadTasks[variant] = task
             do {
@@ -89,6 +102,20 @@ final class NemotronProvider: TranscriptionProvider {
     private let runtime = Runtime()
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "NemotronProvider")
 
+    /// 30 s of 16 kHz audio per `process(samples:)` call: the longest a file
+    /// pass runs between cancel checks. Each slice drops FluidAudio's prefetch
+    /// for its last chunk only, so the cost is small.
+    static let processSliceSamples = 30 * 16_000
+
+    /// The contiguous ranges, in order, that one file pass feeds to
+    /// `process(samples:)`: every sample once, none longer than
+    /// `processSliceSamples`.
+    static func processSlices(sampleCount: Int) -> [Range<Int>] {
+        stride(from: 0, to: sampleCount, by: processSliceSamples).map { start in
+            start..<min(start + processSliceSamples, sampleCount)
+        }
+    }
+
     /// Optional handle on the model manager used for actionable error
     /// surfacing — when a load fails on a variant that the metadata-only
     /// probe said was installed, we flip a "broken" flag the Library row
@@ -123,11 +150,70 @@ final class NemotronProvider: TranscriptionProvider {
             await clearBrokenFlag(for: modelId)
         } catch {
             let nsError = error as NSError
-            logger.error("Failed to initialize Nemotron \(variant.rawValue, privacy: .public); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
+            // Fixed identifiers from the error chain (#1017); never a path.
+            let failureDetailSummary = LocalModelLoadFailureDetail.logSummary(
+                for: LocalModelLoadFailureDetail.fields(for: error)
+            )
+            logger.error("Failed to initialize Nemotron \(variant.rawValue, privacy: .public); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public) \(failureDetailSummary, privacy: .public)")
             await runtime.reset()
             await flagBroken(for: modelId)
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Failed to initialize Nemotron runtime")
         }
+    }
+
+    /// A cancelled load (reset / invalidate, or a cancelled download) is not a
+    /// failure. Mirrors ParakeetProvider's load-failure check.
+    static func isLoadCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        let nsError = error as NSError
+        return nsError.domain == NSURLErrorDomain && nsError.code == URLError.cancelled.rawValue
+    }
+
+    /// Its own Sentry event (#1980), so a HYPERWHISPER-W2-style failure carries
+    /// the CoreML domain/code without relying on recent_logs. Called from the
+    /// Runtime load task only, so batch and live loads both report, once each.
+    fileprivate static func reportRuntimeLoadFailure(_ error: Error, variant: NemotronModelManager.Variant) {
+        guard AppLogger.isErrorLoggingEnabled else { return }
+        let nsError = error as NSError
+        SentryService.capture(
+            error: SentryService.identifierOnlyError(error),
+            message: "Nemotron runtime load failed",
+            extras: loadFailureExtras(for: error),
+            tags: loadFailureTags(variantSlug: variant.rawValue, errorDomain: nsError.domain),
+            fingerprint: [
+                "nemotron-runtime-load",
+                variant.rawValue,
+                nsError.domain,
+                String(nsError.code),
+            ],
+            includeRecentLogs: false
+        )
+    }
+
+    /// Extras for the "Nemotron runtime load failed" event (#1980). Pure, so a
+    /// test can build them from any error. Every key is on
+    /// `SentryService.allowedExtraKeys`; every value is a number, a fixed slug
+    /// or an NSError domain, never a path or `localizedDescription`.
+    static func loadFailureExtras(for error: Error) -> [String: Any] {
+        var extras: [String: Any] = [
+            "nemotron_error_code": (error as NSError).code,
+        ]
+        extras.merge(
+            LocalModelLoadFailureDetail.extras(
+                for: LocalModelLoadFailureDetail.fields(for: error),
+                keyPrefix: "nemotron"
+            ),
+            uniquingKeysWith: { current, _ in current }
+        )
+        return extras
+    }
+
+    static func loadFailureTags(variantSlug: String, errorDomain: String) -> [String: String] {
+        [
+            "component": "models",
+            "nemotron_variant": variantSlug,
+            "nemotron_error_domain": errorDomain,
+        ]
     }
 
     /// Public, cache-reusing access to the preloaded `SharedNemotronMultilingualModels`
@@ -178,7 +264,7 @@ final class NemotronProvider: TranscriptionProvider {
         if let attrs = try? fm.attributesOfItem(atPath: audioURL.path),
            let size = attrs[.size] as? Int64, size < 5000 {
             logger.error("Audio file too small: \(size) bytes")
-            throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Audio file is too small (\(size) bytes). Please record for longer.")
+            throw TranscriptionError.audioTooShort(fileSize: size)
         }
 
         guard isAvailable(for: modelId) else {
@@ -222,22 +308,37 @@ final class NemotronProvider: TranscriptionProvider {
         let samples: [Float]
         do {
             samples = try LocalAudioSampleLoader.loadMono16kSamples(from: audioURL, providerName: "Nemotron", logger: logger)
+        } catch let error as TranscriptionError {
+            // The loader's own faults already name the provider; do not wrap twice.
+            await manager.cleanup()
+            throw error
         } catch {
+            // `AVAudioFile(forReading:)` could not open the file. That is the
+            // file's fault, not the model's: say so, without AVFoundation's raw
+            // code (issue #1426).
             let nsError = error as NSError
             logger.error("Nemotron audio conversion failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await manager.cleanup()
-            throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Audio conversion failed: \(error.localizedDescription)")
+            throw TranscriptionError.invalidAudioFormat
         }
 
         do {
-            _ = try await manager.process(samples: samples)
-            var text = try await manager.finish()
+            // FluidAudio's `process(samples:)` runs every chunk it is given
+            // without checking for cancellation, so a whole file in one call
+            // cannot be cancelled (issue #1507). The manager streams, so feeding
+            // it in slices gives the same text and a cancel check per slice.
+            for slice in Self.processSlices(sampleCount: samples.count) {
+                try Task.checkCancellation()
+                _ = try await manager.process(samples: Array(samples[slice]))
+            }
+            try Task.checkCancellation()
+            // The engine's own text, untouched: it is the History row's raw
+            // transcript. The phonetic pass (`applyLocalVocabularyCorrection`
+            // below) and the `\b` replacement pass run once each, in the
+            // caller, after that raw text is kept (issue #1622).
+            let text = try await manager.finish()
             await manager.cleanup()
 
-            if !vocabulary.isEmpty {
-                text = VocabularyProcessor.applyPhoneticVocabulary(to: text, vocabulary: vocabulary)
-                text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
-            }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             await manager.cleanup()
@@ -292,5 +393,19 @@ final class NemotronProvider: TranscriptionProvider {
 
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Transcription failed: \(errorDescription)")
         }
+    }
+}
+
+// MARK: - Local vocabulary correction (issue #1622)
+
+extension NemotronProvider: LocalVocabularyCorrecting {
+    /// The phonetic (Beider-Morse) pass over the engine's raw text. It corrects
+    /// a misheard token towards a spelling-hint row (a vocabulary row with NO
+    /// replacement); the core skips every row that carries a replacement, so
+    /// this never applies a swap. The caller runs it once, after it has kept
+    /// the raw text, and then runs the `\b` replacement pass once
+    /// (`VocabularyProcessor.applyLocalEngineVocabularyCorrection`).
+    func applyLocalVocabularyCorrection(to rawText: String, vocabulary: [Vocabulary]) -> String {
+        VocabularyProcessor.applyPhoneticVocabulary(to: rawText, vocabulary: vocabulary)
     }
 }

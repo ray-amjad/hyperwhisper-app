@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Dijagnostika izvezena";
 "alerts.export.diagnostics.success.message" = "Svi dijagnostički zapisi uspješno su izvezeni.";
 "alerts.export.diagnostics.saveFailed.message" = "Nije moguće spremiti dijagnostiku na odabranu lokaciju: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Dijagnostika izvezena bez sistemskih zapisa";
+"alerts.export.diagnostics.noSystemLogs.message" = "Datoteka dijagnostike je spremljena, ali sistemski zapisi aplikacije nisu se mogli pročitati, pa system-logs.txt sadrži samo razlog. Razlog: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Izvezi zapise ažuriranja za podršku";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Završi upoznavanje";
 
 "onboarding.setupLater.button" = "Postavi kasnije";
-"onboarding.error.microphone.denied" = "Dozvola za mikrofon odbijena. Molimo dodijelite dozvolu u Sistemskim postavkama.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Pokreni pri prijavi";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Isključeno";
 "settings.general.mediaControl.mode.mute" = "Isključi zvuk";
+"settings.general.mediaControl.mode.muffle" = "Priguši zvuk";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Reproduciraj zvučne efekte";
 "settings.sound.soundEffects.info" = "Reproduciraj zvučne signale kada snimanje započne i završi.";
 "settings.sound.mediaControl.title" = "Kontrola medija tijekom snimanja";
-"settings.sound.mediaControl.info" = "Odaberite kako HyperWhisper upravlja drugim zvukom tijekom snimanja. 'Isključeno' ostavlja zvuk nepromijenjen, 'Isključi zvuk' utišava sistemski izlaz tijekom snimanja i obnavlja ga poslije.";
+"settings.sound.mediaControl.info" = "Odaberite kako HyperWhisper upravlja drugim zvukom tijekom snimanja. 'Isključeno' ostavlja zvuk nepromijenjen, 'Isključi zvuk' utišava sistemski izlaz tijekom snimanja i obnavlja ga poslije, a 'Priguši zvuk' ga ostavlja da tiho svira, kao iz susjedne sobe.";
 "settings.sound.autoIncreaseMicVolume.title" = "Automatski povećaj glasnoću mikrofona";
 "settings.sound.autoIncreaseMicVolume.info" = "Automatski postavlja glasnoću ulaza mikrofona na maksimum kada se pokrene snimanje, a zatim vraća izvornu razinu kada se snimanje zaustavi. Primjenjuje se samo pri korištenju zadanog sistemskog ulaznog uređaja.";
 "settings.sound.vad.title" = "Ukloni tišinu prije transkripcije";
@@ -336,6 +338,9 @@
 "settings.storage.choose.button" = "Odaberi...";
 "settings.storage.dialog.select" = "Odaberi mapu";
 "settings.storage.dialog.message" = "Odaberite mapu za pohranu snimki";
+"settings.storage.folderRefused.title" = "Ova se mapa ne može koristiti";
+"settings.storage.folderRefused.notWritable" = "Nemate dopuštenje za pisanje u „%@”, pa HyperWhisper ondje ne može spremati snimke. Mapa snimki nije promijenjena.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nije mogao stvoriti ovu mapu: %@ Mapa snimki nije promijenjena.";
 "settings.storage.storeAsM4A.title" = "Komprimiraj snimke u M4A";
 "settings.storage.storeAsM4A.subtitle" = "Pretvara WAV snimke u manje datoteke nakon transkripcije. Isključite da zadržite izvorne WAV datoteke (veće, ali bez gubitaka).";
 
@@ -383,6 +388,7 @@
 
 "settings.shortcuts.changeMode.title" = "Promijeni način";
 "settings.shortcuts.changeMode.subtitle" = "Radi samo tijekom snimanja";
+"settings.shortcuts.conflict.alert" = "Ovaj tipkovnički prečac ne može se koristiti jer ga već koristi „%@”.";
 
 "settings.shortcuts.reset.button" = "Resetiraj na zadano";
 "settings.shortcuts.reset.dialog.title" = "Resetiraj prečace tipkovnice";
@@ -434,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Umetni iz međuspremnika";
 "settings.license.clearInput" = "Očisti";
+"license.error.keyFormat" = "To ne izgleda kao ključ računa.";
 "settings.license.recovery.prompt" = "Zaboravili ste licencni ključ?";
 "settings.license.recovery.button" = "Idi na portal za kupce";
 "settings.license.daily.title" = "Dnevna transkripcija";
@@ -576,6 +583,8 @@
 "onboarding.configure.cloud.note" = "Krediti su unaprijed plaćeni i dijele se na svim Macovima prijavljenima s ovim ključem. Vrijeme neaktivnosti ne stoji ništa.";
 "onboarding.source.note" = "Ako se predomislite kasnije, ponovi se samo ovaj korak. Ništa drugo što ste postavili se ne gubi.";
 "onboarding.permissions.note" = "Preskočite Pristupačnost i transkripti idu u međuspremnik, spremni za lijepljenje. Kasnije uključivanje traje jedan klik.";
+"onboarding.permissions.microphone.denied" = "Nije dopušteno. Uključite HyperWhisper u Postavkama sustava, a zatim se vratite ovdje.";
+"onboarding.permissions.continueNeedsMicrophone" = "Za nastavak je potreban mikrofon. Dopustite ga iznad ili odaberite Postavi kasnije.";
 "onboarding.welcome.task1.title" = "Odaberite kako transkripcija radi";
 "onboarding.welcome.task1.caption" = "U našem oblaku, na ovom Macu ili preko računa pružatelja usluge koji već plaćate.";
 "onboarding.welcome.task2.title" = "Provjerite svoj mikrofon";
@@ -683,6 +692,10 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Izbrisati način?";
 "modes.delete.confirm.message" = "Ovo će ukloniti odabrani način. Ova radnja se ne može poništiti.";
+"modes.editor.discard.title" = "Odbaciti nespremljene promjene?";
+"modes.editor.discard.message" = "Vaše promjene ovog načina nisu spremljene.";
+"modes.editor.discard.keepEditing" = "Nastavi uređivati";
+"modes.editor.discard.button" = "Odbaci";
 "modes.header.title" = "Načini";
 "modes.header.subtitle" = "Stvorite prilagođene profile za različite kontekste i tokove rada";
 "modes.header.create" = "Stvori način";
@@ -787,6 +800,7 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "modes.field.name.placeholder" = "npr., Zapisnici sa sastanka";
 "modes.field.name.editPlaceholder" = "Ime načina";
 "modes.field.name.defaultLocked" = "Ovo je zadani način rada pa se njegov naziv ne može promijeniti. Svaki drugi način rada možete preimenovati.";
+"modes.field.name.taken" = "Način rada s tim nazivom već postoji.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Pružatelj usluga";
 "modes.provider.local" = "Lokalno";
@@ -813,8 +827,9 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "transcripts.delete.single.message" = "Ovo će trajno izbrisati ovo snimanje i njegovu audio datoteku.";
 "transcripts.delete.multiple.title" = "Izbrisati %d snimanja?";
 "transcripts.delete.multiple.message" = "Ovo će trajno izbrisati %d snimanja i njihove audio datoteke.\n\nOva radnja se ne može poništiti.";
-"transcripts.delete.multiple.confirm" = "Izbriši sve";
+"transcripts.delete.multiple.confirm" = "Izbriši snimanja: %d";
 "transcripts.retry.error.title" = "Ponovno pokušavanje nije uspjelo";
+"transcripts.retry.error.modeDeleted" = "Način koji je napravio ovu snimku je izbrisan, pa nije ponovno pokušano. U Povijesti desnom tipkom kliknite snimku i odaberite \"Pokušaj ponovno s...\" za odabir drugog načina.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Odaberi mapu snimki";
@@ -865,8 +880,8 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "recording.retry.inProgress" = "Ponovno pokušavanje…";
 "recording.retry.count" = "Pokušaj ponovno (%d)";
 "recording.retry.failed.missing" = "Ponovno pokušavanje nije uspjelo: audio datoteka nije pronađena";
-"recording.retry.failed.error" = "Ponovno pokušavanje nije uspjelo: %@";
 "recording.retry.pending" = "Spremno za ponovno pokušavanje – kliknite za transkripciju";
+"recording.retry.modeDeleted" = "Način je izbrisan";
 "recording.cancel.dialog.title" = "Otkazati snimanje?";
 "recording.cancel.dialog.message" = "Ovo će odbaciti trenutno snimanje.";
 "recording.cancel.dialog.confirm" = "Otkaži snimanje";
@@ -893,6 +908,7 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "audio.error.microphonePermission" = "Dozvola za mikrofon nije odobrena";
 "audio.error.microphoneInUse" = "HyperWhisper ne može pristupiti mikrofonu jer ga trenutno koristi druga aplikacija. Pauzirajte drugu aplikaciju ili promijenite ulaze, zatim pokušajte ponovno.";
 "audio.error.audioSystemNotResponding" = "Zvuk u macOS-u ne reagira pa se mikrofon nije mogao pokrenuti. Pokušajte ponovno za trenutak. Ako se to nastavi događati, ponovno pokrenite Mac.";
+"audio.error.recorderStopTimedOut" = "Zvuk sustava macOS prestao je reagirati dok se snimka spremala, pa nije transkribirana. Zvuk je sačuvan: HyperWhisper će ga pokušati vratiti pri sljedećem pokretanju.";
 "audio.error.createEngine" = "Nije uspjelo stvaranje audio motora";
 "audio.error.noInput" = "Nema dostupnog audio ulaza";
 "audio.error.createFile" = "Nije uspjelo stvaranje audio datoteke";
@@ -966,10 +982,15 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "transcription.guidance.quotaExceeded" = "Dodajte kredite svom %@ računu ili ažurirajte svoje podatke za naplatu";
 "transcription.guidance.timeout" = "Zahtjev je trajao predugo. Provjerite brzinu svog interneta i pokušajte ponovno.";
 "transcription.error.noSpeechDetected" = "Nije otkriven govor u snimci.";
+"transcription.error.audioTooShort" = "Snimka je prekratka za transkripciju. Snimajte dulje.";
 "transcription.guidance.noSpeechDetected" = "Savjeti:\n• Govorite jasno u mikrofon\n• Držite tipku dulje prije govora\n• Provjerite radi li vaš mikrofon\n• Osigurajte da je odabran ispravan ulazni uređaj";
 "transcription.guidance.needsNativeRelaunch" = "Zatvorite i ponovno otvorite HyperWhisper kao izvornu aplikaciju kako biste koristili lokalnu naknadnu obradu.";
 "transcription.guidance.localRuntimeUnavailable" = "Pokušajte ponovno ili u postavkama načina rada odaberite manji lokalni model.";
 "transcription.error.localRuntimeUnavailable" = "Lokalni AI nije uspio dovršiti obradu — vaš izvorni prijepis je sačuvan.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ je odbio vaš API ključ — vaš izvorni prijepis je sačuvan.";
+"transcription.error.postProcessingPreflight.unreachable" = "Nije moguće povezati se s %@ — vaš izvorni prijepis je sačuvan.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ nije instaliran — vaš izvorni prijepis je sačuvan.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ nije dostupan — vaš izvorni prijepis je sačuvan.";
 "transcription.error.localSpeechModelEvicted" = "Govorni model je uklonjen radi oslobađanja memorije i nije ga bilo moguće ponovno učitati. Zatvorite neke aplikacije i pokušajte ponovno.";
 "settings.backup.localDownload.title" = "Preuzeti lokalne modele?";
 "settings.backup.localDownload.message" = "%d vaših vraćenih načina rada koristi AI modele na uređaju koji još nisu preuzeti.";
@@ -1061,6 +1082,13 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "settings.backup.import.error.decode.corruptedField" = "Oštećena vrijednost polja: %@";
 "settings.backup.import.error.version" = "Datoteka sigurnosne kopije je iz novije verzije";
 "settings.backup.import.error.unknown" = "Uvoz nije uspio";
+"settings.backup.import.error.storeModes" = "Načini se nisu mogli spremiti pa su ostali nepromijenjeni.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Načini se nisu mogli spremiti pa su načini i rječnik ostali nepromijenjeni.";
+"settings.backup.import.error.storeVocabulary" = "Rječnik se nije mogao spremiti pa je ostao nepromijenjen.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Načini su uvezeni, ali rječnik se nije mogao spremiti pa je ostao nepromijenjen.";
+"settings.backup.import.error.storeLicense" = "Ključ licence nije se mogao sigurno uvesti.";
+"settings.backup.import.error.storeSettingsRestored" = "Postavke su ostale nepromijenjene.";
+"settings.backup.import.error.storeOtherSections" = "Ostali odabrani odjeljci su primijenjeni.";
 "settings.backup.import.apiKeysFailed" = "Ovi API ključevi nisu se mogli spremiti u Privjesak ključeva i nisu vraćeni: %@. Ponovno ih unesite u Postavkama.";
 "settings.backup.import.confirm.title" = "Uvesti postavke?";
 "settings.backup.import.confirm.message" = "Ovo će zamijeniti vaše postojeće načine i rječnik s onima iz datoteke sigurnosne kopije. Postavke će također biti ažurirane.";
@@ -1097,6 +1125,13 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "transcribe.file.error.format.title" = "Nepodržani format";
 "transcribe.file.error.format.message" = ".%@ datoteke nisu podržane od strane %@. Podržani formati: %@";
 "transcribe.file.error.read" = "Nije moguće pročitati odabranu datoteku.";
+"transcribe.file.error.webm" = "WebM nije podržan. Pretvorite datoteku u MP3, M4A ili WAV i pokušajte ponovno.";
+"transcribe.file.error.notAudio" = "Datoteka „%@” nije valjan zvuk. Možda je oštećena ili u formatu koji macOS ne može dekodirati.";
+"transcribe.file.error.empty" = "Datoteka „%@” je prazna. Ne sadrži zvuk za transkripciju.";
+"transcribe.file.error.permission" = "HyperWhisper ne može pročitati datoteku „%@”. Provjerite dopuštenja datoteke.";
+"transcribe.file.error.folderPermission" = "HyperWhisper ne može otvoriti mapu koja sadrži datoteku „%@”. Provjerite dopuštenja te mape.";
+"transcribe.file.error.privacy" = "Postavke privatnosti sustava macOS spriječile su HyperWhisper da pročita datoteku „%@”. Dopustite to u Postavkama sustava > Privatnost i sigurnost > Potpuni pristup disku.";
+"transcribe.file.error.tooShort" = "Ova je datoteka prekratka za transkripciju (%@ s).";
 "transcribe.file.error.copy" = "Nije uspjelo kopiranje datoteke u mapu snimki.";
 "transcribe.file.error.video.title" = "Nema zvuka u videu";
 "transcribe.file.error.video.noAudio" = "Ova video datoteka ne sadrži audio zapis. Molimo odaberite video sa zvukom ili audio datoteku.";

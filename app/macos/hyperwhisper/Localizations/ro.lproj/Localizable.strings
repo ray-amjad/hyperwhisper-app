@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostice exportate";
 "alerts.export.diagnostics.success.message" = "Toate jurnalele de diagnosticare au fost exportate cu succes.";
 "alerts.export.diagnostics.saveFailed.message" = "Nu s-au putut salva diagnosticele în locația selectată: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnosticare exportată fără jurnale de sistem";
+"alerts.export.diagnostics.noSystemLogs.message" = "Fișierul de diagnosticare a fost salvat, dar jurnalele de sistem ale aplicației nu au putut fi citite, așa că system-logs.txt conține doar motivul. Motiv: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Exportați jurnalele de actualizare pentru suport";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Onboarding complet";
 
 "onboarding.setupLater.button" = "Configurează mai târziu";
-"onboarding.error.microphone.denied" = "Permisiunea de microfon refuzată. Vă rugăm acordați permisiunea în Setări de sistem.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Porniți la autentificare";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Oprit";
 "settings.general.mediaControl.mode.mute" = "Asmuțiți audio";
+"settings.general.mediaControl.mode.muffle" = "Estompați audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Redă efecte sonore";
 "settings.sound.soundEffects.info" = "Redă indicii audio la începerea și oprirea înregistrării.";
 "settings.sound.mediaControl.title" = "Control media în timp ce înregistrați";
-"settings.sound.mediaControl.info" = "Aleţeţi cum gestionează HyperWhisper alt audio în timp ce înregistraţi. 'Oprit' lasă audio neschimbat, 'Asmuţiţi audio' taie ieşirea sistemului în timp ce înregistraţi şi o restaurează după aceea.";
+"settings.sound.mediaControl.info" = "Aleţeţi cum gestionează HyperWhisper alt audio în timp ce înregistraţi. 'Oprit' lasă audio neschimbat, 'Asmuţiţi audio' taie ieşirea sistemului în timp ce înregistraţi şi o restaurează după aceea, iar 'Estompați audio' îl menține redat încet, ca din camera alăturată.";
 "settings.sound.autoIncreaseMicVolume.title" = "Măriți automat volumul microfonului";
 "settings.sound.autoIncreaseMicVolume.info" = "Setează automat volumul de intrare al microfonului la maxim la pornirea înregistrării, apoi restabilește nivelul inițial la oprire. Se aplică doar la utilizarea dispozitivului implicit de intrare al sistemului.";
 "settings.sound.vad.title" = "Eliminați tăcerea înainte de transcriere";
@@ -336,6 +338,9 @@
 "settings.storage.choose.button" = "Alegeți...";
 "settings.storage.dialog.select" = "Selectați folder";
 "settings.storage.dialog.message" = "Alegeți un folder pentru a stoca înregistrări";
+"settings.storage.folderRefused.title" = "Acest dosar nu poate fi folosit";
+"settings.storage.folderRefused.notWritable" = "Nu aveți permisiunea de a scrie în „%@”, așa că HyperWhisper nu poate salva înregistrări acolo. Dosarul de înregistrări nu a fost schimbat.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nu a putut crea acest dosar: %@ Dosarul de înregistrări nu a fost schimbat.";
 "settings.storage.storeAsM4A.title" = "Comprimați înregistrări la M4A";
 "settings.storage.storeAsM4A.subtitle" = "Convertește înregistrări WAV în fișiere mai mici după transcriere. Opriți pentru a păstra fișierele WAV originale (mai mari dar fără pierderi).";
 
@@ -383,6 +388,7 @@
 
 "settings.shortcuts.changeMode.title" = "Schimbați modul";
 "settings.shortcuts.changeMode.subtitle" = "Funcționează doar în timp ce înregistrați";
+"settings.shortcuts.conflict.alert" = "Această scurtătură de tastatură nu poate fi folosită deoarece este deja folosită de „%@”.";
 
 "settings.shortcuts.reset.button" = "Resetați la implicit";
 "settings.shortcuts.reset.dialog.title" = "Resetați scurtăturile de tastatură";
@@ -434,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Lipeți din clipboard";
 "settings.license.clearInput" = "Ștergeți";
+"license.error.keyFormat" = "Aceasta nu pare a fi o cheie de cont.";
 "settings.license.recovery.prompt" = "Ați uitat cheia de licență?";
 "settings.license.recovery.button" = "Accesați portalul clienților";
 "settings.license.daily.title" = "Transcriere zilnică";
@@ -576,6 +583,8 @@
 "onboarding.configure.cloud.note" = "Creditele sunt preplătite și partajate între toate Mac-urile conectate cu această cheie. Timpul inactiv nu costă nimic.";
 "onboarding.source.note" = "Dacă te răzgândești mai târziu, reiei doar acest pas. Nimic altceva din ce ai configurat nu se pierde.";
 "onboarding.permissions.note" = "Omite Accesibilitatea și transcrierile ajung în clipboard, gata de lipit. Activarea ei mai târziu durează un click.";
+"onboarding.permissions.microphone.denied" = "Nepermis. Activează HyperWhisper în Configurări sistem, apoi revino aici.";
+"onboarding.permissions.continueNeedsMicrophone" = "Pentru a continua este nevoie de microfon. Permite-l mai sus sau alege Configurează mai târziu.";
 "onboarding.welcome.task1.title" = "Alege cum rulează transcrierea";
 "onboarding.welcome.task1.caption" = "În cloud-ul nostru, pe acest Mac, sau printr-un cont de furnizor pentru care plătești deja.";
 "onboarding.welcome.task2.title" = "Verifică-ți microfonul";
@@ -683,6 +692,10 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Ștergeți modul?";
 "modes.delete.confirm.message" = "Aceasta va elimina modul selectat. Această acțiune nu poate fi anulată.";
+"modes.editor.discard.title" = "Renunțați la modificările nesalvate?";
+"modes.editor.discard.message" = "Modificările aduse acestui mod nu au fost salvate.";
+"modes.editor.discard.keepEditing" = "Continuați editarea";
+"modes.editor.discard.button" = "Renunțați";
 "modes.header.title" = "Moduri";
 "modes.header.subtitle" = "Creați profiluri personalizate pentru contexte și fluxuri de lucru diferite";
 "modes.header.create" = "Creați modul";
@@ -787,6 +800,7 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.field.name.placeholder" = "de ex., Note de întâlnire";
 "modes.field.name.editPlaceholder" = "Nume mod";
 "modes.field.name.defaultLocked" = "Acesta este modul implicit, așa că numele său nu poate fi modificat. Puteți redenumi orice alt mod.";
+"modes.field.name.taken" = "Există deja un mod cu acest nume.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Furnizor";
 "modes.provider.local" = "Local";
@@ -813,8 +827,9 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "transcripts.delete.single.message" = "Aceasta va șterge permanent această înregistrare și fișierul audio.";
 "transcripts.delete.multiple.title" = "Ștergeți %d înregistrări?";
 "transcripts.delete.multiple.message" = "Aceasta va șterge permanent %d înregistrări și fișierele audio.\n\nAceastă acțiune nu poate fi anulată.";
-"transcripts.delete.multiple.confirm" = "Ștergeți toate";
+"transcripts.delete.multiple.confirm" = "Ștergeți înregistrările: %d";
 "transcripts.retry.error.title" = "Reîncercare eșuată";
+"transcripts.retry.error.modeDeleted" = "Modul care a creat această înregistrare a fost șters, așa că nu s-a reîncercat. În Istoric, faceți clic dreapta pe înregistrare și alegeți \"Reîncercați cu...\" pentru a selecta alt mod.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Alegeți folderul înregistrări";
@@ -865,8 +880,8 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "recording.retry.inProgress" = "Se reîncearcă...";
 "recording.retry.count" = "Reîncercați (%d)";
 "recording.retry.failed.missing" = "Reîncercare eșuată: Fișier audio nu a fost găsit";
-"recording.retry.failed.error" = "Reîncercare eșuată: %@";
 "recording.retry.pending" = "Pregătit pentru reîncercare – faceți clic pentru a transcrie";
+"recording.retry.modeDeleted" = "Modul a fost șters";
 "recording.cancel.dialog.title" = "Anulați înregistrare?";
 "recording.cancel.dialog.message" = "Aceasta va renunța la înregistrarea curentă.";
 "recording.cancel.dialog.confirm" = "Anulați înregistrare";
@@ -893,6 +908,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "audio.error.microphonePermission" = "Permisiune microfon nu a fost acordată";
 "audio.error.microphoneInUse" = "HyperWhisper nu poate accesa microfonul pentru că o altă aplicație o folosește în prezent. Pauzați cealaltă aplicație sau comutați intrări, apoi încercați din nou.";
 "audio.error.audioSystemNotResponding" = "Sistemul audio macOS nu răspunde, așa că microfonul nu a putut porni. Încearcă din nou peste câteva momente. Dacă problema persistă, repornește Mac-ul.";
+"audio.error.recorderStopTimedOut" = "Sistemul audio macOS a încetat să răspundă în timp ce înregistrarea era salvată, așa că nu a fost transcrisă. Sunetul a fost păstrat: HyperWhisper va încerca să îl recupereze la următoarea pornire.";
 "audio.error.createEngine" = "Nu s-a putut crea motor audio";
 "audio.error.noInput" = "Nicio intrare audio disponibilă";
 "audio.error.createFile" = "Nu s-a putut crea fișier audio";
@@ -966,10 +982,15 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcription.guidance.quotaExceeded" = "Adăugați credite la contul %@ sau actualizați detaliile de facturare";
 "transcription.guidance.timeout" = "Cererea a durat prea mult. Verificați viteza internetului și reîncercați.";
 "transcription.error.noSpeechDetected" = "Nicio vorbire detectată în înregistrare.";
+"transcription.error.audioTooShort" = "Înregistrarea este prea scurtă pentru a fi transcrisă. Înregistrează mai mult timp.";
 "transcription.guidance.noSpeechDetected" = "Sfaturi:\n• Vorbiți clar în microfon\n• Țineti cheia mai mult înainte de a vorbi\n• Verificați că microfonul funcționează\n• Asigurați-vă că dispozitivul de intrare corect este selectat";
 "transcription.guidance.needsNativeRelaunch" = "Închide și redeschide HyperWhisper în mod nativ pentru a folosi post-procesarea locală.";
 "transcription.guidance.localRuntimeUnavailable" = "Încearcă din nou sau alege un model local mai mic în setările modului.";
 "transcription.error.localRuntimeUnavailable" = "AI-ul local nu a putut finaliza — transcrierea brută a fost păstrată.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ a respins cheia ta API — transcrierea brută a fost păstrată.";
+"transcription.error.postProcessingPreflight.unreachable" = "Nu se poate conecta la %@ — transcrierea brută a fost păstrată.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ nu este instalat — transcrierea brută a fost păstrată.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ nu este disponibil — transcrierea brută a fost păstrată.";
 "transcription.error.localSpeechModelEvicted" = "Modelul de vorbire a fost descărcat pentru a elibera memorie și nu a putut fi reîncărcat. Închide câteva aplicații și încearcă din nou.";
 "settings.backup.localDownload.title" = "Descarci modelele locale?";
 "settings.backup.localDownload.message" = "%d dintre modurile restaurate folosesc modele AI locale care nu sunt încă descărcate.";
@@ -1061,6 +1082,13 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "settings.backup.import.error.decode.corruptedField" = "Valoare coruptă pentru câmp: %@";
 "settings.backup.import.error.version" = "Fișier copie de siguranță din versiune mai nouă";
 "settings.backup.import.error.unknown" = "Import eșuat";
+"settings.backup.import.error.storeModes" = "Modurile nu au putut fi salvate, așa că au rămas neschimbate.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Modurile nu au putut fi salvate, așa că modurile și vocabularul au rămas neschimbate.";
+"settings.backup.import.error.storeVocabulary" = "Vocabularul nu a putut fi salvat, așa că a rămas neschimbat.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Modurile au fost importate, dar vocabularul nu a putut fi salvat, așa că a rămas neschimbat.";
+"settings.backup.import.error.storeLicense" = "Cheia de licență nu a putut fi importată în siguranță.";
+"settings.backup.import.error.storeSettingsRestored" = "Setările au rămas neschimbate.";
+"settings.backup.import.error.storeOtherSections" = "Celelalte secțiuni selectate au fost aplicate.";
 "settings.backup.import.apiKeysFailed" = "Aceste chei API nu au putut fi salvate în portchei și nu au fost restaurate: %@. Introdu-le din nou în Setări.";
 "settings.backup.import.confirm.title" = "Importați setări?";
 "settings.backup.import.confirm.message" = "Aceasta va înlocui modurile și vocabularul existent cu cel din fișierul de copie de siguranță. Setările vor fi de asemenea actualizate.";
@@ -1097,6 +1125,13 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcribe.file.error.format.title" = "Format nesuportat";
 "transcribe.file.error.format.message" = "Fișierele .%@ nu sunt acceptate de %@. Formate acceptate: %@";
 "transcribe.file.error.read" = "Nu se poate citi fișierul selectat.";
+"transcribe.file.error.webm" = "WebM nu este acceptat. Convertiți fișierul în MP3, M4A sau WAV, apoi încercați din nou.";
+"transcribe.file.error.notAudio" = "Fișierul „%@” nu este audio valid. Poate fi deteriorat sau într-un format pe care macOS nu îl poate decoda.";
+"transcribe.file.error.empty" = "Fișierul „%@” este gol. Nu conține audio de transcris.";
+"transcribe.file.error.permission" = "HyperWhisper nu poate citi fișierul „%@”. Verificați permisiunile fișierului.";
+"transcribe.file.error.folderPermission" = "HyperWhisper nu poate deschide un dosar care conține fișierul „%@”. Verificați permisiunile acelui dosar.";
+"transcribe.file.error.privacy" = "Setările de confidențialitate macOS au împiedicat HyperWhisper să citească fișierul „%@”. Permiteți acest lucru în Configurări sistem > Confidențialitate și securitate > Acces complet la disc.";
+"transcribe.file.error.tooShort" = "Acest fișier este prea scurt pentru a fi transcris (%@ s).";
 "transcribe.file.error.copy" = "Nu s-a putut copia fișier în folderul înregistrări.";
 "transcribe.file.error.video.title" = "Nicio audio în video";
 "transcribe.file.error.video.noAudio" = "Acest fișier video nu conține o pistă audio. Vă rugăm selectați un video cu audio sau un fișier audio.";

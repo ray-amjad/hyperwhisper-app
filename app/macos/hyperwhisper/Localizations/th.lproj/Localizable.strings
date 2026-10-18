@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "ส่งออกการวินิจฉัยแล้ว";
 "alerts.export.diagnostics.success.message" = "บันทึกการวินิจฉัยทั้งหมดส่งออกสำเร็จ";
 "alerts.export.diagnostics.saveFailed.message" = "ไม่สามารถบันทึกการวินิจฉัยลงในตำแหน่งที่เลือก: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "ส่งออกข้อมูลวินิจฉัยโดยไม่มีบันทึกระบบ";
+"alerts.export.diagnostics.noSystemLogs.message" = "บันทึกไฟล์ข้อมูลวินิจฉัยแล้ว แต่ไม่สามารถอ่านบันทึกระบบของแอปได้ ดังนั้น system-logs.txt จึงมีเพียงสาเหตุเท่านั้น สาเหตุ: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "ส่งออกบันทึกการอัปเดตเพื่อการสนับสนุน";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "เสร็จสิ้นการเข้าสู่ระบบ";
 
 "onboarding.setupLater.button" = "ตั้งค่าภายหลัง";
-"onboarding.error.microphone.denied" = "ปฏิเสธการอนุญาตไมโครโฟน โปรดให้สิทธิ์ในการตั้งค่าระบบ";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "เปิดตัวเมื่อเข้าสู่ระบบ";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "ปิด";
 "settings.general.mediaControl.mode.mute" = "ปิดเสียง";
+"settings.general.mediaControl.mode.muffle" = "ทำให้เสียงอู้อี้";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,7 +324,7 @@
 "settings.sound.soundEffects.title" = "เล่นเอฟเฟกต์เสียง";
 "settings.sound.soundEffects.info" = "เล่นสัญญาณเสียงเมื่อเริ่มและหยุดการบันทึก";
 "settings.sound.mediaControl.title" = "การควบคุมมีเดียขณะบันทึก";
-"settings.sound.mediaControl.info" = "เลือกวิธีจัดการเสียงอื่นขณะบันทึก 'Off' ปล่อยเสียงไม่เปลี่ยนแปลง 'Mute Audio' ปิดเสียงเอาต์พุตระบบขณะบันทึกและเรียกคืนหลังจากนั้น";
+"settings.sound.mediaControl.info" = "เลือกวิธีจัดการเสียงอื่นขณะบันทึก 'Off' ปล่อยเสียงไม่เปลี่ยนแปลง 'Mute Audio' ปิดเสียงเอาต์พุตระบบขณะบันทึกและเรียกคืนหลังจากนั้น 'ทำให้เสียงอู้อี้' เล่นเสียงเบา ๆ เหมือนมาจากห้องข้าง ๆ";
 "settings.sound.autoIncreaseMicVolume.title" = "เพิ่มระดับเสียงไมโครโฟนโดยอัตโนมัติ";
 "settings.sound.autoIncreaseMicVolume.info" = "โดยอัตโนมัติตั้งค่าระดับเสียงอินพุตไมโครโฟนเป็นสูงสุดเมื่อเริ่มการบันทึก จากนั้นคืนค่าระดับต้นฉบับเมื่อหยุดการบันทึก ใช้ได้เฉพาะเมื่อใช้อุปกรณ์อินพุตเริ่มต้นของระบบเท่านั้น";
 "settings.sound.vad.title" = "ลบความเงียบก่อนการสัญลักษณ์";
@@ -336,6 +338,9 @@
 "settings.storage.choose.button" = "เลือก...";
 "settings.storage.dialog.select" = "เลือกโฟลเดอร์";
 "settings.storage.dialog.message" = "เลือกโฟลเดอร์เพื่อเก็บการบันทึก";
+"settings.storage.folderRefused.title" = "ไม่สามารถใช้โฟลเดอร์นี้ได้";
+"settings.storage.folderRefused.notWritable" = "คุณไม่มีสิทธิ์เขียนลงใน “%@” HyperWhisper จึงบันทึกการบันทึกเสียงไว้ที่นั่นไม่ได้ โฟลเดอร์การบันทึกไม่ได้เปลี่ยนแปลง";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper ไม่สามารถสร้างโฟลเดอร์นี้ได้: %@ โฟลเดอร์การบันทึกไม่ได้เปลี่ยนแปลง";
 "settings.storage.storeAsM4A.title" = "บีบอัดการบันทึกเป็น M4A";
 "settings.storage.storeAsM4A.subtitle" = "แปลงการบันทึก WAV เป็นไฟล์ขนาดเล็กกว่าหลังการสัญลักษณ์ ปิดเพื่อเก็บไฟล์ WAV ดั้งเดิม (ใหญ่กว่า แต่ไม่มีการสูญเสีย)";
 
@@ -383,6 +388,7 @@
 
 "settings.shortcuts.changeMode.title" = "เปลี่ยนโหมด";
 "settings.shortcuts.changeMode.subtitle" = "ใช้ได้เฉพาะระหว่างการบันทึกเท่านั้น";
+"settings.shortcuts.conflict.alert" = "ไม่สามารถใช้แป้นพิมพ์ลัดนี้ได้ เนื่องจาก “%@” ใช้อยู่แล้ว";
 
 "settings.shortcuts.reset.button" = "รีเซ็ตเป็นค่าเริ่มต้น";
 "settings.shortcuts.reset.dialog.title" = "รีเซ็ตลัดแป้นพิมพ์";
@@ -434,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "วางจากคลิปบอร์ด";
 "settings.license.clearInput" = "ล้าง";
+"license.error.keyFormat" = "ข้อความนี้ดูไม่เหมือนคีย์บัญชี";
 "settings.license.recovery.prompt" = "ลืมคีย์ลัทธิของคุณ?";
 "settings.license.recovery.button" = "ไปที่พอร์ทัลลูกค้า";
 "settings.license.daily.title" = "การสัญลักษณ์รายวัน";
@@ -576,6 +583,8 @@
 "onboarding.configure.cloud.note" = "เครดิตเป็นแบบเติมเงินล่วงหน้าและใช้ร่วมกันในทุกเครื่อง Mac ที่เข้าสู่ระบบด้วยคีย์นี้ เวลาที่ไม่ได้ใช้งานไม่เสียค่าใช้จ่าย";
 "onboarding.source.note" = "หากเปลี่ยนใจภายหลัง ระบบจะรันซ้ำแค่ขั้นตอนนี้ขั้นตอนเดียว สิ่งอื่นที่คุณตั้งค่าไว้จะไม่หายไป";
 "onboarding.permissions.note" = "ข้ามการช่วยการเข้าถึงไปได้ ข้อความที่ถอดเสียงจะไปอยู่ในคลิปบอร์ด พร้อมวางได้ทันที เปิดใช้งานภายหลังได้ในคลิกเดียว";
+"onboarding.permissions.microphone.denied" = "ไม่ได้รับอนุญาต เปิด HyperWhisper ในการตั้งค่าระบบ แล้วกลับมาที่นี่";
+"onboarding.permissions.continueNeedsMicrophone" = "การดำเนินการต่อต้องใช้ไมโครโฟน อนุญาตด้านบน หรือเลือกตั้งค่าภายหลัง";
 "onboarding.welcome.task1.title" = "เลือกวิธีการถอดเสียง";
 "onboarding.welcome.task1.caption" = "ในคลาวด์ของเรา บน Mac เครื่องนี้ หรือผ่านบัญชีผู้ให้บริการที่คุณจ่ายเงินอยู่แล้ว";
 "onboarding.welcome.task2.title" = "ตรวจสอบไมโครโฟนของคุณ";
@@ -683,6 +692,10 @@
 // MARK: - Modes
 "modes.delete.confirm.title" = "ลบโหมด?";
 "modes.delete.confirm.message" = "สิ่งนี้จะลบโหมดที่เลือก ไม่สามารถเลิกทำการดำเนินการนี้ได้";
+"modes.editor.discard.title" = "ละทิ้งการเปลี่ยนแปลงที่ยังไม่ได้บันทึกหรือไม่";
+"modes.editor.discard.message" = "การเปลี่ยนแปลงโหมดนี้ยังไม่ได้บันทึก";
+"modes.editor.discard.keepEditing" = "แก้ไขต่อ";
+"modes.editor.discard.button" = "ละทิ้ง";
 "modes.header.title" = "โหมด";
 "modes.header.subtitle" = "สร้างโปรไฟล์ที่กำหนดเองสำหรับบริบทและขั้นตอนการทำงานต่างๆ";
 "modes.header.create" = "สร้างโหมด";
@@ -787,6 +800,7 @@
 "modes.field.name.placeholder" = "เช่น บันทึกการประชุม";
 "modes.field.name.editPlaceholder" = "ชื่อโหมด";
 "modes.field.name.defaultLocked" = "นี่คือโหมดเริ่มต้น จึงไม่สามารถเปลี่ยนชื่อได้ คุณสามารถเปลี่ยนชื่อโหมดอื่นได้";
+"modes.field.name.taken" = "มีโหมดที่ใช้ชื่อนี้อยู่แล้ว";
 "modes.field.model" = "โมเดล";
 "modes.field.provider" = "ผู้ให้บริการ";
 "modes.provider.local" = "ท้องถิ่น";
@@ -813,8 +827,9 @@
 "transcripts.delete.single.message" = "สิ่งนี้จะลบการบันทึกนี้และไฟล์เสียงของมันอย่างถาวร";
 "transcripts.delete.multiple.title" = "ลบ %d การบันทึก?";
 "transcripts.delete.multiple.message" = "สิ่งนี้จะลบ %d การบันทึกและไฟล์เสียงของพวกเขาอย่างถาวร\n\nไม่สามารถเลิกทำการดำเนินการนี้ได้";
-"transcripts.delete.multiple.confirm" = "ลบทั้งหมด";
+"transcripts.delete.multiple.confirm" = "ลบ %d การบันทึก";
 "transcripts.retry.error.title" = "การลองใหม่ล้มเหลว";
+"transcripts.retry.error.modeDeleted" = "โหมดที่สร้างการบันทึกนี้ถูกลบไปแล้ว จึงไม่ได้ลองใหม่ ในประวัติ ให้คลิกขวาที่การบันทึกแล้วเลือก \"ลองใหม่ด้วย...\" เพื่อเลือกโหมดอื่น";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "เลือกโฟลเดอร์การบันทึก";
@@ -865,8 +880,8 @@
 "recording.retry.inProgress" = "กำลังลองใหม่…";
 "recording.retry.count" = "ลองใหม่ (%d)";
 "recording.retry.failed.missing" = "การลองใหม่ล้มเหลว: ไม่พบไฟล์เสียง";
-"recording.retry.failed.error" = "การลองใหม่ล้มเหลว: %@";
 "recording.retry.pending" = "พร้อมที่จะลองใหม่ – คลิกเพื่อสัญลักษณ์";
+"recording.retry.modeDeleted" = "โหมดถูกลบแล้ว";
 "recording.cancel.dialog.title" = "ยกเลิกการบันทึก?";
 "recording.cancel.dialog.message" = "สิ่งนี้จะละทิ้งการบันทึกปัจจุบัน";
 "recording.cancel.dialog.confirm" = "ยกเลิกการบันทึก";
@@ -893,6 +908,7 @@
 "audio.error.microphonePermission" = "ไม่ได้รับสิทธิ์ไมโครโฟน";
 "audio.error.microphoneInUse" = "HyperWhisper ไม่สามารถเข้าถึงไมโครโฟนเพราะแอปอื่นใช้งานอยู่ หยุดแอปอื่นหรือสลับอินพุต แล้วลองใหม่";
 "audio.error.audioSystemNotResponding" = "ระบบเสียงของ macOS ไม่ตอบสนอง จึงไม่สามารถเริ่มไมโครโฟนได้ ลองอีกครั้งในอีกสักครู่ หากยังเกิดขึ้นอยู่ ให้รีสตาร์ท Mac ของคุณ";
+"audio.error.recorderStopTimedOut" = "ระบบเสียงของ macOS หยุดตอบสนองขณะบันทึกไฟล์เสียง จึงไม่ได้ถอดความ ไฟล์เสียงยังถูกเก็บไว้: HyperWhisper จะพยายามกู้คืนในครั้งถัดไปที่เปิดแอป";
 "audio.error.createEngine" = "ไม่สามารถสร้างเอนจิ้นเสียง";
 "audio.error.noInput" = "ไม่มีอินพุตเสียง";
 "audio.error.createFile" = "ไม่สามารถสร้างไฟล์เสียง";
@@ -966,10 +982,15 @@
 "transcription.guidance.quotaExceeded" = "เพิ่มเครดิตไปยัง %@ บัญชีของคุณหรืออัปเดตรายละเอียดการเรียกเก็บเงิน";
 "transcription.guidance.timeout" = "คำขอใช้เวลานานเกินไป ตรวจสอบความเร็วอินเทอร์เน็ตและลองใหม่";
 "transcription.error.noSpeechDetected" = "ไม่พบเสียงพูดในการบันทึก";
+"transcription.error.audioTooShort" = "การบันทึกสั้นเกินไปจนถอดความไม่ได้ โปรดบันทึกให้นานขึ้น";
 "transcription.guidance.noSpeechDetected" = "เคล็ดลับ:\n• พูดชัดเจนลงในไมโครโฟน\n• ค้างคีย์นานขึ้นก่อนพูด\n• ตรวจสอบว่าไมโครโฟนของคุณใช้งานได้\n• ตรวจสอบให้แน่ใจว่าอุปกรณ์อินพุตที่ถูกต้องได้รับการเลือก";
 "transcription.guidance.needsNativeRelaunch" = "ออกจาก HyperWhisper แล้วเปิดใหม่แบบเนทีฟ เพื่อใช้การประมวลผลหลังถอดเสียงในเครื่อง";
 "transcription.guidance.localRuntimeUnavailable" = "ลองอีกครั้ง หรือเลือกโมเดลในเครื่องที่เล็กลงในการตั้งค่าโหมด";
 "transcription.error.localRuntimeUnavailable" = "AI ในเครื่องทำงานไม่สำเร็จ — ระบบเก็บข้อความถอดเสียงต้นฉบับไว้ให้แล้ว";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ ปฏิเสธคีย์ API ของคุณ — ระบบเก็บข้อความถอดเสียงต้นฉบับไว้ให้แล้ว";
+"transcription.error.postProcessingPreflight.unreachable" = "เชื่อมต่อ %@ ไม่ได้ — ระบบเก็บข้อความถอดเสียงต้นฉบับไว้ให้แล้ว";
+"transcription.error.postProcessingPreflight.notInstalled" = "ยังไม่ได้ติดตั้ง %@ — ระบบเก็บข้อความถอดเสียงต้นฉบับไว้ให้แล้ว";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ ไม่พร้อมใช้งาน — ระบบเก็บข้อความถอดเสียงต้นฉบับไว้ให้แล้ว";
 "transcription.error.localSpeechModelEvicted" = "โมเดลเสียงถูกยกเลิกการโหลดเพื่อคืนหน่วยความจำ และโหลดใหม่ไม่สำเร็จ ปิดบางแอปแล้วลองอีกครั้ง";
 "settings.backup.localDownload.title" = "ดาวน์โหลดโมเดลในเครื่องหรือไม่?";
 "settings.backup.localDownload.message" = "โหมดที่กู้คืนมา %d โหมดใช้โมเดล AI บนอุปกรณ์ที่ยังไม่ได้ดาวน์โหลด";
@@ -1061,6 +1082,13 @@
 "settings.backup.import.error.decode.corruptedField" = "ค่าฟิลด์เสียหาย: %@";
 "settings.backup.import.error.version" = "ไฟล์สำรองมาจากเวอร์ชันที่ใหม่กว่า";
 "settings.backup.import.error.unknown" = "นำเข้าล้มเหลว";
+"settings.backup.import.error.storeModes" = "ไม่สามารถบันทึกโหมดได้ จึงคงไว้ตามเดิม";
+"settings.backup.import.error.storeModesAndVocabulary" = "ไม่สามารถบันทึกโหมดได้ จึงคงโหมดและศัพท์เฉพาะไว้ตามเดิม";
+"settings.backup.import.error.storeVocabulary" = "ไม่สามารถบันทึกศัพท์เฉพาะได้ จึงคงไว้ตามเดิม";
+"settings.backup.import.error.storeVocabularyAfterModes" = "นำเข้าโหมดแล้ว แต่ไม่สามารถบันทึกศัพท์เฉพาะได้ จึงคงศัพท์เฉพาะไว้ตามเดิม";
+"settings.backup.import.error.storeLicense" = "ไม่สามารถนำเข้าคีย์ใบอนุญาตอย่างปลอดภัยได้";
+"settings.backup.import.error.storeSettingsRestored" = "การตั้งค่ายังคงเหมือนเดิม";
+"settings.backup.import.error.storeOtherSections" = "นำส่วนอื่นที่เลือกไปใช้แล้ว";
 "settings.backup.import.apiKeysFailed" = "ไม่สามารถบันทึกคีย์ API เหล่านี้ลงในพวงกุญแจได้และไม่ได้กู้คืน: %@ โปรดป้อนอีกครั้งในการตั้งค่า";
 "settings.backup.import.confirm.title" = "นำเข้าการตั้งค่า?";
 "settings.backup.import.confirm.message" = "สิ่งนี้จะแทนที่โหมดและศัพท์เฉพาะที่มีอยู่ของคุณด้วยส่วนจากไฟล์สำรอง การตั้งค่าจะได้รับการอัปเดตด้วย";
@@ -1097,6 +1125,13 @@
 "transcribe.file.error.format.title" = "รูปแบบไม่รองรับ";
 "transcribe.file.error.format.message" = "ไฟล์ .%@ ไม่ได้รับการสนับสนุนโดย %@ รูปแบบที่รองรับ: %@";
 "transcribe.file.error.read" = "ไม่สามารถอ่านไฟล์ที่เลือก";
+"transcribe.file.error.webm" = "ไม่รองรับ WebM แปลงไฟล์เป็น MP3, M4A หรือ WAV แล้วลองอีกครั้ง";
+"transcribe.file.error.notAudio" = "ไฟล์ “%@” ไม่ใช่เสียงที่ถูกต้อง ไฟล์อาจเสียหาย หรืออยู่ในรูปแบบที่ macOS ถอดรหัสไม่ได้";
+"transcribe.file.error.empty" = "ไฟล์ “%@” ว่างเปล่า ไม่มีเสียงให้ถอดความ";
+"transcribe.file.error.permission" = "HyperWhisper อ่านไฟล์ “%@” ไม่ได้ โปรดตรวจสอบสิทธิ์ของไฟล์";
+"transcribe.file.error.folderPermission" = "HyperWhisper เปิดโฟลเดอร์ที่มีไฟล์ “%@” ไม่ได้ โปรดตรวจสอบสิทธิ์ของโฟลเดอร์นั้น";
+"transcribe.file.error.privacy" = "การตั้งค่าความเป็นส่วนตัวของ macOS บล็อกไม่ให้ HyperWhisper อ่านไฟล์ “%@” โปรดอนุญาตในการตั้งค่าระบบ > ความเป็นส่วนตัวและความปลอดภัย > การเข้าถึงดิสก์เต็มรูปแบบ";
+"transcribe.file.error.tooShort" = "ไฟล์นี้สั้นเกินไปจนถอดความไม่ได้ (%@ วินาที)";
 "transcribe.file.error.copy" = "ไม่สามารถคัดลอกไฟล์ไปยังโฟลเดอร์การบันทึก";
 "transcribe.file.error.video.title" = "ไม่มีเสียงในวิดีโอ";
 "transcribe.file.error.video.noAudio" = "ไฟล์วิดีโอนี้ไม่มีเทร็กเสียง โปรดเลือกวิดีโอที่มีเสียงหรือไฟล์เสียง";

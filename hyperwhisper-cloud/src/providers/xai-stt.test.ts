@@ -150,6 +150,22 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
     ]);
   });
 
+  test('keeps a leading dash or star that no space follows (issue #729)', async () => {
+    const captured = captureRequest({ text: 'hi', duration: 4 });
+
+    // '-Xmx' used to reach xAI as 'Xmx'. Only a bullet followed by a space is
+    // list markup, as in the canonical `sanitize_vocabulary_word`.
+    await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, '-Xmx, *args, - bulleted');
+    expect(captured.form?.getAll('keyterm')).toEqual(['-Xmx', '*args', 'bulleted']);
+  });
+
+  test('drops an empty bullet line rather than sending it as a keyterm', async () => {
+    const captured = captureRequest({ text: 'hi', duration: 4 });
+
+    await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, 'foo\n-\n*\nbar');
+    expect(captured.form?.getAll('keyterm')).toEqual(['foo', 'bar']);
+  });
+
   test('pins the model, and honours the one the route resolved', async () => {
     const pinned = captureRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/mp3');
@@ -160,11 +176,16 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
     await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, undefined, { model: '  ' });
     expect(blank.form?.get('model')).toBe('grok-voice-transcribe-2.0');
 
+    // A shipped client may still name 1.0, which xAI ended on 2026-10-02
+    // (#1908). The route resolves it through the registry alias, and the
+    // adapter sends what the route resolved.
+    const resolved = resolveModel('grok', 'grok-voice-transcribe-1.0');
+    if (!resolved.ok) throw new Error(resolved.reason);
     const chosen = captureRequest({ text: 'hi', duration: 4 });
     await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, undefined, {
-      model: 'grok-voice-transcribe-1.0',
+      model: resolved.model.id,
     });
-    expect(chosen.form?.get('model')).toBe('grok-voice-transcribe-1.0');
+    expect(chosen.form?.get('model')).toBe('grok-voice-transcribe-2.0');
   });
 
   test("the adapter's own default is the registry's default", async () => {

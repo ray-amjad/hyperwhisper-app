@@ -73,6 +73,11 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             )
         }
 
+        // STEP 1.5: Open the audio file, and refuse one with no audio frames.
+        // `analyzeSequence` never finishes on a 0-frame file (#1515), so this
+        // runs before any asset download or analyzer work.
+        let audioFile = try AppleSpeechAudioInput.openForAnalysis(audioURL, logger: logger)
+
         // STEP 2: Resolve locale from language parameter
         let effectiveLanguage = mode?.language ?? language
         let locale = await resolveLocale(language: effectiveLanguage)
@@ -97,53 +102,93 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             logger.info("Added \(contextualWords.count) contextual strings for recognition")
         }
 
-        // STEP 5: Open audio file
-        let audioFile: AVAudioFile
-        do {
-            audioFile = try AVAudioFile(forReading: audioURL)
-        } catch {
-            let nsError = error as NSError
-            logger.error("Failed to open SpeechAnalyzer audio file; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
-            throw TranscriptionError.invalidAudioFormat
-        }
-
-        // STEP 6: Concurrently feed audio and collect results
+        // STEP 5: Concurrently feed audio and collect results
         // Tracks the self-inflicted teardown route: when `analyzeSequence` returns
         // no last sample time we cancel the analyzer while `collectTranscriptionResults`
         // is still consuming `transcriber.results`, which terminates that stream with
         // a `CancellationError` even though nothing cancelled the task. Reported as a
         // breadcrumb so Sentry can tell the two routes apart. HYPERWHISPER-SQ.
-        var didSelfCancelAnalyzer = false
+        // A lock, not a `var`: it is set inside the time-limited operation below.
+        let didSelfCancelAnalyzer = OSAllocatedUnfairLock(initialState: false)
+
+        // TIME LIMIT (#1701): 60 s plus the audio's own duration, over the whole
+        // step (analysis, finalize, results). An input that never ends the
+        // results stream (#1515 was one) would otherwise hang a dictation forever.
+        let audioDuration = AppleSpeechTimeLimit.audioDuration(
+            frameCount: audioFile.length,
+            sampleRate: audioFile.processingFormat.sampleRate
+        )
+        let limitSeconds = AppleSpeechTimeLimit.limitSeconds(forAudioDuration: audioDuration)
         do {
-            // Start analysis and result collection concurrently
-            async let analysisTask: CMTime? = analyzer.analyzeSequence(from: audioFile)
-            async let resultsTask: [String] = collectTranscriptionResults(from: transcriber)
+            let segments = try await AppleSpeechTimeLimit.run(
+                limit: .seconds(limitSeconds),
+                onTimeout: {
+                    // Ends the hung analysis; `run` has already stopped waiting on it.
+                    await analyzer.cancelAndFinishNow()
+                },
+                operation: {
+                    // Start analysis and result collection concurrently
+                    async let analysisTask: CMTime? = analyzer.analyzeSequence(from: audioFile)
+                    async let resultsTask: [String] = AppleSpeechAnalyzerProvider.collectTranscriptionResults(from: transcriber)
 
-            // Wait for analysis to complete and get last sample time
-            let lastSampleTime = try await analysisTask
+                    // Wait for analysis to complete and get last sample time
+                    let lastSampleTime = try await analysisTask
 
-            // Finalize the analysis
-            if let lastSampleTime = lastSampleTime {
-                try await analyzer.finalizeAndFinish(through: lastSampleTime)
-            } else {
-                didSelfCancelAnalyzer = true
-                await analyzer.cancelAndFinishNow()
-            }
+                    // Finalize the analysis
+                    if let lastSampleTime = lastSampleTime {
+                        try await analyzer.finalizeAndFinish(through: lastSampleTime)
+                    } else {
+                        didSelfCancelAnalyzer.withLock { $0 = true }
+                        await analyzer.cancelAndFinishNow()
+                    }
 
-            // Wait for results
-            let segments = try await resultsTask
+                    // Wait for results
+                    return try await resultsTask
+                }
+            )
 
             // Join all segments into final text
-            var text = segments.joined(separator: " ")
-
-            // Apply vocabulary replacements post-transcription
-            if !vocabulary.isEmpty {
-                text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
-            }
+            // No vocabulary replacement here (issue #1622): the pipeline's `\b`
+            // pass applies replacement rows once, to whole words, after the
+            // raw text is kept. The vocabulary still biases the analyzer above.
+            let text = segments.joined(separator: " ")
 
             let result = text.trimmingCharacters(in: .whitespacesAndNewlines)
             logger.info("Transcription complete: \(result.count) characters")
             return result
+        } catch is AppleSpeechTimeLimit.TimedOut {
+            // Its own arm, ahead of the catch-all: a timeout is neither a
+            // "Transcription failed: …" wrapper nor a cancellation.
+            let isTaskCancelled = Task.isCancelled
+            logger.error("SpeechAnalyzer transcription timed out; limitSeconds=\(limitSeconds, privacy: .public) audioSeconds=\(audioDuration, privacy: .public) callerCancelled=\(isTaskCancelled, privacy: .public)")
+
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.addBreadcrumb(
+                    message: "SpeechAnalyzer transcription timed out",
+                    category: "speechanalyzer.transcription",
+                    level: .error,
+                    data: [
+                        // No file name or path: the import flow makes the name
+                        // the user's own document name.
+                        "locale": locale.identifier,
+                        "audioDurationSeconds": audioDuration,
+                        "limitSeconds": limitSeconds,
+                        "vocabularyCount": vocabulary.count,
+                        "callerCancelled": isTaskCancelled
+                    ]
+                )
+            }
+
+            // The caller asked to stop and the analyzer ignored it until the
+            // limit: still the caller's cancellation, so no error is shown.
+            if isTaskCancelled {
+                throw CancellationError()
+            }
+
+            throw TranscriptionError.providerNotAvailable(
+                provider: "Apple Speech",
+                reason: "Transcription timed out"
+            )
         } catch {
             // `Task.isCancelled` is task-local: read it once here, at the catch
             // site, and hand the value to the policy — the policy never reads it.
@@ -164,6 +209,7 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
 
             let nsError = error as NSError
             logger.error("SpeechAnalyzer transcription failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
+            let analyzerSelfCancelled: Bool = didSelfCancelAnalyzer.withLock { $0 }
 
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
@@ -178,7 +224,7 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
                         // own document name. The extension is the diagnostic part.
                         "audioFileExtension": audioURL.pathExtension,
                         "vocabularyCount": vocabulary.count,
-                        "analyzerSelfCancelled": didSelfCancelAnalyzer
+                        "analyzerSelfCancelled": analyzerSelfCancelled
                     ]
                 )
             }
@@ -194,7 +240,8 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
 
     // COLLECT TRANSCRIPTION RESULTS:
     // Iterates over the transcriber's async results sequence and collects text segments
-    private func collectTranscriptionResults(from transcriber: SpeechTranscriber) async throws -> [String] {
+    // Static so the time-limited operation in STEP 5 does not capture the provider
+    private static func collectTranscriptionResults(from transcriber: SpeechTranscriber) async throws -> [String] {
         var segments: [String] = []
         for try await result in transcriber.results {
             let text = String(result.text.characters)

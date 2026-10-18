@@ -359,7 +359,7 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         if let attrs = try? fm.attributesOfItem(atPath: audioURL.path),
            let size = attrs[.size] as? Int64, size < 5000 {
             logger.error("Audio file too small: \(size) bytes")
-            throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Audio file is too small (\(size) bytes). Please record for longer.")
+            throw TranscriptionError.audioTooShort(fileSize: size)
         }
 
         let directory = try Self.resolvedModelDirectory()
@@ -380,10 +380,16 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         let audioSamples: [Float]
         do {
             audioSamples = try LocalAudioSampleLoader.loadMono16kSamples(from: audioURL, providerName: "Qwen3 ASR", logger: logger)
+        } catch let error as TranscriptionError {
+            // The loader's own faults already name the provider; do not wrap twice.
+            throw error
         } catch {
+            // `AVAudioFile(forReading:)` could not open the file. That is the
+            // file's fault, not the model's: say so, without AVFoundation's raw
+            // code (issue #1426).
             let nsError = error as NSError
             logger.error("Qwen3 ASR audio conversion failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
-            throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Audio conversion failed: \(error.localizedDescription)")
+            throw TranscriptionError.invalidAudioFormat
         }
 
         let effectiveLanguage = mode?.language ?? language
@@ -405,10 +411,10 @@ final class Qwen3AsrProvider: TranscriptionProvider {
                 )
                 pieces.append(Qwen3AsrChunker.Piece(text: chunkText, overlapsPrevious: chunk.overlapsPrevious))
             }
-            var text = Qwen3AsrChunker.join(pieces)
-            if !vocabulary.isEmpty {
-                text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
-            }
+            // No vocabulary pass here (issue #1622): the pipeline's `\b` pass
+            // applies replacement rows once, to whole words, after the raw
+            // text is kept. Qwen3 has no phonetic pass.
+            let text = Qwen3AsrChunker.join(pieces)
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             // `Task.isCancelled` is task-local: read it once here, at the catch

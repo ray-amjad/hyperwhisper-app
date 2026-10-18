@@ -46,6 +46,10 @@ struct ModeEditorView: View {
     /// EDIT only: the mode's stored local model when it is not installed. The
     /// picker lists it as not installed so the selection is kept (issue #1434).
     let missingLocalModelId: String?
+    /// Every mode in the store (id + stored name), so the editor can refuse a
+    /// name another mode already uses (issue #1435). The caller passes its live
+    /// fetch, so a mode added while the sheet is open is seen too.
+    let existingModes: [ModeNameEntry]
     let onSave: (ModeData) -> Void
 
     @Environment(\.dismiss) var dismiss
@@ -86,6 +90,23 @@ struct ModeEditorView: View {
         ModeNamePolicy.normalized(name)
     }
 
+    /// Set when Save/Create is pressed. A created mode reaches `existingModes`
+    /// while the sheet is still animating out, and would otherwise flash the
+    /// taken-name message under its own name.
+    @State private var hasSubmitted = false
+
+    /// True when another mode already uses this name (issue #1435): Save is
+    /// disabled and the field says why. Same rule as the Local API's
+    /// `MODE_NAME_TAKEN`; renaming a mode to its own name stays allowed.
+    private var nameIsTaken: Bool {
+        guard !hasSubmitted else { return false }
+        return ModeEditorDefaults.nameIsTaken(
+            name,
+            editing: configuration.mode.map { ModeNameEntry(id: $0.id, name: $0.name) },
+            existingModes: existingModes
+        )
+    }
+
     // MARK: - Source-toggle memory
     //
     // The 3-way transcription Source toggle re-derives the persisted
@@ -105,6 +126,86 @@ struct ModeEditorView: View {
     @State private var lastHyperwhisperCloudTranscriptionModel: String?
     @State private var lastHyperwhisperCloudTranscriptionDomain: String?
 
+    // MARK: - Unsaved-changes tracking (issue #1525)
+    //
+    // The sheet registers with AppState's page guard while it is open, and
+    // reports whether its values differ from its baseline. A page change the
+    // app makes on its own then keeps the sheet, and a menu-bar History… /
+    // Settings… asks before it discards an edit.
+    //
+    // The baseline follows every change until the user's first key press,
+    // click or menu in the app; from then on it is frozen. So the editor's own
+    // repairs (on-open clamps, their onChange cascades, however long they
+    // take) never read as an edit, and the user's edit is never the baseline,
+    // however fast it comes. A repair AFTER the first input (a local model
+    // download finishing) does read as an edit: an extra prompt, not a lost
+    // edit.
+
+    /// This sheet's registration with AppState's page guard.
+    @State private var editorSession = UUID()
+
+    /// The values a clean editor holds; nil until the editor appears.
+    @State private var settledSnapshot: ModeEditorSnapshot?
+
+    /// Set by the first key press, click or menu in the app while the editor
+    /// is open; it freezes `settledSnapshot`.
+    @State private var userHasInteracted = false
+
+    /// Watches for that first input; removed once it comes or on close.
+    @State private var userInputMonitor: Any?
+
+    /// Escape → Keep Editing while the discard prompt is up. A button holds
+    /// one key: Keep Editing holds Return, so the alert gives Escape to no one.
+    @State private var discardPromptEscapeMonitor: Any?
+
+    /// Every value Save writes, as the editor holds it now.
+    private var currentSnapshot: ModeEditorSnapshot {
+        ModeEditorSnapshot(
+            name: name,
+            preset: preset,
+            language: language,
+            model: model,
+            provider: provider,
+            punctuation: punctuation,
+            capitalization: capitalization,
+            profanityFilter: profanityFilter,
+            customInstructions: customInstructions,
+            languageModel: languageModel,
+            postProcessingMode: postProcessingMode,
+            postProcessingProvider: postProcessingProvider,
+            cloudProvider: cloudProvider,
+            cloudAccuracyTier: cloudAccuracyTier,
+            cloudPostProcessingModel: cloudPostProcessingModel,
+            cloudTranscriptionModel: cloudTranscriptionModel,
+            cloudTranscriptionDomain: cloudTranscriptionDomain,
+            englishSpelling: englishSpelling,
+            userSystemPrompt: userSystemPrompt,
+            removeTrailingPeriod: removeTrailingPeriod,
+            enableScreenOCR: enableScreenOCR,
+            geminiCustomPrompt: geminiCustomPrompt
+        )
+    }
+
+    private var hasUnsavedChanges: Bool {
+        ModeEditorSnapshot.hasUnsavedChanges(
+            settled: settledSnapshot,
+            current: currentSnapshot,
+            userHasInteracted: userHasInteracted
+        )
+    }
+
+    /// Shown while AppState holds a menu-bar page for THIS editor's prompt.
+    /// The buttons clear it; the setter has nothing to do.
+    private var discardPromptIsPresented: Binding<Bool> {
+        Binding(
+            get: {
+                appState.pendingModeEditorNavigation != nil
+                    && appState.openModeEditorSession == editorSession
+            },
+            set: { _ in }
+        )
+    }
+
     // MARK: - Initialization
 
     /// `licenseActive` is read only by the CREATE branch, to pick the provider a
@@ -112,11 +213,13 @@ struct ModeEditorView: View {
     init(
         configuration: ModeEditorConfiguration,
         availableModelIds: [String],
+        existingModes: [ModeNameEntry] = [],
         licenseActive: Bool = false,
         onSave: @escaping (ModeData) -> Void
     ) {
         self.configuration = configuration
         self.availableModelIds = availableModelIds
+        self.existingModes = existingModes
         self.onSave = onSave
 
         if let mode = configuration.mode {
@@ -305,7 +408,7 @@ struct ModeEditorView: View {
 
     /// Current cloud provider enum
     private var currentCloudProvider: CloudProvider {
-        CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        CloudProvider.forMode(cloudProvider)
     }
 
     /// Cloud transcription providers shown in the picker. Always
@@ -537,11 +640,38 @@ struct ModeEditorView: View {
     /// `cloudProvider` (e.g. "deepgram", "assemblyai"). For HyperWhisper Cloud the
     /// outer `cloudProvider` is "hyperwhisper" — which STTCapabilities does not register — so we
     /// resolve the SELECTED accuracy tier's routed upstream provider id instead (the
-    /// same value sent in the X-STT-Provider header). Tiers whose upstream provider
-    /// isn't in `STTCapabilities` (azure-mai / gemini-transcribe / gemini) yield an empty
-    /// spec list, which falls back to the full language list.
+    /// same value sent in the X-STT-Provider header). A model with no
+    /// `STTCapabilities` row falls back to the tier's catalog set
+    /// (`languageFilterCloudTierId`), then to the full list when the catalog
+    /// leaves the tier unverified.
     private var languageFilterCloudProviderId: String {
         currentCloudProvider == .hyperwhisper ? selectedCloudTier.sttProvider : cloudProvider
+    }
+
+    /// Shared-catalog entry id for the language picker: the selected tier on
+    /// HyperWhisper Cloud, and for BYOK the catalog entry that lists this
+    /// provider's model (nil when the catalog does not list it). The picker
+    /// uses that entry's catalog set when `STTCapabilities` has no row for the
+    /// model (`gpt-transcribe`: #831 on Cloud, #1942 on BYOK).
+    private var languageFilterCloudTierId: String? {
+        Self.languageFilterCatalogEntryId(
+            cloudProvider: currentCloudProvider,
+            cloudTier: selectedCloudTier,
+            modelId: cloudTranscriptionModel
+        )
+    }
+
+    /// `languageFilterCloudTierId` without the view state, so a test drives
+    /// the exact entry id the picker receives.
+    static func languageFilterCatalogEntryId(
+        cloudProvider: CloudProvider,
+        cloudTier: CloudAccuracyTier,
+        modelId: String
+    ) -> String? {
+        if cloudProvider == .hyperwhisper {
+            return cloudTier.rawValue
+        }
+        return CloudSTTCatalog.shared.byokEntryId(cloudProvider: cloudProvider.rawValue, modelId: modelId)
     }
 
     /// Model id used to look up the supported-language set for the language picker.
@@ -815,6 +945,107 @@ struct ModeEditorView: View {
                 language = "en"
             }
         }
+        // Issue #1525: register with the page guard, and report unsaved changes.
+        .onAppear {
+            appState.modeEditorDidOpen(session: editorSession)
+            settledSnapshot = currentSnapshot
+            installUserInputMonitor()
+        }
+        .onDisappear {
+            removeDiscardPromptEscapeMonitor()
+            removeUserInputMonitor()
+            appState.modeEditorDidClose(session: editorSession)
+        }
+        .onChange(of: currentSnapshot) { _, current in
+            settledSnapshot = ModeEditorSnapshot.settled(
+                previous: settledSnapshot,
+                current: current,
+                userHasInteracted: userHasInteracted
+            )
+        }
+        // Edit > Paste from the menu bar sends no event the monitor sees.
+        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
+            markUserInteracted()
+        }
+        .onChange(of: hasUnsavedChanges) { _, unsaved in
+            appState.modeEditor(session: editorSession, hasUnsavedChanges: unsaved)
+        }
+        .onChange(of: discardPromptIsPresented.wrappedValue) { _, presented in
+            if presented {
+                installDiscardPromptEscapeMonitor()
+            } else {
+                removeDiscardPromptEscapeMonitor()
+            }
+        }
+        .alert("modes.editor.discard.title".localized, isPresented: discardPromptIsPresented) {
+            // Keep Editing is the default: Return presses it, and Escape
+            // reaches it through discardPromptEscapeMonitor. Only Discard
+            // leaves.
+            Button(role: .cancel) {
+                appState.keepEditingModeEditor()
+            } label: {
+                Text(localized: "modes.editor.discard.keepEditing")
+            }
+            .keyboardShortcut(.defaultAction)
+            Button(role: .destructive) {
+                appState.discardModeEditorAndNavigate()
+            } label: {
+                Text(localized: "modes.editor.discard.button")
+            }
+        } message: {
+            Text(localized: "modes.editor.discard.message")
+        }
+    }
+
+    // MARK: - First user input
+
+    /// Any key press (including a modifier, e.g. a dictation shortcut) or
+    /// click in the app counts. The monitor runs before the event reaches the
+    /// control, so the edit that event makes already compares against a frozen
+    /// baseline.
+    private func installUserInputMonitor() {
+        guard userInputMonitor == nil else { return }
+        userInputMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { event in
+            markUserInteracted()
+            return event
+        }
+    }
+
+    private func markUserInteracted() {
+        if !userHasInteracted {
+            userHasInteracted = true
+        }
+    }
+
+    private func removeUserInputMonitor() {
+        if let monitor = userInputMonitor {
+            NSEvent.removeMonitor(monitor)
+            userInputMonitor = nil
+        }
+    }
+
+    // MARK: - Discard prompt Escape
+
+    /// A plain Escape while the prompt is up presses Keep Editing.
+    private func installDiscardPromptEscapeMonitor() {
+        guard discardPromptEscapeMonitor == nil else { return }
+        let state = appState
+        discardPromptEscapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+            guard event.keyCode == 53, modifiers.isEmpty,
+                  state.pendingModeEditorNavigation != nil else { return event }
+            state.keepEditingModeEditor()
+            return nil
+        }
+    }
+
+    private func removeDiscardPromptEscapeMonitor() {
+        if let monitor = discardPromptEscapeMonitor {
+            NSEvent.removeMonitor(monitor)
+            discardPromptEscapeMonitor = nil
+        }
     }
 
     // MARK: - Header
@@ -968,6 +1199,16 @@ struct ModeEditorView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.leading, 88)
+                    }
+
+                    // Another mode already uses this name (issue #1435). Save
+                    // is disabled while it shows.
+                    if nameIsTaken {
+                        Text(localized: "modes.field.name.taken")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.leading, 88)
+                            .accessibilityIdentifier("modeEditor.nameTaken")
                     }
                 }
             }
@@ -1260,7 +1501,7 @@ struct ModeEditorView: View {
                     Button {
                         dismiss()
                         DispatchQueue.main.async {
-                            appState.navigateToModelLibraryAPIKeys()
+                            appState.navigateToModelLibraryAPIKeys(trigger: .fromModeEditor)
                         }
                     } label: {
                         Text(localized: "modes.provider.manageInLibrary")
@@ -1292,7 +1533,8 @@ struct ModeEditorView: View {
             provider: .cloud,
             model: cloudTranscriptionModel,
             cloudProviderId: languageFilterCloudProviderId,
-            cloudModelId: languageFilterCloudModelId
+            cloudModelId: languageFilterCloudModelId,
+            cloudTierId: languageFilterCloudTierId
         )
 
         // Show vocabulary warning for providers that don't support it
@@ -1463,7 +1705,8 @@ struct ModeEditorView: View {
 
             // Save/Create button
             Button {
-                guard hasValidDictationLanguage else { return }
+                guard hasValidDictationLanguage, !nameIsTaken else { return }
+                hasSubmitted = true
                 let chosenModel = ModeEditorDefaults.savedModel(
                     provider: provider,
                     model: model,
@@ -1510,9 +1753,71 @@ struct ModeEditorView: View {
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(normalizedName == nil || !hasValidDictationLanguage || (provider == .local && localPickerModelIds().isEmpty))
+            .disabled(normalizedName == nil || nameIsTaken || !hasValidDictationLanguage || (provider == .local && localPickerModelIds().isEmpty))
         }
         .padding(20)
         .background(Color(NSColor.controlBackgroundColor))
+    }
+}
+
+// MARK: - Unsaved-changes snapshot (issue #1525)
+
+/// Every value the mode editor's Save writes, so the editor can tell whether
+/// it holds an unsaved edit. View-only state (the "Show all models" box, the
+/// info popover, the Source toggle's memory) is left out: changing it changes
+/// nothing Save writes.
+struct ModeEditorSnapshot: Equatable {
+    var name: String
+    var preset: String
+    var language: String
+    var model: String
+    var provider: ProviderType
+    var punctuation: Bool
+    var capitalization: Bool
+    var profanityFilter: Bool
+    var customInstructions: String
+    var languageModel: String
+    var postProcessingMode: PostProcessingMode
+    var postProcessingProvider: String
+    var cloudProvider: String
+    var cloudAccuracyTier: String
+    var cloudPostProcessingModel: String
+    var cloudTranscriptionModel: String
+    var cloudTranscriptionDomain: String?
+    var englishSpelling: EnglishSpelling
+    var userSystemPrompt: String
+    var removeTrailingPeriod: Bool
+    var enableScreenOCR: Bool
+    var geminiCustomPrompt: String
+
+    /// True when the editor's values differ from the ones it settled on. Before
+    /// it has settled there is nothing the user could have changed yet.
+    static func hasUnsavedChanges(settled: ModeEditorSnapshot?, current: ModeEditorSnapshot) -> Bool {
+        guard let settled else { return false }
+        return settled != current
+    }
+
+    /// Before the user's first input every change is the editor's own, so
+    /// there is no edit (and no prompt) even in the update pass before
+    /// `settled(previous:current:userHasInteracted:)` catches up.
+    static func hasUnsavedChanges(
+        settled: ModeEditorSnapshot?,
+        current: ModeEditorSnapshot,
+        userHasInteracted: Bool
+    ) -> Bool {
+        userHasInteracted && hasUnsavedChanges(settled: settled, current: current)
+    }
+
+    /// The baseline once the editor holds `current`. Until the user's first
+    /// key press, click or menu, a change can only be the editor's own repair
+    /// (on-open clamps and their onChange cascades, a model download
+    /// finishing), so the baseline follows it. After that it never moves:
+    /// a user's edit is never absorbed, and a later repair reads as an edit.
+    static func settled(
+        previous: ModeEditorSnapshot?,
+        current: ModeEditorSnapshot,
+        userHasInteracted: Bool
+    ) -> ModeEditorSnapshot? {
+        userHasInteracted ? previous : current
     }
 }

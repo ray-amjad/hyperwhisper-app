@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostyka wyeksportowana";
 "alerts.export.diagnostics.success.message" = "Wszystkie dzienniki diagnostyczne zostały pomyślnie wyeksportowane.";
 "alerts.export.diagnostics.saveFailed.message" = "Nie udało się zapisać diagnostyki w wybranej lokalizacji: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Wyeksportowano diagnostykę bez dzienników systemowych";
+"alerts.export.diagnostics.noSystemLogs.message" = "Plik diagnostyczny został zapisany, ale nie udało się odczytać dzienników systemowych aplikacji, więc system-logs.txt zawiera tylko przyczynę. Przyczyna: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Wyeksportuj dzienniki aktualizacji do wsparcia";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Zakończ wprowadzenie";
 
 "onboarding.setupLater.button" = "Skonfiguruj później";
-"onboarding.error.microphone.denied" = "Dostęp do mikrofonu odmówiony. Przyznaj uprawnienie w Ustawieniach systemowych.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Uruchom przy logowaniu";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Wyłączone";
 "settings.general.mediaControl.mode.mute" = "Wycisz audio";
+"settings.general.mediaControl.mode.muffle" = "Przytłum audio";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Odtwarzaj efekty dźwiękowe";
 "settings.sound.soundEffects.info" = "Odtwarzaj sygnały dźwiękowe po rozpoczęciu i zakończeniu nagrywania.";
 "settings.sound.mediaControl.title" = "Kontrola mediów podczas nagrywania";
-"settings.sound.mediaControl.info" = "Wybierz sposób, w jaki HyperWhisper obsługuje inne audio podczas nagrywania. 'Wyłączone' pozostawia audio bez zmian, 'Wycisz audio' wycisza wyjście systemowe podczas nagrywania i przywraca je potem.";
+"settings.sound.mediaControl.info" = "Wybierz sposób, w jaki HyperWhisper obsługuje inne audio podczas nagrywania. 'Wyłączone' pozostawia audio bez zmian, 'Wycisz audio' wycisza wyjście systemowe podczas nagrywania i przywraca je potem, a 'Przytłum audio' odtwarza je cicho, jakby z sąsiedniego pokoju.";
 "settings.sound.autoIncreaseMicVolume.title" = "Automatycznie zwiększ głośność mikrofonu";
 "settings.sound.autoIncreaseMicVolume.info" = "Automatycznie ustawia głośność wejścia mikrofonu na maksimum, gdy nagrywanie się zaczyna, a następnie przywraca oryginalny poziom po zatrzymaniu nagrywania. Dotyczy tylko domyślnego urządzenia wejściowego.";
 "settings.sound.vad.title" = "Usuń ciszę przed transkrypcją";
@@ -336,6 +338,9 @@
 "settings.storage.choose.button" = "Wybierz...";
 "settings.storage.dialog.select" = "Wybierz folder";
 "settings.storage.dialog.message" = "Wybierz folder do przechowywania nagrań";
+"settings.storage.folderRefused.title" = "Nie można użyć tego folderu";
+"settings.storage.folderRefused.notWritable" = "Nie masz uprawnień do zapisu w „%@”, więc HyperWhisper nie może tam zapisywać nagrań. Folder nagrań nie został zmieniony.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper nie mógł utworzyć tego folderu: %@ Folder nagrań nie został zmieniony.";
 "settings.storage.storeAsM4A.title" = "Skompresuj nagrania do M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konwertuje nagrania WAV na mniejsze pliki po transkrypcji. Wyłącz, aby zachować oryginalne pliki WAV (większe, ale bez utraty jakości).";
 
@@ -383,6 +388,7 @@
 
 "settings.shortcuts.changeMode.title" = "Zmień tryb";
 "settings.shortcuts.changeMode.subtitle" = "Działa tylko podczas nagrywania";
+"settings.shortcuts.conflict.alert" = "Nie można użyć tego skrótu klawiszowego, ponieważ jest już używany przez „%@”.";
 
 "settings.shortcuts.reset.button" = "Zresetuj do wartości domyślnych";
 "settings.shortcuts.reset.dialog.title" = "Zresetuj skróty klawiszowe";
@@ -434,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Wklej ze schowka";
 "settings.license.clearInput" = "Wyczyść";
+"license.error.keyFormat" = "To nie wygląda na klucz konta.";
 "settings.license.recovery.prompt" = "Zapomniałeś klucza licencji?";
 "settings.license.recovery.button" = "Przejdź do portalu klienta";
 "settings.license.daily.title" = "Transkrypcja dziennie";
@@ -576,6 +583,8 @@
 "onboarding.configure.cloud.note" = "Kredyty są przedpłacone i współdzielone przez każdego Maca zalogowanego tym kluczem. Czas bezczynności nic nie kosztuje.";
 "onboarding.source.note" = "Jeśli zmienisz zdanie później, powtórzysz tylko ten jeden krok. Nic innego, co skonfigurujesz, nie zostanie utracone.";
 "onboarding.permissions.note" = "Pomiń Dostępność, a transkrypcje trafią do schowka, gotowe do wklejenia. Włączenie tego później to jedno kliknięcie.";
+"onboarding.permissions.microphone.denied" = "Brak zgody. Włącz HyperWhisper w Ustawieniach systemowych, a potem wróć tutaj.";
+"onboarding.permissions.continueNeedsMicrophone" = "Aby kontynuować, potrzebny jest mikrofon. Zezwól na niego powyżej lub wybierz Skonfiguruj później.";
 "onboarding.welcome.task1.title" = "Wybierz sposób transkrypcji";
 "onboarding.welcome.task1.caption" = "W naszej chmurze, na tym Macu lub przez konto dostawcy, za które już płacisz.";
 "onboarding.welcome.task2.title" = "Sprawdź swój mikrofon";
@@ -683,6 +692,10 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Usunąć tryb?";
 "modes.delete.confirm.message" = "To usunie wybrany tryb. Tej czynności nie można cofnąć.";
+"modes.editor.discard.title" = "Odrzucić niezapisane zmiany?";
+"modes.editor.discard.message" = "Zmiany w tym trybie nie zostały zapisane.";
+"modes.editor.discard.keepEditing" = "Kontynuuj edycję";
+"modes.editor.discard.button" = "Odrzuć";
 "modes.header.title" = "Tryby";
 "modes.header.subtitle" = "Utwórz niestandardowe profile dla różnych kontekstów i przepływów pracy";
 "modes.header.create" = "Utwórz tryb";
@@ -787,6 +800,7 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "modes.field.name.placeholder" = "na przykład Notatki ze spotkania";
 "modes.field.name.editPlaceholder" = "Nazwa trybu";
 "modes.field.name.defaultLocked" = "To jest tryb domyślny, więc jego nazwy nie można zmienić. Nazwę każdego innego trybu można zmienić.";
+"modes.field.name.taken" = "Tryb o tej nazwie już istnieje.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Dostawca";
 "modes.provider.local" = "Lokalny";
@@ -813,8 +827,9 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "transcripts.delete.single.message" = "Spowoduje to trwałe usunięcie tego nagrania i jego pliku audio.";
 "transcripts.delete.multiple.title" = "Usunąć %d nagrań?";
 "transcripts.delete.multiple.message" = "Spowoduje to trwałe usunięcie %d nagrań i ich plików audio.\n\nTej czynności nie można cofnąć.";
-"transcripts.delete.multiple.confirm" = "Usuń wszystko";
+"transcripts.delete.multiple.confirm" = "Usuń nagrania: %d";
 "transcripts.retry.error.title" = "Ponowienie nie powiodło się";
+"transcripts.retry.error.modeDeleted" = "Tryb, w którym powstało to nagranie, został usunięty, więc nie ponowiono próby. W Historii kliknij nagranie prawym przyciskiem myszy i wybierz \"Ponów z...\", aby wybrać inny tryb.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Wybierz folder nagrań";
@@ -865,8 +880,8 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "recording.retry.inProgress" = "Ponawianie…";
 "recording.retry.count" = "Spróbuj ponownie (%d)";
 "recording.retry.failed.missing" = "Ponowienie nie powiodło się: Plik audio nie znaleziony";
-"recording.retry.failed.error" = "Ponowienie nie powiodło się: %@";
 "recording.retry.pending" = "Gotowy do ponowienia – kliknij, aby transkrybować";
+"recording.retry.modeDeleted" = "Tryb został usunięty";
 "recording.cancel.dialog.title" = "Anulować nagrywanie?";
 "recording.cancel.dialog.message" = "Spowoduje to odrzucenie bieżącego nagrania.";
 "recording.cancel.dialog.confirm" = "Anuluj nagrywanie";
@@ -893,6 +908,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "audio.error.microphonePermission" = "Uprawnienie mikrofonu nie przyznane";
 "audio.error.microphoneInUse" = "HyperWhisper nie może uzyskać dostępu do mikrofonu, ponieważ inną aplikacja go aktualnie używa. Wstrzymaj inną aplikację lub przełącz dane wejściowe, a następnie spróbuj ponownie.";
 "audio.error.audioSystemNotResponding" = "Dźwięk w macOS nie odpowiada, więc nie udało się uruchomić mikrofonu. Spróbuj ponownie za chwilę. Jeśli to się powtarza, uruchom ponownie Maca.";
+"audio.error.recorderStopTimedOut" = "Dźwięk systemu macOS przestał odpowiadać podczas zapisywania nagrania, więc nie zostało ono przepisane. Dźwięk został zachowany: HyperWhisper spróbuje go odzyskać przy następnym uruchomieniu.";
 "audio.error.createEngine" = "Nie udało się utworzyć silnika audio";
 "audio.error.noInput" = "Brak dostępnego wejścia audio";
 "audio.error.createFile" = "Nie udało się utworzyć pliku audio";
@@ -966,10 +982,15 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "transcription.guidance.quotaExceeded" = "Dodaj kredyty do %@ konta lub zaktualizuj dane rozliczeniowe";
 "transcription.guidance.timeout" = "Żądanie trwało zbyt długo. Sprawdź szybkość Internetu i spróbuj ponownie.";
 "transcription.error.noSpeechDetected" = "W nagraniu nie wykryto mowy.";
+"transcription.error.audioTooShort" = "Nagranie jest za krótkie do transkrypcji. Nagrywaj dłużej.";
 "transcription.guidance.noSpeechDetected" = "Porady:\n• Mów wyraźnie do mikrofonu\n• Przytrzymaj klawisz dłużej przed mówieniem\n• Sprawdź, czy mikrofon działa\n• Upewnij się, że wybrane jest prawidłowe urządzenie wejściowe";
 "transcription.guidance.needsNativeRelaunch" = "Zamknij i otwórz HyperWhisper ponownie w trybie natywnym, aby korzystać z lokalnego przetwarzania końcowego.";
 "transcription.guidance.localRuntimeUnavailable" = "Spróbuj ponownie lub wybierz mniejszy model lokalny w ustawieniach trybu.";
 "transcription.error.localRuntimeUnavailable" = "Lokalna AI nie ukończyła przetwarzania — zachowano surową transkrypcję.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ odrzucił Twój klucz API — zachowano surową transkrypcję.";
+"transcription.error.postProcessingPreflight.unreachable" = "Nie można połączyć się z %@ — zachowano surową transkrypcję.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ nie jest zainstalowany — zachowano surową transkrypcję.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ jest niedostępny — zachowano surową transkrypcję.";
 "transcription.error.localSpeechModelEvicted" = "Model mowy został zwolniony, aby odzyskać pamięć, i nie udało się go wczytać ponownie. Zamknij część aplikacji i spróbuj ponownie.";
 "settings.backup.localDownload.title" = "Pobrać modele lokalne?";
 "settings.backup.localDownload.message" = "%d przywróconych trybów korzysta z modeli AI działających na urządzeniu, które nie zostały jeszcze pobrane.";
@@ -1061,6 +1082,13 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "settings.backup.import.error.decode.corruptedField" = "Uszkodzona wartość pola: %@";
 "settings.backup.import.error.version" = "Plik kopii zapasowej pochodzi z nowszej wersji";
 "settings.backup.import.error.unknown" = "Import nie powiódł się";
+"settings.backup.import.error.storeModes" = "Nie udało się zapisać trybów, więc pozostały bez zmian.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Nie udało się zapisać trybów, więc tryby i słownictwo pozostały bez zmian.";
+"settings.backup.import.error.storeVocabulary" = "Nie udało się zapisać słownictwa, więc pozostało bez zmian.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Tryby zostały zaimportowane, ale nie udało się zapisać słownictwa, więc pozostało bez zmian.";
+"settings.backup.import.error.storeLicense" = "Nie udało się bezpiecznie zaimportować klucza licencyjnego.";
+"settings.backup.import.error.storeSettingsRestored" = "Ustawienia pozostały bez zmian.";
+"settings.backup.import.error.storeOtherSections" = "Pozostałe wybrane sekcje zostały zastosowane.";
 "settings.backup.import.apiKeysFailed" = "Tych kluczy API nie udało się zapisać w pęku kluczy i nie zostały przywrócone: %@. Wprowadź je ponownie w Ustawieniach.";
 "settings.backup.import.confirm.title" = "Importować ustawienia?";
 "settings.backup.import.confirm.message" = "To zastąpi Twoje istniejące tryby i słownictwo tymi z pliku kopii zapasowej. Ustawienia również zostaną zaktualizowane.";
@@ -1097,6 +1125,13 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "transcribe.file.error.format.title" = "Nieobsługiwany format";
 "transcribe.file.error.format.message" = "Pliki .%@ nie są obsługiwane przez %@. Obsługiwane formaty: %@";
 "transcribe.file.error.read" = "Nie można przeczytać wybranego pliku.";
+"transcribe.file.error.webm" = "Format WebM nie jest obsługiwany. Przekonwertuj plik do MP3, M4A lub WAV i spróbuj ponownie.";
+"transcribe.file.error.notAudio" = "Plik „%@” nie jest prawidłowym dźwiękiem. Może być uszkodzony lub w formacie, którego macOS nie potrafi zdekodować.";
+"transcribe.file.error.empty" = "Plik „%@” jest pusty. Nie zawiera dźwięku do transkrypcji.";
+"transcribe.file.error.permission" = "HyperWhisper nie może odczytać pliku „%@”. Sprawdź uprawnienia pliku.";
+"transcribe.file.error.folderPermission" = "HyperWhisper nie może otworzyć folderu, który zawiera plik „%@”. Sprawdź uprawnienia tego folderu.";
+"transcribe.file.error.privacy" = "Ustawienia prywatności systemu macOS uniemożliwiły HyperWhisper odczytanie pliku „%@”. Zezwól na to w Ustawieniach systemowych > Prywatność i ochrona > Pełny dostęp do dysku.";
+"transcribe.file.error.tooShort" = "Ten plik jest za krótki do transkrypcji (%@ s).";
 "transcribe.file.error.copy" = "Nie udało się skopiować pliku do folderu nagrań.";
 "transcribe.file.error.video.title" = "Brak audio w wideo";
 "transcribe.file.error.video.noAudio" = "Ten plik wideo nie zawiera ścieżki audio. Wybierz wideo z audio lub plik audio.";

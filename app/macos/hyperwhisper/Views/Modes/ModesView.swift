@@ -81,6 +81,11 @@ struct ModesView: View {
         return ids
     }
 
+    /// Every mode's id and name, for the editor's taken-name check (issue #1435).
+    private var modeNameEntries: [ModeNameEntry] {
+        modes.map { ModeNameEntry(id: $0.id, name: $0.name) }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header section
@@ -100,6 +105,7 @@ struct ModesView: View {
             ModeEditorView(
                 configuration: .create,
                 availableModelIds: downloadedLocalModelIds,
+                existingModes: modeNameEntries,
                 licenseActive: ModeEditorDefaults.treatsLicenseAsActive(
                     status: licenseManager.licenseStatus,
                     storedKey: licenseManager.storedLicenseKeyReadForSeeding()
@@ -144,6 +150,7 @@ struct ModesView: View {
                     initiateDeleteMode(mode)
                 }),
                 availableModelIds: downloadedLocalModelIds,
+                existingModes: modeNameEntries,
                 onSave: { updatedModeData in
                     // Update the Core Data entity. The default mode's name is
                     // fixed (issue #536): the editor disables the field, so this
@@ -218,6 +225,17 @@ struct ModesView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("You cannot delete your last remaining mode. Create a new mode first, then you can delete this one.")
+        }
+        // Issue #1672: close the Create / Edit Mode sheet (and the delete
+        // prompts) before a page change removes this view.
+        .closesPresentationsOnPageChange(
+            isPresenting: showingCreateMode || selectedMode != nil || showingDeleteConfirm || showingLastModeAlert
+        ) {
+            showingCreateMode = false
+            selectedMode = nil
+            showingDeleteConfirm = false
+            modeToDelete = nil
+            showingLastModeAlert = false
         }
     }
 

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.FileTranscription;
@@ -13,9 +14,41 @@ namespace HyperWhisper.ViewModels;
 
 public partial class MainViewModel
 {
+    /// <summary>
+    /// Where the transcribing ramp aims. No engine reports progress while it runs,
+    /// so the progress window turns indeterminate once the ramp gets here (#1911).
+    /// </summary>
+    public const float FileTranscribingRampTarget = 0.80f;
+
     // =========================================================================
     // FILE TRANSCRIPTION
     // =========================================================================
+
+    /// <summary>
+    /// True while the Transcribe File dialog is on screen. The tray disables its
+    /// Transcribe File items on it, as it does while a job runs.
+    /// </summary>
+    [ObservableProperty] private bool _isFileDialogOpen;
+
+    /// <summary>
+    /// The properties <see cref="CanOfferTrayFileTranscription"/> reads. The tray
+    /// rebuilds its Transcribe File items when any of them changes.
+    /// </summary>
+    internal static readonly string[] TrayFileTranscriptionInputs =
+    {
+        nameof(IsRecording), nameof(IsTranscribing), nameof(IsModelLoading), nameof(IsFileDialogOpen)
+    };
+
+    /// <summary>
+    /// Whether the tray's Transcribe File items are enabled (onboarding aside).
+    /// </summary>
+    internal bool CanOfferTrayFileTranscription =>
+        !IsRecording && !IsTranscribing && !IsModelLoading && !IsFileDialogOpen;
+
+    /// <summary>
+    /// Test seam: shows the Transcribe File dialog. Null shows the real dialog.
+    /// </summary>
+    internal Func<Microsoft.Win32.OpenFileDialog, bool?>? ShowFileDialogOverride { get; set; }
 
     /// <summary>
     /// Opens a file dialog and transcribes the selected audio file.
@@ -38,6 +71,15 @@ public partial class MainViewModel
 
     public async Task TranscribeFileWithModeAsync(Mode mode)
     {
+        // The dialog has no owner window, so the tray keeps pumping while it is
+        // open. One dialog at a time: a second would let a pick land on top of
+        // the job the first one started (issue #1535).
+        if (IsFileDialogOpen)
+        {
+            LoggingService.Info("TranscribeFileWithModeAsync: A file dialog is already open; ignoring request");
+            return;
+        }
+
         if (!CanStartFileTranscription())
         {
             return;
@@ -51,10 +93,32 @@ public partial class MainViewModel
             Multiselect = false
         };
 
-        if (dialog.ShowDialog() == true)
+        bool picked;
+        IsFileDialogOpen = true;
+        try
         {
-            await TranscribeFileAsync(dialog.FileName, mode);
+            picked = (ShowFileDialogOverride?.Invoke(dialog) ?? dialog.ShowDialog()) == true;
         }
+        finally
+        {
+            IsFileDialogOpen = false;
+        }
+
+        if (!picked)
+        {
+            return;
+        }
+
+        // A dictation can still start from its shortcut while the dialog is
+        // open. Say so rather than drop the pick with only a log line.
+        if (!CanStartFileTranscription())
+        {
+            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                Loc.S("errors.fileTranscriptionBusy"), showSettingsButton: false));
+            return;
+        }
+
+        await TranscribeFileAsync(dialog.FileName, mode);
     }
 
     /// <summary>
@@ -108,13 +172,23 @@ public partial class MainViewModel
         // STEP 1: Validate file
         if (!File.Exists(filePath))
         {
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.fileNotFound"), showSettingsButton: false));
+            RejectFile(Loc.S("errors.fileNotFound"));
+            return;
+        }
+
+        // A 0-byte file holds no audio. Checked here, not only in the WAV conversion,
+        // so a cloud Mode does not upload it and show the provider's error (#1452).
+        if (new FileInfo(filePath).Length == 0)
+        {
+            LoggingService.Warn($"TranscribeFileAsync: File is empty - {filePath}");
+            RejectFile(FileTranscriptionService.EmptyFileMessage);
             return;
         }
 
         var requiresMuseNormalization = mode.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) == true
-            && ((string.Equals(mode.CloudProvider, "hyperwhisper", StringComparison.OrdinalIgnoreCase)
+            // A blank CloudProvider is HyperWhisper Cloud (issue #1521).
+            && ((CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider)
+                    == CloudTranscriptionProvider.HyperWhisperCloud
                  && string.Equals(mode.CloudAccuracyTier, "metaMuse", StringComparison.OrdinalIgnoreCase))
                 || string.Equals(mode.CloudProvider, "meta", StringComparison.OrdinalIgnoreCase));
 
@@ -124,9 +198,7 @@ public partial class MainViewModel
         var maxSize = GetMaxFileSizeForProvider(mode);
         if (!requiresMuseNormalization && fileInfo.Length > maxSize)
         {
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(maxSize)),
-                showSettingsButton: false));
+            RejectFile(Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(maxSize)));
             return;
         }
 
@@ -134,16 +206,13 @@ public partial class MainViewModel
         {
             if (ExceedsMuseSourceLimit(fileInfo.Length))
             {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(MetaMuseAudioContract.MaximumSourceBytes)),
-                    showSettingsButton: false));
+                RejectFile(Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(MetaMuseAudioContract.MaximumSourceBytes)));
                 return;
             }
             var sourceDuration = FileTranscriptionService.GetAudioDuration(filePath);
             if (sourceDuration.IsSuccess && sourceDuration.Value > 10 * 60)
             {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    "Meta Muse supports audio up to 10 minutes.", showSettingsButton: false));
+                RejectFile("Meta Muse supports audio up to 10 minutes.");
                 return;
             }
         }
@@ -163,6 +232,9 @@ public partial class MainViewModel
         // STEP 3: Show progress window
         IsTranscribing = true;
         _fileTranscriptionActive = true;
+        // The toggle hotkey is ignored while IsTranscribing, so "Ready - Press ... to
+        // record" would be untrue for the whole job (#1519).
+        ShowJobStatus("status.fileTranscribing");
         ShowFileProgressRequested?.Invoke(this, new FileTranscriptionProgressEventArgs(
             fileName,
             onCancel: () =>
@@ -177,6 +249,9 @@ public partial class MainViewModel
         string? convertedTempPath = null;
         bool ownsPathForTranscription = false;
         double duration = 0;
+        // Set only while the M4A compression is awaited, so a Cancel in that window can
+        // hand the still-running encode to FinishRecordingCompressionAsync (#1499).
+        Task<string?>? compression = null;
 
         try
         {
@@ -241,8 +316,9 @@ public partial class MainViewModel
                 duration, mode.Name, permanentPath);
 
             // STEP 8: Transcribing stage (15-85%) - Start slow animation to 80%
-            // (will be cut short when transcription completes)
-            UpdateFileProgressRequested?.Invoke(this, 0.80f);
+            // (will be cut short when transcription completes; a job that outlasts
+            // the ramp turns the bar indeterminate, #1911)
+            UpdateFileProgressRequested?.Invoke(this, FileTranscribingRampTarget);
 
             var vocabulary = _vocabularyService.GetVocabularyWords(100);
             var result = await _transcriptionOrchestrator.TranscribeAsync(
@@ -265,14 +341,30 @@ public partial class MainViewModel
             transcript.TranscriptionProvider = result.TranscriptionProvider;
             transcript.PostProcessingProvider = result.PostProcessingProvider;
 
-            // STORAGE: Optionally compress to M4A for space savings (local mode saves WAV)
+            // STORAGE: Optionally compress to M4A for space savings (local mode saves WAV).
+            // The encode runs on the thread pool and this awaits it, so the window, the
+            // tray, the hotkeys and the progress window's Cancel stay live (#1499). The
+            // code after the await is back on the dispatcher.
             if (ShouldConvertImportedAudioToM4A(
                     _storageService.StoreAsM4A, pathForTranscription, permanentPath))
             {
-                var compressedPath = _storageService.TryConvertWavToM4A(permanentPath);
+                compression = StartRecordingCompression(_storageService.TryConvertWavToM4A, permanentPath);
+                var compressedPath = await compression.WaitAsync(transcriptionCts.Token);
+                compression = null; // Recorded below; the cancel path must not finish it again.
                 if (!string.IsNullOrEmpty(compressedPath))
                 {
-                    transcript.AudioFilePath = compressedPath;
+                    if (HistoryService.Instance.GetTranscript(transcript.Id) == null)
+                    {
+                        // The user deleted the row while it compressed. Its delete could
+                        // not remove the WAV (the encoder held it open) and never knew
+                        // about the M4A.
+                        LoggingService.Info($"TranscribeFileAsync: Transcript {transcript.Id} was removed while its audio compressed; deleting the M4A");
+                        HistoryService.Instance.DeleteAudioFile(compressedPath);
+                    }
+                    else
+                    {
+                        transcript.AudioFilePath = compressedPath;
+                    }
                 }
             }
 
@@ -317,6 +409,21 @@ public partial class MainViewModel
                 // row terminal. HistoryService already logged it.
                 var deleteResult = HistoryService.Instance.DeleteTranscript(transcript.Id);
                 transcriptDeleted = deleteResult.IsSuccess && deleteResult.Value;
+
+                // Cancelled while the M4A compression ran (#1499). The encode cannot be
+                // stopped part-way and holds the WAV open, so the delete above could not
+                // remove it. Clean up once it ends: both files if the row went, else
+                // point the kept row at the M4A. Both helpers never throw.
+                if (compression != null && permanentPath != null)
+                {
+                    _ = transcriptDeleted
+                        ? DeleteRecordingAfterCompressionAsync(
+                            compression, permanentPath, HistoryService.Instance.DeleteAudioFile)
+                        : FinishRecordingCompressionAsync(
+                            compression, transcript.Id,
+                            HistoryService.Instance.UpdateAudioFilePath,
+                            HistoryService.Instance.DeleteAudioFile);
+                }
             }
             else if (!string.IsNullOrEmpty(permanentPath))
             {
@@ -350,9 +457,8 @@ public partial class MainViewModel
                             providerDiagnostics: txEx.ProviderDiagnostics,
                             exception: txEx);
 
-                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                            txEx.GetUserMessage(),
-                            showSettingsButton: false));
+                        ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(txEx));
+                        StatusText = Loc.S("status.failed", txEx.GetUserMessage());
                     }
                 }
                 else
@@ -360,18 +466,16 @@ public partial class MainViewModel
                     var failureWritten = MarkTranscriptAsGenericFailure(transcript, ex);
                     if (failureWritten)
                     {
-                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                            Loc.S("errors.transcriptionFailed", ex.Message), showSettingsButton: false));
+                        ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
+                        StatusText = Loc.S("status.failed", ex.Message);
                     }
                 }
             }
             else
             {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    ex is TranscriptionException txEx
-                        ? txEx.GetUserMessage()
-                        : Loc.S("errors.transcriptionFailed", ex.Message),
-                    showSettingsButton: false));
+                ShowErrorToastRequested?.Invoke(this, TranscriptionFailureToast(ex));
+                StatusText = Loc.S("status.failed",
+                    ex is TranscriptionException userEx ? userEx.GetUserMessage() : ex.Message);
             }
         }
         finally
@@ -397,8 +501,14 @@ public partial class MainViewModel
                 }
             }
 
+            // Before the Whisper reload below, which must not replace a result the job left.
+            var jobLeftResult = EndJobStatus();
+
+            // Before IsTranscribing: its idle housekeeping may dispose the daemon now.
+            _parakeetFileJobOwnsDaemon = false;
             IsTranscribing = false;
             _fileTranscriptionActive = false;
+            RestoreSelectedModeModelAfterFileJob(keepStatusText: jobLeftResult);
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
                 _activeTranscriptionCts = null;
@@ -419,6 +529,16 @@ public partial class MainViewModel
 
     internal static bool ExceedsMuseSourceLimit(long sourceBytes) =>
         sourceBytes > MetaMuseAudioContract.MaximumSourceBytes;
+
+    /// <summary>
+    /// A file refused before the job starts: the toast, and the status bar says it
+    /// failed rather than keeping what the last job left (#1519).
+    /// </summary>
+    private void RejectFile(string message)
+    {
+        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(message, showSettingsButton: false));
+        StatusText = Loc.S("status.failed", message);
+    }
 
     private bool CanStartFileTranscription()
     {
@@ -448,7 +568,7 @@ public partial class MainViewModel
 
         if (mode.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) == true)
         {
-            var provider = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+            var provider = CloudTranscriptionProviderExtensions.FromModeCloudProvider(mode.CloudProvider);
             return provider != CloudTranscriptionProvider.None
                 ? provider.GetMaxFileSizeBytes()
                 : 25L * 1024 * 1024;
@@ -469,10 +589,7 @@ public partial class MainViewModel
             var model = ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == mode.LocalParakeetModel);
             if (model == null || !_parakeetModelService.IsModelDownloaded(model))
             {
-                var modelName = mode.LocalParakeetModel ?? "Unknown";
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    Loc.S("errors.modelNotDownloaded", modelName),
-                    showSettingsButton: false));
+                RejectFile(Loc.S("errors.modelNotDownloaded", mode.LocalParakeetModel ?? "Unknown"));
                 return false;
             }
 
@@ -485,27 +602,40 @@ public partial class MainViewModel
                 return true;
             }
 
+            // #1534: serialize with the other model loads. The Whisper unload can
+            // wait out a running job with the UI thread free, so without the lock a
+            // mode switch or dictation start could start a second daemon meanwhile.
+            await _modelLoadLock.WaitAsync();
             try
             {
-                if (GetTotalSystemMemoryGB() < 32 && _transcriptionService.IsInitialized)
+                // Re-check after acquiring the lock: a load queued ahead of this
+                // one may already have started the daemon this file needs. No
+                // SelectedMode re-check here: the file job asked for THIS mode.
+                if (!_parakeetTranscriptionService.NeedsReload(model.Id, mode.Language))
                 {
-                    LoggingService.Info("EnsureLocalProviderReadyForFileAsync: Unloading Whisper model to free memory before Parakeet file transcription");
-                    _transcriptionService.UnloadModel();
+                    return true;
                 }
 
                 IsModelLoading = true;
                 StatusText = Loc.S("status.model.parakeet.loading", model.DisplayName);
+                // Set before the unload: it reads as pending to a Whisper load,
+                // which must not queue behind it and then dispose this job's
+                // daemon (#1609). Cleared when the file job ends.
+                _parakeetFileJobOwnsDaemon = true;
+                await UnloadWhisperForParakeetIfLowMemoryAsync("EnsureLocalProviderReadyForFileAsync");
                 await _parakeetTranscriptionService.InitializeAsync(
                     _parakeetModelService.GetModelDirectory(model),
                     language);
                 IsModelLoaded = true;
-                ModelStatus = Loc.S("status.model.parakeet.ready", model.DisplayName, _parakeetTranscriptionService.ActiveProvider ?? "CPU");
+                // The bar describes the selected mode, not this job's (#1639).
+                UpdateModelStatus();
                 return true;
             }
             catch (Exception ex)
             {
-                ModelStatus = Loc.S("status.model.loadFailed");
+                _parakeetFileJobOwnsDaemon = false;
                 StatusText = Loc.S("status.failed", ex.Message);
+                ShowFileJobModelLoadFailed(mode);
                 LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Parakeet model load failed - {ex.Message}", ex);
                 ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                     Loc.S("errors.modelLoadFailed"),
@@ -515,58 +645,56 @@ public partial class MainViewModel
             finally
             {
                 IsModelLoading = false;
+                _modelLoadLock.Release();
             }
         }
 
         if (!PlatformHelper.SupportsWhisperTranscription)
         {
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.modelLoadFailed"),
-                showSettingsButton: false));
+            RejectFile(Loc.S("errors.modelLoadFailed"));
             return false;
         }
 
         var whisperModel = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == mode.ModelType);
         if (whisperModel == null || !_modelService.IsModelDownloaded(whisperModel))
         {
-            var modelName = mode.ModelType ?? "Unknown";
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.modelNotDownloaded", modelName),
-                showSettingsButton: false));
+            RejectFile(Loc.S("errors.modelNotDownloaded", mode.ModelType ?? "Unknown"));
             return false;
         }
 
         var modelPath = _modelService.GetModelPath(whisperModel);
-        if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath)
+        if (_transcriptionService.IsLoadedAndStaying(modelPath))
         {
             return true;
-        }
-
-        if (_parakeetTranscriptionService.IsInitialized)
-        {
-            LoggingService.Info("EnsureLocalProviderReadyForFileAsync: Disposing Parakeet daemon before Whisper file transcription");
-            _parakeetTranscriptionService.DisposeModel();
         }
 
         await _modelLoadLock.WaitAsync();
         try
         {
-            if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath)
+            if (_transcriptionService.IsLoadedAndStaying(modelPath))
             {
                 return true;
+            }
+
+            // Inside the lock (#1534), as in LoadWhisperModelAsync: dispose the
+            // daemon a Parakeet load queued ahead of this one may have started.
+            if (_parakeetTranscriptionService.IsInitialized)
+            {
+                LoggingService.Info("EnsureLocalProviderReadyForFileAsync: Disposing Parakeet daemon before Whisper file transcription");
+                _parakeetTranscriptionService.DisposeModel();
             }
 
             IsModelLoading = true;
             StatusText = Loc.S("status.model.loading", whisperModel.DisplayName);
             await _transcriptionService.InitializeAsync(modelPath, p => { }, CancellationToken.None);
             IsModelLoaded = true;
-            ModelStatus = Loc.S("status.model.ready", whisperModel.DisplayName);
+            UpdateModelStatus();
             return true;
         }
         catch (Exception ex)
         {
-            ModelStatus = Loc.S("status.model.loadFailed");
             StatusText = Loc.S("status.failed", ex.Message);
+            ShowFileJobModelLoadFailed(mode);
             LoggingService.Error($"EnsureLocalProviderReadyForFileAsync: Whisper model load failed - {ex.Message}", ex);
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                 Loc.S("errors.modelLoadFailed"),
@@ -578,6 +706,65 @@ public partial class MainViewModel
             IsModelLoading = false;
             _modelLoadLock.Release();
         }
+    }
+
+    /// <summary>
+    /// A file job's model failed to load, so TranscribeFileAsync returns before the
+    /// finally that restores the selected mode. Set StatusText first. When the job
+    /// ran on the selected mode, the model part of the bar says the load failed, and
+    /// retrying that load would only fail again. Another mode's failure is the job's
+    /// own (its toast and status line say it), but its load may already have taken
+    /// the selected mode's model out: the Whisper load disposes the loaded model or
+    /// the Parakeet daemon first, and the Parakeet load can unload Whisper on a
+    /// low-memory machine. So put the selected mode's model back, as the job's end
+    /// does (#1639). Either way the Whisper load it held out runs now, and waits on
+    /// _modelLoadLock, so it lands after this failure is up and keeps it (#1519).
+    /// </summary>
+    private void ShowFileJobModelLoadFailed(Mode jobMode)
+    {
+        if (SelectedMode?.Id == jobMode.Id)
+        {
+            ModelStatus = Loc.S("status.model.loadFailed");
+            LoadWhisperHeldOutByParakeetFileJob(keepStatusText: true);
+        }
+        else
+        {
+            RestoreSelectedModeModelAfterFileJob(keepStatusText: true);
+        }
+    }
+
+    /// <summary>
+    /// Puts the model part of the status bar back on the selected mode once a file
+    /// job ends, and loads that mode's model again if the job took it out (#1639).
+    /// A job on another mode replaces the loaded Whisper model, or starts a Parakeet
+    /// daemon that unloads Whisper on a low-memory machine and is disposed at the
+    /// end; the bar then kept naming the job's model, or showed the selected one as
+    /// only Downloaded. The load is the same one a mode switch does, and a no-op when
+    /// the model is still up. Covers the Whisper load the job held out (#1609).
+    /// </summary>
+    private void RestoreSelectedModeModelAfterFileJob(bool keepStatusText)
+    {
+        _whisperLoadHeldForParakeetFileJob = false;
+        UpdateModelStatus();
+
+        var mode = SelectedMode;
+        if (mode == null || mode.ProviderType == "cloud" || !PlatformHelper.SupportsLocalTranscription) return;
+        if (!IsLocalModelDownloaded(mode)) return;
+
+        LoadSelectedModeModelInBackground(mode, keepStatusText);
+    }
+
+    // async void for the reason LoadModelInBackground gives.
+    private async void LoadSelectedModeModelInBackground(Mode mode, bool keepStatusText)
+    {
+        try
+        {
+            if (mode.LocalEngine == "parakeet")
+                await LoadParakeetModelAsync(keepStatusText);
+            else
+                await LoadWhisperModelAsync(keepStatusText);
+        }
+        catch (Exception ex) { ReportBackgroundModelLoadFailure("file_job_end", mode, ex); }
     }
 
 }

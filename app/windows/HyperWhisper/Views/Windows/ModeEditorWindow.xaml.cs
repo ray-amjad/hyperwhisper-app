@@ -23,6 +23,8 @@ public partial class ModeEditorWindow : Window
     public ModeEditorWindow(Mode mode)
     {
         InitializeComponent();
+        // 700 DIP is taller than a 1080p work area at 175%; the body scrolls (issue #1500).
+        WindowWorkAreaFit.Attach(this);
         _mode = mode;
         _isCreateMode = false;
 
@@ -48,6 +50,8 @@ public partial class ModeEditorWindow : Window
     public ModeEditorWindow(bool isCreateMode)
     {
         InitializeComponent();
+        // 700 DIP is taller than a 1080p work area at 175%; the body scrolls (issue #1500).
+        WindowWorkAreaFit.Attach(this);
         _isCreateMode = isCreateMode;
 
         // Create a new mode with sensible defaults
@@ -124,15 +128,15 @@ public partial class ModeEditorWindow : Window
             SourceOnDeviceSegment.Visibility = Visibility.Collapsed;
 
             // If the current mode uses an unavailable local engine, switch to cloud.
-            if (_mode.ProviderType == "local" && !IsLocalEngineSupported(_mode.LocalEngine))
+            if (!LocalModeModel.IsCloud(_mode) && !IsLocalEngineSupported(_mode.LocalEngine))
             {
-                _mode.ProviderType = "cloud";
+                LocalModeModel.ApplyCloud(_mode);
                 _mode.CloudProvider = "hyperwhisper"; // Default to HyperWhisper Cloud (no API key needed)
             }
         }
-        else if (_mode.ProviderType == "local" && !IsLocalEngineSupported(_mode.LocalEngine))
+        else if (!LocalModeModel.IsCloud(_mode) && !IsLocalEngineSupported(_mode.LocalEngine))
         {
-            _mode.ProviderType = "cloud";
+            LocalModeModel.ApplyCloud(_mode);
             _mode.CloudProvider = "hyperwhisper";
         }
 
@@ -1163,6 +1167,13 @@ public partial class ModeEditorWindow : Window
         // UpdateSourcePanels sets the API-key warning with the correct provider for
         // each source (HW Cloud → no key; BYOK → the combo provider; local → cleared).
         UpdateSourcePanels(source);
+        // The Language row's visibility follows the SOURCE as well as the local
+        // model: leaving an English-only local model (Parakeet v2, Whisper *.en)
+        // for a cloud source must bring the picker back, and returning to one must
+        // hide it and force English again (#1641). Runs before the list filter, in
+        // the same order as LocalModelCombo_SelectionChanged, so the filter sees
+        // the forced "en" and keeps it selected.
+        AutoSelectEnglishForModel();
         UpdateLanguagesForSelectedModel();
         UpdateAllWarnings();
         UpdateSaveButtonState();
@@ -1428,7 +1439,7 @@ public partial class ModeEditorWindow : Window
 
     private void UserPromptBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        UserPromptCharCount.Text = $"{UserPromptBox.Text.Length}/2000";
+        UserPromptCharCount.Text = $"{UserPromptBox.Text.Length}/8000";
     }
 
     private void GeminiCustomPromptBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -1752,6 +1763,8 @@ public partial class ModeEditorWindow : Window
             Content = new ModelsSettingsPage()
         };
 
+        // 760 DIP is taller than a 1080p work area at 175% (issue #1500).
+        WindowWorkAreaFit.Attach(settingsWindow);
         settingsWindow.ShowDialog();
 
         LoadPostProcessingModels(PostProcessingProvider.LocalLlm);
@@ -1797,6 +1810,10 @@ public partial class ModeEditorWindow : Window
 
         if (_mode.ProviderType == "cloud")
         {
+            // The On-device arm below writes a local id into Model; put the cloud
+            // sentinel back so macOS does not restore this mode as local (#1477).
+            LocalModeModel.ApplyCloud(_mode);
+
             // HyperWhisper Cloud is its own source segment; "Your provider" is BYOK.
             if (transcriptionSource == "hwcloud")
             {
@@ -1864,6 +1881,11 @@ public partial class ModeEditorWindow : Window
             {
                 _mode.ModelType = modelId;
             }
+
+            // A new mode is seeded Model = "cloud" / CloudProvider = "hyperwhisper"
+            // (constructor above). Rewrite both so the row stops saying "cloud":
+            // macOS and Linux route on those two fields when a backup crosses (#1477).
+            LocalModeModel.ApplyOnDevice(_mode);
         }
 
         if (LanguageCombo.SelectedItem is ComboBoxItem langItem)
@@ -2096,8 +2118,10 @@ public partial class ModeEditorWindow : Window
     }
 
     /// <summary>
-    /// Auto-selects English language for English-only models.
-    /// Also disables language dropdown for English-only cloud models.
+    /// Auto-selects English language for English-only local models and hides the
+    /// language row; shows and enables it again for every other model and source.
+    /// Every handler that can change the source or the local model must call this
+    /// (#1641: the source segment did not, so the row stayed hidden on Cloud).
     /// </summary>
     private void AutoSelectEnglishForModel()
     {

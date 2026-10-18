@@ -154,6 +154,18 @@ describe('resolveModel', () => {
     if (legacy.ok) expect(legacy.model.id).toBe('gemini-3.8-flash');
   });
 
+  test('the retired grok-voice-transcribe-1.0 id is served as 2.0, not a 400 (#1908)', () => {
+    // xAI ended 1.0 on 2026-10-02 and reroutes it to 2.0 at the same price. A
+    // shipped client can still send it as X-STT-Model.
+    const legacy = resolveModel('grok', 'grok-voice-transcribe-1.0');
+    expect(legacy.ok).toBe(true);
+    if (legacy.ok) expect(legacy.model.id).toBe('grok-voice-transcribe-2.0');
+    // It is no longer a row of its own.
+    expect(getProviderDef('grok').models.map((m) => m.id)).toEqual(['grok-voice-transcribe-2.0']);
+    // The alias cannot raise the bill: 1.0's retired row reserved $0.00167/min.
+    expect(estimatedUsdPerMinute('grok', 'grok-voice-transcribe-1.0')).toBeLessThanOrEqual(0.00167);
+  });
+
   test('gemini-transcribe resolves both speech models and defaults to the pre-recorded one', () => {
     const defaulted = resolveModel('gemini-transcribe', undefined);
     expect(defaulted.ok).toBe(true);

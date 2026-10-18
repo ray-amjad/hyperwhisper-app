@@ -155,6 +155,8 @@
 "alerts.export.diagnostics.success.title" = "Diagnostik eksporteret";
 "alerts.export.diagnostics.success.message" = "Alle diagnostiske logfiler er blevet eksporteret.";
 "alerts.export.diagnostics.saveFailed.message" = "Kunne ikke gemme diagnostik til den valgte placering: %@";
+"alerts.export.diagnostics.noSystemLogs.title" = "Diagnostik eksporteret uden systemlogs";
+"alerts.export.diagnostics.noSystemLogs.message" = "Diagnostikfilen blev gemt, men appens systemlogs kunne ikke læses, så system-logs.txt indeholder kun årsagen. Årsag: %@";
 
 // MARK: - Panels
 "panels.export.logs.message" = "Eksporter opdateringslogfiler til support";
@@ -289,7 +291,6 @@
 "onboarding.done.button" = "Afslut onboarding";
 
 "onboarding.setupLater.button" = "Indstil senere";
-"onboarding.error.microphone.denied" = "Mikrofontilladelse afvist. Giv venligst tilladelse i Systemindstillinger.";
 
 // MARK: - Settings · General
 "settings.general.launchAtLogin.title" = "Start ved login";
@@ -304,6 +305,7 @@
 // Dropdown setting for controlling other audio during recording
 "settings.general.mediaControl.mode.off" = "Fra";
 "settings.general.mediaControl.mode.mute" = "Slå lyd fra";
+"settings.general.mediaControl.mode.muffle" = "Dæmp lyd";
 // Auto-Increase Microphone Volume
 // Toggle setting to automatically maximize mic input volume when recording starts
 
@@ -322,7 +324,7 @@
 "settings.sound.soundEffects.title" = "Afspil lydeffekter";
 "settings.sound.soundEffects.info" = "Afspil lydsignaler, når optagelsen starter og stopper.";
 "settings.sound.mediaControl.title" = "Mediekontrol under optagelse";
-"settings.sound.mediaControl.info" = "Vælg, hvordan HyperWhisper håndterer anden lyd, mens du optager. 'Fra' efterlader lyd uændret, 'Slå lyd fra' dæmper systemoutput under optagelse og gendanner det bagefter.";
+"settings.sound.mediaControl.info" = "Vælg, hvordan HyperWhisper håndterer anden lyd, mens du optager. 'Fra' efterlader lyd uændret, 'Slå lyd fra' dæmper systemoutput under optagelse og gendanner det bagefter, og 'Dæmp lyd' lader den spille svagt, som fra rummet ved siden af.";
 "settings.sound.autoIncreaseMicVolume.title" = "Forøg automatisk mikrofonstyrken";
 "settings.sound.autoIncreaseMicVolume.info" = "Sætter automatisk mikrofonens lydstyrke til maks, når optagelse starter, og gendanner derefter det oprindelige niveau, når optagelse stopper. Gælder kun ved brug af systemets standardinputenhed.";
 "settings.sound.vad.title" = "Fjern stilhed før transskription";
@@ -336,6 +338,9 @@
 "settings.storage.choose.button" = "Vælg...";
 "settings.storage.dialog.select" = "Vælg mappe";
 "settings.storage.dialog.message" = "Vælg en mappe til at gemme optagelser";
+"settings.storage.folderRefused.title" = "Denne mappe kan ikke bruges";
+"settings.storage.folderRefused.notWritable" = "Du har ikke tilladelse til at skrive til “%@”, så HyperWhisper kan ikke gemme optagelser der. Optagelsesmappen blev ikke ændret.";
+"settings.storage.folderRefused.createFailed" = "HyperWhisper kunne ikke oprette denne mappe: %@ Optagelsesmappen blev ikke ændret.";
 "settings.storage.storeAsM4A.title" = "Komprimer optagelser til M4A";
 "settings.storage.storeAsM4A.subtitle" = "Konverterer WAV-optagelser til mindre filer efter transskription. Slå fra for at beholde originale WAV-filer (større men tabsfri).";
 
@@ -383,6 +388,7 @@
 
 "settings.shortcuts.changeMode.title" = "Skift tilstand";
 "settings.shortcuts.changeMode.subtitle" = "Virker kun under optagelse";
+"settings.shortcuts.conflict.alert" = "Denne tastaturgenvej kan ikke bruges, fordi den allerede bruges af “%@”.";
 
 "settings.shortcuts.reset.button" = "Nulstil til standard";
 "settings.shortcuts.reset.dialog.title" = "Nulstil tastaturgenveje";
@@ -434,6 +440,7 @@
 "settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
 "settings.license.pasteFromClipboard" = "Indsæt fra udklipsholder";
 "settings.license.clearInput" = "Ryd";
+"license.error.keyFormat" = "Det ligner ikke en kontonøgle.";
 "settings.license.recovery.prompt" = "Har du glemt din licensnøgle?";
 "settings.license.recovery.button" = "Gå til kundeportalen";
 "settings.license.daily.title" = "Daglig transskription";
@@ -576,6 +583,8 @@
 "onboarding.configure.cloud.note" = "Kredit er forudbetalt og deles på tværs af alle Mac'er, der er logget ind med denne nøgle. Inaktiv tid koster ingenting.";
 "onboarding.source.note" = "Ombestemmer du dig senere, gentages kun dette ene trin. Alt andet, du har sat op, bevares.";
 "onboarding.permissions.note" = "Springer du Tilgængelighed over, går transskriptioner til udklipsholderen, klar til indsættelse. Du kan altid slå det til senere med ét klik.";
+"onboarding.permissions.microphone.denied" = "Ikke tilladt. Slå HyperWhisper til i Systemindstillinger, og kom så tilbage hertil.";
+"onboarding.permissions.continueNeedsMicrophone" = "Fortsæt kræver mikrofonen. Tillad den ovenfor, eller vælg Konfigurer senere.";
 "onboarding.welcome.task1.title" = "Vælg, hvordan transskription kører";
 "onboarding.welcome.task1.caption" = "I vores cloud, på denne Mac, eller via en udbyderkonto, du allerede betaler for.";
 "onboarding.welcome.task2.title" = "Tjek din mikrofon";
@@ -683,6 +692,10 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 // MARK: - Modes
 "modes.delete.confirm.title" = "Slet tilstand?";
 "modes.delete.confirm.message" = "Dette vil fjerne den valgte tilstand. Denne handling kan ikke fortrydes.";
+"modes.editor.discard.title" = "Kassér ikke-gemte ændringer?";
+"modes.editor.discard.message" = "Dine ændringer af denne tilstand er ikke gemt.";
+"modes.editor.discard.keepEditing" = "Fortsæt redigering";
+"modes.editor.discard.button" = "Kassér";
 "modes.header.title" = "Tilstande";
 "modes.header.subtitle" = "Opret brugerdefinerede profiler til forskellige sammenhænge og workflows";
 "modes.header.create" = "Opret tilstand";
@@ -787,6 +800,7 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.field.name.placeholder" = "f.eks. Mødenoter";
 "modes.field.name.editPlaceholder" = "Tilstandsnavn";
 "modes.field.name.defaultLocked" = "Dette er standardtilstanden, så dens navn kan ikke ændres. Du kan omdøbe alle andre tilstande.";
+"modes.field.name.taken" = "Der findes allerede en tilstand med det navn.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Udbyder";
 "modes.provider.local" = "Lokal";
@@ -813,8 +827,9 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "transcripts.delete.single.message" = "Dette vil permanent slette denne optagelse og dens lydfil.";
 "transcripts.delete.multiple.title" = "Slet %d optagelser?";
 "transcripts.delete.multiple.message" = "Dette vil permanent slette %d optagelser og deres lydfiler.\n\nDenne handling kan ikke fortrydes.";
-"transcripts.delete.multiple.confirm" = "Slet alle";
+"transcripts.delete.multiple.confirm" = "Slet %d optagelser";
 "transcripts.retry.error.title" = "Nyt forsøg mislykkedes";
+"transcripts.retry.error.modeDeleted" = "Den tilstand, der lavede denne optagelse, er slettet, så den blev ikke prøvet igen. Højreklik på optagelsen i Historik, og vælg \"Prøv igen med...\" for at vælge en anden tilstand.";
 
 // MARK: - Storage / Settings Manager
 "storage.folder.choose.title" = "Vælg optagelsesmappe";
@@ -865,8 +880,8 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "recording.retry.inProgress" = "Prøver igen…";
 "recording.retry.count" = "Prøv igen (%d)";
 "recording.retry.failed.missing" = "Nyt forsøg mislykkedes: Lydfil ikke fundet";
-"recording.retry.failed.error" = "Nyt forsøg mislykkedes: %@";
 "recording.retry.pending" = "Klar til nyt forsøg – klik for at transskribere";
+"recording.retry.modeDeleted" = "Tilstanden blev slettet";
 "recording.cancel.dialog.title" = "Annuller optagelse?";
 "recording.cancel.dialog.message" = "Dette vil kassere den aktuelle optagelse.";
 "recording.cancel.dialog.confirm" = "Annuller optagelse";
@@ -893,6 +908,7 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "audio.error.microphonePermission" = "Mikrofontilladelse ikke givet";
 "audio.error.microphoneInUse" = "HyperWhisper kan ikke få adgang til mikrofonen, fordi en anden app bruger den i øjeblikket. Pause den anden app, eller skift input, og prøv igen.";
 "audio.error.audioSystemNotResponding" = "Lyden i macOS svarer ikke, så mikrofonen kunne ikke starte. Prøv igen om lidt. Hvis det bliver ved, så genstart din Mac.";
+"audio.error.recorderStopTimedOut" = "Lyden i macOS holdt op med at svare, mens optagelsen blev gemt, så den blev ikke transskriberet. Lyden er bevaret: HyperWhisper forsøger at gendanne den, næste gang appen starter.";
 "audio.error.createEngine" = "Kunne ikke oprette lydmotor";
 "audio.error.noInput" = "Ingen lydinput tilgængelig";
 "audio.error.createFile" = "Kunne ikke oprette lydfil";
@@ -966,10 +982,15 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcription.guidance.quotaExceeded" = "Tilføj credits til din %@ konto, eller opdater dine faktureringsoplysninger";
 "transcription.guidance.timeout" = "Anmodningen tog for lang tid. Kontroller din internethastighed, og prøv igen.";
 "transcription.error.noSpeechDetected" = "Ingen tale registreret i optagelsen.";
+"transcription.error.audioTooShort" = "Optagelsen er for kort til at blive transskriberet. Optag i længere tid.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Tal tydeligt i mikrofonen\n• Hold tasten nede længere, før du taler\n• Kontroller, at din mikrofon virker\n• Sørg for, at den korrekte inputenhed er valgt";
 "transcription.guidance.needsNativeRelaunch" = "Afslut og åbn HyperWhisper igen som native app for at bruge lokal efterbehandling.";
 "transcription.guidance.localRuntimeUnavailable" = "Prøv igen, eller vælg en mindre lokal model i dine tilstandsindstillinger.";
 "transcription.error.localRuntimeUnavailable" = "Lokal AI kunne ikke gøre det færdigt — din rå transskription blev bevaret.";
+"transcription.error.postProcessingPreflight.unauthorized" = "%@ afviste din API-nøgle — din rå transskription blev bevaret.";
+"transcription.error.postProcessingPreflight.unreachable" = "Kunne ikke nå %@ — din rå transskription blev bevaret.";
+"transcription.error.postProcessingPreflight.notInstalled" = "%@ er ikke installeret — din rå transskription blev bevaret.";
+"transcription.error.postProcessingPreflight.unavailable" = "%@ er ikke tilgængelig — din rå transskription blev bevaret.";
 "transcription.error.localSpeechModelEvicted" = "Talemodellen blev frigivet for at frigøre hukommelse og kunne ikke indlæses igen. Luk nogle apps, og prøv igen.";
 "settings.backup.localDownload.title" = "Download lokale modeller?";
 "settings.backup.localDownload.message" = "%d af dine gendannede tilstande bruger AI-modeller på enheden, som endnu ikke er downloadet.";
@@ -1061,6 +1082,13 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "settings.backup.import.error.decode.corruptedField" = "Beskadiget værdi for felt: %@";
 "settings.backup.import.error.version" = "Sikkerhedskopifilen er fra en nyere version";
 "settings.backup.import.error.unknown" = "Import mislykkedes";
+"settings.backup.import.error.storeModes" = "Tilstandene kunne ikke gemmes, så de blev ikke ændret.";
+"settings.backup.import.error.storeModesAndVocabulary" = "Tilstandene kunne ikke gemmes, så tilstande og ordforråd blev ikke ændret.";
+"settings.backup.import.error.storeVocabulary" = "Ordforrådet kunne ikke gemmes, så det blev ikke ændret.";
+"settings.backup.import.error.storeVocabularyAfterModes" = "Tilstandene blev importeret, men ordforrådet kunne ikke gemmes, så det blev ikke ændret.";
+"settings.backup.import.error.storeLicense" = "Licensnøglen kunne ikke importeres sikkert.";
+"settings.backup.import.error.storeSettingsRestored" = "Indstillingerne blev ikke ændret.";
+"settings.backup.import.error.storeOtherSections" = "De andre valgte sektioner blev anvendt.";
 "settings.backup.import.apiKeysFailed" = "Disse API-nøgler kunne ikke gemmes i nøgleringen og blev ikke gendannet: %@. Indtast dem igen under Indstillinger.";
 "settings.backup.import.confirm.title" = "Importer indstillinger?";
 "settings.backup.import.confirm.message" = "Dette vil erstatte dine eksisterende tilstande og ordforråd med dem fra sikkerhedskopifilen. Indstillinger vil også blive opdateret.";
@@ -1097,6 +1125,13 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcribe.file.error.format.title" = "Ikke-understøttet format";
 "transcribe.file.error.format.message" = ".%@ filer understøttes ikke af %@. Understøttede formater: %@";
 "transcribe.file.error.read" = "Kan ikke læse den valgte fil.";
+"transcribe.file.error.webm" = "WebM understøttes ikke. Konvertér filen til MP3, M4A eller WAV, og prøv igen.";
+"transcribe.file.error.notAudio" = "Filen “%@” er ikke gyldig lyd. Den kan være beskadiget eller i et format, som macOS ikke kan afkode.";
+"transcribe.file.error.empty" = "Filen “%@” er tom. Den indeholder ingen lyd at transskribere.";
+"transcribe.file.error.permission" = "HyperWhisper kan ikke læse filen “%@”. Kontrollér filens tilladelser.";
+"transcribe.file.error.folderPermission" = "HyperWhisper kan ikke åbne en mappe, der indeholder filen “%@”. Kontrollér mappens tilladelser.";
+"transcribe.file.error.privacy" = "macOS' anonymitetsindstillinger forhindrede HyperWhisper i at læse filen “%@”. Tillad det i Systemindstillinger > Anonymitet & sikkerhed > Fuld diskadgang.";
+"transcribe.file.error.tooShort" = "Denne fil er for kort til at blive transskriberet (%@ s).";
 "transcribe.file.error.copy" = "Kunne ikke kopiere fil til optagelsesmappe.";
 "transcribe.file.error.video.title" = "Ingen lyd i video";
 "transcribe.file.error.video.noAudio" = "Denne videofil indeholder ikke et lydspor. Vælg venligst en video med lyd eller en lydfil.";

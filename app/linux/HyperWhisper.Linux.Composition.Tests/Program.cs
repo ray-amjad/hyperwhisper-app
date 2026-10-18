@@ -22,6 +22,25 @@ using System.Diagnostics;
 
 [assembly: SupportedOSPlatform("linux")]
 
+// A real Avalonia window needs a real windowing platform, and Avalonia allows one per process, so
+// the #1629 render test re-runs this harness under xvfb-run in this mode.
+if (args is [ModeEditorEngineSwitchRenderTests.ProbeArgument])
+{
+    Environment.Exit(await ModeEditorEngineSwitchRenderTests.RunProbeAsync());
+}
+if (args is [ModeEditorSourceSegmentRenderTests.ProbeArgument])
+{
+    Environment.Exit(await ModeEditorSourceSegmentRenderTests.RunProbeAsync());
+}
+if (args is [MediaControlComboRenderTests.ProbeArgument])
+{
+    Environment.Exit(await MediaControlComboRenderTests.RunProbeAsync());
+}
+if (args is [BackendPickerPageLeaveRenderTests.ProbeArgument])
+{
+    Environment.Exit(BackendPickerPageLeaveRenderTests.RunProbe());
+}
+
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("toggle owns safe injection lifecycle", ToggleOwnsSafeInjectionLifecycle),
@@ -44,15 +63,20 @@ var tests = new (string Name, Func<Task> Run)[]
     ("live delivered final is not injected twice", LiveDeliveredFinalIsNotDuplicated),
     ("production live sink forwards partial and final updates", LiveSinkForwardsUpdates),
     ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
+    ("a cloud mode with a blank cloudProvider reads as HyperWhisper Cloud on its card", BlankCloudProviderReadsAsHyperWhisperCloud),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
     ("recording refuses every kind when no input device is selected", RecordingRefusesWithoutInputDevice),
+    ("a silent recording reads No speech detected, not Transcription failed", SilentRecordingReadsNoSpeech),
     ("live models are provider-specific", LiveModelsAreProviderSpecific),
     ("local and cloud live sessions select isolated engines", LiveEngineRoutingIsIsolated),
     ("production Whisper backend selection reaches inference", WhisperBackendSelectionReachesInference),
     ("local Whisper timestamps route through portable result", LocalWhisperTimestampsRoute),
     ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
+    ("Model Library Whisper line names a missing hyperwhisper-cuda package", ModelLibraryWhisperLineNamesMissingCudaPackage),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
+    ("Local API post-processing refuses a Cloud run with no account key", LocalApiPostProcessingCloudAccountRequired),
+    ("Local API /health key_present for hyperwhisper follows the account key", LocalApiHealthCloudKeyFollowsAccountKey),
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
@@ -77,6 +101,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("streaming language picker offers the selected provider's catalog set", StreamingLanguagePickerFollowsProvider),
     ("a real Avalonia ComboBox shows Automatic after a provider or tier change resets the language", StreamingLanguageComboShowsResetToAutomatic),
     ("a finished batch dictation leaves the status bar reading Ready (#958)", RecordingStatusAfterStopTests.BatchStopLeavesReady),
+    ("a failed clipboard write shows Copy failed on the overlay and a paste-failed status line (#1703, #1402)", RecordingStatusAfterStopTests.FailedCopyShowsCopyFailed),
+    ("the mode editor's local model combo shows the engine's model after an engine change (#1629)", ModeEditorEngineSwitchRenderTests.RunAsync),
+    ("every Source segment in the mode editor shows its whole label (#635)", ModeEditorSourceSegmentRenderTests.RunAsync),
+    ("the Sound page's media-control ComboBox shows its whole label in every long culture", MediaControlComboRenderTests.RunAsync),
+    ("leaving Model Library keeps the Whisper and LLM backend picks in the view model and settings.json (#1967)", BackendPickerPageLeaveRenderTests.RunAsync),
 };
 
 foreach (var test in tests)
@@ -1220,6 +1249,42 @@ static Task CloudProviderStorageRoutes()
     return Task.CompletedTask;
 }
 
+// #1709. The mode card, the status bar, the editor and the router used to give four answers for a
+// Cloud mode with no stored provider. The card and the status bar read it through the shared rule
+// now: blank (including whitespace) is HyperWhisper Cloud, and a non-blank id keeps its own meaning.
+static Task BlankCloudProviderReadsAsHyperWhisperCloud()
+{
+    foreach (var value in new string?[] { null, "", "   ", "hyperwhisper", "HyperWhisper", "hyperwhispercloud", "hyperwhisper_cloud" })
+        Assert(ModeProviderLineConverter.IsHyperWhisperCloud(value),
+            $"cloudProvider {(value is null ? "<null>" : $"'{value}'")} did not read as HyperWhisper Cloud");
+    foreach (var value in new[] { "deepgram", "elevenlabs", "googlespeech", "microsoftazurespeech" })
+        Assert(!ModeProviderLineConverter.IsHyperWhisperCloud(value),
+            $"cloudProvider '{value}' read as HyperWhisper Cloud; only a blank value changes meaning");
+
+    var statusBar = new StatusBarModelConverter();
+    var explicitLabel = statusBar.Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "elevenLabsScribeV2" },
+        typeof(string), null, CultureInfo.InvariantCulture) as string;
+    foreach (var blank in new string?[] { null, "", "   " })
+    {
+        var label = statusBar.Convert(
+            new Mode { ProviderType = "cloud", CloudProvider = blank, CloudAccuracyTier = "elevenLabsScribeV2" },
+            typeof(string), null, CultureInfo.InvariantCulture) as string;
+        Assert(label == explicitLabel && !string.IsNullOrWhiteSpace(label),
+            $"status bar read '{label}' for a blank-provider cloud mode, not the tier label '{explicitLabel}'");
+    }
+    // #1908: a stored retired Grok 1.0 mode is named by its 2.0 successor, not drawn as a raw id.
+    var retired = statusBar.Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "grok", CloudTranscriptionModel = "grok-voice-transcribe-1.0" },
+        typeof(string), null, CultureInfo.InvariantCulture) as string;
+    var successor = statusBar.Convert(
+        new Mode { ProviderType = "cloud", CloudProvider = "grok", CloudTranscriptionModel = "grok-voice-transcribe-2.0" },
+        typeof(string), null, CultureInfo.InvariantCulture) as string;
+    Assert(retired == successor && retired != "grok-voice-transcribe-1.0",
+        $"status bar read '{retired}' for a stored Grok 1.0 mode, not the 2.0 label '{successor}'");
+    return Task.CompletedTask;
+}
+
 static async Task AudioRestorationIsNonCancelable()
 {
     var environment = new FakeAudioEnvironmentSession();
@@ -1251,6 +1316,21 @@ static Task RecordingRefusesWithoutInputDevice()
     var selected = LinuxRecordingInputDeviceGate.Check("alsa_input.pci-0000_00_1f.3.analog-stereo");
     Assert(selected.IsSuccess && selected.Error is null,
         "the input device gate refused a real enumerated microphone");
+    return Task.CompletedTask;
+}
+
+// Issue #1742: the workflow reports a transcript that is empty after Whisper's
+// non-speech markers are stripped as workflow.no_speech. The batch stop path
+// must hand that code to the overlay; every other failure stays one code.
+static Task SilentRecordingReadsNoSpeech()
+{
+    Assert(LinuxRecordingOverlayErrorMapper.FromCode(
+            LinuxInteractionRecordingSession.FailureCodeFor("workflow.no_speech"), transcription: true)
+        == LinuxRecordingOverlayError.NoSpeechDetected,
+        "a silent recording did not reach the no-speech overlay");
+    foreach (var other in new string?[] { null, "workflow.transcriptionfailed", "workflow.backend_failed", "workflow.persistence_failed" })
+        Assert(LinuxInteractionRecordingSession.FailureCodeFor(other) == "workflow.transcription_failed",
+            $"a workflow failure ({other ?? "null"}) changed its overlay code");
     return Task.CompletedTask;
 }
 
@@ -1355,16 +1435,110 @@ static Task WhisperSettingsSelectBackends()
     {
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", null);
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", null);
+        var nvidia = new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true });
         var detected = new LinuxWhisperRuntimePreferenceSource(
-            new MissingPrivateFiles(), new StaticPaths(root),
-            new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true }));
+            new MissingPrivateFiles(), new StaticPaths(root), nvidia,
+            new FixedRuntime(NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan, NativeComputeBackend.Cuda));
         Assert(detected.Resolve() == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Cuda12, true),
             "automatic selection did not prefer detected CUDA 12");
+
+        // Issue #1002: without the hyperwhisper-cuda package, CUDA falls back to
+        // Vulkan and the status names the package.
+        var noCudaPackage = new LinuxWhisperRuntimePreferenceSource(
+            new MissingPrivateFiles(), new StaticPaths(root), nvidia,
+            new FixedRuntime(NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan));
+        var fallback = noCudaPackage.Resolve();
+        Assert(fallback == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Vulkan, true,
+                Notice: HyperWhisper.Linux.Platform.SystemIntegration.LinuxCudaPackage.MissingNotice),
+            "a CUDA choice without hyperwhisper-cuda did not fall back to Vulkan");
+        using (var fixture = new WhisperTranscriberFixture(fallback, "Vulkan"))
+        {
+            var capability = fixture.Transcriber.Capability;
+            Assert(capability.IsAvailable
+                    && capability.DisplayName.Contains("install the hyperwhisper-cuda package", StringComparison.Ordinal),
+                "the Whisper status did not name the hyperwhisper-cuda package");
+        }
+
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", "cuda12");
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", "0");
+        var strict = new LinuxWhisperRuntimePreferenceSource(
+            new MissingPrivateFiles(), new StaticPaths(root), nvidia,
+            new FixedRuntime(NativeComputeBackend.Cpu)).Resolve();
+        Assert(strict.Unavailable && strict.Backend == LocalWhisperBackend.Cuda12,
+            "strict CUDA without hyperwhisper-cuda or Vulkan was not reported unavailable");
+        using (var fixture = new WhisperTranscriberFixture(strict, "Cpu"))
+        {
+            Assert(!fixture.Transcriber.Capability.IsAvailable, "strict missing CUDA still reported available");
+            var failed = fixture.Transcriber.TranscribeAsync(fixture.AudioPath, "en").GetAwaiter().GetResult();
+            Assert(!failed.IsSuccess
+                    && failed.Failure?.Code == PortableTranscriptionErrorCode.BackendUnavailable
+                    && failed.Failure.Message.Contains("hyperwhisper-cuda", StringComparison.Ordinal)
+                    && fixture.Service.LoadOptions is null,
+                "strict missing CUDA did not fail with the install hint before loading");
+        }
 
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", "vulkan");
         Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", "0");
         Assert(detected.Resolve() == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Vulkan, false),
             "explicit strict Vulkan setting was not honored");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", previousBackend);
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", previousFallback);
+    }
+    return Task.CompletedTask;
+}
+
+// Issue #1002: picking CUDA 12 without hyperwhisper-cuda falls back silently unless the Model
+// Library's Whisper line (SettingsLocalWhisperRuntimeStatus, bound to LocalWhisperRuntimeStatus)
+// says so. Wired the way MainWindow wires it; the runtime has no cuda12 library.
+static Task ModelLibraryWhisperLineNamesMissingCudaPackage()
+{
+    var previousBackend = Environment.GetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND");
+    var previousFallback = Environment.GetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK");
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-whisper-line-{Guid.NewGuid():N}");
+    try
+    {
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", null);
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", null);
+        var nvidia = new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true });
+        LinuxWhisperRuntimePreferenceSource Source(params NativeComputeBackend[] backends) =>
+            new(new MissingPrivateFiles(), new StaticPaths(root), nvidia, new FixedRuntime(backends));
+        var settings = new SettingsViewModel(
+            new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")),
+            localWhisperRuntimeStatus: "Mode-selected transcription");
+        settings.LocalWhisperBackendNotice = Source(NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan).DescribeChoice;
+        var changes = new List<string?>();
+        settings.PropertyChanged += (_, e) => changes.Add(e.PropertyName);
+
+        settings.LocalWhisperBackend = "cuda12";
+        Assert(changes.Contains(nameof(SettingsViewModel.LocalWhisperRuntimeStatus)),
+            "picking CUDA 12 did not refresh the Whisper line");
+        Assert(settings.LocalWhisperRuntimeStatus.Contains(
+                "CUDA is not installed (install the hyperwhisper-cuda package); Whisper falls back to Vulkan.",
+                StringComparison.Ordinal),
+            $"the Whisper line did not name the missing package and the Vulkan fallback: {settings.LocalWhisperRuntimeStatus}");
+
+        settings.LocalWhisperBackend = "vulkan";
+        Assert(!settings.LocalWhisperRuntimeStatus.Contains("hyperwhisper-cuda", StringComparison.Ordinal),
+            "the CUDA notice stayed on the Whisper line after picking Vulkan");
+
+        settings.LocalWhisperBackendNotice = Source(NativeComputeBackend.Cpu).DescribeChoice;
+        settings.LocalWhisperBackend = "cuda12";
+        Assert(settings.LocalWhisperRuntimeStatus.EndsWith(
+                "CUDA is not installed (install the hyperwhisper-cuda package); Whisper falls back to CPU.",
+                StringComparison.Ordinal),
+            $"the Whisper line did not name the CPU fallback: {settings.LocalWhisperRuntimeStatus}");
+        settings.AllowLocalWhisperCpuFallback = false;
+        Assert(settings.LocalWhisperRuntimeStatus.EndsWith(
+                HyperWhisper.Linux.Platform.SystemIntegration.LinuxCudaPackage.MissingFailure, StringComparison.Ordinal),
+            $"the Whisper line did not say strict CUDA cannot run: {settings.LocalWhisperRuntimeStatus}");
+
+        settings.LocalWhisperBackendNotice = Source(
+            NativeComputeBackend.Cpu, NativeComputeBackend.Vulkan, NativeComputeBackend.Cuda).DescribeChoice;
+        Assert(settings.LocalWhisperRuntimeStatus == "Current process capability: Mode-selected transcription.",
+            $"an installed hyperwhisper-cuda still got a notice: {settings.LocalWhisperRuntimeStatus}");
     }
     finally
     {
@@ -1380,6 +1554,136 @@ static string RuntimeFor(LocalWhisperBackend backend) => backend switch
     LocalWhisperBackend.Vulkan => "Vulkan: test runtime",
     _ => "Cpu: test runtime",
 };
+
+static async Task LocalApiPostProcessingCloudAccountRequired()
+{
+    // Issue #1487 (Ray, inbox #298): no account key on a HyperWhisper Cloud
+    // run is MISSING_API_KEY, as on /transcribe. Any other skip keeps the
+    // generic refusal this head already sent.
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-pp-key-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        var database = new ApplicationDb(new StaticPaths(root));
+        await database.MigrateAsync();
+        var repository = new ModeRepository(database);
+        var processor = new CapturingPostProcessor
+        {
+            Result = PortablePostProcessingResult.Skipped(
+                "raw",
+                PortablePostProcessingResult.CloudAccountRequiredFailureCode,
+                "HyperWhisper Cloud requires an account key."),
+        };
+        var adapter = new LinuxLocalApiPostProcessor(processor, repository);
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", null, null, "Translate to French", null, null),
+                CancellationToken.None);
+            throw new InvalidOperationException("a Cloud run with no account key was not refused");
+        }
+        catch (LocalApiFailureException failure)
+        {
+            Assert(failure.Code == "MISSING_API_KEY", $"expected MISSING_API_KEY, got {failure.Code}");
+            Assert(failure.HttpStatus == 200, $"a business failure must be HTTP 200, got {failure.HttpStatus}");
+            Assert(failure.Hint?.Contains("HyperWhisper Cloud", StringComparison.Ordinal) == true,
+                $"the hint does not name the Cloud settings page: {failure.Hint}");
+        }
+
+        processor.Result = PortablePostProcessingResult.Skipped(
+            "raw", "postprocessing.missingcredential", "A provider API key is required.");
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", null, null, "Translate to French", "openai", "gpt-test"),
+                CancellationToken.None);
+            throw new InvalidOperationException("a skipped BYOK run was answered ok");
+        }
+        catch (LocalApiFailureException)
+        {
+            throw new InvalidOperationException("a BYOK missing key was reported as the Cloud account refusal");
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "Local post-processing is unavailable for this request.")
+        {
+        }
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
+// Issue #650: /health reported key_present:true for `hyperwhisper` (both
+// lists) on a profile with no account key, because a device identity counted as
+// a credential, while /transcribe refuses the same provider with
+// MISSING_API_KEY. Drives the real catalog the Local API backend serves.
+static async Task LocalApiHealthCloudKeyFollowsAccountKey()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-health-key-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        var store = new MemoryCredentialStore();
+        // A device identity that resolves: the old fallback answered true on it.
+        var identity = new FixedDeviceIdentity();
+        using var http = new HttpClient();
+        var catalog = new LinuxLocalApiCapabilityCatalog(
+            new HyperWhisper.ModelManagement.PortableModelManager(new StaticPaths(root), http),
+            new NoLocalTranscriber(),
+            store,
+            identity,
+            new PortableSettingsService(new MissingPrivateFiles(), Path.Combine(root, "settings.json")));
+        // The source and the predicate /transcribe uses:
+        // CloudTranscriptionService.CreateParams refuses an account-key provider
+        // whose LicenseKey is null or whitespace.
+        var transcribeSource = new HyperWhisper.TranscriptionRouting.CredentialStoreCloudCredentialSource(store, identity);
+
+        static ProviderStatus Row(IReadOnlyList<ProviderStatus> rows, string id) =>
+            rows.SingleOrDefault(row => row.Id == id)
+                ?? throw new InvalidOperationException($"/health has no {id} row");
+
+        async Task Expect(bool present, string label)
+        {
+            var credential = await transcribeSource.GetCredentialAsync(
+                CloudTranscriptionProvider.HyperWhisperCloud, CancellationToken.None);
+            Assert(!string.IsNullOrWhiteSpace(credential?.LicenseKey) == present,
+                $"{label}: the /transcribe credential read disagrees with the test's expectation");
+            foreach (var (list, rows) in new[]
+            {
+                ("providers", catalog.TranscriptionProviders),
+                ("post_processing_providers", catalog.PostProcessingProviders),
+            })
+            {
+                var row = Row(rows, "hyperwhisper");
+                Assert(row.KeyPresent == present,
+                    $"{label}: {list} hyperwhisper key_present={row.KeyPresent}, /transcribe would {(present ? "run" : "refuse")}");
+                Assert((row.Status == "credential_required") == !present,
+                    $"{label}: {list} hyperwhisper status {row.Status}");
+            }
+            // /models: the hyperwhisper Cloud models are usable (`installed`, the
+            // Linux wire name for enabled) only when /transcribe would run them.
+            var cloudModels = catalog.Models
+                .Where(model => model.Provider.Equals("hyperwhisper", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            Assert(cloudModels.Length > 0, $"{label}: /models lists no hyperwhisper Cloud model");
+            foreach (var model in cloudModels)
+                Assert(model.Installed == present,
+                    $"{label}: /models {model.Id} enabled={model.Installed}, /transcribe would {(present ? "run" : "refuse")}");
+        }
+
+        await Expect(false, "no account key");
+        store.Values["LicenseKey"] = System.Text.Encoding.UTF8.GetBytes("   ");
+        await Expect(false, "whitespace-only account key");
+        store.Values["LicenseKey"] = System.Text.Encoding.UTF8.GetBytes("account-value");
+        await Expect(true, "stored account key");
+        store.Values.Remove("LicenseKey");
+        await Expect(false, "account key removed");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
 
 static async Task LocalApiPostProcessingTransientModes()
 {
@@ -1878,6 +2182,11 @@ sealed class WhisperTranscriberFixture : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-whisper-route-{Guid.NewGuid():N}");
     public WhisperTranscriberFixture(LocalWhisperBackend backend, bool allowFallback, string runtime)
+        : this(new LinuxWhisperRuntimePreference(backend, allowFallback), runtime)
+    {
+    }
+
+    public WhisperTranscriberFixture(LinuxWhisperRuntimePreference preference, string runtime)
     {
         Directory.CreateDirectory(_root);
         File.WriteAllBytes(Path.Combine(_root, "ggml-test.bin"), [1]);
@@ -1885,7 +2194,7 @@ sealed class WhisperTranscriberFixture : IDisposable
         File.WriteAllBytes(AudioPath, [1]);
         Service = new FakeLocalWhisperService(runtime);
         Transcriber = new LinuxLocalWhisperTranscriber(
-            _root, Service, new FixedWhisperPreferences(new(backend, allowFallback)));
+            _root, Service, new FixedWhisperPreferences(preference));
     }
     public string AudioPath { get; }
     public FakeLocalWhisperService Service { get; }
@@ -1941,6 +2250,9 @@ sealed class CapturingPostProcessor : ITranscriptionPostProcessor
     /// </summary>
     public string? ResolvedModel { get; set; }
 
+    /// <summary>When set, returned as-is instead of an applied result.</summary>
+    public PortablePostProcessingResult? Result { get; set; }
+
     public Task<PortablePostProcessingResult> ProcessAsync(
         string transcript,
         Mode mode,
@@ -1956,8 +2268,21 @@ sealed class CapturingPostProcessor : ITranscriptionPostProcessor
         Mode = mode;
         Context = applicationContext;
         return Task.FromResult(
-            PortablePostProcessingResult.Applied($"processed {transcript}", "test-provider", ResolvedModel));
+            Result ?? PortablePostProcessingResult.Applied($"processed {transcript}", "test-provider", ResolvedModel));
     }
+}
+
+/// <summary>Reports a packaged Whisper library for exactly the given backends.</summary>
+sealed class FixedRuntime(params NativeComputeBackend[] backends) : INativeRuntimeLocator
+{
+    public NativeRuntimeCapabilities Capabilities =>
+        new("linux-x64", "X64", true, false, true, backends.ToHashSet());
+    public PlatformResult<string> FindLibrary(string component, NativeComputeBackend backend) =>
+        backends.Contains(backend)
+            ? PlatformResult<string>.Success($"/opt/test/{backend}/lib{component}.so")
+            : PlatformResult<string>.Failure("native_runtime.library_not_found", "missing");
+    public PlatformResult<string> FindExecutable(string component) =>
+        PlatformResult<string>.Failure("native_runtime.executable_not_found", "missing");
 }
 
 sealed class FixedGpu(GpuInfo? gpu) : IGpuInfoProvider
@@ -1974,6 +2299,30 @@ sealed class FixedSettingsFile(string json) : IPrivateFileService
     public PlatformResult<string?> ReadAllText(string path) => PlatformResult<string?>.Success(json);
     public PlatformResult Delete(string path) => PlatformResult.Success();
     public PlatformResult<bool> IsRestrictedToCurrentUser(string path) => PlatformResult<bool>.Success(true);
+}
+
+sealed class MemoryCredentialStore : ICredentialStore
+{
+    public Dictionary<string, byte[]> Values { get; } = [];
+    public PlatformResult<byte[]?> Read(string resource, string account) =>
+        PlatformResult<byte[]?>.Success(resource == "HyperWhisper" && Values.TryGetValue(account, out var value)
+            ? value.ToArray()
+            : null);
+    public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value) => PlatformResult.Success();
+    public PlatformResult Delete(string resource, string account) => PlatformResult.Success();
+}
+
+sealed class FixedDeviceIdentity : IDeviceIdentityProvider
+{
+    public PlatformResult<DeviceIdentity> GetDeviceIdentity() =>
+        PlatformResult<DeviceIdentity>.Success(new("device-id", DeviceIdentitySource.PlatformMachineId));
+}
+
+sealed class NoLocalTranscriber : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(false, "None", "Not configured");
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default) =>
+        Task.FromResult(PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.BackendUnavailable, "Not configured"));
 }
 
 sealed class MissingPrivateFiles : IPrivateFileService

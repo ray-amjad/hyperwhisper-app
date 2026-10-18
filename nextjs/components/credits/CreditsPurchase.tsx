@@ -129,7 +129,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="mx-auto lg:max-w-2xl">
       <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -181,7 +181,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                 input: "text-white",
               }}
             />
-            <p className="text-xs text-gray-500 mt-2" id={emailHelpId}>
+            <p className="text-xs text-gray-400 mt-2" id={emailHelpId}>
               {t("emailHelp")}
             </p>
 
@@ -315,7 +315,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               {loading ? t("ctaLoading") : t("ctaIdle")}
             </Button>
 
-            <p className="text-xs text-gray-500 text-center mt-3">
+            <p className="text-xs text-gray-400 text-center mt-3">
               {t("secure")}
             </p>
           </CardBody>

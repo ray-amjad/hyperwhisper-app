@@ -75,9 +75,12 @@ enum TranscribeEndpoint {
         let language = effectiveLanguage(for: resolution, request: req)
 
         // Opt-in timestamps: parse granularities and arm the provider. Providers
-        // that can't produce timestamps ignore this (default no-op).
+        // that can't produce timestamps ignore this (default no-op). Local
+        // Whisper is armed inside its queued pass instead, so a request waiting
+        // in the queue cannot arm the pass ahead of it (issue #1465).
         let granularities = TimestampGranularities(wire: req.timestamp_granularities)
-        if !granularities.isEmpty {
+        let whisper = resolution.provider as? LibWhisperProvider
+        if !granularities.isEmpty, whisper == nil {
             resolution.provider.setTimestampGranularities(granularities)
         }
 
@@ -101,15 +104,34 @@ enum TranscribeEndpoint {
         // Closing it properly means returning per-call metadata from
         // `TranscriptionProvider.transcribe`, across all eighteen conformers;
         // that is a protocol change and is not made here.
+        //
+        // Local Whisper is the exception (issue #1465). Its passes supersede
+        // each other, so overlapping requests cancelled one another; they now
+        // queue on the one shared provider, and the queued pass returns its
+        // own text, timestamps and language.
         let detectedLanguage: String?
+        var whisperTimestamps: TranscriptionTimestamps?
         do {
-            text = try await resolution.provider.transcribe(
-                audioURL: fileURL,
-                language: language,
-                mode: resolution.mode,
-                vocabulary: resolution.vocabulary
-            )
-            detectedLanguage = resolution.provider.detectedLanguage
+            if let whisper {
+                let pass = try await whisper.transcribeQueuedForLocalAPI(
+                    model: resolution.whisperModel,
+                    audioURL: fileURL,
+                    language: language,
+                    vocabulary: resolution.vocabulary,
+                    granularities: granularities
+                )
+                text = pass.text
+                detectedLanguage = pass.detectedLanguage
+                whisperTimestamps = pass.timestamps
+            } else {
+                text = try await resolution.provider.transcribe(
+                    audioURL: fileURL,
+                    language: language,
+                    mode: resolution.mode,
+                    vocabulary: resolution.vocabulary
+                )
+                detectedLanguage = resolution.provider.detectedLanguage
+            }
             if let cloudProviderType {
                 if let credentialGeneration {
                     healthManager?.recordTranscriptionOutcome(
@@ -129,10 +151,25 @@ enum TranscribeEndpoint {
                     )
                 }
             }
+            if whisper != nil, let te = error as? TranscriptionError, case .streamingInterrupted = te {
+                let cancelled = Self.whisperPassCancelled
+                return LocalAPIResponder.failure(code: cancelled.code, message: cancelled.message, hint: cancelled.hint)
+            }
             let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(error)
             return LocalAPIResponder.failure(code: code, message: message, hint: hint)
         }
         let latencyMs = Int(Date().timeIntervalSince(started) * 1000)
+
+        // The local engine's own vocabulary correction (the Parakeet family's
+        // phonetic pass), once, exactly where `TranscriptionPipeline` runs it:
+        // after the engine's text and before the `\b` replacement pass below.
+        // It used to run inside the engine with an unanchored substring pass,
+        // so every replacement row was applied twice (issue #1622).
+        let correctedText = VocabularyProcessor.applyLocalEngineVocabularyCorrection(
+            to: text,
+            provider: resolution.provider,
+            vocabulary: resolution.vocabulary
+        )
 
         // The deterministic passes, in the order and on the terms
         // `TranscriptionPipeline`'s no-post-processing branch applies them.
@@ -140,7 +177,7 @@ enum TranscribeEndpoint {
         // rather than on a requested "auto" — "er" and "um" are real words in
         // other languages (issue #278).
         let finalText = Self.applyDeterministicTextPasses(
-            to: text,
+            to: correctedText,
             language: detectedLanguage ?? language,
             mode: resolution.mode,
             pipeline: pipeline
@@ -148,7 +185,9 @@ enum TranscribeEndpoint {
 
         // Read timestamps produced by the run (nil unless requested AND the
         // engine could produce them → graceful omission for cloud/other engines).
-        let timestamps = granularities.isEmpty ? nil : resolution.provider.lastTimestamps
+        let timestamps = granularities.isEmpty
+            ? nil
+            : (whisper != nil ? whisperTimestamps : resolution.provider.lastTimestamps)
         let segments = timestamps.map { ts in
             ts.segments.map { TranscribeSegment(id: $0.id, start: $0.start, end: $0.end, text: $0.text) }
         }
@@ -170,6 +209,20 @@ enum TranscribeEndpoint {
         )
         return LocalAPIResponder.ok(response)
     }
+
+    /// The answer for a local Whisper pass that something newer cancelled —
+    /// after the queue, that is an in-app dictation (#1425: it wins) or a
+    /// cancel of the app's own transcription.
+    ///
+    /// The provider throws `streamingInterrupted` for it, whose text ("Streaming
+    /// interrupted; partial text shown") describes dictation, not an API call:
+    /// there is no stream and no partial text. Same closed-enum code the
+    /// generic row gave it, honest message (Ray, 2026-10-08, issue #1465).
+    static let whisperPassCancelled = APIInputError(
+        code: .transcriptionFailed,
+        message: "Cancelled by a newer transcription request.",
+        hint: "An in-app dictation on Local Whisper takes priority over Local API calls. Send the request again."
+    )
 
     // MARK: - Deterministic text passes
 
@@ -275,6 +328,88 @@ enum TranscribeEndpoint {
         let code: LocalAPIErrorCode
         let message: String
         let hint: String?
+
+        /// `engine: whisper` (any alias of `whisperLocal`) with no or a blank
+        /// `model` (issue #1493, Ray's decision via inbox #295). A request
+        /// mistake, so INVALID_REQUEST with a hint to send `model` — not the
+        /// ENGINE_UNAVAILABLE "Try again later" it used to be, which a client
+        /// that branches on `code` retries forever. No default model is picked.
+        /// The message is the portable head's own wording
+        /// (`ApplicationLocalApiBackend.Transcription.cs`), and Windows sends
+        /// the same bytes (`TranscribeEndpoints.ApplyEngineModel`).
+        ///
+        /// Thrown by both `/transcribe` forms: the engine-only path
+        /// (`TranscriptionProviderRouter.resolveProvider`) and the mixed
+        /// mode_id + engine path (`validateMixedPathEngineModel`, #1466).
+        /// Not routed through the shared failure table: its INVALID_REQUEST
+        /// row renders "Invalid request: <detail>" and carries no hint.
+        static let whisperModelRequired = APIInputError(
+            code: .invalidRequest,
+            message: "A Whisper model is required.",
+            hint: "Send model, for example base.en."
+        )
+
+        /// MODEL_NOT_INSTALLED for a Nemotron variant that is not on disk,
+        /// naming the model that was tried and, when the other variant IS
+        /// installed, suggesting it (issue #1493). The routing is unchanged: an
+        /// omitted `model` still tries `nemotron-asr-3.5-multilingual`
+        /// (`NemotronModelManager.Constants.modelIdForSelection`); only the
+        /// error says which model that was. The shared row's message ignores
+        /// the `model` slot, so the head renders it here.
+        ///
+        /// `isInstalled` is `NemotronModelManager.isVariantInstalled` in the
+        /// app and a stub in the tests, which cannot control the disk.
+        static func nemotronModelNotInstalled(
+            _ triedModelId: String,
+            isInstalled: (String) -> Bool
+        ) -> APIInputError {
+            let installedAlternative = [
+                NemotronModelManager.Constants.multilingualModelId,
+                NemotronModelManager.Constants.latinModelId,
+            ].first { $0 != triedModelId && isInstalled($0) }
+            let hint: String
+            if let installedAlternative {
+                hint = "Send model: \(installedAlternative), or install it."
+            } else {
+                hint = "Install it from the app's Library, or pick a different engine/model."
+            }
+            return APIInputError(
+                code: .modelNotInstalled,
+                message: "\(triedModelId) is not installed.",
+                hint: hint
+            )
+        }
+
+        /// A `mode_id` that names no saved Mode, on `/transcribe` and
+        /// `/post-process` (issue #1919). MODE_NOT_FOUND with the exact bytes
+        /// `GET /modes/<id>` sends (`ModesEndpoint`), and what Windows sends for
+        /// the same body. It used to be ENGINE_UNAVAILABLE "Try again later",
+        /// which a client that branches on `code` retried forever.
+        static func modeNotFound(_ modeId: String) -> APIInputError {
+            APIInputError(code: .modeNotFound, message: "No mode with id '\(modeId)'", hint: nil)
+        }
+
+        /// `engine: parakeet` with a `model` that is not a Parakeet variant
+        /// (issue #1919). MODEL_NOT_FOUND, not ENGINE_UNAVAILABLE: the request
+        /// fails the same way every time. The message keeps the router's old
+        /// reason; the hint names the ids that would work.
+        static func unknownParakeetModel(_ modelId: String) -> APIInputError {
+            APIInputError(
+                code: .modelNotFound,
+                message: "Unknown Parakeet model '\(modelId)'",
+                hint: "Send model: \(ParakeetModelManager.Constants.v3ModelId) or \(ParakeetModelManager.Constants.v2ModelId)."
+            )
+        }
+
+        /// `engine: nemotron` with a `model` that is not a Nemotron variant
+        /// (issue #1919). Same shape as `unknownParakeetModel`.
+        static func unknownNemotronModel(_ modelId: String) -> APIInputError {
+            APIInputError(
+                code: .modelNotFound,
+                message: "Unknown Nemotron model '\(modelId)'",
+                hint: "Send model: \(NemotronModelManager.Constants.multilingualModelId) or \(NemotronModelManager.Constants.latinModelId)."
+            )
+        }
     }
 
     /// The "audio is too big" input error, with its wording read off Rust.
@@ -323,6 +458,86 @@ enum TranscribeEndpoint {
         return Self.uploadTooLargeError()
     }
 
+    /// The answer to a `file` the probe found unreadable, or `nil` when it is
+    /// readable (issue #1551; codes per Ray, inbox #358).
+    ///
+    /// Only `.privacyBlocked` (EPERM) carries the Full Disk Access hint: that
+    /// is the one denial Full Disk Access can lift. A POSIX EACCES is the
+    /// file's or a folder's mode, and the hint sent users to the wrong fix.
+    ///
+    /// A function rather than inline `throw`s so a test can call it for each
+    /// case, the same split `uploadCapRefusal(forAudioBytes:)` makes.
+    static func fileInputRefusal(for access: SourceFileAccess, displayPath: String) -> APIInputError? {
+        switch access {
+        case .readable:
+            return nil
+        case .missing:
+            return APIInputError(
+                code: .fileNotFound,
+                message: "Audio file not found: \(displayPath)",
+                hint: "Pass an absolute path the running app can read."
+            )
+        case .isFolder:
+            // INVALID_REQUEST, not a new code: the error enum is a closed wire
+            // contract, and the request is what is wrong, not the disk.
+            return APIInputError(
+                code: .invalidRequest,
+                message: "\(displayPath) is a folder, not an audio file",
+                hint: "Pass the path of an audio file."
+            )
+        case .folderInPathDenied:
+            return APIInputError(
+                code: .fileAccessDenied,
+                message: "Permission denied on a folder in the path: \(displayPath)",
+                hint: "Check the permissions of the folders that hold the file."
+            )
+        case .fileDenied:
+            return APIInputError(
+                code: .fileAccessDenied,
+                message: "Permission denied: cannot read \(displayPath)",
+                hint: "Check the file's permissions."
+            )
+        case .privacyBlocked:
+            return Self.privacyBlockedError(displayPath: displayPath)
+        case .unreadable:
+            return APIInputError(
+                code: .fileAccessDenied,
+                message: "Cannot read \(displayPath)",
+                hint: nil
+            )
+        }
+    }
+
+    private static func privacyBlockedError(displayPath: String) -> APIInputError {
+        APIInputError(
+            code: .fileAccessDenied,
+            message: "Cannot read \(displayPath)",
+            hint: "macOS may require granting Full Disk Access to HyperWhisper."
+        )
+    }
+
+    /// The answer when a read fails after the probe passed (the file changed
+    /// in between, or staging failed). The Full Disk Access hint only for EPERM.
+    private static func cannotReadError(after error: Error, displayPath: String) -> APIInputError {
+        let code: Int32?
+        if let posix = error as? POSIXError {
+            code = posix.code.rawValue
+        } else if let underlying = (error as NSError).userInfo[NSUnderlyingErrorKey] as? NSError,
+                  underlying.domain == NSPOSIXErrorDomain {
+            code = Int32(underlying.code)
+        } else {
+            code = nil
+        }
+        if code == EPERM {
+            return Self.privacyBlockedError(displayPath: displayPath)
+        }
+        return APIInputError(
+            code: .fileAccessDenied,
+            message: "Cannot read \(displayPath)",
+            hint: nil
+        )
+    }
+
     /// Resolve `file` or `audio_base64` into a concrete file URL on disk.
     /// When base64 is used, writes a temp file and returns a cleanup closure
     /// that deletes it after the transcription run.
@@ -365,30 +580,21 @@ enum TranscribeEndpoint {
                     hint: "Use a file inside the recordings folder, or send the audio via 'audio_base64' instead of 'file'."
                 )
             }
-            var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: allowListedPath.resolvedURL.path, isDirectory: &isDir), !isDir.boolValue else {
-                throw APIInputError(
-                    code: .fileNotFound,
-                    message: "Audio file not found: \(filePath)",
-                    hint: "Pass an absolute path the running app can read."
-                )
-            }
-            guard FileManager.default.isReadableFile(atPath: allowListedPath.resolvedURL.path) else {
-                throw APIInputError(
-                    code: .fileAccessDenied,
-                    message: "Cannot read \(filePath)",
-                    hint: "macOS may require granting Full Disk Access to HyperWhisper."
-                )
+            // One probe names the cause (issue #1551): missing, a folder, a
+            // folder in the path that cannot be entered, the file's own
+            // permissions, or a privacy block. One `fileExists` guard used to
+            // answer FILE_NOT_FOUND for the first three.
+            if let refusal = Self.fileInputRefusal(
+                for: SourceFileAccess.probe(path: allowListedPath.resolvedURL.path),
+                displayPath: filePath
+            ) {
+                throw refusal
             }
             let fileIdentity: FileIdentity
             do {
                 fileIdentity = try Self.fileIdentity(for: allowListedPath.resolvedURL)
             } catch {
-                throw APIInputError(
-                    code: .fileAccessDenied,
-                    message: "Cannot read \(filePath)",
-                    hint: "macOS may require granting Full Disk Access to HyperWhisper."
-                )
+                throw Self.cannotReadError(after: error, displayPath: filePath)
             }
             // TOCTOU hardening (issue #713): the allow-list check above runs now,
             // but providers re-open the file by PATH much later (cloud providers do
@@ -441,11 +647,7 @@ enum TranscribeEndpoint {
                 // permissions on a file they can read perfectly well.
                 throw inputError
             } catch {
-                throw APIInputError(
-                    code: .fileAccessDenied,
-                    message: "Cannot read \(filePath)",
-                    hint: "macOS may require granting Full Disk Access to HyperWhisper."
-                )
+                throw Self.cannotReadError(after: error, displayPath: filePath)
             }
             return AudioResolution(url: stagedFile.fileURL, cleanup: {
                 try? FileManager.default.removeItem(at: stagedFile.directoryURL)
@@ -574,9 +776,12 @@ enum TranscribeEndpoint {
         }
     }
 
+    /// The folder name carries this process's pid so a later launch can tell a
+    /// folder a dead request left (issue #1484) from one another running copy
+    /// of the app is still using. `LocalAPIStagingSweep` owns the format.
     private static func makePrivateStagedAudioFile(fileExtension ext: String) throws -> StagedAudioFile {
         let directoryURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("hyperwhisper-local-api-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent(LocalAPIStagingSweep.directoryName(), isDirectory: true)
         try FileManager.default.createDirectory(
             at: directoryURL,
             withIntermediateDirectories: false,
@@ -842,6 +1047,10 @@ enum TranscribeEndpoint {
         /// engines. Used to report the transcription outcome back to
         /// `CloudProviderHealthManager` (issue #379).
         let cloudProviderType: CloudProvider?
+        /// The local Whisper model this request asked for, nil for every other
+        /// engine. Loaded by the queued pass itself; resolution never stages it
+        /// on the shared provider (issue #1465).
+        let whisperModel: WhisperModel?
     }
 
     @MainActor
@@ -867,13 +1076,11 @@ enum TranscribeEndpoint {
             || (trimmedLanguage?.isEmpty == false)
 
         if let modeId = req.mode_id?.trimmingCharacters(in: .whitespacesAndNewlines), !modeId.isEmpty {
-            guard let stored = PersistenceController.shared.fetchMode(withId: modeId) else {
-                throw TranscriptionError.providerNotAvailable(provider: "mode", reason: "No mode with id '\(modeId)'")
-            }
+            let stored = try storedMode(forId: modeId, fetch: PersistenceController.shared.fetchMode(withId:))
 
             // Pure mode_id call → use saved Mode untouched.
             if !hasOverride {
-                let selection = try await router.selectProvider(for: stored, vocabulary: vocabulary)
+                let selection = try await router.selectProvider(for: stored, vocabulary: vocabulary, stageWhisperModel: false)
                 return ProviderResolution(
                     provider: selection.provider,
                     mode: stored,
@@ -881,7 +1088,8 @@ enum TranscribeEndpoint {
                     engineLabel: engineLabel(forMode: stored),
                     modelLabel: modelLabel(forMode: stored),
                     transientMode: nil,
-                    cloudProviderType: selection.cloudProviderType
+                    cloudProviderType: selection.cloudProviderType,
+                    whisperModel: selection.whisperModel
                 )
             }
 
@@ -897,11 +1105,18 @@ enum TranscribeEndpoint {
             let transient = makeTransientMode(baseline: stored, engine: trimmedEngine, model: trimmedModel, language: trimmedLanguage)
             let selection: TranscriptionProviderRouter.ProviderSelection
             do {
-                selection = try await router.selectProvider(for: transient.mode, vocabulary: vocabulary)
+                selection = try await router.selectProvider(for: transient.mode, vocabulary: vocabulary, stageWhisperModel: false)
             } catch {
+                // Read before `end()`: the Mode belongs to the transient.
+                let triedModel = transient.mode.model
                 // `handle` never gets a resolution to end, so end it here.
                 transient.end()
-                throw error
+                throw mixedPathSelectionError(
+                    error,
+                    engine: trimmedEngine,
+                    modeModel: triedModel,
+                    isInstalled: NemotronModelManager.isVariantInstalled
+                )
             }
             return ProviderResolution(
                 provider: selection.provider,
@@ -910,7 +1125,8 @@ enum TranscribeEndpoint {
                 engineLabel: engineLabel(forMode: transient.mode),
                 modelLabel: modelLabel(forMode: transient.mode),
                 transientMode: transient,
-                cloudProviderType: selection.cloudProviderType
+                cloudProviderType: selection.cloudProviderType,
+                whisperModel: selection.whisperModel
             )
         }
 
@@ -940,8 +1156,48 @@ enum TranscribeEndpoint {
             engineLabel: engineLabel(forMode: transient.mode),
             modelLabel: modelLabel(forMode: transient.mode),
             transientMode: transient,
-            cloudProviderType: selection.cloudProviderType
+            cloudProviderType: selection.cloudProviderType,
+            whisperModel: selection.whisperModel
         )
+    }
+
+    /// The saved Mode `modeId` names, or MODE_NOT_FOUND "No mode with id
+    /// '<id>'" (issue #1919) — the answer `GET /modes/<id>` gives. Used by
+    /// `/transcribe` and `/post-process`, which used to throw
+    /// `providerNotAvailable(provider: "mode", …)`, mapped to ENGINE_UNAVAILABLE
+    /// "Try again later". `fetch` is `PersistenceController.shared
+    /// .fetchMode(withId:)` in the app and an in-memory store in the tests.
+    @MainActor
+    static func storedMode(forId modeId: String, fetch: (String) -> Mode?) throws -> Mode {
+        guard let stored = fetch(modeId) else {
+            throw APIInputError.modeNotFound(modeId)
+        }
+        return stored
+    }
+
+    /// The error the mixed mode_id + engine form throws when
+    /// `selectProvider(for: transient)` fails (issue #1919). With `engine`
+    /// naming Nemotron, a `.modelNotDownloaded` becomes the same named
+    /// MODEL_NOT_INSTALLED the engine-only form gives since #1493
+    /// (`APIInputError.nemotronModelNotInstalled`), naming the variant the
+    /// transient Mode tried. Every other error, and every other engine, passes
+    /// through unchanged.
+    @MainActor
+    static func mixedPathSelectionError(
+        _ error: Error,
+        engine: String?,
+        modeModel: String?,
+        isInstalled: (String) -> Bool
+    ) -> Error {
+        guard let transcriptionError = error as? TranscriptionError,
+              case .modelNotDownloaded = transcriptionError,
+              let engine,
+              case .nemotron? = localApiResolveEngineAlias(alias: engine),
+              let triedModelId = NemotronModelManager.Constants.canonicalModelId(for: modeModel ?? "")
+        else {
+            return error
+        }
+        return APIInputError.nemotronModelNotInstalled(triedModelId, isInstalled: isInstalled)
     }
 
     /// Build the per-request Mode. Seeded either from scratch
@@ -1251,10 +1507,11 @@ enum TranscribeEndpoint {
     /// string itself (issue #1466).
     ///
     /// - A blank model (`""`, whitespace) throws `resolveProvider`'s own
-    ///   "Missing 'model' for whisperLocal engine", which the endpoint maps to
-    ///   ENGINE_UNAVAILABLE. Ray's decision 2026-10-08: refuse it, like Windows
-    ///   (`ApplyEngineModel`) and Linux (`ApplyTranscriptionOverrides`) do on
-    ///   both paths, rather than default it to "base".
+    ///   `APIInputError.whisperModelRequired` (INVALID_REQUEST, "A Whisper
+    ///   model is required.", issue #1493). Ray's decision 2026-10-08: refuse
+    ///   it, like Windows (`ApplyEngineModel`) and Linux
+    ///   (`ApplyTranscriptionOverrides`) do on both paths, rather than default
+    ///   it to "base".
     /// - `"cloud"` (any case, padded) throws "Unknown local model: <model>".
     ///   The engine-only path already refuses it that way: `resolveProvider`
     ///   passes it to `selectLocalProvider`, which matches no local model and
@@ -1270,7 +1527,8 @@ enum TranscribeEndpoint {
     ///
     /// PARAKEET mirrors `resolveProvider`'s parakeet arm (#1466 review round
     /// 2): a non-blank model that does not canonicalise to a Parakeet id throws
-    /// "Unknown Parakeet model '<id>'". Without this the mixed path ran
+    /// `APIInputError.unknownParakeetModel` (MODEL_NOT_FOUND "Unknown Parakeet
+    /// model '<id>'", issue #1919). Without this the mixed path ran
     /// `{engine: "parakeet", model: "cloud"}` on v3 with `ok: true` (the
     /// backstop below dropped "cloud" to nil), and `model: "base"` swapped to
     /// local Whisper, where the engine-only path refuses both. A nil or blank
@@ -1296,7 +1554,7 @@ enum TranscribeEndpoint {
             guard let model else { return }
             let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmedModel.isEmpty {
-                throw TranscriptionError.providerNotAvailable(provider: "Whisper", reason: "Missing 'model' for whisperLocal engine")
+                throw APIInputError.whisperModelRequired
             }
             if trimmedModel.lowercased() == "cloud" {
                 throw TranscriptionError.providerNotAvailable(provider: "Local", reason: "Unknown local model: \(trimmedModel)")
@@ -1305,10 +1563,7 @@ enum TranscribeEndpoint {
             // The same two calls, in the same order, as `resolveProvider`.
             let requestedModelId = ParakeetModelManager.Constants.modelIdForSelection(model)
             if ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) == nil {
-                throw TranscriptionError.providerNotAvailable(
-                    provider: "Parakeet",
-                    reason: "Unknown Parakeet model '\(requestedModelId)'"
-                )
+                throw APIInputError.unknownParakeetModel(requestedModelId)
             }
         default:
             return

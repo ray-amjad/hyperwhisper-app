@@ -63,7 +63,7 @@ enum CloudAudioFormatRecovery {
     /// True for both ways Muse can be selected. The direct target must never be
     /// inferred from a stale cloud tier on another BYOK provider.
     static func isMuseTransportTarget(cloudProvider: String?, accuracyTier: String?) -> Bool {
-        let provider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        let provider = CloudProvider.forMode(cloudProvider)
         if provider == .meta { return true }
         return provider == .hyperwhisper
             && CloudAccuracyTier.fromStorageValue(accuracyTier) == .metaMuse
@@ -263,11 +263,10 @@ enum CloudAudioFormatRecovery {
         _ = try await AudioFileConverter().convertAudioToWAV(from: source, to: destination)
     }
 
-    /// Temp destination for the re-encode. Follows the `hw-…-<uuid>` convention
-    /// used by `RustHTTPExecutor` for its multipart envelope.
+    /// Temp destination for the re-encode: `hw-reencode-<pid>-<uuid>.wav`,
+    /// which a launch after a crash sweeps (issue #1581).
     static func makeTemporaryWAVURL() -> URL {
-        FileManager.default.temporaryDirectory
-            .appendingPathComponent("hw-reencode-\(UUID().uuidString).wav")
+        CloudTempAudioSweep.temporaryURL(.reencodedWAV)
     }
 
     /// Size in bytes, or `nil` when the file is missing/unreadable.

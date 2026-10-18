@@ -823,6 +823,9 @@ Ova radnja se ne može poništiti.</value>
   <data name="status.fileTranscriptionCancelled" xml:space="preserve">
     <value>Transkripcija datoteke otkazana</value>
   </data>
+  <data name="status.fileTranscribing" xml:space="preserve">
+    <value>Transkribiranje datoteke...</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -846,11 +849,11 @@ Ova radnja se ne može poništiti.</value>
   <data name="errors.transcriptionFailed" xml:space="preserve">
     <value>Transcription failed: {0}</value>
   </data>
-  <data name="errors.noModeForRetry" xml:space="preserve">
-    <value>No mode available for retry.</value>
-  </data>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
+  </data>
+  <data name="errors.retryModeDeleted" xml:space="preserve">
+    <value>Način rada koji je napravio ovu snimku je izbrisan, pa ponovni pokušaj nije pokrenut. U Povijesti desnom tipkom miša kliknite snimku i odaberite „Pokušaj ponovno s...” da biste odabrali drugi način rada.</value>
   </data>
   <data name="errors.recordingDurationLimit" xml:space="preserve">
     <value>Snimanje zaustavljeno — dostignut je sigurnosni limit od 20 minuta.</value>
@@ -1159,6 +1162,12 @@ You can re-download it later.</value>
 
 {1}</value>
   </data>
+  <data name="settings.models.alert.cannotDelete.title" xml:space="preserve">
+    <value>Model se koristi</value>
+  </data>
+  <data name="settings.models.alert.cannotDelete.message" xml:space="preserve">
+    <value>{0} koristi način „{1}”. Prije brisanja prebacite taj način na drugi model.</value>
+  </data>
   <!-- Settings - License -->
   <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
     <value>Deactivate License</value>
@@ -1292,6 +1301,9 @@ You can re-download it later.</value>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
   </data>
+  <data name="license.error.keyFormat" xml:space="preserve">
+    <value>To ne izgleda kao ključ računa.</value>
+  </data>
 
   <!-- Models - ARM64 and GPU -->
 
@@ -1312,8 +1324,17 @@ You can re-download it later.</value>
   <data name="errors.fileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
+  <data name="errors.fileTranscriptionBusy" xml:space="preserve">
+    <value>Snimanje ili transkripcija datoteke već je u tijeku. Pokušajte ponovno s datotekom kada završi.</value>
+  </data>
   <data name="errors.fileTooLarge" xml:space="preserve">
     <value>File is too large for this provider. Maximum size: {0}</value>
+  </data>
+  <data name="errors.fileEmpty" xml:space="preserve">
+    <value>Ova je datoteka prazna, pa nema zvuka za transkripciju.</value>
+  </data>
+  <data name="errors.fileUnreadable" xml:space="preserve">
+    <value>Ova je datoteka oštećena ili nije zvučna datoteka koju HyperWhisper može pročitati.</value>
   </data>
 
 
@@ -1696,6 +1717,9 @@ You can re-download it later.</value>
   <data name="menu.mode.unnamed" xml:space="preserve">
     <value>Unnamed</value>
   </data>
+  <data name="menu.mode.more" xml:space="preserve">
+    <value>Više...</value>
+  </data>
   <data name="menu.transcribe.file" xml:space="preserve">
     <value>Transcribe File</value>
   </data>
@@ -1989,6 +2013,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
     <value>Mute audio</value>
+  </data>
+  <data name="settings.sound.mediaControl.muffleAudio" xml:space="preserve">
+    <value>Priguši zvuk</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
     <value>Keep microphone warm</value>

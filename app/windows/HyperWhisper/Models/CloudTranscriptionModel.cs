@@ -428,19 +428,19 @@ public static class CloudTranscriptionModels
 
     // =========================================================================
     // GROK MODELS
-    // xAI Grok speech-to-text. Two models, sent as the `model` field — the
-    // endpoint took no such parameter before 2026-09-19, which is why this
-    // entry carried an empty id until then.
+    // xAI Grok speech-to-text, sent as the `model` field — the endpoint took no
+    // such parameter before 2026-09-19, which is why this entry carried an
+    // empty id until then.
     // =========================================================================
 
     /// <summary>
     /// xAI Grok transcription.
     /// </summary>
     /// <remarks>
-    /// <c>grok-voice-transcribe-1.0</c> is listed because it is the model the
-    /// empty id always ran — it was the only model xAI served. Keeping it means
-    /// a user chooses 2 rather than being moved onto it by a release of ours.
-    /// SpaceXAI price the two the same and have announced 1.0's deprecation.
+    /// xAI ended <c>grok-voice-transcribe-1.0</c> on 2026-10-02 and routes it to
+    /// 2.0 at the same price, so its row is gone (#1908). A stored 1.0 id
+    /// resolves to 2.0 through <c>ResolveModelAlias</c> (hw-catalog
+    /// <c>GROK_ALIASES</c>).
     /// </remarks>
     public static readonly CloudTranscriptionModel[] Grok = new[]
     {
@@ -451,14 +451,6 @@ public static class CloudTranscriptionModels
             Provider = CloudTranscriptionProvider.Grok,
             PricePerMinute = 0.0016667m,
             IsPopular = true
-        },
-        new CloudTranscriptionModel
-        {
-            Id = "grok-voice-transcribe-1.0",
-            Description = "SpaceXAI's previous speech-to-text model, at the same price. Announced for deprecation — prefer Grok Voice Transcribe 2.",
-            Provider = CloudTranscriptionProvider.Grok,
-            PricePerMinute = 0.0016667m,
-            IsPopular = false
         }
     };
 

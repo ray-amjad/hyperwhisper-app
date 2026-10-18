@@ -357,7 +357,7 @@ struct OnboardingPermissionTests {
         h.flow.requestMicrophonePermission()
         await h.flow.lastAsyncTaskForTesting?.value
         #expect(!h.flow.hasMicrophonePermission)
-        #expect(h.flow.permissionErrorMessage != nil)
+        #expect(h.flow.microphoneAuthorization == .denied)
         #expect(!h.flow.canContinue)
 
         // User grants it in System Settings; the flow re-reads on reactivation.
@@ -365,6 +365,23 @@ struct OnboardingPermissionTests {
         h.flow.refreshPermissions()
         #expect(h.flow.hasMicrophonePermission)
         #expect(h.flow.canContinue)
+    }
+
+    /// #1508: onboarding reaches the real prompt through
+    /// `MicrophonePermissionManager.requestMicrophonePermission()`. If that sets
+    /// the shared `showPermissionDeniedAlert` flag, a deny in onboarding leaves
+    /// MainAppView's "Microphone Access Required" alert pending, and it fires the
+    /// moment Set Up Later closes the sheet. The recording paths raise the alert
+    /// themselves, so the manager never may.
+    @Test func thePermissionManagerNeverRaisesTheSharedDeniedAlert() throws {
+        let manager = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()  // hyperwhisperTests
+            .deletingLastPathComponent()  // app/macos
+            .appendingPathComponent("hyperwhisper/Managers/AudioRecording/Permissions")
+            .appendingPathComponent("MicrophonePermissionManager.swift")
+        let source = try String(contentsOf: manager, encoding: .utf8)
+        #expect(source.contains("func requestMicrophonePermission()"))
+        #expect(!source.contains("showPermissionDeniedAlert = true"))
     }
 
     @Test func aDeniedMicrophoneDeepLinksSettingsInsteadOfRePrompting() {
@@ -469,6 +486,40 @@ struct OnboardingSourceBranchTests {
         await h.flow.lastAsyncTaskForTesting?.value
         #expect(h.flow.setupErrorMessage == "license expired")
         #expect(!h.flow.isSelectedSourceUsable)
+    }
+
+    /// #1489: text that cannot be a key keeps Test and Activate off, shows the
+    /// hint, and is never sent; a plausible key with a trailing newline is sent trimmed.
+    @Test func textThatCannotBeAKeyIsNeverSentAndAPlausibleKeyIsSentTrimmed() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.flow.select(source: .hyperwhisperCloud)
+
+        for text in ["not a key", String(repeating: "A", count: 65), "مفتاح", "HW-🔑"] {
+            h.flow.licenseKeyInput = text
+            #expect(!h.flow.isLicenseKeyPlausible)
+            #expect(h.flow.showsLicenseKeyFormatHint)
+            h.flow.testAccessKey()
+            await h.flow.lastAsyncTaskForTesting?.value
+            h.flow.activateCloudLicense()
+            await h.flow.lastAsyncTaskForTesting?.value
+        }
+        #expect(h.license.probedKeys.isEmpty)
+        #expect(h.license.activatedKeys.isEmpty)
+
+        h.flow.licenseKeyInput = "   "
+        #expect(!h.flow.isLicenseKeyPlausible)
+        #expect(!h.flow.showsLicenseKeyFormatHint)
+
+        h.flow.licenseKeyInput = "  HW-ABCD-EFGH-JKLM-NPQR\n"
+        #expect(h.flow.isLicenseKeyPlausible)
+        #expect(!h.flow.showsLicenseKeyFormatHint)
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        #expect(h.license.probedKeys == ["HW-ABCD-EFGH-JKLM-NPQR"])
+        h.flow.activateCloudLicense()
+        await h.flow.lastAsyncTaskForTesting?.value
+        #expect(h.license.activatedKeys == ["HW-ABCD-EFGH-JKLM-NPQR"])
     }
 
     @Test func providerBranchStagesTheChosenProvider() async {
@@ -2010,8 +2061,8 @@ private func entryGuardsDeclaredInTheModel() throws -> Int {
 ///
 /// The honest limit of "whole mutating surface": these two halves cover every
 /// mutating METHOD. They do not cover the publicly settable `@Published`
-/// properties with `didSet` side effects — `licenseKeyInput`, `apiKeyInput`,
-/// `permissionErrorMessage` — which are bound straight to text fields and are
+/// properties with `didSet` side effects — `licenseKeyInput`, `apiKeyInput` —
+/// which are bound straight to text fields and are
 /// deliberately left unguarded because their writes never leave this model.
 @MainActor
 struct OnboardingPostFinishInvariantTests {

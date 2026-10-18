@@ -124,6 +124,13 @@ public partial class MainWindow : Window
         _diagnosticLogger = new PrivacySafeRotatingLogger(diagnosticDirectory);
         _lifecycleDiagnostics = new LinuxLifecycleDiagnostics(
             _diagnosticLogger, () => _settings.Get("general.enableErrorLogging", true));
+        // Muffle Audio could not start (no parec/pacat, the null sink was refused), so that recording ducked instead.
+        if (_platformServices.AudioEnvironment is LinuxAudioEnvironmentService audioEnvironment)
+        {
+            audioEnvironment.MuffleFellBack += (_, _) => _ = _lifecycleDiagnostics.ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Degraded);
+            // The diagnostics log carries enums only, so the muffle's info lines (counts and codes) go to stderr, like the head's other notices.
+            audioEnvironment.MuffleDiagnostic += (_, message) => { try { Console.Error.WriteLine($"HyperWhisper muffle: {message}"); } catch { } };
+        }
         _postProcessor = new LinuxLocalPostProcessor(
             _platformServices.Paths.ModelsDirectory, _settings, _database);
         _postProcessingRouter = new LinuxPostProcessingRouter(
@@ -210,6 +217,7 @@ public partial class MainWindow : Window
             L);
         InitializeComponent();
         ComboWheelGuard.Attach(this);
+        AttachVocabularyKeyHandlers();
         DataContext = _viewModel;
         // The library count under the title moves with the filters, so it follows the view.
         if (_viewModel.Models is { } models)
@@ -221,7 +229,12 @@ public partial class MainWindow : Window
         Closing += OnClosing;
         Closed += OnClosed;
         PropertyChanged += OnWindowPropertyChanged;
+        // The Model Library's Whisper line names a missing hyperwhisper-cuda package and the
+        // backend used instead; it re-reads the picker each time the picker changes (#1002).
+        _viewModel.Settings.LocalWhisperBackendNotice = new LinuxWhisperRuntimePreferenceSource(
+            _platformServices.PrivateFiles, _platformServices.Paths, new LinuxGpuInfoProvider()).DescribeChoice;
         _viewModel.Settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
+        _viewModel.Settings.PropertyChanged += OnLocalApiEnabledChanged;
         _viewModel.Settings.DesktopSettingsChanged += OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged += OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged += OnStorageSettingsChanged;
@@ -231,6 +244,8 @@ public partial class MainWindow : Window
         _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ActionRequested += OnTrayActionRequested;
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
+        _viewModel.Modes.PropertyChanged += OnModesChangedForParakeetPrewarm;
+        _viewModel.Modes.Items.CollectionChanged += OnModeItemsChangedForParakeetPrewarm;
         if (_viewModel.Recording is not null)
         {
             _viewModel.Recording.TranscriptionSaved += OnOnboardingTranscriptionSaved;
@@ -254,11 +269,15 @@ public partial class MainWindow : Window
             }
             var initializesHere = _initialization is null;
             await EnsureInitializedAsync();
+            PrewarmSelectedParakeetMode();
             var recovery = await new CrashAudioRecoveryService(
                 _platformServices.Paths,
                 new HistoryRepository(_database, _platformServices.Paths),
                 () => _platformServices.AudioRecorder.IsRecording ? "active" : null)
                 .RecoverAsync(_lifetime.Token);
+            // A crash while muffling leaves its null sink loaded: put those streams back on a real sink and remove it.
+            if (_platformServices.AudioEnvironment is LinuxAudioEnvironmentService muffledAudio)
+                await muffledAudio.RecoverStaleMuffleAsync(_lifetime.Token);
             // A successful InitializeAsync has just loaded History, so a second load at startup only
             // repeats it (#997). Load again when recovery added rows, when startup failed anywhere
             // (the shell status then holds the failure), or on a later Opened that did not run
@@ -363,6 +382,7 @@ public partial class MainWindow : Window
         _lifetime.Cancel();
         if (_viewModel.Recording is { } recording) recording.DevicesChanged -= OnRecordingDevicesChanged;
         _viewModel.Settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
+        _viewModel.Settings.PropertyChanged -= OnLocalApiEnabledChanged;
         _viewModel.Settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged -= OnStorageSettingsChanged;
@@ -371,6 +391,8 @@ public partial class MainWindow : Window
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
+        _viewModel.Modes.PropertyChanged -= OnModesChangedForParakeetPrewarm;
+        _viewModel.Modes.Items.CollectionChanged -= OnModeItemsChangedForParakeetPrewarm;
         if (_viewModel.Recording is not null)
         {
             _viewModel.Recording.TranscriptionSaved -= OnOnboardingTranscriptionSaved;
@@ -406,6 +428,61 @@ public partial class MainWindow : Window
     }
 
     private Task EnsureInitializedAsync() => _initialization ??= InitializeAndArmAutoSaveAsync();
+
+    // The model + language the batch Parakeet daemon was last asked to load (#1791).
+    private string? _parakeetPrewarmKey;
+
+    private void OnModesChangedForParakeetPrewarm(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ModesViewModel.Selected)) PrewarmSelectedParakeetMode();
+    }
+
+    // A saved edit to the selected mode keeps the same Mode instance, so Selected does not
+    // change; Save replaces the row in Items, which is the signal for a new model or language.
+    private void OnModeItemsChangedForParakeetPrewarm(
+        object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
+        PrewarmSelectedParakeetMode();
+
+    /// <summary>
+    /// Loads the batch Parakeet daemon for the mode the next dictation will use, so the first
+    /// dictation after launch does not wait for the model load (#1791), as Windows loads
+    /// Parakeet on mode select. Fire and forget: a failure is logged, never shown, and the
+    /// dictation then starts the daemon itself as before. Whisper and cloud modes load nothing.
+    /// </summary>
+    private void PrewarmSelectedParakeetMode()
+    {
+        if (_closing || _shuttingDown || _initialization is not { IsCompletedSuccessfully: true }) return;
+        // The same pick LinuxInteractionRecordingSession.StartCoreAsync makes.
+        var mode = _viewModel.Modes.Selected ?? _viewModel.Modes.Items.FirstOrDefault(item => item.IsDefault)
+            ?? _viewModel.Modes.Items.FirstOrDefault();
+        if (mode is null
+            || string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(mode.LocalParakeetModel))
+        {
+            _parakeetPrewarmKey = null;
+            return;
+        }
+        // The request language CreateTranscriptionRequest sends for this mode.
+        var language = mode.Language ?? _viewModel.Settings.Language;
+        var key = mode.LocalParakeetModel.Trim() + "\n" + language;
+        if (key == _parakeetPrewarmKey) return;
+        _parakeetPrewarmKey = key;
+        _ = PrewarmParakeetAsync(mode, language, key);
+    }
+
+    private async Task PrewarmParakeetAsync(Mode mode, string? language, string key)
+    {
+        bool loaded;
+        try { loaded = await _platformServices.PrewarmLocalParakeetAsync(mode, language, _lifetime.Token); }
+        catch (Exception) { loaded = false; }
+        if (loaded || _lifetime.IsCancellationRequested) return;
+        // Not loaded (model not downloaded, daemon missing or failed to start): forget the key so
+        // the next change tries again, and the first dictation starts the daemon as before.
+        if (_parakeetPrewarmKey == key) _parakeetPrewarmKey = null;
+        try { await WriteDiagnosticAsync(DiagnosticSeverity.Warning, DiagnosticComponent.Transcription, DiagnosticOutcome.Degraded); }
+        catch (Exception) { }
+    }
 
     private async Task InitializeAndArmAutoSaveAsync()
     {
@@ -1477,7 +1554,11 @@ public partial class MainWindow : Window
                 // The same projection dictation runs under, so /transcribe
                 // honours "Remove filler words" instead of the workflow's
                 // hard-coded default (issue #530).
-                outputOptions: _viewModel.CreateOutputOptions);
+                outputOptions: _viewModel.CreateOutputOptions,
+                // A non-WAV upload to a Parakeet mode is converted to WAV with
+                // the same ffmpeg import Transcribe File uses, so the daemon can
+                // read it and its reply wait scales with the length (#1572).
+                audioImport: new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths));
             _localApiHost = new PortableLocalApiHost(
                 _platformServices.PrivateFiles, _platformServices.Paths, backend, AppVersion,
                 _viewModel.Settings.LocalApiPort);
@@ -1906,8 +1987,9 @@ public partial class MainWindow : Window
             : null, "settings.localApi.action.portUnavailable");
 
     /// <summary>
-    /// Windows' ShowActionStatus: the message stays until the next action replaces it, and an
-    /// error is orange-red where a normal report is secondary text.
+    /// Windows' ShowActionStatus: the message stays until the next action replaces it or the
+    /// server is turned off or on (OnLocalApiEnabledChanged), and an error is orange-red where a
+    /// normal report is secondary text.
     /// </summary>
     private void ShowLocalApiActionStatus(string message, bool isError)
     {
@@ -1918,6 +2000,19 @@ public partial class MainWindow : Window
             : this.FindResource("HwTextSecondaryBrush") as IBrush
               ?? new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80));
         line.IsVisible = true;
+    }
+
+    /// <summary>
+    /// Issue #653: the line reports what one of the panel's own buttons did, and turning the server
+    /// off hides every one of those buttons. So an enabled-state change, either way, starts the page
+    /// on a clean line; the next Copy or Regenerate shows its report again.
+    /// </summary>
+    private void OnLocalApiEnabledChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(SettingsViewModel.LocalApiEnabled)) return;
+        if (FindNamed<TextBlock>("LocalApiActionStatus") is not { } line) return;
+        line.Text = string.Empty;
+        line.IsVisible = false;
     }
 
     private async void OnCopyLocalApiMcpSnippet(object? sender, RoutedEventArgs e) =>
@@ -2246,6 +2341,13 @@ public partial class MainWindow : Window
         var token = TryReadLocalApiToken();
         SetNamedText("SettingsLocalApiToken", token is null ? "—" : _localApiTokenRevealed
             ? token : new string('•', Math.Max(0, token.Length - 4)) + token[^Math.Min(4, token.Length)..]);
+        // #643: a revealed token wraps onto as many lines as it needs, so all of it can be read.
+        // The masked value keeps the row's one trimmed line.
+        if (FindNamed<TextBlock>("SettingsLocalApiToken") is { } tokenText)
+        {
+            tokenText.TextWrapping = _localApiTokenRevealed ? TextWrapping.Wrap : TextWrapping.NoWrap;
+            tokenText.TextTrimming = _localApiTokenRevealed ? TextTrimming.None : TextTrimming.CharacterEllipsis;
+        }
         SetNamedText("SettingsLocalApiMcpSnippet", LocalApiMcpSnippet);
         SetNamedText("SettingsLocalApiCurlSnippet", LocalApiCurlSnippet);
     }
@@ -2930,9 +3032,18 @@ public partial class MainWindow : Window
     // One field, two inline chip actions, and a replacement panel that only appears once the
     // user asks for it — the shape the Windows page has.
 
-    private void OnVocabularyAdd(object? sender, RoutedEventArgs e)
+    private bool _vocabularySaving;
+
+    private async void OnVocabularyAdd(object? sender, RoutedEventArgs e)
     {
-        if (_viewModel.Vocabulary.AddCommand.CanExecute(null)) _viewModel.Vocabulary.AddCommand.Execute(null);
+        if (_vocabularySaving) return;
+        _vocabularySaving = true;
+        try { await _viewModel.Vocabulary.SaveAsync(); }
+        finally { _vocabularySaving = false; }
+        // A refused save keeps the pill as it was, edit mode included, as Windows does
+        // (VocabularyPage.xaml.cs AddVocabularyItem). Leaving edit mode here while the row stayed
+        // selected made the next "Add word" overwrite that row (#634).
+        if (_viewModel.Vocabulary.Status.HasError) return;
         SetVocabularyEditingItem(null);
         HideVocabularyReplacement();
     }
@@ -2946,6 +3057,25 @@ public partial class MainWindow : Window
         _viewModel.Vocabulary.Replacement = string.Empty;
         SetVocabularyEditingItem(null);
         HideVocabularyReplacement();
+    }
+
+    /// <summary>
+    /// Both vocabulary boxes accept returns, so a pasted list keeps all its lines and a snippet
+    /// keeps its line breaks (#1777). A multi-line TextBox turns Enter into a line break in its
+    /// own key handler, which runs before a bubbling KeyDown handler; the tunnel route runs first,
+    /// as WPF's PreviewKeyDown does on Windows. The handler sits on the window because the
+    /// vocabulary page is not in the logical tree yet when the constructor runs.
+    /// </summary>
+    private void AttachVocabularyKeyHandlers() =>
+        AddHandler(KeyDownEvent, OnVocabularyTunnelKeyDown, RoutingStrategies.Tunnel);
+
+    private void OnVocabularyTunnelKeyDown(object? sender, KeyEventArgs e)
+    {
+        switch (e.Source)
+        {
+            case TextBox { Name: "VocabularyWordInput" } word: OnVocabularyWordKeyDown(word, e); break;
+            case TextBox { Name: "VocabularyReplacementInput" } replacement: OnVocabularyReplacementKeyDown(replacement, e); break;
+        }
     }
 
     private void OnVocabularyWordKeyDown(object? sender, KeyEventArgs e)
@@ -3340,6 +3470,56 @@ public partial class MainWindow : Window
     private T? FindNamed<T>(string name) where T : Control
         => this.GetLogicalDescendants().OfType<T>().FirstOrDefault(control => control.Name == name);
 
+    /// <summary>
+    /// Issue #1777, on the real page: a multi-line text entered into the word box (the text-input
+    /// path a paste takes) keeps all its lines, Enter adds one word per line, and Enter in the
+    /// replacement box is a line break, not a submit. The rows it adds are removed again.
+    /// </summary>
+    private async Task<bool> SmokeVocabularyPasteIsOneWordPerLineAsync()
+    {
+        _viewModel.Navigate("vocabulary");
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        if (FindNamed<TextBox>("VocabularyWordInput") is not { } word
+            || FindNamed<TextBox>("VocabularyReplacementInput") is not { } replacement) return false;
+        var vocabulary = _viewModel.Vocabulary;
+        string[] words = ["smoke1777alpha", "smoke1777beta", "smoke1777gamma"];
+        bool Fail(string reason) { Console.Error.WriteLine($"Smoke: vocabulary paste (#1777): {reason}"); return false; }
+
+        word.Focus();
+        word.RaiseEvent(new TextInputEventArgs { RoutedEvent = TextInputEvent, Text = string.Join("\n", words) });
+        if (vocabulary.Word != string.Join("\n", words))
+            return Fail($"the word box kept '{vocabulary.Word.ReplaceLineEndings("\\n")}' of a three-line paste");
+        word.RaiseEvent(new KeyEventArgs { RoutedEvent = KeyDownEvent, Key = Key.Enter });
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        for (var attempt = 0; attempt < 50 && vocabulary.Word.Length > 0; attempt++)
+            await Task.Delay(20);
+        var added = vocabulary.Items.Where(item => item.Word.StartsWith("smoke1777", StringComparison.Ordinal)).ToList();
+        try
+        {
+            if (vocabulary.Word.Length > 0) return Fail($"Enter did not add the pasted words (the box holds '{vocabulary.Word.ReplaceLineEndings("\\n")}')");
+            if (!added.Select(item => item.Word).Order(StringComparer.Ordinal).SequenceEqual(words))
+                return Fail($"Enter saved [{string.Join(" | ", added.Select(item => item.Word.ReplaceLineEndings("\\n")))}]");
+
+            ShowVocabularyReplacement();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            replacement.Focus();
+            replacement.RaiseEvent(new TextInputEventArgs { RoutedEvent = TextInputEvent, Text = "Best," });
+            replacement.RaiseEvent(new KeyEventArgs { RoutedEvent = KeyDownEvent, Key = Key.Enter });
+            replacement.RaiseEvent(new TextInputEventArgs { RoutedEvent = TextInputEvent, Text = "Ray" });
+            if (FindNamed<Border>("VocabularyReplacementPanel")?.IsVisible != true
+                || vocabulary.Replacement.ReplaceLineEndings("\n") != "Best,\nRay")
+                return Fail($"Enter in the replacement box gave '{vocabulary.Replacement.ReplaceLineEndings("\\n")}', not a line break");
+            return true;
+        }
+        finally
+        {
+            foreach (var item in added) await vocabulary.DeleteAsync(item);
+            OnVocabularyCancelEdit(this, new RoutedEventArgs());
+            _viewModel.Navigate("home");
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+    }
+
     internal async Task<int> RunSmokeTestAsync()
     {
         try
@@ -3406,6 +3586,8 @@ public partial class MainWindow : Window
             _viewModel.Navigate("home");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (!HasVisibleControl("HomeTypingSpeed")) return 17;
+
+            if (!await SmokeVocabularyPasteIsOneWordPerLineAsync()) return 18;
 
             // The recording and file-import controls have no Windows equivalent anywhere, so they
             // live at the END of Home, below Recent Updates. They were on the Modes page, which
@@ -3628,6 +3810,12 @@ public partial class MainWindow : Window
             // regression; 27 says the probe could not be set up, which is an environment fault and
             // not evidence that #692 is back.
             if (await LocalApiPortCommitFailureAsync() is var portCode && portCode != 0) return portCode;
+            // #653: a Copy or Regenerate report on the shared action line must not outlive a
+            // change of server state. 28 is the regression, 29 a probe that could not be set up.
+            if (await LocalApiActionStatusClearFailureAsync() is var statusCode && statusCode != 0) return statusCode;
+            // #643: Reveal must show the whole token, not a revealed value cut off with an
+            // ellipsis. 30 is the regression, 31 a probe that could not be set up.
+            if (await LocalApiRevealedTokenFailureAsync() is var tokenCode && tokenCode != 0) return tokenCode;
 
             _viewModel.Navigate("account");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
@@ -4695,6 +4883,201 @@ public partial class MainWindow : Window
             settings.PropertyChanged += OnSettingsPropertyChanged;
             // Give back the save this probe interrupted. Its own writes are not saved: the
             // listener was detached while they happened and the original port is back.
+            _settingsAutoSave?.Stop();
+            if (saveWasArmed) _settingsAutoSave?.Start();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+    }
+
+    /// <summary>
+    /// Issue #653: a failed Copy left its red line under the status card after the server was
+    /// turned off, which hides every button that line can report on, and again after it was turned
+    /// back on. This puts a real failure report on the line through the Copy path, flips the
+    /// page's own checkbox off and on, and reads the line after each. 28 is the regression; 29
+    /// says the probe could not be set up.
+    /// </summary>
+    private async Task<int> LocalApiActionStatusClearFailureAsync()
+    {
+        const int regression = 28;
+        const int cannotRun = 29;
+
+        _viewModel.Navigate("localapi");
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        if (FindNamed<TextBlock>("LocalApiActionStatus") is not { } line
+            || FindNamed<CheckBox>("SettingsLocalApiEnabled") is not { } toggle)
+        {
+            Console.Error.WriteLine("Smoke: the Local API action line or the server checkbox is "
+                + "missing from the page. Setup failure, not the #653 regression.");
+            return cannotRun;
+        }
+
+        var settings = _viewModel.Settings;
+        var enabled = settings.LocalApiEnabled;
+        var saveWasArmed = _settingsAutoSave is { IsEnabled: true };
+        // A flip of the checkbox is a settings change, and an armed auto-save would answer it with
+        // a real save that starts or stops the live host. Only the line is under test here.
+        _settingsAutoSave?.Stop();
+        settings.PropertyChanged -= OnSettingsPropertyChanged;
+        settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
+        try
+        {
+            // The Copy path's own failure report: no port to copy is the one failure that does not
+            // depend on which clipboard helper this box has.
+            async Task<bool> ShowFailureAsync()
+            {
+                await CopyLocalApiTextAsync(null, "settings.localApi.action.portUnavailable");
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+                return line.IsVisible && !string.IsNullOrEmpty(line.Text);
+            }
+            async Task<bool> FlipAsync(bool value)
+            {
+                toggle.SetCurrentValue(ToggleButton.IsCheckedProperty, value);
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+                return settings.LocalApiEnabled == value;
+            }
+
+            if (!await ShowFailureAsync())
+            {
+                Console.Error.WriteLine("Smoke: a Copy with nothing to copy put no report on the Local "
+                    + "API action line. Setup failure, not the #653 regression.");
+                return cannotRun;
+            }
+            foreach (var value in new[] { !enabled, enabled })
+            {
+                if (!await FlipAsync(value))
+                {
+                    Console.Error.WriteLine("Smoke: setting the server checkbox did not reach "
+                        + "Settings.LocalApiEnabled. Setup failure, not the #653 regression.");
+                    return cannotRun;
+                }
+                if (line.IsVisible || !string.IsNullOrEmpty(line.Text))
+                {
+                    Console.Error.WriteLine($"Smoke: after the server was turned {(value ? "on" : "off")} "
+                        + $"the Local API action line still read '{line.Text}' (visible: {line.IsVisible}). "
+                        + "A change of server state must start on a clean line (#653).");
+                    return regression;
+                }
+            }
+            if (!await ShowFailureAsync())
+            {
+                Console.Error.WriteLine("Smoke: after the server was turned off and on, a Copy put "
+                    + "no report on the Local API action line — the clear must not silence the next "
+                    + "action (#653).");
+                return regression;
+            }
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"Smoke: the Local API action line check could not finish: {exception} "
+                + "Setup failure, not the #653 regression.");
+            return cannotRun;
+        }
+        finally
+        {
+            if (settings.LocalApiEnabled != enabled) settings.LocalApiEnabled = enabled;
+            line.Text = string.Empty;
+            line.IsVisible = false;
+            settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
+            settings.PropertyChanged += OnSettingsPropertyChanged;
+            _settingsAutoSave?.Stop();
+            if (saveWasArmed) _settingsAutoSave?.Start();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+    }
+
+    /// <summary>
+    /// Issue #643: after Reveal the button read Hide, but the token row stayed one trimmed line, so
+    /// the end of the token was an ellipsis and the value could not be read off the page. This
+    /// turns the server on for real, presses the real Reveal button, and MEASURES the token block
+    /// in the real window: its arranged height must hold the whole token wrapped at its arranged
+    /// width. 30 is the regression; 31 says the probe could not be set up.
+    /// </summary>
+    private async Task<int> LocalApiRevealedTokenFailureAsync()
+    {
+        const int regression = 30;
+        const int cannotRun = 31;
+
+        var settings = _viewModel.Settings;
+        var enabled = settings.LocalApiEnabled;
+        var saveWasArmed = _settingsAutoSave is { IsEnabled: true };
+        var page = _currentPageId;
+        // The server is started and stopped by this probe directly, so neither an armed auto-save
+        // nor the settings listener may start a second host behind it.
+        _settingsAutoSave?.Stop();
+        settings.PropertyChanged -= OnSettingsPropertyChanged;
+        settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
+        try
+        {
+            settings.LocalApiEnabled = true;
+            await ApplyLocalApiSettingsAsync(_lifetime.Token);
+            // Through the sidebar's own entry point, so the Settings sub-navigation takes its
+            // column exactly as it does for a user; a bare Navigate leaves it out and widens the row.
+            GoTo("localapi");
+            _localApiTokenRevealed = false;
+            UpdateLocalApiConnectionUi();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (TryReadLocalApiToken() is not { Length: > 0 } token
+                || FindNamed<TextBlock>("SettingsLocalApiToken") is not { IsEffectivelyVisible: true } block
+                || FindNamed<Button>("SettingsLocalApiReveal") is not { IsEffectivelyVisible: true } reveal)
+            {
+                Console.Error.WriteLine("Smoke: with the Local API server on, the page shows no token "
+                    + "row or the host has no token. Setup failure, not the #643 regression.");
+                return cannotRun;
+            }
+
+            reveal.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!_localApiTokenRevealed || !string.Equals(block.Text, token, StringComparison.Ordinal))
+            {
+                Console.Error.WriteLine("Smoke: pressing Reveal did not put the token in the row. "
+                    + "Setup failure, not the #643 regression.");
+                return cannotRun;
+            }
+            // The check is only evidence when the token is wider than its row on one line, which
+            // is the case at the smoke window's size; otherwise it would pass on any layout.
+            var oneLine = TextProbe(block, double.PositiveInfinity).Width;
+            if (oneLine <= block.Bounds.Width)
+            {
+                Console.Error.WriteLine($"Smoke: the {token.Length}-character token ({oneLine:F1}px) fits its "
+                    + $"{block.Bounds.Width:F1}px row on one line, so nothing can be cut. Setup failure, "
+                    + "not the #643 regression.");
+                return cannotRun;
+            }
+            var needed = TextProbe(block, block.Bounds.Width);
+            if (block.Bounds.Height + 0.5 < needed.Height)
+            {
+                Console.Error.WriteLine($"Smoke: the revealed Local API token is cut: its row is "
+                    + $"{block.Bounds.Width:F1}x{block.Bounds.Height:F1}px, and the whole "
+                    + $"{token.Length}-character token needs {needed.Height:F1}px at that width "
+                    + $"(wrapping {block.TextWrapping}, trimming {block.TextTrimming}). Reveal must show "
+                    + "the full value (#643).");
+                return regression;
+            }
+
+            reveal.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (_localApiTokenRevealed || string.Equals(block.Text, token, StringComparison.Ordinal))
+            {
+                Console.Error.WriteLine("Smoke: pressing Hide left the token revealed (#643).");
+                return regression;
+            }
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"Smoke: the revealed Local API token check could not finish: {exception} "
+                + "Setup failure, not the #643 regression.");
+            return cannotRun;
+        }
+        finally
+        {
+            _localApiTokenRevealed = false;
+            settings.LocalApiEnabled = enabled;
+            await ApplyLocalApiSettingsAsync(_lifetime.Token);
+            GoTo(page);
+            settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
+            settings.PropertyChanged += OnSettingsPropertyChanged;
             _settingsAutoSave?.Stop();
             if (saveWasArmed) _settingsAutoSave?.Start();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);

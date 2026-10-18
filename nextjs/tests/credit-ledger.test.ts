@@ -252,13 +252,13 @@ describe("spendCreditGrantsByProvenance", () => {
 });
 
 describe("refundCreditGrant", () => {
-  test("an unknown grant is a duplicate that reclaims nothing", async () => {
+  test("an unknown grant is not_found and reclaims nothing (#1798)", async () => {
     await seedUser("u1");
     await seedGrant({ userId: "u1", sourceId: "a", amount: 100 });
 
     const result = await L.refundCreditGrant({ sourceType: "stripe_credit_pack", sourceId: "nope" });
 
-    assert.deepEqual(result, { status: "duplicate", refundedAmount: 0, removedAmount: 0 });
+    assert.deepEqual(result, { status: "not_found", refundedAmount: 0, removedAmount: 0 });
     assert.equal((await grantsBySource("u1")).get("a")?.remaining, 100);
   });
 
