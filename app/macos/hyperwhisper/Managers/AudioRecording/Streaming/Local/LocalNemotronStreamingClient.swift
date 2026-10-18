@@ -108,7 +108,9 @@ final class LocalNemotronStreamingClient: NSObject, ObservableObject, StreamingC
             onConnectionStateChange?(.idle)
             throw CancellationError()
         } catch {
-            logger.error("Failed to load Nemotron shared models: \(error.localizedDescription, privacy: .public)")
+            // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
+            let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
+            logger.error("Failed to load Nemotron shared models: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             onConnectionStateChange?(.error(error.localizedDescription))
             throw error
         }
@@ -126,7 +128,9 @@ final class LocalNemotronStreamingClient: NSObject, ObservableObject, StreamingC
             onConnectionStateChange?(.idle)
             throw CancellationError()
         } catch {
-            logger.error("Failed to construct Nemotron streaming session: \(error.localizedDescription, privacy: .public)")
+            // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
+            let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
+            logger.error("Failed to construct Nemotron streaming session: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             onConnectionStateChange?(.error(error.localizedDescription))
             throw error
         }
@@ -146,7 +150,9 @@ final class LocalNemotronStreamingClient: NSObject, ObservableObject, StreamingC
             onError: { [weak self] (error: Error) in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    self.logger.error("Session error: \(error.localizedDescription, privacy: .public)")
+                    // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
+                    let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
+                    self.logger.error("Session error: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
                     self.onConnectionStateChange?(.error(error.localizedDescription))
                     self.onError?(error)
                 }
@@ -175,7 +181,9 @@ final class LocalNemotronStreamingClient: NSObject, ObservableObject, StreamingC
             onConnectionStateChange?(.idle)
             throw CancellationError()
         } catch {
-            logger.error("Failed to start Nemotron session: \(error.localizedDescription, privacy: .public)")
+            // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
+            let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
+            logger.error("Failed to start Nemotron session: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             // start() may have partly initialized state before throwing; cancel()
             // drops callbacks and resets the underlying FluidAudio manager so we
             // don't leave a half-live session retained via its partial callback.
@@ -217,7 +225,9 @@ final class LocalNemotronStreamingClient: NSObject, ObservableObject, StreamingC
             onConnectionStateChange?(.idle)
             throw CancellationError()
         } catch {
-            logger.error("Audio capture failed to start: \(error.localizedDescription, privacy: .public)")
+            // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
+            let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
+            logger.error("Audio capture failed to start: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             self.audioCapture = nil
             await session.cancel()
             self.session = nil
@@ -269,7 +279,9 @@ final class LocalNemotronStreamingClient: NSObject, ObservableObject, StreamingC
                 onTranscriptUpdate?(finalText, true)
             }
         } catch {
-            logger.error("Nemotron session finish failed: \(error.localizedDescription, privacy: .public)")
+            // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
+            let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
+            logger.error("Nemotron session finish failed: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             onError?(error)
         }
 
