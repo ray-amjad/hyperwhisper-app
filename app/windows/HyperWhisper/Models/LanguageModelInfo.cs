@@ -11,12 +11,12 @@ namespace HyperWhisper.Models;
 public class LanguageModelInfo
 {
     /// <summary>
-    /// The model ID used in API requests (e.g., "gpt-4.1-mini", "claude-3-haiku-20240307").
+    /// The model ID used in API requests (e.g., "gpt-5.6-luna", "claude-3-haiku-20240307").
     /// </summary>
     public string Id { get; }
 
     /// <summary>
-    /// Human-readable name for UI display (e.g., "GPT-4.1 Mini", "Claude 3 Haiku").
+    /// Human-readable name for UI display (e.g., "GPT-5.6 Luna", "Claude 3 Haiku").
     /// </summary>
     public string DisplayName { get; }
 
@@ -58,9 +58,8 @@ public class LanguageModelInfo
         // GPT-4.1 and GPT-5 series - text-focused models optimized for writing tasks
         new("gpt-5.6-luna", "GPT-5.6 Luna", PostProcessingProvider.OpenAI, "Latest generation, fastest"),
         new("gpt-6-luna", "GPT-6 Luna", PostProcessingProvider.OpenAI, "Newest generation, fast"),
-        new("gpt-4.1-mini", "GPT-4.1 Mini", PostProcessingProvider.OpenAI, "Balanced (recommended)"),
-        // gpt-4.1 row removed: OpenAI removes it 2027-01-14 (notice 2026-10-14), and
-        // MigrateModelId sends it to gpt-6-luna, OpenAI's named replacement.
+        // gpt-4.1 / gpt-4.1-mini rows removed (#1907): OpenAI removes both 2027-01-14 (notice
+        // 2026-10-14), and MigrateModelId sends them to gpt-6-luna, OpenAI's named replacement.
         // gpt-5 / gpt-5-mini / gpt-5-nano rows removed (#1018): OpenAI removes them
         // 2026-12-11, and MigrateModelId sends all 3 to gpt-5.6-luna.
         // gpt-5.1 / gpt-5.4-nano rows removed (#1209): OpenAI removes them 2027-04-01.
@@ -142,6 +141,8 @@ public class LanguageModelInfo
         "gpt-5.1" => "gpt-5.6-luna",
         // OpenAI removes gpt-4.1 2027-01-14 (notice 2026-10-14) and names gpt-6-luna.
         "gpt-4.1" => "gpt-6-luna",
+        // Same notice for gpt-4.1-mini, same named replacement (#1907). Matches macOS.
+        "gpt-4.1-mini" => "gpt-6-luna",
         // Anthropic model ID migrations
         // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10; each old id maps
         // straight to its final row (matches macOS).
