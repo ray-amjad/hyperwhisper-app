@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { ICON_SWAP } from "@/lib/icon-swap";
 import { isMobileDevice } from "@/src/lib/mobile-device";
 import { isRecord } from "@/src/lib/type-guards";
+import { reportClientError } from "@/lib/shared/report-client-error";
 
 type Platform = "mac" | "windows" | "linux";
 
@@ -145,7 +146,8 @@ export default function DownloadPage() {
         const response = await fetch("/linux-latest.json");
         const data: unknown = response.ok ? await response.json() : null;
         if (!cancelled && isLinuxLatest(data)) setLinuxLatest(data);
-      } catch {
+      } catch (error) {
+        void reportClientError("download.linux_latest", error);
         // Fall back to LINUX_RELEASES_URL below.
       }
     };

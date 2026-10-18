@@ -45,6 +45,9 @@ async function importAndInit(apiKey: string): Promise<PostHog | null> {
     posthog.init(apiKey, {
       api_host: env.NEXT_PUBLIC_POSTHOG_HOST ?? DEFAULT_POSTHOG_HOST,
       person_profiles: "always",
+      // Unhandled errors and rejections on every page reach error tracking
+      // (#739). `before_send` below redacts them like any other event.
+      capture_exceptions: true,
       // The Account Key can be in the page URL (#1897): never send it.
       before_send: redactAccountKeyFromEvent,
     });

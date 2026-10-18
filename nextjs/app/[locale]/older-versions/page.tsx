@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { intlLocale } from "@/lib/format-date";
-
+import { reportClientError } from "@/lib/shared/report-client-error";
 import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 
 type Platform = "mac" | "windows";
@@ -153,6 +153,9 @@ export default function DownloadsPage() {
         if (ignore || (err instanceof DOMException && err.name === "AbortError")) {
           return;
         }
+        void reportClientError("older_versions.fetch", err, {
+          platform: selectedPlatform,
+        });
         // "" = no message to show; the render puts the translated fallback in.
         setError(err instanceof Error ? err.message : "");
         setLoading(false);
@@ -181,7 +184,8 @@ export default function DownloadsPage() {
         month: "long",
         day: "numeric",
       });
-    } catch {
+    } catch (error) {
+      void reportClientError("older_versions.format_date", error);
       return dateString;
     }
   };

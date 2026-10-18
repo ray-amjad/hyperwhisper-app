@@ -7,6 +7,7 @@ import { authClient } from "@/src/lib/auth-client";
 import { withoutAccountKeyParams } from "@/src/lib/account-key-redaction";
 import { sanitizeReturnTo } from "@/src/lib/license-key-redirect";
 import { isRecord } from "@/src/lib/type-guards";
+import { reportClientError } from "@/lib/shared/report-client-error";
 
 type Tab = "license-key" | "email";
 
@@ -100,7 +101,9 @@ export default function SignInClient() {
       } else {
         router.push(redirect);
       }
-    } catch {
+    } catch (error) {
+      // Never the key itself: only the failure goes to the report.
+      void reportClientError("sign_in.license_key", error);
       setLicenseError("An unexpected error occurred. Please try again.");
       setAutoSigningIn(false);
     } finally {
@@ -130,7 +133,9 @@ export default function SignInClient() {
       } else {
         setMagicLinkSent(true);
       }
-    } catch {
+    } catch (error) {
+      // Never the email address: only the failure goes to the report.
+      void reportClientError("sign_in.magic_link", error);
       setEmailError("An unexpected error occurred. Please try again.");
     } finally {
       setEmailSubmitting(false);
