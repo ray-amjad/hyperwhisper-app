@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, ProviderUnavailableKind, TranscriptionResult } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 
@@ -466,8 +466,9 @@ export interface ProviderHttpErrorPolicy {
   /** Name used in the thrown error messages ('OpenAI', 'Grok', 'Deepgram', …). */
   label: string;
   /**
-   * Statuses that mean OUR credentials are wrong. These throw a plain `Error`
-   * (not a fallback signal) because retrying siblings can't fix a bad key.
+   * Statuses that mean OUR credentials are wrong. These throw a
+   * `ProviderAuthError`: a sibling has its own key, so the route tries it when
+   * the chain has one, and fails the request when it does not.
    * Defaults to `[401]`; adapters whose upstream also returns 403 for a bad or
    * unauthorized key pass `[401, 403]`.
    */
@@ -489,6 +490,36 @@ export interface ProviderHttpErrorPolicy {
    * instead of correlating a separate provider log line by requestId.
    */
   attachUnavailableDetails?: boolean;
+}
+
+/**
+ * Error bodies that mean OUR account with the upstream is out of credits or
+ * over its plan quota. Matched on the body text, not parsed, because the
+ * preview may be truncated. Each marker is specific enough that no
+ * bad-key or bad-input body carries it.
+ */
+const QUOTA_EXHAUSTED_MARKERS: ReadonlyArray<{ pattern: RegExp; reason: string }> = [
+  // ElevenLabs sends 401 (not 402) when the plan runs out of credits:
+  // `{"detail":{"code":"quota_exceeded","status":"quota_exceeded",…}}`.
+  // 641 requests 500'd on it, 2026-10-02 to 10-05. (issue #1228)
+  { pattern: /\bquota_exceeded\b/, reason: 'quota_exceeded' },
+  // OpenAI: 429 with `"code": "insufficient_quota"` once the account's credit is spent.
+  { pattern: /\binsufficient_quota\b/, reason: 'insufficient_quota' },
+  // xAI: 403 "Your team … has either used all available credits or reached its
+  // monthly spending limit" / "… doesn't have any credits yet".
+  { pattern: /used all available credits|(?:doesn't|does not) have any credits|monthly spending limit/i, reason: 'credits_exhausted' },
+];
+
+/** Statuses an upstream has been seen to carry an out-of-credits body on. */
+const QUOTA_EXHAUSTED_STATUSES: ReadonlySet<number> = new Set([401, 402, 403, 429]);
+
+/**
+ * The greppable reason when `body` says the upstream account is out of
+ * credits, or `null` when it does not.
+ */
+export function quotaExhaustedReason(status: number, body: string): string | null {
+  if (!QUOTA_EXHAUSTED_STATUSES.has(status)) return null;
+  return QUOTA_EXHAUSTED_MARKERS.find(({ pattern }) => pattern.test(body))?.reason ?? null;
 }
 
 /**
@@ -522,12 +553,14 @@ export async function providerHttpError(
   const errorText = await readErrorBodyPreview(response);
   const elapsedMs = Math.round(performance.now() - startedAt);
   const kind = status >= 500 ? 'upstream_5xx' : status === 429 ? 'rate_limit' : 'http_error';
+  const quotaReason = quotaExhaustedReason(status, errorText);
 
   logProviderEvent(provider, 'http_error', {
     ...policy.logDetails,
     elapsedMs,
     status,
     kind,
+    ...(quotaReason ? { quotaExhausted: quotaReason } : {}),
     bodyPreview: errorText,
   }, context);
 
@@ -536,8 +569,15 @@ export async function providerHttpError(
   const details = (unavailableKind: ProviderUnavailableKind) =>
     policy.attachUnavailableDetails ? { kind: unavailableKind, status, elapsedMs } : undefined;
 
+  // Checked BEFORE the auth branch: an out-of-credits account is billing
+  // exhaustion on THIS provider's account, like a 402 — a sibling with its own
+  // account can still serve the request — even when the upstream sends it as a
+  // 401 or 403. (issue #1228)
+  if (quotaReason) {
+    return new ProviderUnavailableError(label, `insufficient funds (${quotaReason})`, details(status === 429 ? 'rate_limit' : 'unknown'));
+  }
   if ((policy.authStatuses ?? [401]).includes(status)) {
-    return new Error(policy.authMessage);
+    return new ProviderAuthError(policy.authMessage, status);
   }
   if (status === 429) {
     return new ProviderUnavailableError(label, 'rate limit exceeded', details('rate_limit'));
