@@ -38,7 +38,7 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
         $"Vulkan runtime: {Availability(LocalLlmBackend.Vulkan, "packaged; GPU device checked during model load")}",
         CudaPackageInstalled
             ? $"CUDA: {Availability(LocalLlmBackend.Cuda, "driver and runtime ready")}"
-            : $"CUDA: {LinuxCudaPackage.MissingNotice}",
+            : "CUDA: not installed (install the hyperwhisper-cuda package)",
     });
 
     private static bool CudaPackageInstalled =>
