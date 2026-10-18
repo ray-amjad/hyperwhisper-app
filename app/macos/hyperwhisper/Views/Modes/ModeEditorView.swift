@@ -576,9 +576,9 @@ struct ModeEditorView: View {
 
     /// Returns true if the selected provider/model does NOT support custom vocabulary.
     /// Cloud-tier vocab support is driven by `shared-app-classification/cloud-stt-catalog.json`
-    /// (consumed via `CloudAccuracyTier.supportsCustomVocabulary`). Per-sub-model BYOK checks
-    /// (Deepgram Base/Whisper, ElevenLabs Scribe v1) remain hardcoded because the catalog
-    /// doesn't yet model sub-models within a provider.
+    /// (consumed via `CloudAccuracyTier.supportsCustomVocabulary`). BYOK (your own provider)
+    /// support is read per model from `shared-models/models-catalog.json` through
+    /// `byokVocabularyUnsupported(provider:modelId:)` — no model ids are hard-coded here (#681).
     ///
     /// DEEPGRAM VOCABULARY SUPPORT:
     /// - Nova-3: ONLY supports 'keyterm' (monolingual, 90% KRR improvement when language is explicitly specified)
@@ -594,8 +594,6 @@ struct ModeEditorView: View {
         // Parakeet supports vocabulary via phonetic matching (Beider-Morse) + exact replacement
         // Qwen3 ASR doesn't support custom vocabulary
         let isQwen3Asr = provider == .local && model == Qwen3AsrModelManager.Constants.modelId
-        // ElevenLabs Scribe v1 doesn't support custom vocabulary (v2 supports keyterms)
-        let isElevenLabsV1 = provider == .cloud && currentCloudProvider == .elevenLabs && cloudTranscriptionModel == "scribe_v1"
         // Cloud accuracy tiers under HyperWhisper Cloud where the shared
         // catalog flags vocabulary as unsupported for the selected model.
         let isUnsupportedCloudTier: Bool = {
@@ -603,11 +601,31 @@ struct ModeEditorView: View {
             // Model-aware: follows the SELECTED model's catalog vocab flag.
             return hyperwhisperCloudVocabularyUnsupported
         }()
-        // Deepgram Base models don't support keywords or keyterms (high-volume, low-cost tier)
-        let isDeepgramBase = provider == .cloud && currentCloudProvider == .deepgram && cloudTranscriptionModel.hasPrefix("base")
-        // Deepgram Whisper models don't support keywords or keyterms
-        let isDeepgramWhisper = provider == .cloud && currentCloudProvider == .deepgram && cloudTranscriptionModel.hasPrefix("whisper")
-        return isQwen3Asr || isElevenLabsV1 || isUnsupportedCloudTier || isDeepgramBase || isDeepgramWhisper
+        // Your own provider (BYOK): the shared models catalog says per model.
+        let isUnsupportedByokModel = provider == .cloud
+            && Self.byokVocabularyUnsupported(provider: currentCloudProvider, modelId: cloudTranscriptionModel)
+        return isQwen3Asr || isUnsupportedCloudTier || isUnsupportedByokModel
+    }
+
+    /// Whether a BYOK (your own provider) transcription model does NOT support
+    /// custom vocabulary, read from `shared-models/models-catalog.json` (#681).
+    ///
+    /// True only when the catalog HAS a voice row for `(provider, modelId)` and
+    /// that row says vocabulary is unsupported. `supportsCustomVocabulary`
+    /// answers false on a catalog MISS, so asking it alone would warn on an
+    /// empty or uncatalogued id; this suppresses the warning instead of
+    /// guessing, the same rule the HyperWhisper Cloud branch follows. HyperWhisper
+    /// Cloud is never BYOK and always answers false here.
+    ///
+    /// Static so hyperwhisperTests can check it against the catalog without
+    /// standing up the view.
+    static func byokVocabularyUnsupported(provider: CloudProvider, modelId: String) -> Bool {
+        guard provider != .hyperwhisper, !modelId.isEmpty else { return false }
+        let key = SharedModelsCatalog.providerKey(provider)
+        guard SharedModelsCatalog.entry(provider: key, kind: .voice, id: modelId) != nil else {
+            return false
+        }
+        return !SharedModelsCatalog.supportsCustomVocabulary(provider: key, kind: .voice, id: modelId)
     }
 
     /// Returns true when Deepgram Nova-3 is selected with auto-detect language.
@@ -772,7 +790,7 @@ struct ModeEditorView: View {
     }
 
     /// Custom-vocabulary visibility for the HyperWhisper Cloud path follows the
-    /// SELECTED model's catalog flag (e.g. ElevenLabs scribe_v1 unsupported).
+    /// SELECTED model's catalog flag (e.g. ElevenLabs Scribe v1 unsupported).
     private var hyperwhisperCloudVocabularyUnsupported: Bool {
         guard currentCloudProvider == .hyperwhisper else { return false }
         return !selectedCloudTier.supportsCustomVocabulary(forModelId: cloudTranscriptionModel)
