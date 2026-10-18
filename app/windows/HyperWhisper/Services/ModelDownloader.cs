@@ -1,5 +1,6 @@
 using System.IO;
 using HyperWhisper.Localization;
+using HyperWhisper.Models;
 using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Services;

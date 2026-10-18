@@ -5401,8 +5401,9 @@ internal static class Program
             Run("WhisperModelService.DownloadModelAsync refuses a model the drive cannot hold, before any download (#695)", () =>
             {
                 var service = new WhisperModelService();
-                // A real type, so main would start the Hugging Face download; a size no drive holds.
-                var model = new WhisperModelInfo("tiny", "Smoke 695", "1 PB", false, 1L << 50, 0);
+                // A type no catalog has, so a download that is not refused never touches a real
+                // model file; a size no drive holds.
+                var model = new WhisperModelInfo("smoke-695", "Smoke 695", "1 PB", false, 1L << 50, 0);
                 var tempPath = service.GetModelPath(model) + ".download";
                 var hadModel = File.Exists(service.GetModelPath(model));
 

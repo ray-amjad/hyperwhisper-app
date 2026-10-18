@@ -146,13 +146,14 @@ public class WhisperModelService
             return Result<string>.Success(modelPath);
         }
 
+        // Drop a leftover partial first, so it does not count against the free space.
+        ModelDownloader.CleanupFile(tempPath);
+
         var diskCheck = ModelDownloader.EnsureDiskSpace(ModelsDirectory, model.SizeInBytes, model.DisplayName, nameof(WhisperModelService));
         if (diskCheck.IsFailure)
         {
             return Result<string>.Failure(diskCheck.Error!);
         }
-
-        ModelDownloader.CleanupFile(tempPath);
 
         LoggingService.Info($"========== STARTING MODEL DOWNLOAD ==========");
         LoggingService.Info($"  Model: {model.DisplayName}");
@@ -208,7 +209,8 @@ public class WhisperModelService
             LoggingService.Info($"========== MODEL DOWNLOAD COMPLETE ==========");
 
             // Retried: a virus scanner can hold the fresh file for a moment (#695).
-            await ModelDownloader.MoveDownloadedFileAsync(tempPath, modelPath, nameof(WhisperModelService), cancellationToken);
+            // Not cancellable: every byte is on disk, so a late cancel still installs it.
+            await ModelDownloader.MoveDownloadedFileAsync(tempPath, modelPath, nameof(WhisperModelService), CancellationToken.None);
 
             // A fresh file replaces the one that failed to load (#1598). Clear the
             // mark before the check below, which would otherwise reject it.
