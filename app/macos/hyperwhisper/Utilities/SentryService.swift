@@ -592,6 +592,12 @@ enum SentryService {
         "parakeet_underlying_error_domain", "parakeet_underlying_error_code",
         "parakeet_last_phase", "parakeet_files_completed", "parakeet_files_total",
         "parakeet_compiling_model",
+        // NemotronProvider "Nemotron runtime load failed" (#1980): the variant
+        // slug, the NSError domain/code and the same `LocalModelLoadFailureDetail`
+        // fields. No phase keys: the Nemotron load passes no progress handler.
+        "nemotron_variant", "nemotron_error_domain", "nemotron_error_code",
+        "nemotron_hf_error_case", "nemotron_http_status",
+        "nemotron_underlying_error_domain", "nemotron_underlying_error_code",
         "modelId", "target", "model_id",
         // Not `user_message`: LocalModelManager's message embeds a raw
         // `localizedDescription`.

@@ -142,10 +142,54 @@ final class NemotronProvider: TranscriptionProvider {
                 for: LocalModelLoadFailureDetail.fields(for: error)
             )
             logger.error("Failed to initialize Nemotron \(variant.rawValue, privacy: .public); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public) \(failureDetailSummary, privacy: .public)")
+            // Its own Sentry event (#1980), so a HYPERWHISPER-W2-style failure
+            // carries the CoreML domain/code without relying on recent_logs.
+            // A cancelled load (reset / invalidate) is not a failure.
+            if AppLogger.isErrorLoggingEnabled, !(error is CancellationError) {
+                SentryService.capture(
+                    error: SentryService.identifierOnlyError(error),
+                    message: "Nemotron runtime load failed",
+                    extras: Self.loadFailureExtras(for: error),
+                    tags: Self.loadFailureTags(variantSlug: variant.rawValue, errorDomain: nsError.domain),
+                    fingerprint: [
+                        "nemotron-runtime-load",
+                        variant.rawValue,
+                        nsError.domain,
+                        String(nsError.code),
+                    ],
+                    includeRecentLogs: false
+                )
+            }
             await runtime.reset()
             await flagBroken(for: modelId)
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Failed to initialize Nemotron runtime")
         }
+    }
+
+    /// Extras for the "Nemotron runtime load failed" event (#1980). Pure, so a
+    /// test can build them from any error. Every key is on
+    /// `SentryService.allowedExtraKeys`; every value is a number, a fixed slug
+    /// or an NSError domain, never a path or `localizedDescription`.
+    static func loadFailureExtras(for error: Error) -> [String: Any] {
+        var extras: [String: Any] = [
+            "nemotron_error_code": (error as NSError).code,
+        ]
+        extras.merge(
+            LocalModelLoadFailureDetail.extras(
+                for: LocalModelLoadFailureDetail.fields(for: error),
+                keyPrefix: "nemotron"
+            ),
+            uniquingKeysWith: { current, _ in current }
+        )
+        return extras
+    }
+
+    static func loadFailureTags(variantSlug: String, errorDomain: String) -> [String: String] {
+        [
+            "component": "models",
+            "nemotron_variant": variantSlug,
+            "nemotron_error_domain": errorDomain,
+        ]
     }
 
     /// Public, cache-reusing access to the preloaded `SharedNemotronMultilingualModels`
