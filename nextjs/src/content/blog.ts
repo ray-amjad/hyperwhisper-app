@@ -4,6 +4,7 @@ import { desc } from "drizzle-orm";
 
 import { db } from "@/src/db";
 import { blogPosts, type BlogPostRow } from "@/src/db/schema/blog-posts";
+import { lazyLoadBodyImages } from "@/src/content/blog-html";
 
 const BLOG_LOCALE = "en";
 
@@ -48,7 +49,7 @@ function rowToPost(row: BlogPostRow): BlogPost {
     slug: normalizeSlug(row.slug),
     frontMatter,
     content: row.contentMarkdown,
-    html: row.contentHtml,
+    html: lazyLoadBodyImages(row.contentHtml),
   };
 }
 
