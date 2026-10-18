@@ -3514,7 +3514,29 @@ sealed class TempPaths : IAppPaths, IDisposable
     public string RecordingsDirectory => DataDirectory;
     public string RuntimeDirectory => DataDirectory;
     public string TemporaryDirectory => DataDirectory;
-    public void Dispose() { if (Directory.Exists(DataDirectory)) Directory.Delete(DataDirectory, recursive: true); }
+    public void Dispose()
+    {
+        if (!Directory.Exists(DataDirectory)) return;
+        // Windows (this suite runs there since #356) holds each SQLite file open
+        // in Microsoft.Data.Sqlite's connection pool after the last DbContext is
+        // disposed, so the recursive delete fails with "the process cannot
+        // access the file". Linux lets the unlink through regardless. Draining
+        // the pool releases the handles; the retry covers a handle the OS has
+        // not finished closing yet. Same fix as HyperWhisper.Backup.Application.Tests.
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(DataDirectory, recursive: true);
+                return;
+            }
+            catch (IOException) when (attempt < 5)
+            {
+                Thread.Sleep(200);
+            }
+        }
+    }
 }
 
 class DiskPrivateFiles : IPrivateFileService

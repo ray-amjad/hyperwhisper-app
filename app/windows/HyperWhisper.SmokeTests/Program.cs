@@ -12825,7 +12825,9 @@ internal static class Program
                 // Start() calls, and reading the limit back off its options is
                 // the only way to prove the configure delegate ran. Nothing
                 // binds a socket until StartAsync, so this costs no port.
-                var app = LocalApiServer.Instance.BuildApp(0);
+                // A throwaway token: the shared server refuses to build without one.
+                var app = LocalApiServer.Instance.BuildApp(
+                    0, HyperwhisperCoreMethods.LocalApiGenerateToken(new byte[32]));
                 try
                 {
                     var kestrel = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
