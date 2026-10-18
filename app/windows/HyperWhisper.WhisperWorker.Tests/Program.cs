@@ -158,7 +158,7 @@ await CheckAsync("client: a transcribe starts the worker, loads once, then reuse
     await client.SelectModelAsync(model);
     var first = await client.TranscribeAsync("/tmp/a.wav", null, options);
     var second = await client.TranscribeAsync("/tmp/b.wav", "en", options);
-    Assert(first == new WhisperWorkerTranscript("hello", " hello", "en", 1), $"first {first}");
+    Assert(first with { StartAndLoad = default } == new WhisperWorkerTranscript("hello", " hello", "en", 1), $"first {first}");
     Assert(second.Text == "hello", "second");
     Assert(launcher.Processes.Count == 1 && client.StartCount == 1, "more than one worker");
     var commands = launcher[0].Commands.ToArray();
@@ -169,6 +169,58 @@ await CheckAsync("client: a transcribe starts the worker, loads once, then reuse
     Assert(transcribes.Length == 2 && transcribes[0].Options == options && transcribes[1].Language == "en"
         && transcribes[0].Language is null, "transcribe commands");
     Assert(client.LoadResult is { Runtime: "vulkan", Gpu: "Fake GPU" }, $"load result {client.LoadResult}");
+});
+
+await CheckAsync("client: a cold request reports its worker start and model load; a warm one reports zero (#1932)", async () =>
+{
+    var loadDelay = TimeSpan.FromMilliseconds(150);
+    var launcher = new FakeLauncher(_ => new FakeBehavior
+    {
+        Handle = async (process, command) =>
+        {
+            if (command is WhisperWorkerLoadCommand) await Task.Delay(loadDelay);
+            await FakeBehavior.DefaultHandle(process, command);
+        },
+    });
+    // No idle exit between the two: a slow runner must not turn "warm" cold.
+    await using var client = new WhisperWorkerClient(launcher, timings: fast with { IdleTimeout = TimeSpan.FromMinutes(1) });
+    await client.SelectModelAsync(model);
+    var cold = await client.TranscribeAsync("/a.wav", null, options);
+    var warm = await client.TranscribeAsync("/b.wav", null, options);
+    Assert(cold.StartAndLoad >= loadDelay, $"cold start and load {cold.StartAndLoad.TotalMilliseconds} ms");
+    Assert(warm.StartAndLoad == TimeSpan.Zero, $"warm start and load {warm.StartAndLoad.TotalMilliseconds} ms");
+
+    await client.StopAsync(); // what the idle timer does
+    Assert(client.LastLoadResult is { Runtime: "vulkan" } && client.LoadResult is null, "the last load result was not kept after the exit");
+    var afterStop = await client.TranscribeAsync("/c.wav", null, options);
+    Assert(afterStop.StartAndLoad >= loadDelay, $"after the worker stopped {afterStop.StartAndLoad.TotalMilliseconds} ms");
+});
+
+await CheckAsync("client: a worker killed while idle is logged as an unasked exit; an idle shutdown is not (#1932)", async () =>
+{
+    var warnings = new List<string>();
+    var infos = new List<string>();
+    var launcher = new FakeLauncher();
+    await using var client = new WhisperWorkerClient(
+        launcher,
+        info: line => { lock (infos) infos.Add(line); },
+        warn: line => { lock (warnings) warnings.Add(line); },
+        timings: fast);
+    await client.SelectModelAsync(model);
+
+    await client.TranscribeAsync("/a.wav", null, options);
+    await WaitUntilAsync(() => !client.IsRunning, "the idle shutdown");
+    lock (warnings) Assert(warnings.Count == 0, $"a clean idle exit warned: {string.Join(" | ", warnings)}");
+    lock (infos) Assert(infos.Any(l => l.Contains($"Worker exited (pid {launcher[0].Id})")), "the clean exit was not logged");
+
+    await client.TranscribeAsync("/b.wav", null, options);
+    launcher[1].Exit(); // killed from outside, between requests
+    await WaitUntilAsync(() => { lock (warnings) return warnings.Count > 0; }, "the unasked-exit warning");
+    lock (warnings)
+    {
+        Assert(warnings.Count == 1 && warnings[0].Contains($"(pid {launcher[1].Id}) exited while idle without being asked to stop"),
+            $"warnings: {string.Join(" | ", warnings)}");
+    }
 });
 
 await CheckAsync("client: without a selected model a request fails as not_loaded and starts nothing", async () =>

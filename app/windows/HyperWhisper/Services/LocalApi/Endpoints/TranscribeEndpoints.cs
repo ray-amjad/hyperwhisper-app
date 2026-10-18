@@ -145,6 +145,10 @@ internal static class TranscribeEndpoints
                     }
                 }
 
+                // Whisper's worker start and model load land here when this request
+                // paid them (a cold start after an idle exit), so load_ms holds
+                // them and decode_ms the rest (#1932).
+                using var whisperLoad = WhisperLoadTiming.Begin();
                 var started = DateTime.UtcNow;
                 TranscriptionResult result;
                 try
@@ -179,8 +183,9 @@ internal static class TranscribeEndpoints
                 }
 
                 var latencyMs = (int)Math.Round((DateTime.UtcNow - started).TotalMilliseconds);
+                var loadMs = (int)Math.Round(whisperLoad.Elapsed.TotalMilliseconds);
 
-                return LocalApiResponder.Ok(BuildResponse(result, effectiveMode, latencyMs));
+                return LocalApiResponder.Ok(BuildResponse(result, effectiveMode, latencyMs, loadMs));
             }
             finally
             {
@@ -233,18 +238,25 @@ internal static class TranscribeEndpoints
     /// no-speech guard still covers the real failure: a provider that returns
     /// nothing at all.
     /// </remarks>
+    /// <param name="latencyMs">The whole transcription, load included.</param>
+    /// <param name="loadMs">
+    /// The part of it spent starting the Whisper worker and loading the model;
+    /// zero when the worker was warm, or for another engine. decode_ms is the rest.
+    /// </param>
     internal static TranscribeResponse BuildResponse(
         TranscriptionResult result,
         Mode effectiveMode,
-        int latencyMs)
+        int latencyMs,
+        int loadMs = 0)
     {
+        loadMs = Math.Clamp(loadMs, 0, Math.Max(0, latencyMs));
         return new TranscribeResponse
         {
             Text = result.FinalText,
             Engine = EngineLabel(effectiveMode),
             Model = ModelLabel(effectiveMode),
             Language = EffectiveLanguage(effectiveMode),
-            Timings = new TranscribeTimings { LoadMs = 0, DecodeMs = latencyMs },
+            Timings = new TranscribeTimings { LoadMs = loadMs, DecodeMs = latencyMs - loadMs },
             LatencyMs = latencyMs
         };
     }

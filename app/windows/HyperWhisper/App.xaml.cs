@@ -443,6 +443,10 @@ public partial class App : WpfApplication
         // owned by TranscriptionRuntime are disposed implicitly by process exit.
         try { LocalApiServer.Instance.Shutdown(); } catch { /* best-effort on shutdown */ }
 
+        // The Whisper worker leaves with this process (stdin EOF); say so now,
+        // while the log can still be written (#1932).
+        try { TranscriptionRuntime.LocalProvider.LogWorkerAtAppExit(); } catch { /* best-effort on shutdown */ }
+
         // Quit paths that skip MainWindow.ShutdownAsync (an update restart, a
         // session end) still cancel running model downloads so each deletes its
         // partial if it gets the chance; start-up sweeps the rest (#1599). No wait:

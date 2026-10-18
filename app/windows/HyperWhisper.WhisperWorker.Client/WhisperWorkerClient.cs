@@ -15,7 +15,15 @@ public sealed record WhisperWorkerLoadResult(string Runtime, string? Gpu, string
 /// Whisper wrote it; <see cref="Text"/> has the non-speech markers stripped.
 /// A caller that splits a file into chunks joins the raw texts and strips once.
 /// </summary>
-public sealed record WhisperWorkerTranscript(string Text, string RawText, string? Language, int SegmentCount);
+public sealed record WhisperWorkerTranscript(string Text, string RawText, string? Language, int SegmentCount)
+{
+    /// <summary>
+    /// How long this request spent starting the worker and loading the model
+    /// before it could decode: zero when the worker was already up with the
+    /// model, and both loads when a lost worker was restarted (#1932).
+    /// </summary>
+    public TimeSpan StartAndLoad { get; init; }
+}
 
 /// <summary>The client's timings. Only tests change them; the app uses the defaults.</summary>
 public sealed record WhisperWorkerClientTimings
@@ -91,6 +99,9 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     private Session? _session;
     private WhisperWorkerModel? _model;
     private long _nextId;
+
+    /// <summary>Worker starts plus model loads begun; read and written with <c>_gate</c> held.</summary>
+    private long _coldWork;
     private int _holds;
     private int _active;
     private long _idleGeneration;
@@ -121,6 +132,14 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     /// <summary>What the running worker's last successful load reported.</summary>
     public WhisperWorkerLoadResult? LoadResult => Volatile.Read(ref _session)?.LoadResult;
 
+    /// <summary>
+    /// What the last successful load of the selected model reported, kept after
+    /// the worker exits (an idle exit) and cleared when the selection changes.
+    /// </summary>
+    public WhisperWorkerLoadResult? LastLoadResult => Volatile.Read(ref _lastLoadResult);
+
+    private WhisperWorkerLoadResult? _lastLoadResult;
+
     /// <summary>How many worker processes this client has started.</summary>
     public int StartCount { get; private set; }
 
@@ -141,6 +160,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     {
         await RunExclusiveAsync(async () =>
         {
+            if (!Equals(Volatile.Read(ref _model), model)) Volatile.Write(ref _lastLoadResult, null);
             Volatile.Write(ref _model, model);
             var session = _session;
             if (session is not null && (model is null || !Equals(session.LoadedModel, model)))
@@ -156,7 +176,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
 
     /// <summary>Starts the worker if it is down and loads the selected model.</summary>
     public Task<WhisperWorkerLoadResult> WarmUpAsync(CancellationToken cancellationToken = default) =>
-        RunRequestAsync((session, _) => Task.FromResult(session.LoadResult!), cancellationToken);
+        RunRequestAsync((session, _, _) => Task.FromResult(session.LoadResult!), cancellationToken);
 
     /// <summary>
     /// Transcribes one 16 kHz mono 16-bit WAV. Starts and loads the worker when it
@@ -178,7 +198,9 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(options);
         var timeout = _timings.TranscribeTimeoutFor(audioDuration ?? WavDuration(wavPath));
         return RunRequestAsync(
-            (session, token) => TranscribeOnAsync(session, wavPath, language, options, timeout, token),
+            async (session, startAndLoad, token) =>
+                await TranscribeOnAsync(session, wavPath, language, options, timeout, token).ConfigureAwait(false)
+                    with { StartAndLoad = startAndLoad },
             cancellationToken);
     }
 
@@ -257,18 +279,35 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     // REQUEST PIPELINE
     // =====================================================================
 
+    /// <param name="operation">
+    /// The request on a loaded worker. It is passed the time this request spent
+    /// so far in <see cref="EnsureLoadedAsync"/> (worker start and model load).
+    /// </param>
     private async Task<T> RunRequestAsync<T>(
-        Func<Session, CancellationToken, Task<T>> operation,
+        Func<Session, TimeSpan, CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken)
     {
         return await RunExclusiveAsync(async () =>
         {
+            var startAndLoad = TimeSpan.Zero;
             for (int attempt = 0; ; attempt++)
             {
                 try
                 {
-                    var session = await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
-                    return await operation(session, cancellationToken).ConfigureAwait(false);
+                    // A warm worker with the model costs nothing here, and counts as
+                    // zero: only a start or a load sent inside this call is counted.
+                    var coldWorkBefore = _coldWork;
+                    var loading = System.Diagnostics.Stopwatch.StartNew();
+                    Session session;
+                    try
+                    {
+                        session = await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (_coldWork != coldWorkBefore) startAndLoad += loading.Elapsed;
+                    }
+                    return await operation(session, startAndLoad, cancellationToken).ConfigureAwait(false);
                 }
                 catch (WorkerLostException lost)
                 {
@@ -345,6 +384,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             return session;
         }
 
+        _coldWork++;
         var id = Interlocked.Increment(ref _nextId);
         var line = WhisperWorkerProtocol.BuildCommand(new WhisperWorkerLoadCommand(
             id, model.Path, model.GpuDevice, model.FlashAttention, model.GpuName));
@@ -383,6 +423,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
 
         session.LoadedModel = model;
         session.LoadResult = new WhisperWorkerLoadResult(reply.Runtime ?? "unknown", reply.Gpu, reply.Info);
+        Volatile.Write(ref _lastLoadResult, session.LoadResult);
         _info($"WhisperWorkerClient: Model loaded (runtime {session.LoadResult.Runtime}"
               + (reply.Gpu is null ? ")" : $", GPU {reply.Gpu})"));
         return session;
@@ -392,9 +433,10 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     {
         // The one place a worker starts: never after dispose, or nothing stops it.
         ObjectDisposedException.ThrowIf(IsDisposed, this);
+        _coldWork++;
         var process = _launcher.Start(); // throws WhisperWorkerException(start_failed)
         StartCount++;
-        var session = new Session(process, _info);
+        var session = new Session(process, _info, _warn);
         Volatile.Write(ref _session, session);
         _info($"WhisperWorkerClient: Started the worker (pid {session.ProcessId})");
 
@@ -521,6 +563,8 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         if (!ReferenceEquals(_session, session)) return;
         if (!session.HasExited)
         {
+            // Before the write: the worker can exit before CloseInput below runs.
+            session.ExpectExit();
             try
             {
                 await session.WriteAsync(WhisperWorkerProtocol.BuildCommand(new WhisperWorkerShutdownCommand()))
@@ -662,6 +706,7 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
     {
         private readonly IWhisperWorkerProcess _process;
         private readonly Action<string> _log;
+        private readonly Action<string> _warn;
         private readonly SemaphoreSlim _writeLock = new(1, 1);
         private readonly TaskCompletionSource<WhisperWorkerReady> _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _exited = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -670,10 +715,14 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
         private long _pendingId;
         private TaskCompletionSource<WhisperWorkerReply>? _pending;
 
-        public Session(IWhisperWorkerProcess process, Action<string> log)
+        /// <summary>Set once the client asks the worker to stop: an exit after it is expected.</summary>
+        private int _stopRequested;
+
+        public Session(IWhisperWorkerProcess process, Action<string> log, Action<string> warn)
         {
             _process = process;
             _log = log;
+            _warn = warn;
             ProcessId = process.Id;
             _ready.Task.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
             _reader = Task.Run(ReadLoopAsync);
@@ -736,7 +785,14 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             }
         }
 
-        public void CloseInput() => _process.CloseInput();
+        /// <summary>Marks the exit that follows as asked for (shutdown, stdin close or kill).</summary>
+        public void ExpectExit() => Volatile.Write(ref _stopRequested, 1);
+
+        public void CloseInput()
+        {
+            ExpectExit();
+            _process.CloseInput();
+        }
 
         public async Task WaitForExitAsync(TimeSpan timeout)
         {
@@ -751,11 +807,15 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             }
         }
 
-        public void Kill() => _process.Kill();
+        public void Kill()
+        {
+            ExpectExit();
+            _process.Kill();
+        }
 
         public async ValueTask DisposeAsync()
         {
-            _process.CloseInput();
+            CloseInput();
             try
             {
                 await _reader.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
@@ -817,11 +877,29 @@ public sealed class WhisperWorkerClient : IAsyncDisposable
             finally
             {
                 TaskCompletionSource<WhisperWorkerReply>? orphan;
+                long orphanId;
                 lock (_pendingLock)
                 {
                     _exited.TrySetResult();
                     orphan = _pending;
+                    orphanId = _pendingId;
                     _pending = null;
+                }
+                // A shutdown the client asked for logs its own "Worker exited"
+                // line. This one is a worker that left unasked: killed from
+                // outside or crashed, so the log tells it from a clean exit (#1932).
+                if (Volatile.Read(ref _stopRequested) == 0)
+                {
+                    try
+                    {
+                        _warn(orphan is null
+                        ? $"WhisperWorkerClient: The worker (pid {ProcessId}) exited while idle without being asked to stop (killed or crashed)"
+                        : $"WhisperWorkerClient: The worker (pid {ProcessId}) exited during request {orphanId} without being asked to stop (killed or crashed)");
+                    }
+                    catch
+                    {
+                        // A failing logger must not keep the request below from failing over.
+                    }
                 }
                 orphan?.TrySetException(Lost());
                 _ready.TrySetException(Lost());

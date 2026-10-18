@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
 using HyperWhisper.WhisperWorker;
 
@@ -186,6 +187,63 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     public bool IsUsingGpu => ActiveGpuName != null;
 
     /// <summary>
+    /// The backend for the log (#1932). The worker's last load of this model says
+    /// what really ran, which is the CPU when Vulkan fell back; it outlives an idle
+    /// exit, since the next worker loads the same way. Before a load, a CPU-only
+    /// <c>HW_WHISPER_WORKER_RUNTIMES</c> (a diagnostics override the worker
+    /// inherits) means the CPU even on a GPU machine. The model is still sent the
+    /// GPU's device index; the CPU runtime ignores it.
+    /// </summary>
+    internal string DescribeBackend()
+    {
+        if (_worker.LastLoadResult is { } load)
+        {
+            return load.Runtime == "vulkan"
+                ? $"GPU ({load.Gpu ?? ActiveGpuName ?? "Vulkan"})"
+                : $"CPU (runtime {load.Runtime})";
+        }
+        if (!IsUsingGpu) return "CPU";
+        var order = Environment.GetEnvironmentVariable(WorkerRuntimeOrderVariable);
+        return IsCpuOnlyRuntimeOrder(order)
+            ? $"CPU ({WorkerRuntimeOrderVariable}={order})"
+            : $"GPU ({ActiveGpuName})";
+    }
+
+    /// <summary>The worker's runtime order override (its <c>WorkerRuntime.OrderVariable</c>).</summary>
+    internal const string WorkerRuntimeOrderVariable = "HW_WHISPER_WORKER_RUNTIMES";
+
+    /// <summary>
+    /// True when the override names a CPU runtime and no GPU one. The worker
+    /// ignores names it does not know and keeps its default order (Vulkan first)
+    /// when none is left, so an order with no CPU name is not CPU-only.
+    /// </summary>
+    internal static bool IsCpuOnlyRuntimeOrder(string? order)
+    {
+        if (string.IsNullOrWhiteSpace(order)) return false;
+        var parts = order.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var hasCpu = parts.Any(p => p.Equals("Cpu", StringComparison.OrdinalIgnoreCase)
+                                    || p.Equals("CpuNoAvx", StringComparison.OrdinalIgnoreCase));
+        var hasGpu = parts.Any(p => p.Equals("Vulkan", StringComparison.OrdinalIgnoreCase)
+                                    || p.Equals("Cuda", StringComparison.OrdinalIgnoreCase)
+                                    || p.Equals("OpenVino", StringComparison.OrdinalIgnoreCase)
+                                    || p.Equals("CoreML", StringComparison.OrdinalIgnoreCase));
+        return hasCpu && !hasGpu;
+    }
+
+    /// <summary>
+    /// The app is closing. The shared service is never disposed: the worker reads
+    /// stdin EOF when this process ends and exits with it, and nothing is left to
+    /// log that. Logged here, so the log tells a normal close from a worker that
+    /// was killed (#1932; the client warns when a worker exits unasked).
+    /// </summary>
+    public void LogWorkerAtAppExit()
+    {
+        LoggingService.Info(_worker.WorkerProcessId is { } pid
+            ? $"TranscriptionService: App closing; the Whisper worker (pid {pid}) exits with it"
+            : "TranscriptionService: App closing; no Whisper worker is running");
+    }
+
+    /// <summary>
     /// Counter for transcriptions performed since service initialization.
     /// Used to log GPU diagnostics on first transcription.
     /// </summary>
@@ -306,7 +364,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 progress?.Invoke(1.0);
 
                 LoggingService.Info("Step 2: Model selected");
-                LoggingService.Info($"  Compute Backend: {(IsUsingGpu ? $"GPU ({ActiveGpuName})" : "CPU")}");
+                LoggingService.Info($"  Compute Backend: {DescribeBackend()}");
                 LoggingService.Info("========== TRANSCRIPTION SERVICE READY ==========");
             }
             catch (OperationCanceledException)
@@ -537,7 +595,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"  Transcription #: {_transcriptionCount}");
         LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
-        LoggingService.Info($"  Backend: {(IsUsingGpu ? $"GPU ({ActiveGpuName})" : "CPU")}");
+        LoggingService.Info($"  Backend: {DescribeBackend()}");
         LoggingService.Info($"  Model: {Path.GetFileName(modelPath)}");
         LoggingService.Info($"  Thread ID: {Environment.CurrentManagedThreadId}");
 
@@ -710,7 +768,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         {
             totalStopwatch.Stop();
             LoggingService.Error($"TranscriptionService: File transcription failed after {totalStopwatch.ElapsedMilliseconds}ms ({DescribeWorkerFailure(ex)})", ex);
-            LoggingService.Error($"  Backend: {(IsUsingGpu ? ActiveGpuName : "CPU")}");
+            LoggingService.Error($"  Backend: {DescribeBackend()}");
 
             // The worker reads the model at its first load, not at selection, so a
             // damaged file used to show "Ready" and fail every transcription with
@@ -743,7 +801,13 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             WhisperWav.Write(wavPath, samples.Span);
             // The chunk's length scales the worker's watchdog for this request.
             var duration = TimeSpan.FromSeconds(samples.Length / (double)WhisperWav.SampleRate);
-            return await _worker.TranscribeAsync(wavPath, language, options, cancellationToken, duration).ConfigureAwait(false);
+            var transcript = await _worker.TranscribeAsync(wavPath, language, options, cancellationToken, duration).ConfigureAwait(false);
+            if (transcript.StartAndLoad > TimeSpan.Zero)
+            {
+                LoggingService.Info($"  Worker start and model load: {transcript.StartAndLoad.TotalMilliseconds:0}ms");
+            }
+            WhisperLoadTiming.Add(transcript.StartAndLoad);
+            return transcript;
         }
         finally
         {
