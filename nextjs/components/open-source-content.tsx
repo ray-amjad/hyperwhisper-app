@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 
 import { useTranslations } from "next-intl";
 
+import { PROSE_TEXT_LINK } from "@/components/text-link";
+
 // The /open-source page body (#1059). It reads the `openSource` namespace with
 // useTranslations, which works in a server component and under a
 // NextIntlClientProvider alike, so a test can render it in every locale.
@@ -56,7 +58,9 @@ export default function OpenSourceContent() {
       </div>
 
       {/* Body */}
-      <div className="prose prose-invert mx-auto mt-12 max-w-3xl prose-headings:text-white prose-a:text-purple-300 prose-a:no-underline hover:prose-a:text-purple-200 prose-strong:text-white">
+      <div
+        className={`prose prose-invert mx-auto mt-12 max-w-3xl prose-headings:text-white prose-strong:text-white ${PROSE_TEXT_LINK}`}
+      >
         <p>
           {t.rich("intro", {
             github: externalLink(GITHUB_URL),
