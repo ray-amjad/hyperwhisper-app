@@ -292,5 +292,12 @@ jobs:
       # the same project Linux CI's shared-dotnet sweep runs — is what proves
       # the routes, the origin guard, bearer auth, the body limits and the
       # `file` path policy on this platform too.
+      #
+      # The suite synthesises its long-audio fixture with ffmpeg (Linux CI
+      # installs it with apt). windows-latest has no ffmpeg on PATH, so install
+      # it here; Chocolatey's shim directory is already on PATH.
+      - name: Install ffmpeg for the shared Local API server tests
+        run: choco install ffmpeg -y --no-progress
+
       - name: Run shared Local API server tests
         run: dotnet run --project app/shared-dotnet/HyperWhisper.LocalApi.Tests -c Release
