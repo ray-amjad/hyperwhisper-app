@@ -5393,6 +5393,96 @@ internal static class Program
                 }
             });
 
+            // ---------------------------------------------------------------
+            // #695: the Whisper download shares the local-LLM download's disk-space
+            // check and its retried move, through ModelDownloader.
+            // ---------------------------------------------------------------
+
+            Run("WhisperModelService.DownloadModelAsync refuses a model the drive cannot hold, before any download (#695)", () =>
+            {
+                var service = new WhisperModelService();
+                // A real type, so main would start the Hugging Face download; a size no drive holds.
+                var model = new WhisperModelInfo("tiny", "Smoke 695", "1 PB", false, 1L << 50, 0);
+                var tempPath = service.GetModelPath(model) + ".download";
+                var hadModel = File.Exists(service.GetModelPath(model));
+
+                var result = service.DownloadModelAsync(model).GetAwaiter().GetResult();
+
+                Assert(result.IsFailure, "a 1 PB model download was not refused");
+                var diskPrefix = HyperWhisper.Localization.Loc.S("settings.models.localLlm.diskSpace", "Smoke 695", "", "").Split(' ')[0];
+                Assert(result.Error!.Contains("Smoke 695") && result.Error.StartsWith(diskPrefix),
+                    $"the refusal is not the disk-space message: {result.Error}");
+                Assert(!File.Exists(tempPath), "a .download temp file was created for a refused model");
+                Assert(File.Exists(service.GetModelPath(model)) == hadModel, "the refused download touched the installed model file");
+            });
+
+            Run("ModelDownloader.EnsureDiskSpace passes a small model and refuses one larger than the drive (#695)", () =>
+            {
+                var dir = Path.GetTempPath();
+                Assert(ModelDownloader.EnsureDiskSpace(dir, 1, "tiny", "Smoke").IsSuccess, "a 1-byte model was refused");
+                var refused = ModelDownloader.EnsureDiskSpace(dir, 1L << 50, "huge", "Smoke");
+                Assert(refused.IsFailure && refused.Error!.Contains("huge"), "a 1 PB model was not refused by name");
+            });
+
+            Run("ModelDownloader.MoveDownloadedFileAsync waits out a briefly held temp file and replaces the old model (#695)", () =>
+            {
+                var dir = Path.Combine(Path.GetTempPath(), "hw-smoke-695-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(dir);
+                var temp = Path.Combine(dir, "model.bin.download");
+                var final = Path.Combine(dir, "model.bin");
+                try
+                {
+                    File.WriteAllText(final, "old");
+                    File.WriteAllText(temp, "new");
+                    // A scanner-style handle with no delete sharing: File.Move fails while it is open.
+                    var holder = new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    var release = Task.Run(async () => { await Task.Delay(600); holder.Dispose(); });
+
+                    ModelDownloader.MoveDownloadedFileAsync(temp, final, "Smoke", CancellationToken.None).GetAwaiter().GetResult();
+                    release.GetAwaiter().GetResult();
+
+                    Assert(!File.Exists(temp), "the temp file is still there after the move");
+                    Assert(File.ReadAllText(final) == "new", "the finished download did not replace the old model file");
+                }
+                finally
+                {
+                    try { Directory.Delete(dir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
+            Run("ModelDownloader.MoveDownloadedFileAsync gives up after its last attempt and keeps the temp file (#695)", () =>
+            {
+                var dir = Path.Combine(Path.GetTempPath(), "hw-smoke-695-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(dir);
+                var temp = Path.Combine(dir, "model.bin.download");
+                var final = Path.Combine(dir, "model.bin");
+                try
+                {
+                    File.WriteAllText(temp, "new");
+                    using (new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    {
+                        Exception? thrown = null;
+                        try
+                        {
+                            ModelDownloader.MoveDownloadedFileAsync(temp, final, "Smoke", CancellationToken.None).GetAwaiter().GetResult();
+                        }
+                        catch (Exception ex)
+                        {
+                            thrown = ex;
+                        }
+
+                        Assert(thrown is IOException or UnauthorizedAccessException,
+                            $"a move held for good did not surface the IO error: {thrown?.GetType().Name ?? "no exception"}");
+                    }
+
+                    Assert(File.Exists(temp) && !File.Exists(final), "a failed move lost or half-moved the download");
+                }
+                finally
+                {
+                    try { Directory.Delete(dir, recursive: true); } catch { /* best effort */ }
+                }
+            });
+
             Run("ParakeetModelService.IsModelDownloaded checks every pinned file size (#1598)", () =>
             {
                 var service = new ParakeetModelService();
