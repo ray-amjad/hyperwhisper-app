@@ -12,9 +12,18 @@ import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 
 type Platform = "mac" | "windows";
 
-// `formatDate` runs in render, once per row: report its failure once per page
-// load, not once per row per render (#739).
+// `formatDate` runs in render, once per row: report its failure once per tab,
+// not once per row per render (#739).
 let formatDateFailureReported = false;
+
+function reportFormatDateFailure(
+  error: unknown,
+  context?: Record<string, string>,
+): void {
+  if (formatDateFailureReported) return;
+  formatDateFailureReported = true;
+  void reportClientError("older_versions.format_date", error, context);
+}
 
 /**
  * Interface representing a single download variant (one per architecture)
@@ -183,16 +192,20 @@ export default function DownloadsPage() {
     try {
       const date = new Date(dateString);
 
+      // An unparseable `pubDate` does not throw: it renders "Invalid Date".
+      if (Number.isNaN(date.getTime())) {
+        reportFormatDateFailure(new Error("Unparseable appcast pubDate"), {
+          pub_date: dateString,
+        });
+      }
+
       return date.toLocaleDateString(intlLocale(locale), {
         year: "numeric",
         month: "long",
         day: "numeric",
       });
     } catch (error) {
-      if (!formatDateFailureReported) {
-        formatDateFailureReported = true;
-        void reportClientError("older_versions.format_date", error);
-      }
+      reportFormatDateFailure(error);
       return dateString;
     }
   };

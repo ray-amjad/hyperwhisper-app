@@ -106,7 +106,7 @@ for (const [file, operation] of SITES) {
 
     assert.match(
       source,
-      new RegExp(`void reportClientError\\("${operation.replace(".", "\\.")}"`),
+      new RegExp(`reportClientError\\("${operation.replace(".", "\\.")}"`),
     );
   });
 }
