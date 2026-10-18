@@ -1101,6 +1101,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
                     "Failed to start parakeet-engine process",
                     "Parakeet");
             }
+            var sinceStart = Stopwatch.StartNew();
 
             _stdinWriter = process.StandardInput;
             _stdoutReader = process.StandardOutput;
@@ -1122,6 +1123,25 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             using var readyCts = CancellationTokenSource.CreateLinkedTokenSource(idleReloadCancellation);
             readyCts.CancelAfter(readyTimeout);
 
+            // The cause of a start failure, for its ERROR line and its one Sentry
+            // report (#854). Called after the branch has its exit code and has
+            // stopped the daemon, so the stderr tail is complete.
+            IReadOnlyList<KeyValuePair<string, object>> StartFailureFields(string failure, int? exitCode, long elapsedMilliseconds)
+            {
+                var (lineCount, tail) = stderrCapture.TailSnapshot();
+                return BuildStartFailureFields(
+                    failure,
+                    exitCode,
+                    engineArg,
+                    modelId,
+                    supportsLanguageHint ? daemonLanguage : null,
+                    readySeconds,
+                    elapsedMilliseconds,
+                    lineCount,
+                    tail,
+                    ReadUserProfileDirectory());
+            }
+
             // WaitAsync, not only the read's token: a read on the daemon's pipe is not
             // guaranteed to observe cancellation, and a cancelled idle reload must hand the
             // lock back at once. The abandoned read ends when the daemon is killed below.
@@ -1136,9 +1156,13 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
 
                 if (line == null)
                 {
-                    LoggingService.Error("ParakeetTranscriptionService: Daemon closed stdout before sending READY");
+                    var elapsedMs = sinceStart.ElapsedMilliseconds;
                     var earlyExitCode = TryGetEarlyExitCode(process);
                     KillDaemonProcess(process);
+                    await stderrCapture.WaitForEndAsync(TimeSpan.FromMilliseconds(StartFailureDiagnosticWaitMilliseconds)).ConfigureAwait(false);
+                    ReportStartFailure(
+                        "ParakeetTranscriptionService: Daemon closed stdout before sending READY",
+                        StartFailureFields(StartFailureStdoutClosed, earlyExitCode, elapsedMs));
 
                     // The daemon died while ONNX Runtime parsed the model: a damaged
                     // ONNX file throws a native exception nothing catches, and the
@@ -1187,7 +1211,8 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
                         ? errorProp.GetString() ?? "Unknown error"
                         : $"Unexpected response: {line}";
 
-                    LoggingService.Error($"ParakeetTranscriptionService: Daemon reported error: {errorMsg}");
+                    var elapsedMs = sinceStart.ElapsedMilliseconds;
+                    var errorExitCode = TryGetEarlyExitCode(process, StartFailureDiagnosticWaitMilliseconds);
                     KillDaemonProcess(process);
 
                     // "Failed to load model" alone does not say WHY (#1598 review round 2):
@@ -1197,6 +1222,9 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
                     // read that to its end (the daemon is gone) and mark the model broken
                     // only when it names a fault in the model's own files.
                     await stderrCapture.WaitForEndAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                    ReportStartFailure(
+                        $"ParakeetTranscriptionService: Daemon reported error: {errorMsg}",
+                        StartFailureFields(StartFailureDaemonError, errorExitCode, elapsedMs));
                     if (IsModelFileLoadFailure(errorMsg, stderrCapture.Snapshot(), modelDirectory))
                     {
                         LocalModelHealth.MarkBroken(modelDirectory, "Parakeet engine could not load the model");
@@ -1222,9 +1250,14 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             }
             catch (OperationCanceledException)
             {
-                LoggingService.Error($"ParakeetTranscriptionService: Daemon did not send READY within {readySeconds} seconds");
+                var elapsedMs = sinceStart.ElapsedMilliseconds;
+                var timeoutExitCode = TryGetEarlyExitCode(process, StartFailureDiagnosticWaitMilliseconds);
                 KillDaemonProcess(process);
                 _ = ObserveInFlightReadAsync(readLineTask);
+                await stderrCapture.WaitForEndAsync(TimeSpan.FromMilliseconds(StartFailureDiagnosticWaitMilliseconds)).ConfigureAwait(false);
+                ReportStartFailure(
+                    $"ParakeetTranscriptionService: Daemon did not send READY within {readySeconds} seconds",
+                    StartFailureFields(StartFailureReadyTimeout, timeoutExitCode, elapsedMs));
                 throw new TranscriptionException(
                     TranscriptionErrorCode.DaemonStartFailed,
                     $"Parakeet daemon timed out waiting for READY signal ({readySeconds}s)",
@@ -1232,8 +1265,14 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             }
             catch (JsonException ex)
             {
-                LoggingService.Error("ParakeetTranscriptionService: Failed to parse daemon READY response", ex);
+                var elapsedMs = sinceStart.ElapsedMilliseconds;
+                var invalidJsonExitCode = TryGetEarlyExitCode(process, StartFailureDiagnosticWaitMilliseconds);
                 KillDaemonProcess(process);
+                await stderrCapture.WaitForEndAsync(TimeSpan.FromMilliseconds(StartFailureDiagnosticWaitMilliseconds)).ConfigureAwait(false);
+                ReportStartFailure(
+                    "ParakeetTranscriptionService: Failed to parse daemon READY response",
+                    StartFailureFields(StartFailureInvalidJson, invalidJsonExitCode, elapsedMs),
+                    ex);
                 throw new TranscriptionException(
                     TranscriptionErrorCode.DaemonStartFailed,
                     "Parakeet daemon sent invalid JSON on startup",
@@ -2019,7 +2058,9 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
                 if (line == null) break; // Stream closed
 
                 capture.Add(line);
-                LoggingService.Debug($"ParakeetTranscriptionService [stderr]: {line}");
+                // The capture keeps the raw line (the #1598 classifier matches the model
+                // directory in it); the log file gets it without the profile path (#854).
+                LoggingService.Debug($"ParakeetTranscriptionService [stderr]: {ScrubUserProfile(line, ReadUserProfileDirectory())}");
             }
         }
         catch (ObjectDisposedException)
@@ -2045,6 +2086,10 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
     {
         private const int MaxLines = 200;
         private readonly List<string> _lines = new();
+        // The LAST lines too, for a start failure's report (#854): a daemon that
+        // dies writes its cause last. One capture per daemon start, so it starts empty.
+        private readonly Queue<string> _tail = new();
+        private int _lineCount;
         private readonly TaskCompletionSource _ended = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public void Add(string line)
@@ -2052,6 +2097,18 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
             lock (_lines)
             {
                 if (_lines.Count < MaxLines) _lines.Add(line);
+                _tail.Enqueue(line);
+                if (_tail.Count > StartFailureTailLines) _tail.Dequeue();
+                _lineCount++;
+            }
+        }
+
+        /// <summary>Every stderr line the daemon wrote so far, and its last ones.</summary>
+        public (int LineCount, IReadOnlyList<string> Tail) TailSnapshot()
+        {
+            lock (_lines)
+            {
+                return (_lineCount, _tail.ToArray());
             }
         }
 
@@ -2087,14 +2144,15 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
 
     /// <summary>
     /// The exit code of a daemon that closed stdout before READY, once it has
-    /// exited (waits up to 1 s), or null when it is still running or unreadable.
+    /// exited (waits up to <paramref name="waitMilliseconds"/>, 1 s by default), or
+    /// null when it is still running or unreadable.
     /// </summary>
-    private static int? TryGetEarlyExitCode(Process? process)
+    private static int? TryGetEarlyExitCode(Process? process, int waitMilliseconds = 1000)
     {
         try
         {
             if (process == null) return null;
-            return process.WaitForExit(1000) ? process.ExitCode : null;
+            return process.WaitForExit(waitMilliseconds) ? process.ExitCode : null;
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
@@ -2191,6 +2249,209 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, ILocalVocabu
 
     private static string FormatExitCode(int? exitCode) =>
         exitCode is { } code ? $"0x{unchecked((uint)code):X8}" : "unknown (still running)";
+
+    // =========================================================================
+    // START-FAILURE DIAGNOSTICS (#854)
+    // =========================================================================
+
+    /// <summary>How many of the daemon's last stderr lines a start failure carries.</summary>
+    internal const int StartFailureTailLines = 20;
+
+    /// <summary>The cap on the whole scrubbed stderr tail, in characters.</summary>
+    internal const int StartFailureTailMaxChars = 2000;
+
+    /// <summary>What replaces the user's profile directory in daemon stderr.</summary>
+    internal const string UserProfileToken = "%USERPROFILE%";
+
+    /// <summary>The <c>parakeet_failure</c> slugs, one per start-failure branch.</summary>
+    internal const string StartFailureStdoutClosed = "stdout_closed";
+    internal const string StartFailureReadyTimeout = "ready_timeout";
+    internal const string StartFailureInvalidJson = "invalid_json";
+    internal const string StartFailureDaemonError = "daemon_error";
+
+    /// <summary>How long a failure branch waits for the daemon's exit code, then for
+    /// its stderr to end, before it reports. Only the failure path waits.</summary>
+    private const int StartFailureDiagnosticWaitMilliseconds = 500;
+
+    private static string ReadUserProfileDirectory()
+    {
+        try
+        {
+            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+        catch (Exception)
+        {
+            return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Replaces every occurrence of <paramref name="userProfileDirectory"/> in
+    /// <paramref name="text"/> with <c>%USERPROFILE%</c>, case-insensitively and with
+    /// '\' and '/' treated as the same character, so the daemon's stderr (which can
+    /// print the model directory, under the profile) never carries the user's
+    /// Windows account name into the log file or Sentry. No boundary check after
+    /// the match: <c>C:\Users\bob</c> inside <c>C:\Users\bobby</c> is replaced too,
+    /// so the profile path itself can never survive. Total: never throws.
+    /// </summary>
+    internal static string ScrubUserProfile(string? text, string? userProfileDirectory)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        var profile = userProfileDirectory?.TrimEnd('\\', '/');
+        if (string.IsNullOrEmpty(profile) || text.Length < profile.Length) return text;
+
+        StringBuilder? scrubbed = null;
+        var copiedUpTo = 0;
+        var i = 0;
+        while (i <= text.Length - profile.Length)
+        {
+            if (MatchesPathAt(text, i, profile))
+            {
+                scrubbed ??= new StringBuilder(text.Length);
+                scrubbed.Append(text, copiedUpTo, i - copiedUpTo).Append(UserProfileToken);
+                i += profile.Length;
+                copiedUpTo = i;
+            }
+            else
+            {
+                i++;
+            }
+        }
+
+        if (scrubbed == null) return text;
+        return scrubbed.Append(text, copiedUpTo, text.Length - copiedUpTo).ToString();
+    }
+
+    private static bool MatchesPathAt(string text, int start, string path)
+    {
+        for (var j = 0; j < path.Length; j++)
+        {
+            var a = text[start + j];
+            var b = path[j];
+            if (a == '/') a = '\\';
+            if (b == '/') b = '\\';
+            if (a != b && char.ToUpperInvariant(a) != char.ToUpperInvariant(b)) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// The daemon's last stderr lines as one string: each line scrubbed of the
+    /// profile path FIRST, then the whole joined tail capped to its last
+    /// <see cref="StartFailureTailMaxChars"/> characters (a dying daemon writes its
+    /// cause last). Scrubbing before the cap means a cut can never leave a piece of
+    /// the profile path that no longer matches. <c>(none)</c> when stderr was empty.
+    /// </summary>
+    internal static string BuildStderrTail(IReadOnlyList<string>? lines, string? userProfileDirectory)
+    {
+        if (lines == null || lines.Count == 0) return "(none)";
+
+        var start = Math.Max(0, lines.Count - StartFailureTailLines);
+        var scrubbedLines = new List<string>(lines.Count - start);
+        for (var i = start; i < lines.Count; i++)
+        {
+            scrubbedLines.Add(ScrubUserProfile(lines[i], userProfileDirectory));
+        }
+
+        var tail = string.Join("\n", scrubbedLines);
+        if (tail.Length <= StartFailureTailMaxChars) return tail;
+
+        // "…" + the last (cap - 1) characters, never starting on half a surrogate pair.
+        var cut = tail.Length - (StartFailureTailMaxChars - 1);
+        if (char.IsLowSurrogate(tail[cut])) cut++;
+        return "…" + tail.Substring(cut);
+    }
+
+    /// <summary>
+    /// The fields one start failure carries, in the order the log line prints them.
+    /// Every value is metadata: a fixed slug, a number, the model FOLDER name and a
+    /// stderr tail already scrubbed by <see cref="BuildStderrTail"/>. Never a path,
+    /// a transcript, audio, or text the user typed.
+    /// </summary>
+    internal static IReadOnlyList<KeyValuePair<string, object>> BuildStartFailureFields(
+        string failure,
+        int? exitCode,
+        string engine,
+        string modelId,
+        string? languageHint,
+        int readyTimeoutSeconds,
+        long elapsedMilliseconds,
+        int stderrLineCount,
+        IReadOnlyList<string>? stderrTail,
+        string? userProfileDirectory)
+    {
+        return new KeyValuePair<string, object>[]
+        {
+            new("parakeet_failure", failure),
+            new("parakeet_exit_code", exitCode ?? -1),
+            new("parakeet_engine", engine),
+            new("parakeet_model_id", modelId),
+            new("parakeet_language_hint", string.IsNullOrWhiteSpace(languageHint) ? "none" : languageHint),
+            new("parakeet_ready_timeout_s", readyTimeoutSeconds),
+            new("parakeet_elapsed_ms", elapsedMilliseconds),
+            new("parakeet_stderr_line_count", stderrLineCount),
+            new("parakeet_stderr_tail", BuildStderrTail(stderrTail, userProfileDirectory)),
+        };
+    }
+
+    /// <summary>The fields as one log-line suffix: <c>key=value, ...</c>, with the
+    /// tail's line breaks shown as <c> | </c> so the failure stays one log line.</summary>
+    internal static string FormatStartFailureFields(IReadOnlyList<KeyValuePair<string, object>> fields) =>
+        string.Join(", ", fields.Select(f =>
+            $"{f.Key}={Convert.ToString(f.Value, System.Globalization.CultureInfo.InvariantCulture)?.Replace("\n", " | ")}"));
+
+    /// <summary>
+    /// Writes one start failure's cause to the local log as the branch's ERROR line,
+    /// and sends ONE Sentry diagnostic for it when the user allows error reporting.
+    /// Diagnostics only: it never throws, so the branch still throws its own
+    /// <see cref="TranscriptionException"/> unchanged.
+    /// </summary>
+    private static void ReportStartFailure(
+        string logMessage,
+        IReadOnlyList<KeyValuePair<string, object>> fields,
+        Exception? exception = null)
+    {
+        // The daemon's own error text can sit in the message (daemon_error), so it is
+        // scrubbed like the tail before it reaches the log.
+        logMessage = ScrubUserProfile(logMessage, ReadUserProfileDirectory());
+        try
+        {
+            var line = $"{logMessage} ({FormatStartFailureFields(fields)})";
+            if (exception != null) LoggingService.Error(line, exception);
+            else LoggingService.Error(line);
+        }
+        catch (Exception)
+        {
+            LoggingService.Error(logMessage);
+        }
+
+        try
+        {
+            if (!SettingsService.Instance.EnableErrorLogging) return;
+
+            var extras = new Dictionary<string, object>(StringComparer.Ordinal);
+            foreach (var (key, value) in fields) extras[key] = value;
+            var failure = Convert.ToString(extras["parakeet_failure"], System.Globalization.CultureInfo.InvariantCulture) ?? "unknown";
+
+            SentryService.CaptureDiagnosticEvent(
+                message: "Parakeet daemon start failed",
+                extras: extras,
+                tags: new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["component"] = "parakeet",
+                    ["diagnostic_name"] = "parakeet_daemon_start_failed",
+                    ["parakeet_failure"] = failure,
+                },
+                fingerprint: new[] { "parakeet-daemon-start-failed", failure },
+                // One report per cause per session: a recording retries a failed load,
+                // and the same dead model must not send an event every time.
+                dedupeKey: $"parakeet-daemon-start-failed:{failure}:{extras["parakeet_model_id"]}:{extras["parakeet_exit_code"]}");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"ParakeetTranscriptionService: Start-failure report failed: {ex.GetType().Name}");
+        }
+    }
 
     private static void KillDaemonProcess(Process? process)
     {
