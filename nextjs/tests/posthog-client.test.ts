@@ -87,6 +87,7 @@ test("with a key: inits once, with today's options, before any caller gets it", 
       options: {
         api_host: "https://us.i.posthog.com",
         person_profiles: "always",
+        capture_exceptions: true,
         before_send: redactAccountKeyFromEvent,
       },
     },

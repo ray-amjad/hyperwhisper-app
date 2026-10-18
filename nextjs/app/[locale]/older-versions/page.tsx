@@ -7,10 +7,23 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { intlLocale } from "@/lib/format-date";
-
+import { reportClientError } from "@/lib/shared/report-client-error";
 import { useRevealAfterLoad } from "@/lib/use-reveal-after-load";
 
 type Platform = "mac" | "windows";
+
+// `formatDate` runs in render, once per row: report its failure once per tab,
+// not once per row per render (#739).
+let formatDateFailureReported = false;
+
+function reportFormatDateFailure(
+  error: unknown,
+  context?: Record<string, string>,
+): void {
+  if (formatDateFailureReported) return;
+  formatDateFailureReported = true;
+  void reportClientError("older_versions.format_date", error, context);
+}
 
 /**
  * Interface representing a single download variant (one per architecture)
@@ -153,6 +166,9 @@ export default function DownloadsPage() {
         if (ignore || (err instanceof DOMException && err.name === "AbortError")) {
           return;
         }
+        void reportClientError("older_versions.fetch", err, {
+          platform: selectedPlatform,
+        });
         // "" = no message to show; the render puts the translated fallback in.
         setError(err instanceof Error ? err.message : "");
         setLoading(false);
@@ -176,12 +192,20 @@ export default function DownloadsPage() {
     try {
       const date = new Date(dateString);
 
+      // An unparseable `pubDate` does not throw: it renders "Invalid Date".
+      if (Number.isNaN(date.getTime())) {
+        reportFormatDateFailure(new Error("Unparseable appcast pubDate"), {
+          pub_date: dateString,
+        });
+      }
+
       return date.toLocaleDateString(intlLocale(locale), {
         year: "numeric",
         month: "long",
         day: "numeric",
       });
-    } catch {
+    } catch (error) {
+      reportFormatDateFailure(error);
       return dateString;
     }
   };

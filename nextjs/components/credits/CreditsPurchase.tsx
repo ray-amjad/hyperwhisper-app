@@ -17,6 +17,7 @@ import {
 } from "@/app/api/checkout/credits/validation";
 import { isRecord } from "@/src/lib/type-guards";
 import { showEmailError } from "@/src/lib/credits-email";
+import { reportClientError } from "@/lib/shared/report-client-error";
 
 const PRESETS = [5, 10] as const;
 
@@ -122,7 +123,9 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
           : t("errorCheckout"),
       );
       setLoading(false);
-    } catch {
+    } catch (error) {
+      // Never the email address: only the failure goes to the report.
+      void reportClientError("credits.checkout", error);
       setError(t("errorGeneric"));
       setLoading(false);
     }
