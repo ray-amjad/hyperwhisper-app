@@ -1107,6 +1107,21 @@ public partial class MainViewModel : ViewModelBase
 
     partial void OnIsRecordingChanged(bool value)
     {
+        // Keep-warm for local Whisper (issue #1194): the worker process starts and
+        // loads the model while the user speaks, and cannot idle out mid-recording.
+        if (value)
+        {
+            var mode = _activeRecordingMode;
+            if (mode != null && mode.ProviderType != "cloud" && mode.LocalEngine != "parakeet")
+            {
+                _transcriptionService.NotifyWhisperRecordingStarted();
+            }
+        }
+        else
+        {
+            _transcriptionService.NotifyWhisperRecordingEnded();
+        }
+
         if (!value && !IsTranscribing)
         {
             DisposeParakeetIfNotNeededForSelectedMode();

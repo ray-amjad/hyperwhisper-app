@@ -13,9 +13,16 @@ public sealed class LocalWhisperService : ILocalWhisperService
     private readonly SemaphoreSlim _gate = new(1, 1);
     private WhisperFactory? _factory;
     private string? _runtime;
+    private string? _modelPath;
+    private WhisperFactoryOptions? _factoryOptions;
+    private FactoryThread<WhisperFactory>? _requestFactoryThread;
+    private int _requestFactoriesBuilt;
+    private bool _verifiedOnLoad;
     private bool _disposed;
 
-    public bool IsLoaded => _factory is not null;
+    // Set only by a load that succeeded; the factory is then either _factory or
+    // the one the ARM64 rule's thread holds, never both.
+    public bool IsLoaded => _runtime is not null;
     public string? Runtime => _runtime;
 
     public async Task<LocalWhisperResult> LoadAsync(
@@ -43,18 +50,50 @@ public sealed class LocalWhisperService : ILocalWhisperService
         {
             await DisposeFactoryAsync().ConfigureAwait(false);
             ConfigureRuntime(options);
+            var modelPath = Path.GetFullPath(options.ModelPath);
+            var factoryOptions = FactoryOptionsFor(options);
+            // Set inside the load: true once the native library is up, so a
+            // fault before that point is the runtime's and not the model file's.
+            var runtimeLoaded = false;
             try
             {
-                _factory = await Task.Run(
-                    () => WhisperFactory.FromPath(
-                        Path.GetFullPath(options.ModelPath),
-                        new WhisperFactoryOptions
+                if (options.FactoryOnOwnThread)
+                {
+                    await LoadOnFactoryThreadAsync(
+                        modelPath,
+                        factoryOptions,
+                        options.VerifyModelOnLoad,
+                        () => runtimeLoaded = true,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    _factory = await Task.Run(
+                        () =>
                         {
-                            UseGpu = options.Backend != LocalWhisperBackend.Cpu,
-                            UseFlashAttention = options.Backend != LocalWhisperBackend.Cpu,
-                            GpuDevice = Math.Max(0, options.GpuDevice),
-                        }),
-                    cancellationToken).ConfigureAwait(false);
+                            // Loads the native library alone, before any model is read.
+                            _ = WhisperFactory.GetRuntimeInfo();
+                            runtimeLoaded = true;
+                            var factory = WhisperFactory.FromPath(modelPath, factoryOptions);
+                            if (options.VerifyModelOnLoad)
+                            {
+                                try
+                                {
+                                    _ = factory.CreateBuilder();
+                                }
+                                catch
+                                {
+                                    factory.Dispose();
+                                    throw;
+                                }
+                            }
+                            return factory;
+                        },
+                        cancellationToken).ConfigureAwait(false);
+                }
+                _modelPath = modelPath;
+                _factoryOptions = factoryOptions;
+                _verifiedOnLoad = options.VerifyModelOnLoad;
                 _runtime = $"{RuntimeOptions.LoadedLibrary?.ToString() ?? "unknown"}: "
                     + (WhisperFactory.GetRuntimeInfo() ?? "runtime information unavailable");
                 return LocalWhisperResult.Success(string.Empty, _runtime);
@@ -63,11 +102,13 @@ public sealed class LocalWhisperService : ILocalWhisperService
             {
                 return LocalWhisperResult.Failed(LocalWhisperErrorCode.Cancelled, "Model loading was cancelled.");
             }
-            catch (Exception)
+            catch (Exception exception)
             {
                 await DisposeFactoryAsync().ConfigureAwait(false);
+                // The message stays the same for both codes: the Linux head shows
+                // it, and only the code is new (#1598 across the worker boundary).
                 return LocalWhisperResult.Failed(
-                    LocalWhisperErrorCode.ModelLoadFailed,
+                    ClassifyLoadFault(exception, runtimeLoaded),
                     "The Whisper model could not be loaded by the selected runtime.");
             }
         }
@@ -104,7 +145,7 @@ public sealed class LocalWhisperService : ILocalWhisperService
         }
         try
         {
-            if (_factory is null || _runtime is null)
+            if (_runtime is null || (_factory is null && _requestFactoryThread is null))
             {
                 return LocalWhisperResult.Failed(
                     LocalWhisperErrorCode.RuntimeUnavailable,
@@ -114,18 +155,22 @@ public sealed class LocalWhisperService : ILocalWhisperService
             var text = new StringBuilder();
             var segments = new List<LocalWhisperSegmentTimestamp>();
             var words = new List<LocalWhisperWordTimestamp>();
-            try
+            var segmentCount = 0;
+            string? detectedLanguage = null;
+            WhisperProcessor Configure(WhisperProcessorBuilder builder)
             {
-                var builder = _factory.CreateBuilder();
                 builder.WithGreedySamplingStrategy();
                 builder.WithThreads(Math.Clamp(request.ThreadCount ?? Math.Max(1, Environment.ProcessorCount - 1), 1, 64));
                 builder.WithTemperature(0);
                 builder.WithNoSpeechThreshold(0.6f);
                 builder.WithEntropyThreshold(2.4f);
                 builder.WithNoContext();
+                if (request.MaxLastTextTokensZero) builder.WithMaxLastTextTokens(0);
                 if (request.IncludeWordTimestamps) builder.WithTokenTimestamps();
                 builder.WithSegmentEventHandler(segment =>
                 {
+                    segmentCount++;
+                    detectedLanguage ??= segment.Language;
                     text.Append(segment.Text);
                     if (!request.IncludeWordTimestamps) return;
                     // A segment of only non-speech markers is not speech, so it
@@ -164,8 +209,32 @@ public sealed class LocalWhisperService : ILocalWhisperService
                 {
                     builder.WithLanguage(request.Language.Trim());
                 }
+                return builder.Build();
+            }
 
-                await using var processor = builder.Build();
+            // Once the ARM64 rule's thread exists it holds the only factory, so
+            // every request goes through it (x64 and Linux never start it).
+            var onFactoryThread = _requestFactoryThread is not null || request.CreateFactoryOnRequestThread;
+            try
+            {
+                // The ARM64 thread rule: the factory, its builder and the processor
+                // are all made on the one factory thread, which keeps the factory
+                // across requests (one model read per load, not one per chunk).
+                await using var processor = onFactoryThread
+                    ? await RequestFactoryThread().RunAsync(factory =>
+                        {
+                            WhisperProcessorBuilder builder;
+                            try
+                            {
+                                builder = factory.CreateBuilder();
+                            }
+                            catch (Exception exception)
+                            {
+                                throw new RequestFactoryFault(exception);
+                            }
+                            return Configure(builder);
+                        }).ConfigureAwait(false)
+                    : Configure(_factory!.CreateBuilder());
                 await using var stream = new FileStream(
                     Path.GetFullPath(request.AudioPath),
                     FileMode.Open,
@@ -188,7 +257,12 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     && (segments.Count > 0 || words.Count > 0)
                     ? new LocalWhisperTimestamps(segments, words, rawText)
                     : null;
-                return LocalWhisperResult.Success(rawText, _runtime, timestamps);
+                return LocalWhisperResult.Success(rawText, _runtime, timestamps) with
+                {
+                    UnstrippedText = text.ToString(),
+                    DetectedLanguage = detectedLanguage,
+                    SegmentCount = segmentCount,
+                };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -197,8 +271,20 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     "Transcription was cancelled.",
                     _runtime);
             }
+            catch (RequestFactoryFault fault)
+            {
+                return LocalWhisperResult.Failed(
+                    ClassifyRequestFactoryFault(fault.InnerException!, _verifiedOnLoad),
+                    "The Whisper model could not be loaded by the selected runtime.",
+                    _runtime);
+            }
             catch (Exception)
             {
+                if (onFactoryThread && _requestFactoryThread is { } thread)
+                {
+                    // The old code never reused a factory after a failed file.
+                    await thread.ResetAsync().ConfigureAwait(false);
+                }
                 return LocalWhisperResult.Failed(
                     LocalWhisperErrorCode.TranscriptionFailed,
                     "Local Whisper transcription failed.",
@@ -236,7 +322,54 @@ public sealed class LocalWhisperService : ILocalWhisperService
         {
             return;
         }
-        RuntimeOptions.RuntimeLibraryOrder = RuntimeOrderFor(options.Backend, options.AllowCpuFallback);
+        RuntimeOptions.RuntimeLibraryOrder = RuntimeOrderFor(options);
+    }
+
+    internal static List<RuntimeLibrary> RuntimeOrderFor(LocalWhisperLoadOptions options) =>
+        options.RuntimeOrder is { Count: > 0 } order
+            ? [.. order]
+            : RuntimeOrderFor(options.Backend, options.AllowCpuFallback);
+
+    internal static WhisperFactoryOptions FactoryOptionsFor(LocalWhisperLoadOptions options) => new()
+    {
+        UseGpu = options.Backend != LocalWhisperBackend.Cpu,
+        UseFlashAttention = options.UseFlashAttention ?? options.Backend != LocalWhisperBackend.Cpu,
+        GpuDevice = Math.Max(0, options.GpuDevice),
+    };
+
+    /// <summary>
+    /// A load that failed before the native library was up, or with a missing,
+    /// wrong-architecture or incomplete native DLL anywhere in the exception
+    /// chain, is the runtime's fault: a new model download cannot fix it, so it
+    /// must not read as a broken model file (#1598).
+    /// </summary>
+    internal static LocalWhisperErrorCode ClassifyLoadFault(Exception exception, bool runtimeLoaded) =>
+        !runtimeLoaded || IsNativeRuntimeFault(exception)
+            ? LocalWhisperErrorCode.RuntimeUnavailable
+            : LocalWhisperErrorCode.ModelLoadFailed;
+
+    /// <summary>
+    /// A fault making the ARM64 rule's factory (or its builder) during a request.
+    /// When the load verified the model, the file already read fine, so a later
+    /// fault (out of memory, a native error) is the runtime's: calling it a broken
+    /// model file would make the app mark a good model broken. Without a verified
+    /// load this is the model's first read, so the load's own split applies.
+    /// </summary>
+    internal static LocalWhisperErrorCode ClassifyRequestFactoryFault(Exception exception, bool verifiedOnLoad) =>
+        verifiedOnLoad
+            ? LocalWhisperErrorCode.RuntimeUnavailable
+            : ClassifyLoadFault(exception, runtimeLoaded: true);
+
+    internal static bool IsNativeRuntimeFault(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     internal static List<RuntimeLibrary> RuntimeOrderFor(
@@ -252,11 +385,86 @@ public sealed class LocalWhisperService : ILocalWhisperService
             _ => [RuntimeLibrary.Cpu],
         };
 
+    /// <summary>
+    /// The ARM64 rule's load: the native library first (so a fault there is the
+    /// runtime's), then the load's one factory, made and verified on its own
+    /// thread. That thread keeps it for every request until the next load.
+    /// </summary>
+    private async Task LoadOnFactoryThreadAsync(
+        string modelPath,
+        WhisperFactoryOptions factoryOptions,
+        bool verify,
+        Action runtimeLoaded,
+        CancellationToken cancellationToken)
+    {
+        await Task.Run(() => { _ = WhisperFactory.GetRuntimeInfo(); }, cancellationToken).ConfigureAwait(false);
+        runtimeLoaded();
+        var thread = NewFactoryThread(modelPath, factoryOptions);
+        try
+        {
+            await thread.RunAsync(factory =>
+            {
+                if (verify) _ = factory.CreateBuilder();
+                return true;
+            }).ConfigureAwait(false);
+        }
+        catch
+        {
+            thread.Dispose();
+            throw;
+        }
+        _requestFactoryThread = thread;
+    }
+
+    /// <summary>
+    /// The ARM64 thread rule's factory thread for the loaded model. A load with
+    /// <see cref="LocalWhisperLoadOptions.FactoryOnOwnThread"/> made it already;
+    /// otherwise the first request that asks for the rule makes it here and drops
+    /// the load's factory, so the model is held once. Linux and x64 never start it.
+    /// </summary>
+    private FactoryThread<WhisperFactory> RequestFactoryThread()
+    {
+        if (_requestFactoryThread is { } existing) return existing;
+        _factory?.Dispose();
+        _factory = null;
+        return _requestFactoryThread = NewFactoryThread(_modelPath!, _factoryOptions!.Value);
+    }
+
+    private FactoryThread<WhisperFactory> NewFactoryThread(string modelPath, WhisperFactoryOptions factoryOptions) =>
+        new(
+            () =>
+            {
+                try
+                {
+                    Interlocked.Increment(ref _requestFactoriesBuilt);
+                    return WhisperFactory.FromPath(modelPath, factoryOptions);
+                }
+                catch (Exception exception)
+                {
+                    throw new RequestFactoryFault(exception);
+                }
+            },
+            "Whisper factory (ARM64 thread rule)");
+
+    /// <summary>Test seam: how many factories the ARM64 rule has built (or tried to) in this service's life.</summary>
+    internal int RequestFactoriesBuilt => Volatile.Read(ref _requestFactoriesBuilt);
+
+    /// <summary>Test seam: how many model factories this service holds now (the load's and the ARM64 thread's).</summary>
+    internal int FactoriesHeld => (_factory is null ? 0 : 1) + (_requestFactoryThread?.HoldsFactory == true ? 1 : 0);
+
+    /// <summary>A fault in making the ARM64 rule's factory or its builder: a load fault, not a transcription one.</summary>
+    private sealed class RequestFactoryFault(Exception inner) : Exception(inner.Message, inner);
+
     private Task DisposeFactoryAsync()
     {
+        _requestFactoryThread?.Dispose();
+        _requestFactoryThread = null;
         _factory?.Dispose();
         _factory = null;
         _runtime = null;
+        _modelPath = null;
+        _factoryOptions = null;
+        _verifiedOnLoad = false;
         return Task.CompletedTask;
     }
 }
