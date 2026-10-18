@@ -5,4 +5,4 @@ export const TEXT_LINK =
 
 // The same recipe for links inside a `prose` block (blog posts, open-source page).
 export const PROSE_TEXT_LINK =
-  "prose-a:text-purple-400 prose-a:underline prose-a:underline-offset-4 prose-a:transition-colors prose-a:hover:text-purple-300";
+  "prose-a:text-purple-400 prose-a:underline prose-a:font-normal prose-a:underline-offset-4 prose-a:transition-colors prose-a:hover:text-purple-300";
