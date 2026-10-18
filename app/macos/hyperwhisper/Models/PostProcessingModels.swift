@@ -55,15 +55,8 @@ struct PostProcessingModels {
             description: "Newest generation, fast",
             provider: .openai
         ),
-        PostProcessingModel(
-            id: "gpt-4.1-mini",
-            displayName: "GPT-4.1 Mini",
-            isAvailable: true,
-            description: "models.postProcessing.gpt4.1.mini.description".localized,
-            provider: .openai
-        ),
-        // gpt-4.1 row removed: OpenAI removes it 2027-01-14 (notice 2026-10-14), and
-        // deprecatedModelMappings redirects it to gpt-6-luna, OpenAI's named replacement.
+        // gpt-4.1 / gpt-4.1-mini rows removed (#1907): OpenAI removes both 2027-01-14 (notice
+        // 2026-10-14), and deprecatedModelMappings redirects them to gpt-6-luna, OpenAI's named replacement.
         // gpt-5 / gpt-5-mini / gpt-5-nano rows removed (#1018): OpenAI removes them
         // 2026-12-11, and deprecatedModelMappings redirects all 3 to gpt-5.6-luna.
         // gpt-5.1 / gpt-5.4-nano rows removed (#1209): OpenAI removes them 2027-04-01.
@@ -311,6 +304,8 @@ struct PostProcessingModels {
             "gpt-5.1": "gpt-5.6-luna",
             // OpenAI removes gpt-4.1 2027-01-14 (notice 2026-10-14) and names gpt-6-luna.
             "gpt-4.1": "gpt-6-luna",
+            // Same notice for gpt-4.1-mini, same named replacement (#1907).
+            "gpt-4.1-mini": "gpt-6-luna",
         ],
         .anthropic: [
             // Haiku 4.5 and Sonnet 4.5 left the picker 2026-10 for their 5.5

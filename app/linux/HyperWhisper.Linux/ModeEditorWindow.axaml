@@ -291,7 +291,7 @@
               <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
                          Text="{ReflectionBinding [mode.editor.postProcessing.model], Source={StaticResource Localization}}"/>
               <TextBox x:Name="ModePostProcessingModel" Text="{Binding PostProcessingModel}"
-                       PlaceholderText="gpt-4.1-mini"/>
+                       PlaceholderText="gpt-5.6-luna"/>
             </StackPanel>
 
             <!-- The same model row for the on-device source, which on Linux is a GGUF filename. -->

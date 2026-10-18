@@ -202,7 +202,7 @@ static void ProductionXamlHasNoLocalizableLiterals()
         // signs Windows also writes as literal Content. Neither is copy.
         "!", "✨", "×", "·", " · ", "›", "↵", "Ctrl", "H", "−", "+",
         "WAV, MP3, M4A, FLAC, OGG, or WebM", "/path/to/vocabulary.tsv",
-        "gpt-4.1-mini", "anthropic:claude-haiku-4-5", "gemma-4-E2B-it-Q4_K_M.gguf",
+        "gpt-5.6-luna", "anthropic:claude-haiku-4-5", "gemma-4-E2B-it-Q4_K_M.gguf",
         "https://host/v1/chat/completions", "auto",
     };
     var attribute = new Regex("(?:Title|Text|Content|PlaceholderText|Header)=\\\"(?<value>[^\\\"]+)\\\"",

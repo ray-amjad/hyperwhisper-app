@@ -55,7 +55,8 @@ static Task TestModelRegistry()
         // 11 → 8: gpt-5 / -mini / -nano deleted 2026-09-25 (#1018); Migrate sends them to gpt-5.6-luna.
         // 8 → 9: gpt-6-luna added 2026-10.
         // 9 → 6: gpt-4.1, gpt-5.1 and gpt-5.4-nano removed 2026-10-16; Migrate redirects them.
-        [CloudPostProcessingProvider.OpenAi] = 6,
+        // 6 → 5: gpt-4.1-mini removed (#1907); Migrate sends it to gpt-6-luna.
+        [CloudPostProcessingProvider.OpenAi] = 5,
         [CloudPostProcessingProvider.Anthropic] = 4,
         // 3 → 4: Groq qwen/qwen3.8-27b added 2026-09-11. Cerebras stays 2 — the
         // dead gemma-4-31b was REPLACED by qwen-3.8-27b, not joined by it.
@@ -114,6 +115,8 @@ static Task TestModelRegistry()
         (CloudPostProcessingProvider.OpenAi, "gpt-5.1", "gpt-5.6-luna"),
         (CloudPostProcessingProvider.OpenAi, "gpt-5.4-nano", "gpt-6-luna"),
         (CloudPostProcessingProvider.OpenAi, "gpt-4.1", "gpt-6-luna"),
+        // #1907: OpenAI removes gpt-4.1-mini 2027-01-14 too, and names gpt-6-luna.
+        (CloudPostProcessingProvider.OpenAi, "gpt-4.1-mini", "gpt-6-luna"),
         (CloudPostProcessingProvider.Gemini, "gemini-3.1-flash-lite", "gemini-3.5-flash-lite"),
         (CloudPostProcessingProvider.Gemini, "gemini-3.1-flash-lite-preview", "gemini-3.5-flash-lite"),
         (CloudPostProcessingProvider.Gemini, "gemini-2.0-flash-lite", "gemini-3.5-flash-lite"),
@@ -186,7 +189,7 @@ static async Task TestOpenAi()
         return Json(HttpStatusCode.OK, OpenAiResponse("<<CLEANED>>Hello Ray<<END>>"));
     });
     using var service = Service(handler, ApiKey(CloudPostProcessingProvider.OpenAi, "sk-test-secret"));
-    var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-4.1-mini"));
+    var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-5.4-mini"));
     var snapshot = seen ?? throw new InvalidOperationException("OpenAI request was not captured");
     Assert(result.WasApplied && result.Text == "Hello Ray", "OpenAI response was not accepted");
     Assert(snapshot.Uri == "https://api.openai.com/v1/chat/completions", "OpenAI endpoint mismatch");
@@ -478,8 +481,8 @@ static async Task TestResolvedModelIsReported()
     using var byok = Service(
         new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, OpenAiResponse("<<CLEANED>>ok<<END>>")))),
         ApiKey(CloudPostProcessingProvider.OpenAi, "sk-test"));
-    var byokResult = await byok.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-4.1-mini"));
-    Assert(byokResult.Model == "gpt-4.1-mini", "BYOK route did not report its model");
+    var byokResult = await byok.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-5.4-mini"));
+    Assert(byokResult.Model == "gpt-5.4-mini", "BYOK route did not report its model");
 
     var id = Guid.NewGuid();
     var customCredentials = new MemoryCredentialSource();
@@ -531,7 +534,7 @@ static async Task TestResolvedModelIsReported()
     using var failing = Service(
         new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError))),
         ApiKey(CloudPostProcessingProvider.OpenAi, "sk-test"));
-    var failed = await failing.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-4.1-mini"));
+    var failed = await failing.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-5.4-mini"));
     Assert(!failed.WasApplied && failed.Model is null, "a failed run reported a model that never produced text");
 }
 

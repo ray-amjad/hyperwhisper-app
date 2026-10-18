@@ -2946,6 +2946,8 @@ internal static class Program
                     ("gpt-4.1", "gpt-6-luna"),
                     ("gemini-3.5-flash", "gemini-3.6-flash"),
                     ("gemini-3.7-flash", "gemini-3.8-flash"),
+                    // #1907: OpenAI removes gpt-4.1-mini 2027-01-14 too, and names gpt-6-luna.
+                    ("gpt-4.1-mini", "gpt-6-luna"),
                     // #1019: 3.8 Flash, not the 2.5 Flash that Google now gates to past users.
                     ("gemma-3-12b-it", "gemini-3.8-flash"),
                     ("gemma-3-27b-it", "gemini-3.8-flash"),
@@ -18391,7 +18393,7 @@ internal static class Program
                         Name = "Half", ProviderType = "local", LocalEngine = "whisper",
                         ModelType = whisper, PostProcessingMode = 1,
                         PostProcessingProvider = PostProcessingProvider.OpenAI.ToStringValue(),
-                        LanguageModel = "gpt-4.1-mini"
+                        LanguageModel = "gpt-5.6-luna"
                     }, false),
                     // A custom endpoint is a URL the user typed. It may be localhost;
                     // the row does not say so, and a badge may not guess.
