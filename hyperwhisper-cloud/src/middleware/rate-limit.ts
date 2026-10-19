@@ -64,9 +64,21 @@ export interface RateLimitVerdict {
   reason?: string;
 }
 
-/** The one operation the limiter needs. Throwing means "unavailable": fail open. */
+/** What a bucket has left, read without counting a request. */
+export interface RateLimitPeek {
+  remaining: number;
+  reset: number;
+}
+
+/** The operations the limiter needs. Throwing means "unavailable": fail open. */
 export interface RateLimitStore {
   limit(bucket: RateLimitBucket, identifier: string): Promise<RateLimitVerdict>;
+  /**
+   * Read a bucket without spending a slot, so a request checked against two
+   * buckets is refused before either is counted. Optional: without it, the
+   * buckets are only counted in order.
+   */
+  peek?(bucket: RateLimitBucket, identifier: string): Promise<RateLimitPeek>;
 }
 
 /**
@@ -80,21 +92,28 @@ export function createUpstashRateLimitStore(
   timeoutMs: number = RATE_LIMIT_TIMEOUT_MS,
 ): RateLimitStore {
   const limiters = new Map<RateLimitBucket, Ratelimit>();
+  const limiterFor = (bucket: RateLimitBucket): Ratelimit => {
+    let limiter = limiters.get(bucket);
+    if (!limiter) {
+      limiter = new Ratelimit({
+        redis: getRedis(),
+        limiter: Ratelimit.slidingWindow(RATE_LIMITS[bucket], `${RATE_LIMIT_WINDOW_SECONDS} s`),
+        prefix: `ratelimit:${bucket}`,
+        timeout: timeoutMs,
+        analytics: false,
+      });
+      limiters.set(bucket, limiter);
+    }
+    return limiter;
+  };
   return {
     async limit(bucket, identifier) {
-      let limiter = limiters.get(bucket);
-      if (!limiter) {
-        limiter = new Ratelimit({
-          redis: getRedis(),
-          limiter: Ratelimit.slidingWindow(RATE_LIMITS[bucket], `${RATE_LIMIT_WINDOW_SECONDS} s`),
-          prefix: `ratelimit:${bucket}`,
-          timeout: timeoutMs,
-          analytics: false,
-        });
-        limiters.set(bucket, limiter);
-      }
-      const { success, reset, reason } = await limiter.limit(identifier);
+      const { success, reset, reason } = await limiterFor(bucket).limit(identifier);
       return { success, reset, reason };
+    },
+    async peek(bucket, identifier) {
+      const { remaining, reset } = await limiterFor(bucket).getRemaining(identifier);
+      return { remaining, reset };
     },
   };
 }
@@ -203,9 +222,31 @@ export async function ipRateLimit(c: Context, next: Next): Promise<Response | vo
 }
 
 /**
+ * A bucket that is already full, read without counting, or `null`. Any store
+ * failure is "not full": the counted check that follows decides, and fails open.
+ */
+async function firstFullBucket(
+  buckets: readonly RateLimitBucket[],
+  identifier: string,
+): Promise<{ bucket: RateLimitBucket; retryAfterSeconds: number } | null> {
+  const store = currentStore();
+  if (!store.peek) return null;
+  for (const bucket of buckets) {
+    try {
+      const { remaining, reset } = await store.peek(bucket, identifier);
+      if (remaining <= 0) return { bucket, retryAfterSeconds: retryAfterSeconds(reset, Date.now()) };
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
  * The per-key buckets, for a route to call once `validateAuth` has accepted the
- * key. Returns the 429 to send, or `null` to carry on. Buckets are checked in
- * order and stop at the first refusal, so pass the stricter one first.
+ * key. Returns the 429 to send, or `null` to carry on. With more than one
+ * bucket, every bucket is read first and a full one refuses the request before
+ * any slot is counted, so a refusal from one bucket never spends the other's.
  */
 export async function keyRateLimitResponse(
   endpoint: string,
@@ -213,6 +254,13 @@ export async function keyRateLimitResponse(
   buckets: readonly RateLimitBucket[] = ['key'],
 ): Promise<Response | null> {
   const identifier = keyIdentifier(licenseKey);
+  if (buckets.length > 1) {
+    const full = await firstFullBucket(buckets, identifier);
+    if (full) {
+      logRejected(endpoint, full.bucket, full.retryAfterSeconds);
+      return rateLimitedResponse(full.retryAfterSeconds);
+    }
+  }
   for (const bucket of buckets) {
     const decision = await checkRateLimit(bucket, identifier);
     if (decision.limited) {

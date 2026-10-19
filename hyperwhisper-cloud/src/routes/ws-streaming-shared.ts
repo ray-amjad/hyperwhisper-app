@@ -323,7 +323,8 @@ export function makeStreamingPreflight(
     }
 
     // Per-key rate limits, after auth and before the credit hold (#2010): the
-    // 10/min upgrade bucket first, then the key's shared 60/min.
+    // 10/min upgrade bucket and the key's shared 60/min. A full bucket refuses
+    // before either is counted, so one never spends the other's slot.
     const rateLimited = await keyRateLimitResponse(c.req.path, authResult.value.licenseKey, ['ws_upgrade', 'key']);
     if (rateLimited) {
       logRejected('rate_limited', rateLimited.status);
