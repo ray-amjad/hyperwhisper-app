@@ -1178,6 +1178,9 @@
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Ctrl、Alt、Shift、Win などの修飾キー単体のショートカットはサポートされていません。修飾キーと組み合わせたキー、または Ctrl+Win のような複数修飾キーのショートカットを使用してください。</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>修飾キーのないショートカットには、ファンクションキーまたは Esc のみ使用できます。それ以外のキーは入力中にも反応してしまいます。</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>このショートカットは既に{0}に割り当てられています（{1}）</value>
   </data>

@@ -21,6 +21,18 @@ public static class ShortcutValidationService
     /// Validates that a shortcut is suitable for action shortcuts (Toggle, Cancel, ChangeMode).
     /// Multi-modifier chords like Ctrl+Win are intentional global shortcuts; single
     /// bare modifiers are unsafe because they steal normal typing/system behavior.
+    ///
+    /// A key with NO modifier at all is refused too, unless typing never produces it
+    /// (issue #1631, the Linux rule from #628 / PR #661,
+    /// <c>LinuxShortcutRecorderRules.Evaluate</c>). Bare Tab was saved as the global
+    /// Toggle shortcut by a keyboard user trying to leave the field, and a bare letter,
+    /// digit, Space or Enter would fire the action on every press of that key while
+    /// the user types. F1-F24 and Esc stay legal: the shipped Cancel default is a bare
+    /// Esc, and a bare F-key is a working shortcut on main.
+    ///
+    /// Every recorder box reaches this - Commit calls it, and so does
+    /// <see cref="ValidateDuplicate"/> - so the rule holds for all seven boxes in all
+    /// three hosts, push-to-talk's custom key included.
     /// </summary>
     public static string? ValidateActionShortcut(KeyboardShortcut shortcut)
     {
@@ -31,8 +43,22 @@ public static class ShortcutValidationService
             return Loc.S("settings.shortcuts.error.singleModifier");
         }
 
+        if (shortcut.Key is { } key && shortcut.ModifierCount == 0 && !IsDedicatedKey(key))
+        {
+            return Loc.S("settings.shortcuts.error.typingKey");
+        }
+
         return null; // Valid
     }
+
+    /// <summary>
+    /// A key that ordinary typing never produces, so it may be a shortcut with no
+    /// modifier held: F1-F24 and Esc. The same two classes Linux allows
+    /// (<c>LinuxShortcutRecorderRules.IsDedicatedKey</c>).
+    /// </summary>
+    internal static bool IsDedicatedKey(System.Windows.Input.Key key) =>
+        key == System.Windows.Input.Key.Escape
+        || key is >= System.Windows.Input.Key.F1 and <= System.Windows.Input.Key.F24;
 
     /// <summary>
     /// The four action roles, each with the resource key for the label the

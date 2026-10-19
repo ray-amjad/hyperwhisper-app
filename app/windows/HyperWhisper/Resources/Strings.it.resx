@@ -1087,6 +1087,9 @@ Deve esserci almeno una modalità.</value>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Le scorciatoie con un solo tasto modificatore come Ctrl, Alt, Shift o Win non sono supportate. Usa un tasto con modificatori o una scorciatoia con più modificatori, ad esempio Ctrl+Win.</value>
   </data>
+  <data name="settings.shortcuts.error.typingKey" xml:space="preserve">
+    <value>Una scorciatoia senza tasto modificatore deve essere un tasto funzione o Esc. Qualsiasi altro tasto si attiverebbe mentre scrivi.</value>
+  </data>
   <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
     <value>Questa scorciatoia è già usata per {0} ({1})</value>
   </data>
