@@ -318,3 +318,156 @@ describe('concurrent /post-process shares the same hold rule (#2008)', () => {
     expect(store.outstandingMilli(ACCOUNT)).toBe(0);
   });
 });
+
+// Issue #820: a charge the licence API refuses, or never answers, is free usage.
+// `deductCredits` still resolves, so each charge site writes one structured
+// `credits.deduction_failed` line against its request instead.
+describe('a dropped charge logs credits.deduction_failed (#820)', () => {
+  const POST_PROCESS_TEXT = 'raw text the user dictated';
+
+  const failures = [
+    {
+      label: 'the licence API answers 500',
+      answer: async (): Promise<Response> => Response.json({ error: 'boom' }, { status: 500 }),
+      expected: { reason: 'http_error', status: 500 },
+    },
+    {
+      label: 'the licence API fetch rejects',
+      answer: async (): Promise<Response> => { throw new TypeError('fetch failed'); },
+      expected: { reason: 'network_error', error: 'fetch failed' },
+    },
+  ];
+
+  /** Route the licence API write through `answer`; every other call keeps its stub. */
+  function licenceApiAnswers(answer: () => Promise<Response>): void {
+    const baseFetch = globalThis.fetch;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('/api/license/credits')) return answer();
+      return baseFetch(input, init);
+    }) as unknown as typeof fetch;
+  }
+
+  /** A Groq completion; `content: undefined` has no text, so extraction throws. */
+  function groqAnswers(content: string | undefined): void {
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    const baseFetch = globalThis.fetch;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('api.groq.com')) {
+        return Response.json({
+          choices: [{ message: content === undefined ? {} : { content }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 1000, completion_tokens: 500 },
+        });
+      }
+      return baseFetch(input, init);
+    }) as unknown as typeof fetch;
+  }
+
+  function postProcessRequest(): Request {
+    const body = JSON.stringify({ account_key: ACCOUNT, text: POST_PROCESS_TEXT, prompt: 'Clean it up.' });
+    return new Request('http://localhost/post-process', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': String(Buffer.byteLength(body)),
+        'X-LLM-Provider': 'groq',
+        'Fly-Client-IP': '203.0.113.9',
+      },
+      body,
+    });
+  }
+
+  /**
+   * Run one request to the end of its deduction, returning its response, the
+   * `credits.deduction_failed` lines it wrote (raw), and anything that reached
+   * a call site's `.catch(console.error)`.
+   */
+  async function capture(request: Request) {
+    const lines: string[] = [];
+    const errors: unknown[][] = [];
+    const original = { log: console.log, warn: console.warn, error: console.error };
+    console.log = (...args: unknown[]) => {
+      if (typeof args[0] === 'string' && args[0].includes('"credits.deduction_failed"')) lines.push(args[0]);
+    };
+    console.warn = () => {};
+    console.error = (...args: unknown[]) => { errors.push(args); };
+    try {
+      const response = await buildApp().fetch(request);
+      await settle();
+      return { response, lines, errors };
+    } finally {
+      Object.assign(console, original);
+    }
+  }
+
+  function expectOneEvent(
+    { response, lines, errors }: Awaited<ReturnType<typeof capture>>,
+    endpoint: string,
+    creditsUsed: number,
+    expected: Record<string, unknown>,
+  ): void {
+    expect(errors).toEqual([]);
+    expect(lines).toHaveLength(1);
+    const entry = JSON.parse(lines[0]!) as Record<string, unknown>;
+    expect(entry).toMatchObject({
+      event: 'credits.deduction_failed',
+      requestId: response.headers.get('X-Request-ID'),
+      endpoint,
+      creditsUsed,
+      ...expected,
+    });
+    if (expected.reason === 'network_error') expect(entry).not.toHaveProperty('status');
+    for (const secret of [ACCOUNT, '203.0.113.9', POST_PROCESS_TEXT]) expect(lines[0]).not.toContain(secret);
+  }
+
+  for (const { label, answer, expected } of failures) {
+    test(`/transcribe: ${label}`, async () => {
+      licenceApiAnswers(answer);
+      const request = metaMinuteRequest();
+      request.headers.set('Fly-Client-IP', '203.0.113.9');
+      const result = await capture(request);
+
+      expect(result.response.status).toBe(200);
+      expectOneEvent(result, '/transcribe', ONE_REQUEST_CREDITS, expected);
+    });
+
+    test(`/post-process: ${label}`, async () => {
+      groqAnswers('<clean>Cleaned text.</clean>');
+      licenceApiAnswers(answer);
+      const result = await capture(postProcessRequest());
+
+      expect(result.response.status).toBe(200);
+      const body = await result.response.json() as { cost: { credits: number } };
+      expectOneEvent(result, '/post-process', body.cost.credits, expected);
+    });
+
+    test(`/post-process with no extractable text: ${label}`, async () => {
+      groqAnswers(undefined);
+      licenceApiAnswers(answer);
+      const result = await capture(postProcessRequest());
+
+      // The extract-failed path still bills the LLM call, then 500s.
+      expect(result.response.status).toBe(500);
+      const body = await result.response.json() as { requestId?: string };
+      expect(result.lines).toHaveLength(1);
+      const entry = JSON.parse(result.lines[0]!) as Record<string, unknown>;
+      expect(entry.requestId).toBe(body.requestId!);
+      expect(entry).toMatchObject({ endpoint: '/post-process', ...expected });
+      expect(entry.creditsUsed).toBeGreaterThan(0);
+      expect(result.errors).toEqual([]);
+      for (const secret of [ACCOUNT, '203.0.113.9', POST_PROCESS_TEXT]) expect(result.lines[0]).not.toContain(secret);
+    });
+  }
+
+  test('a charge the licence API accepts logs nothing', async () => {
+    const transcribed = await capture(metaMinuteRequest());
+    groqAnswers('<clean>Cleaned text.</clean>');
+    const postProcessed = await capture(postProcessRequest());
+    groqAnswers(undefined);
+    const extractFailed = await capture(postProcessRequest());
+
+    expect([transcribed.response.status, postProcessed.response.status, extractFailed.response.status])
+      .toEqual([200, 200, 500]);
+    expect(charges).toHaveLength(3);
+    expect([...transcribed.lines, ...postProcessed.lines, ...extractFailed.lines]).toEqual([]);
+  });
+});

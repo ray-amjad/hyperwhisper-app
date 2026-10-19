@@ -320,12 +320,12 @@ describe('deductCredits / drainPendingDeductions', () => {
     {
       label: 'an HTTP 503',
       respond: () => Response.json({ error: 'synthetic outage' }, { status: 503 }),
-      expected: [{ kind: 'http', status: 503 }],
+      expected: [[{ kind: 'http', status: 503 }, creditsForCost(0.05)]],
     },
     {
       label: 'a network rejection',
       respond: () => { throw new Error('synthetic connection reset'); },
-      expected: [{ kind: 'network', error: 'synthetic connection reset' }],
+      expected: [[{ kind: 'network', error: 'synthetic connection reset' }, creditsForCost(0.05)]],
     },
     { label: 'an accepted write', respond: () => Response.json({ credits_remaining: 3 }), expected: [] },
     {
@@ -343,7 +343,8 @@ describe('deductCredits / drainPendingDeductions', () => {
       const failures: unknown[] = [];
 
       const creditsUsed = await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4', {
-        onFailure: (failure) => failures.push(failure),
+        // The second argument is the charge that was not recorded (#820).
+        onFailure: (failure, creditsNotRecorded) => failures.push([failure, creditsNotRecorded]),
       });
 
       expect(creditsUsed).toBe(creditsForCost(0.05));
