@@ -182,6 +182,14 @@ export default function PrivacyPolicyPage() {
           allowed has no automatic deletion period today.
         </li>
         <li>
+          <strong>Website sign-in</strong>: When you sign in to the website, we
+          keep an account record with your email address and the name on your
+          account. Each sign-in also creates a session record that keeps you
+          signed in, and it holds the IP address and browser user agent of that
+          sign-in. A session expires 90 days after it was last refreshed, and
+          we delete its session record within a day of it expiring.
+        </li>
+        <li>
           <strong>Custom vocabulary</strong>: When you use HyperWhisper Cloud,
           our servers receive your custom vocabulary terms with each
           transcription or post-processing request and pass them to the

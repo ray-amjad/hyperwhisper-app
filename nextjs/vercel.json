@@ -8,6 +8,10 @@
     {
       "path": "/api/internal/latency/prune",
       "schedule": "17 4 * * *"
+    },
+    {
+      "path": "/api/internal/sessions/prune",
+      "schedule": "37 4 * * *"
     }
   ],
   "rewrites": [

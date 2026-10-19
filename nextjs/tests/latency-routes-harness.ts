@@ -191,3 +191,6 @@ export const loadLatencyPruneRoute = () =>
 export const loadLatencySchema = () =>
   import("@/src/db/schema/stt-latency-samples");
 export const loadKnownProviders = () => import("@/lib/latency/providers");
+export const loadSessionPruneRoute = () =>
+  import("@/app/api/internal/sessions/prune/route");
+export const loadAuthSchema = () => import("@/src/db/schema/auth");
