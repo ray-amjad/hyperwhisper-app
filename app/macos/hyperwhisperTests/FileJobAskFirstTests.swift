@@ -98,8 +98,10 @@ final class HeldTranscriptionProvider: TranscriptionProvider, @unchecked Sendabl
 @MainActor
 private enum Rig {
 
-    /// Waits up to `seconds` for `condition`.
-    static func eventually(_ seconds: Double = 5, _ condition: () -> Bool) async -> Bool {
+    /// Waits up to `seconds` for `condition`. Generous: the full suite runs in
+    /// parallel in one process, and an import's first pass can take seconds
+    /// to start under that load. Only positive conditions wait here.
+    static func eventually(_ seconds: Double = 20, _ condition: () -> Bool) async -> Bool {
         let deadline = Date().addingTimeInterval(seconds)
         while Date() < deadline {
             if condition() { return true }
@@ -367,7 +369,7 @@ struct FileJobAskFirstTests {
         passes: Int
     ) async -> Task<Void, Never> {
         let task = Task { @MainActor in await flow.transcribeOpenedFile(file, mode: mode) }
-        _ = await Rig.eventually { provider.started.count == passes }
+        #expect(await Rig.eventually { provider.started.count == passes }, "the import's pass never started")
         return task
     }
 
