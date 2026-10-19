@@ -3,7 +3,7 @@
 // One question, one answer: how many bytes may a request declare before this
 // provider is guaranteed to reject them anyway? The transcribe route asks this
 // against Content-Length so an oversized upload gets a 413 without allocating
-// the ArrayBuffer first (up to MAX_AUDIO_SIZE_BYTES = 2 GB on a 1 GB Fly
+// the ArrayBuffer first (up to MAX_AUDIO_SIZE_BYTES = 128 MB on a 1 GB Fly
 // machine).
 //
 // This module exists so the route does not have to know THREE provider

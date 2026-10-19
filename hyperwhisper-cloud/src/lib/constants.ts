@@ -15,7 +15,12 @@ export const CREDITS_PER_MINUTE = 1.67;
 export const LICENSE_CACHE_TTL_SECONDS = 60 * 60; // 1 hour for valid and invalid keys
 
 // Audio limits
-export const MAX_AUDIO_SIZE_BYTES = 2 * 1024 * 1024 * 1024; // 2GB
+// The global upload cap. The route buffers the whole body (`arrayBuffer()`) on
+// a 1 GB Fly machine, so the cap has to fit that machine's memory (#2011).
+// 128 MB was already the real ceiling: it is Bun's default body limit, and the
+// Bun export in index.ts sets `maxRequestBodySize` to this same constant, so the
+// declared cap and the enforced one cannot disagree.
+export const MAX_AUDIO_SIZE_BYTES = 128 * 1024 * 1024; // 128 MB
 export const BYTES_PER_MINUTE_ESTIMATE = 480_000; // 64kbps encoded audio
 
 // Google Speech V2 sync `recognize` inline cap (also re-exported from
