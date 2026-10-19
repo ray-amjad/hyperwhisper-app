@@ -275,7 +275,8 @@ paths:
     post:
       summary: Start the microphone, or stop it and transcribe
       description: |
-        Linux only. macOS and Windows do not serve this path. The route takes no
+        Works on Linux only. macOS does not serve this path. Windows answers it with
+        `ok: false` and the code `ENGINE_UNAVAILABLE`. The route takes no
         request body and no `mode_id`, so it uses the current Mode.
 
         When the recorder is idle, the call starts it. When the recorder is
@@ -303,7 +304,8 @@ paths:
     post:
       summary: Stop the microphone and keep no transcript
       description: |
-        Linux only. macOS and Windows do not serve this path. The route takes no
+        Works on Linux only. macOS does not serve this path. Windows answers it with
+        `ok: false` and the code `ENGINE_UNAVAILABLE`. The route takes no
         request body. It stops the recorder at any point and writes no
         transcript.
       responses:
@@ -491,10 +493,8 @@ components:
             the provider but PINS the tier the Mode already had, which may not be
             the tier the name implies. Send only the keys you are changing.
             A Mode that ALREADY holds a legacy name is not rewritten by this
-            endpoint and is reported as stored. Windows and macOS fold such a row
-            once at app startup; Linux does not, and there a Mode still holding
-            one of these two names cannot transcribe at all. PATCH the same
-            `cloudProvider` back, on its own, to fold it.
+            endpoint and is reported as stored. Windows, macOS and Linux fold such
+            a row once at app startup.
         postProcessingMode:
           type: integer
           minimum: 0
@@ -598,10 +598,8 @@ components:
             the provider but PINS the tier the Mode already had, which may not be
             the tier the name implies. Send only the keys you are changing.
             A Mode that ALREADY holds a legacy name is not rewritten by this
-            endpoint and is reported as stored. Windows and macOS fold such a row
-            once at app startup; Linux does not, and there a Mode still holding
-            one of these two names cannot transcribe at all. PATCH the same
-            `cloudProvider` back, on its own, to fold it.
+            endpoint and is reported as stored. Windows, macOS and Linux fold such
+            a row once at app startup.
         postProcessingMode:
           type: integer
           minimum: 0

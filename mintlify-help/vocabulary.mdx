@@ -66,7 +66,7 @@ The app sends entries without a replacement as keyword hints to the cloud provid
 
 **Local models run on both platforms**: Parakeet on macOS and Windows, and Nemotron on macOS and Windows. For these models, the shared Rust core matches entries without a replacement by sound, with the Beider-Morse algorithm. The core ignores words of two characters or fewer, to prevent false matches.
 
-On **macOS**, two more local engines use vocabulary. Local Whisper sends your entries as an `initial_prompt` hint. Apple Speech Analyzer sends them as native `contextualStrings` biasing.
+On **macOS**, two more local engines use vocabulary. Local Whisper sends your entries that have no replacement as an `initial_prompt` hint, for a recording of 30 seconds or less. A longer recording gets no prompt, so that a repeated phrase cannot replace the end of a long dictation. Apple Speech Analyzer sends them as native `contextualStrings` biasing.
 
 ### Text replacements
 

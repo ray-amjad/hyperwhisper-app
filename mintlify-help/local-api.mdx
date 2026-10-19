@@ -236,7 +236,7 @@ The [OpenAPI reference](/api-reference/local-api/openapi.yaml) gives the full re
 
 ### The recording routes on Linux
 
-The Linux build serves two routes that drive the live microphone. The macOS and the Windows builds do not serve them. Neither route takes a body, and both answer with the state of the recorder:
+The Linux build serves two routes that drive the live microphone. The macOS build does not serve them. Windows answers them with `ok: false` and the code `ENGINE_UNAVAILABLE`: recording control is not available through the Local API on Windows. Neither route takes a body, and both answer with the state of the recorder:
 
 ```json
 { "ok": true, "recording": { "is_recording": true, "state": "recording" } }
@@ -298,7 +298,7 @@ The same fold applies to a Mode you write. `POST /modes` or `PATCH /modes/{id}` 
 </Warning>
 
 <Note>
-  A Mode that already holds `"cloudProvider": "googlespeech"` or `"microsoftazurespeech"` is not changed by these endpoints, and `GET /modes` reports the value that is stored. Windows and macOS fold such a Mode once when the app starts. Linux does not, and on Linux a Mode that still holds one of these two names cannot transcribe. Send a `PATCH` with only `cloudProvider`, set to the same value, to fold it.
+  A Mode that already holds `"cloudProvider": "googlespeech"` or `"microsoftazurespeech"` is not changed by these endpoints, and `GET /modes` reports the value that is stored. Windows, macOS, and Linux fold such a Mode once when the app starts.
 </Note>
 
 ### Mode write rules
@@ -329,7 +329,7 @@ A local Mode on Linux names its engine in `localEngine`. The value is one of two
 
 A different `localEngine`, or a model that is not in the list of its engine, returns an **HTTP 400** with the code `INVALID_REQUEST`. The model must also be one of the voice models that `GET /models` reports.
 
-To write a cloud Mode instead, send `"providerType": "cloud"` and a `cloudProvider`. A `"model": "cloud"` sets the same thing. Linux refuses a cloud Mode with no `cloudProvider`, or with a `cloudProvider` that is not in its provider list. It returns an **HTTP 400** with the code `INVALID_REQUEST`. Windows runs a cloud Mode with no `cloudProvider` on HyperWhisper Cloud.
+To write a cloud Mode instead, send `"providerType": "cloud"` and a `cloudProvider`. A `"model": "cloud"` sets the same thing. If you omit `cloudProvider`, Windows and Linux run the Mode on HyperWhisper Cloud, and `GET /modes` still reports it without the key. Linux refuses an empty `cloudProvider` string, or a `cloudProvider` that is not in its provider list. It returns an **HTTP 400** with the code `INVALID_REQUEST`.
 
 Windows accepts the same two field names, but it applies no list of accepted values to them. Only Linux refuses an unknown `localEngine` or an unknown local model.
 

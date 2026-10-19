@@ -32,6 +32,12 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
 
     Each mode in your library shows as a submenu item. You can transcribe with **Hyper**, **Voice to text**, **Meeting**, or a custom mode. Your default mode does not change.
 
+    ## Open a file from Finder
+
+    You can also send a file to HyperWhisper from Finder. Right-click an audio or video file, select **Open With**, then select **HyperWhisper**. From Terminal, run `open -a HyperWhisper <file>`. HyperWhisper does not become the default app for these file types.
+
+    A file opened this way uses your currently selected mode. If you open more than one file, HyperWhisper transcribes them one at a time, in the order you opened them. HyperWhisper ignores folders and files that the Transcribe File picker does not accept.
+
     ## Supported formats
 
     HyperWhisper accepts most common audio containers and the two main video containers. For a video file, HyperWhisper extracts the audio track on your computer before the transcription.
@@ -64,7 +70,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
 
     macOS repairs this for you. On the refusal, it converts the audio to a 16 kHz mono WAV and sends the audio one more time. It makes this second attempt one time only, and it deletes the temporary WAV file after the attempt. The conversion applies to dictation and to file transcription.
 
-    If the conversion fails, or the WAV file is larger than the 300 MB server limit, HyperWhisper shows the original error. Select a different Cloud engine for that mode.
+    If the conversion fails, or the WAV file is larger than the 128 MB server limit, HyperWhisper shows the original error. Select a different Cloud engine for that mode.
 
     ## File size limits
 
@@ -73,7 +79,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
     | Provider | Max file size |
     | --- | --- |
     | LibWhisper / Parakeet (local) | No limit |
-    | HyperWhisper Cloud | 2 GB |
+    | HyperWhisper Cloud | 128 MB |
     | Deepgram | 2 GB |
     | AssemblyAI | 5 GB |
     | ElevenLabs | 3 GB |
@@ -90,14 +96,13 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
     If the file is too large for the provider of the selected mode, HyperWhisper shows an error. The error gives the file size, the limit of the provider, and the name of the provider. To transcribe larger files, change the mode to a different provider (for example, HyperWhisper Cloud or a local model).
 
     <Warning>
-      The 2 GB limit for HyperWhisper Cloud is the general limit that the app applies before the upload. Five Cloud engines have a smaller limit on the server:
+      The HyperWhisper Cloud server accepts a file of 128 MB or smaller. The macOS app checks only a general limit of 2 GB before the upload, so a file between 128 MB and 2 GB uploads and then gets a "File too large" error from the server. Four Cloud engines have a smaller limit on the server:
 
       | Cloud engine | Server limit |
       | --- | --- |
       | OpenAI Whisper | 25 MB |
       | Google Gemini | 14 MB |
       | Google Gemini 3.5 Transcribe | 14 MB |
-      | Microsoft MAI-Transcribe (both models) | 300 MB |
       | Meta Muse Voice Transcribe | 32 MB and 10 minutes |
 
       A file that is larger than the server limit gets a "file too large" error from the server. The macOS app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
@@ -154,7 +159,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
     | Provider | Max file size |
     | --- | --- |
     | Whisper / Parakeet (local) | No limit |
-    | HyperWhisper Cloud | 2 GB |
+    | HyperWhisper Cloud | 128 MB |
     | Deepgram | 2 GB |
     | AssemblyAI | 5 GB |
     | ElevenLabs | 3 GB |
@@ -171,14 +176,13 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
     If the file is larger than the limit, HyperWhisper shows a toast notification before the upload. The notification gives the maximum size for that provider.
 
     <Warning>
-      The 2 GB limit for HyperWhisper Cloud is the general limit. Windows uses the selected Cloud engine's smaller limit when the catalog provides one:
+      The HyperWhisper Cloud server accepts a file of 128 MB or smaller. The Windows app checks a general limit of 2 GB, so a larger file that is under 2 GB gets a "File too large" error from the server. Windows uses the selected Cloud engine's smaller limit when the catalog provides one:
 
       | Cloud engine | Server limit |
       | --- | --- |
       | OpenAI Whisper | 25 MB |
       | Google Gemini | 14 MB |
       | Google Gemini 3.5 Transcribe | 14 MB |
-      | Microsoft MAI-Transcribe (both models) | 300 MB |
       | Meta Muse Voice Transcribe | 32 MB and 10 minutes, after conversion |
 
       Windows checks the selected Cloud engine before the upload. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
