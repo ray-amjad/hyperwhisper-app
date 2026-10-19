@@ -803,3 +803,78 @@ describe('postProcessRoute size gate', () => {
   });
 
 });
+
+// A 500's `message` is a fixed string (#2066). The failure's own text can hold
+// an upstream provider's error body or the name of a missing server env var;
+// that belongs in the logs, never in the reply.
+describe('postProcessRoute 500 replies do not echo the failure text', () => {
+  const GENERIC = 'The language model request failed. Please try again.';
+  const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
+  const UPSTREAM_BODY = '{"type":"error","error":{"type":"invalid_request_error","message":"UPSTREAM-INTERNAL-DETAIL org_abc123"}}';
+
+  beforeEach(() => {
+    cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
+    process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    if (originalAnthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
+  });
+
+  async function readFailure(response: Response) {
+    const body = await response.json() as { error: string; message: string; requestId?: string };
+    expect(response.status).toBe(500);
+    expect(body.error).toBe('Post-processing failed');
+    expect(body.message).toBe(GENERIC);
+    expect(body.requestId).toBeString();
+    return body;
+  }
+
+  test('an upstream error body from a provider with no fallback is not echoed', async () => {
+    withProviders({ 'api.anthropic.com': () => new Response(UPSTREAM_BODY, { status: 400 }) });
+
+    const body = await readFailure(await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' }, { 'X-LLM-Provider': 'anthropic' })
+    ));
+
+    expect(JSON.stringify(body)).not.toContain('UPSTREAM-INTERNAL-DETAIL');
+  });
+
+  test('a missing provider key is not named to the client', async () => {
+    delete process.env.CEREBRAS_API_KEY;
+    withProviders({});
+
+    const body = await readFailure(await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    ));
+
+    expect(JSON.stringify(body)).not.toContain('CEREBRAS_API_KEY');
+  });
+
+  test('the fallback provider\'s error body is not echoed when both providers fail', async () => {
+    withProviders({
+      'api.cerebras.ai': () => new Response('server error', { status: 500 }),
+      'api.groq.com': () => new Response(UPSTREAM_BODY, { status: 500 }),
+    });
+
+    const body = await readFailure(await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    ));
+
+    expect(JSON.stringify(body)).not.toContain('UPSTREAM-INTERNAL-DETAIL');
+  }, 15000);
+
+  test('a reply with no extractable text gets the same fixed message', async () => {
+    withProviders({
+      'api.cerebras.ai': () => Response.json({ choices: [{ message: {}, finish_reason: 'stop' }], usage: usage() }),
+    });
+
+    await readFailure(await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    ));
+  });
+});
