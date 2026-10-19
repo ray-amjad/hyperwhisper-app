@@ -241,7 +241,8 @@ class TranscriptionRetryController {
                     audioURL: finalAudioURL,
                     mode: mode,
                     recordingSession: transcript.recordingSession,
-                    refuseDeletedMode: true
+                    refuseDeletedMode: true,
+                    jobKind: .fileJob
                 ))
             } catch {
                 engineOutcome = .failure(error)

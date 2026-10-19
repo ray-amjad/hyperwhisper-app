@@ -103,6 +103,12 @@ class TranscriptActionHandler: ObservableObject {
         /// Deleting the row stopped it (#1743): a quiet cancel, not an error,
         /// and `lastError` stays nil.
         case stoppedByDelete
+        /// A file job was running and the user kept it (#1425): this retry
+        /// never started, the row is untouched, and `lastError` stays nil.
+        case keptRunningJob
+        /// A newer file job replaced it, by the user's choice (#1425). The row
+        /// is back to failed ("cancelled"), with no alert.
+        case replacedByNewerJob
     }
 
     /// Retry a failed transcription
@@ -138,19 +144,31 @@ class TranscriptActionHandler: ObservableObject {
             lastError = "transcripts.error.invalidId".localized
             return .failed
         }
+        // A retry is a file job: if one is running, ask before this one
+        // replaces it, and before the row changes at all (#1425).
+        let pipeline = transcriptionPipeline
+        guard let fileJob = await pipeline.fileJobs.begin() else {
+            return .keptRunningJob
+        }
+        defer { pipeline.fileJobs.end(fileJob) }
+        // The same row may have been retried while the question was up.
+        guard !retryingTranscripts.contains(transcriptId) else {
+            return .failed
+        }
+
         retryingTranscripts.insert(transcriptId)
         lastError = nil
 
         // RETRY EXECUTION:
         // Use TranscriptionPipeline's retry logic, in a task kept by the row's
         // ID so deleting the row cancels it (#1743)
-        let pipeline = transcriptionPipeline
         let retryTask = Task {
             try await pipeline.retryTranscription(for: transcript)
         }
         let retryToken = UUID()
         Self.trackRetryTask(retryTask, for: transcriptId, token: retryToken)
         defer { Self.untrackRetryTask(for: transcriptId, token: retryToken) }
+        fileJob.onCancel { retryTask.cancel() }
 
         do {
             _ = try await retryTask.value
@@ -170,6 +188,17 @@ class TranscriptActionHandler: ObservableObject {
 
             // A delete cancelled this retry (#1743): the row is gone, so no alert.
             if transcript.retryWasStoppedByDelete(taskCancelled: retryTask.isCancelled) {
+                // A newer file job cancelled it instead (#1425): the row is still
+                // here, so it must not stay "processing".
+                if fileJob.isCancelled, !transcript.isDeleted, transcript.managedObjectContext != nil {
+                    AppLogger.ui.info("Retry stopped: a newer file job replaced it")
+                    await Self.markRetryWithFailed(
+                        transcript.objectID,
+                        after: CancellationError(),
+                        persistence: persistenceController
+                    )
+                    return .replacedByNewerJob
+                }
                 AppLogger.ui.info("Retry stopped: its transcript was deleted")
                 return .stoppedByDelete
             }
@@ -217,7 +246,22 @@ class TranscriptActionHandler: ObservableObject {
             await showRetryErrorAlert(message)
             return false
         }
-        
+
+        // A file job is already running: ask before this one replaces it, and
+        // before any audio is copied or a row is made (#1425).
+        let pipeline = transcriptionPipeline
+        guard let fileJob = await pipeline.fileJobs.begin() else {
+            return false
+        }
+        // The mode can be deleted while the question is up.
+        guard RetryModeChoices.isLive(mode) else {
+            pipeline.fileJobs.end(fileJob)
+            let message = "recording.retry.modeDeleted".localized
+            lastError = message
+            await showRetryErrorAlert(message)
+            return false
+        }
+
         // PREPARATION:
         // 1. Create a duplicate of the audio file
         // 2. Create a new transcript entry
@@ -232,6 +276,7 @@ class TranscriptActionHandler: ObservableObject {
             AppLogger.ui.info("Duplicated audio file for retry: \(newAudioURL.lastPathComponent)")
         } catch {
             AppLogger.ui.error("Failed to duplicate audio file: \(error.localizedDescription)")
+            pipeline.fileJobs.end(fileJob)
             let message = error.localizedDescription
             lastError = message
             await showRetryErrorAlert(message)
@@ -250,21 +295,35 @@ class TranscriptActionHandler: ObservableObject {
         let newTranscriptId = newTranscript.id
         let audioDuration = transcript.duration
         let retryToken = UUID()
+        // A newer file job cancelled this one (#1425), and the row is still
+        // here: it goes to failed ("cancelled") instead of staying "processing".
+        func replacedByNewerJob() -> Bool {
+            fileJob.isCancelled && !newTranscript.isDeleted && newTranscript.managedObjectContext != nil
+        }
         let task = Task {
             defer {
                 if let newTranscriptId {
                     Self.untrackRetryTask(for: newTranscriptId, token: retryToken)
                 }
+                pipeline.fileJobs.end(fileJob)
             }
             do {
                 let result = try await transcriptionPipeline.transcribeWithDetails(
                     audioURL: newAudioURL,
                     mode: mode,
-                    refuseDeletedMode: true
+                    refuseDeletedMode: true,
+                    jobKind: .fileJob
                 )
 
                 // The row was deleted while the engine finished: nothing to write to.
                 guard !newTranscript.retryWasStoppedByDelete() else {
+                    if replacedByNewerJob() {
+                        await Self.markRetryWithFailed(
+                            newTranscript.objectID,
+                            after: CancellationError(),
+                            persistence: persistenceController
+                        )
+                    }
                     return
                 }
 
@@ -283,6 +342,16 @@ class TranscriptActionHandler: ObservableObject {
                 AppLogger.ui.info("Successfully retried transcription with new mode · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public)")
                 
             } catch {
+                if replacedByNewerJob() {
+                    AppLogger.ui.info("Retry with new mode stopped: a newer file job replaced it")
+                    await Self.markRetryWithFailed(
+                        newTranscript.objectID,
+                        after: CancellationError(),
+                        audioDuration: audioDuration,
+                        persistence: persistenceController
+                    )
+                    return
+                }
                 // A delete cancelled this job (#1458): the row is gone, so leave it be.
                 if newTranscript.retryWasStoppedByDelete() {
                     AppLogger.ui.info("Retry with new mode stopped: its transcript was deleted")
@@ -303,6 +372,7 @@ class TranscriptActionHandler: ObservableObject {
         if let newTranscriptId {
             Self.trackRetryTask(task, for: newTranscriptId, token: retryToken)
         }
+        fileJob.onCancel { task.cancel() }
 
         return true
     }

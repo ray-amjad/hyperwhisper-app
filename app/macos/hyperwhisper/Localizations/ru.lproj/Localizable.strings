@@ -1126,6 +1126,10 @@
 "transcribe.file.error.format.message" = "Файлы .%@ не поддерживаются %@. Поддерживаемые форматы: %@";
 "transcribe.file.error.read" = "Невозможно прочитать выбранный файл.";
 "transcribe.file.error.webm" = "Формат WebM не поддерживается. Преобразуйте файл в MP3, M4A или WAV и попробуйте снова.";
+"transcribe.file.busy.title" = "Файл уже расшифровывается.";
+"transcribe.file.busy.message" = "Отменить его и начать этот?";
+"transcribe.file.busy.keepRunning" = "Продолжить";
+"transcribe.file.busy.cancelAndStart" = "Отменить и начать";
 "transcribe.file.error.notAudio" = "Файл «%@» не является корректным аудио. Возможно, он повреждён или имеет формат, который macOS не умеет декодировать.";
 "transcribe.file.error.empty" = "Файл «%@» пуст. В нём нет аудио для расшифровки.";
 "transcribe.file.error.permission" = "HyperWhisper не может прочитать файл «%@». Проверьте права доступа к файлу.";

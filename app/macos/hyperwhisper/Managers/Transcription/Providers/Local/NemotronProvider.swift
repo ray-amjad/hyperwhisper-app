@@ -20,6 +20,9 @@ import FluidAudio
 
 @available(macOS 14.0, *)
 final class NemotronProvider: TranscriptionProvider {
+    /// Each call mints its own manager from the shared bundle, and keeps no per-call state here (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
 
     // RUNTIME ACTOR:
     // Caches the shared model bundle PER VARIANT. Each transcribe() call mints

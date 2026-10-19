@@ -1126,6 +1126,10 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcribe.file.error.format.message" = "Fișierele .%@ nu sunt acceptate de %@. Formate acceptate: %@";
 "transcribe.file.error.read" = "Nu se poate citi fișierul selectat.";
 "transcribe.file.error.webm" = "WebM nu este acceptat. Convertiți fișierul în MP3, M4A sau WAV, apoi încercați din nou.";
+"transcribe.file.busy.title" = "Un fișier este deja în curs de transcriere.";
+"transcribe.file.busy.message" = "Îl anulezi și pornești acesta?";
+"transcribe.file.busy.keepRunning" = "Continuă";
+"transcribe.file.busy.cancelAndStart" = "Anulează și pornește";
 "transcribe.file.error.notAudio" = "Fișierul „%@” nu este audio valid. Poate fi deteriorat sau într-un format pe care macOS nu îl poate decoda.";
 "transcribe.file.error.empty" = "Fișierul „%@” este gol. Nu conține audio de transcris.";
 "transcribe.file.error.permission" = "HyperWhisper nu poate citi fișierul „%@”. Verificați permisiunile fișierului.";

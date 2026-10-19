@@ -432,8 +432,10 @@ class LibWhisperProvider: TranscriptionProvider {
         }
 
         // The reload above may have taken seconds. If the user cancelled during
-        // it, stop here — we hold a claim, so release it on the way out.
-        if cancellationEpoch != epoch {
+        // it, stop here — we hold a claim, so release it on the way out. The
+        // caller's own cancel counts too: a cancel aimed at one job only
+        // (#1425) cancels its task, not the provider-wide epoch.
+        if cancellationEpoch != epoch || Task.isCancelled {
             await ModelResidencyRegistry.shared.markIdle(claimToken)
             logger.info("Transcription cancelled before decoding started")
             throw TranscriptionError.streamingInterrupted
@@ -573,7 +575,7 @@ class LibWhisperProvider: TranscriptionProvider {
         }
         
         transcriptionTask = task
-        if cancellationEpoch != epoch {
+        if cancellationEpoch != epoch || Task.isCancelled {
             // A cancel landed between the check above and this assignment, so it
             // saw no task to cancel. Hand it to this one; the `checkCancellation`
             // at the top of the closure picks it up before any real work.

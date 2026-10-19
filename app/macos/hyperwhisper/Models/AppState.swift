@@ -325,7 +325,7 @@ struct LocalRuntimePreparationKey: Equatable, Sendable {
 ///
 ///   - `prepareModel` calls `cancelTranscription()` unconditionally
 ///     (`TranscriptionModelManager.swift`), which cancels
-///     `TranscriptionPipeline.currentTask` — and that one task spans
+///     `TranscriptionPipeline.runningTasks` — and each task spans
 ///     transcription AND post-processing, so cancelling it during
 ///     `.postProcessing` loses the AI cleanup and, on the rethrowing branch,
 ///     the transcript with it.

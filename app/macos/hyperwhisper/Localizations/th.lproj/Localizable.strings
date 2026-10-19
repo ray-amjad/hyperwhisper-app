@@ -1126,6 +1126,10 @@
 "transcribe.file.error.format.message" = "ไฟล์ .%@ ไม่ได้รับการสนับสนุนโดย %@ รูปแบบที่รองรับ: %@";
 "transcribe.file.error.read" = "ไม่สามารถอ่านไฟล์ที่เลือก";
 "transcribe.file.error.webm" = "ไม่รองรับ WebM แปลงไฟล์เป็น MP3, M4A หรือ WAV แล้วลองอีกครั้ง";
+"transcribe.file.busy.title" = "กำลังถอดความไฟล์อยู่แล้ว";
+"transcribe.file.busy.message" = "ยกเลิกไฟล์นั้นแล้วเริ่มไฟล์นี้ไหม";
+"transcribe.file.busy.keepRunning" = "ทำงานต่อ";
+"transcribe.file.busy.cancelAndStart" = "ยกเลิกและเริ่ม";
 "transcribe.file.error.notAudio" = "ไฟล์ “%@” ไม่ใช่เสียงที่ถูกต้อง ไฟล์อาจเสียหาย หรืออยู่ในรูปแบบที่ macOS ถอดรหัสไม่ได้";
 "transcribe.file.error.empty" = "ไฟล์ “%@” ว่างเปล่า ไม่มีเสียงให้ถอดความ";
 "transcribe.file.error.permission" = "HyperWhisper อ่านไฟล์ “%@” ไม่ได้ โปรดตรวจสอบสิทธิ์ของไฟล์";

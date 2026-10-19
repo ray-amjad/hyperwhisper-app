@@ -1127,6 +1127,10 @@
 "transcribe.file.error.format.message" = ".%@ 文件不受 %@ 支持。支持的格式：%@";
 "transcribe.file.error.read" = "无法读取所选文件。";
 "transcribe.file.error.webm" = "不支持 WebM。请将文件转换为 MP3、M4A 或 WAV 后重试。";
+"transcribe.file.busy.title" = "已有一个文件正在转写。";
+"transcribe.file.busy.message" = "要取消它并开始这个文件吗？";
+"transcribe.file.busy.keepRunning" = "继续运行";
+"transcribe.file.busy.cancelAndStart" = "取消并开始";
 "transcribe.file.error.notAudio" = "文件“%@”不是有效的音频。文件可能已损坏，或者是 macOS 无法解码的格式。";
 "transcribe.file.error.empty" = "文件“%@”是空的，没有可转写的音频。";
 "transcribe.file.error.permission" = "HyperWhisper 无法读取文件“%@”。请检查该文件的权限。";

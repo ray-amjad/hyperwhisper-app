@@ -1171,6 +1171,10 @@
 "transcribe.file.error.format.message" = ".%@ files are not supported by %@. Supported formats: %@";
 "transcribe.file.error.read" = "Cannot read the selected file.";
 "transcribe.file.error.webm" = "WebM is not supported. Convert the file to MP3, M4A or WAV, then try again.";
+"transcribe.file.busy.title" = "A file is already being transcribed.";
+"transcribe.file.busy.message" = "Cancel it and start this one?";
+"transcribe.file.busy.keepRunning" = "Keep Running";
+"transcribe.file.busy.cancelAndStart" = "Cancel It and Start";
 "transcribe.file.error.notAudio" = "The file “%@” is not valid audio. It may be damaged, or in a format macOS cannot decode.";
 "transcribe.file.error.empty" = "The file “%@” is empty. It has no audio to transcribe.";
 "transcribe.file.error.permission" = "HyperWhisper can't read the file “%@”. Check the file's permissions.";
