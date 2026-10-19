@@ -23,6 +23,9 @@
 import Foundation
 
 class DeepgramProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private var apiKey: String = ""
 
     /// Shared session with 180s resource timeout (matches Windows)

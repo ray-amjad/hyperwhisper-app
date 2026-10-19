@@ -37,6 +37,9 @@
 import Foundation
 
 class GeminiTranscribeProvider: TranscriptionProvider {
+    /// A stateless HTTP call: nothing per call is kept on the instance (#1425).
+    var supportsConcurrentPasses: Bool { true }
+
     private var apiKey: String = ""
 
     /// The whole request body — JSON plus the base64 audio — is uploaded in one

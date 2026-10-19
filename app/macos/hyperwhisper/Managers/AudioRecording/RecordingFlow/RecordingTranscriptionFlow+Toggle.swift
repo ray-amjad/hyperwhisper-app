@@ -164,7 +164,7 @@ extension RecordingTranscriptionFlow {
         // If actively transcribing or post-processing, cancel immediately
         if appState.recordingState == .transcribing || appState.recordingState == .postProcessing {
             AppLogger.ui.debug("❌ Cancelled transcription/processing via shortcut")
-            transcriptionPipeline?.cancelTranscription()
+            transcriptionPipeline?.cancelTranscription(.dictation)
             toggleTask?.cancel() // Ensure the coordinator task is also cancelled
 
             // CRITICAL: Clear lastTranscription before setting state to idle

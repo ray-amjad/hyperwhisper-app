@@ -1127,6 +1127,10 @@
 "transcribe.file.error.format.message" = ".%@ファイルは%@でサポートされていません。対応形式: %@";
 "transcribe.file.error.read" = "選択したファイルを読み込めません。";
 "transcribe.file.error.webm" = "WebM には対応していません。ファイルを MP3、M4A、WAV のいずれかに変換してから、もう一度お試しください。";
+"transcribe.file.busy.title" = "すでにファイルを文字起こし中です。";
+"transcribe.file.busy.message" = "それをキャンセルして、このファイルを開始しますか？";
+"transcribe.file.busy.keepRunning" = "続行";
+"transcribe.file.busy.cancelAndStart" = "キャンセルして開始";
 "transcribe.file.error.notAudio" = "「%@」は有効な音声ファイルではありません。ファイルが破損しているか、macOS がデコードできない形式の可能性があります。";
 "transcribe.file.error.empty" = "「%@」は空のファイルです。文字起こしする音声が含まれていません。";
 "transcribe.file.error.permission" = "HyperWhisper はファイル「%@」を読み込めません。ファイルのアクセス権を確認してください。";

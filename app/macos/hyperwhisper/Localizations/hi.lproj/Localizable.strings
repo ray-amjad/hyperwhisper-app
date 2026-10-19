@@ -1126,6 +1126,10 @@
 "transcribe.file.error.format.message" = ".%@ फ़ाइलें %@ द्वारा समर्थित नहीं हैं। समर्थित प्रारूप: %@";
 "transcribe.file.error.read" = "चयनित फ़ाइल को पढ़ा नहीं जा सकता।";
 "transcribe.file.error.webm" = "WebM समर्थित नहीं है। फ़ाइल को MP3, M4A या WAV में बदलें, फिर से कोशिश करें।";
+"transcribe.file.busy.title" = "एक फ़ाइल पहले से ट्रांसक्राइब हो रही है।";
+"transcribe.file.busy.message" = "क्या उसे रद्द करके यह शुरू करें?";
+"transcribe.file.busy.keepRunning" = "चलने दें";
+"transcribe.file.busy.cancelAndStart" = "रद्द करें और शुरू करें";
 "transcribe.file.error.notAudio" = "फ़ाइल “%@” मान्य ऑडियो नहीं है। फ़ाइल ख़राब हो सकती है, या ऐसे फ़ॉर्मेट में हो सकती है जिसे macOS डिकोड नहीं कर सकता।";
 "transcribe.file.error.empty" = "फ़ाइल “%@” ख़ाली है। इसमें ट्रांसक्राइब करने के लिए कोई ऑडियो नहीं है।";
 "transcribe.file.error.permission" = "HyperWhisper फ़ाइल “%@” को नहीं पढ़ सकता। फ़ाइल की अनुमतियाँ जाँचें।";

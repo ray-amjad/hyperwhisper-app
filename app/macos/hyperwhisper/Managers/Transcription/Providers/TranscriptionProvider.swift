@@ -72,6 +72,13 @@ protocol TranscriptionProvider {
 
     /// Metadata from the final response handled by the most recent attempt.
     var lastAttemptDiagnostics: TranscriptionAttemptDiagnostics? { get }
+
+    /// Whether this one instance can run a dictation and a file job at the
+    /// same time (#1425). `false` makes the pipeline run them one after the
+    /// other on it (`TranscriptionEngineAccess`). Default `false`: a provider
+    /// opts in only when it keeps no per-call state on the instance and
+    /// shares no engine that one pass at a time can use.
+    var supportsConcurrentPasses: Bool { get }
 }
 
 extension TranscriptionProvider {
@@ -83,6 +90,7 @@ extension TranscriptionProvider {
     func setTimestampGranularities(_ granularities: TimestampGranularities) {}
     var lastTimestamps: TranscriptionTimestamps? { nil }
     var lastAttemptDiagnostics: TranscriptionAttemptDiagnostics? { nil }
+    var supportsConcurrentPasses: Bool { false }
 }
 
 /// A local engine that has its own vocabulary correction to run over its raw

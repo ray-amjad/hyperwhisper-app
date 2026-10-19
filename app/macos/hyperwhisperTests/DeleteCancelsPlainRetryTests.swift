@@ -357,8 +357,8 @@ struct DeleteCancelsPlainRetryTests {
             from: "if error is CancellationError || task.isCancelled {",
             to: "} else {"
         )
-        let guardRange = try #require(cancelled.range(of: "if currentTask == task {"))
-        let idleRange = try #require(cancelled.range(of: "state = .idle"))
+        let guardRange = try #require(cancelled.range(of: "if runningTasks[jobKind] == task {"))
+        let idleRange = try #require(cancelled.range(of: "setJobState(.idle, for: jobKind)"))
         #expect(guardRange.lowerBound < idleRange.lowerBound, "only the run that still owns the pipeline may idle it")
     }
 
@@ -521,8 +521,8 @@ struct DeleteCancelsPlainRetryTests {
             from: "let result = try await Self.value(of: task)",
             to: "let now = Date()"
         )
-        let guardRange = try #require(success.range(of: "if currentTask == task {"))
-        let idleRange = try #require(success.range(of: "state = .idle"))
+        let guardRange = try #require(success.range(of: "if runningTasks[jobKind] == task {"))
+        let idleRange = try #require(success.range(of: "setJobState(.idle, for: jobKind)"))
         #expect(guardRange.lowerBound < idleRange.lowerBound, "only the run that still owns the pipeline may idle it")
     }
 

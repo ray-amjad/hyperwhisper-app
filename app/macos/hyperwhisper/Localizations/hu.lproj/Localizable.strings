@@ -1126,6 +1126,10 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcribe.file.error.format.message" = ".%@ fájlok nem támogatottak %@ által. Támogatott formátumok: %@";
 "transcribe.file.error.read" = "Nem lehet olvasni a kiválasztott fájlt.";
 "transcribe.file.error.webm" = "A WebM nem támogatott. Alakítsa át a fájlt MP3, M4A vagy WAV formátumba, majd próbálja újra.";
+"transcribe.file.busy.title" = "Már folyamatban van egy fájl átírása.";
+"transcribe.file.busy.message" = "Megszakítja, és elindítja ezt?";
+"transcribe.file.busy.keepRunning" = "Folytatás";
+"transcribe.file.busy.cancelAndStart" = "Megszakítás és indítás";
 "transcribe.file.error.notAudio" = "A(z) „%@” fájl nem érvényes hangfájl. Lehet, hogy sérült, vagy olyan formátumú, amelyet a macOS nem tud dekódolni.";
 "transcribe.file.error.empty" = "A(z) „%@” fájl üres. Nincs benne átírható hang.";
 "transcribe.file.error.permission" = "A HyperWhisper nem tudja olvasni a(z) „%@” fájlt. Ellenőrizze a fájl jogosultságait.";

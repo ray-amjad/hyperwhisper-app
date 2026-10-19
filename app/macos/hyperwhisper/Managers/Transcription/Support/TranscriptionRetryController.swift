@@ -185,6 +185,10 @@ class TranscriptionRetryController {
         // the row as it was, not flipped to "processing".
         try Task.checkCancellation()
 
+        // What the steps below change, so a retry a newer file job replaces
+        // can put the row back exactly as it was (#1425).
+        let rowBeforeRetry = RowBeforeRetry(of: transcript)
+
         // UPDATE STEP 1: Mark transcript as processing
         // This immediately shows the user that we're retrying the transcription
         transcript.setValue("processing", forKey: "status")
@@ -241,7 +245,8 @@ class TranscriptionRetryController {
                     audioURL: finalAudioURL,
                     mode: mode,
                     recordingSession: transcript.recordingSession,
-                    refuseDeletedMode: true
+                    refuseDeletedMode: true,
+                    jobKind: .fileJob
                 ))
             } catch {
                 engineOutcome = .failure(error)
@@ -294,6 +299,14 @@ class TranscriptionRetryController {
             // VAD output this run wrote, or it stays on disk (#1513), unless
             // another row recorded from the same audio still owns it.
             if transcript.retryWasStoppedByDelete() {
+                // Cancelled, but the row is still here: a newer file job
+                // replaced this retry (#1425). Nothing came of it, so the row
+                // goes back to what it was before, its earlier text kept.
+                if !transcript.isDeleted, transcript.managedObjectContext != nil {
+                    rowBeforeRetry.restore(transcript)
+                    persistence.save()
+                    AppLogger.transcription.info("Retry stopped: a newer file job replaced it; the row is as it was")
+                }
                 Self.releaseVADOutputs(claimedVADOutputs)
                 holdsVADOutputs = false
                 let leftovers = PersistenceController.audioPathsNoTranscriptOwns(
@@ -319,6 +332,34 @@ class TranscriptionRetryController {
 
             // Re-throw so caller can handle the error
             throw error
+        }
+    }
+
+    /// The row fields a Retry changes before its engine runs: status, Reason,
+    /// text, retry count and date. A cancelled retry whose row is still here
+    /// writes them back, so it never leaves the row "processing" nor replaces
+    /// what the row said before (#1425).
+    struct RowBeforeRetry {
+        let status: String?
+        let failedReason: String?
+        let text: String?
+        let retryCount: Int16
+        let lastRetryDate: Date?
+
+        init(of transcript: Transcript) {
+            status = transcript.value(forKey: "status") as? String
+            failedReason = transcript.value(forKey: "failedReason") as? String
+            text = transcript.text
+            retryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
+            lastRetryDate = transcript.value(forKey: "lastRetryDate") as? Date
+        }
+
+        func restore(_ transcript: Transcript) {
+            transcript.setValue(status, forKey: "status")
+            transcript.setValue(failedReason, forKey: "failedReason")
+            transcript.text = text
+            transcript.setValue(retryCount, forKey: "retryCount")
+            transcript.setValue(lastRetryDate, forKey: "lastRetryDate")
         }
     }
 
@@ -391,6 +432,8 @@ extension Transcript {
     /// True once deleting this row stopped its retry: the delete cancelled the
     /// retry's task (`TranscriptActionHandler.cancelRetryTask`) or already
     /// removed the row. The one rule for both kinds of retry (#1458, #1743).
+    /// A newer file job that replaces the retry (#1425) cancels the task too;
+    /// a row still here is then put back as it was, not written as failed.
     ///
     /// `taskCancelled` defaults to the calling task. A caller that awaits the
     /// retry from outside its task passes that task's `isCancelled`. A newer
