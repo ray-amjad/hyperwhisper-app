@@ -265,7 +265,8 @@ internal sealed class WorkerHost
                 SingleSegment: transcribe.Options.SingleSegment,
                 IncludeWordTimestamps: false,
                 MaxLastTextTokensZero: transcribe.Options.MaxLastTextTokensZero,
-                CreateFactoryOnRequestThread: _requestThreadFactory),
+                CreateFactoryOnRequestThread: _requestThreadFactory,
+                Prompt: transcribe.Options.Prompt),
             cancellationToken).ConfigureAwait(false);
 
         if (!result.IsSuccess)
