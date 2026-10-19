@@ -9,6 +9,7 @@ import { logEvent } from '../lib/logging';
 import { getCachedLicense, cacheLicense } from '../lib/redis';
 import { errorResponse, jsonResponse } from '../lib/responses';
 import { isIPBlocked } from '../lib/redis';
+import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { roundToTenth } from '../lib/utils';
 
 export function readFiniteCredits(data: unknown): number | null {
@@ -128,6 +129,13 @@ export async function usageRoute(c: Context) {
         ...(authDiagnostics ? authDiagnosticsForLog(authDiagnostics) : {}),
       });
       return errorResponse(401, 'Invalid license key', 'The provided license key is invalid or expired');
+    }
+
+    // Per-key rate limit, once the key is known to be valid (#2010).
+    const rateLimited = await keyRateLimitResponse('/usage', licenseKey);
+    if (rateLimited) {
+      logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
+      return rateLimited;
     }
 
     const normalizedCredits = roundToTenth(credits);

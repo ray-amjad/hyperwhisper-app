@@ -19,6 +19,7 @@ import { endActiveStreamingSessions } from './routes/ws-streaming-shared';
 import { drainPendingDeductions } from './middleware/credits';
 import { drainPendingHoldReleases } from './middleware/credit-holds';
 import { drainPendingLatencyReports } from './lib/latency-report';
+import { ipRateLimit } from './middleware/rate-limit';
 
 const app = new Hono();
 
@@ -58,24 +59,29 @@ app.get('/warmup', (c) => {
   return c.body(null, 204);
 });
 
+// Every key-accepting route runs the per-IP rate limit (`ipRateLimit`, 120/min)
+// first, before it parses a body or looks up a key. The per-key limits run
+// inside each route, after auth (middleware/rate-limit.ts, #2010).
+
 // Main transcription endpoint
-app.post('/transcribe', transcribeRoute);
+app.post('/transcribe', ipRateLimit, transcribeRoute);
 
 // Standalone post-processing endpoint
-app.post('/post-process', postProcessRoute);
+app.post('/post-process', ipRateLimit, postProcessRoute);
 
 // Assistant mode endpoint (vision LLM)
-app.post('/assistant', assistantRoute);
+app.post('/assistant', ipRateLimit, assistantRoute);
 
 // Usage endpoint
-app.get('/usage', usageRoute);
+app.get('/usage', ipRateLimit, usageRoute);
 
 // WebSocket streaming endpoints. One route per live vendor, named
 // `/ws/streaming-{sttProvider}` after the `cloud-stt-catalog.json` entry so the
 // clients derive the path instead of carrying a table on three platforms.
-app.get('/ws/streaming-deepgram', wsStreamingPreflight, wsStreamingRoute);
+app.get('/ws/streaming-deepgram', ipRateLimit, wsStreamingPreflight, wsStreamingRoute);
 app.get(
   '/ws/streaming-gemini-transcribe',
+  ipRateLimit,
   wsStreamingGeminiTranscribePreflight,
   wsStreamingGeminiTranscribeRoute,
 );

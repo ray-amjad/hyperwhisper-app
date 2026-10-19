@@ -43,6 +43,7 @@ import { generateRequestId, getClientIP } from '../lib/request-id';
 import { logEvent } from '../lib/logging';
 import { creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { authDiagnosticsForLog, validateAuth, type AuthContext } from '../middleware/auth';
+import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { logCreditsShortfall, reserveSessionHold, type CreditHold } from '../middleware/credit-holds';
 import { insufficientCreditsResponse } from '../lib/responses';
@@ -264,8 +265,10 @@ declare module 'hono' {
  * The upgrade gate, parameterised by the balance a session costs to open.
  *
  * Order matters and is asserted by the Deepgram suite: upgrade header → IP block
- * list → key presence → licence validity → credit floor. The IP gate sits ahead
- * of every licence lookup so a blocked address costs no upstream work.
+ * list → key presence → licence validity → per-key rate limits → credit floor.
+ * The IP gate sits ahead of every licence lookup so a blocked address costs no
+ * upstream work. (The per-IP rate limit runs before all of this, as route
+ * middleware in `index.ts`.)
  */
 export function makeStreamingPreflight(
   minimumCredits: () => number,
@@ -317,6 +320,14 @@ export function makeStreamingPreflight(
         ...authDiagnosticsForLog(authResult.diagnostics),
       });
       return c.text('Unauthorized', 401);
+    }
+
+    // Per-key rate limits, after auth and before the credit hold (#2010): the
+    // 10/min upgrade bucket first, then the key's shared 60/min.
+    const rateLimited = await keyRateLimitResponse(c.req.path, authResult.value.licenseKey, ['ws_upgrade', 'key']);
+    if (rateLimited) {
+      logRejected('rate_limited', rateLimited.status);
+      return rateLimited;
     }
 
     const requiredCredits = minimumCredits();
