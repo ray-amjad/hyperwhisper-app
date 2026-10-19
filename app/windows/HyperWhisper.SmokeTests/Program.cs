@@ -20933,6 +20933,275 @@ internal static class Program
                 }
             });
 
+            Run("history: an insert under a held write lock returns at once, keeps the row to save later and keeps the audio — issue #1589", () =>
+            {
+                // CreateProcessingTranscript ran a synchronous SaveChanges on the UI thread:
+                // with another process holding the write lock it froze the window for the
+                // 30 s busy timeout, then threw, so the job aborted, no History row was made
+                // and the copied audio was an orphan.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                string dbPath;
+                using (var probe = new HyperWhisperDbContext())
+                {
+                    dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                        probe.Database.GetConnectionString()).DataSource);
+                }
+                Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+                    $"the database {dbPath} is not under the suite's temp profile; refusing to lock it");
+
+                var history = HistoryService.Instance;
+                var pendingFile = PendingHistoryStore.DefaultPath;
+                Assert(pendingFile.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+                    $"the pending store {pendingFile} is not under the suite's temp profile");
+                var audioPath = Path.Combine(StorageService.Instance.GetRecordingsFolder(), $"percy1589-{Guid.NewGuid():N}.wav");
+                File.WriteAllBytes(audioPath, new byte[] { 1, 2, 3, 4 });
+                Guid? id = null;
+                Transcript? other = null;
+
+                // BEGIN IMMEDIATE, as in the #974 case: readers still get through, writes
+                // wait the provider's 30 s busy timeout and fail with SQLite Error 5.
+                var locker = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+                var lockHeld = false;
+                void Release()
+                {
+                    if (!lockHeld) return;
+                    using var rollback = locker.CreateCommand();
+                    rollback.CommandText = "ROLLBACK;";
+                    rollback.ExecuteNonQuery();
+                    lockHeld = false;
+                }
+
+                try
+                {
+                    locker.Open();
+                    using (var begin = locker.CreateCommand())
+                    {
+                        begin.CommandText = "BEGIN IMMEDIATE;";
+                        begin.ExecuteNonQuery();
+                    }
+                    lockHeld = true;
+
+                    var started = Stopwatch.StartNew();
+                    var insert = history.CreateProcessingTranscriptAsync(2.0, "percy1589", audioPath);
+                    var returnedAfter = started.Elapsed;
+                    Assert(returnedAfter < TimeSpan.FromSeconds(2) && !insert.IsCompleted,
+                        $"CreateProcessingTranscriptAsync took {returnedAfter.TotalMilliseconds:F0} ms to return "
+                        + $"(completed: {insert.IsCompleted}), so the insert ran on the calling (UI) thread and waited for the lock there");
+
+                    HistoryInsertResult result;
+                    try
+                    {
+                        result = insert.GetAwaiter().GetResult();
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException(
+                            $"the refused insert reached the caller as {ex.GetType().Name} ({ex.Message}); the job would abort with no row", ex);
+                    }
+                    id = result.Transcript.Id;
+
+                    Assert(result.SavedLater, "the insert under the lock reported the row as saved");
+                    Assert(result.DatabaseLocked, "the refusal was not recognised as the database lock, so the toast would not name it");
+                    Assert(history.PendingTranscriptCount >= 1, "no pending row was kept for the refused insert");
+                    Assert(File.Exists(pendingFile) && File.ReadAllText(pendingFile).Contains(id.Value.ToString()),
+                        $"{pendingFile} does not hold the refused row, so it would be lost if the app closed now");
+                    Assert(File.Exists(audioPath), "the recording was deleted although its row was kept to save later");
+                    var pendingRow = history.GetTranscript(id.Value);
+                    Assert(pendingRow?.Status == TranscriptStatus.Processing && pendingRow.AudioFilePath == audioPath,
+                        "GetTranscript does not return the pending row, so the stop paths would read it as deleted");
+
+                    var toast = MainViewModel.HistorySavedLaterToast(result);
+                    Assert(toast?.Message == HyperWhisper.Localization.Loc.S("history.savedLater.databaseLocked"),
+                        $"the toast says \"{toast?.Message ?? "nothing"}\", not the copy that names the lock and says the recording was kept");
+
+                    // The job goes on and writes its result while the lock is still held. It
+                    // must land in the pending row at once, not wait 30 s or throw.
+                    var final = result.Transcript;
+                    final.Status = TranscriptStatus.Completed;
+                    final.Text = "percy1589 final text";
+                    final.TranscribedText = "percy1589 final text";
+                    var updateWatch = Stopwatch.StartNew();
+                    history.UpdateTranscript(final);
+                    Assert(updateWatch.Elapsed < TimeSpan.FromSeconds(2),
+                        $"updating the pending row took {updateWatch.ElapsedMilliseconds} ms, so it waited for the locked database");
+                    Assert(history.GetTranscript(id.Value)?.Text == "percy1589 final text",
+                        "the completed text did not reach the pending row");
+                    Assert(history.GetAllTranscripts().Any(t => t.Id == id.Value),
+                        "History's list leaves the pending row out");
+
+                    Release();
+
+                    // The next successful write saves it.
+                    other = history.CreateProcessingTranscript(1.0, "percy1589next", audioFilePath: null);
+                    Assert(history.PendingTranscriptCount == 0, "the pending row was not saved by the next successful write");
+                    Assert(!File.Exists(pendingFile), $"{pendingFile} is still there after its rows were saved");
+                    using (var check = new HyperWhisperDbContext())
+                    {
+                        var saved = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == id.Value);
+                        Assert(saved != null, "the kept row never reached the database");
+                        Assert(saved!.Status == TranscriptStatus.Completed && saved.Text == "percy1589 final text",
+                            $"the saved row is {saved.Status} \"{saved.Text}\", not the completed result written while it was pending");
+                        Assert(saved.AudioFilePath == audioPath, "the saved row does not point at the kept recording");
+                    }
+                }
+                finally
+                {
+                    try { Release(); } catch { }
+                    locker.Dispose();
+                    if (id.HasValue) history.DeleteTranscript(id.Value);
+                    if (other != null) history.DeleteTranscript(other.Id);
+                    try { File.Delete(audioPath); } catch { }
+                }
+            });
+
+            Run("history: a pending row left by the previous session is saved at startup as Failed and retryable — issue #1589", () =>
+            {
+                // The app closed (or crashed) before the database was free again. The next
+                // launch reads pending-history.json back and writes the row before the
+                // orphan recovery, so it shows as a Failed row that can be retried.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var history = HistoryService.Instance;
+                var storePath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy1589-{Guid.NewGuid():N}.json");
+                var audioPath = Path.Combine(StorageService.Instance.GetRecordingsFolder(), $"percy1589-{Guid.NewGuid():N}.wav");
+                File.WriteAllBytes(audioPath, new byte[] { 1, 2, 3, 4 });
+                var row = new Transcript
+                {
+                    Id = Guid.NewGuid(),
+                    Date = DateTime.UtcNow,
+                    Duration = 3.0,
+                    Mode = "percy1589startup",
+                    AudioFilePath = audioPath,
+                    Status = TranscriptStatus.Processing,
+                    Text = HyperWhisper.Localization.Loc.S("recording.state.processing"),
+                };
+                new PendingHistoryStore(storePath).Upsert(row);
+
+                // A fresh store on the same file is what the next process sees.
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+                try
+                {
+                    var flushed = history.FlushPendingTranscripts();
+                    Assert(flushed == 1, $"the startup flush saved {flushed} row(s), expected 1");
+                    Assert(!File.Exists(storePath), "the pending file is still there after its row was saved");
+                    using var check = new HyperWhisperDbContext();
+                    var saved = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == row.Id);
+                    Assert(saved != null, "the pending row from the previous session never reached the database");
+                    Assert(saved!.Status == TranscriptStatus.Failed && saved.FailedReason == HistoryService.InterruptedReason,
+                        $"the row was saved as {saved.Status} ({saved.FailedReason ?? "no reason"}); a dead session's Processing row must land Failed");
+                    Assert(saved.AudioFilePath == audioPath && File.Exists(audioPath),
+                        "the saved row lost its recording, so it cannot be retried");
+                }
+                finally
+                {
+                    history.ReplacePendingStoreForTests(previous);
+                    history.DeleteTranscript(row.Id);
+                    try { File.Delete(storePath); } catch { }
+                    try { File.Delete(audioPath); } catch { }
+                }
+            });
+
+            Run("history: a refused insert's later writes (status, audio path, delete) use the pending row — issue #1589", () =>
+            {
+                // A BEFORE INSERT trigger refuses the row at once (SQLite constraint error, not
+                // the lock), so this case needs no 30 s wait. Every write the stop paths make
+                // after the insert must land on the pending row, never throw or vanish.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                string dbPath;
+                using (var probe = new HyperWhisperDbContext())
+                {
+                    dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                        probe.Database.GetConnectionString()).DataSource);
+                }
+                Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+                    $"the database {dbPath} is not under the suite's temp profile; refusing to change it");
+
+                void Exec(string sql)
+                {
+                    using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+                    conn.Open();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = sql;
+                    cmd.ExecuteNonQuery();
+                }
+
+                var history = HistoryService.Instance;
+                var recordings = StorageService.Instance.GetRecordingsFolder();
+                var keptAudio = Path.Combine(recordings, $"percy1589-{Guid.NewGuid():N}.wav");
+                var droppedAudio = Path.Combine(recordings, $"percy1589-{Guid.NewGuid():N}.wav");
+                var compressedAudio = Path.Combine(recordings, $"percy1589-{Guid.NewGuid():N}.m4a");
+                File.WriteAllBytes(keptAudio, new byte[] { 1, 2, 3, 4 });
+                File.WriteAllBytes(droppedAudio, new byte[] { 1, 2, 3, 4 });
+                File.WriteAllBytes(compressedAudio, new byte[] { 5, 6 });
+                Guid? keptId = null;
+                Guid? droppedId = null;
+                Transcript? other = null;
+
+                Exec("CREATE TRIGGER IF NOT EXISTS percy1589_poison BEFORE INSERT ON Transcripts " +
+                     "WHEN NEW.Mode = 'percy1589poison' BEGIN SELECT RAISE(ABORT, 'percy1589 poison row'); END;");
+                var triggerDropped = false;
+                try
+                {
+                    var kept = history.CreateProcessingTranscriptAsync(1.5, "percy1589poison", keptAudio).GetAwaiter().GetResult();
+                    keptId = kept.Transcript.Id;
+                    Assert(kept.SavedLater && !kept.DatabaseLocked,
+                        $"a refused (not locked) insert reported SavedLater={kept.SavedLater}, DatabaseLocked={kept.DatabaseLocked}");
+                    var toast = MainViewModel.HistorySavedLaterToast(kept);
+                    Assert(toast?.Message == HyperWhisper.Localization.Loc.S("history.savedLater.writeFailed"),
+                        $"a refusal that is not the lock showed \"{toast?.Message ?? "no toast"}\"; it must not claim a lock");
+
+                    // A pending row with no audio (streaming) gets no "recording was kept" toast.
+                    var streaming = new HistoryInsertResult(new Transcript { AudioFilePath = null }, SavedLater: true, DatabaseLocked: true);
+                    Assert(MainViewModel.HistorySavedLaterToast(streaming) == null,
+                        "a row with no audio would be told its recording was kept");
+
+                    // The no-speech / generic failure writers and the safety net, as a failed job runs them.
+                    MainViewModel.EnsureTranscriptTerminalStatus(kept.Transcript);
+                    var afterNet = history.GetTranscript(keptId.Value);
+                    Assert(afterNet?.Status == TranscriptStatus.Failed,
+                        $"the safety net left the pending row {afterNet?.Status.ToString() ?? "missing"}, not Failed");
+                    Assert(history.UpdateAudioFilePath(keptId.Value, compressedAudio),
+                        "pointing the pending row at its compressed audio reported the row as gone, so the M4A would be deleted");
+                    Assert(history.GetTranscript(keptId.Value)?.AudioFilePath == compressedAudio,
+                        "the compressed audio path did not reach the pending row");
+
+                    // A cancelled job deletes its row: the pending record goes, with its audio.
+                    var dropped = history.CreateProcessingTranscriptAsync(1.0, "percy1589poison", droppedAudio).GetAwaiter().GetResult();
+                    droppedId = dropped.Transcript.Id;
+                    Assert(dropped.SavedLater, "the second poisoned insert was saved");
+                    var deleted = history.DeleteTranscript(droppedId.Value);
+                    Assert(deleted.IsSuccess && deleted.Value, "deleting a pending row was not reported as a delete");
+                    Assert(history.GetTranscript(droppedId.Value) == null, "the deleted pending row is still readable");
+                    Assert(!File.Exists(droppedAudio), "the deleted pending row's audio was left behind");
+
+                    Exec("DROP TRIGGER IF EXISTS percy1589_poison;");
+                    triggerDropped = true;
+
+                    // Any successful write saves what is still pending.
+                    other = history.CreateProcessingTranscript(1.0, "percy1589next", audioFilePath: null);
+                    other.Status = TranscriptStatus.Completed;
+                    history.UpdateTranscript(other);
+                    Assert(history.PendingTranscriptCount == 0, "rows are still pending after a successful write");
+                    using var check = new HyperWhisperDbContext();
+                    var saved = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == keptId.Value);
+                    Assert(saved?.Status == TranscriptStatus.Failed && saved.AudioFilePath == compressedAudio,
+                        $"the saved row is {saved?.Status.ToString() ?? "missing"} at {saved?.AudioFilePath ?? "no audio"}, "
+                        + "not the Failed row pointing at the compressed audio");
+                    Assert(!check.Transcripts.AsNoTracking().Any(t => t.Id == droppedId.Value),
+                        "the deleted pending row was written to the database anyway");
+                }
+                finally
+                {
+                    if (!triggerDropped) Exec("DROP TRIGGER IF EXISTS percy1589_poison;");
+                    if (keptId.HasValue) history.DeleteTranscript(keptId.Value);
+                    if (droppedId.HasValue) history.DeleteTranscript(droppedId.Value);
+                    if (other != null) history.DeleteTranscript(other.Id);
+                    foreach (var path in new[] { keptAudio, droppedAudio, compressedAudio })
+                    {
+                        try { File.Delete(path); } catch { }
+                    }
+                }
+            });
+
             Run("Local API /recordings: q, since, until, total and limit run in SQL with the old match rule — issue #1123", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
