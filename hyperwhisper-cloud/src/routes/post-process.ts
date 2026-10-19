@@ -14,6 +14,7 @@ import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
 import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { withCreditHoldScope } from '../middleware/credit-holds';
+import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { logEvent } from '../lib/logging';
 import { evaluateCompletionResponse } from '../lib/llm-completion';
 
@@ -125,6 +126,13 @@ async function handlePostProcess(c: Context) {
     return authResult.response;
   }
   logEvent(requestId, startTime, 'post_process.auth_done', authDiagnosticsForLog(authResult.diagnostics));
+
+  // Per-key rate limit, after auth and before the credit hold (#2010).
+  const rateLimited = await keyRateLimitResponse('/post-process', authResult.value.licenseKey);
+  if (rateLimited) {
+    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
+    return rateLimited;
+  }
 
   const creditCheck = await validateCredits(authResult.value, ESTIMATED_POST_PROCESS_CREDITS, clientIP);
   if (!creditCheck.ok) {

@@ -30,6 +30,27 @@ export const licenseValidateRateLimiter = new Ratelimit({
 });
 
 /**
+ * Rate limiter for `GET /api/license/credits` (and its `/api/account/credits`
+ * alias): a key -> balance lookup open to anyone, so the same key-guessing
+ * exposure as validate/activate (#2010).
+ *
+ * Its OWN budget, not validate's: HyperWhisper Cloud calls this route (on
+ * `/usage?force_refresh=true`) and falls back to `/api/license/validate` when
+ * it fails, both from a Fly region's shared exit address. Sharing one budget
+ * would let refreshes starve the cloud's validation of the same users.
+ *
+ * Limits: 300 requests per IP per minute using sliding window algorithm. Ten
+ * times validate's ceiling, because one Fly region's refreshes for every user
+ * arrive from one address; it still stops a single caller scraping keys.
+ */
+export const licenseCreditsRateLimiter = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(300, "1 m"),
+  prefix: "ratelimit:license-credits",
+  analytics: true,
+});
+
+/**
  * Rate limiter for the internal STT latency ingest.
  *
  * Keyed by Fly region, NOT by IP: every machine in one region shares an exit
@@ -44,5 +65,23 @@ export const latencyIngestRateLimiter = new Ratelimit({
   redis: redis,
   limiter: Ratelimit.slidingWindow(6000, "1 m"),
   prefix: "ratelimit:latency-ingest",
+  analytics: true,
+});
+
+/**
+ * Rate limiter for the checkout endpoints (`/api/checkout`,
+ * `/api/checkout/credits`).
+ *
+ * `/api/checkout/credits` creates a Stripe Checkout Session on every call (and
+ * may create a Stripe customer), and both routes are open to guests, so the
+ * caller's IP is the only identity there is. A buyer clicks through a handful
+ * of times at most; the ceiling only bounds a script (#2010).
+ *
+ * Limits: 10 requests per IP per minute using sliding window algorithm.
+ */
+export const checkoutRateLimiter = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(10, "1 m"),
+  prefix: "ratelimit:checkout",
   analytics: true,
 });

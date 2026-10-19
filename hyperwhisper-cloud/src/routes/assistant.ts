@@ -13,6 +13,7 @@ import { validateContentLength } from '../lib/request-limits';
 import { MAX_ASSISTANT_IMAGE_BYTES } from '../lib/constants';
 import { errorResponse, imageTooLargeResponse, CORS_HEADERS } from '../lib/responses';
 import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
+import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { detachCreditHold, withCreditHoldScope } from '../middleware/credit-holds';
 import { streamAnthropicChat, type AnthropicContentBlock, type AnthropicMessage } from '../providers/anthropic';
@@ -351,6 +352,13 @@ async function handleAssistant(c: Context) {
       ...authDiagnosticsForLog(authResult.diagnostics),
     });
     return authResult.response;
+  }
+
+  // Per-key rate limit, after auth and before the credit hold (#2010).
+  const rateLimited = await keyRateLimitResponse('/assistant', authResult.value.licenseKey);
+  if (rateLimited) {
+    logEvent(requestId, startTime, 'assistant.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
+    return rateLimited;
   }
 
   // Credit check — scale the estimate by the number of images that will be

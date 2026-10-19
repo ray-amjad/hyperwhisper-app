@@ -1,5 +1,5 @@
 /**
- * The three Upstash rate limiters in `lib/rate-limit.ts`, run for real.
+ * The Upstash rate limiters in `lib/rate-limit.ts`, run for real.
  *
  * The license and latency route tests replace this module with a stub, so
  * nothing else checks the numbers in it. They are the whole abuse budget of
@@ -15,100 +15,21 @@
  * blocking and the key layout below are what production Redis would compute.
  */
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import http from "node:http";
-import type { AddressInfo } from "node:net";
-import { createRequire } from "node:module";
 import { after, afterEach, before, describe, mock, test } from "node:test";
 
-import type Redis from "ioredis";
-
-// Loaded through `require` so `tsc` never resolves the module's types:
-// `@types/ioredis-mock` is only a transitive dependency, which npm hoists
-// and pnpm (the Vercel build) does not, so a static import fails the
-// production build with TS7016. ioredis-mock implements the ioredis API.
-const RedisMock = createRequire(import.meta.url)("ioredis-mock") as new () => Redis;
+import { listen, siteAuthHeaders, store, upstashRestServer } from "./fake-upstash-server";
 
 type RateLimitModule = typeof import("../lib/rate-limit");
-type Command = (string | number)[];
 
 const SITE_TOKEN = "site-token-for-tests";
 const CLOUD_TOKEN = "cloud-token-for-tests";
 
-const store = new RedisMock();
-const scripts = new Map<string, string>();
-const siteAuthHeaders: (string | undefined)[] = [];
 let cloudHits = 0;
 
 let site: http.Server;
 let cloud: http.Server;
 let limiters: RateLimitModule;
-
-/** Upstash answers in base64 when the client asks for it, as this one does. */
-function encode(value: unknown): unknown {
-  if (typeof value === "string") return Buffer.from(value).toString("base64");
-  if (Array.isArray(value)) return value.map(encode);
-  return value;
-}
-
-/**
- * One Redis command, as a Redis 7 server would run it. EVAL caches the
- * script under its SHA-1 so a later EVALSHA finds it, and an unknown SHA
- * answers NOSCRIPT — the path the ratelimit client takes on its first call.
- * Redis strips a `#!lua` shebang line before it compiles the body; the
- * embedded VM does not, so it is stripped here.
- */
-async function runCommand(command: Command): Promise<unknown> {
-  const [rawName, ...args] = command.map(String);
-  const name = rawName.toLowerCase();
-  if (name === "eval" || name === "evalsha") {
-    let sha = args[0];
-    if (name === "eval") {
-      sha = createHash("sha1").update(args[0]).digest("hex");
-      scripts.set(sha, args[0]);
-    }
-    const source = scripts.get(sha);
-    if (!source) throw new Error("NOSCRIPT No matching script.");
-    const [numKeys, ...keysAndArgs] = args.slice(1);
-    return store.eval(source.replace(/^#![^\n]*\n/, ""), numKeys, ...keysAndArgs);
-  }
-  const fn = (store as unknown as Record<string, (...a: string[]) => Promise<unknown>>)[name];
-  if (typeof fn !== "function") throw new Error(`ERR unknown command '${rawName}'`);
-  return fn.apply(store, args);
-}
-
-function upstashRestServer(): http.Server {
-  return http.createServer(async (req, res) => {
-    let body = "";
-    for await (const chunk of req) body += chunk;
-    siteAuthHeaders.push(req.headers.authorization);
-    const parsed = JSON.parse(body) as Command | Command[];
-    res.setHeader("content-type", "application/json");
-    if (req.url === "/pipeline" || req.url === "/multi-exec") {
-      const replies = [];
-      for (const command of parsed as Command[]) {
-        try {
-          replies.push({ result: encode(await runCommand(command)) });
-        } catch (err) {
-          replies.push({ error: (err as Error).message });
-        }
-      }
-      res.end(JSON.stringify(replies));
-      return;
-    }
-    try {
-      res.end(JSON.stringify({ result: encode(await runCommand(parsed as Command)) }));
-    } catch (err) {
-      res.statusCode = 400;
-      res.end(JSON.stringify({ error: (err as Error).message }));
-    }
-  });
-}
-
-async function listen(server: http.Server): Promise<string> {
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-}
 
 /** Calls `limit` once and waits for the analytics write it leaves behind. */
 async function hit(
@@ -253,6 +174,61 @@ describe("licenseValidateRateLimiter", () => {
 
     const license = await hit(limiters.licenseValidateRateLimiter, ip);
     assert.equal(license.success, true);
+    assert.equal(license.remaining, 29);
+  });
+});
+
+describe("licenseCreditsRateLimiter (#2010)", () => {
+  test("allows 300 credit reads from one IP in a minute and blocks the 301st", async () => {
+    const ip = "198.51.100.40";
+    for (let i = 0; i < 300; i++) {
+      const result = await hit(limiters.licenseCreditsRateLimiter, ip);
+      assert.equal(result.success, true, `request ${i + 1} must pass`);
+      assert.equal(result.limit, 300);
+    }
+    const blocked = await hit(limiters.licenseCreditsRateLimiter, ip);
+    assert.equal(blocked.success, false);
+  });
+
+  test("has its own budget: an IP out of credit reads can still validate", async () => {
+    const ip = "198.51.100.41";
+    // Pinned so the 301 calls cannot straddle a minute boundary.
+    pinClock(Date.UTC(2026, 9, 19, 12, 0, 30));
+    const bucket = Math.floor(Date.now() / (60 * 1000));
+    for (let i = 0; i < 300; i++) await hit(limiters.licenseCreditsRateLimiter, ip);
+    assert.equal((await hit(limiters.licenseCreditsRateLimiter, ip)).success, false);
+
+    assert.deepEqual(await bucketKeys("ratelimit:license-credits", ip), [
+      `ratelimit:license-credits:${ip}:${bucket}`,
+    ]);
+    const validate = await hit(limiters.licenseValidateRateLimiter, ip);
+    assert.equal(validate.success, true);
+    assert.equal(validate.remaining, 29);
+  });
+});
+
+describe("checkoutRateLimiter (#2010)", () => {
+  test("allows 10 checkouts from one IP in a minute and blocks the 11th", async () => {
+    const ip = "198.51.100.30";
+    for (let i = 0; i < 10; i++) {
+      const result = await hit(limiters.checkoutRateLimiter, ip);
+      assert.equal(result.success, true, `request ${i + 1} must pass`);
+      assert.equal(result.limit, 10);
+    }
+    const blocked = await hit(limiters.checkoutRateLimiter, ip);
+    assert.equal(blocked.success, false);
+  });
+
+  test("counts under its own prefix, apart from the licence budget", async () => {
+    const ip = "198.51.100.31";
+    const before = Date.now();
+    await hit(limiters.checkoutRateLimiter, ip);
+    const bucket = Math.floor(before / (60 * 1000));
+
+    assert.deepEqual(await bucketKeys("ratelimit:checkout", ip), [
+      `ratelimit:checkout:${ip}:${bucket}`,
+    ]);
+    const license = await hit(limiters.licenseValidateRateLimiter, ip);
     assert.equal(license.remaining, 29);
   });
 });

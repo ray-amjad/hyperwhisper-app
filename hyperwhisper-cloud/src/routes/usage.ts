@@ -9,6 +9,7 @@ import { logEvent } from '../lib/logging';
 import { getCachedLicense, cacheLicense } from '../lib/redis';
 import { errorResponse, jsonResponse } from '../lib/responses';
 import { isIPBlocked } from '../lib/redis';
+import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { roundToTenth } from '../lib/utils';
 
 export function readFiniteCredits(data: unknown): number | null {
@@ -83,6 +84,16 @@ export async function usageRoute(c: Context) {
   const forceRefresh = c.req.query('force_refresh') === 'true';
 
   if (licenseKey) {
+    // Per-key rate limit (#2010), BEFORE any lookup: a force refresh calls the
+    // site's credits and validate routes, whose per-IP budgets every machine in
+    // a Fly region shares, so one key must not be able to spend them. The key
+    // is hashed, so an unknown key getting a bucket costs nothing.
+    const rateLimited = await keyRateLimitResponse('/usage', licenseKey);
+    if (rateLimited) {
+      logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
+      return rateLimited;
+    }
+
     let isValid = false;
     let credits = 0;
     // Set by every validateAuth call below. A rejection always comes from one,
