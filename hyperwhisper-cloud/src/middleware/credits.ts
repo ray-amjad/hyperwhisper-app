@@ -47,12 +47,16 @@ export function estimateCreditsFromSize(sizeBytes: number, options: CreditEstima
 export async function validateCredits(
   auth: AuthContext,
   estimatedCredits: number,
-  _clientIP: string
+  _clientIP: string,
+  options: { hold?: boolean } = {}
 ): Promise<CreditsResult> {
   const balance = roundToTenth(auth.credits);
   if (balance < estimatedCredits) {
     return { ok: false, response: insufficientCreditsResponse(balance, estimatedCredits) };
   }
+  // `hold: false` is a cheap floor check ahead of the real estimate. It must not
+  // hold: two requests each holding a floor can starve each other's full hold.
+  if (options.hold === false) return { ok: true };
   const hold = requestHoldFor(auth);
   if (!hold) return { ok: true };
   const outcome = await hold.reserve(estimatedCredits, estimatedCredits);

@@ -107,7 +107,9 @@ export async function prepareTranscriptionAudio({
       contentLength, provider, model, medical, initialPrompt, language,
       audioReservation.preBufferAudioSeconds,
     );
-    const minimumCreditCheck = await validateCredits(auth, minimumEstimatedCredits, clientIP);
+    // A floor check only, so it takes no hold: concurrent requests that each
+    // held a floor here could leave none of them room for its exact hold below.
+    const minimumCreditCheck = await validateCredits(auth, minimumEstimatedCredits, clientIP, { hold: false });
     if (!minimumCreditCheck.ok) {
       logEvent(requestId, startTime, 'transcribe.request_rejected', {
         reason: 'credits_failed_before_buffer',
