@@ -10,7 +10,7 @@ HyperWhisper has three transcription paths. Each path has a different effect on 
 | Path | Where audio goes | Who does the training opt-out |
 |------|------------------|----------------------------------------|
 | **Local models** (Whisper, Parakeet, Apple Speech Analyzer, Qwen3 ASR, Nemotron) | The audio stays on your device | You. The models are offline, so there is nothing to opt out of |
-| **HyperWhisper Cloud** | HyperWhisper sends the audio to a backing provider (Deepgram, Groq, ElevenLabs, Grok, OpenAI, Gemini, AssemblyAI, Mistral, Soniox, Azure, Google, or Meta) | HyperWhisper. We apply a documented no-train / no-store control when the provider gives one |
+| **HyperWhisper Cloud** | HyperWhisper sends the audio to a backing provider (Deepgram, Groq, ElevenLabs, Grok, OpenAI, Gemini, AssemblyAI, Mistral, Soniox, Azure, Google, or Meta) | HyperWhisper. Deepgram is the one provider account with a no-store control set; the others keep data under their standard API terms |
 | **Your own API key** (BYOK) | Your device sends the audio directly to the provider | **You**. Deepgram is the exception, because HyperWhisper opts out for you |
 
 <Tip>
@@ -25,11 +25,11 @@ HyperWhisper Cloud sends your audio to a backing speech-to-text provider. It als
   Every HyperWhisper Cloud engine that you can select sends your audio in the request. No such engine writes your audio to a temporary bucket. The **Google Gemini 3.5 Transcribe** engine has the smallest limit: audio of more than 14 MB gets a "file too large" error. For the limits of each engine, see [File Transcription](/file-transcription).
 </Note>
 
-**HyperWhisper applies the strongest documented data-protection control that each provider gives.** For providers with such a control, HyperWhisper does this work:
+**HyperWhisper applies these data-protection controls on HyperWhisper Cloud today:**
 
 - If a provider has a per-request no-train / no-store flag, HyperWhisper sets the flag on every call (for example, the `mip_opt_out` flag of Deepgram).
-- If the control is account-level, HyperWhisper enables zero-data-retention on the HyperWhisper account (for example, Groq).
-- If a provider has neither control, HyperWhisper deletes the transcript immediately after it gets the transcript (for example, AssemblyAI). HyperWhisper also opted out of model training with AssemblyAI.
+- Deepgram is the only HyperWhisper Cloud provider account with zero data retention set. The other providers keep data under their standard API terms, and HyperWhisper does not claim a zero-retention or no-training setting on their accounts.
+- For AssemblyAI, HyperWhisper deletes the transcript from AssemblyAI immediately after it gets the transcript.
 
 Some providers store data for a short time for abuse monitoring. Grok and Mistral store it for approximately 30 days. These providers do not use the data to train their models.
 
