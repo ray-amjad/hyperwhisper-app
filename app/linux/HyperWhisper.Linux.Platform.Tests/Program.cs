@@ -383,7 +383,7 @@ static Task PrivateDeleteIsIdempotent() => WithTemporaryDirectory(directory =>
     var service = new LinuxPrivateFileService();
     Assert.Success(service.Delete(Path.Combine(directory, "token")));
     Assert.Success(service.Delete(Path.Combine(directory, "autostart", "hyperwhisper.desktop")));
-    var autostart = new LinuxAutostartService(new FakeAppPaths(directory), "/bin/true", service);
+    var autostart = new LinuxAutostartService(directory, Path.Combine(directory, "hyperwhisper"), "/bin/true", service);
     Assert.Success(autostart.Disable());
 });
 
@@ -3162,15 +3162,30 @@ static Task SingleInstanceSocket() => WithTemporaryDirectoryAsync(async director
     Assert.True(File.Exists(Path.Combine(directory, "instance.sock")));
 });
 
+// GNOME, KDE and every XDG session read only $XDG_CONFIG_HOME/autostart/ (#2023). The entry was
+// written under the app's own config folder, and this test passed because its fake paths had no
+// hyperwhisper segment. Build the paths the real way so the two folders differ.
 static Task XdgAutostart() => WithTemporaryDirectory(directory =>
 {
-    var service = new LinuxAutostartService(new FakeAppPaths(directory), "/bin/true", new LinuxPrivateFileService());
+    var configHome = Path.Combine(directory, "config");
+    var paths = new LinuxAppPaths(
+        new FakeEnvironment(directory, new Dictionary<string, string> { ["XDG_CONFIG_HOME"] = configHome }),
+        new FakeUser(1));
+    Assert.Equal(configHome, paths.XdgConfigHome);
+    var service = new LinuxAutostartService(paths.XdgConfigHome, paths.ConfigDirectory, "/bin/true", new LinuxPrivateFileService());
+    var path = Path.Combine(configHome, "autostart", "hyperwhisper.desktop");
+    var legacy = Path.Combine(configHome, "hyperwhisper", "autostart", "hyperwhisper.desktop");
+    Directory.CreateDirectory(Path.GetDirectoryName(legacy)!);
+    File.WriteAllText(legacy, "[Desktop Entry]\nX-GNOME-Autostart-enabled=true\n");
     Assert.Success(service.Enable());
-    var path = Path.Combine(directory, "autostart", "hyperwhisper.desktop");
     Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(path));
+    Assert.True(!File.Exists(legacy));
     Assert.True(service.IsEnabled().Value);
+    File.WriteAllText(legacy, "[Desktop Entry]\nX-GNOME-Autostart-enabled=true\n");
     Assert.Success(service.Disable());
     Assert.True(!File.Exists(path));
+    Assert.True(!File.Exists(legacy));
+    Assert.True(!service.IsEnabled().Value);
     Assert.Equal("/usr/bin/hyperwhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => true));
     Assert.Equal("/usr/lib/hyperwhisper/HyperWhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => false));
     Assert.Equal("/opt/hw/HyperWhisper", LinuxAutostartService.LaunchPath("/opt/hw/HyperWhisper", _ => true));

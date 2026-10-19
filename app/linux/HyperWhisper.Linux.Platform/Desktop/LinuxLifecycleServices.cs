@@ -74,9 +74,12 @@ public sealed class LinuxSingleInstanceCoordinator : ISingleInstanceCoordinator
 public sealed class LinuxAutostartService : IAutostartService
 {
     private readonly string _path;
+    private readonly string _legacyPath;
     private readonly string _executable;
     private readonly IPrivateFileService _files;
     public LinuxAutostartService() : this(new LinuxAppPaths(), LaunchPath(Environment.ProcessPath ?? string.Empty, File.Exists), new LinuxPrivateFileService()) { }
+    private LinuxAutostartService(LinuxAppPaths paths, string executable, IPrivateFileService files)
+        : this(paths.XdgConfigHome, paths.ConfigDirectory, executable, files) { }
 
     // The .deb's /usr/bin/hyperwhisper sets MALLOC_ARENA_MAX before the runtime starts (#1088),
     // and ProcessPath is always the real binary, so a login start would skip it.
@@ -84,8 +87,16 @@ public sealed class LinuxAutostartService : IAutostartService
         processPath == "/usr/lib/hyperwhisper/HyperWhisper" && exists("/usr/bin/hyperwhisper")
             ? "/usr/bin/hyperwhisper"
             : processPath;
-    internal LinuxAutostartService(IAppPaths paths, string executable, IPrivateFileService files)
-    { _path = Path.Combine(paths.ConfigDirectory, "autostart", "hyperwhisper.desktop"); _executable = executable; _files = files; }
+    // The XDG Autostart spec reads only $XDG_CONFIG_HOME/autostart/. Builds before #2023 wrote the
+    // entry under the app's own config folder, where no session looks, so Enable and Disable also
+    // remove that stray copy.
+    internal LinuxAutostartService(string xdgConfigHome, string appConfigDirectory, string executable, IPrivateFileService files)
+    {
+        _path = Path.Combine(xdgConfigHome, "autostart", "hyperwhisper.desktop");
+        _legacyPath = Path.Combine(appConfigDirectory, "autostart", "hyperwhisper.desktop");
+        _executable = executable;
+        _files = files;
+    }
     public PlatformResult<bool> IsEnabled()
     {
         var read = _files.ReadAllText(_path);
@@ -98,7 +109,16 @@ public sealed class LinuxAutostartService : IAutostartService
         var quoted = _executable.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)
             .Replace("`", "\\`", StringComparison.Ordinal).Replace("$", "\\$", StringComparison.Ordinal);
         var content = $"[Desktop Entry]\nType=Application\nName=HyperWhisper\nExec=\"{quoted}\"\nTerminal=false\nX-GNOME-Autostart-enabled=true\n";
-        return _files.WriteAllTextAtomically(_path, content);
+        var written = _files.WriteAllTextAtomically(_path, content);
+        RemoveLegacyEntry();
+        return written;
     }
-    public PlatformResult Disable() => _files.Delete(_path);
+    public PlatformResult Disable()
+    {
+        RemoveLegacyEntry();
+        return _files.Delete(_path);
+    }
+    // Best effort: no session reads the stray copy, so failing to delete it must not turn a
+    // working switch into a reported failure.
+    private void RemoveLegacyEntry() => _files.Delete(_legacyPath);
 }
