@@ -131,7 +131,11 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
                 new LocalWhisperRequest(
                     audioPath,
                     NormalizeLanguage(language),
-                    IncludeWordTimestamps: requestWordTimestamps),
+                    IncludeWordTimestamps: requestWordTimestamps,
+                    // No window of a long recording is primed with the text decoded
+                    // before it, so a repeated phrase cannot replace the rest of the
+                    // speech (#1559, the Windows fix is #1560). Linux sends no prompt.
+                    MaxLastTextTokensZero: true),
                 cancellationToken).ConfigureAwait(false);
             return result.IsSuccess
                 ? PortableTranscriptionResult.Success(result.Text!, DisplayNameForRuntime(result.Runtime, preference)) with
