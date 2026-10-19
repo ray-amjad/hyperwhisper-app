@@ -459,8 +459,8 @@ export default function PrivacyPolicyPage() {
           >
             Deepgram
           </a>{" "}
-          (Nova-3) — default provider. Also used as a fallback when Groq is
-          unavailable in certain regions.
+          (Nova-3) — default provider. Falls back to Groq, then ElevenLabs, on
+          failure.
         </li>
         <li>
           <a
@@ -471,8 +471,8 @@ export default function PrivacyPolicyPage() {
           >
             Groq
           </a>{" "}
-          (Whisper large-v3) — fastest option. Falls back to Deepgram if
-          blocked in your region.
+          (Whisper large-v3) — fastest option. Falls back to Deepgram, then
+          ElevenLabs, on failure.
         </li>
         <li>
           <a
@@ -483,7 +483,8 @@ export default function PrivacyPolicyPage() {
           >
             ElevenLabs
           </a>{" "}
-          (Scribe v2) — highest accuracy option.
+          (Scribe v2) — highest accuracy option. Falls back to Deepgram, then
+          Groq, on failure.
         </li>
         <li>
           <a
@@ -499,6 +500,25 @@ export default function PrivacyPolicyPage() {
           above.
         </li>
       </ul>
+      <p>
+        When HyperWhisper Cloud transcribes a recording with Deepgram, Groq,
+        ElevenLabs or SpaceXAI (Grok), the same audio, and any custom
+        vocabulary sent with it, can go to the next provider in that
+        provider&apos;s fallback chain. This happens when the
+        provider handling the request times out, returns a server error or a
+        rate limit, returns a reply we cannot use, rejects the audio or a
+        setting such as the language, refuses our account key, or cannot be
+        reached from the server region that received your request. It also
+        happens once when the provider you chose returns an empty transcript
+        for audio it says it processed. The chains are: Deepgram, then Groq,
+        then ElevenLabs; Groq, then Deepgram, then ElevenLabs; ElevenLabs, then
+        Deepgram, then Groq; and SpaceXAI (Grok), when you choose it, then
+        Deepgram, then Groq, then ElevenLabs. So one request can reach at most
+        these four providers. Every other HyperWhisper Cloud transcription
+        provider, Google (Chirp 3) included, has no fallback and never passes
+        your audio to another provider. You are billed only for the provider
+        that returned your transcript.
+      </p>
       <p>
         <strong>Post-processing (text correction) providers:</strong>
       </p>
