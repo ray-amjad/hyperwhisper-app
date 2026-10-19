@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { routing } from "./src/i18n/routing";
 import { defaultLocale, locales } from "./src/i18n/locales";
-import { isEnglishOnlyPath } from "./src/i18n/english-only";
+import {
+  englishOnlyRedirectPath,
+  isEnglishOnlyPath,
+} from "./src/i18n/english-only";
 
 const intlMiddleware = createMiddleware(routing);
 const localePattern = locales
@@ -116,6 +119,16 @@ export default async function proxy(request: NextRequest) {
   // is available — the same authority the authenticated layout uses, so the
   // two can no longer disagree. Do not reintroduce a cookie-presence redirect
   // here.
+
+  // #2056: a bare English-only path goes to /en/..., whatever the visitor's
+  // language. Same 307 next-intl answers with, and no NEXT_LOCALE (#1135).
+  const englishOnlyPath = englishOnlyRedirectPath(pathname);
+
+  if (englishOnlyPath) {
+    const url = new URL(englishOnlyPath, request.url);
+    url.search = request.nextUrl.search;
+    return NextResponse.redirect(url);
+  }
 
   // For all other routes, just run intl middleware
   return runIntlMiddleware(request, pathname);
