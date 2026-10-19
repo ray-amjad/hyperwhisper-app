@@ -112,8 +112,19 @@ export function createUpstashRateLimitStore(
       return { success, reset, reason };
     },
     async peek(bucket, identifier) {
-      const { remaining, reset } = await limiterFor(bucket).getRemaining(identifier);
-      return { remaining, reset };
+      // getRemaining has no `timeout` of its own (only limit() does), so bound
+      // it here: a hung Upstash must not hold the upgrade. A timeout throws,
+      // and the caller treats that as "not full".
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timedOut = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('rate limit peek timed out')), timeoutMs);
+      });
+      try {
+        const { remaining, reset } = await Promise.race([limiterFor(bucket).getRemaining(identifier), timedOut]);
+        return { remaining, reset };
+      } finally {
+        clearTimeout(timer);
+      }
     },
   };
 }
@@ -208,7 +219,10 @@ function logRejected(endpoint: string, bucket: RateLimitBucket, retryAfter: numb
  * and any echoed command would show it.
  */
 export function keyIdentifier(licenseKey: string): string {
-  return createHash('sha256').update(licenseKey).digest('hex');
+  // The site trims the key before its lookup, and its key column may compare
+  // case-insensitively, so ` KEY`, `KEY` and `key` are one account and must be
+  // one bucket; otherwise rotating whitespace or case dodges the limit.
+  return createHash('sha256').update(licenseKey.trim().toUpperCase()).digest('hex');
 }
 
 /** Hono middleware: the per-IP bucket, before the route parses a body or looks up a key. */

@@ -417,4 +417,36 @@ describe('the production store (real @upstash/ratelimit)', () => {
     expect(await checkRateLimit('ws_upgrade', 'abc')).toEqual({ limited: false });
     expect(warnings.some((line) => line.includes('"reason":"timeout"'))).toBe(true);
   });
+
+  test('Upstash hanging: the upgrade\'s read (getRemaining) is bounded too, and the upgrade goes on', async () => {
+    Date.now = realDateNow;
+    const hanging = new Proxy({}, {
+      get: () => () => new Promise(() => {}),
+    }) as unknown as Redis;
+    const store = createUpstashRateLimitStore(() => hanging, 20);
+    const started = performance.now();
+    await expect(store.peek!('ws_upgrade', 'abc')).rejects.toThrow('timed out');
+    expect(performance.now() - started).toBeLessThan(1_000);
+
+    setRateLimitStoreForTests(store);
+    const upgrade = await send(licensedRequest('ws-deepgram', freshKey(), freshIP()));
+    expect(upgrade.status).toBe(402);
+  });
+});
+
+describe('key canonicalisation', () => {
+  test('whitespace and case variants of one key share one bucket', async () => {
+    expect(keyIdentifier('  hw-abc-def \n')).toBe(keyIdentifier('HW-ABC-DEF'));
+    const key = freshKey();
+    const variants = [key, ` ${key} `, key.toLowerCase(), `${key}\t`];
+    for (let i = 0; i < RATE_LIMITS.key; i += 1) {
+      const variant = encodeURIComponent(variants[i % variants.length]);
+      expect((await send(new Request(`http://transcribe.test/usage?account_key=${variant}`, {
+        headers: { 'Fly-Client-IP': freshIP() },
+      }))).status).toBe(200);
+    }
+    await expectRateLimited(await send(new Request(`http://transcribe.test/usage?account_key=${encodeURIComponent(` ${key.toLowerCase()}`)}`, {
+      headers: { 'Fly-Client-IP': freshIP() },
+    })));
+  });
 });
