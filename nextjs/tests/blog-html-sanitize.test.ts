@@ -197,6 +197,15 @@ describe("POST /api/webhooks/add-blog-post stores sanitised HTML", () => {
       "<h1>Title</h1>\n<p>&lt;script&gt;alert(1)&lt;/script&gt; one<br />two</p>",
     );
   });
+  test("content_html that sanitises to nothing falls back to the markdown", async () => {
+    const { insert, update } = await publish({
+      content_html: "<script>alert(1)</script><style>p{}</style>",
+      content_markdown: "# Title\n\nBody",
+    });
+    for (const stored of [insert, update]) {
+      assert.equal(stored, "<h1>Title</h1>\n<p>Body</p>");
+    }
+  });
 });
 
 describe("getBlogPost sanitises a row stored before the fix", () => {
