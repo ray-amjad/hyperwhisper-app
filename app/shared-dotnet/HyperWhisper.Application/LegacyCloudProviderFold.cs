@@ -19,8 +19,11 @@ namespace HyperWhisper.PortableApplication.Persistence;
 /// <para>
 /// The provider decision is the shared core's (<see cref="SharedCoreBridge.NormalizeCloudProvider"/>).
 /// The tier rule is the native heads': the tier the alias stood for replaces
-/// <c>CloudAccuracyTier</c> only when that is blank or the old default <c>deepgramNova3</c>, so
-/// a user who paired a legacy provider with a tier of their own keeps it.
+/// <c>CloudAccuracyTier</c> only when that is blank or a default tier: the old cross-head default
+/// <c>deepgramNova3</c>, or this head's own new-mode default <c>elevenLabsScribeV2</c> (the tier
+/// the Mode editor pre-fills, and the one #601 measured on a stored <c>googleSpeech</c> row). A
+/// legacy row never dispatched by its tier, so a default there is not a choice; a user who
+/// paired a legacy provider with any other tier keeps it.
 /// </para>
 /// <para>
 /// Only a legacy ALIAS is rewritten. The shared normalizer also lower-cases every other
@@ -36,6 +39,9 @@ public static class LegacyCloudProviderFold
 {
     /// <summary>The default tier both native heads treat as "not customised".</summary>
     public const string LegacyDefaultTier = "deepgramNova3";
+
+    /// <summary>This head's new-mode default tier (<c>ModesViewModel</c>), also "not customised".</summary>
+    public const string PortableDefaultTier = "elevenLabsScribeV2";
 
     /// <summary>
     /// The fold for one provider/tier pair. Returns <c>false</c>, and the inputs unchanged,
@@ -75,7 +81,11 @@ public static class LegacyCloudProviderFold
     // Windows compares the tier after its own canonicalisation; macOS compares it raw. Reading
     // it through the shared canonicaliser is the Windows rule, and it agrees with macOS for
     // every value macOS could have written.
-    private static bool IsBlankOrDefaultTier(string? tier) =>
-        string.IsNullOrWhiteSpace(tier)
-        || string.Equals(SharedCoreBridge.CanonicalCloudSttTier(tier), LegacyDefaultTier, StringComparison.Ordinal);
+    private static bool IsBlankOrDefaultTier(string? tier)
+    {
+        if (string.IsNullOrWhiteSpace(tier)) return true;
+        var canonical = SharedCoreBridge.CanonicalCloudSttTier(tier);
+        return string.Equals(canonical, LegacyDefaultTier, StringComparison.Ordinal)
+            || string.Equals(canonical, PortableDefaultTier, StringComparison.Ordinal);
+    }
 }

@@ -2013,6 +2013,9 @@ static async Task RunLegacyCloudProviderFoldTestsAsync(string root)
     var google = Cloud("Legacy Google", "googlespeech", "");
     var googleDefaultTier = Cloud("Legacy Google default tier", "googleSpeech", "deepgramNova3");
     var azure = Cloud("Legacy Azure", "microsoftazurespeech", "deepgramNova3");
+    // This head's Mode editor pre-fills elevenLabsScribeV2, so a GUI-made legacy row carries it
+    // (the row #601 measured): a default, not a choice, because the tier never dispatched.
+    var googleEditorDefault = Cloud("Legacy Google editor default", "googlespeech", "elevenLabsScribeV2");
     // A user who paired a legacy provider with a tier of their own keeps it (both native heads).
     var azureCustom = Cloud("Legacy Azure custom tier", "microsoftAzureSpeech", "assemblyAI");
     // Controls the fold must not touch. A camelCase BYOK id is lower-cased by the shared
@@ -2021,7 +2024,7 @@ static async Task RunLegacyCloudProviderFoldTestsAsync(string root)
     var byokCamel = Cloud("BYOK Gemini Transcribe", "geminiTranscribe", "");
     var blank = Cloud("Blank provider", null, "deepgramNova3");
     var local = new Mode { Name = "Local legacy column", ProviderType = "local", LocalEngine = "whisper", ModelType = "base", Language = "en" };
-    var all = new[] { google, googleDefaultTier, azure, azureCustom, byok, byokCamel, blank, local };
+    var all = new[] { google, googleDefaultTier, googleEditorDefault, azure, azureCustom, byok, byokCamel, blank, local };
     foreach (var mode in all) await repository.UpsertAsync(mode);
     // The local row's column is written raw, after the upsert, because the fold is provider-only
     // and the provider column is what matters.
@@ -2045,6 +2048,9 @@ static async Task RunLegacyCloudProviderFoldTestsAsync(string root)
     var foldedGoogleDefault = await Stored(googleDefaultTier);
     Assert(foldedGoogleDefault.CloudProvider == "hyperwhisper" && foldedGoogleDefault.CloudAccuracyTier == "geminiTranscribe",
         $"a googleSpeech row on the default tier read '{foldedGoogleDefault.CloudProvider}' / '{foldedGoogleDefault.CloudAccuracyTier}'");
+    var foldedGoogleEditorDefault = await Stored(googleEditorDefault);
+    Assert(foldedGoogleEditorDefault.CloudProvider == "hyperwhisper" && foldedGoogleEditorDefault.CloudAccuracyTier == "geminiTranscribe",
+        $"a googlespeech row on the editor's default tier read '{foldedGoogleEditorDefault.CloudProvider}' / '{foldedGoogleEditorDefault.CloudAccuracyTier}'");
     var foldedAzure = await Stored(azure);
     Assert(foldedAzure.CloudProvider == "hyperwhisper" && foldedAzure.CloudAccuracyTier == "azureMaiTranscribe",
         $"a microsoftazurespeech row on the default tier read '{foldedAzure.CloudProvider}' / '{foldedAzure.CloudAccuracyTier}'");
@@ -2069,7 +2075,7 @@ static async Task RunLegacyCloudProviderFoldTestsAsync(string root)
     // HyperWhisper Cloud request WITH a base URL. Before the fold it was GoogleChirp with none.
     var audio = Path.Combine(root, "legacy.wav");
     await File.WriteAllBytesAsync(audio, [1]);
-    foreach (var source in new[] { google, azure, azureCustom })
+    foreach (var source in new[] { google, googleEditorDefault, azure, azureCustom })
     {
         var mode = await Stored(source);
         var cloud = new LanguageRecordingCloud();
