@@ -148,9 +148,22 @@ export class CreditHold {
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const run = this.queue.then(operation, operation);
+    const previous = this.queue;
+    const run = (async () => {
+      // Runs after the previous operation whether it resolved or rejected.
+      try {
+        await previous;
+      } catch {
+        // The queue tail never rejects; this is belt and braces.
+      }
+      return operation();
+    })();
     this.queue = run.catch(() => {});
     return run;
+  }
+
+  private async settled(): Promise<void> {
+    await this.queue;
   }
 
   /**
@@ -214,7 +227,7 @@ export class CreditHold {
 
   /** Give the credits back. Idempotent. */
   release(): Promise<void> {
-    if (this.state === 'released') return this.queue.then(() => {});
+    if (this.state === 'released') return this.settled();
     this.state = 'released';
     if (holdsByAuth.get(this.auth) === this) holdsByAuth.delete(this.auth);
     const releasing = this.enqueue(async () => {

@@ -693,24 +693,26 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
     const before = hold.heldCredits;
     // At least enough to cover what is already metered plus a tenth; at most
     // one more block on top of the current hold.
-    void hold.reserve(roundToTenth(creditsUsed + 0.1), before + holdBlockCredits).then((outcome) => {
+    const pendingHold = hold;
+    void (async () => {
+      const outcome = await pendingHold.reserve(roundToTenth(creditsUsed + 0.1), before + holdBlockCredits);
       topUpPending = false;
       if (sessionEnded) return;
       lastHoldRenewAt = Date.now();
       if (outcome.kind === 'granted') {
-        log('credit_topup', { heldCredits: hold.heldCredits, previousHeldCredits: before });
+        log('credit_topup', { heldCredits: pendingHold.heldCredits, previousHeldCredits: before });
         // The audio that arrived during the round trip may already be past the new total.
         enforceCreditCutoff();
         return;
       }
       if (outcome.kind === 'refused') {
         const meteredNow = creditsForCost(vendor.costForSeconds(totalDurationSeconds, transcriptChars));
-        cutOff(meteredNow, { reason: 'topup_refused', heldCredits: hold.heldCredits });
+        cutOff(meteredNow, { reason: 'topup_refused', heldCredits: pendingHold.heldCredits });
         return;
       }
       // Redis failed mid-session: fail open onto the balance seen at auth.
       enforceCreditCutoff();
-    });
+    })();
   }
 
 
