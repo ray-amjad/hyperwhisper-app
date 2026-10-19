@@ -17,10 +17,14 @@ export interface RequestLimiter {
 /** Used when the limiter does not say when the window frees: every site window is 1 minute. */
 const DEFAULT_RETRY_AFTER_SECONDS = 60;
 
-export function retryAfterSeconds(reset: number | undefined, now: number = Date.now()): number {
+export function retryAfterSeconds(
+  reset: number | undefined,
+  now: number = Date.now(),
+): number {
   if (typeof reset !== "number" || !Number.isFinite(reset)) {
     return DEFAULT_RETRY_AFTER_SECONDS;
   }
+
   return Math.max(1, Math.ceil((reset - now) / 1000));
 }
 
@@ -41,11 +45,14 @@ export async function rateLimitGate(
   label: string,
 ): Promise<NextResponse | null> {
   let verdict: Awaited<ReturnType<RequestLimiter["limit"]>>;
+
   try {
     verdict = await limiter.limit(identifier);
   } catch (error) {
     const name = error instanceof Error ? error.name : typeof error;
+
     console.warn(`Rate limit unavailable for ${label}, failing open: ${name}`);
+
     return null;
   }
 
@@ -55,6 +62,7 @@ export async function rateLimitGate(
   if (verdict.success) return null;
 
   const retryAfter = retryAfterSeconds(verdict.reset);
+
   return NextResponse.json(
     { error: "Too many requests. Please try again later." },
     { status: 429, headers: { "Retry-After": String(retryAfter) } },

@@ -14,6 +14,7 @@ import {
   magicLinkEmailText,
 } from "@/lib/templates/magic-link-email";
 import { licenseKeyPlugin } from "./auth-license-key-plugin";
+import { authRateLimitOptions } from "./auth-rate-limit-storage";
 
 /**
  * Read `name` / `statusCode` / `message` off whatever Resend put in the `error`
@@ -126,6 +127,12 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // refresh at most once a day
     deferSessionRefresh: true,
   },
+  // Better Auth's own rate-limit rules, counted in the site's Upstash so every
+  // Vercel instance shares one budget (#2010). `customStorage`, deliberately
+  // not `secondaryStorage`: the latter would also move sessions off Postgres.
+  // Fails open when Upstash is down or unconfigured. See
+  // `./auth-rate-limit-storage.ts`.
+  rateLimit: authRateLimitOptions(),
   user: {
     additionalFields: {
       role: {
