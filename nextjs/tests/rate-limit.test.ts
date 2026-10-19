@@ -179,12 +179,12 @@ describe("licenseValidateRateLimiter", () => {
 });
 
 describe("licenseCreditsRateLimiter (#2010)", () => {
-  test("allows 30 credit reads from one IP in a minute and blocks the 31st", async () => {
+  test("allows 300 credit reads from one IP in a minute and blocks the 301st", async () => {
     const ip = "198.51.100.40";
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 300; i++) {
       const result = await hit(limiters.licenseCreditsRateLimiter, ip);
       assert.equal(result.success, true, `request ${i + 1} must pass`);
-      assert.equal(result.limit, 30);
+      assert.equal(result.limit, 300);
     }
     const blocked = await hit(limiters.licenseCreditsRateLimiter, ip);
     assert.equal(blocked.success, false);
@@ -192,10 +192,10 @@ describe("licenseCreditsRateLimiter (#2010)", () => {
 
   test("has its own budget: an IP out of credit reads can still validate", async () => {
     const ip = "198.51.100.41";
-    // Pinned so the 31 calls cannot straddle a minute boundary.
+    // Pinned so the 301 calls cannot straddle a minute boundary.
     pinClock(Date.UTC(2026, 9, 19, 12, 0, 30));
     const bucket = Math.floor(Date.now() / (60 * 1000));
-    for (let i = 0; i < 30; i++) await hit(limiters.licenseCreditsRateLimiter, ip);
+    for (let i = 0; i < 300; i++) await hit(limiters.licenseCreditsRateLimiter, ip);
     assert.equal((await hit(limiters.licenseCreditsRateLimiter, ip)).success, false);
 
     assert.deepEqual(await bucketKeys("ratelimit:license-credits", ip), [

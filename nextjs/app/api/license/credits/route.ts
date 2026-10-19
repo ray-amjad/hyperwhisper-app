@@ -29,7 +29,7 @@ import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
  * - Only valid license keys can query/deduct credits
  * - GET answers "is this key real, and what is it worth" to anyone, so it is
  *   rate limited per IP before any DB lookup (`licenseCreditsRateLimiter`,
- *   validate's ceiling on its own budget, #2010). POST is not limited here;
+ *   300/min on its own budget, #2010). POST is not limited here;
  *   making it cloud-only is #2021.
  */
 

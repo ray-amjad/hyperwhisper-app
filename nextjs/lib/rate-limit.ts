@@ -32,18 +32,20 @@ export const licenseValidateRateLimiter = new Ratelimit({
 /**
  * Rate limiter for `GET /api/license/credits` (and its `/api/account/credits`
  * alias): a key -> balance lookup open to anyone, so the same key-guessing
- * exposure as validate/activate, with the same ceiling (#2010).
+ * exposure as validate/activate (#2010).
  *
  * Its OWN budget, not validate's: HyperWhisper Cloud calls this route (on
  * `/usage?force_refresh=true`) and falls back to `/api/license/validate` when
  * it fails, both from a Fly region's shared exit address. Sharing one budget
  * would let refreshes starve the cloud's validation of the same users.
  *
- * Limits: 30 requests per IP per minute using sliding window algorithm.
+ * Limits: 300 requests per IP per minute using sliding window algorithm. Ten
+ * times validate's ceiling, because one Fly region's refreshes for every user
+ * arrive from one address; it still stops a single caller scraping keys.
  */
 export const licenseCreditsRateLimiter = new Ratelimit({
   redis: redis,
-  limiter: Ratelimit.slidingWindow(30, "1 m"),
+  limiter: Ratelimit.slidingWindow(300, "1 m"),
   prefix: "ratelimit:license-credits",
   analytics: true,
 });
