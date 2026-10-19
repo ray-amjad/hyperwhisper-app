@@ -542,7 +542,7 @@ export default function PrivacyPolicyPage() {
           >
             OpenAI
           </a>{" "}
-          (GPT Transcribe, GPT-4o Transcribe and Whisper models).
+          (its GPT transcription models).
         </li>
         <li>
           <a
@@ -736,15 +736,13 @@ export default function PrivacyPolicyPage() {
         their standard API terms, and we do not claim a zero-retention or
         no-training setting on their accounts. We are not on enterprise plans
         with these providers, so their standard data processing terms still
-        apply. Please review each
-        provider&apos;s privacy policy linked above for full details on how they
-        handle data.
+        apply. Please review each provider&apos;s privacy policy linked above
+        for full details on how they handle data.
       </p>
       <p>
-        On every other HyperWhisper Cloud provider account, what happens to
-        your data depends on that provider&apos;s standard terms. ElevenLabs
-        stores your audio and transcript by default, because its zero-retention mode is available only on enterprise plans
-        and our account is not on one yet. Grok and Mistral store
+        Under those standard terms, ElevenLabs stores your audio and
+        transcript by default, because its zero-retention mode is available
+        only on enterprise plans and our account is not on one yet. Grok and Mistral store
         transcription requests for approximately 30 days for abuse monitoring,
         and do not use them to train their models. Meta does not publish a
         retention statement for its Muse speech-to-text API, so we do not

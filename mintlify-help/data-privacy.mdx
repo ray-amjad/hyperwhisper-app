@@ -29,7 +29,7 @@ HyperWhisper Cloud sends your audio to a backing speech-to-text provider. It als
 
 - HyperWhisper sets Deepgram's per-request no-train flag, `mip_opt_out`, on every Deepgram call.
 - Deepgram is the only HyperWhisper Cloud provider account with zero data retention set. The other providers keep data under their standard API terms, and HyperWhisper does not claim a zero-retention or no-training setting on their accounts.
-- For AssemblyAI, HyperWhisper deletes the transcript from AssemblyAI immediately after it gets the transcript.
+- On AssemblyAI's asynchronous path, HyperWhisper asks AssemblyAI to delete the transcript right after it gets it. AssemblyAI's sync fast path (short clips with a set language) and the AssemblyAI Dictation model send no such request.
 
 Some providers store data for a short time for abuse monitoring. Grok and Mistral store it for approximately 30 days. These providers do not use the data to train their models.
 
@@ -211,7 +211,7 @@ You can do these three things:
 ## Summary
 
 - **Local**: the audio stays on your device.
-- **HyperWhisper Cloud**: HyperWhisper does not store your audio. It applies each provider's strongest documented no-train / no-store control. Most providers store nothing. Some providers store data for a short time for abuse monitoring, and do not train on it. ElevenLabs stores data by default, until HyperWhisper completes an enterprise zero-retention upgrade. Meta does not document retention, request logging, or model-training use for Muse API data in its public speech-to-text documentation. HyperWhisper stores anonymous timing rows for the public latency page, and deletes them after 1 year. To stop them, turn off **Share anonymous speed data** in **Settings → General**.
+- **HyperWhisper Cloud**: HyperWhisper does not store your audio. Deepgram is the only provider account with zero data retention set; the other providers keep data under their standard API terms. Some providers store data for a short time for abuse monitoring, and do not train on it. ElevenLabs stores data by default, until HyperWhisper completes an enterprise zero-retention upgrade. Meta does not document retention, request logging, or model-training use for Muse API data in its public speech-to-text documentation. HyperWhisper stores anonymous timing rows for the public latency page, and deletes them after 1 year. To stop them, turn off **Share anonymous speed data** in **Settings → General**.
 - **Your own API key**: the opt-out is mostly your responsibility. Deepgram is the exception, because HyperWhisper adds `mip_opt_out=true` to every request from the app.
 - **Error reports**: these hold no audio and no text. To stop them, turn off **Error logging** (macOS), **Send error reports** (Windows), or **Send privacy-filtered crash and performance diagnostics** (Linux) in **Settings → General**.
 
