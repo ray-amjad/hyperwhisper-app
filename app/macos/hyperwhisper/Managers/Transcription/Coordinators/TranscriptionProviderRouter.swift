@@ -182,6 +182,10 @@ class TranscriptionProviderRouter {
     /// router NOT to stage that model on the shared `LibWhisperProvider` (see
     /// `stageWhisperModel`): it hands the model to the provider's queued pass
     /// instead (issue #1465).
+    /// Tests only: replaces routing, so a test can drive the real pipeline
+    /// with a provider it controls (#1425). Always nil in the app.
+    var selectionOverrideForTesting: ((Mode?) async throws -> any TranscriptionProvider)?
+
     struct ProviderSelection {
         let provider: any TranscriptionProvider
         let cloudProviderType: CloudProvider?
@@ -208,6 +212,9 @@ class TranscriptionProviderRouter {
     ///     to local Whisper, leave the shared provider's model alone and report
     ///     the model in `ProviderSelection.whisperModel` instead (issue #1465).
     func selectProvider(for mode: Mode?, vocabulary: [Vocabulary], stageWhisperModel: Bool = true) async throws -> ProviderSelection {
+        if let selectionOverrideForTesting {
+            return ProviderSelection(provider: try await selectionOverrideForTesting(mode), cloudProviderType: nil)
+        }
         let rawModel = (mode?.model ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         // Empty model id (legacy/imported modes) is treated as cloud — matches prepareModel's behaviour
         let modelString = rawModel.isEmpty ? "cloud" : rawModel

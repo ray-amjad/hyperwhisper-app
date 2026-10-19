@@ -161,13 +161,7 @@ extension TranscriptionPipeline {
                 }
             }
             try refuseIfModeDeleted()
-            let selection: TranscriptionProviderRouter.ProviderSelection
-            let testOverride = providerSelectionOverrideForTesting
-            if testOverride == nil {
-                selection = try await providerCoordinator.selectProvider(for: mode, vocabulary: vocabulary)
-            } else {
-                selection = .init(provider: try await testOverride!(mode), cloudProviderType: nil)
-            }
+            let selection = try await providerCoordinator.selectProvider(for: mode, vocabulary: vocabulary)
             try refuseIfModeDeleted()
             let provider = selection.provider
             // Health feedback (issue #379): the cloud identity comes out of the

@@ -86,7 +86,7 @@ private enum Rig {
 
     static func pipeline(_ provider: HeldTranscriptionProvider, answers: [Bool] = []) -> (TranscriptionPipeline, AskLog) {
         let pipeline = TranscriptionPipeline()
-        pipeline.providerSelectionOverrideForTesting = { _ in provider }
+        pipeline.providerCoordinator.selectionOverrideForTesting = { _ in provider }
         let log = AskLog(answers: answers)
         pipeline.fileJobs.confirmReplace = { log.answer() }
         return (pipeline, log)

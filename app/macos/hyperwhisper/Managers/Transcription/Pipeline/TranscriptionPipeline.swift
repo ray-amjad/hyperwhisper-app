@@ -145,10 +145,6 @@ class TranscriptionPipeline: ObservableObject {
     /// Keeps a dictation and a file job off an engine that runs one pass at a time.
     let engineAccess = TranscriptionEngineAccess()
 
-    /// Tests only: replaces provider routing, so a test can drive the real
-    /// `transcribeWithDetails` with a controllable provider. Always nil in the app.
-    var providerSelectionOverrideForTesting: ((Mode?) async throws -> any TranscriptionProvider)?
-
     /// Metadata from the provider attempt that most recently threw no-speech.
     var lastFailedAttemptDiagnostics: TranscriptionAttemptDiagnostics?
 
