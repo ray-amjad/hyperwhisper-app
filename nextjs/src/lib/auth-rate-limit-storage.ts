@@ -5,6 +5,7 @@ import type {
 } from "better-auth";
 
 import { Ratelimit } from "@upstash/ratelimit";
+import { countFailOpen } from "@/lib/rate-limit-gate";
 
 /**
  * SHARED STORAGE FOR BETTER AUTH'S RATE LIMITER (#2010)
@@ -64,61 +65,51 @@ export function createUpstashAuthRateLimitStorage(
   const limiters = new Map<string, Ratelimit>();
   let notConfiguredLogged = false;
 
+  const limiterFor = async (rule: {
+    window: number;
+    max: number;
+  }): Promise<Ratelimit | null> => {
+    const ruleId = `${rule.window}s:${rule.max}`;
+    const existing = limiters.get(ruleId);
+
+    if (existing) return existing;
+
+    const redis = await getRedis();
+
+    if (!redis) {
+      if (!notConfiguredLogged) {
+        notConfiguredLogged = true;
+        console.warn(
+          "Better Auth rate limit: Upstash is not configured, failing open",
+        );
+      }
+
+      return null;
+    }
+    const limiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(rule.max, `${rule.window} s`),
+      prefix: `ratelimit:better-auth:${ruleId}`,
+      timeout: timeoutMs,
+      analytics: false,
+    });
+
+    limiters.set(ruleId, limiter);
+
+    return limiter;
+  };
+
   return {
     async consume(key, rule) {
-      let limiter: Ratelimit | undefined;
+      const outcome = await countFailOpen(async () => {
+        const limiter = await limiterFor(rule);
 
-      try {
-        const ruleId = `${rule.window}s:${rule.max}`;
+        return limiter ? limiter.limit(key) : { success: true };
+      }, "Better Auth");
 
-        limiter = limiters.get(ruleId);
-        if (!limiter) {
-          const redis = await getRedis();
+      if (!outcome.limited) return ALLOW;
 
-          if (!redis) {
-            if (!notConfiguredLogged) {
-              notConfiguredLogged = true;
-              console.warn(
-                "Better Auth rate limit: Upstash is not configured, failing open",
-              );
-            }
-
-            return ALLOW;
-          }
-          limiter = new Ratelimit({
-            redis,
-            limiter: Ratelimit.slidingWindow(rule.max, `${rule.window} s`),
-            prefix: `ratelimit:better-auth:${ruleId}`,
-            timeout: timeoutMs,
-            analytics: false,
-          });
-          limiters.set(ruleId, limiter);
-        }
-
-        const { success, reset, reason } = await limiter.limit(key);
-
-        if (reason === "timeout") {
-          console.warn(
-            "Better Auth rate limit: Upstash timed out, failing open",
-          );
-        }
-        if (success) return ALLOW;
-
-        return {
-          allowed: false,
-          retryAfter: Math.max(1, Math.ceil((reset - Date.now()) / 1000)),
-        };
-      } catch (error) {
-        // The class name only: an Upstash error can quote the command, and
-        // with it the caller's IP.
-        const name = error instanceof Error ? error.name : typeof error;
-
-        console.warn(
-          `Better Auth rate limit: Upstash unavailable, failing open: ${name}`,
-        );
-
-        return ALLOW;
-      }
+      return { allowed: false, retryAfter: outcome.retryAfterSeconds };
     },
   };
 }

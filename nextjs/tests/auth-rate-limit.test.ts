@@ -194,7 +194,7 @@ describe("Upstash unavailable fails open", () => {
       { allowed: true, retryAfter: null },
     ]);
     assert.equal(warnings.length, 2);
-    assert.match(warnings[0], /Upstash unavailable, failing open: Error/);
+    assert.match(warnings[0], /Rate limit unavailable for Better Auth, failing open: Error/);
     assert.ok(!warnings[0].includes("203.0.113.70"), "no IP in the log line");
   });
 
@@ -240,7 +240,7 @@ describe("Upstash unavailable fails open", () => {
 
       assert.deepEqual(result, { allowed: true, retryAfter: null });
       assert.equal(warnings.length, 1);
-      assert.match(warnings[0], /timed out, failing open/);
+      assert.match(warnings[0], /Rate limit timed out for Better Auth, failing open/);
     } finally {
       hanging.closeAllConnections();
       hanging.close();
