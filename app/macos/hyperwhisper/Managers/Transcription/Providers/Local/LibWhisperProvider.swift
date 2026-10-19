@@ -313,8 +313,6 @@ class LibWhisperProvider: TranscriptionProvider {
         }
     }
 
-    /// The body of a pass. `requiredModel` is set only by the Local API, which
-    /// loads its own model instead of the one `setModel` staged.
     /// The whisper.cpp `initial_prompt` for a pass: the vocabulary words that
     /// have no replacement, space-joined, or nil when there are none.
     static func vocabularyPrompt(for vocabulary: [Vocabulary]) -> String? {
@@ -331,6 +329,8 @@ class LibWhisperProvider: TranscriptionProvider {
         await context.setPrompt(vocabularyPrompt(for: vocabulary))
     }
 
+    /// The body of a pass. `requiredModel` is set only by the Local API, which
+    /// loads its own model instead of the one `setModel` staged.
     private func performTranscribe(audioURL: URL, language: String?, vocabulary: [Vocabulary], requiredModel: WhisperModel?) async throws -> String {
         // Reset any timestamps from a previous run; only the kept run below sets them.
         lastTimestamps = nil
