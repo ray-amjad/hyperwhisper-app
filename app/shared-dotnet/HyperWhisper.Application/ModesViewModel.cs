@@ -199,15 +199,29 @@ public sealed class ModesViewModel : ViewModelBase
             // A CLOUD mode with no stored provider IS a HyperWhisper Cloud mode (issue #1709), so
             // the editor opens on the provider the card shows and the router runs. A local mode
             // switched to cloud keeps the editor's own BYOK default.
-            CloudProvider = string.Equals(value.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+            var isCloudMode = string.Equals(value.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase);
+            var loadedProvider = isCloudMode
                 ? SharedCoreBridge.EffectiveModeCloudProvider(value.CloudProvider)
                 : value.CloudProvider ?? DefaultByokCloudProvider;
+            var loadedTier = value.CloudAccuracyTier;
+            // Issue #601: a retired standalone provider (`googlespeech`, `microsoftazurespeech`)
+            // is no longer in CloudProviders, so loading it verbatim would leave the vendor combo
+            // with no selection over a value SaveAsync then refuses. Fold it here exactly as the
+            // startup pass does (provider onto HyperWhisper Cloud, tier only if blank/default),
+            // so the editor opens on the HyperWhisper Cloud segment the mode will be saved as.
+            // The stored row is not written until the user saves.
+            if (LegacyCloudProviderFold.TryFold(loadedProvider, loadedTier, out var foldedProvider, out var foldedTier))
+            {
+                loadedProvider = foldedProvider;
+                loadedTier = foldedTier;
+            }
+            CloudProvider = loadedProvider;
             // Canonicalise on load, not just on save: a mode persisted by an older
             // build (or restored from a backup) can carry a retired tier id such as
             // `googleChirp3`. The shared core resolves it through the catalog's
             // `migrateFrom` list, so the editor opens on the tier the user actually
             // has (geminiTranscribe) instead of an id that is no longer offered.
-            CloudAccuracyTier = SharedCoreBridge.CanonicalCloudSttTier(value.CloudAccuracyTier);
+            CloudAccuracyTier = SharedCoreBridge.CanonicalCloudSttTier(loadedTier);
             CloudDomain = value.CloudTranscriptionDomain ?? string.Empty;
             GeminiPrompt = value.GeminiCustomPrompt ?? string.Empty;
             CustomVocabulary = string.Join(", ", value.CustomVocabulary ?? []);
@@ -372,9 +386,9 @@ public sealed class ModesViewModel : ViewModelBase
     /// same pair of spellings is already reconciled at ProviderAssets.cs:58/:62 and
     /// SettingsViewModel.cs:590; this adds no model id and changes no catalog.
     ///
-    /// Two vendor ids still return nothing, and correctly so:
-    /// <c>microsoftazurespeech</c> resolves to <c>azure-mai</c>, which the catalog does not mark
-    /// <c>byokEligible</c>; and <c>googlespeech</c> has no catalog vendor at all.
+    /// An id with no BYOK catalog vendor returns nothing — the retired <c>microsoftazurespeech</c>
+    /// (<c>azure-mai</c> is not <c>byokEligible</c>) and <c>googlespeech</c> (no catalog vendor)
+    /// were the two such ids in <see cref="CloudProviders"/> until issue #601 removed them.
     /// <see cref="NormalizeCloudModel"/> empties the selection to match, so Save writes null —
     /// which is what an implicit model means. <c>grok</c> was a third until 2026-09-19: its single
     /// catalog model carried an empty id, because an xAI request named no model.
@@ -754,7 +768,10 @@ public sealed class ModesViewModel : ViewModelBase
     // Lowercase ids, matched ordinally on save. `geminitranscribe` is the BYOK
     // Gemini 3.5 Transcribe provider, distinct from `gemini` (the multimodal
     // model) and from the `geminiTranscribe` HyperWhisper Cloud accuracy TIER.
-    public IReadOnlyList<string> CloudProviders { get; } = ["openai", "groq", "elevenlabs", "mistral", "grok", "deepgram", "assemblyai", "soniox", "gemini", "geminitranscribe", "microsoftazurespeech", "googlespeech", "meta", "hyperwhisper"];
+    // `microsoftazurespeech` and `googlespeech` are NOT offered (issue #601): on this head a mode
+    // saved with either could never transcribe, and both native heads fold them onto
+    // HyperWhisper Cloud. A mode still carrying one is folded on load and on save.
+    public IReadOnlyList<string> CloudProviders { get; } = ["openai", "groq", "elevenlabs", "mistral", "grok", "deepgram", "assemblyai", "soniox", "gemini", "geminitranscribe", "meta", "hyperwhisper"];
     // =====================================================================================
     // HYPERWHISPER CLOUD — the Provider row is a COMPANY, read from the catalog (#837).
     //
@@ -1264,6 +1281,16 @@ public sealed class ModesViewModel : ViewModelBase
         { Status.Failure("modes.postprocessing_provider_invalid", "Select a supported post-processing provider."); return; }
         if (PostProcessingMode == "cloud" && PostProcessingProvider == "custom" && !ValidateCustomEndpoint()) return;
         if (GeminiPrompt.Length > 2000) { Status.Failure("modes.gemini_prompt_too_long", "The Gemini prompt cannot exceed 2000 characters."); return; }
+        // Issue #601: run the provider through the shared storage fold BEFORE the allow-list check,
+        // as #598 does for the Local API's ApplyModeDocument. A legacy alias set on this view
+        // model by any path other than the (folded) load becomes HyperWhisper Cloud, with its tier
+        // only if the current one is blank or the old default; it is never written verbatim.
+        if (ProviderType == "cloud"
+            && LegacyCloudProviderFold.TryFold(CloudProvider, CloudAccuracyTier, out var savedProvider, out var savedTier))
+        {
+            CloudProvider = savedProvider;
+            CloudAccuracyTier = savedTier ?? CloudAccuracyTier;
+        }
         if (ProviderType == "cloud" && !CloudProviders.Contains(CloudProvider, StringComparer.Ordinal))
         { Status.Failure("modes.cloud_provider_required", "Select a supported cloud provider."); return; }
         if (ProviderType != "cloud")

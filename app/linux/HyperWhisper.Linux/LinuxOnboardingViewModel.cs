@@ -331,11 +331,18 @@ internal sealed class LinuxOnboardingModeReadiness(
         return credential?.IsPresent == true;
     }
 
-    private static string NormalizeCloudProvider(string provider) => provider.Trim().ToLowerInvariant() switch
+    /// <summary>
+    /// The provider id a cloud mode's readiness is judged on. The legacy standalone aliases go
+    /// through the shared storage fold (issue #601), the same call the Local API, the startup
+    /// pass and the Mode editor make, so <c>googlespeech</c> / <c>microsoftazurespeech</c> read
+    /// as HyperWhisper Cloud here too; this used to map them to <c>google-chirp</c> /
+    /// <c>azure-mai</c>, which no capability matched after catalog v8. The macOS spelling
+    /// <c>xai</c> is not a legacy alias in the catalog, so its fold onto <c>grok</c> stays.
+    /// </summary>
+    internal static string NormalizeCloudProvider(string provider)
     {
-        "microsoftazurespeech" => "azure-mai",
-        "googlespeech" => "google-chirp",
-        "xai" => "grok",
-        _ => provider.Trim().ToLowerInvariant(),
-    };
+        var folded = (SharedCoreBridge.NormalizeCloudProvider(provider.Trim()).Provider ?? string.Empty)
+            .Trim().ToLowerInvariant();
+        return folded == "xai" ? "grok" : folded;
+    }
 }
