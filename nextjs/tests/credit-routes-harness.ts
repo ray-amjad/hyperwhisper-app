@@ -59,7 +59,7 @@ export const calls = {
 };
 
 export interface RateLimitCall {
-  limiter: "licenseValidateRateLimiter" | "checkoutRateLimiter";
+  limiter: "licenseCreditsRateLimiter" | "checkoutRateLimiter";
   identifier: string;
 }
 
@@ -276,7 +276,7 @@ function fakeLimiter(name: RateLimitCall["limiter"]) {
 
 moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
   namedExports: {
-    licenseValidateRateLimiter: fakeLimiter("licenseValidateRateLimiter"),
+    licenseCreditsRateLimiter: fakeLimiter("licenseCreditsRateLimiter"),
     checkoutRateLimiter: fakeLimiter("checkoutRateLimiter"),
   },
 });

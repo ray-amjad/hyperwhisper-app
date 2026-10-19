@@ -1,5 +1,5 @@
 /**
- * The three Upstash rate limiters in `lib/rate-limit.ts`, run for real.
+ * The Upstash rate limiters in `lib/rate-limit.ts`, run for real.
  *
  * The license and latency route tests replace this module with a stub, so
  * nothing else checks the numbers in it. They are the whole abuse budget of
@@ -175,6 +175,35 @@ describe("licenseValidateRateLimiter", () => {
     const license = await hit(limiters.licenseValidateRateLimiter, ip);
     assert.equal(license.success, true);
     assert.equal(license.remaining, 29);
+  });
+});
+
+describe("licenseCreditsRateLimiter (#2010)", () => {
+  test("allows 30 credit reads from one IP in a minute and blocks the 31st", async () => {
+    const ip = "198.51.100.40";
+    for (let i = 0; i < 30; i++) {
+      const result = await hit(limiters.licenseCreditsRateLimiter, ip);
+      assert.equal(result.success, true, `request ${i + 1} must pass`);
+      assert.equal(result.limit, 30);
+    }
+    const blocked = await hit(limiters.licenseCreditsRateLimiter, ip);
+    assert.equal(blocked.success, false);
+  });
+
+  test("has its own budget: an IP out of credit reads can still validate", async () => {
+    const ip = "198.51.100.41";
+    // Pinned so the 31 calls cannot straddle a minute boundary.
+    pinClock(Date.UTC(2026, 9, 19, 12, 0, 30));
+    const bucket = Math.floor(Date.now() / (60 * 1000));
+    for (let i = 0; i < 30; i++) await hit(limiters.licenseCreditsRateLimiter, ip);
+    assert.equal((await hit(limiters.licenseCreditsRateLimiter, ip)).success, false);
+
+    assert.deepEqual(await bucketKeys("ratelimit:license-credits", ip), [
+      `ratelimit:license-credits:${ip}:${bucket}`,
+    ]);
+    const validate = await hit(limiters.licenseValidateRateLimiter, ip);
+    assert.equal(validate.success, true);
+    assert.equal(validate.remaining, 29);
   });
 });
 

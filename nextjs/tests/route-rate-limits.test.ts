@@ -3,8 +3,8 @@
  * without a session.
  *
  * - `GET /api/license/credits` answers "is this key real, and what is it
- *   worth" to anyone, so it draws on the validate/activate budget
- *   (`licenseValidateRateLimiter`). The POST (the deduction) is NOT limited
+ *   worth" to anyone, so it gets validate's per-IP ceiling on its own budget
+ *   (`licenseCreditsRateLimiter`). The POST (the deduction) is NOT limited
  *   here: making it cloud-only is #2021.
  * - `POST /api/checkout/credits` creates a Stripe Checkout Session per call,
  *   and `GET /api/checkout` redirects into it; both use `checkoutRateLimiter`.
@@ -64,7 +64,7 @@ beforeEach(() => {
 
 interface LimitedRoute {
   name: string;
-  limiter: "licenseValidateRateLimiter" | "checkoutRateLimiter";
+  limiter: "licenseCreditsRateLimiter" | "checkoutRateLimiter";
   /** Status a request under the limit gets. */
   okStatus: number;
   send(ip: string): Promise<Response>;
@@ -75,7 +75,7 @@ interface LimitedRoute {
 const ROUTES: LimitedRoute[] = [
   {
     name: "GET /api/license/credits",
-    limiter: "licenseValidateRateLimiter",
+    limiter: "licenseCreditsRateLimiter",
     okStatus: 200,
     async send(ip) {
       const { GET } = await loadLicenseCreditsRoute();
@@ -87,7 +87,7 @@ const ROUTES: LimitedRoute[] = [
   },
   {
     name: "GET /api/account/credits (alias)",
-    limiter: "licenseValidateRateLimiter",
+    limiter: "licenseCreditsRateLimiter",
     okStatus: 200,
     async send(ip) {
       const { GET } = await loadAccountCreditsRoute();
@@ -180,7 +180,7 @@ for (const route of ROUTES) {
   });
 }
 
-describe("GET /api/license/credits shares the validate budget", () => {
+describe("GET /api/license/credits and its alias are one route", () => {
   test("credits GET and the account alias draw on one per-IP allowance", async () => {
     behaviour.rateLimitMax = 2;
     const { GET } = await loadLicenseCreditsRoute();

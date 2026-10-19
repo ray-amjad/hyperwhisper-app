@@ -30,6 +30,25 @@ export const licenseValidateRateLimiter = new Ratelimit({
 });
 
 /**
+ * Rate limiter for `GET /api/license/credits` (and its `/api/account/credits`
+ * alias): a key -> balance lookup open to anyone, so the same key-guessing
+ * exposure as validate/activate, with the same ceiling (#2010).
+ *
+ * Its OWN budget, not validate's: HyperWhisper Cloud calls this route (on
+ * `/usage?force_refresh=true`) and falls back to `/api/license/validate` when
+ * it fails, both from a Fly region's shared exit address. Sharing one budget
+ * would let refreshes starve the cloud's validation of the same users.
+ *
+ * Limits: 30 requests per IP per minute using sliding window algorithm.
+ */
+export const licenseCreditsRateLimiter = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(30, "1 m"),
+  prefix: "ratelimit:license-credits",
+  analytics: true,
+});
+
+/**
  * Rate limiter for the internal STT latency ingest.
  *
  * Keyed by Fly region, NOT by IP: every machine in one region shares an exit
