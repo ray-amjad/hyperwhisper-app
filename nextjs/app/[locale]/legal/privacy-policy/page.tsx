@@ -459,8 +459,8 @@ export default function PrivacyPolicyPage() {
           >
             Deepgram
           </a>{" "}
-          (Nova-3) — default provider. Also used as a fallback when Groq is
-          unavailable in certain regions.
+          (Nova-3) — default provider. Falls back to Groq, then ElevenLabs, on
+          failure.
         </li>
         <li>
           <a
@@ -471,8 +471,8 @@ export default function PrivacyPolicyPage() {
           >
             Groq
           </a>{" "}
-          (Whisper large-v3) — fastest option. Falls back to Deepgram if
-          blocked in your region.
+          (Whisper large-v3) — fastest option. Falls back to Deepgram, then
+          ElevenLabs, on failure.
         </li>
         <li>
           <a
