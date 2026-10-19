@@ -144,22 +144,51 @@ extension TranscriptionPipeline {
             markStage("fetch_vocabulary")
             let vocabulary = PersistenceController.shared.fetchAllVocabularyItems()
 
+            // A retry's mode can be deleted while this run waited (the cancel
+            // sleep, the engine wait, the MainActor hops). Its nil model would
+            // route the audio to Cloud (#1620), so check right before the
+            // router reads it (no suspension in between, both on the
+            // MainActor), and again after a slow local model load, before
+            // anything else reads the mode.
+            func refuseIfModeDeleted() throws {
+                if refuseDeletedMode, let mode, !RetryModeChoices.isLive(mode) {
+                    throw TranscriptionRetryError.modeDeletedDuringRetry
+                }
+            }
+
+            // An engine that runs one pass at a time serves one kind at a time:
+            // a dictation waits for a file job on it, and the other way round,
+            // instead of cancelling it (#1425). Taken BEFORE provider selection,
+            // because selecting stages this run's model or key on the shared
+            // instance (Whisper `setModel`, Parakeet/Qwen3 `prepareIfNeeded`,
+            // OpenAI/Groq `configure`): staged while the other kind holds the
+            // engine, it could be overwritten before this run starts. Held
+            // through the reads of the provider's per-call state below,
+            // released right after them.
+            var heldEngine: ObjectIdentifier?
+            @MainActor func releaseEngine() {
+                if let key = heldEngine {
+                    heldEngine = nil
+                    engineAccess.release(key, for: jobKind)
+                }
+            }
+            @MainActor func holdEngine(_ key: ObjectIdentifier) async throws {
+                markStage("wait_for_engine")
+                try await engineAccess.acquire(key, for: jobKind)
+                heldEngine = key
+            }
+            defer { releaseEngine() }
+            try refuseIfModeDeleted()
+            if let engine = providerCoordinator.serializedEngine(for: mode) {
+                try await holdEngine(TranscriptionEngineAccess.key(for: engine))
+            }
+
             // Select provider using the coordinator (local/cloud routing + health checks).
             markStage("select_provider")
             // Capture before provider selection reads a credential. A key edit
             // while this request is in flight makes its later outcome stale.
             let healthManager = providerCoordinator.providerHealthManager
             let credentialGeneration = healthManager?.captureTranscriptionCredentialGeneration()
-            // A retry's mode can be deleted while this run waited (the cancel
-            // sleep, the MainActor hops). Its nil model would route the audio
-            // to Cloud (#1620), so check right before the router reads it (no
-            // suspension in between, both on the MainActor), and again after
-            // a slow local model load, before anything else reads the mode.
-            func refuseIfModeDeleted() throws {
-                if refuseDeletedMode, let mode, !RetryModeChoices.isLive(mode) {
-                    throw TranscriptionRetryError.modeDeletedDuringRetry
-                }
-            }
             try refuseIfModeDeleted()
             let selection = try await providerCoordinator.selectProvider(for: mode, vocabulary: vocabulary)
             try refuseIfModeDeleted()
@@ -174,24 +203,15 @@ extension TranscriptionPipeline {
             capturedModelString = mode?.model ?? "base"
             capturedUseCloud = (mode?.model ?? "base").lowercased() == "cloud"
 
-            // An engine that runs one pass at a time serves one kind at a time:
-            // a dictation waits for a file job on it, and the other way round,
-            // instead of cancelling it (#1425). Held through the reads of the
-            // provider's per-call state below, released right after them.
+            // The peek above and the selection route the same way. Should they
+            // ever disagree, hold the engine that actually runs this pass.
             let engineKey = TranscriptionEngineAccess.key(for: provider)
-            var engineHeld = false
-            @MainActor func releaseEngine() {
-                if engineHeld {
-                    engineHeld = false
-                    engineAccess.release(engineKey, for: jobKind)
-                }
+            if heldEngine != nil, heldEngine != engineKey {
+                releaseEngine()
             }
-            defer { releaseEngine() }
-            if !provider.supportsConcurrentPasses {
-                markStage("wait_for_engine")
-                try await engineAccess.acquire(engineKey, for: jobKind)
-                engineHeld = true
-                // The wait can be long: re-check a retry's mode after it.
+            if !provider.supportsConcurrentPasses, heldEngine == nil {
+                AppLogger.transcription.warning("Engine peek missed \(provider.name, privacy: .public); holding it after selection")
+                try await holdEngine(engineKey)
                 try refuseIfModeDeleted()
             }
 

@@ -33,6 +33,9 @@ final class HeldTranscriptionProvider: TranscriptionProvider, @unchecked Sendabl
     private var cancelledNames: [String] = []
     private var finishedNames: [String] = []
     private var releasedNames: Set<String> = []
+    private var stubbornNames: Set<String> = []
+    private var staged: String?
+    private var modelAtStartByName: [String: String] = [:]
 
     init(supportsConcurrentPasses: Bool) {
         self.supportsConcurrentPasses = supportsConcurrentPasses
@@ -45,6 +48,21 @@ final class HeldTranscriptionProvider: TranscriptionProvider, @unchecked Sendabl
     var cancelled: [String] { lock.withLock { cancelledNames } }
     var finished: [String] { lock.withLock { finishedNames } }
 
+    /// What selection staged on this shared instance last, the way
+    /// `selectProvider` calls Whisper's `setModel` (#1425 review).
+    func stage(_ model: String?) {
+        lock.withLock { staged = model }
+    }
+
+    /// The staged model each pass started with.
+    var modelAtStart: [String: String] { lock.withLock { modelAtStartByName } }
+
+    /// A pass that keeps the engine after a cancel, until released, the way a
+    /// pass stuck in a model load does.
+    func ignoreCancel(_ name: String) {
+        lock.withLock { _ = stubbornNames.insert(name) }
+    }
+
     func release(_ name: String) {
         lock.withLock { _ = releasedNames.insert(name) }
     }
@@ -55,14 +73,20 @@ final class HeldTranscriptionProvider: TranscriptionProvider, @unchecked Sendabl
 
     func transcribe(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> String {
         let name = audioURL.lastPathComponent
-        lock.withLock { startedNames.append(name) }
-        do {
-            while !lock.withLock({ releasedNames.contains(name) }) {
+        lock.withLock {
+            startedNames.append(name)
+            modelAtStartByName[name] = staged ?? "nil"
+        }
+        while !lock.withLock({ releasedNames.contains(name) }) {
+            do {
                 try await Task.sleep(nanoseconds: 10_000_000)
+            } catch {
+                guard lock.withLock({ stubbornNames.contains(name) }) else {
+                    lock.withLock { cancelledNames.append(name) }
+                    throw error
+                }
+                Thread.sleep(forTimeInterval: 0.01)
             }
-        } catch {
-            lock.withLock { cancelledNames.append(name) }
-            throw error
         }
         lock.withLock { finishedNames.append(name) }
         return "held words"
@@ -86,17 +110,21 @@ private enum Rig {
 
     static func pipeline(_ provider: HeldTranscriptionProvider, answers: [Bool] = []) -> (TranscriptionPipeline, AskLog) {
         let pipeline = TranscriptionPipeline()
-        pipeline.providerCoordinator.selectionOverrideForTesting = { _ in provider }
+        pipeline.providerCoordinator.engineOverrideForTesting = provider
+        pipeline.providerCoordinator.selectionOverrideForTesting = { mode in
+            provider.stage(mode?.model)
+            return provider
+        }
         let log = AskLog(answers: answers)
         pipeline.fileJobs.confirmReplace = { log.answer() }
         return (pipeline, log)
     }
 
-    static func mode(_ persistence: PersistenceController) -> Mode {
+    static func mode(_ persistence: PersistenceController, model: String = "base") -> Mode {
         let mode = Mode(context: persistence.container.viewContext)
         mode.id = UUID()
-        mode.name = "Test 1425"
-        mode.model = "base"
+        mode.name = "Test 1425 \(model)"
+        mode.model = model
         mode.language = "en"
         mode.postProcessingMode = 0  // off: the held provider's text is the result
         mode.createdDate = Date()
@@ -197,7 +225,7 @@ final class AskLog {
 // MARK: - The gate itself
 
 @MainActor
-@Suite("File-job gate (#1425)")
+@Suite("File-job gate (#1425)", .timeLimit(.minutes(1)))
 struct FileJobGateTests {
 
     @Test func theFirstJobStartsWithoutAsking() async {
@@ -281,7 +309,7 @@ struct FileJobGateTests {
 // MARK: - The engine access
 
 @MainActor
-@Suite("Engine access by job kind (#1425)")
+@Suite("Engine access by job kind (#1425)", .timeLimit(.minutes(1)))
 struct TranscriptionEngineAccessTests {
     private let key = ObjectIdentifier(NSObject())
 
@@ -326,7 +354,7 @@ struct TranscriptionEngineAccessTests {
 // MARK: - The real entry points
 
 @MainActor
-@Suite("A second file job asks first; a dictation runs beside a file job (#1425)", .serialized)
+@Suite("A second file job asks first; a dictation runs beside a file job (#1425)", .serialized, .timeLimit(.minutes(1)))
 struct FileJobAskFirstTests {
 
     /// Starts a Transcribe File (the Open With entry point, no picker) and
@@ -563,6 +591,50 @@ struct FileJobAskFirstTests {
         provider.releaseAll()
         await fileJob.value
         #expect(Rig.status(try #require(Rig.rows(persistence).first)) == "completed")
+    }
+
+    /// Review round 1 (#1425): selecting a provider stages per-call state on
+    /// the shared engine (Whisper `setModel`). A file job that staged its
+    /// model and then waited behind a dictation had it overwritten by the next
+    /// dictation's staging, and ran on the dictation's model. The run now
+    /// takes the engine first and stages only once it holds it.
+    @Test func aWaitingFileJobRunsOnItsOwnModel() async throws {
+        let provider = HeldTranscriptionProvider(supportsConcurrentPasses: false)
+        let (pipeline, _) = Rig.pipeline(provider)
+        let persistence = PersistenceController(inMemory: true)
+        let dictationMode = Rig.mode(persistence, model: "base")
+        let fileMode = Rig.mode(persistence, model: "large-v3")
+        let firstDictation = try Rig.toneWAV("d1.wav")
+        let secondDictation = try Rig.toneWAV("d2.wav")
+        let file = try Rig.toneWAV("f.wav")
+        let engine = TranscriptionEngineAccess.key(for: provider)
+
+        // D holds the engine, and keeps it through D2's supersede.
+        provider.ignoreCancel("d1.wav")
+        let d1 = Task { @MainActor in try await pipeline.transcribeWithDetails(audioURL: firstDictation, mode: dictationMode) }
+        #expect(await Rig.eventually { provider.started.contains("d1.wav") })
+
+        // F (large-v3) waits for the engine.
+        let f = Task { @MainActor in
+            try await pipeline.transcribeWithDetails(audioURL: file, mode: fileMode, jobKind: .fileJob)
+        }
+        #expect(await Rig.eventually { pipeline.engineAccess.waiterCount(on: engine) == 1 })
+
+        // D2 (base) supersedes D and stages base while F still waits.
+        let d2 = Task { @MainActor in try await pipeline.transcribeWithDetails(audioURL: secondDictation, mode: dictationMode) }
+        #expect(await Rig.eventually { provider.started.contains("d2.wav") })
+        #expect(!provider.started.contains("f.wav"), "F must wait while a dictation holds the engine")
+
+        provider.release("d1.wav")
+        provider.release("d2.wav")
+        _ = try? await d1.value
+        _ = try await d2.value
+
+        #expect(await Rig.eventually { provider.started.contains("f.wav") })
+        #expect(provider.modelAtStart["f.wav"] == "large-v3", "F ran on \(provider.modelAtStart["f.wav"] ?? "nil")")
+        #expect(provider.modelAtStart["d2.wav"] == "base")
+        provider.release("f.wav")
+        _ = try await f.value
     }
 
     /// A dictation that takes `recordingState` while a file job runs keeps it:
