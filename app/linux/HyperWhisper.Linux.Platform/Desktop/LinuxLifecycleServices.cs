@@ -115,17 +115,16 @@ public sealed class LinuxAutostartService : IAutostartService
         return written;
     }
     // Startup calls Disable on every launch while the switch is off. GNOME Tweaks and KDE's
-    // Autostart page copy the .deb's launcher to this same path, world-readable, so delete only
-    // an entry this service wrote and leave any other file (or one it cannot read) alone.
+    // Autostart page copy the .deb's launcher to this same path, so delete only an entry this
+    // service wrote. Its own entry is owner-only and reads back; a world-readable copy fails the
+    // private read with private_file_insecure, and any failed read counts as not ours.
     public PlatformResult Disable()
     {
         RemoveLegacyEntry();
-        return IsOwnedEntry() ? _files.Delete(_path) : PlatformResult.Success();
-    }
-    private bool IsOwnedEntry()
-    {
-        try { return File.ReadAllText(_path).Contains(OwnedMarker, StringComparison.Ordinal); }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { return false; }
+        var read = _files.ReadAllText(_path);
+        return read.IsSuccess && read.Value is not null && read.Value.Contains(OwnedMarker, StringComparison.Ordinal)
+            ? _files.Delete(_path)
+            : PlatformResult.Success();
     }
     // Best effort: no session reads the stray copy, so failing to delete it must not turn a
     // working switch into a reported failure.
