@@ -502,8 +502,9 @@ export default function PrivacyPolicyPage() {
       </ul>
       <p>
         When HyperWhisper Cloud transcribes a recording with Deepgram, Groq,
-        ElevenLabs or SpaceXAI (Grok), the same audio can go to the next
-        provider in that provider&apos;s fallback chain. This happens when the
+        ElevenLabs or SpaceXAI (Grok), the same audio, and any custom
+        vocabulary sent with it, can go to the next provider in that
+        provider&apos;s fallback chain. This happens when the
         provider handling the request times out, returns a server error or a
         rate limit, returns a reply we cannot use, rejects the audio or a
         setting such as the language, refuses our account key, or cannot be
