@@ -29,6 +29,7 @@ const {
   createStreamingEvents,
   durationSecondsForLinear16AudioBytes,
   minimumStreamingCredits,
+  parseDeepgramLiveClose,
   wsStreamingPreflight,
 } = await import('./ws-streaming-deepgram');
 const { endActiveStreamingSessions, resetStreamingShutdownForTests } = await import('./ws-streaming-shared');
@@ -803,10 +804,10 @@ describe('streaming socket lifecycle', () => {
       expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
     });
 
-    test('logs the upstream close code, though this vendor defines no parseUpstreamClose', async () => {
+    test('logs the upstream close code and reason', async () => {
       // The log used to be nested inside `if (vendor.parseUpstreamClose)`, a
-      // hook only Gemini defines — so the route carrying most of the revenue
-      // never recorded why Deepgram hung up.
+      // hook only Gemini defined then — so the route carrying most of the
+      // revenue never recorded why Deepgram hung up.
       const harness = openSession();
       const logged: unknown[][] = [];
       const originalLog = console.log;
@@ -847,6 +848,84 @@ describe('streaming socket lifecycle', () => {
       expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
       expect(licenseCharges).toHaveLength(1);
       expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Client disconnected' }]);
+    });
+  });
+
+  // #2067: Deepgram reports a mid-stream fault only by closing. The client must
+  // get an error frame, and the session must still be billed for its audio.
+  describe('an upstream fault close mid-dictation (#2067)', () => {
+    test('1011 sends a transient error and still bills the forwarded audio', async () => {
+      const harness = openSession();
+      harness.events.onMessage(binaryMessage(audioFrame(2)));
+
+      // Deepgram closes while the user is still dictating: no stop was sent.
+      harness.upstream.emit('close', { code: 1011, reason: 'NET-0001' });
+      await drainPendingDeductions(2000);
+
+      expect(harness.client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Transcription service error' },
+      ]);
+      // The upstream reason is logged, never echoed to the client.
+      expect(harness.client.sent.some((raw) => raw.includes('NET-0001'))).toBe(false);
+      // Matches Gemini (Ray, #2067): the shared handler still settles the session.
+      expect(harness.client.messagesOfType('session_complete')).toEqual([
+        {
+          type: 'session_complete',
+          duration_seconds: 2,
+          credits_used: creditsForCost(computeDeepgramTranscriptionCost(2)),
+        },
+      ]);
+      expect(licenseCharges).toHaveLength(1);
+      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeDeepgramTranscriptionCost(2)));
+      // Transient: the client socket closes 1000, which no client treats as terminal.
+      expect(harness.client.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+    });
+
+    test('1008 sends a terminal error and closes the client with 1011', async () => {
+      const harness = openSession();
+      harness.events.onMessage(binaryMessage(audioFrame(3)));
+
+      harness.upstream.emit('close', { code: 1008, reason: 'DATA-0000' });
+      await drainPendingDeductions(2000);
+
+      expect(harness.client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Transcription service rejected the session setup: audio could not be decoded' },
+      ]);
+      expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
+      expect(licenseCharges).toHaveLength(1);
+      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeDeepgramTranscriptionCost(3)));
+      // 1011 is what .NET's IsTerminalCloseCode reads as "do not reconnect".
+      expect(harness.client.closes).toEqual([{ code: 1011, reason: 'Upstream error' }]);
+    });
+
+    test('a normal 1000 or 1005 close still ends the session cleanly, with no error', async () => {
+      for (const code of [1000, 1005]) {
+        upstreamSockets.length = 0;
+        licenseCharges.length = 0;
+        const harness = openSession();
+        harness.events.onMessage(binaryMessage(audioFrame(1)));
+
+        harness.upstream.emit('close', { code, reason: '' });
+        await drainPendingDeductions(2000);
+
+        expect(harness.client.messagesOfType('error')).toEqual([]);
+        expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
+        expect(licenseCharges).toHaveLength(1);
+        expect(harness.client.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+      }
+    });
+
+    test('maps every close code: 1008 terminal, other faults transient, clean closes silent', () => {
+      expect(parseDeepgramLiveClose(1000, '')).toEqual([]);
+      expect(parseDeepgramLiveClose(1005, '')).toEqual([]);
+      expect(parseDeepgramLiveClose(1008, 'DATA-0000')).toEqual([
+        { kind: 'error', message: 'Transcription service rejected the session setup: audio could not be decoded', terminal: true },
+      ]);
+      for (const code of [1006, 1011, 1012, 4000]) {
+        expect(parseDeepgramLiveClose(code, 'NET-0001')).toEqual([
+          { kind: 'error', message: 'Transcription service error', terminal: false },
+        ]);
+      }
     });
   });
 
