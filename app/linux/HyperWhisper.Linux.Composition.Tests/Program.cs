@@ -412,20 +412,44 @@ static async Task OnboardingModeReadiness()
     // UnifiedModelCatalog.LoadBundled() and reads the REAL bundled
     // cloud-stt-catalog.json. Without that a catalog row could go missing and
     // every synthetic case would still pass.
+    //
+    // This used to probe Azure MAI through `microsoftazurespeech`, which the onboarding's own
+    // alias switch mapped to `azure-mai`. Since issue #601 that id goes through the shared fold
+    // and reads as HyperWhisper Cloud (below), so the bundled-catalog probe uses a BYOK vendor
+    // whose provider id is its catalog id.
     var bundled = new LinuxOnboardingModeReadiness(credentials, localModels);
-    foreach (var azureModel in new[] { "mai-transcribe-2", "mai-transcribe-1.5" })
+    foreach (var openAiModel in new[] { "whisper-1", "gpt-4o-transcribe" })
     {
         Assert(await bundled.IsReadyAsync(new Mode
         {
-            ProviderType = "cloud", CloudProvider = "microsoftazurespeech",
-            CloudTranscriptionModel = azureModel,
-        }), $"the real bundled catalog rejected Azure MAI model '{azureModel}'");
+            ProviderType = "cloud", CloudProvider = "openai",
+            CloudTranscriptionModel = openAiModel,
+        }), $"the real bundled catalog rejected OpenAI model '{openAiModel}'");
     }
     Assert(!await bundled.IsReadyAsync(new Mode
     {
-        ProviderType = "cloud", CloudProvider = "microsoftazurespeech",
-        CloudTranscriptionModel = "mai-transcribe-3",
+        ProviderType = "cloud", CloudProvider = "openai",
+        CloudTranscriptionModel = "whisper-9",
     }), "a model id the catalog does not carry was accepted");
+
+    // Issue #601 gap 3. The retired standalone ids go through the SHARED fold, the one the Local
+    // API, the startup pass and the Mode editor use: they are HyperWhisper Cloud modes, ready
+    // exactly when the licence is. The old hand-written switch sent `googlespeech` to
+    // `google-chirp`, which no catalog provider carries since v8, so onboarding kept rejecting a
+    // mode the Local API reported as folded.
+    Assert(LinuxOnboardingModeReadiness.NormalizeCloudProvider("googlespeech") == "hyperwhisper"
+        && LinuxOnboardingModeReadiness.NormalizeCloudProvider(" microsoftAzureSpeech ") == "hyperwhisper"
+        && LinuxOnboardingModeReadiness.NormalizeCloudProvider("xai") == "grok"
+        && LinuxOnboardingModeReadiness.NormalizeCloudProvider(" OpenAI ") == "openai",
+        "onboarding's provider fold disagrees with the shared normalize_cloud_provider");
+    foreach (var legacy in new[] { "googlespeech", "googleSpeech", "microsoftazurespeech", "microsoftAzureSpeech" })
+    {
+        Assert(await bundled.IsReadyAsync(new Mode { ProviderType = "cloud", CloudProvider = legacy }),
+            $"a legacy '{legacy}' mode with a licence was not ready; it is a HyperWhisper Cloud mode");
+        Assert(!await new LinuxOnboardingModeReadiness(new OnboardingCredentials(), localModels)
+                .IsReadyAsync(new Mode { ProviderType = "cloud", CloudProvider = legacy }),
+            $"a legacy '{legacy}' mode with no licence was accepted");
+    }
 }
 
 static async Task M4aStorageEncodes()
