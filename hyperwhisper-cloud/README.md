@@ -63,7 +63,7 @@ This is the part most users come here to check. The relevant code paths are link
 - **Screenshots (Assistant mode).** Base64-encoded and forwarded to Anthropic Claude as a vision message; the request and response are streamed back to the client and discarded. See `src/routes/assistant.ts`.
 - **License keys.** Sent over HTTPS as a query parameter or form field. The validation result (`{ isValid, credits }`) is cached in Upstash Redis for up to 1 hour to avoid hammering the licensing API on every request. Logs mask license keys to the first/last 4 characters. See `src/middleware/auth.ts`.
 - **Device IDs (trial mode).** Used as an opaque key into a per-device credit counter in Redis. See `src/lib/redis.ts`.
-- **Client IPs.** Used for daily per-IP free-tier quota tracking and for the IP block list. Stored in Redis under a date-scoped key that expires after the day rolls over. See `src/middleware/rate-limit.ts`.
+- **Client IPs.** Used for the per-IP request rate limit and for the IP block list. The rate-limit counters live in Upstash Redis in a 60-second sliding window and expire with it. Per-key counters are keyed on a SHA-256 of the license key, never the key itself. See `src/middleware/rate-limit.ts`.
 - **Logs.** Structured JSON, emitted via `console.log` / `console.warn` and shipped to Axiom. They contain request IDs, byte counts, timing, provider names, masked license keys, and IPs — they do **not** contain audio, transcripts, prompts, or LLM output. See `src/lib/logging.ts`.
 
 If you find a code path that contradicts the description above, please open an issue.
@@ -97,7 +97,7 @@ Provider selection is per-request via the `X-STT-Provider` / `X-LLM-Provider` he
 
 - **Licensed users.** Credits are read from the HyperWhisper licensing API and cached in Redis for up to 1 hour. After each request, actual cost is computed from the upstream provider's response (audio duration × per-minute price for STT; token counts × per-token price for LLMs) and deducted via `POST /api/license/credits` on the licensing server.
 - **Trial users.** Credits are tracked per device ID in Redis with a fixed allocation (`TRIAL_CREDIT_ALLOCATION` in `src/lib/constants.ts`).
-- **Anonymous / IP-level.** Trial users are additionally capped by a per-IP daily quota that resets at UTC midnight (`src/middleware/rate-limit.ts`).
+- **Request rate limits.** `/transcribe`, `/post-process`, `/assistant`, `/usage` and the `/ws/streaming-*` upgrades allow 120 requests/min per IP (checked before auth) and 60 requests/min per license key (after auth), plus 10 `/ws/streaming-*` upgrades/min per key. Over a limit is a `429` with a `Retry-After` header. If Redis is unreachable the limits fail open (`src/middleware/rate-limit.ts`).
 - **Abuse.** IPs added to the Redis block list (`isIPBlocked` in `src/lib/redis.ts`) get a `403` on every endpoint.
 
 Conversion constants — `CREDITS_PER_MINUTE`, `TRIAL_CREDIT_ALLOCATION`, `MAX_AUDIO_SIZE_BYTES`, cache TTLs — are all in `src/lib/constants.ts`.
