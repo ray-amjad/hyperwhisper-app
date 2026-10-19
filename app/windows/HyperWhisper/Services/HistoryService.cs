@@ -57,6 +57,20 @@ public class HistoryService
 
     private readonly StorageService _storageService = StorageService.Instance;
 
+    /// <summary>
+    /// Rows the database refused to insert (#1589), kept outside it until the next
+    /// successful write or the next launch. Read and written under <see cref="_lock"/> only.
+    /// </summary>
+    private PendingHistoryStore? _pendingStore;
+
+    private PendingHistoryStore Pending => _pendingStore ??= new PendingHistoryStore(PendingHistoryStore.DefaultPath);
+
+    /// <summary>
+    /// What a row left Processing by a dead process says. Shared by the startup recovery
+    /// and the pending store, which applies it to records it reads back from disk.
+    /// </summary>
+    internal const string InterruptedReason = "Interrupted — app was restarted while processing";
+
     /// <summary>Event fired when a transcript is added.</summary>
     public event EventHandler<Transcript>? TranscriptAdded;
 
@@ -88,9 +102,15 @@ public class HistoryService
         lock (_lock)
         {
             using var context = new HyperWhisperDbContext();
-            return context.Transcripts
+            var rows = context.Transcripts
                 .OrderByDescending(t => t.Date)
                 .ToList();
+
+            // A row the database refused to insert (#1589) is still a History row.
+            if (Pending.Count == 0) return rows;
+            var known = rows.Select(t => t.Id).ToHashSet();
+            rows.AddRange(Pending.GetAll().Where(t => !known.Contains(t.Id)));
+            return rows.OrderByDescending(t => t.Date).ToList();
         }
     }
 
@@ -151,6 +171,9 @@ public class HistoryService
     {
         lock (_lock)
         {
+            // A pending id is never also a row (#1589), so this answers without the database.
+            if (Pending.Get(id) is { } pending) return pending;
+
             using var context = new HyperWhisperDbContext();
             return context.Transcripts.Find(id);
         }
@@ -240,23 +263,47 @@ public class HistoryService
     /// Creates a new transcript in Processing status.
     /// Called immediately when recording stops, before transcription begins.
     /// This allows the transcript to appear in the history view right away.
+    ///
+    /// Never throws for a refused write: when the database will not take the row (another
+    /// process holds its write lock past the 30 s busy timeout, #1589) the row is kept in
+    /// the pending store and written on the next successful write or the next launch.
+    /// The UI thread must use <see cref="CreateProcessingTranscriptAsync"/>, which waits
+    /// for the lock on the thread pool.
     /// </summary>
     /// <param name="duration">Recording duration in seconds</param>
     /// <param name="modeName">Name of the mode used</param>
     /// <param name="audioFilePath">Path to the audio file, or null for streaming sessions without saved audio</param>
     /// <returns>The created transcript</returns>
-    public Transcript CreateProcessingTranscript(double duration, string? modeName, string? audioFilePath)
+    public Transcript CreateProcessingTranscript(double duration, string? modeName, string? audioFilePath) =>
+        InsertProcessingTranscript(NewProcessingTranscript(duration, modeName, audioFilePath)).Transcript;
+
+    /// <summary>
+    /// <see cref="CreateProcessingTranscript"/> off the calling thread (#1589). The insert
+    /// can wait the whole SQLite busy timeout, so the four stop paths await this instead of
+    /// blocking the dispatcher. The row is built here, on the caller's thread, so its
+    /// placeholder text uses the caller's UI culture.
+    /// </summary>
+    public Task<HistoryInsertResult> CreateProcessingTranscriptAsync(double duration, string? modeName, string? audioFilePath)
     {
-        var transcript = new Transcript
-        {
-            Id = Guid.NewGuid(),
-            Date = DateTime.UtcNow,
-            Duration = duration,
-            Mode = modeName,
-            AudioFilePath = audioFilePath,
-            Status = TranscriptStatus.Processing,
-            Text = Loc.S("recording.state.processing")
-        };
+        var transcript = NewProcessingTranscript(duration, modeName, audioFilePath);
+        return Task.Run(() => InsertProcessingTranscript(transcript));
+    }
+
+    private static Transcript NewProcessingTranscript(double duration, string? modeName, string? audioFilePath) => new()
+    {
+        Id = Guid.NewGuid(),
+        Date = DateTime.UtcNow,
+        Duration = duration,
+        Mode = modeName,
+        AudioFilePath = audioFilePath,
+        Status = TranscriptStatus.Processing,
+        Text = Loc.S("recording.state.processing")
+    };
+
+    internal HistoryInsertResult InsertProcessingTranscript(Transcript transcript)
+    {
+        var savedLater = false;
+        var databaseLocked = false;
 
         lock (_lock)
         {
@@ -266,17 +313,132 @@ public class HistoryService
                 context.Transcripts.Add(transcript);
                 context.SaveChanges();
                 LoggingService.Info($"HistoryService: Created processing transcript {transcript.Id}");
+                FlushPendingLocked();
             }
-            catch (DbUpdateException ex)
+            catch (Exception ex) when (IsRefusedWrite(ex))
             {
-                LoggingService.Error("HistoryService: Failed to create transcript", ex);
-                throw;
+                // #1589: this used to rethrow, which aborted the job ("An error occurred
+                // while saving the entity changes") and left the copied audio an orphan
+                // no row points to. Keep the row instead; the caller transcribes as usual.
+                databaseLocked = IsDatabaseBusy(ex);
+                LoggingService.Error(
+                    $"HistoryService: Failed to create transcript {transcript.Id} ({(databaseLocked ? "database locked" : "write refused")}); kept it to save later", ex);
+                Pending.Upsert(transcript);
+                savedLater = true;
             }
         }
 
-        // Fire event outside lock to prevent deadlock
+        // Fire event outside lock to prevent deadlock. A pending row is announced too:
+        // History shows it, and every later write to it lands in the pending store.
         TranscriptAdded?.Invoke(this, transcript);
-        return transcript;
+        return new HistoryInsertResult(transcript, savedLater, databaseLocked);
+    }
+
+    // =========================================================================
+    // PUBLIC METHODS - PENDING ROWS (#1589)
+    // =========================================================================
+
+    /// <summary>
+    /// Writes the rows the database refused earlier. Called at startup, before
+    /// <see cref="RecoverOrphanedProcessingTranscripts"/>; every successful write in this
+    /// service also tries it. Returns how many rows landed.
+    /// </summary>
+    public int FlushPendingTranscripts()
+    {
+        lock (_lock)
+        {
+            return FlushPendingLocked();
+        }
+    }
+
+    /// <summary>The number of rows waiting to be written. For diagnostics and tests.</summary>
+    internal int PendingTranscriptCount
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return Pending.Count;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Points the service at another pending store and returns the old one. Lets
+    /// HyperWhisper.SmokeTests read a store back from disk, as the next launch does.
+    /// </summary>
+    internal PendingHistoryStore ReplacePendingStoreForTests(PendingHistoryStore store)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        lock (_lock)
+        {
+            var previous = Pending;
+            _pendingStore = store;
+            return previous;
+        }
+    }
+
+    /// <summary>
+    /// Inserts every pending row (or overwrites it, should an earlier flush have committed
+    /// without clearing the file) in one SaveChanges. Never throws: a refusal keeps the
+    /// rows for the next try. Caller holds <see cref="_lock"/>.
+    /// </summary>
+    private int FlushPendingLocked()
+    {
+        try
+        {
+            if (Pending.Count == 0) return 0;
+
+            var records = Pending.GetAll();
+            var ids = records.Select(r => r.Id).ToList();
+            using var context = new HyperWhisperDbContext();
+            var existing = context.Transcripts.Where(t => ids.Contains(t.Id)).ToDictionary(t => t.Id);
+            foreach (var record in records)
+            {
+                if (existing.TryGetValue(record.Id, out var row))
+                    context.Entry(row).CurrentValues.SetValues(record);
+                else
+                    context.Transcripts.Add(record);
+            }
+
+            context.SaveChanges();
+            Pending.Remove(ids);
+            LoggingService.Info($"HistoryService: Saved {records.Count} pending transcript(s) to History");
+            return records.Count;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"HistoryService: Pending transcripts not saved yet ({(IsDatabaseBusy(ex) ? "database locked" : ex.GetType().Name)}); will retry on the next write");
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// SQLITE_BUSY (5) or SQLITE_LOCKED (6) anywhere in the chain: another connection
+    /// held the lock past the busy timeout. Picks the toast that names the lock.
+    /// </summary>
+    internal static bool IsDatabaseBusy(Exception ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            if (e is Microsoft.Data.Sqlite.SqliteException { SqliteErrorCode: 5 or 6 })
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>Applies the restart-recovery failure to a row left Processing.</summary>
+    internal static void MarkInterrupted(Transcript t)
+    {
+        t.Status = TranscriptStatus.Failed;
+        t.FailedReason = InterruptedReason;
+        // Replace the "Processing audio..." placeholder text so the
+        // history row shows something useful instead of a stuck spinner label.
+        if (string.IsNullOrWhiteSpace(t.Text) ||
+            t.Text == Loc.S("recording.state.processing"))
+        {
+            t.Text = InterruptedReason;
+        }
     }
 
     // =========================================================================
@@ -313,18 +475,9 @@ public class HistoryService
                     return 0;
                 }
 
-                const string reason = "Interrupted — app was restarted while processing";
                 foreach (var t in recovered)
                 {
-                    t.Status = TranscriptStatus.Failed;
-                    t.FailedReason = reason;
-                    // Replace the "Processing audio..." placeholder text so the
-                    // history row shows something useful instead of a stuck spinner label.
-                    if (string.IsNullOrWhiteSpace(t.Text) ||
-                        t.Text == Loc.S("recording.state.processing"))
-                    {
-                        t.Text = reason;
-                    }
+                    MarkInterrupted(t);
                 }
 
                 context.SaveChanges();
@@ -374,35 +527,55 @@ public class HistoryService
     {
         lock (_lock)
         {
-            try
+            // The row the database refused to insert (#1589): the update lands in the
+            // pending store, without touching the database (it may still be locked).
+            if (Pending.Get(transcript.Id) is { } pending)
             {
-                using var context = new HyperWhisperDbContext();
-
-                var existing = context.Transcripts.Find(transcript.Id);
-                if (existing == null)
-                {
-                    LoggingService.Warn($"HistoryService: Transcript {transcript.Id} not found for update");
-                    return;
-                }
-
                 if (keepLiveAudioPath &&
-                    !string.IsNullOrEmpty(existing.AudioFilePath) &&
-                    existing.AudioFilePath != transcript.AudioFilePath &&
+                    !string.IsNullOrEmpty(pending.AudioFilePath) &&
+                    pending.AudioFilePath != transcript.AudioFilePath &&
                     !File.Exists(transcript.AudioFilePath) &&
-                    File.Exists(existing.AudioFilePath))
+                    File.Exists(pending.AudioFilePath))
                 {
-                    LoggingService.Info($"HistoryService: Kept the live audio path of transcript {transcript.Id}; the caller's file is gone");
-                    transcript.AudioFilePath = existing.AudioFilePath;
+                    transcript.AudioFilePath = pending.AudioFilePath;
                 }
 
-                context.Entry(existing).CurrentValues.SetValues(transcript);
-                context.SaveChanges();
-                LoggingService.Info($"HistoryService: Updated transcript {transcript.Id} (Status: {transcript.Status})");
+                Pending.Upsert(transcript);
+                LoggingService.Info($"HistoryService: Updated pending transcript {transcript.Id} (Status: {transcript.Status})");
             }
-            catch (DbUpdateException ex)
+            else
             {
-                LoggingService.Error($"HistoryService: Failed to update transcript {transcript.Id}", ex);
-                throw;
+                try
+                {
+                    using var context = new HyperWhisperDbContext();
+
+                    var existing = context.Transcripts.Find(transcript.Id);
+                    if (existing == null)
+                    {
+                        LoggingService.Warn($"HistoryService: Transcript {transcript.Id} not found for update");
+                        return;
+                    }
+
+                    if (keepLiveAudioPath &&
+                        !string.IsNullOrEmpty(existing.AudioFilePath) &&
+                        existing.AudioFilePath != transcript.AudioFilePath &&
+                        !File.Exists(transcript.AudioFilePath) &&
+                        File.Exists(existing.AudioFilePath))
+                    {
+                        LoggingService.Info($"HistoryService: Kept the live audio path of transcript {transcript.Id}; the caller's file is gone");
+                        transcript.AudioFilePath = existing.AudioFilePath;
+                    }
+
+                    context.Entry(existing).CurrentValues.SetValues(transcript);
+                    context.SaveChanges();
+                    LoggingService.Info($"HistoryService: Updated transcript {transcript.Id} (Status: {transcript.Status})");
+                    FlushPendingLocked();
+                }
+                catch (DbUpdateException ex)
+                {
+                    LoggingService.Error($"HistoryService: Failed to update transcript {transcript.Id}", ex);
+                    throw;
+                }
             }
         }
 
@@ -425,26 +598,38 @@ public class HistoryService
         Transcript updated;
         lock (_lock)
         {
-            try
+            if (Pending.Get(id) is { } pending)
             {
-                using var context = new HyperWhisperDbContext();
-
-                var existing = context.Transcripts.Find(id);
-                if (existing == null)
-                {
-                    LoggingService.Info($"HistoryService: Transcript {id} is gone; not pointing it at new audio");
-                    return false;
-                }
-
-                existing.AudioFilePath = audioFilePath;
-                context.SaveChanges();
-                updated = existing;
-                LoggingService.Info($"HistoryService: Updated audio path of transcript {id}");
+                // #1589: the compressed audio belongs to a row still waiting to be saved.
+                pending.AudioFilePath = audioFilePath;
+                Pending.Upsert(pending);
+                updated = pending;
+                LoggingService.Info($"HistoryService: Updated audio path of pending transcript {id}");
             }
-            catch (DbUpdateException ex)
+            else
             {
-                LoggingService.Error($"HistoryService: Failed to update audio path of transcript {id}", ex);
-                throw;
+                try
+                {
+                    using var context = new HyperWhisperDbContext();
+
+                    var existing = context.Transcripts.Find(id);
+                    if (existing == null)
+                    {
+                        LoggingService.Info($"HistoryService: Transcript {id} is gone; not pointing it at new audio");
+                        return false;
+                    }
+
+                    existing.AudioFilePath = audioFilePath;
+                    context.SaveChanges();
+                    updated = existing;
+                    LoggingService.Info($"HistoryService: Updated audio path of transcript {id}");
+                    FlushPendingLocked();
+                }
+                catch (DbUpdateException ex)
+                {
+                    LoggingService.Error($"HistoryService: Failed to update audio path of transcript {id}", ex);
+                    throw;
+                }
             }
         }
 
@@ -470,28 +655,38 @@ public class HistoryService
 
         lock (_lock)
         {
-            try
+            if (Pending.Get(id) is { } pending)
             {
-                using var context = new HyperWhisperDbContext();
-
-                transcript = context.Transcripts.Find(id);
-                if (transcript == null)
-                {
-                    LoggingService.Warn($"HistoryService: Transcript {id} not found for deletion");
-                    return Result<bool>.Success(false);
-                }
-
-                context.Transcripts.Remove(transcript);
-                context.SaveChanges();
-                LoggingService.Info($"HistoryService: Deleted transcript {id}");
+                // Never written (#1589): dropping the pending record is the whole delete.
+                Pending.Remove(id);
+                transcript = pending;
+                LoggingService.Info($"HistoryService: Deleted pending transcript {id}");
             }
-            catch (Exception ex) when (IsRefusedDelete(ex))
+            else
             {
-                // A plain false here read as "deleted" to every caller, so a delete
-                // SQLite refused ("database is locked") was reported as a success
-                // (#974). Log the id and the exception only, never transcript text.
-                LoggingService.Error($"HistoryService: Failed to delete transcript {id}", ex);
-                return Result<bool>.Failure(Loc.S("transcripts.delete.failed"), ex);
+                try
+                {
+                    using var context = new HyperWhisperDbContext();
+
+                    transcript = context.Transcripts.Find(id);
+                    if (transcript == null)
+                    {
+                        LoggingService.Warn($"HistoryService: Transcript {id} not found for deletion");
+                        return Result<bool>.Success(false);
+                    }
+
+                    context.Transcripts.Remove(transcript);
+                    context.SaveChanges();
+                    LoggingService.Info($"HistoryService: Deleted transcript {id}");
+                }
+                catch (Exception ex) when (IsRefusedWrite(ex))
+                {
+                    // A plain false here read as "deleted" to every caller, so a delete
+                    // SQLite refused ("database is locked") was reported as a success
+                    // (#974). Log the id and the exception only, never transcript text.
+                    LoggingService.Error($"HistoryService: Failed to delete transcript {id}", ex);
+                    return Result<bool>.Failure(Loc.S("transcripts.delete.failed"), ex);
+                }
             }
         }
 
@@ -525,22 +720,35 @@ public class HistoryService
                     .Where(t => idSet.Contains(t.Id))
                     .ToList();
 
-                if (deletedTranscripts.Count == 0)
+                if (deletedTranscripts.Count > 0)
                 {
-                    return Result<int>.Success(0);
+                    context.Transcripts.RemoveRange(deletedTranscripts);
+                    context.SaveChanges();
+                    LoggingService.Info($"HistoryService: Deleted {deletedTranscripts.Count} transcripts");
                 }
-
-                context.Transcripts.RemoveRange(deletedTranscripts);
-                context.SaveChanges();
-                LoggingService.Info($"HistoryService: Deleted {deletedTranscripts.Count} transcripts");
             }
-            catch (Exception ex) when (IsRefusedDelete(ex))
+            catch (Exception ex) when (IsRefusedWrite(ex))
             {
                 // A 0 here stamped a refused Delete Now sweep as a completed cleanup
                 // and left History rows half-deleted (#974). Log the count and the
                 // exception only: a sweep can hold thousands of ids, and never text.
                 LoggingService.Error($"HistoryService: Failed to delete {idSet.Count} transcripts", ex);
                 return Result<int>.Failure(Loc.S("transcripts.delete.failed"), ex);
+            }
+
+            // Rows the database never took (#1589) go only once the database part
+            // committed, so a refused sweep still deletes nothing.
+            var pending = Pending.GetAll().Where(t => idSet.Contains(t.Id)).ToList();
+            if (pending.Count > 0)
+            {
+                Pending.Remove(pending.Select(t => t.Id));
+                deletedTranscripts.AddRange(pending);
+                LoggingService.Info($"HistoryService: Deleted {pending.Count} pending transcripts");
+            }
+
+            if (deletedTranscripts.Count == 0)
+            {
+                return Result<int>.Success(0);
             }
         }
 
@@ -560,7 +768,7 @@ public class HistoryService
     /// (<see cref="Microsoft.Data.Sqlite.SqliteException"/>). Both are expected
     /// runtime failures, so they become a failed Result rather than a throw.
     /// </summary>
-    private static bool IsRefusedDelete(Exception ex) =>
+    private static bool IsRefusedWrite(Exception ex) =>
         ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException;
 
     /// <summary>
@@ -823,3 +1031,11 @@ public enum DateFilter
     /// <summary>Show transcripts from the current month.</summary>
     ThisMonth
 }
+
+/// <summary>
+/// What <see cref="HistoryService.CreateProcessingTranscriptAsync"/> did (#1589).
+/// <paramref name="SavedLater"/>: the database refused the insert, so the row waits in
+/// the pending store; <paramref name="DatabaseLocked"/>: it refused because another
+/// process held its write lock. The transcript is usable either way.
+/// </summary>
+public sealed record HistoryInsertResult(Transcript Transcript, bool SavedLater, bool DatabaseLocked);

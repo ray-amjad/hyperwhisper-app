@@ -175,6 +175,23 @@ public partial class App : WpfApplication
             return;
         }
 
+        // PENDING HISTORY ROWS (#1589)
+        // Rows the database refused while another program held its write lock were
+        // kept in pending-history.json. Write them now, before the recovery below, so
+        // one left Processing by the previous session is still flipped to Failed.
+        try
+        {
+            int saved = HistoryService.Instance.FlushPendingTranscripts();
+            if (saved > 0)
+            {
+                LoggingService.Info($"Saved {saved} pending History row(s) on startup");
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"Failed to save pending History rows: {ex.Message}");
+        }
+
         // ORPHANED TRANSCRIPT RECOVERY
         // Any transcript still in Processing status at startup is from a previous
         // session whose worker is long dead (crash, kill, OS restart mid-transcription).
