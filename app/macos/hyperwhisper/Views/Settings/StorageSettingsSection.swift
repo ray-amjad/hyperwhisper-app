@@ -198,14 +198,24 @@ struct StorageSettingsSection: View {
                                 // Update settings if valid number
                                 if let intValue = Int(filtered), intValue > 0 {
                                     settingsManager.autoDelete.setAutoDeleteValue(intValue)
+                                    // Above the unit's maximum: show the clamped value (#2077)
+                                    let stored = settingsManager.autoDelete.autoDeleteValue
+                                    if stored != intValue {
+                                        autoDeleteValueText = String(stored)
+                                    }
+                                } else if !filtered.isEmpty,
+                                          filtered.allSatisfy({ ("0"..."9").contains($0) }),
+                                          filtered.contains(where: { $0 != "0" }) {
+                                    // ASCII digits Int cannot hold: clamp to the maximum
+                                    settingsManager.autoDelete.setAutoDeleteValue(Int.max)
+                                    autoDeleteValueText = String(settingsManager.autoDelete.autoDeleteValue)
                                 }
                             }
                             .onSubmit {
-                                // Ensure minimum value of 1
+                                // Clamp to 1...the unit's maximum, and show what was stored
                                 if let intValue = Int(autoDeleteValueText) {
-                                    let validValue = max(1, intValue)
-                                    settingsManager.autoDelete.setAutoDeleteValue(validValue)
-                                    autoDeleteValueText = String(validValue)
+                                    settingsManager.autoDelete.setAutoDeleteValue(intValue)
+                                    autoDeleteValueText = String(settingsManager.autoDelete.autoDeleteValue)
                                 } else {
                                     // Reset to current value if invalid
                                     autoDeleteValueText = String(settingsManager.autoDelete.autoDeleteValue)
@@ -221,6 +231,10 @@ struct StorageSettingsSection: View {
                         .pickerStyle(.menu)
                         .frame(width: 100)
                         .labelsHidden()
+                        .onChange(of: settingsManager.autoDelete.autoDeleteTimeUnit) { _ in
+                            // A unit switch can clamp the value (#2077)
+                            autoDeleteValueText = String(settingsManager.autoDelete.autoDeleteValue)
+                        }
 
                         Spacer()
                     }
