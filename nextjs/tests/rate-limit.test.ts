@@ -257,6 +257,32 @@ describe("licenseValidateRateLimiter", () => {
   });
 });
 
+describe("checkoutRateLimiter (#2010)", () => {
+  test("allows 10 checkouts from one IP in a minute and blocks the 11th", async () => {
+    const ip = "198.51.100.30";
+    for (let i = 0; i < 10; i++) {
+      const result = await hit(limiters.checkoutRateLimiter, ip);
+      assert.equal(result.success, true, `request ${i + 1} must pass`);
+      assert.equal(result.limit, 10);
+    }
+    const blocked = await hit(limiters.checkoutRateLimiter, ip);
+    assert.equal(blocked.success, false);
+  });
+
+  test("counts under its own prefix, apart from the licence budget", async () => {
+    const ip = "198.51.100.31";
+    const before = Date.now();
+    await hit(limiters.checkoutRateLimiter, ip);
+    const bucket = Math.floor(before / (60 * 1000));
+
+    assert.deepEqual(await bucketKeys("ratelimit:checkout", ip), [
+      `ratelimit:checkout:${ip}:${bucket}`,
+    ]);
+    const license = await hit(limiters.licenseValidateRateLimiter, ip);
+    assert.equal(license.remaining, 29);
+  });
+});
+
 describe("latencyIngestRateLimiter", () => {
   test("gives each Fly region 6000 batches a minute", async () => {
     const before = Date.now();
