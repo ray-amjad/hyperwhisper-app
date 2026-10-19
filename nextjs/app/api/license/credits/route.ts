@@ -13,6 +13,7 @@ import { describeDbError } from "@/lib/shared/db-error";
 import { licenseCreditsRateLimiter } from "@/lib/rate-limit";
 import { rateLimitGate } from "@/lib/rate-limit-gate";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
+import { timingSafeEqualSecret } from "@/lib/security/timing-safe-secret";
 
 /**
  * License Credits API
@@ -25,12 +26,15 @@ import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
  * - POST: Deduct credits (record usage)
  *
  * SECURITY:
- * - The license key itself acts as authentication
- * - Only valid license keys can query/deduct credits
- * - GET answers "is this key real, and what is it worth" to anyone, so it is
- *   rate limited per IP before any DB lookup (`licenseCreditsRateLimiter`,
- *   300/min on its own budget, #2010). POST is not limited here;
- *   making it cloud-only is #2021.
+ * - GET: the license key itself acts as authentication. It answers "is this
+ *   key real, and what is it worth" to anyone, so it is rate limited per IP
+ *   before any DB lookup (`licenseCreditsRateLimiter`, 300/min on its own
+ *   budget, #2010).
+ * - POST is cloud-only (#2021): the caller must send `x-internal-secret`
+ *   equal to `HYPERWHISPER_INTERNAL_SECRET` (timing-safe, same gate as
+ *   `/api/internal/*`). It fails closed — secret unset on the server, header
+ *   missing or wrong gives 401 before the body is read or the DB is touched.
+ *   `/api/account/credits` re-exports this handler, so it gets the same gate.
  */
 
 /**
@@ -96,6 +100,17 @@ export async function GET(req: NextRequest) {
  * Deduct credits from a license (record usage).
  */
 export async function POST(req: NextRequest) {
+  // Cloud-only (#2021): checked before the body is parsed or the DB is touched,
+  // so this endpoint cannot double as a key checker for anyone else.
+  if (
+    !timingSafeEqualSecret(
+      req.headers.get("x-internal-secret"),
+      process.env.HYPERWHISPER_INTERNAL_SECRET,
+    )
+  ) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let body: unknown;
 
   try {
