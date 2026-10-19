@@ -5,6 +5,7 @@ import { Link } from "@/src/i18n/navigation";
 import { getBlogPost, getBlogPosts } from "@/src/content/blog";
 import { formatLongUTCDate } from "@/lib/format-date";
 import { PROSE_TEXT_LINK } from "@/components/text-link";
+import { serializeJsonLd } from "@/lib/security/json-ld";
 
 const BASE_URL = "https://hyperwhisper.com";
 
@@ -113,7 +114,7 @@ export default async function BlogPostPage({ params }: Props) {
     <article className="mx-auto w-full max-w-4xl">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <Link
         className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-white"
@@ -159,7 +160,7 @@ export default async function BlogPostPage({ params }: Props) {
       ) : null}
 
       <div
-        className={`prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-strong:text-white ${PROSE_TEXT_LINK}`}
+        className={`prose prose-invert mx-auto mt-10 max-w-3xl prose-headings:text-white prose-strong:text-white [&_iframe]:aspect-video ${PROSE_TEXT_LINK}`}
         dangerouslySetInnerHTML={{ __html: post.html }}
       />
     </article>
