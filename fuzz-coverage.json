@@ -500,6 +500,22 @@
       ],
       "licensed": false,
       "note": "Unlicensed (Debug=staging, no HYPERWHISPER_ACCOUNT_KEY). Fresh profile via moving App Support aside. Onboarding: Codex's 'Start recording Completed' defect is the manual checklist toggle (HomeView.swift:242-246), by design; mic grant shows Not allowed = percy account TCC. local-api: curl battery found #1919 (unknown mode_id -> ENGINE_UNAVAILABLE) and #1100 (bare Invalid request.) still live; /recordings is 404 on macOS. Streaming: 22 steps, choices persist, nothing found."
+    },
+    {
+      "at": "2026-10-19T02:56:49Z",
+      "platform": "win",
+      "commit": "30ec31f7",
+      "routes": [
+        "history-and-backup",
+        "updates",
+        "onboarding"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "Unlicensed, dev box. Core DLL from 2cc68dfb (no shared-core-rs change since). Onboarding: Set Up Later on the Try-It step rolls the saved local mode back to Cloud — BY DESIGN (OnboardingWindow.xaml.cs DeferAndClose), not a defect; silent mic gives 'No speech detected' correctly. History was EMPTY (no speech) so only search + export/import cancel were walked — next history goal needs a real dictation via VB-CABLE first. Updates: check/up-to-date dialog, auto-update toggle persistence, release-notes cards all clean."
     }
   ]
 }
