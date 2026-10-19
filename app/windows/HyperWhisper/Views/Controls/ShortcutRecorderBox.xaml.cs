@@ -151,8 +151,10 @@ public partial class ShortcutRecorderBox : WpfUserControl
 
     // =========================================================================
     // CAPTURE
-    // The rules about WHICH chords are legal came off ShortcutsSettingsPage.xaml.cs
-    // and are unchanged. WHEN a chord is committed is not: see below.
+    // The rules about WHICH chords are legal came off ShortcutsSettingsPage.xaml.cs,
+    // plus #1631's bare-typing-key rule, and all live in ValidateActionShortcut.
+    // WHEN a chord is committed is the recorder's own: see below. So is which keys
+    // are not chords at all - Esc cancels and Tab navigates, see ClassifyKeyDown.
     //
     // A chord is typed one key at a time, so a key-down is not a finished gesture.
     // Committing on every key-down made "Ctrl+Shift+Space" three separate captures -
@@ -198,23 +200,33 @@ public partial class ShortcutRecorderBox : WpfUserControl
 
     private void Field_PreviewKeyDown(object sender, WpfKeyEventArgs e)
     {
-        e.Handled = true;
-
-        // A held key repeating adds nothing to the chord, and re-committing on every
-        // repeat would rewrite the setting and re-log for as long as a key is down.
-        if (e.IsRepeat) return;
-
         var key = ResolveKey(e);
-        if (key == Key.None) return;
+        if (key == Key.None)
+        {
+            e.Handled = true;
+            return;
+        }
 
         // Which modifiers are physically down RIGHT NOW, plus this key if it is one
         // itself: the key-down arrives before Keyboard's own state is updated.
-        HandleKeyDown(
-            key,
-            control: Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl) || key is Key.LeftCtrl or Key.RightCtrl,
-            alt: Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt) || key is Key.LeftAlt or Key.RightAlt,
-            shift: Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift) || key is Key.LeftShift or Key.RightShift,
-            win: Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin) || key is Key.LWin or Key.RWin);
+        var control = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl) || key is Key.LeftCtrl or Key.RightCtrl;
+        var alt = Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt) || key is Key.LeftAlt or Key.RightAlt;
+        var shift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift) || key is Key.LeftShift or Key.RightShift;
+        var win = Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin) || key is Key.LWin or Key.RWin;
+
+        // A held key repeating adds nothing to the chord, and re-committing on every
+        // repeat would rewrite the setting and re-log for as long as a key is down.
+        // A repeating Tab is still navigation, though, so only IT goes through.
+        if (e.IsRepeat)
+        {
+            e.Handled = ClassifyKeyDown(key, control, alt, shift, win) != RecorderKeyAction.PassThrough;
+            return;
+        }
+
+        // Handled for every key the recorder consumed. NOT for the focus keys: an
+        // unhandled Tab is what lets WPF's keyboard navigation move focus out of the
+        // box (#1631 - marking it handled trapped a keyboard user in the field).
+        e.Handled = HandleKeyDown(key, control, alt, shift, win);
     }
 
     private void Field_PreviewKeyUp(object sender, WpfKeyEventArgs e)
@@ -235,10 +247,36 @@ public partial class ShortcutRecorderBox : WpfUserControl
     /// shown window, which is why the same suite already pokes
     /// <see cref="ShowError"/> directly. WHEN the recorder commits is the thing that
     /// broke, so WHEN is what has to be assertable.
+    ///
+    /// Returns whether the recorder consumed the key, which is what the WPF handler
+    /// writes to <c>e.Handled</c>. False only for the focus keys, see
+    /// <see cref="ClassifyKeyDown"/>.
     /// </remarks>
-    internal void HandleKeyDown(Key key, bool control, bool alt, bool shift, bool win)
+    internal bool HandleKeyDown(Key key, bool control, bool alt, bool shift, bool win)
     {
-        if (key == Key.None) return;
+        if (key == Key.None) return true;
+
+        switch (ClassifyKeyDown(key, control, alt, shift, win))
+        {
+            case RecorderKeyAction.PassThrough:
+                // Tab / Shift+Tab leaves the box. Abandon the attempt here as well as
+                // on focus-lost: a Shift held for Shift+Tab is a pending modifier, and
+                // if navigation finds nowhere else to go (focus stays put, so no
+                // LostKeyboardFocus) the Shift key-up would otherwise end the gesture
+                // and paint the single-modifier refusal. The Tab key-up lands on
+                // whatever has focus next, or here on an empty gesture - a no-op
+                // either way.
+                AbandonGesture();
+                return false;
+
+            case RecorderKeyAction.Cancel:
+                // Esc is the one key that always leaves capture without changing
+                // anything (#1631): the field goes back to the stored chord, the
+                // gesture's verdict goes with it, nothing is stored or raised. The
+                // Esc key-up that follows finds an empty gesture and does nothing.
+                AbandonGesture();
+                return true;
+        }
 
         _heldKeys.Add(key);
 
@@ -264,7 +302,7 @@ public partial class ShortcutRecorderBox : WpfUserControl
             _pending = null;
             _gestureClosed = true;
             Commit(shortcut);
-            return;
+            return true;
         }
 
         // Modifiers alone: the user may still be reaching for the key that finishes
@@ -278,6 +316,67 @@ public partial class ShortcutRecorderBox : WpfUserControl
         _pending = Merge(_pending, shortcut);
         ClearError();
         Field.Text = _pending.ToDisplayString();
+        return true;
+    }
+
+    /// <summary>What a key-down in the field is for, before it is a chord at all.</summary>
+    internal enum RecorderKeyAction
+    {
+        /// <summary>Part of a chord: the gesture model takes it.</summary>
+        Record,
+
+        /// <summary>Esc with no modifier: leave capture, keep the stored chord.</summary>
+        Cancel,
+
+        /// <summary>Tab / Shift+Tab: not the recorder's - WPF moves focus with it.</summary>
+        PassThrough,
+    }
+
+    /// <summary>
+    /// The decision Ray made on #1631, as a pure function so the smoke suite can
+    /// assert it with no PresentationSource.
+    ///
+    /// <list type="bullet">
+    /// <item>Tab with no Ctrl, Alt or Win - Shift allowed, which is Shift+Tab - is
+    /// focus navigation and is never recorded. The field used to mark it handled,
+    /// so a keyboard user could not leave the box and every attempt rebound the
+    /// role to Tab or Shift+Tab.</item>
+    /// <item>Esc with NO modifier held cancels capture, in every box, Cancel
+    /// Recording's included. Bare Esc is still a legal stored shortcut (it is the
+    /// Cancel default); it just cannot be typed INTO a recorder any more, so a
+    /// user who moved Cancel off Esc gets it back through Reset to Defaults.</item>
+    /// <item>Any modifier makes it a chord again: Ctrl+Tab, Alt+Tab, Win+Tab,
+    /// Ctrl+Esc and Shift+Esc all record. Shift+Tab is the one exception, because
+    /// it IS the standard backward-navigation key.</item>
+    /// </list>
+    /// </summary>
+    internal static RecorderKeyAction ClassifyKeyDown(Key key, bool control, bool alt, bool shift, bool win)
+    {
+        if (control || alt || win) return RecorderKeyAction.Record;
+        if (key == Key.Tab) return RecorderKeyAction.PassThrough;
+        if (key == Key.Escape && !shift) return RecorderKeyAction.Cancel;
+        return RecorderKeyAction.Record;
+    }
+
+    /// <summary>
+    /// True when <paramref name="source"/> is, or sits inside, a recorder box. For a
+    /// window that intercepts a key in its own PreviewKeyDown - which runs BEFORE the
+    /// field's, since preview events tunnel from the root - and has to leave that
+    /// key to a recorder that is capturing. OnboardingWindow swallows Esc so it
+    /// cannot dismiss setup; without this the Permissions step's box never saw it.
+    /// </summary>
+    internal static bool IsInsideRecorder(object? source)
+    {
+        var node = source as DependencyObject;
+        while (node != null)
+        {
+            if (node is ShortcutRecorderBox) return true;
+            node = node is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D
+                ? System.Windows.Media.VisualTreeHelper.GetParent(node) ?? LogicalTreeHelper.GetParent(node)
+                : LogicalTreeHelper.GetParent(node);
+        }
+
+        return false;
     }
 
     /// <summary>The key-up half of the gesture. See <see cref="HandleKeyDown"/>.</summary>
@@ -313,8 +412,9 @@ public partial class ShortcutRecorderBox : WpfUserControl
     /// </summary>
     private void Commit(KeyboardShortcut shortcut)
     {
-        // VALIDATE: reject unsafe single bare modifiers, but allow intentional
-        // multi-modifier chords such as Ctrl+Win.
+        // VALIDATE: reject unsafe single bare modifiers and bare typing keys (Tab, a
+        // letter, Space... - #1631), but allow intentional multi-modifier chords such
+        // as Ctrl+Win, and a bare F-key or Esc.
         //
         // The RULE and the SENTENCE both belong to ValidateActionShortcut. This
         // used to re-test IsSingleBareModifier here and carry its own copy of the
@@ -326,7 +426,7 @@ public partial class ShortcutRecorderBox : WpfUserControl
         {
             ShowError(actionError);
             RestoreFieldText();
-            LoggingService.Debug($"ShortcutRecorderBox: rejected single-modifier shortcut for {Role}: {shortcut}");
+            LoggingService.Debug($"ShortcutRecorderBox: rejected shortcut for {Role}: {shortcut}");
             return;
         }
 
@@ -461,7 +561,13 @@ public partial class ShortcutRecorderBox : WpfUserControl
     }
 
     /// <summary>The focus-leaving half. See <see cref="HandleFocusGained"/>.</summary>
-    internal void HandleFocusLost()
+    internal void HandleFocusLost() => AbandonGesture();
+
+    /// <summary>
+    /// Ends the attempt with nothing stored: focus leaving, Esc, and Tab / Shift+Tab
+    /// all arrive here (#1631), so the three cannot drift apart.
+    /// </summary>
+    private void AbandonGesture()
     {
         ResetGesture();
 
