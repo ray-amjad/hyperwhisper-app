@@ -107,7 +107,8 @@ class TranscriptActionHandler: ObservableObject {
         /// never started, the row is untouched, and `lastError` stays nil.
         case keptRunningJob
         /// A newer file job replaced it, by the user's choice (#1425). The row
-        /// is back to failed ("cancelled"), with no alert.
+        /// is back to what it was before the retry (`TranscriptionRetryController`
+        /// restores it), with no alert.
         case replacedByNewerJob
     }
 
@@ -188,15 +189,11 @@ class TranscriptActionHandler: ObservableObject {
 
             // A delete cancelled this retry (#1743): the row is gone, so no alert.
             if transcript.retryWasStoppedByDelete(taskCancelled: retryTask.isCancelled) {
-                // A newer file job cancelled it instead (#1425): the row is still
-                // here, so it must not stay "processing".
+                // A newer file job cancelled it instead (#1425). The row is still
+                // here, and the retry controller already put it back as it was
+                // before the retry: a completed or failed row keeps its text.
                 if fileJob.isCancelled, !transcript.isDeleted, transcript.managedObjectContext != nil {
                     AppLogger.ui.info("Retry stopped: a newer file job replaced it")
-                    await Self.markRetryWithFailed(
-                        transcript.objectID,
-                        after: CancellationError(),
-                        persistence: persistenceController
-                    )
                     return .replacedByNewerJob
                 }
                 AppLogger.ui.info("Retry stopped: its transcript was deleted")

@@ -499,6 +499,89 @@ struct FileJobAskFirstTests {
         #expect(await Rig.eventually { pipeline.fileJobs.running == nil })
     }
 
+    /// A row with a mode, at the given state, for a plain Retry.
+    private func retryRow(
+        _ persistence: PersistenceController,
+        _ mode: Mode,
+        status: String,
+        reason: String?,
+        text: String
+    ) throws -> Transcript {
+        let audio = try Rig.toneWAV("retry-source.wav")
+        let row = persistence.createProcessingTranscript(duration: 1.5, mode: mode.name, audioFilePath: audio.path)
+        row.modeRelationship = mode
+        row.setValue(status, forKey: "status")
+        row.setValue(reason, forKey: "failedReason")
+        row.text = text
+        persistence.save()
+        return row
+    }
+
+    /// Review R2: a plain Retry a newer file job replaces puts its row back as
+    /// it was, instead of writing "Transcription cancelled" over the row's
+    /// earlier text and Reason.
+    @Test func aReplacedPlainRetryLeavesItsRowAsItWas() async throws {
+        let provider = HeldTranscriptionProvider(supportsConcurrentPasses: true)
+        let (pipeline, asks) = Rig.pipeline(provider, answers: [true])
+        let persistence = PersistenceController(inMemory: true)
+        defer { Rig.removeCopiedAudio(persistence) }
+        let mode = Rig.mode(persistence)
+        let reason = "the engine could not decode the audio"
+        let text = "Transcription failed: \(reason)"
+        let row = try retryRow(persistence, mode, status: "failed", reason: reason, text: text)
+        let handler = TranscriptActionHandler(transcriptionPipeline: pipeline, persistenceController: persistence)
+
+        let retry = Task { @MainActor in await handler.retryTranscriptionOutcome(row) }
+        #expect(await Rig.eventually { provider.started.count == 1 }, "the retry's pass never started")
+        #expect(Rig.status(row) == "processing")
+
+        let replacing = await startImport(Rig.flow(pipeline, persistence), try Rig.toneWAV("file.wav"), mode, provider: provider, passes: 2)
+        #expect(asks.asked == 1)
+        #expect(await retry.value == .replacedByNewerJob)
+        #expect(handler.lastError == nil)
+
+        #expect(Rig.status(row) == "failed")
+        #expect(Rig.reason(row) == reason)
+        #expect(row.text == text)
+        #expect((row.value(forKey: "retryCount") as? Int16 ?? 0) == 0)
+        #expect(row.value(forKey: "lastRetryDate") == nil)
+
+        provider.releaseAll()
+        await replacing.value
+    }
+
+    /// Review R2: a completed row's retry, replaced by a newer file job, keeps
+    /// the completed transcript. Driven through the pipeline's own Retry under
+    /// a file-job ticket, as the handler runs it.
+    @Test func aReplacedRetryOfACompletedRowKeepsItsTranscript() async throws {
+        let provider = HeldTranscriptionProvider(supportsConcurrentPasses: true)
+        let (pipeline, asks) = Rig.pipeline(provider, answers: [true])
+        let persistence = PersistenceController(inMemory: true)
+        defer { Rig.removeCopiedAudio(persistence) }
+        let mode = Rig.mode(persistence)
+        let text = "The good transcript the user already has."
+        let row = try retryRow(persistence, mode, status: "completed", reason: nil, text: text)
+
+        let ticket = try #require(await pipeline.fileJobs.begin())
+        let retry = Task { @MainActor in try await pipeline.retryTranscription(for: row) }
+        ticket.onCancel { retry.cancel() }
+        #expect(await Rig.eventually { provider.started.count == 1 }, "the retry's pass never started")
+        #expect(Rig.status(row) == "processing")
+
+        let replacing = await startImport(Rig.flow(pipeline, persistence), try Rig.toneWAV("file.wav"), mode, provider: provider, passes: 2)
+        #expect(asks.asked == 1)
+        await #expect(throws: CancellationError.self) { _ = try await retry.value }
+        pipeline.fileJobs.end(ticket)
+
+        #expect(Rig.status(row) == "completed")
+        #expect(Rig.reason(row) == nil)
+        #expect(row.text == text)
+        #expect((row.value(forKey: "retryCount") as? Int16 ?? 0) == 0)
+
+        provider.releaseAll()
+        await replacing.value
+    }
+
     @Test(arguments: [true, false])
     func aDictationDuringAFileJobCancelsNeither(engineRunsBoth: Bool) async throws {
         let provider = HeldTranscriptionProvider(supportsConcurrentPasses: engineRunsBoth)
