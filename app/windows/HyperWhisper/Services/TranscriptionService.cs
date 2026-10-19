@@ -562,8 +562,9 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
 
     private async Task<string> TranscribeFileInternalAsync(
         string audioPath,
-        string? language = null,
-        CancellationToken cancellationToken = default)
+        string? language,
+        IReadOnlyList<string>? vocabulary,
+        CancellationToken cancellationToken)
     {
         string modelPath;
         await _modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -654,16 +655,25 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             // - MaxLastTextTokens(0): WithNoContext only clears the context before
             //   the first 30 s window; whisper.cpp still primes every later window
             //   with the text decoded so far, so one window's phrase could replace
-            //   the next window's speech. 0 stops that carry-over.
+            //   the next window's speech. 0 stops that carry-over (#1560).
+            // - Prompt: the vocabulary as Whisper's initial prompt, for audio of up
+            //   to 30 s only (#1564, the macOS rule). The prompt rides the same
+            //   carried-text channel, so 0 above would drop it: a prompted request
+            //   leaves MaxLastTextTokens alone, and a single 30 s window has no
+            //   earlier window's text to carry. Longer audio keeps the 0 and no prompt.
             // - Long recordings: temperature fallback (inc 0.2) gated on entropy and
             //   log-probability (-1.0), and multi-segment output so the per-segment
             //   gating can kick in mid-recording (see Phil feedback #4).
             // - Short clips: no fallback passes, and stop after the first segment.
+            var promptDecision = WhisperVocabularyPrompt.Decide(chunkEnds[^1], vocabulary);
             var options = new WhisperWorkerTranscribeOptions(
                 SingleSegment: !isLongRecording,
-                MaxLastTextTokensZero: true,
-                Threads: Math.Max(1, Environment.ProcessorCount - 1));
+                MaxLastTextTokensZero: promptDecision.MaxLastTextTokensZero,
+                Threads: Math.Max(1, Environment.ProcessorCount - 1),
+                Prompt: promptDecision.Prompt);
             LoggingService.Debug($"  Threads: {options.Threads}");
+            // Counts only, never the words: the log ships in Export Diagnostics (#1645).
+            LoggingService.Debug($"  Vocabulary prompt: {DescribePrompt(vocabulary, promptDecision)}");
             LoggingService.Debug($"  Language: {(string.IsNullOrEmpty(language) ? "auto-detect" : language)}");
 
             // STEP 3: Run transcription, one chunk per worker request.
@@ -869,29 +879,44 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     public Task<string> TranscribeFileAsync(string audioPath, string? language = null, CancellationToken cancellationToken = default)
     {
+        return TranscribeFileAsync(audioPath, language, vocabulary: null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Transcribes an audio file with the vocabulary as Whisper's initial prompt,
+    /// when the audio is 30 s or shorter (<see cref="WhisperVocabularyPrompt"/>, #1564).
+    /// </summary>
+    public Task<string> TranscribeFileAsync(
+        string audioPath,
+        string? language,
+        IReadOnlyList<string>? vocabulary,
+        CancellationToken cancellationToken = default)
+    {
         return Task.Run(
-            async () => await TranscribeFileInternalAsync(audioPath, language, cancellationToken).ConfigureAwait(false),
+            async () => await TranscribeFileInternalAsync(audioPath, language, vocabulary, cancellationToken).ConfigureAwait(false),
             cancellationToken);
     }
 
     /// <summary>
-    /// ITranscriptionProvider interface implementation.
-    /// Delegates to existing TranscribeFileAsync with vocabulary support (vocabulary ignored for local).
+    /// ITranscriptionProvider interface implementation. The vocabulary becomes
+    /// Whisper's initial prompt for audio of up to 30 s, as on macOS; longer audio
+    /// keeps the #1560 loop guard and decodes without it (#1564).
     /// </summary>
-    /// <remarks>
-    /// Local Whisper models don't support vocabulary boosting like cloud providers do.
-    /// The vocabulary parameter is accepted for interface compatibility but ignored.
-    /// </remarks>
     public Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
         CancellationToken cancellationToken = default)
     {
-        // NOTE: Local Whisper.net does not support vocabulary boosting.
-        // The vocabulary parameter is ignored for local transcription.
-        // Cloud providers (OpenAI, etc.) can use vocabulary via the "prompt" parameter.
-        return TranscribeFileAsync(audioPath, language, cancellationToken);
+        return TranscribeFileAsync(audioPath, language, vocabulary, cancellationToken);
+    }
+
+    /// <summary>The log line for a request's prompt: counts and the reason, never the words.</summary>
+    private static string DescribePrompt(IReadOnlyList<string>? vocabulary, WhisperPromptDecision decision)
+    {
+        if (decision.Prompt is { } prompt) return $"{vocabulary?.Count ?? 0} words, {prompt.Length} chars";
+        if (WhisperVocabularyPrompt.Build(vocabulary) is null) return "none (no vocabulary)";
+        return "none (audio over 30 s; the loop guard wins)";
     }
 
     /// <summary>

@@ -122,10 +122,17 @@ public class TranscriptionRetryHandler : IDisposable
                     : _localTranscriptionService;
             }
 
+            // A local retry gets the vocabulary a recording gets, so on-device
+            // Whisper keeps its prompt on a retry (#1564). A cloud retry still
+            // sends none, as before.
+            var vocabulary = mode.ProviderType != "cloud"
+                ? VocabularyService.Instance.GetVocabularyWords(100)
+                : null;
+
             var result = await _orchestrator.TranscribeAsync(
                 transcript.AudioFilePath!,
                 mode,
-                vocabulary: null,
+                vocabulary: vocabulary,
                 localTranscriptionProvider: localProvider,
                 applicationContext: null,
                 cancellationToken: cancellationToken);
