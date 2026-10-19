@@ -562,7 +562,7 @@ export default function PrivacyPolicyPage() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Google (Gemini 3.5 Transcribe)
+            Google
           </a>{" "}
           (Gemini 3.5 Transcribe).
         </li>
