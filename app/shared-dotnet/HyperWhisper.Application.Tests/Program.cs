@@ -70,6 +70,8 @@ try
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
     await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunBlankCloudProviderEditorLoadTestsAsync(Path.Combine(root, "blank-cloud-provider"));
+    await RunLegacyCloudProviderFoldTestsAsync(Path.Combine(root, "legacy-cloud-provider-fold"));
+    await RunLegacyCloudProviderEditorTestsAsync(Path.Combine(root, "legacy-cloud-provider-editor"));
     await RunCloudPostProcessingModelLoadTestsAsync(Path.Combine(root, "cloud-pp-model-load"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
     await RunShellMissingLocalModelStatusTestsAsync(Path.Combine(root, "shell-missing-model"));
@@ -1973,17 +1975,173 @@ static async Task RunBlankCloudProviderEditorLoadTestsAsync(string root)
     editor.Selected = byok;
     Assert(editor.CloudProvider == "deepgram", $"a deepgram mode opened on '{editor.CloudProvider}'");
 
+    // Issue #601 changed this case on purpose: a retired standalone provider is no longer in
+    // CloudProviders, so the editor folds it on load (as the startup pass does) instead of
+    // opening a vendor combo with no selection. The stored row is still not rewritten by a load.
     var legacy = new Mode { Name = "Legacy cloud", ProviderType = "cloud", CloudProvider = "googlespeech", Language = "en" };
     await repository.UpsertAsync(legacy);
     editor.Selected = legacy;
-    Assert(editor.CloudProvider == "googlespeech",
-        $"a legacy googlespeech mode opened on '{editor.CloudProvider}'; only a BLANK provider changes meaning");
+    Assert(editor.CloudProvider == "hyperwhisper" && editor.IsHwCloudSource,
+        $"a legacy googlespeech mode opened on '{editor.CloudProvider}', not the HyperWhisper Cloud segment");
+    Assert(legacy.CloudProvider == "googlespeech", "loading the editor rewrote a legacy stored provider");
 
     var local = new Mode { Name = "Local", ProviderType = "local", LocalEngine = "whisper", ModelType = "base", Language = "en" };
     await repository.UpsertAsync(local);
     editor.Selected = local;
     Assert(editor.CloudProvider == "elevenlabs",
         $"a local mode's editor BYOK default moved to '{editor.CloudProvider}'");
+}
+
+/// <summary>
+/// Issue #601, the done-when. A mode stored with a retired standalone provider could not
+/// transcribe on this head at all: the router mapped it to GoogleChirp/AzureMai, whose request
+/// carried no base URL, and the core refused it before any I/O. <see cref="ApplicationDb.InitializeAsync"/>
+/// now folds such rows onto HyperWhisper Cloud once at startup, with the native heads' tier rule,
+/// and the request the real router builds for the folded row has a base URL.
+/// </summary>
+static async Task RunLegacyCloudProviderFoldTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var database = new ApplicationDb(new TestPaths(root));
+    await database.MigrateAsync();
+    var repository = new ModeRepository(database);
+
+    Mode Cloud(string name, string? provider, string tier) => new()
+    {
+        Name = name, ProviderType = "cloud", CloudProvider = provider, CloudAccuracyTier = tier, Language = "en",
+    };
+    var google = Cloud("Legacy Google", "googlespeech", "");
+    var googleDefaultTier = Cloud("Legacy Google default tier", "googleSpeech", "deepgramNova3");
+    var azure = Cloud("Legacy Azure", "microsoftazurespeech", "deepgramNova3");
+    // A user who paired a legacy provider with a tier of their own keeps it (both native heads).
+    var azureCustom = Cloud("Legacy Azure custom tier", "microsoftAzureSpeech", "assemblyAI");
+    // Controls the fold must not touch. A camelCase BYOK id is lower-cased by the shared
+    // normalizer, but this pass rewrites legacy aliases only.
+    var byok = Cloud("BYOK Deepgram", "deepgram", "deepgramNova3");
+    var byokCamel = Cloud("BYOK Gemini Transcribe", "geminiTranscribe", "");
+    var blank = Cloud("Blank provider", null, "deepgramNova3");
+    var local = new Mode { Name = "Local legacy column", ProviderType = "local", LocalEngine = "whisper", ModelType = "base", Language = "en" };
+    var all = new[] { google, googleDefaultTier, azure, azureCustom, byok, byokCamel, blank, local };
+    foreach (var mode in all) await repository.UpsertAsync(mode);
+    // The local row's column is written raw, after the upsert, because the fold is provider-only
+    // and the provider column is what matters.
+    await using (var context = database.CreateContext())
+    {
+        var row = await context.Modes.SingleAsync(item => item.Id == local.Id);
+        row.CloudProvider = "googlespeech";
+        await context.SaveChangesAsync();
+    }
+
+    await database.InitializeAsync();
+
+    async Task<Mode> Stored(Mode mode)
+    {
+        await using var context = database.CreateContext();
+        return await context.Modes.AsNoTracking().SingleAsync(item => item.Id == mode.Id);
+    }
+    var foldedGoogle = await Stored(google);
+    Assert(foldedGoogle.CloudProvider == "hyperwhisper" && foldedGoogle.CloudAccuracyTier == "geminiTranscribe",
+        $"a googlespeech row with a blank tier read '{foldedGoogle.CloudProvider}' / '{foldedGoogle.CloudAccuracyTier}' after InitializeAsync, not hyperwhisper / geminiTranscribe");
+    var foldedGoogleDefault = await Stored(googleDefaultTier);
+    Assert(foldedGoogleDefault.CloudProvider == "hyperwhisper" && foldedGoogleDefault.CloudAccuracyTier == "geminiTranscribe",
+        $"a googleSpeech row on the default tier read '{foldedGoogleDefault.CloudProvider}' / '{foldedGoogleDefault.CloudAccuracyTier}'");
+    var foldedAzure = await Stored(azure);
+    Assert(foldedAzure.CloudProvider == "hyperwhisper" && foldedAzure.CloudAccuracyTier == "azureMaiTranscribe",
+        $"a microsoftazurespeech row on the default tier read '{foldedAzure.CloudProvider}' / '{foldedAzure.CloudAccuracyTier}'");
+    var foldedAzureCustom = await Stored(azureCustom);
+    Assert(foldedAzureCustom.CloudProvider == "hyperwhisper" && foldedAzureCustom.CloudAccuracyTier == "assemblyAI",
+        $"the fold overwrote a customised tier: '{foldedAzureCustom.CloudProvider}' / '{foldedAzureCustom.CloudAccuracyTier}'");
+    Assert((await Stored(byok)).CloudProvider == "deepgram" && (await Stored(byok)).CloudAccuracyTier == "deepgramNova3",
+        "the fold touched a BYOK deepgram row");
+    Assert((await Stored(byokCamel)).CloudProvider == "geminiTranscribe", "the fold rewrote a non-legacy provider id");
+    Assert((await Stored(blank)).CloudProvider is null, "the fold wrote a blank provider");
+    // A local row is folded too, as Windows and macOS do: the column is provider-only, and a
+    // local mode switched to cloud in the editor must not resurrect the retired id.
+    Assert((await Stored(local)).CloudProvider == "hyperwhisper", "a local row kept its retired cloud provider");
+
+    // Idempotent: a second start writes nothing and changes nothing.
+    var before = (await repository.ListAsync()).Select(item => (item.Id, item.CloudProvider, item.CloudAccuracyTier)).OrderBy(item => item.Id).ToList();
+    await database.InitializeAsync();
+    var after = (await repository.ListAsync()).Select(item => (item.Id, item.CloudProvider, item.CloudAccuracyTier)).OrderBy(item => item.Id).ToList();
+    Assert(before.SequenceEqual(after), "a second InitializeAsync changed a folded row");
+
+    // The done-when's second half, through the real router: the folded row's request is a
+    // HyperWhisper Cloud request WITH a base URL. Before the fold it was GoogleChirp with none.
+    var audio = Path.Combine(root, "legacy.wav");
+    await File.WriteAllBytesAsync(audio, [1]);
+    foreach (var source in new[] { google, azure, azureCustom })
+    {
+        var mode = await Stored(source);
+        var cloud = new LanguageRecordingCloud();
+        var engine = new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("local", "local")));
+        using var router = new ModeAwareTranscriptionRouter(engine, engine, cloud);
+        var result = await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest("en", mode.Name, mode.Id, mode));
+        Assert(result.IsSuccess, $"{mode.Name}: the folded row did not transcribe ({result.Failure})");
+        var request = cloud.LastRequest;
+        Assert(request is not null
+            && request.Provider == HyperWhisper.SharedCore.CloudTranscriptionProvider.HyperWhisperCloud
+            && !string.IsNullOrWhiteSpace(request.BaseUrl),
+            $"{mode.Name}: the router built provider '{request?.Provider}' with base URL '{request?.BaseUrl ?? "<null>"}'");
+        Assert(request!.RoutedProvider == SharedCoreBridge.CloudSttProvider(mode.CloudAccuracyTier),
+            $"{mode.Name}: routed provider '{request.RoutedProvider}' does not match tier '{mode.CloudAccuracyTier}'");
+    }
+}
+
+/// <summary>
+/// Issue #601, the Mode editor half. The two retired ids are no longer offered, a mode still
+/// carrying one opens folded (never on an empty vendor combo), and Save cannot write one.
+/// </summary>
+static async Task RunLegacyCloudProviderEditorTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    await editor.RefreshAsync();
+
+    Assert(!editor.CloudProviders.Contains("googlespeech", StringComparer.OrdinalIgnoreCase)
+        && !editor.CloudProviders.Contains("microsoftazurespeech", StringComparer.OrdinalIgnoreCase),
+        $"the Mode editor still offers a retired provider: [{string.Join(", ", editor.CloudProviders)}]");
+
+    // A row written after startup (the fold already ran), e.g. by an older peer through a raw
+    // DB write, with the default tier: the editor opens on HyperWhisper Cloud + the alias's tier.
+    var stored = new Mode { Name = "Post-start legacy", ProviderType = "cloud", CloudProvider = "microsoftazurespeech", CloudAccuracyTier = "deepgramNova3", Language = "en" };
+    await repository.UpsertAsync(stored);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == stored.Id);
+    Assert(editor.CloudProvider == "hyperwhisper" && editor.IsHwCloudSource && !editor.IsYourProviderSource
+        && editor.CloudAccuracyTier == "azureMaiTranscribe",
+        $"a legacy Azure mode opened on '{editor.CloudProvider}' / '{editor.CloudAccuracyTier}'");
+    Assert(editor.CloudAccuracyTiers.Contains(editor.CloudAccuracyTier, StringComparer.Ordinal),
+        $"the folded tier '{editor.CloudAccuracyTier}' is not one the tier picker offers");
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode is null, $"saving a folded legacy mode failed: {editor.Status.ErrorCode}");
+    var saved = (await repository.ListAsync()).Single(item => item.Id == stored.Id);
+    Assert(saved.CloudProvider == "hyperwhisper" && saved.CloudAccuracyTier == "azureMaiTranscribe",
+        $"saving a legacy Azure mode wrote '{saved.CloudProvider}' / '{saved.CloudAccuracyTier}'");
+
+    // A customised tier survives the load-fold and the save.
+    var custom = new Mode { Name = "Legacy custom tier", ProviderType = "cloud", CloudProvider = "googlespeech", CloudAccuracyTier = "assemblyAI", Language = "en" };
+    await repository.UpsertAsync(custom);
+    await editor.RefreshAsync();
+    editor.Selected = editor.Items.Single(item => item.Id == custom.Id);
+    Assert(editor.CloudProvider == "hyperwhisper" && editor.CloudAccuracyTier == "assemblyAI",
+        $"a legacy mode with a customised tier opened on '{editor.CloudProvider}' / '{editor.CloudAccuracyTier}'");
+    await editor.SaveAsync();
+    var savedCustom = (await repository.ListAsync()).Single(item => item.Id == custom.Id);
+    Assert(savedCustom.CloudProvider == "hyperwhisper" && savedCustom.CloudAccuracyTier == "assemblyAI",
+        $"saving a legacy mode with a customised tier wrote '{savedCustom.CloudProvider}' / '{savedCustom.CloudAccuracyTier}'");
+
+    // The save path folds on its own, whatever put the id on the view model: it is never
+    // written verbatim and never refused as "not a supported provider".
+    editor.Selected = editor.Items.Single(item => item.Id == stored.Id);
+    editor.CloudProvider = "googlespeech";
+    editor.CloudAccuracyTier = "deepgramNova3";
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode is null, $"saving a view-model-set legacy id failed: {editor.Status.ErrorCode}");
+    var resaved = (await repository.ListAsync()).Single(item => item.Id == stored.Id);
+    Assert(resaved.CloudProvider == "hyperwhisper" && resaved.CloudAccuracyTier == "geminiTranscribe",
+        $"the save path wrote '{resaved.CloudProvider}' / '{resaved.CloudAccuracyTier}' for googlespeech");
 }
 
 static async Task RunCloudVendorPickerTestsAsync(string root)
