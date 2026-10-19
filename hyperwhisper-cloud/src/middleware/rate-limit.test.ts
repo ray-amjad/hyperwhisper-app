@@ -60,6 +60,10 @@ function createMemoryStore(clock: { now: number }) {
       hits.set(id, live);
       return { success, reset: (live[0] ?? clock.now) + WINDOW_MS };
     },
+    async peek(bucket, identifier) {
+      const live = (hits.get(`${bucket}:${identifier}`) ?? []).filter((at) => at > clock.now - WINDOW_MS);
+      return { remaining: RATE_LIMITS[bucket] - live.length, reset: (live[0] ?? clock.now) + WINDOW_MS };
+    },
   };
   return { store, calls };
 }
@@ -278,6 +282,25 @@ describe('per-key limit (60/min, after auth)', () => {
     expect((await send(licensedRequest(family, freshKey(), freshIP()))).status).toBe(family === 'usage' ? 200 : 402);
   });
 
+  test('/usage?force_refresh=true: request 61 is refused before it calls the site', async () => {
+    const key = freshKey();
+    const siteCalls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      siteCalls.push(String(input));
+      return new Response(JSON.stringify({ credits: 5 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as unknown as typeof fetch;
+    const refresh = () => send(new Request(`http://transcribe.test/usage?account_key=${key}&force_refresh=true`, {
+      headers: { 'Fly-Client-IP': freshIP() },
+    }));
+    for (let i = 0; i < RATE_LIMITS.key; i += 1) {
+      expect((await refresh()).status).toBe(200);
+    }
+    expect(siteCalls).toHaveLength(RATE_LIMITS.key);
+
+    await expectRateLimited(await refresh());
+    expect(siteCalls).toHaveLength(RATE_LIMITS.key);
+  });
+
   test('a rejected key never gets a bucket', async () => {
     const response = await send(new Request('http://transcribe.test/usage', { headers: { 'Fly-Client-IP': freshIP() } }));
     expect(response.status).toBe(401);
@@ -302,7 +325,31 @@ describe('per-key /ws/streaming-* upgrade limit (10/min)', () => {
     }
 
     await expectRateLimited(await send(licensedRequest(family, key, freshIP())));
-    expect(memory.calls.filter((call) => call.bucket === 'ws_upgrade')).toHaveLength(RATE_LIMITS.ws_upgrade + 1);
+    // The refused upgrade was turned away by the read, before either bucket counted it.
+    expect(memory.calls.filter((call) => call.bucket === 'ws_upgrade')).toHaveLength(RATE_LIMITS.ws_upgrade);
+    const id = keyIdentifier(key);
+    expect((await memory.store.peek!('key', id)).remaining).toBe(RATE_LIMITS.key - RATE_LIMITS.ws_upgrade);
+  });
+
+  test('an upgrade the key bucket refuses does not spend an upgrade slot', async () => {
+    const key = freshKey();
+    for (let i = 0; i < RATE_LIMITS.key; i += 1) {
+      expect((await send(licensedRequest('usage', key, freshIP()))).status).toBe(200);
+    }
+    for (let i = 0; i < 3; i += 1) {
+      await expectRateLimited(await send(licensedRequest('ws-deepgram', key, freshIP())));
+    }
+    expect((await memory.store.peek!('ws_upgrade', keyIdentifier(key))).remaining).toBe(RATE_LIMITS.ws_upgrade);
+  });
+
+  test('a store with no peek still counts the buckets in order', async () => {
+    const counted = createMemoryStore(clock);
+    setRateLimitStoreForTests({ limit: counted.store.limit });
+    const key = freshKey();
+    for (let i = 0; i < RATE_LIMITS.ws_upgrade; i += 1) {
+      expect((await send(licensedRequest('ws-deepgram', key, freshIP()))).status).toBe(402);
+    }
+    await expectRateLimited(await send(licensedRequest('ws-deepgram', key, freshIP())));
   });
 
   test('both live routes share the upgrade budget, and HTTP requests on the key still pass', async () => {

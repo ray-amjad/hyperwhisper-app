@@ -84,6 +84,16 @@ export async function usageRoute(c: Context) {
   const forceRefresh = c.req.query('force_refresh') === 'true';
 
   if (licenseKey) {
+    // Per-key rate limit (#2010), BEFORE any lookup: a force refresh calls the
+    // site's credits and validate routes, whose per-IP budgets every machine in
+    // a Fly region shares, so one key must not be able to spend them. The key
+    // is hashed, so an unknown key getting a bucket costs nothing.
+    const rateLimited = await keyRateLimitResponse('/usage', licenseKey);
+    if (rateLimited) {
+      logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
+      return rateLimited;
+    }
+
     let isValid = false;
     let credits = 0;
     // Set by every validateAuth call below. A rejection always comes from one,
@@ -129,13 +139,6 @@ export async function usageRoute(c: Context) {
         ...(authDiagnostics ? authDiagnosticsForLog(authDiagnostics) : {}),
       });
       return errorResponse(401, 'Invalid license key', 'The provided license key is invalid or expired');
-    }
-
-    // Per-key rate limit, once the key is known to be valid (#2010).
-    const rateLimited = await keyRateLimitResponse('/usage', licenseKey);
-    if (rateLimited) {
-      logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'rate_limited', status: rateLimited.status });
-      return rateLimited;
     }
 
     const normalizedCredits = roundToTenth(credits);
