@@ -32,6 +32,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("error codes match the shared closed set", ErrorCodeParity),
     ("bounded multipart transcription", Multipart),
     ("Windows JSON transcription contract", JsonTranscriptionContract),
+    ("audio_base64 keeps the shared mime table and passes the raw mime_type on", Base64DeclaredMimeType),
     ("Windows JSON file source is private and bounded", JsonFileSecurity),
     ("Windows post-process application context contract", PostProcessContextContract),
     ("Windows endpoint contract snapshots and overrides", EndpointContractSnapshots),
@@ -74,6 +75,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("a busy workflow refuses a Parakeet upload before converting it", ParakeetUploadRefusedBusyBeforeConversion)
     ,("a converted upload whose first delete fails is still deleted", ConvertedUploadDeleteIsRetried)
     ,("a Cloud mode posted with no cloudProvider stores and runs on HyperWhisper Cloud; an empty or whitespace one is refused", ApplicationBackendBlankCloudProviderRunsHyperWhisperCloud)
+    ,("head hooks are off by default and run after the guard and the bearer check", HeadHooks)
 };
 foreach (var test in tests)
 {
@@ -690,6 +692,7 @@ static async Task InTokyo(Func<Task> test)
     var previous = Environment.GetEnvironmentVariable("TZ");
     Environment.SetEnvironmentVariable("TZ", "Asia/Tokyo");
     TimeZoneInfo.ClearCachedData();
+    if (OperatingSystem.IsWindows()) ForceWindowsLocalZone("Tokyo Standard Time");
     try
     {
         Assert(TimeZoneInfo.Local.BaseUtcOffset == TimeSpan.FromHours(9),
@@ -701,6 +704,53 @@ static async Task InTokyo(Func<Task> test)
         Environment.SetEnvironmentVariable("TZ", previous);
         TimeZoneInfo.ClearCachedData();
     }
+}
+
+// Issue #356: the shared table folds an alias it does not know, and any
+// ";codecs=" parameter, into "audio/wav". That stays as it is, because Linux
+// reads ContentType and FileName. The caller's raw mime_type rides along in the
+// additive DeclaredMimeType, which only the Windows backend reads.
+static async Task Base64DeclaredMimeType()
+{
+    await using var fixture = await Fixture.Create();
+    fixture.Authenticate();
+    (string? Mime, string FileName, string ContentType)[] cases =
+    [
+        ("audio/webm;codecs=opus", "local-api-upload.wav", "audio/wav"),
+        ("audio/aac", "local-api-upload.wav", "audio/wav"),
+        ("audio/webm", "local-api-upload.webm", "audio/webm"),
+        ("audio/x-m4a", "local-api-upload.m4a", "audio/mp4"),
+        (null, "local-api-upload.wav", "audio/wav"),
+    ];
+    foreach (var (mime, fileName, contentType) in cases)
+    {
+        var mimeField = mime is null ? "" : $",\"mime_type\":{JsonSerializer.Serialize(mime)}";
+        using var body = new StringContent(
+            $"{{\"audio_base64\":\"AQIDBA==\",\"engine\":\"whisper\",\"model\":\"base\"{mimeField}}}",
+            Encoding.UTF8, "application/json");
+        using var response = await fixture.Client.PostAsync("/transcribe", body);
+        var upload = fixture.Backend.Upload;
+        Assert(response.StatusCode == HttpStatusCode.OK && upload is not null, $"mime_type '{mime}' was not transcribed");
+        Assert(upload!.FileName == fileName && upload.ContentType == contentType,
+            $"mime_type '{mime}' changed the shared name/type: {upload.FileName} {upload.ContentType}");
+        Assert(upload.DeclaredMimeType == mime,
+            $"mime_type '{mime}' reached the backend as DeclaredMimeType '{upload.DeclaredMimeType}'");
+    }
+}
+
+// Windows reads the local zone from the OS, not from TZ, so a runner in UTC
+// stays in UTC. Plant the zone in the runtime's own local-zone cache instead.
+// It is process-only, never touches the machine's zone, and the caller's
+// ClearCachedData drops it again. If the runtime renames the cache, the
+// offset Assert in InTokyo fails loudly rather than passing under UTC.
+static void ForceWindowsLocalZone(string windowsZoneId)
+{
+    if (TimeZoneInfo.Local.BaseUtcOffset == TimeZoneInfo.FindSystemTimeZoneById(windowsZoneId).BaseUtcOffset) return;
+    const System.Reflection.BindingFlags privateStatic = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+    const System.Reflection.BindingFlags privateInstance = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+    var cache = typeof(TimeZoneInfo).GetField("s_cachedData", privateStatic)?.GetValue(null);
+    var local = cache?.GetType().GetField("_localTimeZone", privateInstance);
+    local?.SetValue(cache, TimeZoneInfo.FindSystemTimeZoneById(windowsZoneId));
 }
 
 static void AssertProperties(JsonElement element, params string[] expected)
@@ -806,6 +856,85 @@ static async Task JsonFileSecurity()
         }
     }
     finally { File.Delete(outside); }
+}
+
+/// <summary>
+/// The four optional head hooks on <see cref="PortableLocalApiOptions"/>
+/// (issue #356, Windows on the shared server). Linux sets none of them, so the
+/// first half pins that they default to null; the second half pins where each
+/// one runs when a head does set it.
+/// </summary>
+static async Task HeadHooks()
+{
+    var defaults = new PortableLocalApiOptions(Fixture.Token);
+    Assert(defaults.AuthorizedRequestGate is null && defaults.IsAdditionalAllowedFile is null
+        && defaults.VerifyOpenedFile is null && defaults.OriginRejected is null, "a head hook is on by default");
+
+    var gateCalls = new List<string>();
+    var rejected = 0;
+    var outside = Path.Combine(Path.GetTempPath(), $"hyperwhisper-extra-{Guid.NewGuid():N}.wav");
+    var refusedByHandle = Path.Combine(Path.GetTempPath(), $"hyperwhisper-refused-{Guid.NewGuid():N}.wav");
+    await File.WriteAllBytesAsync(outside, [1, 2]);
+    await File.WriteAllBytesAsync(refusedByHandle, [1, 2]);
+    try
+    {
+        await using var fixture = await Fixture.Create(adjust: options => options with
+        {
+            AuthorizedRequestGate = async context =>
+            {
+                gateCalls.Add($"{context.Request.Method} {context.Request.Path}");
+                if (context.Request.Method != "DELETE") return true;
+                context.Response.StatusCode = 200;
+                await Microsoft.AspNetCore.Http.HttpResponseWritingExtensions.WriteAsync(context.Response,
+                    """{"ok":false,"error":{"code":"ENGINE_UNAVAILABLE","message":"gated"}}""");
+                return false;
+            },
+            IsAdditionalAllowedFile = path => path == outside || path == refusedByHandle,
+            VerifyOpenedFile = stream => stream.Name != refusedByHandle,
+            OriginRejected = _ => rejected++,
+        });
+
+        // /health is public and never reaches the gate.
+        Assert((await fixture.Client.GetAsync("/health")).StatusCode == HttpStatusCode.OK, "health failed with hooks set");
+        Assert(gateCalls.Count == 0, "the gate ran on /health");
+
+        // An unauthenticated request stops at the bearer check, before the gate.
+        Assert((await fixture.Client.DeleteAsync("/modes/x")).StatusCode == HttpStatusCode.Unauthorized, "gate ran before auth");
+        Assert(gateCalls.Count == 0, "the gate saw an unauthenticated request");
+
+        // A rebound request stops at the guard, and the guard reports it.
+        using (var rebound = new HttpRequestMessage(HttpMethod.Get, "/models"))
+        {
+            rebound.Headers.Host = "attacker.example";
+            Assert((await fixture.Client.SendAsync(rebound)).StatusCode == HttpStatusCode.Forbidden, "rebound request passed");
+        }
+        Assert(rejected == 1 && gateCalls.Count == 0, "OriginRejected was not told, or the gate saw a rebound request");
+
+        fixture.Authenticate();
+        Assert((await fixture.Client.GetAsync("/models")).StatusCode == HttpStatusCode.OK, "the gate refused a read");
+        await AssertBusinessFailure(await fixture.Client.DeleteAsync("/modes/x"), LocalApiErrorCodes.EngineUnavailable, "gated delete");
+        Assert(gateCalls.SequenceEqual(["GET /models", "DELETE /modes/x"]), $"gate calls were {string.Join(", ", gateCalls)}");
+
+        // A file outside the roots that the head allows is read.
+        using (var extra = JsonContent($$"""{"file":{{JsonSerializer.Serialize(outside)}},"engine":"whisper","model":"base"}"""))
+            Assert((await fixture.Client.PostAsync("/transcribe", extra)).StatusCode == HttpStatusCode.OK, "an extra allowed file was refused");
+        Assert(fixture.Backend.Upload?.Content.Span.SequenceEqual(new byte[] { 1, 2 }) == true, "extra file bytes changed");
+
+        // The opened-file check refuses with the outside-the-roots answer.
+        using (var refused = JsonContent($$"""{"file":{{JsonSerializer.Serialize(refusedByHandle)}},"engine":"whisper","model":"base"}"""))
+        {
+            var response = await fixture.Client.PostAsync("/transcribe", refused);
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert(response.StatusCode == HttpStatusCode.BadRequest
+                && document.RootElement.GetProperty("error").GetProperty("code").GetString() == LocalApiErrorCodes.FileNotAllowed,
+                "a file the opened-file check refused was read");
+        }
+    }
+    finally
+    {
+        File.Delete(outside);
+        File.Delete(refusedByHandle);
+    }
 }
 
 static async Task PostProcessContextContract()
@@ -3324,12 +3453,14 @@ sealed class Fixture : IAsyncDisposable
     public required FakeBackend Backend { get; init; }
     public required string AllowedRoot { get; init; }
     public void Authenticate() => Client.DefaultRequestHeaders.Authorization = new("Bearer", Token);
-    public static async Task<Fixture> Create(int maxUpload = 1024, ILocalApiBackend? backend = null)
+    public static async Task<Fixture> Create(int maxUpload = 1024, ILocalApiBackend? backend = null,
+        Func<PortableLocalApiOptions, PortableLocalApiOptions>? adjust = null)
     {
         backend ??= new FakeBackend();
         var allowedRoot = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-files-{Guid.NewGuid():N}");
         Directory.CreateDirectory(allowedRoot);
         var options = new PortableLocalApiOptions(Token, ConfiguredPort, MaxRequestBytes, maxUpload, AllowedFileRoots: [allowedRoot]);
+        if (adjust is not null) options = adjust(options);
         var app = PortableLocalApi.Build([], options, backend, builder => builder.WebHost.UseTestServer());
         await app.StartAsync();
         var client = app.GetTestClient();
@@ -3432,7 +3563,29 @@ sealed class TempPaths : IAppPaths, IDisposable
     public string RecordingsDirectory => DataDirectory;
     public string RuntimeDirectory => DataDirectory;
     public string TemporaryDirectory => DataDirectory;
-    public void Dispose() { if (Directory.Exists(DataDirectory)) Directory.Delete(DataDirectory, recursive: true); }
+    public void Dispose()
+    {
+        if (!Directory.Exists(DataDirectory)) return;
+        // Windows (this suite runs there since #356) holds each SQLite file open
+        // in Microsoft.Data.Sqlite's connection pool after the last DbContext is
+        // disposed, so the recursive delete fails with "the process cannot
+        // access the file". Linux lets the unlink through regardless. Draining
+        // the pool releases the handles; the retry covers a handle the OS has
+        // not finished closing yet. Same fix as HyperWhisper.Backup.Application.Tests.
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(DataDirectory, recursive: true);
+                return;
+            }
+            catch (IOException) when (attempt < 5)
+            {
+                Thread.Sleep(200);
+            }
+        }
+    }
 }
 
 class DiskPrivateFiles : IPrivateFileService

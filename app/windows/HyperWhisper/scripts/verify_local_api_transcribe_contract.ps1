@@ -17,21 +17,28 @@ function Assert-Match {
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $RepoRoot = Resolve-Path (Join-Path $ProjectRoot "..\..\..")
 
-$EndpointSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\LocalApi\Endpoints\TranscribeEndpoints.cs")
+# Issue #356 item 6: Windows hosts the shared Local API server
+# (app/shared-dotnet/HyperWhisper.LocalApi/PortableLocalApi.cs). The route, the
+# request parse, the source xor, the size caps and the `file` path policy are
+# the shared server's; this head's half is the backend and the path hooks.
+$EndpointSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\LocalApi\Backend\WindowsLocalApiBackend.Transcription.cs")
+$FilePolicySource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\LocalApi\Backend\LocalApiFilePolicy.cs")
+$ServerSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\LocalApi\LocalApiServer.cs")
+$SharedServerSource = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\shared-dotnet\HyperWhisper.LocalApi\PortableLocalApi.cs")
 $OrchestratorSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\Transcription\TranscriptionOrchestrator.cs")
-$TypesSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\LocalApi\LocalApiTypes.cs")
 $ResponderSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\LocalApi\LocalApiErrors.cs")
 $MacEndpointSource = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\LocalAPI\Endpoints\TranscribeEndpoint.swift")
 $MacRouterSource = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\Transcription\Coordinators\TranscriptionProviderRouter.swift")
 
-# `ReadFromJsonAsync` until the body-size limit landed; the route now reads
-# through LocalApiLimits so an over-limit upload is a business failure rather
-# than "Invalid JSON body". This assertion had been failing on main since that
-# change, which is why it did not catch issues #495 and #498.
+Assert-Match `
+    -Content $SharedServerSource `
+    -Pattern 'app\.MapPost\("/transcribe", Transcribe\).*?ReadFromJsonAsync<TranscribeJsonRequest>.*?backend\.TranscribeAsync\(' `
+    -Label "the shared /transcribe route reads the JSON request and hands it to the head's backend"
+
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern 'app\.MapPost\("/transcribe".*?ReadJsonBodyAsync<TranscribeRequest>.*?ResolveAudioSource\(req\).*?ResolveMode\(req\).*?orchestrator\.TranscribeAsync\(' `
-    -Label "Windows /transcribe maps JSON request through audio, mode, and orchestrator resolution"
+    -Pattern 'TranscribeAsync\(\s*SharedApi\.AudioUpload upload.*?ResolveMode\(upload\).*?WriteScratchAudio\(upload\).*?orchestrator\.TranscribeAsync\(' `
+    -Label "Windows /transcribe maps the upload through mode, scratch audio, and orchestrator resolution"
 
 Assert-Match `
     -Content $EndpointSource `
@@ -47,7 +54,7 @@ Assert-Match `
 # and vocabulary replacements are the user's own settings and always run.
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern "Text = result\.FinalText" `
+    -Pattern "new SharedApi\.TranscriptionResult\(\s*result\.FinalText," `
     -Label "Windows /transcribe returns the text after the deterministic passes, not the provider's raw string"
 
 Assert-Match `
@@ -56,38 +63,47 @@ Assert-Match `
     -Label "orchestrator gates only the AI rewrite; the deterministic passes run on every path"
 
 Assert-Match `
-    -Content $EndpointSource `
-    -Pattern "ResolveAudioSource\(TranscribeRequest req\).*?Pass either 'file' or 'audio_base64', not both.*?Provide 'file' \(absolute path\) or 'audio_base64' \+ 'mime_type'.*?File\.Exists\(canonicalPath\).*?new FileStream\(.*?resolvedPath.*?FileShare\.Read.*?Convert\.FromBase64String.*?File\.WriteAllBytes\(tempPath, data\)" `
-    -Label "Windows /transcribe enforces source xor, readable files, and decoded temp files"
+    -Content $SharedServerSource `
+    -Pattern "hasFile == hasBase64.*?Pass exactly one of 'file' or 'audio_base64'\..*?Convert\.FromBase64String\(encoded\).*?ReadAllowedFileAsync\(request\.File!" `
+    -Label "the shared /transcribe enforces source xor and decodes base64 itself"
 
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern "Path\.GetFullPath\(trimmedFile!\).*?HistoryService\.IsTrustedAudioPath\(canonicalPath\).*?LocalApiErrorCode\.FileNotAllowed.*?ResolveRealPath\(canonicalPath\).*?HistoryService\.IsTrustedAudioPath\(resolvedPath, ResolveRealPath\).*?GetFinalDosPath\(sourceStream\.SafeFileHandle\).*?HistoryService\.IsTrustedAudioPath\(openedPath, ResolveRealPath\)" `
-    -Label "Windows /transcribe canonicalizes the file path, resolves reparse points, and contains both the lexical path and opened handle target to trusted recording roots (issue #740)"
+    -Pattern "WriteScratchAudio\(SharedApi\.AudioUpload upload\).*?FileMode\.CreateNew.*?output\.Write\(upload\.Content\.Span\).*?FileShare\.Read" `
+    -Label "Windows /transcribe writes the upload to a private, read-locked scratch file"
 
 Assert-Match `
-    -Content $EndpointSource `
+    -Content $SharedServerSource `
+    -Pattern "Path\.GetFullPath\(requestedPath\.Trim\(\)\).*?Path\.IsPathFullyQualified.*?IsAllowedPath\(path, options\.AllowedFileRoots\).*?options\.IsAdditionalAllowedFile.*?new FileStream\(path,.*?FileShare\.Read.*?options\.VerifyOpenedFile" `
+    -Label "the shared /transcribe canonicalizes the file path, contains it to the allowed roots, and asks the head about the opened handle"
+
+Assert-Match `
+    -Content $ServerSource `
+    -Pattern "AllowedFileRoots: LocalApiFilePolicy\.AllowedRoots.*?IsAdditionalAllowedFile = LocalApiFilePolicy\.IsAdditionalAllowedFile.*?VerifyOpenedFile = LocalApiFilePolicy\.VerifyOpenedFile" `
+    -Label "Windows hands the shared server its trusted recording roots and opened-handle check (issue #740)"
+
+Assert-Match `
+    -Content $FilePolicySource `
+    -Pattern "VerifyOpenedFile\(FileStream stream\).*?GetFinalDosPath\(stream\.SafeFileHandle\).*?HistoryService\.IsTrustedAudioPath\(openedPath, ResolveRealPath\)" `
+    -Label "Windows contains the opened handle's target to trusted recording roots (issue #740)"
+
+Assert-Match `
+    -Content $FilePolicySource `
     -Pattern "ResolveRealPath\(string canonicalPath\).*?File\.ResolveLinkTarget\(canonicalPath, returnFinalTarget: true\).*?Directory\.ResolveLinkTarget\(canonicalPath, returnFinalTarget: true\).*?ResolveRealPath\(parent\)" `
-    -Label "Windows /transcribe resolves leaf and ancestor reparse points to the real on-disk target (issue #740 reparse-point bypass)"
+    -Label "Windows resolves leaf and ancestor reparse points to the real on-disk target (issue #740 reparse-point bypass)"
 
-# One assertion used to span BOTH halves of this wiring in a single
-# `.*?`-joined pattern, and it failed for a reason that had nothing to do with
-# security: `GetFinalDosPath` — which holds `GetFinalPathNameByHandle` and
-# `StripExtendedPathPrefix(buffer.ToString())` — now sits BELOW
-# `ResolveAudioSource` in the file, so the ingredients no longer appear in the
-# order the pattern demanded. Every ingredient is still present and the
-# containment assertion above still passes, so the #740 wiring is intact; only
-# a source-order dependency this script should never have had was broken.
-# Split into the two units that actually exist, each ordered within itself.
+# The #740 snapshot is now an in-memory copy: the shared server reads the
+# validated handle into a buffer, so the caller cannot swap the file under the
+# provider.
 Assert-Match `
-    -Content $EndpointSource `
-    -Pattern "GetFinalDosPath\(sourceStream\.SafeFileHandle\).*?IsTrustedAudioPath\(openedPath, ResolveRealPath\).*?CreateLocalApiSnapshotPath\(openedPath\).*?sourceStream\.CopyTo\(snapshot\).*?return \(snapshotPath, true, readLock\)" `
-    -Label "Windows /transcribe snapshots the validated file handle into a locked temp path before provider dispatch"
+    -Content $SharedServerSource `
+    -Pattern "options\.VerifyOpenedFile.*?input\.CopyToAsync\(output, cancellationToken\).*?output\.ToArray\(\)" `
+    -Label "the shared /transcribe copies the validated file handle before provider dispatch"
 
 Assert-Match `
-    -Content $EndpointSource `
+    -Content $FilePolicySource `
     -Pattern "GetFinalDosPath\(SafeFileHandle handle\).*?GetFinalPathNameByHandle\(.*?StripExtendedPathPrefix\(buffer\.ToString\(\)\)" `
-    -Label "Windows /transcribe derives the opened handle's real DOS path from the handle itself, not from the caller's string (issue #740)"
+    -Label "Windows derives the opened handle's real DOS path from the handle itself, not from the caller's string (issue #740)"
 
 Assert-Match `
     -Content $EndpointSource `
@@ -96,13 +112,13 @@ Assert-Match `
 
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern "finally\s*\{.*?if \(tempFileCreated\).*?File\.Delete\(audioPath\)" `
-    -Label "Windows /transcribe deletes per-request base64 temp files on every exit"
+    -Pattern "finally\s*\{.*?readLock\.Dispose\(\);.*?File\.Delete\(audioPath\)" `
+    -Label "Windows /transcribe deletes per-request scratch files on every exit"
 
 Assert-Match `
-    -Content $EndpointSource `
-    -Pattern "catch \(ApiInputException aiex\).*?LocalApiResponder\.Failure\(aiex\.Code, aiex\.Message, aiex\.Hint\)" `
-    -Label "Windows /transcribe returns structured Local API failures for resolver input errors"
+    -Content $SharedServerSource `
+    -Pattern "catch \(LocalApiFailureException failure\).*?context\.Response\.StatusCode = failure\.HttpStatus;.*?WriteAsync\(failure\.Json\)" `
+    -Label "the shared server writes the backend's structured Local API failures verbatim"
 
 Assert-Match `
     -Content $EndpointSource `
@@ -116,7 +132,7 @@ Assert-Match `
 
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern "default:\s*throw new ApiInputException\(\s*LocalApiErrorCode\.EngineUnavailable,\s*\$`"Unknown engine '\{engine\}'`"\)" `
+    -Pattern "default:\s*throw WindowsLocalApiFailure\.Business\(\s*LocalApiErrorCode\.EngineUnavailable,\s*\$`"Unknown engine '\{engine\}'`"\)" `
     -Label "Windows /transcribe rejects unknown engines instead of falling back"
 
 Assert-Match `
@@ -142,18 +158,18 @@ Assert-Match `
 
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern "ctx\.RequestAborted" `
+    -Pattern "orchestrator\.TranscribeAsync\(.*?cancellationToken: cancellationToken," `
     -Label "Windows /transcribe passes HTTP cancellation into transcription"
 
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern "ApplicationContext\?\.ToApplicationContext\(\)" `
+    -Pattern "LocalApiApplicationContext\.From\(upload\.ApplicationContext\)\?\.ToApplicationContext\(\)" `
     -Label "Windows /transcribe accepts caller-supplied app context without foreground capture"
 
 Assert-Match `
-    -Content $TypesSource `
-    -Pattern "class TranscribeRequest.*?JsonPropertyName\(`"file`"\).*?JsonPropertyName\(`"audio_base64`"\).*?JsonPropertyName\(`"mime_type`"\).*?JsonPropertyName\(`"mode_id`"\).*?JsonPropertyName\(`"engine`"\).*?JsonPropertyName\(`"model`"\).*?JsonPropertyName\(`"language`"\).*?JsonPropertyName\(`"applicationContext`"\)" `
-    -Label "Windows /transcribe request fields match the public Local API surface"
+    -Content $SharedServerSource `
+    -Pattern "record TranscribeJsonRequest\(\s*string\? File,.*?JsonPropertyName\(`"audio_base64`"\).*?JsonPropertyName\(`"mime_type`"\).*?JsonPropertyName\(`"mode_id`"\).*?string\? Engine,.*?string\? Model,.*?string\? Language,.*?LocalApiApplicationContext\? ApplicationContext\)" `
+    -Label "the /transcribe request fields match the public Local API surface"
 
 Assert-Match `
     -Content $ResponderSource `

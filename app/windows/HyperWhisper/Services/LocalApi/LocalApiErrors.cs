@@ -1,13 +1,13 @@
 using System.Text.Json;
 using HyperWhisper.Models;
-using Microsoft.AspNetCore.Http;
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services.LocalApi;
 
 /// <summary>
-/// Shapes successful and failure JSON responses for the Local API. Mirrors
-/// the macOS LocalAPIResponder so wire shapes stay 1:1 across platforms.
+/// What is left of this head's Local API responder since the shared server
+/// writes every envelope (issue #356 item 6): the JSON options a Windows mode
+/// and the discovery file are written with, and the transcription-error table.
 /// </summary>
 internal static class LocalApiResponder
 {
@@ -17,64 +17,6 @@ internal static class LocalApiResponder
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
-
-    /// <summary>200 JSON with the given payload.</summary>
-    public static IResult Ok<T>(T payload)
-    {
-        return Results.Json(payload, JsonOptions, contentType: "application/json; charset=utf-8", statusCode: 200);
-    }
-
-    /// <summary>
-    /// `{ok:false, error:{...}}` business-failure envelope returned with HTTP
-    /// 200 by design — MCP wrappers can't surface error text from an empty 500.
-    /// </summary>
-    public static IResult Failure(string code, string message, string? hint = null)
-    {
-        var envelope = new ApiFailureEnvelope
-        {
-            Error = new ApiError { Code = code, Message = message, Hint = hint }
-        };
-        return Results.Json(envelope, JsonOptions, contentType: "application/json; charset=utf-8", statusCode: 200);
-    }
-
-    /// <summary>Genuine protocol failure (malformed JSON, bad path, etc.).</summary>
-    /// <summary>
-    /// A failure <c>hw-localapi</c> already decided — status, code, message and
-    /// hint all come from the crate (issue #356).
-    /// </summary>
-    /// <remarks>
-    /// The crate also encodes the whole envelope as JSON, but this head writes
-    /// its own <see cref="ApiFailureEnvelope"/> so the response goes out under
-    /// the same <see cref="JsonOptions"/> as every other response on this
-    /// server. The parts that must not drift — which of the closed fourteen,
-    /// which status, and the exact wording — are the crate's.
-    /// </remarks>
-    public static IResult Shared(HwLocalApiFailure failure)
-    {
-        ArgumentNullException.ThrowIfNull(failure);
-        var code = HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(failure.code);
-        return failure.httpStatus == 400
-            ? BadRequestWithCode(code, failure.message, failure.hint)
-            : Failure(code, failure.message, failure.hint);
-    }
-
-    private static IResult BadRequestWithCode(string code, string message, string? hint)
-    {
-        var envelope = new ApiFailureEnvelope
-        {
-            Error = new ApiError { Code = code, Message = message, Hint = hint }
-        };
-        return Results.Json(envelope, JsonOptions, contentType: "application/json; charset=utf-8", statusCode: 400);
-    }
-
-    public static IResult BadRequest(string message, string? hint = null)
-    {
-        var envelope = new ApiFailureEnvelope
-        {
-            Error = new ApiError { Code = LocalApiErrorCode.InvalidRequest, Message = message, Hint = hint }
-        };
-        return Results.Json(envelope, JsonOptions, contentType: "application/json; charset=utf-8", statusCode: 400);
-    }
 
     /// <summary>
     /// Translate a <see cref="TranscriptionException"/> into the wire-level
@@ -202,19 +144,4 @@ internal static class LocalApiResponder
             "Add your account key in Settings → HyperWhisper Cloud.",
         _ => null,
     };
-
-    /// <summary>Missing or invalid bearer token.</summary>
-    public static IResult Unauthorized()
-    {
-        var envelope = new ApiFailureEnvelope
-        {
-            Error = new ApiError
-            {
-                Code = LocalApiErrorCode.InvalidRequest,
-                Message = "Missing or invalid bearer token",
-                Hint = @"Send Authorization: Bearer <token>; the token lives in %LOCALAPPDATA%\HyperWhisper\local-api.json."
-            }
-        };
-        return Results.Json(envelope, JsonOptions, contentType: "application/json; charset=utf-8", statusCode: 401);
-    }
 }

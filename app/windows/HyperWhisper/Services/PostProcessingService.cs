@@ -134,7 +134,7 @@ public class PostProcessingService : IDisposable
         // Rejecting the result instead would throw away perfectly good
         // post-processed text over a label, and `AnyPartialFailure` already covers
         // a genuinely broken mix. (`resolvedProvider` keeps first-non-null: `""`
-        // there would read as "nothing ran" to `PostProcessEndpoints.ResponseLabels`,
+        // there would read as "nothing ran" to `WindowsLocalApiBackend.ResponseLabels`,
         // and segments that differ by provider differ by model too, so the model
         // field already carries the warning.)
         string? resolvedProvider = null;
@@ -286,7 +286,7 @@ public class PostProcessingService : IDisposable
                 // after a reroute. Reporting it here would make `model` speak two
                 // vocabularies — a catalog model id for BYOK/local/custom runs, a
                 // backend display label for hosted ones — and a client that feeds
-                // `model` back into a mode (`ModesEndpoints` takes it unvalidated)
+                // `model` back into a mode (the Local API `/modes` backend takes it unvalidated)
                 // would write an id `LanguageModelInfo.GetById` cannot resolve.
                 // Until the backend exposes the served MODEL ID separately, a
                 // backend-side reroute stays invisible here; `openapi.yaml` says so.
