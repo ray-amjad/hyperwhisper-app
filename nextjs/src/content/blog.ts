@@ -87,6 +87,7 @@ export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   // HTML is covered too (#2009). It runs first, so the lazy-load attributes
   // added below are never stripped.
   const post = { ...stored, html: sanitizeBlogHtml(stored.html) };
+
   // Only the post being shown needs its stored body rewritten (#919).
   return { ...post, html: lazyLoadBodyImages(post.html) };
 }
