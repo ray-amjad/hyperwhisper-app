@@ -858,9 +858,10 @@ export default function PrivacyPolicyPage() {
         page address and title, the referrer, your browser user agent, your
         screen and window size, your browser language, your time zone, and
         your network type. It keeps a random identifier in your
-        browser&apos;s local storage so that it can link your visits.
-        Mintlify receives your IP address. The docs pages have no access to
-        your audio, your transcripts, your account, or the desktop app.
+        browser&apos;s local storage so that it can link your visits, and it
+        sends a session identifier with each page view. Mintlify receives
+        your IP address. The docs pages have no access to your audio, your
+        transcripts, or the desktop app.
       </p>
 
       <h2>Children&apos;s Privacy</h2>
