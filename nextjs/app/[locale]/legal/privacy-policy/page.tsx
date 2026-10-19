@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 18, 2026
+        Last Updated: October 19, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -844,6 +844,25 @@ export default function PrivacyPolicyPage() {
         cookies or local storage. The widget has no access to your audio, your
         transcripts, or the desktop app.
       </p>
+      <p>
+        Our documentation at hyperwhisper.com/docs is hosted by{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://www.mintlify.com/legal/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Mintlify
+        </a>
+        . When you read a docs page, Mintlify records the page view: the
+        page address and title, the referrer, your browser user agent, your
+        screen and window size, your browser language, your time zone, and
+        your network type. It keeps a random identifier in your
+        browser&apos;s local storage so that it can link your visits, and it
+        sends a session identifier with each page view. Mintlify receives
+        your IP address. The docs pages have no access to your audio, your
+        transcripts, or the desktop app.
+      </p>
 
       <h2>Children&apos;s Privacy</h2>
       <p>
@@ -932,7 +951,9 @@ export default function PrivacyPolicyPage() {
         for details. Where required, appropriate safeguards are used by those
         providers, including Upstash (for example, adequacy decisions,
         Standard Contractual Clauses, or equivalent mechanisms). The AgentStack support chat widget described above is
-        served from the United States.
+        served from the United States. Mintlify, which hosts our
+        documentation as described above, may process the docs page views it
+        records in the United States.
       </p>
 
       <h2>Changes to This Policy</h2>
