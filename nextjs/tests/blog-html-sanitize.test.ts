@@ -65,7 +65,7 @@ const NORMAL_ARTICLE = [
   "<ul><li>One</li><li>Two</li></ul><ol><li>First</li></ol>",
   "<blockquote><p>Quoted</p></blockquote>",
   "<pre><code>npm install</code></pre>",
-  '<table><thead><tr><th scope="col">Model</th><th>Speed</th></tr></thead><tbody><tr><td>Parakeet</td><td colspan="2">Fast</td></tr></tbody></table>',
+  '<table><thead><tr><th scope="col">Model</th><th align="right">Speed</th></tr></thead><tbody><tr><td>Parakeet</td><td colspan="2" align="right">Fast</td></tr></tbody></table>',
   '<figure><img src="https://cdnimg.co/a/schedule.jpg" alt="A flow chart" width="800" height="450" /><figcaption>Caption</figcaption></figure>',
   '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" width="560" height="315" title="YouTube video player" allow="accelerometer; encrypted-media" allowfullscreen></iframe>',
   '<iframe src="https://player.vimeo.com/video/76979871" width="640" height="360"></iframe>',
