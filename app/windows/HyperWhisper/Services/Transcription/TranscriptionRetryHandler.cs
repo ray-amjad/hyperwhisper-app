@@ -122,10 +122,17 @@ public class TranscriptionRetryHandler : IDisposable
                     : _localTranscriptionService;
             }
 
+            // An on-device Whisper retry gets the vocabulary a recording gets, so it
+            // keeps its prompt on a retry (#1564). A cloud retry and a Parakeet-family
+            // retry (its vocabulary pass, STEP 2b) still get none, as before.
+            var vocabulary = localProvider is not null and not ILocalVocabularyCorrection
+                ? VocabularyService.Instance.GetVocabularyWords(100)
+                : null;
+
             var result = await _orchestrator.TranscribeAsync(
                 transcript.AudioFilePath!,
                 mode,
-                vocabulary: null,
+                vocabulary: vocabulary,
                 localTranscriptionProvider: localProvider,
                 applicationContext: null,
                 cancellationToken: cancellationToken);

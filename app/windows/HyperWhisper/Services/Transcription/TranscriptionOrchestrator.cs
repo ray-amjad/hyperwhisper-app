@@ -231,7 +231,9 @@ public class TranscriptionOrchestrator : IDisposable
         }
         else
         {
-            (rawText, transcriptionProvider, diagnostics) = await TranscribeLocalAsync(audioPath, language, localTranscriptionProvider, cancellationToken);
+            // The same vocabulary the cloud branch gets. On-device Whisper uses it as
+            // its initial prompt for audio of up to 30 s (#1564).
+            (rawText, transcriptionProvider, diagnostics) = await TranscribeLocalAsync(audioPath, language, vocabulary, localTranscriptionProvider, cancellationToken);
         }
 
         // STEP 2: Check for empty result
@@ -485,6 +487,7 @@ public class TranscriptionOrchestrator : IDisposable
     private async Task<(string text, string provider, TranscriptionProviderDiagnostics? diagnostics)> TranscribeLocalAsync(
         string audioPath,
         string? language,
+        IReadOnlyList<string>? vocabulary,
         ITranscriptionProvider? provider,
         CancellationToken cancellationToken)
     {
@@ -512,7 +515,11 @@ public class TranscriptionOrchestrator : IDisposable
         LoggingService.LogPerformanceMarker("TranscriptionOrchestrator", "Local transcription");
 
         var attemptSw = System.Diagnostics.Stopwatch.StartNew();
-        var result = await provider.TranscribeAsync(audioPath, language, cancellationToken: cancellationToken);
+        // An engine with its own vocabulary pass (the Parakeet family, STEP 2b)
+        // takes the vocabulary there, not in the decode, so it still gets none
+        // here, exactly as before. Whisper gets it as its initial prompt (#1564).
+        var decodeVocabulary = provider is ILocalVocabularyCorrection ? null : vocabulary;
+        var result = await provider.TranscribeAsync(audioPath, language, decodeVocabulary, cancellationToken);
         attemptSw.Stop();
 
         // A local engine may expose its own record; take it when it does, so the
