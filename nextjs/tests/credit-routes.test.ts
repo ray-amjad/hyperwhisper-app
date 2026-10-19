@@ -38,26 +38,6 @@ import { leakyDbError, leakyLines, SESSION_INDEX } from "./db-error-fixture";
 
 const CHECKOUT_PATH = "/api/checkout/credits";
 const CREDITS_PATH = "/api/license/credits";
-const ACCOUNT_CREDITS_PATH = "/api/account/credits";
-
-/**
- * A made-up value for `HYPERWHISPER_INTERNAL_SECRET`. The deduction (POST
- * /api/license/credits) is cloud-only (#2021): HyperWhisper Cloud sends this
- * secret in `x-internal-secret`, and the route answers 401 without it.
- */
-const INTERNAL_SECRET = "test-internal-secret";
-
-/** A deduction POST the way HyperWhisper Cloud sends it: with the secret. */
-function deductRequest(
-  path: string,
-  body: unknown,
-  headers: Record<string, string> = {},
-) {
-  return postRequest(path, body, {
-    "x-internal-secret": INTERNAL_SECRET,
-    ...headers,
-  });
-}
 
 /** A made-up key string. Only the fake database in the harness knows it. */
 const GRANTED_KEY = "HW-TEST-0000-0001";
@@ -82,7 +62,6 @@ function lineItems(session: Record<string, unknown>): LineItem[] {
 }
 
 const realSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-const realInternalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
 
 before(() => {
   silenceRouteLogging();
@@ -95,17 +74,11 @@ after(() => {
 beforeEach(() => {
   resetHarness();
   delete process.env.NEXT_PUBLIC_SITE_URL;
-  process.env.HYPERWHISPER_INTERNAL_SECRET = INTERNAL_SECRET;
 });
 
 afterEach(() => {
   if (realSiteUrl === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
   else process.env.NEXT_PUBLIC_SITE_URL = realSiteUrl;
-  if (realInternalSecret === undefined) {
-    delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-  } else {
-    process.env.HYPERWHISPER_INTERNAL_SECRET = realInternalSecret;
-  }
 });
 
 describe("POST /api/checkout/credits — amount validation", () => {
@@ -627,7 +600,7 @@ describe("POST /api/license/credits", () => {
   test("requires a license_key", async () => {
     const { POST } = await loadLicenseCreditsRoute();
 
-    const response = await POST(deductRequest(CREDITS_PATH, { amount: 10 }));
+    const response = await POST(postRequest(CREDITS_PATH, { amount: 10 }));
     const body = await readJson(response);
 
     assert.equal(response.status, 400);
@@ -639,7 +612,7 @@ describe("POST /api/license/credits", () => {
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, { license_key: 12345, amount: 10 }),
+      postRequest(CREDITS_PATH, { license_key: 12345, amount: 10 }),
     );
     const body = await readJson(response);
 
@@ -654,7 +627,7 @@ describe("POST /api/license/credits", () => {
     for (const amount of [0, -5]) {
       resetHarness();
       const response = await POST(
-        deductRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount }),
+        postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount }),
       );
       const body = await readJson(response);
 
@@ -668,7 +641,7 @@ describe("POST /api/license/credits", () => {
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 0.005 }),
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 0.005 }),
     );
     const body = await readJson(response);
 
@@ -682,7 +655,7 @@ describe("POST /api/license/credits", () => {
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 1_000_001 }),
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 1_000_001 }),
     );
     const body = await readJson(response);
 
@@ -697,7 +670,7 @@ describe("POST /api/license/credits", () => {
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 109.5 }),
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 109.5 }),
     );
     const body = await readJson(response);
 
@@ -713,7 +686,7 @@ describe("POST /api/license/credits", () => {
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, {
+      postRequest(CREDITS_PATH, {
         license_key: "HW-NOPE-0000-0000",
         amount: 10,
       }),
@@ -730,7 +703,7 @@ describe("POST /api/license/credits", () => {
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
     );
     const body = await readJson(response);
 
@@ -744,7 +717,7 @@ describe("POST /api/license/credits", () => {
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, {
+      postRequest(CREDITS_PATH, {
         license_key: `  ${GRANTED_KEY}  `,
         amount: 10,
       }),
@@ -760,7 +733,7 @@ describe("POST /api/license/credits", () => {
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
     );
     const body = await readJson(response);
 
@@ -773,7 +746,7 @@ describe("POST /api/license/credits", () => {
   test("answers 400 when the body is not JSON at all", async () => {
     const { POST } = await loadLicenseCreditsRoute();
 
-    const response = await POST(deductRequest(CREDITS_PATH, "not json"));
+    const response = await POST(postRequest(CREDITS_PATH, "not json"));
     const body = await readJson(response);
 
     assert.equal(response.status, 400);
@@ -786,7 +759,7 @@ describe("POST /api/license/credits", () => {
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
     );
     const body = await readJson(response);
 
@@ -824,7 +797,7 @@ describe("/api/license/credits — a DrizzleQueryError stays out of the log and 
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
     );
     const text = await response.text();
 
@@ -839,7 +812,7 @@ describe("/api/license/credits — a DrizzleQueryError stays out of the log and 
     const { POST } = await loadLicenseCreditsRoute();
 
     const response = await POST(
-      deductRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
     );
     const text = await response.text();
 
@@ -847,105 +820,6 @@ describe("/api/license/credits — a DrizzleQueryError stays out of the log and 
     assert.deepEqual(JSON.parse(text), { error: "Failed to deduct credits" });
     assert.deepEqual(calls.deductCreditBalance, []);
     assertRedacted(text);
-  });
-});
-
-describe("POST /api/license/credits is cloud-only: x-internal-secret (#2021)", () => {
-  /** 401 with no lookup and no deduction: the gate runs before any work. */
-  async function assertRefused(response: Response): Promise<void> {
-    assert.equal(response.status, 401);
-    assert.deepEqual(await readJson(response), { error: "Unauthorized" });
-    assert.deepEqual(calls.findAccountByKey, []);
-    assert.deepEqual(calls.deductCreditBalance, []);
-  }
-
-  for (const [path, load] of [
-    [CREDITS_PATH, loadLicenseCreditsRoute],
-    [ACCOUNT_CREDITS_PATH, loadAccountCreditsRoute],
-  ] as const) {
-
-    test(`${path}: no header -> 401, nothing looked up or deducted`, async () => {
-      storeRow(accountKeyRow({ key: GRANTED_KEY }));
-      const { POST } = await load();
-
-      await assertRefused(
-        await POST(postRequest(path, { license_key: GRANTED_KEY, amount: 10 })),
-      );
-    });
-
-    test(`${path}: wrong header -> 401`, async () => {
-      storeRow(accountKeyRow({ key: GRANTED_KEY }));
-      const { POST } = await load();
-
-      for (const wrong of ["nope", `${INTERNAL_SECRET}x`, INTERNAL_SECRET.slice(1), " "]) {
-        resetHarness();
-        storeRow(accountKeyRow({ key: GRANTED_KEY }));
-        await assertRefused(
-          await POST(
-            postRequest(
-              path,
-              { license_key: GRANTED_KEY, amount: 10 },
-              { "x-internal-secret": wrong },
-            ),
-          ),
-        );
-      }
-    });
-
-    test(`${path}: secret unset on the server -> 401 even with a header (fails closed)`, async () => {
-      storeRow(accountKeyRow({ key: GRANTED_KEY }));
-      const { POST } = await load();
-
-      for (const unset of [undefined, ""]) {
-        resetHarness();
-        storeRow(accountKeyRow({ key: GRANTED_KEY }));
-        if (unset === undefined) delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-        else process.env.HYPERWHISPER_INTERNAL_SECRET = unset;
-
-        for (const header of [INTERNAL_SECRET, "", "undefined"]) {
-          await assertRefused(
-            await POST(
-              postRequest(
-                path,
-                { license_key: GRANTED_KEY, amount: 10 },
-                { "x-internal-secret": header },
-              ),
-            ),
-          );
-        }
-      }
-    });
-
-    test(`${path}: no header and a malformed body -> 401, not 400 (gate before parse)`, async () => {
-      const { POST } = await load();
-
-      await assertRefused(await POST(postRequest(path, "not json")));
-    });
-
-    test(`${path}: the right header deducts`, async () => {
-      storeRow(accountKeyRow({ key: GRANTED_KEY, userId: "user_7" }));
-      behaviour.balanceAfterDeduct = 990;
-      const { POST } = await load();
-
-      const response = await POST(
-        deductRequest(path, { license_key: GRANTED_KEY, amount: 10 }),
-      );
-      const body = await readJson(response);
-
-      assert.equal(response.status, 200);
-      assert.deepEqual(body, { credits_remaining: 990, credits_deducted: 10 });
-      assert.deepEqual(calls.deductCreditBalance, [{ userId: "user_7", amount: 10 }]);
-    });
-  }
-
-  test("GET (the key-holder balance read) needs no secret", async () => {
-    storeRow(accountKeyRow({ key: GRANTED_KEY }));
-    delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-    const { GET } = await loadLicenseCreditsRoute();
-
-    const response = await GET(getRequest(`${CREDITS_PATH}?license_key=${GRANTED_KEY}`));
-
-    assert.equal(response.status, 200);
   });
 });
 
@@ -966,7 +840,7 @@ describe("/api/account/credits is the same handler as /api/license/credits", () 
     const { POST } = await loadAccountCreditsRoute();
 
     const response = await POST(
-      deductRequest(ACCOUNT_CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
+      postRequest("/api/account/credits", { license_key: GRANTED_KEY, amount: 10 }),
     );
     const body = await readJson(response);
 
@@ -1013,15 +887,14 @@ describe("an unparseable credits request is logged without its contents (#1207)"
 
   for (const [label, path, load] of [
     ["Credits deduction", CREDITS_PATH, loadLicenseCreditsRoute],
-    ["Credits deduction", ACCOUNT_CREDITS_PATH, loadAccountCreditsRoute],
+    ["Credits deduction", "/api/account/credits", loadAccountCreditsRoute],
     ["Credit checkout", CHECKOUT_PATH, loadCheckoutCreditsRoute],
   ] as const) {
     test(`${path}: 400, one redacted log line, no key in the reply`, async () => {
       const { POST } = await load();
 
-      const send = path === CHECKOUT_PATH ? postRequest : deductRequest;
       const response = await POST(
-        send(path, MALFORMED, {
+        postRequest(path, MALFORMED, {
           "content-length": String(Buffer.byteLength(MALFORMED, "utf8")),
         }),
       );

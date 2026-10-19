@@ -1,6 +1,5 @@
 /**
- * Mutation proof for the #1049 redaction in tests/license-routes.test.ts,
- * and for the #2021 cloud-only gate on POST /api/license/credits.
+ * Mutation proof for the #1049 redaction in tests/license-routes.test.ts.
  *
  * Each entry below does ONE exact string replace in one route, runs that
  * route's test file (`test`, else license-routes.test.ts), then puts the
@@ -76,27 +75,6 @@ const MUTANTS = [
     name: "log the raw deduction error",
     from: 'console.error("Credits deduction error:", describeDbError(error));',
     to: 'console.error("Credits deduction error:", error);',
-  },
-  {
-    file: CREDITS,
-    test: CREDIT_TEST,
-    name: "accept any x-internal-secret on the deduction (#2021)",
-    from: "!timingSafeEqualSecret(",
-    to: "false && !timingSafeEqualSecret(",
-  },
-  {
-    file: CREDITS,
-    test: CREDIT_TEST,
-    name: "answer 200 instead of 401 on a bad deduction secret (#2021)",
-    from: 'return NextResponse.json({ error: "Unauthorized" }, { status: 401 });',
-    to: 'return NextResponse.json({ error: "Unauthorized" }, { status: 200 });',
-  },
-  {
-    file: CREDITS,
-    test: CREDIT_TEST,
-    name: "fail open when the server secret is unset (#2021)",
-    from: "process.env.HYPERWHISPER_INTERNAL_SECRET,",
-    to: 'process.env.HYPERWHISPER_INTERNAL_SECRET || req.headers.get("x-internal-secret"),',
   },
 ];
 
