@@ -3186,6 +3186,11 @@ static Task XdgAutostart() => WithTemporaryDirectory(directory =>
     Assert.True(!File.Exists(path));
     Assert.True(!File.Exists(legacy));
     Assert.True(!service.IsEnabled().Value);
+    // An entry the desktop's own startup tool made (a copy of the .deb launcher) survives the
+    // Disable that startup runs while the switch is off.
+    File.WriteAllText(path, "[Desktop Entry]\nType=Application\nExec=/usr/bin/hyperwhisper\nX-GNOME-Autostart-enabled=true\n");
+    Assert.Success(service.Disable());
+    Assert.True(File.Exists(path));
     Assert.Equal("/usr/bin/hyperwhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => true));
     Assert.Equal("/usr/lib/hyperwhisper/HyperWhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => false));
     Assert.Equal("/opt/hw/HyperWhisper", LinuxAutostartService.LaunchPath("/opt/hw/HyperWhisper", _ => true));

@@ -73,6 +73,7 @@ public sealed class LinuxSingleInstanceCoordinator : ISingleInstanceCoordinator
 
 public sealed class LinuxAutostartService : IAutostartService
 {
+    private const string OwnedMarker = "X-HyperWhisper-Autostart=true";
     private readonly string _path;
     private readonly string _legacyPath;
     private readonly string _executable;
@@ -108,15 +109,23 @@ public sealed class LinuxAutostartService : IAutostartService
         if (!Path.IsPathFullyQualified(_executable) || !File.Exists(_executable)) return PlatformResult.Failure("autostart.executable_missing", "The application executable is unavailable.");
         var quoted = _executable.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)
             .Replace("`", "\\`", StringComparison.Ordinal).Replace("$", "\\$", StringComparison.Ordinal);
-        var content = $"[Desktop Entry]\nType=Application\nName=HyperWhisper\nExec=\"{quoted}\"\nTerminal=false\nX-GNOME-Autostart-enabled=true\n";
+        var content = $"[Desktop Entry]\nType=Application\nName=HyperWhisper\nExec=\"{quoted}\"\nTerminal=false\nX-GNOME-Autostart-enabled=true\n{OwnedMarker}\n";
         var written = _files.WriteAllTextAtomically(_path, content);
         RemoveLegacyEntry();
         return written;
     }
+    // Startup calls Disable on every launch while the switch is off. GNOME Tweaks and KDE's
+    // Autostart page copy the .deb's launcher to this same path, world-readable, so delete only
+    // an entry this service wrote and leave any other file (or one it cannot read) alone.
     public PlatformResult Disable()
     {
         RemoveLegacyEntry();
-        return _files.Delete(_path);
+        return IsOwnedEntry() ? _files.Delete(_path) : PlatformResult.Success();
+    }
+    private bool IsOwnedEntry()
+    {
+        try { return File.ReadAllText(_path).Contains(OwnedMarker, StringComparison.Ordinal); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { return false; }
     }
     // Best effort: no session reads the stray copy, so failing to delete it must not turn a
     // working switch into a reported failure.
