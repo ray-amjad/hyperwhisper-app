@@ -357,14 +357,21 @@ struct FileJobAskFirstTests {
         let first = try Rig.toneWAV("first.wav")
         let second = try Rig.toneWAV("second.wav")
 
-        let running = await startImport(Rig.flow(pipeline, persistence), first, mode, provider: provider, passes: 1)
+        let firstFlow = Rig.flow(pipeline, persistence)
+        let running = await startImport(firstFlow, first, mode, provider: provider, passes: 1)
         let firstPass = try #require(provider.started.first)
+        #expect(firstFlow.processingTranscriptID != nil, "the first import's row exists")
 
         let replacing = await startImport(Rig.flow(pipeline, persistence), second, mode, provider: provider, passes: 2)
         #expect(asks.asked == 1)
         #expect(await Rig.eventually { provider.cancelled == [firstPass] }, "the first job is cancelled")
         await running.value
         #expect(provider.started.count == 2, "the second job runs")
+
+        // The replaced import resolved its row through its own cancel.
+        #expect(firstFlow.processingTranscriptID == nil)
+        let failedWrite = try #require(firstFlow.pendingFailureWrite, "the cancel wrote no failed row")
+        await failedWrite.value
 
         provider.releaseAll()
         await replacing.value
