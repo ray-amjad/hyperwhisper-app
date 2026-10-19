@@ -10,6 +10,9 @@ import {
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { describeDbError } from "@/lib/shared/db-error";
+import { licenseValidateRateLimiter } from "@/lib/rate-limit";
+import { rateLimitGate } from "@/lib/rate-limit-gate";
+import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 
 /**
  * License Credits API
@@ -24,6 +27,11 @@ import { describeDbError } from "@/lib/shared/db-error";
  * SECURITY:
  * - The license key itself acts as authentication
  * - Only valid license keys can query/deduct credits
+ * - GET answers "is this key real, and what is it worth" to anyone, so it is
+ *   rate limited per IP before any DB lookup, sharing the validate/activate
+ *   budget (`licenseValidateRateLimiter`): guessing keys through either door
+ *   draws on one allowance (#2010). POST is not limited here; making it
+ *   cloud-only is #2021.
  */
 
 /**
@@ -32,6 +40,13 @@ import { describeDbError } from "@/lib/shared/db-error";
  * Get credit balance for a license key.
  */
 export async function GET(req: NextRequest) {
+  const limited = await rateLimitGate(
+    licenseValidateRateLimiter,
+    getClientIPFromHeaders(req.headers),
+    "GET /api/license/credits",
+  );
+  if (limited) return limited;
+
   const { searchParams } = new URL(req.url);
   const licenseKey = searchParams.get("license_key");
 

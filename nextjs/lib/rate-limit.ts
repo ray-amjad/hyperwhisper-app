@@ -46,3 +46,21 @@ export const latencyIngestRateLimiter = new Ratelimit({
   prefix: "ratelimit:latency-ingest",
   analytics: true,
 });
+
+/**
+ * Rate limiter for the checkout endpoints (`/api/checkout`,
+ * `/api/checkout/credits`).
+ *
+ * `/api/checkout/credits` creates a Stripe Checkout Session on every call (and
+ * may create a Stripe customer), and both routes are open to guests, so the
+ * caller's IP is the only identity there is. A buyer clicks through a handful
+ * of times at most; the ceiling only bounds a script (#2010).
+ *
+ * Limits: 10 requests per IP per minute using sliding window algorithm.
+ */
+export const checkoutRateLimiter = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(10, "1 m"),
+  prefix: "ratelimit:checkout",
+  analytics: true,
+});

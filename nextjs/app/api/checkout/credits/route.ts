@@ -5,6 +5,9 @@ import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
 import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { describeDbError, safeErrorMessage } from "@/lib/shared/db-error";
+import { checkoutRateLimiter } from "@/lib/rate-limit";
+import { rateLimitGate } from "@/lib/rate-limit-gate";
+import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
@@ -34,9 +37,19 @@ import {
  * - credit_amount: credits to grant
  * - fee_cents: the processing fee charged
  * - license_key: present ONLY when topping up an existing key (absent => mint)
+ *
+ * RATE LIMIT: per IP (`checkoutRateLimiter`), before the body is read — every
+ * call that gets through creates a Stripe Checkout Session (#2010).
  */
 
 export async function POST(req: NextRequest) {
+  const limited = await rateLimitGate(
+    checkoutRateLimiter,
+    getClientIPFromHeaders(req.headers),
+    "POST /api/checkout/credits",
+  );
+  if (limited) return limited;
+
   let body: unknown;
 
   try {
