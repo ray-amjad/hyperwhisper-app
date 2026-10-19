@@ -278,13 +278,13 @@ struct SingleInstanceLockTests {
         let body = try ProductionSource.slice(
             of: Self.lockPath,
             from: "private static func bringToFront() {",
-            to: "private static func sendReopenToSelf() {"
+            to: "static func sendReopenToSelf() {"
         )
         #expect(body.contains("makeKeyAndOrderFront"))
         #expect(body.contains("sendReopenToSelf()"))
         let send = try ProductionSource.slice(
             of: Self.lockPath,
-            from: "private static func sendReopenToSelf() {",
+            from: "static func sendReopenToSelf() {",
             to: "\n}"
         )
         #expect(send.contains("kAEReopenApplication"))

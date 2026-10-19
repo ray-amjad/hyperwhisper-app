@@ -407,7 +407,15 @@ struct MenuBarIconView: View {
         
         // Disable window resizing
         .windowResizability(.contentSize)
-        
+
+        // Never open a NEW main window for an external event (issue #656). A
+        // file opened with "Open With" / `open -a` is handled by
+        // AppDelegate.application(_:open:), which shows History in the existing
+        // window; without this SwiftUI may also route the open event to this
+        // WindowGroup and spawn a second instance of it. The app declares no URL
+        // scheme, so no other external event is meant to reach this scene.
+        .handlesExternalEvents(matching: [])
+
         // Add keyboard shortcuts for the window
         .commands {
             // Remove "New Window" item
@@ -856,6 +864,20 @@ struct MenuBarIconView: View {
         // repair for a dangling `currentModeId` — see the note there.
         Task { @MainActor in
             initializeSelectedModeLightweight()
+
+            // OPENED FILES (issue #656): files from Finder "Open With" or
+            // `open -a HyperWhisper <file>` queue in OpenedFileRouter until now.
+            // Configured here, after the selected Mode is restored in this same
+            // turn, so a cold-launch file uses the user's Mode and not the
+            // seeded default AppState starts with.
+            OpenedFileRouter.shared.configure(
+                processor: OpenedFileRouter.makeFileImportProcessor(
+                    transcriptionPipeline: transcriptionPipeline,
+                    settingsManager: settingsManager,
+                    appState: appState,
+                    licenseManager: licenseManager
+                )
+            )
         }
     }
 
