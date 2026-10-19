@@ -35,6 +35,7 @@ import { prepareTranscriptionRequest } from './transcribe-preparation';
 import { completeTranscription } from './transcribe-completion';
 import { providerChainFailureResponse } from './transcribe-failure';
 import { createTranscriptionLatencyRecorder } from './transcribe-latency';
+import { withCreditHoldScope } from '../middleware/credit-holds';
 
 // Supported providers (mirror the server-side registry in lib/stt-models.ts).
 export type Provider = SttProviderId;
@@ -44,6 +45,13 @@ export { estimateCreditsForProviderFallbacks };
 export { isLatencyOptOut };
 
 export async function transcribeRoute(c: Context) {
+  // Every exit below, an early refusal, a failed chain, a `no_speech`, a throw,
+  // releases the credit hold the preparation took, unless the completion's
+  // deduction took it over to settle (#2008).
+  return withCreditHoldScope(() => handleTranscribe(c));
+}
+
+async function handleTranscribe(c: Context) {
   const preparation = await prepareTranscriptionRequest(c);
   if (preparation instanceof Response) {
     return preparation;

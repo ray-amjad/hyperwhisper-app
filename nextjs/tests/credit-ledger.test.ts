@@ -251,6 +251,51 @@ describe("spendCreditGrantsByProvenance", () => {
   });
 });
 
+describe("deductCreditBalance shortfall log (#2008)", () => {
+  function captureWarn(): { lines: string[]; restore: () => void } {
+    const lines: string[] = [];
+    const original = console.warn;
+    console.warn = (...args: unknown[]) => { lines.push(args.map(String).join(" ")); };
+    return { lines, restore: () => { console.warn = original; } };
+  }
+
+  test("an overspend the floor swallows is logged as one credits_shortfall line, and the balance stays at zero", async () => {
+    await seedUser("u1");
+    await seedGrant({ userId: "u1", sourceId: "a", amount: 12.5 });
+    const warn = captureWarn();
+    let balance: number;
+    try {
+      balance = await L.deductCreditBalance("u1", 40);
+    } finally {
+      warn.restore();
+    }
+
+    assert.equal(balance, 0);
+    const shortfalls = warn.lines.filter((line) => line.includes("credits_shortfall"));
+    assert.equal(shortfalls.length, 1);
+    assert.deepEqual(JSON.parse(shortfalls[0]!), {
+      event: "credits_shortfall",
+      source: "license_api",
+      requestedCredits: 40,
+      deductedCredits: 12.5,
+      shortfallCredits: 27.5,
+    });
+    assert.ok(!shortfalls[0]!.includes("u1"), "the account is not logged");
+  });
+
+  test("a charge the grants cover logs nothing", async () => {
+    await seedUser("u1");
+    await seedGrant({ userId: "u1", sourceId: "a", amount: 10 });
+    const warn = captureWarn();
+    try {
+      assert.equal(await L.deductCreditBalance("u1", 10), 0);
+    } finally {
+      warn.restore();
+    }
+    assert.deepEqual(warn.lines.filter((line) => line.includes("credits_shortfall")), []);
+  });
+});
+
 describe("refundCreditGrant", () => {
   test("an unknown grant is not_found and reclaims nothing (#1798)", async () => {
     await seedUser("u1");

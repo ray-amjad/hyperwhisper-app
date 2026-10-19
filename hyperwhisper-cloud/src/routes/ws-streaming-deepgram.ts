@@ -13,6 +13,7 @@ import { isExplicitLanguage, splitVocabularyTerms } from '../providers/utils';
 import {
   MAX_UPSTREAM_BUFFERED_BYTES,
   createStreamingEventsFor,
+  holdCreditsFor,
   durationSecondsForLinear16AudioBytes,
   makeStreamingPreflight,
   minimumCreditsFor,
@@ -119,7 +120,10 @@ export function minimumStreamingCredits(): number {
   return minimumCreditsFor(DEEPGRAM_VENDOR);
 }
 
-export const wsStreamingPreflight = makeStreamingPreflight(minimumStreamingCredits);
+export const wsStreamingPreflight = makeStreamingPreflight(
+  minimumStreamingCredits,
+  () => holdCreditsFor(DEEPGRAM_VENDOR),
+);
 
 // Exported so the socket lifecycle (audio caps, upstream backpressure, the
 // mid-session credit cutoff, end-of-session billing) is unit-testable without

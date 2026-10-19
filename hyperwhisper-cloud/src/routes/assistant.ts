@@ -14,6 +14,7 @@ import { MAX_ASSISTANT_IMAGE_BYTES } from '../lib/constants';
 import { errorResponse, imageTooLargeResponse, CORS_HEADERS } from '../lib/responses';
 import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
+import { detachCreditHold, withCreditHoldScope } from '../middleware/credit-holds';
 import { streamAnthropicChat, type AnthropicContentBlock, type AnthropicMessage } from '../providers/anthropic';
 import {
   ASSISTANT_MAX_IMAGES,
@@ -240,6 +241,12 @@ function describeErrorCause(cause: unknown): string | undefined {
 }
 
 export async function assistantRoute(c: Context) {
+  // The credit hold `validateCredits` takes is released when this returns or
+  // throws, except once the answer is streaming: see the deduction below (#2008).
+  return withCreditHoldScope(() => handleAssistant(c));
+}
+
+async function handleAssistant(c: Context) {
   const requestId = generateRequestId();
   const startTime = performance.now();
   const clientIP = getClientIP(c);
@@ -404,6 +411,10 @@ export async function assistantRoute(c: Context) {
   // Stream the response
   const { stream, costPromise } = streamAnthropicChat(finalSystemPrompt, messages, requestId);
 
+  // The answer outlives this handler, so its hold does too: the task below
+  // settles it through `deductCredits`, or releases it when nothing is billed.
+  const streamHold = detachCreditHold(authResult.value);
+
   // Deduct credits after stream completes (fire-and-forget)
   void (async () => {
     let costUsd: number | undefined;
@@ -449,6 +460,9 @@ export async function assistantRoute(c: Context) {
         error: error instanceof Error ? error.message : String(error),
         cause: error instanceof Error ? describeErrorCause(error.cause) : undefined,
       });
+    } finally {
+      // A no-op when the deduction already settled it.
+      void streamHold?.release();
     }
   })();
 
