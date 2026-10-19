@@ -157,7 +157,7 @@ HyperWhisper Cloud gives you all 12 supported provider engines with no key. Four
 
 The Microsoft row of the Model picker gives two models. **MAI-Transcribe 2** is a public preview model and the model that the row selects first. It costs approximately 1.67 credits per audio minute and it lists 60 languages. **MAI-Transcribe 1.5** stays available at approximately 6.0 credits per minute with 42 languages. Both models are available through HyperWhisper Cloud only, and both accept custom vocabulary as a phrase list.
 
-Both models accept WAV, MP3, and FLAC files only, to a maximum of 300 MB. Read [File Transcription](/file-transcription) for the automatic conversion that macOS applies. Microsoft documents speaker diarization and word-level timestamps for MAI-Transcribe 2, but HyperWhisper does not request them. Your transcript thus contains the text only.
+Both models accept WAV, MP3, and FLAC files only, to the 128 MB upload limit of HyperWhisper Cloud. Read [File Transcription](/file-transcription) for the automatic conversion that macOS applies. Microsoft documents speaker diarization and word-level timestamps for MAI-Transcribe 2, but HyperWhisper does not request them. Your transcript thus contains the text only.
 
 ### Meta Muse Voice Transcribe 1
 
@@ -207,6 +207,7 @@ model.
 | AssemblyAI Universal-3 Pro | Universal-3.5 Pro |
 | AssemblyAI Universal-3 Pro Medical | Universal-3.5 Pro Medical |
 | ElevenLabs Scribe v1 | Scribe v2 |
+| SpaceXAI Grok Voice Transcribe 1 | Grok Voice Transcribe 2 |
 | Soniox Async v4 | Async v5 |
 | Gemini 3.1 Flash Lite Preview | Gemini 3.1 Flash Lite |
 | Gemini 2.0 Flash (Windows) | Gemini 3.6 Flash |
@@ -239,7 +240,7 @@ You can use cloud post-processing through HyperWhisper Cloud with no key, or wit
 | Provider | Bring-your-own-key needed? | Character |
 | --- | --- | --- |
 | **HyperWhisper Cloud** | No | Built-in, credit-based |
-| **OpenAI** | Yes | GPT-4.1 and GPT-5 family. Fast and accurate |
+| **OpenAI** | Yes | GPT-5 family and GPT-6 Luna. Fast and accurate |
 | **Anthropic (Claude)** | Yes | Claude Haiku and Sonnet. High-quality reasoning |
 | **Google Gemini** | Yes | Gemini Flash and Pro. Efficient and multilingual |
 | **Groq** | Yes | GPT OSS 120B, GPT OSS 20B, and Qwen 3.8 27B models |
@@ -285,7 +286,7 @@ The replacement is always a model of the same provider, except for the local Gem
 | --- | --- |
 | Mistral Nemo | Mistral Small |
 | GPT-4.1 Nano, GPT-5, GPT-5 Mini, GPT-5 Nano and GPT-5.1 (OpenAI) | GPT-5.6 Luna |
-| GPT-4.1 and GPT-5.4 Nano (OpenAI) | GPT-6 Luna |
+| GPT-4.1, GPT-4.1 Mini and GPT-5.4 Nano (OpenAI) | GPT-6 Luna |
 | Kimi K2 (Groq) | GPT OSS 120B |
 | Llama 3.3 70B (Groq and Cerebras) | GPT OSS 120B |
 | Gemma 4 31B and Llama 3.1 8B (Cerebras) | Qwen 3.8 27B |

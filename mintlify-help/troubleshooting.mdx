@@ -268,6 +268,8 @@ Grant the permission at **System Settings → Privacy & Security → Screen Reco
   <Accordion title="Insufficient disk space">
     The models are from about 39–78 MB (Whisper Tiny) to 2.9–3.1 GB (Whisper Large). The size changes with the platform. If your disk is almost full, the download fails or stops near the end.
 
+    On Windows, HyperWhisper checks the free space before a Whisper or local LLM download starts. It needs the size of the model plus 10%. If there is not enough space, the download does not start, and you see "Not enough disk space to download" with the model name, the space needed, and the space available.
+
     **Fix:** Make more disk space available. Then start the download again. You can also select a smaller model. For most users, Whisper Small gives a good balance of accuracy and size. Its size is 466–488 MB and changes with the platform.
 
     HyperWhisper stores the models at:
