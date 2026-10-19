@@ -97,7 +97,15 @@ export function parseDeepgramLiveClose(code: number, _reason: string): UpstreamE
   if (code === 1000 || code === 1005) return [];
 
   if (code === 1008) {
-    return [{ kind: 'error', message: 'Transcription service rejected the audio', terminal: true }];
+    // The audio does not match the encoding the session was opened with. The
+    // wording carries the `rejected the session setup` marker on purpose: macOS
+    // classifies on message text only (`TERMINAL_ERROR_MARKERS` in the Rust
+    // core), so without it macOS would reconnect into the same rejection.
+    return [{
+      kind: 'error',
+      message: 'Transcription service rejected the session setup: audio could not be decoded',
+      terminal: true,
+    }];
   }
 
   return [{ kind: 'error', message: 'Transcription service error', terminal: false }];

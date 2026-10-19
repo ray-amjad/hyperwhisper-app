@@ -889,7 +889,7 @@ describe('streaming socket lifecycle', () => {
       await drainPendingDeductions(2000);
 
       expect(harness.client.messagesOfType('error')).toEqual([
-        { type: 'error', message: 'Transcription service rejected the audio' },
+        { type: 'error', message: 'Transcription service rejected the session setup: audio could not be decoded' },
       ]);
       expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
       expect(licenseCharges).toHaveLength(1);
@@ -919,7 +919,7 @@ describe('streaming socket lifecycle', () => {
       expect(parseDeepgramLiveClose(1000, '')).toEqual([]);
       expect(parseDeepgramLiveClose(1005, '')).toEqual([]);
       expect(parseDeepgramLiveClose(1008, 'DATA-0000')).toEqual([
-        { kind: 'error', message: 'Transcription service rejected the audio', terminal: true },
+        { kind: 'error', message: 'Transcription service rejected the session setup: audio could not be decoded', terminal: true },
       ]);
       for (const code of [1006, 1011, 1012, 4000]) {
         expect(parseDeepgramLiveClose(code, 'NET-0001')).toEqual([
