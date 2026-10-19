@@ -5,6 +5,7 @@ import { desc } from "drizzle-orm";
 import { db } from "@/src/db";
 import { blogPosts, type BlogPostRow } from "@/src/db/schema/blog-posts";
 import { lazyLoadBodyImages } from "@/src/content/blog-html";
+import { sanitizeBlogHtml } from "@/src/content/sanitize-blog-html";
 
 const BLOG_LOCALE = "en";
 
@@ -80,8 +81,12 @@ export async function getBlogPosts(): Promise<BlogPostSummary[]> {
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   const normalizedSlug = normalizeSlug(slug);
   const posts = await readAllPosts();
-  const post = posts.find((item) => item.slug === normalizedSlug);
-  if (!post) return null;
+  const stored = posts.find((item) => item.slug === normalizedSlug);
+  if (!stored) return null;
+  // Sanitise again on read, so a row stored before the webhook sanitised its
+  // HTML is covered too (#2009). It runs first, so the lazy-load attributes
+  // added below are never stripped.
+  const post = { ...stored, html: sanitizeBlogHtml(stored.html) };
   // Only the post being shown needs its stored body rewritten (#919).
   return { ...post, html: lazyLoadBodyImages(post.html) };
 }
