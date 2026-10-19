@@ -3483,6 +3483,50 @@ internal static class Program
                 Assert(!restored["No slice"].EnableScreenOCR, "a mode with no slice at all restored with OCR ON");
             });
 
+            // #1690: with no slice to say, a mode is Cloud when `model` is "cloud" OR a
+            // cloudProvider is set. A restored Cloud mode with a blank provider stores
+            // HyperWhisper Cloud, the meaning every head gives that blank.
+            Run("backup import (#1690): a Cloud mode with no cloudProvider restores as HyperWhisper Cloud", () =>
+            {
+                const string macosBackupJson = """
+                {
+                  "schemaVersion": 2,
+                  "exportDate": "2026-10-19T00:00:00Z",
+                  "appVersion": "3.0.0",
+                  "platform": "macos",
+                  "modes": [
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1690", "name": "Cloud, no provider", "preset": "custom",
+                      "language": "en", "model": "cloud", "isDefault": true, "sortOrder": 0,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0 },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1691", "name": "Cloud, blank provider", "preset": "custom",
+                      "language": "en", "model": "cloud", "cloudProvider": "  ", "isDefault": false, "sortOrder": 1,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0 },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1692", "name": "Cloud, OpenAI", "preset": "custom",
+                      "language": "en", "model": "cloud", "cloudProvider": "openai", "isDefault": false, "sortOrder": 2,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0 },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1693", "name": "Local, no provider", "preset": "custom",
+                      "language": "en", "model": "base", "isDefault": false, "sortOrder": 3,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0 },
+                    { "id": "6f1d8a52-6b0e-4c55-9d43-0d6f0a1e1694", "name": "Windows slice cloud, no provider", "preset": "custom",
+                      "language": "en", "model": "cloud", "isDefault": false, "sortOrder": 4,
+                      "punctuation": true, "capitalization": true, "profanityFilter": false, "postProcessingMode": 0,
+                      "platformExtensions": { "windows": { "providerType": "cloud" } } }
+                  ]
+                }
+                """;
+                var backup = JsonSerializer.Deserialize<UniversalBackup>(macosBackupJson)
+                    ?? throw new InvalidOperationException("the macOS cloud-mode backup did not deserialize");
+                var restored = backup.Modes!.Select(UniversalBackupMapper.MapToMode).ToDictionary(mode => mode.Name);
+
+                foreach (var name in new[] { "Cloud, no provider", "Cloud, blank provider", "Windows slice cloud, no provider" })
+                    Assert(restored[name].ProviderType == "cloud" && restored[name].CloudProvider == "hyperwhisper",
+                        $"a Cloud mode with no cloudProvider ('{name}') restored as {restored[name].ProviderType} / '{restored[name].CloudProvider}', not cloud / hyperwhisper");
+                Assert(restored["Cloud, OpenAI"].ProviderType == "cloud" && restored["Cloud, OpenAI"].CloudProvider == "openai",
+                    $"a Cloud mode with cloudProvider openai restored as {restored["Cloud, OpenAI"].ProviderType} / '{restored["Cloud, OpenAI"].CloudProvider}'");
+                Assert(restored["Local, no provider"].ProviderType == "local" && restored["Local, no provider"].CloudProvider is null,
+                    $"a local mode with no cloudProvider restored as {restored["Local, no provider"].ProviderType} / '{restored["Local, no provider"].CloudProvider}'");
+            });
+
             // #1712: both .NET heads write a mode's vocabulary and local-engine fields
             // in their OWN slice under the same names. A Linux v2 backup restored on
             // Windows must keep them; a present windows slice stays the whole record.

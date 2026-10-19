@@ -808,6 +808,55 @@ try
         "a Windows backup with platformExtensions.windows.enableScreenOCR: true restored with OCR OFF on Linux (#1498)");
     Assert(!ocrModes[noSliceId].EnableScreenOCR, "a mode with no slice at all restored with OCR ON");
 
+    // Issue #1690: with no slice to say, a mode is Cloud when `model` is "cloud" OR a
+    // cloudProvider is set. A restored Cloud mode with a blank provider stores
+    // HyperWhisper Cloud, the meaning every head gives that blank.
+    var cloudRoot = Path.Combine(root, "cloud-mode-without-provider");
+    Directory.CreateDirectory(cloudRoot);
+    var cloudPaths = new TestPaths(cloudRoot);
+    var cloudSettings = new PortableSettingsService(new MemoryPrivateFileService(), cloudPaths);
+    Assert(cloudSettings.Load().IsSuccess, "cloud-mode settings did not initialize");
+    var cloudDatabase = new ApplicationDb(cloudPaths);
+    await cloudDatabase.MigrateAsync();
+    var cloudNoProviderId = Guid.NewGuid();
+    var cloudBlankProviderId = Guid.NewGuid();
+    var cloudOpenAiId = Guid.NewGuid();
+    var localNoProviderId = Guid.NewGuid();
+    var sliceCloudNoProviderId = Guid.NewGuid();
+    JsonObject CloudMode(Guid id, string name, int sortOrder, string model, string? provider, JsonObject? extensions = null)
+    {
+        var mode = OcrMode(id, name, sortOrder, extensions);
+        mode["model"] = model;
+        if (provider is not null) mode["cloudProvider"] = provider;
+        return mode;
+    }
+    var cloudBackup = new JsonObject
+    {
+        ["schemaVersion"] = 2,
+        ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+        ["appVersion"] = "1.0.0",
+        ["platform"] = "macos",
+        ["modes"] = new JsonArray(
+            CloudMode(cloudNoProviderId, "Cloud, no provider", 0, "cloud", null),
+            CloudMode(cloudBlankProviderId, "Cloud, blank provider", 1, "cloud", "  "),
+            CloudMode(cloudOpenAiId, "Cloud, OpenAI", 2, "cloud", "openai"),
+            CloudMode(localNoProviderId, "Local, no provider", 3, "base", null),
+            CloudMode(sliceCloudNoProviderId, "Linux slice cloud, no provider", 4, "cloud", null, new JsonObject
+            {
+                ["linux"] = new JsonObject { ["providerType"] = "cloud" },
+            })),
+    };
+    var cloudImport = await new ApplicationBackupService(cloudDatabase, cloudSettings).ImportAsync(cloudBackup.ToJsonString());
+    Assert(cloudImport.IsSuccess, $"cloud-mode backup failed to import: {cloudImport.Error?.Message}");
+    var cloudModes = (await new ModeRepository(cloudDatabase).ListAsync()).ToDictionary(item => item.Id);
+    foreach (var id in new[] { cloudNoProviderId, cloudBlankProviderId, sliceCloudNoProviderId })
+        Assert(cloudModes[id].ProviderType == "cloud" && cloudModes[id].CloudProvider == "hyperwhisper",
+            $"a Cloud mode with no cloudProvider ('{cloudModes[id].Name}') restored as {cloudModes[id].ProviderType} / '{cloudModes[id].CloudProvider}', not cloud / hyperwhisper (#1690)");
+    Assert(cloudModes[cloudOpenAiId].ProviderType == "cloud" && cloudModes[cloudOpenAiId].CloudProvider == "openai",
+        $"a Cloud mode with cloudProvider openai restored as {cloudModes[cloudOpenAiId].ProviderType} / '{cloudModes[cloudOpenAiId].CloudProvider}' (#1690)");
+    Assert(cloudModes[localNoProviderId].ProviderType == "local" && cloudModes[localNoProviderId].CloudProvider is null,
+        $"a local mode with no cloudProvider restored as {cloudModes[localNoProviderId].ProviderType} / '{cloudModes[localNoProviderId].CloudProvider}' (#1690)");
+
     // Issue #1712: both .NET heads write a mode's vocabulary and local-engine fields
     // in their OWN slice under the same names. A Windows backup restored on Linux
     // must keep them; a present linux slice stays the whole record of them.
