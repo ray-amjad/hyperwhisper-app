@@ -323,7 +323,11 @@ public class HistoryService
                 databaseLocked = IsDatabaseBusy(ex);
                 LoggingService.Error(
                     $"HistoryService: Failed to create transcript {transcript.Id} ({(databaseLocked ? "database locked" : "write refused")}); kept it to save later", ex);
-                Pending.Upsert(transcript);
+                if (!Pending.Upsert(transcript))
+                {
+                    LoggingService.Error(
+                        $"HistoryService: Transcript {transcript.Id} is held in memory only (pending-history.json could not be written); it is lost if the app exits before the database takes it");
+                }
                 savedLater = true;
             }
         }
@@ -379,9 +383,12 @@ public class HistoryService
     }
 
     /// <summary>
-    /// Inserts every pending row (or overwrites it, should an earlier flush have committed
-    /// without clearing the file) in one SaveChanges. Never throws: a refusal keeps the
+    /// Inserts every pending row in one SaveChanges. Never throws: a refusal keeps the
     /// rows for the next try. Caller holds <see cref="_lock"/>.
+    /// A pending id that is already a database row is dropped, the database wins: the
+    /// store only ever takes rows that were never inserted, so such a record is a stale
+    /// file an earlier flush committed but could not delete, and the row may since have
+    /// been completed or edited. Overwriting it would lose the user's text.
     /// </summary>
     private int FlushPendingLocked()
     {
@@ -392,19 +399,19 @@ public class HistoryService
             var records = Pending.GetAll();
             var ids = records.Select(r => r.Id).ToList();
             using var context = new HyperWhisperDbContext();
-            var existing = context.Transcripts.Where(t => ids.Contains(t.Id)).ToDictionary(t => t.Id);
-            foreach (var record in records)
+            var existing = context.Transcripts.AsNoTracking()
+                .Where(t => ids.Contains(t.Id)).Select(t => t.Id).ToHashSet();
+            var toAdd = records.Where(r => !existing.Contains(r.Id)).ToList();
+            if (existing.Count > 0)
             {
-                if (existing.TryGetValue(record.Id, out var row))
-                    context.Entry(row).CurrentValues.SetValues(record);
-                else
-                    context.Transcripts.Add(record);
+                LoggingService.Warn($"HistoryService: Dropped {existing.Count} stale pending transcript(s) already in History; kept the database rows");
             }
 
+            context.Transcripts.AddRange(toAdd);
             context.SaveChanges();
             Pending.Remove(ids);
-            LoggingService.Info($"HistoryService: Saved {records.Count} pending transcript(s) to History");
-            return records.Count;
+            LoggingService.Info($"HistoryService: Saved {toAdd.Count} pending transcript(s) to History");
+            return toAdd.Count;
         }
         catch (Exception ex)
         {

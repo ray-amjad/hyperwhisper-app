@@ -21100,6 +21100,112 @@ internal static class Program
                 }
             });
 
+            Run("history: a stale pending file whose row is already in History leaves the Completed row alone — issue #1589", () =>
+            {
+                // An earlier flush committed the row but could not delete pending-history.json.
+                // The next launch reads the stale record back (and marks it Interrupted); the
+                // flush used to SetValues it over the Completed row, losing the user's text.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var history = HistoryService.Instance;
+                var storePath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy1589-{Guid.NewGuid():N}.json");
+                var row = history.CreateProcessingTranscript(2.0, "percy1589stale", audioFilePath: null);
+                var stale = PendingHistoryStore.Clone(row);
+                row.Status = TranscriptStatus.Completed;
+                row.Text = "percy1589 the finished text";
+                history.UpdateTranscript(row);
+                new PendingHistoryStore(storePath).Upsert(stale);
+
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+                try
+                {
+                    var flushed = history.FlushPendingTranscripts();
+                    using var check = new HyperWhisperDbContext();
+                    var saved = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == row.Id);
+                    Assert(saved?.Status == TranscriptStatus.Completed && saved.Text == "percy1589 the finished text",
+                        $"the History row became {saved?.Status.ToString() ?? "missing"} \"{saved?.Text}\"; the stale record overwrote the Completed row");
+                    Assert(flushed == 0, $"the flush reported {flushed} row(s) saved; the stale record must be dropped");
+                    Assert(history.PendingTranscriptCount == 0, "the stale pending record was kept");
+                    Assert(!File.Exists(storePath), "the stale pending file is still there");
+                }
+                finally
+                {
+                    history.ReplacePendingStoreForTests(previous);
+                    history.DeleteTranscript(row.Id);
+                    try { File.Delete(storePath); } catch { }
+                }
+            });
+
+            Run("history: a pending file that cannot be written does not throw, retries and the row still lands from memory — issue #1589", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                string dbPath;
+                using (var probe = new HyperWhisperDbContext())
+                {
+                    dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                        probe.Database.GetConnectionString()).DataSource);
+                }
+                Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+                    $"the database {dbPath} is not under the suite's temp profile; refusing to change it");
+
+                void Exec(string sql)
+                {
+                    using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+                    conn.Open();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = sql;
+                    cmd.ExecuteNonQuery();
+                }
+
+                var history = HistoryService.Instance;
+                // A directory where the file should be: every write of the file fails.
+                var storePath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy1589-{Guid.NewGuid():N}.json");
+                Directory.CreateDirectory(storePath);
+                Assert(!new PendingHistoryStore(storePath).Upsert(new Transcript { Id = Guid.NewGuid(), Text = "x" }),
+                    "Upsert reported success although the pending file could not be written");
+
+                Guid? keptId = null;
+                Transcript? other = null;
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+                Exec("CREATE TRIGGER IF NOT EXISTS percy1589_poison BEFORE INSERT ON Transcripts " +
+                     "WHEN NEW.Mode = 'percy1589unsaved' BEGIN SELECT RAISE(ABORT, 'percy1589 poison row'); END;");
+                var triggerDropped = false;
+                try
+                {
+                    var kept = history.CreateProcessingTranscriptAsync(1.0, "percy1589unsaved", audioFilePath: null).GetAwaiter().GetResult();
+                    keptId = kept.Transcript.Id;
+                    Assert(kept.SavedLater, "the poisoned insert was saved");
+                    Assert(history.PendingTranscriptCount == 1, "the refused row is not held in memory");
+                    Assert(Directory.Exists(storePath) && !File.Exists(storePath), "the pending path changed under the test");
+
+                    // The path frees up: the next change rewrites the whole list.
+                    Directory.Delete(storePath);
+                    kept.Transcript.Status = TranscriptStatus.Completed;
+                    kept.Transcript.Text = "percy1589 kept in memory";
+                    history.UpdateTranscript(kept.Transcript);
+                    Assert(File.Exists(storePath) && File.ReadAllText(storePath).Contains(keptId.Value.ToString()),
+                        "the pending file was not written on the next change after a failed save");
+
+                    Exec("DROP TRIGGER IF EXISTS percy1589_poison;");
+                    triggerDropped = true;
+                    other = history.CreateProcessingTranscript(1.0, "percy1589next", audioFilePath: null);
+                    Assert(history.PendingTranscriptCount == 0, "rows are still pending after a successful write");
+                    Assert(!File.Exists(storePath), "the pending file is still there after its row was saved");
+                    using var check = new HyperWhisperDbContext();
+                    var saved = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == keptId.Value);
+                    Assert(saved?.Status == TranscriptStatus.Completed && saved.Text == "percy1589 kept in memory",
+                        $"the row held in memory landed as {saved?.Status.ToString() ?? "missing"} \"{saved?.Text}\"");
+                }
+                finally
+                {
+                    if (!triggerDropped) Exec("DROP TRIGGER IF EXISTS percy1589_poison;");
+                    history.ReplacePendingStoreForTests(previous);
+                    if (keptId.HasValue) history.DeleteTranscript(keptId.Value);
+                    if (other != null) history.DeleteTranscript(other.Id);
+                    try { if (Directory.Exists(storePath)) Directory.Delete(storePath); } catch { }
+                    try { File.Delete(storePath); } catch { }
+                }
+            });
+
             Run("history: a refused insert's later writes (status, audio path, delete) use the pending row — issue #1589", () =>
             {
                 // A BEFORE INSERT trigger refuses the row at once (SQLite constraint error, not

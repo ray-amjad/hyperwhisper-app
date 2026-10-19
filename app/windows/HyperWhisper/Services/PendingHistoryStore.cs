@@ -31,6 +31,12 @@ internal sealed class PendingHistoryStore
     private readonly string _filePath;
     private List<Transcript>? _records;
 
+    /// <summary>
+    /// The last file write failed, so the file does not match the list. Every later
+    /// Upsert/Remove rewrites the whole list, which retries it.
+    /// </summary>
+    private bool _saveFailed;
+
     public PendingHistoryStore(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -53,8 +59,12 @@ internal sealed class PendingHistoryStore
     /// <summary>Copies of every pending record, oldest first.</summary>
     public List<Transcript> GetAll() => Records.Select(Clone).ToList();
 
-    /// <summary>Adds the record, or replaces the one with the same id, and saves the file.</summary>
-    public void Upsert(Transcript transcript)
+    /// <summary>
+    /// Adds the record, or replaces the one with the same id, and saves the file.
+    /// Returns false when the file could not be written: the record is then held in
+    /// memory only, and a crash or exit before the database takes it loses it.
+    /// </summary>
+    public bool Upsert(Transcript transcript)
     {
         ArgumentNullException.ThrowIfNull(transcript);
 
@@ -65,7 +75,7 @@ internal sealed class PendingHistoryStore
             records[index] = copy;
         else
             records.Add(copy);
-        Save();
+        return Save();
     }
 
     /// <summary>Removes the records with these ids and saves the file. Returns how many went.</summary>
@@ -73,7 +83,7 @@ internal sealed class PendingHistoryStore
     {
         var idSet = ids.ToHashSet();
         var removed = Records.RemoveAll(r => idSet.Contains(r.Id));
-        if (removed > 0) Save();
+        if (removed > 0 || _saveFailed) Save();
         return removed;
     }
 
@@ -126,28 +136,38 @@ internal sealed class PendingHistoryStore
         return records;
     }
 
-    private void Save() => Save(Records);
+    private bool Save() => Save(Records);
 
-    private void Save(List<Transcript> records)
+    /// <summary>Writes the list (or deletes the file when it is empty). Never throws.</summary>
+    private bool Save(List<Transcript> records)
     {
         try
         {
             if (records.Count == 0)
             {
                 if (File.Exists(_filePath)) File.Delete(_filePath);
-                return;
+            }
+            else
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
+                var tempPath = _filePath + ".tmp";
+                File.WriteAllText(tempPath, JsonSerializer.Serialize(records, JsonOptions));
+                File.Move(tempPath, _filePath, overwrite: true);
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-            var tempPath = _filePath + ".tmp";
-            File.WriteAllText(tempPath, JsonSerializer.Serialize(records, JsonOptions));
-            File.Move(tempPath, _filePath, overwrite: true);
+            if (_saveFailed)
+                LoggingService.Info($"PendingHistoryStore: Saved {_filePath} after an earlier failure");
+            _saveFailed = false;
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             // The in-memory record still reaches the database this session; only a crash
-            // before then would lose it. Log the path, never transcript text.
-            LoggingService.Error($"PendingHistoryStore: Could not save {_filePath}", ex);
+            // before then would lose it. The next Upsert/Remove retries. Log the path,
+            // never transcript text.
+            _saveFailed = true;
+            LoggingService.Error($"PendingHistoryStore: Could not save {_filePath}; will retry on the next change", ex);
+            return false;
         }
     }
 

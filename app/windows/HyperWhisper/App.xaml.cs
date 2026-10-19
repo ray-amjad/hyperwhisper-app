@@ -475,6 +475,21 @@ public partial class App : WpfApplication
         // The teardown runs on the thread pool, so this wait cannot deadlock.
         AudioEnvironmentService.Instance.ShutdownMuffle(TimeSpan.FromSeconds(3));
 
+        // History rows the database refused this session (#1589) get one last try, so
+        // a row whose pending-history.json write also failed is not lost with the
+        // process. On the thread pool with a short wait: a still-held lock would block
+        // the full 30 s busy timeout, and a killed write rolls back (the file keeps the rows).
+        try
+        {
+            var flush = Task.Run(() => HistoryService.Instance.FlushPendingTranscripts());
+            if (!flush.Wait(TimeSpan.FromSeconds(5)))
+                LoggingService.Warn("App: pending History rows not saved at exit (database still busy)");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"App: pending History flush at exit failed: {ex.Message}");
+        }
+
         // Release single-instance mutex
         SingleInstanceGuard.Release();
 
