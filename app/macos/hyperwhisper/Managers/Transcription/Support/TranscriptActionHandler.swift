@@ -297,7 +297,7 @@ class TranscriptActionHandler: ObservableObject {
         let retryToken = UUID()
         // A newer file job cancelled this one (#1425), and the row is still
         // here: it goes to failed ("cancelled") instead of staying "processing".
-        func replacedByNewerJob() -> Bool {
+        @MainActor func replacedByNewerJob() -> Bool {
             fileJob.isCancelled && !newTranscript.isDeleted && newTranscript.managedObjectContext != nil
         }
         let task = Task {

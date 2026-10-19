@@ -186,7 +186,7 @@ extension TranscriptionPipeline {
             // provider's per-call state below, released right after them.
             let engineKey = TranscriptionEngineAccess.key(for: provider)
             var engineHeld = false
-            func releaseEngine() {
+            @MainActor func releaseEngine() {
                 if engineHeld {
                     engineHeld = false
                     engineAccess.release(engineKey, for: jobKind)
