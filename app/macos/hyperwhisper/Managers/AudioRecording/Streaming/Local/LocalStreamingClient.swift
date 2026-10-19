@@ -155,9 +155,9 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
 
     func startSession(config: StreamingSessionConfig) async throws {
         let startupBeganAt = Date()
-        let name = engine.logName
+        let engineName = engine.logName
         let modelsName = engine.modelsLogName
-        logger.info("Starting \(name, privacy: .public) streaming session (\(self.engine.logVariant, privacy: .public))")
+        logger.info("Starting \(engineName, privacy: .public) streaming session (\(self.engine.logVariant, privacy: .public))")
 
         onConnectionStateChange?(.warmingUp)
 
@@ -170,16 +170,16 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
             throw error
         case .present(let logDetail):
             logger.info(
-                "\(name, privacy: .public) warmup phase: \(logDetail, privacy: .public) elapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
+                "\(engineName, privacy: .public) warmup phase: \(logDetail, privacy: .public) elapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
             )
         }
 
         let models: Engine.Models
         do {
-            logger.info("\(name, privacy: .public) warmup phase: loading \(modelsName, privacy: .public)")
+            logger.info("\(engineName, privacy: .public) warmup phase: loading \(modelsName, privacy: .public)")
             models = try await engine.loadModels()
             logger.info(
-                "\(name, privacy: .public) warmup phase complete: \(modelsName, privacy: .public) loaded elapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
+                "\(engineName, privacy: .public) warmup phase complete: \(modelsName, privacy: .public) loaded elapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
             )
         } catch is CancellationError {
             logger.info("Model load cancelled externally; collapsing to idle")
@@ -188,7 +188,7 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
         } catch {
             // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
             let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
-            logger.error("Failed to load \(name, privacy: .public) \(modelsName, privacy: .public): \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
+            logger.error("Failed to load \(engineName, privacy: .public) \(modelsName, privacy: .public): \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             onConnectionStateChange?(.error(error.localizedDescription))
             throw error
         }
@@ -196,10 +196,10 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
 
         let session: Engine.Session
         do {
-            logger.info("\(name, privacy: .public) warmup phase: initializing session")
+            logger.info("\(engineName, privacy: .public) warmup phase: initializing session")
             session = try await engine.makeSession(models: models)
             logger.info(
-                "\(name, privacy: .public) warmup phase complete: session init elapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
+                "\(engineName, privacy: .public) warmup phase complete: session init elapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
             )
         } catch is CancellationError {
             logger.info("Session init cancelled externally; collapsing to idle")
@@ -208,7 +208,7 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
         } catch {
             // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
             let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
-            logger.error("Failed to construct \(name, privacy: .public) streaming session: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
+            logger.error("Failed to construct \(engineName, privacy: .public) streaming session: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             onConnectionStateChange?(.error(error.localizedDescription))
             throw error
         }
@@ -252,10 +252,10 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
         }
 
         do {
-            logger.info("\(name, privacy: .public) startup phase: starting recognizer")
+            logger.info("\(engineName, privacy: .public) startup phase: starting recognizer")
             try await session.start()
             logger.info(
-                "\(name, privacy: .public) startup phase complete: recognizer started elapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
+                "\(engineName, privacy: .public) startup phase complete: recognizer started elapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
             )
         } catch is CancellationError {
             // External cancel — e.g. the enclosing toggleTask was cancelled
@@ -269,7 +269,7 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
         } catch {
             // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
             let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
-            logger.error("Failed to start \(name, privacy: .public) session: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
+            logger.error("Failed to start \(engineName, privacy: .public) session: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             // start() may have partly initialized state before throwing; cancel()
             // drops callbacks and resets the underlying FluidAudio manager so we
             // don't leave a half-live session retained via its partial callback.
@@ -302,10 +302,10 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
         self.audioCapture = capture
 
         do {
-            logger.info("\(name, privacy: .public) startup phase: starting audio capture")
+            logger.info("\(engineName, privacy: .public) startup phase: starting audio capture")
             try await capture.start()
             logger.info(
-                "\(name, privacy: .public) startup phase complete: audio capture started elapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
+                "\(engineName, privacy: .public) startup phase complete: audio capture started elapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
             )
         } catch is CancellationError {
             // Mirror the session.start cancellation handling: silent unwind.
@@ -338,7 +338,7 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
         isActive = true
         onConnectionStateChange?(.streaming)
         logger.info(
-            "\(name, privacy: .public) streaming session started totalElapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
+            "\(engineName, privacy: .public) streaming session started totalElapsedMs=\(self.elapsedMilliseconds(since: startupBeganAt), privacy: .public)"
         )
     }
 
@@ -349,8 +349,8 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
         guard isActive else { return }
         isActive = false
 
-        let name = engine.logName
-        logger.info("Stopping \(name, privacy: .public) streaming session")
+        let engineName = engine.logName
+        logger.info("Stopping \(engineName, privacy: .public) streaming session")
         onConnectionStateChange?(.disconnecting)
 
         // 1. Stop audio capture first — no new input from this point on.
@@ -386,14 +386,14 @@ final class LocalStreamingClient<Engine: LocalStreamingEngine>: NSObject, Observ
         } catch {
             // Fixed identifiers only (#1980): the description can hold a /Users/<name>/ path.
             let errorSummary = LocalModelLoadFailureDetail.publicSummary(for: error)
-            logger.error("\(name, privacy: .public) session finish failed: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
+            logger.error("\(engineName, privacy: .public) session finish failed: \(errorSummary, privacy: .public) description=\(error.localizedDescription, privacy: .private)")
             onError?(error)
         }
 
         self.session = nil
         onConnectionStateChange?(.idle)
         onSessionComplete?(elapsed, 0)
-        logger.info("\(name, privacy: .public) streaming session stopped (\(elapsed, privacy: .public)s)")
+        logger.info("\(engineName, privacy: .public) streaming session stopped (\(elapsed, privacy: .public)s)")
     }
 
     /// Abort — drop the tail, no final update, no session-complete.
