@@ -320,9 +320,17 @@ struct ParakeetLoadFailureDetailTests {
     /// public os_log interpolation. Comments are stripped before the scan.
     @Test func liveStreamingFilesLogNoPublicErrorDescription() throws {
         let directory = "app/macos/hyperwhisper/Managers/AudioRecording/Streaming/Local/"
+        // The 2 engine files log nothing since #807 (the shared client logs
+        // for both), so they are only checked for the public description.
         for file in [
             "LocalParakeetStreamingClient.swift",
             "LocalNemotronStreamingClient.swift",
+        ] {
+            let code = try ProductionSource.code(of: directory + file)
+            #expect(!code.contains("localizedDescription, privacy: .public"), "\(file)")
+        }
+        for file in [
+            "LocalStreamingClient.swift",
             "ParakeetStreamingSession.swift",
             "NemotronStreamingSession.swift",
         ] {
