@@ -8,6 +8,7 @@ import { isRecord, roundToTenth, roundUpToTenth } from '../lib/utils';
 import { creditsForCost } from '../lib/cost-calculator';
 import { insufficientCreditsResponse } from '../lib/responses';
 import { cacheLicense } from '../lib/redis';
+import { logCreditsShortfall, requestHoldFor, takeHoldForSettle, type CreditHold } from './credit-holds';
 
 export type CreditsResult =
   | { ok: true }
@@ -33,6 +34,16 @@ export function estimateCreditsFromSize(sizeBytes: number, options: CreditEstima
   return Math.max(0.1, roundUpToTenth(estimatedCredits));
 }
 
+/**
+ * The preflight: the estimate against the balance seen at auth, then (inside a
+ * `withCreditHoldScope` request) an atomic hold of the estimate against that
+ * balance minus every other in-flight hold on the key (#2008). A second call
+ * for the same request resizes its hold rather than taking another.
+ *
+ * A refused hold answers the same 402 as a short balance, reporting what the
+ * balance has left after the other holds — the credits this request could
+ * actually have used. Redis unavailable fails open (see `credit-holds.ts`).
+ */
 export async function validateCredits(
   auth: AuthContext,
   estimatedCredits: number,
@@ -41,6 +52,15 @@ export async function validateCredits(
   const balance = roundToTenth(auth.credits);
   if (balance < estimatedCredits) {
     return { ok: false, response: insufficientCreditsResponse(balance, estimatedCredits) };
+  }
+  const hold = requestHoldFor(auth);
+  if (!hold) return { ok: true };
+  const outcome = await hold.reserve(estimatedCredits, estimatedCredits);
+  if (outcome.kind === 'refused') {
+    return {
+      ok: false,
+      response: insufficientCreditsResponse(roundToTenth(outcome.availableCredits), estimatedCredits),
+    };
   }
   return { ok: true };
 }
@@ -61,6 +81,12 @@ export interface DeductCreditsOptions {
    * callback that throws is ignored.
    */
   onFailure?: (failure: DeductionFailure) => void;
+  /**
+   * Charge exactly these credits instead of `creditsForCost(costUsd)`. For a
+   * caller that already settled the amount against its hold (a live session at
+   * its end), so the deduction does not try to cover it a second time.
+   */
+  credits?: number;
 }
 
 async function recordLicenseUsage(
@@ -144,7 +170,10 @@ export function deductCredits(
   clientIP: string,
   options: DeductCreditsOptions = {}
 ): Promise<number> {
-  const deduction = performDeduction(auth, costUsd, metadata, clientIP, options);
+  // Taken synchronously, so the request scope that ends right after this call
+  // finds the hold already handed over and leaves its release to the charge.
+  const hold = takeHoldForSettle(auth);
+  const deduction = performDeduction(auth, costUsd, metadata, clientIP, options, hold);
   inFlightDeductions.add(deduction);
   deduction
     .catch(() => {}) // errors are logged inside performDeduction / by callers
@@ -157,21 +186,49 @@ async function performDeduction(
   costUsd: number,
   metadata: Record<string, unknown>,
   _clientIP: string,
-  options: DeductCreditsOptions
+  options: DeductCreditsOptions,
+  hold: CreditHold | undefined
 ): Promise<number> {
-  const creditsUsed = creditsForCost(costUsd);
+  try {
+    let creditsUsed = options.credits ?? creditsForCost(costUsd);
 
-  if (creditsUsed <= 0) {
-    return 0;
-  }
-
-  const failure = await recordLicenseUsage(auth.identifier, creditsUsed, metadata);
-  if (failure && options.onFailure) {
-    try {
-      options.onFailure(failure);
-    } catch {
-      // A reporting callback must not turn a dropped charge into a rejection.
+    if (creditsUsed <= 0) {
+      return 0;
     }
+
+    // A charge above the hold is charged as far as the balance (less every
+    // other hold) still covers it; the rest is written off and logged, never
+    // pushed onto a concurrent request's share of the balance.
+    if (hold && options.credits === undefined) {
+      const covered = await hold.cover(creditsUsed);
+      if (covered < creditsUsed) {
+        logCreditsShortfall({
+          reason: 'settle_above_hold',
+          endpoint: metadata.endpoint,
+          creditsUsed,
+          creditsCharged: covered,
+          heldCredits: hold.heldCredits,
+        });
+        creditsUsed = covered;
+      }
+      if (creditsUsed <= 0) {
+        return 0;
+      }
+    }
+
+    const failure = await recordLicenseUsage(auth.identifier, creditsUsed, metadata);
+    if (failure && options.onFailure) {
+      try {
+        options.onFailure(failure);
+      } catch {
+        // A reporting callback must not turn a dropped charge into a rejection.
+      }
+    }
+    return creditsUsed;
+  } finally {
+    // After the licence API answered and the cache holds the lowered balance:
+    // released any earlier, a concurrent reservation could count this
+    // request's credits a second time against the stale cached balance.
+    if (hold) await hold.release();
   }
-  return creditsUsed;
 }

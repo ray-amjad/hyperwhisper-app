@@ -17,6 +17,7 @@ import {
 import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
 import { endActiveStreamingSessions } from './routes/ws-streaming-shared';
 import { drainPendingDeductions } from './middleware/credits';
+import { drainPendingHoldReleases } from './middleware/credit-holds';
 import { drainPendingLatencyReports } from './lib/latency-report';
 
 const app = new Hono();
@@ -126,9 +127,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
   // Both drains are fire-and-forget writes made after the response is flushed,
   // so they race the same SIGKILL. Run them together rather than in series —
   // the grace period is one budget, not two.
+  // Credit-hold releases too: one left behind narrows the user's balance until
+  // its TTL frees it (#2008).
   const [drained, drainedReports] = await Promise.all([
     drainPendingDeductions(SHUTDOWN_DRAIN_MS),
     drainPendingLatencyReports(SHUTDOWN_DRAIN_MS),
+    drainPendingHoldReleases(SHUTDOWN_DRAIN_MS),
   ]);
   if (drained > 0) {
     console.log('machine.shutdown_drained_deductions', { count: drained });

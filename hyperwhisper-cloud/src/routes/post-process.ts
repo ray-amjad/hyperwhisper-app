@@ -13,6 +13,7 @@ import { validateContentLength } from '../lib/request-limits';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
 import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
+import { withCreditHoldScope } from '../middleware/credit-holds';
 import { logEvent } from '../lib/logging';
 import { evaluateCompletionResponse } from '../lib/llm-completion';
 
@@ -41,6 +42,12 @@ function rawResponseLength(raw: unknown): number | undefined {
 }
 
 export async function postProcessRoute(c: Context) {
+  // The credit hold `validateCredits` takes is released when this returns or
+  // throws, unless the deduction below took it over (#2008).
+  return withCreditHoldScope(() => handlePostProcess(c));
+}
+
+async function handlePostProcess(c: Context) {
   const requestId = generateRequestId();
   const startTime = performance.now();
   const clientIP = getClientIP(c);

@@ -44,6 +44,8 @@ import { logEvent } from '../lib/logging';
 import { creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { authDiagnosticsForLog, validateAuth, type AuthContext } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
+import { logCreditsShortfall, reserveSessionHold, type CreditHold } from '../middleware/credit-holds';
+import { insufficientCreditsResponse } from '../lib/responses';
 import { isIPBlocked } from '../lib/redis';
 import { isRecord, roundToTenth } from '../lib/utils';
 
@@ -107,6 +109,11 @@ export function durationSecondsForLinear16AudioBytes(byteLength: number): number
 
 /** Minimum balance required to open a session, expressed as seconds of audio. */
 export const STREAMING_MIN_BALANCE_SECONDS = 30;
+
+/** An upgrade whose socket has not opened by then gives its credit hold back. */
+const SESSION_OPEN_DEADLINE_MS = 30_000;
+/** How often an open session renews its hold's TTL when no top-up has. */
+const SESSION_HOLD_RENEW_MS = 2 * 60_000;
 
 // Inbound audio limits — guard the proxy against a misbehaving or malicious
 // client that pushes binary far faster (or larger) than the natural 32 KB/s
@@ -226,6 +233,20 @@ export function minimumCreditsFor(vendor: Pick<StreamingVendor, 'costForSeconds'
   return creditsForCost(vendor.costForSeconds(STREAMING_MIN_BALANCE_SECONDS));
 }
 
+/**
+ * A live session holds this much of its vendor's audio at a time (#2008, Ray
+ * 2026-10-19): held when it opens, topped up by the same again each time the
+ * metered charge reaches the hold, and the session closes when a top-up is
+ * refused. A balance below one block is held in full instead, down to the
+ * 30 s floor above.
+ */
+export const STREAMING_HOLD_SECONDS = 5 * 60;
+
+/** Credits in one hold block for this vendor (5 minutes of its audio). */
+export function holdCreditsFor(vendor: Pick<StreamingVendor, 'costForSeconds'>): number {
+  return creditsForCost(vendor.costForSeconds(STREAMING_HOLD_SECONDS));
+}
+
 // ---------------------------------------------------------------------------
 // Preflight
 // ---------------------------------------------------------------------------
@@ -234,6 +255,8 @@ declare module 'hono' {
   interface ContextVariableMap {
     wsAuth: AuthContext;
     wsClientIP: string;
+    /** The session's credit hold. Absent when the preflight never took one. */
+    wsCreditHold: CreditHold | undefined;
   }
 }
 
@@ -244,7 +267,10 @@ declare module 'hono' {
  * list → key presence → licence validity → credit floor. The IP gate sits ahead
  * of every licence lookup so a blocked address costs no upstream work.
  */
-export function makeStreamingPreflight(minimumCredits: () => number) {
+export function makeStreamingPreflight(
+  minimumCredits: () => number,
+  holdCredits: () => number = minimumCredits,
+) {
   return async function wsStreamingPreflight(c: Context, next: Next) {
     const requestId = generateRequestId();
     const startTime = performance.now();
@@ -304,10 +330,35 @@ export function makeStreamingPreflight(minimumCredits: () => number) {
       return creditCheck.response;
     }
 
+    // Hold the session's first block before the upgrade, so concurrent sessions
+    // (and dictations) on one key share the balance instead of each seeing all
+    // of it. Anything from the 30 s floor up to one block is accepted.
+    const { hold, outcome } = await reserveSessionHold(
+      authResult.value,
+      requiredCredits,
+      Math.max(requiredCredits, holdCredits()),
+    );
+    if (outcome.kind === 'refused') {
+      void hold.release();
+      const available = roundToTenth(outcome.availableCredits);
+      logRejected('insufficient_credits', 402, {
+        credits: available,
+        minimumCredits: requiredCredits,
+        heldElsewhere: true,
+      });
+      return insufficientCreditsResponse(available, requiredCredits);
+    }
+
     c.set('wsAuth', authResult.value);
     c.set('wsClientIP', clientIP);
+    c.set('wsCreditHold', hold);
 
-    return next();
+    try {
+      return await next();
+    } catch (error) {
+      void hold.release();
+      throw error;
+    }
   };
 }
 
@@ -393,6 +444,27 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
 
   const session: StreamingSession = { requestId, language, vocabulary, apiKey };
 
+  // The credits this session holds (#2008). `undefined` for a context the
+  // preflight never saw; `degraded` when Redis failed. Either way the session
+  // runs on the pre-hold rules: cut off and clamped at the balance seen at auth.
+  const hold = c.get('wsCreditHold');
+  const holdBlockCredits = holdCreditsFor(vendor);
+  let topUpPending = false;
+  let lastHoldRenewAt = Date.now();
+  // Nothing releases a hold whose upgrade never opened a socket; this does,
+  // well before its TTL would.
+  let openDeadline: ReturnType<typeof setTimeout> | null = hold
+    ? setTimeout(() => {
+      openDeadline = null;
+      if (!clientSocket && !sessionEnded) void hold.release();
+    }, SESSION_OPEN_DEADLINE_MS)
+    : null;
+  (openDeadline as { unref?: () => void } | null)?.unref?.();
+
+  function holdEnforced(): boolean {
+    return hold !== undefined && !hold.degraded && !hold.released;
+  }
+
   let totalDurationSeconds = 0;
   let bytesReceived = 0;
   let transcriptChars = 0;
@@ -446,6 +518,10 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
     if (sessionEnded) return;
     sessionEnded = true;
     activeSessions.delete(shutdownSession);
+    if (openDeadline) {
+      clearTimeout(openDeadline);
+      openDeadline = null;
+    }
 
     if (pingInterval) {
       clearInterval(pingInterval);
@@ -457,19 +533,52 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
     }
 
     // The metered charge, then the clamp. `enforceCreditCutoff` ends a session
-    // the moment the running charge reaches the balance seen at auth, but it can
-    // only see the finals that have landed — a trailing final delivered during
-    // the stop grace can still push the metered figure past that balance. Bill
-    // the lesser, so a session can never deduct more than the credits the user
-    // held when it opened. (Deepgram is flat per-second and reaches this with
-    // metered == cutoff, so the clamp is inert there.)
+    // the moment the running charge reaches what it holds, but it can only see
+    // the finals that have landed — a trailing final delivered during the stop
+    // grace can still push the metered figure past the hold. Bill what the hold
+    // can cover (grown to the metered charge if the balance still has room) and
+    // write off the rest as a `credits_shortfall`, so a session can never
+    // deduct credits another request holds. Without an enforced hold, the
+    // clamp is the balance seen at auth, as before #2008. (Deepgram is flat
+    // per-second and reaches this with metered == cutoff, so the clamp is inert
+    // there.)
     const meteredCostUsd = vendor.costForSeconds(totalDurationSeconds, transcriptChars);
-    const reservedCostUsd = usdForCredits(auth.credits);
-    const costUsd = Math.min(meteredCostUsd, reservedCostUsd);
-    // The minimum is for a session that reached the vendor, even one that then
-    // sent no audio (#1191, Ray 2026-10-07). One that never did bills nothing,
-    // so no deduction is posted and the client is told `credits_used: 0`.
-    const creditsUsed = upstreamReached ? creditsForCost(costUsd) : 0;
+    let costUsd: number;
+    let creditsUsed: number;
+    let clampField: Record<string, unknown> = {};
+    if (holdEnforced()) {
+      const meteredCredits = upstreamReached ? creditsForCost(meteredCostUsd) : 0;
+      creditsUsed = meteredCredits > 0 ? await hold!.cover(meteredCredits) : 0;
+      costUsd = creditsUsed < meteredCredits ? usdForCredits(creditsUsed) : meteredCostUsd;
+      if (creditsUsed < meteredCredits) {
+        clampField = { meteredCostUsd, clampedToHeldCredits: hold!.heldCredits };
+        logCreditsShortfall({
+          reason: 'session_above_hold',
+          endpoint,
+          creditsUsed: meteredCredits,
+          creditsCharged: creditsUsed,
+          heldCredits: hold!.heldCredits,
+        });
+      }
+    } else {
+      const reservedCostUsd = usdForCredits(auth.credits);
+      costUsd = Math.min(meteredCostUsd, reservedCostUsd);
+      // The minimum is for a session that reached the vendor, even one that then
+      // sent no audio (#1191, Ray 2026-10-07). One that never did bills nothing,
+      // so no deduction is posted and the client is told `credits_used: 0`.
+      creditsUsed = upstreamReached ? creditsForCost(costUsd) : 0;
+      if (meteredCostUsd > costUsd) {
+        clampField = { meteredCostUsd, clampedToReservedCredits: auth.credits };
+        if (upstreamReached) {
+          logCreditsShortfall({
+            reason: 'session_above_balance',
+            endpoint,
+            creditsUsed: creditsForCost(meteredCostUsd),
+            creditsCharged: creditsUsed,
+          });
+        }
+      }
+    }
 
     if (clientSocket && options.notifyClient !== false) {
       sendToClient(clientSocket, {
@@ -486,13 +595,14 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       creditsUsed,
       // Only present when the clamp actually bit, so its absence is the normal
       // case and "how often do we eat the difference?" is one Axiom query.
-      ...(meteredCostUsd > costUsd ? { meteredCostUsd, clampedToReservedCredits: auth.credits } : {}),
+      ...clampField,
       // Present only on the unbilled case, the same way, so "how many sessions
       // never reached the vendor?" is one query.
       ...(upstreamReached ? {} : { upstreamReached: false }),
     });
 
     if (creditsUsed > 0) {
+      // The deduction takes the hold over and releases it after the charge.
       deductCredits(
         auth,
         costUsd,
@@ -503,8 +613,11 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
           endpoint,
           stt_provider: vendor.billingProvider,
         },
-        clientIP
+        clientIP,
+        holdEnforced() ? { credits: creditsUsed } : {}
       ).catch(console.error);
+    } else {
+      void hold?.release();
     }
   }
 
@@ -552,14 +665,54 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
    */
   function enforceCreditCutoff(): boolean {
     const creditsUsed = creditsForCost(vendor.costForSeconds(totalDurationSeconds, transcriptChars));
-    if (creditsUsed < auth.credits) return false;
+    if (!holdEnforced()) {
+      if (creditsUsed < auth.credits) return false;
+      cutOff(creditsUsed);
+      return true;
+    }
+    if (creditsUsed < hold!.heldCredits) return false;
+    // The running charge reached the hold: ask for the next block. Audio keeps
+    // flowing for the one Redis round trip it takes; a refusal closes the
+    // session, and whatever metered past the hold meanwhile is the shortfall
+    // `endSession` writes off.
+    if (!topUpPending) requestTopUp(creditsUsed);
+    return false;
+  }
+
+  function cutOff(creditsUsed: number, details: Record<string, unknown> = {}): void {
     if (clientSocket) {
       sendToClient(clientSocket, { type: 'error', message: 'Credit balance exhausted' });
     }
-    log('credit_cutoff', { durationSeconds: totalDurationSeconds, transcriptChars, creditsUsed });
+    log('credit_cutoff', { durationSeconds: totalDurationSeconds, transcriptChars, creditsUsed, ...details });
     closeUpstream('Credits exhausted');
-    return true;
   }
+
+  function requestTopUp(creditsUsed: number): void {
+    if (!hold) return;
+    topUpPending = true;
+    const before = hold.heldCredits;
+    // At least enough to cover what is already metered plus a tenth; at most
+    // one more block on top of the current hold.
+    void hold.reserve(roundToTenth(creditsUsed + 0.1), before + holdBlockCredits).then((outcome) => {
+      topUpPending = false;
+      if (sessionEnded) return;
+      lastHoldRenewAt = Date.now();
+      if (outcome.kind === 'granted') {
+        log('credit_topup', { heldCredits: hold.heldCredits, previousHeldCredits: before });
+        // The audio that arrived during the round trip may already be past the new total.
+        enforceCreditCutoff();
+        return;
+      }
+      if (outcome.kind === 'refused') {
+        const meteredNow = creditsForCost(vendor.costForSeconds(totalDurationSeconds, transcriptChars));
+        cutOff(meteredNow, { reason: 'topup_refused', heldCredits: hold.heldCredits });
+        return;
+      }
+      // Redis failed mid-session: fail open onto the balance seen at auth.
+      enforceCreditCutoff();
+    });
+  }
+
 
   function flushPendingAudio(): void {
     const queued = pendingAudio.splice(0, pendingAudio.length);
@@ -687,6 +840,10 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
   return {
     onOpen: (_evt: Event, ws: WSContext) => {
       clientSocket = ws;
+      if (openDeadline) {
+        clearTimeout(openDeadline);
+        openDeadline = null;
+      }
 
       if (!apiKey) {
         // Never log the key or its length; the event name is the whole signal.
@@ -702,6 +859,7 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
         // metering exists; 1012 sends the client to another machine. Nothing
         // was metered, so there is nothing to bill and no later `endSession`.
         sessionEnded = true;
+        void hold?.release();
         log('refused_shutting_down');
         ws.close(1012, 'Service restart');
         return;
@@ -787,6 +945,12 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       pingInterval = setInterval(() => {
         if (clientSocket && clientSocket.readyState === 1) {
           clientSocket.send(JSON.stringify({ type: 'ping' }));
+        }
+        // A session that meters slowly (paused audio) tops up rarely; keep its
+        // hold from expiring under it.
+        if (holdEnforced() && !topUpPending && Date.now() - lastHoldRenewAt >= SESSION_HOLD_RENEW_MS) {
+          lastHoldRenewAt = Date.now();
+          void hold!.renew();
         }
       }, 30000);
     },
