@@ -1,0 +1,41 @@
+# Daily check that every build the appcasts name can still be downloaded.
+#
+# nextjs/public/appcast.xml (macOS, Sparkle) and appcast-windows.xml feed both
+# the in-app updaters and the /older-versions page. The build-time validators
+# stay offline, because macos-release.yml runs them before it uploads the new
+# DMG. So nothing noticed when the 2.25.0 item named a DMG that was never
+# uploaded, and /en/older-versions served a "Download DMG" button that 404'd
+# (#761). This job HEADs every enclosure URL in both feeds, retries a failed one
+# once, and goes red only on a settled non-200.
+#
+# It does not run on release PRs or pushes that edit a feed: a new item's build
+# may not be uploaded yet at that point. It runs on a PR only when the job or
+# its script changes, so a change to the check is proved before it merges.
+name: appcast-enclosures
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'nextjs/scripts/check-appcast-enclosures.js'
+      - '.github/workflows/appcast-enclosures.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: HEAD every enclosure in both appcasts
+        working-directory: nextjs
+        run: node scripts/check-appcast-enclosures.js
