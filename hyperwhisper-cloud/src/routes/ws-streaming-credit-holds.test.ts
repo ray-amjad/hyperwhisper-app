@@ -329,3 +329,81 @@ describe('a live session tops its hold up', () => {
     }
   });
 });
+
+// Issue #820: a session end whose charge the licence API refuses, or never
+// answers, writes one `credits.deduction_failed` line keyed by the session.
+describe('a dropped session charge logs credits.deduction_failed (#820)', () => {
+  const failures = [
+    {
+      label: 'the licence API answers 500',
+      answer: async (): Promise<Response> => Response.json({ error: 'boom' }, { status: 500 }),
+      expected: { reason: 'http_error', status: 500 },
+    },
+    {
+      label: 'the licence API fetch rejects',
+      answer: async (): Promise<Response> => { throw new TypeError('fetch failed'); },
+      expected: { reason: 'network_error', error: 'fetch failed' },
+    },
+  ];
+
+  function licenceApiAnswers(answer: () => Promise<Response>): void {
+    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      charges.push((JSON.parse(String(init?.body)) as { amount: number }).amount);
+      return answer();
+    }) as unknown as typeof fetch;
+  }
+
+  /** Stream ten seconds and end the session; `hold: undefined` is the pre-hold path. */
+  async function streamTenSeconds(withHold: boolean) {
+    const sessionAuth = auth(100);
+    const hold = withHold ? (await reserveSessionHold(sessionAuth, 1, BLOCK)).hold : undefined;
+    const events = createStreamingEvents(fakeContext(sessionAuth, hold));
+    const client = new FakeClientSocket();
+    events.onOpen(new Event('open'), client);
+    upstreamSockets[upstreamSockets.length - 1]!.handshake();
+    for (let s = 0; s < 10; s += 1) events.onMessage(second());
+    await events.onClose();
+    await settle();
+    const ready = client.sent.map((raw) => JSON.parse(raw) as { type: string; sessionId?: string })
+      .find((message) => message.type === 'ready');
+    const lines = logLines.map((line) => line.event).filter((line) => line.includes('"credits.deduction_failed"'));
+    return { sessionId: ready?.sessionId, lines };
+  }
+
+  for (const withHold of [true, false]) {
+    for (const { label, answer, expected } of failures) {
+      test(`${withHold ? 'with' : 'without'} a hold: ${label}`, async () => {
+        licenceApiAnswers(answer);
+        const errors: unknown[][] = [];
+        const originalError = console.error;
+        console.error = (...args: unknown[]) => { errors.push(args); };
+        try {
+          const { sessionId, lines } = await streamTenSeconds(withHold);
+
+          expect(charges).toEqual([creditsForCost(computeDeepgramTranscriptionCost(10))]);
+          expect(errors).toEqual([]);
+          expect(lines).toHaveLength(1);
+          expect(sessionId).toBeDefined();
+          expect(JSON.parse(lines[0]!)).toMatchObject({
+            event: 'credits.deduction_failed',
+            requestId: sessionId,
+            endpoint: '/ws/streaming-deepgram',
+            creditsUsed: creditsForCost(computeDeepgramTranscriptionCost(10)),
+            ...expected,
+          });
+          expect(lines[0]).not.toContain(ACCOUNT);
+          expect(lines[0]).not.toContain('203.0.113.7');
+          expect(store.outstandingMilli(ACCOUNT)).toBe(0);
+        } finally {
+          console.error = originalError;
+        }
+      });
+    }
+
+    test(`${withHold ? 'with' : 'without'} a hold: an accepted charge logs nothing`, async () => {
+      const { lines } = await streamTenSeconds(withHold);
+      expect(charges).toEqual([creditsForCost(computeDeepgramTranscriptionCost(10))]);
+      expect(lines).toEqual([]);
+    });
+  }
+});
