@@ -98,6 +98,13 @@ private enum Rig {
         mode.name = "Test 1425"
         mode.model = "base"
         mode.language = "en"
+        mode.postProcessingMode = 0  // off: the held provider's text is the result
+        mode.createdDate = Date()
+        mode.modifiedDate = Date()
+        // Saved, so every row save below succeeds and each row gets a
+        // permanent ID the background writer can find.
+        persistence.save()
+        #expect(!mode.objectID.isTemporaryID, "the test mode did not save")
         return mode
     }
 
