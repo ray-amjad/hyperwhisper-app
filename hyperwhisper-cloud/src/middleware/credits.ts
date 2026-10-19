@@ -104,12 +104,19 @@ async function recordLicenseUsage(
   // warned about below but not reported as a failure.
   let accepted = false;
 
+  // The site accepts this deduction only from this service (#2021): it checks
+  // `x-internal-secret` against the same HYPERWHISPER_INTERNAL_SECRET the
+  // latency report sends. Unset here (a machine not yet synced), the header is
+  // omitted, the site answers 401, and the failure path below reports it like
+  // any other refused write — the user's request is unchanged.
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const internalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
+  if (internalSecret) headers['x-internal-secret'] = internalSecret;
+
   try {
     const response = await fetch(`${apiBase}/api/license/credits`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         license_key: licenseKey,
         amount: creditsUsed,
