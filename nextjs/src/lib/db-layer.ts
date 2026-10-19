@@ -682,9 +682,30 @@ export async function spendCreditGrantsByProvenance(
  *
  * Returns the new cached aggregate balance. The public API response shape is
  * preserved, but the underlying grant rows record which source was consumed.
+ *
+ * The floor at zero swallows any part of `amount` the grants cannot cover. That
+ * overspend is written off, never carried as a negative balance, and logged as
+ * one structured `credits_shortfall` line (#2008) so it can be counted. The
+ * cloud logs the same event, with `source: "cloud"`, for overspend it catches
+ * before it charges. No account identifier is logged.
  */
 export async function deductCreditBalance(userId: string, amount: number): Promise<number> {
   const result = await spendCreditGrantsByProvenance(userId, amount);
+  const shortfall = amount - result.deductedAmount;
+
+  // Grant amounts are stored to the cent, so anything under one is float noise.
+  if (shortfall > 0.005) {
+    console.warn(
+      JSON.stringify({
+        event: "credits_shortfall",
+        source: "license_api",
+        requestedCredits: amount,
+        deductedCredits: result.deductedAmount,
+        shortfallCredits: Math.round(shortfall * 100) / 100,
+      }),
+    );
+  }
+
   return result.balance;
 }
 
