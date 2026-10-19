@@ -80,6 +80,30 @@ function buildDeepgramUrl(language?: string, vocabulary?: string): string {
 }
 
 /**
+ * Map the upstream CLOSE frame (#2067).
+ *
+ * Deepgram reports a mid-stream fault only by closing: 1011 with a `NET-*`
+ * reason (an internal or timeout fault), 1008 with a `DATA-*` reason (audio it
+ * cannot decode). Without this the client saw a clean `session_complete` and
+ * finished the dictation with partial text.
+ *
+ * 1008 is terminal: the same audio meets the same rejection, so a reconnect is a
+ * retry storm (as Gemini treats 1007). Every other fault code is transient.
+ * The upstream reason is logged by the shared close handler, never echoed: the
+ * client gets our wording.
+ */
+export function parseDeepgramLiveClose(code: number, _reason: string): UpstreamEvent[] {
+  // 1000 = normal, 1005 = no status (what a clean end-of-session looks like).
+  if (code === 1000 || code === 1005) return [];
+
+  if (code === 1008) {
+    return [{ kind: 'error', message: 'Transcription service rejected the audio', terminal: true }];
+  }
+
+  return [{ kind: 'error', message: 'Transcription service error', terminal: false }];
+}
+
+/**
  * Deepgram Live.
  *
  * Raw linear16 in, JSON `Results` frames out, and no setup handshake: the socket
@@ -112,6 +136,7 @@ export const DEEPGRAM_VENDOR: StreamingVendor = {
       speechFinal: parsed.speech_final ?? false,
     }];
   },
+  parseUpstreamClose: parseDeepgramLiveClose,
   costForSeconds: (seconds: number) => computeDeepgramTranscriptionCost(seconds),
 };
 
