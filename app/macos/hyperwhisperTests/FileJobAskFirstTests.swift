@@ -147,6 +147,21 @@ private enum Rig {
         return (try? context.fetch(request)) ?? []
     }
 
+    /// Every row as the store holds it, read on a fresh context.
+    static func describe(_ persistence: PersistenceController) -> String {
+        let context = persistence.container.newBackgroundContext()
+        return context.performAndWait {
+            let request = NSFetchRequest<Transcript>(entityName: "Transcript")
+            let rows = (try? context.fetch(request)) ?? []
+            return rows.map { row in
+                let name = (row.audioFilePath as NSString?)?.lastPathComponent ?? "nil"
+                let status = row.value(forKey: "status") as? String ?? "nil"
+                let reason = row.value(forKey: "failedReason") as? String ?? "nil"
+                return "\(name)=\(status)/\(reason)/\(row.text ?? "nil")"
+            }.joined(separator: ", ")
+        }
+    }
+
     static func status(_ row: Transcript) -> String? { row.value(forKey: "status") as? String }
     static func reason(_ row: Transcript) -> String? { row.value(forKey: "failedReason") as? String }
 
@@ -372,11 +387,12 @@ struct FileJobAskFirstTests {
         #expect(firstFlow.processingTranscriptID == nil)
         let failedWrite = try #require(firstFlow.pendingFailureWrite, "the cancel wrote no failed row")
         await failedWrite.value
+        let afterCancel = Rig.describe(persistence)
 
         provider.releaseAll()
         await replacing.value
         let statuses = Rig.rows(persistence).map { Rig.status($0) ?? "nil" }.sorted()
-        #expect(statuses == ["completed", "failed"], "\(statuses)")
+        #expect(statuses == ["completed", "failed"], "after cancel: \(afterCancel) | at end: \(Rig.describe(persistence))")
         let failed = try #require(Rig.rows(persistence).first { Rig.status($0) == "failed" })
         #expect(Rig.reason(failed) == "cancelled")
     }
