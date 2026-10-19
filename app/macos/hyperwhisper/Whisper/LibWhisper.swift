@@ -119,6 +119,17 @@ actor WhisperContext {
         }
     }
     
+    /// Recordings up to this many samples (30 s at 16 kHz, one whisper.cpp
+    /// window) keep the past-text context, and with it the vocabulary prompt.
+    static let carryOverSampleLimit = 30 * 16_000
+
+    /// The `n_max_text_ctx` for a recording of `sampleCount` samples: 0 (no
+    /// past-text carry-over, no prompt) above 30 s, else whisper.cpp's default.
+    /// Ray's rule for #1559 (2026-10-19): the loop fix wins on long recordings.
+    static func maxTextContext(sampleCount: Int, default defaultValue: Int32) -> Int32 {
+        sampleCount > carryOverSampleLimit ? 0 : defaultValue
+    }
+
     // MARK: - Factory Method
     
     /// Create a new WhisperContext by loading a model from disk
@@ -230,6 +241,12 @@ actor WhisperContext {
         params.n_threads = Int32(maxThreads)
         params.offset_ms = 0           // Start from beginning
         params.no_context = true        // Don't use context from previous call
+        // `no_context` clears the past text only before the first 30 s window;
+        // whisper.cpp still primes every later window with the text decoded so
+        // far, so a repeated phrase can replace the rest of a long dictation
+        // (#1559). The vocabulary prompt rides the same carry-over, so it is kept
+        // only for a recording that fits in one window.
+        params.n_max_text_ctx = Self.maxTextContext(sampleCount: samples.count, default: params.n_max_text_ctx)
         params.single_segment = false   // Allow multiple segments
         params.temperature = temperature // Use provided temperature (default 0.0)
 

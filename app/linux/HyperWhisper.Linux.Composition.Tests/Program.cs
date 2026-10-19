@@ -71,6 +71,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("local and cloud live sessions select isolated engines", LiveEngineRoutingIsIsolated),
     ("production Whisper backend selection reaches inference", WhisperBackendSelectionReachesInference),
     ("local Whisper timestamps route through portable result", LocalWhisperTimestampsRoute),
+    ("local Whisper turns off past-text carry-over without timestamps", LocalWhisperNoCarryOverWithoutTimestamps),
     ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
     ("Model Library Whisper line names a missing hyperwhisper-cuda package", ModelLibraryWhisperLineNamesMissingCudaPackage),
@@ -1423,10 +1424,20 @@ static async Task LocalWhisperTimestampsRoute()
         new TranscriptionWorkflowRequest(Language: "en", StoreWordTimestamps: true));
     Assert(result.IsSuccess && fixture.Service.LastRequest?.IncludeWordTimestamps == true,
         "portable timestamp preference did not reach local Whisper");
+    Assert(fixture.Service.LastRequest?.MaxLastTextTokensZero == true,
+        "local Whisper still primes each window with the text before it (#1559)");
     Assert(result.Timestamps is { Segments.Count: 1, Words.Count: 2 }
         && result.Timestamps.RawText == "Ray GPU route"
         && result.Timestamps.Words![0].Word == "Ray",
         "local Whisper timestamps were not mapped into the provider-neutral result");
+}
+
+static async Task LocalWhisperNoCarryOverWithoutTimestamps()
+{
+    using var fixture = new WhisperTranscriberFixture(LocalWhisperBackend.Cpu, allowFallback: true, RuntimeFor(LocalWhisperBackend.Cpu));
+    var result = await fixture.Transcriber.TranscribeAsync(fixture.AudioPath, "en");
+    Assert(result.IsSuccess && fixture.Service.LastRequest is { MaxLastTextTokensZero: true, IncludeWordTimestamps: false },
+        "local Whisper still primes each window with the text before it (#1559)");
 }
 
 static async Task WhisperCpuFallbackPolicyIsEnforced()
