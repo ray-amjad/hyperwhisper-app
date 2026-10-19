@@ -531,14 +531,8 @@ public class HistoryService
             // pending store, without touching the database (it may still be locked).
             if (Pending.Get(transcript.Id) is { } pending)
             {
-                if (keepLiveAudioPath &&
-                    !string.IsNullOrEmpty(pending.AudioFilePath) &&
-                    pending.AudioFilePath != transcript.AudioFilePath &&
-                    !File.Exists(transcript.AudioFilePath) &&
-                    File.Exists(pending.AudioFilePath))
-                {
-                    transcript.AudioFilePath = pending.AudioFilePath;
-                }
+                if (keepLiveAudioPath)
+                    KeepLiveAudioPath(transcript, pending.AudioFilePath);
 
                 Pending.Upsert(transcript);
                 LoggingService.Info($"HistoryService: Updated pending transcript {transcript.Id} (Status: {transcript.Status})");
@@ -556,15 +550,8 @@ public class HistoryService
                         return;
                     }
 
-                    if (keepLiveAudioPath &&
-                        !string.IsNullOrEmpty(existing.AudioFilePath) &&
-                        existing.AudioFilePath != transcript.AudioFilePath &&
-                        !File.Exists(transcript.AudioFilePath) &&
-                        File.Exists(existing.AudioFilePath))
-                    {
-                        LoggingService.Info($"HistoryService: Kept the live audio path of transcript {transcript.Id}; the caller's file is gone");
-                        transcript.AudioFilePath = existing.AudioFilePath;
-                    }
+                    if (keepLiveAudioPath)
+                        KeepLiveAudioPath(transcript, existing.AudioFilePath);
 
                     context.Entry(existing).CurrentValues.SetValues(transcript);
                     context.SaveChanges();
@@ -581,6 +568,22 @@ public class HistoryService
 
         // Fire event outside lock to prevent deadlock
         TranscriptUpdated?.Invoke(this, transcript);
+    }
+
+    /// <summary>
+    /// The <c>keepLiveAudioPath</c> rule of <see cref="UpdateTranscript"/>: when the caller's
+    /// audio file is gone and the stored row's file exists, keep the stored path (#1603).
+    /// </summary>
+    private static void KeepLiveAudioPath(Transcript transcript, string? storedAudioFilePath)
+    {
+        if (string.IsNullOrEmpty(storedAudioFilePath) ||
+            storedAudioFilePath == transcript.AudioFilePath ||
+            File.Exists(transcript.AudioFilePath) ||
+            !File.Exists(storedAudioFilePath))
+            return;
+
+        LoggingService.Info($"HistoryService: Kept the live audio path of transcript {transcript.Id}; the caller's file is gone");
+        transcript.AudioFilePath = storedAudioFilePath;
     }
 
     /// <summary>

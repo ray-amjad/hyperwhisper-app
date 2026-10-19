@@ -41,11 +41,7 @@ internal sealed class PendingHistoryStore
     /// <summary>The store the app uses: <c>pending-history.json</c> in the profile root.</summary>
     public static string DefaultPath => Path.Combine(AppPaths.AppDataRoot, FileName);
 
-    public string FilePath => _filePath;
-
     public int Count => Records.Count;
-
-    public bool Contains(Guid id) => Records.Any(r => r.Id == id);
 
     /// <summary>A copy of the pending record, or null when the id is not pending.</summary>
     public Transcript? Get(Guid id)
