@@ -315,6 +315,22 @@ class LibWhisperProvider: TranscriptionProvider {
 
     /// The body of a pass. `requiredModel` is set only by the Local API, which
     /// loads its own model instead of the one `setModel` staged.
+    /// The whisper.cpp `initial_prompt` for a pass: the vocabulary words that
+    /// have no replacement, space-joined, or nil when there are none.
+    static func vocabularyPrompt(for vocabulary: [Vocabulary]) -> String? {
+        let words = vocabulary
+            .filter { ($0.replacement ?? "").isEmpty }
+            .compactMap { $0.word }
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        return words.isEmpty ? nil : words.joined(separator: " ")
+    }
+
+    /// Sets the pass's prompt on the resident context, every pass, so a nil
+    /// prompt clears the one an earlier mode left there (#2048).
+    static func applyVocabularyPrompt(_ vocabulary: [Vocabulary], to context: WhisperContext) async {
+        await context.setPrompt(vocabularyPrompt(for: vocabulary))
+    }
+
     private func performTranscribe(audioURL: URL, language: String?, vocabulary: [Vocabulary], requiredModel: WhisperModel?) async throws -> String {
         // Reset any timestamps from a previous run; only the kept run below sets them.
         lastTimestamps = nil
@@ -457,11 +473,10 @@ class LibWhisperProvider: TranscriptionProvider {
                 await context.setLanguage(nil)
             }
             
-            // Set custom vocabulary/prompt
-            if !vocabulary.isEmpty {
-                let prompt = vocabulary.filter { $0.replacement == nil || $0.replacement!.isEmpty }.map { $0.word ?? "" }.joined(separator: " ")
-                await context.setPrompt(prompt)
-            }
+            // Set custom vocabulary/prompt, or clear it: the context outlives
+            // this pass, so a mode with no prompt words must not inherit the
+            // last mode's (#2048).
+            await Self.applyVocabularyPrompt(vocabulary, to: context)
             
             // When timestamps are requested, read text + timings together from the
             // same whisper run so the captured timings always belong to the *kept*
