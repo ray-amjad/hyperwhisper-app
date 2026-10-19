@@ -365,8 +365,11 @@ export default function PrivacyPolicyPage() {
           >
             Meta Muse Voice Transcribe
           </a>
-          . A direct Meta request goes from your device to api.meta.ai and does
-          not pass through HyperWhisper servers.
+          . A direct Meta request, with your own key, goes from your device to
+          api.meta.ai and does not pass through HyperWhisper servers. A Meta
+          request on HyperWhisper Cloud is different: it goes from our edge
+          servers to api.meta.ai on our own Meta account, as described under
+          HyperWhisper Cloud below.
         </li>
       </ul>
       <p>
@@ -507,6 +510,107 @@ export default function PrivacyPolicyPage() {
           pass through our own Google Cloud Storage bucket first, as described
           above.
         </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://x.ai/legal/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            SpaceXAI (Grok)
+          </a>{" "}
+          (Grok Voice Transcribe). Falls back to Deepgram, then Groq, then
+          ElevenLabs, on failure.
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://privacy.microsoft.com/privacystatement"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Microsoft (Azure Speech)
+          </a>{" "}
+          (MAI-Transcribe).
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://openai.com/policies/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            OpenAI
+          </a>{" "}
+          (GPT Transcribe, GPT-4o Transcribe and Whisper models).
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://policies.google.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google (Gemini)
+          </a>{" "}
+          (Gemini Flash and Pro models).
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://policies.google.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google (Gemini 3.5 Transcribe)
+          </a>{" "}
+          (Gemini 3.5 Transcribe).
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://www.assemblyai.com/legal/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            AssemblyAI
+          </a>{" "}
+          (Universal-3.5 Pro, Universal-2 and Dictation).
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://mistral.ai/terms/#privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Mistral
+          </a>{" "}
+          (Voxtral).
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://soniox.com/policies/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Soniox
+          </a>{" "}
+          (Soniox async speech-to-text).
+        </li>
+        <li>
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://dev.meta.ai/docs/speech-to-text/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Meta
+          </a>{" "}
+          (Muse Voice Transcribe). Our edge servers send your audio to
+          api.meta.ai on our own Meta account.
+        </li>
       </ul>
       <p>
         When HyperWhisper Cloud transcribes a recording with Deepgram, Groq,
@@ -625,13 +729,14 @@ export default function PrivacyPolicyPage() {
         Anthropic&apos;s reply repeats the instructions.
       </p>
       <p>
-        Where available, we have configured zero data retention on our
-        provider accounts — for example, Deepgram&apos;s data retention is set
-        to zero so that audio is deleted immediately after transcription.
-        Tracking, voice data storage, and any optional data-sharing settings
-        have been disabled on all provider accounts that offer those controls.
-        However, we are not on enterprise plans with these providers, so their
-        standard data processing terms still apply. Please review each
+        Deepgram is the one HyperWhisper Cloud provider account on which we
+        have configured zero data retention: Deepgram&apos;s data retention is
+        set to zero so that audio is deleted immediately after transcription.
+        The other HyperWhisper Cloud providers listed above keep data under
+        their standard API terms, and we do not claim a zero-retention or
+        no-training setting on their accounts. We are not on enterprise plans
+        with these providers, so their standard data processing terms still
+        apply. Please review each
         provider&apos;s privacy policy linked above for full details on how they
         handle data.
       </p>
