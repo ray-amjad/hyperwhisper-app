@@ -741,9 +741,9 @@ export default function PrivacyPolicyPage() {
         handle data.
       </p>
       <p>
-        That control is not available on every HyperWhisper Cloud provider
-        account. ElevenLabs stores your audio and transcript by default,
-        because its zero-retention mode is available only on enterprise plans
+        On every other HyperWhisper Cloud provider account, what happens to
+        your data depends on that provider&apos;s standard terms. ElevenLabs
+        stores your audio and transcript by default, because its zero-retention mode is available only on enterprise plans
         and our account is not on one yet. Grok and Mistral store
         transcription requests for approximately 30 days for abuse monitoring,
         and do not use them to train their models. Meta does not publish a

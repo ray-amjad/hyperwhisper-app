@@ -27,7 +27,7 @@ HyperWhisper Cloud sends your audio to a backing speech-to-text provider. It als
 
 **HyperWhisper applies these data-protection controls on HyperWhisper Cloud today:**
 
-- If a provider has a per-request no-train / no-store flag, HyperWhisper sets the flag on every call (for example, the `mip_opt_out` flag of Deepgram).
+- HyperWhisper sets Deepgram's per-request no-train flag, `mip_opt_out`, on every Deepgram call.
 - Deepgram is the only HyperWhisper Cloud provider account with zero data retention set. The other providers keep data under their standard API terms, and HyperWhisper does not claim a zero-retention or no-training setting on their accounts.
 - For AssemblyAI, HyperWhisper deletes the transcript from AssemblyAI immediately after it gets the transcript.
 
