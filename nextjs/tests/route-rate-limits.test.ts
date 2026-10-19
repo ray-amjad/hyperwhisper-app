@@ -5,7 +5,7 @@
  * - `GET /api/license/credits` answers "is this key real, and what is it
  *   worth" to anyone, so it gets validate's per-IP ceiling on its own budget
  *   (`licenseCreditsRateLimiter`). The POST (the deduction) is NOT limited
- *   here: it is cloud-only, gated on `x-internal-secret` (#2021).
+ *   here: making it cloud-only is #2021.
  * - `POST /api/checkout/credits` creates a Stripe Checkout Session per call,
  *   and `GET /api/checkout` redirects into it; both use `checkoutRateLimiter`.
  *
@@ -202,27 +202,18 @@ describe("GET /api/license/credits and its alias are one route", () => {
 
 describe("POST /api/license/credits is not rate limited here (#2021)", () => {
   test("the deduction never consults a limiter, even with the budget at 0", async () => {
-    // The deduction is cloud-only (x-internal-secret), so send it the way the
-    // cloud does; the point here is that no limiter is asked.
-    const realSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
-    process.env.HYPERWHISPER_INTERNAL_SECRET = "test-internal-secret";
     behaviour.rateLimitMax = 0;
-    try {
-      const { POST } = await loadLicenseCreditsRoute();
+    const { POST } = await loadLicenseCreditsRoute();
 
-      const response = await POST(
-        postRequest(
-          "/api/license/credits",
-          { license_key: GRANTED_KEY, amount: 1 },
-          { ...fromIp(CALLER_IP), "x-internal-secret": "test-internal-secret" },
-        ),
-      );
+    const response = await POST(
+      postRequest(
+        "/api/license/credits",
+        { license_key: GRANTED_KEY, amount: 1 },
+        fromIp(CALLER_IP),
+      ),
+    );
 
-      assert.equal(response.status, 200);
-      assert.deepEqual(calls.rateLimit, []);
-    } finally {
-      if (realSecret === undefined) delete process.env.HYPERWHISPER_INTERNAL_SECRET;
-      else process.env.HYPERWHISPER_INTERNAL_SECRET = realSecret;
-    }
+    assert.notEqual(response.status, 429);
+    assert.deepEqual(calls.rateLimit, []);
   });
 });

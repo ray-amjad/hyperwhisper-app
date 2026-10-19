@@ -83,7 +83,7 @@ Over a limit: HTTP 429, a `Retry-After` header in whole seconds, and the usual `
 
 **Fails open.** No Upstash env, an Upstash error, or a check slower than `RATE_LIMIT_TIMEOUT_MS` (1 s; @upstash/ratelimit then answers `{ success: true, reason: 'timeout' }`) serves the request and logs `rate_limit.unavailable` with `failOpen: true` — same stance as `isIPBlocked`. Tests swap the store with `setRateLimitStoreForTests`.
 
-The site limits the routes this service calls, per caller IP: `GET /api/license/credits` (the `/usage?force_refresh=true` read) 300/min and `/api/license/validate` 30/min, on separate budgets. Every machine in a Fly region shares one exit address, so a 429 from either means the whole region hit it; `POST /api/license/credits` (the deduction) is not rate limited: it is cloud-only, and the site answers 401 unless this service sends `x-internal-secret` equal to `HYPERWHISPER_INTERNAL_SECRET` (#2021; `recordLicenseUsage` in `src/middleware/credits.ts` sends it, and omits it when the secret is unset, so the deduction then fails through the normal `onFailure` report).
+The site limits the routes this service calls, per caller IP: `GET /api/license/credits` (the `/usage?force_refresh=true` read) 300/min and `/api/license/validate` 30/min, on separate budgets. Every machine in a Fly region shares one exit address, so a 429 from either means the whole region hit it; `POST /api/license/credits` (the deduction) is not limited.
 </important>
 
 <important if="you are touching google-chirp.ts, gcs-storage.ts, or the GCS scratch bucket">
