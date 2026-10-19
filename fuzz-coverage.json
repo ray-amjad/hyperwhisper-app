@@ -516,6 +516,22 @@
       ],
       "licensed": false,
       "note": "Unlicensed, dev box. Core DLL from 2cc68dfb (no shared-core-rs change since). Onboarding: Set Up Later on the Try-It step rolls the saved local mode back to Cloud — BY DESIGN (OnboardingWindow.xaml.cs DeferAndClose), not a defect; silent mic gives 'No speech detected' correctly. History was EMPTY (no speech) so only search + export/import cancel were walked — next history goal needs a real dictation via VB-CABLE first. Updates: check/up-to-date dialog, auto-update toggle persistence, release-notes cards all clean."
+    },
+    {
+      "at": "2026-10-19T04:13:47Z",
+      "platform": "linux",
+      "commit": "a0e071b0",
+      "routes": [
+        "core-settings",
+        "licence",
+        "home-and-tray"
+      ],
+      "status": "1-filed",
+      "issues": [
+        2023
+      ],
+      "licensed": false,
+      "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY); licence route used fake keys only, all rejected cleanly. core-settings: Codex found 0 but did not check persistence; settings.json + file check found #2023 (autostart path). home-and-tray: minimize + relaunch restores via single-instance; header X quits (no tray host, by design); Codex's only defect = expected unlicensed 401."
     }
   ]
 }
