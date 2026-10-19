@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     getClientIPFromHeaders(request.headers),
     "GET /api/checkout",
   );
+
   if (limited) return limited;
 
   // The standalone /checkout (license) flow was retired; send callers straight to

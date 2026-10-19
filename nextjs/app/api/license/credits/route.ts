@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
     getClientIPFromHeaders(req.headers),
     "GET /api/license/credits",
   );
+
   if (limited) return limited;
 
   const { searchParams } = new URL(req.url);

@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
     getClientIPFromHeaders(req.headers),
     "POST /api/checkout/credits",
   );
+
   if (limited) return limited;
 
   let body: unknown;
