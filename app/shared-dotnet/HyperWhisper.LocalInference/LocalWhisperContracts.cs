@@ -43,11 +43,12 @@ public sealed record LocalWhisperLoadOptions(
 
 /// <summary>
 /// One transcription. The options after <paramref name="IncludeWordTimestamps"/>
-/// are the Windows decoding deltas; they default off so Linux does not change.
+/// are decoding deltas; they default off, and each head opts in to the ones it uses.
 /// </summary>
 /// <param name="MaxLastTextTokensZero">
 /// Adds <c>WithMaxLastTextTokens(0)</c>: no window of a long recording is primed
-/// with the text decoded before it (a repetition-loop guard).
+/// with the text decoded before it (a repetition-loop guard). Windows (#1560) and
+/// Linux (#1559) both set it on every request.
 /// </param>
 /// <param name="CreateFactoryOnRequestThread">
 /// The Windows ARM64 thread rule: Whisper.net's <c>CreateBuilder()</c> failed on
