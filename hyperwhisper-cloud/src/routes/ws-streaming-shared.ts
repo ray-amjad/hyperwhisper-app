@@ -44,7 +44,7 @@ import { logEvent } from '../lib/logging';
 import { creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { authDiagnosticsForLog, validateAuth, type AuthContext } from '../middleware/auth';
 import { keyRateLimitResponse } from '../middleware/rate-limit';
-import { deductCredits, validateCredits } from '../middleware/credits';
+import { deductCredits, logDeductionFailure, validateCredits } from '../middleware/credits';
 import { logCreditsShortfall, reserveSessionHold, type CreditHold } from '../middleware/credit-holds';
 import { insufficientCreditsResponse } from '../lib/responses';
 import { isIPBlocked } from '../lib/redis';
@@ -446,6 +446,7 @@ function decodeUpstreamFrame(raw: unknown): string {
  */
 export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
   const requestId = generateRequestId();
+  const startTime = performance.now();
   const auth = c.get('wsAuth');
   const clientIP = c.get('wsClientIP');
   const url = new URL(c.req.url);
@@ -626,7 +627,10 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
           stt_provider: vendor.billingProvider,
         },
         clientIP,
-        holdEnforced() ? { credits: creditsUsed } : {}
+        {
+          ...(holdEnforced() ? { credits: creditsUsed } : {}),
+          onFailure: logDeductionFailure(requestId, startTime, endpoint),
+        }
       ).catch(console.error);
     } else {
       void hold?.release();

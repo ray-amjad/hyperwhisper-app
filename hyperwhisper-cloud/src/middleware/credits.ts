@@ -8,6 +8,7 @@ import { isRecord, roundToTenth, roundUpToTenth } from '../lib/utils';
 import { creditsForCost } from '../lib/cost-calculator';
 import { insufficientCreditsResponse } from '../lib/responses';
 import { cacheLicense } from '../lib/redis';
+import { logEvent } from '../lib/logging';
 import { logCreditsShortfall, requestHoldFor, takeHoldForSettle, type CreditHold } from './credit-holds';
 
 export type CreditsResult =
@@ -81,16 +82,39 @@ export type DeductionFailure =
 export interface DeductCreditsOptions {
   /**
    * Called once, after the usage write, when the license API refused it or the
-   * request failed. It does not change what `deductCredits` resolves to, and a
-   * callback that throws is ignored.
+   * request failed, with the credits that write would have recorded. It does
+   * not change what `deductCredits` resolves to, and a callback that throws is
+   * ignored.
    */
-  onFailure?: (failure: DeductionFailure) => void;
+  onFailure?: (failure: DeductionFailure, creditsUsed: number) => void;
   /**
    * Charge exactly these credits instead of `creditsForCost(costUsd)`. For a
    * caller that already settled the amount against its hold (a live session at
    * its end), so the deduction does not try to cover it a second time.
    */
   credits?: number;
+}
+
+/**
+ * The `onFailure` for every charge site but `/assistant`, which keeps its own
+ * event (#820). A dropped charge writes one `credits.deduction_failed` line
+ * against the request: why it failed, the credits that were not recorded and
+ * the caller's endpoint, never the license key, the IP or the request content.
+ */
+export function logDeductionFailure(
+  requestId: string,
+  startTime: number,
+  endpoint: string
+): NonNullable<DeductCreditsOptions['onFailure']> {
+  return (failure, creditsUsed) => {
+    logEvent(requestId, startTime, 'credits.deduction_failed', {
+      endpoint,
+      ...(failure.kind === 'http'
+        ? { reason: 'http_error', status: failure.status }
+        : { reason: 'network_error', error: failure.error }),
+      creditsUsed,
+    });
+  };
 }
 
 async function recordLicenseUsage(
@@ -223,7 +247,7 @@ async function performDeduction(
     const failure = await recordLicenseUsage(auth.identifier, creditsUsed, metadata);
     if (failure && options.onFailure) {
       try {
-        options.onFailure(failure);
+        options.onFailure(failure, creditsUsed);
       } catch {
         // A reporting callback must not turn a dropped charge into a rejection.
       }

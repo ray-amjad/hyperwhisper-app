@@ -12,7 +12,7 @@ import { MAX_POST_PROCESS_BODY_BYTES } from '../lib/constants';
 import { validateContentLength } from '../lib/request-limits';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
 import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
-import { deductCredits, validateCredits } from '../middleware/credits';
+import { deductCredits, logDeductionFailure, validateCredits } from '../middleware/credits';
 import { withCreditHoldScope } from '../middleware/credit-holds';
 import { keyRateLimitResponse } from '../middleware/rate-limit';
 import { logEvent } from '../lib/logging';
@@ -280,7 +280,8 @@ async function handlePostProcess(c: Context) {
         endpoint: '/post-process',
         llm_provider: providerUsed,
       },
-      clientIP
+      clientIP,
+      { onFailure: logDeductionFailure(requestId, startTime, '/post-process') }
     ).catch(console.error);
 
     logEvent(requestId, startTime, 'post_process.request_fail', {
@@ -304,7 +305,8 @@ async function handlePostProcess(c: Context) {
       endpoint: '/post-process',
       llm_provider: providerUsed,
     },
-    clientIP
+    clientIP,
+    { onFailure: logDeductionFailure(requestId, startTime, '/post-process') }
   ).catch(console.error);
 
   logEvent(requestId, startTime, 'post_process.request_done', {
