@@ -10,6 +10,9 @@ import type { AuthContext } from './auth';
 const originalFetch = globalThis.fetch;
 const originalConsoleWarn = console.warn;
 const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
+const originalInternalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
+/** A made-up value; the site checks the deduction against it (#2021). */
+const INTERNAL_SECRET = 'test-internal-secret';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 const cacheWrites: Array<{ licenseKey: string; license: CachedLicense }> = [];
@@ -67,13 +70,17 @@ function expectBillingPost(
   expectedAmount: number,
   expectedMetadata: Record<string, unknown>,
   expectedUrl = `${DEFAULT_API_BASE_URL}/api/license/credits`,
+  expectedHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-internal-secret': INTERNAL_SECRET,
+  },
 ): void {
   expect(requests).toHaveLength(1);
   const request = requests[0];
   expect(request).toBeDefined();
   expect(request?.url).toBe(expectedUrl);
   expect(request?.init?.method).toBe('POST');
-  expect(request?.init?.headers).toEqual({ 'Content-Type': 'application/json' });
+  expect(request?.init?.headers).toEqual(expectedHeaders);
   expect(request?.init?.signal).toBeInstanceOf(AbortSignal);
   expect(JSON.parse(String(request?.init?.body))).toEqual({
     license_key: 'lic_test',
@@ -103,6 +110,7 @@ async function expectNoPendingDeductions(): Promise<void> {
 
 beforeEach(() => {
   delete process.env.NEXTJS_LICENSE_API_URL;
+  process.env.HYPERWHISPER_INTERNAL_SECRET = INTERNAL_SECRET;
 });
 
 afterEach(async () => {
@@ -115,6 +123,11 @@ afterEach(async () => {
     delete process.env.NEXTJS_LICENSE_API_URL;
   } else {
     process.env.NEXTJS_LICENSE_API_URL = originalLicenseApiUrl;
+  }
+  if (originalInternalSecret === undefined) {
+    delete process.env.HYPERWHISPER_INTERNAL_SECRET;
+  } else {
+    process.env.HYPERWHISPER_INTERNAL_SECRET = originalInternalSecret;
   }
 });
 
@@ -349,6 +362,61 @@ describe('deductCredits / drainPendingDeductions', () => {
       expect(creditsUsed).toBe(creditsForCost(0.05));
       expectBillingPost(requests, creditsForCost(0.05), { provider: 'p' });
       expect(failures).toEqual(expected as unknown[]);
+      await expectNoPendingDeductions();
+    });
+  }
+
+  // #2021: the site accepts the deduction only with x-internal-secret.
+  test('deductCredits sends HYPERWHISPER_INTERNAL_SECRET as x-internal-secret', async () => {
+    process.env.HYPERWHISPER_INTERNAL_SECRET = 'another-made-up-secret';
+    const requests = captureFetch(() => Response.json({ credits_remaining: 3 }));
+
+    await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4');
+
+    expectBillingPost(requests, creditsForCost(0.05), { provider: 'p' }, undefined, {
+      'Content-Type': 'application/json',
+      'x-internal-secret': 'another-made-up-secret',
+    });
+    await expectNoPendingDeductions();
+  });
+
+  test('deductCredits reports a 401 from the site through onFailure, unchanged credits', async () => {
+    const requests = captureFetch(() => Response.json({ error: 'Unauthorized' }, { status: 401 }));
+    const warnings = captureWarnings();
+    const failures: unknown[] = [];
+
+    const creditsUsed = await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4', {
+      onFailure: (failure) => failures.push(failure),
+    });
+
+    expect(creditsUsed).toBe(creditsForCost(0.05));
+    expectBillingPost(requests, creditsForCost(0.05), { provider: 'p' });
+    expect(failures).toEqual([{ kind: 'http', status: 401 }]);
+    expect(cacheWrites).toHaveLength(0);
+    expect(warnings).toEqual([[
+      'POST /api/license/credits failed',
+      { status: 401, error: 'Unauthorized', creditsUsed: creditsForCost(0.05) },
+    ]]);
+    await expectNoPendingDeductions();
+  });
+
+  for (const unset of [undefined, '']) {
+    test(`deductCredits omits x-internal-secret when the secret is ${unset === undefined ? 'unset' : 'empty'}, and the 401 is reported`, async () => {
+      if (unset === undefined) delete process.env.HYPERWHISPER_INTERNAL_SECRET;
+      else process.env.HYPERWHISPER_INTERNAL_SECRET = unset;
+      const requests = captureFetch(() => Response.json({ error: 'Unauthorized' }, { status: 401 }));
+      captureWarnings();
+      const failures: unknown[] = [];
+
+      const creditsUsed = await deductCredits(auth(20), 0.05, { provider: 'p' }, '1.2.3.4', {
+        onFailure: (failure) => failures.push(failure),
+      });
+
+      expect(creditsUsed).toBe(creditsForCost(0.05));
+      expectBillingPost(requests, creditsForCost(0.05), { provider: 'p' }, undefined, {
+        'Content-Type': 'application/json',
+      });
+      expect(failures).toEqual([{ kind: 'http', status: 401 }]);
       await expectNoPendingDeductions();
     });
   }
