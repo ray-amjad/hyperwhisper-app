@@ -404,7 +404,7 @@ describe('the exported Bun server', () => {
         let reply = '';
         Bun.connect({
           hostname: '127.0.0.1',
-          port: live.port,
+          port: Number(live.port),
           socket: {
             open(socket) {
               socket.write(
