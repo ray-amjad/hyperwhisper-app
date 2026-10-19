@@ -1083,8 +1083,12 @@ public static class UniversalBackupMapper
             mode.ModelType = peerExt?.ModelType ?? universal.Model;
             mode.LocalEngine = peerExt?.LocalEngine ?? "whisper";
             mode.LocalParakeetModel = peerExt?.LocalParakeetModel;
+            // No slice says: a Cloud mode is `model == "cloud"` OR a set
+            // cloudProvider. macOS may omit the provider on a HyperWhisper Cloud
+            // mode, so the provider alone turned it into local Whisper (#1690).
             mode.ProviderType = peerExt?.ProviderType
-                ?? (!string.IsNullOrEmpty(universal.CloudProvider) ? "cloud" : "local");
+                ?? (universal.Model == LocalModeModel.CloudModel
+                    || !string.IsNullOrWhiteSpace(universal.CloudProvider) ? "cloud" : "local");
             // Tier / post-processing model already resolved by the core above.
             // A macOS or Linux backup carries screen OCR in ITS slice (#1498).
             mode.EnableScreenOCR =
@@ -1094,6 +1098,12 @@ public static class UniversalBackupMapper
             mode.CreatedDate = peerExt?.CreatedDate ?? DateTime.UtcNow;
             mode.ModifiedDate = peerExt?.ModifiedDate ?? DateTime.UtcNow;
         }
+
+        // A restored Cloud mode with a blank provider stores HyperWhisper Cloud,
+        // the meaning every head gives that blank (#1690, #1709), whichever
+        // branch above set ProviderType.
+        if (mode.ProviderType == "cloud" && string.IsNullOrWhiteSpace(mode.CloudProvider))
+            mode.CloudProvider = global::HyperWhisper.SharedCore.SharedCoreBridge.EffectiveModeCloudProvider(mode.CloudProvider);
 
         // Preserve every NON-Windows per-mode platformExtensions slice (e.g. the
         // macos blob) verbatim so it survives a Windows round-trip (H4). Stored as

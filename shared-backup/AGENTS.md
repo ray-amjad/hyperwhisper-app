@@ -279,7 +279,7 @@ Windows-only mode fields (go into `platformExtensions.windows`):
 | `modelType` | `Mode.ModelType` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else same as `model` |
 | `localEngine` | `Mode.LocalEngine` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `"whisper"` |
 | `localParakeetModel` | `Mode.LocalParakeetModel` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `null` |
-| `providerType` | `Mode.ProviderType` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else infer from `cloudProvider` |
+| `providerType` | `Mode.ProviderType` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `"cloud"` when `model` is `"cloud"` or `cloudProvider` is set, otherwise `"local"`. A restored Cloud mode with a blank `cloudProvider` stores `"hyperwhisper"` (#1690) |
 | `cloudAccuracyTier` | `Mode.CloudAccuracyTier` | the top-level value when a newer `linux` slice wins (#1747), else this slice's, else the provider fold's or the top level's, else `"High"` |
 | `enableScreenOCR` | `Mode.EnableScreenOCR` | a newer `linux` slice's (by `modifiedDate`), else the `windows` slice's, else the `macos`, then the `linux`, slice's `enableScreenOCR`, else `false` |
 | `customVocabulary` | `Mode.CustomVocabulary` | the `linux` slice's (no `windows` slice, or a newer `linux` `modifiedDate`), else `null` |
