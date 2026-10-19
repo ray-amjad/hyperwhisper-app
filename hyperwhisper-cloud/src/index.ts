@@ -129,7 +129,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
   // the grace period is one budget, not two.
   // Credit-hold releases too: one left behind narrows the user's balance until
   // its TTL frees it (#2008).
-  const [drained, drainedReports] = await Promise.all([
+  const [drained, drainedReports, drainedHoldReleases] = await Promise.all([
     drainPendingDeductions(SHUTDOWN_DRAIN_MS),
     drainPendingLatencyReports(SHUTDOWN_DRAIN_MS),
     drainPendingHoldReleases(SHUTDOWN_DRAIN_MS),
@@ -139,6 +139,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
   }
   if (drainedReports > 0) {
     console.log('machine.shutdown_drained_latency_reports', { count: drainedReports });
+  }
+  if (drainedHoldReleases > 0) {
+    console.log('machine.shutdown_drained_hold_releases', { count: drainedHoldReleases });
   }
   process.exit(0);
 }
