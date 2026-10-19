@@ -20,6 +20,7 @@ import { drainPendingDeductions } from './middleware/credits';
 import { drainPendingHoldReleases } from './middleware/credit-holds';
 import { drainPendingLatencyReports } from './lib/latency-report';
 import { ipRateLimit } from './middleware/rate-limit';
+import { MAX_AUDIO_SIZE_BYTES } from './lib/constants';
 
 const app = new Hono();
 
@@ -104,12 +105,14 @@ app.onError((err, c) => {
   }, 500);
 });
 
-// Graceful shutdown: Fly sends SIGTERM on deploy/scale-down with a grace
-// period before SIGKILL (kill_timeout, default 5s). Credit deductions are
-// fired without awaiting after the response is flushed, so drain any that are
-// still in flight before exiting — otherwise the user keeps the transcript
-// but the charge is silently dropped.
-const SHUTDOWN_DRAIN_MS = 4_000;
+// Graceful shutdown: Fly sends SIGINT/SIGTERM on deploy/scale-down with a grace
+// period before SIGKILL (`kill_timeout = '120s'` in fly.prod.toml and
+// fly.staging.toml, #2011). Credit deductions are fired without awaiting after
+// the response is flushed, so drain any that are still in flight before
+// exiting — otherwise the user keeps the transcript but the charge is silently
+// dropped. The drain budget sits just under kill_timeout; each drain returns as
+// soon as its writes settle, so a quiet machine still exits at once.
+export const SHUTDOWN_DRAIN_MS = 115_000;
 let shuttingDown = false;
 
 async function gracefulShutdown(signal: string): Promise<void> {
@@ -169,6 +172,9 @@ export const SERVER_IDLE_TIMEOUT_SECONDS = 255;
 export default {
   port: Number(process.env.PORT) || 8080,
   idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,
+  // Bun's own body limit, the same constant the route's Content-Length gate
+  // reads (#2011). Bun refuses a larger body itself, chunked uploads included.
+  maxRequestBodySize: MAX_AUDIO_SIZE_BYTES,
   fetch: app.fetch,
   websocket,
 };
