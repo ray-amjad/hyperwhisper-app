@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Други програм је закључао базу података историје, па овај снимак још није у историји. Снимак је сачуван и биће додат у историју када се база података ослободи.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Овај снимак још није могао да се сачува у историји. Снимак је сачуван и биће додат у историју касније.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

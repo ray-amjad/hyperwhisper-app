@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Wird wiederholt...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Ein anderes Programm hat die Verlaufsdatenbank gesperrt, daher ist diese Aufnahme noch nicht im Verlauf. Die Aufnahme wurde behalten und wird dem Verlauf hinzugefügt, sobald die Datenbank wieder frei ist.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Diese Aufnahme konnte noch nicht im Verlauf gespeichert werden. Die Aufnahme wurde behalten und wird später zum Verlauf hinzugefügt.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Opnieuw proberen...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Een ander programma heeft de geschiedenisdatabase vergrendeld, dus deze opname staat nog niet in de geschiedenis. De opname is bewaard en wordt aan de geschiedenis toegevoegd zodra de database vrij is.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Deze opname kon nog niet in de geschiedenis worden opgeslagen. De opname is bewaard en wordt later aan de geschiedenis toegevoegd.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>正在重試...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>另一個程式鎖定了歷史記錄資料庫，因此此錄音尚未出現在歷史記錄中。錄音已保留，資料庫可用後將加入歷史記錄。</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>此錄音暫時無法儲存到歷史記錄。錄音已保留，稍後將加入歷史記錄。</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

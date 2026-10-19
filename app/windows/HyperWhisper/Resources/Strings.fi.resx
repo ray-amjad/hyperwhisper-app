@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Toinen ohjelma on lukinnut historiatietokannan, joten tämä tallenne ei ole vielä historiassa. Tallenne säilytettiin, ja se lisätään historiaan, kun tietokanta vapautuu.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Tätä tallennetta ei voitu vielä tallentaa historiaan. Tallenne säilytettiin, ja se lisätään historiaan myöhemmin.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Databázu histórie zamkol iný program, preto táto nahrávka zatiaľ nie je v histórii. Nahrávka bola zachovaná a do histórie sa pridá, keď sa databáza uvoľní.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Túto nahrávku sa zatiaľ nepodarilo uložiť do histórie. Nahrávka bola zachovaná a do histórie sa pridá neskôr.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

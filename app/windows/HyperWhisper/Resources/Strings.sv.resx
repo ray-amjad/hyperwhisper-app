@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Ett annat program har låst historikdatabasen, så den här inspelningen finns inte i historiken än. Inspelningen har sparats och läggs till i historiken när databasen är ledig.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Den här inspelningen kunde inte sparas i historiken än. Inspelningen har sparats och läggs till i historiken senare.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

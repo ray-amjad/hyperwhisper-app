@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Teine programm on ajaloo andmebaasi lukustanud, seega pole see salvestis veel ajaloos. Salvestis säilitati ja lisatakse ajalukku, kui andmebaas vabaneb.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Seda salvestist ei õnnestunud veel ajalukku salvestada. Salvestis säilitati ja lisatakse ajalukku hiljem.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

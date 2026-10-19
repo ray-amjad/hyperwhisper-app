@@ -188,6 +188,12 @@
   <data name="history.status.retrying" xml:space="preserve">
     <value>Retrying...</value>
   </data>
+  <data name="history.savedLater.databaseLocked" xml:space="preserve">
+    <value>Program lain sedang mengunci pangkalan data Sejarah, jadi rakaman ini belum ada dalam Sejarah. Rakaman telah disimpan dan akan ditambah ke Sejarah apabila pangkalan data bebas.</value>
+  </data>
+  <data name="history.savedLater.writeFailed" xml:space="preserve">
+    <value>Rakaman ini belum dapat disimpan ke Sejarah. Rakaman telah disimpan dan akan ditambah ke Sejarah kemudian.</value>
+  </data>
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">

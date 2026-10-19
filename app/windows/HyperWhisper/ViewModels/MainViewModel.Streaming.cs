@@ -250,7 +250,8 @@ public partial class MainViewModel : ViewModelBase
                     GetStreamingProviderDisplayName());
             }
 
-            transcript = HistoryService.Instance.CreateProcessingTranscript(
+            // Off the UI thread (#1589): a locked database makes the insert wait 30 s.
+            transcript = await CreateProcessingTranscriptOffUiThreadAsync(
                 durationSeconds,
                 SelectedMode?.Name,
                 audioFilePath: null);

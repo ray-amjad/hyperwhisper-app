@@ -150,7 +150,9 @@ static void AllCatalogsLoad()
     // settings "Muffle audio" media-control mode).
     // 863 -> 864 (#1489): `license.error.keyFormat` is new (the hint under the account key
     // field when the text cannot be any key; Windows and Linux).
-    Equal(864, PortableLocalizer.BaseKeyCount, "base key count");
+    // 864 -> 866 (#1589): `history.savedLater.databaseLocked` and `.writeFailed` are new
+    // (Windows toast when the History insert is refused and the row is saved later).
+    Equal(866, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");
