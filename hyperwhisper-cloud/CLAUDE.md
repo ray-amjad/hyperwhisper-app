@@ -82,6 +82,8 @@ Limited: `/transcribe`, `/post-process`, `/assistant`, `/usage` and every `/ws/s
 Over a limit: HTTP 429, a `Retry-After` header in whole seconds, and the usual `{ error: 'Too many requests', message, retry_after_seconds }` body; the log line is `rate_limit.rejected` (endpoint + bucket, never the IP or key). The native clients already treat 429 as rate limited.
 
 **Fails open.** No Upstash env, an Upstash error, or a check slower than `RATE_LIMIT_TIMEOUT_MS` (1 s; @upstash/ratelimit then answers `{ success: true, reason: 'timeout' }`) serves the request and logs `rate_limit.unavailable` with `failOpen: true` — same stance as `isIPBlocked`. Tests swap the store with `setRateLimitStoreForTests`.
+
+The site limits the routes this service calls, per caller IP: `GET /api/license/credits` (the `/usage?force_refresh=true` read) and `/api/license/validate` 30/min each, on separate budgets. Every machine in a Fly region shares one exit address, so a 429 from either means the whole region hit it; `POST /api/license/credits` (the deduction) is not limited.
 </important>
 
 <important if="you are touching google-chirp.ts, gcs-storage.ts, or the GCS scratch bucket">
