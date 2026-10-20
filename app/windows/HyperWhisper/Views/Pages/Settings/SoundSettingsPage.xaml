@@ -72,19 +72,28 @@
                          set by the code-behind; the rows come from MainViewModel's
                          one saved choice, shared with the tray and onboarding. -->
                     <StackPanel x:Name="MicrophonePickerRow" Margin="0,0,0,12">
+                        <!-- The subtitle has its own row across the whole card, not the
+                             column left of the ComboBox: squeezed beside the picker it was
+                             one line short of its text in zh-Hans (214px for 217px), and
+                             any translation can be longer. Full width, it wraps freely. -->
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="260"/>
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                            <StackPanel Margin="0,0,12,0">
-                                <TextBlock Text="{loc:Loc menu.microphone}" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="{loc:Loc settings.sound.microphone.subtitle}"
-                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                           Margin="0,2,0,0" TextWrapping="Wrap"/>
-                            </StackPanel>
+                            <TextBlock Text="{loc:Loc menu.microphone}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Margin="0,0,12,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+
+                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
+                                       Text="{loc:Loc settings.sound.microphone.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,4,0,0" TextWrapping="Wrap"/>
 
                             <ComboBox x:Name="MicrophoneComboBox" Grid.Column="1"
                                       VerticalAlignment="Center"

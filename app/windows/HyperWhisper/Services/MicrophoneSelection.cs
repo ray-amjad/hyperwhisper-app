@@ -16,6 +16,13 @@
 // length. So the OS default endpoint's FriendlyName only prefix-matches its
 // WaveIn row once the name is long, and a saved name may have been written by
 // an older build from either source. FindByName handles both.
+//
+// SAME-NAMED DEVICES. Two identical USB microphones have the same WaveIn name,
+// so a saved name can match several rows. Within a session the exact device
+// the user picked (its DeviceNumber) is what records and what is shown
+// selected: MainViewModel passes it, then the current device, as the preferred
+// device numbers, and the first match is used only when neither is among them.
+// What is SAVED stays the name.
 
 namespace HyperWhisper.Services;
 
@@ -48,8 +55,11 @@ public sealed record MicrophoneResolution(
 /// <summary>
 /// One row of the Settings microphone picker. <see cref="Name"/> is what is
 /// saved when the row is picked: null for the Default row.
+/// <see cref="DeviceNumber"/> is the exact WaveIn device of a connected row, so
+/// two same-named devices are two different rows; null for the Default and
+/// "(not connected)" rows.
 /// </summary>
-public sealed record MicrophoneOption(string? Name, string Label, bool IsDefault, bool IsMissing);
+public sealed record MicrophoneOption(string? Name, string Label, bool IsDefault, bool IsMissing, int? DeviceNumber = null);
 
 public static class MicrophoneSelection
 {
@@ -78,32 +88,50 @@ public static class MicrophoneSelection
 
     /// <summary>
     /// The device named <paramref name="name"/>, or null. An exact (ordinal)
-    /// match wins; then a case-insensitive or truncation match, which must be
-    /// unique, so two long names sharing their first 31 characters never pick
-    /// one at random.
+    /// match wins: when several devices carry that exact name, the first of
+    /// <paramref name="preferredDeviceNumbers"/> among them, else the first.
+    /// Then a case-insensitive or truncation match: a preferred one, else it
+    /// must be unique, so two long names sharing their first 31 characters
+    /// never pick one at random.
     /// </summary>
     public static AudioDeviceService.AudioDevice? FindByName(
         IReadOnlyList<AudioDeviceService.AudioDevice> devices,
-        string? name)
+        string? name,
+        params int?[] preferredDeviceNumbers)
     {
         if (string.IsNullOrWhiteSpace(name) || devices.Count == 0)
             return null;
 
-        var exact = devices.FirstOrDefault(d => string.Equals(d.Name, name, StringComparison.Ordinal));
-        if (exact != null)
-            return exact;
+        var exact = devices.Where(d => string.Equals(d.Name, name, StringComparison.Ordinal)).ToList();
+        if (exact.Count > 0)
+            return Preferred(exact, preferredDeviceNumbers) ?? exact[0];
 
-        AudioDeviceService.AudioDevice? match = null;
-        foreach (var device in devices)
+        var loose = devices.Where(d => NamesMatch(d.Name, name)).ToList();
+        if (loose.Count == 0)
+            return null;
+
+        return Preferred(loose, preferredDeviceNumbers)
+            ?? (loose.Count == 1 ? loose[0] : null); // ambiguous
+    }
+
+    /// <summary>The first of <paramref name="preferredDeviceNumbers"/> found in <paramref name="matches"/>.</summary>
+    private static AudioDeviceService.AudioDevice? Preferred(
+        IReadOnlyList<AudioDeviceService.AudioDevice> matches,
+        int?[]? preferredDeviceNumbers)
+    {
+        if (preferredDeviceNumbers == null)
+            return null;
+
+        foreach (var number in preferredDeviceNumbers)
         {
-            if (!NamesMatch(device.Name, name))
+            if (number is not { } n)
                 continue;
+            var match = matches.FirstOrDefault(d => d.DeviceNumber == n);
             if (match != null)
-                return null; // ambiguous
-            match = device;
+                return match;
         }
 
-        return match;
+        return null;
     }
 
     /// <summary>
@@ -123,7 +151,7 @@ public static class MicrophoneSelection
         if (devices.Count == 0)
             return null;
 
-        var byName = FindByName(devices, defaultFriendlyName);
+        var byName = FindByName(devices, defaultFriendlyName, defaultEndpointOrdinal >= 0 ? defaultEndpointOrdinal : null);
         if (byName != null)
             return byName;
 
@@ -140,11 +168,14 @@ public static class MicrophoneSelection
     /// <summary>
     /// Saved device if connected, else the Windows default. The saved name is
     /// passed through untouched so a disconnected choice is never forgotten.
+    /// <paramref name="preferredDeviceNumbers"/> picks among devices that share
+    /// the saved name (see <see cref="FindByName"/>).
     /// </summary>
     public static MicrophoneResolution Resolve(
         IReadOnlyList<AudioDeviceService.AudioDevice> devices,
         string? savedName,
-        AudioDeviceService.AudioDevice? defaultDevice)
+        AudioDeviceService.AudioDevice? defaultDevice,
+        params int?[] preferredDeviceNumbers)
     {
         var saved = string.IsNullOrWhiteSpace(savedName) ? null : savedName;
 
@@ -153,7 +184,7 @@ public static class MicrophoneSelection
 
         if (saved != null)
         {
-            var match = FindByName(devices, saved);
+            var match = FindByName(devices, saved, preferredDeviceNumbers);
             if (match != null)
                 return new MicrophoneResolution(match, MicrophoneSource.Saved, saved, defaultDevice);
 
@@ -178,7 +209,7 @@ public static class MicrophoneSelection
 
         foreach (var device in devices)
         {
-            var row = new MicrophoneOption(device.Name, device.Name, IsDefault: false, IsMissing: false);
+            var row = new MicrophoneOption(device.Name, device.Name, IsDefault: false, IsMissing: false, device.DeviceNumber);
             options.Add(row);
             if (resolution.Source == MicrophoneSource.Saved && resolution.Device == device)
                 selected = row;

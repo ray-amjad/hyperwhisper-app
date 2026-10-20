@@ -28,12 +28,16 @@ public partial class SoundSettingsPage : Page
     }
 
     /// <summary>
-    /// Leaving the page stops a running Test, and drops the subscription to
-    /// MainViewModel so a cached page does not rebuild behind the user's back.
+    /// Leaving the page disposes the picker: it stops a running Test, releases
+    /// the tester and drops the subscription to MainViewModel, so a cached page
+    /// does not rebuild behind the user's back. Loaded makes a fresh one.
     /// </summary>
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        _microphonePicker?.Detach();
+        var picker = _microphonePicker;
+        _microphonePicker = null;
+        MicrophonePickerRow.DataContext = null;
+        picker?.Dispose();
     }
 
     private void AttachMicrophonePicker()

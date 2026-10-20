@@ -1817,6 +1817,34 @@ internal static class Program
                     "with no named Windows default the row reads System Default");
             });
 
+            Run("Microphone picker: same-named devices keep the exact device picked", () =>
+            {
+                // Two identical USB microphones: one WaveIn name, two device numbers.
+                var builtin = new AudioDeviceService.AudioDevice(0, "Microphone (Realtek(R) Audio)");
+                var first = new AudioDeviceService.AudioDevice(1, "USB Microphone");
+                var second = new AudioDeviceService.AudioDevice(2, "USB Microphone");
+                var devices = new List<AudioDeviceService.AudioDevice> { builtin, first, second };
+
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone") == first, "no preference: the first match");
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone", 2) == second, "the preferred device wins among same-named ones");
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone", 0) == first,
+                    "a preferred device with a different name is not a match");
+                Assert(MicrophoneSelection.FindByName(devices, "USB Microphone", null, 2) == second, "the next preference is used when the first is unset");
+
+                // MainViewModel passes (picked this session, currently recording).
+                var picked = MicrophoneSelection.Resolve(devices, "USB Microphone", builtin, 2, 1);
+                Assert(picked.Source == MicrophoneSource.Saved && picked.Device == second, "the device picked this session records");
+                var current = MicrophoneSelection.Resolve(devices, "USB Microphone", builtin, null, 2);
+                Assert(current.Device == second, "with no pick, the device already in use stays");
+
+                var (rows, selected) = MicrophoneSelection.BuildOptions(devices, picked);
+                Assert(rows.Count == 4, $"Default + 3 devices, got {rows.Count}");
+                Assert(rows[2] != rows[3], "two same-named devices are two different rows");
+                Assert(selected == rows[3] && selected.DeviceNumber == 2, "the exact picked device's row is selected, not the first same-named one");
+                Assert(selected.Name == "USB Microphone", "and what it saves is still the name");
+                Assert(rows[0].DeviceNumber is null, "the Default row names no device");
+            });
+
             Run("Microphone Test meter: shared level maths, idle bar empty", () =>
             {
                 var silence = new byte[3200];

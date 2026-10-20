@@ -19,18 +19,23 @@ namespace HyperWhisper.ViewModels;
 /// TEST. Visiting the page opens nothing. Test opens the device the app records
 /// from (the saved choice, or the Windows default standing in for it) for
 /// <see cref="TestDuration"/>; a second click, leaving the page
-/// (<see cref="Detach"/>), a recording starting, or the device changing stops it.
+/// (<see cref="Dispose"/>), a recording starting, or the device changing stops it.
+///
+/// LIFETIME. The owning page creates one on Loaded and disposes it on Unloaded:
+/// that unsubscribes from MainViewModel, the tester and the timer, and releases
+/// the tester's capture.
 /// </summary>
-public partial class MicrophonePickerViewModel : ObservableObject
+public sealed partial class MicrophonePickerViewModel : ObservableObject, IDisposable
 {
     public static readonly TimeSpan TestDuration = TimeSpan.FromSeconds(10);
 
     private readonly MainViewModel _main;
-    private readonly MicrophoneLevelTester _tester;
+    private MicrophoneLevelTester? _tester;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _testTimer;
     private bool _attached;
     private bool _rebuilding;
+    private bool _disposed;
 
     [ObservableProperty] private IReadOnlyList<MicrophoneOption> _options = Array.Empty<MicrophoneOption>();
     [ObservableProperty] private string? _fallbackMessage;
@@ -50,14 +55,14 @@ public partial class MicrophonePickerViewModel : ObservableObject
         _tester.LevelChanged += OnTesterLevel;
 
         _testTimer = new DispatcherTimer(DispatcherPriority.Normal, _dispatcher) { Interval = TestDuration };
-        _testTimer.Tick += (_, _) => StopTest();
+        _testTimer.Tick += OnTestTimerTick;
     }
 
     public bool HasFallback => !string.IsNullOrEmpty(FallbackMessage);
 
     public string TestButtonText => Loc.S(IsTesting ? "settings.sound.microphone.stop" : "settings.sound.microphone.test");
 
-    public bool CanTest => HasDevices && !_main.IsRecording;
+    public bool CanTest => !_disposed && HasDevices && !_main.IsRecording;
 
     /// <summary>
     /// The picked row. A TwoWay ComboBox binding writes null while its list is
@@ -69,14 +74,16 @@ public partial class MicrophonePickerViewModel : ObservableObject
         get => _selectedOption;
         set
         {
-            if (value == null || _rebuilding || Equals(value, _selectedOption))
+            if (value == null || _rebuilding || _disposed || Equals(value, _selectedOption))
                 return;
 
             _selectedOption = value;
             OnPropertyChanged();
 
             LoggingService.Info($"SoundSettingsPage: microphone set to '{value.Name ?? "(default)"}'");
-            if (!_main.SelectMicrophone(value.Name))
+            // The row's DeviceNumber keeps the exact device when several share
+            // the name; only the name is saved.
+            if (!_main.SelectMicrophone(value.Name, value.DeviceNumber))
             {
                 // Refused (onboarding is open): put the row back.
                 Rebuild();
@@ -93,21 +100,64 @@ public partial class MicrophonePickerViewModel : ObservableObject
     /// <summary>Called when the page loads.</summary>
     public void Attach()
     {
-        if (_attached) return;
+        if (_disposed || _attached) return;
         _attached = true;
         _main.PropertyChanged += OnMainPropertyChanged;
         _main.MicrophoneCaptureStarting += OnCaptureStarting;
         Rebuild();
     }
 
-    /// <summary>Called when the page unloads: stops a running test.</summary>
-    public void Detach()
+    /// <summary>
+    /// Called when the page unloads: stops a running test, then unsubscribes
+    /// from everything before the tester is disposed, so no late callback
+    /// reaches a disposed tester or a page that is gone.
+    /// </summary>
+    public void Dispose()
     {
-        StopTest();
-        if (!_attached) return;
-        _attached = false;
-        _main.PropertyChanged -= OnMainPropertyChanged;
-        _main.MicrophoneCaptureStarting -= OnCaptureStarting;
+        if (_disposed) return;
+        _disposed = true;
+
+        try
+        {
+            StopTest();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"MicrophonePickerViewModel: Stopping the test failed: {ex.Message}");
+        }
+        finally
+        {
+            if (_attached)
+            {
+                _attached = false;
+                _main.PropertyChanged -= OnMainPropertyChanged;
+                _main.MicrophoneCaptureStarting -= OnCaptureStarting;
+            }
+
+            _testTimer.Tick -= OnTestTimerTick;
+            _testTimer.Stop();
+
+            if (_tester != null)
+                _tester.LevelChanged -= OnTesterLevel;
+        }
+
+        // Reverse order of creation: the timer is stopped above, then the tester.
+        SafeDispose(ref _tester);
+    }
+
+    private static void SafeDispose<T>(ref T? resource) where T : class, IDisposable
+    {
+        var temp = resource;
+        resource = null;
+
+        try
+        {
+            temp?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"MicrophonePickerViewModel: Dispose failed for {typeof(T).Name}: {ex.Message}");
+        }
     }
 
     [RelayCommand]
@@ -119,7 +169,7 @@ public partial class MicrophonePickerViewModel : ObservableObject
             return;
         }
 
-        if (!CanTest) return;
+        if (!CanTest || _tester == null) return;
 
         var deviceNumber = _main.SelectedAudioDevice?.DeviceNumber ?? -1;
         if (!_tester.Start(deviceNumber))
@@ -135,10 +185,12 @@ public partial class MicrophonePickerViewModel : ObservableObject
     public void StopTest(bool resumeKeepWarm = true)
     {
         _testTimer.Stop();
-        _tester.Stop(resumeKeepWarm);
+        _tester?.Stop(resumeKeepWarm);
         IsTesting = false;
         Level = 0f;
     }
+
+    private void OnTestTimerTick(object? sender, EventArgs e) => StopTest();
 
     private void OnCaptureStarting(object? sender, EventArgs e)
     {
@@ -149,10 +201,10 @@ public partial class MicrophonePickerViewModel : ObservableObject
 
     private void OnTesterLevel(object? sender, float level)
     {
-        if (_dispatcher.HasShutdownStarted) return;
+        if (_disposed || _dispatcher.HasShutdownStarted) return;
         _dispatcher.BeginInvoke(() =>
         {
-            if (IsTesting)
+            if (!_disposed && IsTesting)
                 Level = level;
         });
     }
@@ -180,10 +232,14 @@ public partial class MicrophonePickerViewModel : ObservableObject
 
     private void RunOnUi(Action action)
     {
+        if (_disposed) return;
         if (_dispatcher.CheckAccess())
             action();
         else if (!_dispatcher.HasShutdownStarted)
-            _dispatcher.BeginInvoke(action);
+            _dispatcher.BeginInvoke(() =>
+            {
+                if (!_disposed) action();
+            });
     }
 
     private void Rebuild()

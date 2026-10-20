@@ -187,6 +187,11 @@ public partial class MainViewModel : ViewModelBase
     private bool _hotkeyBlocked;
     private string _audioDeviceSelectionReason = AudioDeviceSelectionReason.NotSelected;
 
+    // The exact WaveIn device the user last picked in the tray or Settings,
+    // for this session only. What is saved is the NAME; this only decides
+    // which of several same-named devices records (MicrophoneSelection.FindByName).
+    private int? _pickedDeviceNumber;
+
     partial void OnSelectedAudioDeviceChanged(AudioDeviceService.AudioDevice? value)
     {
         // A direct property write has no known source. All production selection
@@ -741,7 +746,14 @@ public partial class MainViewModel : ViewModelBase
             defaultEndpoint?.FriendlyName,
             defaultEndpoint?.Ordinal ?? -1);
 
-        var resolution = MicrophoneSelection.Resolve(AudioDevices, _settingsService.LastSelectedMicrophone, defaultDevice);
+        // Among devices sharing the saved name: the one picked this session,
+        // then the one already recording, else the first.
+        var resolution = MicrophoneSelection.Resolve(
+            AudioDevices,
+            _settingsService.LastSelectedMicrophone,
+            defaultDevice,
+            _pickedDeviceNumber,
+            SelectedAudioDevice?.DeviceNumber);
 
         if (resolution.IsSavedMissing)
         {
@@ -1220,20 +1232,25 @@ public partial class MainViewModel : ViewModelBase
     /// </summary>
     /// <returns>False when the change was refused.</returns>
     public bool TrySelectAudioDevice(AudioDeviceService.AudioDevice? device) =>
-        SelectMicrophone(device?.Name);
+        SelectMicrophone(device?.Name, device?.DeviceNumber);
 
     /// <summary>
     /// The one write path for the saved microphone, shared by the tray and the
     /// Settings picker. <paramref name="name"/> null (the Default row) clears the
     /// saved choice and follows the Windows default input.
+    /// <paramref name="deviceNumber"/> is the exact device picked: the NAME is
+    /// saved, and for the rest of the session that device is the one used when
+    /// several share the name.
     /// </summary>
     /// <returns>False when the change was refused.</returns>
-    public bool SelectMicrophone(string? name)
+    public bool SelectMicrophone(string? name, int? deviceNumber = null)
     {
         if (OnboardingSession.BlocksStateChange("change the input device"))
             return false;
 
-        _settingsService.LastSelectedMicrophone = string.IsNullOrWhiteSpace(name) ? null : name;
+        var saved = string.IsNullOrWhiteSpace(name) ? null : name;
+        _pickedDeviceNumber = saved == null ? null : deviceNumber;
+        _settingsService.LastSelectedMicrophone = saved;
         ResolveSavedMicrophone(AudioDeviceSelectionReason.Phase.Refresh, AudioDeviceSelectionReason.ExplicitSelection);
         return true;
     }
