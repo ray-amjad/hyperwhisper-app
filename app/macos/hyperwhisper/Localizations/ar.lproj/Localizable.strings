@@ -936,6 +936,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ غير متاح. تحقق من إعداداتك وحاول مرة أخرى.";
 "transcription.error.providerNotAvailable.detail" = "%@ غير متاح: %@";
 "transcription.error.modelNotDownloaded" = "يرجى تحميل نموذج أولاً";
+"transcription.error.modelNotDownloaded.modelAndMode" = "يستخدم الوضع %1$@ النموذج %2$@، وهو غير محمّل. حمّله من مكتبة النماذج.";
+"transcription.error.modelNotDownloaded.model" = "النموذج %1$@ غير محمّل. حمّله من مكتبة النماذج.";
+"transcription.error.openModelLibrary" = "فتح مكتبة النماذج";
 "transcription.error.modelProtected" = "لا يمكن حذف هذا النموذج";
 "transcription.error.audioFileNotFound" = "لم يتم العثور على ملف الصوت";
 "transcription.error.network.detail" = "خطأ في الشبكة: %@";

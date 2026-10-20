@@ -11,13 +11,13 @@ import {
   isExplicitLanguage,
   providerHttpError,
   quotaExhaustedReason,
-  readErrorBodyPreview,
   readRequiredJsonString,
   readPollJson,
   splitVocabularyTerms,
   upstreamDurationOrNull,
 } from './utils';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
+import { readUpstreamError } from './upstream-error';
 import type { TranscriptionResult } from './types';
 
 describe('computeUploadTimeoutMs (size-scaled audio-upload budget)', () => {
@@ -250,21 +250,23 @@ describe('fetchWithTimeout', () => {
   });
 });
 
-describe('readErrorBodyPreview', () => {
+// The classifier text replaced readErrorBodyPreview (#2163) with the same
+// truncation, so the quota and adaptation classifiers see the same text.
+describe('readUpstreamError classifierText', () => {
   test('returns the full body when at or under the 500-char preview limit', async () => {
     const body = 'x'.repeat(500);
-    expect(await readErrorBodyPreview(new Response(body))).toBe(body);
+    expect((await readUpstreamError(new Response(body))).classifierText).toBe(body);
   });
 
   test('truncates bodies over 500 chars and appends an ellipsis', async () => {
     const body = 'y'.repeat(600);
-    const preview = await readErrorBodyPreview(new Response(body));
-    expect(preview).toBe(`${'y'.repeat(500)}...`);
+    const { classifierText } = await readUpstreamError(new Response(body));
+    expect(classifierText).toBe(`${'y'.repeat(500)}...`);
   });
 
   test('returns a placeholder when the body cannot be read', async () => {
     const unreadable = { text: () => { throw new Error('stream already used'); } } as unknown as Response;
-    expect(await readErrorBodyPreview(unreadable)).toBe('<unreadable>');
+    expect((await readUpstreamError(unreadable)).classifierText).toBe('<unreadable>');
   });
 });
 
@@ -370,11 +372,15 @@ describe('providerHttpError (shared non-2xx classification for the sync STT adap
     expect(quotaExhaustedReason(401, 'unauthorized')).toBeNull();
   });
 
-  test('other 4xx become a ProviderInputError carrying the body preview', async () => {
+  test('other 4xx become a ProviderInputError: the code in the message, the body preview for the client only', async () => {
     const err = await providerHttpError('test', at(400, 'bad language code'), performance.now(), {}, policy);
     expect(err).toBeInstanceOf(ProviderInputError);
     expect((err as ProviderInputError).status).toBe(400);
-    expect(err.message).toContain('bad language code');
+    expect(err.message).toBe('TestProvider rejected input (400): HTTP 400');
+    expect((err as ProviderInputError).clientMessage).toBe('TestProvider rejected input (400): bad language code');
+
+    const coded = await providerHttpError('test', at(400, '{"error":{"code":"invalid_language","message":"bad language code"}}'), performance.now(), {}, policy);
+    expect(coded.message).toBe('TestProvider rejected input (400): invalid_language');
   });
 
   test('an empty error body falls back to the bare status in the message', async () => {
@@ -417,8 +423,11 @@ describe('providerHttpError (shared non-2xx classification for the sync STT adap
       model: 'test-model',
       status: 429,
       kind: 'rate_limit',
-      bodyPreview: 'boom',
+      bodyLength: 4,
     });
+    // Never the body (#2163).
+    expect(logged[0][1]).not.toHaveProperty('bodyPreview');
+    expect(JSON.stringify(logged)).not.toContain('boom');
   });
 });
 
