@@ -24,7 +24,15 @@ class LibWhisperProvider: TranscriptionProvider {
     var name: String {
         currentModel?.displayName ?? "LibWhisper"
     }
-    
+
+    /// The name Model Library shows for a whisper.cpp model id ("tiny.en" →
+    /// "Tiny (English-only)"), which is also what `name` returns once that
+    /// model is loaded. An id no `WhisperModel` has comes back as it is.
+    /// Used to name a missing model (issue #1518).
+    static func modelDisplayName(for modelName: String) -> String {
+        WhisperModel(rawValue: modelName)?.name ?? modelName
+    }
+
     /// The resident whisper.cpp context, or `nil` when nothing is loaded and
     /// when a memory-pressure eviction has freed it. Written ONLY while holding
     /// `lifecycleLock`.
@@ -193,7 +201,7 @@ class LibWhisperProvider: TranscriptionProvider {
         guard let model = self.modelManager.downloadedModels.first(where: { $0.name == modelName }),
               let modelPath = model.url?.path else {
             logger.error("❌ Model not found: \(modelName). Available models: \(self.modelManager.downloadedModels.map { $0.name })")
-            throw TranscriptionError.modelNotDownloaded
+            throw TranscriptionError.modelNotDownloaded(model: Self.modelDisplayName(for: modelName))
         }
 
         logger.info("🔧 Found model at path: \(modelPath)")

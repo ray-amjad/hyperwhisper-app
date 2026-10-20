@@ -9,7 +9,21 @@ import Foundation
 /// Transcription errors with detailed context for better user messaging
 enum TranscriptionError: LocalizedError {
     case providerNotAvailable(provider: String? = nil, reason: String? = nil)
-    case modelNotDownloaded
+    /// The local model a pass needs is not on disk (issue #1518).
+    ///
+    /// - Parameters:
+    ///   - model: the model's display name, as Model Library shows it
+    ///     ("Tiny (English-only)"), never a file name or id. Set by the local
+    ///     engine that found it missing.
+    ///   - mode: the name of the mode that uses it. The engine does not know the
+    ///     mode, so the flows add it (`withMode(_:)`) before the alert and the
+    ///     History reason are made. User-typed text: never log or report it.
+    ///
+    /// Both are optional: a bare `.modelNotDownloaded()` keeps the old
+    /// "Please download a model first". Adding the values did not move the
+    /// case, so its `NSError` code (the positional index) is unchanged, and a
+    /// `case .modelNotDownloaded:` pattern (the Local API mapping) still matches.
+    case modelNotDownloaded(model: String? = nil, mode: String? = nil)
     case modelProtected
     case audioFileNotFound
     /// Transient network failure (no internet, retry exhaustion) — suppressed in Sentry.
@@ -94,8 +108,8 @@ enum TranscriptionError: LocalizedError {
                 return "transcription.error.providerNotAvailable.provider".localized(arguments: provider)
             }
             return "transcription.error.providerNotAvailable".localized
-        case .modelNotDownloaded:
-            return "transcription.error.modelNotDownloaded".localized
+        case .modelNotDownloaded(let model, let mode):
+            return Self.modelNotDownloadedMessage(model: model, mode: mode)
         case .modelProtected:
             return "transcription.error.modelProtected".localized
         case .audioFileNotFound:
@@ -253,4 +267,60 @@ enum TranscriptionError: LocalizedError {
         return "none"
     }
 
+    // MARK: - Missing model (issue #1518)
+
+    /// The text for a missing local model: names the mode and the model when
+    /// both are known ("W15 uses Tiny (English-only), which is not downloaded.
+    /// Download it in Model Library."), the model alone when the mode is not,
+    /// and the old "Please download a model first" when there is no model name.
+    ///
+    /// - Parameter localize: key → format string; tests pass the Base values so
+    ///   the result does not depend on the test process's language.
+    static func modelNotDownloadedMessage(
+        model: String?,
+        mode: String?,
+        localize: (String) -> String = { $0.localized }
+    ) -> String {
+        guard let model = nonEmpty(model) else {
+            return localize("transcription.error.modelNotDownloaded")
+        }
+        if let mode = nonEmpty(mode) {
+            return String(format: localize("transcription.error.modelNotDownloaded.modelAndMode"), mode, model)
+        }
+        return String(format: localize("transcription.error.modelNotDownloaded.model"), model)
+    }
+
+    /// This error with the mode's name filled in, when it is a
+    /// `.modelNotDownloaded` that names its model and does not name a mode yet.
+    /// Every other error comes back unchanged. The engines throw without the
+    /// mode; the flows know it and call this before they show the alert or
+    /// write the History reason.
+    func withMode(_ modeName: String?) -> TranscriptionError {
+        guard case .modelNotDownloaded(let model, let mode) = self,
+              Self.nonEmpty(model) != nil,
+              Self.nonEmpty(mode) == nil,
+              let modeName = Self.nonEmpty(modeName) else {
+            return self
+        }
+        return .modelNotDownloaded(model: model, mode: modeName)
+    }
+
+    /// `withMode(_:)` for any `Error`: a non-`TranscriptionError` comes back
+    /// as it is.
+    static func attachingMode(_ modeName: String?, to error: Error) -> Error {
+        guard let transcriptionError = error as? TranscriptionError else { return error }
+        return transcriptionError.withMode(modeName)
+    }
+
+    /// The missing model's display name, or `nil` for any other error.
+    var missingModelName: String? {
+        guard case .modelNotDownloaded(let model, _) = self else { return nil }
+        return Self.nonEmpty(model)
+    }
+
+    private static func nonEmpty(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else { return nil }
+        return trimmed
+    }
 }
