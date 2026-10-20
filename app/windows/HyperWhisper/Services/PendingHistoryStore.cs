@@ -181,6 +181,21 @@ internal sealed class PendingHistoryStore
         }
     }
 
+    /// <summary>
+    /// Puts back records a <see cref="Delete"/> took, when the database half of the same
+    /// delete did not commit (#2126). One file write. Returns false when the file could
+    /// not be written: the records are then held in memory, as after a failed Upsert.
+    /// </summary>
+    public bool Restore(IEnumerable<Transcript> records)
+    {
+        lock (_sync)
+        {
+            foreach (var record in records)
+                Put(record);
+            return Save();
+        }
+    }
+
     private bool IsVisible(Transcript record) => !_writeAhead.Contains(record.Id);
 
     private void Put(Transcript transcript)

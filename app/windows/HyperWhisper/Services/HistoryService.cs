@@ -833,20 +833,15 @@ public class HistoryService
 
         lock (_lock)
         {
-            // Rows the database never took (#1589) go first, and only when the pending
-            // file is rewritten without them: the old file would bring them back at the
-            // next launch, after their audio was deleted (#2126).
             var pending = Pending.GetAll().Where(t => idSet.Contains(t.Id)).ToList();
-            if (pending.Count > 0 && !Pending.Delete(pending.Select(t => t.Id)))
-            {
-                LoggingService.Error($"HistoryService: Failed to delete {pending.Count} pending transcripts; the pending file could not be written");
-                return Result<int>.Failure(Loc.S("transcripts.delete.failed"),
-                    new IOException($"Could not rewrite {PendingHistoryStore.FileName}"));
-            }
-
             try
             {
                 using var context = new HyperWhisperDbContext();
+                // One transaction around both parts (#2126): the database delete is staged,
+                // the pending rows go only when their file is rewritten without them, and
+                // only then does the database part commit. A refusal on either side
+                // deletes nothing; only a failed commit has rows to put back.
+                using var transaction = context.Database.BeginTransaction();
 
                 deletedTranscripts = context.Transcripts
                     .Where(t => idSet.Contains(t.Id))
@@ -856,19 +851,38 @@ public class HistoryService
                 {
                     context.Transcripts.RemoveRange(deletedTranscripts);
                     context.SaveChanges();
-                    LoggingService.Info($"HistoryService: Deleted {deletedTranscripts.Count} transcripts");
                 }
+
+                // Rows the database never took (#1589): the old file would bring them
+                // back at the next launch, after their audio was deleted.
+                if (pending.Count > 0 && !Pending.Delete(pending.Select(t => t.Id)))
+                {
+                    LoggingService.Error($"HistoryService: Failed to delete {pending.Count} pending transcripts; the pending file could not be written");
+                    return Result<int>.Failure(Loc.S("transcripts.delete.failed"),
+                        new IOException($"Could not rewrite {PendingHistoryStore.FileName}"));
+                }
+
+                try
+                {
+                    transaction.Commit();
+                }
+                catch
+                {
+                    // The pending rows already left the file; the database rows are still
+                    // there, so they come back too and the sweep deletes nothing.
+                    if (pending.Count > 0 && !Pending.Restore(pending))
+                        LoggingService.Error($"HistoryService: {pending.Count} pending transcripts are held in memory only; the pending file could not be written");
+                    throw;
+                }
+
+                if (deletedTranscripts.Count > 0)
+                    LoggingService.Info($"HistoryService: Deleted {deletedTranscripts.Count} transcripts");
             }
             catch (Exception ex) when (IsRefusedWrite(ex))
             {
                 // A 0 here stamped a refused Delete Now sweep as a completed cleanup
                 // and left History rows half-deleted (#974). Log the count and the
                 // exception only: a sweep can hold thousands of ids, and never text.
-                // The pending rows come back too, so a refused sweep deletes nothing.
-                foreach (var record in pending)
-                {
-                    Pending.Upsert(record);
-                }
                 LoggingService.Error($"HistoryService: Failed to delete {idSet.Count} transcripts", ex);
                 return Result<int>.Failure(Loc.S("transcripts.delete.failed"), ex);
             }
