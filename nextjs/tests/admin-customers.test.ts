@@ -677,10 +677,11 @@ describe("a drizzle error (#1039)", () => {
       "INTERNAL_SERVER_ERROR",
       "Failed to update email",
     );
-    // ONE line: the mutation's `failed` outcome line, carrying the SQLSTATE (#2177).
-    assert.equal(errorLines.length, 1);
-    assert.match(errorLines[0], /"event":"admin\.customers\.updateEmail","outcome":"failed"/);
-    assert.match(errorLines[0], /"dbCode":"22P02"/);
+    // The SQLSTATE diagnostic line, then the one `failed` outcome line (#2177).
+    assert.equal(errorLines.length, 2);
+    assert.match(errorLines[0], /22P02/);
+    assert.match(errorLines[1], /"event":"admin\.customers\.updateEmail","outcome":"failed"/);
+    assert.match(errorLines[1], /"dbCode":"22P02"/);
     assert.deepEqual(leakyLines(errorLines), []);
   });
 
@@ -962,7 +963,7 @@ describe("one log line per admin mutation outcome (#2177)", () => {
     assert.equal(line.dbCode, undefined);
   });
 
-  test("updateEmail logs ONE failed line with the SQLSTATE for a database failure", async () => {
+  test("updateEmail logs one failed outcome line with the SQLSTATE for a database failure", async () => {
     behaviour.userById = { id: "user_1", email: "old@example.com" };
     behaviour.updateEmailError = leakyDbError("40001");
 
@@ -974,7 +975,9 @@ describe("one log line per admin mutation outcome (#2177)", () => {
       "INTERNAL_SERVER_ERROR",
       "Failed to update email",
     );
-    assert.equal(lines.length, 1);
+    // Its diagnostic line (kind, query, constraint) stays beside the outcome line.
+    assert.equal(lines.length, 2);
+    assert.match(lines[0].text, /Update customer email error:[^]*40001/);
     const line = onlyOutcome("updateEmail");
     assert.equal(line.method, "error");
     assert.equal(line.reason, "INTERNAL_SERVER_ERROR");

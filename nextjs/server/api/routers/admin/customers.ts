@@ -61,7 +61,7 @@ type AdminLogFields = Record<
 
 /**
  * Runs one admin money or access mutation and writes ONE structured line for
- * its outcome (#2177), so "who refunded, revoked or granted this, and when" can
+ * its outcome (#2177), beside any diagnostic line the mutation already logs, so "who refunded, revoked or granted this, and when" can
  * be read from the logs: `ok` on success, `rejected` with the tRPC code on a
  * 4xx refusal, `failed` on anything else. `fields` is filled in as the
  * mutation goes, so a failed line shows how far it got. Ids only: never an
@@ -401,8 +401,9 @@ export const customersRouter = createTRPCRouter({
               message: "That email already belongs to another account",
             });
           }
-          // The outcome line `withAdminLog` writes carries the SQLSTATE: the
-          // TRPCError below has no cause (#1039: its response stays fixed).
+          console.error("Update customer email error:", describeDbError(error));
+          // The TRPCError below has no cause, so copy the SQLSTATE onto the
+          // outcome line `withAdminLog` writes.
           Object.assign(log, dbErrorFields(error));
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
