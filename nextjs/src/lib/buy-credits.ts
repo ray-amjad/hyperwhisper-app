@@ -80,9 +80,37 @@ export type BuyCreditsFetch = (
   init: BuyCreditsRequestInit,
 ) => Promise<BuyCreditsResponse>;
 
-export interface BuyCreditsRequest {
-  /** A key is required HERE. The null case is the factory's job. */
-  licenseKey: string;
+/**
+ * WHO the credits are for: exactly one of a licence key or an email (#949).
+ *
+ * The route reads either one (`app/api/checkout/credits/route.ts`): a
+ * `licenseKey` tops up that licence's wallet (the dashboard card), an `email`
+ * mints a new key and mails it there (the public `/credits` form). A union of
+ * two shapes, each of which forbids the other's field, so "both" and "neither"
+ * are type errors at every call site rather than a body the route has to
+ * guess about.
+ *
+ * Both values are personal data. Neither may ever reach `reportError`'s
+ * properties or a console line — the request body is the only place they go.
+ */
+export type BuyCreditsIdentity =
+  | { licenseKey: string; email?: never }
+  | { email: string; licenseKey?: never };
+
+/**
+ * The exact JSON body the route expects for an identity. Field order is part
+ * of the wire contract the tests pin: `{ licenseKey, amount }` for the
+ * dashboard, byte-for-byte what it sent before #949, and `{ email, amount }`
+ * for the public form.
+ */
+function checkoutBody(identity: BuyCreditsIdentity, amount: number): string {
+  return typeof identity.email === "string"
+    ? JSON.stringify({ email: identity.email, amount })
+    : JSON.stringify({ licenseKey: identity.licenseKey, amount });
+}
+
+export type BuyCreditsRequest = BuyCreditsIdentity & {
+  /** An identity is required HERE. The missing case is the factory's job. */
   amount: number;
   fetchImpl: BuyCreditsFetch;
   navigate: (destination: string) => void;
@@ -92,7 +120,7 @@ export interface BuyCreditsRequest {
   checkoutErrorMessage: string;
   /** Translated `buyCredits.errorGeneric` — the network fallback. */
   genericErrorMessage: string;
-}
+};
 
 /**
  * Creates a credit checkout session and navigates to it ONLY when the server
@@ -115,16 +143,18 @@ export interface BuyCreditsRequest {
  * here, rather than handed out through the injected `navigate`, would land
  * somewhere no test in this repo can observe.
  */
-export async function buyCreditsAndRedirect({
-  licenseKey,
-  amount,
-  fetchImpl,
-  navigate,
-  onError,
-  reportError,
-  checkoutErrorMessage,
-  genericErrorMessage,
-}: BuyCreditsRequest): Promise<boolean> {
+export async function buyCreditsAndRedirect(
+  request: BuyCreditsRequest,
+): Promise<boolean> {
+  const {
+    amount,
+    fetchImpl,
+    navigate,
+    onError,
+    reportError,
+    checkoutErrorMessage,
+    genericErrorMessage,
+  } = request;
   let response: BuyCreditsResponse;
 
   // The try wraps the REQUEST and nothing else. A broader one would also
@@ -135,7 +165,7 @@ export async function buyCreditsAndRedirect({
     response = await fetchImpl(BUY_CREDITS_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ licenseKey, amount }),
+      body: checkoutBody(request, amount),
     });
   } catch (thrown) {
     // Deliberate: the developer still gets the throw itself, which never
@@ -153,11 +183,11 @@ export async function buyCreditsAndRedirect({
   }
 
   // `json()` REJECTS on a body that is not JSON, and a 500 from a proxy or an
-  // unhandled route throw is usually an HTML page. `CreditsPurchase.tsx:95`
-  // lets that rejection fall into its network `catch`, so a server fault is
-  // shown to the customer as "Something went wrong" with no status recorded.
-  // Reading it here instead keeps the failing branch below in charge, with
-  // the real status attached.
+  // unhandled route throw is usually an HTML page. `CreditsPurchase.tsx` used
+  // to let that rejection fall into its network `catch` (#949), so a server
+  // fault was shown to the customer as "Something went wrong" with no status
+  // recorded. Reading it here instead keeps the failing branch below in
+  // charge, with the real status attached.
   let data: unknown = null;
 
   try {
@@ -224,10 +254,11 @@ export async function buyCreditsAndRedirect({
   );
 
   // The properties are built HERE so a test can assert on what is NOT in
-  // them. `licenseKey` is a credential (#737, #739). The PostHog init's
-  // `before_send` (#1897) only catches a key in its usual shapes, in
-  // top-level string properties, so do not rely on it: never add the
-  // licence key, the request body, or `data`.
+  // them. `licenseKey` is a credential (#737, #739) and `email` is personal
+  // data (#949). The PostHog init's `before_send` (#1897) only catches a key
+  // in its usual shapes, in top-level string properties, and nothing at all
+  // catches an email, so do not rely on it: never add the licence key, the
+  // email, the request body, or `data`.
   reportError(
     new Error(`${BUY_CREDITS_OPERATION} failed: ${response.status}`),
     {
@@ -245,12 +276,34 @@ export async function buyCreditsAndRedirect({
  */
 export type BuyCreditsTier = number | "custom";
 
-export interface BuyCreditsHandlerRequest {
-  /**
-   * Nullable here, and only here. A dashboard customer with no active licence
-   * has no wallet to top up, so the handler refuses before it touches state.
-   */
-  licenseKey: string | null;
+/**
+ * The factory's identity: the same exactly-one-of as `BuyCreditsIdentity`,
+ * except that the licence key is nullable here, and only here. A dashboard
+ * customer with no active licence has no wallet to top up, so the handler
+ * refuses before it touches state. An empty email is refused the same way;
+ * the public form validates the address before it ever calls the handler, so
+ * that guard is a backstop, not the form's validation.
+ */
+export type BuyCreditsHandlerIdentity =
+  | { licenseKey: string | null; email?: never }
+  | { email: string; licenseKey?: never };
+
+/**
+ * The identity to send, or `null` when there is none and the handler must
+ * refuse. The one place the nullable factory shape is narrowed to the
+ * request's non-null one.
+ */
+function resolveIdentity(
+  identity: BuyCreditsHandlerIdentity,
+): BuyCreditsIdentity | null {
+  if (typeof identity.email === "string") {
+    return identity.email ? { email: identity.email } : null;
+  }
+
+  return identity.licenseKey ? { licenseKey: identity.licenseKey } : null;
+}
+
+export type BuyCreditsHandlerRequest = BuyCreditsHandlerIdentity & {
   fetchImpl: BuyCreditsFetch;
   navigate: (destination: string) => void;
   reportError: (error: unknown, properties: Record<string, unknown>) => void;
@@ -269,7 +322,7 @@ export interface BuyCreditsHandlerRequest {
   onRedirectScheduled: (release: () => void) => void;
   checkoutErrorMessage: string;
   genericErrorMessage: string;
-}
+};
 
 /**
  * Records a throw that escaped `buyCreditsAndRedirect` — which can only be a
@@ -318,7 +371,9 @@ function reportHandlerFault(
 }
 
 /**
- * Builds the click handler `CloudCreditsCard` hands to its tier buttons.
+ * Builds the click handler `CloudCreditsCard` hands to its tier buttons, and
+ * the one `CreditsPurchase` (the public `/credits` form) hands its checkout
+ * button (#949).
  *
  * Every decision the button makes lives HERE, not in the component, because a
  * component in this repo is reachable only through `renderToStaticMarkup` —
@@ -370,27 +425,33 @@ function reportHandlerFault(
  * in this file where the release is deliberately skipped and the only place
  * that says so in the report it sends.
  */
-export function createBuyCreditsHandler({
-  licenseKey,
-  fetchImpl,
-  navigate,
-  reportError,
-  setBusy,
-  setError,
-  onRedirectScheduled,
-  checkoutErrorMessage,
-  genericErrorMessage,
-}: BuyCreditsHandlerRequest): (
+export function createBuyCreditsHandler(
+  request: BuyCreditsHandlerRequest,
+): (
   amount: number,
   tier?: BuyCreditsTier,
 ) => Promise<void> {
+  const {
+    fetchImpl,
+    navigate,
+    reportError,
+    setBusy,
+    setError,
+    onRedirectScheduled,
+    checkoutErrorMessage,
+    genericErrorMessage,
+  } = request;
+  // Resolved once, at build time: the component rebuilds the handler on every
+  // render, so this is always the identity of the render that was clicked.
+  const identity = resolveIdentity(request);
+
   return async function handleBuyCredits(
     amount: number,
     tier: BuyCreditsTier = amount,
   ): Promise<void> {
     // Before any state is touched: a spinner that starts for a checkout that
     // was never attempted is the same silence #737 is about.
-    if (!licenseKey) return;
+    if (!identity) return;
 
     // A second click must not sit next to the previous click's failure
     // (`sign-out.ts:110`).
@@ -401,7 +462,7 @@ export function createBuyCreditsHandler({
 
     try {
       navigated = await buyCreditsAndRedirect({
-        licenseKey,
+        ...identity,
         amount,
         fetchImpl,
         navigate,
