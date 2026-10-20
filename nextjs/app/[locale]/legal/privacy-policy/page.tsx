@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 19, 2026
+        Last Updated: October 20, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -194,6 +194,18 @@ export default function PrivacyPolicyPage() {
           our servers receive your custom vocabulary terms with each
           transcription or post-processing request and pass them to the
           provider that handles it.
+        </li>
+        <li>
+          <strong>HyperWhisper Cloud records</strong>: HyperWhisper Cloud keeps
+          a cache of up to one hour, keyed by your Account Key, of whether the
+          key is valid and its remaining credit balance, in a store hosted by
+          Upstash. It checks the IP address of each request against a block
+          list of IP addresses we have blocked to stop abuse, held in the same
+          Upstash store. It writes operational logs, which can include your IP
+          address, and Axiom stores them. Unless you turn it off, it also
+          stores anonymous speed measurements that hold no account, no Account
+          Key, no IP address, no audio, and no text, and deletes them after 1
+          year. The HyperWhisper Cloud section below describes each of these.
         </li>
       </ul>
 
@@ -456,6 +468,78 @@ export default function PrivacyPolicyPage() {
         service. It routes your audio through our edge servers to one of the
         providers listed below. We do not store your audio or transcripts — we
         only track credit usage — with one exception. {CHIRP_BUCKET_EXCEPTION}
+      </p>
+      <p>
+        Beyond credit usage, HyperWhisper Cloud keeps the operational records
+        described in the next three paragraphs. To check your credits without
+        asking our licensing service on every request, it caches whether your
+        Account Key is valid and its remaining credit balance for up to one
+        hour, keyed by your Account Key, in a store hosted by{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://upstash.com/trust/privacy.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Upstash
+        </a>
+        . It also checks the IP address of each request against a block list
+        held in the same Upstash store. We add an IP address to that list to
+        stop abuse of the service.
+      </p>
+      <p>
+        HyperWhisper Cloud&apos;s edge servers are hosted by{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://fly.io/legal/privacy-policy/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Fly.io
+        </a>
+        . The service writes operational logs, and a log shipper we run on
+        Fly.io sends them to{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://axiom.co/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Axiom
+        </a>
+        , which stores them for us. A log line can include a request
+        identifier, timing, byte and character counts, the provider and model
+        used, the language, your app&apos;s platform and version, credit
+        amounts, and your IP address. We use these logs to find and fix
+        faults, to prevent abuse, including deciding which IP addresses to
+        block, and to keep the service running. We do not write your audio,
+        your transcripts, your prompts, the text a model returns to you, or
+        your Account Key into these logs, and we remove your Account Key from
+        error messages that could contain it. When a provider rejects a
+        request, we log part of the provider&apos;s error message, and a
+        provider can quote part of the rejected request in that message, such
+        as a vocabulary term or a passage of the text sent to it.
+      </p>
+      <p>
+        Unless you turn it off, HyperWhisper Cloud also stores an anonymous
+        speed measurement in our database for each provider it calls to
+        transcribe a recording. These measurements build our public{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://www.hyperwhisper.com/en/latency"
+        >
+          speed comparison page
+        </a>
+        . A measurement holds the provider and model, the server region, a
+        clip-length group, the provider&apos;s place in the fallback order, how
+        long the provider took, whether the call worked, and the hour it
+        happened. It holds no account, no Account Key, no IP address, no
+        audio, and no text. We delete these measurements after 1 year. Sharing
+        is on by default. To turn it off, use the switch labelled &quot;Share
+        anonymous speed data&quot; in Settings → General. Today the
+        measurements come only from the macOS app (version 2.43.0 or later)
+        and the Windows app (version 1.10.0 or later). Older versions have no
+        switch, and the service does not measure them.
       </p>
       <p>
         <strong>Transcription (speech-to-text) providers:</strong>
@@ -1037,6 +1121,22 @@ export default function PrivacyPolicyPage() {
         address you submit in a form, or the sign-in link you open.
       </p>
       <p>
+        HyperWhisper Cloud runs on servers hosted by{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://fly.io/legal/privacy-policy/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Fly.io
+        </a>
+        . Fly.io runs the code that handles each HyperWhisper Cloud request, so
+        it receives the request&apos;s IP address and what the request carries:
+        your audio or text, your Account Key, and your custom vocabulary. Its
+        operational logs are stored by Axiom, as described under HyperWhisper
+        Cloud above.
+      </p>
+      <p>
         Our database is hosted by{" "}
         <a
           className="text-blue-400 hover:underline"
@@ -1084,7 +1184,10 @@ export default function PrivacyPolicyPage() {
         Standard Contractual Clauses, or equivalent mechanisms). The AgentStack support chat widget described above is
         served from the United States. Mintlify, which hosts our
         documentation as described above, may process the docs page views it
-        records in the United States.
+        records in the United States. Fly.io runs HyperWhisper Cloud&apos;s
+        edge servers in regions around the world, so a Cloud request can be
+        handled outside the United Kingdom and the European Economic Area,
+        and Axiom may process the service&apos;s logs in the United States.
       </p>
 
       <h2>Changes to This Policy</h2>
