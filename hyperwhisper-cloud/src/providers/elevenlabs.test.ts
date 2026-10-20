@@ -280,6 +280,21 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
     }
   });
 
+  test('a 200 whose body breaks mid-read maps to ProviderUnavailableError so the chain fails over (#2064)', async () => {
+    mockFetchOnce(() => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"text":"hello wor'));
+        controller.error(new TypeError('socket connection was closed unexpectedly'));
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }));
+    const error = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderUnavailableError);
+    expect((error as ProviderUnavailableError).kind).toBe('bad_response');
+    expect((error as ProviderUnavailableError).status).toBe(200);
+    // The socket's own text stays in the provider log line, out of the error.
+    expect((error as Error).message).not.toContain('socket');
+  });
+
   test('a truncated 200 JSON body logs no part of the transcript, only its shape (issue #1069)', async () => {
     const marker = 'zebracanary';
     mockFetchOnce(() => new Response(`{"language_code":"eng","text":"my password is ${marker}","words":[{"start":0,"end"`, {

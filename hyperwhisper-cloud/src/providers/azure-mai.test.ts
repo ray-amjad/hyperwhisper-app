@@ -415,4 +415,41 @@ describe('transcribeWithAzureMai — upstream error mapping', () => {
     globalThis.fetch = mock(async () => new Response('bad request', { status: 400 })) as unknown as typeof fetch;
     await expect(transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav')).rejects.toThrow('Azure MAI error: 400');
   });
+
+  // A 200 whose body is unusable is an upstream hiccup: the retryable
+  // ProviderUnavailableError every other adapter throws, never the raw parser or
+  // socket text. (#2064)
+  async function caught(p: Promise<unknown>): Promise<unknown> {
+    try { await p; return undefined; } catch (e) { return e; }
+  }
+
+  for (const [label, body] of [
+    ['a truncated JSON body', '{"combinedPhrases":[{"text":"hel'],
+    ['an HTML body', '<html><body>Bad Gateway</body></html>'],
+    ['a JSON null', 'null'],
+  ] as const) {
+    test(`a 200 with ${label} is ProviderUnavailableError (bad_response), not a parser error`, async () => {
+      globalThis.fetch = mock(async () => new Response(body, {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      })) as unknown as typeof fetch;
+      const err = await caught(transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav'));
+      expect(err).toBeInstanceOf(ProviderUnavailableError);
+      expect((err as ProviderUnavailableError).kind).toBe('bad_response');
+      expect((err as ProviderUnavailableError).status).toBe(200);
+      expect((err as Error).message).not.toMatch(/JSON|parse|null/i);
+    });
+  }
+
+  test('a 200 whose body breaks mid-read is ProviderUnavailableError, not the raw socket error', async () => {
+    globalThis.fetch = mock(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"combinedPhrases":[{"text":"hel'));
+        controller.error(new TypeError('socket connection was closed unexpectedly'));
+      },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch;
+    const err = await caught(transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav'));
+    expect(err).toBeInstanceOf(ProviderUnavailableError);
+    expect((err as ProviderUnavailableError).kind).toBe('bad_response');
+    expect((err as Error).message).not.toContain('socket');
+  });
 });
