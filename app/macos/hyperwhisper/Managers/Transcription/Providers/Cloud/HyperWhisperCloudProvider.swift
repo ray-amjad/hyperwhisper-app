@@ -521,9 +521,8 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             // mirroring the success path below (which is otherwise skipped by this
             // re-throw). `defer` can't be used here because invalidateCache() awaits.
             await creditManager.invalidateCache()
-            let diagnostics: TranscriptionAttemptDiagnostics? = attemptDiagnostics
             AppLogger.network.warning(
-                "HyperWhisper Cloud response parse failed · outcome=response_parse_failed · source=\(diagnostics?.attemptSource ?? "unknown", privacy: .public) · backendProvider=\(diagnostics?.backendSTTProvider ?? "unknown", privacy: .public) · backendModel=\(diagnostics?.backendSTTModel ?? "unknown", privacy: .public) · status=\(diagnostics?.httpStatusCode ?? -1, privacy: .public) · responseLatencyMs=\(diagnostics?.responseLatencyMs ?? -1, privacy: .public) · requestId=\(diagnostics?.backendRequestId ?? "unknown", privacy: .public)"
+                "HyperWhisper Cloud response parse failed · outcome=response_parse_failed · source=\(attemptDiagnostics.attemptSource, privacy: .public) · backendProvider=\(attemptDiagnostics.backendSTTProvider ?? "unknown", privacy: .public) · backendModel=\(attemptDiagnostics.backendSTTModel ?? "unknown", privacy: .public) · status=\(attemptDiagnostics.httpStatusCode ?? -1, privacy: .public) · responseLatencyMs=\(attemptDiagnostics.responseLatencyMs ?? -1, privacy: .public) · requestId=\(attemptDiagnostics.backendRequestId ?? "unknown", privacy: .public)"
             )
             // The diagnostics of THIS attempt ride on the thrown wrapper; both
             // callers unwrap it at the call site and rethrow the mapped error.
