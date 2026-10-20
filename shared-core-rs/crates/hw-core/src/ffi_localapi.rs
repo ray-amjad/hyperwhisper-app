@@ -804,7 +804,7 @@ pub fn local_api_mode_name_taken_failure(
 /// `TranscriptionErrorCode` and the portable head's
 /// `PortableTranscriptionErrorCode`. Every variant maps onto one of the closed
 /// fourteen [`HwLocalApiErrorCode`]s, so #356 item 4 adds no error code —
-/// `transcription.rs` says so and a unit test walks all 25 to prove it.
+/// `transcription.rs` says so and a unit test walks all 26 to prove it.
 ///
 /// Each head keeps its own error type and maps it onto this on the way to the
 /// wire. Nothing here replaces `TranscriptionError` or `TranscriptionException`.
@@ -838,9 +838,11 @@ pub enum HwLocalApiTranscriptionFailureReason {
     InvalidRequest,
     /// macOS `.rateLimited`; Windows `RateLimited`.
     RateLimited,
-    /// macOS `.quotaExceeded` / `.insufficientCredits`; Windows
-    /// `QuotaExceeded`.
+    /// macOS `.quotaExceeded`; Windows `QuotaExceeded` from a BYOK provider.
     QuotaExceeded,
+    /// macOS `.insufficientCredits`; Windows `QuotaExceeded` with
+    /// `IsInsufficientCredits` set — the HyperWhisper Cloud 402.
+    InsufficientCredits,
     /// macOS `.timeout`.
     Timeout,
     /// Windows `Cancelled`; portable `Cancelled`.
@@ -891,6 +893,9 @@ impl From<HwLocalApiTranscriptionFailureReason> for hw_localapi::TranscriptionFa
             HwLocalApiTranscriptionFailureReason::InvalidRequest => Reason::InvalidRequest,
             HwLocalApiTranscriptionFailureReason::RateLimited => Reason::RateLimited,
             HwLocalApiTranscriptionFailureReason::QuotaExceeded => Reason::QuotaExceeded,
+            HwLocalApiTranscriptionFailureReason::InsufficientCredits => {
+                Reason::InsufficientCredits
+            }
             HwLocalApiTranscriptionFailureReason::Timeout => Reason::Timeout,
             HwLocalApiTranscriptionFailureReason::Cancelled => Reason::Cancelled,
             HwLocalApiTranscriptionFailureReason::EngineUnavailable => Reason::EngineUnavailable,
