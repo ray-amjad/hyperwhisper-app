@@ -348,6 +348,13 @@ try
         Assert(!overwritten.Contains("xxxx", StringComparison.Ordinal)
             && JsonNode.Parse(overwritten)?["apiKeys"]?["openai"]?.GetValue<string>() == "sk-test-backup-mode",
             "overwriting a longer existing backup left stale bytes behind");
+        // A filesystem that refuses chmod (vfat/exFAT, EPERM) still gets the backup written.
+        var refusedBackupPath = Path.Combine(root, "keys-chmod-refused.hwbackup");
+        await File.WriteAllTextAsync(refusedBackupPath, new string('x', 64 * 1024));
+        await BackupViewModel.WriteOwnerOnlyAsync(refusedBackupPath, overwritten, CancellationToken.None,
+            (_, _) => throw new UnauthorizedAccessException("simulated EPERM from a filesystem without Unix modes"));
+        Assert(File.ReadAllText(refusedBackupPath) == overwritten,
+            "a backup was not written to a filesystem that refuses chmod");
     }
     var nonIntegerVersion = JsonNode.Parse(exported)!.AsObject();
     nonIntegerVersion["schemaVersion"] = "2";
