@@ -28,7 +28,8 @@ extension SentryService {
     /// Symbol strings that name nothing, and must not reach a tag or a
     /// fingerprint element.
     ///
-    /// `""` is this file's own `$0.function ?? ""`. `"<redacted>"` is the SDK's:
+    /// `""` is `sanitize(_ event:)`'s own `$0.function ?? ""` (in
+    /// SentryService+Privacy.swift). `"<redacted>"` is the SDK's:
     /// `SentryFrame.m` assigns `self.function = @"<redacted>"` in `init`, and
     /// `SentryCrashStackEntryMapper.m` overwrites it only when the unwinder
     /// produced a `symbolName`. Symbolication is off on device — the ANR stack
