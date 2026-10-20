@@ -212,6 +212,9 @@ static class MicrophonePickerTests
         Check(test.IsTesting && test.ButtonText == "Stop" && first.DeviceId == Scarlett.Id, $"Test opened '{first.DeviceId}'");
         first.RaiseLevel(0.1f);
         Check(test.Level > 0.5 && test.Level < 1, $"a -20 dBFS chunk drew {test.Level:F2} of the bar");
+        var lit = test.Level;
+        first.RaiseLevel(0f);
+        Check(test.Level > 0.5 * lit && test.Level < lit, $"a silent chunk between words blanked the bar ({test.Level:F2} after {lit:F2})");
         app.Time.Advance(TimeSpan.FromSeconds(9.9));
         Check(test.IsTesting && !first.Stopped, "the test stopped before 10 s");
         app.Time.Advance(TimeSpan.FromSeconds(0.2));

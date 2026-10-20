@@ -60,6 +60,8 @@ public sealed class MicrophoneLevelTestViewModel : ViewModelBase, IDisposable
     public bool IsTesting { get => _isTesting; private set { if (Set(ref _isTesting, value)) Notify(nameof(ButtonText)); } }
 
     /// <summary>0..1 for the bar: the last chunk's level on a -60..0 dBFS scale. 0 while idle.</summary>
+    private const double LevelDecay = 0.85;
+
     public double Level { get => _level; private set => Set(ref _level, value); }
 
     /// <summary>"Test" idle, "Stop" while a test runs.</summary>
@@ -172,7 +174,9 @@ public sealed class MicrophoneLevelTestViewModel : ViewModelBase, IDisposable
         int session;
         lock (_gate) { if (!ReferenceEquals(sender, _capture)) return; session = _session; }
         var display = ToDisplayLevel(level);
-        Post(() => { if (IsCurrent(session)) Level = display; });
+        // Fall back gradually rather than to the newest chunk alone, so the bar does not blank
+        // in every pause between words (the Windows meter decays the same way).
+        Post(() => { if (IsCurrent(session)) Level = Math.Max(display, Level * LevelDecay); });
     }
 
     private void OnCaptureStopped(object? sender, PlatformError? error)
