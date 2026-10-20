@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Přehrávat zvukové signály při spuštění a zastavení nahrávání.";
 "settings.sound.mediaControl.title" = "Ovladani medii behem nahravani";
 "settings.sound.mediaControl.info" = "Zvolte, jak HyperWhisper zachazí s jiným zvukem během nahrávání. 'Vyp' ponechá zvuk beze změny, 'Ztlumit zvuk' ztlumí systémový výstup během nahrávání a poté jej obnoví, a 'Zastřít zvuk' ho nechá znít tiše, jako z vedlejší místnosti.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Používá jen HyperWhisper. Zůstane uložen i po restartu.";
+"microphone.picker.default" = "Výchozí · %@";
+"microphone.picker.notConnected" = "%@ (nepřipojeno)";
+"microphone.picker.fallback" = "Používá se %1$@, dokud nebude znovu připojen %2$@.";
+"settings.sound.microphone.test" = "Test";
+"settings.sound.microphone.stop" = "Zastavit";
+"settings.sound.microphone.level" = "Vstupní úroveň";
 "settings.sound.autoIncreaseMicVolume.title" = "Automaticky zvysit hlasitost mikrofonu";
-"settings.sound.autoIncreaseMicVolume.info" = "Automaticky nastavi hlasitost vstupu mikrofonu na maximum pri zahajeni nahravani a po ukonceni obnovi puvodni uroven. Platci pouze pri pouziti vychoziho systemoviho vstupniho zarizeni.";
+"settings.sound.autoIncreaseMicVolume.info" = "Při spuštění nahrávání automaticky nastaví vstupní hlasitost mikrofonu, ze kterého HyperWhisper nahrává, na maximum a po zastavení obnoví původní úroveň. Mikrofony bez softwarového ovládání hlasitosti zůstanou beze změny.";
 "settings.sound.vad.title" = "Odstranit ticho pred prepisem";
 "settings.sound.vad.info" = "Automaticky detekuje a odstratnuje uvodni a koncove ticho pomoci AI detekce hlasu. To muze zlepsit presnost prepisu a zkratit dobu zpracovani.";
 

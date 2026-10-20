@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Atskaņot audio signālus, kad ierakstīšana sākas un beidzas.";
 "settings.sound.mediaControl.title" = "Skaņas vadīšana ierakstīšanas laikā";
 "settings.sound.mediaControl.info" = "Izvēlieties, kā HyperWhisper apstrādā citu skaņu ieraķstīšanas laikā. 'Izslēgts' nemaina skaņu, 'Izslēgt audio' klusina sistēmas izeju ieraķstīšanas laikā un pēc tam to atjauno, bet 'Apslāpēt audio' turpina to atskaņot klusi, it kā no blakus istabas.";
+"settings.sound.microphone.title" = "Mikrofons";
+"settings.sound.microphone.subtitle" = "Izmanto tikai HyperWhisper. Tiek saglabāts arī pēc restartēšanas.";
+"microphone.picker.default" = "Noklusējums · %@";
+"microphone.picker.notConnected" = "%@ (nav pievienots)";
+"microphone.picker.fallback" = "Tiek izmantots %1$@, līdz %2$@ tiks atkal pievienots.";
+"settings.sound.microphone.test" = "Pārbaudīt";
+"settings.sound.microphone.stop" = "Apturēt";
+"settings.sound.microphone.level" = "Ievades līmenis";
 "settings.sound.autoIncreaseMicVolume.title" = "Automātiski palielināt mikrofona skaļumu";
-"settings.sound.autoIncreaseMicVolume.info" = "Automātiski iestata mikrofona ievades skaļumu maksimāli, kad sākas ierakstīšana, un pēc tam atjauno sākotnējo līmeni, kad ierakstīšana beidzas. Piemērojams tikai, izmantojot sistēmas noklusējuma ievades ierīci.";
+"settings.sound.autoIncreaseMicVolume.info" = "Ierakstīšanas sākumā automātiski iestata maksimālo ievades skaļumu mikrofonam, no kura ieraksta HyperWhisper, un pēc ierakstīšanas beigām atjauno sākotnējo līmeni. Mikrofoni bez programmatūras skaļuma vadības netiek mainīti.";
 "settings.sound.vad.title" = "Noņemt klusumu pirms transkripciijas";
 "settings.sound.vad.info" = "Automātiski noteic un noņem vadošo un beigošo klusumu, izmantojot AI balss noteikšanu. Tas var uzlabot transkripciijas precizitāti un samazināt apstrādes laiku.";
 

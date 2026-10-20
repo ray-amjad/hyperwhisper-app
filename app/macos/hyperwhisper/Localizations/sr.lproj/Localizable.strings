@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Репродукуј аудио сигнале када снимање почне и заустави се.";
 "settings.sound.mediaControl.title" = "Управљање медијумом при снимању";
 "settings.sound.mediaControl.info" = "Изабери како HyperWhisper управља другим звуком током снимања. 'Искључено' оставља звук непромењен, 'Утишај Звук' утишава систем током снимања и враћа га након тога, а 'Пригуши Звук' га оставља да тихо свира, као из суседне собе.";
+"settings.sound.microphone.title" = "Микрофон";
+"settings.sound.microphone.subtitle" = "Користи га само HyperWhisper. Памти се и после поновног покретања.";
+"microphone.picker.default" = "Подразумевано · %@";
+"microphone.picker.notConnected" = "%@ (није повезан)";
+"microphone.picker.fallback" = "Користи се %1$@ док се %2$@ поново не повеже.";
+"settings.sound.microphone.test" = "Тестирај";
+"settings.sound.microphone.stop" = "Заустави";
+"settings.sound.microphone.level" = "Улазни ниво";
 "settings.sound.autoIncreaseMicVolume.title" = "Аутоматски повећај громкост микрофона";
-"settings.sound.autoIncreaseMicVolume.info" = "Аутоматски подеси громкост уноса микрофона на максимум када снимање почне, затим врати оригиналан ниво када се снимање заврши. Односи се само када користиш подразумевани системски уређај за унос.";
+"settings.sound.autoIncreaseMicVolume.info" = "Аутоматски поставља улазну јачину звука микрофона са ког HyperWhisper снима на максимум када снимање почне, а затим враћа првобитни ниво када се снимање заустави. Микрофони без софтверске контроле јачине звука остају непромењени.";
 "settings.sound.vad.title" = "Уклони тишину пре транскрипције";
 "settings.sound.vad.info" = "Аутоматски детектује и уклања водећу и пратећу тишину користећи AI детекцију гласа. Ово може да побољша тачност транскрипције и смањи време обраде.";
 

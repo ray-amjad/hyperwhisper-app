@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Spill av lydsignaler når opptak starter og stopper.";
 "settings.sound.mediaControl.title" = "Mediekontroll under opptak";
 "settings.sound.mediaControl.info" = "Velg hvordan HyperWhisper håndterer annen lyd mens du tar opp. 'Av' lar lyden være uendret, 'Demp lyd' demper systemutgangen under opptak og gjenoppretter den etterpå, og 'Dump lyd' lar den spille svakt, som fra rommet ved siden av.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Brukes bare av HyperWhisper. Huskes etter omstart.";
+"microphone.picker.default" = "Standard · %@";
+"microphone.picker.notConnected" = "%@ (ikke tilkoblet)";
+"microphone.picker.fallback" = "Bruker %1$@ til %2$@ kobles til igjen.";
+"settings.sound.microphone.test" = "Test";
+"settings.sound.microphone.stop" = "Stopp";
+"settings.sound.microphone.level" = "Inngangsnivå";
 "settings.sound.autoIncreaseMicVolume.title" = "Øk mikrofonvolumet automatisk";
-"settings.sound.autoIncreaseMicVolume.info" = "Setter automatisk mikrofoninngangsvolum til maks når opptak starter, og gjenoppretter deretter det opprinnelige nivået når opptak stopper. Gjelder bare når du bruker systemets standardinngangsenhet.";
+"settings.sound.autoIncreaseMicVolume.info" = "Setter automatisk inngangsvolumet for mikrofonen HyperWhisper tar opp fra til maksimum når opptaket starter, og gjenoppretter det opprinnelige nivået når opptaket stopper. Mikrofoner uten programvarestyrt volum endres ikke.";
 "settings.sound.vad.title" = "Fjern stillhet før transkripsjon";
 "settings.sound.vad.info" = "Detekterer og fjerner automatisk ledende og etterfølgende stillhet ved hjelp av AI-stemmedeteksjon. Dette kan forbedre transkripsjonsnøyaktighet og redusere behandlingstid.";
 

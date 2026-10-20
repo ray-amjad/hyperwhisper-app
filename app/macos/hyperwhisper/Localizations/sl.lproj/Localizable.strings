@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "Predvajaj zvočne signale ob začetku in koncu snemanja.";
 "settings.sound.mediaControl.title" = "Nadzor medijev med snemanjem";
 "settings.sound.mediaControl.info" = "Izberi, kako HyperWhisper rokuje s programom audio med snemanjem. 'Izključeno' pusti zvok nespremenjen, 'Izklopi zvok' izklopi sistemski izhod med snemanjem in ga po tem obnovi, 'Zamegli zvok' pa ga pusti tiho predvajati, kot iz sosednje sobe.";
+"settings.sound.microphone.title" = "Mikrofon";
+"settings.sound.microphone.subtitle" = "Uporablja ga samo HyperWhisper. Zapomni se tudi po ponovnem zagonu.";
+"microphone.picker.default" = "Privzeto · %@";
+"microphone.picker.notConnected" = "%@ (ni povezan)";
+"microphone.picker.fallback" = "Uporablja se %1$@, dokler %2$@ ni znova povezan.";
+"settings.sound.microphone.test" = "Preizkusi";
+"settings.sound.microphone.stop" = "Ustavi";
+"settings.sound.microphone.level" = "Vhodna raven";
 "settings.sound.autoIncreaseMicVolume.title" = "Samodejno povečaj glasnost mikrofonskega vhoda";
-"settings.sound.autoIncreaseMicVolume.info" = "Samodejno nastavi glasnost mikrofonskega vhoda na maksimum, ko se snemanje prične, nato pa obnovi prvotno raven, ko se snemanje zaključi. Velja samo za privzeto vhodno napravo.";
+"settings.sound.autoIncreaseMicVolume.info" = "Ob začetku snemanja samodejno nastavi vhodno glasnost mikrofona, s katerega snema HyperWhisper, na največjo vrednost, ob koncu snemanja pa obnovi prvotno raven. Mikrofoni brez programskega nadzora glasnosti ostanejo nespremenjeni.";
 "settings.sound.vad.title" = "Odstrani tišino pred prepisom";
 "settings.sound.vad.info" = "Samodejno zaznaj in odstrani tišino na začetku in koncu z AI zaznavo glasu. To lahko izboljša natančnost prepisa in zmanjša čas obdelave.";
 

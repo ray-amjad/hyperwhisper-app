@@ -325,8 +325,16 @@
 "settings.sound.soundEffects.info" = "تشغيل إشارات صوتية عند بدء التسجيل وإيقافه.";
 "settings.sound.mediaControl.title" = "التحكم في الوسائط أثناء التسجيل";
 "settings.sound.mediaControl.info" = "اختر كيفية تعامل HyperWhisper مع الصوت الآخر أثناء التسجيل. 'إيقاف' يترك الصوت دون تغيير، 'كتم الصوت' يسكت مخرجات النظام أثناء التسجيل ويستعيدها بعد ذلك، و'إخماد الصوت' يبقيه يعمل بهدوء، كأنه من الغرفة المجاورة.";
+"settings.sound.microphone.title" = "الميكروفون";
+"settings.sound.microphone.subtitle" = "يستخدمه HyperWhisper فقط. يُحفظ بعد إعادة التشغيل.";
+"microphone.picker.default" = "الافتراضي · %@";
+"microphone.picker.notConnected" = "%@ (غير متصل)";
+"microphone.picker.fallback" = "يتم استخدام %1$@ حتى تتم إعادة توصيل %2$@.";
+"settings.sound.microphone.test" = "اختبار";
+"settings.sound.microphone.stop" = "إيقاف";
+"settings.sound.microphone.level" = "مستوى الإدخال";
 "settings.sound.autoIncreaseMicVolume.title" = "زيادة مستوى صوت الميكروفون تلقائياً";
-"settings.sound.autoIncreaseMicVolume.info" = "يضبط مستوى صوت إدخال الميكروفون تلقائياً على الحد الأقصى عند بدء التسجيل، ثم يستعيد المستوى الأصلي عند إيقاف التسجيل. ينطبق فقط عند استخدام جهاز الإدخال الافتراضي للنظام.";
+"settings.sound.autoIncreaseMicVolume.info" = "يضبط تلقائيًا مستوى صوت إدخال الميكروفون الذي يسجّل منه HyperWhisper على الحد الأقصى عند بدء التسجيل، ثم يعيد المستوى الأصلي عند إيقافه. تبقى الميكروفونات التي لا تحتوي على تحكم برمجي في مستوى الصوت دون تغيير.";
 "settings.sound.vad.title" = "إزالة الصمت قبل النسخ";
 "settings.sound.vad.info" = "يكتشف تلقائياً ويزيل الصمت البادئ واللاحق باستخدام كشف الصوت بـ AI. هذا يمكن أن يحسن دقة النسخ ويقلل وقت المعالجة.";
 
