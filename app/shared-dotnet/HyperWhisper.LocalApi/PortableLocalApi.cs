@@ -103,90 +103,8 @@ public static class PortableLocalApi
             return Results.Ok(new { ok = true, app_version = health.AppVersion, api_version = 1, port = context.Connection.LocalPort, pid = Environment.ProcessId, health.Providers, post_processing_providers = health.PostProcessingProviders, local_models = health.LocalModels });
         });
 
-        // DNS-rebind guard — runs before EVERY route, including the
-        // unauthenticated /health, and before the bearer check. This head had
-        // no such guard until issue #289; this is macOS's, shared through
-        // hw-localapi rather than transliterated a third time. The guard runs
-        // first on purpose: checking the token first would tell an
-        // unauthenticated rebound page whether its guess was right.
-        app.Use(async (context, next) =>
-        {
-            if (!LocalApiOriginGuard.IsAllowed(context, LocalApiOriginGuard.ResolvePort(context, options)))
-            {
-                await LocalApiSharedFailure.WriteForbiddenOriginAsync(context);
-                options.OriginRejected?.Invoke(context);
-                return;
-            }
-            await next(context);
-        });
-
-        app.Use(async (context, next) =>
-        {
-            if (context.Request.Path.Equals("/health", StringComparison.OrdinalIgnoreCase))
-            {
-                await next(context);
-                return;
-            }
-            // The header parse moved into the shared core with the compare
-            // (issue #289): this head used to match the `Bearer ` prefix here
-            // and hash only the remainder, which is one of the three ways the
-            // platforms disagreed.
-            if (!LocalApiTokenStore.Authorize(context.Request.Headers.Authorization.ToString(), options.Token))
-            {
-                await LocalApiSharedFailure.WriteUnauthorizedAsync(context);
-                return;
-            }
-            try
-            {
-                if (options.AuthorizedRequestGate is { } gate && !await gate(context)) return;
-                await next(context);
-            }
-            // FIRST, and deliberately (issue #356). Everything below maps a CLR
-            // exception TYPE onto one of two wire codes; this one carries the
-            // envelope `hw-localapi` already decided, so a backend can ask for
-            // any of the closed fourteen. `MODE_NAME_TAKEN` was declared on this
-            // head and never emitted until it existed.
-            catch (LocalApiFailureException failure)
-            {
-                if (context.Response.HasStarted) throw;
-                context.Response.StatusCode = failure.HttpStatus;
-                context.Response.ContentType = "application/json; charset=utf-8";
-                await context.Response.WriteAsync(failure.Json);
-            }
-            catch (ArgumentException)
-            {
-                if (context.Response.HasStarted) throw;
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.InvalidRequest, "The request contains invalid or conflicting values.")));
-            }
-            catch (BadHttpRequestException)
-            {
-                if (context.Response.HasStarted) throw;
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.InvalidRequest, "The request body is invalid.")));
-            }
-            catch (JsonException)
-            {
-                if (context.Response.HasStarted) throw;
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.")));
-            }
-            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
-            {
-                if (context.Response.HasStarted) throw;
-                // `CANCELLED` was never in the closed set, and 408 was never a
-                // status the docs allowed for a business outcome (issue #289).
-                // `TIMEOUT` is the documented code for "ran out of time".
-                context.Response.StatusCode = StatusCodes.Status200OK;
-                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.Timeout, "The request was cancelled.")));
-            }
-            catch (InvalidOperationException)
-            {
-                if (context.Response.HasStarted) throw;
-                context.Response.StatusCode = StatusCodes.Status200OK;
-                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.EngineUnavailable, "The requested application capability is unavailable.")));
-            }
-        });
+        PortableLocalApiSecurity.UseRebindGuard(app, options);
+        PortableLocalApiSecurity.UseBearerAuth(app, options);
 
         app.MapGet("/models", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, models = await b.GetModelsAsync(ct) }));
         app.MapGet("/modes", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, modes = await b.GetModesAsync(ct) }));
@@ -338,34 +256,34 @@ public static class PortableLocalApi
             // They are only equal when the limit did not truncate.
             return Results.Ok(new { ok = true, total = page.Total, returned = page.Recordings.Count, recordings = page.Recordings });
         }
+    }
 
-        static async Task<JsonElement?> ReadJsonObject(HttpContext context, CancellationToken ct)
+    private static async Task<JsonElement?> ReadJsonObject(HttpContext context, CancellationToken ct)
+    {
+        try
         {
-            try
-            {
-                var body = await context.Request.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
-                return body.ValueKind == JsonValueKind.Object ? body : null;
-            }
-            catch (JsonException) { return null; }
+            var body = await context.Request.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
+            return body.ValueKind == JsonValueKind.Object ? body : null;
         }
+        catch (JsonException) { return null; }
+    }
 
-        static IResult TranscriptionSuccess(TranscriptionResult result)
+    private static IResult TranscriptionSuccess(TranscriptionResult result)
+    {
+        var response = new Dictionary<string, object?>
         {
-            var response = new Dictionary<string, object?>
-            {
-                ["ok"] = true,
-                ["text"] = result.Text,
-                ["engine"] = result.Engine,
-                ["model"] = result.Model,
-                ["language"] = result.Language,
-                ["timings"] = new { load_ms = result.LoadMs, decode_ms = result.DecodeMs },
-                ["latency_ms"] = result.LatencyMs,
-            };
-            if (result.RawText is not null) response["raw_text"] = result.RawText;
-            if (result.Segments is not null) response["segments"] = result.Segments;
-            if (result.Words is not null) response["words"] = result.Words;
-            return Results.Ok(response);
-        }
+            ["ok"] = true,
+            ["text"] = result.Text,
+            ["engine"] = result.Engine,
+            ["model"] = result.Model,
+            ["language"] = result.Language,
+            ["timings"] = new { load_ms = result.LoadMs, decode_ms = result.DecodeMs },
+            ["latency_ms"] = result.LatencyMs,
+        };
+        if (result.RawText is not null) response["raw_text"] = result.RawText;
+        if (result.Segments is not null) response["segments"] = result.Segments;
+        if (result.Words is not null) response["words"] = result.Words;
+        return Results.Ok(response);
     }
 
     private sealed record TranscribeJsonRequest(
