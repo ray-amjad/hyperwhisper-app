@@ -294,6 +294,17 @@
       "platforms": ["macos", "windows"],
       "supportedLanguages": ["af", "am", "ar", "as", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "fa", "fi", "fr", "gl", "gu", "ha", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb", "ln", "lo", "lt", "lv", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sd", "sk", "sl", "sn", "so", "sr", "sv", "sw", "ta", "te", "tg", "th", "tl", "tr", "uk", "ur", "uz", "vi", "yo", "yue", "zh"]
     },
+    {
+      "provider": "elevenLabs",
+      "id": "scribe_v2_medical",
+      "kind": "voice",
+      "displayName": "Scribe v2 Medical",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["af", "am", "ar", "as", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "fa", "fi", "fr", "gl", "gu", "ha", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb", "ln", "lo", "lt", "lv", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sd", "sk", "sl", "sn", "so", "sr", "sv", "sw", "ta", "te", "tg", "th", "tl", "tr", "uk", "ur", "uz", "vi", "yo", "yue", "zh"],
+      "notes": "Clinical-audio variant of scribe_v2 on the same batch endpoint and rate, with keyterm prompting (#2201). ElevenLabs lists it as 'Same features, languages, pricing, and API as Scribe v2' (elevenlabs.io/docs/overview/models), so supportedLanguages is scribe_v2's. BYOK only: hyperwhisper-cloud stt-models.ts has no row for it."
+    },
 
     {
       "provider": "mistral",
