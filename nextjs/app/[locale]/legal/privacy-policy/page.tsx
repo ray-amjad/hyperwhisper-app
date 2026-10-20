@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: October 19, 2026
+        Last Updated: October 20, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -991,7 +991,20 @@ export default function PrivacyPolicyPage() {
         your network type. It keeps a random identifier in your
         browser&apos;s local storage so that it can link your visits, and it
         sends a session identifier with each page view. Mintlify receives
-        your IP address. The docs pages have no access to your audio, your
+        your IP address. When you use the docs search, what you type into the
+        search box is sent to Mintlify to find matching pages. The search
+        uses{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://www.hcaptcha.com/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          hCaptcha
+        </a>
+        , a bot-detection service: when you open the search, your browser
+        loads hCaptcha, which receives your IP address and details
+        about your browser. The docs pages have no access to your audio, your
         transcripts, or the desktop app.
       </p>
 
@@ -1084,7 +1097,7 @@ export default function PrivacyPolicyPage() {
         Standard Contractual Clauses, or equivalent mechanisms). The AgentStack support chat widget described above is
         served from the United States. Mintlify, which hosts our
         documentation as described above, may process the docs page views it
-        records in the United States.
+        records and the docs search queries it receives in the United States.
       </p>
 
       <h2>Changes to This Policy</h2>
