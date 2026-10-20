@@ -40,7 +40,9 @@ static class DeviceWatcherTests
         watcher.Start();
         var child = await launcher.NextChild.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var request = launcher.Requests.Single();
-        Assert.True(request.Arguments.SequenceEqual(["subscribe"]), "the watcher did not run `pactl subscribe`");
+        Assert.True(request.ExecutablePath == "/bin/sh" && request.RedirectStandardInput
+            && request.Arguments.SequenceEqual(PulseAudioMuffler.TiedArguments("/usr/bin/pactl", ["subscribe"], "hyperwhisper-device-watch")),
+            "the watcher did not run `pactl subscribe` tied to its stdin, so a crash would orphan it");
         Assert.True(request.Environment.TryGetValue("LC_ALL", out var locale) && locale == "C",
             "pactl subscribe was not run under LC_ALL=C, so its event wording could be translated");
 

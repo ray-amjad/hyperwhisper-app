@@ -10,7 +10,8 @@ namespace HyperWhisper.Linux.Platform.Audio;
 /// pickers follow a plug or unplug without the "Refresh devices" button.
 /// </summary>
 /// <remarks>
-/// Event-based: one long-lived <c>pactl subscribe</c> child (PulseAudio and pipewire-pulse both
+/// Event-based: one long-lived <c>pactl subscribe</c> child, tied to our stdin so it cannot outlive
+/// the app (PulseAudio and pipewire-pulse both
 /// serve it). Only a source being added or removed, and a server change (that is how a new default
 /// source is announced), count. <c>source-output</c> events are every capture stream opening and
 /// closing — our own recordings and keep-warm included — and a source <c>change</c> is a volume
@@ -78,11 +79,15 @@ public sealed class PulseAudioDeviceWatcher : IDisposable
     {
         while (!token.IsCancellationRequested)
         {
+            // Tied to our stdin, as the muffler's subscription is: `pactl subscribe` never writes
+            // to its parent on its own, so after a crash or kill -9 it would run on, orphaned,
+            // holding a server connection and the pipe. The shell kills it when our end closes.
             var started = _launcher.Start(new ChildProcessStartRequest
             {
-                ExecutablePath = _pactl!,
-                Arguments = ["subscribe"],
+                ExecutablePath = PulseAudioMuffler.Shell,
+                Arguments = PulseAudioMuffler.TiedArguments(_pactl!, ["subscribe"], "hyperwhisper-device-watch"),
                 RedirectStandardOutput = true,
+                RedirectStandardInput = true,
                 Environment = new Dictionary<string, string?> { ["LC_ALL"] = "C" },
             });
             if (started.IsSuccess)
@@ -111,6 +116,7 @@ public sealed class PulseAudioDeviceWatcher : IDisposable
                 finally
                 {
                     lock (_gate) _child = null;
+                    try { child.StandardInput?.Dispose(); } catch (Exception) { }
                     if (!child.HasExited)
                     {
                         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(2));
@@ -160,9 +166,11 @@ public sealed class PulseAudioDeviceWatcher : IDisposable
         }
         DevicesMayHaveChanged = null;
         _lifetime.Cancel();
-        // A pipe read does not always honour the token; ending the child ends the read.
+        // A pipe read does not always honour the token; ending the child ends the read. Closing
+        // its stdin is what makes the tying shell kill pactl; terminating the shell alone would not.
         if (child is not null)
         {
+            try { child.StandardInput?.Dispose(); } catch (Exception) { }
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(2));
             try { child.TerminateAsync(deadline.Token).AsTask().Wait(TimeSpan.FromSeconds(2)); } catch (Exception) { }
         }
