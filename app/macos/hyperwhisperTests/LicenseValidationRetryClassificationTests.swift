@@ -138,14 +138,21 @@ struct LicenseValidationRetryClassificationTests {
 
     private static let offlineMessage = "Unable to verify license while offline"
 
-    private func makeService(key: String, replies: [ScriptedReply]) -> LicenseNetworkService {
-        let store = RustLicenseStore(
+    private func makeStore() -> RustLicenseStore {
+        RustLicenseStore(
             defaults: makeDefaults(),
             licenseStore: LicenseKeychainStore(credentialStore: InMemoryLicenseCredentialStore()),
             seedUsage: false
         )
-        return LicenseNetworkService(
-            store: store,
+    }
+
+    private func makeService(
+        key: String,
+        replies: [ScriptedReply],
+        store: RustLicenseStore? = nil
+    ) -> LicenseNetworkService {
+        LicenseNetworkService(
+            store: store ?? makeStore(),
             session: ScriptedLicenseURLProtocol.makeSession(key: key, replies: replies)
         )
     }
@@ -211,11 +218,7 @@ struct LicenseValidationRetryClassificationTests {
     /// launch self-heals: a 503 then a 200 must end Active on attempt 2.
     @Test func launchValidationSelfHealsAfterOneServerError() async throws {
         let key = "self-heal-\(UUID().uuidString)"
-        let store = RustLicenseStore(
-            defaults: makeDefaults(),
-            licenseStore: LicenseKeychainStore(credentialStore: InMemoryLicenseCredentialStore()),
-            seedUsage: false
-        )
+        let store = makeStore()
         // A cached Active verdict for this key puts launch validation on the
         // tight launch policy instead of the standard one.
         licensePersistValidationVerdict(
@@ -224,13 +227,10 @@ struct LicenseValidationRetryClassificationTests {
             attemptedKey: key,
             nowUnixSecs: RustLicenseTime.nowUTC()
         )
-        let service = LicenseNetworkService(
-            store: store,
-            session: ScriptedLicenseURLProtocol.makeSession(key: key, replies: [
-                .http(status: 503, body: #"{"error":"Service Unavailable"}"#),
-                .http(status: 200, body: #"{"status":"active"}"#)
-            ])
-        )
+        let service = makeService(key: key, replies: [
+            .http(status: 503, body: #"{"error":"Service Unavailable"}"#),
+            .http(status: 200, body: #"{"status":"active"}"#)
+        ], store: store)
 
         let result = await service.validateLicense(
             key,
