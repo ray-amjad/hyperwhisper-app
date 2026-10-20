@@ -726,13 +726,21 @@ class FileTranscriptionFlow {
             progressState.reset()
             cleanupImportArtifacts(reason: "unexpected error")
             currentTranscriptionTask = nil
+            // A missing model names the mode that uses it in the row's reason
+            // and the alert (#1518). The log keeps the engine's error: a mode
+            // name is user-typed text.
+            let failure = TranscriptionError.attachingMode(mode.name, to: error)
             // Before the alert, so History already shows the failed row with
             // Retry behind it.
-            await markProcessingTranscriptFailed(after: error, audioDuration: importDuration)
+            await markProcessingTranscriptFailed(
+                after: failure,
+                audioDuration: importDuration,
+                transcriptionProvider: Self.failedRowProvider(for: error, modelId: mode.model)
+            )
             AppLogger.transcription.error("❌ File transcription failed: \(error.localizedDescription)")
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
-                message: Self.failureMessage(for: error, audioDuration: importDuration)
+                message: Self.failureMessage(for: failure, audioDuration: importDuration)
             )
             releaseRecordingState()
         }
@@ -1026,10 +1034,21 @@ class FileTranscriptionFlow {
     /// - Parameters:
     ///   - error: Why the import stopped. `CancellationError` is a cancel.
     ///   - audioDuration: The file's length, when the import read it.
-    func markProcessingTranscriptFailed(after error: Error, audioDuration: TimeInterval? = nil) async {
+    ///   - transcriptionProvider: The engine that failed, from
+    ///     `failedRowProvider(for:modelId:)` (#1518). `nil` writes none.
+    func markProcessingTranscriptFailed(
+        after error: Error,
+        audioDuration: TimeInterval? = nil,
+        transcriptionProvider: String? = nil
+    ) async {
         guard let transcriptID = processingTranscriptID else { return }
         processingTranscriptID = nil
-        await writeFailedStatus(transcriptID, after: error, audioDuration: audioDuration)
+        await writeFailedStatus(
+            transcriptID,
+            after: error,
+            audioDuration: audioDuration,
+            transcriptionProvider: transcriptionProvider
+        )
     }
 
     /// Writes the failed status, so HistoryView shows the row as failed and
@@ -1037,13 +1056,15 @@ class FileTranscriptionFlow {
     private func writeFailedStatus(
         _ transcriptID: NSManagedObjectID,
         after error: Error,
-        audioDuration: TimeInterval? = nil
+        audioDuration: TimeInterval? = nil,
+        transcriptionProvider: String? = nil
     ) async {
         let outcome = Self.failureOutcome(for: error, audioDuration: audioDuration)
         await persistence.markTranscriptFailedInBackground(
             transcriptID: transcriptID,
             failedReason: outcome.failedReason,
-            errorText: outcome.errorText
+            errorText: outcome.errorText,
+            transcriptionProvider: transcriptionProvider
         )
         let kind = error is CancellationError ? "cancelled" : "error"
         AppLogger.transcription.info("📝 [FileImport] Marked processing transcript failed (\(kind, privacy: .public))")
@@ -1092,6 +1113,62 @@ class FileTranscriptionFlow {
     nonisolated static func isTooShort(_ error: Error) -> Bool {
         if case .audioTooShort? = error as? TranscriptionError { return true }
         return false
+    }
+
+    // MARK: - Failed row's engine (issue #1518)
+
+    /// The `transcriptionProvider` a failed History row stores, so History
+    /// shows which engine failed, or `nil` to leave the column empty.
+    ///
+    /// Only a `TranscriptionError` (an engine or pipeline failure) names an
+    /// engine; a cancel, an import error or any other failure does not. The
+    /// engine is the one the mode's model id routes to, worded as a completed
+    /// row words it (`localEngineName(forModelId:)`). When the id names no
+    /// local engine, a missing model's own name is used.
+    ///
+    /// - Parameter modelId: the mode's `model` (`Mode.model`). Empty or
+    ///   `"cloud"` is a cloud mode, which this does not name.
+    nonisolated static func failedRowProvider(for error: Error, modelId: String?) -> String? {
+        guard let transcriptionError = error as? TranscriptionError else { return nil }
+        return localEngineName(forModelId: modelId) ?? transcriptionError.missingModelName
+    }
+
+    /// The name a completed row stores as `transcriptionProvider` for a local
+    /// model id, which is the engine's `TranscriptionProvider.name`: the
+    /// whisper.cpp model's display name ("Tiny (Multilingual)"), else the
+    /// engine's name ("Parakeet TDT"). `nil` for a cloud mode or an id no
+    /// engine takes.
+    ///
+    /// Same order and the same tests as
+    /// `TranscriptionProviderRouter.selectLocalProvider`, so it names the
+    /// engine that id reaches.
+    nonisolated static func localEngineName(forModelId modelId: String?) -> String? {
+        let id = (modelId ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !id.isEmpty, id != "cloud" else { return nil }
+        if let whisper = mapModelIdToWhisperModel(id) {
+            return LibWhisperProvider.modelDisplayName(for: whisper.rawValue)
+        }
+        if id == "apple-speech-analyzer" {
+            #if canImport(Speech)
+            if #available(macOS 26.0, *) {
+                return AppleSpeechAnalyzerProvider.engineName
+            }
+            #endif
+            return nil
+        }
+        if id == Qwen3AsrModelManager.Constants.modelId {
+            if #available(macOS 15.0, *) {
+                return Qwen3AsrProvider.engineName
+            }
+            return nil
+        }
+        if id.hasPrefix("nemotron-asr-3.5-") {
+            return NemotronProvider.engineName
+        }
+        if id.hasPrefix("parakeet-tdt-") {
+            return ParakeetProvider.engineName
+        }
+        return nil
     }
 
     /// Handles file transcription errors with appropriate UI

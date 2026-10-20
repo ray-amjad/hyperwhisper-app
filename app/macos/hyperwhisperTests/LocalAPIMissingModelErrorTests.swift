@@ -170,7 +170,7 @@ struct LocalAPIMissingModelErrorTests {
     /// `.modelNotDownloaded` from any other caller still maps to the shared
     /// row, unchanged.
     @Test func aBareModelNotDownloadedStillMapsToTheSharedRow() {
-        let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(TranscriptionError.modelNotDownloaded)
+        let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(TranscriptionError.modelNotDownloaded())
         #expect(code == .modelNotInstalled)
         #expect(message == "Required model is not installed.")
         #expect(hint == "Install the model from the app's Library, or pick a different engine/model.")
