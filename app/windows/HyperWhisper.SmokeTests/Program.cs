@@ -23414,6 +23414,101 @@ internal static class Program
                 }
             });
 
+            Run("shortcuts: a stored or imported bare typing key resets to the role's default - issue #2114", () =>
+            {
+                // #2114. #2110 stopped the recorder saving a bare typing key, but a
+                // profile that saved "ToggleShortcut": "Tab" on an older build kept it,
+                // and a backup could import one. Ray (inbox #1685): reset the role to
+                // its default at settings load, and on backup import (not to the
+                // current value). A single bare modifier gets the same treatment.
+                EnsureSmokeApplication();
+
+                // THE RULE.
+                foreach (var unsafeValue in new[] { "Tab", "K", "Shift+Tab", "Space", "Alt", "Ctrl", "Shift", "Win" })
+                    Assert(ShortcutValidationService.IsUnsafeStoredActionShortcut(KeyboardShortcut.FromPersistedString(unsafeValue)),
+                        $"a stored '{unsafeValue}' would fire while the user types, so it must not stay live");
+                foreach (var safeValue in new[] { "", "Esc", "F13", "Shift+A", "Shift+Esc", "Ctrl+Tab", "Ctrl+Shift+Tab", "Ctrl+Alt", "Ctrl+Win", "Ctrl+Shift+." })
+                    Assert(!ShortcutValidationService.IsUnsafeStoredActionShortcut(KeyboardShortcut.FromPersistedString(safeValue)),
+                        $"a stored '{safeValue}' is a legal shortcut (or Unassigned) and must be kept");
+
+                var settings = SettingsService.Instance;
+                var settingsFile = Path.Combine(AppPaths.AppDataRoot, "settings.json");
+                // Two real changes, so settings.json exists whatever ran before this case.
+                var cancelBefore = settings.CancelShortcut;
+                settings.CancelShortcut = KeyboardShortcut.FromPersistedString("F14");
+                settings.CancelShortcut = cancelBefore;
+                var original = File.ReadAllText(settingsFile);
+
+                void SeedAndReload(string toggle, string cancel, string changeMode, string streaming)
+                {
+                    var node = JsonNode.Parse(original)!.AsObject();
+                    node["ToggleShortcut"] = toggle;
+                    node["CancelShortcut"] = cancel;
+                    node["ChangeModeShortcut"] = changeMode;
+                    node["StreamingShortcut"] = streaming;
+                    File.WriteAllText(settingsFile, node.ToJsonString());
+                    settings.Reload();
+                }
+
+                try
+                {
+                    // LOAD: the Done-when profile, one unsafe value per role.
+                    SeedAndReload("Tab", "K", "Shift+Tab", "Alt");
+                    Assert(settings.ToggleShortcut.ToPersistedString() == "Ctrl+Alt",
+                        $"a stored bare Tab must load as the Toggle default, got '{settings.ToggleShortcut}'");
+                    Assert(settings.CancelShortcut.ToPersistedString() == "Esc",
+                        $"a stored bare K must load as the Cancel default, got '{settings.CancelShortcut}'");
+                    Assert(settings.ChangeModeShortcut.ToPersistedString() == "Ctrl+Shift+.",
+                        $"a stored Shift+Tab must load as the Change mode default, got '{settings.ChangeModeShortcut}'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space",
+                        $"a stored bare Alt must load as the Streaming default, got '{settings.StreamingShortcut}'");
+
+                    // LOAD keeps every legal value exactly. (A blank stored value already
+                    // reads as the default through GetShortcutOrDefault.)
+                    SeedAndReload("Shift+A", "F13", "Ctrl+Shift+J", "Ctrl+Win");
+                    Assert(settings.ToggleShortcut.ToPersistedString() == "Shift+A", $"Shift+A must survive load, got '{settings.ToggleShortcut}'");
+                    Assert(settings.CancelShortcut.ToPersistedString() == "F13", $"F13 must survive load, got '{settings.CancelShortcut}'");
+                    Assert(settings.ChangeModeShortcut.ToPersistedString() == "Ctrl+Shift+J", $"Ctrl+Shift+J must survive load, got '{settings.ChangeModeShortcut}'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Win", $"Ctrl+Win must survive load, got '{settings.StreamingShortcut}'");
+
+                    // IMPORT, Windows slice: each unsafe role resets to its DEFAULT, not
+                    // to the current (non-default) value seeded just above.
+                    var slice = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                        """{"windows":{"settings":{"toggleShortcut":"K","cancelShortcut":"Ctrl","changeModeShortcut":"Shift+Tab","streamingShortcut":"Tab"}}}""")!;
+                    UniversalBackupMapper.ApplyWindowsPlatformSettings(slice, settings);
+                    Assert(settings.ToggleShortcut.ToPersistedString() == "Ctrl+Alt", $"imported K: Toggle is '{settings.ToggleShortcut}'");
+                    Assert(settings.CancelShortcut.ToPersistedString() == "Esc", $"imported Ctrl: Cancel is '{settings.CancelShortcut}'");
+                    Assert(settings.ChangeModeShortcut.ToPersistedString() == "Ctrl+Shift+.", $"imported Shift+Tab: Change mode is '{settings.ChangeModeShortcut}'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space", $"imported Tab: Streaming is '{settings.StreamingShortcut}'");
+
+                    // IMPORT, Windows slice: a legal value still imports as it is.
+                    var legal = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                        """{"windows":{"settings":{"toggleShortcut":"Ctrl+Alt+H","streamingShortcut":"F9"}}}""")!;
+                    UniversalBackupMapper.ApplyWindowsPlatformSettings(legal, settings);
+                    Assert(settings.ToggleShortcut.ToPersistedString() == "Ctrl+Alt+H", $"imported Ctrl+Alt+H: Toggle is '{settings.ToggleShortcut}'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "F9", $"imported F9: Streaming is '{settings.StreamingShortcut}'");
+
+                    // IMPORT, universal streaming.shortcut (what a macOS or Linux backup carries).
+                    UniversalBackupMapper.ApplySettings(new UniversalSettings
+                    {
+                        Streaming = new UniversalStreamingSettings { Shortcut = "K" },
+                    }, settings);
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space",
+                        $"a universal streaming.shortcut of bare K must reset to the default, got '{settings.StreamingShortcut}'");
+                    UniversalBackupMapper.ApplySettings(new UniversalSettings
+                    {
+                        Streaming = new UniversalStreamingSettings { Shortcut = "Ctrl+Alt+S" },
+                    }, settings);
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Alt+S",
+                        $"a legal universal streaming.shortcut must import, got '{settings.StreamingShortcut}'");
+                }
+                finally
+                {
+                    File.WriteAllText(settingsFile, original);
+                    settings.Reload();
+                }
+            });
+
             Run("shortcuts: Settings > Streaming stores nothing until the gesture closes", () =>
             {
                 // #794. The SAME setting had two editors and only one was fixed:
