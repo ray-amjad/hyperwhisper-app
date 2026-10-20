@@ -54,6 +54,9 @@ DerivedData/
 # Swift Package Manager
 Packages/
 Package.resolved
+# The macOS app's lockfile IS tracked (#2006): it pins every SwiftPM
+# dependency, so CI and release builds resolve the same graph every time.
+!app/macos/hyperwhisper.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # macOS
 .DS_Store

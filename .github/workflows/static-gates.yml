@@ -36,7 +36,7 @@ jobs:
     name: Secrets (new commits only)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # The scan needs both ends of the range, so a shallow clone is not
           # enough.
@@ -62,7 +62,7 @@ jobs:
     name: Closed patterns stay closed
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install ast-grep
         run: sudo npm i -g --prefix /usr/local @ast-grep/cli
@@ -78,7 +78,7 @@ jobs:
     name: A model name lives in the catalog only
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Check for a duplicated model name
         run: tools/check-model-name-literals.sh
@@ -87,7 +87,7 @@ jobs:
     name: Docs links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install lychee
         # The -gnu asset needs GLIBC 2.38 and the runner may be older; -musl is
