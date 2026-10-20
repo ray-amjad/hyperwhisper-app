@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -105,6 +111,49 @@ export default function SignInClient() {
 
   const licenseKeyInput = useRef<HTMLInputElement>(null);
   const emailInput = useRef<HTMLInputElement>(null);
+
+  // #752: the card tweens between the email form and the "we sent a magic
+  // link" panel instead of changing height in one frame. The height is read
+  // just before the swap; after it, the layout effect pins the card at that
+  // height, then sets the new one, and `.t-resize` tweens between the two.
+  // The pin comes off when the tween ends, so later changes (an error banner
+  // in the panel) size the card as before.
+  const card = useRef<HTMLDivElement>(null);
+  const cardHeightBeforeSwap = useRef<number | null>(null);
+
+  function rememberCardHeight() {
+    cardHeightBeforeSwap.current = card.current?.offsetHeight ?? null;
+  }
+
+  useLayoutEffect(() => {
+    const box = card.current;
+    const from = cardHeightBeforeSwap.current;
+
+    cardHeightBeforeSwap.current = null;
+    if (!box || from === null) return;
+    const to = box.offsetHeight;
+
+    if (to === from) return;
+    box.style.height = `${from}px`;
+    void box.offsetHeight;
+    box.style.height = `${to}px`;
+
+    const unpin = () => {
+      window.clearTimeout(timer);
+      box.removeEventListener("transitionend", onEnd);
+      box.style.height = "";
+    };
+    // Children's transitions bubble here too; only the card's own counts.
+    const onEnd = (event: TransitionEvent) => {
+      if (event.target === box && event.propertyName === "height") unpin();
+    };
+    // A transition that never runs (reduced motion) fires no transitionend.
+    const timer = window.setTimeout(unpin, 400);
+
+    box.addEventListener("transitionend", onEnd);
+    // No cleanup: Strict Mode's dev-only re-run would unpin the card before
+    // the tween ran. The timer bounds the pin either way.
+  }, [magicLinkSent]);
 
   // Every failure sets a fresh message after the submit cleared the old one,
   // so each one shakes, even when the text repeats.
@@ -217,6 +266,7 @@ export default function SignInClient() {
       if (authError) {
         setEmailError(authError.message ?? "Failed to send magic link. Please try again.");
       } else {
+        if (!magicLinkSent) rememberCardHeight();
         setMagicLinkSent(true);
       }
     } catch (error) {
@@ -282,7 +332,10 @@ export default function SignInClient() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4">
       <div className="max-w-md w-full">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
+        <div
+          ref={card}
+          className="t-resize overflow-clip bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20"
+        >
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-white mb-2">HyperWhisper</h1>
@@ -478,8 +531,12 @@ export default function SignInClient() {
                 <div className="space-y-6">
                   <div className="text-center">
                     <div className="mb-4">
-                      <svg className="mx-auto h-12 w-12 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                      {/* #752: the one success moment on the page. The icon
+                          fades and rotates up out of a blur while its stroke
+                          draws (.t-success-check); pathLength="1" lets the
+                          dash length be 1 whatever the path's real length. */}
+                      <svg className="t-success-check mx-auto h-12 w-12 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path pathLength={1} strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                       </svg>
                     </div>
                     <p className="text-gray-300 mb-1">We sent a magic link to</p>
@@ -507,6 +564,7 @@ export default function SignInClient() {
                     <button
                       type="button"
                       onClick={() => {
+                        rememberCardHeight();
                         setMagicLinkSent(false);
                         setEmailError(null);
                       }}
