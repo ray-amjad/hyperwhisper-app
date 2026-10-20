@@ -23928,7 +23928,6 @@ internal static class Program
                 // rides on the one navigation. This stands in for MainWindow's
                 // subscription, which is the only reader of the pending section.
                 var settings = SettingsService.Instance;
-                var savedSteps = settings.GettingStartedCompletedSteps;
                 var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
                     .GetUninitializedObject(typeof(MainViewModel));
                 typeof(MainViewModel).GetField("_settingsService", BindingFlags.Instance | BindingFlags.NonPublic)!
@@ -23946,29 +23945,142 @@ internal static class Program
                         navigations.Add((vm.CurrentPage, vm.TakePendingSettingsSection()));
                 };
 
-                try
-                {
-                    settings.GettingStartedCompletedSteps = "";
-                    vm.ToggleGettingStartedStepCommand.Execute("shortcuts");
-                    Assert(navigations.Count == 1, $"the row makes one navigation, not {navigations.Count}");
-                    Assert(navigations[0] == (MainViewModel.NavigationPage.Settings, "Shortcuts"),
-                        $"the Customize Shortcuts row lands on Settings > Shortcuts, not {navigations[0]}");
+                vm.OpenGettingStartedStepCommand.Execute("shortcuts");
+                Assert(navigations.Count == 1, $"the row makes one navigation, not {navigations.Count}");
+                Assert(navigations[0] == (MainViewModel.NavigationPage.Settings, "Shortcuts"),
+                    $"the Customize Shortcuts row lands on Settings > Shortcuts, not {navigations[0]}");
 
-                    navigations.Clear();
-                    vm.OpenSettingsSection("License");
-                    Assert(navigations.Count == 1 && navigations[0] == (MainViewModel.NavigationPage.Settings, "License"),
-                        "already on Settings, a section request still navigates to that section");
+                navigations.Clear();
+                vm.OpenSettingsSection("License");
+                Assert(navigations.Count == 1 && navigations[0] == (MainViewModel.NavigationPage.Settings, "License"),
+                    "already on Settings, a section request still navigates to that section");
 
-                    navigations.Clear();
-                    vm.CurrentPage = MainViewModel.NavigationPage.Home;
-                    vm.CurrentPage = MainViewModel.NavigationPage.Settings;
-                    Assert(navigations.Count == 2 && navigations.All(n => n.Section is null),
-                        "a plain navigation carries no stale section from an earlier request");
-                }
-                finally
+                navigations.Clear();
+                vm.CurrentPage = MainViewModel.NavigationPage.Home;
+                vm.CurrentPage = MainViewModel.NavigationPage.Settings;
+                Assert(navigations.Count == 2 && navigations.All(n => n.Section is null),
+                    "a plain navigation carries no stale section from an earlier request");
+            });
+
+            Run("home: a Getting Started row click acts and never ticks or un-ticks it (#638)", () =>
+            {
+                // #638. ToggleGettingStartedStep flipped the row on every click: a
+                // second click on a done row took the tick away and skipped the
+                // navigation, a click on Start Recording ticked it with nothing
+                // recorded, and four clicks hid the whole section with no work done.
+                // A click now only acts; ticks come from real state alone.
+                var settings = SettingsService.Instance;
+                var vm = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers
+                    .GetUninitializedObject(typeof(MainViewModel));
+                typeof(MainViewModel).GetField("_settingsService", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(vm, settings);
+                var items = new System.Collections.ObjectModel.ObservableCollection<GettingStartedItem>
                 {
-                    settings.GettingStartedCompletedSteps = savedSteps;
+                    new() { Id = "recording" },
+                    new() { Id = "shortcuts", IsCompleted = true },
+                    new() { Id = "mode" },
+                    new() { Id = "vocabulary" },
+                };
+                vm.GettingStartedItems = items;
+                vm.ShowGettingStarted = true;
+
+                var navigations = new List<(MainViewModel.NavigationPage Page, string? Section)>();
+                vm.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MainViewModel.CurrentPage))
+                        navigations.Add((vm.CurrentPage, vm.TakePendingSettingsSection()));
+                };
+
+                // A completed step, clicked twice: still complete, and BOTH clicks navigate.
+                vm.OpenGettingStartedStepCommand.Execute("shortcuts");
+                vm.OpenGettingStartedStepCommand.Execute("shortcuts");
+                Assert(items[1].IsCompleted, "a second click must not un-tick a completed row");
+                Assert(navigations.Count == 2
+                       && navigations.All(n => n == (MainViewModel.NavigationPage.Settings, "Shortcuts")),
+                    $"each click opens Settings > Shortcuts - got {navigations.Count} navigation(s)");
+
+                // Start Recording with no saved transcript: the start is attempted
+                // (and refused here, with no microphone), and the row stays unticked.
+                vm.OpenGettingStartedStepCommand.ExecuteAsync("recording").GetAwaiter().GetResult();
+                Assert(!items[0].IsCompleted, "Start Recording must not tick itself on a click");
+                Assert(!vm.IsRecording, "with no microphone the refused start leaves no recording behind");
+
+                // The other two rows navigate on every click and tick nothing.
+                navigations.Clear();
+                vm.OpenGettingStartedStepCommand.Execute("mode");
+                vm.OpenGettingStartedStepCommand.Execute("vocabulary");
+                Assert(navigations.Count == 2
+                       && navigations[0].Page == MainViewModel.NavigationPage.Modes
+                       && navigations[1].Page == MainViewModel.NavigationPage.Vocabulary,
+                    "Create a Mode opens Modes and Add Vocabulary opens Vocabulary");
+                Assert(!items[2].IsCompleted && !items[3].IsCompleted,
+                    "opening the Modes or Vocabulary page is not making a Mode or a word");
+
+                // Four rows clicked, no work done: the section stays.
+                var section = MainViewModel.ApplyGettingStartedProgress(items, default);
+                Assert(section && vm.ShowGettingStarted,
+                    "four clicks with no work must leave Getting Started on Home");
+                Assert(items.All(i => !i.IsCompleted),
+                    "with no real state behind them, every row reads not done - including the "
+                    + "one a click marked under the old toggle");
+            });
+
+            Run("home: each Getting Started row ticks from its real-state signal (#638)", () =>
+            {
+                var items = new List<GettingStartedItem>
+                {
+                    new() { Id = "recording" },
+                    new() { Id = "shortcuts" },
+                    new() { Id = "mode" },
+                    new() { Id = "vocabulary" },
+                };
+
+                Assert(MainViewModel.ApplyGettingStartedProgress(items, default) && items.All(i => !i.IsCompleted),
+                    "a fresh profile: nothing done, the section shows");
+
+                var each = new (string Id, GettingStartedSignals Signal)[]
+                {
+                    ("recording", new GettingStartedSignals(HasCompletedTranscript: true, false, false, false)),
+                    ("shortcuts", new GettingStartedSignals(false, HasCustomShortcut: true, false, false)),
+                    ("mode", new GettingStartedSignals(false, false, HasUserMode: true, false)),
+                    ("vocabulary", new GettingStartedSignals(false, false, false, HasVocabularyWord: true)),
+                };
+                foreach (var (id, signal) in each)
+                {
+                    var show = MainViewModel.ApplyGettingStartedProgress(items, signal);
+                    Assert(show, $"one step done ({id}) leaves the section showing");
+                    Assert(items.Single(i => i.IsCompleted).Id == id,
+                        $"the {id} signal ticks the {id} row and no other");
                 }
+
+                var all = new GettingStartedSignals(true, true, true, true);
+                Assert(!MainViewModel.ApplyGettingStartedProgress(items, all) && items.All(i => i.IsCompleted),
+                    "all four really done: every row ticked and the section hides");
+                Assert(MainViewModel.ApplyGettingStartedProgress(items, all with { HasCompletedTranscript = false })
+                       && !items[0].IsCompleted,
+                    "the tick follows the state back down (the last transcript deleted)");
+
+                // shortcuts: any shortcut off its default, or Push to Talk on.
+                KeyboardShortcut D(string role) => SettingsService.DefaultActionShortcut(role);
+                Assert(!MainViewModel.HasCustomShortcut(D("Toggle"), D("Cancel"), D("ChangeMode"), D("Streaming"), PushToTalkMode.Disabled),
+                    "every shortcut at its default and Push to Talk off is not a customization");
+                Assert(MainViewModel.HasCustomShortcut(KeyboardShortcut.FromPersistedString("Alt+F9"), D("Cancel"), D("ChangeMode"), D("Streaming"), PushToTalkMode.Disabled),
+                    "a changed toggle shortcut counts");
+                Assert(MainViewModel.HasCustomShortcut(D("Toggle"), D("Cancel"), D("ChangeMode"), KeyboardShortcut.FromPersistedString("Ctrl+Shift+F8"), PushToTalkMode.Disabled),
+                    "a changed streaming shortcut counts");
+                Assert(MainViewModel.HasCustomShortcut(D("Toggle"), D("Cancel"), D("ChangeMode"), D("Streaming"), PushToTalkMode.Modifier),
+                    "Push to Talk switched on counts (Ray, 2026-10-20, #652/#2171)");
+
+                // mode: one the user made, not the seeded Hyper mode.
+                var seeded = new Mode { Id = ModeDefaults.DefaultModeId, Name = "Hyper", IsSystemProvided = true, IsDefault = true };
+                var restoredSeed = new Mode { Id = ModeDefaults.DefaultModeId, Name = "Hyper", IsSystemProvided = false };
+                var systemOther = new Mode { Name = "Stock", IsSystemProvided = true };
+                Assert(!MainViewModel.HasUserMode(new[] { seeded, systemOther }), "stock modes are not the user's");
+                Assert(!MainViewModel.HasUserMode(new[] { restoredSeed }),
+                    "the seeded id restored from a backup without its flag is not the user's either");
+                Assert(!MainViewModel.HasUserMode(null), "no modes loaded yet is not done");
+                Assert(MainViewModel.HasUserMode(new[] { seeded, new Mode { Name = "Email", IsSystemProvided = false } }),
+                    "a Mode the user made ticks the row");
             });
 
             // ------------------------------------------------------------------
