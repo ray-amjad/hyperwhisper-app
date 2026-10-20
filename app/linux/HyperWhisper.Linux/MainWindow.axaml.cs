@@ -1041,7 +1041,7 @@ public partial class MainWindow : Window
             }
             catch
             {
-                // The rows commit before the audio files go, so a throw can still mean rows left.
+                // The row delete commits before the audio files go, so rows may be gone after a throw.
                 _viewModel.History.MarkStale();
                 throw;
             }
