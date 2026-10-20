@@ -82,6 +82,15 @@ internal static class Program
     [STAThread]
     private static int Main()
     {
+        // Child mode for the settings-load checks (issue #2096). SettingsService is
+        // a singleton whose paths are fixed at type init, so a load from a profile
+        // the check seeded has to happen in a fresh process. This runs before the
+        // scratch root below is set, so the child keeps the root its parent gave it.
+        if (Environment.GetEnvironmentVariable(SettingsLoadProbeEnvironmentVariable) == "1")
+        {
+            return RunSettingsLoadProbe();
+        }
+
         var tempRoot = Path.Combine(
             Path.GetTempPath(),
             "HyperWhisper.SmokeTests",
@@ -131,6 +140,48 @@ internal static class Program
 
                 Assert(logged.SequenceEqual(Enumerable.Range(0, 11)),
                     $"expected one line per band 0..10, got [{string.Join(",", logged)}]");
+            });
+
+            Run("settings: a settings.json holding null loads settings.json.bak and keeps it through the next save (#2096)", () =>
+            {
+                // Before the fix, Deserialize("null") returned null without throwing,
+                // so Load() skipped the .bak and used defaults; the probe's save then
+                // rotated the null file over the only good .bak.
+                var profile = Path.Combine(tempRoot, "settings-null-with-bak");
+                Directory.CreateDirectory(profile);
+                var live = Path.Combine(profile, "settings.json");
+                var backup = live + ".bak";
+                File.WriteAllText(live, "null");
+                File.WriteAllText(backup, """{ "Version": 3, "TypingSpeedWPM": 123, "LastSelectedModel": "probe-model-2096" }""");
+
+                var output = RunSettingsLoadProbeChild(profile);
+
+                Assert(output.Contains("TypingSpeedWPM=123"),
+                    $"settings did not come from settings.json.bak: {output}");
+                Assert(output.Contains("LastSelectedModel=probe-model-2096"),
+                    $"LastSelectedModel did not come from settings.json.bak: {output}");
+                var liveNode = JsonNode.Parse(File.ReadAllText(live));
+                Assert(liveNode?["TypingSpeedWPM"]?.GetValue<int>() == 124,
+                    $"live settings.json does not hold the probe's saved change: {File.ReadAllText(live)}");
+                Assert(liveNode?["LastSelectedModel"]?.GetValue<string>() == "probe-model-2096",
+                    $"live settings.json lost the recovered settings: {File.ReadAllText(live)}");
+                var backupNode = JsonNode.Parse(File.ReadAllText(backup));
+                Assert(backupNode?["TypingSpeedWPM"]?.GetValue<int>() == 123,
+                    $"the save destroyed the good settings.json.bak: {File.ReadAllText(backup)}");
+            });
+
+            Run("settings: a settings.json holding null with no .bak loads defaults (#2096)", () =>
+            {
+                var profile = Path.Combine(tempRoot, "settings-null-no-bak");
+                Directory.CreateDirectory(profile);
+                File.WriteAllText(Path.Combine(profile, "settings.json"), "null");
+
+                var output = RunSettingsLoadProbeChild(profile, save: false);
+
+                Assert(output.Contains("TypingSpeedWPM=40"),
+                    $"expected the default TypingSpeedWPM: {output}");
+                Assert(output.Contains("LastSelectedModel=<null>"),
+                    $"expected no LastSelectedModel: {output}");
             });
 
             Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
@@ -23888,6 +23939,67 @@ internal static class Program
     {
         if (!condition)
             throw new InvalidOperationException(message);
+    }
+
+    private const string SettingsLoadProbeEnvironmentVariable = "HYPERWHISPER_SMOKE_SETTINGS_LOAD_PROBE";
+    private const string SettingsLoadProbeSaveEnvironmentVariable = "HYPERWHISPER_SMOKE_SETTINGS_LOAD_PROBE_SAVE";
+
+    /// <summary>
+    /// Child side of the #2096 checks: loads SettingsService from the profile in
+    /// HYPERWHISPER_WINDOWS_APPDATA_ROOT, prints what it loaded and, when asked,
+    /// changes one setting so a real Save() runs against the files on disk.
+    /// </summary>
+    private static int RunSettingsLoadProbe()
+    {
+        try
+        {
+            var settings = SettingsService.Instance;
+            var typingSpeed = settings.TypingSpeedWPM;
+            Console.WriteLine($"TypingSpeedWPM={typingSpeed}");
+            Console.WriteLine($"LastSelectedModel={settings.LastSelectedModel ?? "<null>"}");
+            if (Environment.GetEnvironmentVariable(SettingsLoadProbeSaveEnvironmentVariable) == "1")
+            {
+                settings.TypingSpeedWPM = typingSpeed + 1;
+            }
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// Runs this executable in settings-load-probe mode against <paramref name="profile"/>
+    /// and returns its standard output. Throws when the child fails or hangs.
+    /// </summary>
+    private static string RunSettingsLoadProbeChild(string profile, bool save = true)
+    {
+        var startInfo = new ProcessStartInfo(Environment.ProcessPath!)
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        startInfo.Environment[AppPaths.AppDataRootOverrideEnvironmentVariable] = profile;
+        startInfo.Environment[SettingsLoadProbeEnvironmentVariable] = "1";
+        startInfo.Environment[SettingsLoadProbeSaveEnvironmentVariable] = save ? "1" : "0";
+
+        using var child = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("settings-load probe did not start");
+        var stdout = child.StandardOutput.ReadToEndAsync();
+        var stderr = child.StandardError.ReadToEndAsync();
+        if (!child.WaitForExit(60_000))
+        {
+            child.Kill(entireProcessTree: true);
+            throw new InvalidOperationException("settings-load probe did not exit within 60 s");
+        }
+
+        Assert(child.ExitCode == 0,
+            $"settings-load probe exited {child.ExitCode}: {stderr.GetAwaiter().GetResult()}");
+        return stdout.GetAwaiter().GetResult();
     }
 
     private const int VkLeft = 0x25;
