@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Text.Json;
 using HyperWhisper.Models;
 
@@ -11,28 +10,6 @@ namespace HyperWhisper.Services;
 
 public partial class ParakeetTranscriptionService
 {
-    // =========================================================================
-    // DAEMON PATHS
-    // =========================================================================
-
-    /// <summary>
-    /// Resolves the absolute path to the parakeet-engine.exe daemon binary.
-    /// </summary>
-    private static string GetDaemonPath()
-    {
-        var appDir = AppDomain.CurrentDomain.BaseDirectory;
-        return Path.Combine(appDir, "parakeet-engine", "parakeet-engine.exe");
-    }
-
-    /// <summary>
-    /// Resolves the absolute path to the Silero VAD ONNX model used by the daemon.
-    /// </summary>
-    private static string GetVadModelPath()
-    {
-        var appDir = AppDomain.CurrentDomain.BaseDirectory;
-        return Path.Combine(appDir, "parakeet-engine", "silero_vad.onnx");
-    }
-
     /// <param name="advanceTeardownGeneration">
     /// False for the auto-restart in <see cref="TranscribeAsync"/> (reloading the same model
     /// after a crash is not a teardown, so requests queued behind it stay current) and for
@@ -65,39 +42,7 @@ public partial class ParakeetTranscriptionService
         DisposeModelCore(advanceTeardownGeneration, transcriptionLockHeld, idleReloadCancellation);
         idleReloadCancellation.ThrowIfCancellationRequested();
 
-        var daemonPath = GetDaemonPath();
-        var vadModelPath = GetVadModelPath();
-
-        // Guard: validate daemon binary exists
-        if (!File.Exists(daemonPath))
-        {
-            LoggingService.Error("ParakeetTranscriptionService: Daemon binary not found in the app directory");
-            throw new TranscriptionException(
-                TranscriptionErrorCode.DaemonStartFailed,
-                // The path is out of the message too, not just the log line: this
-                // message travels one frame up and is logged again as ex.Message by
-                // TranscriptionRetryHandler and MainViewModel. GetUserMessage() is a
-                // fixed sentence for this code, so nothing the user sees changes.
-                "Parakeet engine binary not found in the app directory",
-                "Parakeet");
-        }
-
-        // Guard: validate model directory exists
-        if (!Directory.Exists(modelDirectory))
-        {
-            LoggingService.Error("ParakeetTranscriptionService: Model directory not found");
-            throw new TranscriptionException(
-                TranscriptionErrorCode.OnnxModelFileMissing,
-                // Same reason as above - GetUserMessage() covers this code too.
-                "Model directory not found",
-                "Parakeet");
-        }
-
-        // Guard: validate VAD model exists
-        if (!File.Exists(vadModelPath))
-        {
-            LoggingService.Warn("ParakeetTranscriptionService: VAD model not found in the app directory, proceeding without VAD");
-        }
+        var paths = ParakeetDaemonLaunchPlan.ValidatePaths(modelDirectory);
 
         // The daemon THIS load starts. Every kill below targets it, never whatever
         // _daemonProcess holds by then: a failed or cancelled load must not stop a
@@ -108,101 +53,12 @@ public partial class ParakeetTranscriptionService
             // STEP 1: Spawn the daemon process
             LoggingService.Info("Step 1: Spawning parakeet-engine daemon...");
 
-            // Resolve which engine the daemon should load from the model catalog
-            // (the model directory's leaf name is the model Id). Falls back to the
-            // Parakeet transducer for anything not in the catalog.
-            var modelId = Path.GetFileName(modelDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            var modelInfo = ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == modelId);
-            var engineArg = modelInfo?.DaemonEngineArg ?? "nemo_transducer";
-            _isQwen3 = modelInfo?.Engine == ParakeetEngine.Qwen3;
-            _isOnline = modelInfo?.Engine == ParakeetEngine.NemotronMl;
-            LoggingService.Info($"  Engine: {engineArg}");
+            var engine = ParakeetDaemonLaunchPlan.ResolveEngine(modelDirectory);
+            _isQwen3 = engine.IsQwen3;
+            _isOnline = engine.IsOnline;
+            var launch = ParakeetDaemonLaunchPlan.Build(paths, modelDirectory, language, engine);
 
-            // The caller passes null for "auto-detect" (MainViewModel converts the
-            // "auto" UI value to null). Qwen3 and Nemotron have real auto language
-            // handling, so forward "auto" instead of defaulting those engines to English.
-            var supportsLanguageHint = _isOnline || _isQwen3;
-            var loadedLanguage = language ?? "auto";
-            var daemonLanguage = supportsLanguageHint ? loadedLanguage : "auto";
-            if (supportsLanguageHint)
-            {
-                LoggingService.Info($"  Language: {daemonLanguage}");
-            }
-            else
-            {
-                LoggingService.Info($"  Requested language '{loadedLanguage}' is auto-detected by Parakeet TDT (not applied)");
-            }
-
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = daemonPath,
-                // Pin the daemon's working directory to its own folder. The child inherits
-                // HyperWhisper.exe's CWD by default (often C:\Users\<user> when launched from
-                // the Start Menu), and the Windows DLL search order probes the CWD before %PATH%.
-                // Pinning it to the engine folder — where the legit ONNX Runtime / DirectML
-                // native DLLs are installed — prevents DLL planting from a user-writable CWD.
-                WorkingDirectory = Path.GetDirectoryName(daemonPath)!,
-                UseShellExecute = false,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                // The daemon speaks raw UTF-8 on stdin/stdout (it puts both in _O_BINARY and
-                // passes non-ASCII bytes through unescaped). Without these, redirected-stream
-                // encoding defaults to the console code page — a legacy ANSI/OEM page on most
-                // non-US Windows locales — which mojibakes accented/Cyrillic/Greek/CJK output
-                // from multilingual Parakeet. UTF8Encoding(false) suppresses the BOM so the
-                // stdin writer never prepends EF BB BF to the first JSON request line.
-                StandardInputEncoding = new UTF8Encoding(false),
-                StandardOutputEncoding = new UTF8Encoding(false),
-                StandardErrorEncoding = new UTF8Encoding(false),
-                CreateNoWindow = true
-            };
-
-            // Build arguments via ArgumentList so .NET applies correct Windows
-            // quoting/escaping. String concatenation corrupts paths containing a
-            // quote or a trailing backslash (e.g. a UNC path like \\server\share\),
-            // where CommandLineToArgvW treats the trailing \" as an escaped quote.
-            startInfo.ArgumentList.Add("--model");
-            startInfo.ArgumentList.Add(modelDirectory);
-            if (supportsLanguageHint)
-            {
-                startInfo.ArgumentList.Add("--language");
-                startInfo.ArgumentList.Add(daemonLanguage);
-            }
-            else if (!string.IsNullOrWhiteSpace(language))
-            {
-                // Read only by a daemon older than --segment-join below: the
-                // committed x64 parakeet-engine.exe predates it, and skips an
-                // unknown flag and its value. Drop it once that exe is rebuilt.
-                startInfo.ArgumentList.Add("--join-language");
-                startInfo.ArgumentList.Add(language);
-            }
-            // The host, not the daemon, decides the segment join (#902). Nothing is
-            // sent for auto: the daemon resolves an auto join itself.
-            var segmentJoin = ResolveSegmentJoinArgument(language);
-            if (segmentJoin != null)
-            {
-                startInfo.ArgumentList.Add("--segment-join");
-                startInfo.ArgumentList.Add(segmentJoin);
-            }
-            startInfo.ArgumentList.Add("--vad-model");
-            startInfo.ArgumentList.Add(vadModelPath);
-            startInfo.ArgumentList.Add("--engine");
-            startInfo.ArgumentList.Add(engineArg);
-
-            // The argument SHAPE, not the command line. ArgumentList holds the model
-            // directory and the VAD model path, both under the user's profile, so
-            // joining it printed their Windows account name into the log file. The
-            // engine, the language hint and the argument count are what a failed
-            // start actually needs.
-            LoggingService.Debug(
-                $"ParakeetTranscriptionService: Starting daemon (engine={engineArg}, " +
-                $"language_hint={(supportsLanguageHint ? daemonLanguage : "n/a")}, " +
-                $"join_language={(!supportsLanguageHint && !string.IsNullOrWhiteSpace(language) ? language : "n/a")}, " +
-                $"segment_join={segmentJoin ?? "n/a"}, " +
-                $"arg_count={startInfo.ArgumentList.Count})");
-
-            process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
+            process = new Process { StartInfo = launch.StartInfo, EnableRaisingEvents = true };
             _daemonProcess = process;
 
             // Register crash detection before starting
@@ -247,9 +103,9 @@ public partial class ParakeetTranscriptionService
                 return BuildStartFailureFields(
                     failure,
                     exitCode,
-                    engineArg,
-                    modelId,
-                    supportsLanguageHint ? daemonLanguage : null,
+                    launch.Engine.EngineArg,
+                    launch.Engine.ModelId,
+                    launch.SupportsLanguageHint ? launch.DaemonLanguage : null,
                     readySeconds,
                     elapsedMilliseconds,
                     lineCount,
@@ -316,7 +172,7 @@ public partial class ParakeetTranscriptionService
                     _isReady = true;
                     _loadedModelId = Path.GetFileName(modelDirectory);
                     _lastModelDirectory = modelDirectory;
-                    _lastLanguage = loadedLanguage;
+                    _lastLanguage = launch.LoadedLanguage;
 
                     LoggingService.Info($"  Daemon is READY (provider: {_activeProvider})");
                 }
