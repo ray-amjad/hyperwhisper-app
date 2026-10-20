@@ -1568,8 +1568,6 @@ static async Task RunLocalEngineVocabularyOnceTestsAsync(string root)
     }
 }
 
-// #1632: the status bar must not say Ready while the selected mode's local model is missing or
-// truncated, and a download that lands makes it Ready again.
 // #633: adding a word another row already holds (any case) was merged into that row by the
 // store: the row moved to the bottom, lost its replacement or took the new spelling. It is now
 // refused with an error, the list unchanged and the input kept.
@@ -1655,6 +1653,8 @@ static async Task RunVocabularyDuplicateTestsAsync(string root)
     Assert((await repository.ListAsync()) is { Count: 4 } imported && imported.Any(item => item.Word == "BETA" && item.Replacement == "b"), $"import stopped merging a duplicate (#633 non-goal): {await Rows()}");
 }
 
+// #1632: the status bar must not say Ready while the selected mode's local model is missing or
+// truncated, and a download that lands makes it Ready again.
 static async Task RunShellMissingLocalModelStatusTestsAsync(string root)
 {
     Directory.CreateDirectory(root);
