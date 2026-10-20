@@ -944,6 +944,9 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcription.error.providerNotAvailable.provider" = "%@ ni dostopen. Preveri nastavitve in poskusi znova.";
 "transcription.error.providerNotAvailable.detail" = "%@ ni dostopen: %@";
 "transcription.error.modelNotDownloaded" = "Prosimo, najprej prenesi model";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Način %1$@ uporablja model %2$@, ki ni prenesen. Prenesi ga v Knjižnici modelov.";
+"transcription.error.modelNotDownloaded.model" = "Model %1$@ ni prenesen. Prenesi ga v Knjižnici modelov.";
+"transcription.error.openModelLibrary" = "Odpri Knjižnico modelov";
 "transcription.error.modelProtected" = "Ta model ni mogoče izbrisati";
 "transcription.error.audioFileNotFound" = "Zvočna datoteka ne obstaja";
 "transcription.error.network.detail" = "Napaka omrežja: %@";

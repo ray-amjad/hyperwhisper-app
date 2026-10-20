@@ -944,6 +944,9 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcription.error.providerNotAvailable.provider" = "%@ ist nicht verfügbar. Überprüfen Sie Ihre Einstellungen und versuchen Sie es erneut.";
 "transcription.error.providerNotAvailable.detail" = "%@ ist nicht verfügbar: %@";
 "transcription.error.modelNotDownloaded" = "Bitte laden Sie zuerst ein Modell herunter";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Der Modus %1$@ verwendet das Modell %2$@, das nicht heruntergeladen ist. Laden Sie es in der Modellbibliothek herunter.";
+"transcription.error.modelNotDownloaded.model" = "Das Modell %1$@ ist nicht heruntergeladen. Laden Sie es in der Modellbibliothek herunter.";
+"transcription.error.openModelLibrary" = "Modellbibliothek öffnen";
 "transcription.error.modelProtected" = "Dieses Modell kann nicht verfügbar sein gelöscht";
 "transcription.error.audioFileNotFound" = "Audiodatei nicht gefunden";
 "transcription.error.network.detail" = "Netzwerkfehler: %@";

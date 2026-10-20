@@ -271,13 +271,14 @@ describe('transcribeWithOpenAI — HTTP error classification', () => {
     expect(thrown.message).toContain('upstream 5xx: 503');
   });
 
-  test('other 4xx becomes ProviderInputError carrying the status and body preview', async () => {
+  test('other 4xx becomes ProviderInputError carrying the status, the body preview for the client only', async () => {
     errorResponse(400, 'unsupported language code');
 
     const thrown = await transcribeWithOpenAI(audio(), 'audio/wav').catch((e) => e);
     expect(thrown).toBeInstanceOf(ProviderInputError);
     expect(thrown.status).toBe(400);
-    expect(thrown.message).toContain('unsupported language code');
+    expect(thrown.message).not.toContain('unsupported language code');
+    expect(thrown.clientMessage).toContain('unsupported language code');
   });
 
   test('a 200 with an unparsable body fails over instead of 500ing the request', async () => {

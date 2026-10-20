@@ -944,6 +944,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ उपलब्ध नहीं है। अपनी सेटिंग्स जांचें और फिर से प्रयास करें।";
 "transcription.error.providerNotAvailable.detail" = "%@ उपलब्ध नहीं है: %@";
 "transcription.error.modelNotDownloaded" = "कृपया पहले एक मॉडल डाउनलोड करें";
+"transcription.error.modelNotDownloaded.modelAndMode" = "मोड %1$@ मॉडल %2$@ का उपयोग करता है, जो डाउनलोड नहीं है। इसे मॉडल लाइब्रेरी में डाउनलोड करें।";
+"transcription.error.modelNotDownloaded.model" = "मॉडल %1$@ डाउनलोड नहीं है। इसे मॉडल लाइब्रेरी में डाउनलोड करें।";
+"transcription.error.openModelLibrary" = "मॉडल लाइब्रेरी खोलें";
 "transcription.error.modelProtected" = "यह मॉडल नहीं हटाया जा सकता";
 "transcription.error.audioFileNotFound" = "ऑडियो फ़ाइल नहीं मिली";
 "transcription.error.network.detail" = "नेटवर्क त्रुटि: %@";

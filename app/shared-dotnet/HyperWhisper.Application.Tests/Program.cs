@@ -35,6 +35,7 @@ try
     await RunHistoryRetryTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
     await RunHistoryBulkLoadTestsAsync(root);
+    await RunHistoryRevisitTestsAsync(root);
     RunCanonicalPcmWaveTests(Path.Combine(root, "pcm-wave"));
     await RunCrashAudioRecoveryTestsAsync(Path.Combine(root, "crash-recovery"));
     await RunVoiceActivityTrimTestsAsync(Path.Combine(root, "vad"));
@@ -320,6 +321,36 @@ try
         && !exported.Contains("selectedModeId", StringComparison.Ordinal),
         "Linux backup did not map shortcut settings or exported device-local mode selection");
     Assert(!exported.Contains("apiKeys", StringComparison.Ordinal), "backup exported an API-key container without explicit opt-in");
+    // #2153: an export with plaintext API keys is owner-only (0600), new file or overwrite.
+    if (!OperatingSystem.IsWindows())
+    {
+        var keyStore = new MemoryCredentialStore();
+        keyStore.Write("HyperWhisper", "OpenAIApiKey", "sk-test-backup-mode"u8);
+        var keyBackup = new BackupViewModel(new ApplicationBackupService(database, reloadedSettings, keyStore))
+        {
+            ExportCredentials = true,
+            PlaintextCredentialExportAcknowledged = true
+        };
+        const UnixFileMode ownerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        var newBackupPath = Path.Combine(root, "keys-new.hwbackup");
+        keyBackup.Path = newBackupPath;
+        await keyBackup.ExportAsync();
+        Assert(!keyBackup.Status.HasError && File.ReadAllText(newBackupPath).Contains("sk-test-backup-mode", StringComparison.Ordinal),
+            $"API-key backup export to a new file failed: {keyBackup.Status.ErrorCode}");
+        Assert(File.GetUnixFileMode(newBackupPath) == ownerOnly,
+            $"new API-key backup was written {File.GetUnixFileMode(newBackupPath)}, not owner-only");
+        var existingBackupPath = Path.Combine(root, "keys-existing.hwbackup");
+        await File.WriteAllTextAsync(existingBackupPath, new string('x', 64 * 1024));
+        File.SetUnixFileMode(existingBackupPath, ownerOnly | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        keyBackup.Path = existingBackupPath;
+        await keyBackup.ExportAsync();
+        Assert(File.GetUnixFileMode(existingBackupPath) == ownerOnly,
+            $"overwritten API-key backup stayed {File.GetUnixFileMode(existingBackupPath)}, not owner-only");
+        var overwritten = File.ReadAllText(existingBackupPath);
+        Assert(!overwritten.Contains("xxxx", StringComparison.Ordinal)
+            && JsonNode.Parse(overwritten)?["apiKeys"]?["openai"]?.GetValue<string>() == "sk-test-backup-mode",
+            "overwriting a longer existing backup left stale bytes behind");
+    }
     var nonIntegerVersion = JsonNode.Parse(exported)!.AsObject();
     nonIntegerVersion["schemaVersion"] = "2";
     Assert((await backupService.ImportAsync(nonIntegerVersion.ToJsonString())).Error?.Code == "backup.unsupported_version",
@@ -3083,6 +3114,129 @@ static async Task RunHistoryBulkLoadTestsAsync(string root)
     Assert(viewModel.Items.Count == 0 && viewModel.GroupedItems.Count == 0 && viewModel.IsEmpty
         && await repository.CountAsync() == 0,
         $"deleting all rows left {viewModel.Items.Count} rows, {viewModel.GroupedItems.Count} grouped entries");
+}
+
+// The Linux History template is rebuilt on every visit, and its period combo re-selects "All"
+// while it is built. That re-ran a full-table query on the UI thread per click even when nothing
+// had changed (#2099). Each HistoryRepository call opens one context, so the database's context
+// count is the repository's query count. Revisit mirrors OnHistoryPeriodChanged.
+static async Task RunHistoryRevisitTestsAsync(string root)
+{
+    var paths = new TestPaths(Path.Combine(root, "history-revisit"));
+    var queries = 0;
+    Action? duringNextQuery = null;
+    var database = new ApplicationDb(() =>
+    {
+        Interlocked.Increment(ref queries);
+        Interlocked.Exchange(ref duringNextQuery, null)?.Invoke();
+        return new HyperWhisper.Data.HyperWhisperDbContext(paths);
+    });
+    await database.MigrateAsync();
+    // Another writer on the same file, the way the workflow, the Local API and recovery each
+    // build their own repository.
+    var writer = new HistoryRepository(new ApplicationDb(paths), paths);
+    var now = DateTime.UtcNow;
+    for (var index = 0; index < 5; index++)
+        await writer.AddAsync(new Transcript
+        {
+            Text = $"row {index}",
+            Status = TranscriptStatus.Completed,
+            // Two rows today, the rest days back, so "Today" returns a different set.
+            Date = index < 2 ? now.AddSeconds(-index) : now.AddDays(-index - 2),
+        });
+
+    using var viewModel = new HistoryViewModel(new HistoryRepository(database, paths));
+    async Task<int> Revisit(DateTimeOffset? start)
+    {
+        var before = queries;
+        if (viewModel.SelectPeriod(start)) await viewModel.SearchAsync();
+        return queries - before;
+    }
+    var today = new DateTimeOffset(DateTimeOffset.Now.Date);
+
+    // Startup loads History once (ApplicationShellViewModel.InitializeAsync).
+    await viewModel.RefreshAsync();
+    Assert(viewModel.Items.Count == 5, $"the startup load showed {viewModel.Items.Count} of 5 rows");
+
+    // Home -> History -> Home -> History: each visit selects "All" with nothing changed.
+    viewModel.UpdateSelection([viewModel.Items[3]]);
+    viewModel.Status.Failure("history.copy_unavailable", "an unrelated failure left on the status line");
+    var newest = viewModel.Items[0];
+    var searched = await Revisit(null) + await Revisit(null);
+    Assert(searched == 0, $"two unchanged History revisits ran {searched} queries, not 0");
+    Assert(viewModel.Items.Count == 5 && viewModel.Selected?.Id == newest.Id && viewModel.SelectedItems.Count == 1
+        && !viewModel.Status.HasError && viewModel.Status.Message == "5 matching transcripts"
+        && viewModel.StartDate is null && viewModel.EndDate is null && !viewModel.IsFilteredEmpty,
+        $"a skipped revisit did not leave the screen a search would: selected {viewModel.Selected?.Text}, '{viewModel.Status.Message}'");
+
+    // A real pick still queries once, and so does going back to "All" from it.
+    searched = await Revisit(today);
+    Assert(searched == 1 && viewModel.Items.Count == 2, $"choosing Today ran {searched} queries and showed {viewModel.Items.Count} rows");
+    searched = await Revisit(null);
+    Assert(searched == 1 && viewModel.Items.Count == 5, $"going back to All from Today ran {searched} queries and showed {viewModel.Items.Count} rows");
+    Assert(await Revisit(null) == 0, "a revisit after All was searched queried again");
+
+    // Search text is part of what the rows were loaded for.
+    viewModel.SearchText = "row 1";
+    Assert(await Revisit(null) == 1 && viewModel.Items.Count == 1, "a revisit with new search text did not search");
+    Assert(await Revisit(null) == 0, "a revisit with the same search text queried again");
+    viewModel.SearchText = string.Empty;
+    Assert(await Revisit(null) == 1 && viewModel.Items.Count == 5, "clearing the search text did not search");
+
+    // The search box's debounced query asks the same question. Its TextChanged also fires as the
+    // template is torn down (Text null) and rebuilt (Text ""), which must not count as a change.
+    viewModel.SearchText = null!;
+    Assert(viewModel.TryReuseLoadedRows(), "a null search text from a torn-down template did not reuse the rows");
+    viewModel.SearchText = "row 2";
+    Assert(!viewModel.TryReuseLoadedRows(), "typed search text reused rows loaded without it");
+    viewModel.SearchText = string.Empty;
+    Assert(viewModel.TryReuseLoadedRows(), "the search box's unchanged text did not reuse the rows");
+
+    // A write through any repository makes the next revisit query and show it.
+    await writer.AddAsync(new Transcript { Text = "saved elsewhere", Status = TranscriptStatus.Completed, Date = now.AddSeconds(5) });
+    Assert(await Revisit(null) == 1 && viewModel.Items[0].Text == "saved elsewhere",
+        "a revisit after another repository wrote a row did not query");
+    Assert(await Revisit(null) == 0, "the revisit after that reload queried again");
+    var changed = viewModel.Items[0];
+    changed.Text = "updated elsewhere";
+    await writer.UpdateAsync(changed);
+    Assert(await Revisit(null) == 1, "a revisit after an update did not query");
+
+    // MarkStale: storage cleanup deletes rows in its own context.
+    viewModel.MarkStale();
+    Assert(await Revisit(null) == 1, "a revisit after MarkStale did not query");
+    Assert(await Revisit(null) == 0, "the revisit after the MarkStale reload queried again");
+
+    // A write that lands while the query runs leaves the rows stale, not current.
+    duringNextQuery = () => writer.AddAsync(new Transcript
+    {
+        Text = "landed mid-query", Status = TranscriptStatus.Completed, Date = now.AddSeconds(10),
+    }).GetAwaiter().GetResult();
+    viewModel.MarkStale();
+    Assert(await Revisit(null) == 1, "the mid-query revisit did not query");
+    Assert(await Revisit(null) == 1, "a revisit after a write during the last query did not query");
+
+    // A failed or cancelled load is always retried.
+    using (var cancelled = new CancellationTokenSource())
+    {
+        cancelled.Cancel();
+        await viewModel.RefreshAsync(cancelled.Token);
+        Assert(viewModel.Items.Count == 0 && viewModel.Status.HasError, "the cancelled load did not fail");
+        Assert(await Revisit(null) == 1 && viewModel.Items.Count == 7 && !viewModel.Status.HasError,
+            "a revisit after a cancelled load did not query again");
+        viewModel.SearchText = "row";
+        await viewModel.SearchAsync(cancelled.Token);
+        viewModel.SearchText = string.Empty;
+    }
+    Assert(await Revisit(null) == 1 && viewModel.Items.Count == 7, "a revisit after a failed search did not query again");
+
+    // A refresh (retry, a save) loads every row whatever the filter fields say, so it only
+    // stands in for "All" with no search text.
+    Assert(await Revisit(today) == 1, "choosing Today did not query");
+    await viewModel.RefreshAsync();
+    Assert(await Revisit(today) == 1 && viewModel.Items.Count < 7, "a refresh's unfiltered rows were reused for Today");
+    await viewModel.RefreshAsync();
+    Assert(await Revisit(null) == 0 && viewModel.Items.Count == 7, "a refresh's rows were not reused for All");
 }
 
 static IEnumerable<Transcript> ThrowAfter(IEnumerable<Transcript> rows, int count)

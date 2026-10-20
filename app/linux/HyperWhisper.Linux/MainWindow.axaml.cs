@@ -221,6 +221,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         ComboWheelGuard.Attach(this);
         AttachVocabularyKeyHandlers();
+        AttachAutoDeleteDaysTextFilter();
         DataContext = _viewModel;
         // The library count under the title moves with the filters, so it follows the view.
         if (_viewModel.Models is { } models)
@@ -1043,10 +1044,24 @@ public partial class MainWindow : Window
         try
         {
             var settings = _viewModel.Settings;
-            var cleanup = await _storageCoordinator.CleanupAsync(
-                new StorageRetentionPolicy(settings.KeepAudioFiles, settings.AutoDeleteEnabled, settings.AutoDeleteDaysOld),
-                DateTimeOffset.UtcNow,
-                cancellationToken).ConfigureAwait(false);
+            TranscriptStorageCleanupResult cleanup;
+            try
+            {
+                cleanup = await _storageCoordinator.CleanupAsync(
+                    new StorageRetentionPolicy(settings.KeepAudioFiles, settings.AutoDeleteEnabled, settings.AutoDeleteDaysOld),
+                    DateTimeOffset.UtcNow,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                // The row delete commits before the audio files go, so rows may be gone after a throw.
+                _viewModel.History.MarkStale();
+                throw;
+            }
+            // Cleanup deletes rows and audio in its own context and does not reload History, and
+            // a History visit no longer re-queries on its own (#2099), so say the rows may be gone.
+            if (cleanup.TranscriptsDeleted > 0 || cleanup.AudioFilesDeleted > 0)
+                _viewModel.History.MarkStale();
             // PersistenceFailure is a delete SQLite refused: nothing was removed. Keep the last
             // real sweep on the status line rather than a 0-row "cleanup" stamped now (#974).
             if (cleanup.Status != StorageLifecycleStatus.PersistenceFailure)
@@ -1957,20 +1972,34 @@ public partial class MainWindow : Window
     private bool _autocapitalizeProbeRan;
 
     // Windows' NumericOnly_PreviewTextInput swallows anything that is not an integer, so a letter
-    // never reaches the box (StorageSettingsPage.xaml.cs:159-162).
+    // never reaches the box (StorageSettingsPage.xaml.cs:159-162). It has to run on the tunnel, the
+    // PreviewTextInput of Avalonia, and so sit on the window like AttachVocabularyKeyHandlers: a
+    // bubbling handler on the box runs after TextBox's own class handler has inserted the letter
+    // (#2199, where "abc" reached the box and showed a raw InvalidCastException under it).
+    private void AttachAutoDeleteDaysTextFilter() =>
+        AddHandler(TextInputEvent, OnAutoDeleteDaysTextInput, RoutingStrategies.Tunnel);
+
     private void OnAutoDeleteDaysTextInput(object? sender, TextInputEventArgs e)
     {
+        if (e.Source is not TextBox { Name: "SettingsAutoDeleteDays" }) return;
         if (!string.IsNullOrEmpty(e.Text) && !e.Text.All(char.IsAsciiDigit)) e.Handled = true;
     }
 
     // ...and DaysOld_LostFocus clamps to 1-365 and writes the clamped figure back, or restores the
-    // stored one when the text will not parse at all.
+    // stored one when the text will not parse at all. This is the ONLY place the box writes the
+    // setting: its binding is OneWay (#2199), because every write saves and runs a cleanup.
     private void OnAutoDeleteDaysLostFocus(object? sender, RoutedEventArgs e)
     {
-        if (sender is not TextBox box) return;
+        if (sender is TextBox box) CommitAutoDeleteDays(box);
+    }
+
+    // SetCurrentValue, as CommitLocalApiPort writes the port box: it changes the text and leaves the
+    // OneWay binding in place, so a later import or reset still reaches the box.
+    private void CommitAutoDeleteDays(TextBox box)
+    {
         if (int.TryParse(box.Text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.CurrentCulture, out var value))
             _viewModel.Settings.AutoDeleteDaysOld = Math.Clamp(value, 1, 365);
-        box.Text = _viewModel.Settings.AutoDeleteDaysOld.ToString(System.Globalization.CultureInfo.CurrentCulture);
+        box.SetCurrentValue(TextBox.TextProperty, _viewModel.Settings.AutoDeleteDaysOld.ToString(System.Globalization.CultureInfo.CurrentCulture));
     }
 
     private async void OnChooseRecordingsDirectory(object? sender, RoutedEventArgs e)
@@ -2333,8 +2362,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The close path's share of the commit. A port typed and left focused has not reached the
-    /// view model yet, and the 500ms settings auto-save it then arms would never tick, so the
+    /// The close path's share of the commit. A port or a number of auto-delete days typed and left
+    /// focused has not reached the view model yet, and the 500ms settings auto-save it then arms would never tick, so the
     /// window has to both commit it and flush the save before it goes. Called from OnClosing for
     /// the X button and for tray Quit, which closes the window the same way.
     /// </summary>
@@ -2342,6 +2371,7 @@ public partial class MainWindow : Window
     {
         if (_localApiPortField is { IsKeyboardFocusWithin: true })
             CommitLocalApiPort(ParseLocalApiPort(_localApiPortBox?.Text));
+        if (FocusManager?.GetFocusedElement() is TextBox { Name: "SettingsAutoDeleteDays" } days) CommitAutoDeleteDays(days);
         if (_settingsAutoSave is not { IsEnabled: true }) return;
         _settingsAutoSave.Stop();
         if (_viewModel.Settings.SaveCommand.CanExecute(null)) _viewModel.Settings.SaveCommand.Execute(null);
@@ -2426,19 +2456,24 @@ public partial class MainWindow : Window
     /// Windows filters history by one period list, not by two date pickers. The dates still drive
     /// the query; this only turns the chosen period into a start and an end date.
     /// </summary>
+    /// <remarks>
+    /// The page template is rebuilt on every History visit, and its SelectedIndex="0" lands here
+    /// as "All" each time. SelectPeriod skips the query when the rows shown were loaded for that
+    /// same filter and nothing has written a transcript since: a full-table load on the UI thread
+    /// per click (#2099).
+    /// </remarks>
     private void OnHistoryPeriodChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (sender is not ComboBox { SelectedItem: ComboBoxItem { Tag: string period } }) return;
         var today = DateTimeOffset.Now.Date;
-        _viewModel.History.StartDate = period switch
+        DateTimeOffset? start = period switch
         {
             "Today" => new DateTimeOffset(today),
             "ThisWeek" => new DateTimeOffset(today.AddDays(-(int)today.DayOfWeek)),
             "ThisMonth" => new DateTimeOffset(new DateTime(today.Year, today.Month, 1)),
             _ => null
         };
-        _viewModel.History.EndDate = null;
-        RunHistorySearch();
+        if (_viewModel.History.SelectPeriod(start)) RunHistorySearch();
     }
 
     /// <summary>
@@ -2446,6 +2481,11 @@ public partial class MainWindow : Window
     /// typing filtered nothing. Every keystroke would be one database query, so the query is
     /// delayed until the user stops typing; each new keystroke cancels the previous timer.
     /// </summary>
+    /// <remarks>
+    /// The box also raises TextChanged when the History template is torn down and rebuilt, so
+    /// every visit ran this query too, after the period combo's. It skips the query the same way
+    /// when the rows shown already answer it (#2099).
+    /// </remarks>
     private void OnHistorySearchTextChanged(object? sender, TextChangedEventArgs e)
     {
         _historySearchDebounce?.Cancel();
@@ -2453,7 +2493,10 @@ public partial class MainWindow : Window
         var cts = new CancellationTokenSource();
         _historySearchDebounce = cts;
         _ = Task.Delay(HistorySearchDebounce, cts.Token).ContinueWith(
-            _ => Dispatcher.UIThread.Post(RunHistorySearch),
+            _ => Dispatcher.UIThread.Post(() =>
+            {
+                if (!_viewModel.History.TryReuseLoadedRows()) RunHistorySearch();
+            }),
             cts.Token,
             TaskContinuationOptions.OnlyOnRanToCompletion,
             TaskScheduler.Default);

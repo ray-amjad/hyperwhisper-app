@@ -40,8 +40,12 @@ class HyperWhisperCloudManager: ObservableObject {
     /// License manager for getting device ID / license key
     private let licenseManager: LicenseManager
 
-    /// URLSession for API calls
-    private let session: URLSession
+    /// Sends one credit request and returns the raw reply.
+    typealias CreditTransport = (URLRequest) async throws -> (Data, URLResponse)
+
+    /// The credit request goes through here. Production uses a URLSession
+    /// built in `init`; tests pass a scripted reply (#687).
+    private let transport: CreditTransport
 
     /// Cache timestamp to avoid excessive API calls
     private var lastFetchTime: Date?
@@ -54,10 +58,11 @@ class HyperWhisperCloudManager: ObservableObject {
 
     // MARK: - Initialization
 
-    init(licenseManager: LicenseManager) {
+    init(licenseManager: LicenseManager, transport: CreditTransport? = nil) {
         self.licenseManager = licenseManager
 
-        self.session = URLSession(configuration: Self.makeSessionConfiguration())
+        let session = URLSession(configuration: Self.makeSessionConfiguration())
+        self.transport = transport ?? { try await session.data(for: $0) }
 
         // OBSERVER SETUP: Listen for license status changes
         // When the user activates or deactivates a license, we need to invalidate our credit cache
@@ -196,7 +201,7 @@ class HyperWhisperCloudManager: ObservableObject {
             AppLogger.network.info("Fetching HyperWhisper Cloud credits · host=\(logHost, privacy: .public) · forceRefresh=\(forceRefresh, privacy: .public)")
 
             // Perform request
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await transport(request)
 
             // Check HTTP status
             guard let httpResponse = response as? HTTPURLResponse else {

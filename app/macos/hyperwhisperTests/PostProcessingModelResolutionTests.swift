@@ -19,6 +19,8 @@ struct PostProcessingModelResolutionTests {
         let retiredIds: [(id: String, provider: PostProcessingProvider, replacement: String)] = [
             ("moonshotai/kimi-k2-instruct", .groq, "openai/gpt-oss-120b"),
             ("open-mistral-nemo", .mistral, "mistral-small-latest"),
+            // The dotted id was never Mistral's API id (#2200).
+            ("mistral-medium-3.5", .mistral, "mistral-medium-3-5"),
             ("claude-sonnet-4-0", .anthropic, "claude-sonnet-5-5"),
             ("meta-llama/llama-4-maverick-17b-128e-instruct", .groq, "openai/gpt-oss-120b"),
             ("zai-glm-4.7", .cerebras, "gpt-oss-120b"),

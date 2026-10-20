@@ -944,6 +944,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ ไม่พร้อมใช้งาน ตรวจสอบการตั้งค่าและลองใหม่";
 "transcription.error.providerNotAvailable.detail" = "%@ ไม่พร้อมใช้งาน: %@";
 "transcription.error.modelNotDownloaded" = "โปรดดาวน์โหลดโมเดลก่อน";
+"transcription.error.modelNotDownloaded.modelAndMode" = "โหมด %1$@ ใช้โมเดล %2$@ ซึ่งยังไม่ได้ดาวน์โหลด ดาวน์โหลดได้ในคลังโมเดล";
+"transcription.error.modelNotDownloaded.model" = "โมเดล %1$@ ยังไม่ได้ดาวน์โหลด ดาวน์โหลดได้ในคลังโมเดล";
+"transcription.error.openModelLibrary" = "เปิดคลังโมเดล";
 "transcription.error.modelProtected" = "ไม่สามารถลบโมเดลนี้ได้";
 "transcription.error.audioFileNotFound" = "ไม่พบไฟล์เสียง";
 "transcription.error.network.detail" = "ข้อผิดพลาดเครือข่าย: %@";

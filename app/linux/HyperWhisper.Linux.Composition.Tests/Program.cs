@@ -48,6 +48,14 @@ if (args is [BackupErrorRenderTests.ProbeArgument])
 {
     Environment.Exit(BackupErrorRenderTests.RunProbe());
 }
+if (args is [AutoDeleteDaysCommitRenderTests.ProbeArgument])
+{
+    Environment.Exit(AutoDeleteDaysCommitRenderTests.RunProbe());
+}
+if (args is [HistoryRevisitRenderTests.ProbeArgument])
+{
+    Environment.Exit(HistoryRevisitRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -117,7 +125,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the Sound page's media-control ComboBox shows its whole label in every long culture", MediaControlComboRenderTests.RunAsync),
     ("leaving Model Library keeps the Whisper and LLM backend picks in the view model and settings.json (#1967)", BackendPickerPageLeaveRenderTests.RunAsync),
     ("Settings → Sound shows the saved microphone (not connected) with the fallback line, an idle level bar, and Default clears it for Home too", MicrophonePickerRenderTests.RunAsync),
+    ("the Storage auto-delete days box applies nothing until it loses focus (#2199)", AutoDeleteDaysCommitRenderTests.RunAsync),
     ("the Backup page shows an inspect failure and clears it on a good file (#2124)", BackupErrorRenderTests.RunAsync),
+    ("a History revisit with nothing changed does not reload the list; a period change or a write still does (#2099)", HistoryRevisitRenderTests.RunAsync),
 };
 
 foreach (var test in tests)

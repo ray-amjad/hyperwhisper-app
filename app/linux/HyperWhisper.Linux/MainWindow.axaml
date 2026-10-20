@@ -1273,10 +1273,17 @@
                 <!-- Windows rejects non-digits as they are typed and clamps to 1-365 on
                      LostFocus, rewriting the box (StorageSettingsPage.xaml.cs:146-162). The view
                      model already clamps what it stores, but a plain two-way binding left the box
-                     showing "0" or "abcd" after the value behind it had refused them. -->
+                     showing "0" or "abcd" after the value behind it had refused them.
+
+                     Mode=OneWay is load-bearing (#2199): the box never writes AutoDeleteDaysOld by
+                     itself, so a half-typed number never reaches the source. A TwoWay binding wrote
+                     each keystroke, the 500ms auto-save saved it, and the save raised
+                     StorageSettingsChanged, which runs a cleanup: a pause after the "1" of "14" deleted
+                     everything older than one day. OnAutoDeleteDaysLostFocus is the only commit, and
+                     OnClosing commits an edit still focused at quit. -->
                 <TextBox x:Name="SettingsAutoDeleteDays" Width="60" TextAlignment="Center"
-                         TextInput="OnAutoDeleteDaysTextInput" LostFocus="OnAutoDeleteDaysLostFocus"
-                         Text="{Binding Settings.AutoDeleteDaysOld, Mode=TwoWay}"/>
+                         LostFocus="OnAutoDeleteDaysLostFocus"
+                         Text="{Binding Settings.AutoDeleteDaysOld, Mode=OneWay}"/>
                 <TextBlock Text="{ReflectionBinding [settings.storage.autoDelete.days], Source={StaticResource Localization}}"
                            FontSize="13" Foreground="{DynamicResource HwTextPrimaryBrush}"
                            VerticalAlignment="Center" Margin="8,0,0,0"/>

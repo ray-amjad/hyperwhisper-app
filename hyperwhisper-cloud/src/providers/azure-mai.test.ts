@@ -427,6 +427,10 @@ describe('transcribeWithAzureMai — upstream error mapping', () => {
     ['a truncated JSON body', '{"combinedPhrases":[{"text":"hel'],
     ['an HTML body', '<html><body>Bad Gateway</body></html>'],
     ['a JSON null', 'null'],
+    ['a bare number', '5'],
+    ['a JSON array', '[]'],
+    ['a non-string text', '{"combinedPhrases":[{"text":1}]}'],
+    ['an object text', '{"combinedPhrases":[{"text":{"a":1}}]}'],
   ] as const) {
     test(`a 200 with ${label} is ProviderUnavailableError (bad_response), not a parser error`, async () => {
       globalThis.fetch = mock(async () => new Response(body, {
