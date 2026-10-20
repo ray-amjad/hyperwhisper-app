@@ -301,6 +301,9 @@ pub fn parse_transcribe_response(resp: &HttpResponse) -> Result<Transcript, Tran
 ///
 /// PARITY (macOS `DeepgramProvider.swift` switch + Windows `HandleErrorResponseAsync`):
 /// - 401 / 403 → `Unauthorized`
+/// - 402 → `QuotaExceeded` (`ASR_PAYMENT_REQUIRED`: the project is out of
+///   credits; same as `common::classify_http` and `retry::classify_error`)
+/// - 408 → `ProviderUnavailable` (request timeout is transient, same as 5xx)
 /// - 413 → `FileTooLarge`
 /// - 429 → `RateLimited { retry_after_secs }` (from `Retry-After`)
 /// - 5xx → `ProviderUnavailable`
@@ -311,6 +314,8 @@ fn classify_deepgram_http(resp: &HttpResponse, raw: &str) -> TranscriptionError 
 
     match status {
         401 | 403 => TranscriptionError::Unauthorized,
+        402 => TranscriptionError::QuotaExceeded,
+        408 => TranscriptionError::ProviderUnavailable { status },
         413 => TranscriptionError::FileTooLarge,
         429 => TranscriptionError::RateLimited {
             retry_after_secs: retry_after(resp),
@@ -761,5 +766,41 @@ mod tests {
                 message: "bad model".to_string()
             }
         );
+    }
+
+    fn err_resp(status: u16, body: &str) -> HttpResponse {
+        HttpResponse {
+            status,
+            headers: Vec::new(),
+            body: body.as_bytes().to_vec(),
+        }
+    }
+
+    #[test]
+    fn deepgram_402_is_quota_exceeded_like_every_other_provider() {
+        // Issue #2073: Deepgram answers 402 ASR_PAYMENT_REQUIRED when the project
+        // is out of credits. It fell into BadRequest ("the provider rejected the
+        // transcription request") instead of QuotaExceeded.
+        let body = r#"{"err_code":"ASR_PAYMENT_REQUIRED","err_msg":"Project does not have enough credits for an ASR request and does not have an overage agreement.","request_id":"x"}"#;
+        let err = parse_transcribe_response(&err_resp(402, body)).unwrap_err();
+        assert_eq!(
+            err,
+            TranscriptionError::QuotaExceeded,
+            "deepgram 402 classified as {err:?}"
+        );
+        assert_eq!(err, crate::retry::classify_error(402, body));
+    }
+
+    #[test]
+    fn deepgram_408_is_provider_unavailable_like_classify_http() {
+        // Issue #2073: a 408 request timeout is transient (retried like a 5xx),
+        // not the terminal BadRequest fallthrough.
+        let err = parse_transcribe_response(&err_resp(408, "")).unwrap_err();
+        assert_eq!(
+            err,
+            TranscriptionError::ProviderUnavailable { status: 408 },
+            "deepgram 408 classified as {err:?}"
+        );
+        assert_eq!(err, crate::retry::classify_error(408, ""));
     }
 }
