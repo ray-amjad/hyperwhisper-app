@@ -44,6 +44,10 @@ if (args is [BackupErrorRenderTests.ProbeArgument])
 {
     Environment.Exit(BackupErrorRenderTests.RunProbe());
 }
+if (args is [AutoDeleteDaysCommitRenderTests.ProbeArgument])
+{
+    Environment.Exit(AutoDeleteDaysCommitRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -112,6 +116,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("every Source segment in the mode editor shows its whole label (#635)", ModeEditorSourceSegmentRenderTests.RunAsync),
     ("the Sound page's media-control ComboBox shows its whole label in every long culture", MediaControlComboRenderTests.RunAsync),
     ("leaving Model Library keeps the Whisper and LLM backend picks in the view model and settings.json (#1967)", BackendPickerPageLeaveRenderTests.RunAsync),
+    ("the Storage auto-delete days box applies nothing until it loses focus (#2199)", AutoDeleteDaysCommitRenderTests.RunAsync),
     ("the Backup page shows an inspect failure and clears it on a good file (#2124)", BackupErrorRenderTests.RunAsync),
 };
 
