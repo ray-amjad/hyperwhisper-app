@@ -1,4 +1,5 @@
 using System;
+using HyperWhisper.Models;
 
 namespace HyperWhisper.Services.Streaming;
 
