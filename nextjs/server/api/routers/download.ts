@@ -18,6 +18,7 @@ import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { upsertEmail } from "@/src/lib/db-layer";
+import { APPCAST_FETCH_TIMEOUT_MS } from "@/lib/shared/appcast";
 import { emailTag } from "@/lib/shared/redact";
 import { describeDbError } from "@/lib/shared/db-error";
 import { disposableDomains } from "@/lib/disposable_domains";
@@ -69,7 +70,10 @@ function isDisposableDomain(emailDomain: string, list: Set<string>): boolean {
 async function getLatestDownloadUrl(origin: string): Promise<string | null> {
   try {
     const appcastUrl = `${origin}/appcast.xml`;
-    const res = await fetch(appcastUrl, { cache: "no-store" });
+    const res = await fetch(appcastUrl, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(APPCAST_FETCH_TIMEOUT_MS),
+    });
 
     if (!res.ok) return null;
 
