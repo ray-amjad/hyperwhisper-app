@@ -20939,15 +20939,7 @@ internal static class Program
                 // with another process holding the write lock it froze the window for the
                 // 30 s busy timeout, then threw, so the job aborted, no History row was made
                 // and the copied audio was an orphan.
-                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
-                string dbPath;
-                using (var probe = new HyperWhisperDbContext())
-                {
-                    dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
-                        probe.Database.GetConnectionString()).DataSource);
-                }
-                Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
-                    $"the database {dbPath} is not under the suite's temp profile; refusing to lock it");
+                var dbPath = SuiteDatabasePath();
 
                 var history = HistoryService.Instance;
                 var pendingFile = PendingHistoryStore.DefaultPath;
@@ -21137,24 +21129,7 @@ internal static class Program
 
             Run("history: a pending file that cannot be written does not throw, retries and the row still lands from memory — issue #1589", () =>
             {
-                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
-                string dbPath;
-                using (var probe = new HyperWhisperDbContext())
-                {
-                    dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
-                        probe.Database.GetConnectionString()).DataSource);
-                }
-                Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
-                    $"the database {dbPath} is not under the suite's temp profile; refusing to change it");
-
-                void Exec(string sql)
-                {
-                    using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
-                    conn.Open();
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = sql;
-                    cmd.ExecuteNonQuery();
-                }
+                var dbPath = SuiteDatabasePath();
 
                 var history = HistoryService.Instance;
                 // A directory where the file should be: every write of the file fails.
@@ -21166,8 +21141,7 @@ internal static class Program
                 Guid? keptId = null;
                 Transcript? other = null;
                 var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
-                Exec("CREATE TRIGGER IF NOT EXISTS percy1589_poison BEFORE INSERT ON Transcripts " +
-                     "WHEN NEW.Mode = 'percy1589unsaved' BEGIN SELECT RAISE(ABORT, 'percy1589 poison row'); END;");
+                PoisonTranscriptInserts(dbPath, "percy1589unsaved");
                 var triggerDropped = false;
                 try
                 {
@@ -21185,7 +21159,7 @@ internal static class Program
                     Assert(File.Exists(storePath) && File.ReadAllText(storePath).Contains(keptId.Value.ToString()),
                         "the pending file was not written on the next change after a failed save");
 
-                    Exec("DROP TRIGGER IF EXISTS percy1589_poison;");
+                    UnpoisonTranscriptInserts(dbPath);
                     triggerDropped = true;
                     other = history.CreateProcessingTranscript(1.0, "percy1589next", audioFilePath: null);
                     Assert(history.PendingTranscriptCount == 0, "rows are still pending after a successful write");
@@ -21197,7 +21171,7 @@ internal static class Program
                 }
                 finally
                 {
-                    if (!triggerDropped) Exec("DROP TRIGGER IF EXISTS percy1589_poison;");
+                    if (!triggerDropped) UnpoisonTranscriptInserts(dbPath);
                     history.ReplacePendingStoreForTests(previous);
                     if (keptId.HasValue) history.DeleteTranscript(keptId.Value);
                     if (other != null) history.DeleteTranscript(other.Id);
@@ -21211,24 +21185,7 @@ internal static class Program
                 // A BEFORE INSERT trigger refuses the row at once (SQLite constraint error, not
                 // the lock), so this case needs no 30 s wait. Every write the stop paths make
                 // after the insert must land on the pending row, never throw or vanish.
-                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
-                string dbPath;
-                using (var probe = new HyperWhisperDbContext())
-                {
-                    dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
-                        probe.Database.GetConnectionString()).DataSource);
-                }
-                Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
-                    $"the database {dbPath} is not under the suite's temp profile; refusing to change it");
-
-                void Exec(string sql)
-                {
-                    using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
-                    conn.Open();
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = sql;
-                    cmd.ExecuteNonQuery();
-                }
+                var dbPath = SuiteDatabasePath();
 
                 var history = HistoryService.Instance;
                 var recordings = StorageService.Instance.GetRecordingsFolder();
@@ -21242,8 +21199,7 @@ internal static class Program
                 Guid? droppedId = null;
                 Transcript? other = null;
 
-                Exec("CREATE TRIGGER IF NOT EXISTS percy1589_poison BEFORE INSERT ON Transcripts " +
-                     "WHEN NEW.Mode = 'percy1589poison' BEGIN SELECT RAISE(ABORT, 'percy1589 poison row'); END;");
+                PoisonTranscriptInserts(dbPath, "percy1589poison");
                 var triggerDropped = false;
                 try
                 {
@@ -21279,7 +21235,7 @@ internal static class Program
                     Assert(history.GetTranscript(droppedId.Value) == null, "the deleted pending row is still readable");
                     Assert(!File.Exists(droppedAudio), "the deleted pending row's audio was left behind");
 
-                    Exec("DROP TRIGGER IF EXISTS percy1589_poison;");
+                    UnpoisonTranscriptInserts(dbPath);
                     triggerDropped = true;
 
                     // Any successful write saves what is still pending.
@@ -21297,7 +21253,7 @@ internal static class Program
                 }
                 finally
                 {
-                    if (!triggerDropped) Exec("DROP TRIGGER IF EXISTS percy1589_poison;");
+                    if (!triggerDropped) UnpoisonTranscriptInserts(dbPath);
                     if (keptId.HasValue) history.DeleteTranscript(keptId.Value);
                     if (droppedId.HasValue) history.DeleteTranscript(droppedId.Value);
                     if (other != null) history.DeleteTranscript(other.Id);
@@ -21305,6 +21261,221 @@ internal static class Program
                     {
                         try { File.Delete(path); } catch { }
                     }
+                }
+            });
+
+            Run("history: a row is written ahead before its insert, so an exit mid-insert still lands it at the next startup — issue #1589", () =>
+            {
+                // The app closed while the insert still waited for another program's lock
+                // (OnExit gives the flush 5 s), so the row never reached pending-history.json
+                // and the recording had no History row. Now the record is on disk before the
+                // insert starts and is removed once it commits.
+                var dbPath = SuiteDatabasePath();
+                var history = HistoryService.Instance;
+                var dir = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests");
+                Directory.CreateDirectory(dir);
+                var storePath = Path.Combine(dir, $"percy1589-{Guid.NewGuid():N}.json");
+                var killedCommitted = Path.Combine(dir, $"percy1589-{Guid.NewGuid():N}.json");
+                var killedRolledBack = Path.Combine(dir, $"percy1589-{Guid.NewGuid():N}.json");
+                var audioPath = Path.Combine(StorageService.Instance.GetRecordingsFolder(), $"percy1589-{Guid.NewGuid():N}.wav");
+                File.WriteAllBytes(audioPath, new byte[] { 1, 2, 3, 4 });
+                Guid? id = null;
+
+                var locker = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+                var lockHeld = false;
+                void Release()
+                {
+                    if (!lockHeld) return;
+                    using var rollback = locker.CreateCommand();
+                    rollback.CommandText = "ROLLBACK;";
+                    rollback.ExecuteNonQuery();
+                    lockHeld = false;
+                }
+
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+                try
+                {
+                    locker.Open();
+                    using (var begin = locker.CreateCommand())
+                    {
+                        begin.CommandText = "BEGIN IMMEDIATE;";
+                        begin.ExecuteNonQuery();
+                    }
+                    lockHeld = true;
+
+                    var insert = history.CreateProcessingTranscriptAsync(2.0, "percy1589ahead", audioPath);
+                    var waited = Stopwatch.StartNew();
+                    while (!File.Exists(storePath) && waited.Elapsed < TimeSpan.FromSeconds(5))
+                    {
+                        Thread.Sleep(20);
+                    }
+                    Assert(File.Exists(storePath) && !insert.IsCompleted,
+                        $"no write-ahead record in {storePath} while the insert waited for the lock "
+                        + $"(insert completed: {insert.IsCompleted}); an exit now would lose the row");
+
+                    // What a process killed at this moment leaves on disk.
+                    File.Copy(storePath, killedCommitted);
+                    File.Copy(storePath, killedRolledBack);
+
+                    // Hidden from in-session readers while the insert runs: the caller has no
+                    // row yet, so the statistics (which skip HistoryService's lock) must not count it.
+                    Assert(history.GetPendingTranscriptsSnapshot().Count == 0,
+                        "a write-ahead record was visible to a reader while its insert was still running");
+
+                    Release();
+                    var result = insert.GetAwaiter().GetResult();
+                    id = result.Transcript.Id;
+                    Assert(!result.SavedLater, "the insert was refused although the lock was released before the busy timeout");
+                    Assert(File.ReadAllText(killedCommitted).Contains(id.Value.ToString()),
+                        "the write-ahead record on disk is not this insert's row");
+                    Assert(history.PendingTranscriptCount == 0, "the committed row is still pending");
+                    Assert(!File.Exists(storePath), $"{storePath} is still there after the insert committed; every dictation would leave it behind");
+                    Assert(history.GetAllTranscripts().Count(t => t.Id == id.Value) == 1, "History lists the committed row more than once");
+
+                    // Killed after the commit but before the remove: the next launch drops the
+                    // record and keeps the database row.
+                    result.Transcript.Status = TranscriptStatus.Completed;
+                    result.Transcript.Text = "percy1589 committed text";
+                    history.UpdateTranscript(result.Transcript);
+                    history.ReplacePendingStoreForTests(new PendingHistoryStore(killedCommitted));
+                    Assert(history.FlushPendingTranscripts() == 0, "the startup flush re-saved a row the database already had");
+                    using (var check = new HyperWhisperDbContext())
+                    {
+                        var row = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == id.Value);
+                        Assert(row?.Status == TranscriptStatus.Completed && row.Text == "percy1589 committed text",
+                            $"the History row became {row?.Status.ToString() ?? "missing"} \"{row?.Text}\"; the write-ahead record overwrote it");
+                    }
+                    Assert(!File.Exists(killedCommitted), "the dropped write-ahead file is still there");
+
+                    // Killed before the commit: the database rolled the insert back, so the
+                    // row is not there (removed directly, keeping its audio), and the next
+                    // launch saves the record as Failed "Interrupted" with its recording.
+                    using (var ctx = new HyperWhisperDbContext())
+                    {
+                        ctx.Transcripts.Where(t => t.Id == id.Value).ExecuteDelete();
+                    }
+                    history.ReplacePendingStoreForTests(new PendingHistoryStore(killedRolledBack));
+                    var flushed = history.FlushPendingTranscripts();
+                    Assert(flushed == 1, $"the startup flush saved {flushed} row(s) from the write-ahead file, expected 1");
+                    using (var check = new HyperWhisperDbContext())
+                    {
+                        var row = check.Transcripts.AsNoTracking().FirstOrDefault(t => t.Id == id.Value);
+                        Assert(row?.Status == TranscriptStatus.Failed && row.FailedReason == HistoryService.InterruptedReason,
+                            $"the interrupted insert landed as {row?.Status.ToString() ?? "missing"} ({row?.FailedReason ?? "no reason"}), not Failed \"Interrupted\"");
+                        Assert(row!.AudioFilePath == audioPath && File.Exists(audioPath),
+                            "the interrupted insert's row lost its recording, so it cannot be retried");
+                    }
+                }
+                finally
+                {
+                    try { Release(); } catch { }
+                    locker.Dispose();
+                    history.ReplacePendingStoreForTests(previous);
+                    if (id.HasValue) history.DeleteTranscript(id.Value);
+                    foreach (var path in new[] { storePath, killedCommitted, killedRolledBack, audioPath })
+                    {
+                        try { File.Delete(path); } catch { }
+                    }
+                }
+            });
+
+            Run("history: a pending row is in Local API /recordings (page, total), Search, auto-delete and the statistics — issue #1589", () =>
+            {
+                // These read only the database, so a row the database refused was missing
+                // from them until it was saved.
+                var dbPath = SuiteDatabasePath();
+                var history = HistoryService.Instance;
+                static DateTime Day(int d) => new(1991, 1, d, 12, 0, 0, DateTimeKind.Utc);
+                var since = Day(1);
+                var until = Day(31);
+                var storePath = Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy1589-{Guid.NewGuid():N}.json");
+                var ids = new List<Guid>();
+                var previous = history.ReplacePendingStoreForTests(new PendingHistoryStore(storePath));
+
+                Transcript Seed(bool pending, DateTime date, string text)
+                {
+                    var t = pending
+                        ? history.CreateProcessingTranscriptAsync(1.0, "percy1589poison", audioFilePath: null).GetAwaiter().GetResult().Transcript
+                        : history.CreateProcessingTranscript(1.0, "percy1589rows", audioFilePath: null);
+                    ids.Add(t.Id);
+                    (t.Date, t.Status, t.Text, t.TranscribedText) = (date, TranscriptStatus.Completed, text, text);
+                    history.UpdateTranscript(t);
+                    return t;
+                }
+
+                var poisoned = false;
+                try
+                {
+                    var db5 = Seed(pending: false, Day(5), "q1589x first row");
+                    var db15 = Seed(pending: false, Day(15), "q1589x second row");
+                    PoisonTranscriptInserts(dbPath, "percy1589poison");
+                    poisoned = true;
+                    var p10 = Seed(pending: true, Day(10), "q1589x café pending row");
+                    var today = Seed(pending: true, DateTime.UtcNow, "percy1589 today row");
+                    Assert(history.PendingTranscriptCount == 2, $"{history.PendingTranscriptCount} rows pending, expected the 2 the trigger refused");
+
+                    // Local API /recordings: in order, in the total, on both match paths.
+                    var (page, total) = history.QueryPage("q1589x", since, until, 2);
+                    Assert(total == 3, $"/recordings total is {total} for 2 database rows and 1 pending row, expected 3");
+                    Assert(page.Select(t => t.Id).SequenceEqual(new[] { db15.Id, p10.Id }),
+                        "the first page of 2 is not [Jan 15, Jan 10 pending]: " + string.Join(", ", page.Select(t => t.Date.ToString("MM-dd"))));
+                    var (all, allTotal) = history.QueryPage("", since, until, 10);
+                    Assert(allTotal == 3 && all.Select(t => t.Id).SequenceEqual(new[] { db15.Id, p10.Id, db5.Id }),
+                        $"the unfiltered 1991 page is {all.Count} rows (total {allTotal}), not [Jan 15, Jan 10 pending, Jan 5]");
+                    var (nonAscii, nonAsciiTotal) = history.QueryPage("CAFÉ", since, until, 10);
+                    Assert(nonAsciiTotal == 1 && nonAscii.Count == 1 && nonAscii[0].Id == p10.Id,
+                        $"a non-ASCII term found {nonAscii.Count} row(s) (total {nonAsciiTotal}), not the pending row");
+                    var (narrow, narrowTotal) = history.QueryPage("q1589x", Day(11), until, 10);
+                    Assert(narrowTotal == 1 && narrow.Single().Id == db15.Id,
+                        "since did not filter the pending row out");
+
+                    // History search.
+                    var found = history.Search("Q1589X", DateFilter.All).Select(t => t.Id).ToList();
+                    Assert(found.Contains(p10.Id) && found.Contains(db5.Id) && found.Distinct().Count() == found.Count,
+                        "History search leaves the pending row out or lists a row twice");
+                    var todayRows = history.Search(null, DateFilter.Today).Select(t => t.Id).ToList();
+                    Assert(todayRows.Contains(today.Id) && !todayRows.Contains(p10.Id),
+                        "the Today filter did not apply to the pending rows");
+
+                    // Statistics, which read without HistoryService's lock.
+                    var stats = new WindowsStatisticsTranscriptProvider().ReadAllAsync().AsTask().GetAwaiter().GetResult();
+                    Assert(stats.Count(st => st.Text == "q1589x café pending row") == 1,
+                        "the statistics do not count the pending row exactly once");
+
+                    // A stale record whose row the database already has is never counted twice.
+                    var stale = new PendingHistoryStore(Path.Combine(Path.GetTempPath(), "HyperWhisper.SmokeTests", $"percy1589-{Guid.NewGuid():N}.json"));
+                    stale.Upsert(db5);
+                    var live = history.ReplacePendingStoreForTests(stale);
+                    try
+                    {
+                        var (dupPage, dupTotal) = history.QueryPage("q1589x", since, until, 10);
+                        Assert(dupTotal == 2 && dupPage.Count == 2, $"a stale pending copy of a database row was counted: {dupPage.Count} rows, total {dupTotal}");
+                        Assert(history.Search("q1589x first", DateFilter.All).Count(t => t.Id == db5.Id) == 1,
+                            "search listed a stale pending copy of a database row twice");
+                        Assert(history.GetTranscriptsOlderThan(Day(12)).Count(t => t.Id == db5.Id) == 1,
+                            "auto-delete listed a stale pending copy of a database row twice");
+                    }
+                    finally
+                    {
+                        history.ReplacePendingStoreForTests(live);
+                        stale.Remove(db5.Id);
+                    }
+
+                    // Auto-delete: the pending row past the cutoff is swept with the database row.
+                    var old = history.GetTranscriptsOlderThan(Day(12)).Where(t => ids.Contains(t.Id)).ToList();
+                    Assert(old.Select(t => t.Id).SequenceEqual(new[] { db5.Id, p10.Id }),
+                        "auto-delete's rows older than Jan 12 are not [Jan 5, Jan 10 pending], oldest first");
+                    var swept = history.DeleteTranscripts(old.Select(t => t.Id).ToList());
+                    Assert(swept.IsSuccess && swept.Value == 2, $"the sweep deleted {(swept.IsSuccess ? swept.Value : -1)} row(s), expected 2");
+                    Assert(history.GetTranscript(p10.Id) == null && history.PendingTranscriptCount == 1,
+                        "the swept pending row is still there");
+                }
+                finally
+                {
+                    foreach (var id in ids) history.DeleteTranscript(id);
+                    if (poisoned) UnpoisonTranscriptInserts(dbPath);
+                    history.ReplacePendingStoreForTests(previous);
+                    try { File.Delete(storePath); } catch { }
                 }
             });
 
@@ -23460,6 +23631,46 @@ internal static class Program
 
     private static string TempWav(string label) =>
         Path.Combine(Path.GetTempPath(), $"HyperWhisper.SmokeTests.{label}.{Guid.NewGuid():N}.wav");
+
+    /// <summary>
+    /// The suite's database file (#1589), initialized, and checked to be under the temp
+    /// profile so a case that locks it or adds a trigger never touches a real profile.
+    /// </summary>
+    private static string SuiteDatabasePath()
+    {
+        DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+        string dbPath;
+        using (var probe = new HyperWhisperDbContext())
+        {
+            dbPath = Path.GetFullPath(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(
+                probe.Database.GetConnectionString()).DataSource);
+        }
+        Assert(dbPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+            $"the database {dbPath} is not under the suite's temp profile; refusing to lock or change it");
+        return dbPath;
+    }
+
+    /// <summary>Runs one SQL statement on its own unpooled connection.</summary>
+    private static void ExecSql(string dbPath, string sql)
+    {
+        using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Pooling=False");
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Makes the database refuse every Transcripts insert whose Mode is <paramref name="mode"/>
+    /// at once (a constraint error, not the lock), so a #1589 case needs no 30 s busy wait.
+    /// Undo with <see cref="UnpoisonTranscriptInserts"/>.
+    /// </summary>
+    private static void PoisonTranscriptInserts(string dbPath, string mode) =>
+        ExecSql(dbPath, "CREATE TRIGGER IF NOT EXISTS percy1589_poison BEFORE INSERT ON Transcripts " +
+            $"WHEN NEW.Mode = '{mode}' BEGIN SELECT RAISE(ABORT, 'percy1589 poison row'); END;");
+
+    private static void UnpoisonTranscriptInserts(string dbPath) =>
+        ExecSql(dbPath, "DROP TRIGGER IF EXISTS percy1589_poison;");
 
     private static void TryDelete(string path)
     {
