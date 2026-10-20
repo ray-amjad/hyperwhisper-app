@@ -229,6 +229,10 @@ extension RecordingTranscriptionFlow {
             // failed while the newer flow ran). Its error is not the user's.
             guard !isPendingRetrySuperseded(identity) else { return }
 
+            // A missing model names the mode that uses it, in the row's
+            // reason and the dialog (#1518).
+            let failure = TranscriptionError.attachingMode(transcriptionMode.name, to: error)
+
             // Every failure, an empty result or an engine that threw (Whisper
             // throws `.noSpeechDetected` itself), fails the History row with
             // its reason and counts the retry (#1815).
@@ -237,7 +241,7 @@ extension RecordingTranscriptionFlow {
                     ? appState.pendingRetryFailedRowWrite
                     : nil
                 let failedTranscriptID = await Self.savePendingRetryFailure(
-                    error,
+                    failure,
                     failedRowWrite: failedRowWrite,
                     audioURL: audioURL,
                     modeName: transcriptionMode.name
@@ -255,7 +259,7 @@ extension RecordingTranscriptionFlow {
 
             await MainActor.run {
                 appState.recordingState = .idle
-                appState.lastTranscription = "Error: \(error.localizedDescription)"
+                appState.lastTranscription = "Error: \(failure.localizedDescription)"
                 appState.showRecordingDialog = true
             }
         }
@@ -548,6 +552,14 @@ extension RecordingTranscriptionFlow {
             }
         }
 
+        // Issue #1518: a missing model names the mode that uses it, in the alert,
+        // the dialog and the row's reason. Read now, before the session mode is
+        // cleared below. The logs keep `error`: a mode name is user-typed text.
+        let failure = TranscriptionError.attachingMode(appState?.currentSessionModeName, to: error)
+        // The engine the mode routes to, so the failed row shows which one
+        // failed, worded as a completed row words it.
+        let failedRowProvider = FileTranscriptionFlow.failedRowProvider(for: error, modelId: modeIdentity?.localEngine)
+
         let isNetworkOutage: Bool
         if let transcriptionError = error as? TranscriptionError, case .transientNetwork = transcriptionError {
             isNetworkOutage = true
@@ -580,7 +592,8 @@ extension RecordingTranscriptionFlow {
                     await PersistenceController.shared.markTranscriptFailedInBackground(
                         transcriptID: processingTranscriptID,
                         failedReason: te.localizedDescription,
-                        errorText: "Transcription failed: \(te.localizedDescription)"
+                        errorText: "Transcription failed: \(te.localizedDescription)",
+                        transcriptionProvider: failedRowProvider
                     )
                 }
             }
@@ -593,10 +606,10 @@ extension RecordingTranscriptionFlow {
                         appState?.errorMessage = ""
                         appState?.showErrorAlert = false
                     } else {
-                        appState?.showError(error.localizedDescription)
+                        appState?.showError(failure.localizedDescription)
                     }
                     appState?.recordingState = .idle
-                    appState?.lastTranscription = "Error: \(error.localizedDescription)"
+                    appState?.lastTranscription = "Error: \(failure.localizedDescription)"
 
                     // CRITICAL: Disable cancel shortcut on error
                     KeyboardShortcuts.disable(.cancelRecording)
@@ -609,8 +622,9 @@ extension RecordingTranscriptionFlow {
                 if let processingTranscriptID {
                     await PersistenceController.shared.markTranscriptFailedInBackground(
                         transcriptID: processingTranscriptID,
-                        failedReason: error.localizedDescription,
-                        errorText: "Transcription failed: \(error.localizedDescription)"
+                        failedReason: failure.localizedDescription,
+                        errorText: "Transcription failed: \(failure.localizedDescription)",
+                        transcriptionProvider: failedRowProvider
                     )
                 }
                 if !isNetworkOutage, let processingTranscriptID {
