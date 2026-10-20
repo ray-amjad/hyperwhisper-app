@@ -1090,7 +1090,20 @@ export default function PrivacyPolicyPage() {
         your network type. It keeps a random identifier in your
         browser&apos;s local storage so that it can link your visits, and it
         sends a session identifier with each page view. Mintlify receives
-        your IP address. The docs pages have no access to your audio, your
+        your IP address. When you use the docs search, what you type into the
+        search box is sent to Mintlify to find matching pages. The search
+        uses{" "}
+        <a
+          className="text-blue-400 hover:underline"
+          href="https://www.hcaptcha.com/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          hCaptcha
+        </a>
+        , a bot-detection service: when you open the search, your browser
+        loads hCaptcha, which receives your IP address and details
+        about your browser. The docs pages have no access to your audio, your
         transcripts, or the desktop app.
       </p>
 
@@ -1201,10 +1214,11 @@ export default function PrivacyPolicyPage() {
         Standard Contractual Clauses, or equivalent mechanisms). The AgentStack support chat widget described above is
         served from the United States. Mintlify, which hosts our
         documentation as described above, may process the docs page views it
-        records in the United States. Fly.io runs HyperWhisper Cloud&apos;s
-        edge servers in regions around the world, so a Cloud request can be
-        handled outside the United Kingdom and the European Economic Area,
-        and Axiom may process the service&apos;s logs in the United States.
+        records and the docs search queries it receives in the United States.
+        Fly.io runs HyperWhisper Cloud&apos;s edge servers in regions around
+        the world, so a Cloud request can be handled outside the United
+        Kingdom and the European Economic Area, and Axiom may process the
+        service&apos;s logs in the United States.
       </p>
 
       <h2>Changes to This Policy</h2>

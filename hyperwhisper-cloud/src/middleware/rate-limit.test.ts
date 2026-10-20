@@ -121,7 +121,7 @@ function freshKey(): string {
   return `HW-RATE-LIMIT-FIXTURE-${keyCounter}`;
 }
 
-type Family = 'transcribe' | 'post-process' | 'assistant' | 'usage' | 'ws-deepgram' | 'ws-gemini';
+type Family = 'transcribe' | 'post-process' | 'usage' | 'ws-deepgram' | 'ws-gemini';
 
 /** One request that clears auth (licensed key, valid shape) on each route family. */
 function licensedRequest(family: Family, key: string, ip: string): Request {
@@ -140,16 +140,6 @@ function licensedRequest(family: Family, key: string, ip: string): Request {
         method: 'POST',
         headers: { ...ipHeader, 'Content-Type': 'application/json', 'Content-Length': String(body.length) },
         body,
-      });
-    }
-    case 'assistant': {
-      const form = new FormData();
-      form.append('messages', JSON.stringify([{ role: 'user', content: 'hi' }]));
-      form.append('account_key', key);
-      return new Request(`${base}/assistant`, {
-        method: 'POST',
-        headers: { ...ipHeader, 'Content-Length': '4096' },
-        body: form,
       });
     }
     case 'usage':
@@ -174,8 +164,6 @@ function anonymousRequest(family: Family, ip: string): Request {
       return new Request(`${base}/transcribe`, { method: 'POST', headers: { ...headers, 'Content-Type': 'text/plain' }, body: 'x' });
     case 'post-process':
       return new Request(`${base}/post-process`, { method: 'POST', headers: { ...headers, 'Content-Type': 'text/plain' }, body: 'x' });
-    case 'assistant':
-      return new Request(`${base}/assistant`, { method: 'POST', headers, body: 'x' });
     case 'usage':
       return new Request(`${base}/usage`, { headers });
     case 'ws-deepgram':
@@ -188,7 +176,6 @@ function anonymousRequest(family: Family, ip: string): Request {
 const PATHS: Record<Family, string> = {
   transcribe: '/transcribe',
   'post-process': '/post-process',
-  assistant: '/assistant',
   usage: '/usage',
   'ws-deepgram': '/ws/streaming-deepgram',
   'ws-gemini': '/ws/streaming-gemini-transcribe',
@@ -212,8 +199,8 @@ async function expectRateLimited(response: Response, maxRetryAfter = RATE_LIMIT_
   return retryAfter;
 }
 
-const ALL_FAMILIES: Family[] = ['transcribe', 'post-process', 'assistant', 'usage', 'ws-deepgram', 'ws-gemini'];
-const HTTP_FAMILIES: Family[] = ['transcribe', 'post-process', 'assistant', 'usage'];
+const ALL_FAMILIES: Family[] = ['transcribe', 'post-process', 'usage', 'ws-deepgram', 'ws-gemini'];
+const HTTP_FAMILIES: Family[] = ['transcribe', 'post-process', 'usage'];
 const WS_FAMILIES: Family[] = ['ws-deepgram', 'ws-gemini'];
 
 describe('per-IP limit (120/min, before auth)', () => {

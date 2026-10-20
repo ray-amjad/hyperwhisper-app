@@ -140,7 +140,25 @@ export async function transcribeWithElevenLabs(
   // parses cleanly in Node. Read as text first, then JSON.parse — both
   // sidesteps the Bun quirk and surfaces actionable diagnostics if the body
   // is ever genuinely empty or non-JSON in future.
-  const rawText = await response.text();
+  let rawText: string;
+  try {
+    rawText = await response.text();
+  } catch (readError) {
+    // The 200 arrived but its body broke mid-read (a reset connection, a cut
+    // chunked transfer). Same fault as a non-JSON body: a sibling can serve
+    // it. The raw socket text goes to this log line only. (#2064)
+    logProviderEvent(provider, 'body_read_error', {
+      elapsedMs: Math.round(performance.now() - startTime),
+      contentType: response.headers.get('content-type') ?? 'unknown',
+      contentEncoding: response.headers.get('content-encoding') ?? 'none',
+      message: readError instanceof Error ? readError.message : String(readError),
+    }, context);
+    throw new ProviderUnavailableError('ElevenLabs', '200 body could not be read', {
+      kind: 'bad_response',
+      status: response.status,
+      elapsedMs: Math.round(performance.now() - startTime),
+    });
+  }
   if (!rawText) {
     const ct = response.headers.get('content-type') ?? 'unknown';
     const ce = response.headers.get('content-encoding') ?? 'none';

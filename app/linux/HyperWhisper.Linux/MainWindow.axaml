@@ -2147,6 +2147,14 @@
           </StackPanel>
         </StackPanel></Border>
 
+        <!-- Every inspect, preview, import and export failure lands in Status (BackupViewModel);
+             Windows prints it in the card as "Invalid backup file: <path>: <message>". Without
+             this line a rejected file only closed the selection panel, with no word why. -->
+        <Border x:Name="BackupErrorBanner" Background="{DynamicResource HwErrorBackgroundBrush}" BorderBrush="{DynamicResource HwErrorBorderBrush}"
+                BorderThickness="1" CornerRadius="9" Padding="12" Margin="0,0,0,20" IsVisible="{Binding Status.HasError}">
+          <TextBlock x:Name="BackupErrorText" Text="{Binding Status.Message}" FontSize="13" TextWrapping="Wrap" Foreground="{DynamicResource HwErrorForegroundBrush}"/>
+        </Border>
+
         <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,14">
           <Path Data="{StaticResource HwIconInfo}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform"
                 Width="12" Height="12" VerticalAlignment="Top" Margin="0,1,8,0"/>

@@ -443,5 +443,9 @@
     "description": "Nuoroda gali būti neveikianti arba puslapis perkeltas.",
     "home": "Eiti į pagrindinį puslapį",
     "download": "Atsisiųsti HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Ši prisijungimo nuoroda nebegalioja arba jau buvo panaudota. Įveskite savo el. paštą ir gausite naują.",
+    "magicLinkFailed": "Šia nuoroda nepavyko jūsų prijungti. Įveskite savo el. paštą ir gausite naują."
   }
 }
