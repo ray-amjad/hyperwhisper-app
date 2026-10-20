@@ -40,6 +40,10 @@ if (args is [BackendPickerPageLeaveRenderTests.ProbeArgument])
 {
     Environment.Exit(BackendPickerPageLeaveRenderTests.RunProbe());
 }
+if (args is [MicrophonePickerRenderTests.ProbeArgument])
+{
+    Environment.Exit(MicrophonePickerRenderTests.RunProbe());
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -108,6 +112,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("every Source segment in the mode editor shows its whole label (#635)", ModeEditorSourceSegmentRenderTests.RunAsync),
     ("the Sound page's media-control ComboBox shows its whole label in every long culture", MediaControlComboRenderTests.RunAsync),
     ("leaving Model Library keeps the Whisper and LLM backend picks in the view model and settings.json (#1967)", BackendPickerPageLeaveRenderTests.RunAsync),
+    ("Settings → Sound shows the saved microphone (not connected) with the fallback line, an idle level bar, and Default clears it for Home too", MicrophonePickerRenderTests.RunAsync),
 };
 
 foreach (var test in tests)

@@ -1153,7 +1153,9 @@
         </Grid></Border>
         <!-- The microphone picker heads the Microphone card (spec: mic picker in Settings). Its
              rows and its saved choice are the Home "Audio input" box's. The level bar stays grey
-             until Test opens the device: visiting the page never opens the microphone. -->
+             until Test opens the device: visiting the page never opens the microphone. The two
+             amber lines carry the caption size but not the caption class, whose Foreground
+             setter won over the amber in a render. -->
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <StackPanel x:Name="SettingsMicrophoneRow" Spacing="8"
                       IsVisible="{ReflectionBinding Microphone, Converter={x:Static conv:ObjectConverters.IsNotNull}, FallbackValue=False}">
@@ -1167,7 +1169,7 @@
               <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MicrophoneChoice"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
             </ComboBox>
             <TextBlock x:Name="SettingsMicrophoneFallback" Text="{ReflectionBinding Microphone.FallbackNotice}" TextWrapping="Wrap"
-                       Foreground="{DynamicResource HwWarningBrush}" Classes="caption"
+                       Foreground="{DynamicResource HwWarningBrush}" FontSize="11" LineHeight="15"
                        IsVisible="{ReflectionBinding Microphone.IsSavedDeviceMissing, FallbackValue=False}"/>
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
               <local:MicrophoneLevelBar x:Name="SettingsMicrophoneLevel" HorizontalAlignment="Left"
@@ -1176,7 +1178,7 @@
                       Content="{ReflectionBinding Microphone.LevelTest.ButtonText}"
                       Command="{ReflectionBinding Microphone.LevelTest.ToggleCommand}"/>
             </Grid>
-            <TextBlock Text="{ReflectionBinding Microphone.LevelTest.ErrorMessage}" TextWrapping="Wrap" Classes="caption"
+            <TextBlock Text="{ReflectionBinding Microphone.LevelTest.ErrorMessage}" TextWrapping="Wrap" FontSize="11" LineHeight="15"
                        Foreground="{DynamicResource HwWarningBrush}"
                        IsVisible="{ReflectionBinding Microphone.LevelTest.HasError, FallbackValue=False}"/>
           </StackPanel>
