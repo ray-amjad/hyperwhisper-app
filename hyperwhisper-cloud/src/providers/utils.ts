@@ -2,9 +2,9 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { EmptyTranscriptError, ProviderAuthError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, ProviderUnavailableKind, TranscriptionResult } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
+import { readUpstreamError, upstreamErrorLogFields, upstreamErrorReason } from './upstream-error';
 
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
-const ERROR_BODY_PREVIEW_LIMIT = 500;
 
 // Audio-upload timeout budget, scaled with payload size. The default 15s is fine
 // for the small create/poll/transcript calls, but an upload that re-sends the
@@ -550,7 +550,9 @@ export async function providerHttpError(
 ): Promise<Error> {
   const { label } = policy;
   const status = response.status;
-  const errorText = await readErrorBodyPreview(response);
+  // `classifierText` is for the quota test only. The body can quote the
+  // user's input, so the log line carries content-free fields (#2163).
+  const { fields, classifierText: errorText } = await readUpstreamError(response);
   const elapsedMs = Math.round(performance.now() - startedAt);
   const kind = status >= 500 ? 'upstream_5xx' : status === 429 ? 'rate_limit' : 'http_error';
   const quotaReason = quotaExhaustedReason(status, errorText);
@@ -558,10 +560,9 @@ export async function providerHttpError(
   logProviderEvent(provider, 'http_error', {
     ...policy.logDetails,
     elapsedMs,
-    status,
+    ...upstreamErrorLogFields(fields),
     kind,
     ...(quotaReason ? { quotaExhausted: quotaReason } : {}),
-    bodyPreview: errorText,
   }, context);
 
   // Only the failover branches below carry details, and each knows its own
@@ -590,8 +591,10 @@ export async function providerHttpError(
   }
 
   // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-  // provider may accept this input, so let the chain fall through.
-  return new ProviderInputError(label, status, errorText || `HTTP ${status}`);
+  // provider may accept this input, so let the chain fall through. The
+  // message (logged) names only the code; the body preview goes to the
+  // client's 400 alone, as it always did.
+  return new ProviderInputError(label, status, upstreamErrorReason(fields), errorText || `HTTP ${status}`);
 }
 
 /**
@@ -711,17 +714,14 @@ export function emptyTranscriptOutcome(
   return opts.noSpeechResult;
 }
 
+/**
+ * The first 500 characters of an error body, for regex CLASSIFICATION only.
+ * Never log it and never put it in an Error message that a route logs: an
+ * upstream error body can quote the user's input (#2163). To log an upstream
+ * error, use `readUpstreamError` from `./upstream-error` and log its `fields`.
+ */
 export async function readErrorBodyPreview(response: Response): Promise<string> {
-  try {
-    const body = await response.text();
-    if (body.length <= ERROR_BODY_PREVIEW_LIMIT) {
-      return body;
-    }
-
-    return `${body.slice(0, ERROR_BODY_PREVIEW_LIMIT)}...`;
-  } catch {
-    return '<unreadable>';
-  }
+  return (await readUpstreamError(response)).classifierText;
 }
 
 /**

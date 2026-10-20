@@ -26,10 +26,10 @@ import {
   computeUploadTimeoutMs,
   fetchWithTimeout,
   logProviderEvent,
-  readErrorBodyPreview,
   splitVocabularyTerms,
   unparsedBodyKind,
 } from './utils';
+import { readUpstreamError, upstreamErrorLogFields } from './upstream-error';
 
 const MAX_PHRASES = 100;
 const MAX_PHRASE_LEN = 50;
@@ -222,15 +222,15 @@ export async function transcribeWithAzureMai(
   }, context, computeUploadTimeoutMs(audio.byteLength));
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
+    // Never the body: it can quote the phrase list (#2163).
+    const { fields } = await readUpstreamError(response);
     const elapsedMs = Math.round(performance.now() - startedAt);
     const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
 
     logProviderEvent(provider, 'http_error', {
       elapsedMs,
-      status: response.status,
+      ...upstreamErrorLogFields(fields),
       kind,
-      bodyPreview: errorText,
     }, context);
 
     if (response.status === 401) {

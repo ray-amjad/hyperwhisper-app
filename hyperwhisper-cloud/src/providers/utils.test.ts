@@ -370,11 +370,15 @@ describe('providerHttpError (shared non-2xx classification for the sync STT adap
     expect(quotaExhaustedReason(401, 'unauthorized')).toBeNull();
   });
 
-  test('other 4xx become a ProviderInputError carrying the body preview', async () => {
+  test('other 4xx become a ProviderInputError: the code in the message, the body preview for the client only', async () => {
     const err = await providerHttpError('test', at(400, 'bad language code'), performance.now(), {}, policy);
     expect(err).toBeInstanceOf(ProviderInputError);
     expect((err as ProviderInputError).status).toBe(400);
-    expect(err.message).toContain('bad language code');
+    expect(err.message).toBe('TestProvider rejected input (400): HTTP 400');
+    expect((err as ProviderInputError).clientMessage).toBe('TestProvider rejected input (400): bad language code');
+
+    const coded = await providerHttpError('test', at(400, '{"error":{"code":"invalid_language","message":"bad language code"}}'), performance.now(), {}, policy);
+    expect(coded.message).toBe('TestProvider rejected input (400): invalid_language');
   });
 
   test('an empty error body falls back to the bare status in the message', async () => {
@@ -417,8 +421,11 @@ describe('providerHttpError (shared non-2xx classification for the sync STT adap
       model: 'test-model',
       status: 429,
       kind: 'rate_limit',
-      bodyPreview: 'boom',
+      bodyLength: 4,
     });
+    // Never the body (#2163).
+    expect(logged[0][1]).not.toHaveProperty('bodyPreview');
+    expect(JSON.stringify(logged)).not.toContain('boom');
   });
 });
 
