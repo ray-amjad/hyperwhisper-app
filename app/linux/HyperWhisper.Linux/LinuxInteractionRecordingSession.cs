@@ -99,6 +99,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     public bool IsLiveCaptureActive => Volatile.Read(ref _liveCaptureActive);
     public event EventHandler? LiveCaptureChanged;
     private bool _liveCaptureActive;
+    /// <summary>The live worker ended while capture was still live: no Stop or Cancel had begun (#2250).</summary>
+    public event EventHandler? LiveSessionEnded;
 
     private void SetLiveCapture(bool value)
     {
@@ -207,8 +209,32 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Succeeded);
         if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStarted);
         _viewModel.Status.Success(_streaming ? LiveRecordingStatus : RecordingStatus);
-        if (_streaming) SetLiveCapture(true);
+        if (_streaming)
+        {
+            SetLiveCapture(true);
+            WatchLiveSessionEnd();
+        }
         return PlatformResult.Success();
+    }
+
+    /// <summary>The controller already stops the microphone when its worker ends, but the session
+    /// stays held until Stop (#1246), so the overlay kept counting and the error waited for the
+    /// user's Stop (#2250). Tell the coordinator, which ends the session through Stop at once.</summary>
+    private void WatchLiveSessionEnd()
+    {
+        var completion = _services.LiveStreaming.Completion;
+        if (completion is null) return;
+        _ = completion.ContinueWith(
+            static (ended, state) =>
+            {
+                var session = (LinuxInteractionRecordingSession)state!;
+                // Stop and Cancel clear live capture before they touch the controller, so this
+                // is the worker ending on its own, and only for the session that is still current.
+                if (!session.IsLiveCaptureActive
+                    || !ReferenceEquals(session._services.LiveStreaming.Completion, ended)) return;
+                try { session.LiveSessionEnded?.Invoke(session, EventArgs.Empty); } catch { }
+            },
+            this, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
 
     private async Task<PlatformResult> StartStreamingAsync(string deviceId, CancellationToken cancellationToken)

@@ -183,6 +183,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("shortcuts stop or cancel a held live stream and never start over it", InteractionShortcutsRespectHeldStream),
     ("duration limit ends a held live stream without a false limit message", InteractionDurationLimitEndsHeldStream),
     ("a stream held during start keeps its injection session until Stop", InteractionStartKeepsHeldStreamSession),
+    ("a live stream that ends by itself is stopped at once and its failure shown", InteractionLiveSessionEndedStopsAtOnce),
+    ("a late live-stream end never stops a stopped or newer session", InteractionLiveSessionEndedIgnoresOtherSessions),
     ("interaction accepts unassigned and multi-modifier shortcuts", InteractionFlexibleShortcutValidation),
     ("interaction conflicts and registration failures restore prior bindings", InteractionActionRollback),
     ("interaction restores live X11 grabs after registration failure", InteractionX11Rollback),
@@ -3568,6 +3570,90 @@ static Task InteractionActionRollback()
     return Task.CompletedTask;
 }
 
+// #2250: the provider closed the stream while the user was still talking. The session raises
+// LiveSessionEnded, and the coordinator ends it through Stop at once, so its failure is shown now
+// and the injection session closes, not on the user's next Stop.
+static async Task InteractionLiveSessionEndedStopsAtOnce()
+{
+    var recording = new SelfEndingInteractionRecordingSession();
+    var injection = new FakeInteractionTextInjection();
+    var shortcuts = new FakeInteractionShortcutService();
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), injection, recording, new ImmediateUiDispatcher());
+    var failures = new List<PlatformError>();
+    coordinator.OperationFailed += (_, error) => failures.Add(error);
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    shortcuts.Emit(LinuxInteractionCoordinator.StreamingActionName, true);
+    await WaitUntilAsync(() => recording.Active);
+    Assert.Equal(0, recording.StopCalls);
+
+    recording.EndWorker();
+    await WaitUntilAsync(() => recording.StopCalls == 1);
+    Assert.True(!recording.HasOpenSession);
+    Assert.Equal("streaming.transcription_failed", failures.Single().Code);
+    Assert.Equal(1, injection.EndSessionCalls);
+
+    // The user's own Stop that follows finds nothing open and stops nothing twice.
+    await coordinator.StopRecordingAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.Equal(1, recording.StopCalls);
+    Assert.Equal(1, failures.Count);
+
+    // Disposed: a late end is ignored.
+    coordinator.Dispose();
+    recording.Held = true;
+    recording.Streaming = true;
+    recording.RaiseEnded();
+    Assert.Equal(1, recording.StopCalls);
+}
+
+static async Task InteractionLiveSessionEndedIgnoresOtherSessions()
+{
+    var recording = new SelfEndingInteractionRecordingSession();
+    using var coordinator = new LinuxInteractionCoordinator(
+        new FakeInteractionShortcutService(), new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(),
+        recording, new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+
+    // An end that arrives after the user already stopped: nothing is open.
+    recording.RaiseEnded();
+    Assert.Equal(0, recording.StopCalls);
+
+    // An end that arrives while a newer stream is live: that session is active, not held.
+    await coordinator.StartStreamingAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.True(recording.Active);
+    recording.RaiseEnded();
+    await Task.Delay(50);
+    Assert.Equal(0, recording.StopCalls);
+    Assert.True(recording.Active);
+
+    // A batch recording is never stopped by a live-stream end.
+    await coordinator.CancelRecordingAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    await coordinator.StartRecordingAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    recording.Active = false;
+    recording.Held = true;
+    recording.RaiseEnded();
+    await Task.Delay(50);
+    Assert.Equal(0, recording.StopCalls);
+}
+
+static async Task WaitUntilAsync(Func<bool> condition)
+{
+    var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
+    while (!condition())
+    {
+        if (DateTime.UtcNow > deadline) throw new InvalidOperationException("Timed out waiting for the condition.");
+        await Task.Delay(10);
+    }
+}
+
 static LinuxInteractionConfiguration InteractionConfiguration() => new(
     new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift, new("Space")),
     new PushToTalkConfiguration(PushToTalkMode.Disabled),
@@ -4818,4 +4904,54 @@ static class Assert
         catch (T) { return; }
         throw new InvalidOperationException($"Expected {typeof(T).Name}.");
     }
+}
+
+/// <summary>#2250: a live-stream session whose worker can end by itself, as the provider closing it.</summary>
+sealed class SelfEndingInteractionRecordingSession : IInteractionRecordingSession
+{
+    public bool Active { get; set; }
+    public bool IsActive => Active;
+    public bool Streaming { get; set; }
+    public bool IsStreaming => Streaming;
+    public bool Held { get; set; }
+    public bool HasOpenSession => Active || Held;
+    public int StopCalls { get; private set; }
+    public event EventHandler? LiveSessionEnded;
+    public ValueTask<PlatformResult> StartAsync(
+        InteractionRecordingKind kind,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Streaming = kind == InteractionRecordingKind.Streaming;
+        Active = true;
+        return ValueTask.FromResult(PlatformResult.Success());
+    }
+    public ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        StopCalls++;
+        var failed = Held && !Active;
+        Active = false;
+        Held = false;
+        Streaming = false;
+        return ValueTask.FromResult(new InteractionStopOutcome(failed
+            ? PlatformResult.Failure("streaming.transcription_failed", "The streaming provider closed the session unexpectedly.")
+            : PlatformResult.Success()));
+    }
+    public ValueTask CancelAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Active = false;
+        Held = false;
+        Streaming = false;
+        return ValueTask.CompletedTask;
+    }
+    /// <summary>The worker ends: the stream is held, no longer active, and says so.</summary>
+    public void EndWorker()
+    {
+        Active = false;
+        Held = true;
+        RaiseEnded();
+    }
+    public void RaiseEnded() => LiveSessionEnded?.Invoke(this, EventArgs.Empty);
 }
