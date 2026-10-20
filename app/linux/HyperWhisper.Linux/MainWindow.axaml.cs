@@ -1031,10 +1031,24 @@ public partial class MainWindow : Window
         try
         {
             var settings = _viewModel.Settings;
-            var cleanup = await _storageCoordinator.CleanupAsync(
-                new StorageRetentionPolicy(settings.KeepAudioFiles, settings.AutoDeleteEnabled, settings.AutoDeleteDaysOld),
-                DateTimeOffset.UtcNow,
-                cancellationToken).ConfigureAwait(false);
+            TranscriptStorageCleanupResult cleanup;
+            try
+            {
+                cleanup = await _storageCoordinator.CleanupAsync(
+                    new StorageRetentionPolicy(settings.KeepAudioFiles, settings.AutoDeleteEnabled, settings.AutoDeleteDaysOld),
+                    DateTimeOffset.UtcNow,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                // The rows commit before the audio files go, so a throw can still mean rows left.
+                _viewModel.History.MarkStale();
+                throw;
+            }
+            // Cleanup deletes rows and audio in its own context and does not reload History, and
+            // a History visit no longer re-queries on its own (#2099), so say the rows may be gone.
+            if (cleanup.TranscriptsDeleted > 0 || cleanup.AudioFilesDeleted > 0)
+                _viewModel.History.MarkStale();
             // PersistenceFailure is a delete SQLite refused: nothing was removed. Keep the last
             // real sweep on the status line rather than a 0-row "cleanup" stamped now (#974).
             if (cleanup.Status != StorageLifecycleStatus.PersistenceFailure)
@@ -2376,19 +2390,24 @@ public partial class MainWindow : Window
     /// Windows filters history by one period list, not by two date pickers. The dates still drive
     /// the query; this only turns the chosen period into a start and an end date.
     /// </summary>
+    /// <remarks>
+    /// The page template is rebuilt on every History visit, and its SelectedIndex="0" lands here
+    /// as "All" each time. SelectPeriod skips the query when the rows shown were loaded for that
+    /// same filter and nothing has written a transcript since: a full-table load on the UI thread
+    /// per click (#2099).
+    /// </remarks>
     private void OnHistoryPeriodChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (sender is not ComboBox { SelectedItem: ComboBoxItem { Tag: string period } }) return;
         var today = DateTimeOffset.Now.Date;
-        _viewModel.History.StartDate = period switch
+        DateTimeOffset? start = period switch
         {
             "Today" => new DateTimeOffset(today),
             "ThisWeek" => new DateTimeOffset(today.AddDays(-(int)today.DayOfWeek)),
             "ThisMonth" => new DateTimeOffset(new DateTime(today.Year, today.Month, 1)),
             _ => null
         };
-        _viewModel.History.EndDate = null;
-        RunHistorySearch();
+        if (_viewModel.History.SelectPeriod(start)) RunHistorySearch();
     }
 
     /// <summary>
