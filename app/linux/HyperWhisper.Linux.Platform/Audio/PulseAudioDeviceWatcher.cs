@@ -18,10 +18,12 @@ namespace HyperWhisper.Linux.Platform.Audio;
 /// move, which the microphone boost makes during every recording; neither changes the list.
 ///
 /// A burst (a USB interface brings a card, a source and a server change at once) is collapsed into
-/// one <see cref="DevicesMayHaveChanged"/> after <c>debounce</c>. When the child cannot start or
-/// exits (the sound server restarted), the watcher raises once — the list may have moved while
-/// nobody listened — and tries again after <c>retryInterval</c>, so it degrades to polling rather
-/// than going deaf. The event is raised on a pool thread.
+/// one <see cref="DevicesMayHaveChanged"/> after <c>debounce</c>. Every time a subscription is
+/// established (the first one included) the watcher raises once too: nothing was listening before
+/// it, so a device plugged between the startup enumeration and the subscribe, or a list emptied
+/// by a sound-server restart, is read again. When the child cannot start or exits (the sound server
+/// restarted), the watcher raises once and tries again after <c>retryInterval</c>, so it degrades
+/// to polling rather than going deaf. The event is raised on a pool thread (a timer callback).
 /// </remarks>
 public sealed class PulseAudioDeviceWatcher : IDisposable
 {
@@ -31,6 +33,7 @@ public sealed class PulseAudioDeviceWatcher : IDisposable
     private readonly TimeSpan _retryInterval;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly object _gate = new();
+    private readonly Timer _debounceTimer;
     private Task? _loop;
     private IChildProcess? _child;
     private bool _pending;
@@ -46,6 +49,7 @@ public sealed class PulseAudioDeviceWatcher : IDisposable
         _pactl = pactl;
         _debounce = debounce;
         _retryInterval = retryInterval;
+        _debounceTimer = new Timer(_ => RaiseDebounced(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     /// <summary>Raised, debounced, on a pool thread when a source came or went or the default moved.</summary>
@@ -98,6 +102,8 @@ public sealed class PulseAudioDeviceWatcher : IDisposable
                     if (_disposed) { _ = child.TerminateAsync(CancellationToken.None); return; }
                     _child = child;
                 }
+                // Subscribed (again): nothing listened before this moment, so read the list now.
+                Schedule();
                 try
                 {
                     if (child.StandardOutput is { } output)
@@ -132,25 +138,29 @@ public sealed class PulseAudioDeviceWatcher : IDisposable
         }
     }
 
+    /// <summary>Raise once after the debounce. Calls inside the window join the pending raise.</summary>
     private void Schedule()
     {
-        CancellationToken token;
         lock (_gate)
         {
             if (_pending || _disposed) return;
             _pending = true;
-            token = _lifetime.Token;
+            // A one-shot timer, not a fire-and-forget task: nothing to observe, and Dispose stops it.
+            _debounceTimer.Change(_debounce, Timeout.InfiniteTimeSpan);
         }
-        _ = Task.Run(async () =>
+    }
+
+    private void RaiseDebounced()
+    {
+        lock (_gate)
         {
-            try { await Task.Delay(_debounce, token).ConfigureAwait(false); }
-            catch (OperationCanceledException) { return; }
-            lock (_gate) _pending = false;
-            var handlers = DevicesMayHaveChanged;
-            if (handlers is null) return;
-            foreach (EventHandler handler in handlers.GetInvocationList())
-                try { handler(this, EventArgs.Empty); } catch (Exception) { }
-        });
+            _pending = false;
+            if (_disposed) return;
+        }
+        var handlers = DevicesMayHaveChanged;
+        if (handlers is null) return;
+        foreach (EventHandler handler in handlers.GetInvocationList())
+            try { handler(this, EventArgs.Empty); } catch (Exception) { }
     }
 
     public void Dispose()
@@ -165,6 +175,7 @@ public sealed class PulseAudioDeviceWatcher : IDisposable
             child = _child;
         }
         DevicesMayHaveChanged = null;
+        _debounceTimer.Dispose();
         _lifetime.Cancel();
         // A pipe read does not always honour the token; ending the child ends the read. Closing
         // its stdin is what makes the tying shell kill pactl; terminating the shell alone would not.
@@ -175,6 +186,6 @@ public sealed class PulseAudioDeviceWatcher : IDisposable
             try { child.TerminateAsync(deadline.Token).AsTask().Wait(TimeSpan.FromSeconds(2)); } catch (Exception) { }
         }
         try { loop?.Wait(TimeSpan.FromSeconds(3)); } catch (Exception) { }
-        // _lifetime is not disposed: a debounce still in flight holds its token, and a CTS without a timer owns nothing.
+        // _lifetime is not disposed: the loop may still observe its token, and a CTS without a timer owns nothing.
     }
 }

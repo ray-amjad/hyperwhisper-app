@@ -46,18 +46,20 @@ static class DeviceWatcherTests
         Assert.True(request.Environment.TryGetValue("LC_ALL", out var locale) && locale == "C",
             "pactl subscribe was not run under LC_ALL=C, so its event wording could be translated");
 
+        // Subscribing raises once by itself (see SubscribingRereadsTheList).
+        await WaitUntilAsync(() => Volatile.Read(ref raised) >= 1, "subscribing raised nothing");
         await child.WriteLinesAsync("Event 'new' on source-output #91", "Event 'change' on source #52");
-        await Task.Delay(400);
-        Assert.Equal(0, Volatile.Read(ref raised));
-
-        // A USB microphone arriving: card, source and the server's default change, in one burst.
-        await child.WriteLinesAsync("Event 'new' on card #4", "Event 'new' on source #52", "Event 'change' on server #-1");
-        await WaitUntilAsync(() => Volatile.Read(ref raised) >= 1, "a plugged-in source raised nothing");
         await Task.Delay(400);
         Assert.Equal(1, Volatile.Read(ref raised));
 
+        // A USB microphone arriving: card, source and the server's default change, in one burst.
+        await child.WriteLinesAsync("Event 'new' on card #4", "Event 'new' on source #52", "Event 'change' on server #-1");
+        await WaitUntilAsync(() => Volatile.Read(ref raised) >= 2, "a plugged-in source raised nothing");
+        await Task.Delay(400);
+        Assert.Equal(2, Volatile.Read(ref raised));
+
         await child.WriteLinesAsync("Event 'remove' on source #52");
-        await WaitUntilAsync(() => Volatile.Read(ref raised) >= 2, "an unplugged source raised nothing");
+        await WaitUntilAsync(() => Volatile.Read(ref raised) >= 3, "an unplugged source raised nothing");
         Assert.True(!child.Terminated, "the subscribe child was ended while still watching");
         watcher.Dispose();
         Assert.True(child.Terminated, "disposing the watcher left pactl subscribe running");
@@ -76,6 +78,29 @@ static class DeviceWatcherTests
         await WaitUntilAsync(() => Volatile.Read(ref raised) >= 1, "a lost subscription did not trigger a re-read");
         _ = await launcher.NextChild.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(2, launcher.Requests.Count);
+    }
+
+    /// <summary>Review r1: a device plugged between the startup enumeration and the subscribe, and a
+    /// list emptied by a pipewire-pulse restart, were never re-read, because only events and a lost
+    /// subscription raised. Every established subscription, the first included, raises once.</summary>
+    public static async Task SubscribingRereadsTheList()
+    {
+        var launcher = new ScriptedSubscribeLauncher();
+        using var watcher = new PulseAudioDeviceWatcher(launcher, "/usr/bin/pactl", TimeSpan.FromMilliseconds(30), TimeSpan.FromMilliseconds(400));
+        var raised = 0;
+        watcher.DevicesMayHaveChanged += (_, _) => Interlocked.Increment(ref raised);
+        watcher.Start();
+        var first = await launcher.NextChild.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => Volatile.Read(ref raised) >= 1, "the first subscription did not re-read the list");
+        await Task.Delay(150);
+        Assert.Equal(1, Volatile.Read(ref raised));
+
+        // The server restarts: the lost subscription raises, and so does the new one once it is up.
+        launcher.NextChild = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        first.EndOutput();
+        await WaitUntilAsync(() => Volatile.Read(ref raised) >= 2, "a lost subscription did not trigger a re-read");
+        _ = await launcher.NextChild.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => Volatile.Read(ref raised) >= 3, "the re-established subscription did not re-read the list");
     }
 
     public static async Task NoSubscribeDegradesToPolling()

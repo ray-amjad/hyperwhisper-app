@@ -213,6 +213,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("device watch counts only source add/remove and server changes", DeviceWatcherTests.OnlySourceAndServerEventsCount),
     ("device watch turns a plug-in burst into one debounced event and ends pactl on dispose", DeviceWatcherTests.BurstIsOneDebouncedEvent),
     ("device watch re-reads and resubscribes after the sound server restarts", DeviceWatcherTests.ServerRestartRaisesAndResubscribes),
+    ("device watch re-reads the list every time a subscription is established", DeviceWatcherTests.SubscribingRereadsTheList),
     ("device watch falls back to polling when pactl subscribe cannot start", DeviceWatcherTests.NoSubscribeDegradesToPolling),
     ("muffle moves other apps' streams and restores only those", MuffleTests.MovesOtherStreamsAndRestoresOnlyThose),
     ("muffle pump low-passes the monitor into the real sink", MuffleTests.PumpFiltersTheMonitorIntoTheRealSink),
