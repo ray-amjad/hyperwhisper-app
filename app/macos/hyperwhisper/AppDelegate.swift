@@ -404,18 +404,24 @@ extension AppDelegate: SPUUpdaterDelegate {
         
         // Determine the phase where error occurred based on error details
         let phase = determineUpdatePhase(from: nsError)
-        
-        logger.critical("Update aborted with error", error: nsError, context: [
+        let context = [
             "phase": phase,
             "feedURL": updater.feedURL?.absoluteString ?? "unknown",
             "automaticChecks": String(updater.automaticallyChecksForUpdates),
             "sessionInProgress": String(updater.sessionInProgress)
-        ])
+        ]
+        
+        // Sparkle ends every healthy "you're up to date" check through this
+        // callback too (#680). Record it at INFO, not as a CRITICAL abort.
+        if Self.isNoUpdateAbort(nsError) {
+            logger.info("No update available (not an error)", context: context)
+            return
+        }
+        
+        logger.critical("Update aborted with error", error: nsError, context: context)
         
         // Log specific error scenarios
         switch nsError.code {
-        case 1001: // SUNoUpdateError
-            logger.info("No update available (not an error)")
         case 1002: // SUAppcastError
             logger.error("Appcast error - check feed URL and server", error: nsError)
         case 1003: // SURunningFromDiskImageError
@@ -457,6 +463,12 @@ extension AppDelegate: SPUUpdaterDelegate {
     // MARK: - Helper Methods
     
     /// Determines which phase of the update process an error occurred in
+    /// True when Sparkle's abort is its normal "no update found" outcome
+    /// (`SUNoUpdateError`, code 1001), which is not a failure.
+    nonisolated static func isNoUpdateAbort(_ error: NSError) -> Bool {
+        error.domain == "SUSparkleErrorDomain" && error.code == 1001
+    }
+    
     private func determineUpdatePhase(from error: NSError) -> String {
         let code = error.code
         let domain = error.domain
