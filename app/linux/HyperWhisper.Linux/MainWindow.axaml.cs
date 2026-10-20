@@ -1929,11 +1929,13 @@ public partial class MainWindow : Window
         if (sender is TextBox box) CommitAutoDeleteDays(box);
     }
 
+    // SetCurrentValue, as CommitLocalApiPort writes the port box: it changes the text and leaves the
+    // OneWay binding in place, so a later import or reset still reaches the box.
     private void CommitAutoDeleteDays(TextBox box)
     {
         if (int.TryParse(box.Text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.CurrentCulture, out var value))
             _viewModel.Settings.AutoDeleteDaysOld = Math.Clamp(value, 1, 365);
-        box.Text = _viewModel.Settings.AutoDeleteDaysOld.ToString(System.Globalization.CultureInfo.CurrentCulture);
+        box.SetCurrentValue(TextBox.TextProperty, _viewModel.Settings.AutoDeleteDaysOld.ToString(System.Globalization.CultureInfo.CurrentCulture));
     }
 
     private async void OnChooseRecordingsDirectory(object? sender, RoutedEventArgs e)
