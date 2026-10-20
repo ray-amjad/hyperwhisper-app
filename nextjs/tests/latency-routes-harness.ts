@@ -40,6 +40,8 @@ export const calls = {
 export const behaviour = {
   /** What the rate limiter answers. */
   rateLimitSuccess: true,
+  /** Thrown by the rate limiter when set — models Upstash being unreachable. */
+  rateLimitError: null as unknown,
   /** Thrown by `insert().values()` when set — models a database fault. */
   insertError: null as unknown,
   /** Thrown by `delete().where()` when set — models a database fault. */
@@ -64,6 +66,7 @@ export function resetHarness(): void {
   calls.rateLimit.length = 0;
 
   behaviour.rateLimitSuccess = true;
+  behaviour.rateLimitError = null;
   behaviour.insertError = null;
   behaviour.deleteError = null;
   behaviour.deleteRowCounts = [];
@@ -147,6 +150,7 @@ moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
     latencyIngestRateLimiter: {
       limit: async (identifier: string) => {
         calls.rateLimit.push(identifier);
+        if (behaviour.rateLimitError) throw behaviour.rateLimitError;
         return { success: behaviour.rateLimitSuccess };
       },
     },

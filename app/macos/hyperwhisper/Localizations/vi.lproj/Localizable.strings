@@ -936,6 +936,8 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcription.error.providerNotAvailable.provider" = "%@ không có sẵn. Kiểm tra cài đặt của bạn và thử lại.";
 "transcription.error.providerNotAvailable.detail" = "%@ không có sẵn: %@";
 "transcription.error.modelNotDownloaded" = "Vui lòng tải xuống một mô hình trước tiên";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Chế độ %1$@ dùng %2$@, mô hình này chưa được tải xuống. Hãy tải xuống trong Thư viện mô hình.";
+"transcription.error.modelNotDownloaded.model" = "%1$@ chưa được tải xuống. Hãy tải xuống trong Thư viện mô hình.";
 "transcription.error.modelProtected" = "Mô hình này không thể xóa được";
 "transcription.error.audioFileNotFound" = "Tệp âm thanh không tìm thấy";
 "transcription.error.network.detail" = "Lỗi mạng: %@";
