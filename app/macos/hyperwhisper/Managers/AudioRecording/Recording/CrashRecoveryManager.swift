@@ -258,8 +258,8 @@ class CrashRecoveryManager {
 
         AppLogger.audio.info("Found \(orphans.count) orphaned session(s)")
 
-        // Track successfully recovered sessions for transcription
-        var recoveredSessions: [(session: RecordingSession, audioURL: URL)] = []
+        // Count of sessions recovered this pass, for the summary log in STEP 3
+        var recoveredCount = 0
 
         // Load attempt counts once, mutate in-memory, save once at the end.
         //
@@ -277,16 +277,16 @@ class CrashRecoveryManager {
         // in-memory `attemptCounts`, never UserDefaults, so the snapshot above and
         // the write in STEP 4 stay the only two ends of the read-modify-write.
         for session in orphans {
-            if let recoveredURL = await recoverOne(
+            if await recoverOne(
                 session, currentSessionID: currentSessionID, staleSessionCutoff: staleSessionCutoff,
                 context: context, attemptCounts: &attemptCounts
-            ) {
-                recoveredSessions.append((session: session, audioURL: recoveredURL))
+            ) != nil {
+                recoveredCount += 1
             }
         }
 
         // STEP 3: BATCH SAVE - Save all changes at once instead of per-session
-        await finishPass(orphanCount: orphans.count, recoveredCount: recoveredSessions.count, recoveryStart: recoveryStart)
+        await finishPass(orphanCount: orphans.count, recoveredCount: recoveredCount, recoveryStart: recoveryStart)
 
         // STEP 4: Prune attempt counts for sessions that no longer exist in Core Data, then flush
         pruneAttemptCounts(&attemptCounts, keepingOnly: orphans)
