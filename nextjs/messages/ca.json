@@ -443,5 +443,9 @@
     "description": "Pot ser que l'enllaç estigui trencat o que la pàgina s'hagi mogut.",
     "home": "Ves a la pàgina d'inici",
     "download": "Descarrega HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Aquest enllaç d'inici de sessió ha caducat o ja s'ha fet servir. Introdueix el teu correu per rebre'n un de nou.",
+    "magicLinkFailed": "No hem pogut iniciar la teva sessió amb aquest enllaç. Introdueix el teu correu per rebre'n un de nou."
   }
 }

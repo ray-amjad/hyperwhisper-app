@@ -443,5 +443,9 @@
     "description": "Link może być nieprawidłowy lub strona mogła zostać przeniesiona.",
     "home": "Przejdź do strony głównej",
     "download": "Pobierz HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Ten link do logowania wygasł lub został już użyty. Wpisz swój e-mail, aby otrzymać nowy.",
+    "magicLinkFailed": "Nie udało się zalogować Cię za pomocą tego linku. Wpisz swój e-mail, aby otrzymać nowy."
   }
 }

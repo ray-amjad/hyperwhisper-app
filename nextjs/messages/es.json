@@ -443,5 +443,9 @@
     "description": "Puede que el enlace esté roto o que la página se haya movido.",
     "home": "Ir a la página de inicio",
     "download": "Descargar HyperWhisper"
+  },
+  "signIn": {
+    "magicLinkExpired": "Este enlace de inicio de sesión ha caducado o ya se ha usado. Introduce tu correo para recibir uno nuevo.",
+    "magicLinkFailed": "No hemos podido iniciar tu sesión con ese enlace. Introduce tu correo para recibir uno nuevo."
   }
 }
