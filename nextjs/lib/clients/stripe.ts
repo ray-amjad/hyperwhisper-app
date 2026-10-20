@@ -1,5 +1,7 @@
 import Stripe from "stripe";
 
+import { env } from "@/src/env/server.mjs";
+
 /**
  * Stripe client for server-side operations.
  * Uses the secret key from environment variables.
@@ -10,14 +12,14 @@ import Stripe from "stripe";
  * const customers = await stripe.customers.list();
  * ```
  */
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   // @ts-expect-error - managed_payments_preview is in private preview
   apiVersion: "2025-12-15.clover; managed_payments_preview=v1",
   typescript: true,
 });
 
 // Validate that required environment variables are set
-if (!process.env.STRIPE_SECRET_KEY) {
+if (!env.STRIPE_SECRET_KEY) {
   console.warn(
     "STRIPE_SECRET_KEY not configured - Stripe operations will fail"
   );

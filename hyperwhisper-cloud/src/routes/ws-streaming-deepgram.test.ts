@@ -824,8 +824,9 @@ describe('streaming socket lifecycle', () => {
       expect(closeLine![1]).toMatchObject({
         provider: 'deepgram',
         code: 1011,
-        reason: 'upstream exploded',
+        reasonLength: 'upstream exploded'.length,
       });
+      expect(JSON.stringify(logged)).not.toContain('upstream exploded');
     });
 
     test('closes the client socket when Deepgram ends the session', async () => {

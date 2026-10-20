@@ -572,7 +572,6 @@ struct ModelLibraryView: View {
     /// to compute the "N of M support X" count (M = models matching everything
     /// else; N = those that also support the chosen language).
     private func passesNonLanguageFilters(_ model: LibraryModel) -> Bool {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if !providerFilter.matches(model.providerKey) { return false }
         if typeFilter != .all && model.kind.rawValue != typeFilter.rawValue { return false }
         if locationFilter != .all {
@@ -584,14 +583,7 @@ struct ModelLibraryView: View {
         }
         if vocabFilter && !model.supportsCustomVocabulary { return false }
         if cloudAvailableFilter && !model.availableViaHyperWhisperCloud { return false }
-        if !query.isEmpty {
-            let matchesQuery =
-                model.displayName.lowercased().contains(query)
-                || model.providerKey.displayName.lowercased().contains(query)
-                || (model.tag?.lowercased().contains(query) ?? false)
-            if !matchesQuery { return false }
-        }
-        return true
+        return ModelLibrarySearch.matches(model, query: searchText)
     }
 
     /// Language clause. Only voice models are language-filtered; text
@@ -876,5 +868,39 @@ struct ModelLibraryView: View {
         }
         showingModelInUseAlert = true
         return true
+    }
+}
+
+// MARK: - Search (#1447)
+
+/// The Model Library search box. Every whitespace-separated word must match
+/// (AND), case-insensitively, as a substring of the display name, the provider
+/// name, the tag or the model id, so `nemotron latin` finds only "Nemotron 3.5
+/// (Latin)" and `base.en` finds "Base (English-only)".
+enum ModelLibrarySearch {
+    static func matches(_ model: LibraryModel, query: String) -> Bool {
+        let words = query.lowercased().split(whereSeparator: \.isWhitespace)
+        if words.isEmpty { return true }
+        let fields = [
+            model.displayName,
+            model.providerKey.displayName,
+            model.tag ?? "",
+            modelId(of: model),
+        ].map { $0.lowercased() }
+        return words.allSatisfy { word in fields.contains { $0.contains(word) } }
+    }
+
+    /// The model id the Local API and docs show (`base.en`, `gpt-4o-transcribe`):
+    /// the row id without the prefix `ModelLibraryManager` adds to keep rows
+    /// unique, so a word like "cloud" or "pp" does not match every row.
+    static func modelId(of model: LibraryModel) -> String {
+        var prefixes = ["whisper-", "parakeet-", "nemotron-", "qwen3-asr-", "local-llm-"]
+        switch model.providerKey {
+        case .cloud(let provider): prefixes.insert("cloud-tx-\(provider.rawValue)-", at: 0)
+        case .postProcessing(let provider): prefixes.insert("pp-\(provider.rawValue)-", at: 0)
+        default: break
+        }
+        guard let prefix = prefixes.first(where: { model.id.hasPrefix($0) }) else { return model.id }
+        return String(model.id.dropFirst(prefix.count))
     }
 }

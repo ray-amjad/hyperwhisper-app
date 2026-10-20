@@ -936,6 +936,9 @@
 "transcription.error.providerNotAvailable.provider" = "%@ не е наличен. Проверете настройките си и опитайте отново.";
 "transcription.error.providerNotAvailable.detail" = "%@ не е наличен: %@";
 "transcription.error.modelNotDownloaded" = "Моля, първо изтеглете модел";
+"transcription.error.modelNotDownloaded.modelAndMode" = "Режимът %1$@ използва модела %2$@, който не е изтеглен. Изтеглете го от Библиотека с модели.";
+"transcription.error.modelNotDownloaded.model" = "Моделът %1$@ не е изтеглен. Изтеглете го от Библиотека с модели.";
+"transcription.error.openModelLibrary" = "Отвори Библиотека с модели";
 "transcription.error.modelProtected" = "Този модел не може да бъде изтрит";
 "transcription.error.audioFileNotFound" = "Аудио файлът не е намерен";
 "transcription.error.network.detail" = "Мрежова грешка: %@";

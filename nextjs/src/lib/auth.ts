@@ -5,6 +5,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/src/db";
+import { env } from "@/src/env/server.mjs";
 import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
 import { sha256Hex } from "@/lib/shared/sha256";
 import { redactAddresses } from "@/lib/shared/redact";
@@ -73,7 +74,7 @@ function resendErrorFieldsOf(error: unknown): {
 }
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL: env.BETTER_AUTH_URL,
   database: drizzleAdapter(db, { provider: "pg" }),
   // Explicit session config: Better Auth's defaults are a 7-day `expiresIn`
   // with a 1-day `updateAge`, which signed active users out after a hard week.

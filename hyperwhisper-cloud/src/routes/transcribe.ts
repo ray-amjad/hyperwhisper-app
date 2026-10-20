@@ -504,7 +504,7 @@ async function handleTranscribe(c: Context) {
 
   // All providers in the chain failed.
   if (!result) {
-    return providerChainFailureResponse({
+    const failure = providerChainFailureResponse({
       requestId,
       startTime,
       provider,
@@ -515,6 +515,18 @@ async function handleTranscribe(c: Context) {
       lastAuthError,
       sawUnavailable,
     });
+    // providerChainFailureResponse logged `lastInputError.message`, which is
+    // content-free (#2163). The client's 400 keeps the upstream's own wording
+    // (`clientMessage`) so the user still sees which language or format was
+    // refused. Same branch condition and body as the 400 it built, message
+    // aside; nothing else about the response changes.
+    if (!lastAuthError && lastInputError && !sawUnavailable && lastInputError.clientMessage !== lastInputError.message) {
+      return errorResponse(400, 'Transcription input rejected',
+        `No transcription provider accepted this request: ${lastInputError.clientMessage}`,
+        { requestId, provider },
+      );
+    }
+    return failure;
   }
   return completeTranscription({
     c,
