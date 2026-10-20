@@ -57,6 +57,29 @@ function rowToPost(row: BlogPostRow): BlogPost {
   };
 }
 
+/**
+ * True while `next build` prerenders, false in the server that serves and
+ * revalidates the built pages. The same test as src/content/latency.ts; read at
+ * call time rather than module load, so both paths can be exercised in one
+ * test process.
+ */
+function isBuildPrerender(): boolean {
+  return process.env.NEXT_PHASE === "phase-production-build";
+}
+
+/**
+ * A database failure is handled the way getLatencyMatrix handles it (#2072):
+ *
+ *  - During `next build` it is logged and the blog ships empty, so a deploy
+ *    does not depend on Postgres being reachable from the builder. The first
+ *    revalidation fills it in.
+ *  - At runtime it propagates. Next caches a returned value as a good render,
+ *    so an empty list during a background revalidation would replace the blog
+ *    with "No posts yet.", 404 every post and drop them from the sitemap.
+ *    Throwing keeps the last good page in the ISR cache.
+ *
+ * An empty TABLE is not a failure: no rows renders "No posts yet." on both.
+ */
 async function readAllPosts(): Promise<BlogPost[]> {
   try {
     const rows = await db
@@ -67,7 +90,11 @@ async function readAllPosts(): Promise<BlogPost[]> {
       .filter((row) => row.locale === BLOG_LOCALE)
       .map(rowToPost);
   } catch (err) {
-    console.error("[blog] failed to load posts from DB:", err);
+    if (!isBuildPrerender()) throw err;
+    console.error(
+      "[blog] database unreachable while prerendering; shipping no posts and letting revalidation fill them in:",
+      err,
+    );
     return [];
   }
 }
