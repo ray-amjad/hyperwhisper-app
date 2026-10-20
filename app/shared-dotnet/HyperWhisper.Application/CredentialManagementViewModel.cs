@@ -51,9 +51,8 @@ public sealed class CredentialManagementViewModel : ViewModelBase
         try
         {
             var result = _store.Write(Resource, Selected.Account, bytes);
-            Secret = string.Empty;
             if (result.IsFailure) Status.Failure(result.Error!.Code, result.Error.Message);
-            else { Refresh(); Status.Success("Credential saved securely"); }
+            else { Secret = string.Empty; Refresh(); Status.Success("Credential saved securely"); }
         }
         finally { CryptographicOperations.ZeroMemory(bytes); }
         return Task.CompletedTask;

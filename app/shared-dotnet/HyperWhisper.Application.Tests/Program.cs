@@ -1083,6 +1083,14 @@ try
     await credentialViewModel.SaveAsync();
     Assert(credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent
         && credentialViewModel.Secret.Length == 0, "credential UI did not save securely or clear its input");
+    var failingCredentialViewModel = new HyperWhisper.PortableApplication.ViewModels.CredentialManagementViewModel(
+        new FailWriteCredentialStore());
+    failingCredentialViewModel.Selected = failingCredentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey");
+    failingCredentialViewModel.Secret = "typed-key-must-survive-a-failed-write";
+    await failingCredentialViewModel.SaveAsync();
+    Assert(failingCredentialViewModel.Secret == "typed-key-must-survive-a-failed-write"
+        && failingCredentialViewModel.Status.ErrorCode == "credentials.write_failed",
+        "credential UI emptied the typed secret after a failed secure-storage write");
     await credentialViewModel.DeleteAsync();
     Assert(!credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent,
         "credential UI did not delete the stored credential");
