@@ -1,0 +1,407 @@
+name: zz-probe-2160
+on:
+  pull_request: null
+permissions:
+  contents: read
+jobs:
+  aws_image:
+    name: "aws: image copy used"
+    runs-on: windows-latest
+    steps:
+      - name: Install AWS CLI
+        shell: pwsh
+        env:
+          AWSCLI_VERSION: 2.38.2
+          AWSCLI_SHA256: af49ef7bcb88a8215d7118c82fca02cebf7c0a2c1b0900d36959e84daad2dc21
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $aws = Get-Command aws -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($aws) {
+            & $aws.Source --version
+            if ($LASTEXITCODE -ne 0) { $aws = $null }
+          }
+          if (-not $aws) {
+            Write-Host "No working AWS CLI on the runner; installing the pinned $env:AWSCLI_VERSION."
+            $url = "https://awscli.amazonaws.com/AWSCLIV2-$env:AWSCLI_VERSION.msi"
+            $msi = Join-Path $env:RUNNER_TEMP "AWSCLIV2-$env:AWSCLI_VERSION.msi"
+            for ($attempt = 1; ; $attempt++) {
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $msi
+                break
+              } catch {
+                if ($attempt -ge 5) { throw "AWS CLI download failed after $attempt attempts: $_" }
+                $delay = 5 * [math]::Pow(2, $attempt - 1)
+                Write-Warning "AWS CLI download attempt $attempt failed: $_; retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 $msi).Hash
+            if ($hash -ne $env:AWSCLI_SHA256) { throw "AWS CLI MSI SHA-256 $hash does not match the pinned $env:AWSCLI_SHA256" }
+            $proc = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Wait -PassThru
+            if ($proc.ExitCode -notin 0, 3010) { throw "AWS CLI MSI install exited $($proc.ExitCode)" }
+            $bin = Join-Path $env:ProgramFiles 'Amazon\AWSCLIV2'
+            $env:PATH = "$bin;$env:PATH"
+            Add-Content -Path $env:GITHUB_PATH -Value $bin
+          }
+          $resolved = (Get-Command aws -CommandType Application | Select-Object -First 1).Source
+          Write-Host "aws resolves to $resolved"
+          & $resolved --version
+          if ($LASTEXITCODE -ne 0) { throw "aws --version exited $LASTEXITCODE" }
+        id: t
+        continue-on-error: true
+      - name: Tool runs in a later step
+        if: steps.t.outcome == 'success'
+        shell: pwsh
+        run: aws --version; if ($LASTEXITCODE -ne 0) { throw 'aws not runnable' }; (Get-Command aws).Source
+      - name: Assert outcome
+        shell: pwsh
+        run: if ('${{ steps.t.outcome }}' -ne 'success') { throw "expected success, got ${{ steps.t.outcome }}" }; Write-Host 'outcome success as expected'
+  aws_fallback:
+    name: "aws: image hidden -> pinned MSI"
+    runs-on: windows-latest
+    steps:
+      - name: Hide the image copy
+        shell: pwsh
+        run: "$d = Join-Path $env:ProgramFiles 'Amazon\\AWSCLIV2'; if (Test-Path $d) { Rename-Item $d AWSCLIV2-hidden }; $env:PATH -split ';' | ForEach-Object { Write-Host $_ }; if (Get-Command aws -ErrorAction SilentlyContinue) { throw \"aws still on PATH: $((Get-Command aws).Source)\" }; Write-Host 'aws hidden'"
+      - name: Install AWS CLI
+        shell: pwsh
+        env:
+          AWSCLI_VERSION: 2.38.2
+          AWSCLI_SHA256: af49ef7bcb88a8215d7118c82fca02cebf7c0a2c1b0900d36959e84daad2dc21
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $aws = Get-Command aws -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($aws) {
+            & $aws.Source --version
+            if ($LASTEXITCODE -ne 0) { $aws = $null }
+          }
+          if (-not $aws) {
+            Write-Host "No working AWS CLI on the runner; installing the pinned $env:AWSCLI_VERSION."
+            $url = "https://awscli.amazonaws.com/AWSCLIV2-$env:AWSCLI_VERSION.msi"
+            $msi = Join-Path $env:RUNNER_TEMP "AWSCLIV2-$env:AWSCLI_VERSION.msi"
+            for ($attempt = 1; ; $attempt++) {
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $msi
+                break
+              } catch {
+                if ($attempt -ge 5) { throw "AWS CLI download failed after $attempt attempts: $_" }
+                $delay = 5 * [math]::Pow(2, $attempt - 1)
+                Write-Warning "AWS CLI download attempt $attempt failed: $_; retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 $msi).Hash
+            if ($hash -ne $env:AWSCLI_SHA256) { throw "AWS CLI MSI SHA-256 $hash does not match the pinned $env:AWSCLI_SHA256" }
+            $proc = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Wait -PassThru
+            if ($proc.ExitCode -notin 0, 3010) { throw "AWS CLI MSI install exited $($proc.ExitCode)" }
+            $bin = Join-Path $env:ProgramFiles 'Amazon\AWSCLIV2'
+            $env:PATH = "$bin;$env:PATH"
+            Add-Content -Path $env:GITHUB_PATH -Value $bin
+          }
+          $resolved = (Get-Command aws -CommandType Application | Select-Object -First 1).Source
+          Write-Host "aws resolves to $resolved"
+          & $resolved --version
+          if ($LASTEXITCODE -ne 0) { throw "aws --version exited $LASTEXITCODE" }
+        id: t
+        continue-on-error: true
+      - name: Tool runs in a later step
+        if: steps.t.outcome == 'success'
+        shell: pwsh
+        run: aws --version; if ($LASTEXITCODE -ne 0) { throw 'aws not runnable' }; (Get-Command aws).Source
+      - name: Assert outcome
+        shell: pwsh
+        run: if ('${{ steps.t.outcome }}' -ne 'success') { throw "expected success, got ${{ steps.t.outcome }}" }; Write-Host 'outcome success as expected'
+  aws_badsha:
+    name: "aws: image hidden + wrong SHA -> step fails"
+    runs-on: windows-latest
+    steps:
+      - name: Hide the image copy
+        shell: pwsh
+        run: "$d = Join-Path $env:ProgramFiles 'Amazon\\AWSCLIV2'; if (Test-Path $d) { Rename-Item $d AWSCLIV2-hidden }; $env:PATH -split ';' | ForEach-Object { Write-Host $_ }; if (Get-Command aws -ErrorAction SilentlyContinue) { throw \"aws still on PATH: $((Get-Command aws).Source)\" }; Write-Host 'aws hidden'"
+      - name: Install AWS CLI
+        shell: pwsh
+        env:
+          AWSCLI_VERSION: 2.38.2
+          AWSCLI_SHA256: "0000000000000000000000000000000000000000000000000000000000000000"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $aws = Get-Command aws -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($aws) {
+            & $aws.Source --version
+            if ($LASTEXITCODE -ne 0) { $aws = $null }
+          }
+          if (-not $aws) {
+            Write-Host "No working AWS CLI on the runner; installing the pinned $env:AWSCLI_VERSION."
+            $url = "https://awscli.amazonaws.com/AWSCLIV2-$env:AWSCLI_VERSION.msi"
+            $msi = Join-Path $env:RUNNER_TEMP "AWSCLIV2-$env:AWSCLI_VERSION.msi"
+            for ($attempt = 1; ; $attempt++) {
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $msi
+                break
+              } catch {
+                if ($attempt -ge 5) { throw "AWS CLI download failed after $attempt attempts: $_" }
+                $delay = 5 * [math]::Pow(2, $attempt - 1)
+                Write-Warning "AWS CLI download attempt $attempt failed: $_; retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 $msi).Hash
+            if ($hash -ne $env:AWSCLI_SHA256) { throw "AWS CLI MSI SHA-256 $hash does not match the pinned $env:AWSCLI_SHA256" }
+            $proc = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Wait -PassThru
+            if ($proc.ExitCode -notin 0, 3010) { throw "AWS CLI MSI install exited $($proc.ExitCode)" }
+            $bin = Join-Path $env:ProgramFiles 'Amazon\AWSCLIV2'
+            $env:PATH = "$bin;$env:PATH"
+            Add-Content -Path $env:GITHUB_PATH -Value $bin
+          }
+          $resolved = (Get-Command aws -CommandType Application | Select-Object -First 1).Source
+          Write-Host "aws resolves to $resolved"
+          & $resolved --version
+          if ($LASTEXITCODE -ne 0) { throw "aws --version exited $LASTEXITCODE" }
+        id: t
+        continue-on-error: true
+      - name: Assert outcome
+        shell: pwsh
+        run: if ('${{ steps.t.outcome }}' -ne 'failure') { throw "expected failure, got ${{ steps.t.outcome }}" }; Write-Host 'outcome failure as expected'
+  aws_badurl:
+    name: "aws: image hidden + missing version -> retries then fails"
+    runs-on: windows-latest
+    steps:
+      - name: Hide the image copy
+        shell: pwsh
+        run: "$d = Join-Path $env:ProgramFiles 'Amazon\\AWSCLIV2'; if (Test-Path $d) { Rename-Item $d AWSCLIV2-hidden }; $env:PATH -split ';' | ForEach-Object { Write-Host $_ }; if (Get-Command aws -ErrorAction SilentlyContinue) { throw \"aws still on PATH: $((Get-Command aws).Source)\" }; Write-Host 'aws hidden'"
+      - name: Install AWS CLI
+        shell: pwsh
+        env:
+          AWSCLI_VERSION: 2.0.999
+          AWSCLI_SHA256: af49ef7bcb88a8215d7118c82fca02cebf7c0a2c1b0900d36959e84daad2dc21
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $aws = Get-Command aws -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($aws) {
+            & $aws.Source --version
+            if ($LASTEXITCODE -ne 0) { $aws = $null }
+          }
+          if (-not $aws) {
+            Write-Host "No working AWS CLI on the runner; installing the pinned $env:AWSCLI_VERSION."
+            $url = "https://awscli.amazonaws.com/AWSCLIV2-$env:AWSCLI_VERSION.msi"
+            $msi = Join-Path $env:RUNNER_TEMP "AWSCLIV2-$env:AWSCLI_VERSION.msi"
+            for ($attempt = 1; ; $attempt++) {
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $msi
+                break
+              } catch {
+                if ($attempt -ge 5) { throw "AWS CLI download failed after $attempt attempts: $_" }
+                $delay = 5 * [math]::Pow(2, $attempt - 1)
+                Write-Warning "AWS CLI download attempt $attempt failed: $_; retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 $msi).Hash
+            if ($hash -ne $env:AWSCLI_SHA256) { throw "AWS CLI MSI SHA-256 $hash does not match the pinned $env:AWSCLI_SHA256" }
+            $proc = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Wait -PassThru
+            if ($proc.ExitCode -notin 0, 3010) { throw "AWS CLI MSI install exited $($proc.ExitCode)" }
+            $bin = Join-Path $env:ProgramFiles 'Amazon\AWSCLIV2'
+            $env:PATH = "$bin;$env:PATH"
+            Add-Content -Path $env:GITHUB_PATH -Value $bin
+          }
+          $resolved = (Get-Command aws -CommandType Application | Select-Object -First 1).Source
+          Write-Host "aws resolves to $resolved"
+          & $resolved --version
+          if ($LASTEXITCODE -ne 0) { throw "aws --version exited $LASTEXITCODE" }
+        id: t
+        continue-on-error: true
+      - name: Assert outcome
+        shell: pwsh
+        run: if ('${{ steps.t.outcome }}' -ne 'failure') { throw "expected failure, got ${{ steps.t.outcome }}" }; Write-Host 'outcome failure as expected'
+  inno_image:
+    name: "inno: image copy used"
+    runs-on: windows-latest
+    steps:
+      - name: Install Inno Setup 6
+        shell: pwsh
+        env:
+          INNOSETUP_VERSION: 6.7.1
+          INNOSETUP_SHA256: 4d11e8050b6185e0d49bd9e8cc661a7a59f44959a621d31d11033124c4e8a7b0
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          $probeDir = Join-Path $env:RUNNER_TEMP 'iscc-probe'
+          New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
+          $probeIss = Join-Path $probeDir 'probe.iss'
+          Set-Content -Path $probeIss -Value @(
+            '[Setup]',
+            'AppName=ISCC probe',
+            'AppVersion=1.0',
+            'CreateAppDir=no',
+            'Uninstallable=no',
+            "OutputDir=$probeDir",
+            'OutputBaseFilename=iscc-probe'
+          )
+          function Test-Iscc {
+            if (-not (Test-Path $iscc)) { return $false }
+            & $iscc /Q $probeIss | Out-Host
+            return ($LASTEXITCODE -eq 0)
+          }
+          if (-not (Test-Iscc)) {
+            Write-Host "No working Inno Setup 6 on the runner; installing the pinned $env:INNOSETUP_VERSION."
+            $tag = 'is-' + ($env:INNOSETUP_VERSION -replace '\.', '_')
+            $url = "https://github.com/jrsoftware/issrc/releases/download/$tag/innosetup-$env:INNOSETUP_VERSION.exe"
+            $exe = Join-Path $env:RUNNER_TEMP "innosetup-$env:INNOSETUP_VERSION.exe"
+            for ($attempt = 1; ; $attempt++) {
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $exe
+                break
+              } catch {
+                if ($attempt -ge 5) { throw "Inno Setup download failed after $attempt attempts: $_" }
+                $delay = 5 * [math]::Pow(2, $attempt - 1)
+                Write-Warning "Inno Setup download attempt $attempt failed: $_; retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash
+            if ($hash -ne $env:INNOSETUP_SHA256) { throw "Inno Setup installer SHA-256 $hash does not match the pinned $env:INNOSETUP_SHA256" }
+            $proc = Start-Process $exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/ALLUSERS' -Wait -PassThru
+            if ($proc.ExitCode -ne 0) { throw "Inno Setup installer exited $($proc.ExitCode)" }
+            if (-not (Test-Iscc)) { throw "ISCC at $iscc did not compile a probe script after installing Inno Setup $env:INNOSETUP_VERSION" }
+          }
+          Write-Host "Using Inno Setup $((Get-Item $iscc).VersionInfo.ProductVersion) at $iscc"
+        id: t
+        continue-on-error: true
+      - name: Tool runs in a later step
+        if: steps.t.outcome == 'success'
+        shell: pwsh
+        run: $p = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'; if (-not (Test-Path $p)) { throw 'no ISCC where build-release.ps1 looks' }; (Get-Item $p).VersionInfo.ProductVersion
+      - name: Assert outcome
+        shell: pwsh
+        run: if ('${{ steps.t.outcome }}' -ne 'success') { throw "expected success, got ${{ steps.t.outcome }}" }; Write-Host 'outcome success as expected'
+  inno_fallback:
+    name: "inno: image hidden -> pinned installer"
+    runs-on: windows-latest
+    steps:
+      - name: Hide the image copy
+        shell: pwsh
+        run: $d = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6'; if (Test-Path $d) { Rename-Item $d 'Inno Setup 6-hidden' }; if (Test-Path (Join-Path $d 'ISCC.exe')) { throw 'still there' }; Write-Host 'inno hidden'
+      - name: Install Inno Setup 6
+        shell: pwsh
+        env:
+          INNOSETUP_VERSION: 6.7.1
+          INNOSETUP_SHA256: 4d11e8050b6185e0d49bd9e8cc661a7a59f44959a621d31d11033124c4e8a7b0
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          $probeDir = Join-Path $env:RUNNER_TEMP 'iscc-probe'
+          New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
+          $probeIss = Join-Path $probeDir 'probe.iss'
+          Set-Content -Path $probeIss -Value @(
+            '[Setup]',
+            'AppName=ISCC probe',
+            'AppVersion=1.0',
+            'CreateAppDir=no',
+            'Uninstallable=no',
+            "OutputDir=$probeDir",
+            'OutputBaseFilename=iscc-probe'
+          )
+          function Test-Iscc {
+            if (-not (Test-Path $iscc)) { return $false }
+            & $iscc /Q $probeIss | Out-Host
+            return ($LASTEXITCODE -eq 0)
+          }
+          if (-not (Test-Iscc)) {
+            Write-Host "No working Inno Setup 6 on the runner; installing the pinned $env:INNOSETUP_VERSION."
+            $tag = 'is-' + ($env:INNOSETUP_VERSION -replace '\.', '_')
+            $url = "https://github.com/jrsoftware/issrc/releases/download/$tag/innosetup-$env:INNOSETUP_VERSION.exe"
+            $exe = Join-Path $env:RUNNER_TEMP "innosetup-$env:INNOSETUP_VERSION.exe"
+            for ($attempt = 1; ; $attempt++) {
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $exe
+                break
+              } catch {
+                if ($attempt -ge 5) { throw "Inno Setup download failed after $attempt attempts: $_" }
+                $delay = 5 * [math]::Pow(2, $attempt - 1)
+                Write-Warning "Inno Setup download attempt $attempt failed: $_; retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash
+            if ($hash -ne $env:INNOSETUP_SHA256) { throw "Inno Setup installer SHA-256 $hash does not match the pinned $env:INNOSETUP_SHA256" }
+            $proc = Start-Process $exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/ALLUSERS' -Wait -PassThru
+            if ($proc.ExitCode -ne 0) { throw "Inno Setup installer exited $($proc.ExitCode)" }
+            if (-not (Test-Iscc)) { throw "ISCC at $iscc did not compile a probe script after installing Inno Setup $env:INNOSETUP_VERSION" }
+          }
+          Write-Host "Using Inno Setup $((Get-Item $iscc).VersionInfo.ProductVersion) at $iscc"
+        id: t
+        continue-on-error: true
+      - name: Tool runs in a later step
+        if: steps.t.outcome == 'success'
+        shell: pwsh
+        run: $p = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'; if (-not (Test-Path $p)) { throw 'no ISCC where build-release.ps1 looks' }; (Get-Item $p).VersionInfo.ProductVersion
+      - name: Assert outcome
+        shell: pwsh
+        run: if ('${{ steps.t.outcome }}' -ne 'success') { throw "expected success, got ${{ steps.t.outcome }}" }; Write-Host 'outcome success as expected'
+  inno_badsha:
+    name: "inno: image hidden + wrong SHA -> step fails"
+    runs-on: windows-latest
+    steps:
+      - name: Hide the image copy
+        shell: pwsh
+        run: $d = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6'; if (Test-Path $d) { Rename-Item $d 'Inno Setup 6-hidden' }; if (Test-Path (Join-Path $d 'ISCC.exe')) { throw 'still there' }; Write-Host 'inno hidden'
+      - name: Install Inno Setup 6
+        shell: pwsh
+        env:
+          INNOSETUP_VERSION: 6.7.1
+          INNOSETUP_SHA256: "0000000000000000000000000000000000000000000000000000000000000000"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          $probeDir = Join-Path $env:RUNNER_TEMP 'iscc-probe'
+          New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
+          $probeIss = Join-Path $probeDir 'probe.iss'
+          Set-Content -Path $probeIss -Value @(
+            '[Setup]',
+            'AppName=ISCC probe',
+            'AppVersion=1.0',
+            'CreateAppDir=no',
+            'Uninstallable=no',
+            "OutputDir=$probeDir",
+            'OutputBaseFilename=iscc-probe'
+          )
+          function Test-Iscc {
+            if (-not (Test-Path $iscc)) { return $false }
+            & $iscc /Q $probeIss | Out-Host
+            return ($LASTEXITCODE -eq 0)
+          }
+          if (-not (Test-Iscc)) {
+            Write-Host "No working Inno Setup 6 on the runner; installing the pinned $env:INNOSETUP_VERSION."
+            $tag = 'is-' + ($env:INNOSETUP_VERSION -replace '\.', '_')
+            $url = "https://github.com/jrsoftware/issrc/releases/download/$tag/innosetup-$env:INNOSETUP_VERSION.exe"
+            $exe = Join-Path $env:RUNNER_TEMP "innosetup-$env:INNOSETUP_VERSION.exe"
+            for ($attempt = 1; ; $attempt++) {
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $exe
+                break
+              } catch {
+                if ($attempt -ge 5) { throw "Inno Setup download failed after $attempt attempts: $_" }
+                $delay = 5 * [math]::Pow(2, $attempt - 1)
+                Write-Warning "Inno Setup download attempt $attempt failed: $_; retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash
+            if ($hash -ne $env:INNOSETUP_SHA256) { throw "Inno Setup installer SHA-256 $hash does not match the pinned $env:INNOSETUP_SHA256" }
+            $proc = Start-Process $exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/ALLUSERS' -Wait -PassThru
+            if ($proc.ExitCode -ne 0) { throw "Inno Setup installer exited $($proc.ExitCode)" }
+            if (-not (Test-Iscc)) { throw "ISCC at $iscc did not compile a probe script after installing Inno Setup $env:INNOSETUP_VERSION" }
+          }
+          Write-Host "Using Inno Setup $((Get-Item $iscc).VersionInfo.ProductVersion) at $iscc"
+        id: t
+        continue-on-error: true
+      - name: Assert outcome
+        shell: pwsh
+        run: if ('${{ steps.t.outcome }}' -ne 'failure') { throw "expected failure, got ${{ steps.t.outcome }}" }; Write-Host 'outcome failure as expected'
