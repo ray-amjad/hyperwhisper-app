@@ -532,6 +532,22 @@
       ],
       "licensed": false,
       "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY); licence route used fake keys only, all rejected cleanly. core-settings: Codex found 0 but did not check persistence; settings.json + file check found #2023 (autostart path). home-and-tray: minimize + relaunch restores via single-instance; header X quits (no tray host, by design); Codex's only defect = expected unlicensed 401."
+    },
+    {
+      "at": "2026-10-20T02:05:40Z",
+      "platform": "mac",
+      "commit": "c2fa4c3f",
+      "routes": [
+        "home-and-tray",
+        "history-and-backup",
+        "vocabulary"
+      ],
+      "status": "nothing-found",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "0 Codex defects over 62 steps. Verified by sqlite3 -readonly: History delete removed 1 ZTRANSCRIPT (75->74); vocab add/duplicate-reject/edit/long entry all persisted in HyperWhisper-Cloud.sqlite (edit = delete+insert by design, VocabularyView.swift:493). Settings export reported success. Lead not filed: percy profile holds 23 ZRECORDINGSESSION rows with status 'recording', endTime set, no transcript (from killed verify apps) shown as blank/'Failed 0m 0s' History rows. Screen had ~20 stacked keychain prompts: kill -9 the percy SecurityAgent clears them at once."
     }
   ]
 }
