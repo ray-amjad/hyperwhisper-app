@@ -1700,6 +1700,166 @@ internal static class Program
                     "invalid WaveIn device ID was accepted");
             });
 
+            // Settings -> Sound microphone picker: ONE saved choice
+            // (SettingsService.LastSelectedMicrophone, a WaveIn NAME) resolved
+            // against the connected devices; unplugged falls back to the Windows
+            // default and keeps the choice.
+            Run("Microphone names match across the WaveIn 31-character truncation", () =>
+            {
+                const string full = "Microphone (Scarlett 2i2 USB Audio Interface)";
+                var truncated = full[..MicrophoneSelection.WaveInNameLimit];
+                Assert(MicrophoneSelection.NamesMatch(truncated, full), "a 31-char WaveIn name must match its full Core Audio name");
+                Assert(MicrophoneSelection.NamesMatch(full, truncated), "matching is symmetric");
+                Assert(MicrophoneSelection.NamesMatch("microphone (realtek(r) audio)", "Microphone (Realtek(R) Audio)"), "case is ignored");
+                Assert(!MicrophoneSelection.NamesMatch("Microphone", "Microphone (Realtek(R) Audio)"),
+                    "a SHORT name is never a prefix match: it was not truncated");
+                Assert(!MicrophoneSelection.NamesMatch(null, "Mic"), "null never matches");
+                Assert(!MicrophoneSelection.NamesMatch("  ", "  "), "blank never matches");
+
+                var devices = new List<AudioDeviceService.AudioDevice>
+                {
+                    new(0, "Microphone (Realtek(R) Audio)"),
+                    new(1, truncated),
+                };
+                Assert(MicrophoneSelection.FindByName(devices, full)?.DeviceNumber == 1, "a full name finds its truncated WaveIn row");
+                Assert(MicrophoneSelection.FindByName(devices, "Microphone (Realtek(R) Audio)")?.DeviceNumber == 0, "an exact name wins");
+                Assert(MicrophoneSelection.FindByName(devices, "Headset (Jabra)") is null, "an absent name finds nothing");
+
+                var twins = new List<AudioDeviceService.AudioDevice>
+                {
+                    new(0, truncated),
+                    new(1, "MICROPHONE (SCARLETT 2I2 USB AUDIO"[..MicrophoneSelection.WaveInNameLimit]),
+                };
+                Assert(MicrophoneSelection.FindByName(twins, full) is null,
+                    "two rows matching one full name is ambiguous: pick neither rather than guess");
+            });
+
+            Run("Microphone resolution: saved if connected, else the Windows default, choice kept", () =>
+            {
+                var builtin = new AudioDeviceService.AudioDevice(0, "Microphone (Realtek(R) Audio)");
+                var usb = new AudioDeviceService.AudioDevice(1, "Scarlett 2i2 USB");
+                var devices = new List<AudioDeviceService.AudioDevice> { builtin, usb };
+
+                // The Windows default, asked of Core Audio, mapped to a WaveIn row.
+                Assert(MicrophoneSelection.ResolveDefault(devices, "Scarlett 2i2 USB", -1) == usb, "default by name");
+                Assert(MicrophoneSelection.ResolveDefault(devices, "Renamed by the driver", 1) == usb, "default by endpoint ordinal when no name matches");
+                Assert(MicrophoneSelection.ResolveDefault(devices, null, -1) == builtin, "first row only when Windows names nothing");
+                Assert(MicrophoneSelection.ResolveDefault(new List<AudioDeviceService.AudioDevice>(), "x", 0) is null, "no devices, no default");
+
+                var saved = MicrophoneSelection.Resolve(devices, "Scarlett 2i2 USB", builtin);
+                Assert(saved.Source == MicrophoneSource.Saved && saved.Device == usb, "a connected saved device is used");
+                Assert(!saved.IsSavedMissing, "and it is not missing");
+
+                var followsDefault = MicrophoneSelection.Resolve(devices, null, usb);
+                Assert(followsDefault.Source == MicrophoneSource.SystemDefault && followsDefault.Device == usb,
+                    "nothing saved follows the Windows default, NOT the first device");
+                Assert(MicrophoneSelection.Resolve(devices, "  ", usb).Source == MicrophoneSource.SystemDefault, "a blank name is nothing saved");
+
+                var unplugged = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice> { builtin }, "Scarlett 2i2 USB", builtin);
+                Assert(unplugged.Source == MicrophoneSource.SavedMissingUsingDefault, "an unplugged saved device falls back");
+                Assert(unplugged.Device == builtin, "to the Windows default");
+                Assert(unplugged.SavedName == "Scarlett 2i2 USB", "and the choice is KEPT for when it comes back");
+
+                var back = MicrophoneSelection.Resolve(devices, unplugged.SavedName, builtin);
+                Assert(back.Source == MicrophoneSource.Saved && back.Device == usb, "re-plugged, the next resolve uses it again");
+
+                var none = MicrophoneSelection.Resolve(new List<AudioDeviceService.AudioDevice>(), "Scarlett 2i2 USB", null);
+                Assert(none.Source == MicrophoneSource.None && none.Device is null && none.SavedName == "Scarlett 2i2 USB",
+                    "no devices: nothing to open, the choice still kept");
+
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.Saved) == AudioDeviceSelectionReason.StartupSaved, "startup saved slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Refresh, MicrophoneSource.SavedMissingUsingDefault) == AudioDeviceSelectionReason.RefreshSavedMissing, "refresh missing slug");
+                Assert(AudioDeviceSelectionReason.For(AudioDeviceSelectionReason.Phase.Startup, MicrophoneSource.None) == AudioDeviceSelectionReason.StartupNoDevices, "startup none slug");
+                foreach (var slug in new[]
+                {
+                    AudioDeviceSelectionReason.StartupSaved, AudioDeviceSelectionReason.StartupSystemDefault,
+                    AudioDeviceSelectionReason.StartupSavedMissing, AudioDeviceSelectionReason.RefreshSaved,
+                    AudioDeviceSelectionReason.RefreshSystemDefault, AudioDeviceSelectionReason.RefreshSavedMissing,
+                })
+                {
+                    Assert(AudioDeviceSelectionReason.Normalize(slug) == slug, $"{slug} survives diagnostics normalisation");
+                }
+            });
+
+            Run("Microphone picker rows: Default first, (not connected) kept and selected", () =>
+            {
+                var builtin = new AudioDeviceService.AudioDevice(0, "Microphone (Realtek(R) Audio)");
+                var usb = new AudioDeviceService.AudioDevice(1, "Scarlett 2i2 USB");
+                var both = new List<AudioDeviceService.AudioDevice> { builtin, usb };
+
+                var (rows, selected) = MicrophoneSelection.BuildOptions(both, MicrophoneSelection.Resolve(both, null, builtin));
+                Assert(rows.Count == 3, $"Default + 2 devices, got {rows.Count}");
+                Assert(rows[0].IsDefault && rows[0].Name is null, "the Default row is first and saves nothing");
+                Assert(rows[0].Label == HyperWhisper.Localization.Loc.S("settings.sound.microphone.default", builtin.Name),
+                    "the Default row names the current Windows default");
+                Assert(rows[0].Label.Contains(builtin.Name), "with the device name in it");
+                Assert(selected == rows[0], "nothing saved selects Default");
+
+                (rows, selected) = MicrophoneSelection.BuildOptions(both, MicrophoneSelection.Resolve(both, usb.Name, builtin));
+                Assert(selected.Name == usb.Name && !selected.IsMissing, "a connected saved device selects its row");
+
+                var onlyBuiltin = new List<AudioDeviceService.AudioDevice> { builtin };
+                var unplugged = MicrophoneSelection.Resolve(onlyBuiltin, usb.Name, builtin);
+                (rows, selected) = MicrophoneSelection.BuildOptions(onlyBuiltin, unplugged);
+                Assert(rows.Count == 3, "Default + the connected device + the missing saved one");
+                Assert(selected.IsMissing && selected.Name == usb.Name, "the missing saved device stays selected");
+                Assert(selected.Label == MicrophoneSelection.NotConnectedLabel(usb.Name), "labelled (not connected)");
+                Assert(selected.Label.Contains(usb.Name) && selected.Label != usb.Name, "and the label adds to the name");
+
+                var message = MicrophoneSelection.FallbackMessage(unplugged);
+                Assert(message != null && message.Contains(builtin.Name) && message.Contains(usb.Name),
+                    $"the amber line names the fallback and the saved device, got '{message}'");
+                Assert(MicrophoneSelection.FallbackMessage(MicrophoneSelection.Resolve(both, usb.Name, builtin)) is null,
+                    "no amber line while the saved device is connected");
+
+                var nameless = MicrophoneSelection.DefaultLabel(null);
+                Assert(nameless == HyperWhisper.Localization.Loc.S("onboarding.mic.device.systemDefault"),
+                    "with no named Windows default the row reads System Default");
+            });
+
+            Run("Microphone Test meter: shared level maths, idle bar empty", () =>
+            {
+                var silence = new byte[3200];
+                Assert(AudioLevelMath.NextLevel(silence, silence.Length, 0f) == 0f, "silence from idle reads zero");
+                var decayed = AudioLevelMath.NextLevel(silence, silence.Length, 0.8f);
+                Assert(decayed > 0f && decayed < 0.8f, "silence after speech decays, it does not drop");
+
+                var loud = new byte[3200];
+                for (var i = 0; i + 1 < loud.Length; i += 2)
+                {
+                    BitConverter.GetBytes((short)(i % 4 == 0 ? 30000 : -30000)).CopyTo(loud, i);
+                }
+                Assert(AudioLevelMath.NextLevel(loud, loud.Length, 0f) > 0.9f, "a loud buffer attacks at once");
+                Assert(AudioLevelMath.NextLevel(loud, 1, 0f) == 0f, "a buffer with no whole sample is silence");
+
+                Assert(SegmentedLevelBar.LitSegments(0.9f, 24, active: false) == 0, "idle: every segment grey");
+                Assert(SegmentedLevelBar.LitSegments(0f, 24, active: true) == 0, "running and silent: none lit");
+                Assert(SegmentedLevelBar.LitSegments(0.5f, 24, active: true) == 12, "half lights half");
+                Assert(SegmentedLevelBar.LitSegments(7f, 24, active: true) == 24, "clamped at full");
+                Assert(SegmentedLevelBar.LitSegments(float.NaN, 24, active: true) == 0, "NaN lights nothing");
+                Assert(MicrophonePickerViewModel.TestDuration == TimeSpan.FromSeconds(10), "Test runs about 10 s");
+            });
+
+            Run("Every catalog translates the Settings microphone picker strings", () =>
+            {
+                foreach (var key in new[]
+                {
+                    "settings.sound.microphone.subtitle", "settings.sound.microphone.default",
+                    "settings.sound.microphone.notConnected", "settings.sound.microphone.fallback",
+                    "settings.sound.microphone.test", "settings.sound.microphone.stop",
+                })
+                {
+                    var neutral = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, CultureInfo.InvariantCulture);
+                    Assert(!string.IsNullOrWhiteSpace(neutral), $"{key} is missing from Strings.resx");
+                    foreach (var name in ShippedSatelliteCultures())
+                    {
+                        var text = HyperWhisper.Resources.Strings.ResourceManager.GetString(key, new CultureInfo(name));
+                        Assert(!string.IsNullOrWhiteSpace(text) && text != neutral,
+                            $"Strings.{name}.resx does not translate {key}");
+                    }
+                }
+            });
+
             Run("Windows system seams preserve portable metadata", () =>
             {
                 var windowsGpu = new GpuInfoService.GpuInfo

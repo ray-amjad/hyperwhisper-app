@@ -2022,6 +2022,24 @@
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>在兩次錄音之間保持一個安靜的閒置輸入串流，以縮短啟動延遲，對 Bluetooth 麥克風特別有效。</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>僅供 HyperWhisper 使用。重新啟動後仍會保留。</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>預設 · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0}（未連線）</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>正在使用 {0}，直到 {1} 重新連線。</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>測試</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>停止</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>平均速度</value>
   </data>

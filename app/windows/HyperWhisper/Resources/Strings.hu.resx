@@ -2023,6 +2023,24 @@ You can re-download it later.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Csak a HyperWhisper használja. Újraindítás után is megmarad.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Alapértelmezett · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nincs csatlakoztatva)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>A(z) {0} van használatban, amíg a(z) {1} újra nem csatlakozik.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Teszt indítása</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Leállítás</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>
   </data>

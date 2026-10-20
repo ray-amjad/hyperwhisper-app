@@ -16,7 +16,7 @@ namespace HyperWhisper.Services;
 ///
 /// STORED SETTINGS:
 /// - LastSelectedModel: The model file name that was last selected
-/// - LastSelectedMicrophone: The microphone device ID that was last selected (future)
+/// - LastSelectedMicrophone: The saved microphone (a WaveIn device NAME); null follows the Windows default
 ///
 /// FILE FORMAT:
 /// {

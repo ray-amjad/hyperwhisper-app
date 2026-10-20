@@ -2023,6 +2023,24 @@ Sie können es später erneut herunterladen.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Zwischen den Aufnahmen einen stillen Eingabestrom offen halten, um die Startverzögerung zu verringern, besonders bei Bluetooth-Mikrofonen.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Wird nur von HyperWhisper verwendet. Bleibt nach einem Neustart erhalten.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>Standard · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (nicht verbunden)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>{0} wird verwendet, bis {1} wieder verbunden ist.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Testen</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Stoppen</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Durchschnittliche Geschwindigkeit</value>
   </data>

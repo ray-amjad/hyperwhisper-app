@@ -2023,6 +2023,24 @@ You can re-download it later.</value>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>يستخدمه HyperWhisper فقط. يُحفَظ بعد إعادة التشغيل.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>الافتراضي · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (غير متصل)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>يتم استخدام {0} حتى تتم إعادة توصيل {1}.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>اختبار</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>إيقاف</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Average speed</value>
   </data>

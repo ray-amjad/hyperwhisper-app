@@ -2023,6 +2023,24 @@
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
     <value>Держать тихий фоновый входной поток открытым между записями, чтобы уменьшить задержку старта — особенно с Bluetooth-микрофонами.</value>
   </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>Используется только HyperWhisper. Сохраняется после перезапуска.</value>
+  </data>
+  <data name="settings.sound.microphone.default" xml:space="preserve">
+    <value>По умолчанию · {0}</value>
+  </data>
+  <data name="settings.sound.microphone.notConnected" xml:space="preserve">
+    <value>{0} (не подключено)</value>
+  </data>
+  <data name="settings.sound.microphone.fallback" xml:space="preserve">
+    <value>Используется {0}, пока {1} не будет снова подключено.</value>
+  </data>
+  <data name="settings.sound.microphone.test" xml:space="preserve">
+    <value>Проверить</value>
+  </data>
+  <data name="settings.sound.microphone.stop" xml:space="preserve">
+    <value>Остановить</value>
+  </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
     <value>Средняя скорость</value>
   </data>
