@@ -7,6 +7,7 @@
  * reader all run for real.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, test } from "node:test";
 
 import { TRPCError } from "@trpc/server";
@@ -676,8 +677,11 @@ describe("a drizzle error (#1039)", () => {
       "INTERNAL_SERVER_ERROR",
       "Failed to update email",
     );
-    assert.equal(errorLines.length, 1);
+    // The SQLSTATE diagnostic line, then the one `failed` outcome line (#2177).
+    assert.equal(errorLines.length, 2);
     assert.match(errorLines[0], /22P02/);
+    assert.match(errorLines[1], /"event":"admin\.customers\.updateEmail","outcome":"failed"/);
+    assert.match(errorLines[1], /"dbCode":"22P02"/);
     assert.deepEqual(leakyLines(errorLines), []);
   });
 
@@ -692,5 +696,299 @@ describe("a drizzle error (#1039)", () => {
     assert.equal(errorLines.length, 1);
     assert.match(errorLines[0], /22P02/);
     assert.deepEqual(leakyLines(errorLines), []);
+  });
+});
+
+describe("one log line per admin mutation outcome (#2177)", () => {
+  const methods = ["log", "info", "warn", "error", "debug"] as const;
+  type Method = (typeof methods)[number];
+  const real = Object.fromEntries(methods.map((m) => [m, console[m]])) as Record<
+    Method,
+    (...args: unknown[]) => void
+  >;
+  let lines: Array<{ method: Method; text: string }> = [];
+
+  beforeEach(() => {
+    lines = [];
+    for (const method of methods) {
+      console[method] = (...args: unknown[]): void => {
+        lines.push({ method, text: formatLogArgs(args) });
+      };
+    }
+  });
+
+  afterEach(() => {
+    for (const method of methods) console[method] = real[method];
+    // Whatever the case, no line may carry an address or a licence key.
+    for (const { text } of lines) {
+      assert.ok(!text.includes("@"), `a log line carries an address: ${text}`);
+      assert.doesNotMatch(text, /HW(-[A-Z0-9]{4}){4}/);
+    }
+  });
+
+  const hash = (email: string) =>
+    createHash("sha256").update(email).digest("hex").slice(0, 12);
+
+  /** The parsed outcome lines for one mutation, with the console method each used. */
+  function outcomes(name: string): Array<Record<string, unknown> & { method: Method }> {
+    return lines.flatMap(({ method, text }) => {
+      if (!text.startsWith("{")) return [];
+      const parsed = JSON.parse(text) as Record<string, unknown>;
+      return parsed.event === `admin.customers.${name}` ? [{ ...parsed, method }] : [];
+    });
+  }
+
+  function onlyOutcome(name: string): Record<string, unknown> & { method: Method } {
+    const found = outcomes(name);
+    assert.equal(found.length, 1, `expected one ${name} line, got ${JSON.stringify(lines)}`);
+    return found[0];
+  }
+
+  test("grant logs ok with the admin, the new key's id and a hash of the email, never the key", async () => {
+    await callCustomers("grant", "mutation", { email: "friend@example.com" });
+
+    assert.deepEqual(onlyOutcome("grant"), {
+      method: "log",
+      event: "admin.customers.grant",
+      outcome: "ok",
+      adminId: "admin_1",
+      emailHash: hash("friend@example.com"),
+      userId: "user_new",
+      licenseId: "22222222-2222-4222-8222-222222222222",
+      creditsGranted: 5000,
+    });
+  });
+
+  test("grant logs failed, and how far it got, when the key insert fails", async () => {
+    behaviour.insertedLicense = null;
+
+    await rejects(
+      callCustomers("grant", "mutation", { email: "friend@example.com" }),
+      "INTERNAL_SERVER_ERROR",
+    );
+    const line = onlyOutcome("grant");
+    assert.equal(line.method, "error");
+    assert.equal(line.outcome, "failed");
+    assert.equal(line.reason, "INTERNAL_SERVER_ERROR");
+    // The tRPC code is never passed off as a SQLSTATE.
+    assert.equal(line.dbCode, undefined);
+    assert.equal(line.userId, "user_new");
+    assert.equal(line.licenseId, undefined);
+  });
+
+  test("addCredits logs ok with the admin, the amount and the lot's source id", async () => {
+    behaviour.grantBalance = 7_000;
+
+    await callCustomers("addCredits", "mutation", { licenseKeyId: LICENSE_ID, amount: 2_000 });
+
+    assert.deepEqual(onlyOutcome("addCredits"), {
+      method: "log",
+      event: "admin.customers.addCredits",
+      outcome: "ok",
+      adminId: "admin_1",
+      licenseKeyId: LICENSE_ID,
+      amount: 2_000,
+      userId: "user_1",
+      // The id the lot was written with, so the lot can be traced to this admin.
+      sourceId: calls.grantCreditLot[0].sourceId,
+      newBalance: 7_000,
+    });
+  });
+
+  test("addCredits logs rejected NOT_FOUND for an unknown license", async () => {
+    const unknown = "33333333-3333-4333-8333-333333333333";
+    await rejects(
+      callCustomers("addCredits", "mutation", { licenseKeyId: unknown, amount: 100 }),
+      "NOT_FOUND",
+    );
+    assert.deepEqual(onlyOutcome("addCredits"), {
+      method: "warn",
+      event: "admin.customers.addCredits",
+      outcome: "rejected",
+      reason: "NOT_FOUND",
+      adminId: "admin_1",
+      licenseKeyId: unknown,
+      amount: 100,
+    });
+  });
+
+  test("refund logs ok with the admin, the license, the Stripe session and the revoke", async () => {
+    await callCustomers("refund", "mutation", { licenseKeyId: LICENSE_ID, revokeLicense: true });
+
+    assert.deepEqual(onlyOutcome("refund"), {
+      method: "log",
+      event: "admin.customers.refund",
+      outcome: "ok",
+      adminId: "admin_1",
+      licenseKeyId: LICENSE_ID,
+      revokeRequested: true,
+      userId: "user_1",
+      stripeSessionId: "cs_1",
+      paymentRefunded: true,
+      creditsReversed: true,
+      revoked: true,
+    });
+  });
+
+  test("refund logs rejected NOT_FOUND for an unknown license", async () => {
+    await rejects(
+      callCustomers("refund", "mutation", {
+        licenseKeyId: "33333333-3333-4333-8333-333333333333",
+        revokeLicense: false,
+      }),
+      "NOT_FOUND",
+    );
+    const line = onlyOutcome("refund");
+    assert.equal(line.outcome, "rejected");
+    assert.equal(line.reason, "NOT_FOUND");
+    assert.equal(line.adminId, "admin_1");
+  });
+
+  test("refund logs rejected BAD_REQUEST when Stripe has no payment intent", async () => {
+    behaviour.paymentIntent = null;
+
+    await rejects(
+      callCustomers("refund", "mutation", { licenseKeyId: LICENSE_ID, revokeLicense: true }),
+      "BAD_REQUEST",
+    );
+    const line = onlyOutcome("refund");
+    assert.equal(line.outcome, "rejected");
+    assert.equal(line.reason, "BAD_REQUEST");
+    assert.equal(line.paymentRefunded, undefined);
+  });
+
+  test("refund logs failed AFTER the payment was refunded when the credit reversal throws", async () => {
+    behaviour.refundCreditGrantError = leakyDbError("57P01");
+
+    await assert.rejects(
+      callCustomers("refund", "mutation", { licenseKeyId: LICENSE_ID, revokeLicense: true }),
+    );
+    const line = onlyOutcome("refund");
+    assert.equal(line.method, "error");
+    assert.equal(line.outcome, "failed");
+    assert.equal(line.reason, "UNEXPECTED");
+    assert.equal(line.dbCode, "57P01");
+    assert.equal(line.paymentRefunded, true);
+    assert.equal(line.creditsReversed, undefined);
+    assert.equal(line.revoked, undefined);
+  });
+
+  test("updateEmail logs ok with hashes of the old and new address, never either", async () => {
+    behaviour.userById = { id: "user_1", email: "Old@Example.com" };
+
+    await callCustomers("updateEmail", "mutation", {
+      userId: "user_1",
+      newEmail: "New.Person@Example.com",
+    });
+
+    assert.deepEqual(onlyOutcome("updateEmail"), {
+      method: "log",
+      event: "admin.customers.updateEmail",
+      outcome: "ok",
+      adminId: "admin_1",
+      userId: "user_1",
+      newEmailHash: hash("new.person@example.com"),
+      oldEmailHash: hash("old@example.com"),
+      changed: true,
+    });
+  });
+
+  test("updateEmail logs ok with changed: false for a no-op", async () => {
+    behaviour.userById = { id: "user_1", email: "Same@Example.com" };
+
+    await callCustomers("updateEmail", "mutation", {
+      userId: "user_1",
+      newEmail: "same@example.com",
+    });
+    const line = onlyOutcome("updateEmail");
+    assert.equal(line.outcome, "ok");
+    assert.equal(line.changed, false);
+  });
+
+  test("updateEmail logs rejected NOT_FOUND for an unknown customer", async () => {
+    await rejects(
+      callCustomers("updateEmail", "mutation", {
+        userId: "user_missing",
+        newEmail: "moved@example.com",
+      }),
+      "NOT_FOUND",
+    );
+    const line = onlyOutcome("updateEmail");
+    assert.equal(line.outcome, "rejected");
+    assert.equal(line.reason, "NOT_FOUND");
+  });
+
+  test("updateEmail logs rejected CONFLICT for an address another account holds", async () => {
+    behaviour.userById = { id: "user_1", email: "old@example.com" };
+    behaviour.userByEmail = { id: "user_2", email: "taken@example.com" };
+
+    await rejects(
+      callCustomers("updateEmail", "mutation", {
+        userId: "user_1",
+        newEmail: "taken@example.com",
+      }),
+      "CONFLICT",
+    );
+    const line = onlyOutcome("updateEmail");
+    assert.equal(line.method, "warn");
+    assert.equal(line.outcome, "rejected");
+    assert.equal(line.reason, "CONFLICT");
+  });
+
+  test("updateEmail logs rejected CONFLICT on a unique-constraint race", async () => {
+    behaviour.userById = { id: "user_1", email: "old@example.com" };
+    behaviour.updateEmailError = Object.assign(new Error("duplicate key"), { code: "23505" });
+
+    await rejects(
+      callCustomers("updateEmail", "mutation", {
+        userId: "user_1",
+        newEmail: "raced@example.com",
+      }),
+      "CONFLICT",
+    );
+    assert.equal(onlyOutcome("updateEmail").reason, "CONFLICT");
+  });
+
+  test("a Stripe error's own code is not logged as a SQLSTATE", async () => {
+    behaviour.paymentIntent = "pi_1";
+    behaviour.refundCreditGrantError = Object.assign(new Error("Stripe said no"), {
+      code: "charge_already_refunded",
+    });
+
+    await assert.rejects(
+      callCustomers("refund", "mutation", { licenseKeyId: LICENSE_ID, revokeLicense: false }),
+    );
+    const line = onlyOutcome("refund");
+    assert.equal(line.outcome, "failed");
+    assert.equal(line.dbCode, undefined);
+  });
+
+  test("updateEmail logs one failed outcome line with the SQLSTATE for a database failure", async () => {
+    behaviour.userById = { id: "user_1", email: "old@example.com" };
+    behaviour.updateEmailError = leakyDbError("40001");
+
+    await rejects(
+      callCustomers("updateEmail", "mutation", {
+        userId: "user_1",
+        newEmail: "moved@example.com",
+      }),
+      "INTERNAL_SERVER_ERROR",
+      "Failed to update email",
+    );
+    // Its diagnostic line (kind, query, constraint) stays beside the outcome line.
+    assert.equal(lines.length, 2);
+    assert.match(lines[0].text, /Update customer email error:[^]*40001/);
+    const line = onlyOutcome("updateEmail");
+    assert.equal(line.method, "error");
+    assert.equal(line.reason, "INTERNAL_SERVER_ERROR");
+    assert.equal(line.dbCode, "40001");
+  });
+
+  test("an admin-gate refusal writes no outcome line (nothing ran)", async () => {
+    await rejects(
+      callCustomers("refund", "mutation", { licenseKeyId: LICENSE_ID, revokeLicense: true }, null),
+      "UNAUTHORIZED",
+    );
+    assert.deepEqual(outcomes("refund"), []);
   });
 });
