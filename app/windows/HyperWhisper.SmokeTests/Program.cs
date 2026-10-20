@@ -23964,7 +23964,7 @@ internal static class Program
 
             Run("home: a Getting Started row click acts and never ticks or un-ticks it (#638)", () =>
             {
-                // #638. ToggleGettingStartedStep flipped the row on every click: a
+                // #638. The old row command flipped the row on every click: a
                 // second click on a done row took the tick away and skipped the
                 // navigation, a click on Start Recording ticked it with nothing
                 // recorded, and four clicks hid the whole section with no work done.
