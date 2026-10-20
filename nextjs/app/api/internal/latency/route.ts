@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { timingSafeEqualSecret } from "@/lib/security/timing-safe-secret";
 import { latencyIngestRateLimiter } from "@/lib/rate-limit";
+import { countFailOpen } from "@/lib/rate-limit-gate";
 import { bucketForSeconds } from "@/lib/latency/types";
 import { KNOWN_PROVIDERS } from "@/lib/latency/providers";
 import { db } from "@/src/db";
@@ -77,10 +78,13 @@ export async function POST(request: NextRequest) {
   // Keyed by region, not by IP: every machine in one Fly region shares an exit
   // address, so a per-IP limit would throttle the busiest region against itself.
   // This is a runaway-loop backstop, nothing more — the ceiling is far above
-  // real traffic.
+  // real traffic. Fails open: an Upstash outage must not drop the samples (#2136).
   const region = result.samples[0]?.flyRegion ?? "unknown";
-  const { success } = await latencyIngestRateLimiter.limit(region);
-  if (!success) {
+  const rateLimit = await countFailOpen(
+    () => latencyIngestRateLimiter.limit(region),
+    "latency ingest",
+  );
+  if (rateLimit.limited) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 

@@ -24,6 +24,7 @@ import { describeDbError } from "@/lib/shared/db-error";
 import { disposableDomains } from "@/lib/disposable_domains";
 import { emailService } from "@/lib/services/email";
 import { downloadEmailRateLimiter } from "@/lib/rate-limit";
+import { countFailOpen } from "@/lib/rate-limit-gate";
 import { getClientIPFromHeaders } from "./download-ip";
 import { createDisposableDomainCache } from "./download-disposable-domains";
 
@@ -125,11 +126,15 @@ export const downloadRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        // Rate limiting: 10 requests per IP per hour
+        // Rate limiting: 10 requests per IP per hour. Fails open, so an Upstash
+        // outage never keeps a visitor from the download link (#2136).
         const clientIP = getClientIPFromHeaders(ctx.headers);
-        const { success } = await downloadEmailRateLimiter.limit(clientIP);
+        const rateLimit = await countFailOpen(
+          () => downloadEmailRateLimiter.limit(clientIP),
+          "download email",
+        );
 
-        if (!success) {
+        if (rateLimit.limited) {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
             message: "Too many requests. Please try again later.",
